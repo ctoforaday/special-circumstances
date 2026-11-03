@@ -1,17 +1,35 @@
 # A source reading against the report is a gap — the contradiction is deleted
 
-Written against `origin/main` **`0c57758e8`** (EventSchema 52: #1660, a withheld PASS is heard, took 51;
-#1663, the report is the lanes' parts, took 52). #1663 made lanes their own role, `lane` (agent
-`blue-lane`), and renamed `base_ingest` to `report_part`, so the report is the `report_op` stream folded
-from the empty text; #1659 made an exchange begin with blue's act (`lensTurnOn`). Every file:line, symbol,
-census entry and sweep hit below is read at that commit. The references of the round-7 text (read at
-`a31a7b06d`) were carried by a `git diff -U0` line map (`~/.claude/scratch/plan1647-r8/mapref2.py`); every
-reference the map could not carry unchanged — a line those PRs rewrote — was re-read by hand, and every
-sweep and census was re-run at `0c57758e8` (raw output beside the script, `new-*.txt`, `census-new.txt`,
-`phrase-new.txt`). #1644 renamed proof to computation: a `P-` id is a `K-` id, `proof_id` is
-`computation_id`, and every sentence below that speaks of a proof's failed check speaks of a
-computation's. Implements gblock's ruling of 2026-10-30; every fork is RULED (gblock, 2026-10-30 and
-2026-10-31, §Forks). This plan takes EventSchema 53, re-derived at the implementation rebase.
+> **Status: APPROVED by gblock, 2026-11-01. The audit loop ended at round 8 (gblock, 2026-11-01: "Revise
+> once, then implement"); this revision is the last, and nothing audits it. Audit round 8's three gaps,
+> its F12 ruling and its notes are discharged below and carried as REQUIRED TESTS (§III.15). Independent
+> review of the implementation is required before merge.**
+
+Written against `origin/main` **`9ee7ad95e`** (EventSchema 54: #1677, a hearing ends its turn and the
+engine reads the record off the hook, took 53; #1678, the #1677 smoke's fixes, took 54). `origin/main`
+has since moved to `a7485a7ee` by docs only (the repo guide moved to `AGENTS.md`; plan docs; one
+archaeology word): no FEOV code moved and the epoch is still 54, so no reference below moves with it.
+What #1677 changed that this plan reads: petitions and positions are no longer dispatch occasions
+(`Party.Occasions`, `Dispatch.occasions` deleted, `Dispatch` field 4 reserved), the bench hears a filing
+at any barrier where no seat runs, `debate.js` learns state only from `record_read` (written by a
+PreToolUse hook on every seat's envelope) while the chair's plan is still the chair's envelope
+(`debate.js:953-957`), and the client floor is Claude Code 2.1.305. #1678 added `Verify.sha256 = 20`
+(the copy a labelled corroboration read). No disposition below rested on the old dispatch, the old
+bench hearing or an envelope read by `debate.js` (§III.12, "What #1677 and #1678 moved"). The references
+of the round-7 text (read at `0c57758e8`) were carried by a `git diff -U0` line map
+(`~/.claude/scratch/plan1647-r10/mapref2.py`, its attribution of a bare `:N` fixed to the nearest
+preceding file); every reference the map could not carry unchanged — a line those PRs rewrote — was
+re-read by hand, and the word census, the phrase sweep and every sweep of `sweeps.sh` were re-run at
+`9ee7ad95e` (raw output beside the script, `new-*.txt`, `census-new.txt`, `phrase-new.txt`; the field
+sweep `new-mintfields.txt` and the owed-ness sweep `new-fc3.txt` were carried by the map, their files
+unchanged but for line numbers). Two open PRs touch files this plan cites with no overlap in the concept
+— #1672 (the record writes the plan into the chair's envelope) and #1676 (an exchange ends on the lens's
+re-audit); nothing here is derived against an unmerged PR. #1644 renamed proof to computation: a `P-`
+id is a `K-` id, `proof_id` is `computation_id`, and every sentence below that speaks of a proof's
+failed check speaks of a computation's. Implements gblock's ruling of 2026-10-30; every fork is RULED
+(gblock, 2026-10-30, 2026-10-31 and 2026-11-01, §Forks). This plan takes **EventSchema 55**. Field
+numbers, the epoch and every line reference are re-derived at the implementation rebase; none is
+carried from this document.
 
 > **Owner ruling (gblock, 2026-10-30, his words):** "why isn't the contradiction recorded as a gap in
 > the first place like red would for any other problem it finds? We're letting it mint a weird
@@ -27,7 +45,7 @@ opens a **contradiction** (`record/citationid.go:522` `contradictionsOf`): a rec
 id (the reading's `events.id`) that a finding must *raise* (`--about-kind contradiction --about <id>`)
 and that only the gap minted from that finding (`found_by`) *answers*. Until then it is a PASS blocker
 of its own kind (`passblockers.go:35`), a work-list debt of the reader (`sitting.go:374-439`), a
-readiness reason (`dispatch.go:547-553`), and it is exempt from the one-gap-per-class rule
+readiness reason (`dispatch.go:535-541`), and it is exempt from the one-gap-per-class rule
 (`onegapperclass.go:68`) and from the mint budget (`mintbudget.go:301-305`). A reading after the raise
 opens a *new* contradiction (`citationid.go:525-529`), so N readings of one sentence yield N
 contradictions, each owed its own exempt gap: in release-fuzz run 40872228665 (PR #1642's finding),
@@ -37,7 +55,7 @@ contradictions, one gap answered one of them.
 
 Throughout this plan, a **negative reading** is a reading that finds against: it reads the work
 (`VerifyReads` — not `unreachable`, not any outcome of a copy the tool stamped `not_the_work`) and its
-outcome is `refutes` or `absent` (`record.FindsAgainst`, §III.1). A verdict that reads nothing is never
+outcome is `refutes` or `absent` (`record.FindsAgainst`, §III.1). A reading that reads nothing is never
 a negative reading, whatever its `--as`, and mints nothing (§III.2b).
 
 After this change a negative reading **is** the gap: the reading act mints a gap of a real class on the
@@ -65,8 +83,11 @@ drives — is deleted, with no alias and no "formerly" prose.
    included — writes no gap, no footnote and no `carried_by`, and leaves a `verify`'s citation on the
    `unread` failed check; its gap flags are refused. Every reading, `verify`'s included, carries the
    `source_completeness` of the copy it read. A reading's gap carries its argument and its `fix_basis`
-   wherever a plain mint's appear: `show board --json`, the blue work item, the gap view, and the
-   assembled report's gap block and closure index.
+   wherever a plain mint's appear: `show board --json`, the blue work item, the gap view, and docket.md's
+   open-gap block ("minted because" and `fix_basis`) and closure index ("minted because") — never
+   report.md, which prints neither for any gap. The gap is linked to its source (F12): each reading's
+   row in `show evidence` names the gap that carries it (`carried_by`), and docket.md's block for the gap
+   names the source each carrying reading read.
 2. A second negative reading of the same sentence with the same class, while that gap is open, writes the
    reading, writes no gap, and names the standing gap (`gap.minted: false`). Gaps per (class, sentence)
    open at once: **≤ 1**, asserted over every fuzz run by the sweep tally.
@@ -77,7 +98,18 @@ drives — is deleted, with no alias and no "formerly" prose.
    migrated m23, m30, m32 and sqlite-schema-source hold the dispositions §III.9 states; a record written at
    this epoch — a capped lens's refuting reading in it — migrates forward with **0** refusals.
 5. `go -C scripts run ./check`: 0 failed. PR CI's release fuzz (sharded, CI only): 0 failed, with the
-   new gates of §III.11 non-zero.
+   new gates of §III.11 non-zero, and no gap minted by a reading act per run exceeding one per (class,
+   sentence). **This plan removes the contradiction mint loop; it does NOT by itself end the drawn
+   runs' CEILING, and a drawn run ending CEILING is not a failure of this plan.** #1642's own run
+   (40879063345, tally artifacts at `~/.claude/scratch/ceiling/a79063345/`, read for this revision): 37 of
+   40 drawn runs ended CEILING; at their end 32 of the 37 hold a `reopened` blocker or an open gap
+   carrying an unsound judgement (`unsound_proof` 118 of 236 open gaps; `reopened` in 21 runs), and 35 had
+   readied a lens on a reopened or unsound anchor; only 3 of the 21 runs holding an open
+   contradiction-answering gap hold neither. (The brief's "36 of 37" is not reproduced by any of these
+   readings; the measured figures stand.) What this plan owes the fuzz is the DIAGNOSTIC: #1642's four
+   tally fields carried and re-keyed (F7, §III.11), so the next CEILING investigation reads what holds
+   each run off the tally — the run that lands this plan reports, from its PR CI tally, the per-run
+   `final_blockers` and `open_by_found_by` counts beside #1642's above.
 6. One haiku smoke (`--smoke` configuration) in which a lens records a negative reading ends with that
    reading's gap on the board — or the run is reported NOT MEASURED on that path and the real-data drive
    of §V.9 stands in for it.
@@ -98,9 +130,9 @@ is already proven elsewhere (the failed check, §III.3).
 - Go 1.27 (`GOTOOLCHAIN=local` in CI), FEOV tools module `plugins/frank-exchange-of-views/tools`; dev
   tools in `scripts/` (one module). SQLite via modernc; the record is protobuf-declared
   (`internal/record/recordpb/record.proto`) with SQL generated by `scripts/protogen` and the epoch by
-  `scripts/schemagen` from `plugins/frank-exchange-of-views/requirements.json` (`"eventSchema": 52`).
-- **Epoch.** `origin/main` is at EventSchema 52 (#1660 took 51, #1663 took 52). This plan takes
-  **EventSchema 53**, and re-derives the number from `origin/main` at the implementation rebase; the
+  `scripts/schemagen` from `plugins/frank-exchange-of-views/requirements.json` (`"eventSchema": 54`).
+- **Epoch.** `origin/main` is at EventSchema 54 (#1677 took 53, #1678 took 54). This plan takes
+  **EventSchema 55**, and re-derives the number from `origin/main` at the implementation rebase; the
   number is never carried from this document.
 - **The `lane` role (#1663).** Lanes perform no reading, mint no gap and hold no failed check (§III.12,
   "The `lane` role"); their agent definition regenerates because it inlines the tool's `manual`.
@@ -119,14 +151,15 @@ is already proven elsewhere (the failed check, §III.3).
   `GapClass` gains one value (F1); `SourceOutcome` gains a facet naming the classes each negative
   outcome admits (F1); `Verify` gains `carried_by` (references `mint.gap_id`) and `carrier_minted`; `Anchor` gains
   `sentence_of` (a marker placed at the end of the sentence another anchor's token sits in, found by
-  that token's identity, §III.2a); `Mint` is unchanged.
+  that token's identity, §III.2a); `Mint` is unchanged. `show evidence`'s verification row gains
+  `carried_by` (F12, §III.2c), and its `Refuted()` becomes `FindsAgainst()` (GAP 2).
 - **Existing mechanisms reused, not invented:** the one-gap rule (`onegapperclass.go`, eb0c5a99f), the
   failed-check state and its close gate (`failedcheck.go`, `requireFailedCheckAnswered`), the class's
   `material_default` stamped at write (`Mint.class_material`, `recordpb/gapclass.go:18`), the
   placed-append that already writes two events in one act (`seat.AppendPlaced`, used by corroborate's
   footnote), the one-gap rule's `heldGap` (`onegapperclass.go:100`, the open gap it names), the
   exact-span edit that replay locates byte for byte (`BlueEdit.exact_span`, `reportproj/render.go:89-97`),
-  and replay-time reference translation in migrate (`migrate/replay.go:395-406`).
+  and replay-time reference translation in migrate (`migrate/replay.go:391-402`).
 - **Materiality** is the class's: `material_default` on the `GapClass` value, stamped by the write path
   onto `Mint.class_material`, never set by a seat. Every class this plan admits for a reading
   (`claim_contradicts_source`, `citation_figure_misattribution`, `within_source_condition_misattribution`)
@@ -154,7 +187,7 @@ is already proven elsewhere (the failed check, §III.3).
 |---|---|---|
 | 1. One class or two | A new `claim_contradicts_source` for `refutes`; the existing `citation_figure_misattribution` narrowed to `absent`; the lens picks among the classes its outcome allows | **F1** RULED |
 | 1a. Which readings mint | A reading that FINDS AGAINST: it reads the work (`VerifyReads`: not `unreachable`, not a `not_the_work` copy) AND its outcome has `gap_classes`, less a corroboration's `absent` (F5). One predicate, `record.ReadingGapClasses`, decided after the tool stamps the copy's completeness; every site in §III.2b's sweep calls it, none decides by outcome alone | — |
-| 1a′. The completeness stamp | `verify` stamps `source_completeness` from the run's cache entry for the cited url, as `corroborate` does for its `--url`; today it stamps nothing (`verify.go:494`, guarded by `body.GetUrl()`), so a `verify` of a `not_the_work` copy counts as a reading. EVERY reading of a `not_the_work` copy is unread — mints no gap, no footnote, holds the PASS through the citation's `unread` check and owes that check's gap — a BACKING one included | **GAP 1** RULED |
+| 1a′. The completeness stamp | `verify` stamps `source_completeness` from the run's cache entry for the cited url, as `corroborate` does for its `--url`; today it stamps nothing (`verify.go:495`, guarded by `body.GetUrl()`), so a `verify` of a `not_the_work` copy counts as a reading. EVERY reading of a `not_the_work` copy is unread — mints no gap, no footnote, holds the PASS through the citation's `unread` check and owes that check's gap — a BACKING one included | **GAP 1** RULED |
 | 1b. Who names class, quote, problem | Quote = the reading's claim (the tool already reads it for `verify`, by its anchor; `corroborate`'s `--quote`). Class = the lens's `--class`, refused outside the outcome's admitted set. Problem, check, check-kind, severity, likelihood, impact = the lens's flags on the reading act, required on a reading that finds against (1a) and refused on any other; fix, new text and complexity optional as on `mint`, and refused on any other | **F2** RULED |
 | 1b′. The gap's argument and its other fields | The reading act takes `--reason` as plain mint does: its text is the gap's `mint_reason` as well as the reading's `Verify.text`, and required when the reading finds against. `fix_basis` defaults to `proposed`, as for mint. Every field `lens mint` sets has a disposition (§III.2's field table); no reader path is added | **F11** RULED |
 | 1c. Where the gap stands | `verify`: at the end of the sentence its `--anchor` token sits in — where every gap's token stands, at its quote's end — found by that token's identity (`Anchor.sentence_of`), never by searching the sentence's text. `corroborate` names no anchor: its gap stands at its `--quote`, and a quote the report holds more than once is refused, as every text placement is | **F9** RULED |
@@ -162,15 +195,17 @@ is already proven elsewhere (the failed check, §III.3).
 | 1d. Materiality | The class's `material_default` (both `always`), stamped at the write as for every gap | — |
 | 1e. Estoppel | A reading's gap is EXEMPT: the reading verbs attach no `requireNotEstopped`, also where the sentence is text blue applied verbatim from a red `--new`. The gap opens; a `verify`'s failed check, and a `corroborate`'s material gap, hold the PASS. The exemption and its reason are stated wherever estoppel is taught or enforced (§III.2) | **F10** RULED |
 | 2. Duplicate | The reading is kept and the one-gap rule refuses the *mint*; `Verify.carried_by` names the standing gap | **F3** RULED |
-| 3. Backing re-check | Found-against is a third **failed-check** state beside unread/unsound. It holds the PASS until its reader's own later reading backs the sentence, blue edits the sentence, or blue retires the citation; another lens's backing reading clears nothing. The lens's close of its gap is refused while it stands (`requireFailedCheckAnswered`); a closing docket ruling closes the gap and the check still holds the PASS. Once it clears, the minting lens closes the gap with its ordinary close. No new answer kind | **F4**, **F8** RULED |
+| 3. Backing re-check | Found-against is a third **failed-check** state beside unread/unsound. It holds the PASS until its reader's own later reading backs the sentence, blue edits the sentence, or blue retires the citation; another lens's backing reading clears nothing. The lens's close of its gap is refused while it stands (`requireFailedCheckAnswered`); a closing docket ruling closes the gap and the check still holds the PASS. Once it clears, the minting lens closes the gap with its ordinary close (on main; #1657 Part 1a′, landing after this plan, adds its `source` demand on top, §III.16). No new answer kind | **F4**, **F8** RULED |
 | Corroboration `absent` | Records the reading; mints no gap | **F5** RULED |
 | Archived corroboration readings | An archived negative corroboration has no anchor, so after the change it holds no failed check and no PASS: the loss is accepted and stated per archive (§III.9) | **GAP 2** RULED |
 | Mint budget | A gap a reading mints is outside the mint budget: it takes no mint and does not count while open; the "answers its own raise" exemption is deleted | **F6** RULED |
 | 4. Delete | Everything in the census (§III.12) | — |
 | 5. migrate | One translation, §III.9 | — |
-| 6. Epoch | 53, re-derived at rebase | — |
+| 6. Epoch | 55, re-derived at rebase | — |
 | 7. PR #1642 | Closed as superseded; its four diagnostic tally fields are carried into this PR (§III.11) | **F7** RULED |
 | 8. Delivery | ONE PR, implemented one phase per fresh agent (§III.14) | RULED |
+| 9. The gap's link to its source | `carried_by` printed on `show evidence`'s rows and docket.md's source line (§III.2c) | **F12** RULED |
+| 10. #1657 | This plan governs a refuting reading and lands first; 1a′ builds its `source` demand on `carried_by` (§III.16) | RULED |
 
 ### III.1 Record enums and messages — `internal/record/recordpb/record.proto` [MODIFY] (contract: event schema)
 
@@ -183,7 +218,7 @@ is already proven elsewhere (the failed check, §III.3).
   otherwise than the sentence, or not say it at all?". [MODIFY] `citation_figure_misattribution`'s means
   drops "or contradicted by" (it becomes the citation that does not back its sentence: absent from its
   text, a different document, a sentence the source is not about); [MODIFY] `unsourced_claim`'s
-  distinguisher stops saying "says something else". Name grep (CLAUDE.md naming rule) run at `0c57758e8`:
+  distinguisher stops saying "says something else". Name grep (AGENTS.md naming rule) run at `9ee7ad95e`:
   `contradicts_source` has 0 hits; value 31 is free (`GAP_CLASS_UNCLASSIFIED = 30` is the last); the sibling `claim_contradicts_own_record` is the parallel the name
   follows (report vs record → report vs source).
 - `SourceOutcome`: [NEW] facet `(gap_classes)` on `REFUTES` (`claim_contradicts_source`,
@@ -192,25 +227,27 @@ is already proven elsewhere (the failed check, §III.3).
   an OUTCOME admits; it does not say a reading mints, because an outcome of a copy that is not the work
   reads nothing (`VerifyReads`, `anchorchecks.go:284-289`, on the `source_completeness` the tool stamps
   from the run's cache — on every reading once §III.2 makes `verify` stamp it; today only a
-  corroboration carries it, `verify.go:494`).
+  corroboration carries it, `verify.go:495`).
   So the record declares two predicates over the stored `Verify`, and no site decides from `outcome`
   alone:
   - [NEW] `record.FindsAgainst(v) bool` = `VerifyReads(v)` and the outcome has `gap_classes`. It
     replaces `contradicts()` (`citationid.go:704`) and is the ledger's found-against test
     (`anchorchecks.go:260-261`: `holds = reads && !FindsAgainst`, found against = `FindsAgainst`), so a
     value added to the enum cannot fall between the reading rule and the anchor ledger. Name grep at
-    `0c57758e8`: `FindsAgainst` 0 hits; it extends the ledger's own term (`stateFoundAgainst`,
+    `9ee7ad95e`: `FindsAgainst` 0 hits; it extends the ledger's own term (`stateFoundAgainst`,
     `CitationsFoundAgainst`) in the same sense.
   - [NEW] `record.ReadingGapClasses(v) []recordpb.GapClass` = the classes this reading's gap may take:
     nil unless `FindsAgainst(v)`; nil for a corroboration's `absent` (no `anchor`, F5); else the
     outcome's `gap_classes`. "This reading mints" is `len(ReadingGapClasses(v)) > 0`, everywhere. Name
-    grep at `0c57758e8`: `ReadingGapClasses` and `gap_classes` 0 hits (`archivedGapClasses` in
+    grep at `9ee7ad95e`: `ReadingGapClasses` and `gap_classes` 0 hits (`archivedGapClasses` in
     `migrate/gapclass.go` is the archived-slug table, another sense). The `REFUTES`/
   `ABSENT` `(means)` lose "the strongest finding this verb can carry" in favour of "mints a gap".
   `within_source_condition_misattribution` is admitted because both archived answering gaps (m30
   `G-dc877265`, m32 `G-f417112d`) were minted in it by the lens that read the source.
-- `Verify`: [NEW] `optional string carried_by = 20 [(sql) = { references: "mint.gap_id" }]` and
-  `optional bool carrier_minted = 21` (field numbers 1-19 are taken; 18 is `copy_substitution`).
+- `Verify`: [NEW] `optional string carried_by = 21 [(sql) = { references: "mint.gap_id" }]` and
+  `optional bool carrier_minted = 22` (field numbers 1-20 are taken: 18 is `copy_substitution`, 20 is
+  #1678's `sha256`, the copy a labelled corroboration read — a negative corroboration mints no footnote,
+  so it carries no `sha256`, and its gap is named by `carried_by`).
   `carried_by` is the gap that carries this reading against its sentence: the one the reading minted, or
   the open gap of the reading's class on that sentence that refused the mint. `carrier_minted` is true
   when this reading's own act minted it, false when it names a standing gap. Both are set by the tool,
@@ -219,7 +256,7 @@ is already proven elsewhere (the failed check, §III.3).
   - **Why not `gap_id`.** The idempotency key is matched by field NAME (`record.go:483` `keyFields`,
     `"gap_id"` first, ahead of `anchor` and `url`): a Verify carrying a field named `gap_id` would key
     on the gap instead of its citation or source, and `flags/names.go:402` would print it as `--id`, a
-    flag the reading verbs do not have. Name grep run at `0c57758e8`: `carried_by` and `carrier_minted`
+    flag the reading verbs do not have. Name grep run at `9ee7ad95e`: `carried_by` and `carrier_minted`
     have 0 hits. The names' other readers are swept in §III.12 ("Readers of the new Verify fields").
   - The write-path rules, in `record.go`'s Verify case, not table CHECKs (archived negative readings
     carry neither field, §III.9.2, and replay (`Migrating`) admits them as every other new write rule
@@ -244,7 +281,7 @@ is already proven elsewhere (the failed check, §III.3).
   [REWRITE] with it. The message's comment (`record.proto:1179-1181`, "at the end of its quote
   `location`") [REWRITE]: or at the end of the sentence `sentence_of`'s token sits in. No SQL
   reference: the placement guard (§III.2a) refuses a `sentence_of` whose token the landing report does
-  not hold. Name grep at `0c57758e8`: `sentence_of`/`SentenceOf` 0 hits.
+  not hold. Name grep at `9ee7ad95e`: `sentence_of`/`SentenceOf` 0 hits.
 - migrate's field lists (`migrate/remap.go:108-144`, gated by `TestEveryStringFieldIsInOneList`):
   `Verify.carried_by` and `Anchor.sentence_of` are ids → `idFields` (an archived id equal to the
   value is respelled, as `Verify.anchor` and `Anchor.id` are); `carrier_minted` is a bool and is in no
@@ -252,12 +289,12 @@ is already proven elsewhere (the failed check, §III.3).
 - `Mint`: the `mint_reason` comment (`record.proto:968-978`, "`lens mint` stores --reason here and
   nowhere else") [REWRITE]: `lens mint` and a reading that mints store --reason here. Comments at `record.proto:904-907` [MODIFY] (no kind is refused). No field change.
 - Regenerate: `go -C scripts run ./protogen`, `go -C scripts run ./schemagen`; `requirements.json`
-  `eventSchema` 52 → 53.
+  `eventSchema` 54 → 55.
 
 ### III.2 The reading act — `internal/cli/lens/verify.go` [MODIFY] (contract: CLI flag set; prompt a seat is told)
 
 - **Every reading stamps the completeness of the copy it read (GAP 1, RULED: "verify stamps it").**
-  Today the stamp (`verify.go:491-500`) runs only where `body.GetUrl() != ""`, and `newVerify`
+  Today the stamp (`verify.go:492-501`) runs only where `body.GetUrl() != ""`, and `newVerify`
   (`verify.go:97`) builds `Verify{Anchor}` with no url — the source is `citedURL`'s, passed beside the
   body as `source` — so a `verify` never carries `source_completeness`, `VerifyReads` reads its
   `not_the_work` copy as a reading, and `verify --as refutes` of a sign-in page would mint. [MODIFY]: the
@@ -279,7 +316,7 @@ is already proven elsewhere (the failed check, §III.3).
   the body is non-empty, the seven `mint` requires — `--class`, `--problem`, `--check`, `--check-kind`,
   `--severity`, `--likelihood`, `--impact` — are required, each refusal naming its flag, and `--fix`,
   `--new` and `--complexity` are optional, as on `mint`. Where it is empty, all ten are refused (§III.1) — decided in
-  `writeVerify` AFTER the copy's completeness is stamped (`verify.go:491-500`, keyed on `source` above), never from `--as` at
+  `writeVerify` AFTER the copy's completeness is stamped (`verify.go:492-501`, keyed on `source` above), never from `--as` at
   flag parse. The refusal names why nothing is minted: "a reading that backs the sentence mints
   nothing"; "this copy is not the work (`not_the_work`), so the reading reads nothing of it and mints
   no gap — the citation stands unread, and the gap owed is about its anchor"; "an unreachable source
@@ -287,9 +324,9 @@ is already proven elsewhere (the failed check, §III.3).
   `--class` is refused outside `ReadingGapClasses`, and the refusal lists them. One flag registration
   helper shared by `mint` and the reading verbs, so the two cannot drift — and it registers each flag
   with the description true ON THAT VERB'S PAGE. [NEW] `gapFlags` in `cli/lens/mint.go` holds the four
-  `flags.GradeValue`s, `register(c, subject)` registers the ten flags, and `fill(cmd, text)` builds the
+  `flags.GradeValue`s, `register(c, subject)` registers the ten flags, and `fill(cmd, text, key)` builds the
   body (the field table below), so one function fills a plain mint's Mint and a reading's. Name grep at
-  `0c57758e8`: `gapFlags` 0 hits. Swept: the descriptions `mint.go:265-281` gives these
+  `9ee7ad95e`: `gapFlags` 0 hits. Swept: the descriptions `mint.go:265-281` gives these
   flags, each read for a word the reading verbs do not have or a duty they do not carry:
   - `--new` ("the exact text --quote should become", `:274`) names `--quote`, which `verify` does not
     register — `TestEveryFlagAHelpPageNamesIsOnThatPage` (`cli/deadpath_test.go:356`) fails it. The
@@ -305,16 +342,20 @@ is already proven elsewhere (the failed check, §III.3).
     outcomes that verb mints on, read off the `SourceOutcome` descriptor (`verify`: three; `corroborate`:
     `refutes`' two, since its `absent` mints nothing, F5). `enumhelp` is unchanged, so the parse refuses a
     class outside the union and the page lists it; `ReadingGapClasses` then narrows to the outcome's.
-    `TestEverySetShapedFlagIsEitherDeclaredOrExempt` (`cli/enum_help_test.go:200`) walks the site
-    `verify --class`, which is in no `EnumFields` row: it enters `enforcedElsewhere` with the reason
-    "the reading's Mint's class, from `record.ReadingClassField`; a Verify has no class field". Name grep
-    at `0c57758e8`: `ReadingClassField` 0 hits;
+    `TestEverySetShapedFlagIsEitherDeclaredOrExempt` (`cli/enum_help_test.go:200`) keys a site by the
+    RECORD TYPE the verb writes (`setKey`, `:156-158`), so `corroborate`'s flags fold into `verify`'s,
+    and walks three sites no `EnumFields` row declares, each entering `enforcedElsewhere` (`:72`) with its
+    reason: `verify --class` — "the reading's Mint's class, from `record.ReadingClassField`; a Verify has
+    no class field"; `verify --check-kind` — "the reading's Mint's check kind, parsed by `enumhelp.Flag`
+    over `record.MustEnum("mint", "check_kind")`; a Verify has no check_kind field"; `verify --severity`
+    — `gradeParseTime`, as `mint --severity` is (`:114`). Name grep at `9ee7ad95e`: `ReadingClassField`
+    0 hits;
   - `--problem` ("Your argument for the gap goes in --reason, which the report never prints", `:272`): the
-    first clause is true on the reading verbs, whose `--reason` is that argument (below). They stop at
-    "goes in --reason": the assembled report's gap block prints the argument as "minted because"
-    (`assemble.go:1124`), so the second clause is not repeated on a page that teaches a reading. `mint`'s
-    own text, and `mint.md:23` and its `ReasonIs` row, which say the same, are byte-unchanged: a mismatch
-    this plan finds and does not widen;
+    whole sentence is true on the reading verbs and they keep it unchanged: their `--reason` is that
+    argument (below), and `the report` (the registry's term: report.md) prints no gap's argument — docket.md
+    prints it as "minted because" (`assemble.go:1055`, `:1124`; closure index `:1142`), and `show report`
+    bare prints neither `mint_reason` nor `fix_basis`. `mint`'s text, `mint.md:23` and `mint`'s `ReasonIs`
+    row are byte-unchanged;
   - `--fix`, `--check`, `--check-kind`, `--severity`, `--likelihood`, `--impact`, `--complexity`: true on
     every verb, one text.
   **The conditional requirement is marked.** `--class` and the six others above carry
@@ -339,17 +380,22 @@ is already proven elsewhere (the failed check, §III.3).
   with flag `reason`, so it cannot be the field left blank, and `--reason` is already REQUIRED on both
   reading verbs: a reading that finds against is refused without it, nothing recorded. `problem` stays
   the only statement of the defect. [NEW] `ReasonIs` rows (`cli/seat/seat.go:1082`) for `verify` and
-  `corroborate`: "what the source says, in your words. Where this reading finds the source against the
-  sentence, the same text is your argument for the gap it mints — kept on the reading and on the gap, the
-  case blue answers and a bench weighs. " + `flags.ReasonNotProcess`. Where the one-gap rule names a
-  standing gap, no Mint is written: the reason stays on the Verify, and the standing gap keeps its own
-  `mint_reason`.
+  `corroborate`: "what the source says, in your words, or, where it could not be read, what you tried.
+  Where this reading mints a gap, the same text is that gap's argument, the case blue answers and a bench
+  weighs; where an open gap of its class already carries the sentence, it stays on your reading alone and
+  that gap keeps its own. " + `flags.ReasonNotProcess`. Where the one-gap rule names a standing gap, no
+  Mint is written: the reason stays on the Verify, and the standing gap keeps its own `mint_reason`.
 - The write: one transaction holding the Mint, the Anchor that places the gap's marker (§III.2a), and
   then the Verify carrying `carried_by` — Mint first, because `carried_by` references `mint.gap_id` and
   the store runs with `foreign_keys(1)`. The Mint's `location` is the reading's claim, anchors stripped
   (`citedSentence` for `verify`, `seat.Location` for `corroborate`), so every reader of a gap's quote
   (the board, the gap view, `report/assemble.go`) reads the sentence as today. `record.go` gains the
-  reading's placed append beside `AppendPlaced` (one `appendOwn` over the three bodies); the Mint passes
+  reading's placed append beside `AppendPlaced` (one `appendOwn` over the three bodies). `appendOwn`
+  returns the FIRST body's event (`record.go:679`), which is now the Mint, and `writeVerify` reads the
+  stored Verify with `recordpb.BodyAs[*recordpb.Verify](ev)` (`verify.go:525`), whose miss is the verb's
+  "written as %T" error: so the reading's append returns every event it wrote (`[]*Event`, Mint and
+  Anchor first when minted, the Verify last), and `writeVerify` reads the Verify off the last and the
+  gap off the stored `carried_by`, never off the first event; the Mint passes
   every mint validation (`record.go:955-980`: unclassified reason, subject, one-gap, budget) in the same
   `writeView`, so the one-gap read and the insert share the write lock (`_txlock=immediate`, as
   `onegapperclass.go:32-35` already relies on).
@@ -358,7 +404,7 @@ is already proven elsewhere (the failed check, §III.3).
   hands the Mint's validation the act's paired bodies (its Anchor and its Verify); `requireMintWithinBudget`
   admits a Mint so paired without counting it (§III.5), and the one-gap rule places it by the paired
   Anchor (§III.2a). A plain `mint` has no paired body and is counted and placed as today. Replay
-  writes events one at a time (`migrate/replay.go:452`), so it would hand the Mint no pair: migrate
+  writes events one at a time (`migrate/replay.go:448`), so it would hand the Mint no pair: migrate
   re-drives the reading's act whole through the same placed append (§III.9 item 6), and the Mint's
   validation meets the same paired bodies on replay as live.
 - **Which of `lens mint`'s checks the reading's Mint meets (F10, RULED).** Every rule of `record.go`'s
@@ -380,21 +426,22 @@ is already proven elsewhere (the failed check, §III.3).
   | `--key`: `record.ExistingMintByKey`, `seat.RepeatsKeyed`, `seat.PlaceOwed` (`:164-180`) | NOT TAKEN: the reading verbs take no `--key`; a retry meets the repeat refusal (crash-retry, below) |
   | `record.NewID("gap")` (`:182`) | MET (one id source) |
   | `requireNotEstopped` (`:208`, `record.EstoppelConflict`), and on its refusal the `LOG_TYPE_ESTOPPEL` entry and `record.ToolLogged` (`:211-247`) | **EXEMPT** (F10). Nothing is checked and nothing is logged, so `EstoppelRejectionsOf` and the change log's "Estoppel rejections" (`view/changes.go:93-103`) count lens mints only, and stay true |
-  | `reportvoice.Advised` tells on the result (`:250-260`) | MET: the reading's `gap` result carries `voice_tells` over problem, fix and `--new`, as `mintResult` does |
+  | `reportvoice.Advised` tells on the result (`:250-260`) | MET: the reading's `gap` result carries `voice_tells` over problem, fix and `--new`, and its human text prints them under `mintResult.Human`'s note — "the risk matrix, the first sentence of the problem and of the fix, while the gap is open; the body, a --new replacement blue accepts" (`mint.go:320`) — never `verifyResult`'s "the source's note and Bibliography entry", which words a footnote |
+  | `mintResult.Check` and its echo (`:300-308`, `:324-325`: "acceptance check RECORDED as: … read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint") | MET (GAP 3): the measured shell-corruption defect the echo exists for (quadratic-formula red-merge-r3) reaches a reading's `--check` alike. `readingGap` gains `acceptance_check`, read back from the stored Mint, and the reading's human text prints the same two lines when it mints. A reading that names a standing gap prints no check (none was written) |
   | `seat.Supplies("gap_id")`, `seat.Supplies("class_material")` (`:288-289`) | MET: the reading verbs declare both, beside `carried_by` and `carrier_minted` |
 
   **Every field `lens mint` sets on its body, and every reader of a field the reading leaves unset (F11).**
-  Sweep at `0c57758e8`: every `p.<Field> =` in `newMint` and `verifiedFix` (`mint.go:68-183, :375-376`), the
+  Sweep at `0c57758e8`, carried to `9ee7ad95e` by the line map (`mint.go`'s changes there are #1663 smoke D7's refusal clause and `flags.IDList` for two flags, neither a field set): every `p.<Field> =` in `newMint` and `verifiedFix` (`mint.go:68-183, :380-381`), the
   write path's stamp, and `grep -rnE '<field>|<Getter>'` over the tools tree for each, no tests, every hit
   read (`new-mintfields.txt`). Both verbs fill through `gapFlags.fill`, so these rows are one code path:
 
   | Field (`mint.go`) | The reading's Mint | Readers, where it is unset or defaulted |
   |---|---|---|
-  | `mint_reason` (`:69-71`) | `--reason` | Carried, so `GapJSON.MintReason` (`viewjson.go:129, :448`), the gap view (`views.go:529`) and the report's "minted because" (`assemble.go:1124`, `:1142`) read it as a plain mint's. `requireUnclassifiedReason` (`record.go:1947`): no admitted class is `unclassified`. `redvoice.go:26`: never voice-checked, as on a mint |
-  | `mint_key` (`:72`) | `""`, as a plain mint given no `--key` | `ExistingMintByKey` (`replay.go:368`), whose `keyedAct` returns nil on an empty key (`id.go:47`), so no retry finds it |
+  | `mint_reason` (`:69-71`) | `--reason` | Carried, so `GapJSON.MintReason` (`viewjson.go:129, :448`), the gap view (`views.go:529`) and docket.md's "minted because" (open-gap block `assemble.go:1055` → `:1124`; closure index `:1142`) read it as a plain mint's. `requireUnclassifiedReason` (`record.go:1947`): no admitted class is `unclassified`. `redvoice.go:26`: never voice-checked, as on a mint |
+  | `mint_key` (`:72`) | `proto.String("")` — PRESENT and empty, exactly as a plain mint given no `--key` (`mint.go:72` sets `proto.String(seat.Str(cmd, flags.Key))`). `gapFlags.fill(cmd, text, key)` takes the key as a parameter: `mint` passes `--key`, the reading verbs (which register no `--key`) pass `""`, so fill never leaves it nil | `ExistingMintByKey` (`replay.go:360`), whose `keyedAct` returns nil on an empty key (`id.go:47`), so no retry finds it |
   | `class` (`:75-81`) | `--class`, narrowed (§III.1) | set |
   | `location` (`:113`) | the claim, anchors stripped | set |
-  | `about_kind`, `about_ref` (`:114-115`) | UNSET, as a plain `--quote` mint: the subject is the sentence | `requireMintSubject` (`record.go:1937`) reads `location`; `requireAboutAnchor` (`record.go:973`) has no kind to check; the one-gap rule takes its sentence path (`onegapperclass.go:54`); `mintbudget.go:386, :403` and the about-anchor scan (`failedcheck.go:63`) pass it by, its carrier being `carried_by` (§III.3); `gapacts.go:41, :52`, `blueanswered.go:103`, `grounds.go:117`, `viewjson.go:415, :1066`, `views.go:526-527` read a sentence gap |
+  | `about_kind`, `about_ref` (`:114-115`) | UNSET, as a plain `--quote` mint: the subject is the sentence | `requireMintSubject` (`record.go:1937`) reads `location`; `requireAboutAnchor` (`record.go:973`) has no kind to check; the one-gap rule takes its sentence path (`onegapperclass.go:54`); `mintbudget.go:386, :403` and the about-anchor scan (`failedcheck.go:63`) pass it by, its carrier being `carried_by` (§III.3); `gapacts.go:41, :52`, `blueanswered.go:103`, `grounds.go:117`, `viewjson.go:415, :1065`, `views.go:526-527` read a sentence gap |
   | `problem` (`:116`) | `--problem`, required | set |
   | `required_fix` (`:117`) | `--fix`, optional | `proto.String` of the flag, `""` when absent, as a plain mint's: the report prints it blank alike |
   | `fix_basis` (`:135`) | `"proposed"` by default, `"verified"` through `verifiedFix` (`:376`) | Set. Without it `viewjson.go:811`'s "never omitted" is false and `fixProposal` (`assemble.go:1274-1284`) prints nothing; `estoppel.go:131`, `changesjson.go:113`, `view/changes.go:134` read it as a plain mint's |
@@ -403,7 +450,7 @@ is already proven elsewhere (the failed check, §III.3).
   | `severity`, `likelihood`, `impact` (`:154-156`) | flags, required | set |
   | `complexity_cost` (`:157`) | `--complexity`, optional | `nullWord` on the board, `grade` in the report, as a plain mint's |
   | `supersedes` (`:158`) | UNSET: the reading verbs take no `--supersedes` | A gap with no ancestor, as a plain mint's: `onegapperclass.go:64` (nothing exempt), `benchgrade.go:89, :198, :206`, `impasse.go:188`, `lensturn.go:52`, `gapacts.go:44`, `successor.go:41`, `record.go:1027`, `viewjson.go:166, :442`, `verify/verify.go:235`, `view/view.go:304, :457, :467`, `graph/graph.go:232, :280`, `dashboard/model.go:500`, `consistency.go:162`. A later gap naming it is §III.3's successor |
-  | `found_by` (`:159`) | UNSET: the reading verbs take no `--found-by`; the reading is named by `carried_by` | A gap no finding surfaced, as a plain mint's: `provenance` prints no "surfaced by" (`assemble.go:982`), and the argument and the source's reading stand on `mint_reason` and `show evidence`; `requireFindings` (`record.go:1024`), `verify/verify.go:165, :442`, `view/view.go:273, :308`, `assemble.go:1345`, `viewjson.go:165, :442, :859, :1125, :1251, :1555`, `views.go:570` (no reader) |
+  | `found_by` (`:159`) | UNSET: the reading verbs take no `--found-by`; the reading is named by `carried_by` | A gap no finding surfaced, as a plain mint's: `provenance` prints no "surfaced by" (`assemble.go:982`), and the argument and the source's reading stand on `mint_reason` and `show evidence`; `requireFindings` (`record.go:1024`), `verify/verify.go:165, :442`, `view/view.go:273, :308`, `assemble.go:1345`, `viewjson.go:165, :442, :859, :1124, :1250, :1554`, `views.go:570` (no reader) |
   | `gap_id` (`:183`) | `record.NewID("gap")` | set |
   | `class_material` | stamped by the write path | set |
 
@@ -420,16 +467,16 @@ is already proven elsewhere (the failed check, §III.3).
   until it clears by the ledger's rule (§III.3), and a `corroborate`'s gap, material by its class, holds
   it while open. Tested by `TestAReadingOverAnAppliedPrescriptionMintsItsGap` (§III.10), partner §V.5.cc.
 
-  **Sweep — where estoppel is taught or enforced**, run at `0c57758e8`:
+  **Sweep — where estoppel is taught or enforced**, run at `9ee7ad95e`:
   `grep -rIn -E '[Ee]stopp|ESTOPP' plugins scripts docs | grep -v -E '\.golden:|testdata/|record\.pb\.go|_test\.go|\.test\.mjs|/agents/'`
-  (95 lines; `~/.claude/scratch/plan1647-r8/new-est.txt`), every hit read. Two senses: the
+  (94 lines at `9ee7ad95e`: #1678 removed `EstoppedJSON`'s constant closer, another sense; `~/.claude/scratch/plan1647-r10/new-est.txt`), every hit read. Two senses: the
   PRESCRIPTION estoppel (the mint guard), and the work list's `estopped` register of bench-ruled
   closures. Dispositions:
-  - enforced — `cli/lens/mint.go:185-208` (the guard's comment) and `:412-430` (`requireNotEstopped`'s
+  - enforced — `cli/lens/mint.go:185-208` (the guard's comment) and `:417-435` (`requireNotEstopped`'s
     doc) [REWRITE]: add that the reading verbs attach no such guard, and why; `cli/lens/verify.go`'s
     reading append [NEW comment] says the same at the write;
   - taught to the record's readers — `record/estoppel.go:14-29` (the rule's statement) [REWRITE]: a
-    reading's gap is exempt, a source's refutation being new evidence; `record/recordpb/record.proto:1611`
+    reading's gap is exempt, a source's refutation being new evidence; `record/recordpb/record.proto:1618`
     (`applied_verbatim`: "red may not open a clean slate against its own words") and
     `record/changesjson.go:74` ("Estoppel is enforced on the first") [REWRITE]: on a lens's mint, never on
     a reading's gap;
@@ -441,22 +488,22 @@ is already proven elsewhere (the failed check, §III.3).
     text still mints its gap"; the generated `agents/*.md` (each inlines the help pages through the
     tool's `manual`) and the help golden REGENERATE;
   - counted, true as is — `record/estoppel.go:71-103, :238-257` (`EstoppelConflict`,
-    `EstoppelRejectionsOf`), `view/changes.go:17, :93-103`, `record.proto:109, :1759` (`LOG_TYPE_ESTOPPEL`
+    `EstoppelRejectionsOf`), `view/changes.go:17, :93-103`, `record.proto:109, :1766` (`LOG_TYPE_ESTOPPEL`
     means "the TOOL refused a mint"), `record/record.go:1257`, `cli/seat/verbs.go:172`,
     `record/toollogged.go:5`, `recordpb/descriptions.go:202`, `cli/blue/edit.go:68, :188-201`,
     `migrate/entries.go` (archived log entries), `seatenv/identity.go:116`, `cli/seat/seat.go:819`,
     `cli/motion/verbs.go:95`, `report/assemble.go:1265`, `scripts/agentgen/src/lead-judge.md:101` — KEEP;
   - the rest of the guard's own lines, true as is — `record/estoppel.go:31-48` (`minEstoppelOverlap`, what the
-    guard compares), `cli/lens/mint.go:341-345, :380` (the `estopped` error and `contains`),
-    `record.proto:1732, :1780, :1783` (a `Log` comment and the reserved `estopped_by`) — KEEP;
+    guard compares), `cli/lens/mint.go:341-345, :385` (the `estopped` error and `contains`),
+    `record.proto:1739, :1787, :1790` (a `Log` comment and the reserved `estopped_by`) — KEEP;
   - another sense — `record/outcomeclosed.go:24` (`cli/enginestopped.go`, the engine's stop) — KEEP;
   - the `estopped` register (another sense: a bench ruling's bar, read as advice by every seat, and
-    refused at no write) — `record/viewjson.go:650-1277`, `cli/seat/verbs.go:327, :343`,
+    refused at no write) — `record/viewjson.go:650-1276`, `cli/seat/verbs.go:327, :343`,
     `record/sitting.go:589`, `record/declarations.go:28`, `record/enums.go:166`,
     `cli/motion/verbs.go:26`, `recordsql/views.go:487` — KEEP; a reading's gap meets it as a plain mint
     does;
-  - the fuzz — the estoppel drive (`fuzz_test.go:576-668, :1396-1400`) mints with `lens mint` and KEEPs;
-    its gates (`sweeptally_test.go:1036-1061`) count tool estoppel entries, which no reading writes, and
+  - the fuzz — the estoppel drive (`fuzz_test.go:576-674, :1407-1411`) mints with `lens mint` and KEEPs;
+    its gates (`sweeptally_test.go:1052-1077`) count tool estoppel entries, which no reading writes, and
     KEEP; the reading drive gains the prescribed-text case (§III.11).
   The exemption's own readers: the verb (no guard), the write (no log entry), the help pages above, and
   the fuzz's new oracle; §V.4 re-runs the sweep.
@@ -483,16 +530,30 @@ is already proven elsewhere (the failed check, §III.3).
   `not_the_work` copy) never meets this arm: over a citation it meets the `unread` arm as today, keyed
   on that state (§III.3).
 - Text that states the old model without the word [REWRITE]: the `--as` flag help (`verify.go:304`,
-  "refutes and absent are findings") and `human()` (`verify.go:701-704`, "that is a finding, and this event
+  "refutes and absent are findings") and `human()` (`verify.go:702-705`, "that is a finding, and this event
   is the evidence for it"); see §III.7's phrase sweep.
+- **`human()` words a reading by whether it reads the work, then by outcome (GAP 2)** [REWRITE]
+  `verify.go:694-712`. Today it switches on the outcome string alone, so a `refutes` of a copy the tool
+  stamped `not_the_work` prints "REFUTES the claim … recorded" beside the failed-check words "reads
+  nothing of the source". `verifyResult` gains `SourceCompleteness` (read back from the stored Verify)
+  and `human()` opens on `record.VerifyReads` of the stored body: a reading that reads nothing prints
+  "recorded as <outcome> on a copy that is not the work (not_the_work): this reading reads nothing of the
+  source and mints nothing" (or the `unreachable` sentence, unchanged); only then does the outcome pick
+  the sentence, and the `refutes`/`absent` sentences end on the gap ("This reading mints gap G" / "Gap G
+  … carries this reading"), never "that is a finding".
 - Result: `verifyResult.Contradiction` / `readingContradiction` / `contradictionOf` / `words()`
-  (`verify.go:615-691`) [DELETE]; [NEW] `Gap *readingGap {id, class, minted}` and its sentence:
+  (`verify.go:616-692`) [DELETE]; [NEW] `Gap *readingGap {id, class, minted, acceptance_check,
+  voice_tells}` — every field of `mintResult` a reading's gap has (`GapID` → `id`; `Check` →
+  `acceptance_check`, the stored Mint's; `VoiceTells`; `Idempotent` has no reading counterpart, a reading
+  taking no `--key`) — and its sentence:
   "This reading mints gap G (class C)" / "Gap G, open on this sentence with class C, carries this
   reading; no second gap is minted — add what it lacks as a finding about G". `gap.minted` is read back
   from the stored `carrier_minted`, never computed by the verb, and `Gap` is set exactly when the
   stored Verify carries `carried_by`: a reading whose `ReadingGapClasses` is empty prints no `Gap`
-  sentence, whatever its `--as` (its citation's words are its failed check's, by state, below).
-- **The failed-check words key on the state** (`verify.go:529-541`, `:631-656`) [REWRITE]. Today the
+  sentence, whatever its `--as` (its citation's words are its failed check's, by state, below). Where
+  `minted` is true the sentence is followed by `mintResult.Human`'s check echo and voice note, worded as
+  there (guard table above). Tested by the GAP 3 row of `TestAReadingsGapIsFilledAsAPlainMints`.
+- **The failed-check words key on the state** (`verify.go:530-542`, `:632-657`) [REWRITE]. Today the
   verb picks any `BlockerFailedCheck` whose Subject is the anchor, guarded only by `!VerifyReads(stored)`
   (the NEW reading's outcome), and words it as unread. A found-against citation stays found against
   after a later `unreachable` or not-the-work reading (`anchorStanding.stands`, `anchorchecks.go:84-94`:
@@ -523,7 +584,7 @@ is already proven elsewhere (the failed check, §III.3).
   one-gap read of the retry finds the gap its first write minted — so it is refused, nothing recorded,
   naming the stored reading's event and its gap. That refusal is how a crash-retried negative reading
   learns its first write landed; it is not an idempotent return. `ExistingCorroboration`
-  (`verify.go:459-480`) runs only on a backing corroboration (the label it keys on is minted only
+  (`verify.go:460-481`) runs only on a backing corroboration (the label it keys on is minted only
   there) and is unchanged. A negative corroboration `absent` (no gap, F5) retried in its sitting meets
   the duplicate-key refusal on its url, as today. So does a BACKING corroboration of a `not_the_work`
   copy, a new shape: the footnote gate (first bullet) mints it no `label`, so it keys on `url`
@@ -539,11 +600,11 @@ is already proven elsewhere (the failed check, §III.3).
 gblock's ruling (2026-10-30, his words): "I think if only text is provided out [it] should be refused
 but it's fair to point at an anchor using the right flag".
 
-**How each reading verb names its subject today** (read at `0c57758e8`):
+**How each reading verb names its subject today** (read at `9ee7ad95e`):
 - `verify` takes no text. `--anchor` is required (`verify.go:113-114`), checked to name a citation
   (`record.CitationExists`), and the claim is read by the anchor's identity:
   `bluedoc.SentenceAround(report, anchor.Token(id))` (`verify.go:129-150`). It places nothing today
-  (`quote = ""` for a non-citing verb, `verify.go:510-513`).
+  (`quote = ""` for a non-citing verb, `verify.go:511-514`).
 - `corroborate` takes text and no anchor: `--quote` is the report's sentence (`verify.go:291`), placed
   by text (`seat.AppendPlaced` → `Places` → `anchortext.Attach` → `LocateOnce`, `verbs.go:1384-1417`,
   `anchortext.go:315-336`), which refuses a quote the report holds more than once (`AmbiguousError`).
@@ -553,7 +614,7 @@ but it's fair to point at an anchor using the right flag".
 names its citation by `--anchor`, the right flag; its gap is placed at the end of the sentence that
 anchor sits in, by the anchor's identity. A `corroborate` names text only; its gap is placed at its
 `--quote` by text, as its citation's anchor is placed today, and a quote the report holds more than once
-is refused, nothing recorded — `claimRefusal` (`verify.go:716-727`) words it through `anchortext.Refusal`
+is refused, nothing recorded — `claimRefusal` (`verify.go:717-728`) words it through `anchortext.Refusal`
 (`anchortext.go:508-528`), which names each occurrence's section (`WhereAmbiguous`) and tells the seat
 to quote the sentence with the text before it in its paragraph so the quote occurs once. Since #1654
 `Refusal` also words `ErrInQuotation` ("an anchor sits after the quotation it ends on: quote through
@@ -582,7 +643,7 @@ citation's token in mid-sentence (a clause citation):
   (`claimcount.BareAnchorIDs`, as `citedSentence` refuses it, `ErrAnchorBare`); the sentence end inside
   a fence or on a heading (`ErrInFence`, `ErrOnHeading`, as `Attach`). It never stops inside a
   quotation (`placement` carries it past the closing mark), so `ErrInQuotation` cannot arise. Never
-  searches text. Name grep at `0c57758e8`: `AttachToSentenceOf`, `ErrAnchorGone`, `ErrAnchorBare` 0 hits.
+  searches text. Name grep at `9ee7ad95e`: `AttachToSentenceOf`, `ErrAnchorGone`, `ErrAnchorBare` 0 hits.
 - [NEW] `seat.PlacesToSentenceOf(id, of, refuse)` beside `seat.Places` (`verbs.go:1389`), the guard
   asked of the report the pair lands on (`record.CheckOnReport`), so a retire of the citation committing
   in between refuses the act, nothing recorded.
@@ -607,7 +668,7 @@ citation's token in mid-sentence (a clause citation):
 - [MODIFY] the one-gap rule's placement (`onegapperclass.go:82-85`): for a Mint paired with a
   sentence_of Anchor, `placed` is `AttachToSentenceOf(report, gapID, of)`; its failure is a refusal,
   never the `return nil` the text path keeps (there the act's own `Places` guard has already refused,
-  since guards run before validation, `record.go` `Append` doc). `gapSentenceIn` (`viewjson.go:2020`)
+  since guards run before validation, `record.go` `Append` doc). `gapSentenceIn` (`viewjson.go:2019`)
   then reads the sentence the marker sits in — the cited sentence, whatever text repeats elsewhere.
 - [MODIFY] migrate's placer (`migrate/gapplace.go:78-79`, the Anchor arm, and `places`, `:104-115`): an
   Anchor with `sentence_of` is checked by `AttachToSentenceOf` on the migrated render, never by
@@ -620,7 +681,7 @@ citation's token in mid-sentence (a clause citation):
 
 **`--new` on a reading — blue's accept locates the span by the gap's anchor (RULED, gblock
 2026-10-30).** A verified fix is one blue's accept applies over the report with the gap placed
-(`mint.go:350-378`, `verifiedFix` → `blue.PlanAccept`, `cli/blue/edit.go:335-341` →
+(`mint.go:350-383`, `verifiedFix` → `blue.PlanAccept`, `cli/blue/edit.go:335-341` →
 `record.ProposalOver`, `estoppel.go:175-211`). Today `ProposalOver` locates the gap's location by its
 text (`LocateOnce`, `:191`): over a sentence the report holds twice it returns the recorded pair, and the
 accept's plan (`planTyped` → `validateEdit` → `reportproj.PlanSplice`, `plan.go:79`, the ordinary locate
@@ -638,19 +699,22 @@ that skips the anchor layer) refuses it as ambiguous. After the change:
   with `exact` true; `edit --accept` records it with `exact_span`, which replay reads and never
   re-decides (`reportproj/render.go:89-97`; migrate's `locate`, `gapplace.go:159-166`). A typed
   `blue edit` keeps the ordinary locate: its quote is the seat's text, not a gap's identity.
-- The board's pair (`viewjson.go:1996`, `locateGap`) and estoppel's comparison (`proposalAt`,
+- The board's pair (`viewjson.go:1995`, `locateGap`) and estoppel's comparison (`proposalAt`,
   `estoppel.go:159-164`, read by `ProposalAppliedVerbatim`, `:220-232`, `landing.go:109`, `edit.go:206`)
   read the same `ProposalOver`, so the pair the board serves, the pair the accept applies and the pair
   estoppel compares are one.
-- [MODIFY] `verifiedFix` (`mint.go:350-378`) builds `placed` by the gap's placement — `Attach` for a
-  `--quote` (mint, corroborate), `AttachToSentenceOf` for a `verify` — and its refusal (`:366-376`,
+- [MODIFY] `verifiedFix` (`mint.go:350-383`) builds `placed` by the gap's placement — `Attach` for a
+  `--quote` (mint, corroborate), `AttachToSentenceOf` for a `verify` — and its refusal (`:370-381`,
   "with this gap's anchor at the end of --quote", "keep the sentence …") names the subject the verb took:
   `--quote` for `mint` and `corroborate`, "the sentence your --anchor's token sits in" for `verify`,
-  which has no `--quote`. `help/verify.md` says it in the same words. "`--new` on a repeated sentence is
+  which has no `--quote`. The dropped-anchor clause #1663 smoke D7 added (`mint.go:364-372`, `carry`:
+  "write <token> into --new after the text it marks — --quote stays as it is") names `--quote` too, and
+  takes the verb's subject the same way (row (g) of `TestAVerifyOfARepeatedSentencePlacesItsGapByTheAnchor`
+  asserts no "--quote" in a `verify`'s refusal). `help/verify.md` says it in the same words. "`--new` on a repeated sentence is
   refused" is not part of this design: the accept edits the cited occurrence.
 
 **Sweep — every reading-act site that places a gap or reads where one stands, and every text-locate of a
-proposal span**, run at `0c57758e8` (45 hits, `~/.claude/scratch/plan1647-r8/new-place1.txt, new-place2.txt`):
+proposal span**, run at `9ee7ad95e` (45 hits, `~/.claude/scratch/plan1647-r10/new-place1.txt, new-place2.txt`):
 `grep -rn -E 'anchortext\.(Attach|LocateOnce|InsertAnchor)|seat\.(AppendPlaced|Places|PlaceOwed)|record\.AppendPlaced|reportproj\.Place|gapSentenceIn|ProposalOver|SentenceAround' plugins/frank-exchange-of-views/tools/internal plugins/frank-exchange-of-views/tools/releasegate | grep -v _test.go`,
 plus `grep -rn -E 'PlanAccept\(|proposalAt\(|ProposalAppliedVerbatim\(|PlanSplice\(|LocateUnique(Replacing)?\(' plugins/frank-exchange-of-views/tools/internal | grep -v _test.go`,
 every hit read; the reading-act ones, the proposal-span ones, and those the new placement reaches:
@@ -658,10 +722,10 @@ every hit read; the reading-act ones, the proposal-span ones, and those the new 
 | Site | Today | After | Disposition |
 |---|---|---|---|
 | `cli/lens/verify.go:95-120` `newVerify` / `:129-151` `citedSentence` | anchor required; claim read by the anchor's identity | unchanged; the anchor is also what places the gap | KEEP |
-| `cli/lens/verify.go:501-514` `writeVerify` placement | `quote=""` for verify; corroborate's quote placed by text | verify: the reading's append writes `Anchor{G, sentence_of}`; corroborate: `Anchor{G, location}` by text, ambiguity refused | REWRITE |
-| `cli/lens/verify.go:716-727` `claimRefusal` | corroborate's placement refusal through `anchortext.Refusal` (ambiguity, crossing, word split, heading, `ErrInQuotation`) | the same refusal for a negative corroboration's gap | KEEP |
+| `cli/lens/verify.go:502-515` `writeVerify` placement | `quote=""` for verify; corroborate's quote placed by text | verify: the reading's append writes `Anchor{G, sentence_of}`; corroborate: `Anchor{G, location}` by text, ambiguity refused | REWRITE |
+| `cli/lens/verify.go:717-728` `claimRefusal` | corroborate's placement refusal through `anchortext.Refusal` (ambiguity, crossing, word split, heading, `ErrInQuotation`) | the same refusal for a negative corroboration's gap | KEEP |
 | `cli/seat/verbs.go:1384-1417` `Places`, `AppendPlaced` | text placement guard | gains `PlacesToSentenceOf`; text path unchanged | MODIFY |
-| `cli/seat/verbs.go:1452-1474` `PlaceOwed`; its callers `verify.go:480`, `cite.go:83`, `finding.go:92`, `mint.go:177`, `compute.go:114` | re-places a migrated act's stored location | not reached by a reading's gap (its Anchor is in its own write) | KEEP |
+| `cli/seat/verbs.go:1452-1474` `PlaceOwed`; its callers `verify.go:481`, `cite.go:88`, `finding.go:93`, `mint.go:177`, `compute.go:114` | re-places a migrated act's stored location | not reached by a reading's gap (its Anchor is in its own write) | KEEP |
 | `record/record.go:664-668` `AppendPlaced`, `:941-951` Anchor validation and its comment `:942-943` | location required; "at its quote's end" | location XOR sentence_of, comment names both | MODIFY |
 | `record/recordpb/record.proto:1179-1187` `Anchor` and its comment | "at the end of its quote `location`" | `sentence_of = 7`, comment names both placements | MODIFY |
 | `record/onegapperclass.go:82-92` | `Attach` by text; nil on failure | sentence_of placement for a paired Anchor, failure refused | MODIFY |
@@ -669,20 +733,20 @@ every hit read; the reading-act ones, the proposal-span ones, and those the new 
 | `record/queries.go:381` `PartStanding`; `record/migrate/order.go:118`; `record/landingreport.go:28` | read `"kind"` against `'append'`, or count rows | a sentence_of row is a change, as an insert is | KEEP |
 | `reportproj/render.go:113-131, :295-308` | insert by location | `sentenceOfMut` | MODIFY |
 | `record/migrate/gapplace.go:55-70, :78-79, :104-115` | places archived anchors by location | checks sentence_of placements by identity | MODIFY |
-| `record/migrate/replay.go:222-505` (the replay loop) | writes each source event alone | re-drives a reading act's Mint, `{G, sentence_of}` Anchor and Verify as one act, each member keeping its own per-event duties (§III.9 item 6) | MODIFY |
+| `record/migrate/replay.go:222-501` (the replay loop) | writes each source event alone | re-drives a reading act's Mint, `{G, sentence_of}` Anchor and Verify as one act, each member keeping its own per-event duties (§III.9 item 6) | MODIFY |
 | `record/batch.go:82-114` `Batch.Append` | one body per savepoint | [NEW] `Batch.AppendBodies` beside it, the act's bodies in one savepoint (§III.9 item 6) | MODIFY |
 | `record/id.go:65-91` `unplacedLocationAt` | the location of an act no Anchor places | a reading's gap always has its Anchor; reads `anchor.id` only | KEEP |
 | `consistency/consistency.go:254-256, :521` | reads `Anchor.id` | id only | KEEP |
 | `record/estoppel.go:175-211` `ProposalOver` | text-located span | located by the gap's token | MODIFY |
 | `record/estoppel.go:159-164, :220-232` `proposalAt`, `ProposalAppliedVerbatim`; `record/landing.go:109`; `cli/blue/edit.go:206` | read `ProposalOver` | unchanged code, the identity-located pair | KEEP |
-| `record/viewjson.go:1996-2032` `locateGap`, `gapSentenceIn` | `ProposalOver`; sentence by token | unchanged code, the identity-located pair | KEEP |
+| `record/viewjson.go:1995-2031` `locateGap`, `gapSentenceIn` | `ProposalOver`; sentence by token | unchanged code, the identity-located pair | KEEP |
 | `cli/blue/edit.go:145` (`--accept`), `:335-349` `PlanAccept`/`planTyped`, `:401-445` `validateEdit` | ordinary locate of `old` | exact-span locate of the token-carrying `old` where the ordinary one is ambiguous; `validateEdit`'s stay-put check (`:418`) is skipped on an exact span, as today | MODIFY (`PlanAccept`/`planTyped`) |
 | `reportproj/plan.go:55-115` `PlanSplice`; `bluedoc.go:45-74` `LocateUnique`, `LocateUniqueReplacing`; `cli/blue/edit.go:418, :465` | a typed edit's locate | unchanged: a typed edit's quote is the seat's | KEEP |
 | `reportproj/render.go:89-105` (an edit's replay); `migrate/gapplace.go:159-166` `locate` | exact span byte for byte | unchanged; the accept's exact span replays through it | KEEP |
-| `cli/lens/mint.go:350-378` `verifiedFix` | `Attach`; refusal speaks of `--quote` | placement by the verb's subject; refusal names it | MODIFY |
-| `bluedoc.go:204, :343-370` `SentenceAround`, `:400`; `cli/blue/retire.go:180-200` | sentence by token; an edit's reopen check | identity already | KEEP |
+| `cli/lens/mint.go:350-383` `verifiedFix` | `Attach`; refusal speaks of `--quote` | placement by the verb's subject; refusal names it | MODIFY |
+| `bluedoc.go:204, :343-370` `SentenceAround`, `:400`; `cli/blue/retire.go:180-197` | sentence by token; an edit's reopen check | identity already | KEEP |
 | `cli/motion/verbs.go:170` (#1652, `seat.Places("", q, groundsQuoteRefusal)`) | a docket motion's grounds quote, checked against the report | another sense: a quote of report text, no gap placed | KEEP |
-| `cli/blue/compute.go:114, :200`; `cli/blue/cite.go:83, :160`; `cli/lens/finding.go:92, :120`; `cli/lens/mint.go:111, :177, :212` | their own acts' text placement | not reached | KEEP |
+| `cli/blue/compute.go:114, :200`; `cli/blue/cite.go:88, :165`; `cli/lens/finding.go:93, :121`; `cli/lens/mint.go:111, :177, :212` | their own acts' text placement | not reached | KEEP |
 | `record/recordsql/store.go:536` | a comment naming `seat.Places` | — | KEEP |
 | `releasegate/fuzz/fuzz_test.go` reading drive | — | drives a cited sentence held twice, and blue's accept of its gap (§III.11) | REWRITE |
 
@@ -700,7 +764,7 @@ as a seat and blue run them.
 A reading's outcome alone does not say it read the work: an outcome of a `not_the_work` copy (a
 sign-in page, a sales page) is no reading (`VerifyReads`, `anchorchecks.go:284-289`; `help/verify.md:11`;
 the ledger puts its anchor in `unread`). That rests on `source_completeness`, and today only a
-corroboration carries it: the stamp (`verify.go:491-500`) runs where `body.GetUrl() != ""`, and a
+corroboration carries it: the stamp (`verify.go:492-501`) runs where `body.GetUrl() != ""`, and a
 `verify`'s body has no url (`newVerify`, `verify.go:97`; its source is `citedURL`'s, `:153-172`), so a
 `verify` of a `not_the_work` copy reads as a reading and its citation leaves `unread`. `help/verify.md:11`
 already states the model the code does not implement; the only test is a synthetic `not_the_work`
@@ -726,7 +790,7 @@ reading alone (it cites nothing, so nothing is held).
 **Sweep**, run over this plan and the code it specifies — every site that decides, counts or words a
 negative reading — with `grep -n -i -E 'negative (reading|outcome|half|corroboration)|refutes|absent|gap_classes|found.against|finds.against'`
 over this plan and `grep -rn -E 'SOURCE_OUTCOME_(REFUTES|ABSENT)|contradicts\(|VerifyReads'` over
-`tools/internal`, `tools/releasegate` (no test files) at `0c57758e8` (22 hits, `~/.claude/scratch/plan1647-r8/new-cls.txt`), and — for the stamp the ruling adds — every
+`tools/internal`, `tools/releasegate` (no test files) at `9ee7ad95e` (22 hits, `~/.claude/scratch/plan1647-r10/new-cls.txt`), and — for the stamp the ruling adds — every
 Verify writer (`grep -rn 'recordpb.Verify{' tools --include=*.go | grep -v _test`) and every reader of
 `source_completeness` (`grep -rn -i 'source_completeness\|SourceCompleteness' plugins/frank-exchange-of-views scripts docs`, less
 `fetchcache/` and the cite's own readers), every hit read:
@@ -743,17 +807,17 @@ Verify writer (`grep -rn 'recordpb.Verify{' tools --include=*.go | grep -v _test
 | `failedChecksOf` found-against arm (§III.3) | ledger state | KEEP (reads-gated by the ledger) |
 | The footnote decision (`verify.go:426`, `mayCite == cites && backsTheClaim(...)`) and `backsTheClaim` (`:336-350`) | outcome, positive half | REWRITE (GAP 1, RULED): the decision adds `record.VerifyReads(body)`, so a backing corroboration of a `not_the_work` copy mints no label, footnote or Anchor; `backsTheClaim` keeps its outcome-only question and its comment's "They owe a finding instead" goes |
 | Live Verify writers: `verify.go:97` (`newVerify`) and `:280` (`newCorroborate`), both through `writeVerify` | — | MODIFY: the stamp in `writeVerify` keys on `source`, so both verbs stamp; migrate's archived Verify (`migrate/entries.go`) carries what the archive held — an archived `verify` has none and keeps reading (residue, §III.9) |
-| The stamp `verify.go:491-500` | `body.GetUrl() != ""` | REWRITE: `source != ""`, before the footnote decision |
+| The stamp `verify.go:492-501` | `body.GetUrl() != ""` | REWRITE: `source != ""`, before the footnote decision |
 | `anchorchecks.go:259-266` ledger Verify arm; `VerifyReads` `:284-289` | the stored stamp | KEEP (code): reads the stamp `verify` now writes; the `VerifyReads` comment `:278-283` [REWRITE] (§III.3) |
 | `evidenceview.go:270-273, :422` (a verification row's `source_completeness`) | the stored stamp; empty on every `verify` today | KEEP (code): every verification row now carries it; `show evidence` goldens that print a `verify` row REGENERATE, each changed line read |
 | `evidenceview.go:499`, `citationid.go:46-49, :89, :106`, `report/assemble.go:155, :202` (a source row's, a footnote's, the assembly's abstract note) | a cite's or a labelled corroboration's stamp | KEEP: a footnote is minted only from a reading of the work now, so no source row carries `not_the_work` from a corroboration |
 | `record.proto:1392-1394` (`Verify.source_completeness` comment) | "which part of the work red's copy is" | KEEP (true of every reading now) |
-| `docs/citations-and-bibliography.md:178` ("Every verdict naming a url is stamped") | a corroboration only, in fact | REWRITE: every verdict is stamped, `verify`'s from its citation's url; any verdict on a copy not the work reads nothing and leaves the citation unread |
+| `docs/citations-and-bibliography.md:178` ("Every verdict naming a url is stamped") | a corroboration only, in fact | REWRITE: every reading is stamped, `verify`'s from its citation's url; any reading of a copy not the work reads nothing and leaves the citation unread ("reading", not "verdict": the registry's verdict is the chair's, GAP 1 of round 8) |
 | `help/verify.md:11` | states the model | KEEP its unread paragraph's model (now true); its "does not close" clause REWRITEs (F8, §III.7) |
 | `record/reopened_test.go:260` (synthetic `not_the_work` Verify) | record layer only | KEEP; the CLI rows of `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` drive the verb |
 | `cli/corroborate_test.go:301-321` (a corroboration's stamp, `abstract`, `not_asked`) | corroborate only | KEEP; the verify rows (i) are new |
 | `verify.go:379-389` `absent` on a copy without its body | outcome + completeness | KEEP |
-| `verify.go:532` failed-check words guard | `!VerifyReads(stored)` | REWRITE by state (§III.2), already reads-aware |
+| `verify.go:533` failed-check words guard | `!VerifyReads(stored)` | REWRITE by state (§III.2), already reads-aware |
 | Fuzz reading drive (§III.11) | outcome | REWRITE: draws gap flags from the record's stamp of the copy the reading resolves to, and drives a `not_the_work` copy |
 | Fuzz gates "negative readings that minted / refused a mint" (§III.11) | outcome | REWRITE: counted from stored `carried_by`, never from `--as` |
 | §V.8 smoke query | outcome | REWRITE: `FindsAgainst` rows only, plus the converse query |
@@ -761,8 +825,42 @@ Verify writer (`grep -rn 'recordpb.Verify{' tools --include=*.go | grep -v _test
 | Help `verify.md`, `corroborate.md`, `mint.md`; agentgen fragments; `terms.json` `failed check` (§III.7) | prose "a negative reading mints" | REWRITE: "a reading of the work that finds the source against the sentence mints"; `verify.md` states that any outcome of a `not_the_work` copy, like `unreachable`, mints nothing and leaves the citation unread |
 | Migrate (§III.9) archived negative readings | ledger | KEEP: archived readings carry no carrier; their state is the ledger's, reads-gated |
 | `TestEveryNegativeOutcomeNamesItsClasses` | the facet itself | KEEP: it tests the declaration, which is per outcome by design |
+| `record/evidenceview.go:287-289` `EvidenceVerificationJSON.Refuted()` (`Outcome == "refutes" \|\| "absent"`) and its comment `:393` | outcome STRING | REWRITE (GAP 2): renamed `FindsAgainst()`, defined by the one predicate — `record.FindsAgainst` is written over (outcome, completeness), and the row's method calls it with the row's `Outcome` and `SourceCompleteness`, so a `not_the_work` row is not found against |
+| `capture/capture.go:483` (the assembly screen's "%d ever found against by red", through `Refuted`) | outcome string, through the row | REWRITE: calls `FindsAgainst()`; capture moves from KEEP to REWRITE (§III.12) |
+| `cli/lens/verify.go:694-712` `human()` | outcome string | REWRITE (§III.2: reads before outcome) |
+| `record/evidenceview_test.go:269`, `record/redcitation_test.go:337` (`Refuted()` calls) | outcome string | REWRITE: call `FindsAgainst()`; `evidenceview_test.go:269` gains a `not_the_work` `refutes` row asserting it false |
+
+The outcome-STRING sweep (GAP 2; the enum-constant grep above misses a compare of the word), run at
+`9ee7ad95e`, no tests: `grep -rn '"refutes"\|"absent"\|Refuted()' tools/internal tools/cmd tools/releasegate`
+→ 7 hits: `evidenceview.go:287, :288, :393`, `verify.go:702, :704` (rows above), and
+`hookprovenance.go:43, :91` (`"absent"`, a hook binary's install state: another sense, KEEP). Property:
+every site that counts or words a found-against reading agrees with `record.FindsAgainst`. Tested by the
+`not_the_work` `refutes` row of `evidenceview_test.go` and row (b) of
+`TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (`Refuted`'s successor false; no "REFUTES" in the human
+text). Partner §V.5.jj.
 
 Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
+
+### III.2c The link from a gap to its source (F12) [MODIFY] (contract: `show evidence` JSON; docket.md)
+
+gblock's ruling (2026-11-01, round 8's fork): "Print the link." A reading's gap has no `found_by` (the
+reading verbs take no `--found-by`, §III.2's field table), so nothing a seat or reader sees ties the gap
+to the source read against its sentence; `carried_by` holds the link and two readers print it:
+- [MODIFY] `record/evidenceview.go` `EvidenceVerificationJSON` (`:230-281`) gains `CarriedBy string
+  json:"carried_by,omitempty"`, set from the stored Verify's `carried_by` where the row is built
+  (`:403-420`). Every verification row carries it — under its source for a `verify`, under
+  `independent` for a `corroborate` (`:446-450`, the split on the anchor). A reading no gap carries
+  omits the key. `show evidence`'s help text names the field beside `source_completeness`.
+- [MODIFY] `report/assemble.go`: docket.md's open-gap block (the block at `:1047-1057`, beside
+  `mintReason` and `foundBy`) and its closure index (`:1142`) gain one line per Verify whose
+  `carried_by` is the gap, in stream order: "read against the sentence: <url> — <seat>'s `<outcome>`
+  reading, event N" (the citation's cited url for a `verify`, `--url` for a `corroborate`), read from the
+  record's Verify rows by `carried_by`, never from the gap's text. report.md prints no such line, as it
+  prints no gap's argument.
+- Readers swept: `evidenceview.go`'s builders and its goldens (REGENERATE; each changed line read),
+  `report/assemble.go` and its tests (`assemble_test` KEEP: no fixture holds a reading's gap), the
+  `show evidence` help page. Name grep at `9ee7ad95e`: `CarriedBy` 0 hits.
+- Tested by `TestAReadingsGapNamesItsSource` (§III.10); partner §V.5.ll.
 
 ### III.3 The anchor ledger and the failed check — `internal/record/anchorchecks.go`, `failedcheck.go` [MODIFY] (F4)
 
@@ -822,8 +920,8 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   — its gap is minted at the act, and where none is named (a migrated archived reading, §III.9) no mint
   answers it either. `answeredBy` says only *which gap carries it*, for printing and for the close gate.
   The readers, each changed to that rule (census: §III.12, "Readers of a failed check's owed-ness"):
-  - dispatch's lens arm (`dispatch.go:558-565`): readies the owner for `unread`/`unsound` with no carrier;
-    never for `found_against`, which readies blue alone (`:567-573`, cause `max(since, answeredAt)`);
+  - dispatch's lens arm (`dispatch.go:546-553`): readies the owner for `unread`/`unsound` with no carrier;
+    never for `found_against`, which readies blue alone (`:555-561`, cause `max(since, answeredAt)`);
   - the lens's work item (`sitting.go:401-408`): `add` (owed) for `unread`/`unsound` with no carrier;
     `may` for every `found_against` check — so `EnvelopeRefusal` (`envelope.go:44`, which reads this
     list) never refuses a reader's envelope over one;
@@ -864,9 +962,9 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   - the kind's `gloss` (`:404`), `refusal` (`:408-426`: its hard-coded "The lens whose check failed mints
     its gap about the anchor …" names the `unread`/`unsound` duty only, and `how` gains "found against"
     (participle, as "judged unsound")) and `why` (`:427-433`, `until`);
-  - `failedCheckReadiness` (`dispatch.go:1326-1341`): `what, failed` and blue's remedy by state; the lens
+  - `failedCheckReadiness` (`dispatch.go:1293-1308`): `what, failed` and blue's remedy by state; the lens
     arm's "minted no gap about it" stays, as only `unread`/`unsound` reach it.
-  - the verb's failed-check sentence (`verify.go:529-541`, `:631-656`): by state, after every
+  - the verb's failed-check sentence (`verify.go:530-542`, `:632-657`): by state, after every
     verification of a citation, §III.2 — this site was judged state-safe in round 2 and is not: its
     guard is the new reading's outcome, not the check's state.
 - **The lens's turn (#1659) reads a reading's gap as it reads any mint.** `lensTurnOn` and capture's
@@ -875,7 +973,7 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   (`gapActsOf`, `gapacts.go`, has no Verify arm), so a second lens's reading naming G, or the reader's
   own re-read, moves no turn. Both stay unchanged, and the check's readiness above is by state. The
   reader's backing re-read happens in any sitting a plan readies it for.
-- Read and judged state-safe: `verdict.go:141-162` (`anchorsStanding`) and `debate.js:1050-1057` name
+- Read and judged state-safe: `verdict.go:141-162` (`anchorsStanding`) and `debate.js:1087-1094` name
   the anchor only, whatever its state.
 - The close gate: `requireFailedCheckAnswered` refuses the minting lens's (or any seat's) `close` of a
   gap in a found-against check's `answers` — successor (`--superseded-by`) admitted — until the check
@@ -883,18 +981,18 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   the PASS (above). The gap's close stays the minting lens's ordinary `close`, so no new answer kind
   exists.
 - **The mechanism's own sweep** — every site that SELECTS a failed check (by Subject, Owner, AnsweredBy
-  or Detail) and decides or prints, re-run at `0c57758e8` (`~/.claude/scratch/plan1647-r8/new-fc.txt`) with
+  or Detail) and decides or prints, re-run at `9ee7ad95e` (`~/.claude/scratch/plan1647-r10/new-fc.txt`) with
   `grep -rn -E 'BlockerFailedCheck|AnsweredBy\(\)|failedChecksOf\(|\.answeredBy|\.answers\b|\.Detail\b'`
   over `tools/internal`, `tools/cmd`, `tools/releasegate` and `debate.js`, every hit read (dispositions in
-  §III.12's table "Readers of a failed check's owed-ness"): the record readers above; `verify.go:538`
+  §III.12's table "Readers of a failed check's owed-ness"): the record readers above; `verify.go:539`
   (§III.2); `sitting.go:321` (blue's arm, prints `blueFailedItem`, by state); `passblockers.go:714` (the
-  producer, which now sets the state); the fuzz sites of §III.11 (`fuzz_test.go:1218, :1227, :3007, :3017,
-  :3039, :3042, :3096-3105, :3415, :3719, :4192, :4237, :4269`, and the gates at `sweeptally_test.go:834-845`);
-  KEEP — `verdict.go:148`, `debate.js:1056`, `fuzz_test.go:2953` (asserts the owner or blue is readied,
-  true of every state), `fuzz_test.go:6974` (no VERIFIED over any failed check), `migrate/plankinds.go:19`; another kind's `.Detail`
+  producer, which now sets the state); the fuzz sites of §III.11 (`fuzz_test.go:1229, :1238, :3026, :3036,
+  :3058, :3061, :3115-3124, :3434, :3735, :4208, :4253, :4285`, and the gates at `sweeptally_test.go:843-854`);
+  KEEP — `verdict.go:148`, `debate.js:1093`, `fuzz_test.go:2972` (asserts the owner or blue is readied,
+  true of every state), `fuzz_test.go:6990` (no VERIFIED over any failed check), `migrate/plankinds.go:19`; another kind's `.Detail`
   (#1660's `upheld_position`: `dispatch.go`'s lens arm, `passblockers.go`'s kind row, `positionheard.go`).
   The contradiction fold's hits (`citationid.go:554-685`, `onegapperclass.go:145`, `mintbudget.go:362-380`)
-  are deleted. `PlanBlocker` (`dispatch.go:36-40`) carries kind, subject and owner only, and stays so:
+  are deleted. `PlanBlocker` (`dispatch.go:29-33`) carries kind, subject and owner only, and stays so:
   the state reaches a seat in the plan's `why` sentence, not as a field. The new mechanism's own readers
   — `CheckState()`, `failed_checks[].state`, the successor-following `answers` — are those same sites and
   no others: `failed_checks` has no reader in Go outside the verb (no golden or test reads
@@ -950,14 +1048,17 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
 - `citationid.go:478-708`: `contradictionsOf`, `ReadingContradiction`, `ContradictionOfReading`,
   `requireOpenContradiction`, `unansweredContradictions`, `contradiction`, `contradictionActs`, `idWord`
   [DELETE]; `contradicts` → replaced by the `gap_classes` facet reader (III.1). Comment at `:74` [MODIFY].
-- `about.go`: the contradiction case (`:47-50`, `:82-88`) and the doc sentence (`:15-16`) [DELETE].
+- `about.go`: the gap's contradiction refusal (`:57-59`), the contradiction case (`:99-106`) and the doc
+  sentence (`:23-25`) [DELETE]; `aboutShapes`' comment (`:15-16`, #1674: "a contradiction's id is a number,
+  which requireOpenContradiction reads") [REWRITE] to its first sentence. `aboutShapes` itself holds no
+  contradiction row and is unchanged.
 - `record.go`: the finding case (`:1062-1066`) and the mint's about-kind refusal (`:966-971`) [DELETE] —
   with every kind admitted the check has nothing to refuse; `enums.go:294-300` (finding's set "less
   contradiction") [REWRITE]: finding and mint carry one set.
 - `sitting.go:374-439` (the lens owes a contradiction it read; the at-cap special case) [DELETE]; the
   failed-check arm (`:401-408`) keys on the state (§III.3).
-- `dispatch.go`: the readiness case (`:547-553`), `contradictionReadiness` (`:1314-1321`), Plan JSON
-  `desc` text (`:19-38`) [DELETE/REWRITE].
+- `dispatch.go`: the readiness case (`:535-541`), `contradictionReadiness` (`:1281-1288`), Plan JSON
+  `desc` text (`:19-31`) [DELETE/REWRITE].
 - `retirement.go:20, :142` (a lens is not retired while it owes a contradiction) [REWRITE]; the
   failed-check skip (`:164-172`) keys on the state, so a found-against check never holds its reader
   from retiring (§III.3).
@@ -969,8 +1070,8 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
 
 - Help pages (`internal/cli/seat/help/`): `verify.md`, `corroborate.md` — the two contradiction paragraphs
   are replaced by one paragraph: a reading of the work that finds the source against the sentence
-  mints its gap in the same act, the flags it needs, and that a verdict that reads nothing —
-  `unreachable`, or any verdict on a copy the tool stamped not_the_work, a backing one included — mints
+  mints its gap in the same act, the flags it needs, and that a reading that reads nothing —
+  `unreachable`, or any outcome on a copy the tool stamped not_the_work, a backing one included — mints
   nothing (no gap, and on `corroborate` no footnote), its gap flags are refused, and the citation stands
   unread (`verify.md:11`'s unread paragraph keeps that duty, now true of `verify`, which stamps the
   copy's completeness); where the gap stands — `verify`: "the gap stands at the end of the sentence your
@@ -981,15 +1082,16 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   more than once is refused"; what the one-gap rule does to a second reading, and what clears the citation's failed check (your own
   later reading of the sentence as it stands that backs it, blue's edit, or blue's retire; another lens's
   backing reading is a disagreement and clears nothing); the gap's flags and its argument: "the --reason
-  you give says what the source says, and it is also your argument for the gap: it stays on the reading
-  and on the gap, where the board shows it to blue and the bench"; and estoppel's exemption (F10), in the words
+  you give says what the source says; where your reading mints its gap it is also that gap's argument,
+  which the board shows to blue and the bench, and where an open gap of its class already carries the
+  sentence it stays on your reading alone"; and estoppel's exemption (F10), in the words
   `help/mint.md:19` gains (§III.2): "A gap your reading of a source mints in its own act is not
   refused: a source that finds against the sentence is new evidence, not your prescription
   relitigated";
   `corroborate.md:17`'s "How you found the source goes in your reason, which the report never prints" keeps its
   footnote case and is REWRITTEN to say so: on a reading that mints, the reason is the gap's argument. `mint.md:23` keeps its text: `mint`'s `ReasonIs` row is byte-unchanged.
   `finding.md`, `mint.md`, `dispatch.md` [REWRITE] the contradiction sentences; `mint.md:19` and
-  `edit.md:13` [REWRITE] for estoppel's exemption (§III.2); `finding.go:144-145` flag
+  `edit.md:13` [REWRITE] for estoppel's exemption (§III.2); `finding.go:145-146` flag
   descriptions [REWRITE]; `verbs.go`, `flags/names.go` per census. The failed-check paragraphs name the
   third state: `mint.md:15` ("A CHECK OF YOURS THAT FAILED … you owe its gap") says the owed gap is an
   unread or unsound check's, and that a reading that finds the source against its sentence mints its gap in the same act;
@@ -999,7 +1101,7 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   the sentence, or blue's retire of the citation — another lens's backing reading clears nothing), and
   says a closing ruling of the bench closes the gap while the check still holds the PASS.
 - **No page says a gap carrying a failed check does not close** (gblock's ruling, F8). Sweep, run at
-  `0c57758e8` (123 hits; list at `~/.claude/scratch/plan1647-r8/new-dnc.txt`) over `scripts/agentgen/src`, `tools/internal`, `tools/releasegate`, `skills`, `docs`:
+  `9ee7ad95e` (123 hits; list at `~/.claude/scratch/plan1647-r10/new-dnc.txt`) over `scripts/agentgen/src`, `tools/internal`, `tools/releasegate`, `skills`, `docs`:
   `grep -rIn -i -E "(does not|cannot|can't|never) close"` plus the multi-line form
   `perl -0777 -ne 'while(/(gap|it)[^.]{0,60}?(does not|cannot|can.t|never) close[^.]{0,80}?(while|until|stand)/gis){…}'`,
   every hit read. Hits in this sense, each [REWRITE] to "the close is refused while the check stands; a
@@ -1014,24 +1116,65 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   no bench ruling clears it" — the last clause is the substring `TestABenchRulingDoesNotClearAnUnreadCitation`
   asserts), `failedcheck.go:193, :198` (the close refusals' "so the gap does not close" → "so this close
   is refused"), `docs/citations-and-bibliography.md:162-166`; code and test comments in the same sense:
-  `failedcheck.go:30`, `unreadcitation_test.go:119`, `unreadb6_test.go:21-22, :66`, `fuzz_test.go:3099,
-  :4189`, `sweeptally_test.go:840`; REGENERATE `docs/vocabulary.md:629` and the help golden. Every other
+  `failedcheck.go:30`, `unreadcitation_test.go:119`, `unreadb6_test.go:21-22, :66`, `fuzz_test.go:3118,
+  :4205`, `sweeptally_test.go:849`; REGENERATE `docs/vocabulary.md:629` and the help golden. Every other
   hit is another sense (a sitting the record cannot close, a quote or fence that does not close, the
-  `remanded` disposition, `record/viewjson.go:1006`, `positionowed.go`, `remand_test.go`,
+  `remanded` disposition, `record/viewjson.go:1005`, `positionowed.go`, `remand_test.go`,
   `positionheard_test.go`) and KEEPs.
 - `terms.json`: the `contradiction` entry [DELETE] (with its ordinary-English collision); `failed check`
-  [REWRITE]: "A failed check is a standing check of a citation or computation that fails — a lens's standing
-  judgement calls the computation's sentence unsound; no reading of the citation since its sentence last
-  changed reads the cited work; or a lens's standing reading finds that the cited source refutes the
-  sentence or does not contain it, and that reading mints the gap that carries it in the same act. It
-  holds the PASS and is cleared by no
-  bench ruling. An unread or unsound check obliges the seat whose check failed to mint a gap about the
-  anchor, outside its mint budget. A seat's close of the gap that carries a failed check is refused while
-  the check stands; a closing ruling of the bench closes that gap, and the check still holds the PASS.
-  It clears when the anchor is checked and holds — for a computation or a found-against citation, by the
-  checking lens's own later check, since another lens's check beside it is a disagreement; for an unread
-  citation, by any lens's reading of the work — when an edit changes its sentence, or when blue retires
-  it." `lens retirement` [REWRITE] ("no contradiction it read" goes). Then `go -C scripts run ./vocabdoc` regenerates `docs/vocabulary.md`.
+  [REWRITE] to ONE sentence — `checkDefinition` (`terms/terms.go:150-163`) refuses a definition holding
+  ". " ("the definition is ONE sentence"), gated by `TestTheEmbeddedRegistryLoads` — "A failed check is
+  a standing check of a citation or computation that failed — a lens judged the computation's sentence
+  unsound, every reading of the citation since its sentence last changed read nothing of the cited work,
+  or a lens's standing reading found the cited source against the sentence and, in the same act, minted
+  the gap that carries it or named the open gap that already does — which holds the PASS and is cleared
+  by no bench ruling; an unread or unsound check obliges the seat whose check failed to mint a gap about
+  the anchor, outside its mint budget; a seat's close of the gap that carries a failed check is refused
+  while the check stands, and a closing ruling of the bench closes that gap while the check still holds
+  the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when
+  the anchor is checked and holds — for a computation or a found-against citation by the checking lens's
+  own later check, since another lens's check beside it is a disagreement, and for an unread citation by
+  any lens's reading of the work."
+- `terms.json`: [NEW] entry `reading` (GAP 1 of round 8; the plan's prose leans on the word in a sense
+  the registry did not hold), `seats` the same six as `failed check` (`lens`, `chair`, `blue`, `lane`,
+  `bench`, `operator`), `bans: []` — no GATED ban on `reading`, and none on `contradiction` (no old-word
+  lists, gblock 2026-10-13). Definition, ONE sentence: "A reading is a lens's recorded account of what
+  one source did for one sentence of the report — `verify` of a citation or `corroborate` of a source
+  the lens found — with its outcome, its confidence and its reason; it reads the work unless the source
+  was unreachable or the copy the tool stamped is not the work, and one that reads the work and finds
+  the source against the sentence mints the gap that carries it in the same act or names the open gap of
+  that class the sentence already holds, except a corroboration's `absent`, which mints nothing."
+  `collisions`, each `{word, resolution}`:
+  - "reading (OCR)": "the OCR reading is the machine's reading of a scanned document's page images
+    (`reading_render_sha`, `render-page`'s `reading:` line, OCR-derived text); a lens's reading is a
+    recorded check of a source against a sentence, and a page's OCR reading may be what a lens's
+    reading finds wrong";
+  - "verdict": "the verdict is the chair's PASS or FAIL; a reading has an outcome, and a reading that
+    reads nothing is never called a verdict";
+  - "report read": "a report read is the tool serving a lens the whole report; a reading is a lens's
+    check of one source against one sentence".
+  Name grep at `9ee7ad95e`: no `terms.json` entry is named `reading` (its hits are the `failed check`
+  and OCR-derived-text definitions and the deleted `contradiction` entry). What applies: `checkDefinition`
+  (one sentence, a period), `TestNoDefinitionUsesABannedVariant`, the manual golden (`show terms`),
+  `agentgen -check` (each seat's inlined manual), `vocabdoc -check` (`docs/vocabulary.md`).
+  **Sweep — every seat-facing use of "reading"**, run at `9ee7ad95e`:
+  `grep -n -i -w -E 'readings?' cli/seat/help/*.md scripts/agentgen/src/{*.md,fragments/*.md,skills/*/SKILL.md} report/layout.go terms/terms.json`
+  (41 lines in 18 files), every hit read:
+  - the term's sense, consistent with the definition once §III.7's rewrites land — `help/verify.md:11`,
+    `:17`, `help/corroborate.md:13`, `:15`, `:19`, `red-lens-evidence.md:15`,
+    `fragments/lens-audit-and-mint.md:6`, `:8`, `fragments/lens-duties.md:5`,
+    `fragments/blue-search-and-cite.md:23`, `skills/research-protocol/SKILL.md:17`, `:79`,
+    `report/layout.go:182-183`, `terms.json:1080` (REWRITE where §III.7 already lists them; else KEEP),
+    and `terms.json:763`, `:772` (DELETE with the `contradiction` entry);
+  - the OCR sense, resolved by the first collision — `help/verify.md:21` ("the reading may be what is
+    wrong"), `help/render-page.md:7`, `:9`, `:11`, `red-lens-evidence.md:13`, `help/cite.md:13` (×2),
+    `fragments/leaf-node-read.md:6`, `terms.json:580` — KEEP;
+  - ordinary English (the gerund) — `help/cite.md:11`, `:19`, `help/compute.md:17`, `help/mint.md:11`,
+    `help/reproduce.md:17`, `fragments/surface-discovery.md:1`, `fragments/lens-audit-and-mint.md:15`,
+    `skills/adversarial-audit/SKILL.md:25`, `:27`, `skills/research-protocol/SKILL.md:36`,
+    `lead-judge.md:41`, `:56`, `report/layout.go:289, :335, :358, :369` — KEEP.
+  New prose this plan specifies says "a reading that reads nothing", never "a verdict that reads
+  nothing" (§III.7). `terms.json` `lens retirement` [REWRITE] ("no contradiction it read" goes). Then `go -C scripts run ./vocabdoc` regenerates `docs/vocabulary.md`.
 - agentgen sources [REWRITE]: `scripts/agentgen/src/fragments/lens-duties.md`, `fragments/lens-audit-and-mint.md`,
   `src/red-chair.md` (census), `src/skills/research-protocol/SKILL.md:17-19` ("it goes to the board as a
   finding — a PASS is refused until one is raised for it", found by the phrase sweep below), and
@@ -1057,36 +1200,39 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   on. It runs over the whole FEOV tools tree (`tools/internal`, not only `cli/`, and `tools/releasegate`),
   less goldens and testdata, which regenerate. Run, and read every hit for that model:
   `grep -rIl . scripts/agentgen/src plugins/frank-exchange-of-views/tools/internal plugins/frank-exchange-of-views/tools/releasegate plugins/frank-exchange-of-views/skills plugins/frank-exchange-of-views/docs docs | grep -v -E '\.golden$|testdata/' | xargs perl -0777 -ne 'while(/(refut|absent|negative reading|found against|contradicting)[^.]{0,160}?(finding|rais)|(finding|rais)[^.]{0,160}?(refut|absent)/gis){ my $l = 1 + (substr($_,0,$-[0]) =~ tr/\n//); print "$ARGV:$l\n" }' | sort -u`
-  At `0c57758e8` it prints 56 lines (list kept at `~/.claude/scratch/plan1647-r8/phrase-new.txt`; the same 56
+  At `9ee7ad95e` it prints 56 lines (list kept at `~/.claude/scratch/plan1647-r10/phrase-new.txt`; the same 56
   as at `a31a7b06d`, moved by the line map, and no file #1663 added prints one: `blue-lane.md`,
   `blue-researcher-frame.md` and `blue-search.md` hold none). The 29 beyond `cli/` and the
   agent-text paths, each read:
   REWRITE — `record/anchorchecks.go:279` (`VerifyReads` comment, §III.3), `record/evidenceview.go:245`
   (comment: "at high confidence it is a finding to act on" → the gap its reading minted),
   `record/recordpb/record.proto:509` (`REFUTES` means, §III.1), `record/evidenceview_test.go:250`
-  (comment "THE FINDING HALF" → the negative half), `fuzz_test.go:996` (the quote comment: a negative
+  (comment "THE FINDING HALF" → the negative half), `fuzz_test.go:1011` (the quote comment: a negative
   corroboration's quote is the sentence its gap is minted on), and the census rows already listed —
-  `blockerowner_test.go:202`, `narrowedview_test.go:34`, `redcitation_test.go:347`,
-  `migrate/reproduceanchor_test.go:158`, `fuzz_test.go:5480`; DELETE — `record.proto:1143`,
-  `dispatch.go:1320`, `contradictionquadratic_test.go:17`, `terms.json:763`; REGENERATE —
-  `record.pb.go:737, :8643, :8705`; KEEP — `record.proto:501` (why the outcome field exists, as
+  `blockerowner_test.go:200`, `narrowedview_test.go:34`, `redcitation_test.go:347`,
+  `migrate/reproduceanchor_test.go:158`, `fuzz_test.go:5493`; DELETE — `record.proto:1143`,
+  `dispatch.go:1287`, `contradictionquadratic_test.go:17`, `terms.json:763`; REGENERATE —
+  `record.pb.go:737, :8645, :8707`; KEEP — `record.proto:501` (why the outcome field exists, as
   `verify.go:56`), `evidenceview.go:238` (the same history),
   `unchecked.go:29` (the reopened-evidence history), `narrowedview_test.go:49` (fixture text),
-  `capture/dispatchparity.go:208`, `debatejs/debatejs.go:388`, `changesjson.go:32`, `viewjson.go:886`,
+  `capture/dispatchparity.go:201`, `debatejs/debatejs.go:409`, `changesjson.go:32`, `viewjson.go:886`,
   `report/assemble.go:1183`, `report/assemble_test.go:997, :1000`, `seatprobe/naming.go:191` (ordinary
   English).
-  Known hits at `0c57758e8` (27; the 9 under `cli/*_test.go` are the census's test rows or other-sense
+  Known hits at `9ee7ad95e` (27; the 9 under `cli/*_test.go` are the census's test rows or other-sense
   KEEPs — `missingflag_test.go:119`, `stategraph_test.go:91`, `verbs_test.go:114`):
   REWRITE — `scripts/agentgen/src/skills/research-protocol/SKILL.md:17` (the sentence spanning l.17-19,
   which a line grep cannot match), `fragments/lens-audit-and-mint.md:8`, `red-chair.md:12`,
-  `verify.go:304`, `verify.go:702`, `help/corroborate.md:13`, `help/finding.md:11`, `help/dispatch.md:15`
-  and `:19`, `debate.js:889`, `docs/citations-and-bibliography.md:173` ("`refutes` and `absent` are
+  `verify.go:304`, `verify.go:703`, `help/corroborate.md:13`, `help/finding.md:11`, `help/dispatch.md:15`
+  and `:19`, `debate.js:915`, `docs/citations-and-bibliography.md:173` ("`refutes` and `absent` are
   findings, not failures to grade"); REGENERATE — `skills/research-protocol/SKILL.md:19`,
   `docs/vocabulary.md:463`; KEEP — `verify.go:56` (a code comment on why the outcome field exists),
   `fragments/lens-audit-and-mint.md:9` (materiality), `debate.js:227` (inquiry `refuted`),
   `docs/seat-surface-naming.md:749`, `docs/why-a-seat-stops.md:103` (ordinary English).
   The property each rewritten sentence holds: a reading of the work that finds the source against the
-  sentence mints its gap in the same act, and a verdict that reads nothing mints none.
+  sentence mints its gap in the same act, and a reading that reads nothing mints none. New prose says
+  "a reading that reads nothing", never "a verdict" (the registry's `verdict` is the chair's); the
+  opening of `verify.md:11`, "A VERDICT THAT READS NOTHING LEAVES THE CITATION UNREAD", [REWRITE]s to "A
+  READING THAT READS NOTHING …" with the paragraph's F8 clause.
 - `debate.js`: enginegen regions regenerate (`go -C plugins/frank-exchange-of-views/tools run
   ./devcmd/enginegen`); authored hits per census [REWRITE]; simulator goldens regenerate.
 - Seat prompts name acts, never verbs or flags (`TestNoPromptGrowsItsCommandCatalogue`,
@@ -1107,7 +1253,7 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   `seatprobe/seatprobe.go`. `Read` maps each event of a seat back to the verb it typed (`verbOfEvent`,
   `:153`; `:203-224`). The reading now writes a Mint, an Anchor and a Verify, so it would count `mint` as
   used by a seat that never typed it, and an unmet `mint` expectation would read as met. Sweep at
-  `0c57758e8`: `grep -rn 'verbOfEvent\|EVENT_TYPE_MINT\b' tools/internal tools/devcmd`, no tests and no
+  `9ee7ad95e`: `grep -rn 'verbOfEvent\|EVENT_TYPE_MINT\b' tools/internal tools/devcmd`, no tests and no
   goldens, every hit read:
   - `seatprobe/seatprobe.go:153, :212` — REWRITE. A pass over the seat's events first: the `gap_id`s a
     Verify of this seat names with `carried_by` and `carrier_minted` true. `Read` skips a Mint of those
@@ -1122,7 +1268,7 @@ Tested by `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (§III.10).
   - `seatprobe/boards.go:532` (the lens-audit board's `mint` expectation) [REWRITE] its `Because`: it
     argues for a defect no source reading carries, since a defect a reading finds against a source is
     minted by the reading's act and counts under the reading's verb. `:534`, `:535`, `:563` KEEP.
-  - `record/viewjson.go:1606, :1918`, `record/evidenceview.go:586` (a narrowed view's event families),
+  - `record/viewjson.go:1605, :1917`, `record/evidenceview.go:586` (a narrowed view's event families),
     `record/gapstates.go:207` (the gap family's acts), `record/record.go:458` (a key's shape),
     `recordpb/record.proto:259` — read a Mint as a gap, whichever verb wrote it: KEEP.
     `record/citationid.go:695` is deleted with the fold.
@@ -1167,7 +1313,7 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
      a comment in the same voice ("a finding about a reading that found the source against its
      sentence is a finding about that reading's citation"). The archived finding then decodes as
      `about_kind anchor` with its archived `about_ref`, a reading's `events.id` (e.g. `"401"`).
-   - **Replay.** `replay.go:395-406` can no longer key on `ABOUT_KIND_CONTRADICTION` (deleted). It
+   - **Replay.** `replay.go:391-402` can no longer key on `ABOUT_KIND_CONTRADICTION` (deleted). It
      recognises the raise by its reference: a Finding whose `about_kind` is `anchor` and whose
      `about_ref` names no anchor — `anchor.Kind(ref) == ""` (`internal/anchor`, the same test
      `record.go:944` puts to an Anchor's id) — is a raise. Never a regex over the ref: a shipped-tool
@@ -1198,7 +1344,7 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
    reading's anchor and whose owner is unchanged (the reader, as a live found-against blocker's is).
    `TranslatePlanKinds` cannot do it: it is a pure kind rename (`planKindRenames`) with no record
    access, and the archived subject is the reading's `events.id`, not an anchor. So [NEW]
-   `TranslateReadingBlockers(pl, newID, q)` in `migrate/planids.go`, called in `replay.go:381-394`
+   `TranslateReadingBlockers(pl, newID, q)` in `migrate/planids.go`, called in `replay.go:373-390`
    after `TranslatePlanKinds` and before `TranslatePlanIDs`: for each blocker whose kind is the archived
    word `contradiction` (a literal in migrate's archived-word table; the live `BlockerContradiction` is
    deleted), it carries the subject through `newID`, reads the Verify the migrated record holds at that
@@ -1217,10 +1363,10 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
    `since`; a found-against sentence printing an id after a word `planIDPhrases` lacks turns it red. m32 holds two such plans (events
    223 and 310, each with three `contradiction` blockers, subjects 100, 147, 169, owners
    red-lens-architecture, red-lens-computation, red-lens-adversary).
-5. Migrate's comments in `entries.go:64-66` (the credit entry) and `outcomes.go:19` [REWRITE] to state
+5. Migrate's comments in `entries.go:65-67` (the credit entry) and `outcomes.go:19` [REWRITE] to state
    archived bytes without the live concept word where they describe the live model.
 6. **A record written at this epoch replays its reading acts whole, and every source event of the act keeps its own duties (GAP 3; round-6 GAP 1).** Replay appends one event
-   at a time (`replay.go:452`, `batch.Append`), and three write rules of this plan read the reading's
+   at a time (`replay.go:448`, `batch.Append`), and three write rules of this plan read the reading's
    ACT rather than the record: the budget exemption (§III.5: the Mint's validation is handed the act's
    paired Verify), the one-gap placement (§III.2a: the Mint is placed by the paired `sentence_of`
    Anchor), and the Verify rule that admits `carrier_minted` true only inside the placed append whose
@@ -1239,9 +1385,9 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
    member's source `events.id`. The pairing is read from the record's fields, never from adjacency.
 
    **What the act changes, and what it does not.** Only the WRITE is joined. The replay loop
-   (`replay.go:222-505`) owes every source event a set of duties, and a reading act's three members
+   (`replay.go:222-501`) owes every source event a set of duties, and a reading act's three members
    keep each one, in their own iterations, as any event does. Swept — every per-source-event step of
-   the loop, each read at `0c57758e8`:
+   the loop, each read at `9ee7ad95e`:
 
    | Step (`replay.go`) | On each member of a reading act |
    |---|---|
@@ -1267,7 +1413,7 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
    — the act wrote them in one transaction, so none of these arises from a record the write made.
    [NEW] `Batch.AppendBodies` (`record/batch.go`, beside `Append`, `:82-114`): one `SAVEPOINT act`, the
    bodies through `appendAct` over the batch's transaction, a refusal of any rolling the savepoint back
-   whole (as `Append`'s does), and a `[]record.WrittenBody` of the events written. Name grep at `0c57758e8`:
+   whole (as `Append`'s does), and a `[]record.WrittenBody` of the events written. Name grep at `9ee7ad95e`:
    `AppendBodies`, `StampedBody`, `WrittenBody`, `readingActs` 0 hits; `appendAct` (one body's write) is the sense it
    composes, not a rival.
 
@@ -1463,20 +1609,37 @@ runs it:
     sets — differs by subject (`gap_id`, `location`) or by presence only (`fix_new`) — so a field added
     to `Mint` fails until it has a disposition here and in §III.2's table. Rows: no `--new`, no
     `--complexity`, no `--fix` (each absent alike, `fix_basis` `proposed`); all three given (`fix_basis`
-    `verified`, `fix_new` set). Partners §V.5.ee, ff.
+    `verified`, `fix_new` set). GAP 3 row (what the verb TELLS the seat back): with a `--check` holding
+    shell-looking text (backticks and `$(…)`, passed as argv so nothing expands it), `mint`'s human text
+    and the `verify`'s and the `corroborate`'s each hold "acceptance check RECORDED as: " followed by the
+    stored check and "(read it back —", and each reading's `--json` `gap.acceptance_check` equals the
+    stored Mint's; with a `--problem` that trips a voice tell, each reading's human text holds `mint`'s
+    note ("the risk matrix, the first sentence of the problem") under the gap and not "the source's note
+    and Bibliography entry" for it; a second lens's reading that names the standing gap prints no
+    "acceptance check RECORDED". Partners §V.5.ee, ff, kk.
   - `TestAReadingsGapCarriesItsArgumentWhereverAMintsDoes` (`cli/mintreason_test.go`, beside
     `TestAGapCarriesRedsArgumentAndNotOnlyItsProblem`): lens L's `verify --anchor C --as refutes --reason R`
     with no `--new` mints G. Asserts: `show board --json`'s row for G has `mint_reason` R and `fix_basis`
     `proposed`; blue's `show work --json` item for G has `fix_basis` `proposed` (never omitted); the gap
     view's row agrees; `show report` holds `Token(G)` at the sentence's end and not R, the live text
     carrying no argument; `report.Assemble` over that run — what the bench's `assemble` verb runs
-    (`cli/bench/assemble.go:43`), the one path to the report's gap block — holds "minted because: R" and
-    "fix_basis: **proposed**" in G's block. After L's own backing re-read in a later sitting and its
-    close, `report.Assemble`'s closure index holds "minted because: R" under G. Row: lens M's identical
+    (`cli/bench/assemble.go:42`); it returns `{Report, Documents, Verdict}` (`assemble.go:429-458`), so
+    the test reads the files it wrote — `<run>/docket.md`'s "The board" open-gap block (`layout.go:167`)
+    holds "minted because: R" and "fix_basis: **proposed**" in G's block, and `<run>/report.md` does NOT
+    hold R. After L's own backing re-read in a later sitting and its close, a second `report.Assemble`
+    leaves "minted because: R" under G in docket.md's closure index. Row: lens M's identical
     reading names G with `--reason R2`; M's Verify holds R2, and G's `mint_reason` stays R. Row: `verify
     --as refutes` with every gap flag and no `--reason` is refused naming `--reason`, and the record holds
     no Verify, Mint or Anchor from it. A `corroborate --as refutes` row repeats the first asserts. Partner
     §V.5.ee, ff.
+  - `TestAReadingsGapNamesItsSource` (`cli/`, F12, driven through `verify`, `corroborate`, `show
+    evidence --json` and `report.Assemble`): lens L's `verify --anchor C --as refutes` (C cites url U1)
+    mints G; lens N's identical reading names G; lens M's `corroborate --as refutes --url U2 --quote S2`
+    mints G2; lens K's backing `verify` of another citation carries nothing. Asserts: `show evidence`'s
+    row for L's reading under C's source has `carried_by` G, N's has G, M's row under `independent` has
+    G2, K's row has no `carried_by` key; docket.md's open-gap block for G holds one source line per
+    carrying reading — naming U1, the reader, the outcome and the reading's event, twice (L, N) — and
+    G2's names U2; report.md holds none of them. Partner §V.5.ll.
   - `TestAReadingIsAttributedToTheVerbTheSeatTyped` (`cli/`, drives the verbs, then `seatprobe.Read` and
     `seatprobe.Check` over the run): lens L's refuting `verify` → `Used["verify"]` 1, `mint` absent from
     `Used` and present in `Unused`, and an expectation of `mint` is unmet, with the substitute `verify`;
@@ -1491,7 +1654,10 @@ runs it:
     `not_the_work`, nothing recorded; (b) the same without the gap flags → one Verify, `source_completeness`
     `not_the_work`, no Mint, no Anchor, `carried_by` and `carrier_minted` unset, `--json` has no `gap`;
     the citation's failed check has state `unread`, owner the reader, and the human text carries
-    today's unread sentences ("stays unread", "you owe a gap about it"); (c) `verify --as absent` →
+    today's unread sentences ("stays unread", "you owe a gap about it"), opens on "this reading reads
+    nothing of the source" and contains no "REFUTES" (GAP 2, `human()` reads before outcome); `show
+    evidence --json`'s row for the reading has `source_completeness` `not_the_work`, and
+    `EvidenceVerificationJSON.FindsAgainst()` is false on it; (c) `verify --as absent` →
     refused by the existing body-less-copy refusal, nothing recorded; (d) `corroborate --as refutes`
     with the gap flags → refused naming `not_the_work`; (e) the same without them → one Verify, no
     Mint, no Anchor, no carrier; (f) `verify --as unreachable` with the gap flags → refused. A seventh
@@ -1577,11 +1743,11 @@ runs it:
 
 ### III.11 Release fuzz harness — `releasegate/fuzz/` [MODIFY]; PR #1642 [SUPERSEDED]
 
-- Delete the contradiction drives and census fields: `answerContradictions` (`fuzz_test.go:2494-2511`, called at `:5278, :5575, :8873`, named in `dischargeOwed`'s comment `:1117-1122`), the
-  `ownAnswers`/`answerBudgetErr` fields (`:499-502`), the sweep gates at `sweeptally_test.go:913, :947`
+- Delete the contradiction drives and census fields: `answerContradictions` (`fuzz_test.go:2513-2530`, called at `:5291, :5588, :8890`, named in `dischargeOwed`'s comment `:1128-1133`), the
+  `ownAnswers`/`answerBudgetErr` fields (`:499-502`), the sweep gates at `sweeptally_test.go:922, :956`
   and every other site the census lists.
-- **The main reading drive** (`fuzz_test.go:5393-5478`; the raise/`contradictionOf` half at
-  `:5400-5412` is deleted with the census). A lens's reading draws the gap flags (class from the
+- **The main reading drive** (`fuzz_test.go:5406-5491`; the raise/`contradictionOf` half at
+  `:5413-5425` is deleted with the census). A lens's reading draws the gap flags (class from the
   outcome's admitted set, grades, check) exactly when the reading will find against: the outcome has
   `gap_classes` AND the copy the reading resolves to is not `not_the_work` — the drive reads that from
   the run's cache entry for the source (`fetchcache` lookup by url, the entry the verb stamps from),
@@ -1591,7 +1757,7 @@ runs it:
   `fix_basis` is `verified` where `--new` was passed and `proposed` where it was not. Any mismatch is a
   `noteActErr`.
   - **Its found-against repeat** (round-4 note). The drive re-reads the same anchor across sittings
-    with a random outcome, and its one repeat guard today is `ownUnreadGapOpen` (`:3719`, `:5416-5420`,
+    with a random outcome, and its one repeat guard today is `ownUnreadGapOpen` (`:3735`, `:5429-5433`,
     the `unread` arm). A second reading by the same lens with the same outcome, for which `FindsAgainst`
     holds, of an unchanged sentence while a gap of its earlier reading's carrier tree is open is now
     refused (§III.2's repeat rule), where the drive expects it admitted. [NEW] `ownFoundAgainstGapOpen
@@ -1623,7 +1789,7 @@ runs it:
     passed `--new`, blue's next sitting accepts that gap's fix by coin and expects it applied to the
     cited occurrence only, recorded with `exact_span` (counted `repeatedSentenceAccepts`).
   - **A reading over prescribed text** (F10). Where blue has applied a red `--new` verbatim (the
-    estoppel drive's precondition, `fuzz_test.go:658-668`), a lens's negative reading of that text — a
+    estoppel drive's precondition, `fuzz_test.go:664-674`), a lens's negative reading of that text — a
     `verify` of a citation the accept carried onto it, or a `corroborate --quote` of it — is expected
     ADMITTED with its gap minted or named, and NO new `LOG_TYPE_ESTOPPEL` entry; an estoppel refusal of
     a reading is a `noteActErr`. Counted `readingsOverPrescriptions`.
@@ -1636,11 +1802,11 @@ runs it:
   carried through `sweepTally`, the fold and its merge (the sites listed below for the found-against
   fields). New tally: max open gaps per (class, sentence) — must be ≤ 1.
 - **Every fuzz branch that tells failed checks apart keys on `CheckState()`**, and the `unread*` tallies
-  count the `unread` state only. Sweep, run at `0c57758e8` (80 hits, `new-fz.txt` beside the other lists):
+  count the `unread` state only. Sweep, run at `9ee7ad95e` (80 hits, `new-fz.txt` beside the other lists):
   `grep -n -E 'BlockerFailedCheck|AnsweredBy\(\)|\.Detail\b|unread(Answers|Repeats|Retires|RetiresJoined|ClosesRefused)|unsound(Answers|Repeats|ClosesRefused)' releasegate/fuzz/*.go`,
   every hit read. Under a found-against check `Detail == ""` reads as "unread citation", so each of these
   would drive or count it as unread:
-  - `fuzz_test.go:1218, :1227` (`fixFailed`, blue's remedy): `Detail == ""` → unread; it would call
+  - `fuzz_test.go:1229, :1238` (`fixFailed`, blue's remedy): `Detail == ""` → unread; it would call
     `envelopeRefusedEarly(… "check of citation "+C)` expecting the unread wording, retire the citation and
     count `unreadRetires`/`unreadRetiresJoined`. [REWRITE] a switch on the state: `unread` as today;
     `found_against` drives blue's found-against remedy — by coin, the edit that rewrites the sentence
@@ -1648,29 +1814,29 @@ runs it:
     `envelopeRefusedEarly(… "reading of citation "+C+" at event")`, the found-against `failedFact`'s
     words, and counts `foundAgainstEdits` / `foundAgainstRetires`; `unsound` as today; any other state is
     a `noteActErr`, never a fall-through;
-  - `:3007` (unread repeat: `verify --as unreachable` expected refused): `CheckState() == unread` only —
+  - `:3026` (unread repeat: `verify --as unreachable` expected refused): `CheckState() == unread` only —
     an `unreachable` reading over a found-against check is admitted, so driving it as refused would
-    fail the run; `:3017` (unsound repeat): `== unsound`;
-  - `:3039, :3042` (the owed-gap mint, `citation := Detail == ""`, its early-envelope refusal and the
+    fail the run; `:3036` (unsound repeat): `== unsound`;
+  - `:3058, :3061` (the owed-gap mint, `citation := Detail == ""`, its early-envelope refusal and the
     `unreadAnswers` count): only `unread`/`unsound` with no carrier — `found_against` is never owed;
-  - `:3096-3105` (`driven := unreadClosesRefused > 0`, the drive of a close refused at the mint) and
-    `:4249-4273` (`refuseStandingClose`'s tally, `Detail == ""` → `unreadClosesRefused`): the tally
+  - `:3115-3124` (`driven := unreadClosesRefused > 0`, the drive of a close refused at the mint) and
+    `:4265-4289` (`refuseStandingClose`'s tally, `Detail == ""` → `unreadClosesRefused`): the tally
     switches on the state — `unread`, `unsound`, `found_against` → `foundAgainstClosesRefused` — and
     any other state is a `noteActErr`;
-  - `:3415` (blue's oracle, "Retire the citation" for every `Detail == ""`): `unread` only; a
+  - `:3434` (blue's oracle, "Retire the citation" for every `Detail == ""`): `unread` only; a
     `found_against` check's item must name the found-against remedy ("edits the sentence, or retires or
     replaces the citation");
-  - `:3719` (`ownUnreadGapOpen`): `== unread`;
-  - `:4192, :4237` (`standingFailedCheckOf` → `refuseStandingClose` in `closeGap`): state-agnostic
+  - `:3735` (`ownUnreadGapOpen`): `== unread`;
+  - `:4208, :4253` (`standingFailedCheckOf` → `refuseStandingClose` in `closeGap`): state-agnostic
     selection by carrier, kept, and now the successor-following `AnsweredBy()` (§III.3); the tally it
     reaches switches as above;
-  - KEEP: `:2953` (asserts the plan readies the owner or blue, true of every state), `:6974` (no
+  - KEEP: `:2972` (asserts the plan readies the owner or blue, true of every state), `:6990` (no
     VERIFIED over any failed check);
-  - `sweeptally_test.go:834-845`: the `unread*` gates stay and now count only the unread path; NEW
+  - `sweeptally_test.go:843-854`: the `unread*` gates stay and now count only the unread path; NEW
     gates (zero fails the sweep, false-green guards) `foundAgainstClosesRefused`,
     `foundAgainstEdits + foundAgainstRetires`, and `foundAgainstClearedByOwnReading` (the drive below);
-    each new field is carried through `sweepTally`, the fold and its merge (`sweeptally_test.go:186-187,
-    :531-533, :651-653`, `fuzz_test.go:468-470, :5713-5715, :7041-7043`), which
+    each new field is carried through `sweepTally`, the fold and its merge (`sweeptally_test.go:189-190,
+    :535-537, :657-659`, `fuzz_test.go:468-470, :5726-5728, :7057-7059`), which
     `TestSweepTallyRoundTripsEveryField` and `TestTheFoldReadsEveryRunFieldAndWritesEveryFoldField`
     already fail on a field left out.
   New drive: a refuting reading followed, in the next sitting a plan readies that lens for, by a backing re-read by the same lens, after
@@ -1692,25 +1858,33 @@ runs it:
   - `final_parties` — the parties the last dispatch readied;
   - `open_by_found_by` — open gaps at the end, re-keyed by what surfaced each now that contradictions are
     gone: `reading` (minted by a reading act: a Verify names it with `carrier_minted` true), `finding` (minted from a finding in
-    `found_by`), `none`;
+    `found_by`), `unsound_computation` (an about-anchor gap carrying an unsound judgement — #1642's
+    `unsound_proof`, renamed by #1644; kept because it is the key #1642's data says holds the runs),
+    `none`;
   - `mints_by_epoch` / `closes_by_epoch` — mints and closes per epoch.
 - Release gate: PR CI only. Never `FEOV_RELEASE_GATE=1` locally.
 
 ### III.12 Consumer census
 
-Searches, run at `0c57758e8` over the tree as committed (raw hits kept at
-`~/.claude/scratch/plan1647-r8/census-new.txt`, per-file counts in `cnt-new.txt` beside it):
+Searches, run at `9ee7ad95e` over the tree as committed (raw hits kept at
+`~/.claude/scratch/plan1647-r10/census-new.txt`, per-file counts in `cnt-new.txt` beside it):
 
 ```
-git grep -I -n -i contradict 0c57758e8 -- . ':!run-archive'
-git grep -I -n -E 'ABOUT_KIND_CONTRADICTION|unanswered_contradictions|ContradictionOfReading|raisedBy|answeredBy|raised_by|opened_by|sources_refuted' 0c57758e8 -- . ':!run-archive'
+git grep -I -n -i contradict 9ee7ad95e -- . ':!run-archive'
+git grep -I -n -E 'ABOUT_KIND_CONTRADICTION|unanswered_contradictions|ContradictionOfReading|raisedBy|answeredBy|raised_by|opened_by|sources_refuted' 9ee7ad95e -- . ':!run-archive'
 ```
 
-Result: **207 files**, 1,596 hits, each read for meaning. Against `a31a7b06d`'s 206 files, per-file counts
-differ in three places (`cnt-old.txt`): `agents/blue-lane.md` is new (7 hits: the inlined manual's
-`show evidence` page and ordinary English, REGENERATE); the manual golden moves from 11 hits to 17 (the
-lane's page, REGENERATE); `scripts/agentgen/src/blue-researcher.md`'s one hit moved to
-`fragments/blue-researcher-frame.md:40` ("contradicted", ordinary English, KEEP).
+Result: **208 files**, 1,599 hits, each read for meaning. Against `0c57758e8`'s 207 files and 1,596
+hits (`cnt-old.txt`, and a by-content diff of the two hit lists), what moved: `record/about.go` gains one
+(`aboutShapes`' comment, #1674: "a contradiction's id is a number, which requireOpenContradiction reads"
+— REWRITE, §III.6); `record/viewjson_test.go` is new to the census (2 hits, #1678's estopped-row test:
+"a closer the board may contradict", ordinary English — KEEP); and lines rewritten in place, each re-read
+— `cli/lens/finding.go:145-146` (#1674's `--about` text, still naming "a contradiction's id … under
+unanswered_contradictions" — REWRITE as before), the inlined copies in the seven `agents/red-lens-*.md`
+(REGENERATE), `debate.js:915` (#1677's chair prompt, still ending "the lens that read a contradicting
+source no finding raises" — REWRITE), the chair golden (REGENERATE), `record/dispatch.go:22` and
+`help/dispatch.md:19` (#1677 dropped `inquiry` from the gavel list; the contradiction clause stands —
+REWRITE as before), `record/blockerowner_test.go` (a `want` reorder — REWRITE as before).
 Files this plan changes beyond the word census (none carries the word), found by the sweeps of §III.1,
 §III.2, §III.2a, §III.2b, §III.3, §III.7, §III.8 and §III.9: `help/close.md`, `help/reproduce.md`,
 `fragments/blue-search-and-cite.md`, `docs/seat-command-triggers.md`, `recordpb/facets.go`,
@@ -1724,10 +1898,12 @@ estoppel's exemption, F10), `cli/blue/edit.go` (the accept's exact span), `recor
 `cli/enum_help_test.go` (§III.2); and `enums_test.go`, `evidenceview_test.go`, `seatprobe/boards.go` and
 `cli/seat/seat.go` (`ReasonIs`, F11) move from KEEP to REWRITE.
 `migrate/plankinds.go` is not changed (§III.9 item 4 puts `TranslateReadingBlockers` in `planids.go`).
-Dispositions (a file counted once, MODIFY counted with REWRITE): **DELETE 4 · REWRITE 87 · REGENERATE
-17 · KEEP 121** (45 of the KEEP are historical).
+`capture/capture.go` (GAP 2: the assembly screen's count through `FindsAgainst()`) and
+`report/assemble.go` (F12: docket.md's source line) move from KEEP to REWRITE.
+Dispositions (a file counted once, MODIFY counted with REWRITE): **DELETE 4 · REWRITE 89 · REGENERATE
+17 · KEEP 120** (45 of the KEEP are historical).
 Paths are relative to `plugins/frank-exchange-of-views/tools/internal/` unless shown. "n" = lines
-carrying the FEOV sense, at `0c57758e8`.
+carrying the FEOV sense, at `9ee7ad95e`.
 
 **Production Go — record**
 
@@ -1741,7 +1917,7 @@ carrying the FEOV sense, at `0c57758e8`.
 | record/evidenceview.go | 11 | `UnansweredContradictions`, `EvidenceContradictionJSON` | REWRITE |
 | record/anchorchecks.go | 8 | comments; `contradicts()` at l.261 | REWRITE (§III.3) |
 | record/sitting.go | 4 | lens owes the blocker; raiser-at-cap rule (l.160-174 ordinary) | REWRITE |
-| record/about.go | 5 | about-kind validation, gap refusal | REWRITE |
+| record/about.go | 6 | about-kind validation, gap refusal, `aboutShapes`' comment (#1674) | REWRITE |
 | record/record.go | 4 | finding → `requireOpenContradiction`; mint about-kind refusal | REWRITE |
 | record/enums.go | 2 | finding's set "less contradiction" | REWRITE; [NEW] `ReadingClassField` (§III.2) |
 | record/retirement.go | 2 | "a contradiction it read" as a debt | REWRITE |
@@ -1755,7 +1931,7 @@ carrying the FEOV sense, at `0c57758e8`.
 | record/migrate/remap.go | 0 | `idFields` (`:108-116`) | MODIFY (§III.1): `Verify.carried_by`, `Anchor.sentence_of` |
 | record/migrate/gapplace.go | 0 | Anchor placement on replay (`:78-79`, `:104-115`) | MODIFY (§III.2a) |
 | record/migrate/entries.go, migrate/outcomes.go | 3, 1 | comments | REWRITE |
-| record/migrate/plankinds.go | 0 | `planKindRenames`, `TranslatePlanKinds` | KEEP: unchanged. `ReadPlan` decodes a blocker's kind as a string (`planstore.go:52-63`), so an archived `contradiction` blocker passes `TranslatePlanKinds` untouched to `TranslateReadingBlockers` (`planids.go`, §III.9 item 4) |
+| record/migrate/plankinds.go | 0 | `planKindRenames`, `TranslatePlanKinds` | KEEP: unchanged. `ReadPlan` decodes a blocker's kind as a string (`planstore.go:51-62`), so an archived `contradiction` blocker passes `TranslatePlanKinds` untouched to `TranslateReadingBlockers` (`planids.go`, §III.9 item 4) |
 | record/batch.go | 0 | `Batch.Append` | MODIFY: [NEW] `Batch.AppendBodies` (§III.9 item 6) |
 | record/migrate/gapclass.go, enumof.go, outcomeclosed.go, spotcheck.go, failedcheck.go (`answeredBy` = failed check), recordsql/views.go (`opened_by` = gap view) | 0 | other sense | KEEP (failedcheck.go is MODIFIED by §III.3 and recordsql/views.go by §III.2a, not for this word) |
 
@@ -1783,13 +1959,15 @@ MODIFY; `record/onegapperclass.go:82-92` MODIFY; `record/estoppel.go:175-211` (`
 gap's token) MODIFY; `cli/blue/edit.go:335-349` (the accept's exact span) MODIFY.
 
 **Other Go** — `terms/terms.json` (5: the entry, its ordinary-English collision, `lens retirement`): REWRITE
-then vocabdoc. KEEP (0 FEOV-sense hits; source-outcome, class or ordinary sense): capture/capture.go
-(`sources_refuted`, found-against check), capture/computationrerun.go, report/assemble.go,
+then vocabdoc. KEEP (0 FEOV-sense hits; source-outcome, class or ordinary sense): capture/computationrerun.go,
 report/registrations.go, verify/verify.go, seatprobe/production.go, bluedoc/bluedoc.go, flags/names.go, feov/error.go, seatenv/identity.go,
 seatenv/seatenv.go, tessocr/engine_stub.go, `scripts/decisions/main.go`,
 `scripts/golden/review.go`, gray-area `cmd/gray-area-capture/main.go`, `internal/claims/coverage.go`,
 `internal/claims/manifest.go`. REWRITE beyond the word: `seatprobe/seatprobe.go`, `seatprobe/boards.go`
-(§III.8; `boards.go`'s census hit, `cross_section_contradiction`, stays).
+(§III.8; `boards.go`'s census hit, `cross_section_contradiction`, stays); `capture/capture.go`
+(`sources_refuted` and its found-against check keep their sense; `:483` calls `FindsAgainst()`, GAP 2,
+§III.2b); `report/assemble.go` (its census hits keep their sense; docket.md gains F12's source line,
+§III.2c).
 
 **Tests**
 
@@ -1811,7 +1989,7 @@ seatenv/seatenv.go, tessocr/engine_stub.go, `scripts/decisions/main.go`,
   record/unreadcitation_test.go:119 and record/unreadb6_test.go:21-22, :66 (the "does not close"
   comments, F8), cli/keyedretry_test.go (the retry test, §III.2).
 - KEEP (other sense): record foundagainstm30_test (`sources_refuted`), cast_test,
-  passagreement_test, registeronce_test, roster_test, spotcheck_test,
+  passagreement_test, registeronce_test, roster_test, spotcheck_test, viewjson_test (#1678, ordinary),
   recordpb/requiredfields_test, migrate/gapclass_test; cli readrunrefusal_test, agentbinding_test,
   identitywalk_test, counterparty_test, blueedit_test, verbguardrace_test, fetchsummary_test,
   fetchocr_test, verify_test, dashboard_serve_test, seat/seat_test; integration/surface/
@@ -1833,9 +2011,11 @@ KEEP: difftest error_catalogue.golden, migrate/testdata/prose-rewrites.golden (a
 prompt-red-lens-logic/dark-side goldens, debate.test.mjs, prompts.test.mjs. gap_class_enum.golden
 REGENERATES for the new class only.
 
-**debate.js** (`skills/research-protocol/scripts/debate.js`): l.393 and l.415 sit inside the
-`GENERATED ENVELOPE VOCABULARY` region (l.371-438) → REGENERATE (enginegen); l.889 (red-chair prompt, "the
-lens that read a contradicting source no finding raises") is authored → REWRITE; l.227, 253, 255 KEEP.
+**debate.js** (`skills/research-protocol/scripts/debate.js`): l.394 and l.415 sit inside the
+`GENERATED ENVELOPE VOCABULARY` region (l.373-451) → REGENERATE (enginegen); l.915 (red-chair prompt,
+rewritten by #1677, still ending "the lens that read a contradicting source no finding raises") is
+authored → REWRITE; l.227, 253, 255 KEEP. #1677's `record_read` (`RECORD_READ`, l.448, 520, 561, 630;
+`readOf`, l.687) carries no blocker, gap or reading: KEEP.
 
 **Agents and skills** — REGENERATE (agentgen): all 12 `agents/*.md` (7 red-lens-*, red-chair, blue-lane,
 blue-researcher, blue-synthesizer, lead-judge). REWRITE: `skills/research/SKILL.md` l.7,
@@ -1845,14 +2025,14 @@ blue-researcher, blue-synthesizer, lead-judge). REWRITE: `skills/research/SKILL.
 fragments/lens-duties.md, red-chair.md. KEEP: lead-judge.md, fragments/blue-researcher-frame.md,
 fragments/blue-research-protocol.md (ordinary English).
 
-**The `lane` role (#1663).** Is it a carrier of the concept? Swept at `0c57758e8`: `seatclass/roster.go:99`,
-`cli/blue/command.go:40-47` (`LaneVerbs`), `record/envelope.go:107`, `agents/blue-lane.md` as rendered,
+**The `lane` role (#1663).** Is it a carrier of the concept? Swept at `9ee7ad95e`: `seatclass/roster.go:99`,
+`cli/blue/command.go:40-47` (`LaneVerbs`), `record/envelope.go:111`, `agents/blue-lane.md` as rendered,
 `scripts/agentgen/src/blue-lane.md` and its fragments.
 
 | Site | Reads or teaches | Disposition |
 |---|---|---|
 | The lane's verbs (`LaneVerbs`: register, ingest, inquiry, log) | no `verify`, `corroborate`, `mint`, `close`, `edit` or `retire`: a lane performs no reading, mints no gap and is refused as the wrong seat on each | KEEP |
-| Its work list (`WorkArrivesAsItems`, `envelope.go:107`) and the plan | work reaches it by dispatch, never as items, so it holds no failed-check item; a found-against check readies `blue-respond` alone (`dispatch.go`'s arm, §III.3) | KEEP |
+| Its work list (`WorkArrivesAsItems`, `envelope.go:111`) and the plan | work reaches it by dispatch, never as items, so it holds no failed-check item; a found-against check readies `blue-respond` alone (`dispatch.go`'s arm, §III.3) | KEEP |
 | `cli/lens`' `seat.Places` guards; `PartStanding` (`queries.go:381`) | the first non-append row closes the door on a lane still writing, so a reading's Anchor, like a plain mint's, closes it. No lens sits before a report exists | KEEP |
 | `scripts/agentgen/src/blue-lane.md` | no reading, failed-check or contradiction sentence. It includes neither `blue-research-protocol.md` nor `blue-search-and-cite.md`, the fragment holding blue's failed-check duty (§III.7) | KEEP |
 | `fragments/blue-researcher-frame.md:40`, `fragments/blue-search.md` | "contradicted" (ordinary English); no reading | KEEP |
@@ -1870,7 +2050,7 @@ act → three states, the gap minted at the reading, the close refused while the
 closing ruling closing the gap while the check holds the PASS); `docs/seat-command-triggers.md` l.56 (the
 `lens verify` row: a reading of the work that finds against mints its gap in the same act, with the mint's judgment flags, its
 `--reason` the gap's argument, at the
-sentence the citation's token sits in; a verdict that reads nothing — unreachable, or a not_the_work
+sentence the citation's token sits in; a reading that reads nothing — unreachable, or a not_the_work
 copy — mints nothing, and the unread citation's lens owes the gap about it), l.66-67 (the `lens mint` row: the owed failed-check gap is the unread or unsound
 check's; the `lens close` row: a gap carrying a found-against check is refused too, until the reader's
 own backing reading, an edit or a retire), l.86 (the `blue retire` row: an anchor found against is
@@ -1880,7 +2060,7 @@ KEEP: propagation-and-anchoring.md, seat-surface-naming.md, why-a-seat-stops.md;
 `plugins/prosthetic-conscience/skills/resume/SKILL.md` (ordinary English).
 
 **Phrase-sweep additions** (old model, no word; §III.7): `scripts/agentgen/src/skills/research-protocol/SKILL.md:17-19`
-→ REWRITE (regenerates `skills/research-protocol/SKILL.md`); `cli/lens/verify.go:304, :701-704` → REWRITE.
+→ REWRITE (regenerates `skills/research-protocol/SKILL.md`); `cli/lens/verify.go:304, :702-705` → REWRITE.
 `scripts/agentgen/src/lead-judge.md` → REWRITE (one added sentence, R4).
 
 **Plans / ideas / law / feov-memory / research** — KEEP-historical (45 files: 33 under `plans/`, 7
@@ -1890,6 +2070,22 @@ one-item-per-dispatch.md:336, ocr-cite-derives-page.md:574, historical/red-citat
 historical/migrate-staged-publish.md:284, law/precedents.md:156 record past decisions; none is a live
 instruction, none is rewritten.
 
+**What #1677 and #1678 moved, and the dispositions that could have rested on it** (re-derivation at
+`9ee7ad95e`, `git diff 0c57758e8 9ee7ad95e`, every file this plan cites):
+
+| Change | Where this plan reads it | Disposition holds? |
+|---|---|---|
+| `Party.Occasions`, `Dispatch.occasions`, `benchRowSitting`'s per-occasion arm deleted (#1677); `Dispatch` field 4 reserved | §III.3 dispatch arms (`dispatch.go:546-561`), `failedCheckReadiness` (`:1290-1308`), `PlanBlocker` (`:29-33`), `contradictionReadiness` (`:1281-1288`) | Yes: no arm of this plan names an occasion; the lines moved up by the deletion and the map carried them. The bench is still readied on a docketed gap by the plan (`engage(benchSeat, g.id)`) |
+| The bench hears a petition or position at any barrier where no seat runs, with no chair sitting (#1677) | `TestABenchRulingClosesAFoundAgainstGapAndThePassStaysHeld` (the chair dockets G-1, the bench rules); F8 | Yes: a docket is still a plan party and a docket sitting (`benchRowSitting` reads `OCCASION_DOCKET`); a hearing answers no row and rules on no gap |
+| `debate.js` learns the halt and the outcome only from `record_read`, which a PreToolUse hook writes on every envelope (#1677) | `debate.js:1087-1094` (`anchorsStanding`), §III.3 KEEP | Yes: the plan is still the chair's envelope (`const plan = chairEnv`, `:953-957`, validated by `requirePlan`); #1672, open, would move it to the record and is not derived against |
+| `record_read`, `readOf` (new) | — | Carries no blocker, gap or reading: KEEP, outside the census |
+| `TranslatePlanParties` runs before `TranslatePlanKinds` in replay (#1677, `replay.go:373-390`) | §III.9 item 4 (`TranslateReadingBlockers` after `TranslatePlanKinds`, before `TranslatePlanIDs`) | Yes: the order becomes Parties → Kinds → ReadingBlockers → IDs; the bench-row occasion fill-in (`:340-347` at the old base) is gone, which no step of §III.9 item 6's table named |
+| Client floor 2.1.305 (#1677) | §V.8 | Stated there |
+| `Verify.sha256 = 20` (#1678), in `remap.go`'s string list and on the evidence row | §III.1 field numbers; §III.2c | `carried_by = 21`, `carrier_minted = 22`; a negative corroboration mints no footnote and carries no `sha256` |
+| `EstoppedJSON` names no closer (#1678 D17) | §III.2's estoppel sweep (94 lines) | Another sense (the `estopped` register): KEEP |
+| `ResolveAbout` checks a reference's shape first (`aboutShapes`, #1674) | §III.6 `about.go` | Its comment names the contradiction (REWRITE); the map holds no contradiction row; migrate's raise test is unaffected (replay does not call `ResolveAbout`) |
+| `verifiedFix`'s dropped-anchor clause names `--quote` (#1663 smoke D7, `mint.go:364-372`) | §III.2a `verifiedFix` | Takes the verb's subject, as the rest of the refusal does |
+
 **Readers of a refutation that do not name the contradiction** (added at the Slim-fast peer's request;
 each states how it reads once a refutation is a gap):
 
@@ -1898,17 +2094,17 @@ each states how it reads once a refutation is a gap):
 | Anchor ledger `anchorStanding.state()` (`anchorchecks.go:152-178`, from #1601 / 90f3fa008) and `stateFoundAgainst` | a citation whose standing check refutes or is absent; its PASS hold was "the contradiction's" | Unchanged predicate: found-against is still the **citation's standing** (a standing negative reading of the sentence the report carries), NOT "has an open gap of the new class". The gap is a separate fact linked by `Verify.carried_by`; the state is what makes the gap unclosable (§III.3). Keying the state on the gap would let a gap closed into a successor, or an archived reading with no gap, read as holding | MODIFY (comment only; `contradicts()` → `gap_classes` facet) |
 | `failed_check` PASS blocker (`passblockers.go:403`, `failedcheck.go`) | unread citations and unsound computations | gains the found-against state (§III.3): holds the PASS until its reader's own later reading backs the sentence, blue edits it, or blue retires the citation (another lens's backing reading clears nothing); readies blue alone; carrier = `Verify.carried_by` followed through its successors | MODIFY |
 | `unchecked` PASS blocker | a citation or computation with no check of its current sentence | unchanged: an edit of a found-against sentence makes the citation unchecked, owed a fresh check by its owning lens; that check either holds (failed check cleared, the gap may close) or is negative again (names the standing gap, or mints one if it is closed) | KEEP |
-| Evidence lens's gap duties (`fragments/lens-duties.md`, `lens-audit-and-mint.md`, `verify.md`) | read every citation; a negative reading opens a contradiction it must raise by finding, then answer by a gap minted from it, outside its budget | reads every citation; a reading of the work that finds the source against the sentence carries the gap's judgment (class among the outcome's admitted set, problem, check, grades) and its argument (`--reason`) and mints it in the same act, outside its budget, at the sentence its citation's token sits in; a verdict that reads nothing (unreachable, a not_the_work copy) mints nothing; a second reading of a sentence holding that gap names it; the lens closes the gap with its ordinary close once its own later reading backs the sentence, or blue edits or retires it. Unread readings keep the owed-gap-about-the-anchor duty | REWRITE (agentgen) |
-| Failed-check owed-ness readers (§III.3): dispatch lens arm `dispatch.go:558-565`, lens work item `sitting.go:401-408` (and `EnvelopeRefusal`, `envelope.go:44`, through it), retirement `retirement.go:164-172`, budget `failedcheck.go:109-119, :208-215` | owed iff `answeredBy == ""` | owed iff state is `unread`/`unsound` and no gap carries it; `found_against` never owed by its reader | MODIFY |
-| Failed-check printed sentences (§III.3): `passblockers.go` `failedFact` :226, `failedClears` :234, `failedRemedy` :245, `failedOwed` :254, `blueFailedItem` :262, the kind's gloss/refusal/why :404-433; `dispatch.go:1326` `failedCheckReadiness`; `failedcheck.go` repeat and close refusals :135, :181 | branch on `Detail` (a computation's `bundle_sha`) and `answeredBy`; citation = unread | branch on the state; found-against wording names the reading and blue's remedy (edit, retire or replace), never an owed mint | MODIFY |
+| Evidence lens's gap duties (`fragments/lens-duties.md`, `lens-audit-and-mint.md`, `verify.md`) | read every citation; a negative reading opens a contradiction it must raise by finding, then answer by a gap minted from it, outside its budget | reads every citation; a reading of the work that finds the source against the sentence carries the gap's judgment (class among the outcome's admitted set, problem, check, grades) and its argument (`--reason`) and mints it in the same act, outside its budget, at the sentence its citation's token sits in; a reading that reads nothing (unreachable, a not_the_work copy) mints nothing; a second reading of a sentence holding that gap names it; the lens closes the gap with its ordinary close once its own later reading backs the sentence, or blue edits or retires it. Unread readings keep the owed-gap-about-the-anchor duty | REWRITE (agentgen) |
+| Failed-check owed-ness readers (§III.3): dispatch lens arm `dispatch.go:546-553`, lens work item `sitting.go:401-408` (and `EnvelopeRefusal`, `envelope.go:44`, through it), retirement `retirement.go:164-172`, budget `failedcheck.go:109-119, :208-215` | owed iff `answeredBy == ""` | owed iff state is `unread`/`unsound` and no gap carries it; `found_against` never owed by its reader | MODIFY |
+| Failed-check printed sentences (§III.3): `passblockers.go` `failedFact` :226, `failedClears` :234, `failedRemedy` :245, `failedOwed` :254, `blueFailedItem` :262, the kind's gloss/refusal/why :404-433; `dispatch.go:1293` `failedCheckReadiness`; `failedcheck.go` repeat and close refusals :135, :181 | branch on `Detail` (a computation's `bundle_sha`) and `answeredBy`; citation = unread | branch on the state; found-against wording names the reading and blue's remedy (edit, retire or replace), never an owed mint | MODIFY |
 | Failed-check prose: `help/mint.md:15`, `help/close.md:11`, `help/verify.md:11`, `help/reproduce.md:21`, `fragments/blue-search-and-cite.md:22-29`, `fragments/lens-audit-and-mint.md:6`, `terms.json` `failed check`, `docs/citations-and-bibliography.md:158-167`, `docs/seat-command-triggers.md:56, :66-67, :86` | two states; the seat whose check failed owes the gap; "the gap does not close while the check stands" | three states; the owed gap is the unread/unsound check's; a found-against check's gap is minted at the reading, and the check clears by the ledger's rule; the seat's close is refused while the check stands, and a closing bench ruling closes the gap while the check holds the PASS (F8) | REWRITE |
-| Fuzz failed-check drives and tallies `fuzz_test.go:1218, :1227, :3007, :3017, :3039, :3042, :3096-3105, :3415, :3719, :4192, :4237, :4269`; gates `sweeptally_test.go:834-845` | `Detail == ""` = unread citation; `AnsweredBy() == ""` = owed; unread tallies count every citation check | key on `CheckState()`; unread tallies count `unread` only; found-against has its own tallies and gates | REWRITE (§III.11) |
-| `verify.go:529-541, :631-656` `failedCheckWords` and the JSON `failed_check` | guarded by the NEW reading's `!VerifyReads`, worded as unread whatever the check's state; JSON carries no state | after every verification of a citation, every standing failed check of the anchor, worded by its state; JSON `failed_checks[].state` | REWRITE (§III.2) |
-| `verdict.go:141-162`; `debate.js:1050-1057`; `fuzz_test.go:2953, :6974` | anchor names only; owner-or-blue readied; no VERIFIED over a failed check | unchanged, true of every state | KEEP |
+| Fuzz failed-check drives and tallies `fuzz_test.go:1229, :1238, :3026, :3036, :3058, :3061, :3115-3124, :3434, :3735, :4208, :4253, :4285`; gates `sweeptally_test.go:843-854` | `Detail == ""` = unread citation; `AnsweredBy() == ""` = owed; unread tallies count every citation check | key on `CheckState()`; unread tallies count `unread` only; found-against has its own tallies and gates | REWRITE (§III.11) |
+| `verify.go:530-542, :632-657` `failedCheckWords` and the JSON `failed_check` | guarded by the NEW reading's `!VerifyReads`, worded as unread whatever the check's state; JSON carries no state | after every verification of a citation, every standing failed check of the anchor, worded by its state; JSON `failed_checks[].state` | REWRITE (§III.2) |
+| `verdict.go:141-162`; `debate.js:1087-1094`; `fuzz_test.go:2972, :6990` | anchor names only; owner-or-blue readied; no VERIFIED over a failed check | unchanged, true of every state | KEEP |
 | Tests pinning unread/unsound sentences: `unreadcitation_test`, `unreadb6_test`, `blueanswered_test`, `failedcheck_test`, `reopened_test`, `tiersubstitution_test`, `unsoundm32_test`, `capture/dispatchparity_test` | those states' wording | their owed-mint and remedy wording does not move — they are the regression net for it; the "does not close" comments in `unreadcitation_test.go:119` and `unreadb6_test.go:21-22, :66` are rewritten (F8) | KEEP (two comment REWRITEs) |
 
 **Readers of a failed check's owed-ness and its printed sentence** (the class the round-2 audit named;
-run at `0c57758e8`, every hit read, `new-fc3.txt`; dispositions in the table above):
+run at `0c57758e8` and carried by the line map; the wider `new-fc.txt`, re-run at `9ee7ad95e`, adds only capture audits' `.Detail` (another sense), every hit read, `new-fc3.txt`; dispositions in the table above):
 
 ```
 grep -rIn -E 'answeredBy|answered_by|AnsweredBy' plugins/frank-exchange-of-views/tools/internal plugins/frank-exchange-of-views/tools/cmd plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js scripts/agentgen/src | grep -v _test.go
@@ -1918,12 +2114,12 @@ grep -rIn -i -E 'check (of yours|that) failed|whose check failed|failed check|ab
 
 Hits outside the contradiction fold (which is deleted: `citationid.go:554-685`, `onegapperclass.go:145`,
 `mintbudget.go:362-380`): `passblockers.go:84-98, :223-274, :403-433, :714`; `failedcheck.go:44-119,
-:134-215`; `sitting.go:321-322, :401-408`; `retirement.go:142-172`; `dispatch.go:22, :558-573,
-:1323-1341`; `mintbudget.go:308-309, :370, :394, :400-410`; `verdict.go:141-162`; `cli/lens/verify.go:529-541,
-:631-656`; `cli/seat/verbs.go:308`; `terms.json:1079-1080`; `help/mint.md:15`, `help/close.md:11`,
+:134-215`; `sitting.go:321-322, :401-408`; `retirement.go:142-172`; `dispatch.go:22, :546-561,
+:1290-1308`; `mintbudget.go:308-309, :370, :394, :400-410`; `verdict.go:141-162`; `cli/lens/verify.go:530-542,
+:632-657`; `cli/seat/verbs.go:308`; `terms.json:1079-1080`; `help/mint.md:15`, `help/close.md:11`,
 `help/verify.md:11` (unread; its "does not close" clause REWRITEs, F8), `help/dispatch.md:19`; `fragments/lens-audit-and-mint.md:6`,
-`fragments/blue-search-and-cite.md:22-29`; `debate.js:393` (enginegen, from `dispatch.go:22`),
-`debate.js:1050-1057`; `onegapperclass.go:28` (a comment naming `answersOwnFailedCheck`, KEEP);
+`fragments/blue-search-and-cite.md:22-29`; `debate.js:394` (enginegen, from `dispatch.go:22`),
+`debate.js:1087-1094`; `onegapperclass.go:28` (a comment naming `answersOwnFailedCheck`, KEEP);
 `migrate/plankinds.go:19` (respelling, KEEP); test files under `record/`, `capture/` and the fuzz (rows
 above). `sitting.go:268, :676-678` (`answeredByActThisSitting`) is a motion reader, other sense, KEEP.
 
@@ -1945,7 +2141,9 @@ never printed: both fields are tool-supplied, `seat.Supplies` in `verify.go` and
 required-field sweep (`recordpb/requiredfields_test.go`, both optional); by meaning — `failedChecksOf`
 (carrier), `requireMintWithinBudget`/`lensMintStanding` (`carrier_minted`, §III.5), the repeat rule
 (§III.2), the reading's result (`gap.minted` read back), migrate (archived readings carry neither,
-§III.9.2), the sweep tally `open_by_found_by` (§III.11) and §V.8's query. `references: "mint.gap_id"`
+§III.9.2), the sweep tally `open_by_found_by` (§III.11), §V.8's query, and F12's two printers —
+`EvidenceVerificationJSON.CarriedBy` and docket.md's source line (§III.2c) — and, after this plan,
+#1657 Part 1a′'s widened L1 and re-read arm (§III.16), which read both fields by SQL. `references: "mint.gap_id"`
 makes the column a foreign key; replay translates no gap id (G- ids are carried unchanged), so migrate
 needs no translation for it beyond `idFields`' respelling of an archived id, which a record written at
 this epoch never holds.
@@ -1971,7 +2169,7 @@ test), `unreadcitation_test.go` (the F8 bench test lands beside its unread mirro
 
 ```
 plugins/frank-exchange-of-views/
-  requirements.json                         [MODIFY] eventSchema 53
+  requirements.json                         [MODIFY] eventSchema 55
   tools/internal/record/
     recordpb/record.proto                   [MODIFY] AboutKind, GapClass, SourceOutcome facet, Verify.carried_by, Verify.carrier_minted, Anchor.sentence_of
     recordpb/facets.go                      [MODIFY] gap_may_name deleted
@@ -1989,10 +2187,13 @@ plugins/frank-exchange-of-views/
     migrate/replay.go, planids.go, entries.go, outcomes.go                   [MODIFY]
     migrate/valuerenames.go, remap.go, gapplace.go                          [MODIFY]
     estoppel.go, queries.go                 [MODIFY] ProposalOver by the gap's token; ReportOp doc
+    evidenceview.go                         [MODIFY] FindsAgainst() (GAP 2); carried_by on the row (F12)
     migrate/*_test.go                       [NEW] m30, m23, a record at this epoch, sentence_of check
     *_test.go                               [NEW] m32 cut, migrated found-against checks
   tools/internal/anchortext/anchortext.go   [MODIFY] AttachToSentenceOf
   tools/internal/reportproj/render.go       [MODIFY] sentenceOfMut
+  tools/internal/report/assemble.go         [MODIFY] docket.md's source line (F12)
+  tools/internal/capture/capture.go         [MODIFY] the assembly screen counts through FindsAgainst()
   tools/internal/seatprobe/seatprobe.go, boards.go   [MODIFY] a reading's Mint counts under its verb
   tools/internal/cli/seat/verbs.go          [MODIFY] PlacesToSentenceOf
   tools/internal/cli/seat/seat.go           [MODIFY] ReasonIs rows for the reading verbs
@@ -2000,7 +2201,7 @@ plugins/frank-exchange-of-views/
   tools/internal/cli/blue/edit.go           [MODIFY] the accept's exact span
   tools/internal/cli/m23contradiction_test.go → m23corroboration_test.go  [REWRITE] the migrated state (GAP 2)
   tools/internal/cli/seat/help/*.md         [MODIFY] incl. edit.md, mint.md (estoppel's exemption)
-  tools/internal/terms/terms.json           [MODIFY]
+  tools/internal/terms/terms.json           [MODIFY] failed check (one sentence), reading (NEW), contradiction deleted
   docs/citations-and-bibliography.md, docs/seat-command-triggers.md   [MODIFY]
   tools/releasegate/fuzz/*                  [MODIFY]
   skills/research-protocol/scripts/debate.js  [REGENERATE + MODIFY]
@@ -2022,10 +2223,10 @@ Implementation runs one phase per **fresh agent**, each starting from this plan 
 `.claude/checkpoints/CHECKPOINT.md`, ending with a commit, the checkpoint rewritten (head, the phase's
 loop result, the next phase), and the agent's exit. A phase ends where its loop is green; the full
 `check` is owed only at phase 6. **A phase loop builds only what compiles at that phase.** Phase 1's
-deletion of `ABOUT_KIND_CONTRADICTION` and `BlockerContradiction` leaves `migrate/replay.go:395-406` and
+deletion of `ABOUT_KIND_CONTRADICTION` and `BlockerContradiction` leaves `migrate/replay.go:391-402` and
 `planids.go:91-103` uncompiled until phase 2, and every package whose TESTS import `record/migrate`
 fails to build its test binary until then. Sweep (`grep -rl 'internal/record/migrate"'` over the tools
-module, at `0c57758e8`, the same importers as before #1663 but for `migrate`'s own tests): `internal/record` itself (`archivemigrate_test.go`, `planidphrases_test.go`,
+module, at `9ee7ad95e`, the same importers as before #1663 but for `migrate`'s own tests): `internal/record` itself (`archivemigrate_test.go`, `planidphrases_test.go`,
 package `record_test`), `internal/cli` (`rerunperact_test.go`, `composedsection_test.go`,
 `m23contradiction_test.go`, `deadpath_test.go`; `migrateorder_test.go` through `internal/migratecli`),
 `internal/report` (`migrateddrift_test.go`), `internal/migratecli`, `cmd/feov-migrate`,
@@ -2040,10 +2241,147 @@ deleted symbols are used by `migrate` (phase 2), `cli` (phase 3) and the fuzz (p
 |---|---|---|
 | 1. Record | §III.1 proto, epoch, facets, `FindsAgainst`/`ReadingGapClasses`, `Verify.carried_by`, `Anchor.sentence_of`; §III.2a's record half (`AttachToSentenceOf`, `report_op`'s `'sentence_of'` arm, `sentenceOfMut`, the Anchor validation, the one-gap placement, `ProposalOver` by identity); §III.3 the check state, the open set from the gap view, and every reader of it; §III.4; §III.5; §III.6 deletions; record-package tests of §III.10 (written, run in phase 2) | protogen/schemagen clean (§V.1); `go build ./internal/record/ ./internal/reportproj/ ./internal/anchortext/`; `go test -count=1 ./internal/reportproj/ ./internal/anchortext/` |
 | 2. migrate | §III.9 translation (`valueRenames` row, the raise by `anchor.Kind(ref)==""`, `TranslateReadingBlockers`, the reading act re-driven whole on replay with each member's own duties and `Batch.AppendBodies`, the deletions in `replay.go` and `planids.go` that phase 1's enum deletions leave uncompiled), `remap.go` `idFields`, `gapplace.go`'s sentence_of check, and the m30/m32/m23/sqlite-schema-source tests | §V.6; `go test -count=1 ./internal/record/...` (the record package's tests, phase 1's included, and migrate's); `go build ./internal/migratecli/ ./cmd/feov-migrate/ ./devcmd/archdump/ ./devcmd/archiverun/` (not `./devcmd/...` or `./cmd/...`: `devcmd/seatprobe` and `cmd/feov-record` import `internal/cli`, which builds in phase 3) |
-| 3. Reading act | §III.2 flags (`gapFlags`, `ReadingClassField`, `RequiredUnless`, `ReasonIs`), the field table, the completeness stamp and the footnote gate, the reading's placed append, held gap inside the transaction, repeat, result words; §III.2a's CLI half (`PlacesToSentenceOf`, `verifiedFix`, the accept's exact span); §III.8 `seatprobe`; cli tests, the GAP 3 record-at-this-epoch test | `go test -count=1 ./internal/cli/... ./internal/migratecli/ ./internal/report/ ./internal/seatprobe/ ./devcmd/seatprobe/ ./cmd/...` |
+| 3. Reading act | §III.2 flags (`gapFlags`, `ReadingClassField`, `RequiredUnless`, `ReasonIs`), the GAP 2 and GAP 3 result words, §III.2c (F12), the field table, the completeness stamp and the footnote gate, the reading's placed append, held gap inside the transaction, repeat, result words; §III.2a's CLI half (`PlacesToSentenceOf`, `verifiedFix`, the accept's exact span); §III.8 `seatprobe`; cli tests, the GAP 3 record-at-this-epoch test | `go test -count=1 ./internal/record/... ./internal/cli/... ./internal/migratecli/ ./internal/report/ ./internal/capture/ ./internal/seatprobe/ ./devcmd/seatprobe/ ./cmd/...` |
 | 4. Agent text | §III.7 help, terms, agentgen sources, debate.js; regenerate; read every changed golden line | §V.1 second run no diff; §V.4 census and phrase sweep |
 | 5. Fuzz | §III.11 drives, gates, the four carried tally fields | `go test -count=1 ./releasegate/...` with the gate unset (compiles; the sweep runs in CI) |
 | 6. Verify | §V.2, §V.3, §V.5, §V.8, §V.9; open the PR; read PR CI's fuzz tally (§V.7) | all of §V |
+
+### III.15 Required tests, in order, by the phase that owns each (approved 2026-11-01; nothing audits this revision)
+
+Each phase writes its tests before the code that turns them green, and does not end until each runs
+and passes in its phase loop (§III.14) and its §V.5 partner, applied and reverted, turns it red. A
+phase-1 test is written in phase 1 and first runs in phase 2 (the record package's tests import
+`migrate`). NEW unless marked; "R8" marks a round-8 gap or note carried as a required test.
+
+**Phase 1 — record** (written; run in phase 2)
+1. `TestEveryNegativeOutcomeNamesItsClasses` — §III.1; partner a.
+2. `TestTheLensCloseOfAReadingsGapIsRefusedWhileTheCitationStandsFoundAgainst` — §III.3; partners d, r.
+3. `TestABenchRulingClosesAFoundAgainstGapAndThePassStaysHeld` — F8; partners d, n.
+4. `TestASupersededReadingGapHandsTheCheckToItsSuccessor` — §III.3; partners o, aa.
+5. `TestAFoundAgainstCheckIsWordedByItsState` — §III.3; partner k.
+6. `evidenceview_test.go`'s `not_the_work` `refutes` row (REWRITE) — R8 GAP 2; partner jj.
+7. `TestEveryIDTheVerbPrintsIsTranslated` (REWRITE: `BlockerWhy` per state) — §III.9 item 4; partner ii.
+8. KEEP, the regression net, unchanged: `TestABenchRulingDoesNotClearAnUnreadCitation`, `unreadb6_test`,
+   `blueanswered_test`, `failedcheck_test`, `reopened_test` (three-argument `failedChecksOf`),
+   `tiersubstitution_test`, `unsoundm32_test`, `TestTheReportReplayIsAFold`.
+
+**Phase 2 — migrate**
+9. `TestTheMigratedM30RaiseIsAFindingAboutItsCitation` — §III.9 item 1; partners f, v.
+10. `TestAFindingAboutAnAnchorIsNoRaise` — §III.9 item 1; partner v.
+11. `TestTheMigratedM32HoldsAFailedCheckPerStandingReading` — §III.9 item 4.
+12. `TestAMigratedFoundAgainstCheckReadiesBlueAlone` (m32 cut and sqlite-schema-source rows) — §III.3; partners i, j, r.
+13. `TestM23CorroborationReadingComesForward` — §III.9.
+14. KEEP, must stay green: `TestEveryArchivedRunMigrates`, `TestValueRenames`, `TestEveryStringFieldIsInOneList`, `reopenedm19_test`, `foundagainstm30_test`.
+
+**Phase 3 — the reading act**
+15. `TestARefutingReadingMintsItsGapInTheSameAct` — partners a, b.
+16. `TestASecondRefutingReadingNamesTheStandingGap` — partner c.
+17. `TestANegativeReadingWithoutGapFlagsIsRefused`, `TestABackingReadingWithGapFlagsIsRefused` — §III.2.
+18. `TestACorroborationAbsentMintsNothing` — F5.
+19. `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (rows (a)-(i) and the record-layer row; row (b) carries R8 GAP 2) — partners s, w, jj.
+20. `TestAReadingsGapTakesNoMint` — F6; partner e.
+21. `TestAPlainMintALaterReadingNamesKeepsItsMint` — partners p, bb.
+22. `TestTheReadingsHeldGapIsDecidedInsideItsWrite` — partner u.
+23. `TestARetriedNegativeReadingIsRefusedNamingItsGap` (`cli/keyedretry_test.go`) — partner m.
+24. `TestAReadingOfAFoundAgainstCitationIsWordedByItsState` — partner l.
+25. `TestAVerifyOfARepeatedSentencePlacesItsGapByTheAnchor` (rows (a)-(i)) — F9; partners t, z.
+26. `TestAReadingOverAnAppliedPrescriptionMintsItsGap` — F10; partner cc.
+27. `TestAReadingsGapIsFilledAsAPlainMints` (its GAP 3 row is R8 GAP 3; the `mint_key` presence is R8's note) — F11; partners ee, ff, kk.
+28. `TestAReadingsGapCarriesItsArgumentWhereverAMintsDoes` (reads docket.md; asserts report.md lacks R — R8's note) — F11; partners ee, ff.
+29. `TestAReadingsGapNamesItsSource` — F12 (R8 fork); partner ll.
+30. `TestTheReadingVerbsDescribeTheirGapFlagsByTheirSubject` — partners dd, hh.
+31. `TestAReadingIsAttributedToTheVerbTheSeatTyped` — §III.8; partner gg.
+32. `TestM23sArchivedCorroborationHoldsNothing` (`cli/m23corroboration_test.go`, renamed) — GAP 2 of round 3.
+33. `TestARecordWrittenAtThisEpochMigratesWithNoRefusal` — §III.9 item 6; partner y.
+34. `TestMigrateChecksAReadingsGapBySentenceOf` (`migrate/`; its stream is written by the verbs) — partner y.
+35. Gates REWRITTEN for the reading verbs: `TestHelpSaysRequiredExactlyWhereOmissionIsRefused` (`requiredProbes`), `TestEverySetShapedFlagIsEitherDeclaredOrExempt` (three `enforcedElsewhere` sites, R8's note), `TestEveryFlagAHelpPageNamesIsOnThatPage` — partners dd, hh.
+
+**Phase 4 — agent text**
+36. `TestTheEmbeddedRegistryLoads` (the one-sentence `failed check`, R8's note) and `TestNoDefinitionUsesABannedVariant` over the new `reading` entry (R8 GAP 1) — partner mm.
+37. `TestVocabularyProse`, `TestNoPromptGrowsItsCommandCatalogue`, `TestTheSeatPromptsNameNoVerb`, the manual golden (`difftest`), `agentgen -check`, `enginegen`'s region check, `vocabdoc -check` — §V.1, §V.2.
+
+**Phase 5 — fuzz**
+38. `TestTheFailedCheckDrivesKeyOnTheState` — partner q.
+39. `TestSweepTallyRoundTripsEveryField` and `TestTheFoldReadsEveryRunFieldAndWritesEveryFoldField` over every new tally field and #1642's four (F7) — §III.11.
+
+**Phase 6 — verify**
+40. Every §V.5 partner applied and reverted, each turning its test red (a–mm); §V.4's sweeps; §V.6;
+    §V.8 (or NOT MEASURED); §V.9 on real data; PR CI's fuzz tally read (§V.7), the four #1642 fields
+    reported beside #1642's run (§I criterion 5); then the independent review (§V.10).
+
+**Commit trailers.** `scripts/rulesweep` reads `Rule-Class:` / `Sibling-Sweep:` from each commit and
+reports a protocol-surface edit (`skills/*/SKILL.md`, `agents/*.md`, `references/*.md`, `debate.js`,
+`law/`, `hooks/hooks.json`) whose commit lacks them. Phase 4's commit touches every one of those but
+`law/` and `hooks.json`; any other phase commit that regenerates an agent definition (a help page is
+inlined into it) is in the same position. Every phase commit of this PR carries, in the body, before
+`Co-Authored-By`:
+
+```
+Rule-Class: definition-forked-not-widened
+Sibling-Sweep: every carrier of the contradiction and of a reading that finds against its sentence —
+  record (proto, fold, blockers, dispatch, sitting, retirement, budget, one-gap rule), the reading
+  verbs and their help, every reader and printed sentence of a failed check (§III.3), agentgen
+  sources and the generated agents and skills, debate.js (enginegen regions and the chair prompt),
+  terms and vocabulary, migrate, seatprobe, capture's assembly screen, docket.md, the release fuzz;
+  census §III.12 re-run as §V.4
+```
+
+The class: the gap's lifecycle was FORKED for a reading against its sentence (a contradiction, with
+its own id space, exemptions and blocker kind) instead of WIDENED; this plan absorbs it into the gap
+and the failed check (`feov-memory/protocol-class-registry.md`, `definition-forked-not-widened`). Each
+phase names in its own trailer line what it swept, keeping the class.
+
+### III.16 Seam with #1657 Part 1a′ (`plans/compute-and-show.md`, branch `plan/anchor-lifecycle`) (RULED, gblock 2026-11-01)
+
+**The ruling.** After the two sessions discussed the conflict, gblock picked their joint
+recommendation: this plan governs a refuting reading; #1657 Part 1a″'s L4 is dropped; contradictions
+are deleted everywhere, corroborations included; #1657 Part 1a′ continues; this plan lands FIRST, then
+1a′. (Read at `plan/anchor-lifecycle` `1bcda6a0c`, a local branch: no remote ref exists at this
+writing.)
+
+**What 1a′ implements on top of this plan; this plan implements none of it.** The `source` check kind
+stays unenforced on main until 1a′: today only `computation` is demanded at close
+(`cli/lens/close.go:63-67`, `requireComputationAnswered`).
+- **L1 widens.** A gap's `source` demand is met when ANY retired anchor is its `about_ref`, or is the
+  anchor of a Verify whose `carried_by` names this gap. A close stays refused by
+  `requireFailedCheckAnswered` while another reading's check stands — the demand does not replace the
+  check.
+- **A backing re-read arm in `evidence_answered`**, defined off rows: the anchor of a carrying Verify
+  (one whose `carried_by` names the gap) is not retired, and the latest Verify of that anchor by that
+  lens is a backing outcome.
+- **The closure demand stays on the `close` verb's write** (a `Close` event, `close` and `carry`), so a
+  bench `closure_act` — a closing ruling, which writes no Close row — stands, and replay skips the
+  demand (`Migrating`), as it skips `requireFailedCheckAnswered`.
+
+**This plan's obligation to that seam.** `carried_by` and `carrier_minted` are shipped and documented
+(the proto comments, the `reading` term, `show evidence`'s row, docket.md's line); several readings may
+carry one gap (each later one with `carrier_minted` false, §III.2's held gap); and both stay readable by
+SQL — columns of the `verify` table, `carried_by` a foreign key to `mint.gap_id` — so 1a′'s views read
+them without a Go reader.
+
+**The overlap, stated.** On a reading's gap the demand mostly duplicates the check: while a reading's
+found-against check stands, the close is already refused (`requireFailedCheckAnswered`), and the check
+clears by the acts the demand's two new arms read — a retire of the citation (the widened L1) and the
+reader's own backing re-read (the re-read arm). The demand adds over the check exactly two cases:
+- **an edit.** Blue's edit of the sentence clears the check (the citation becomes `unchecked`), and on
+  main this plan admits the close then; under 1a′ a `source`-kind reading gap's close also needs a demand
+  arm — the reader's backing re-read of the edited sentence, a retire, or a live answer (`cite
+  --answers`). So this plan's close-after-edit rows — the edit subtest of
+  `TestTheLensCloseOfAReadingsGapIsRefusedWhileTheCitationStandsFoundAgainst`, the edit arm of the fuzz's
+  `foundAgainstEdits` drive, and §V.9's drive if it closes after an edit — are carriers of 1a′'s demand,
+  green at this plan's merge, and 1a′'s census rewrites them;
+- **a corroboration's gap.** A corroboration's Verify has no anchor, so neither the widened L1 nor the
+  re-read arm can reach its gap: under 1a′ its `source` demand is met only by a live answer anchor
+  (`cite --answers G`) or by the bench. On main, with no check carrying a corroboration's gap (§III.3),
+  its lens closes it freely.
+
+**Checked against this plan, for anything that contradicts the seam:** nothing writes `carried_by` from
+`found_by` (§III.9 item 2, ruled); nothing makes `carried_by` unique per gap; the reading's Mint leaves
+`about_kind`/`about_ref` unset (§III.2's field table), which is why L1 must widen through `carried_by`
+rather than through `about_ref`; no sentence says a closing ruling is refused or that the bench's
+closure falls. The only sentences that state when the lens's close is admitted (§III.0 row 3, §III.3,
+§III.7's `close.md`, the `failed check` term) speak of the check, which 1a′ does not change; §III.0 row 3
+names the seam.
 
 ## IV. Risk & Mitigation
 
@@ -2065,8 +2403,9 @@ deleted symbols are used by `migrate` (phase 2), `cli` (phase 3) and the fuzz (p
 | R14 | A record written at this epoch is refused at its next migration — the reading's Mint refused for budget on replay, or its `carrier_minted` Verify refused outside its act — so every live run's record becomes un-migratable | M × H × L | migrate re-drives the reading act whole (§III.9 item 6); `TestARecordWrittenAtThisEpochMigratesWithNoRefusal`; §V.5.y |
 | R15 | Locating a prescription by the gap's token changes the accept for every gap, and an exact-span accept edits text a typed edit would have refused as ambiguous | L × M × L | The exact span applies only to the accept's token-carrying `old`, which occurs once by construction; a typed `blue edit` keeps the ordinary locate (§III.2a); rows (e), (f), (i); §V.5.z; the board, the accept and estoppel read one `ProposalOver` |
 | R16 | `verify` stamping completeness turns a backing reading of a sign-in page into an unread citation that holds the PASS and owes a gap, where today it cleared the citation | M × M × L | Ruled (GAP 1): that is the intended model, already stated in `help/verify.md:11`; the owed gap is the `unread` check's existing duty, outside the budget; `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (g); §V.5.w; the fuzz's `not_the_work` source with a backing outcome |
-| R17 | A lens uses a reading to reopen text it prescribed and blue applied, which `mint` would refuse as an estoppel | L × M × L | Ruled exempt (F10): the reading must read the work and find the source against the sentence, and the reading itself is on the record as the evidence (its source and outcome in `show evidence`, its `--reason` as the gap's `mint_reason` on the board, in the report's "minted because" and in the closure index), where blue and the bench weigh it; `TestAReadingOverAnAppliedPrescriptionMintsItsGap`; §V.5.cc; the fuzz's `readingsOverPrescriptions` |
+| R17 | A lens uses a reading to reopen text it prescribed and blue applied, which `mint` would refuse as an estoppel | L × M × L | Ruled exempt (F10): the reading must read the work and find the source against the sentence, and the reading itself is on the record as the evidence (its source and outcome in `show evidence`, its `--reason` as the gap's `mint_reason` on the board and in docket.md's "minted because", open-gap block and closure index), where blue and the bench weigh it; `TestAReadingOverAnAppliedPrescriptionMintsItsGap`; §V.5.cc; the fuzz's `readingsOverPrescriptions` |
 | R18 | A field the reading's Mint leaves blank reads as absent where a plain mint's reads: the lens's argument gone from the board and the report, or a `fix_basis` the board calls never omitted | M × M × L | Ruled (F11); §III.2's field table; one fill (`gapFlags.fill`); `TestAReadingsGapIsFilledAsAPlainMints` walks `Mint`'s descriptor, so a new field needs a disposition; `TestAReadingsGapCarriesItsArgumentWhereverAMintsDoes`; §V.5.ee, ff; the fuzz's stored-Mint check |
+| R20 | #1657 Part 1a′ lands on top and a reading's gap meets a `source` demand this plan's close-after-edit rows do not meet, or 1a′ reads a field this plan stopped writing | M × M × L | §III.16 states what 1a′ implements and what it reads; `carried_by` and `carrier_minted` are shipped, documented, readable by SQL, and several readings may carry one gap; the close-after-edit rows are named there as 1a′'s to rewrite |
 | R19 | A tool that maps an event to the act a seat typed reads the reading's Mint as a `mint` | L × L × L | §III.8's sweep; `TestAReadingIsAttributedToTheVerbTheSeatTyped`; §V.5.gg |
 
 ## V. Verification Plan
@@ -2081,6 +2420,7 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
    and identifiers, which must print nothing outside `migrate/` archived-word tables:
    `grep -rIn -E 'ABOUT_KIND_CONTRADICTION|BlockerContradiction|unanswered_contradictions|contradictionsOf|ContradictionOfReading|requireOpenContradiction|answersRaisedContradiction|answersOwnRaise|gap_may_name|raised_by' plugins scripts`;
    the phrase sweep of §III.7, over the whole tools tree — `tools/internal` (not only `cli/`) and `tools/releasegate` — and the agent-text paths (must print only its KEEP lines); the "does not close" sweep of §III.7 (every hit in the failed-check sense says the close is refused, never that the gap does not close); the failed-check sweep of §III.3 / §III.12 over `tools/internal`, `tools/cmd`, `tools/releasegate` and `debate.js`, every `answeredBy`/`AnsweredBy()`/`.Detail`/`BlockerFailedCheck` hit read for a branch that decides owed-ness, wording or a tally without the state (must find none); and `grep -rn 'carried_by\|carrier_minted'` over the tools tree, every hit one of §III.12's "Readers of the new Verify fields"; `grep -rn 'sentence_of\|SentenceOf\|sentenceOfMut\|ErrAnchorGone\|ErrAnchorBare\|AppendBodies'` over the tools tree, every hit a row of §III.2a's table (which names `migrate/replay.go` and `record/batch.go`) or a test; the proposal-span sweep of §III.2a (`ProposalOver`, `PlanAccept`, `proposalAt`, `ProposalAppliedVerbatim`, `PlanSplice`, `LocateUnique`), every locate of a gap's prescribed span by the gap's token and every typed edit's by its quote; the completeness sweep of §III.2b (every Verify writer stamps `source_completeness`, every reader's row as listed); the estoppel sweep of §III.2 (every hit that teaches or enforces the prescription estoppel states the reading's exemption, or is a KEEP row there); the replay-duty sweep of §III.9 item 6 (every per-source-event step of `replay.go`'s loop runs per member of a reading act, and no member's `newID` entry is read from `MAX(id)`); the field table of §III.2 (every `p.<Field> =` in `gapFlags.fill` and `newMint`, each a row, and every reader of an unset field a row); `grep -rn 'gapFlags\|ReadingClassField'` over the tools tree, every hit in `mint`, `verify`, `corroborate`, `record/enums.go` or a test; the `lane` table of §III.12 (`grep -rn 'Lane\.Role\|LaneVerbs\|blue-lane'`, each hit a row or other sense); the attribution sweep of §III.8 (`grep -rn 'verbOfEvent\|EVENT_TYPE_MINT\b' tools/internal tools/devcmd`, no tests or goldens); and the GAP-1 class sweep of §III.2b — `grep -rn -E 'SOURCE_OUTCOME_(REFUTES|ABSENT)|contradicts\(|VerifyReads|FindsAgainst|ReadingGapClasses'` over `tools/internal` and `tools/releasegate` — every hit that decides whether a reading mints, words its gap or counts it calls `ReadingGapClasses` (or `FindsAgainst` for the ledger), never the outcome alone.
+   Also, at this revision: the outcome-STRING sweep of §III.2b (`grep -rn '"refutes"\|"absent"\|Refuted()'` over `tools/internal`, `tools/cmd`, `tools/releasegate`, no tests) — every hit that counts or words a found-against reading calls `FindsAgainst`, the rest are `hookprovenance`'s other sense; the seat-facing "reading" sweep of §III.7 — every hit the term's sense, the OCR collision or ordinary English as listed, and no new prose says "a verdict that reads nothing"; `grep -rn 'CarriedBy\|carried_by'` over `record/evidenceview.go` and `report/assemble.go`, each hit a reader of §III.2c; and `mintResult`'s fields against `readingGap`'s (GAP 3: every field of `mintResult` a reading's gap has is echoed).
    Re-armed by: any agent-facing or Go edit.
 5. Delete-the-row checks (each must turn the suite red; revert after):
    a. delete `(gap_classes)` from `SOURCE_OUTCOME_REFUTES` → `TestARefutingReadingMintsItsGapInTheSameAct` and `TestEveryNegativeOutcomeNamesItsClasses` fail;
@@ -2116,11 +2456,15 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
    gg. delete `seatprobe.Read`'s skip of a reading's Mint → `TestAReadingIsAttributedToTheVerbTheSeatTyped` fails (`mint` used by a seat that never typed it); skip every Mint a Verify names, `carrier_minted` unread → its plain-mint row fails; delete the anchor test on a Verify's verb → its `corroborate` row fails;
    hh. register `--class` on the reading verbs from `MustEnum("mint", "class")` → `TestTheReadingVerbsDescribeTheirGapFlagsByTheirSubject` fails (every class listed); drop `RequiredUnless` from `--class` → `TestHelpSaysRequiredExactlyWhereOmissionIsRefused` fails ("REFUSED without --class and its help does not say so"); restore a `supports` clean set in the verify probe → the same test fails ("says REQUIRED and the verb ran clean without it");
    ii. print the found-against sentence's event id after a word other than `event` → `TestEveryIDTheVerbPrintsIsTranslated` fails;
+   jj. restore `Refuted()`'s outcome-only body (`Outcome == "refutes" || "absent"`) under the new name → `evidenceview_test.go`'s `not_the_work` row and `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` row (b) fail; restore `human()`'s outcome-first switch → row (b) fails ("REFUTES" printed);
+   kk. drop `acceptance_check` from `readingGap`, or print the reading's gap tells under `verifyResult`'s note → `TestAReadingsGapIsFilledAsAPlainMints`' GAP 3 row fails;
+   ll. leave `EvidenceVerificationJSON.CarriedBy` unset, or delete docket.md's source line → `TestAReadingsGapNamesItsSource` fails;
+   mm. restore the `failed check` definition's four sentences → `TestTheEmbeddedRegistryLoads` fails ("the definition is ONE sentence"); delete the `reading` entry → the manual golden and `vocabdoc -check` fail;
    bb. let the successor of a reading's gap inherit the budget exemption (exclude by `answers` instead of `carrier_minted`) → `TestAPlainMintALaterReadingNamesKeepsItsMint`'s successor row fails (the over-cap successor admitted).
    Re-armed by: the function or table each names.
 6. migrate on real archives: `go -C plugins/frank-exchange-of-views/tools test -count=1 ./internal/record/migrate/ -run 'M30|M32|M23|EveryArchivedRun|M19|AboutAnAnchor|ValueRenames|StringField|BySentenceOf'` and `go -C plugins/frank-exchange-of-views/tools test -count=1 ./internal/record/ ./internal/cli/ -run 'M32|M30|MigratedFoundAgainst|M23s|RecordWrittenAtThisEpoch|EveryIDTheVerb'` → pass, 0 refusals. Re-armed by: `migrate/**`, `record.proto`.
 7. Release fuzz: PR CI only (sharded 4 + tally). Read the tally: new gates non-zero; max gaps per (class, sentence) = 1. NEVER run `FEOV_RELEASE_GATE=1` locally. Re-armed by: any record or flag change (CLAUDE.md requires a full pass before done).
-8. **Universe smoke (real engine, cheap configuration).** `scripts/universe.sh build --dir ~/.claude/scratch/contradiction-is-a-gap/universe`; prove the build carries the change: `grep -rl claim_contradicts_source ~/.claude/scratch/contradiction-is-a-gap/universe/config/plugins/cache/special-circumstances/frank-exchange-of-views/` → at least the installed agents and the `feov-record` binary; and `scripts/universe.sh doctor` → schema epoch 53 (or the rebased number). Then
+8. **Universe smoke (real engine, cheap configuration).** The client is Claude Code 2.1.305 or later (#1677's floor, held by `sc-doctor` and the setup preflight; an older client is refused at setup, not a finding). `scripts/universe.sh build --dir ~/.claude/scratch/contradiction-is-a-gap/universe`; prove the build carries the change: `grep -rl claim_contradicts_source ~/.claude/scratch/contradiction-is-a-gap/universe/config/plugins/cache/special-circumstances/frank-exchange-of-views/` → at least the installed agents and the `feov-record` binary; and `scripts/universe.sh doctor` → schema epoch 55 (or the rebased number). Then
    `MODEL=haiku JUDGMENT_MODEL=haiku LANES=1 scripts/universe.sh --dir ~/.claude/scratch/contradiction-is-a-gap/universe run "Is the Great Wall of China visible from low Earth orbit with the naked eye?" --mint-budget 3 --k-max 2`
    (a topic whose popular sources misstate the claim, so an evidence lens is likely to read a refuting source). Observe with `universe.sh watch`; afterwards, on the run's record (read-only `file:` URI):
    `SELECT v.outcome, v.anchor, v.carried_by, m.class, m.class_material, m.mint_reason, m.fix_basis FROM verify v LEFT JOIN mint m ON m.gap_id = v.carried_by WHERE v.outcome IN ('refutes','absent') AND COALESCE(v.source_completeness, '') <> 'not_the_work' AND NOT (v.anchor IS NULL AND v.outcome = 'absent');`
@@ -2132,9 +2476,9 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
    carries `source_completeness` `not_asked` (the archive holds no fetched-source cache, so the stamp
    says the copy was never asked — the stamp `verify` now writes, read off a real record); `show board --json`
    lists the gap with the `--reason` as its `mint_reason` and its `fix_basis`. Re-armed by: the reading act, the ledger, the close gate.
-10. Auditor gate: `/prosthetic-conscience:plan-audit plans/contradiction-is-a-gap.md` — two consecutive PASS, or the human's approval with every fork ruled.
+10. The audit loop ended at round 8 (gblock, 2026-11-01); the plan is approved and carries round 8's gaps as the required tests of §III.15. BEFORE merge: an INDEPENDENT review of the implementation — a reviewer who did not implement it reads the diff against this plan, re-runs §V.4's sweeps, and confirms each test of §III.15 exists, fails on its §V.5 partner and passes. The merge waits on that review and on a full PR CI fuzz pass (§V.7).
 
-## Forks — all RULED (gblock, 2026-10-30; F10, F11 2026-10-31)
+## Forks — all RULED (gblock, 2026-10-30; F10, F11 2026-10-31; F12, #1657, audit loop 2026-11-01)
 
 Each ruling is recorded here; the alternatives it rejected are deleted from the design.
 
@@ -2193,8 +2537,19 @@ Each ruling is recorded here; the alternatives it rejected are deleted from the 
 - **F5 — Corroboration `absent` (RULED).** Records the reading and mints no gap (§III.1, §III.10).
 - **F6 — Budget (RULED).** A gap a reading mints is outside the mint budget (§III.5).
 - **F7 — PR #1642 (RULED).** Closed as superseded; its four diagnostic tally fields — `final_blockers`,
-  `final_parties`, `open_by_found_by` (re-keyed `reading | finding | none`), `mints_by_epoch` /
+  `final_parties`, `open_by_found_by` (re-keyed `reading | finding | unsound_computation | none`: #1642's
+  `contradiction` key becomes `reading`, and its `unsound_proof` key keeps its meaning under #1644's name), `mints_by_epoch` /
   `closes_by_epoch` — are carried into this PR (§III.11).
 - **§III.9 — Archived carrier-less checks (RULED).** Cleared by the reader's own backing re-read, an edit or a retire. migrate does
   NOT fill `carried_by` from the `found_by` chain; the residue is stated in §III.9.
 - **§III.14 — Delivery (RULED).** ONE PR, implemented one phase per fresh agent.
+- **F12 — The link from a reading's gap to its source (RULED, gblock 2026-11-01: "Print the link").**
+  `found_by` goes on a reading's gap; `carried_by` is printed on `show evidence`'s rows, and docket.md
+  names the source of each carrying reading (§III.2c); test `TestAReadingsGapNamesItsSource`.
+- **#1657 — the refuting reading (RULED, gblock 2026-11-01, picking the two sessions' joint
+  recommendation).** This plan governs a refuting reading; #1657 Part 1a″'s L4 is dropped;
+  contradictions are deleted everywhere, corroborations included; #1657 Part 1a′ continues; this plan
+  lands FIRST, then 1a′ (§III.16).
+- **Audit loop (RULED, gblock 2026-11-01: "Revise once, then implement").** Round 8's revision is the
+  last; no further audit rounds; implementation is approved, carrying round 8's gaps as required tests
+  (§III.15); independent review after implementation (§V.10).
