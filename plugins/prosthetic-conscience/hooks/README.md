@@ -32,7 +32,7 @@ on. `pretooluse`'s TestMatcherRoutesWhatTheUnitsWatch fails when the matcher and
 
 The gate detects with gitleaks (`github.com/zricethezav/gitleaks/v8`) — its default configuration,
 as the gitleaks command line runs it, extended through gitleaks' own `[extend] useDefault` with the
-rules in `tools/internal/secrets/gitleaks.toml`, each for a real key format the default misses. It
+rules in `tools/internal/secrets/gitleakstoml/gitleaks.toml`, each for a real key format the default misses. It
 scans the payload decoded (every string, object keys included) and raw, ignores `gitleaks:allow`
 comments, and refuses naming the tool and the gitleaks rule ids — never the value: findings come
 back redacted and gitleaks' logger is discarded. A detector that cannot be built refuses every

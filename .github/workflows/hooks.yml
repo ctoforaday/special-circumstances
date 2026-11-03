@@ -1779,6 +1779,9 @@ jobs:
       - name: The verbs' help pages and the required-field table match their documents and the schema (a stale page or table teaches a seat what the tool no longer does)
         run: go run ./devcmd/cmdtreegen -check
         working-directory: plugins/frank-exchange-of-views/tools
+      - name: The secrets gate's generated gitleaks table matches gitleaks.toml and gitleaks' default configuration (a stale table refuses a different set of keys)
+        run: go run ./devcmd/secretsgen -check
+        working-directory: plugins/prosthetic-conscience/tools
       - name: Nothing in any Go module is unreachable from its binaries, its generators and its tests (every function the pinned deadcode leaves unreached is a failure; there is no allowlist)
         run: go run ./deadcode
         working-directory: scripts
