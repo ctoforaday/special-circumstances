@@ -144,13 +144,6 @@ func citationLabelsAt(q recordsql.Querier) ([]string, error) {
 	return citationLabelsOf(evs), nil
 }
 
-// CitationLabelsOf is CitationLabels over events already read — for a caller holding a board,
-// which would otherwise re-derive the set inline and become a second copy of the rule.
-//
-// One rule, one function: the unbacked_citations detector and the hookgate lockdown read this
-// set, so the two cannot disagree about which anchors must be present.
-func CitationLabelsOf(events []*Event) []string { return citationLabelsOf(events) }
-
 func citationLabelsOf(events []*Event) []string {
 	seen := map[string]bool{}
 	var out []string

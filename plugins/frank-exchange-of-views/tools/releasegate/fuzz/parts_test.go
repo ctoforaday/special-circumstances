@@ -70,15 +70,18 @@ const (
 	seedOpen  = "## Open questions\n\nWhether the trend outlasts the sample."
 )
 
-// lanePartText is lane i's part: a sentence of its own, under no heading of its own.
+// lanePartText is lane i's part: a sentence of its own, under no heading of its own. Lanes 1 and 3
+// each close on a sentence that differs from the other's by one word (repeatedSentenceSeeds), which
+// blue cites in each copy and then edits to one wording: the report then holds one sentence twice,
+// each copy cited by its own citation (stockRepeatedSentence).
 func lanePartText(lane string) string {
 	switch lane {
 	case seatclass.LaneSeatPrefix + "1":
-		return "A § fuzz sentence to anchor findings.\n"
+		return "A § fuzz sentence to anchor findings. " + repeatedSentenceSeeds[0] + "\n"
 	case seatclass.LaneSeatPrefix + "2":
 		return "The cost is rising over time across the whole sampled corpus.\n"
 	}
-	return "Across the sampled corpus the rise holds in every year measured.\n"
+	return "Across the sampled corpus the rise holds in every year measured. " + repeatedSentenceSeeds[1] + "\n"
 }
 
 // partsArm is whether this run takes a part arm now: always on the forced seed, and by the draw
