@@ -32,9 +32,9 @@ import (
 //
 // # Bodies load per TABLE, not per event
 //
-// This read is always the WHOLE record, and every body-table row belongs to it — `event_id` is a
-// primary key referencing `events(id)`, so a full scan of each table touched by the record reads
-// exactly the rows the per-event queries used to fetch one at a time. That turns a query count
+// A read of the whole record takes every body-table row past the events it already holds —
+// `event_id` is a primary key referencing `events(id)`, so a range scan of each table touched by
+// those events reads exactly the rows the per-event queries used to fetch one at a time. That turns a query count
 // proportional to the number of EVENTS (one body row, one per list field, two per oneof arm — the
 // N+1 every projection paid on every render) into one proportional to the number of TABLES the
 // record's event types use, which the schema bounds. Validation still walks the events in record
@@ -50,8 +50,15 @@ import (
 //
 // One statement is one snapshot. Read as two on a pooled handle, a sitting a seat opened between
 // them loads with its id and no owner, and the seat's latest sitting is then the one before.
+//
+// # A handle reads each event once
+//
+// On a handle Open returned, and through a transaction BeginRead or BeginWrite opened on one, the
+// events decoded before are kept and only the rows past them are read (eventcache.go says why that
+// read is the whole record). The events returned are shared with every later read on the handle: a
+// caller reads them and never edits one.
 func Events(db Querier) ([]*recordpb.Event, []Window, error) {
-	return eventsWhere(db, true, ``)
+	return cachedEvents(db)
 }
 
 // Window is where an event sits on the record: its row, the sitting it belongs to, and that
@@ -119,13 +126,13 @@ func EventsOfTypes(db Querier, words ...string) ([]*recordpb.Event, []Window, er
 	for i, w := range words {
 		args[i] = w
 	}
-	return eventsWhere(db, true, ` WHERE e."type" IN (`+marks+`)`, args...)
+	return eventsWhere(db, true, 0, ` WHERE e."type" IN (`+marks+`)`, args...)
 }
 
 // EventAt is the event stored at row id, with its body, and nil where no row has that id. It reads
 // no window: a read by one row prints no sitting.
 func EventAt(db Querier, id int64) (*recordpb.Event, error) {
-	evs, _, err := eventsWhere(db, false, ` WHERE e."id" = ?`, id)
+	evs, _, err := eventsWhere(db, false, 0, ` WHERE e."id" = ?`, id)
 	if err != nil || len(evs) == 0 {
 		return nil, err
 	}
@@ -135,7 +142,11 @@ func EventAt(db Querier, id int64) (*recordpb.Event, error) {
 // eventsWhere is the one read path. withWindows reads each row's Window beside it — the stored
 // sitting_id, sitting and epoch, and the `sittings` view's owner — in one statement; without it the
 // read is the events table alone. A read by one key prints no window and does not ask for one.
-func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*recordpb.Event, []Window, error) {
+//
+// after bounds the body tables' reads to rows past that event id, and where MUST select no event at
+// or before it: a body row the bound leaves out is a body the event is then refused for lacking. The
+// stream cache's tail read (eventcache.go) is the one caller that passes more than 0.
+func eventsWhere(db Querier, withWindows bool, after int64, where string, args ...any) ([]*recordpb.Event, []Window, error) {
 	q := `SELECT e."id", e."seat_id", e."ts", e."type", e."key" FROM "events" e` + where + ` ORDER BY e."id"`
 	if withWindows {
 		q = `SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting",
@@ -186,7 +197,7 @@ func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*re
 	if err := rows.Err(); err != nil {
 		return nil, nil, err
 	}
-	if err := loadBodies(db, ids, out); err != nil {
+	if err := loadBodies(db, ids, out, after); err != nil {
 		return nil, nil, err
 	}
 	return out, windows, nil
@@ -249,7 +260,7 @@ func refuseUndeclaredTypes(db Querier) error {
 // with `no such column`. The generated statements qualify every column, so the read refuses a column
 // the table lacks without asking the table for its columns first.
 type bodyTable interface {
-	load(q Querier) error
+	load(q Querier, after int64) error
 	attach(ev *recordpb.Event, id int64) error
 }
 
@@ -267,9 +278,10 @@ var tableOfType = sync.OnceValue(func() map[recordpb.EventType]func() bodyTable 
 
 // loadBodies fills every event's body from its table.
 //
-// Each table touched by the record is read once, whole; validation then walks the events in record
-// order, so which refusal fires first does not depend on which table loaded first.
-func loadBodies(db Querier, ids []int64, evs []*recordpb.Event) error {
+// Each table touched by the record is read once, from the row past after onward (0 is the whole
+// table); validation then walks the events in record order, so which refusal fires first does not
+// depend on which table loaded first.
+func loadBodies(db Querier, ids []int64, evs []*recordpb.Event, after int64) error {
 	readers := tableOfType()
 	tables := map[recordpb.EventType]bodyTable{}
 	for _, ev := range evs {
@@ -284,7 +296,7 @@ func loadBodies(db Querier, ids []int64, evs []*recordpb.Event) error {
 		tables[t] = mk()
 	}
 	for _, t := range tables {
-		if err := t.load(db); err != nil {
+		if err := t.load(db, after); err != nil {
 			return err
 		}
 	}
@@ -297,8 +309,8 @@ func loadBodies(db Querier, ids []int64, evs []*recordpb.Event) error {
 }
 
 // scanRows runs one generated SELECT, scanning each row into targets and handing it to row.
-func scanRows(q Querier, table, query string, targets []any, row func()) error {
-	rows, err := q.Query(query)
+func scanRows(q Querier, table, query string, after int64, targets []any, row func()) error {
+	rows, err := q.Query(query, after)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", table, err)
 	}
@@ -316,10 +328,10 @@ func scanRows(q Querier, table, query string, targets []any, row func()) error {
 }
 
 // scanList runs one list table's SELECT, handing each element to add in the order it was written.
-func scanList[V any](q Querier, table, query string, add func(id int64, v V)) error {
+func scanList[V any](q Querier, table, query string, after int64, add func(id int64, v V)) error {
 	var id int64
 	var v V
-	return scanRows(q, table, query, []any{&id, &v}, func() { add(id, v) })
+	return scanRows(q, table, query, after, []any{&id, &v}, func() { add(id, v) })
 }
 
 // protoEnum is a generated enum type.
