@@ -50,9 +50,10 @@ Always-on rules bind every session (`CLAUDE.md` imports them via `@` for Claude 
 - Present tense only; the why goes in a code comment at the source or in the commit. `archaeology` gates the pattern-matchable part.
 - Each `<verb> --help` page MUST teach its verb on its own: remove repetition only where that page keeps every instruction. One Go constant rendered on every page that needs it is fine; one *home* that removes the text from a page is not. Tool mechanics live in the tool; duties live in constitutions and prompts.
 - Seat **prompts** name ACTS, never a command path or flag — CI pins this (`TestNoPromptGrowsItsCommandCatalogue`, `TestTheSeatPromptsNameNoVerb`). A **constitution** carries its seat's whole surface: `scripts/agentgen` inlines the tool's own `manual` into every agent definition, and `agentgen -check` fails a stale one. The authored prose around that block is still held to the same rule — the catalogue gate scans everything outside the generated markers.
-- Four FEOV carriers are GENERATED, each with a `-check` gate that fails a stale or hand-edited copy. YOU MUST edit the source and regenerate, never the generated text:
+- These FEOV carriers are GENERATED, each with a `-check` gate that fails a stale or hand-edited copy. YOU MUST edit the source and regenerate, never the generated text:
   - the agent definitions (`agents/*.md`) and the two preloaded skills (`skills/adversarial-audit/SKILL.md`, `skills/research-protocol/SKILL.md`) — sources under `scripts/agentgen/src/`, written by `go -C scripts run ./agentgen`;
   - two marked regions of `debate.js` — the seat identity block, and the envelope vocabulary with the `PLAN` schema — written from the roster, the record's enums and `record.Plan` by `go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen`. The rest of `debate.js` is authored.
+  - the enum-value annotation table (`recordpb/annotations_gen.go`) and the term definitions (`terms/definitions_gen.go`) — written from `record.proto` and `terms.json` by `go -C plugins/frank-exchange-of-views/tools run ./devcmd/vocabgen`; re-run it after any edit to either.
 - AFTER changing any of these surfaces, YOU MUST read every changed golden line, and each affected `--help` before and after, one command at a time, for semantic loss.
 
 ### Verification
@@ -96,7 +97,7 @@ Always-on rules bind every session (`CLAUDE.md` imports them via `@` for Claude 
 ### Pull requests
 
 - CI tests the merge with `main`: bring `main` in early. BEFORE merging a PR whose CI ran before another help- or golden-changing PR merged, YOU MUST rebase, regenerate goldens at `-count=1`, read each changed line and re-run CI — goldens conflict semantically, not textually (difftest's `manual` golden renders every help page).
-- Generated conflicts (`record.pb.go`, `record.proto.sha256`, `body_gen.go`, `recordsql/decode_gen.go`) resolve by re-running `go -C scripts run ./protogen`, never by hand.
+- Generated conflicts (`record.pb.go`, `record.proto.sha256`, `body_gen.go`, `recordsql/decode_gen.go`) resolve by re-running `go -C scripts run ./protogen`, never by hand. `annotations_gen.go` and `definitions_gen.go` resolve by re-running `vocabgen` after it.
 - The repository deletes a branch on merge. BEFORE pushing to a PR's branch, YOU MUST check `gh pr view <n> --json state`; "Create a pull request for" in push output is a HARD STOP — the PR merged and the push re-created its branch. Retarget a stacked child to `main` BEFORE merging its parent, or GitHub closes the child.
 - AFTER committing plan updates or repository-level instruction updates that land directly, YOU MUST push them onto `origin/main` rather than leaving commits stranded on a side branch.
 
