@@ -213,8 +213,8 @@ func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 	}
 }
 
-// AN INDEPENDENT CHECK HAS NO ANCHOR AND IS NOT A MISSING ONE. Corroboration red found itself
-// is a different fact from an unverified citation, so it lands in its own array.
+// AN INDEPENDENT CHECK HAS NO ANCHOR AND IS NOT A MISSING ONE. A reading of a source red found
+// itself is a different fact from an unverified citation, so it lands in its own array.
 func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("https://example.org/p")}),
@@ -247,7 +247,7 @@ func TestEvidence_UncheckedSourceSaysSoInTheJSON(t *testing.T) {
 	}
 }
 
-// REFUTES AND ABSENT ARE THE FINDING HALF, and they are counted — that count is what the
+// REFUTES AND ABSENT ARE THE NEGATIVE HALF, and they are counted — that count is what the
 // assembly screen acts on, and what the old high|medium|low enum could never produce.
 func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 	for _, outcome := range []recordpb.SourceOutcome{

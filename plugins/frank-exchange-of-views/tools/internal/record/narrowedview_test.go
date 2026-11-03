@@ -30,8 +30,8 @@ import (
 // entire. Any difference is a family the declaration is missing.
 //
 // The run holds the joins the views make across families, because a missing family shows only
-// where an event of it changes the output: a verdict per epoch (debate), a finding that answers a
-// contradicting check, an edit that reopens an anchor and a retire that takes a reopened one out
+// where an event of it changes the output: a verdict per epoch (debate), a reading that finds a
+// citation against its sentence, an edit that reopens an anchor and a retire that takes a reopened one out
 // of the report (evidence), a mint crediting a finding
 // (findings), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
 // spot-check is read against (debate), a check backing an open gap's
@@ -61,7 +61,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		recordtest.Event(t, "blue-respond", &recordpb.Cite{Label: str("C-0a0a0a0a"), Url: str("https://example.org"),
 			Title: str("t"), CiteKey: str("k1"), Location: str("claim A")}),
-		// A contradiction the finding above answers, and one nothing answers.
+		// A reading that finds the citation against its sentence, and one of a source the lens found.
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org"), Anchor: str("C-0a0a0a0a"),
 			Claim: str("claim A"), Title: str("t"), Text: str("says otherwise"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),

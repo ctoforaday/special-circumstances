@@ -151,7 +151,7 @@
                                               every document that cites it. A computation no document references is still shown, and
                                               said to be unreferenced. -->
 
-## Citations                             <!-- [RECORD] every source the report cites, red's corroborations among them, with
+## Citations                             <!-- [RECORD] every source blue cites, with
                                               the sentence it backs and every reading of it: the seat and epoch, the
                                               outcome, the confidence and what was read, and the sentence read against
                                               when it is not the one the source now backs. A source no reading checked is

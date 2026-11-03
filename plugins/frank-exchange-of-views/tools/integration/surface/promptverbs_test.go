@@ -647,7 +647,7 @@ var promptCatalogue = map[string]int{
 	// "nobody has decided about this file" and "somebody decided zero" are the same green run.
 	//
 	// It is not hypothetical for this file. It reached 5 while the rest of the sweep was going to
-	// 0 — `lens corroborate` and `show report`, added by the red-citations work on this branch,
+	// 0 — two verbs added by the red-citations work on this branch,
 	// naming commands in prose at the same time as every other surface was having them removed.
 	// The default caught it; the default would also have accepted a new ceiling silently, because
 	// an untracked file has no ratchet and cannot report a strip that went the other way.

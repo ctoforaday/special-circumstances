@@ -64,7 +64,7 @@ func TestEveryNegativeOutcomeNamesItsClasses(t *testing.T) {
 			}
 		}
 		// A READING OF A SOURCE THE LENS FOUND names its own: a backing outcome mints the sentence's
-		// missing citation, a refuting one the contradiction, and absent and unreachable none.
+		// missing citation, a refuting one the source's disagreement, and absent and unreachable none.
 		found := recordpb.FoundSourceGapClassesOf(o)
 		if want := foundSource[o]; !slices.Equal(found, want) {
 			t.Errorf("%s names found-source classes %v, want %v", o, found, want)

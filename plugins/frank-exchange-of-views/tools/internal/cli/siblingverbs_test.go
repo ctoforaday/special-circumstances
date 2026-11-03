@@ -12,7 +12,7 @@ import (
 
 // TWO VERBS THAT WRITE ONE EVENT TYPE ARE TWO CONTRACTS ON ONE ACT, AND EACH MUST NAME THE OTHER.
 //
-// Sibling verbs that write one event type — `verify`/`corroborate`, `close`/`carry`, and the two
+// Sibling verbs that write one event type — `close`/`carry` and the two
 // halves of `inquiry` — each require their own fields, so cobra can require either half's. The
 // pairs must reach the NEIGHBOURS' help, because a seat reads the neighbours' help before it
 // chooses: each verb's own help is accurate about itself, and a neighbour left unnamed by either

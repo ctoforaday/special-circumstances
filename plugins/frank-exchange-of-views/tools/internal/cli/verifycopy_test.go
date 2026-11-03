@@ -251,7 +251,7 @@ func TestAFoundSourceReadingRecordsTheCopyItsReadingWasMadeAgainst(t *testing.T)
 }
 
 // A VERIFICATION READS THE CITATION'S COPY, so absent is refused on a citation whose copy the cache
-// holds as the abstract, as it is on a corroboration of one.
+// holds as the abstract, as it is on a reading of a source the lens found.
 func TestAbsentIsRefusedOnACitationWhoseCopyIsOnlyTheAbstract(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, fermatReport)

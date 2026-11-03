@@ -14,7 +14,7 @@
 // # Why a dialer and not a sweep over the source
 //
 // The obvious alternative is a check-gate grepping `_test.go` for outbound URL literals. It needs
-// an allowlist on its first run — `board_test.go` carries example.com as corroboration REFERENCE
+// an allowlist on its first run — `board_test.go` carries example.com as source REFERENCE
 // STRINGS on a path that never fetches, and claimcount's fixtures carry them inside markdown — and
 // a hand-kept allowlist beside a rule is the shape facts-are-fields exists to refuse. Worse, it
 // measures the wrong thing: what a test CONTAINS rather than what it DOES.

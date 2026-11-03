@@ -231,7 +231,7 @@ type EvidenceVerificationJSON struct {
 	// near_restatement — absent on every other outcome, and on a reading recorded before the field.
 	Bridge string `json:"bridge,omitempty"`
 	// Confidence is how sure red is of that outcome — orthogonal to it. `refutes` at low
-	// confidence is a call for more evidence; at high confidence it is a finding to act on.
+	// confidence is a call for more evidence; at high confidence the gap its reading minted is the one to act on.
 	Confidence string `json:"confidence"`
 	// Text is red's reading — required, because a verdict with nothing behind it is the
 	// assertion the verb exists to replace.

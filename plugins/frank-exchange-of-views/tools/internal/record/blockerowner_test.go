@@ -33,7 +33,7 @@ func (b *stage) benchDispatch(pin int64, gaps []string) *stage {
 // DISPATCH READIES THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER, ONCE PER CAUSE (#1202, #1203). A
 // petition filed on the record by any party seat is on no plan: the record's read reports its hearing
 // owed; a docket motion whose gap has since closed convenes the bench for that docket; a
-// contradiction no finding raises readies the lens that read it; a citation or computation unchecked since
+// citation a lens's reading found against readies blue; a citation or computation unchecked since
 // its sentence changed readies its owner (anchorOwnerOf; TestAReopenedAnchorReadiesItsOwner). Each edge the definition
 // distinguishes is a row: an owner that has sat for the cause since it arose is not readied again,
 // and only a sitting OF THE RIGHT OCCASION counts for a petition.

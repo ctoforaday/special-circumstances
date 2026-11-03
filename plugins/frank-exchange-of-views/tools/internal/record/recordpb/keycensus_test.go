@@ -65,7 +65,7 @@ var notFields = map[string]string{
 	"none":        "SpotCheck's claim that the archive was empty; the board's count answers it, and SpotCheck.reason says why a spot-check named nothing",
 	"notes":       "SpotCheck's prose when a sample WAS taken, beside `reason` for when none was; one channel split by which branch wrote it. SpotCheck.reason replaces both",
 	"reference":   "a free-text third spelling of a source on the one verb that reads one red found itself. Verify.url + Verify.title replace it, as Cite already named sources",
-	"independent": "a verification's mark that red found the source itself, beside the empty anchor that says the same; `corroborate` is the verb, and every reader splits on the anchor",
+	"independent": "a verification's mark that red found the source itself, beside the empty anchor that says the same; `verify --url` is the form, and every reader splits on the anchor",
 	"estopped_by": "the prescribing gap of an estoppel refusal, beside a count that reads only Log.type; the entry's text names the gap",
 	"rationale":   "the bench's own prose channel on the retired `opinion` body. The disposition is a docket motion's ruling now, and every subject's ruling carries its ruler's argument on MotionRule.opinion (flag `--reason`) — so the fact survives on a field that already held it for the other three subjects, rather than on a fifth name for one concept",
 

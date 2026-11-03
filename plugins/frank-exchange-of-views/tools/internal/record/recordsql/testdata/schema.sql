@@ -1729,7 +1729,7 @@ LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
 --            One row per anchor event placed by its quote: every act that places a marker — a
---            finding, a gap, a citation, a computation, a corroboration — appends one after its own
+--            finding, a gap, a citation, a computation — appends one after its own
 --            event, so where an id is placed is read from one table.
 --   sentence_of → a=the id of an anchor already in the text, b=the marker id (Token(b) is spliced
 --            at the end of the sentence Token(a) sits in, found by that token, never by text);

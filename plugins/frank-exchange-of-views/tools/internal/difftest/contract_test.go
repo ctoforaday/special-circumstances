@@ -330,7 +330,7 @@ func hasFlag(argv []string, flag string) bool {
 // names it.
 func defaultSeat(first string) string {
 	switch first {
-	case "mint", "close", "regrade", "finding", "verify", "corroborate", "reproduce":
+	case "mint", "close", "regrade", "finding", "verify", "reproduce":
 		return "red-lens-evidence"
 	case "outcome", "certify", "declare", "halt":
 		return "judge"

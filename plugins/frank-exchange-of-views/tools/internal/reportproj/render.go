@@ -21,8 +21,8 @@ import (
 //   - a blue edit → a splice (old→new), located by bluedoc.LocateUniqueReplacing, or by
 //                   bluedoc.LocateLiteral when the event recorded exact_span (spliceMut).
 //   - an Anchor   → the marker of the act it names, spliced at the end of its quote (insertMut).
-//                   Every placing verb — cite, compute, finding, mint, and a corroboration that
-//                   backs its claim — appends one after its own event, which is metadata and
+//                   Every placing verb — cite, compute, finding, mint, and a reading that
+//                   mints its gap — appends one after its own event, which is metadata and
 //                   inserts nothing.
 //   - a retire    → each anchor it names, taken out with the husk it leaves (removeMut).
 //

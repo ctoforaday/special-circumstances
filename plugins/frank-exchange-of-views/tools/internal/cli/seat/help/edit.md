@@ -10,7 +10,7 @@ TAKING RED'S FIX AS IT STANDS. Where red prescribed concrete replacement text on
 apply that text instead of retyping it. Your argument for the change is still required.
 
 Retyping it is the same act only if every byte matches: a stray space or a re-wrapped line records
-that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words.
+that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words — a lens's reading of a source that finds against that text still mints its gap.
 
 You are never obliged to accept. Writing your own replacement is your right to disagree and is
 recorded as one.

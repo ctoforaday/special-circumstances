@@ -264,7 +264,7 @@ func TestFindingsAndCitations(t *testing.T) {
 		recordtest.At(t, "blue-synthesize", "blue-synthesize:anchor:C-aa000001", &recordpb.Anchor{
 			Id: proto.String("C-aa000001"), Location: proto.String("the cited sentence"),
 		}),
-		// Red's leaf reads are VERIFY events (a corroboration goes through the same verb); a
+		// Red's leaf reads are VERIFY events (a reading of a source red found included); a
 		// red-authored Cite is unconstructible through the tool — only `blue cite` writes one.
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:C-aa000001", &recordpb.Verify{
 			Claim: proto.String("the cited sentence"), Anchor: proto.String("C-aa000001"),

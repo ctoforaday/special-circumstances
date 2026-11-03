@@ -298,7 +298,7 @@ Available Commands:
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce   re-run a recorded computation and judge whether it establishes the sentence it is attached to
-  verify      judge a citation blue authored, when the anchor exists and you have read what it points at
+  verify      read a source against a report sentence — a citation blue made, or a source you found — and record what it did
 
 Command groups — each holds commands THIS page does not list:
   motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
