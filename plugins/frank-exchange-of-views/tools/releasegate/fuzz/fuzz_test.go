@@ -1846,6 +1846,27 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	return plan
 }
 
+// auditRead is a lens sitting's read of the report. THE AUDIT IS SERVED THE WHOLE REPORT, and that
+// read is the lens's pin: a lens that is not served it at the head is ready at the head again, until
+// it is or retires. Most sittings read it, in either whole form; the rest read only a selection,
+// which serves part of it and moves nothing, so the sweep reaches a lens readied again at a head it
+// sat at. A forced run's lens reads it whole every sitting, so each sitting moves its pin: a
+// selection read leaves it ready at the head it sat at, which is one more sitting the bound does not
+// count. The sitting foundAgainstSeed's chain may start in reads a selection
+// (foundAgainstHoldsPin), so the next plan readies the owner before blue's remedy.
+func (r *runner) auditRead(seatID string) {
+	switch n := r.rng.Intn(10); {
+	case r.foundAgainstHoldsPin(seatID):
+		r.readOnly("show", seatID, "report", "--json", "--match", "§")
+	case r.forcedVerdict() || n < 5:
+		r.readOnly("show", seatID, "report")
+	case n < 9:
+		r.readOnly("show", seatID, "report", "--json")
+	default:
+		r.readOnly("show", seatID, "report", "--json", "--match", "§")
+	}
+}
+
 // planReadies is whether the current plan names seatID among its parties.
 func (r *runner) planReadies(seatID string) bool {
 	parties, _ := r.planThisSitting["parties"].([]any)
@@ -1938,6 +1959,7 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	if got, _ := r.planThisSitting["verdict"].(string); got != verdict {
 		r.noteActErr(fmt.Sprintf("the plan relayed after a %q verdict carries verdict %q — the plan carries the verdict its sitting recorded", verdict, got))
 	}
+	r.foundAgainstPlanRelayed()
 	return maps.Clone(r.planThisSitting)
 }
 
@@ -5198,20 +5220,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
-		// THE AUDIT IS SERVED THE WHOLE REPORT, and that read is the lens's pin: a lens that is not
-		// served it at the head is ready at the head again, until it is or retires. Most sittings
-		// read it, in either whole form; the rest read only a selection, which serves part of it and
-		// moves nothing, so the sweep reaches a lens readied again at a head it sat at.
-		// A forced run's lens reads it whole every sitting, so each sitting moves its pin: a selection
-		// read leaves it ready at the head it sat at, which is one more sitting the bound does not count.
-		switch n := r.rng.Intn(10); {
-		case r.forcedVerdict() || n < 5:
-			r.readOnly("show", seatID, "report")
-		case n < 9:
-			r.readOnly("show", seatID, "report", "--json")
-		default:
-			r.readOnly("show", seatID, "report", "--json", "--match", "§")
-		}
+		r.auditRead(seatID)
 		r.checkAnchorOffers(seatID)
 		r.closeDocketed(seatID)
 		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
@@ -5687,6 +5696,9 @@ type outcome struct {
 	// oneGapBreach names the first pair of open gaps of one class in one sentence that no --supersedes
 	// relates, where the run ended holding one: the gaps, the class and the sentence.
 	oneGapBreach string
+	// foundAgainstStage is the runner's: the last step foundAgainstSeed's chain reached, "" on every
+	// other run.
+	foundAgainstStage string
 	// WHAT HELD THE RUN OPEN, said by the run itself (PR #1642's four, F7): finalBlockers is the last
 	// relayed plan's blockers by kind and finalParties the seats it readied; openByFoundBy is the gaps
 	// open at the end by what surfaced each — a reading's own act (reading), a finding in its found_by
@@ -7026,6 +7038,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.foundAgainstClosesRefused, res.foundAgainstRepeats = r.foundAgainstClosesRefused, r.foundAgainstRepeats
 	res.foundAgainstEdits, res.foundAgainstRetires = r.foundAgainstEdits, r.foundAgainstRetires
 	res.foundAgainstClearedByOwnReading = r.foundAgainstClearedByOwnReading
+	res.foundAgainstStage = r.foundAgainstStage
 	res.notTheWorkFlagsRefused, res.notTheWorkReadingsUnread = r.notTheWorkFlagsRefused, r.notTheWorkReadingsUnread
 	res.markedSentenceRefused, res.foundSourceBudgetRefused = r.markedSentenceRefused, r.foundSourceBudgetRefused
 	res.foundSourceRetriesRefused = r.foundSourceRetriesRefused

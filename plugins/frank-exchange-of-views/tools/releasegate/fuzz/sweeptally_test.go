@@ -2,6 +2,7 @@ package fuzz
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -170,6 +171,7 @@ type runTally struct {
 	FoundAgainstEdits               int                       `json:"found_against_edits"`
 	FoundAgainstRetires             int                       `json:"found_against_retires"`
 	FoundAgainstClearedByOwnReading int                       `json:"found_against_cleared_by_own_reading"`
+	FoundAgainstStage               string                    `json:"found_against_stage"`
 	NotTheWorkFlagsRefused          int                       `json:"not_the_work_flags_refused"`
 	NotTheWorkReadingsUnread        int                       `json:"not_the_work_readings_unread"`
 	MarkedSentenceRefused           int                       `json:"marked_sentence_refused"`
@@ -218,7 +220,7 @@ func tallyOf(o outcome) runTally {
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
-		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
+		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, FoundAgainstStage: o.foundAgainstStage, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
 
@@ -579,9 +581,12 @@ type sweepFold struct {
 	partsRecorded, multiPartRuns                    int
 	// THE READING THAT MINTS ITS GAP: each count summed over the runs, and the most open gaps of one
 	// class any run ended with in one sentence.
-	foundAgainstClosesRefused, foundAgainstRepeats   int
-	foundAgainstEdits, foundAgainstRetires           int
-	foundAgainstClearedByOwnReading                  int
+	foundAgainstClosesRefused, foundAgainstRepeats int
+	foundAgainstEdits, foundAgainstRetires         int
+	foundAgainstClearedByOwnReading                int
+	// foundAgainstStage is the last step foundAgainstSeed's chain reached, from the one run forced
+	// through it.
+	foundAgainstStage                                string
 	notTheWorkFlagsRefused, notTheWorkReadingsUnread int
 	markedSentenceRefused, foundSourceBudgetRefused  int
 	foundSourceRetriesRefused                        int
@@ -706,6 +711,11 @@ func foldRuns(runs []runTally) sweepFold {
 		f.foundAgainstEdits += r.FoundAgainstEdits
 		f.foundAgainstRetires += r.FoundAgainstRetires
 		f.foundAgainstClearedByOwnReading += r.FoundAgainstClearedByOwnReading
+		// THE LEAST STAGE, so the fold names the same one whatever order the runs arrive in; one run
+		// in a sweep is forced through the chain.
+		if s := r.FoundAgainstStage; s != "" && (f.foundAgainstStage == "" || s < f.foundAgainstStage) {
+			f.foundAgainstStage = s
+		}
 		f.notTheWorkFlagsRefused += r.NotTheWorkFlagsRefused
 		f.notTheWorkReadingsUnread += r.NotTheWorkReadingsUnread
 		f.markedSentenceRefused += r.MarkedSentenceRefused
@@ -1038,8 +1048,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// is taken after the record's answer was read, the minted and held ones off the stored record.
 		t.Logf("readings: %d minted their gap, %d named a standing one; %d found-source gap(s); the most open gaps of one class in one sentence at a run's end: %d",
 			f.readingsMinted, f.readingsHeld, f.foundSourceGaps, f.maxOpenPerClassSentence)
-		t.Logf("found against: %d close(s) refused, %d repeat(s) refused, %d edit(s) and %d retire(s) by blue, %d cleared by the reader's own re-read and closed",
-			f.foundAgainstClosesRefused, f.foundAgainstRepeats, f.foundAgainstEdits, f.foundAgainstRetires, f.foundAgainstClearedByOwnReading)
+		t.Logf("found against: %d close(s) refused, %d repeat(s) refused, %d edit(s) and %d retire(s) by blue, %d cleared by the reader's own re-read and closed; seed %d's forced chain reached: %s",
+			f.foundAgainstClosesRefused, f.foundAgainstRepeats, f.foundAgainstEdits, f.foundAgainstRetires, f.foundAgainstClearedByOwnReading, foundAgainstSeed, cmp.Or(f.foundAgainstStage, "no stage (its run is not in this tally)"))
 		for _, c := range []struct {
 			n    int
 			what string

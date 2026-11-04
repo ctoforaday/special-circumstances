@@ -30,14 +30,20 @@ import (
 // The run's blue cites a sentence at its first sitting (citeForFoundAgainst), and its citation owner
 // draws no fresh mint until the chain has read what it is held to. In a sitting whose plan does not
 // ready blue-respond — the first plan readies the lenses alone — the owner's reading of a citation
-// finds against it and mints the gap, and the gap's close is refused while the check stands. The
-// lenses sit before blue in an epoch, so the owner's next sitting comes before blue's remedy: there its
-// repeat with the same outcome is refused naming that reading, the close is refused again, and its own
-// backing re-read clears the check, after which the close is admitted (foundAgainstCleared). A sitting
-// holds one reading per citation, so the re-read is never the reading's own sitting. Once blue has made
-// the twice-held sentence, the owner's reading of one copy finds against it with a --new
-// (readRepeatedSentence), and blue's next sitting accepts that fix (acceptRepeated). Every lane
-// records its part, so the report holds the sentence twice.
+// finds against it and mints the gap, and the gap's close is refused while the check stands. That
+// reading passes no --new: blue's accept of a prescription edits the sentence, and an edit clears the
+// check the chain's next sitting reads. The plan readies blue on the standing check and on the gap,
+// and readies the gap's lens only after blue has acted there, so the owner sits again before blue's
+// remedy only where the plan readies it on its pin: the sitting the chain may start in serves the
+// owner a selection of the report, never the whole (foundAgainstHoldsPin), and the chain starts only
+// where the owner's pin is then behind the head. The lenses sit before blue in an epoch, so at the
+// owner's next sitting its repeat with the same outcome is refused naming that reading, the close is
+// refused again, and its own backing re-read clears the check, after which the close is admitted
+// (foundAgainstCleared). A sitting holds one reading per citation, so the re-read is never the
+// reading's own sitting. Once blue has made the twice-held sentence, the owner's reading of one copy
+// finds against it with a --new (readRepeatedSentence) — the chain's one --new — and blue's next
+// sitting accepts that fix (acceptRepeated). Every lane records its part, so the report holds the
+// sentence twice.
 const foundAgainstSeed = 15
 
 // foundAgainstForcedRead is whether the forced run's citation owner has made both readings it is
@@ -97,8 +103,8 @@ func (r *runner) citeForFoundAgainst(seatID string) {
 }
 
 // forcedFoundAgainstChain is the citation owner's chain in foundAgainstSeed's run (foundAgainstSeed):
-// the reading that finds against a citation, then, at its next sitting, the repeat, the refused close
-// and its own re-read. It draws the reading's gap flags as the drawn reading does, and pins the check
+// the reading that finds against a citation, with no --new, then, at its next sitting, the repeat, the
+// refused close and its own re-read. It draws the reading's gap flags as the drawn reading does, and pins the check
 // kind of a gap it mints to a document check; a reading the one-gap rule holds is carried by another
 // lens's gap, whose check kind is that gap's, so each close of the carrier answers a computation check
 // first (answerComputationCheck). It reads only a citation whose sentence holds no gap a scenario
@@ -121,16 +127,18 @@ func (r *runner) forcedFoundAgainstChain(seatID string) {
 		r.reachedFoundAgainstStage("every owner sitting so far was in a plan that readies blue-respond")
 		return
 	}
+	// ONLY WHERE THE NEXT PLAN READIES THE OWNER BEFORE BLUE'S REMEDY: a lens served the whole report
+	// at the head is ready again only when the head moves, and blue's remedy is what moves it.
+	if why := r.ownerPinHeld(seatID); why != "" {
+		r.reachedFoundAgainstStage(why)
+		return
+	}
 	cite, classes, why := r.foundAgainstCitation(seatID, cite)
 	if cite == "" {
 		r.reachedFoundAgainstStage(why)
 		return
 	}
 	run := r.foundAgainstReading(seatID, cite, classes)
-	// --new WHERE THE SENTENCE GIVES ONE: the flag's own coverage rides on this reading too.
-	if fixNew := r.citationFixNew(cite); fixNew != "" {
-		run = &cmd{r: r, args: append(slices.Clone(run.args), "--new", fixNew)}
-	}
 	out, ok := run.admit()
 	if !ok {
 		r.reachedFoundAgainstStage("the refuting reading of " + cite + " was refused")
@@ -151,6 +159,54 @@ func (r *runner) forcedFoundAgainstChain(seatID string) {
 	r.foundAgainstAnchor = cite
 	r.foundAgainstStage = "found against " + cite + "; the owner has not sat again"
 	r.mu.Unlock()
+}
+
+// foundAgainstHoldsPin is whether seatID's audit this sitting reads a selection of the report rather
+// than the whole (auditRead): the forced run's citation owner, in a sitting its chain's reading may
+// start in. Not served the whole report at the head, the owner is ready at the head again, so the plan
+// after its reading readies it, and it sits before blue's remedy of the sentence.
+func (r *runner) foundAgainstHoldsPin(seatID string) bool {
+	r.mu.Lock()
+	due := r.forceFoundAgainst && seatID == citationOwner && !r.foundAgainstChained && r.foundAgainstAnchor == ""
+	r.mu.Unlock()
+	return due && !r.planReadies("blue-respond")
+}
+
+// ownerPinHeld is "" where seatID's pin, as its work list states it now, leaves it ready at the next
+// plan's head — never served the report whole, or last served it behind the head this sitting was
+// dispatched against, with no whole read this sitting — and otherwise why the chain waits.
+func (r *runner) ownerPinHeld(seatID string) string {
+	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
+	if err != nil || w.Sitting.LastRead == nil {
+		return fmt.Sprintf("the owner's work list could not be read to say whether the next plan readies it (%v)", err)
+	}
+	switch k := w.Sitting.LastRead.Kind; k {
+	case "served", "unchanged":
+		return fmt.Sprintf("the owner's pin stands %s at head %d, so the next plan readies blue's remedy before the owner sits again", k, w.Sitting.LastRead.Pin)
+	}
+	return ""
+}
+
+// foundAgainstPlanRelayed names, in the chain's stage, a plan the chair relays while the chain waits
+// for its owner's next sitting that readies blue and not the owner: blue's remedy lands first, and the
+// stage carries the plan's reason for the owner.
+func (r *runner) foundAgainstPlanRelayed() {
+	r.mu.Lock()
+	due := r.forceFoundAgainst && r.foundAgainstAnchor != "" && !r.foundAgainstChained
+	anchorID := r.foundAgainstAnchor
+	r.mu.Unlock()
+	if !due || r.planReadies(citationOwner) || !r.planReadies("blue-respond") {
+		return
+	}
+	why := "the plan states no reason for " + citationOwner
+	whys, _ := r.planThisSitting["why"].([]any)
+	for _, w := range whys {
+		if s, _ := w.(string); strings.HasPrefix(s, citationOwner+":") {
+			why = s
+			break
+		}
+	}
+	r.reachedFoundAgainstStage("found against " + anchorID + "; a plan readied blue and not the owner — " + why)
 }
 
 // scenarioOwnsClose is whether a gap minted with scenario d is one whose scenario oracle judges how it
@@ -247,7 +303,7 @@ func (r *runner) foundAgainstReread(seatID, anchorID string) {
 	if !held {
 		r.mu.Lock()
 		r.foundAgainstAnchor, r.foundAgainstCite = "", ""
-		r.foundAgainstStage = "found against " + anchorID + ", and the check no longer stood at the owner's next sitting"
+		r.foundAgainstStage = "found against " + anchorID + ", and the check no longer stood at the owner's next sitting (before it: " + r.foundAgainstStage + ")"
 		r.mu.Unlock()
 		return
 	}
@@ -386,8 +442,10 @@ func TestTheFoundAgainstSeedDrivesEachPathItIsForcedThrough(t *testing.T) {
 				t.Fatalf("the chain reached %q: repeats %d, closes refused %d, cleared %d — want 1, at least 1, 1",
 					r.foundAgainstStage, r.foundAgainstRepeats, r.foundAgainstClosesRefused, r.foundAgainstClearedByOwnReading)
 			}
-			if !r.ownerMintedVerified() {
-				t.Error("the chain's reading minted no gap with fix_basis verified — it passed no --new")
+			// THE CHAIN'S READING PASSES NO --new: blue's accept of it edits the sentence, which clears
+			// the check the chain's next sitting reads.
+			if r.ownerMintedVerified() {
+				t.Error("the chain's reading minted a gap with fix_basis verified — it passed a --new, which blue's accept applies to the chain's sentence")
 			}
 			// BLUE MAKES THE TWICE-HELD SENTENCE; the owner reads one copy with a --new; blue accepts it.
 			r.sit("blue", blue)
@@ -396,6 +454,10 @@ func TestTheFoundAgainstSeedDrivesEachPathItIsForcedThrough(t *testing.T) {
 			r.forcedRepeatedReading(citationOwner)
 			if !r.foundAgainstRepeatedRead || !r.mintsFresh(citationOwner) {
 				t.Fatalf("the owner's reading of the twice-held sentence reached %q (pending %d)", r.foundAgainstStage, len(r.pendingAccepts))
+			}
+			// THE CHAIN'S ONE --new is on the twice-held step's reading.
+			if !r.ownerMintedVerified() {
+				t.Error("the owner's reading of the twice-held sentence minted no gap with fix_basis verified — it passed no --new")
 			}
 			r.sit("blue", blue)
 			r.acceptRepeated(blue)
@@ -430,6 +492,100 @@ func TestTheFoundAgainstSeedDrivesEachPathItIsForcedThrough(t *testing.T) {
 			t.Errorf("a run not forced drove the chain (%d repeats, %d cleared) or owes it (%q)", r.foundAgainstRepeats, r.foundAgainstClearedByOwnReading, forcedErrUnderTheRunLock(t, r))
 		}
 	})
+}
+
+// THE CHAIN'S OWNER SITS AGAIN BEFORE BLUE'S REMEDY, on the plans the record relays: the plan after the
+// chain's reading readies blue on its standing check and its gap, and readies the gap's lens only once
+// blue has acted there, so the owner sits first only where the plan readies it on its pin. The
+// sitting the chain reads in serves the owner a selection of the report (foundAgainstHoldsPin), so the
+// next plan readies it beside blue; the lenses sit before blue, and the chain completes at that
+// sitting. Blue then sits on what the plan engaged it on — its response to the gap and its remedy of
+// any check — which leaves the completed chain as it stands. The chain's reading passes no --new; the
+// twice-held step's reading passes one, and blue's next sitting accepts it.
+func TestTheFoundAgainstChainSitsAgainBeforeBlue(t *testing.T) {
+	r := stagedRunner(t)
+	r.forceFoundAgainst = true
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
+		t.Fatalf("record the lanes' parts: %v", err)
+	}
+	const blue, chair = "blue-respond", "red-chair"
+	plan := func() {
+		t.Helper()
+		r.sit("chair", chair)
+		r.planThisSitting = r.dispatchNext(chair)
+		r.foundAgainstPlanRelayed()
+	}
+	blueSits := func() {
+		t.Helper()
+		r.sit("blue", blue)
+		r.stockRepeatedSentence(blue)
+		r.acceptRepeated(blue)
+		r.blueRespondTo(blue, r.engaged(blue))
+		r.fixFailed(blue)
+		if r.actErr != "" {
+			t.Fatalf("blue's sitting: %s", r.actErr)
+		}
+	}
+	ownerSits := func() {
+		t.Helper()
+		r.sit("lens", citationOwner)
+		r.auditRead(citationOwner)
+		r.forcedFoundAgainstChain(citationOwner)
+		r.forcedRepeatedReading(citationOwner)
+		if r.actErr != "" {
+			t.Fatalf("the owner's sitting: %s", r.actErr)
+		}
+	}
+	r.sit("blue", blue)
+	r.citeForFoundAgainst(blue)
+	if r.foundAgainstCite == "" {
+		t.Fatalf("blue's chain citation: %s (%s)", r.foundAgainstStage, r.actErr)
+	}
+
+	// THE CHAIN'S READING, in a plan that readies the owner and not blue.
+	plan()
+	if !r.planReadies(citationOwner) || r.planReadies(blue) {
+		t.Fatalf("the first plan readies the owner %v and blue %v — want the owner alone: %v", r.planReadies(citationOwner), r.planReadies(blue), r.planThisSitting["why"])
+	}
+	ownerSits()
+	if r.foundAgainstAnchor == "" || r.foundAgainstClosesRefused != 1 {
+		t.Fatalf("the chain's first sitting reached %q (closes refused %d)", r.foundAgainstStage, r.foundAgainstClosesRefused)
+	}
+	if r.ownerMintedVerified() {
+		t.Fatal("the chain's reading passed a --new: blue's accept of it edits the chain's sentence")
+	}
+
+	// THE NEXT PLAN READIES BLUE ON THE CHECK, AND THE OWNER BESIDE IT: the owner sits first.
+	plan()
+	if !r.planReadies(blue) {
+		t.Fatalf("the plan after the chain's reading does not ready blue on its standing check: %v", r.planThisSitting["why"])
+	}
+	if !r.planReadies(citationOwner) {
+		t.Fatalf("the plan after the chain's reading readies blue and not the owner, so blue's remedy lands first (stage %q)", r.foundAgainstStage)
+	}
+	ownerSits()
+	if !r.foundAgainstChained || r.foundAgainstRepeats != 1 || r.foundAgainstClearedByOwnReading != 1 {
+		t.Fatalf("the chain reached %q: repeats %d, cleared %d — want 1 and 1", r.foundAgainstStage, r.foundAgainstRepeats, r.foundAgainstClearedByOwnReading)
+	}
+	blueSits()
+	if !r.foundAgainstChained || r.foundAgainstRepeats != 1 || r.foundAgainstClearedByOwnReading != 1 {
+		t.Fatalf("blue's sitting after the chain undid it: %q, repeats %d, cleared %d", r.foundAgainstStage, r.foundAgainstRepeats, r.foundAgainstClearedByOwnReading)
+	}
+
+	// THE TWICE-HELD STEP: the owner's reading of one copy passes a --new, and blue accepts it.
+	for i := 0; i < 3 && r.repeatedSentenceAccepts == 0; i++ {
+		plan()
+		if r.planReadies(citationOwner) {
+			ownerSits()
+		}
+		blueSits()
+	}
+	if !r.foundAgainstRepeatedRead || !r.ownerMintedVerified() || r.repeatedSentenceAccepts != 1 {
+		t.Fatalf("the twice-held step reached %q (verified mint %v, accepts %d)", r.foundAgainstStage, r.ownerMintedVerified(), r.repeatedSentenceAccepts)
+	}
+	if msg := forcedErrUnderTheRunLock(t, r); msg != "" {
+		t.Errorf("the forced run drove every path and still reads %q", msg)
+	}
 }
 
 // A CLOSE A SIBLING'S READING REFUSES BETWEEN THE DRIVE'S READ AND THE ACT IS THE REFUSAL IT IS (seeds 5
