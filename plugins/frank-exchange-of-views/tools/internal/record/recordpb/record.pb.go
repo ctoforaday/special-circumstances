@@ -3909,8 +3909,18 @@ type Regrade struct {
 	Impact         *Grade                 `protobuf:"varint,4,opt,name=impact,proto3,enum=feov.record.v1.Grade,oneof" json:"impact,omitempty"`
 	ComplexityCost *Grade                 `protobuf:"varint,5,opt,name=complexity_cost,json=complexityCost,proto3,enum=feov.record.v1.Grade,oneof" json:"complexity_cost,omitempty"`
 	Basis          *string                `protobuf:"bytes,6,opt,name=basis,proto3,oneof" json:"basis,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// THE GAP'S GRADES ONCE THIS REGRADE STANDS, stamped by the write path and never by a seat
+	// (recordsql.stampRegradeResult). On each axis: this regrade's grade where it names one, else the
+	// grade the gap held before it — the result of the gap's latest earlier regrade, or the mint's
+	// grade when there is none. Both inputs are fixed once this regrade is written, so the stored
+	// grades are the gap's grades from this regrade until the next, and gap_grade reads them rather
+	// than deriving them. An axis nothing ever graded stays absent.
+	ResultSeverity       *Grade `protobuf:"varint,7,opt,name=result_severity,json=resultSeverity,proto3,enum=feov.record.v1.Grade,oneof" json:"result_severity,omitempty"`
+	ResultLikelihood     *Grade `protobuf:"varint,8,opt,name=result_likelihood,json=resultLikelihood,proto3,enum=feov.record.v1.Grade,oneof" json:"result_likelihood,omitempty"`
+	ResultImpact         *Grade `protobuf:"varint,9,opt,name=result_impact,json=resultImpact,proto3,enum=feov.record.v1.Grade,oneof" json:"result_impact,omitempty"`
+	ResultComplexityCost *Grade `protobuf:"varint,10,opt,name=result_complexity_cost,json=resultComplexityCost,proto3,enum=feov.record.v1.Grade,oneof" json:"result_complexity_cost,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Regrade) Reset() {
@@ -3983,6 +3993,34 @@ func (x *Regrade) GetBasis() string {
 		return *x.Basis
 	}
 	return ""
+}
+
+func (x *Regrade) GetResultSeverity() Grade {
+	if x != nil && x.ResultSeverity != nil {
+		return *x.ResultSeverity
+	}
+	return Grade_GRADE_UNSPECIFIED
+}
+
+func (x *Regrade) GetResultLikelihood() Grade {
+	if x != nil && x.ResultLikelihood != nil {
+		return *x.ResultLikelihood
+	}
+	return Grade_GRADE_UNSPECIFIED
+}
+
+func (x *Regrade) GetResultImpact() Grade {
+	if x != nil && x.ResultImpact != nil {
+		return *x.ResultImpact
+	}
+	return Grade_GRADE_UNSPECIFIED
+}
+
+func (x *Regrade) GetResultComplexityCost() Grade {
+	if x != nil && x.ResultComplexityCost != nil {
+		return *x.ResultComplexityCost
+	}
+	return Grade_GRADE_UNSPECIFIED
 }
 
 // SpotCheck re-reads archived closures and names the stale areas read before a PASS. THE ARCHIVE'S
@@ -8031,7 +8069,7 @@ const file_record_proto_rawDesc = "" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x7f\n" +
 	"\x04text\x18\x02 \x01(\tBf\x82\xb5\x18^\b\x01\x12\x06reason\x1aRthe closing argument for this gap — the report renders it under the gap's docket\xc0\xb5\x18\x01H\x01R\x04text\x88\x01\x01B\t\n" +
 	"\a_gap_idB\a\n" +
-	"\x05_text\"\xd0\x03\n" +
+	"\x05_text\"\xc8\x06\n" +
 	"\aRegrade\x12-\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x126\n" +
 	"\bseverity\x18\x02 \x01(\x0e2\x15.feov.record.v1.GradeH\x01R\bseverity\x88\x01\x01\x12:\n" +
@@ -8040,13 +8078,22 @@ const file_record_proto_rawDesc = "" +
 	"likelihood\x88\x01\x01\x122\n" +
 	"\x06impact\x18\x04 \x01(\x0e2\x15.feov.record.v1.GradeH\x03R\x06impact\x88\x01\x01\x12C\n" +
 	"\x0fcomplexity_cost\x18\x05 \x01(\x0e2\x15.feov.record.v1.GradeH\x04R\x0ecomplexityCost\x88\x01\x01\x12Y\n" +
-	"\x05basis\x18\x06 \x01(\tB>\x82\xb5\x186\b\x01\x12\x06reason\x1a*grade movement is recorded with its reason\xc0\xb5\x18\x01H\x05R\x05basis\x88\x01\x01B\t\n" +
+	"\x05basis\x18\x06 \x01(\tB>\x82\xb5\x186\b\x01\x12\x06reason\x1a*grade movement is recorded with its reason\xc0\xb5\x18\x01H\x05R\x05basis\x88\x01\x01\x12C\n" +
+	"\x0fresult_severity\x18\a \x01(\x0e2\x15.feov.record.v1.GradeH\x06R\x0eresultSeverity\x88\x01\x01\x12G\n" +
+	"\x11result_likelihood\x18\b \x01(\x0e2\x15.feov.record.v1.GradeH\aR\x10resultLikelihood\x88\x01\x01\x12?\n" +
+	"\rresult_impact\x18\t \x01(\x0e2\x15.feov.record.v1.GradeH\bR\fresultImpact\x88\x01\x01\x12P\n" +
+	"\x16result_complexity_cost\x18\n" +
+	" \x01(\x0e2\x15.feov.record.v1.GradeH\tR\x14resultComplexityCost\x88\x01\x01B\t\n" +
 	"\a_gap_idB\v\n" +
 	"\t_severityB\r\n" +
 	"\v_likelihoodB\t\n" +
 	"\a_impactB\x12\n" +
 	"\x10_complexity_costB\b\n" +
-	"\x06_basis\"z\n" +
+	"\x06_basisB\x12\n" +
+	"\x10_result_severityB\x14\n" +
+	"\x12_result_likelihoodB\x10\n" +
+	"\x0e_result_impactB\x19\n" +
+	"\x17_result_complexity_cost\"z\n" +
 	"\tSpotCheck\x12\x10\n" +
 	"\x03ids\x18\x01 \x03(\tR\x03ids\x12!\n" +
 	"\x06reason\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x00R\x06reason\x88\x01\x01\x12\x14\n" +
@@ -8953,66 +9000,70 @@ var file_record_proto_depIdxs = []int32{
 	1,   // 55: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
 	1,   // 56: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
 	1,   // 57: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
-	1,   // 58: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
-	1,   // 59: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
-	1,   // 60: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
-	19,  // 61: feov.record.v1.Finding.about_kind:type_name -> feov.record.v1.AboutKind
-	20,  // 62: feov.record.v1.Cite.source_text_origin:type_name -> feov.record.v1.SourceTextOrigin
-	21,  // 63: feov.record.v1.Cite.work_status:type_name -> feov.record.v1.WorkStatus
-	22,  // 64: feov.record.v1.Cite.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	23,  // 65: feov.record.v1.Cite.copy_substitution:type_name -> feov.record.v1.CopySubstitution
-	8,   // 66: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
-	10,  // 67: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	21,  // 68: feov.record.v1.Verify.work_status:type_name -> feov.record.v1.WorkStatus
-	22,  // 69: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	9,   // 70: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
-	23,  // 71: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
-	24,  // 72: feov.record.v1.Computation.basis:type_name -> feov.record.v1.Basis
-	11,  // 73: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	12,  // 74: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
-	13,  // 75: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
-	26,  // 76: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
-	25,  // 77: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	59,  // 78: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	60,  // 79: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	65,  // 80: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
-	61,  // 81: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	63,  // 82: feov.record.v1.Motion.position:type_name -> feov.record.v1.PositionMotion
-	27,  // 83: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	1,   // 84: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	28,  // 85: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	7,   // 86: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	17,  // 87: feov.record.v1.PositionHearing.ruling:type_name -> feov.record.v1.PositionRuling
-	15,  // 88: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	16,  // 89: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	18,  // 90: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
-	62,  // 91: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	64,  // 92: feov.record.v1.MotionRule.position:type_name -> feov.record.v1.PositionHearing
-	29,  // 93: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	30,  // 94: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	2,   // 95: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	3,   // 96: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	83,  // 97: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	83,  // 98: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	84,  // 99: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	84,  // 100: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	84,  // 101: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	84,  // 102: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	84,  // 103: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	84,  // 104: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	84,  // 105: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
-	84,  // 106: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
-	84,  // 107: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
-	84,  // 108: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	85,  // 109: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	32,  // 110: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	5,   // 111: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	31,  // 112: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	113, // [113:113] is the sub-list for method output_type
-	113, // [113:113] is the sub-list for method input_type
-	110, // [110:113] is the sub-list for extension type_name
-	97,  // [97:110] is the sub-list for extension extendee
-	0,   // [0:97] is the sub-list for field type_name
+	1,   // 58: feov.record.v1.Regrade.result_severity:type_name -> feov.record.v1.Grade
+	1,   // 59: feov.record.v1.Regrade.result_likelihood:type_name -> feov.record.v1.Grade
+	1,   // 60: feov.record.v1.Regrade.result_impact:type_name -> feov.record.v1.Grade
+	1,   // 61: feov.record.v1.Regrade.result_complexity_cost:type_name -> feov.record.v1.Grade
+	1,   // 62: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
+	1,   // 63: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 64: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
+	19,  // 65: feov.record.v1.Finding.about_kind:type_name -> feov.record.v1.AboutKind
+	20,  // 66: feov.record.v1.Cite.source_text_origin:type_name -> feov.record.v1.SourceTextOrigin
+	21,  // 67: feov.record.v1.Cite.work_status:type_name -> feov.record.v1.WorkStatus
+	22,  // 68: feov.record.v1.Cite.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	23,  // 69: feov.record.v1.Cite.copy_substitution:type_name -> feov.record.v1.CopySubstitution
+	8,   // 70: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
+	10,  // 71: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
+	21,  // 72: feov.record.v1.Verify.work_status:type_name -> feov.record.v1.WorkStatus
+	22,  // 73: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	9,   // 74: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
+	23,  // 75: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
+	24,  // 76: feov.record.v1.Computation.basis:type_name -> feov.record.v1.Basis
+	11,  // 77: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	12,  // 78: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
+	13,  // 79: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
+	26,  // 80: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	25,  // 81: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
+	59,  // 82: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	60,  // 83: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	65,  // 84: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
+	61,  // 85: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	63,  // 86: feov.record.v1.Motion.position:type_name -> feov.record.v1.PositionMotion
+	27,  // 87: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	1,   // 88: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	28,  // 89: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	7,   // 90: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	17,  // 91: feov.record.v1.PositionHearing.ruling:type_name -> feov.record.v1.PositionRuling
+	15,  // 92: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	16,  // 93: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	18,  // 94: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
+	62,  // 95: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	64,  // 96: feov.record.v1.MotionRule.position:type_name -> feov.record.v1.PositionHearing
+	29,  // 97: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	30,  // 98: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
+	2,   // 99: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	3,   // 100: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	83,  // 101: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	83,  // 102: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	84,  // 103: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	84,  // 104: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	84,  // 105: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	84,  // 106: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	84,  // 107: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	84,  // 108: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	84,  // 109: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
+	84,  // 110: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
+	84,  // 111: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
+	84,  // 112: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
+	85,  // 113: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	32,  // 114: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	5,   // 115: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	31,  // 116: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	117, // [117:117] is the sub-list for method output_type
+	117, // [117:117] is the sub-list for method input_type
+	114, // [114:117] is the sub-list for extension type_name
+	101, // [101:114] is the sub-list for extension extendee
+	0,   // [0:101] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }

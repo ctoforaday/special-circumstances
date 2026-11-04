@@ -1071,7 +1071,11 @@ func (t *regradeTable) load(q Querier, after int64) error {
 		var c3 sql.NullString
 		var c4 sql.NullString
 		var c5 sql.NullString
-		if err := scanRows(q, "regrade", `SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis" FROM "regrade" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
+		var c6 sql.NullString
+		var c7 sql.NullString
+		var c8 sql.NullString
+		var c9 sql.NullString
+		if err := scanRows(q, "regrade", `SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis", t."result_severity", t."result_likelihood", t."result_impact", t."result_complexity_cost" FROM "regrade" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9}, func() {
 			m := &recordpb.Regrade{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1106,6 +1110,34 @@ func (t *regradeTable) load(q Querier, after int64) error {
 			}
 			if c5.Valid {
 				m.Basis = ref(c5.String)
+			}
+			if c6.Valid {
+				if v, err := wordOf[recordpb.Grade]("regrade.result_severity", c6.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.ResultSeverity = ref(v)
+				}
+			}
+			if c7.Valid {
+				if v, err := wordOf[recordpb.Grade]("regrade.result_likelihood", c7.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.ResultLikelihood = ref(v)
+				}
+			}
+			if c8.Valid {
+				if v, err := wordOf[recordpb.Grade]("regrade.result_impact", c8.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.ResultImpact = ref(v)
+				}
+			}
+			if c9.Valid {
+				if v, err := wordOf[recordpb.Grade]("regrade.result_complexity_cost", c9.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.ResultComplexityCost = ref(v)
+				}
 			}
 			t.rows[id] = m
 		}); err != nil {
