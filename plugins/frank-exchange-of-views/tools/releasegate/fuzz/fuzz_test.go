@@ -2559,6 +2559,13 @@ func (r *runner) mintsFresh(seatID string) bool {
 // runs findsFresh bounds, and whose every sitting counts (dispatchReturns, and the lens's whole read).
 func (r *runner) forcedVerdict() bool { return r.forceUnverified || r.forceVerified }
 
+// chainWantsBlueAbsent is whether this run forces a chain whose owner acts only in a sitting whose plan
+// does not ready blue-respond: the unsound chain's judgement (judgeUnsound) and the found-against
+// chain's reading (forcedFoundAgainstChain). Blue's sitting remedies either before the next plan is read.
+func (r *runner) chainWantsBlueAbsent() bool {
+	return r.forceUnsoundComputation || r.forceFoundAgainst
+}
+
 // landedMints is the mints of seatID that landed in this run.
 func (r *runner) landedMints(seatID string) int {
 	r.mu.Lock()
@@ -2907,8 +2914,9 @@ func (r *runner) computeToJudgeUnsound(seatID string) {
 //
 // ONLY WHERE BLUE IS NOT READIED, because blue's sitting fixes every unsound computation before its envelope
 // (fixUnsound): a judgement in an epoch blue-respond sits in is fixed before the next plan is read,
-// and no plan holds it. The first plan readies the lenses and not blue, and blue-synthesize's
-// sitting has proved the forced computation before it.
+// and no plan holds it. The first plan readies the lenses and not blue — blue-synthesize's sitting
+// settles every inquiry left open (chainWantsBlueAbsent) — and that sitting has proved the forced
+// computation before it.
 func (r *runner) judgeUnsound(seatID string) {
 	if !r.forceUnsoundComputation || seatID != computationOwner || r.unsoundFed() {
 		return
@@ -5105,6 +5113,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("blue", seatID)
 		r.synthesize(seatID)
 		r.extras("blue", seatID, nil)
+		// A FORCED CHAIN THAT WANTS BLUE ABSENT HAS ITS FIRST PLAN WITHOUT BLUE: an inquiry the
+		// synthesis leaves open readies blue-respond on the first plan, and later plans ready it on the
+		// gaps the first epoch mints, so the synthesizer settles every one (chainWantsBlueAbsent).
+		if r.chainWantsBlueAbsent() {
+			r.settleOpenInquiries(seatID)
+		}
 		// A forced run's seats file no petition: a petition readies the bench (see chairEnvelope).
 		if !r.forcedVerdict() {
 			r.maybePetition(seatID)
@@ -8393,11 +8407,11 @@ func (r *runner) settleOpenInquiries(seatID string) {
 	if !ok {
 		return
 	}
-	// THE FORCED UNSOUND CHAIN SETTLES EVERY ONE: its owner judges the forced computation only in a
-	// sitting whose plan does not ready blue-respond (judgeUnsound), and an open inquiry readies
-	// blue-respond on every plan. A reaffirmed `underway` there left every plan of seed 6 readying blue,
-	// and the chain never reached its judgement.
-	keepOpen := !r.forcedVerdict() && !r.forceUnsoundComputation
+	// A FORCED CHAIN THAT WANTS BLUE ABSENT SETTLES EVERY ONE: its owner acts only in a sitting whose
+	// plan does not ready blue-respond (chainWantsBlueAbsent), and an open inquiry readies blue-respond
+	// on every plan. A reaffirmed `underway` there left every plan of seed 6 readying blue, and the chain
+	// never reached its judgement.
+	keepOpen := !r.forcedVerdict() && !r.chainWantsBlueAbsent()
 	for _, j := range js {
 		switch {
 		case j.Open() && keepOpen && r.coin(20):

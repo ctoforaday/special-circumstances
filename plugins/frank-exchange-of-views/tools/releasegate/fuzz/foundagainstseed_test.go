@@ -803,3 +803,42 @@ func TestABackingReReadLeavesAComputeCarrierOpen(t *testing.T) {
 		t.Errorf("COMPUTE gap %s was closed by the re-read (open %v, cleared %d)", g, slices.Contains(r.openGaps(), g), r.foundAgainstClearedByOwnReading)
 	}
 }
+
+// TestAForcedChainsFirstPlanReadiesItsOwnerAndNotBlue holds the window both forced chains that want blue
+// absent start in: the first plan, after the synthesis, readies the chain's owner and not blue-respond.
+// An inquiry the synthesis leaves open readies blue-respond for as long as it is open, and every later
+// plan readies blue on the gaps the first epoch mints, so a chain that missed the first plan reached its
+// epoch limit with every owner sitting in a plan that readies blue (seeds 6 and 15). The inquiry here is
+// proposed and left open, as the synthesizer's drawn proposal leaves one.
+func TestAForcedChainsFirstPlanReadiesItsOwnerAndNotBlue(t *testing.T) {
+	for _, c := range []struct {
+		name, owner string
+		force       func(*runner)
+	}{
+		{"unsound computation", computationOwner, func(r *runner) { r.forceUnsoundComputation = true }},
+		{"found against", citationOwner, func(r *runner) { r.forceFoundAgainst = true }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r := stagedRunner(t)
+			c.force(r)
+			if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
+				t.Fatalf("record the lanes' parts: %v", err)
+			}
+			const synth, chair = "blue-synthesize", "red-chair"
+			if _, ok := r.do("inquiry propose", synth).set("--question", "fuzz inquiry left open").
+				set("--hypothesis", "fuzz: what would be true if it paid off").admit(); !ok {
+				t.Fatalf("propose the open inquiry: %s", r.actErr)
+			}
+			r.envelopeFor(synth, "")
+			if r.actErr != "" {
+				t.Fatalf("the synthesizer's sitting: %s", r.actErr)
+			}
+			r.sit("chair", chair)
+			r.planThisSitting = r.dispatchNext(chair)
+			if r.planReadies("blue-respond") || !r.planReadies(c.owner) {
+				t.Fatalf("the first plan readies blue-respond %v and %s %v — want the owner alone: %v",
+					r.planReadies("blue-respond"), c.owner, r.planReadies(c.owner), r.planThisSitting["why"])
+			}
+		})
+	}
+}
