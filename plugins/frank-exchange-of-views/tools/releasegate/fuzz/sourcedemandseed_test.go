@@ -88,6 +88,7 @@ func (r *runner) driveSourceDemand(seatID string) string {
 	if !ok || json.Unmarshal([]byte(strings.TrimSpace(cited)), &label) != nil || label.Result.Label == "" {
 		return "blue's cite --answers " + id + " was refused or named no label: " + firstLine(cited)
 	}
+	r.countLifecycle(func(c *lifecycleCounts) { c.sourceAnswers++ })
 	if _, ok := r.admit("close", "--seat-id", seatID, "--id", id, "--as", "repaired", "--reason", "fuzz: the citation answers it",
 		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); !ok {
 		return "the close of source gap " + id + " after blue's cite --answers was refused"

@@ -280,6 +280,22 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		}
 		return false
 	}
+	// reachedByRetire is whether blue's act on gap since lens's latest turn there is a REACHING retire: one
+	// taking out the anchor gap is about, or whose reading it carries, naming no gap.
+	reachedByRetire := func(lens, gap string) bool {
+		last := max(minted[gap], remanded[gap])
+		for _, a := range turnActs[gap] {
+			if a.seat == lens {
+				last = max(last, a.at)
+			}
+		}
+		for _, a := range turnActs[gap] {
+			if rt, ok := recordpb.BodyAs[*recordpb.Retire](b.Events[a.at]); ok && a.at > last && seatclass.RoleOfSeat(a.seat) == "blue" && rt.GetAnswers() != gap {
+				return true
+			}
+		}
+		return false
+	}
 	// witness is what the oracle read on gap, and the plan's and the fold's readings beside it: a failure
 	// here is one reading of the record against another, and the sweep's log is all a red leaves behind.
 	witness := func(gap string) string {
@@ -315,11 +331,16 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 			engaged[id][fmt.Sprint(m["seat_id"])] = true
 		}
 	}
-	turns, waits, alone := 0, 0, 0
+	turns, waits, alone, reaching := 0, 0, 0, 0
 	for gap, seats := range engaged {
 		lens := minter[gap]
 		if lens != "" && seats[lens] && !seats["blue-respond"] {
 			alone++
+		}
+		// A REACHING RETIRE GIVES THE LENS ITS TURN: blue is never engaged on a gap whose demand the
+		// retire met, so the plan engages the lens alone, and the oracle below holds that its turn came.
+		if lens != "" && seats[lens] && !superseded[gap] && reachedByRetire(lens, gap) {
+			reaching++
 		}
 		for seat := range seats {
 			if seatclass.RoleOfSeat(seat) == "lens" && !superseded[gap] && !turnCame(seat, gap) {
@@ -376,5 +397,6 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 	r.lensWaits += waits
 	r.lensAlone += alone
 	r.docketsAfterAudit += after
+	r.lifecycle.reachingRetireTurns += reaching
 	r.mu.Unlock()
 }

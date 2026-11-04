@@ -787,6 +787,17 @@ type runner struct {
 	// how far it reached, sourceDemandDriven where it drove every step.
 	forceSourceDemand bool
 	sourceDemandStage string
+	// forceLifecycle drives forcedLifecycle on lifecycleSeed's run, once; lifecycleStage is how far it
+	// reached, lifecycleDriven where it drove every step, and lifecycleLeftOpen the gap its reaching
+	// retire left open for the next plan to engage its lens on.
+	forceLifecycle                    bool
+	lifecycleStage, lifecycleLeftOpen string
+	// lifecycle is the anchor lifecycle's counts (lifecycleCounts).
+	lifecycle lifecycleCounts
+	// forceScreenUnsound drives computeToScreen and judgeToScreen on limitSeed's run;
+	// screenUnsoundComputation is the computation it judges, "refused" where blue's compute was.
+	forceScreenUnsound       bool
+	screenUnsoundComputation string
 	// provedExpectedError fires the --expect-error drive once per run. A computation whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering computation beside it, and the sweep had never passed the flag that says so.
@@ -3070,11 +3081,13 @@ func (r *runner) retireCitingFirst(seatID, citation string) bool {
 			return false
 		}
 	}
+	r.countLifecycle(func(c *lifecycleCounts) { c.citedRetiresRefused++ })
 	for _, k := range citing {
 		if _, ok := r.do("retire", seatID).set("--anchor", k).
 			set("--reason", "fuzz: the method it applies leaves the report").admit(); !ok {
 			return false
 		}
+		r.countLifecycle(func(c *lifecycleCounts) { c.computationRetires++ })
 	}
 	return true
 }
@@ -4675,6 +4688,9 @@ func (r *runner) placeAnswer(seatID, id, kind, name, reason string) bool {
 	if kind == "citation" {
 		_, ok := r.do("cite", seatID).set("--quote", "§ fuzz sentence").set("--url", sourceURL("/blue-shared")).set("--title", sourceTitle).
 			set("--source-span", sourceBody("/blue-shared")).set("--answers", id).set("--reason", reason).admit()
+		if ok {
+			r.countLifecycle(func(c *lifecycleCounts) { c.sourceAnswers++ })
+		}
 		return ok
 	}
 	dir, argv, err := r.writeBundle(name, "console.log('answers "+id+"');")
@@ -5033,6 +5049,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.acceptRepeated(seatID)
 		r.cutBaringEvidence(seatID)
 		r.citeForBareMint(seatID)
+		r.forcedLifecycle(seatID)
+		r.computeToScreen(seatID)
 		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM FATE HERE. settleOpenInquiries owns every later fate: one decision per open
 		// inquiry per sitting, which is the blocking item blue's work list carries for it.
@@ -5296,6 +5314,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.tallyOwed(plan)
 		r.tallyTrifleRoutes(plan)
 		r.tallyLensTurns(plan)
+		r.judgeToScreen(plan)
 		r.mu.Lock()
 		r.blueSatSincePlan = false
 		r.mu.Unlock()
@@ -5626,11 +5645,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.checkAnchorOffers(seatID)
 		r.mintBaringCitation(seatID)
 		r.forcedSourceDemand(seatID)
+		leftClosed := r.closeLifecycleLeftOpen(seatID)
 		r.closeDocketed(seatID)
 		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
 		locked := r.lensMovesBenchAxis(seatID)
 		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
-		engaged := r.engaged(seatID)
+		engaged := slices.DeleteFunc(r.engaged(seatID), func(id string) bool { return id == leftClosed })
 		for _, id := range engaged {
 			d := r.scenarioOf(id)
 			if r.presented.has(id) {
@@ -6094,7 +6114,9 @@ type outcome struct {
 	foundAgainstClearedByOwnReading                int
 	// sourceClosesRefused, a close of a `source` gap nothing answers refused by its live-answer demand,
 	// and readingDemandRefused, those of a gap carrying a reading (demandCloseRefused).
-	sourceClosesRefused, readingDemandRefused        int
+	sourceClosesRefused, readingDemandRefused int
+	// lifecycle is the anchor lifecycle's counts (runner.lifecycle).
+	lifecycle                                        lifecycleCounts
 	notTheWorkFlagsRefused, notTheWorkReadingsUnread int
 	markedSentenceRefused, foundSourceBudgetRefused  int
 	foundSourceRetriesRefused                        int
@@ -6665,11 +6687,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceBareEvidence = seed == bareEvidenceSeed
 	r.forceMintBare = seed == mintBareSeed
 	r.forceSourceDemand = seed == sourceDemandSeed
+	r.forceLifecycle = seed == lifecycleSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
 	r.benchOrders = sweepBenchOrders
 	if seed == limitSeed {
 		r.maxEpochs = forcedEpochLimit
+		r.forceScreenUnsound = true
 	}
 
 	// THE REPORT IS THE LANES' PARTS: each lane debate.js dispatches records its own, and the
@@ -7447,7 +7471,16 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	} else {
 		res.ownerOffered, res.citationsOffered = computations, citations
 	}
+	// A RUN THAT ENDS WITH A LIVE UNSOUND COMPUTATION FAILS ITS ASSEMBLY SCREEN, read at the run's end.
+	screened, screenErr := r.screenUnsound()
+	if screenErr != "" && res.err == "" {
+		res.err = screenErr
+	}
 	r.mu.Lock()
+	r.lifecycle.screenedUnsound += screened
+	if r.forceScreenUnsound && r.lifecycle.screenedUnsound == 0 && res.err == "" {
+		res.err = fmt.Sprintf("forced assembly screen: seed %d's run did not end with a live unsound computation the screen failed (computed: %q)", limitSeed, r.screenUnsoundComputation)
+	}
 	res.ownerOffered += r.offeredToOwner["computation"]
 	res.citationsOffered += r.offeredToOwner["citation"]
 	if r.anchorOfferErr != "" && res.err == "" {
@@ -7476,6 +7509,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.foundAgainstClosesRefused, res.foundAgainstRepeats = r.foundAgainstClosesRefused, r.foundAgainstRepeats
 	res.foundAgainstEdits, res.foundAgainstRetires = r.foundAgainstEdits, r.foundAgainstRetires
 	res.sourceClosesRefused, res.readingDemandRefused = r.sourceClosesRefused, r.readingDemandRefused
+	res.lifecycle = r.lifecycle
 	res.foundAgainstClearedByOwnReading = r.foundAgainstClearedByOwnReading
 	res.foundAgainstStage = r.foundAgainstStage
 	res.notTheWorkFlagsRefused, res.notTheWorkReadingsUnread = r.notTheWorkFlagsRefused, r.notTheWorkReadingsUnread
@@ -7520,6 +7554,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 	}
 	if msg := r.sourceDemandForcedErr(); msg != "" && res.err == "" {
+		res.err = msg
+	}
+	if msg := r.lifecycleForcedErr(); msg != "" && res.err == "" {
 		res.err = msg
 	}
 	if r.forceMintBare && r.mintBareRefused == 0 && res.err == "" {

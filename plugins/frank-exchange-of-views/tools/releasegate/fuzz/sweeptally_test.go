@@ -203,6 +203,7 @@ type runTally struct {
 	FoundAgainstStage               string                    `json:"found_against_stage"`
 	SourceClosesRefused             int                       `json:"source_closes_refused"`
 	ReadingDemandRefused            int                       `json:"reading_demand_refused"`
+	Lifecycle                       lifecycleTally            `json:"lifecycle"`
 	NotTheWorkFlagsRefused          int                       `json:"not_the_work_flags_refused"`
 	NotTheWorkReadingsUnread        int                       `json:"not_the_work_readings_unread"`
 	MarkedSentenceRefused           int                       `json:"marked_sentence_refused"`
@@ -255,7 +256,7 @@ func tallyOf(o outcome) runTally {
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
-		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, SourceClosesRefused: o.sourceClosesRefused, ReadingDemandRefused: o.readingDemandRefused, FoundAgainstStage: o.foundAgainstStage, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
+		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, SourceClosesRefused: o.sourceClosesRefused, ReadingDemandRefused: o.readingDemandRefused, Lifecycle: o.lifecycle.tally(), FoundAgainstStage: o.foundAgainstStage, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
 
@@ -627,6 +628,8 @@ type sweepFold struct {
 	// sourceClosesRefused and readingDemandRefused: closes of `source` gaps nothing answers refused
 	// by the live-answer demand, and those of them whose gap carries a reading.
 	sourceClosesRefused, readingDemandRefused int
+	// lifecycle is the anchor lifecycle's counts summed over the runs (lifecycleTally).
+	lifecycle lifecycleTally
 	// foundAgainstStage is the last step foundAgainstSeed's chain reached, from the one run forced
 	// through it.
 	foundAgainstStage                                string
@@ -763,6 +766,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.foundAgainstClearedByOwnReading += r.FoundAgainstClearedByOwnReading
 		f.sourceClosesRefused += r.SourceClosesRefused
 		f.readingDemandRefused += r.ReadingDemandRefused
+		f.lifecycle.add(r.Lifecycle)
 		// THE LEAST STAGE, so the fold names the same one whatever order the runs arrive in; one run
 		// in a sweep is forced through the chain.
 		if s := r.FoundAgainstStage; s != "" && (f.foundAgainstStage == "" || s < f.foundAgainstStage) {
@@ -1131,6 +1135,14 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("found against: %d close(s) refused, %d repeat(s) refused, %d edit(s) and %d retire(s) by blue, %d cleared by the reader's own re-read and closed; seed %d's forced chain reached: %s",
 			f.foundAgainstClosesRefused, f.foundAgainstRepeats, f.foundAgainstEdits, f.foundAgainstRetires, f.foundAgainstClearedByOwnReading, foundAgainstSeed, cmp.Or(f.foundAgainstStage, "no stage (its run is not in this tally)"))
 		t.Logf("live-answer demand: %d close(s) of a source gap refused, %d of them of a gap carrying a reading; seed %d's run is forced through both", f.sourceClosesRefused, f.readingDemandRefused, sourceDemandSeed)
+		// THE ANCHOR LIFECYCLE'S GATES (plans/compute-and-show.md III.1′.7): each act and refusal 1a′ adds,
+		// every one driven by seed lifecycleSeed's run, and the assembly screen by limitSeed's.
+		t.Logf("anchor lifecycle: %+v; seed %d's run is forced through every arm, seed %d's ends on a live unsound computation", f.lifecycle, lifecycleSeed, limitSeed)
+		for _, c := range f.lifecycle.gates() {
+			if c.n == 0 {
+				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", c.what, f.completed)
+			}
+		}
 		for _, c := range []struct {
 			n    int
 			what string
