@@ -6376,8 +6376,10 @@ const limitSeed = 7
 // forcedEpochLimit is the epoch limit limitSeed's run is set up with.
 const forcedEpochLimit = 2
 
-// sweepEpochLimit is the epoch limit every run but limitSeed's is set up with: setup's default.
-const sweepEpochLimit = 12
+// sweepEpochLimit is the epoch limit every run but limitSeed's is set up with. It is below setup's
+// default of 12 (record.DefaultParams): at 12, 34 of 40 runs ended at the limit and took 450–985 s
+// each, while the runs that ended earlier took 39–233 s.
+const sweepEpochLimit = 9
 
 // reopenedComputationSeed is the seed whose run is FORCED through a reopened computation; the sweep gates a plan
 // readying the computation owner for one.
