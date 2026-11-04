@@ -35,8 +35,9 @@ func (b *stage) blueSitsOn(gap string, answer bool) *stage {
 // THE LENS'S TURN ON A GAP COMES WITH BLUE'S ACT (ruled by gblock 2026-10-30) — universe-m36's
 // sequence. The lens mints G1 in epoch 1. Epoch 2's plan readies blue on G1 and not the lens, whose
 // sitting first would audit an answer that does not exist; the reason says why. Blue answers, and
-// that answer completes G1's first exchange — the mint was the lens's opening turn. Epoch 3's plan
-// readies the lens on G1 to audit the answer, and blue with it.
+// that answer opens G1's first exchange — the mint was the lens's opening turn. Epoch 3's plan
+// readies the lens on G1 to audit the answer, and blue with it; the lens's audit ends the exchange
+// (ruled by gblock 2026-10-31).
 func TestALensIsNotReadyOnAGapBlueHasNotActedOn(t *testing.T) {
 	st := mintedOn(t)
 	plan, err := PlanDispatch(st.seed())
@@ -60,9 +61,21 @@ func TestALensIsNotReadyOnAGapBlueHasNotActedOn(t *testing.T) {
 		t.Fatalf("epoch 3: blue answered G1, so the lens re-audits it, and blue answers again: parties %+v, why %q", after.Parties, after.Why)
 	}
 	x, err := Exchanges(run, DefaultParams)
-	if err != nil || x["G1"].Exchanges != 1 || x["G1"].Stalled != 0 {
-		t.Errorf("blue's answer completes G1's first exchange, opened by the mint, and moves it: %+v (%v)", x["G1"], err)
+	if err != nil || x["G1"].Exchanges != 0 {
+		t.Errorf("no exchange is complete until the lens has audited blue's answer: %+v (%v)", x["G1"], err)
 	}
+	audited := lensAuditsG1(t, more)
+	if x, err := Exchanges(audited, DefaultParams); err != nil || x["G1"].Exchanges != 1 || x["G1"].Stalled != 0 {
+		t.Errorf("the lens's audit ends G1's first exchange, opened by the mint, and blue's answer moved it: %+v (%v)", x["G1"], err)
+	}
+}
+
+// lensAuditsG1 is the lens sitting on G1, and blue not, on a stage appended to and not yet seeded.
+func lensAuditsG1(t *testing.T, st *stage) Run {
+	t.Helper()
+	more := st.more()
+	agent := fmt.Sprintf("lens-audits-%d", more.n)
+	return more.dispatch(2, evLens, "G1").registerAs(evLens, agent).served(evLens, 2).stop(agent).register("red-chair").seed()
 }
 
 // A GAP BLUE NEVER ACTS ON STILL REACHES THE BENCH. The lens's turn never comes, so the lens is never
@@ -118,9 +131,8 @@ func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]r
 // before that plan's dispatch rows. Three plans — events 191, 317 and 430 — engaged seven lenses on
 // gaps minted the epoch before, which blue had not answered: each lens sat first, recorded a
 // keep-the-grade regrade ("Blue has not edited the sentence since this gap was minted") and nothing
-// else readied it. Folded now, each of the three readies blue alone; no plan engages a lens on a gap
-// blue has not acted on since the lens's last act; and every exchange count the run's plans relayed
-// is the count the fold gives now — the mint opens the exchange the lens's no-op sitting used to.
+// else readied it. Folded now, each of the three readies blue alone, and no plan engages a lens on a
+// gap blue has not acted on since the lens's last act.
 func TestM36LensesWaitForBlue(t *testing.T) {
 	whole := archivedEvents(t, m36Archive)
 	stored, err := StoredPlans(whole)
@@ -174,15 +186,6 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 				t.Errorf("plan at event %d readies %+v, want blue alone on the gaps it was engaged on", at, plan.Parties)
 			}
 		}
-		want := map[string]ExchangeCount{}
-		for _, x := range sp.Plan.Exchanges {
-			want[x.GapID] = x
-		}
-		for _, x := range plan.Exchanges {
-			if w, ok := want[x.GapID]; ok && w != x {
-				t.Errorf("plan at event %d counts %+v on %s, the run relayed %+v", at, x, x.GapID, w)
-			}
-		}
 	}
 	if got := lensSittings["stored"] - lensSittings["replayed"]; got != 7 {
 		t.Errorf("the replayed plans dispatch %d lens sitting(s) fewer than m36's (%d stored, %d replayed), want the 7 no-op sittings", got, lensSittings["stored"], lensSittings["replayed"])
@@ -220,13 +223,13 @@ func TestEarlyLensDispatchesAreTheEngagementsBeforeBlue(t *testing.T) {
 	}
 }
 
-// THE BENCH'S REMAND IS THE FLOOR OF THE LENS'S TURN. G1 reached impasse with blue's computation the last
-// act on it, after the lens's kept grade; the bench heard that answer and remanded G1. Blue's answer
+// THE BENCH'S REMAND IS THE FLOOR OF THE LENS'S TURN. G1 reached impasse, and blue's computation is the
+// last act on it, after the lens's last sitting; the bench heard that answer and remanded G1. Blue's answer
 // before the ruling does not give the lens its turn: the plan readies blue alone on the gap.
 func TestARemandRulingIsTheFloorOfTheLensTurn(t *testing.T) {
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
-	st.actingExchangeOn("G1").exchangeOn("G1")
+	st.exchangeOn("G1").exchangeOn("G1").registerAs("blue-respond", "blue-before-ruling").blueComputes("G1").stop("blue-before-ruling")
 	run := st.docketAndRemand("M1", "G1").register("red-chair").seed()
 	if x, err := Exchanges(run, DefaultParams); err != nil || x["G1"].Remand != remandOwed {
 		t.Fatalf("setup: G1 must be remanded at impasse with its exchange owed: %+v (%v)", x["G1"], err)

@@ -54,6 +54,15 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 	// and that distinction is the whole content of the rule this file used to split a list
 	// in half to honour.
 	add := func(what string) { out = append(out, Item{What: what}) }
+	// A DOCKETED GAP IS OFF A PARTY'S LIST until it is ruled, apart from its closing argument (ruled by
+	// gblock 2026-10-31); the chair's arm reads every gap.
+	docketed := map[string]bool{}
+	if role == "blue" || role == "lens" {
+		for _, g := range gaps {
+			docketed[g.ID] = g.unruledDocket
+		}
+		gaps = undocketed(gaps)
+	}
 
 	switch role {
 	case "blue":
@@ -72,6 +81,9 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// sitting the record can leave unresolved is the latest — and while this list is read, that
 		// is the sitting reading it. Its unreceipted edits are the receipts it can still file.
 		for _, id := range ManifestUnreceipted(evs, win, WhileRunning).Gaps {
+			if docketed[id] {
+				continue
+			}
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
 		// A LENS THAT KEPT ITS GRADE SAID WHAT ITS CHECK STILL FINDS FAILING, and that is what blue's
@@ -514,7 +526,7 @@ func remandItem(g WorkGapState, blue bool) string {
 			". Your sitting cannot end until you record an act on " + g.ID + ": an edit or a computation that answers it, a fate on the inquiry it is anchored on, or a motion on it. Its minting lens audits your answer after you have acted" + next
 	}
 	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — it begins when blue records an act on " + g.ID + " against the research direction the ruling states: " + g.DocketDirection +
-		". The dispatch readies you on " + g.ID + " once blue has acted, and you audit blue's answer against that direction then" + next
+		". The dispatch readies you on " + g.ID + " once blue has acted or an edit has changed its sentence, and you audit it against that direction then: your audit is what ends this exchange" + next
 }
 
 // remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
@@ -532,6 +544,8 @@ func remandedGapForChair(g WorkGapState) string {
 		return head + g.ID + " is open, the BENCH REMANDED it, and it is not material: the exchange its remand granted has been had, and the dispatch readies nobody for it"
 	case routeGradeMovement:
 		return head + g.ID + " is open because the BENCH REMANDED it, and its grades have moved since, with the open gaps' grade movement the bench has not ruled on past its threshold — the dispatch dockets it for the bench"
+	case routeLensFirst:
+		return head + g.ID + " is open because the BENCH REMANDED it, and it is at its limits — the dispatch readies its minting lens alone on it, and dockets it for the bench if it stands after that audit"
 	}
 	return head + g.ID + " is open because the BENCH REMANDED it, and it is below its limits — the dispatch readies blue on it, and its minting lens once blue has acted on it since the lens last did"
 }

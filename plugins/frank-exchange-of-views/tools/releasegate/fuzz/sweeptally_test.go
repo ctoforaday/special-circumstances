@@ -181,6 +181,10 @@ type runTally struct {
 	RemandReleases             int                       `json:"remand_releases"`
 	LensTurns                  int                       `json:"lens_turns"`
 	LensWaits                  int                       `json:"lens_waits"`
+	LensAlone                  int                       `json:"lens_alone"`
+	DocketsAfterAudit          int                       `json:"dockets_after_audit"`
+	DocketedClosesRefused      int                       `json:"docketed_closes_refused"`
+	DocketedOffList            int                       `json:"docketed_off_list"`
 	BenchRegrades              int                       `json:"bench_regrades"`
 	HearingsAfterChair         int                       `json:"hearings_after_chair"`
 	HearingsAfterLens          int                       `json:"hearings_after_lens"`
@@ -218,6 +222,7 @@ func tallyOf(o outcome) runTally {
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, LensWaits: o.lensWaits,
+		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
@@ -573,6 +578,8 @@ type sweepFold struct {
 	blueRemandActs, pastLimitRemandsRefused         int
 	remandHolds, remandReleases                     int
 	lensTurns, lensWaits                            int
+	lensAlone, docketsAfterAudit                    int
+	docketedClosesRefused, docketedOffList          int
 	benchRegrades, lockRefused, lockLifted          int
 	hearingsAfterChair, hearingsAfterLens           int
 	hearingsAfterBlue                               int
@@ -702,6 +709,10 @@ func foldRuns(runs []runTally) sweepFold {
 		f.remandReleases += r.RemandReleases
 		f.lensTurns += r.LensTurns
 		f.lensWaits += r.LensWaits
+		f.lensAlone += r.LensAlone
+		f.docketsAfterAudit += r.DocketsAfterAudit
+		f.docketedClosesRefused += r.DocketedClosesRefused
+		f.docketedOffList += r.DocketedOffList
 		f.benchRegrades += r.BenchRegrades
 		f.hearingsAfterChair += r.HearingsAfterChair
 		f.hearingsAfterLens += r.HearingsAfterLens
@@ -1042,6 +1053,13 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("lens turns: %d lens engagement(s) after blue's act; %d gap(s) dispatched to blue while their minting lens waited", f.lensTurns, f.lensWaits)
 		if f.lensTurns == 0 || f.lensWaits == 0 {
 			t.Errorf("fuzz drove %d lens engagement(s) after blue's act and %d wait(s) across %d runs — the lens-turn rule is unexercised on one side (false green)", f.lensTurns, f.lensWaits, f.completed)
+		}
+		// THE LENS GOES FIRST AND THE DOCKET AFTER (ruled by gblock 2026-10-31): a plan readied a lens alone
+		// for the audit that reaches the limits, a docket followed a lens's sitting, a docketed gap's close
+		// was refused, and a party's list was read with a docketed gap off it.
+		t.Logf("docket order: %d lens-alone engagement(s), %d docket(s) after the lens sat, %d close(s) of a docketed gap refused, %d docketed gap(s) held off a list", f.lensAlone, f.docketsAfterAudit, f.docketedClosesRefused, f.docketedOffList)
+		if f.lensAlone == 0 || f.docketsAfterAudit == 0 || f.docketedClosesRefused == 0 || f.docketedOffList == 0 {
+			t.Errorf("fuzz drove %d lens-alone engagement(s), %d docket(s) after the lens sat, %d refused close(s) of a docketed gap and %d docketed gap(s) held off a list across %d runs — the docket order is unexercised on one side (false green)", f.lensAlone, f.docketsAfterAudit, f.docketedClosesRefused, f.docketedOffList, f.completed)
 		}
 		// THE BENCH HEARS AT EVERY BARRIER (gblock, 2026-10-31): after the chair, after the lenses, after
 		// blue. A chair draws a petition, and each other barrier has a seed whose party files one by

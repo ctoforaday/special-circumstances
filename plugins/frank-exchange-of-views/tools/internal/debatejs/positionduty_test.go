@@ -12,9 +12,8 @@ import (
 // positionDuty is the sentence that states the position duty in a dispatch.
 const positionDuty = "YOUR POSITION ARGUES TO THE BENCH"
 
-// closingDuty is the sentence that tells a party the plan holds a closing owed by how to argue the
-// closing its work list names.
-const closingDuty = "A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE"
+// closingDuty opens the sentence that sends a party the plan holds a closing owed by to its work list.
+const closingDuty = "WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU"
 
 // positionWord is the event's name as a word of its own — not `disposition`, not `composition`.
 var positionWord = regexp.MustCompile(`(?i)\bpositions?\b`)
@@ -31,10 +30,9 @@ var returnedProse = regexp.MustCompile(`(?i)synopsis|line per hypothesis`)
 //     dispatch alone — counted over what the seat is handed, its agent definition, the skills it
 //     preloads and the prompt — and every other dispatch holds the word nowhere.
 //   - THE CLOSING IS EACH PARTY'S (record.closingBlockersOf), AND THE WORK LIST NAMES IT: a lens and
-//     blue-respond the plan's closing_owed blockers name are told how to argue the closing their work
-//     list names, and no other seat is told of one. No dispatch names the gap: the plan is read at
-//     the epoch's start, and a lens that closes the gap before blue sits ends the duty (#1663 smoke,
-//     blue ev530, ev608).
+//     blue-respond the plan's closing_owed blockers name are sent to the work list for which they owe,
+//     since the list is read live and a plan can be overtaken within its epoch (#1663 smoke, blue
+//     ev530, ev608); no prompt names a gap as owing one, and no other seat is told of one.
 //   - NO DISPATCH ASKS FOR RETURNED PROSE in place of an act: nothing reads it.
 func TestTheArgumentDutiesAreStatedOnlyToTheSeatThatOwesThem(t *testing.T) {
 	blueParty := map[string]any{"seat_id": "blue-respond", "gap_ids": []any{}}
@@ -78,8 +76,8 @@ func TestTheArgumentDutiesAreStatedOnlyToTheSeatThatOwesThem(t *testing.T) {
 		if got := strings.Count(d.Prompt, closingDuty); got != map[bool]int{true: 1}[party] {
 			t.Errorf("%s (%s): the dispatch states the closing duty %d time(s), and the seat is a party owing it = %v", d.SeatID, d.Label, got, party)
 		}
-		if strings.Contains(d.Prompt, "OWED ON") || strings.Contains(d.Prompt, "closing owed on G1") {
-			t.Errorf("%s (%s): the dispatch names a gap a closing is owed on — the work list is the one place that does", d.SeatID, d.Label)
+		if strings.Contains(d.Prompt, "G1") {
+			t.Errorf("%s (%s): the dispatch names G1, on which the plan's blockers hold a closing owed: the work list says so, read live", d.SeatID, d.Label)
 		}
 		if m := returnedProse.FindStringIndex(d.Prompt); m != nil {
 			lo, hi := max(0, m[0]-80), min(len(d.Prompt), m[1]+80)

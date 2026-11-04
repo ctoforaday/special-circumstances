@@ -70,7 +70,7 @@ are the same bytes, by construction.
 **Termination is the record's, and the standing practice is stop-and-resume**: the chair's `dispatch next` says who sits; the run ends when nobody is ready — PASS
 permitted (VERIFIED) — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
 named as the reason). A gap at impasse after the one more exchange the bench's remand granted is
-docketed again and closed: a second remand at impasse is refused. The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
+docketed again and closed: a second remand at impasse is refused. An exchange is blue's answer and the minting lens's audit of it. The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
 impasse (k-max), the floor of the gaps a lens may hold open at once (mint-budget), which the record raises
 with the report's size in each lens's unit — citations, computations, claims or prose paragraphs; a gap that
 answers a contradiction its own lens raised takes no mint of it — and
