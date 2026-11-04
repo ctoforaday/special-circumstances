@@ -1344,11 +1344,11 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	return workJSONOfGaps(gaps, 0, backingOf(r.evs), ""), nil
 }
 
-// unverifiableIn reads, from the report as it renders now, why a citation's sentence cannot be
-// verified — the report does not render, its anchor is not in it, or it stands bare — the checks
-// `verify` refuses on (cli/lens/verify.go citedSentence). It reads the list's one render
-// (reportRender), and finds the bare anchors on the first question, and only then: most work lists
-// ask none.
+// unverifiableIn reads, from the report as it renders now, why no check can reach an evidence
+// anchor's sentence — the report does not render, its anchor is not in it, or it stands bare — the
+// predicate `verify` and `reproduce` refuse on (LiveSentence, through liveSentenceIn). It reads the
+// list's one render (reportRender), and finds the bare anchors on the first question, and only then:
+// most work lists ask none.
 func unverifiableIn(r workReads) unverifiableFunc {
 	var (
 		asked     bool
@@ -1364,12 +1364,13 @@ func unverifiableIn(r workReads) unverifiableFunc {
 				bare = claimcount.BareAnchorIDs(report)
 			}
 		}
-		switch {
-		case renderErr != nil:
+		if renderErr != nil {
 			return "the report does not render (" + renderErr.Error() + ")"
-		case !strings.Contains(report, anchor.Token(id)):
+		}
+		switch _, gone := liveSentenceIn(report, bare, id); gone {
+		case sentenceAbsent:
 			return "its anchor is not in the report"
-		case slices.Contains(bare, id):
+		case sentenceBare:
 			return "its anchor stands bare: the sentence it backed was cut, and blue's retire of its claim is what removes it"
 		}
 		return ""

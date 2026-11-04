@@ -100,7 +100,7 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 			fmt.Fprintf(&b, "%s: _(unresolved computation %s — no computation event on the record)_\n", computationNote(num[label]), label)
 			continue
 		}
-		fmt.Fprintf(&b, "%s: %s — a computation, not a claim: program, output and sha256 in [evidence.md](%s#%s).\n",
+		fmt.Fprintf(&b, "%s: %s — program, output and sha256 in [evidence.md](%s#%s).\n",
 			computationNote(num[label]), firstNonEmpty(escapeNotesInLine(plain(p.Reason)), Literal(commandOf(p))), FileEvidence, label)
 	}
 	return b.String(), order

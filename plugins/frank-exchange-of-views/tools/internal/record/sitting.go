@@ -116,13 +116,13 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 // sittingReads is what a seat's list needs beyond the stream and the gap rows to say whether its
 // sitting can clear an item; a zero value reads every item as clearable.
 type sittingReads struct {
-	// unverifiable: why no verify can reach a citation (unverifiableIn).
+	// unverifiable: why no check can reach an evidence anchor's sentence (unverifiableIn).
 	unverifiable unverifiableFunc
 }
 
-// unverifiableFunc says why a citation's sentence cannot be verified from the report as it renders
-// now — the reasons `verify` refuses every outcome on — or "" where it can. nil reads every citation
-// as verifiable.
+// unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
+// renders now — the reasons `verify` and `reproduce` refuse on (LiveSentence) — or "" where one can.
+// nil reads every anchor as checkable.
 type unverifiableFunc func(anchor string) string
 
 // undocketed is gaps without the open ones a docket motion stands unruled on.
@@ -446,12 +446,13 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			if b.Kind == BlockerUnchecked && b.since != 0 && win.LatestSittingOf(seatID) <= b.since {
 				continue
 			}
-			// A CITATION NO VERIFY CAN REACH is not its to clear either: `verify` refuses every
-			// outcome on it (cli/lens/verify.go citedSentence), and blue's retire of its claim, or a
-			// report that renders again, is what moves it.
-			if b.Kind == BlockerUnchecked && b.Detail == "" && reads.unverifiable != nil {
+			// AN EVIDENCE ANCHOR NO CHECK CAN REACH is not its to clear either: `verify` and
+			// `reproduce` refuse an anchor the report holds no sentence for (LiveSentence), and blue's
+			// retire of its claim, or a report that renders again, is what moves it. Asked of every
+			// unchecked anchor, a citation and a computation alike: the gate reads no kind.
+			if b.Kind == BlockerUnchecked && reads.unverifiable != nil {
 				if why := reads.unverifiable(b.Subject); why != "" {
-					may(b.WorkItem() + " — " + why + ", so no verify of this sitting can clear it")
+					may(b.WorkItem() + " — " + why + ", so no check of this sitting can clear it")
 					continue
 				}
 			}

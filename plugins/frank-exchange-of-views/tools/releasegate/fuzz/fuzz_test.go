@@ -2687,7 +2687,7 @@ func (r *runner) someCitation() string {
 	// to read the source against); the reading drive expects its verify admitted, so it skips those.
 	var live []string
 	for _, src := range record.EvidenceJSONOf(b.Events, b.At).Sources {
-		if _, _, _, retired, err := record.AnchorRetiredAt(r.run(), src.Anchor); err == nil && !retired {
+		if _, retired, err := record.AnchorRetiredAt(r.run(), src.Anchor); err == nil && !retired {
 			live = append(live, src.Anchor)
 		}
 	}
@@ -8278,7 +8278,7 @@ func someReportAnchor(run record.Run) string {
 	}
 	for _, e := range b.Events {
 		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() != "" {
-			if _, _, _, retired, err := record.AnchorRetiredAt(run, a.GetId()); err != nil || retired {
+			if _, retired, err := record.AnchorRetiredAt(run, a.GetId()); err != nil || retired {
 				continue
 			}
 			return a.GetId()

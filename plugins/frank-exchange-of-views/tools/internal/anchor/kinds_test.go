@@ -14,12 +14,12 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 	for _, c := range []struct {
 		id, kind, token string
 		assembly        Assembly
-		claim, backs    bool
+		backs           bool
 	}{
-		{"F-00001a2b", "finding", "<!--fx:F-00001a2b-->", Strip, false, false},
-		{"C-00001a2b", "citation", "<!--cite:C-00001a2b-->", WeaveSource, true, true},
-		{"K-00001a2b", "computation", "<!--computation:K-00001a2b-->", WeaveComputation, false, true},
-		{"G-00000003", "gap", "<!--gap:G-00000003-->", Strip, false, false},
+		{"F-00001a2b", "finding", "<!--fx:F-00001a2b-->", Strip, false},
+		{"C-00001a2b", "citation", "<!--cite:C-00001a2b-->", WeaveSource, true},
+		{"K-00001a2b", "computation", "<!--computation:K-00001a2b-->", WeaveComputation, true},
+		{"G-00000003", "gap", "<!--gap:G-00000003-->", Strip, false},
 	} {
 		if got := Kind(c.id); got != c.kind {
 			t.Errorf("Kind(%q) = %q, want %q", c.id, got, c.kind)
@@ -30,8 +30,9 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 		if got := AssemblyOf(c.id); got != c.assembly {
 			t.Errorf("AssemblyOf(%q) = %v, want %v", c.id, got, c.assembly)
 		}
-		if got := CountsAsClaim(c.id); got != c.claim {
-			t.Errorf("CountsAsClaim(%q) = %v, want %v", c.id, got, c.claim)
+		// AN EVIDENCE ANCHOR IS A COUNTED CLAIM, a citation and a computation alike: one column decides both.
+		if got := CountsAsClaim(c.id); got != c.backs {
+			t.Errorf("CountsAsClaim(%q) = %v, want %v", c.id, got, c.backs)
 		}
 		if got := Backs(c.id); got != c.backs {
 			t.Errorf("Backs(%q) = %v, want %v", c.id, got, c.backs)

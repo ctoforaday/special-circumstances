@@ -68,8 +68,9 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	c4 := compute("Gone item")
 
 	t.Run("a sentence carrying a terminator inside it counts as one claim", func(t *testing.T) {
-		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", "operator"); err != nil || strings.TrimSpace(out) != "3" {
-			t.Errorf("count-claims = %q (%v), want 3 — the three citations: \"91 = 7 × 13. ✓%s\" is a cited claim", out, err, anchor.Token(c2))
+		// Five evidence anchors on prose: three citations and two computations, each one claim.
+		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", "operator"); err != nil || strings.TrimSpace(out) != "5" {
+			t.Errorf("count-claims = %q (%v), want 5 — three citations and two computations: \"91 = 7 × 13. ✓%s\" is a cited claim", out, err, anchor.Token(c2))
 		}
 	})
 	t.Run("an anchor left out of a rewritten claim is refused by its whole sentence", func(t *testing.T) {

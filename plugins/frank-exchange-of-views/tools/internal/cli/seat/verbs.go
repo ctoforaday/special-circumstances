@@ -1054,17 +1054,17 @@ func renderView(cmd *cobra.Command, want string) error {
 			// of the report on the record; saying "stale reference or another run" of it would send
 			// the reader hunting for an error that is really a recorded exit.
 			if !strings.Contains(string(b), anchor.Token(a)) {
-				ev, claim, kept, found, err := record.AnchorRetiredAt(run, a)
+				r, found, err := record.AnchorRetiredAt(run, a)
 				if err != nil {
 					return err
 				}
-				if found && kept {
+				if found && r.Kept {
 					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because blue RETIRED the citation at event %d, keeping the sentence it stood on: %q. It is not a stale reference; read that sentence with --quote",
-						a, ev, claim)
+						a, r.Event, r.Claim)
 				}
 				if found {
 					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because it was RETIRED — it left with the claim %q at event %d (blue's `retire` takes a bare anchor out with its claim). It is not a stale reference; there is no live text around it to read",
-						a, claim, ev)
+						a, r.Claim, r.Event)
 				}
 			}
 			n, _ := cmd.Flags().GetInt(flags.Window)

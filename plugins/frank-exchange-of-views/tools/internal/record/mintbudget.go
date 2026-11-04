@@ -66,7 +66,8 @@ var (
 	// Computations: blue's `computation` rows — every computation recorded on the run. A reproduce is red's
 	// act on a computation and lives in its own table.
 	measureComputations = mintMeasure{"computations on the record", countRows(`SELECT count(*) FROM "computation"`), false}
-	// Claims: claimcount.Count on the CURRENT report — citation anchors attached to prose.
+	// Claims: claimcount.Count on the CURRENT report — evidence anchors, citations and computations,
+	// attached to prose.
 	measureClaims = mintMeasure{"claims in the current report", countInReport(claimcount.Count), true}
 	// Paragraphs: claimcount.Paragraphs on the CURRENT report — blank-line-separated blocks that
 	// carry prose; headings, anchor-only lines, footnote definitions and fenced code do not.

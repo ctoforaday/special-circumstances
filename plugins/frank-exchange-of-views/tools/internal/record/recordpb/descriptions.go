@@ -37,6 +37,13 @@ import (
 // `events.type` to reference, so it was bare TEXT — the only such column left once the arms were
 // repaired.
 
+// DemandClause is the live-answer demand on a gap's close, stated once: every refusal and help line
+// that says when a `source` or `computation` gap closes renders this constant, and the two check
+// kinds' `(means)` render it through `{{.DemandClause}}`. It lives here because the `(means)` that
+// render it are read here, and recordpb imports no record package, while record and the command
+// packages import recordpb.
+const DemandClause = "a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once the anchor it is about, or whose reading it carries, is retired, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it"
+
 // EnumValueDoc returns the prose for one enum value: its `(means)`, or the terms registry's
 // definition of the entry its `(defined_term)` names.
 //

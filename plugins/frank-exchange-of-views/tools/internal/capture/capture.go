@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/archive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
@@ -437,8 +438,9 @@ func AssemblyScreen(run record.Run) Audit {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
 	ev := record.EvidenceJSONOf(fam.Events, fam.At)
-	if ev.Counts.Sources == 0 {
-		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
+	anchors := ev.Counts.Sources + ev.Counts.Computations
+	if anchors == 0 {
+		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no evidence anchors on the record — nothing to screen"}
 	}
 
 	// THE SCREEN NEEDS THE DELIVERABLE: before assembly there is nothing a reader is pointed at,
@@ -452,28 +454,35 @@ func AssemblyScreen(run record.Run) Audit {
 	}
 	if !assembled {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP",
-			Detail: fmt.Sprintf("%d citation(s) on the record and no assembled document yet — the screen runs against the assembled artifact", ev.Counts.Sources)}
+			Detail: fmt.Sprintf("%d evidence anchor(s) on the record and no assembled document yet — the screen runs against the assembled artifact", anchors)}
 	}
 
-	// EACH CITATION BY ITS STANDING, KEYED BY ITS ANCHOR. The assembled report weaves every anchor
-	// the report carries into a footnote, so a citation still cited is one the record has not
+	// EACH EVIDENCE ANCHOR BY ITS STANDING, KEYED BY ITS ANCHOR. The assembled report weaves every
+	// anchor the report carries into a footnote, so an anchor still woven is one the record has not
 	// retired — and the ledger that says so is the one that says whether a check of its sentence
-	// stands. A refutation of a sentence blue has since rewritten, and then checked again, is
-	// answered; one standing against the sentence the report carries is not. The url is no key:
-	// two citations of one url back two sentences, and a screen keyed by it failed the run whose
-	// refuted sentence had been fixed and re-verified (m30, C-4f4b8cfa).
+	// stands. "This check fails" is read through the kind's row (record.FailingAnchors): a citation
+	// a standing reading finds against, a computation a standing judgement calls unsound. A
+	// refutation of a sentence blue has since rewritten, and then checked again, is answered; one
+	// standing against the sentence the report carries is not. The url is no key: two citations of
+	// one url back two sentences, and a screen keyed by it failed the run whose refuted sentence had
+	// been fixed and re-verified (m30, C-4f4b8cfa).
 	urlOf := map[string]string{}
 	for _, s := range ev.Sources {
 		urlOf[s.Anchor] = s.URL
 	}
 	var carried []string
-	for _, a := range record.CitationsFoundAgainst(fam.Events, fam.At) {
-		carried = append(carried, fmt.Sprintf("%s (%s)", a, urlOf[a]))
+	for _, a := range record.FailingAnchors(fam.Events, fam.At) {
+		row, _ := recordsql.EvidenceTableOf(anchor.Kind(a))
+		name := row.Noun + " " + a
+		if u := urlOf[a]; u != "" {
+			name += " (" + u + ")"
+		}
+		carried = append(carried, name)
 	}
 
 	if len(carried) > 0 {
 		return Audit{Check: "assembly-screen", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d source(s) red finds AGAINST the sentence the report carries are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
+			Detail: fmt.Sprintf("%d evidence anchor(s) a check finds AGAINST the sentence the report carries are still in the assembled report: %s. A refuted or absent source in the bibliography, or a computation judged unsound in a footnote, points a reader at evidence the audit rejected",
 				len(carried), strings.Join(carried, ", "))}
 	}
 	// EVER FOUND AGAINST is this audit's own count, read off the verification rows: sources_refuted
@@ -485,8 +494,8 @@ func AssemblyScreen(run record.Run) Audit {
 		}
 	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d citation(s), none with a standing check against the sentence it backs (refutes|absent); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
-			ev.Counts.Sources, ever, ev.Counts.SourcesUnverified)}
+		Detail: fmt.Sprintf("%d citation(s) and %d computation(s), none with a standing check against the sentence it backs (refutes|absent, unsound); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
+			ev.Counts.Sources, ev.Counts.Computations, ever, ev.Counts.SourcesUnverified)}
 }
 
 // ---- AUDIT 6: record parity ----

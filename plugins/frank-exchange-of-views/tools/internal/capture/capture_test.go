@@ -1587,3 +1587,28 @@ func TestCaptureReportsAMarkerItCouldNotClose(t *testing.T) {
 		t.Errorf("the line must say the run is still live: %q", line)
 	}
 }
+
+// THE SCREEN READS EVERY EVIDENCE ANCHOR THROUGH ITS KIND'S ROW. A live computation a standing
+// judgement calls unsound points a reader at evidence the audit rejected exactly as a refuted
+// citation does: the screen FAILs naming it, PASSes once it is retired, and a record with
+// computations and no citations is screened, not skipped.
+func TestAssemblyScreenFailsOnALiveUnsoundComputation(t *testing.T) {
+	const k = "K-00000001"
+	dir := t.TempDir()
+	recordtest.Seed(t, dir,
+		recordtest.Event(t, "blue-r1", &recordpb.Computation{ComputationId: proto.String(k), Argv: []string{"node", "a.js"},
+			Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), BundleSha: proto.String("ab"), Exit: proto.Int32(0)}),
+		recordtest.Event(t, "red-lens-computation", &recordpb.Reproduce{ComputationId: proto.String(k), BundleSha: proto.String("ab"),
+			Soundness: recordpb.Soundness_SOUNDNESS_UNSOUND.Enum(), Note: proto.String("it prints the answer"), Ran: proto.Bool(false)}),
+	)
+	write(t, filepath.Join(dir, "report.md"), "A computed claim.[^K1]\n\n[^K1]: evidence.md#"+k+"\n")
+	got := AssemblyScreen(runtest.Open(t, dir))
+	if got.Verdict != "FAIL" || !strings.Contains(got.Detail, "computation "+k) {
+		t.Fatalf("a live computation judged unsound: want FAIL naming computation %s, got %s (%s)", k, got.Verdict, got.Detail)
+	}
+	recordtest.Seed(t, dir, recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: proto.String("A computed claim."),
+		Reason: proto.String("the program prints its answer"), Anchors: []string{k}}))
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "PASS" || !strings.Contains(got.Detail, "0 citation(s) and 1 computation(s)") {
+		t.Errorf("the unsound computation retired: want a PASS that says it screened one computation, got %s (%s)", got.Verdict, got.Detail)
+	}
+}

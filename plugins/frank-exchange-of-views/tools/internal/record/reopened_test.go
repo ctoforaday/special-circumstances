@@ -408,7 +408,7 @@ func TestANeverCheckedCitationIsOwedAndHoldsThePass(t *testing.T) {
 	if len(got) != 1 || got[0].Subject != "C-2" || got[0].Owner != evLens || got[0].since != edit || got[0].lastCheck != 0 {
 		t.Fatalf("blockers = %+v, want C-2 unchecked since edit %d, owned by %s, with no check", got, edit, evLens)
 	}
-	// The fixture's report carries no C-2 token, so the item is listed as one no verify of this
+	// The fixture's report carries no C-2 token, so the item is listed as one no check of this
 	// sitting can reach; envelope_test holds a reachable one to the lens's envelope.
 	if it, listed := itemNaming(sittingOfRunT(t, run, "lens", evLens), "C-2's sentence changed at edit"); !listed {
 		t.Errorf("the lens's item for C-2 = %+v (listed %v), want it listed", it, listed)

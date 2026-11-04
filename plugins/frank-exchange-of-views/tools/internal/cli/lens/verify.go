@@ -12,8 +12,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -115,7 +113,11 @@ func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify", verifyResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		if id := strings.TrimSpace(seat.Str(cmd, flags.Anchor)); id != "" {
 			body := &recordpb.Verify{Anchor: proto.String(id)}
-			claim, err := citedSentence(s, id)
+			run, err := s.Run()
+			if err != nil {
+				return nil, err
+			}
+			claim, err := record.LiveSentence(run, id)
 			if err != nil {
 				return nil, err
 			}
@@ -151,7 +153,7 @@ func newVerify() *cobra.Command {
 	// takes the ordinal key, and the record holds it to one reading per url and sentence a sitting
 	// (record.requireNotARetriedReading).
 	seat.KeysOn(c, "anchor")
-	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands (citedSentence); on a source you found, your --quote")
+	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands (record.LiveSentence); on a source you found, your --quote")
 	seat.Supplies(c, "gap_id", "the tool mints the id of the gap a reading mints (record.NewID), at random")
 	seat.Supplies(c, "class_material", "stamped on the reading's gap from its class's material default at the write path")
 	seat.Supplies(c, "carried_by", "the tool names the gap that carries a reading that mints: its own act's, or the open gap of its class on the sentence")
@@ -162,34 +164,6 @@ func newVerify() *cobra.Command {
 		seat.RequiredUnless(c, f, gapFlagsRequiredUnless)
 	}
 	return c
-}
-
-// citedSentence is the claim a verification of citation id records: the sentence holding its anchor
-// in the report as it stands, read the way an edit reads it to reopen the citation
-// (bluedoc.SentenceAround). The lens names the citation and the tool reads the sentence, so a
-// verdict cannot sit on a sentence the citation does not mark. A citation with no such sentence —
-// its anchor out of the report, or bare, or the report unrendered — has no claim to read a source
-// against, and is refused.
-func citedSentence(s seat.Context, id string) (string, error) {
-	run, err := s.Run()
-	if err != nil {
-		return "", err
-	}
-	report, err := record.RenderRun(run)
-	if err != nil {
-		return "", feov.Wrap(feov.Conflict, err, "the report does not render, so the sentence citation %s marks cannot be read, and nothing can be verified until it does: %v. "+
-			"The board's anomalies say why; record that you could not verify it with `log`", id, err)
-	}
-	sentence, ok := bluedoc.SentenceAround(report, anchor.Token(id))
-	switch {
-	case !ok:
-		return "", feov.Errorf(feov.Conflict, "citation %s's anchor is not in the report — blue retired its claim, or the anchor never placed — so the report holds no sentence for it and there is nothing to verify. "+
-			"Verify the citations whose anchors the report carries", id)
-	case slices.Contains(claimcount.BareAnchorIDs(report), id):
-		return "", feov.Errorf(feov.Conflict, "citation %s's anchor stands bare in the report: the sentence it backed was cut, and it backs no prose, so there is nothing to verify. "+
-			"The anchor leaves with blue's retire of its claim", id)
-	}
-	return sentence, nil
 }
 
 // citedURL is the url of the citation id names — blue's cite, the only act that places one — which is

@@ -341,15 +341,25 @@ func editSpansAt(q recordsql.Querier) ([]EditSpan, error) {
 	return out, rows.Err()
 }
 
+// AnchorRetire is the retire that took an anchor out of the report: its event, the claim and reason
+// it recorded, and whether it kept that claim — kept true for an anchor retired alone off a sentence
+// that stays.
+type AnchorRetire struct {
+	Event         int64
+	Claim, Reason string
+	Kept          bool
+}
+
 // AnchorRetiredAt answers where an anchor went when it is no longer in the report: the retire
-// event that took it out — with its claim, or, kept true, off a claim that stayed (a citation
-// retired from its sentence). found is false for an anchor no retire named — then it is a stale
-// reference or another run's id, and the caller says so.
-func AnchorRetiredAt(run Run, id string) (event int64, claim string, kept, found bool, err error) {
-	var c sql.NullString
+// event that took it out — with its claim, or, kept true, off a claim that stayed. found is false
+// for an anchor no retire named — then it is a stale reference or another run's id, and the caller
+// says so.
+func AnchorRetiredAt(run Run, id string) (r AnchorRetire, found bool, err error) {
+	var c, why sql.NullString
 	var k sql.NullBool
-	found, err = queryRow(run, []any{&event, &c, &k},
-		`SELECT r."event_id", r."claim", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
+	found, err = queryRow(run, []any{&r.Event, &c, &why, &k},
+		`SELECT r."event_id", r."claim", r."reason", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
 		 WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1`, id)
-	return event, c.String, k.Bool, found, err
+	r.Claim, r.Reason, r.Kept = c.String, why.String, k.Bool
+	return r, found, err
 }

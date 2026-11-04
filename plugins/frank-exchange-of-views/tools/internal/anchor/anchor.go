@@ -4,9 +4,11 @@
 // # The kinds table
 //
 // Every kind of anchor is one row of `kinds`, holding what the kind MEANS. No column says how an
-// anchor is placed, carried, protected or retired: every kind lives the same way — the tool places
-// it at the end of its quote, every edit carries it, and `retire` is the one way it leaves — so a
-// reader of that lifecycle walks every row alike.
+// anchor is placed or carried: every kind lives the same way — the tool places it at the end of its
+// quote, every edit carries it, and `retire` is the one way it leaves — so a reader of that
+// lifecycle walks every row alike. One column, `backs`, says which kinds are evidence: an evidence
+// anchor counts as a claim, and the record's facts about its kind are its row of
+// recordsql.EvidenceTables.
 //
 // # Why it is a leaf
 //
@@ -48,8 +50,9 @@ type kind struct {
 	tag      string // the token's tag: <!--TAG:ID-->
 	label    string // the noun a message names an anchor of this kind by
 	assembly Assembly
-	claim    bool // a token of this kind makes the prose before it a counted claim
-	backs    bool // the anchor is evidence standing behind its sentence
+	// backs: the anchor is evidence standing behind its sentence, and a token of the kind makes the
+	// prose before it a counted claim (CountsAsClaim).
+	backs bool
 }
 
 // kinds is the table, in the order every walk reports its kinds.
@@ -59,7 +62,7 @@ type kind struct {
 // audits it.
 var kinds = []kind{
 	{name: "finding", prefix: "F-", tag: "fx", label: "finding anchor", assembly: Strip},
-	{name: "citation", prefix: "C-", tag: "cite", label: "citation anchor", assembly: WeaveSource, claim: true, backs: true},
+	{name: "citation", prefix: "C-", tag: "cite", label: "citation anchor", assembly: WeaveSource, backs: true},
 	{name: "computation", prefix: "K-", tag: "computation", label: "computation anchor", assembly: WeaveComputation, backs: true},
 	{name: "gap", prefix: "G-", tag: "gap", label: "gap anchor", assembly: Strip},
 }
@@ -301,8 +304,9 @@ func Kind(id string) string { return rowOf(id).name }
 func AssemblyOf(id string) Assembly { return rowOf(id).assembly }
 
 // CountsAsClaim reports whether an anchor of id's kind, attached to prose, makes it a counted
-// claim.
-func CountsAsClaim(id string) bool { return rowOf(id).claim }
+// claim: every evidence anchor does, a citation and a computation alike, so what a report backs
+// is exactly what it anchors.
+func CountsAsClaim(id string) bool { return rowOf(id).backs }
 
 // Backs reports whether an anchor of id's kind is evidence standing behind its sentence.
 func Backs(id string) bool { return rowOf(id).backs }
