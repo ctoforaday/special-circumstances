@@ -476,11 +476,6 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, sour
 					"A corroboration is one per source and claim and its retry repeats it, so this one records nothing and is refused",
 					body.GetUrl(), prior.GetLabel(), was, now)
 			}
-			// A corroboration on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by
-			// the retry, at the claim it stored.
-			if err := seat.PlaceOwed(s, prior.GetLabel(), ""); err != nil {
-				return nil, err
-			}
 			return verifyResult{Label: prior.GetLabel(), Source: prior.GetTitle(), Outcome: recordpb.Word(prior.GetOutcome()), Bridge: bridgeWord(prior), Confidence: recordpb.Word(prior.GetConfidence()), Claim: prior.GetClaim(),
 				CopySubstitution: recordpb.Word(prior.GetCopySubstitution()), CopyURL: prior.GetCopyUrl(), Idempotent: true, VoiceTells: tells}, nil
 		}

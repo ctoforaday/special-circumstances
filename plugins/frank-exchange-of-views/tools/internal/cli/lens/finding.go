@@ -87,12 +87,6 @@ func newFinding() *cobra.Command {
 			if err := seat.RepeatsKeyed(key, "finding", prior.GetId(), prior, body, findingAsserted...); err != nil {
 				return nil, err
 			}
-			// THE PAIR MAY BE HALF ON THE RECORD: the finding and its anchor are one write, but a
-			// record migrate brought forward from an archive can hold a finding whose run crashed
-			// before its anchor. The retry finishes the pair at the location the finding stored.
-			if err := seat.PlaceOwed(s, prior.GetId(), key); err != nil {
-				return nil, err
-			}
 			return findingResult{ID: prior.GetId(), Area: area, Idempotent: true}, nil
 		}
 		// Mint the id UP FRONT: it forms the marker. THE ANCHOR EVENT (below) IS THE MARKER — it

@@ -34,8 +34,8 @@ import (
 // recognises what to dispatch.
 //
 // With no journal there is nothing to compare, and the detail says the relayed plans were NOT
-// compared: an absent journal never reads as a faithful relay. With no stored plan — a record
-// migrated from before the record stored one — the detail says the same of the record.
+// compared: an absent journal never reads as a faithful relay. A relayed plan the record stored
+// none of departs, whether or not it stored any.
 //
 // A CHAIR SITTING'S DISPATCH IS record.DispatchGroups', NOT THE EPOCH. A warm chair resuming its
 // session opens no stored sitting until it registers, and on B3–B6 it registered once per run:
@@ -245,11 +245,8 @@ func relayedPlans(results []map[string]any) []map[string]any {
 // epoch, by equality of their printings (record.ReadPlan), and each epoch the record stored a plan
 // at to a relay of it. note is what the detail adds when the comparison ran.
 func relayDepartures(relays []map[string]any, stored []record.StoredPlan) (out []string, note string) {
-	if len(stored) == 0 {
-		if len(relays) == 0 {
-			return nil, ""
-		}
-		return nil, fmt.Sprintf(" — the record stores no plan, so the %d relayed plan(s) were NOT compared", len(relays))
+	if len(stored) == 0 && len(relays) == 0 {
+		return nil, ""
 	}
 	last := map[int]record.StoredPlan{}
 	var epochs []int

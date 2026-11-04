@@ -2,7 +2,6 @@ package record
 
 import (
 	"crypto/rand"
-	"database/sql"
 	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -60,33 +59,4 @@ func keyedAct(run Run, q, seatID, key string) (*recordpb.Event, error) {
 		err = fmt.Errorf("event %d holds the act keyed %q and was not there to read", id, key)
 	}
 	return ev, err
-}
-
-// UnplacedLocation is the location a placing act stored for its anchor while no Anchor event places
-// it, or "". The act and its Anchor are one write (AppendPlaced), so such an act is one migrate
-// brought forward from an archive whose run crashed between the two. A retry places the STORED
-// location, never its own quote, so the anchor sits where the recorded act says it does.
-func UnplacedLocation(run Run, id string) (string, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return "", err
-	}
-	return unplacedLocationAt(db, id)
-}
-
-// unplacedLocationAt is UnplacedLocation asked of q.
-func unplacedLocationAt(q recordsql.Querier, id string) (string, error) {
-	var loc sql.NullString
-	if id == "" {
-		return "", nil
-	}
-	_, err := queryRowAt(q, []any{&loc},
-		`SELECT "location" FROM (SELECT "id", "location" FROM "finding"
-		   UNION ALL SELECT "gap_id", "location" FROM "mint"
-		   UNION ALL SELECT "label", "location" FROM "cite"
-		   UNION ALL SELECT "computation_id", "location" FROM "computation"
-		   UNION ALL SELECT "label", "claim" FROM "verify")
-		  WHERE "id" = ?1 AND COALESCE("location", '') != ''
-		    AND NOT EXISTS (SELECT 1 FROM "anchor" WHERE "id" = ?1) LIMIT 1`, id)
-	return loc.String, err
 }

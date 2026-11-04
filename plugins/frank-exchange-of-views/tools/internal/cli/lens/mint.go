@@ -172,11 +172,6 @@ func newMint() *cobra.Command {
 			if err := seat.RepeatsKeyed(seat.Str(cmd, flags.Key), "gap", prior.GetGapId(), prior, retry, mintAsserted...); err != nil {
 				return nil, err
 			}
-			// A mint on the record without its anchor — one migrate brought forward from an archive
-			// whose run crashed between the two — is finished by the retry, at the location it stored.
-			if err := seat.PlaceOwed(s, prior.GetGapId(), seat.Str(cmd, flags.Key)); err != nil {
-				return nil, err
-			}
 			return mintResult{GapID: prior.GetGapId(), Check: prior.GetAcceptanceCheck(), Idempotent: true}, nil
 		}
 		gapID = record.NewID("gap")
