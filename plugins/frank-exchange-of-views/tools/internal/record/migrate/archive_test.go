@@ -80,7 +80,7 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	// terminal judge's outcome, which the assembly sitting's later outcome superseded (outcomes.go):
 	// the record holds one outcome. PLUS one Anchor for each of the 43 placed citations, whose markers
 	// the report read off the acts themselves — the 6 labelled corroborations' are not placed: no
-	// reading places a citation (EventSchema 57) — PLUS the one reproduce
+	// reading places a citation (EventSchema 58) — PLUS the one reproduce
 	// carried to a second proof on the script it re-ran (24 reproduces fan out to 25 anchors), LESS
 	// the 19 closings and the 10 positions the write refuses — every closing is the chair's or blue's
 	// on a gap no docket motion stood on, and every position but the chair's five is blue's or a

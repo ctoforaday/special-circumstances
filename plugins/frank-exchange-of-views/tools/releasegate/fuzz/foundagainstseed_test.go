@@ -12,7 +12,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // foundAgainstSeed is the seed whose run is FORCED through a found-against check's whole life
@@ -74,7 +73,7 @@ func (r *runner) citeForFoundAgainst(seatID string) {
 		return
 	}
 	// A REPORT THAT DOES NOT YET HOLD THE WORDS ONCE IS CITED AT A LATER BLUE SITTING.
-	if cur, err := reportproj.RenderFromRecord(r.run()); err != nil || strings.Count(plainText(cur), foundAgainstQuote) != 1 {
+	if cur, err := record.RenderRun(r.run()); err != nil || strings.Count(plainText(cur), foundAgainstQuote) != 1 {
 		r.reachedFoundAgainstStage("no blue sitting so far found the chain's sentence once in the report")
 		return
 	}
@@ -224,7 +223,7 @@ func scenarioOwnsClose(d string) bool { return d == dirCompute || d == dirComput
 // cite is "" and why says what held the candidates back: the chain waits for a later sitting.
 func (r *runner) foundAgainstCitation(seatID, preferred string) (cite string, classes []string, why string) {
 	b, ok := r.board()
-	report, err := reportproj.RenderFromRecord(r.run())
+	report, err := record.RenderRun(r.run())
 	if !ok || err != nil {
 		return "", nil, "the record or its report could not be read to choose the chain's citation"
 	}

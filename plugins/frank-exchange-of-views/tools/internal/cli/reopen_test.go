@@ -8,7 +8,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // AN EDIT THAT MOVES CITED TEXT REOPENS THE CITATION, END TO END.
@@ -72,7 +71,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	}
 	anchor := got[0].Anchor
 	// The anchor is still THERE: reopening is not losing, and the no-loss promise still holds.
-	md, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
+	md, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +101,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 // seat sees in `show report` and copies into its quote.
 func anchoredLine(t *testing.T, runDir string) (string, string) {
 	t.Helper()
-	md, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
+	md, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,15 +1,11 @@
 package reportproj
 
-import (
-	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-)
+import "testing"
 
 // THE REPORT IS THE PARTS IN EVENT ORDER. Each part after the first follows the text before it, its
 // trailing blank lines trimmed, after one blank line; a change folds over the joined text.
 func TestThePartsJoinInTheOrderTheyAreRecorded(t *testing.T) {
-	ops := []record.ReportOp{
+	ops := []ReportOp{
 		{EventID: 3, Kind: "append", A: "## Lane two\n\nSecond.\n\n\n"},
 		{EventID: 5, Kind: "append", A: "## Lane one\n\nFirst.\n"},
 		{EventID: 8, Kind: "edit", A: "Second.", B: "Second, edited."},
@@ -41,7 +37,7 @@ func TestJoinPart(t *testing.T) {
 // A REPORT NO LANE HAS RECORDED A PART OF IS NOTHING TO READ OR CHANGE: the empty fold, and a change
 // before any part, are each NoPart — never an empty report rendered as if it were one.
 func TestAReportWithNoPartIsRefused(t *testing.T) {
-	for name, ops := range map[string][]record.ReportOp{
+	for name, ops := range map[string][]ReportOp{
 		"the empty fold":          nil,
 		"an edit before a part":   {{Kind: "edit", A: "x", B: "y"}, {Kind: "append", A: "x\n"}},
 		"an insert before a part": {{Kind: "insert", A: "x", B: "F-00000001"}},

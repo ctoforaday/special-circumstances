@@ -19,7 +19,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 const (
@@ -123,7 +122,7 @@ func (s *shapeSource) migrated() (*migration.Manifest, string, []*recordpb.BlueE
 		s.t.Fatalf("migrate: %v %+v", err, resRefusals(m))
 	}
 	dst := runtest.Open(s.t, to)
-	md, err := reportproj.RenderFromRecord(dst)
+	md, err := record.RenderRun(dst)
 	if err != nil {
 		s.t.Fatalf("the migrated run does not render: %v", err)
 	}

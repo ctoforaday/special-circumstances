@@ -15,7 +15,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -242,7 +241,7 @@ func (r *runner) citationURL(anchorID string) string {
 // --new takes it: the sentence's words with every anchor that backs it kept in place, and the gap and
 // finding anchors the accept moves left out; "" where the report does not hold the token once.
 func (r *runner) citationFixNew(anchorID string) string {
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		return ""
 	}
@@ -578,7 +577,7 @@ func (r *runner) heldOn(class, quote string) bool {
 // again in the sitting is refused naming the stored one, and another source read for the same
 // sentence is recorded, naming the gap the first one's reading left standing.
 func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes func(string, *cmd) *cmd) {
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered for a found-source reading: " + err.Error())
 		return
@@ -661,7 +660,7 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 	case backing && marked:
 		// A CITE LANDING IN BETWEEN MARKS IT; ONE LEAVING UNMARKS IT. Admitted is the record's call
 		// on the report it landed on, read again here.
-		if now, rerr := reportproj.RenderFromRecord(r.run()); rerr == nil {
+		if now, rerr := record.RenderRun(r.run()); rerr == nil {
 			if m, _ := sentenceMarked(now, quote); m {
 				r.noteActErr(fmt.Sprintf("%s's backing found-source reading of a sentence an anchor marks was admitted: %s", seatID, firstLine(out)))
 				return
@@ -727,7 +726,7 @@ func (r *runner) fixFoundAgainst(seatID string, b record.Blocker) {
 	if r.coin(10) {
 		r.envelopeRefusedEarly(seatID, "reading of citation "+b.Subject+" at event")
 	}
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered to fix citation " + b.Subject + ": " + err.Error())
 		return
@@ -802,7 +801,7 @@ func readingTally(res *outcome, board record.Family, run record.Run) {
 		}
 	}
 	res.openByFoundBy, res.mintsByEpoch, res.closesByEpoch = map[string]int{}, map[int]int{}, map[int]int{}
-	report, rerr := reportproj.RenderFromRecord(run)
+	report, rerr := record.RenderRun(run)
 	spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
 	perClassSentence := map[string][]*record.Gap{}
 	var keys []string
@@ -1006,7 +1005,7 @@ func (r *runner) stockRepeatedSentence(seatID string) {
 	if !due {
 		return
 	}
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil || strings.Count(plainText(cur), repeatedSentenceSeeds[0]) != 1 || strings.Count(plainText(cur), repeatedSentenceSeeds[1]) != 1 {
 		return // a lane withheld its part, so the report holds one copy
 	}
@@ -1054,7 +1053,7 @@ func (r *runner) readRepeatedSentence(seatID string, forced bool) {
 	if cites[0] == "" || !forced && !r.coin(30) {
 		return
 	}
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil || strings.Count(plainText(cur), repeatedSentence) != 2 {
 		return // an edit or a retire has since changed a copy
 	}
@@ -1091,7 +1090,7 @@ func (r *runner) readRepeatedSentence(seatID string, forced bool) {
 		return
 	}
 	g := v.GetCarriedBy()
-	now, err := reportproj.RenderFromRecord(r.run())
+	now, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered after a reading of the twice-held sentence: " + err.Error())
 		return
@@ -1170,7 +1169,7 @@ func (r *runner) acceptRepeated(seatID string) {
 			set("--reason", "fuzz: accepting the reading's fix of this copy of the sentence").admit(); !ok {
 			continue
 		}
-		cur, err := reportproj.RenderFromRecord(r.run())
+		cur, err := record.RenderRun(r.run())
 		if err != nil {
 			r.noteActErr("the report could not be rendered after blue's accept of " + p.gap + ": " + err.Error())
 			continue

@@ -149,7 +149,7 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 	}
 }
 
-// A RAISE ON A RENUMBERED ARCHIVE IS WRITTEN AS NO EVENT (EventSchema 57). A raise names a reading by
+// A RAISE ON A RENUMBERED ARCHIVE IS WRITTEN AS NO EVENT (EventSchema 58). A raise names a reading by
 // the events.id it was written at, and every archive renumbers: the cast is written first, an anchor
 // lands after the act that placed it. The ref is carried through newID to the reading the replay
 // wrote, and the raise is then dropped; a ref that names no reading is refused, so nothing but a

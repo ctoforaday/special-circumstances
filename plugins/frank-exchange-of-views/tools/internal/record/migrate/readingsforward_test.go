@@ -14,7 +14,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // migratedEvents is the named archive's migration: its manifest's refusals checked, its events.
@@ -431,7 +430,7 @@ func TestNoMigratedArchiveHoldsALensPlacedToken(t *testing.T) {
 			if err != nil || !has {
 				return
 			}
-			md, err := reportproj.RenderFromRecord(run)
+			md, err := record.RenderRun(run)
 			if err != nil {
 				t.Fatalf("render: %v", err)
 			}

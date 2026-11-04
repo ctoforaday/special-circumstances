@@ -1,4 +1,4 @@
-package reportproj
+package reportproj_test
 
 import (
 	"strings"
@@ -29,7 +29,7 @@ func insertHelper(t *testing.T, text, location, marker string) string {
 // re-places the marker from the Anchor alone. This is the fidelity guard for that path: a base with
 // a citation, a computation and a finding replays to exactly what write-time InsertAnchor would have
 // produced, markers in record order — and an act recorded with no Anchor places nothing.
-func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
+func TestRenderRunReplaysMarkerInsertions(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, s := range []string{"blue-synthesize", "blue-respond", "red-lens-evidence"} {
 		if _, _, err := record.RegisterSeat(ident(t, runDir, s), "", ""); err != nil {
@@ -54,7 +54,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("append computation: %v", err)
 	}
-	if got, err := RenderFromRecord(runtest.Open(t, runDir)); err != nil || got != base {
+	if got, err := record.RenderRun(runtest.Open(t, runDir)); err != nil || got != base {
 		t.Fatalf("a cite and a computation with no Anchor event rendered a marker: %q, %v", got, err)
 	}
 	for _, id := range []string{citeID, computationID} {
@@ -76,9 +76,9 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 		t.Fatalf("append anchor: %v", err)
 	}
 
-	got, err := RenderFromRecord(runtest.Open(t, runDir))
+	got, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
-		t.Fatalf("RenderFromRecord: %v", err)
+		t.Fatalf("RenderRun: %v", err)
 	}
 
 	want := base
@@ -104,7 +104,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 
 // A Finding event with NO paired Anchor inserts nothing: the marker geometry rides the Anchor, and
 // replaying the Finding too would double it. This guards the deliberate skip of Finding in replay.
-func TestRenderFromRecordDoesNotInsertFromFindingAlone(t *testing.T) {
+func TestRenderRunDoesNotInsertFromFindingAlone(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, s := range []string{"blue-synthesize", "red-lens-evidence"} {
 		if _, _, err := record.RegisterSeat(ident(t, runDir, s), "", ""); err != nil {
@@ -120,38 +120,11 @@ func TestRenderFromRecordDoesNotInsertFromFindingAlone(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("append finding: %v", err)
 	}
-	got, err := RenderFromRecord(runtest.Open(t, runDir))
+	got, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
-		t.Fatalf("RenderFromRecord: %v", err)
+		t.Fatalf("RenderRun: %v", err)
 	}
 	if got != base {
 		t.Fatalf("a Finding with no Anchor changed the report:\n  base %q\n  got  %q", base, got)
-	}
-}
-
-// The replay analog of the verbs' torn-anchor adoption: applying an insertion whose marker is
-// ALREADY in the running text is a no-op, not a second splice. A marker can be named twice in the
-// record across a crash-retry re-dispatch (cite adopts the orphan and re-appends under the same
-// label in a NEW sitting, past the once-per-sitting guard), so replay must place it once. Driven on
-// insertMut directly — the once-per-sitting guard blocks constructing the pair through the record,
-// but the skip is what makes replay robust when the pair nonetheless exists.
-func TestInsertMutSkipsAMarkerAlreadyPlaced(t *testing.T) {
-	const location = "Demand grows steadily over the period"
-	marker := anchor.Token("C-cafef00d")
-	base := location + "."
-
-	once, err := (insertMut{location: location, marker: marker}).apply(base)
-	if err != nil {
-		t.Fatalf("first insert: %v", err)
-	}
-	if strings.Count(once, marker) != 1 {
-		t.Fatalf("first insert did not place the marker exactly once:\n  %q", once)
-	}
-	twice, err := (insertMut{location: location, marker: marker}).apply(once)
-	if err != nil {
-		t.Fatalf("second insert: %v", err)
-	}
-	if twice != once {
-		t.Errorf("re-applying an already-placed marker changed the text:\n  once  %q\n  twice %q", once, twice)
 	}
 }

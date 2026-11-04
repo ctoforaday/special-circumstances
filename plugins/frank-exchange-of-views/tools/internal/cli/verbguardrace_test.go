@@ -14,7 +14,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // A VERB'S OWN CHECK IS MADE AGAINST THE RECORD ITS WRITE LANDS ON (#1252). Each row runs a verb
@@ -53,7 +52,7 @@ func raceRun(t *testing.T) string {
 // renders fails the test unless the report renders: an act replay cannot apply fails every render.
 func renders(t *testing.T, runDir string) string {
 	t.Helper()
-	md, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
+	md, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("the report no longer renders — a write landed that replay cannot apply: %v", err)
 	}

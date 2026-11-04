@@ -31,7 +31,7 @@ import (
 //     citation %s at event %d finds the source against the sentence`; dispatch.go: `%s's reading
 //     at event %d`);
 //   - contradiction: archived bytes only, printed by no live verb — `contradiction %s` among a
-//     lens's debts and of a contradiction blocker, in plans stored before EventSchema 57.
+//     lens's debts and of a contradiction blocker, in plans stored before EventSchema 58.
 var planIDPhrases = []string{"head", "pin", "opened at", "edit", "event", "contradiction"}
 
 // afterIDPhrase reports whether the numeral at line[i:] follows one of planIDPhrases and one space,
