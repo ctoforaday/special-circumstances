@@ -128,22 +128,14 @@ func TestTheGapViewStatesMaterialAcrossTheFloor(t *testing.T) {
 	}
 }
 
-// NO SEAT SETS IT. A lens that could choose its gap's materiality could mint every gap harmless;
-// a migration's source is the record, so an archived value is kept as recorded.
+// NO WRITER SETS IT. A lens that could choose its gap's materiality could mint every gap harmless;
+// migrate takes an archived mint's stamp off before the write.
 func TestMintRefusesPresetClassMaterial(t *testing.T) {
-	run, lens := liveRun(t)
+	_, lens := liveRun(t)
 	m := liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_HIGH)
 	m.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_NEVER.Enum()
 	if _, err := Append(lens, m); err == nil || !strings.Contains(err.Error(), "stamped by the tool") {
-		t.Fatalf("a mint arriving with class_material set landed outside a migration: %v", err)
-	}
-	Migrating = true
-	defer func() { Migrating = false }()
-	m2 := liveMint("G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_HIGH)
-	m2.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS.Enum()
-	appendOK(t, lens, m2)
-	if got := familyGaps(t, run)["G2"].Mint.GetClassMaterial(); got != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {
-		t.Errorf("a migrated mint's recorded class_material became %v, want it kept as recorded (always)", got)
+		t.Fatalf("a mint arriving with class_material set landed: %v", err)
 	}
 }
 
