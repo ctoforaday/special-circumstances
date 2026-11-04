@@ -509,6 +509,30 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	req := hookcore.Read(*event, stdin)
 	var in hookInput
 	_ = json.Unmarshal(req.Raw, &in)
+	if in.CWD == "" {
+		in.CWD = req.ProjectDir
+	}
+	if in.SessionID == "" {
+		in.SessionID = req.SessionID
+	}
+	if in.TranscriptPath == "" {
+		in.TranscriptPath = req.TranscriptPath
+	}
+	if in.AgentID == "" {
+		in.AgentID = req.AgentID
+	}
+	if in.AgentType == "" {
+		in.AgentType = req.AgentType
+	}
+	if in.AgentTranscriptPath == "" {
+		in.AgentTranscriptPath = req.AgentTranscriptPath
+	}
+	if !in.StopHookActive && req.StopHookActive {
+		in.StopHookActive = req.StopHookActive
+	}
+	if projectDir == "" {
+		projectDir = req.ProjectDir
+	}
 
 	r := newReport(*event, now, stderr)
 	// THE VERSION CHECK IS THIS HOOK'S TOO on SessionStart, so the event has one hook in this plugin.

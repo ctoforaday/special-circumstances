@@ -330,6 +330,7 @@ func Read(event string, stdin io.Reader) Request {
 		if req.AgentID == "" {
 			req.AgentID = req.SessionID
 		}
+		req.SessionID = parent
 		if s, ok := env["agentName"].(string); ok && req.AgentType == "" {
 			req.AgentType = s
 		}
