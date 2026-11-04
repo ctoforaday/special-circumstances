@@ -37,6 +37,9 @@ type SessionFile struct {
 	// one. This file is the only local holder of it and is gone by SessionEnd, which is why the
 	// capture hook copies it into the store (RegisterSession) while the session runs.
 	BridgeSessionID string `json:"bridgeSessionId"`
+	// MessagingSocketPath is the session's inbox: a Unix socket that takes one NDJSON user message
+	// per line. `telepathy send` writes to it.
+	MessagingSocketPath string `json:"messagingSocketPath"`
 }
 
 // ReadSessionFiles returns every session the client currently advertises.

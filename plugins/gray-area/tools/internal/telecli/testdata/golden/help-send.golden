@@ -1,0 +1,44 @@
+Delivers a message to another running agent session on this box, whichever
+harness runs it. The id is a session id or any unique prefix of one; "-" reads the
+message from stdin. The message arrives prefixed with who sent it and the command
+that replies.
+
+WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
+
+  claude-socket        a running Claude Code session's inbox socket. The session's
+                       inbound controls then decide: by default the text reaches it
+                       between tool calls, or starts a turn if it is idle; a session
+                       that bypasses permission prompts HOLDS it for its human's
+                       approval; crossSessionInbound "refuse" drops it unseen.
+  antigravity-server   the language server hosting the Antigravity conversation. It
+                       delivers the text and wakes the conversation if it is idle.
+  antigravity-mailbox  the conversation's on-disk mailbox. The text is QUEUED: it is
+                       read at the conversation's next turn, and nothing wakes it. The
+                       reason it was not delivered live is printed with it.
+
+An Antigravity conversation is reachable live only after it has run telepathy link
+(or any other verb) from its own shell since its server last started: the server's
+token reaches nothing but an agent's shell commands, so that is the one moment it
+can be recorded. telepathy link --help says where the record lives.
+
+WHAT IT CANNOT TELL YOU. Delivery is not reading: no route reports that the recipient
+acted on the message, and the Claude Code socket does not report a hold or a drop. A
+Claude Code session that is not running has no inbox and is refused; telepathy
+agents shows which are. On native Windows a Claude Code inbox takes posts only from
+its own session, so sending to one is refused there.
+
+Usage:
+  telepathy send <session-id> <message|-> [flags]
+
+Examples:
+  telepathy send 8a3d5199 "PR #1730 conflicts with mine; rebase after it merges"
+  git diff --stat | telepathy send f13f9d4f -
+
+Flags:
+  -h, --help           help for send
+      --title string   the title an Antigravity conversation shows above the message (default "Message from <sender>")
+
+Global Flags:
+      --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "~/.claude/sessions")
+      --store string      the catalogue database the hooks write and every read verb queries (default "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db")
