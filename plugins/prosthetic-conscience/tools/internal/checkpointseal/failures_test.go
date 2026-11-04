@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/unwritable"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // NONE OF THIS HOOK'S THREE EVENTS DISPLAYS ANYTHING. Every failure below was a stderr line at exit

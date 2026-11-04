@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // THE NOTE IS THERE AND CANNOT BE READ. compose Stats it, then the read fails, and it used to return
