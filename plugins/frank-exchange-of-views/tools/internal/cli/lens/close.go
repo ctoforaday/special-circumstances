@@ -1,6 +1,9 @@
 package lens
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 
@@ -48,21 +51,22 @@ func newClose() *cobra.Command {
 		// calls of the closer's sitting, and an id read back out of --verified-with's words would be
 		// a guess at what the seat meant.
 		p.Anchors = anchors.Value()
-		// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.
+		// A `SOURCE` OR `COMPUTATION` CHECK IS A DEMAND FOR A LIVE ANSWER, NOT A LABEL
+		// (recordpb.DemandClause). A closure of such a gap with nothing meeting the demand would be
+		// red accepting prose for the kind of evidence it declared prose cannot settle — the round the
+		// 2026-08-05 smoke spent: R1-2 asked blue to "test it on a false claim", blue ASSERTED the test
+		// had happened, and red's R2-2 refused it as "no evidence shown". It is asked under every
+		// disposition, a close to a successor included, and before the record's failed-check refusal,
+		// so a close the demand admits can still be refused by a check that stands.
 		//
-		// This is what makes --check-kind a demand rather than a label. Red asked for a
-		// computation; a closure with no computation answering the gap would be red accepting
-		// prose for the one class of check it declared prose cannot settle — which is
-		// exactly the round the 2026-08-05 smoke spent: R1-2 asked blue to "test it on a
-		// false claim", blue answered by ASSERTING the test had happened, and red's R2-2
-		// correctly refused it as "no evidence shown". A full epoch, for something three
-		// lines of trial division settle while leaving an artifact red can re-run.
+		// IT IS ASKED HERE, IN THE VERB, AND NOT IN record.validate: replay writes through the record
+		// and never passes this verb, so every archived close replays as it was admitted, and `carry`
+		// restates a closure the record already holds, which no open gap has.
 		//
 		// AN UNREADABLE RECORD REFUSES THE CLOSURE (gblock, 2026-10-23). A closure admitted
 		// because the check could not be asked is a closure the tool vouched for on nothing.
-		if err := requireComputationAnswered(seat.Str(cmd, flags.ID),
-			func(id string) (bool, error) { return computationGapKind(run, id) },
-			func(id string) (bool, error) { return record.EvidenceAnswers(run, id) }); err != nil {
+		if err := requireEvidenceAnswered(seat.Str(cmd, flags.ID),
+			func(id string) (record.EvidenceDemand, error) { return record.EvidenceDemandOf(run, id) }); err != nil {
 			return nil, err
 		}
 		if _, err := record.Append(s.Identity(), p); err != nil {
@@ -105,41 +109,66 @@ func newClose() *cobra.Command {
 
 // closeResult names the closed gap and the closure class it was retired under.
 
-// requireComputationAnswered refuses a closure of a computation gap no computation answers, and refuses
-// any closure whose gap's check kind, or computation join, could not be read.
-func requireComputationAnswered(gapID string, isComputation, computationAnswers func(string) (bool, error)) error {
-	kind, err := isComputation(gapID)
+// requireEvidenceAnswered refuses a closure of a gap whose check kind demands a live answer
+// (recordpb.DemandClause) while nothing meets that demand, and any closure whose demand could not be
+// read. The refusal names, by the kind's noun, every act that meets the demand on this gap.
+func requireEvidenceAnswered(gapID string, demandOf func(string) (record.EvidenceDemand, error)) error {
+	d, err := demandOf(gapID)
 	if err != nil {
-		return unreadableRefusal("the check kind "+gapID+" was minted with", err)
+		return unreadableRefusal("the live-answer demand on "+gapID, err)
 	}
-	if !kind {
+	if d.AnswerKind == "" || d.Answered {
 		return nil
 	}
-	answered, err := computationAnswers(gapID)
-	if err != nil {
-		return unreadableRefusal("whether a computation answers "+gapID, err)
+	return feov.Errorf(feov.Conflict, "%s", demandRefusal(gapID, d))
+}
+
+// demandRefusal is the close's refusal of gap gapID, whose demand d nothing meets: the demand in its
+// one text, then what meets it on this gap — blue's anchor placed as its answer, a retire of each
+// evidence anchor the gap reaches, and the check again by the seat whose check the gap carries — and
+// the bench, for a demand the lens no longer holds.
+func demandRefusal(gapID string, d record.EvidenceDemand) string {
+	ways := []string{fmt.Sprintf("blue's `%s --answers %s`, a %s placed on the sentence as its answer (after a reword, on the reworded sentence)", d.AnswerVerb, gapID, d.AnswerNoun)}
+	var retire []string
+	if d.About != "" {
+		retire = append(retire, fmt.Sprintf("blue's `retire --anchor %s`, the %s it is about", d.About, anchor.Kind(d.About)))
 	}
-	if !answered {
-		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no computation answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `compute --quote \"<the sentence>\" --answers %s --dir <bundle> -- <command>`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
-			gapID, gapID)
+	for _, r := range d.Readings {
+		retire = append(retire, fmt.Sprintf("blue's `retire --anchor %s`, the citation whose reading by %s it carries", r.Anchor, r.Seat))
 	}
-	return nil
+	if len(retire) > 0 {
+		ways = append(ways, strings.Join(retire, ", or "))
+	}
+	// THE CHECK AGAIN, BY ITS OWN SEAT, SINCE THE MINT, of an anchor of the demanded kind: a reading
+	// that backs under `source`, a `sound` judgement under `computation`. Another seat's check meets
+	// nothing.
+	again := func(id, seat string) string {
+		if anchor.Kind(id) != d.AnswerKind {
+			return ""
+		}
+		if d.AnswerKind == "computation" {
+			return fmt.Sprintf("a `sound` judgement of %s by %s, made since the gap was minted", id, seat)
+		}
+		return fmt.Sprintf("a reading of %s by %s, made since the gap was minted, that reads the work and backs the sentence", id, seat)
+	}
+	if d.About != "" {
+		if a := again(d.About, d.MintedBy); a != "" {
+			ways = append(ways, a)
+		}
+	}
+	for _, r := range d.Readings {
+		if a := again(r.Anchor, r.Seat); a != "" {
+			ways = append(ways, a)
+		}
+	}
+	return fmt.Sprintf("gap %s was minted --check-kind %s, and nothing meets its live-answer demand, so this close is refused under every disposition — `moot`, `not_a_defect` and a close to a successor included. Nothing is recorded. "+
+		"The demand: %s. What meets it on this gap: %s; another seat's check meets nothing. "+
+		"A demand you no longer hold is not closed: file `motion docket file` on the gap, and the bench's closing ruling, which is not held to the demand, disposes of it; a regrade keeps it open",
+		gapID, d.CheckKind, recordpb.DemandClause, strings.Join(ways, "; or "))
 }
 
 // unreadableRefusal is the refusal a guard returns when the record it asks cannot be read: the
 // act is not admitted on a check nobody could make, and the read error is named.
 func unreadableRefusal(what string, err error) error {
 	return feov.Wrap(feov.Internal, err, "the record could not be read to establish %s, so nothing is recorded — retry the call: %v", what, err)
-}
-
-// computationGapKind reports whether the named gap was minted as a computation check.
-func computationGapKind(run record.Run, gapID string) (bool, error) {
-	if gapID == "" {
-		return false, nil
-	}
-	kind, err := record.MintCheckKind(run, gapID)
-	if err != nil {
-		return false, err
-	}
-	return kind == recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil
 }

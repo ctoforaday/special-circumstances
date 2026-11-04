@@ -380,6 +380,11 @@ func repeatReadingRefusal(evs []*Event, win WindowIndex, open map[string]bool, s
 	return nil
 }
 
+// demandAfterClear is what every text that says a failed check clears and the gap that carries it may
+// then close says beside it: the clearing admits the close of a `source` or `computation` gap only
+// under its live-answer demand, which the close verb asks first (recordpb.DemandClause).
+const demandAfterClear = "The check clearing admits the close only under the gap's live-answer demand, which the close asks first: " + recordpb.DemandClause
+
 // requireFailedCheckAnswered refuses the close of a gap that carries a failed check still standing
 // (failedChecksOf): the gap is the failure's carrier to blue, and a closure — repaired, accepted, not
 // a defect — while the record still holds the anchor unread, unsound or found against would say the
@@ -403,19 +408,19 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 			if f.state == CheckFoundAgainst {
 				return feov.Errorf(feov.Conflict,
 					"gap %s carries citation %s, which %s's reading at event %d finds the source against, and the report still carries that sentence — the defect has not left the report, so this close is refused. Nothing is recorded. "+
-						"Your close is admitted once %s's own later reading of the sentence as it stands backs it, blue edits the sentence, or blue retires the citation; another lens's backing reading is a disagreement and clears nothing; a close that hands the defect on names its successor with `--superseded-by`",
-					g, f.anchor, ownerOrSeat(f.owner), f.since, ownerOrSeat(f.owner))
+						"The check clears once %s's own later reading of the sentence as it stands backs it, blue edits the sentence, or blue retires the citation; another lens's backing reading is a disagreement and clears nothing. %s; a close that hands the defect on names its successor with `--superseded-by`",
+					g, f.anchor, ownerOrSeat(f.owner), f.since, ownerOrSeat(f.owner), demandAfterClear)
 			}
 			if f.computation {
 				return feov.Errorf(feov.Conflict,
 					"gap %s carries computation %s, which %s's judgement at event %d still calls unsound, and the report still carries it — the defect has not left the report, so this close is refused. Nothing is recorded. "+
-						"It closes once the computation is judged sound again, blue edits its sentence (the computation is then owed a fresh judgement) or blue retires it; a close that hands the defect on names its successor with `--superseded-by`",
-					g, f.anchor, f.owner, f.since)
+						"The check clears once the computation is judged sound again, blue edits its sentence (the computation is then owed a fresh judgement) or blue retires it. %s; a close that hands the defect on names its successor with `--superseded-by`",
+					g, f.anchor, f.owner, f.since, demandAfterClear)
 			}
 			return feov.Errorf(feov.Conflict,
 				"gap %s carries citation %s, whose source no check since its sentence last changed has read (%s's check at event %d read nothing), and the report still cites it — the defect has not left the report, so this close is refused. Nothing is recorded. "+
-					"It closes once blue retires the citation (its sentence may stay), blue edits its sentence (the citation is then owed a fresh check) or a lens reads its source; a close that hands the defect on names its successor with `--superseded-by`",
-				g, f.anchor, f.owner, f.since)
+					"The check clears once blue retires the citation (its sentence may stay), blue edits its sentence (the citation is then owed a fresh check) or a lens reads its source. %s; a close that hands the defect on names its successor with `--superseded-by`",
+				g, f.anchor, f.owner, f.since, demandAfterClear)
 		}
 	}
 	return nil

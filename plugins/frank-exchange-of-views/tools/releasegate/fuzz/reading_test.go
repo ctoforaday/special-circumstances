@@ -182,9 +182,6 @@ func (r *runner) checkReading(seatID, out string, args []string) *recordpb.Verif
 			m.GetGapId(), m.GetMintReason(), m.GetFixBasis(), argOf(args, "--reason"), wantBasis))
 	}
 	r.noteMint(seatID, m.GetGapId())
-	if argOf(args, "--check-kind") == "computation" {
-		r.computationGaps.add(m.GetGapId())
-	}
 	return v
 }
 
@@ -442,8 +439,9 @@ func (r *runner) foundAgainstCleared(seatID, anchorID string, f record.Blocker) 
 	if scenarioOwnsClose(r.scenarioOf(g)) {
 		return
 	}
-	// A COMPUTATION CHECK IS SATISFIED BEFORE IT IS CLOSED, as closeGap satisfies it.
-	if !r.answerComputationCheck(g, "fuzz-cleared-"+g+".js") {
+	// A `SOURCE` OR `COMPUTATION` CHECK IS SATISFIED BEFORE IT IS CLOSED, as closeGap satisfies it: the
+	// reader's own backing re-read meets a `source` demand itself (arm 4), so only a computation is placed.
+	if !r.answerEvidenceDemand(g, "fuzz-cleared-"+g+".js") {
 		return
 	}
 	if _, ok := r.admitFresh(g, "close", "--seat-id", closer, "--id", g, "--as", "not_a_defect",

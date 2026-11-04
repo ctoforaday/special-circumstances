@@ -243,12 +243,12 @@ func failedFact(b Blocker) string {
 func failedClears(b Blocker) string {
 	switch b.state {
 	case CheckUnsound:
-		return "it clears when the computation is judged sound again — by the judging lens's own later judgement, or by a judgement from a sitting opened after blue's edit changed the sentence, since an edit leaves it unchecked — or when blue retires it; another lens's `sound` beside a standing `unsound` is a disagreement and clears nothing"
+		return "it clears when the computation is judged sound again — by the judging lens's own later judgement, or by a judgement from a sitting opened after blue's edit changed the sentence, since an edit leaves it unchecked — or when blue retires it; another lens's `sound` beside a standing `unsound` is a disagreement and clears nothing. The close of the gap that carries it is refused while it stands. " + demandAfterClear
 	case CheckFoundAgainst:
 		return fmt.Sprintf("it clears when %s's own later reading of the sentence as it stands backs it, or when blue edits the sentence, which leaves it unchecked, or retires the citation; another lens's backing reading beside it is a disagreement and clears nothing. "+
-			"The lens's close of the gap that carries it is refused while it stands; a closing ruling of the bench closes that gap, and the check still holds the PASS — no bench ruling clears it", ownerOr(b, failedChecker))
+			"The lens's close of the gap that carries it is refused while it stands; a closing ruling of the bench closes that gap, and the check still holds the PASS — no bench ruling clears it. %s", ownerOr(b, failedChecker), demandAfterClear)
 	}
-	return "it clears when a lens reads the source — any result but `unreachable`, of a copy that is the work — or when blue retires the citation, or edits its sentence, which leaves it unchecked; the close of the gap that carries it is refused while it stands, and no bench ruling clears it"
+	return "it clears when a lens reads the source — any result but `unreachable`, of a copy that is the work — or when blue retires the citation, or edits its sentence, which leaves it unchecked; the close of the gap that carries it is refused while it stands, and no bench ruling clears it. " + demandAfterClear
 }
 
 // failedChecker is whose check failed when the record names no seat.
@@ -319,12 +319,12 @@ func failedCheckRefusal(bs []Blocker) string {
 	var said []string
 	if states[CheckUnread] || states[CheckUnsound] {
 		said = append(said, "A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`, which takes no mint of its budget), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
-			"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it.")
+			"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it. "+demandAfterClear+".")
 	}
 	if states[CheckFoundAgainst] {
 		said = append(said, "A PASS would certify a sentence a lens's reading of its cited source finds against: the reading found the source against the sentence, and its reader owes no mint — the gap a reading mints in its act carries it, or no gap names it; blue edits the sentence, or retires or replaces the citation. "+
 			"It clears when its reader's own later reading of the sentence as it stands backs it, or when blue edits the sentence, which leaves it unchecked, or retires the citation; another lens's backing reading beside it is a disagreement and clears nothing. "+
-			"The close of the gap that carries it is refused while it stands; a closing ruling of the bench closes that gap, and the check still holds the PASS — no bench ruling clears it.")
+			"The close of the gap that carries it is refused while it stands; a closing ruling of the bench closes that gap, and the check still holds the PASS — no bench ruling clears it. "+demandAfterClear+".")
 	}
 	return fmt.Sprintf("%d citation(s) or computation(s) stand on a failed check:\n  %s\n%s "+
 		"`show evidence --anchor <id>` reads each check. PASS waits for that, and `--as FAIL` does not",

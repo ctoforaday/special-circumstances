@@ -103,9 +103,11 @@ func (r *runner) closeDocketed(seatID string) {
 // to refusing it as a conflict that names the motion and that nothing was recorded. A gap that moved
 // under the seat's reading refuses first; the same close then lands on the refusal this drive drives.
 func (r *runner) closeDocketedRefused(seatID, gapID string) {
-	// A COMPUTATION GAP NO COMPUTATION ANSWERS refuses first, as a close of it does whatever the docket
-	// says: the verb's guard runs before the write.
-	if r.computationGaps.has(gapID) {
+	// A GAP WHOSE LIVE-ANSWER DEMAND NOTHING MEETS refuses first, as a close of it does whatever the
+	// docket says: the verb's guard runs before the write.
+	if kind, ok := r.demandKindOf(gapID); !ok {
+		return
+	} else if kind != "" {
 		if answered, err := record.EvidenceAnswers(r.run(), gapID); err != nil || !answered {
 			return
 		}

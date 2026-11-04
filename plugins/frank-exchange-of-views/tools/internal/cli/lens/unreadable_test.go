@@ -30,31 +30,26 @@ func wantRefusalNaming(t *testing.T, err error, what string) {
 	}
 }
 
-func TestAClosureWhoseCheckKindCannotBeReadIsRefused(t *testing.T) {
-	err := requireComputationAnswered("G-1",
-		func(string) (bool, error) { return false, errUnreadable },
-		func(string) (bool, error) { return true, nil })
-	wantRefusalNaming(t, err, "the check kind G-1 was minted with")
+func TestAClosureWhoseDemandCannotBeReadIsRefused(t *testing.T) {
+	err := requireEvidenceAnswered("G-1", func(string) (record.EvidenceDemand, error) { return record.EvidenceDemand{}, errUnreadable })
+	wantRefusalNaming(t, err, "the live-answer demand on G-1")
 }
 
-func TestAClosureWhoseComputationJoinCannotBeReadIsRefused(t *testing.T) {
-	err := requireComputationAnswered("G-1",
-		func(string) (bool, error) { return true, nil },
-		func(string) (bool, error) { return false, errUnreadable })
-	wantRefusalNaming(t, err, "whether a computation answers G-1")
-}
-
-// The healthy answers, so the refusals above are about the failure and not the fixture.
-func TestAComputationGuardOverAReadableRecord(t *testing.T) {
-	answered := func(ok bool) func(string) (bool, error) { return func(string) (bool, error) { return ok, nil } }
-	if err := requireComputationAnswered("G-1", answered(false), answered(false)); err != nil {
+// The healthy answers, so the refusal above is about the failure and not the fixture.
+func TestTheDemandGuardOverAReadableRecord(t *testing.T) {
+	demand := func(d record.EvidenceDemand) func(string) (record.EvidenceDemand, error) {
+		return func(string) (record.EvidenceDemand, error) { return d, nil }
+	}
+	if err := requireEvidenceAnswered("G-1", demand(record.EvidenceDemand{CheckKind: "document"})); err != nil {
 		t.Errorf("a document check was refused: %v", err)
 	}
-	if err := requireComputationAnswered("G-1", answered(true), answered(true)); err != nil {
-		t.Errorf("an answered computation check was refused: %v", err)
-	}
-	if err := requireComputationAnswered("G-1", answered(true), answered(false)); err == nil {
-		t.Error("an unanswered computation check was admitted")
+	for _, kind := range []string{"citation", "computation"} {
+		if err := requireEvidenceAnswered("G-1", demand(record.EvidenceDemand{AnswerKind: kind, Answered: true})); err != nil {
+			t.Errorf("an answered %s demand was refused: %v", kind, err)
+		}
+		if err := requireEvidenceAnswered("G-1", demand(record.EvidenceDemand{AnswerKind: kind})); err == nil {
+			t.Errorf("an unanswered %s demand was admitted", kind)
+		}
 	}
 }
 

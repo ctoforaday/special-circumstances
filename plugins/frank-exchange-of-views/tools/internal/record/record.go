@@ -1171,7 +1171,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 			if len(prior) == 0 {
-				return fmt.Errorf("--carried-from says gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
+				return fmt.Errorf("--carried-from says gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against, which asks the gap's live-answer demand: %s", b.GetGapId(), recordpb.DemandClause)
 			}
 			// THE EPOCH IS PART OF THE CLAIM. Any value passed once some closure existed, so a carry
 			// naming the wrong sitting was recorded as the seat's statement of where the closure

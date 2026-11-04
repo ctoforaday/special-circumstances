@@ -165,7 +165,7 @@ restate an earlier sitting's closure, when the work is done and you are not re-a
 
 It makes no fresh claim, so it needs no verification triple — you are RESTATING a closure the record already holds, not attesting one.
 
-Closing on verification done THIS sitting is the originating lens's `close`, not this verb. Closing a gap again after a carry restated it double-counts the closure history.
+Closing on verification done THIS sitting is the originating lens's `close`, not this verb, and that close asks the gap's live-answer demand: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. A carry of a gap no `close` has closed is refused. Closing a gap again after a carry restated it double-counts the closure history.
 
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{gap_id,class,carried},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 

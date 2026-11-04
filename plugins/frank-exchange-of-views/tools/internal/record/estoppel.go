@@ -302,6 +302,72 @@ func EvidenceAnswers(run Run, gapID string) (bool, error) {
 	return recordHas(run, `SELECT 1 FROM "gap" WHERE "gap_id" = ? AND "evidence_answered" LIMIT 1`, gapID)
 }
 
+// EvidenceDemand is a gap's live-answer demand as the close verb states it: the anchor kind owed
+// (the EvidenceTables row whose check is the gap's check kind; "" for a gap no row answers, which
+// owes no demand), whether the gap view's evidence_answered holds, and the evidence anchors the gap
+// reaches — the one it is about, and each read by a reading it carries — whose retire, or whose
+// check again by the seat whose check the gap carries, would meet it.
+type EvidenceDemand struct {
+	CheckKind, AnswerKind string
+	// AnswerNoun and AnswerVerb are the owed kind's row's noun and placing verb.
+	AnswerNoun, AnswerVerb string
+	Answered               bool
+	// About is the evidence anchor the gap was minted about, and MintedBy the seat that minted it;
+	// About is "" for a gap about anything else.
+	About, MintedBy string
+	// Readings are the readings the gap carries (the carrying_reading view, the one reader of
+	// Verify.carried_by), each its citation and its reader, in record order.
+	Readings []CarryingReading
+}
+
+// CarryingReading is one reading a gap carries: the citation it read, and the seat that read it.
+type CarryingReading struct{ Anchor, Seat string }
+
+// EvidenceDemandOf reads gap gapID's demand off the mint, the gap view and the carrying readings. A
+// gap not on the record answers the zero demand; a read error is returned, never folded into "no
+// demand".
+func EvidenceDemandOf(run Run, gapID string) (EvidenceDemand, error) {
+	var d EvidenceDemand
+	if gapID == "" {
+		return d, nil
+	}
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return d, err
+	}
+	var aboutKind, aboutRef string
+	found, err := queryRowAt(db, []any{&d.CheckKind, &d.Answered, &aboutKind, &aboutRef, &d.MintedBy},
+		`SELECT COALESCE(m."check_kind", ''), COALESCE(g."evidence_answered", 0), COALESCE(m."about_kind", ''), COALESCE(m."about_ref", ''), COALESCE(e."seat_id", '')
+		 FROM "mint" m JOIN "gap" g ON g."gap_id" = m."gap_id" JOIN "events" e ON e."id" = m."event_id"
+		 WHERE m."gap_id" = ?`, gapID)
+	if err != nil || !found {
+		return EvidenceDemand{}, err
+	}
+	d.AnswerKind = AnswerKindOf(d.CheckKind)
+	if row, ok := recordsql.EvidenceTableOf(d.AnswerKind); ok {
+		d.AnswerNoun, d.AnswerVerb = row.Noun, row.Verb
+	}
+	if aboutKind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_ANCHOR) && anchor.Backs(aboutRef) {
+		d.About = aboutRef
+	}
+	rows, err := db.Query(`SELECT "anchor", "seat_id" FROM "carrying_reading" WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "event_id"`, gapID)
+	if err != nil {
+		return EvidenceDemand{}, fmt.Errorf("asking the record: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var c CarryingReading
+		if err := rows.Scan(&c.Anchor, &c.Seat); err != nil {
+			return EvidenceDemand{}, fmt.Errorf("asking the record: %w", err)
+		}
+		d.Readings = append(d.Readings, c)
+	}
+	if err := rows.Err(); err != nil {
+		return EvidenceDemand{}, fmt.Errorf("asking the record: %w", err)
+	}
+	return d, nil
+}
+
 // RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the
 // same footing as fix_basis, a computation's basis and verdict_basis.
 //

@@ -41,6 +41,9 @@ type EvidenceTable struct {
 	Holds func(alias string) string
 	// Noun is the word every refusal and result names an anchor of the kind by.
 	Noun string
+	// Verb is blue's verb that places an anchor of the kind, named by every refusal that asks for
+	// one placed as a gap's answer (`<verb> --answers G`).
+	Verb string
 	// Failed is the failed-check state word (record.CheckState) in which a check of this kind
 	// finds against its sentence.
 	Failed string
@@ -50,11 +53,11 @@ type EvidenceTable struct {
 var EvidenceTables = []EvidenceTable{
 	{
 		Kind: "citation", Table: "cite", IDColumn: "label", Check: recordpb.Word(recordpb.CheckKind_CHECK_KIND_SOURCE),
-		CheckTable: "verify", CheckIDColumn: "anchor", Reads: verifyReads, Holds: verifyHolds, Noun: "citation", Failed: "found_against",
+		CheckTable: "verify", CheckIDColumn: "anchor", Reads: verifyReads, Holds: verifyHolds, Noun: "citation", Verb: "cite", Failed: "found_against",
 	},
 	{
 		Kind: "computation", Table: "computation", IDColumn: "computation_id", Check: recordpb.Word(recordpb.CheckKind_CHECK_KIND_COMPUTATION),
-		CheckTable: "reproduce", CheckIDColumn: "computation_id", Reads: reproduceReads, Holds: reproduceHolds, Noun: "computation", Failed: "unsound",
+		CheckTable: "reproduce", CheckIDColumn: "computation_id", Reads: reproduceReads, Holds: reproduceHolds, Noun: "computation", Verb: "compute", Failed: "unsound",
 	},
 }
 

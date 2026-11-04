@@ -24,6 +24,7 @@ import (
 // are the closure_act rows the record holds: the live-answer demand is asked in the close verb,
 // which no replay passes, so no archived gap moves open or closed.
 func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
+	sourceCloses := map[string]int{}
 	for _, tb := range archiveTarballs(t) {
 		name := filepath.Base(tb)
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
@@ -79,7 +80,25 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			if len(moved) != 0 {
 				t.Errorf("%s: gap %s is open or closed otherwise than its closing acts say", name, moved[0])
 			}
+			// THE DEMAND IS THE VERB'S, NOT THE RECORD'S: the lens closes of `source` gaps no live answer
+			// met, which the close verb now refuses, replayed through the record unrefused (the refusals
+			// above are zero). Counted, so the arm is not vacuous.
+			sourceCloses[name] = len(column(t, db, `SELECT c."gap_id" FROM "close" c JOIN "gap" g ON g."gap_id" = c."gap_id"
+			  WHERE c."carried_from" IS NULL AND g."check_kind" = 'source' AND NOT g."evidence_answered"`))
 		})
+	}
+	want := map[string]int{"sleeper-service-plan": 2, "quadratic-formula": 3, "is-91-prime-a": 1, "-b6": 1, "wave-a": 1, "-m23": 1}
+	got, total := map[string]int{}, 0
+	for name, n := range sourceCloses {
+		total += n
+		for k := range want {
+			if n > 0 && strings.Contains(name, k) {
+				got[k] += n
+			}
+		}
+	}
+	if total != 9 || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused: %v (total %d), want %v (total 9)", sourceCloses, total, want)
 	}
 }
 
