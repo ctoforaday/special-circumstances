@@ -1805,6 +1805,14 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	return plan
 }
 
+// holdsBlueOut is whether plan was asked in the epoch that holds blue out — the last that dispatches a
+// lens — read off the plan's own max_epochs and epoch by the record's one definition (Plan.BlueHeldOut).
+func holdsBlueOut(plan map[string]any) bool {
+	maxEpochs, _ := plan["max_epochs"].(float64)
+	epoch, _ := plan["epoch"].(float64)
+	return record.Plan{MaxEpochs: int(maxEpochs), Epoch: int(epoch)}.BlueHeldOut()
+}
+
 // planReadies is whether the current plan names seatID among its parties.
 func (r *runner) planReadies(seatID string) bool {
 	parties, _ := r.planThisSitting["parties"].([]any)
@@ -3169,7 +3177,8 @@ func readiedForReopened(plan map[string]any) (held, readied bool) {
 
 // tallyUnsound counts the plan's failed-check blockers and whether it readied their lens or blue for
 // each (record dispatch Source 4): blue is readied for every one, unless the plan says blue has sat
-// since its cause, or the plan is at the epoch limit, which dispatches nobody. Called with r.mu held.
+// since its cause, the plan is at the epoch limit, which dispatches nobody, or the plan holds blue out
+// of the last epoch that dispatches a lens (holdsBlueOut). Called with r.mu held.
 func (r *runner) tallyUnsound(plan map[string]any, party map[any]bool) {
 	whys, _ := plan["why"].([]any)
 	satSince := func(seat, anchor string) bool {
@@ -3181,6 +3190,7 @@ func (r *runner) tallyUnsound(plan map[string]any, party map[any]bool) {
 		return false
 	}
 	limit, _ := plan["epoch_limit_reached"].(bool)
+	blueOut := holdsBlueOut(plan)
 	held, readied := false, true
 	bs, _ := plan["blockers"].([]any)
 	for _, b := range bs {
@@ -3192,7 +3202,7 @@ func (r *runner) tallyUnsound(plan map[string]any, party map[any]bool) {
 		owner, anchor := fmt.Sprint(m["owner"]), fmt.Sprint(m["subject"])
 		ok := party[owner] || party["blue-respond"]
 		readied = readied && ok
-		if !ok && !limit && !satSince("blue-respond", anchor) && r.unsoundReadyErr == "" {
+		if !ok && !limit && !blueOut && !satSince("blue-respond", anchor) && r.unsoundReadyErr == "" {
 			r.unsoundReadyErr = fmt.Sprintf("a plan holds %s on a failed check by %s and readies neither it nor blue, with no reason saying either sat since: why %v", anchor, owner, whys)
 		}
 	}
@@ -6360,9 +6370,10 @@ const estoppelSeed = 2
 const verifiedSeed = 3
 
 // limitSeed is the one seed whose run is FORCED to the epoch-limit exit: its config states a limit
-// of forcedEpochLimit where every other run states setup's default. At the chair's second sitting
-// every lens has sat once and none has retired, so the plan readies them, the limit dispatches
-// nobody, and the run ends CEILING by its term — on every sweep, not on a draw.
+// of forcedEpochLimit where every other run states setup's default. Its first epoch is the last that
+// dispatches a lens, so it holds blue out, and what readied blue there — an inquiry the synthesis left
+// open, a gap the lenses minted — still readies it at the chair's second sitting, where the limit
+// dispatches nobody and the run ends CEILING by its term — on every sweep, not on a draw.
 //
 // MEASURED under setup's default of 12: 5, 9, 3, 6, 1 and 2 runs in 40 ended at the limit across
 // six sweeps, so a floor on the drawn runs alone finds none about once in fifty. Those drawn exits

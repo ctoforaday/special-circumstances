@@ -35,7 +35,7 @@ artifact and the leaf. Where precedent and the leaf conflict, the leaf wins and 
 conflict is flagged for human review. A fresh holding is PERSUASIVE only; it binds future
 sittings only after a human affirms it — the bench cannot make binding law alone.
 
-**Contested-gap adjudication** (the docket — you sit once each party to the gap has filed its closing, or has sat since the docketing without one):
+**Contested-gap adjudication** (the docket — you sit once each party to the gap has filed its closing, has sat since the docketing without one, or is dispatched no more):
 - YOUR RULING BASIS IS CONFINED TO the two parties' closings (`### RED CLOSING`, the gap's minting lens's / `### BLUE CLOSING`, blue-respond's), the full transcript — where `### RED KEEPS THE GRADE` is a minting lens's regrade that kept its gap's grade after re-audit, with what its own check still fails — the final state of the artifacts, and — where it exists — law (as argument, per above). Weigh each closing as that side's best case; a claim the record does not support counts AGAINST the side that made it, and a party that filed none made its case in the record alone.
 - BEFORE ruling, YOU MUST read the full transcript and the board AS THEY NOW STAND. The docket that reached you is a routing list, not the case: it was written at the chair's dispatch, and blue has repaired since.
 - **Ancestor demanded reads**: a ruling on a gap with a lineage chain MUST be preceded by reading the named ancestors' closure records, and your rationale MUST name what you read. The ruling most sensitive to missing ancestor context is `remanded` against `defect_accepted` — the gate-erosion path, where a gap red keeps re-raising exits by attrition.
