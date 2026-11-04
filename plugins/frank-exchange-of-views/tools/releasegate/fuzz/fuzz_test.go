@@ -7578,9 +7578,10 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 		// (reportdoc.StripTokens: a token in code stays, and a line left a husk goes with them) — a gap
 		// anchor a seat quoted into its retire or a prescription carried is not prose — and, where the
 		// tool places it in a line, on one line; so both sides are read with their whitespace runs one
-		// space, and as a reader reads them (asRead).
-		prose := flat(asRead(reportdoc.StripTokens(fieldStr(t, e, key))))
-		if prose == "" || strings.Contains(flatRpt, prose) {
+		// space, and as a reader reads them (asRead). A token the weave turns into a note is read as
+		// the note reference it ships as (wovenAsNotes, shipsWoven).
+		prose := flat(asRead(reportdoc.StripTokens(wovenAsNotes(fieldStr(t, e, key)))))
+		if prose == "" || shipsWoven(flatRpt, prose) {
 			continue
 		}
 		missing = append(missing, fmt.Sprintf("%s/%s prose absent from report: %q", e.GetSeatId(), w, prose))
@@ -7597,6 +7598,44 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 		return "prose-not-rendered (A1-A3 class):\n" + strings.Join(missing, "\n")
 	}
 	return ""
+}
+
+// wovenNote stands in prose for a run of adjacent woven tokens, the place assembly writes a note
+// reference; a byte no seat text and no flat() run holds.
+const wovenNote = "\x00"
+
+// wovenAsNotes is s with each run of adjacent tokens the weave turns into a note — a citation's, a
+// computation's — replaced by wovenNote, so StripTokens takes out only the tokens assembly takes out.
+// A prescription a reading carries holds its sentence's citation token, and an estoppel entry quotes
+// that prescription: run.md ships the token as "[^1]", which the token stripped to nothing never matched.
+func wovenAsNotes(s string) string {
+	var b strings.Builder
+	last, prevEnd := 0, -1
+	anchor.Each(s, func(start, end int, id string) {
+		if anchor.AssemblyOf(id) == anchor.Strip {
+			return
+		}
+		b.WriteString(s[last:start])
+		if start != prevEnd {
+			b.WriteString(wovenNote)
+		}
+		last, prevEnd = end, end
+	})
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// shipsWoven reports whether report holds prose, each wovenNote in it read as the note references
+// the weave wrote there: one or more "[^N]" / "[^KN]" (adjacent cites of one source share a note).
+func shipsWoven(report, prose string) bool {
+	if !strings.Contains(prose, wovenNote) {
+		return strings.Contains(report, prose)
+	}
+	parts := strings.Split(prose, wovenNote)
+	for i := range parts {
+		parts[i] = regexp.QuoteMeta(parts[i])
+	}
+	return regexp.MustCompile(strings.Join(parts, `(?:\[\^K?[0-9]+\])+`)).MatchString(report)
 }
 
 // motionIDOf pulls the tool-assigned motion id out of a filing's JSON envelope.
