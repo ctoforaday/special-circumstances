@@ -27,14 +27,14 @@ func TestShardEraArchivesMigrate(t *testing.T) {
 			t.Fatalf("refusals: %+v", res.Refusals)
 		}
 		// 2 opinions -> 2 docket pairs; friction -> log; the era's inquiry -> inquiry; its
-		// review -> inquiry_review with its two retired fields dropped.
+		// review -> no event, as an inquiry review translates.
 		//
 		// friction_none CONTRIBUTES NOTHING. It was the explicit empty form, and the type that
 		// carried it is retired: clean is derived from a bracketed sitting that filed nothing, so
 		// the old rows carry forward as an absence rather than as entries nobody can act on.
 		if res.Out["motion"] != res.In["motion"]+res.In["opinion"] ||
 			res.Out["inquiry"] != res.In["line_of_inquiry"] ||
-			res.Out["inquiry_review"] != res.In["inquiry_support"] ||
+			res.In["inquiry_support"] == 0 || res.Out["inquiry_support"] != 0 || res.Out["inquiry_review"] != 0 ||
 			res.Out["log"] != res.In["friction"] {
 			t.Fatalf("per-word arithmetic: in=%v out=%v", res.In, res.Out)
 		}
@@ -45,9 +45,10 @@ func TestShardEraArchivesMigrate(t *testing.T) {
 		if len(res.Refusals) != 0 {
 			t.Fatalf("refusals: %+v", res.Refusals)
 		}
-		// The era's 50 inquiry acts and 18 reviews, each arriving under the current word.
+		// The era's 50 inquiry acts, each arriving under the current word, and its 18 reviews,
+		// none arriving.
 		if res.In["line_of_inquiry"] != 50 || res.In["inquiry_support"] != 18 ||
-			res.Out["inquiry"] != 50 || res.Out["inquiry_review"] != 18 {
+			res.Out["inquiry"] != 50 || res.Out["inquiry_support"] != 0 || res.Out["inquiry_review"] != 0 {
 			t.Fatalf("the era's inquiry acts and reviews: in=%v out=%v", res.In, res.Out)
 		}
 	})

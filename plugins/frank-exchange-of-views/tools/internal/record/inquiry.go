@@ -1,7 +1,6 @@
 package record
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -13,7 +12,7 @@ import (
 // The goal is that blue finds several plausible inquiries, picks the best, and is SEEN TO
 // HAVE DONE SO IN EVIDENCE. A one-shot append records the plan; it cannot record the
 // choosing. So an inquiry gets what a gap has — an id, a status that moves with a stated
-// reason, and an adjudicator.
+// reason, and a judge: the lens that checks it (inquirycheck.go).
 
 // InquiryStatuses are the fates an inquiry may hold. `proposed` is an inquiry blue has put
 // forward and not yet resolved. `deferred` is an inquiry worth taking, and not by THIS run.
@@ -55,17 +54,16 @@ type Inquiry struct {
 	// step says how many fates the seat recorded and nothing about whether the inquiry was taken. History
 	// holds the path.
 	SeatID string // who last recorded its fate — attribution the one-line row carries
-	// Ruling, RulingWhy and RuledEpoch are the inquiry's FIRST ruling that stands, all three from
-	// that one act: the rule the write enforces and motion_answers states.
-	Ruling     string // red's fate, if ruled
-	RulingWhy  string
-	RuledEpoch int
-	// THERE IS NO PER-INQUIRY SUPPORT VERDICT, AND ITS ABSENCE IS A RULING RATHER THAN AN OMISSION.
-	// Presence in the report is not a question: the inquiries reach the report on the WORKLIST,
-	// generated from this projection, so blue cannot cut them. What remains — did blue's body
-	// deliver the research — is an ordinary GAP, minted and closed like any other, and the
-	// per-epoch statement that the read HAPPENED is InquiryReviewDueOf's business, not this
-	// struct's.
+	// Fate is the events.id of the latest record of its fate, the proposal's for an inquiry nobody has
+	// given a fate since.
+	Fate int64
+	// Check is the check that stands on the inquiry (inquiryCheckStands), nil where none does, and
+	// LastCheck the events.id of its latest check whether or not it stands, 0 where it has none.
+	Check     *InquiryCheckStep
+	LastCheck int64
+	// MaterialMint is the events.id of the latest gap minted about the inquiry that was material at its
+	// mint, 0 where none was: a check before it judged an inquiry the record has since found wanting.
+	MaterialMint int64
 }
 
 // InquiryStep is one record of an inquiry's fate, as that record gave it.
@@ -76,12 +74,28 @@ type InquiryStep struct {
 	SeatID         string
 }
 
+// InquiryCheckStep is one check of an inquiry: where it is on the record, the epoch it was recorded
+// in, the seat that recorded it and its reason.
+type InquiryCheckStep struct {
+	ID     int64
+	Epoch  int
+	SeatID string
+	Reason string
+}
+
+// Open reports whether the inquiry's fate settles nothing yet: `proposed` or `underway`, the two
+// fates that still owe one.
+func (a *Inquiry) Open() bool {
+	return a.Status == recordpb.Word(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED) ||
+		a.Status == recordpb.Word(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY)
+}
+
 // InquiriesOf folds the events into one Inquiry per id, in proposal order, for the run-shaped
 // readers.
 func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 	byID := map[string]*Inquiry{}
 	var order []string
-	ruled := map[*Inquiry]bool{}
+	latest := map[*Inquiry]InquiryCheckStep{}
 	for _, e := range evs {
 		w := win.Of(e)
 		body, ok := recordpb.Body(e)
@@ -125,56 +139,37 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			// that is not nil, and panic on the absent case this line exists to handle.
 			//
 			// InquiryStatus needs no hyphen join: none of proposed/underway/confirmed/refuted/
-			// deferred/declined/abandoned carries an underscore. InquiryRuling's words do (`out_of_scope`,
-			// `too_thin`) and take no join either: the schema's spelling is the surface's.
+			// deferred/declined/abandoned carries an underscore.
 			a.Status = recordpb.Word(t.GetStatus())
-			a.Reason, a.Method, a.Epoch, a.SeatID = t.GetReason(), t.GetMethod(), w.Epoch, e.GetSeatId()
+			a.Reason, a.Method, a.Epoch, a.SeatID, a.Fate = t.GetReason(), t.GetMethod(), w.Epoch, e.GetSeatId(), w.ID
 			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
 			a.Steps = append(a.Steps, InquiryStep{Epoch: w.Epoch, Status: a.Status, Reason: a.Reason, Method: a.Method, SeatID: a.SeatID})
-		case *recordpb.MotionRule:
-			// A ruling on an inquiry joins on the inquiry's own id, so `motion inquiry rule`
-			// writes a motion-rule whose motion_id IS a Q-number. This arm is how red's ruling
-			// reaches `show inquiries`, the projection blue reads to decide whether to pursue,
-			// comply or drop. Without it an inquiry stays "Awaiting a decision", which is what an
-			// unruled inquiry looks like, and red's ruling would be indistinguishable from red not
-			// having sat.
-			//
-			// The subject `inquiry` is MOTION_SUBJECT_INQUIRY in the schema, and the only one whose
-			// ruling set is InquiryRuling (endorsed / out_of_scope / too_thin).
-			if t.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+		case *recordpb.InquiryCheck:
+			if a, ok := byID[t.GetInquiryId()]; ok {
+				latest[a] = InquiryCheckStep{ID: w.ID, Epoch: w.Epoch, SeatID: e.GetSeatId(), Reason: t.GetReason()}
+				a.LastCheck = w.ID
+			}
+		case *recordpb.Mint:
+			// A GAP ABOUT THE INQUIRY THAT WAS MATERIAL AT ITS MINT puts every earlier check in
+			// question: the lens that minted it found the inquiry wanting. Its materiality is read off
+			// the mint as the gap view reads it at that turn (mintedMaterial), so a later regrade
+			// does not move which checks it unseated.
+			if t.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY {
 				continue
 			}
-			id := t.GetMotionId()
-			if id == "" {
-				continue
+			if a, ok := byID[t.GetAboutRef()]; ok && mintedMaterial(t) {
+				a.MaterialMint = w.ID
 			}
-			a, ok := byID[id]
-			if !ok {
-				continue
-			}
-			// AN INQUIRY'S RULING IS ITS FIRST THAT STANDS, AND THE WHOLE OF IT. A later ruling is
-			// not read at all, so the word, the argument and the epoch are one act's and never the
-			// first word under a later argument. The write refuses a second ruling
-			// (requireUnanswered), and motion_answers states the same rule in SQL.
-			if ruled[a] {
-				continue
-			}
-			ruled[a] = true
-			// rulingWord reads whichever arm of the `ruling` oneof is set. A ruling on an inquiry
-			// subject that carries another subject's arm, or none, is refused at the write, so on
-			// a record the write admitted this is the inquiry arm's word — the schema's spelling
-			// (`out_of_scope`), which every surface recognizes.
-			a.Ruling = rulingWord(t)
-			// The ruler's argument is `opinion`, the only prose channel MotionRule has.
-			a.RulingWhy, a.RuledEpoch = t.GetOpinion(), w.Epoch
-			// THERE IS NO InquiryReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
-			// review is ONE event per epoch about the report as a whole; it names no inquiry, so there
-			// is nothing here for it to join to. Its reader is InquiryReviewDueOf.
 		}
 	}
 	out := make([]*Inquiry, 0, len(order))
 	for _, id := range order {
-		out = append(out, byID[id])
+		a := byID[id]
+		if c, ok := latest[a]; ok && inquiryCheckStands(a, c.ID) {
+			c := c
+			a.Check = &c
+		}
+		out = append(out, a)
 	}
 	return out
 }
@@ -226,70 +221,6 @@ func StaleInquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 	return out
 }
 
-// InquiryRuling returns red's ruling on an inquiry, or "" if it never ruled. It reads inquiry_state,
-// whose column is motion_answers' answer for the inquiry: its first ruling, and on a record the
-// write admitted its only one.
-//
-// The ruling and the inquiry's fate are joined here, so blue pursuing an inquiry red called
-// out-of-scope is told apart from blue pursuing one red endorsed.
-// Red's ruling is an argument rather than a command — blue may pursue anyway — but the
-// disagreement should be a fact, not something a reader reconstructs from two lists.
-//
-// "" MEANS ONE THING: the inquiry is on the record and red has not ruled it. A read that fails is
-// the error, and so is an id inquiry_state holds no row for — both would otherwise read as "never
-// ruled", which is the answer a caller skips its check on.
-func InquiryRuling(run Run, inquiryID string) (string, error) {
-	// The inquiry view carries the whole inquiry, this column included. The word is the schema's
-	// (`out_of_scope`), the one InquiriesOf puts on Inquiry.Ruling and every surface accepts.
-	var word sql.NullString
-	found, err := queryRow(run, []any{&word},
-		`SELECT "inquiry_ruling" FROM "inquiry_state" WHERE "inquiry_id" = ?`, inquiryID)
-	if err != nil {
-		return "", fmt.Errorf("the ruling on inquiry %s: %w", inquiryID, err)
-	}
-	if !found {
-		return "", fmt.Errorf("the ruling on inquiry %s: inquiry_state holds no row for it — no proposal that stands created that inquiry", inquiryID)
-	}
-	return word.String, nil
-}
-
-// InquiryReviewDueOf reports whether the chair's inquiry review is owed: a report exists, inquiries
-// exist, and no review is recorded after the report head (reportHeadOf, the head every lens's
-// readiness reads) and after the last inquiry event — the two things the review reads.
-//
-// WHAT THE REVIEW READ IS WHAT MAKES IT STALE, AND THE CHAIR MOVES NEITHER. The report head moves on
-// an ingest or an edit and the inquiries on a proposal or a fate, none of them a chair act, so
-// nothing the chair files in its sitting makes the review owed or settles it, except the review.
-// Read off an epoch instead — the last one with work in it — the review was owed from the chair's
-// first act of a sitting: a plan readying nobody said PASS permitted with nothing to clear, the work
-// list agreed, and the chair's position then put the review on the work list and the gate over a
-// report unchanged since the last read (a smoke run's last sitting, 2026-10-18); a PASS issued as
-// the sitting's first act passed over a review filed before the last epoch's edits.
-func InquiryReviewDueOf(evs []*Event, win WindowIndex) bool {
-	if len(InquiriesOf(evs, win)) == 0 {
-		return false
-	}
-	moved := reportHeadOf(evs, win.IDs(evs))
-	if moved == 0 {
-		return false // no report yet: there is nothing to read, and no_report holds the PASS
-	}
-	var read int64
-	for _, e := range evs {
-		id := win.Of(e).ID
-		// THE BODY IS THE TYPE, as everywhere else in this file: a match on the message cannot go
-		// stale against the enum. No field is read — the event's place on the record IS the fact —
-		// but the type test still goes through the body so a renamed enum value fails to compile
-		// rather than silently matching nothing.
-		if _, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok && id > moved {
-			moved = id
-		}
-		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && id > read {
-			read = id
-		}
-	}
-	return read < moved
-}
-
 // InquiryJSON is one inquiry as a machine reads it — the same fields the rendered
 // projection groups by fate, with their types intact.
 //
@@ -309,7 +240,14 @@ type InquiryJSON struct {
 	Epoch   int      `json:"epoch"`
 	History []string `json:"history,omitempty"`
 	SeatID  string   `json:"seat_id"`
-	Ruling  string   `json:"ruling,omitempty"`
+	// State is the inquiry's judged state (InquiryStates): open, unchecked, wanting or sound.
+	State string `json:"state"`
+	// Check is the reason of the check that stands on it and CheckedBy its seat, both empty while
+	// none stands.
+	Check     string `json:"check,omitempty"`
+	CheckedBy string `json:"checked_by,omitempty"`
+	// Wanting is the open material gaps about it, which hold it wanting.
+	Wanting []string `json:"wanting,omitempty"`
 }
 
 // InquiriesJSON is the wire form of the exploration space.
@@ -317,16 +255,26 @@ type InquiriesJSON struct {
 	Inquiries []InquiryJSON `json:"inquiries"`
 }
 
-// InquiriesJSONOf folds the events into the wire form, in the same order the rendered projection
-// walks them, so the two accounts of the same inquiries cannot disagree about order.
-func InquiriesJSONOf(evs []*Event, win WindowIndex) InquiriesJSON {
+// InquiriesJSONOf is the wire form of the run's inquiries, in the same order the rendered projection
+// walks them, so the two accounts of the same inquiries cannot disagree about order. The state reads
+// the open gaps as well as the stream, on one snapshot.
+func InquiriesJSONOf(run Run) (InquiriesJSON, error) {
 	out := InquiriesJSON{Inquiries: []InquiryJSON{}}
-	for _, a := range InquiriesOf(evs, win) {
-		out.Inquiries = append(out.Inquiries, InquiryJSON{
+	js, err := InquiryJudgements(run)
+	if err != nil {
+		return out, err
+	}
+	for _, j := range js {
+		a := j.Inquiry
+		row := InquiryJSON{
 			ID: a.ID, Question: a.Question, Hypothesis: a.Hypothesis, Method: a.Method,
 			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History,
-			SeatID: a.SeatID, Ruling: a.Ruling,
-		})
+			SeatID: a.SeatID, State: j.State(), Wanting: j.Wanting,
+		}
+		if a.Check != nil {
+			row.Check, row.CheckedBy = a.Check.Reason, a.Check.SeatID
+		}
+		out.Inquiries = append(out.Inquiries, row)
 	}
-	return out
+	return out, nil
 }

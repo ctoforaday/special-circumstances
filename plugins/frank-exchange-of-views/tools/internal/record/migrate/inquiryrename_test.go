@@ -53,60 +53,50 @@ func migratePlanted(t *testing.T, runDir string) (*migration.Manifest, record.Fa
 	return m, fam
 }
 
-// AN OLD INQUIRY RULING ARRIVES AS AN INQUIRY RULING. No archived run in this schema's shape carries
-// a ruling on what blue proposed in the earliest words for it, so this plants one into b9, which
-// wrote them: no motion row, because the proposal is the filing; the subject in those words; the
-// ruling in the column named for its arm.
-//
-// BOTH HALVES MUST MOVE, and they are separate mechanisms. The subject's value is an enum word,
-// carried by valueRenames. The ruling itself is a COLUMN named for the oneof arm, which identity
-// refuses outright when the current body does not declare it; inquiryArm renames it first. Either
-// one missing refuses the event, and this test says which.
-func TestAnOldInquiryRulingMigratesUnderTheOneWord(t *testing.T) {
-	runDir := plantInB9(t, "motion_rule", "red-chair",
-		`INSERT INTO motion_rule (event_id, motion_id, subject, opinion, direction) VALUES (?, 'Q1', 'direction', 'worth the run''s time: trial division to the square root settles primality outright', 'endorsed')`)
-	m, fam := migratePlanted(t, runDir)
-	found := false
-	for _, e := range fam.Events {
-		r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-		if !ok || r.GetMotionId() != m.IDs["Q1"] {
-			continue
-		}
-		found = true
-		if r.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
-			t.Errorf("the ruling's subject arrived as %v, want inquiry — the value rename did not run", r.Subject())
-		}
-		if r.GetInquiry() != recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED {
-			t.Errorf("the ruling arrived as %v, want endorsed under the inquiry arm — the column rename did not run", r.GetRuling())
-		}
+// plantedDropped is the planted act's own accounting: the manifest counts it in under its word and
+// writes nothing for it, so the migrated record holds exactly the events b9 alone migrates to.
+func plantedDropped(t *testing.T, m *migration.Manifest, word string) {
+	t.Helper()
+	base, _ := migrate.MigratedArchive(t, "2026-09-11_is-91-prime-b9.tar.gz")
+	if m.In[word] != base.In[word]+1 {
+		t.Fatalf("the manifest counts %d %s event(s) in, b9 alone %d: the planted act was not read", m.In[word], word, base.In[word])
 	}
-	if !found {
-		t.Fatal("the planted ruling on Q1 is not in the migrated record")
+	if m.Out[word] != base.Out[word] {
+		t.Errorf("the planted act arrived as an event: %d %s event(s) out, b9 alone %d", m.Out[word], word, base.Out[word])
 	}
 }
 
-// AN OLD INQUIRY MOTION ARM ARRIVES AS THE INQUIRY ARM, its id column with it. The old schema kept
-// the arm as a table under an earlier name, keyed by an id column under an earlier name; no archive
-// holds a row of it, so this plants one into b9, filed by blue: the chair rules the subject, and the
-// write refuses a filing by its ruler. The arm table and its id column are both renamed, or identity
-// refuses the act.
-func TestAnOldInquiryMotionArmMigratesUnderTheOneWord(t *testing.T) {
+// AN OLD RULING ON AN INQUIRY TRANSLATES TO NO EVENT. No archived run in this schema's shape carries
+// a ruling on what blue proposed in the earliest words for it, so this plants one into b9, which
+// wrote them: the subject in those words, the ruling in the column named for its arm. inquiryArm
+// renames the column to `inquiry`, and a ruling holding that column has no equivalent; without the
+// translation the column is one the current ruling does not declare, and the act refuses.
+func TestAnOldInquiryRulingTranslatesToNoEvent(t *testing.T) {
+	runDir := plantInB9(t, "motion_rule", "red-chair",
+		`INSERT INTO motion_rule (event_id, motion_id, subject, opinion, direction) VALUES (?, 'Q1', 'direction', 'worth the run''s time: trial division to the square root settles primality outright', 'endorsed')`)
+	m, fam := migratePlanted(t, runDir)
+	plantedDropped(t, m, "motion_rule")
+	for _, e := range fam.Events {
+		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetMotionId() == m.IDs["Q1"] {
+			t.Errorf("the planted ruling on Q1 arrived as an event: %v", r)
+		}
+	}
+}
+
+// AN OLD MOTION ON AN INQUIRY TRANSLATES TO NO EVENT. The old schema kept the arm as a table under an
+// earlier name, keyed by an id column under an earlier name; no archive holds a row of it, so this
+// plants one into b9, filed by blue. inquiryArm renames the arm to `inquiry`, and a motion filed
+// under it has no equivalent; without the translation the arm is one the current motion does not
+// declare, and the act refuses.
+func TestAnOldInquiryMotionTranslatesToNoEvent(t *testing.T) {
 	runDir := plantInB9(t, "motion", "blue-respond",
 		`INSERT INTO motion (event_id, motion_id, subject, basis, filing_case) VALUES (?, 'M9', 'direction', 'the proposal is in scope and its hypothesis carries its budget', 'direction')`,
 		`INSERT INTO motion_direction (event_id, avenue_id) VALUES (?, 'Q1')`)
 	m, fam := migratePlanted(t, runDir)
-	found := false
+	plantedDropped(t, m, "motion")
 	for _, e := range fam.Events {
-		mo, ok := recordpb.BodyAs[*recordpb.Motion](e)
-		if !ok || mo.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
-			continue
+		if mo, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && mo.GetMotionId() == m.IDs["M9"] && m.IDs["M9"] != "" {
+			t.Errorf("the planted motion on Q1 arrived as an event: %v", mo)
 		}
-		found = true
-		if got := mo.GetInquiry().GetInquiryId(); got == "" || got != m.IDs["Q1"] {
-			t.Errorf("the motion's inquiry arm arrived holding %q, want the migrated id of Q1 (%q)", got, m.IDs["Q1"])
-		}
-	}
-	if !found {
-		t.Fatal("the planted motion under subject inquiry is not in the migrated record")
 	}
 }

@@ -126,7 +126,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			// THE RULING IS A ONEOF ARM, not a `ruling` field: `grade` carries GradeRuling,
-			// `petition` PetitionRuling, `inquiry` InquiryRuling. That separation is what
+			// `petition` PetitionRuling, each subject its own. That separation is what
 			// makes a ruling from the wrong subject's vocabulary unrepresentable, and it is why
 			// the old key could never match. The ruler's argument is `opinion`.
 			want: map[string]string{"motion_id": "M1", "grade": "rejected",

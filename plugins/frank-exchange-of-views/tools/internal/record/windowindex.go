@@ -111,8 +111,8 @@ func (x WindowIndex) LatestSittingOf(seat string) int64 {
 // stored.
 //
 // A DUTY THE CHAIR CLEARS IN ITS OWN SITTING DOES NOT READ THIS. The chair's first act of a sitting
-// moves this epoch, so a duty read off it falls due by that act; the inquiry review reads what it
-// read — the report head and the inquiries (InquiryReviewDueOf).
+// moves this epoch, so a duty read off it falls due by that act; such a duty reads what it reads, as
+// the stale-area spot-check reads each retired lens's pin.
 //
 // The last work act of a narrowed slice is not the record's, so a narrowed index panics here as it
 // does in LatestSittingOf.

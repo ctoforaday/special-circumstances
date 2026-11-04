@@ -19,7 +19,7 @@ import (
 
 // file: a seat asks for something, and the tool assigns the id everything else joins on.
 // fileSubjectSays is what filing each subject DOES, one sentence per subject that has a `file`.
-// `inquiry` has none: proposing the inquiry is the filing, and its subgroup's Short says so.
+// `position` has none: the chair's position is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
 	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: %s.",
 	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started.",
@@ -292,23 +292,12 @@ var ruleDetail = map[string]string{
 		"\n\nA REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap, and blue's sitting cannot end until it has; the dispatch readies the minting lens on the gap once blue has acted, to audit the answer. " +
 		"A REMAND PAST THE LIMIT IS REFUSED — " + record.RemandLimitRule + ". So a gap you remanded at impasse, back before you at impasse — or docketed again while its exchange is owed — takes a disposition that closes it; the refusal names them, and your work list says so on the motion before you rule. A second motion on the gap remanded in the sitting that remanded it is the same hearing, and is admitted. " +
 		"A gap can close while a second docket motion on it stands — your ruling on the first closed it — and a remand of it is refused, naming the close, because a closed gap has no exchange to have and the record does not reopen it: rule that motion with a disposition that closes, on the record as it stands.",
-	"inquiry": "\n\nAN INQUIRY HAS NO FILING: blue's proposal is the filing, so the id is the inquiry's own — the " +
-		"`Q-` id `show inquiries` lists with each inquiry's question and hypothesis, which are what you rule on, and its ruling, empty while you have not ruled it; a ruling on an inquiry is a motion ruling whose filing is the proposal itself. An id no inquiry on " +
-		"the record holds is refused. An inquiry you have not ruled is no motion: no work list names it, no sitting waits on it, and it holds no PASS. " +
-		"Your ruling says whether the inquiry is " +
-		"worth this run's time — a judgment you argue in the reason: `endorsed` asks blue to take it up, `out_of_scope` and `too_thin` argue against it. The ruling is an argument beside the inquiry and changes no " +
-		"fate — the fate is what blue records with `inquiry record` (that page lists the fates), with your reason in front of it, " +
-		"whichever way you ruled; blue owes every open inquiry a fate each sitting. The first ruling on an " +
-		"inquiry is the one that stands, and a second is refused.",
 }
 
 func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	e := record.MotionVerdictEnum(subject)
 	what := record.Article(subject) + " " + subject + " motion"
-	switch subject {
-	case "inquiry":
-		what = "an inquiry blue proposed"
-	case "position":
+	if subject == "position" {
 		what = "the chair's position on a PASS it withheld"
 	}
 	c := &cobra.Command{
@@ -372,12 +361,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a petition", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
-			case recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY:
-				v, ok := enumOf[recordpb.InquiryRuling](recordpb.InquiryRuling(0).Descriptor(), word)
-				if !ok {
-					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on an inquiry", word)
-				}
-				body.Ruling = &recordpb.MotionRule_Inquiry{Inquiry: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 				d, ok := record.DispositionOf(word)
 				if !ok {
@@ -449,9 +432,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	}
 	seat.Returns(c, ruled{})
 	seat.Prose(c)
-	if subject == "inquiry" {
-		c.Flags().Lookup(flags.Reason).Usage = "your argument for the ruling: why the inquiry is, or is not, worth this run's time — blue reads it before it records the inquiry's fate"
-	}
 	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject))
 	// The ruling switch above refuses a word that is not a ruling, and "" is not one.
 	enumhelp.Flag(c, flags.As, e, "your ruling")
@@ -488,8 +468,8 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	return c
 }
 
-// refHelp names WHICH id the subject joins on. `inquiry` has no filing verb, so its id is the
-// inquiry's; saying "the motion id" there would send a seat looking for an M-number that does not
+// refHelp names WHICH id the subject joins on. `position` has no filing verb, so its id is the
+// position's; saying "the motion id" there would send a seat looking for an M-number that does not
 // exist, and a seat that cannot find the id it was told to pass logs it and works around the
 // verb — losing the capability for the run rather than reporting a wrong flag.
 // refHelp is the --id line, and it carries the REQUIRED marker because the flag is.
@@ -506,9 +486,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 // walks this tree now and markRequired is the one writer of that word, so a hand-written copy here
 // rendered "REQUIRED — REQUIRED — the motion id".
 func refHelp(subject string) string {
-	if subject == "inquiry" {
-		return "the INQUIRY id: an inquiry's filing is the proposal, so it joins on the inquiry's own id, not a motion's"
-	}
 	if subject == "position" {
 		return "the POSITION id: a heard position's filing is the position itself, so it joins on the position's own id, not a motion's"
 	}
@@ -590,8 +567,8 @@ var positionFlagHelp = map[string]string{
 // wrong-kind value is refused by its shape rather than by a lookup that reports "no such motion" for a
 // perfectly good gap id.
 //
-// THE INQUIRY SUBJECT IS THE ASYMMETRY, and refHelp already states it: an inquiry's filing joins on
-// the inquiry's own id, not a motion's, so every inquiry motion verb keys on Q. For the
+// THE POSITION SUBJECT IS THE ASYMMETRY, and refHelp already states it: a position's filing is the
+// position itself, so its ruling keys on the position's own id. For the
 // other subjects the FILING names the thing being disputed — a gap — while the ruling names the
 // motion. Registering all of them as a plain string is what made the help print `string`
 // nine times and refuse nothing (internal/cli/idshape_test.go).
@@ -601,9 +578,6 @@ var positionFlagHelp = map[string]string{
 // bound to the subject. A checker here would be a second implementation of a check that already
 // refuses, in front of one that also knows more.
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
-	if subject == "inquiry" {
-		return flags.InquiryID()
-	}
 	if subject == "position" {
 		return flags.PositionID()
 	}

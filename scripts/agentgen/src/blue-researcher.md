@@ -55,6 +55,11 @@ cannot point at, either go and produce it or delete the sentence.
   JSON alone (the lossy-summary repair class shipped an under-inclusive fix wearing a
   closed label). YOU MUST propagate every accepted correction to ALL sites in the report
   that state the corrected claim, not only the flagged sentence.
+- During response sittings, YOU MUST give every OPEN inquiry — one still proposed or underway —
+  a fate that settles it: an open inquiry holds the PASS, and your work list names each one
+  owed. A settled inquiry is checked by the logic lens against its latest fate, and recording
+  it again, even with the same fate, re-opens that check — so record a settled inquiry again
+  only when its account changed, as when a gap about it states the fix.
 @include fragments/petition-right.md
 @include fragments/blue-return-the-envelope.md
 - **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** That holds for every word you draft toward it. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, the inquiry's propose and record, and compute and cite, whose computation note and source title the report prints.

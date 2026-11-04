@@ -6,11 +6,16 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // archivedFate is the current word for each fate an archive may spell another way; every other
@@ -234,17 +239,21 @@ func TestAnArchivedProposalArrivesAsAQuestionWithNoReason(t *testing.T) {
 	}
 }
 
-// AN ARCHIVED REVIEW ARRIVES AS AN INQUIRY REVIEW, under either table an archive wrote it to: m20
-// spelled the table with an earlier word, b9 with the current one.
-func TestAnArchivedReviewArrivesAsAnInquiryReview(t *testing.T) {
+// AN ARCHIVED INQUIRY REVIEW TRANSLATES TO NO EVENT, under each word an archive wrote it with: m20
+// spelled the table with an earlier word, b9 and m36 with the last one. A review was the chair's
+// prose read of every inquiry at once, and names none; an inquiry's quality is its owning lens's
+// check of that one inquiry, which no archive holds. The manifest counts every review in and none
+// out, and the migration refuses nothing.
+func TestAnArchivedReviewTranslatesToNoEvent(t *testing.T) {
 	for _, c := range []struct {
 		archive, table string
 		n              int
 	}{
 		{"2026-10-11_is-91-prime-m20.tar.gz", "avenue_review", 5},
 		{"2026-09-11_is-91-prime-b9.tar.gz", "inquiry_review", 6},
+		{"2026-10-29_is-91-prime-m36.tar.gz", "inquiry_review", 1},
 	} {
-		t.Run(c.table, func(t *testing.T) {
+		t.Run(c.archive, func(t *testing.T) {
 			src := recordtest.RequireArchive(t, c.archive)
 			var archived int
 			if err := openRO(t, src).QueryRow(`SELECT count(*) FROM "` + c.table + `"`).Scan(&archived); err != nil {
@@ -253,32 +262,26 @@ func TestAnArchivedReviewArrivesAsAnInquiryReview(t *testing.T) {
 			if archived != c.n {
 				t.Fatalf("%s holds %d %s row(s), want %d", c.archive, archived, c.table, c.n)
 			}
-			res, dst := migrateArchive(t, c.archive)
+			res, _ := migrateArchive(t, c.archive)
 			if len(res.Refusals) != 0 {
 				t.Fatalf("refusals: %+v", res.Refusals)
 			}
-			fam, err := record.FamilyOf(dst)
-			if err != nil {
-				t.Fatal(err)
+			if res.In[c.table] != c.n {
+				t.Errorf("the manifest counts %d %s event(s) in, the archive holds %d", res.In[c.table], c.table, c.n)
 			}
-			got := 0
-			for _, e := range fam.Events {
-				if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok {
-					got++
-				}
-			}
-			if got != c.n {
-				t.Errorf("%d archived review(s) arrived as %d inquiry review(s)", c.n, got)
+			if res.Out[c.table] != 0 || res.Out["inquiry_review"] != 0 {
+				t.Errorf("an archived review arrived as an event: out=%v", res.Out)
 			}
 		})
 	}
 }
 
-// AN ARCHIVED INQUIRY RULING ARRIVES UNDER THE SUBJECT `inquiry`, with the ruling in the `inquiry`
-// arm, whichever words the archive used: quadratic-formula and m20 spell the subject and the
-// ruling's column with two different earlier words, and the shard era's run2 ruled on subject
-// `inquiry` with a flat ruling word.
-func TestAnArchivedInquiryRulingArrivesUnderSubjectInquiry(t *testing.T) {
+// AN ARCHIVED RULING ON AN INQUIRY TRANSLATES TO NO EVENT, whichever words the archive used:
+// quadratic-formula and m20 spell the ruling's column with two different earlier words, the shard
+// era's run2 ruled on subject `inquiry` with a flat ruling word, and m36 wrote the `inquiry` column
+// itself. The chair's word on an inquiry has no equivalent: exactly the archive's rulings on an
+// inquiry translate to none, and no migrated ruling is on an inquiry.
+func TestAnArchivedInquiryRulingTranslatesToNoEvent(t *testing.T) {
 	for _, c := range []struct {
 		archive string
 		n       int
@@ -286,30 +289,50 @@ func TestAnArchivedInquiryRulingArrivesUnderSubjectInquiry(t *testing.T) {
 		{"2026-09-02_quadratic-formula.tar.gz", 5},
 		{"2026-10-11_is-91-prime-m20.tar.gz", 10},
 		{"2026-08-22_is-7-prime-run2.tar.gz", 4},
+		{"2026-10-29_is-91-prime-m36.tar.gz", 5},
 	} {
 		t.Run(c.archive, func(t *testing.T) {
-			res, dst := migrateArchive(t, c.archive)
+			// The registry's own ruling entry, noting each archived ruling it writes as none. Migrate
+			// may translate an event more than once, so a ruling is noted by its archived id.
+			reg := migrate.Entries()
+			rule := reg["motion_rule"]
+			var mu sync.Mutex
+			none := map[int64]bool{}
+			reg["motion_rule"] = migrate.Entry{Translate: func(old migrate.OldEvent) ([]proto.Message, error) {
+				bodies, err := rule.Translate(old)
+				if err == nil && len(bodies) == 0 {
+					mu.Lock()
+					none[old.ID] = true
+					mu.Unlock()
+				}
+				return bodies, err
+			}}
+			toDir := recordtest.TmpRun(t)
+			res, err := migrate.Migrate(recordtest.RequireArchive(t, c.archive), toDir, reg, migrate.Options{})
+			if err != nil {
+				t.Fatalf("migrate: %v (manifest: %+v)", err, res)
+			}
 			if len(res.Refusals) != 0 {
 				t.Fatalf("refusals: %+v", res.Refusals)
 			}
-			fam, err := record.FamilyOf(dst)
+			if got := len(none); got != c.n {
+				t.Errorf("%d archived ruling(s) translated to none, want the %d on an inquiry", got, c.n)
+			}
+			fam, err := record.FamilyOf(runtest.Open(t, toDir))
 			if err != nil {
 				t.Fatal(err)
 			}
-			got := 0
-			for _, e := range fam.Events {
-				r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-				if !ok || r.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
-					continue
-				}
-				if r.GetInquiry() == recordpb.InquiryRuling_INQUIRY_RULING_UNSPECIFIED {
-					t.Errorf("a ruling under subject inquiry arrived with no word in the inquiry arm: %v", r.GetRuling())
-					continue
-				}
-				got++
+			inquiries := map[string]bool{}
+			for _, a := range record.InquiriesOf(fam.Events, fam.At) {
+				inquiries[a.ID] = true
 			}
-			if got != c.n {
-				t.Errorf("%d inquiry ruling(s) arrived, want %d", got, c.n)
+			if len(inquiries) == 0 {
+				t.Fatal("the migrated record holds no inquiry, so no ruling on one was tested")
+			}
+			for _, e := range fam.Events {
+				if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && inquiries[r.GetMotionId()] {
+					t.Errorf("a ruling on inquiry %s arrived as an event: %v", r.GetMotionId(), r)
+				}
 			}
 		})
 	}

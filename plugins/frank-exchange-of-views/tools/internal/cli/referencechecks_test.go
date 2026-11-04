@@ -78,14 +78,10 @@ var referenceChecks = []struct {
 	// them; nothing about a shape-only flag does.
 	{verb: []string{"motion", "docket", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
-	// THE INQUIRY SUBJECT KEYS ON Q, NOT M — an inquiry has no filing verb (the proposal is the
-	// filing), so the ruling names the INQUIRY and is checked against the inquiries on
-	// the record. `rule` sits only on the chair's tree, which is why seatHolding resolves the whole
-	// path: asked for "motion" alone it answered "lens", and the fixture ran a verb that seat cannot
-	// name. The refusal comes from the body and names the INQUIRY, which is the right word for an id
-	// the subject keys on Q.
-	{verb: []string{"motion", "inquiry", "rule"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
-		extra: []string{"--as", "endorsed", "--reason", "r"}},
+	// THE LENS'S CHECK KEYS ON Q: it judges an inquiry blue proposed, and its flag is checked against
+	// the inquiries on the record before the write asks whose check it is.
+	{verb: []string{"inquiry", "check"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
+		extra: []string{"--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.
 	{verb: []string{"compute"}, flag: "--answers", against: "the board", bogus: "G2",

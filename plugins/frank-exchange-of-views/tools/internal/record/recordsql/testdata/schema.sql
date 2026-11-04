@@ -132,11 +132,11 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('envelope_admitted', 't
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry', 'an inquiry: its question, its hypothesis and each fate recorded on it');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_review', 'a review of the inquiries themselves, rather than of a finding');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_check', 'the owning lens''s judgement that an inquiry''s latest fate is sound as the report''s account of it, with the reason it holds — a settled inquiry holds the PASS until one stands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('log', 'an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or an inquiry proposed');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the chair''s dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none');
@@ -227,14 +227,6 @@ CREATE TABLE "enum_petition_ruling" (
 INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('denied', 'the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest');
 INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('granted', 'the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow');
 
-CREATE TABLE "enum_inquiry_ruling" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
-) STRICT;
-INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('endorsed', 'worth this run''s time — blue should take it up');
-INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
-INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('too_thin', 'in scope, but the hypothesis as stated does not justify what testing it would cost this run');
-
 CREATE TABLE "enum_disposition" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL,
@@ -291,6 +283,7 @@ INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('inv
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('live_source_drift', 'a claim or computation rests on a source''s or tree''s current state rather than the state the report cites or pins, so it reads differently now from when it was written', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('metric_conflation', 'two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitions', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('missing_root_invariant', 'one fact is restated in several places with nothing tying the copies to a single source, so they have drifted or can drift unnoticed', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('out_of_scope', 'an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run''s research', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('partial_control_coverage', 'a control credited with covering a surface works on part of it and leaves the rest — an axis, channel, verb or case — uncovered', 'by_grade');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('policy_without_mechanism', 'a rule, safeguard or guarantee is asserted with nothing that enforces it', 'by_grade');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('reader_channel_mismatch', 'a fact the reader needs is held — in the record or elsewhere in the report — but not where the reader who needs it reads, so a reader acting on that section acts without it', 'by_grade');
@@ -425,7 +418,7 @@ INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('abandoned', 'you S
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('confirmed', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'left for a later research run, not this one — kept, not set aside. REQUIRES a reason saying what a later run should pick it up FOR');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'put forward and undecided — the state `inquiry propose` gives an inquiry; red may rule on it, and it owes a fate');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('refuted', 'you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('underway', 'you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached');
 
@@ -526,11 +519,6 @@ CREATE TABLE "motion_petition" (
   FOREIGN KEY ("class") REFERENCES "enum_petition_class"("value")
 ) STRICT;
 
-CREATE TABLE "motion_inquiry" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
-  "inquiry_id" TEXT
-) STRICT;
-
 CREATE TABLE "motion_docket" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
   "gap_id" TEXT NOT NULL,
@@ -552,13 +540,11 @@ CREATE TABLE "motion_rule" (
   "relief" TEXT,
   "grade" TEXT,
   "petition" TEXT,
-  "inquiry" TEXT,
   "ruling_case" TEXT,
-  CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("inquiry" IS NOT NULL) + ("ruling_case" IS NOT NULL) <= 1),
+  CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("ruling_case" IS NOT NULL) <= 1),
   FOREIGN KEY ("binds") REFERENCES "enum_ruling_binds"("value"),
   FOREIGN KEY ("grade") REFERENCES "enum_grade_ruling"("value"),
-  FOREIGN KEY ("petition") REFERENCES "enum_petition_ruling"("value"),
-  FOREIGN KEY ("inquiry") REFERENCES "enum_inquiry_ruling"("value")
+  FOREIGN KEY ("petition") REFERENCES "enum_petition_ruling"("value")
 ) STRICT;
 
 CREATE TABLE "motion_rule_docket" (
@@ -915,11 +901,6 @@ CREATE TABLE "log" (
   FOREIGN KEY ("source") REFERENCES "enum_log_source"("value")
 ) STRICT;
 
-CREATE TABLE "inquiry_review" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "reason" TEXT
-) STRICT;
-
 CREATE TABLE "report_part" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "text" TEXT
@@ -998,6 +979,12 @@ CREATE TABLE "report_read" (
 CREATE TABLE "envelope_admitted" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE "inquiry_check" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "inquiry_id" TEXT NOT NULL,
+  "reason" TEXT NOT NULL
 ) STRICT;
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
@@ -1647,21 +1634,20 @@ FROM "gap";
 -- THE ANSWERS TO A MOTION, one row per answered id, whichever filing shape asked. The FIRST
 -- ruling is the one that counts, and a second is refused at the write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
 -- multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
--- because an inquiry motion has no filing row (the inquiry's proposal IS the
+-- because a position motion has no filing row (the chair's position IS the
 -- filing) and its answers must be askable all the same.
 CREATE VIEW "motion_answers" AS
 SELECT
   ids."motion_id"                                        AS "motion_id",
   fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
-  fr."inquiry"                                           AS "inquiry",
   -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
-  -- Its three siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
+  -- Its two siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
   rd."disposition"                                       AS "docket",
-  COALESCE(fr."grade", fr."petition", fr."inquiry", rd."disposition") AS "ruling",
+  COALESCE(fr."grade", fr."petition", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq"
 FROM (SELECT DISTINCT "motion_id" FROM "motion_rule") ids
@@ -1670,12 +1656,11 @@ LEFT JOIN "motion_rule" fr ON fr."event_id" =
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
 LEFT JOIN "events" fre ON fre."id" = fr."event_id";
 
--- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and how red
--- ruled it. The proposal row carries the substance; the LATEST inquiry event carries the status;
--- red's answer is motion_answers' row for the inquiry's id — the FIRST ruling, the one rule every
--- reader of a motion's answer states, because the write refuses a second (RequireUnruledMotion).
--- InquiriesOf is the Go reader of the same answer, and inquiryReadersAgree (record's
--- motionguards_test.go) holds the two level.
+-- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and its latest
+-- check. The proposal row carries the substance; the LATEST inquiry event carries the status; the
+-- LATEST inquiry_check carries the check. Whether that check STANDS is not a column: it stands while
+-- it is later than the status and than the latest gap about the inquiry that was material at its
+-- mint, which the Go fold decides (record/inquirycheck.go) and InquiriesOf reads off the same rows.
 CREATE VIEW "inquiry_state" AS
 SELECT
   p."inquiry_id"                       AS "inquiry_id",
@@ -1684,9 +1669,8 @@ SELECT
   fp."question"                        AS "question",
   ls."status"                          AS "status",
   lse."id"                          AS "status_seq",
-  a."inquiry"                          AS "inquiry_ruling",
-  a."ruled_by"                         AS "ruled_by",
-  a."ruled_seq"                        AS "ruled_seq"
+  ce."id"                           AS "check_seq",
+  ce."seat_id"                         AS "checked_by"
 FROM (SELECT a0."inquiry_id" AS "inquiry_id", MIN(a0."event_id") AS "pid"
         FROM "inquiry" a0
         WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL
@@ -1696,7 +1680,8 @@ JOIN "events" pe ON pe."id" = p."pid"
 LEFT JOIN "inquiry" ls ON ls."event_id" =
   (SELECT MAX(x."event_id") FROM "inquiry" x WHERE x."inquiry_id" = p."inquiry_id")
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
-LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
+LEFT JOIN "events" ce ON ce."id" =
+  (SELECT MAX(c."event_id") FROM "inquiry_check" c WHERE c."inquiry_id" = p."inquiry_id");
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
 -- this stream folded from the empty text, so the SELECTION of which events mutate the text — and

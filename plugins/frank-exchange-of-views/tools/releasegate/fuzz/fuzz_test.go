@@ -30,6 +30,7 @@ package fuzz
 // FUZZ_C overrides concurrency (runs are subprocess-bound, so the default oversubscribes cores).
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -399,10 +400,15 @@ type runner struct {
 	// PASS the plan permitted. It fails the run: read as "no other seat's blocker" it would pass the
 	// oracle it disabled.
 	passBlockersErr string
-	// inquiryRulingErr is the drive's first failure to read an inquiry's ruling. It fails the run:
-	// read as "not ruled" it would have red rule a settled inquiry again, or blue leave a ruled one
-	// unanswered, and the inquiry oracle would then find nothing to check.
-	inquiryRulingErr string
+	// inquiryReadErr is the drive's first failure to read the inquiries' judged states. It fails the
+	// run: read as "no inquiries" it would leave blue's open inquiries unsettled and the logic lens's
+	// unchecked ones unchecked, and the inquiry oracle would then find a PASS nothing reached.
+	inquiryReadErr string
+	// inquiryChecks counts the checks the tool ADMITTED from the owning lens, and
+	// inquiryCheckRefused each refusal class of `inquiry check` the drive drove and the tool refused
+	// with the code the class carries (inquiryCheckClasses). The sweep gates both at zero.
+	inquiryChecks       int
+	inquiryCheckRefused map[string]int
 	// inquiryIDErr is the first `inquiry propose` that SUCCEEDED and whose result carried no inquiry
 	// id the harness could read. It fails the run: read as "nothing to record" it would leave the
 	// record of a fate and the inquiry `--about` reference undriven behind a green sweep.
@@ -1368,6 +1374,20 @@ func (r *runner) chairPosition(seatID string, owed bool) {
 	r.maybe(20, func() {
 		r.repeatRefused(seatID, "position", "--reason", "fuzz: the position again, restated")
 	})
+}
+
+// outOfScopeClass is the gap class of an inquiry that asks a question this run was not asked: always
+// material, and minted only about an inquiry.
+var outOfScopeClass = recordpb.Word(recordpb.GapClass_GAP_CLASS_OUT_OF_SCOPE)
+
+// someInquiry is one inquiry this run proposed, "" where it has proposed none.
+func (r *runner) someInquiry() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.inquiryIDs) == 0 {
+		return ""
+	}
+	return r.inquiryIDs[r.rng.Intn(len(r.inquiryIDs))]
 }
 
 // noteInquiryRecord counts a fate the tool accepted on an id read from a propose result.
@@ -3727,11 +3747,8 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	// A gap with no concrete proposal has nothing for blue to apply verbatim, so the estoppel run
 	// always prescribes one.
 	proposing := r.forceEstoppel || r.coin(40)
-	if k, ref := r.aboutAnchor(); k != "" && !proposing && r.coin(25) {
-		args = append(args, "--about-kind", k, "--about", ref)
-	} else if !proposing {
-		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
-	}
+	aboutKind, aboutRef := r.aboutAnchor()
+	about := aboutKind != "" && !proposing && r.coin(25)
 	// THE CLASS IS A WORD OF THE CLOSED SET, and the pool is `by_grade` on purpose: an `always` or
 	// `never` class in the pool would move a share of every run's gaps out of grade, and with them
 	// the boards, the epochs and the terminal verdicts the sweep's other gates count on — a
@@ -3744,15 +3761,35 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	if !unclassified && class == "" && !r.forceUnverified && !r.forceEstoppel && !r.forceVerified {
 		driven, _ = takeClassDrive()
 	}
+	// OUT OF SCOPE IS A CLASS OF A GAP ABOUT AN INQUIRY, and the record refuses it on any other
+	// subject: its mint names a proposed inquiry and no quote, and it waits for a run that has one.
+	inquiry := ""
+	if driven == outOfScopeClass || class == outOfScopeClass {
+		inquiry = r.someInquiry()
+	}
+	if driven == outOfScopeClass && inquiry == "" {
+		settleClassDrive(driven, false)
+		driven = ""
+	}
+	chosen := class
 	switch {
 	case class != "":
-		args = append(args, "--class", class)
 	case unclassified:
-		args = append(args, "--class", "unclassified")
+		chosen = "unclassified"
 	case driven != "":
-		args = append(args, "--class", driven)
+		chosen = driven
 	default:
-		args = append(args, "--class", pick(r.rng, mintPoolClasses))
+		chosen = pick(r.rng, mintPoolClasses)
+	}
+	args = append(args, "--class", chosen)
+	switch {
+	case chosen == outOfScopeClass:
+		proposing = false
+		args = append(args, "--about-kind", "inquiry", "--about", inquiry)
+	case about:
+		args = append(args, "--about-kind", aboutKind, "--about", aboutRef)
+	case !proposing:
+		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 	}
 	landed := false
 	if driven != "" {
@@ -4603,7 +4640,7 @@ var checkKinds = []string{"document", "computation", "source"}
 // registry declares, and no run has ever recorded.
 var inquiryStatus = []string{"proposed", "underway", "confirmed", "refuted", "abandoned", "declined", "deferred"}
 
-// nextInquiryStatus round-robins the undirected inquiry's fate so every value is driven BY
+// nextInquiryStatus round-robins a proposal's first recorded fate so every value is driven BY
 // CONSTRUCTION rather than by luck.
 //
 // It was a uniform random pick behind a 30% branch — a ~6% draw per inquiry for any one fate —
@@ -4612,7 +4649,7 @@ var inquiryStatus = []string{"proposed", "underway", "confirmed", "refuted", "ab
 // measuring it, and the failure it produces looks like the change's fault rather than its own.
 //
 // The counter is PACKAGE-LEVEL and atomic, not a field on runner. Per-run it would be worse than
-// random: the sweep makes about 1.6 undirected inquiries per run, so a counter resetting each time
+// random: the sweep makes a couple of proposals per run, so a counter resetting each time
 // would only ever reach index 0 and 1 and the last three fates would never be driven at all.
 // Atomic because the sweep's runs are concurrent.
 var inquiryTick atomic.Int64
@@ -4676,21 +4713,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 	inquiry := func(role string) {
 		// A DECLINED OR ABANDONED inquiry requires --reason (record.go: an unexplained fate is the
 		// decoration this verb exists to refuse), so every fate this drive records carries one.
-		// A FATE-CARRYING INQUIRY STAYS `proposed` until red rules it, so the ruling cycle can run
-		// on it: red rules it, blue answers. Recording it straight to `underway` or `declined`
-		// would skip the cycle, and the oracle would report endorsed inquiries that ended declined
-		// without ever being through a ruling.
 		//
-		// An UNDIRECTED inquiry takes the round-robin fate: one already declined is a real shape
-		// (blue weighed it and did not start), and it carries no fate for red to rule from, so the
-		// ruling cycle and the oracle both skip it by construction.
-		line, st := pick(r.rng, inquiryFates)+" ("+seatID+")", "proposed"
-		if r.coin(30) {
-			line, st = "fuzz undirected inquiry "+seatID, nextInquiryStatus()
-		}
+		// THE FIRST FATE IS THE ROUND-ROBIN'S, so every fate is driven by construction: one left
+		// open is settled by settleOpenInquiries at a later sitting of blue's, and one settled
+		// here is the logic lens's to check (checkInquiries).
+		line, st := "fuzz inquiry "+seatID, nextInquiryStatus()
 		// PROPOSE AND RECORD ARE TWO VERBS. A proposal is born `proposed` — the tool supplies it,
 		// so there is no status to pass — and any other fate is reached by RECORDING it on the
-		// inquiry proposed, which is the cycle red rules on and the oracle reads.
+		// inquiry proposed, which is the fate the logic lens checks and the oracle reads.
 		out, ok := r.do("inquiry propose", seatID).set("--question", line).
 			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").admit()
 		// RECORDING `proposed` AGAIN IS A REAL STATE — the inquiry is still open and the seat is
@@ -4715,25 +4745,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 	}
 	switch role {
 	case "lens":
-		// NO inquiry DRIVE HERE: the lens role has no inquiry verb (register/finding/
-		// cite/log/show), and a drive of one would be refused every time while the verb gate
-		// stayed green on blue's inquiry events — a dead drive that reads as coverage.
+		// THE LENS'S inquiry VERB IS `inquiry check`, and it is the owning lens's duty, not a draw:
+		// checkInquiries drives it in the red-lens arm, where the owner's work list holds the item.
 	case "chair":
-		// THE PER-ROUND REVIEW OF THE REPORT'S ACCOUNT OF ITS OWN RESEARCH. The verb is
-		// `inquiry review` and the event it writes is `inquiry_review` — the names differ. It
-		// names no inquiry and casts no verdict: a shortfall in the body is an ordinary gap, so
-		// `--reason` is its whole payload.
-		// UNCONDITIONAL, BECAUSE IT IS A PER-ROUND DUTY AND A HARD PRECONDITION FOR PASS.
-		//
-		// This sat behind a 40% coin, so three rounds in five could not pass: the tool refuses a
-		// PASS with no review for the round, and debate.js refuses a FAIL that names no gaps, so
-		// the seat had NO legal verdict and the run wedged. Before the drive honoured the refusal
-		// that was invisible — the error was discarded and the harness was told PASS anyway.
-		//
-		// A coin is the wrong shape for a duty. What varies between runs is what the review FINDS,
-		// not whether the read happened.
-		r.do("inquiry review", seatID).
-			set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").admit()
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
 		//
 		// The additive stage added a blue-files/merge-rules pair here beside the `blue dispute`
@@ -4767,11 +4781,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 				sc.set("--reason", "fuzz: the archive was empty at round start").admit()
 			}
 		}
-		// RED RULES EVERY UNRULED INQUIRY, and the ruling follows the question it was proposed
-		// as: the inquiry's own --question carries its intended fate, exactly as a gap's --fix
-		// carries its scenario, so a ruling has a relation to what was proposed and a
-		// consequence the oracle can check.
-		r.ruleOpenInquiries(seatID)
 	case "blue":
 		// Before any draw, so a run that is not forced draws exactly what it drew without it.
 		r.computeToReopen(seatID)
@@ -4781,10 +4790,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.cutLeavingAnchorOut(seatID)
 		r.citeForBareMint(seatID)
 		r.maybe(45, func() { inquiry("blue") })
-		// NO RANDOM FATE HERE. answerInquiryRulings owns the fates: it answers red's ruling,
-		// comply or contest, one decision per inquiry. A second writer recording fates at random
-		// would fight it, and the oracle would report endorsed inquiries that ended declined and
-		// contests the record never recorded because the fate landed before the ruling did.
+		// NO RANDOM FATE HERE. settleOpenInquiries owns every later fate: one decision per open
+		// inquiry per sitting, which is the blocking item blue's work list carries for it.
 		// THE CITATION AXIS (#256), driven end to end through the real binary: `blue cite` fetches
 		// the source through the run cache and splices an INVISIBLE, IMMORTAL <!--cite:c-…--> anchor
 		// at the quoted sentence. --quote must appear VERBATIM in blue/report.md, so it quotes the
@@ -5079,7 +5086,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				return r.chairEnvelope(seatID, "PASS", out, responses)
 			} else {
 				// A PASS THE BOARD PERMITS AND THE GATE REFUSES is the chair's own duty undone —
-				// an unruled motion, a missing inquiry review, a contradiction never raised — and
+				// an unruled motion, a spot-check owed, a contradiction never raised — and
 				// the run then ends UNVERIFIED with the plan saying nothing about why. Kept on
 				// the outcome so the sweep's exit tally names it.
 				// exec's error is "<args>: exit status N\n  <the tool's message>" — the message
@@ -5181,11 +5188,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.docketLockedGap(seatID)
 		}
 		r.extras("blue", seatID, open)
+		// EVERY OPEN INQUIRY GETS A FATE THIS SITTING: each is a blocking item on blue's work list.
+		r.settleOpenInquiries(seatID)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
 		// minted with; blue reads it back off the board and does what it says. This replaces a
 		// blanket 40%-per-gap dispute roll plus a 50% verbatim-apply coin, neither of which
 		// looked at what red had actually asked for.
-		r.answerInquiryRulings(seatID)
 		r.presented.add(open...)
 		r.blueRespondTo(seatID, open)
 		// AN ARRAY, NEVER null, as the envelope schema demands: a Go nil slice marshals as null,
@@ -5501,6 +5509,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.answerFailed(seatID)
 				// ITS CLOSING ON EACH GAP OF ITS OWN THAT IS DOCKETED: the lens is one of the gap's two parties.
 				r.fileClosings(seatID)
+				// EVERY SETTLED INQUIRY NO CHECK STANDS ON IS CHECKED BY ITS OWNER: its item blocks the
+				// owner's envelope. Every other lens drives the owner's refusal.
+				r.checkInquiries(seatID)
 				if seatID == "red-lens-evidence" || seatID == computationOwner {
 					var owed []anchorRef
 					for _, it := range r.unchecked() {
@@ -5892,9 +5903,13 @@ type outcome struct {
 	estoppels int
 	// inquiryRecords is the fates the tool accepted on an id the harness read from a propose
 	// result (runner.inquiryRecords). The `inquiry` verb gate is satisfied by a proposal alone, and
-	// blue's answer to a ruling records a fate by an id read off the record, so neither notices the
+	// blue's settling fates record by an id read off the record, so neither notices the
 	// propose-result reader going blind.
 	inquiryRecords int
+	// inquiryChecks and inquiryCheckRefused are the runner's: the owner's admitted checks, and each
+	// refusal class of `inquiry check` driven and refused with its code.
+	inquiryChecks       int
+	inquiryCheckRefused map[string]int
 	// closingsFiled, closingsRefused, closingWaits and positionsWithheld are the runner's, as are
 	// positionsUpheldLens, positionsUpheldGaps and positionsOverruled, the bench's rulings on them.
 	closingsFiled, closingsRefused, closingWaits, positionsWithheld int
@@ -6551,8 +6566,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "pass_permitted oracle: the gate refused a PASS the plan permitted, and the blocker list could not be read to say whose blocker held it: " + r.passBlockersErr
 		return res
 	}
-	if r.inquiryRulingErr != "" {
-		res.err = "inquiry drive: an inquiry's ruling could not be read, so the drive could not tell a ruled line from an unruled one: " + r.inquiryRulingErr
+	if r.inquiryReadErr != "" {
+		res.err = "inquiry drive: the inquiries' judged states could not be read, so the drive could not tell an open or unchecked inquiry from a sound one: " + r.inquiryReadErr
 		return res
 	}
 	if r.inquiryIDErr != "" {
@@ -7100,14 +7115,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 	}
 
-	// A RULING HAS A CONSEQUENCE, AND A CONTEST IS VISIBLE AS ONE.
-	//
-	// Red's ruling and the inquiry's fate are both on the record, and without a join blue taking up
-	// an inquiry red called out-of-scope would look exactly like taking up one red endorsed. A
-	// ruling is an ARGUMENT, not a command: it binds no fate, and what blue does about one it
-	// disagrees with is the fate it records. The oracle joins the two — the ruling the view states
-	// and the status the fold reads — against the fate each inquiry was proposed to take.
-	if msg := inquiryRulingOracle(oracleRun, board); msg != "" {
+	// NO PASS OVER AN INQUIRY THAT IS NOT SOUND: settled, checked since its latest fate and since
+	// every gap about it that was material at its mint, and no material gap about it open. Read off
+	// the record's own tables, independently of the fold the gate reads.
+	if msg := inquirySoundOracle(oracleRun, res.verdict); msg != "" {
 		res.err = msg
 		return res
 	}
@@ -7279,6 +7290,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = r.anchorOfferErr
 	}
 	res.inquiryRecords = r.inquiryRecords
+	res.inquiryChecks = r.inquiryChecks
+	res.inquiryCheckRefused = maps.Clone(r.inquiryCheckRefused)
 	res.closingsFiled, res.closingsRefused, res.closingWaits, res.positionsWithheld = r.closingsFiled, r.closingsRefused, r.closingWaits, r.positionsWithheld
 	res.positionsUpheldLens, res.positionsUpheldGaps, res.positionsOverruled = r.positionsUpheldLens, r.positionsUpheldGaps, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
@@ -7423,36 +7436,65 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	return res
 }
 
-// inquiryRulingOracle holds every ruled inquiry to its consequence, and returns the first breach
-// or "". It joins two independent reads: the Go fold's inquiries (status, question) and the record's
-// own inquiry_state view (the ruling), through record.InquiryRuling.
+// inquirySoundOracle holds a VERIFIED run to every inquiry being sound, and returns the first breach
+// or "". Sound is: its latest fate settles it (neither `proposed` nor `underway`), a check is
+// recorded later than that fate and than every gap about it that was material at its mint, and no
+// material gap about it is open.
 //
-// A RULING IT CANNOT READ IS A BREACH, NOT AN UNRULED INQUIRY. "" from InquiryRuling means red has
-// not ruled, and that inquiry has nothing to check; an error means the check did not happen, and
-// passing over it would report an unaudited inquiry as a clean one.
-func inquiryRulingOracle(run record.Run, board record.Family) string {
-	for _, a := range record.InquiriesOf(board.Events, board.At) {
-		ruling, err := record.InquiryRuling(run, a.ID)
-		if err != nil {
-			return "inquiry " + a.ID + ": its ruling could not be read, so whether the ruling had its consequence is unchecked: " + err.Error()
-		}
-		if ruling == "" || a.Status == "proposed" {
-			continue // never ruled, or blue has not answered yet
+// IT READS THE RECORD'S TABLES AND VIEWS, NOT THE FOLD THE GATE READS. inquiry_state gives the latest
+// fate's place (status_seq) and the latest check's (check_seq); the gap view gives each gap about
+// the inquiry, whether it is open and material now; gap_grade's row that begins at the mint gives
+// whether it was material at its mint. record.InquiryJudgements is the code under test, so an oracle
+// that asked it would agree with whatever it got wrong.
+//
+// A RECORD IT CANNOT READ IS A BREACH: passing over it would report an unchecked inquiry as sound.
+// Any other verdict holds no inquiry to anything — a run that could not get its inquiries sound ends
+// CEILING, which the verdict oracle reads.
+func inquirySoundOracle(run record.Run, verdict string) string {
+	if verdict != "VERIFIED" {
+		return ""
+	}
+	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
+	if err != nil {
+		return "inquiry oracle: the record could not be opened, so whether every inquiry is sound is unchecked: " + err.Error()
+	}
+	rows, err := db.Query(`
+SELECT s."inquiry_id", s."status", s."status_seq", s."check_seq",
+       (SELECT MAX(g."minted_seq") FROM "gap" g
+          JOIN "gap_grade" gg ON gg."minted_event" = g."minted_event" AND gg."from_seq" = g."minted_event"
+          WHERE g."about_kind" = 'inquiry' AND g."about_ref" = s."inquiry_id" AND gg."material"),
+       (SELECT count(*) FROM "gap" g
+          WHERE g."about_kind" = 'inquiry' AND g."about_ref" = s."inquiry_id" AND g."open" AND g."material")
+FROM "inquiry_state" s
+ORDER BY s."proposed_seq"`)
+	if err != nil {
+		return "inquiry oracle: inquiry_state and the gaps about each inquiry could not be read, so whether every inquiry is sound is unchecked: " + err.Error()
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			id, status                       string
+			statusSeq, checkSeq, materialMnt sql.NullInt64
+			wanting                          int
+		)
+		if err := rows.Scan(&id, &status, &statusSeq, &checkSeq, &materialMnt, &wanting); err != nil {
+			return "inquiry oracle: a row of inquiry_state could not be read: " + err.Error()
 		}
 		switch {
-		case strings.HasPrefix(a.Question, avContest):
-			if a.Status != "underway" {
-				return "inquiry " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
-			}
-		case ruling == "endorsed":
-			if a.Status != "underway" {
-				return "inquiry " + a.ID + " was ENDORSED and ended " + a.Status + " — a ruling with no consequence"
-			}
-		default:
-			if a.Status == "underway" {
-				return "inquiry " + a.ID + " was ruled " + ruling + " and underway anyway, on a line the drive declines"
-			}
+		case status == "proposed" || status == "underway":
+			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with inquiry %s %s — a fate that settles nothing", id, status)
+		case wanting > 0:
+			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with %d material gap(s) about inquiry %s open", wanting, id)
+		case !checkSeq.Valid:
+			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with inquiry %s settled at %q and never checked", id, status)
+		case checkSeq.Int64 <= statusSeq.Int64:
+			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with inquiry %s's latest check (event %d) before its latest fate (event %d)", id, checkSeq.Int64, statusSeq.Int64)
+		case materialMnt.Valid && checkSeq.Int64 <= materialMnt.Int64:
+			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with inquiry %s's latest check (event %d) before a gap about it material at its mint (event %d)", id, checkSeq.Int64, materialMnt.Int64)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return "inquiry oracle: inquiry_state could not be read to its end: " + err.Error()
 	}
 	return ""
 }
@@ -7532,7 +7574,7 @@ var verbsWithEvents = []string{
 	// call returning a seat's envelope succeed, and by the sweep at a dispatch's return.
 	"envelope_admitted",
 	// The remaining schema types, named so the census below has a complete list to check against.
-	"closing", "inquiry_review", "register",
+	"closing", "inquiry_check", "register",
 	// The cast and the dispatch (plans/roundless.md §III.B.1). `cast` is written by setup, before
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep. `plan`
@@ -7666,13 +7708,8 @@ var dialecticProseKey = map[string]string{
 	// reader got the bench's ruling with no question attached.
 	// The board.
 	"mint": "problem", "finding": "text", "regrade": "basis",
-	// Inquiries: the question, red's ruling on it, and blue's reason for its fate.
+	// Inquiries: the question, and blue's reason for its fate.
 	"inquiry": "question",
-	// Red's per-round verdict that the REPORT still carries the inquiry. It renders ON THE
-	// INQUIRY'S OWN ROW in the three research areas rather than in a section of its own, because the claim it
-	// answers ("we pursued X") lives there and a verdict a reader has to go and find is a verdict
-	// most readers do not find. `reason` is what red read at that inquiry — the quoted text, not the
-	// grade, which is the half a reader can check.
 
 	// The lens's below-the-bar work and the fate the chair gave it.
 	// Substance leaving the report, on the record, with its reason.
@@ -7723,16 +7760,14 @@ var reportExemptions = map[string]string{
 	"cite":        "resolved rather than rendered — the anchor becomes a visible [^N] with its note, and the source a ## Bibliography line (weaveCitations)",
 	"computation": "resolved rather than rendered — weaveComputations splices the computation at its anchor",
 	"close":       "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
-	// The review of the report against the inquiries on the record. Its READER IS A GATE, not the
-	// document: record.InquiryReviewDueOf asks whether a review is recorded since the report or an
-	// inquiry last changed, and the PASS is refused until it is. Rendering it in the report would put a process check
-	// where the debate goes — the review says "I read the report against the record", and what
-	// a reader wants is the outcome of that reading, which arrives as an ordinary GAP when the
-	// treatment falls short. Named here rather than left silent, because the gate is right that
-	// an unclassified event type is how a report loses a whole exchange.
-	"inquiry_review": "read by record.InquiryReviewDueOf as a PASS gate owed when the report or an inquiry changes, not rendered: a shortfall the review finds is minted as an ordinary gap, which is what reaches the reader",
-	"outcome":        "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":        "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	// The logic lens's judgement that a settled inquiry is sound. Its READER IS A GATE: the
+	// unchecked_inquiry blocker holds the PASS until a check stands, and a check stands only while
+	// no fate or material gap about the inquiry has moved since — so a check a later fate left stale
+	// is on the record and printed nowhere. The standing check prints on the inquiry's row
+	// (view.go); a shortfall reaches the reader as an ordinary gap about the inquiry.
+	"inquiry_check": "read by record.InquiryJudgements as the unchecked_inquiry PASS gate; the standing check prints on the inquiry's row, a stale one nowhere, and a shortfall the lens finds is minted as an ordinary gap about the inquiry, which is what reaches the reader",
+	"outcome":       "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":       "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
@@ -8314,98 +8349,202 @@ func (r *runner) anchorsLeftFor(claim string) (id string, left bool) {
 	return "", false
 }
 
-// inquiryFates are the scenarios an inquiry is proposed under. The question itself carries it, the
-// way a gap's required_fix does — red rules from it, and the fate blue records next answers the ruling.
-const (
-	avEndorse = "FUZZ-INQUIRY-ENDORSE: a line worth the run's time"
-	avScope   = "FUZZ-INQUIRY-OUT-OF-SCOPE: a real question, but not this run's"
-	avThin    = "FUZZ-INQUIRY-TOO-THIN: in scope, but the hypothesis does not carry its budget"
-	// avContest is the contest: red rules the inquiry out, and blue PURSUES IT ANYWAY with an
-	// argument. A ruling is an argument, never a command, and disputes are gap-shaped, so the
-	// fate blue records is itself the contest, and it is recorded as one.
-	avContest = "FUZZ-INQUIRY-CONTESTED: red rules it out and blue pursues it anyway, with reasons"
-)
+// settlingFates are the fates that settle an inquiry: an approach that ran and answered it, one
+// that gave no answer, and one weighed and not run. `proposed` and `underway` settle nothing.
+var settlingFates = []string{"confirmed", "refuted", "abandoned", "declined", "deferred"}
 
-var inquiryFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
-
-// rulingFor maps a proposed question to the ruling red should give it.
-//
-// UNDERSCORES: these are the schema's words, the ones `motion inquiry rule --as` accepts and
-// record.InquiryRuling answers with. A hyphenated word is refused at the write, the drive discards
-// the refusal, and everything below a ruling starves with it — blue answers a ruling only once
-// the inquiry is ruled.
-func rulingFor(line string) string {
-	switch {
-	case strings.HasPrefix(line, avEndorse):
-		return "endorsed"
-	case strings.HasPrefix(line, avScope):
-		return "out_of_scope"
-	case strings.HasPrefix(line, avThin):
-		return "too_thin"
-	case strings.HasPrefix(line, avContest):
-		return "out_of_scope"
-	}
-	return ""
-}
-
-// ruleOpenInquiries has red rule every inquiry that has no ruling yet, from the question it carries.
-func (r *runner) ruleOpenInquiries(seatID string) {
-	b, err := record.FamilyOf(r.run())
-	if err != nil {
-		return
-	}
-	for _, a := range record.InquiriesOf(b.Events, b.At) {
-		if rulingFor(a.Question) == "" {
-			continue
-		}
-		if ruling, ok := r.inquiryRuling(a.ID); !ok || ruling != "" {
-			continue
-		}
-		r.admit("motion", "inquiry", "rule", "--seat-id", seatID, "--id", a.ID,
-			"--as", rulingFor(a.Question), "--reason", "fuzz: ruling as the line was proposed")
-	}
-}
-
-// inquiryRuling is the drive's read of red's ruling on an inquiry: record.InquiryRuling, with a read
-// that fails kept on the runner so runOne fails the run on it. ok is false for that read, and the
-// caller leaves the inquiry alone — it knows neither that the inquiry is ruled nor that it is not.
-func (r *runner) inquiryRuling(inquiryID string) (ruling string, ok bool) {
-	ruling, err := record.InquiryRuling(r.run(), inquiryID)
+// inquiryJudgements is the drive's read of every inquiry's judged state: record.InquiryJudgements,
+// with a read that fails kept on the runner so runOne fails the run on it. ok is false for that
+// read, and the caller leaves every inquiry alone — it knows neither what is open nor what is owed.
+func (r *runner) inquiryJudgements() ([]record.InquiryJudgement, bool) {
+	js, err := record.InquiryJudgements(r.run())
 	if err != nil {
 		r.mu.Lock()
-		if r.inquiryRulingErr == "" {
-			r.inquiryRulingErr = err.Error()
+		if r.inquiryReadErr == "" {
+			r.inquiryReadErr = err.Error()
 		}
 		r.mu.Unlock()
-		return "", false
+		return nil, false
 	}
-	return ruling, true
+	return js, true
 }
 
-// answerInquiryRulings is blue's answer after red has ruled: comply, or CONTEST by pursuing
-// anyway with an argument. Which one is decided by the question, not by a coin.
-func (r *runner) answerInquiryRulings(seatID string) {
-	b, err := record.FamilyOf(r.run())
-	if err != nil {
+// settleOpenInquiries is blue's fate on every open inquiry, one per inquiry per sitting: each is a
+// blocking item on its work list, and the PASS waits on a fate that settles it. One time in five
+// the research goes on and `underway` is recorded again with what was learned; a forced run settles
+// every one, since an inquiry left open holds the PASS its verdict drives.
+//
+// A SOUND INQUIRY IS SOMETIMES GIVEN A NEW FATE, which leaves its check stale: the logic lens owes
+// it again, and the oracle's "check later than the latest fate" is then a claim a run can break.
+func (r *runner) settleOpenInquiries(seatID string) {
+	js, ok := r.inquiryJudgements()
+	if !ok {
 		return
 	}
-	for _, a := range record.InquiriesOf(b.Events, b.At) {
-		ruling, ok := r.inquiryRuling(a.ID)
-		if !ok || ruling == "" || a.Status != "proposed" {
-			continue
-		}
+	// THE FORCED UNSOUND CHAIN SETTLES EVERY ONE: its owner judges the forced computation only in a
+	// sitting whose plan does not ready blue-respond (judgeUnsound), and an open inquiry readies
+	// blue-respond on every plan. A reaffirmed `underway` there left every plan of seed 6 readying blue,
+	// and the chain never reached its judgement.
+	keepOpen := !r.forcedVerdict() && !r.forceUnsoundComputation
+	for _, j := range js {
 		switch {
-		case strings.HasPrefix(a.Question, avContest):
-			// THE CONTEST IS THE FATE RECORDED: the ruling binds none, so blue takes the inquiry up against it.
-			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "underway").
-				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").admit()
-		case ruling == "endorsed":
-			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "underway").
-				set("--reason", "fuzz: endorsed, taking it up").admit()
-		default:
-			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "declined").
-				set("--reason", "fuzz: accepting the ruling").admit()
+		case j.Open() && keepOpen && r.coin(20):
+			r.do("inquiry record", seatID).set("--id", j.ID).set("--as", "underway").
+				set("--reason", "fuzz: the research goes on; what this sitting learned narrows it").admit()
+		case j.Open():
+			r.do("inquiry record", seatID).set("--id", j.ID).set("--as", pick(r.rng, settlingFates)).
+				set("--reason", "fuzz: what the approach found, or why it stops here").
+				on(50, "--method", "fuzz-method").admit()
+		case j.State() == record.InquirySound && !r.forcedVerdict() && r.coin(10):
+			r.do("inquiry record", seatID).set("--id", j.ID).set("--as", pick(r.rng, settlingFates)).
+				set("--reason", "fuzz: a later reading changes what the fate says").admit()
 		}
+	}
+}
+
+// The refusal classes of `inquiry check` the drive holds the tool to, each with the code its refusal
+// carries. An empty reason is the schema's required-field refusal, coded missing_field.
+const (
+	checkNonOwner    = "non_owner"
+	checkEmptyReason = "empty_reason"
+	checkWanting     = "wanting"
+	checkOpen        = "open"
+	checkStands      = "already_stands"
+)
+
+// inquiryCheckClasses is every refusal class with its code, in the order the sweep reports them.
+var inquiryCheckClasses = []struct {
+	class string
+	code  feov.Code
+}{
+	{checkNonOwner, feov.RoleViolation},
+	{checkEmptyReason, feov.MissingField},
+	{checkWanting, feov.Conflict},
+	{checkOpen, feov.Conflict},
+	{checkStands, feov.Conflict},
+}
+
+// inquiryCheckCode is the code a refusal class carries.
+func inquiryCheckCode(class string) feov.Code {
+	for _, c := range inquiryCheckClasses {
+		if c.class == class {
+			return c.code
+		}
+	}
+	panic("inquiryCheckCode: no refusal class " + class)
+}
+
+// checkInquiries is a red lens's part in an inquiry's judgement. The OWNER (record.InquiryOwner)
+// checks every settled inquiry no check stands on and no material gap is about — the blocking item
+// its work list carries for each — and drives each refusal class once a run on the inquiry in that
+// state. Any other lens drives the owner's refusal once a run: its finding or gap about an inquiry
+// is its say, and the check is not.
+//
+// AN INQUIRY WHOSE FATE LANDED AFTER THE OWNER'S SITTING OPENED IS LEFT for the sitting the owner is
+// readied for next: the check would judge the fate as it stood before, and the tool refuses it.
+func (r *runner) checkInquiries(seatID string) {
+	js, ok := r.inquiryJudgements()
+	if !ok || len(js) == 0 {
+		return
+	}
+	if seatID != record.InquiryOwner() {
+		r.checkRefused(checkNonOwner, seatID, js[r.rng.Intn(len(js))].ID, "fuzz: this lens reads the inquiry as sound")
+		return
+	}
+	b, ok := r.board()
+	if !ok {
+		return
+	}
+	sitting := b.At.LatestSittingOf(seatID)
+	for _, j := range js {
+		switch j.State() {
+		case record.InquiryOpen:
+			r.checkRefused(checkOpen, seatID, j.ID, "fuzz: judged before blue settled it")
+		case record.InquiryWanting:
+			r.checkRefused(checkWanting, seatID, j.ID, "fuzz: judged while a material gap about it is open")
+		case record.InquirySound:
+			r.checkRefused(checkStands, seatID, j.ID, "fuzz: judged again, with another reason")
+		case record.InquiryUnchecked:
+			if j.Fate > sitting {
+				continue
+			}
+			r.checkRefused(checkEmptyReason, seatID, j.ID, "")
+			args := []string{"inquiry", "check", "--seat-id", seatID, "--id", j.ID,
+				"--reason", "fuzz: its fate is the report's account of the research it names"}
+			out, err := r.exec(args...)
+			if err == nil {
+				r.mu.Lock()
+				r.inquiryChecks++
+				r.mu.Unlock()
+				continue
+			}
+			// A FATE OR A MINT ABOUT IT LANDED BESIDE THE CHECK, from a seat sitting alongside: the
+			// refusal is the record's answer to a judgement of what no longer stands. Any other
+			// refusal fails the run.
+			if now, ok := r.inquiryJudgement(j.ID); ok && (now.Fate != j.Fate || now.State() != record.InquiryUnchecked) {
+				noteEither(args, "the inquiry moved under the owner's check", false)
+				continue
+			}
+			r.noteActErr("refused, and the drive expects it admitted: " + firstLine(out) + ": " + err.Error())
+		}
+	}
+}
+
+// inquiryJudgement is one inquiry's judgement as the record now reads it.
+func (r *runner) inquiryJudgement(id string) (record.InquiryJudgement, bool) {
+	js, ok := r.inquiryJudgements()
+	if !ok {
+		return record.InquiryJudgement{}, false
+	}
+	for _, j := range js {
+		if j.ID == id {
+			return j, true
+		}
+	}
+	return record.InquiryJudgement{}, false
+}
+
+// checkRefused drives one refusal class of `inquiry check` on inquiry id, once a run, and holds the
+// tool to refusing it with the class's code.
+//
+// AN ADMISSION IS A DEFECT unless the inquiry moved out of the class's state between the read and
+// the check: blue settling an open one, or the minter closing the gap that made one wanting. The
+// re-read tells the two apart — an admission the record still shows the inquiry open or wanting
+// after is the tool admitting what it must refuse.
+func (r *runner) checkRefused(class, seatID, id, reason string) {
+	r.mu.Lock()
+	driven := r.inquiryCheckRefused[class] > 0
+	r.mu.Unlock()
+	if driven {
+		return
+	}
+	args := withJSON([]string{"inquiry", "check", "--seat-id", seatID, "--id", id, "--reason", reason})
+	out, err := r.exec(args...)
+	argv := strings.Join(args, " ")
+	if err == nil {
+		now, ok := r.inquiryJudgement(id)
+		moved := ok && (class == checkOpen && !now.Open() || class == checkWanting && len(now.Wanting) == 0)
+		if moved {
+			noteEither(args, "the inquiry left the "+class+" state under the check", true)
+			return
+		}
+		r.noteActErr(argv + ": admitted, and the drive drives it to be refused (" + class + "): " + firstLine(out))
+		return
+	}
+	code := inquiryCheckCode(class)
+	env, ok := refusalEnvelopeIn(out)
+	switch {
+	case !ok:
+		r.noteActErr(argv + ": refused under --json with no refusal envelope: " + firstLine(out))
+	case env.Code != string(code):
+		r.noteActErr(fmt.Sprintf("%s: refused with code %q, and the %s check is refused as %q: %s", argv, env.Code, class, code, firstLine(env.Error)))
+	default:
+		r.mu.Lock()
+		if r.inquiryCheckRefused == nil {
+			r.inquiryCheckRefused = map[string]int{}
+		}
+		r.inquiryCheckRefused[class]++
+		r.mu.Unlock()
 	}
 }
 
@@ -9141,7 +9280,8 @@ func (r *runner) envelopeRefusedEarly(seatID, standing string) {
 //
 // AN ENVELOPE THE RECORD REFUSES IS ANSWERED AND OFFERED AGAIN, as the hook makes a live seat do:
 // another seat's act can land after the drive's last pass — blue's cite or computation while the anchor's
-// owner sits is that sitting's to check — so a lens clears what it now owes and offers the envelope
+// owner sits is that sitting's to check, a sibling lens's close of the gap that held an inquiry wanting
+// the inquiry owner's — so a lens clears what it now owes and offers the envelope
 // again, at most four times, as a parallel blue can place more than once. The check that decides is
 // the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) bool {
@@ -9150,6 +9290,9 @@ func (r *runner) envelopeEnds(seatID string) bool {
 		r.answerContradictions(seatID)
 		r.dischargeOwed(seatID)
 		r.answerFailed(seatID)
+		// AN INQUIRY A SIBLING'S ACT LEFT UNCHECKED: a lens sitting alongside closed or regraded the gap
+		// that held it wanting after the owner's pass, and the owner's list now offers its check.
+		r.checkInquiries(seatID)
 		refusal, err = record.EnvelopeRefusal(r.run(), seatID)
 	}
 	switch {

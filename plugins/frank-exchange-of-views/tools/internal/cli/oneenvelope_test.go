@@ -149,7 +149,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			verb: "", path: "", role: "chair", code: "missing_field", teaches: true, logged: true},
 		{kind: "another seat's command", seat: lens, args: []string{"edit", "--quote", "q"},
 			verb: "", path: "", role: "lens", code: "role_violation", teaches: true, logged: true},
-		{kind: "another seat's act under a group", seat: blue, args: []string{"inquiry", "review", "--id", "A1"},
+		{kind: "another seat's act under a group", seat: blue, args: []string{"inquiry", "check", "--id", "A1"},
 			verb: "inquiry", path: "inquiry", role: "blue", code: "role_violation", teaches: true, logged: true},
 		{kind: "no such act under a group", seat: blue, args: []string{"inquiry", "nonesuch"},
 			verb: "inquiry", path: "inquiry", role: "blue", code: "validation", teaches: true, logged: true},

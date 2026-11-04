@@ -41,7 +41,7 @@ import (
 // The ternary's close is `'feov-record'}`, and the anchor is that, not a bare `}`: a bare brace
 // also ends `${epoch}`, and "after ${epoch} chair sitting(s)" is prose, not an invocation.
 // A SEAT VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts were split into
-// subgroups — `blue inquiry propose`, `chair inquiry review` — so a pattern taking exactly one
+// subgroups — `blue inquiry propose`, `lens inquiry check` — so a pattern taking exactly one
 // word after the role reads `blue inquiry propose` as the GROUP `blue inquiry`,
 // which is not an invocable path. The forward gate then reports a verb the prompt names correctly
 // as missing, and the inverse gate reports both real verbs as named nowhere. Two words are
@@ -85,7 +85,7 @@ func promptPath(m []string, real map[string]bool) string {
 //
 // THE BOUNDARY IS LOOSER HERE ON PURPOSE, and the looseness is the honest trade. Prompts write
 // motions both with the binary in front (`"${binDir}/feov-record" motion grade rule --id …`) and
-// without it (`"motion inquiry rule --id <Q1>"`), so anchoring on the binary would have covered
+// without it (`"motion grade rule --id <M1>"`), so anchoring on the binary would have covered
 // 3 of 7 while reporting on all seven — a gate silently measuring less than it claims, which is the
 // defect this file keeps finding. `motion <subject> <verb>` is specific enough that ordinary prose
 // does not hit it.
@@ -127,7 +127,7 @@ var promptMotion = regexp.MustCompile(
 // So: the role-less form of every real command path, generated from the tree. ONE-WORD paths are
 // excluded — `mint`, `close`, `edit`, `verify`, `log` are ordinary English and matching them
 // bare would fire on prose describing the act, which is the register the prompts are supposed to
-// be written in. Two-or-more-word paths (`show board`, `inquiry review`, `inquiry propose`) are
+// be written in. Two-or-more-word paths (`show board`, `inquiry check`, `inquiry propose`) are
 // not English; they are invocations with the role filed off.
 func promptRolelessPaths(real map[string]bool) *regexp.Regexp {
 	seen := map[string]bool{}

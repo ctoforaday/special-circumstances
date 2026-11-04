@@ -111,14 +111,14 @@ var (
 		Finding.about_ref Anchor.id Cite.label Verify.anchor Verify.label Computation.computation_id
 		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
-		DocketMotion.grounds InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
+		DocketMotion.grounds InquiryCheck.inquiry_id MotionRule.motion_id Dispatch.gap_ids
 		Declare.gap_ids Close.anchors Stale.gap_id
 		Position.position_id PositionMotion.position_id PositionHearing.gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis SpotCheck.reason Finding.text Cite.text
 		Verify.text Computation.text Computation.drift Computation.invariant Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
-		Inquiry.reason InquiryReview.reason BlueEdit.text Retire.reason ManifestRow.row
+		Inquiry.reason InquiryCheck.reason BlueEdit.text Retire.reason ManifestRow.row
 		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
 		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction PositionHearing.direction MotionRule.opinion MotionRule.relief
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion

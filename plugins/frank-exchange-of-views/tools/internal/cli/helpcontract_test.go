@@ -229,7 +229,7 @@ func seatHolding(path ...string) string {
 
 // cmdAt resolves a command PATH rather than a top-level name.
 //
-// `motion` is on all four seat trees and `motion inquiry rule` is on the chair's alone — only the
+// `motion` is on all four seat trees and each `rule` under it is on its ruler's alone — only the
 // gavel-holder gets the verb — so a lookup that stopped at the first word answered "lens" and the
 // caller then invoked a verb that seat cannot name. That reads as the check being absent when it is
 // the fixture that is in the wrong tree.

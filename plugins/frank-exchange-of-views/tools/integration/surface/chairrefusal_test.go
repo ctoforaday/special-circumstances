@@ -24,9 +24,8 @@ import (
 // a lens. The chair could only log the request or work around it, and a refusal is the moment a seat
 // is most likely to do as it is told.
 //
-// IT READS THE RENDERED REFUSAL over a real converged board — once bare, and once with the chair's
-// own item (the inquiry review) folded into it, since that item's work-list line is spliced in — and
-// asks the chair's real command tree. Two matchers:
+// IT READS THE RENDERED REFUSAL over a real converged board and asks the chair's real command tree.
+// Two matchers:
 //   - every backticked act resolves on the chair's tree (a `--flag` resolves on `verdict`, the verb
 //     refused), and at least two do, so a reworded refusal that names nothing fails here instead of
 //     passing empty;
@@ -73,10 +72,6 @@ func TestTheConvergenceRefusalNamesOnlyTheChairsActs(t *testing.T) {
 		add  func(b *board)
 	}{
 		{"converged, nothing else", func(*board) {}},
-		{"converged, the chair's own inquiry review owed", func(b *board) {
-			b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("an inquiry")})
-		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := convergedBoard(t)

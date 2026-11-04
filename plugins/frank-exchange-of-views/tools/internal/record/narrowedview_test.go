@@ -35,7 +35,7 @@ import (
 // of the report (evidence), a mint crediting a finding
 // (findings), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
 // spot-check is read against (debate), a check backing an open gap's
-// anchor (board), and a ruled inquiry (motions).
+// anchor (board).
 func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 	dir := newRun(t)
 	str := proto.String
@@ -84,11 +84,6 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: str("A-0000000b"), Text: str("red's position")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: str("blue's position")}),
 		recordtest.Event(t, "red-chair", &recordpb.Closing{GapId: str("G1"), Text: str("red closes on G1")}),
-		recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: str("Q1"),
-			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: str("a question")}),
-		// The chair rules the inquiry, which makes it an inquiry motion.
-		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1", &recordpb.MotionRule{MotionId: str("Q1"), Opinion: str("worth the run's time"),
-			Ruling: &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}}),
 		recordtest.Event(t, "red-chair", &recordpb.Log{Text: str("no verb renders a gap's lineage in one read"),
 			Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		// A second regrade, position, log and computation, each its seat's own act.
