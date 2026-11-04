@@ -6,6 +6,8 @@ name: embed-bench
 on:
   push:
     branches: [bench/embed-engines]
+    # The ortstatic probe shares this branch; its pushes run its own workflow, not this benchmark.
+    paths-ignore: ["bench/ortstatic/**", ".github/workflows/ortstatic.yml"]
   workflow_dispatch:
 
 permissions:
