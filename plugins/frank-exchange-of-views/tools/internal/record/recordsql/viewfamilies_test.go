@@ -37,8 +37,9 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 	mintRow(t, db, 0, "G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
 	mintRow(t, db, 1, "G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "G1")
 	mintRow(t, db, 2, "G3", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
-	// Two regrades on G1: impact moves twice (the LATEST wins), severity never touched
-	// (the mint's answer stands — here the mint carried none, so NULL stands).
+	// Two regrades on G1: impact moves twice (the LATEST wins), likelihood never touched (the
+	// mint's stands). Insert stamps each with its result grades (stampRegradeResult), which the view
+	// reads.
 	for i, g := range []recordpb.Grade{recordpb.Grade_GRADE_HIGH, recordpb.Grade_GRADE_LOW} {
 		if _, err := Insert(db, event(t, int32(3+i), recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{
 			GapId: proto.String("G1"), Impact: g.Enum(), Basis: proto.String("moved")})); err != nil {

@@ -64,7 +64,7 @@ func TestAColumnNoReaderReadIsNotCarried(t *testing.T) {
 // lose it. It also fails on a migrated record holding a different number of verifications, cites,
 // sitting ends or limits than its source, or a different number of corroborations than the source's
 // independent rows and its readings of a citation a labelled corroboration placed (each comes forward
-// as a reading of the label's source, EventSchema 56), and on an archive set holding no independent
+// as a reading of the label's source, EventSchema 57), and on an archive set holding no independent
 // row at all, which would leave the translation tested by nothing.
 func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing.T) {
 	independent := 0

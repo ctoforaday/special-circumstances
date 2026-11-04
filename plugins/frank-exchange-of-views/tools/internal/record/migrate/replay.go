@@ -126,7 +126,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 
 	evs, res.Serialized = serializeInstances(evs)
 	rm := newRemap(res.SourceHash)
-	// A LABELLED CORROBORATION'S CITATION IS DROPPED (EventSchema 56): no reading places a citation.
+	// A LABELLED CORROBORATION'S CITATION IS DROPPED (EventSchema 57): no reading places a citation.
 	// Its label leaves every field (remap.dropped) and the Anchor that placed it is written as no
 	// event; a reading that named it comes forward as a reading of the label's source. The labels and
 	// their sources are read off the SOURCE stream: the migrated Verify has no label to be found by.
@@ -439,7 +439,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 					continue
 				}
 			}
-			// A RAISE IS WRITTEN AS NO EVENT (EventSchema 56): a finding about a reading that found
+			// A RAISE IS WRITTEN AS NO EVENT (EventSchema 57): a finding about a reading that found
 			// against its sentence — decoded as about an anchor, its ref a reading's events.id rather
 			// than an anchor id — has no place in a record where that reading's gap is minted in its
 			// own act. The ref must name a reading the replay wrote, or the finding is refused: nothing

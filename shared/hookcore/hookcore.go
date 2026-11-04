@@ -118,6 +118,12 @@ func CanonicalToolName(raw string) string {
 
 // DetectEngine sniffs the harness environment from environment variables and payload signatures.
 func DetectEngine(raw []byte) Engine {
+	if override := os.Getenv("HOOKCORE_ENGINE"); override != "" {
+		if override == string(EngineAntigravity) {
+			return EngineAntigravity
+		}
+		return EngineClaude
+	}
 	if len(raw) > 0 {
 		var probe map[string]any
 		if err := json.Unmarshal(raw, &probe); err == nil {
@@ -175,11 +181,6 @@ func DetectEngine(raw []byte) Engine {
 			bytes.Contains(raw, []byte(`"hook_event_name"`)) {
 			return EngineClaude
 		}
-	}
-	if os.Getenv("ANTIGRAVITY_CONVERSATION_ID") != "" {
-		return EngineAntigravity
-	}
-	if os.Getenv("CLAUDE_PLUGIN_ROOT") != "" || os.Getenv("CLAUDE_PROJECT_DIR") != "" || os.Getenv("CLAUDECODE") != "" {
 		return EngineClaude
 	}
 	return EngineClaude

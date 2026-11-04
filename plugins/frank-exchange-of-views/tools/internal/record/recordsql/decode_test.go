@@ -123,6 +123,12 @@ func maxArms(md protoreflect.MessageDescriptor) int {
 // written event itself: the write path stores what Has reports, NULL for the rest, and a decode that
 // matches it returns exactly what was written — set-to-zero as set, unset as unset, lists in order.
 //
+// THE ORACLE IS THE EVENT AFTER THE INSERT, because InsertTx stamps a regrade's result grades onto
+// the body it writes (stampRegradeResult), overwriting the fixture's: the event Insert was handed is
+// the event the record holds. A fixture regrade names no minted gap, so its results are stamped
+// absent here; TestARegradeIsStampedWithTheComputedGradesOverWhatItCarries reads populated ones back
+// through the same decode.
+//
 // The fixtures are not valid acts — every field at once, references to rows that do not exist — so
 // the connection writes them with CHECK and foreign-key enforcement off. This tests the decode; the
 // constraints have tests of their own.

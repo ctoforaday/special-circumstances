@@ -27,7 +27,7 @@ var valueRenames = map[protoreflect.FullName]map[string]string{
 		"proof": "anchor",
 		// A RAISE NAMES A READING BY ITS EVENT, never an anchor, and replay writes it as no event
 		// (raisedReading): decoded as a finding about an anchor, it is recognised by a ref that
-		// names no anchor (EventSchema 56).
+		// names no anchor (EventSchema 57).
 		"contradiction": "anchor"},
 	"feov.record.v1.InquiryStatus": {"pursued": "underway", "concluded": "confirmed"},
 	// A GAP'S CLASS: every archived slug the closed set merged, dropped or never had (gapclass.go).

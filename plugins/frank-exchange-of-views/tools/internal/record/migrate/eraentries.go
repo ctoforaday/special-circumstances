@@ -39,7 +39,15 @@ func eraEntries() Registry {
 		"position": positionEntry(mapped("position", ren{"reason": "text"}, nil, nil)),
 		"closing":  mapped("closing", ren{"reason": "text"}, nil, nil),
 		"certify":  mapped("certify", ren{"reason": "statement"}, nil, nil),
-		"regrade":  mapped("regrade", ren{"reason": "basis"}, nil, nil),
+		// A REGRADE'S RESULT GRADES ARE THE WRITE PATH'S, stamped as each regrade is replayed from the
+		// record being rebuilt (recordsql.stampRegradeResult); a source from epoch 56 holds them and a
+		// source before it does not, and neither is carried.
+		"regrade": mapped("regrade", ren{"reason": "basis"}, drops{
+			"result_severity":        regradeResultDrop,
+			"result_likelihood":      regradeResultDrop,
+			"result_impact":          regradeResultDrop,
+			"result_complexity_cost": regradeResultDrop,
+		}, nil),
 		// `ended` restated a fact the verdict carries (ceiling) or a judgement the record now
 		// makes per gap (deadlock); the field is reserved and the word is dropped on replay.
 		"outcome": mapped("outcome", ren{"reason": "prose"},
@@ -63,6 +71,9 @@ func eraEntries() Registry {
 		"motion_rule": {Translate: eraMotionRuleEntry},
 	}
 }
+
+// regradeResultDrop is why a regrade's stored result grades are not carried.
+const regradeResultDrop = "the write path stamps a regrade's result grades from the gap's grades before it and the axes it names, so the replay stamps them again"
 
 type (
 	ren   map[string]string
