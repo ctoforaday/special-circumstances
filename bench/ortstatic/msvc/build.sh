@@ -57,7 +57,7 @@ DUMPBIN=$(grep -i "/Host${ARCH,,}/${ARCH,,}/" "$OUT/dumpbin-all.txt" | sort -V |
 echo "$DUMPBIN" > "$OUT/dumpbin-path.txt"; echo "dumpbin: $DUMPBIN"
 # Which C runtime each archive asks for: /DEFAULTLIB:LIBCMT (static, /MT) vs MSVCRT (DLL, /MD).
 { while IFS= read -r l; do
-    d=$("$DUMPBIN" /nologo /directives "$l" 2>&1 | tr -d '\r' || true)
+    d=$("$DUMPBIN" -nologo -directives "$l" 2>&1 | tr -d '\r' || true)
     printf '%s libcmt=%s msvcrt=%s libcpmt=%s msvcprt=%s\n' "$(basename "$l")" \
       "$(grep -ciE 'DEFAULTLIB:"?LIBCMT' <<<"$d")" "$(grep -ciE 'DEFAULTLIB:"?MSVCRT' <<<"$d")" \
       "$(grep -ciE 'DEFAULTLIB:"?LIBCPMT' <<<"$d")" "$(grep -ciE 'DEFAULTLIB:"?MSVCPRT' <<<"$d")"

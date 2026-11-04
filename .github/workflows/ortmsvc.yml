@@ -60,6 +60,7 @@ jobs:
         if: always()
         run: |
           set +e +o pipefail
+          # dumpbin options are spelled -opt: Git Bash rewrites a lone /word argument into a path.
           O=$RUNNER_TEMP/out; E=$O/embed-probe.exe; D=$(cat "$O/dumpbin-path.txt")
           { echo "== dumpbin $D"; echo "== size"; wc -c < "$E"
             echo "== dumpbin /headers"; "$D" /nologo /headers "$E"; echo "dumpbin exit=$?"
