@@ -118,12 +118,6 @@ func CanonicalToolName(raw string) string {
 
 // DetectEngine sniffs the harness environment from environment variables and payload signatures.
 func DetectEngine(raw []byte) Engine {
-	if override := os.Getenv("HOOKCORE_ENGINE"); override != "" {
-		if override == string(EngineAntigravity) {
-			return EngineAntigravity
-		}
-		return EngineClaude
-	}
 	if len(raw) > 0 {
 		var probe map[string]any
 		if err := json.Unmarshal(raw, &probe); err == nil {
@@ -138,6 +132,18 @@ func DetectEngine(raw []byte) Engine {
 				return EngineAntigravity
 			}
 			if _, ok := probe["artifactDirectoryPath"]; ok {
+				return EngineAntigravity
+			}
+			if _, ok := probe["stepIdx"]; ok {
+				return EngineAntigravity
+			}
+			if _, ok := probe["invocationNum"]; ok {
+				return EngineAntigravity
+			}
+			if _, ok := probe["initialNumSteps"]; ok {
+				return EngineAntigravity
+			}
+			if _, ok := probe["parentConversationId"]; ok {
 				return EngineAntigravity
 			}
 
@@ -172,7 +178,8 @@ func DetectEngine(raw []byte) Engine {
 		}
 		if bytes.Contains(raw, []byte(`"conversationId"`)) ||
 			bytes.Contains(raw, []byte(`"workspacePaths"`)) ||
-			bytes.Contains(raw, []byte(`"toolCall"`)) {
+			bytes.Contains(raw, []byte(`"toolCall"`)) ||
+			bytes.Contains(raw, []byte(`"stepIdx"`)) {
 			return EngineAntigravity
 		}
 		if bytes.Contains(raw, []byte(`"tool_name"`)) ||
@@ -445,6 +452,14 @@ func Read(event string, stdin io.Reader) Request {
 	if cwd, ok := env["cwd"].(string); ok {
 		req.CWD = cwd
 		payloadCWD = cwd
+	} else if toolInputMap != nil {
+		if cwd, ok := toolInputMap["Cwd"].(string); ok && cwd != "" {
+			req.CWD = cwd
+			payloadCWD = cwd
+		} else if cwd, ok := toolInputMap["cwd"].(string); ok && cwd != "" {
+			req.CWD = cwd
+			payloadCWD = cwd
+		}
 	}
 	var workspacePaths []string
 	if wsp, ok := env["workspacePaths"].([]any); ok {

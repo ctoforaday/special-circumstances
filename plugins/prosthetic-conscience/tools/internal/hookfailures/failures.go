@@ -274,6 +274,12 @@ func Ensure(event string) (string, error) {
 	if root == "" {
 		return "", nil
 	}
+	if _, err := os.Stat(filepath.Join(root, "tools", "go.mod")); err == nil {
+		return "", nil
+	}
+	if _, err := os.Stat(filepath.Join(root, "..", "..", ".claude-plugin", "marketplace.json")); err == nil {
+		return "", nil
+	}
 	script := filepath.Join(root, "hooks", "fetch-bin.sh")
 	if _, err := os.Stat(script); err != nil {
 		return "", fmt.Errorf("the version check cannot run, so a stale binary would stay: %w", err)
@@ -289,10 +295,20 @@ func Ensure(event string) (string, error) {
 	var doc struct {
 		SystemMessage string `json:"systemMessage"`
 	}
-	if err := json.Unmarshal([]byte(line), &doc); err != nil {
-		return "", fmt.Errorf("fetch-bin.sh ensure %s printed %q, which is not the message document it speaks in", event, line)
+	if err := json.Unmarshal([]byte(line), &doc); err == nil && doc.SystemMessage != "" {
+		return doc.SystemMessage, nil
 	}
-	return doc.SystemMessage, nil
+	var agyDoc struct {
+		InjectSteps []struct {
+			SystemMessage struct {
+				SystemMessage string `json:"systemMessage"`
+			} `json:"systemMessage"`
+		} `json:"injectSteps"`
+	}
+	if err := json.Unmarshal([]byte(line), &agyDoc); err == nil && len(agyDoc.InjectSteps) > 0 {
+		return agyDoc.InjectSteps[0].SystemMessage.SystemMessage, nil
+	}
+	return "", fmt.Errorf("fetch-bin.sh ensure %s printed %q, which is not the message document it speaks in", event, line)
 }
 
 // JoinMessages is two messages as the one a response carries: either alone, or both, a blank line

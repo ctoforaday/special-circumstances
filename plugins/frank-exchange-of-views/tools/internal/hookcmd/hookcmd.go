@@ -35,12 +35,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"io"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -90,6 +91,12 @@ type Entry func(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) e
 // work list reaches it (#1122), and only SubagentStop must stay silent outright — an emission there
 // re-invokes the seat, nine firings measured.
 func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code int) {
+	for _, arg := range os.Args[1:] {
+		if arg == "-version" || arg == "--version" {
+			fmt.Fprintln(stdout, buildid.Line(bin))
+			return 0
+		}
+	}
 	rec := hookfailures.New("frank-exchange-of-views", bin, event, time.Now(), os.Stderr)
 	var buf bytes.Buffer
 	raw, _ := io.ReadAll(stdin)
@@ -388,22 +395,18 @@ func emitEnvelopeRead(stdout io.Writer, base, read json.RawMessage, rec *hookfai
 		return
 	}
 	updated[hookgate.EnvelopeReadField] = read
-	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
-		emit(stdout, map[string]any{
-			"decision":  "allow",
-			"reason":    "feov-record: the record's read is written by the hook, not typed by the seat",
-			"overwrite": updated,
-		})
-		return
+	var r hookcore.Request
+	if len(req) > 0 {
+		r = req[0]
 	}
-	emit(stdout, map[string]any{
-		"hookSpecificOutput": map[string]any{
-			"hookEventName":            "PreToolUse",
-			"permissionDecision":       "allow",
-			"permissionDecisionReason": "feov-record: the record's read is written by the hook, not typed by the seat",
-			"updatedInput":             updated,
-		},
-	})
+	if r.Event == "" {
+		r.Event = "PreToolUse"
+	}
+	hookcore.Respond(r, hookcore.Response{
+		Decision:     hookcore.DecisionAllow,
+		Reason:       "feov-record: the record's read is written by the hook, not typed by the seat",
+		UpdatedInput: updated,
+	}, stdout, os.Stderr, nil)
 }
 
 // envelopeReadRefusal is the refusal of an envelope whose check against the record could not run,
@@ -447,39 +450,24 @@ func cwdOf(raw []byte) string {
 // fields (description, timeout, run_in_background) and dropping them would silently change how
 // the seat's command runs.
 func emitPreRewrite(stdout io.Writer, toolInput json.RawMessage, command string, req ...hookcore.Request) {
-	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
-		emit(stdout, map[string]any{
-			"decision": "allow",
-			"reason":   "feov-record: the run directory is injected by the engine, not typed by the seat",
-			"overwrite": map[string]any{
-				"CommandLine": command,
-			},
-		})
-		return
+	var r hookcore.Request
+	if len(req) > 0 {
+		r = req[0]
 	}
-	updated := map[string]any{}
-	if len(req) > 0 && len(req[0].RawToolInput) > 0 {
-		for k, v := range req[0].RawToolInput {
-			updated[k] = v
+	if r.Event == "" {
+		r.Event = "PreToolUse"
+	}
+	if len(r.RawToolInput) == 0 && len(toolInput) > 0 {
+		var m map[string]any
+		if err := json.Unmarshal(toolInput, &m); err == nil {
+			r.RawToolInput = m
 		}
-	} else if err := json.Unmarshal(toolInput, &updated); err != nil {
-		// SAYING NOTHING NAMES THE WRONG CAUSE. Without the injection the seat hits the "no run
-		// directory" refusal from a different layer entirely, and nobody learns the real reason.
-		// Declining to send a shape the client cannot use is right; `ask` IS a shape it can use.
-		emitPreAsk(stdout, fmt.Sprintf("feov-record: tool_input did not parse (%v), so the run "+
-			"directory could not be injected. Nothing is blocked — this is surfaced rather than "+
-			"swallowed, because the refusal you would otherwise hit names the wrong cause.", err), req...)
-		return
 	}
-	updated["command"] = command
-	emit(stdout, map[string]any{
-		"hookSpecificOutput": map[string]any{
-			"hookEventName":            "PreToolUse",
-			"permissionDecision":       "allow",
-			"permissionDecisionReason": "feov-record: the run directory is injected by the engine, not typed by the seat",
-			"updatedInput":             updated,
-		},
-	})
+	hookcore.Respond(r, hookcore.Response{
+		Decision:       hookcore.DecisionAllow,
+		Reason:         "feov-record: the run directory is injected by the engine, not typed by the seat",
+		UpdatedCommand: command,
+	}, stdout, os.Stderr, nil)
 }
 
 // emitPreAsk writes the PreToolUse ask document: hand the call to the human WITH THE REAL CAUSE.
@@ -493,43 +481,32 @@ func emitPreRewrite(stdout io.Writer, toolInput json.RawMessage, command string,
 // is the durable half. The reason string reaches the agent NOW; the log entry is what a
 // later reader finds. Neither replaces the other.
 func emitPreAsk(stdout io.Writer, reason string, req ...hookcore.Request) {
-	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
-		emit(stdout, map[string]any{
-			"decision": "ask",
-			"reason":   reason,
-		})
-		return
+	var r hookcore.Request
+	if len(req) > 0 {
+		r = req[0]
 	}
-	emit(stdout, map[string]any{
-		"hookSpecificOutput": map[string]any{
-			"hookEventName":            "PreToolUse",
-			"permissionDecision":       "ask",
-			"permissionDecisionReason": reason,
-		},
-	})
+	if r.Event == "" {
+		r.Event = "PreToolUse"
+	}
+	hookcore.Respond(r, hookcore.Response{
+		Decision: hookcore.DecisionAsk,
+		Reason:   reason,
+	}, stdout, os.Stderr, nil)
 }
 
 // emitPreDeny writes the PreToolUse deny document. `permissionDecisionReason` is carried back to
 // the model, so the seat reads what the shell would have run and the form that works, in the same
 // turn — a refusal that teaches rather than one the seat has to reverse-engineer.
 func emitPreDeny(stdout io.Writer, reason string, req ...hookcore.Request) {
-	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
-		emit(stdout, map[string]any{
-			"decision":    "deny",
-			"reason":      reason,
-			"deny_reason": reason,
-		})
-		return
+	var r hookcore.Request
+	if len(req) > 0 {
+		r = req[0]
 	}
-	emit(stdout, map[string]any{
-		"hookSpecificOutput": map[string]any{
-			"hookEventName":            "PreToolUse",
-			"permissionDecision":       "deny",
-			"permissionDecisionReason": reason,
-		},
-	})
-}
-
-func emit(stdout io.Writer, doc map[string]any) {
-	_ = json.NewEncoder(stdout).Encode(doc)
+	if r.Event == "" {
+		r.Event = "PreToolUse"
+	}
+	hookcore.Respond(r, hookcore.Response{
+		Decision: hookcore.DecisionDeny,
+		Reason:   reason,
+	}, stdout, os.Stderr, nil)
 }
