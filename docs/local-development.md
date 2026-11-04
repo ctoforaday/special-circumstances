@@ -299,6 +299,11 @@ another session leads, and a run whose outcome is recorded and that was not capt
 rows of runs that were captured or whose directory is gone. Run a second engine from its own
 checkout.
 
+**A plain build has no OCR engine.** Without `-tags tessocr` (and cgo), `internal/tessocr` builds
+its stub, so a checkout build, `go test` and `check` exercise everything except local OCR. The
+engine needs the static C stack that the release links; [`c-stack.md`](c-stack.md) covers building
+it, its cgo environment, and why it cross-compiles with zig.
+
 **The box is shared.** Other sessions run their own gates here. Check `uptime` before timing
 anything: a load average of 30 on four cores makes `go test` hit its 600s timeout and look like a
 hang. Gates are void if the tree changes or the branch switches under them, and two gates writing
