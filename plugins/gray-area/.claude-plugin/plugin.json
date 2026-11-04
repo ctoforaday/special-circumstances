@@ -13,5 +13,6 @@
     "audit",
     "adjudication",
     "agent-evaluation"
-  ]
+  ],
+  "hooks": "./.claude-plugin/hooks.json"
 }

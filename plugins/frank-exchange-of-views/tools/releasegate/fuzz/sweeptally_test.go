@@ -32,6 +32,13 @@ import (
 // THE ONCE-PER-SWEEP DRIVES ARM IN PART 0 ONLY (gblock, 2026-10-28): `close --as moot`, the engage
 // refusal and the deliberate class mints each belong to the sweep, and arming them in every part
 // would drive each K times.
+//
+// THE DEDICATED PATHS RUN IN THE LAST PART ONLY (#1624): the halt path, the unverified and verified
+// paths and the shipped-hook sweep each belong to the sweep once, like the drives. The halt path runs
+// before TestFuzzDebate takes its snapshot, so its process counts reach exactly one part's tally and
+// the merge holds them once, as the whole sweep does; the other three run after the snapshot and
+// reach no tally in either shape. They go to the last part because part 0 carries the drives and is
+// the longest part.
 
 // sweepPart is which part of the sweep this process runs: K of Of.
 type sweepPart struct{ K, Of int }
@@ -82,6 +89,22 @@ func (p sweepPart) split() bool { return p.Of > 1 }
 // armsSweepDrives reports whether this process carries the once-per-sweep drives.
 func (p sweepPart) armsSweepDrives() bool { return p.K == 0 }
 
+// runsSweepPaths reports whether this process runs the sweep's dedicated paths.
+func (p sweepPart) runsSweepPaths() bool { return p.K == p.Of-1 }
+
+// sweepPath skips t in every part but the one that runs the sweep's dedicated paths. A FUZZ_PART it
+// cannot read fails t, as it fails TestFuzzDebate, rather than reading as some part.
+func sweepPath(t *testing.T) {
+	t.Helper()
+	part, err := parseSweepPart(os.Getenv("FUZZ_PART"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !part.runsSweepPaths() {
+		t.Skipf("part %d of %d: the sweep runs this path once, in part %d", part.K, part.Of, part.Of-1)
+	}
+}
+
 // runTally is what the sweep's fold reads from one run.
 type runTally struct {
 	Seed                       int64                     `json:"seed"`
@@ -113,6 +136,8 @@ type runTally struct {
 	PositionsOverruled         int                       `json:"positions_overruled"`
 	OrdersRefused              int                       `json:"orders_refused"`
 	SpansRefused               int                       `json:"spans_refused"`
+	LeftOutRefused             int                       `json:"left_out_refused"`
+	MintBareRefused            int                       `json:"mint_bare_refused"`
 	SourceSearches             int                       `json:"source_searches"`
 	CopiesRead                 map[string]map[string]int `json:"copies_read"`
 	FragmentsDriven            int                       `json:"fragments_driven"`
@@ -179,7 +204,7 @@ func tallyOf(o outcome) runTally {
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
 		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
-		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
+		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, LeftOutRefused: o.leftOutRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
 		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, QuotesRefused: o.quotesRefused,
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
 		ReopenedPlans: o.reopenedPlans, UnsoundReadied: o.unsoundReadied, UnsoundPlans: o.unsoundPlans,
@@ -520,6 +545,7 @@ type sweepFold struct {
 	inquiryRecords, quotesRefused                   int
 	bridgesRefused, bridgesNamed                    int
 	ordersRefused, spansRefused, forcedSpansRefused int
+	leftOutRefused, mintBareRefused                 int
 	sourceSearches                                  int
 	copiesRead                                      map[string]map[string]int
 	closingsFiled, closingsRefused, closingWaits    int
@@ -607,6 +633,8 @@ func foldRuns(runs []runTally) sweepFold {
 		f.positionsOverruled += r.PositionsOverruled
 		f.ordersRefused += r.OrdersRefused
 		f.spansRefused += r.SpansRefused
+		f.leftOutRefused += r.LeftOutRefused
+		f.mintBareRefused += r.MintBareRefused
 		f.sourceSearches += r.SourceSearches
 		if r.Seed == absentSpanSeed {
 			f.forcedSpansRefused += r.SpansRefused
@@ -724,6 +752,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("citation owner: %d run(s) offered an unverified citation to the evidence lens, at a sitting or the run's end", f.citationOfferedRuns)
 	t.Logf("unsound computations: %d plan(s) readied the judge or blue for every unsound computation they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundComputationSeed, f.unsoundAnswers)
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", f.spansRefused, f.forcedSpansRefused, absentSpanSeed)
+	t.Logf("left-out anchors: %d edit(s) refused for leaving bare an anchor their quote left out, all seed %d's forced run", f.leftOutRefused, leftOutSeed)
+	t.Logf("bare prescriptions: %d mint(s) refused for a prescription that would leave a citation bare, all seed %d's forced run", f.mintBareRefused, mintBareSeed)
 	t.Logf("source searches: %d search(es) of a cited source whose every hit's source_span is the span cite took", f.sourceSearches)
 	if f.completed > 0 && (f.unsoundReadied == 0 || f.unsoundAnswers == 0) {
 		t.Errorf("fuzz readied for an unsound computation in %d plan(s) (of %d holding one) and minted %d gap(s) carrying one, across %d runs — the unsound-computation blocker's readiness or its answering gap is unexercised (false green)", f.unsoundReadied, f.unsoundPlans, f.unsoundAnswers, f.completed)
@@ -884,6 +914,16 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// refusal of a span the source does not hold is reached only by the drive that types one.
 		if f.spansRefused == 0 {
 			t.Errorf("fuzz drove ZERO cites refused for a source span the source does not hold across %d runs — the refusal that keeps blue's own wording off the record as the source's is unexercised (false green)", f.completed)
+		}
+		// THE LEFT-OUT-ANCHOR GATE. No drawn edit cuts a sentence down to its anchors, so the refusal of
+		// one that leaves an anchor out is reached only by the forced drive.
+		if f.leftOutRefused == 0 {
+			t.Errorf("seed %d's forced run drove ZERO edits refused for leaving bare an anchor their quote left out across %d runs — the refusal that keeps an orphan anchor out of the report is unexercised (false green)", leftOutSeed, f.completed)
+		}
+		// THE BARE-PRESCRIPTION GATE. No drawn prescription leaves an anchor bare, so the mint's refusal
+		// of one is reached only by the forced drive.
+		if f.mintBareRefused == 0 {
+			t.Errorf("seed %d's forced run drove ZERO mints refused for a prescription that would leave a citation bare across %d runs — the refusal that keeps an unappliable fix off the board is unexercised (false green)", mintBareSeed, f.completed)
 		}
 		// THE SOURCE-SEARCH GATE. A search of a cited source prints, at each hit, the span cite takes;
 		// the drive that searches every admitted cite's source is the only one that checks it.

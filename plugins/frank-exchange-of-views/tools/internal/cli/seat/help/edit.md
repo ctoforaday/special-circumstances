@@ -27,6 +27,8 @@ Either way the record lists each anchor whose sentence your edit changed. A cita
 
 A CITATION NEVER STANDS BARE. A replacement that would leave a citation's anchor with no prose before it in its sentence is refused, naming the anchor: it would back no sentence, and no lens could check it. Keep a sentence before it, or, where the sentence it backs is to go, retire the citation first — a `retire` naming that citation and no claim — while the sentence still stands, then edit the sentence out.
 
+AN ANCHOR YOUR QUOTE LEFT OUT NEVER STANDS BARE. A replacement that would leave a finding, gap or computation anchor your quote does not carry with no prose before it in its sentence is refused, naming the anchor: a retire takes the anchors in the replacement of the edit that cut its claim, so no retire could take this one. Keep a sentence before it, or, where the claim is to go, carry it: quote the claim with the anchor as `show report` prints it, write the anchor as the replacement, and then retire the claim. An anchor in the replacement that way may stand bare until that retire.
+
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.
 
 REPAIRING PUNCTUATION. Because of that trim, a repair confined to the trailing punctuation — dropping a stray period, changing a terminator — would land on the span without it. When the trimmed span would change nothing, or would leave the old terminator standing beside the new one, the tool uses your quote exactly as written instead, punctuation included — provided it occurs byte-for-byte exactly once in the report. So quote the punctuation as the report prints it, anchors and spacing included; this works at the end of the document too.

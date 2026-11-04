@@ -138,7 +138,8 @@ func TestTouchesProtocol(t *testing.T) {
 		"plugins/x/skills/y/references/CHEATSHEET.md",
 		"plugins/x/skills/doctor/SKILL.md",
 		"plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js",
-		"plugins/x/hooks/hooks.json",
+		"plugins/x/.claude-plugin/hooks.json",
+		"plugins/x/hooks.json",
 		// The REVIEWED statute, which humans author and promote. This is where the rule-patch
 		// discipline belongs and where the gate must keep firing.
 		"law/precedents.md",

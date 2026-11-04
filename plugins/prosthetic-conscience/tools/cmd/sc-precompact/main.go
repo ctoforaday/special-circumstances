@@ -13,6 +13,10 @@ import (
 	"os"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpointseal"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/gcpolicy"
 )
 
-func main() { os.Exit(checkpointseal.MainFor(checkpointseal.EvPreCompact)) }
+func main() {
+	gcpolicy.Short()
+	os.Exit(checkpointseal.MainFor(checkpointseal.EvPreCompact))
+}

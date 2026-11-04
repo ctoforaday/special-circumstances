@@ -36,8 +36,8 @@ import (
 //
 // THE SEAT AND THE EPOCH ARE THE RECORD'S, NOT THE ENVIRONMENT'S. The seat is bound by the record —
 // the agent's latest register, or its latest hook bracket where that bracket names a seat — and
-// read back from it; the epoch is derived by the record at each read (events_w."epoch"), never from
-// a seat id.
+// read back from it; the epoch is stamped on each row by the record's write (events.epoch), never
+// recovered from a seat id.
 //
 // WHAT THIS DELIBERATELY DOES NOT TOUCH. The seat id remains the SHARD KEY and the concurrency
 // namespace. A lens index recovered from a seat name turned out to be exactly what made a
@@ -157,7 +157,7 @@ func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) 
 	// always the only path.
 	// THE EPOCH IS NOT RESOLVED HERE, or anywhere a seat can reach. It used to be read out of the
 	// id by a regex and returned beside it; the id no longer carries one, and the epoch is
-	// derived by the record at each read (events_w."epoch"). A seat's identity is its id, bound by
+	// stamped on each row by the record's write (events.epoch). A seat's identity is its id, bound by
 	// the record (the agent's latest register, or a bracket that names its seat) and read back —
 	// nothing else.
 	return Seat{ID: id}, nil

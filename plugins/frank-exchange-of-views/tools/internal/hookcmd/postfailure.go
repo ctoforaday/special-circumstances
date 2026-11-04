@@ -10,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // PostFailure is the PostToolUseFailure entry point: a tool call a SEAT made that failed is logged as
@@ -23,34 +24,39 @@ import (
 // NOT A SEAT, NOT A RUN, OR AN INTERRUPT: nothing. The main session's failures are the operator's,
 // and a user pressing stop is not a failed call.
 func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error {
-	var in struct {
-		ToolName    string          `json:"tool_name"`
-		ToolInput   json.RawMessage `json:"tool_input"`
-		Error       string          `json:"error"`
-		IsInterrupt bool            `json:"is_interrupt"`
-		AgentID     string          `json:"agent_id"`
-		AgentType   string          `json:"agent_type"`
-		Cwd         string          `json:"cwd"`
-		SessionID   string          `json:"session_id"`
-	}
-	b, err := io.ReadAll(stdin)
-	if err != nil || json.Unmarshal(b, &in) != nil {
+	req := hookcore.Read("PostToolUseFailure", stdin)
+	if !req.Parsed {
 		rec.Fail(StageFailureLog, "cannot read or parse the PostToolUseFailure payload — a seat's failed call was not logged")
 		return nil
 	}
-	if in.IsInterrupt {
+	if req.Engine == hookcore.EngineAntigravity && req.ToolError == "" {
 		return nil
 	}
-	caller := callerOf(in.AgentID, in.AgentType, in.SessionID)
+	if req.IsInterrupt {
+		return nil
+	}
+	caller := callerOf(req.AgentID, req.AgentType, req.SessionID)
 	agent := caller.ID
 	if agent == "" {
 		return nil
 	}
-	runDir := seatRunDir(in.Cwd, caller, rec)
+	cwd := req.CWD
+	if cwd == "" {
+		cwd = cwdOf(req.Raw)
+	}
+	runDir := seatRunDir(cwd, caller, rec)
 	if runDir == "" {
 		return nil
 	}
-	text, ok := failureEntry(runDir, in.ToolName, in.ToolInput, in.Error)
+	errStr := req.ToolError
+	if errStr == "" {
+		var in struct {
+			Error string `json:"error"`
+		}
+		_ = json.Unmarshal(req.Raw, &in)
+		errStr = in.Error
+	}
+	text, ok := failureEntry(runDir, req.ToolName, req.ToolInput, errStr)
 	if !ok {
 		return nil
 	}

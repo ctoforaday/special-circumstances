@@ -41,7 +41,6 @@
 package postcompactobserve
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -56,6 +55,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // probe names the measurement, so a row can never be read as more than it is.
@@ -187,10 +187,20 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
-	raw, _ := io.ReadAll(stdin)
-	var in hookInput
-	_ = json.Unmarshal(raw, &in)
-	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	req := hookcore.Read("PostCompact", stdin)
+	in := hookInput{
+		SessionID:      req.SessionID,
+		TranscriptPath: req.TranscriptPath,
+		Trigger:        req.Trigger,
+		CompactSummary: req.CompactSummary,
+		AgentID:        req.AgentID,
+		CWD:            req.CWD,
+	}
+	if req.ProjectDir != "" {
+		projectDir = req.ProjectDir
+	} else {
+		projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	}
 	// PostCompact displays nothing: this hook records, and a later displaying event says it.
 	rec := hookfailures.New("prosthetic-conscience", "sc-postcompact-observe", "PostCompact", now, stderr)
 	defer rec.Persist()
@@ -250,7 +260,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		o.NoteBranchCommits = &c
 	}
 	appendRow(projectDir, o, rec)
-	return 0
+	return hookcore.Respond(req, hookcore.Response{}, stdout, stderr, rec)
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

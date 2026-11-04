@@ -57,8 +57,8 @@ func ArchiveOf(gaps []*Gap) Archive {
 
 // Before is the archive at the START of epoch R: every gap closed in an epoch strictly before R.
 //
-// The epoch is the closing event's, derived by the record from the chair's stored sittings
-// (events_w), so no seat-id shape stands between a closure and its epoch.
+// The epoch is the closing event's, stamped by the record from the chair's sittings (events.epoch),
+// so no seat-id shape stands between a closure and its epoch.
 func (a Archive) Before(epoch int) int {
 	n := 0
 	for _, c := range a.closed {

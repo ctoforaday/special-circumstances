@@ -19,7 +19,7 @@ import (
 // never runs (every mcp__ call, before #1477), and a tool the matcher routes that no unit
 // watches is a process spawned for nothing.
 func TestMatcherRoutesWhatTheUnitsWatch(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "hooks", "hooks.json"))
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".claude-plugin", "hooks.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

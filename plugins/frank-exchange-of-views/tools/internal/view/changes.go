@@ -55,7 +55,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	}
 	// THE GROUP IS THE SITTING, not an epoch: what a reader catching up wants is "since this seat's
 	// previous sitting" — so the heading changes when the editing seat or its sitting ordinal does.
-	// The ordinal is the sitting the record holds the edit in (events_w): an edit filed under a
+	// The ordinal is the sitting the record holds the edit in (events.sitting): an edit filed under a
 	// register that names a repaired sitting is grouped under the sitting it names rather than under a
 	// heading of its own.
 	var group string

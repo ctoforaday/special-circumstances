@@ -9,7 +9,11 @@ package main
 import (
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/stopnudge"
 )
 
-func main() { os.Exit(stopnudge.Main()) }
+func main() {
+	gcpolicy.Short()
+	os.Exit(stopnudge.Main())
+}

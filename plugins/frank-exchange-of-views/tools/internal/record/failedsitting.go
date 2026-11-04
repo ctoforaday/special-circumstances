@@ -42,7 +42,7 @@ func OneAdmissionASitting(a *recordpb.EnvelopeAdmitted) Guard {
 type FailedSitting struct {
 	SeatID string `json:"seat_id"`
 	// Sitting is the seat's own sitting number, and Epoch the chair sittings at or before its
-	// opening — the two windows the record ranks every row by (events_w).
+	// opening — the two windows stored on every row (events.sitting, events.epoch).
 	Sitting int    `json:"sitting"`
 	Epoch   int    `json:"epoch"`
 	AgentID string `json:"agent_id"`

@@ -6,6 +6,10 @@ import (
 	"os"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/filechangedrearm"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/gcpolicy"
 )
 
-func main() { os.Exit(filechangedrearm.Main()) }
+func main() {
+	gcpolicy.Short()
+	os.Exit(filechangedrearm.Main())
+}

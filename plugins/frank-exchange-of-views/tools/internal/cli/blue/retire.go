@@ -173,7 +173,7 @@ func newRetire() *cobra.Command {
 // anchors of a sentence an edit cut — so a citation whose source could not be read could leave only
 // with its sentence, and re-citing a readable source left the dead one standing beside it (b6's two
 // dead anchors on a sentence that stayed). And an edit may not leave a citation bare
-// (refuseBaredCitations), so a cited sentence that is to go loses its citation here first, and is
+// (refuseBaredAnchors), so a cited sentence that is to go loses its citation here first, and is
 // then prose an edit may cut.
 //
 // THE TOOL READS THE SENTENCE. The claim the record holds is the sentence holding the anchor in the
@@ -186,7 +186,7 @@ func retireCitation(s seat.Context, body *recordpb.Retire, named []string) (seat
 	}
 	id := named[0]
 	if k := anchor.Kind(id); k != "citation" {
-		return nil, feov.Errorf(feov.Validation, "--anchor alone retires a citation and keeps its sentence, and %s is a %s anchor — it leaves the report with its claim: edit the claim out, then retire it with --quote", id, k)
+		return nil, feov.Errorf(feov.Validation, "--anchor alone retires a citation and keeps its sentence, and %s is a %s anchor — it leaves the report with its claim: edit the claim out with the anchor in both the quote and the replacement, then retire it with --quote", id, k)
 	}
 	tok := anchor.Token(id)
 	guard := func(l *record.Landing) error {

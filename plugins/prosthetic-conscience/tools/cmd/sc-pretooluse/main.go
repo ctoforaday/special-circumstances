@@ -5,7 +5,11 @@ package main
 import (
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/pretooluse"
 )
 
-func main() { os.Exit(pretooluse.Main()) }
+func main() {
+	gcpolicy.Short()
+	os.Exit(pretooluse.Main())
+}

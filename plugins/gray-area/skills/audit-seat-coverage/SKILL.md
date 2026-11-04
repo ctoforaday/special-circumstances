@@ -5,7 +5,7 @@ description: Does the manifest name every seat transcript that exists? Reconcile
 
 Reconcile recorded seats against seats on disk. Model [[terse-communication]]: relay the binary's rows, add no interpretation of your own.
 
-1. Run `${CLAUDE_PLUGIN_ROOT}/bin/gray-area` (`.exe` on Windows) as `gray-area coverage`. It resolves this session's transcript from gray-area's own manifest and derives the seat-transcript directory from it.
+1. Run `gray-area` (`B="${CLAUDE_PLUGIN_ROOT}/bin/gray-area"; [ -x "$B" ] || B="gray-area"; "$B" coverage`, append `.exe` on Windows). It resolves this session's transcript from gray-area's own manifest and derives the seat-transcript directory from it.
 2. Relay the output verbatim.
 
 **Read the exit code as written.** `1` means it could **not** measure — not that it found problems. `0` means it measured, whatever it found. That split is the point: unnamed transcripts are a finding for a human to act on, while an unmeasurable board is a broken instrument, and an instrument reporting a clean board when it cannot see is the failure this plugin exists to prevent.

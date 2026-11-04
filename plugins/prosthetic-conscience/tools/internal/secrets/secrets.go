@@ -1,6 +1,7 @@
 // Package secrets finds secrets in a tool payload with gitleaks' detector
 // (github.com/zricethezav/gitleaks/v8, MIT) — its default configuration, as the gitleaks
-// command line runs it, extended with the rules in gitleaks.toml.
+// command line runs it, extended with the rules in gitleakstoml/gitleaks.toml. table.go holds
+// that configuration as gitleaks translates it, written by devcmd/secretsgen.
 //
 // The default configuration is the vendor rules, their entropy thresholds, the allowlists (the
 // AWS documentation key ending EXAMPLE, gitleaks' stopwords) and the keyword prefilter. The
@@ -15,73 +16,46 @@
 package secrets
 
 import (
-	_ "embed"
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
-	"github.com/zricethezav/gitleaks/v8/config"
 	"github.com/zricethezav/gitleaks/v8/detect"
 	"github.com/zricethezav/gitleaks/v8/logging"
 )
-
-// configTOML is the gate's gitleaks configuration: `[extend] useDefault = true` and the rules
-// the gate adds.
-//
-//go:embed gitleaks.toml
-var configTOML string
 
 // maxDecodeDepth is the gitleaks command line's default for --max-decode-depth: a secret
 // base64-, hex- or percent-encoded up to five times over is decoded and found.
 const maxDecodeDepth = 5
 
-var built struct {
-	once sync.Once
-	d    *detect.Detector
-	err  error
-}
-
-// Detector returns the process's one detector, built on first use.
+// detector builds a detector over the rules keep selects from the generated table.
 //
-// Once per process, and serially, because gitleaks loads a configuration through viper's
-// global instance and counts its `[extend]` depth in a package global that is never reset:
-// a second build in one process extends nothing and validates nothing. The hook is
-// single-shot, so the build is part of every call's cost.
-func Detector() (*detect.Detector, error) {
-	built.once.Do(func() { built.d, built.err = build() })
-	return built.d, built.err
-}
-
-func build() (*detect.Detector, error) {
+// The table is gitleaks.toml as gitleaks translates it, so no call parses TOML, and a call
+// compiles only the rules keep holds: compiling every rule is most of a hook call's cost.
+func detector(keep func(*RuleSpec) bool) (*detect.Detector, error) {
 	// gitleaks logs findings — the secret included — at debug and trace level, to stderr.
 	// Nothing it logs is for this gate's caller.
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	logging.Logger = zerolog.Nop()
 
-	viper.SetConfigType("toml")
-	if err := viper.ReadConfig(strings.NewReader(configTOML)); err != nil {
-		return nil, fmt.Errorf("reading the gate's gitleaks configuration: %w", err)
-	}
-	var vc config.ViperConfig
-	if err := viper.Unmarshal(&vc); err != nil {
-		return nil, fmt.Errorf("decoding the gate's gitleaks configuration: %w", err)
-	}
-	cfg, err := vc.Translate()
+	cfg, err := table.Config(keep)
 	if err != nil {
-		return nil, fmt.Errorf("assembling the gate's gitleaks configuration: %w", err)
+		return nil, err
 	}
-	d := detect.NewDetector(cfg)
+	return configure(detect.NewDetector(cfg)), nil
+}
+
+// configure sets the detector's options: the gitleaks command line's, except that an allow
+// comment is ignored and every finding is redacted.
+func configure(d *detect.Detector) *detect.Detector {
 	d.MaxDecodeDepth = maxDecodeDepth
 	// A `gitleaks:allow` comment silences a finding on its line. In a tool payload the agent
 	// writes that line, so honouring it would let the payload exempt itself.
 	d.IgnoreGitleaksAllow = true
 	// Every finding comes back with Secret, Match and Line redacted.
 	d.Redact = 100
-	return d, nil
+	return d
 }
 
 // scan returns the rule id of every finding in text.
@@ -103,15 +77,30 @@ func scan(d *detect.Detector, text string) []string {
 // scanned, joined by newlines so two innocent neighbours cannot fuse into a match. The raw
 // pass covers a payload that does not decode: an undecodable payload is still scanned, never
 // waved through.
+//
+// The detector holds the rules whose keywords gitleaks' prefilter finds in either text, on any
+// decoding pass, and every rule without keywords: the rules the full configuration's detector
+// would run on these texts. The rest it would skip, so they are not compiled.
 func ScanPayload(raw []byte) ([]string, error) {
-	d, err := Detector()
+	return scanPayload(raw, func(texts []string) (*detect.Detector, error) {
+		return detector(table.prefiltered(texts...))
+	})
+}
+
+// scanPayload is ScanPayload with the detector built by build, for the texts it will scan.
+func scanPayload(raw []byte, build func(texts []string) (*detect.Detector, error)) ([]string, error) {
+	texts := []string{string(raw)}
+	var doc any
+	if json.Unmarshal(raw, &doc) == nil {
+		texts = append(texts, strings.Join(strs(doc, nil), "\n"))
+	}
+	d, err := build(texts)
 	if err != nil {
 		return nil, err
 	}
-	ids := scan(d, string(raw))
-	var doc any
-	if json.Unmarshal(raw, &doc) == nil {
-		ids = append(ids, scan(d, strings.Join(strs(doc, nil), "\n"))...)
+	var ids []string
+	for _, text := range texts {
+		ids = append(ids, scan(d, text)...)
 	}
 	sort.Strings(ids)
 	out := ids[:0]

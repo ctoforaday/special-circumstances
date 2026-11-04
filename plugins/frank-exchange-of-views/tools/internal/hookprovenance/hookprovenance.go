@@ -156,10 +156,18 @@ func binariesIn(dir string) []string {
 // binary, and the run proceeds with no identity injection while the fetch runs — which is the
 // 2026-08-23 shape exactly.
 func registeredButAbsent(versionDir string, present []string) ([]string, error) {
-	path := filepath.Join(versionDir, "hooks", "hooks.json")
+	path := filepath.Join(versionDir, ".claude-plugin", "hooks.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		path = filepath.Join(versionDir, "hooks", "hooks.json")
+		b, err = os.ReadFile(path)
+		if err != nil {
+			path = filepath.Join(versionDir, "hooks.json")
+			b, err = os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	var hf hooksFile
 	if err := json.Unmarshal(b, &hf); err != nil {
