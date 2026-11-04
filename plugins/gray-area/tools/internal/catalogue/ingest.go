@@ -10,13 +10,26 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	sharedtraj "github.com/ctoforaday/special-circumstances/shared/trajectory"
 )
 
 // TranscriptFile is one file belonging to one session, with the agent it speaks for.
-type TranscriptFile struct {
-	Path      string
-	SessionID string
-	AgentID   string // "" for the session's own transcript
+type TranscriptFile = sharedtraj.TranscriptFile
+
+// DefaultAntigravityBrainDirs returns default brain directories for Antigravity.
+func DefaultAntigravityBrainDirs() []string {
+	return sharedtraj.DefaultAntigravityBrainDirs()
+}
+
+// TranscriptFilesMulti enumerates transcripts across both Claude Code and Antigravity roots.
+func TranscriptFilesMulti(claudeProjectsDir string, agyBrainDirs []string) ([]TranscriptFile, error) {
+	return sharedtraj.DiscoverAll(claudeProjectsDir, agyBrainDirs)
+}
+
+// SessionTranscriptFilesMulti returns transcripts for one session across both Claude Code and Antigravity roots.
+func SessionTranscriptFilesMulti(claudeProjectsDir string, agyBrainDirs []string, sessionID string) ([]TranscriptFile, error) {
+	return sharedtraj.DiscoverSession(claudeProjectsDir, agyBrainDirs, sessionID)
 }
 
 // TranscriptFiles enumerates a project tree by the vendor's layout, which has THREE tiers:
@@ -283,8 +296,13 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 	// taking the last one made the row report the subagents directory as the project — a field
 	// that was simply false, and false in a way that reads as plausible.
 	dir := ""
+	isAgy := tf.Engine == "antigravity" || strings.Contains(tf.Path, "/brain/")
 	if tf.AgentID == "" {
-		dir = filepath.Dir(tf.Path)
+		if isAgy && len(p.CWDs) > 0 {
+			dir = p.CWDs[0]
+		} else {
+			dir = filepath.Dir(tf.Path)
+		}
 	}
 	// NEW BYTES REOPEN THE SESSION. This point is reached only when the pass read something — an
 	// unchanged file returned above — and a transcript that grew belongs to a session that did
@@ -301,13 +319,21 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 	// THE RESUME DIRECTORY, like project_dir, comes from the session's OWN transcript only: a seat's
 	// records carry the seat's cwd, which may be a worktree the session never resumes from.
 	if tf.AgentID == "" {
-		var stored string
+		var stored sql.NullString
 		if err := tx.QueryRow(`SELECT cwd FROM session WHERE session_id = ?`, tf.SessionID).Scan(&stored); err != nil {
 			return res, fmt.Errorf("catalogue: reading cwd: %w", err)
 		}
-		if cwd, write := chooseCWD(p.CWDs, filepath.Base(dir), stored); write {
-			if _, err := tx.Exec(`UPDATE session SET cwd = ? WHERE session_id = ?`, cwd, tf.SessionID); err != nil {
-				return res, fmt.Errorf("catalogue: cwd: %w", err)
+		if isAgy {
+			if len(p.CWDs) > 0 && p.CWDs[0] != stored.String {
+				if _, err := tx.Exec(`UPDATE session SET cwd = ? WHERE session_id = ?`, p.CWDs[0], tf.SessionID); err != nil {
+					return res, fmt.Errorf("catalogue: cwd: %w", err)
+				}
+			}
+		} else {
+			if cwd, write := chooseCWD(p.CWDs, filepath.Base(dir), stored.String); write {
+				if _, err := tx.Exec(`UPDATE session SET cwd = ? WHERE session_id = ?`, cwd, tf.SessionID); err != nil {
+					return res, fmt.Errorf("catalogue: cwd: %w", err)
+				}
 			}
 		}
 	}
