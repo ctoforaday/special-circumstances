@@ -20,13 +20,14 @@ import (
 // so the stamped grades are the gap's grades from r until its next regrade, and gap_grade reads them
 // as they are.
 //
-// A REGRADE THAT ARRIVES WITH A RESULT KEEPS IT. That is a row copied from a record that already
-// stamped it — a fixture seeded from an archived run's events — and its result was this function's
-// on the record it came from. A seat cannot supply one: the write path refuses it first
-// (record.requireNoRegradeResult). A migration brings an archived regrade forward without its stored
-// result (migrate's regrade entry), so this stamps it again from the record being rebuilt.
+// WHATEVER RESULT A REGRADE ARRIVES WITH IS OVERWRITTEN, never kept: a kept value is a grade set
+// nothing re-derived, stored with nothing to stop it being stale or wrong. A seat cannot supply one —
+// the write path refuses it first (record.requireNoRegradeResult) — and a row copied from a record
+// that already stamped it (a fixture seeded from an archived run's events) is stamped again here, to
+// the same grades when it lands in the same order. A migration's replay is stamped the same way.
 func stampRegradeResult(tx *sql.Tx, r *recordpb.Regrade) error {
-	if HasRegradeResult(r) || r.GetGapId() == "" {
+	r.ResultSeverity, r.ResultLikelihood, r.ResultImpact, r.ResultComplexityCost = nil, nil, nil, nil
+	if r.GetGapId() == "" {
 		return nil // a gap_id is required, and the required-field refusal names --id
 	}
 	var before [4]sql.NullString

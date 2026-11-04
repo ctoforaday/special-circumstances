@@ -65,3 +65,51 @@ func TestARegradeStoresTheGradesItLeaves(t *testing.T) {
 		}
 	}
 }
+
+// THE BENCH LOCK'S FOLD READS THE GRADES THE GAP VIEW READS. benchSetAxesOf folds the lock over the
+// regrades and takes each axis's grade from the result the regrade stored; the gap view takes its
+// current grades from gap_grade's standing row. The two must agree on every axis of every gap, or the
+// lock refuses a move against a grade the board does not show.
+func TestTheBenchLockFoldAgreesWithTheGapView(t *testing.T) {
+	run, lens := liveRun(t)
+	appendOK(t, lens, liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_LOW))
+	appendOK(t, lens, liveMint("G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_HIGH))
+	appendOK(t, lens, &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("b")})
+	if _, _, err := RegisterSeat(lens, "", ""); err != nil { // a sitting holds one regrade per gap
+		t.Fatal(err)
+	}
+	appendOK(t, lens, &recordpb.Regrade{GapId: proto.String("G1"), Impact: recordtest.P(recordpb.Grade_GRADE_LOW),
+		ComplexityCost: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("b")})
+	appendOK(t, lens, &recordpb.Regrade{GapId: proto.String("G2"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("b")})
+
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		t.Fatalf("open: %v", err)
+	}
+	axes, err := benchSetAxesAt(writeView{q: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.Query(`SELECT "gap_id", "current_severity", "current_likelihood", "current_impact", "current_complexity_cost" FROM "gap"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		var id string
+		var v [4]sql.NullString
+		if err := rows.Scan(&id, &v[0], &v[1], &v[2], &v[3]); err != nil {
+			t.Fatal(err)
+		}
+		n++
+		for k := range v {
+			if got := recordpb.Word(axes[id][k].grade); got != v[k].String {
+				t.Errorf("gap %s's %s: the bench lock's fold reads %q, the gap view %q", id, recordpb.Word(gradeAxes[k]), got, v[k].String)
+			}
+		}
+	}
+	if n != 2 {
+		t.Fatalf("the gap view holds %d gaps, want 2", n)
+	}
+}

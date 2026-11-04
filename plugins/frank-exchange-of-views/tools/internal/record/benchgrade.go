@@ -58,6 +58,12 @@ func regradeAxes(r *recordpb.Regrade) [4]*recordpb.Grade {
 	return [4]*recordpb.Grade{r.Severity, r.Likelihood, r.Impact, r.ComplexityCost}
 }
 
+// regradeResultAxes is the grades r stored as the gap's once it stands, in gradeAxes' order; the
+// zero where the gap is graded on no such axis.
+func regradeResultAxes(r *recordpb.Regrade) [4]recordpb.Grade {
+	return [4]recordpb.Grade{r.GetResultSeverity(), r.GetResultLikelihood(), r.GetResultImpact(), r.GetResultComplexityCost()}
+}
+
 // mintAxes is m's grades in gradeAxes' order.
 func mintAxes(m *recordpb.Mint) [4]recordpb.Grade {
 	return [4]recordpb.Grade{m.GetSeverity(), m.GetLikelihood(), m.GetImpact(), m.GetComplexityCost()}
@@ -99,11 +105,17 @@ func benchSetAxesOf(evs []*Event, ids []int64) map[string][4]axisGrade {
 			g := b.GetGapId()
 			cur := out[g]
 			bench := seatclass.RoleOfSeat(e.GetSeatId()) == "bench"
-			for k, w := range regradeAxes(b) {
-				if w == nil || *w == cur[k].grade {
+			// THE GRADES ARE THE ONES THE REGRADE STORED (recordsql.stampRegradeResult, the one
+			// statement of the overlay); this fold re-derives none. What it still folds is the LOCK,
+			// which the stored grades do not hold: an axis's value says what the gap is graded, not
+			// whose move set it, and a bench move that locks an axis and a lens move to the same grade
+			// store the same result. So an axis whose stored grade differs from the one before is an
+			// axis this regrade moved, and the mover's seat toggles the lock.
+			for k, now := range regradeResultAxes(b) {
+				if now == cur[k].grade {
 					continue
 				}
-				cur[k].grade = *w
+				cur[k].grade = now
 				// THE BENCH'S MOVE TOGGLES THE LOCK: it locks an unlocked axis and lifts its own lock,
 				// releasing the axis to the lens at the new grade. Any other seat's move leaves it
 				// unlocked — the write refuses one on a locked axis.
