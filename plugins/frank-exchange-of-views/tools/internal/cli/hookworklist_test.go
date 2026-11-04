@@ -84,9 +84,10 @@ func TestTheDeliveredWorkListPlacesAGapWhereTheFetchedOneDoes(t *testing.T) {
 }
 
 // THE SHIPPED HOOK WRITES THE READ, AS THE PROCESSES THE HARNESS SPAWNS. The PreToolUse binary spawns
-// the writer beside it for a seat's call that returns an envelope; it prints the input it was given
-// with `record_read` set to the record's fold, over what the seat typed. An in-process test stubs that
-// spawn, so this is what notices the writer's answer and the hook's reader parting.
+// the writer beside it for a seat's call that returns an envelope, handing it the call's arguments; for
+// the chair it prints the plan the record stored with the chair's notes, and `record_read` set to the
+// record's fold over what the seat typed. An in-process test stubs that spawn, so this is what notices
+// the writer's answer and the hook's reader parting.
 func TestTheShippedHookWritesTheRecordsReadOverWhatTheSeatTyped(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds two binaries")
@@ -97,7 +98,7 @@ func TestTheShippedHookWritesTheRecordsReadOverWhatTheSeatTyped(t *testing.T) {
 	const lead, agent = "session-lead", "agent_read_01"
 	cwd := t.TempDir()
 	runDir := newRun(t)
-	writeReport(t, runDir, "# Costs\n\nCosts rose.\n")
+	stageEvents(t, runDir)
 	if _, err := runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", "", lead); err != nil {
 		t.Fatal(err)
 	}
@@ -107,6 +108,16 @@ func TestTheShippedHookWritesTheRecordsReadOverWhatTheSeatTyped(t *testing.T) {
 		t.Fatalf("opening the sitting: %v\n%s", err, out)
 	}
 	filePetition(t, runDir)
+	printed, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plan struct {
+		Key string `json:"key"`
+	}
+	if err := json.Unmarshal([]byte(printed), &plan); err != nil || plan.Key == "" {
+		t.Fatalf("fixture: the dispatch printed no plan key (%v):\n%s", err, printed)
+	}
 	want, err := record.ReadRecord(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
@@ -133,6 +144,7 @@ func TestTheShippedHookWritesTheRecordsReadOverWhatTheSeatTyped(t *testing.T) {
 		H struct {
 			Decision string `json:"permissionDecision"`
 			Updated  struct {
+				Key   string            `json:"key"`
 				Notes string            `json:"notes"`
 				Read  record.RecordRead `json:"record_read"`
 			} `json:"updatedInput"`
@@ -143,6 +155,9 @@ func TestTheShippedHookWritesTheRecordsReadOverWhatTheSeatTyped(t *testing.T) {
 	}
 	if doc.H.Decision != "allow" || doc.H.Updated.Notes != "mine" {
 		t.Errorf("decision %q, notes %q; want the seat's call allowed with its own field intact:\n%s", doc.H.Decision, doc.H.Updated.Notes, out)
+	}
+	if doc.H.Updated.Key != plan.Key {
+		t.Errorf("the call carries plan key %q, want the stored plan's %q:\n%s", doc.H.Updated.Key, plan.Key, out)
 	}
 	got := doc.H.Updated.Read
 	if got.Halted || got.Event != want.Event || !slices.Equal(got.BenchOwed, want.BenchOwed) {

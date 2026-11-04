@@ -13,8 +13,9 @@ import (
 )
 
 // DispatchParityAudit holds the workflow's RELAY to the record (plans/roundless.md §III.B.1). The
-// chair's verb records who sits; the chair relays that into its envelope; the workflow dispatches
-// what the envelope says — and the chair could drop, add or alter a party on the way. Two halves:
+// chair's verb records who sits; the hook writes the stored plan into the chair's envelope
+// (record.ChairEnvelope); the workflow dispatches what the envelope says. A hook that did not run, or a
+// journal that holds something else, departs from the record, and this is what would say so. Two halves:
 //
 // SITTINGS AGAINST DISPATCH ROWS. Within the window from the first dispatch to termination, every
 // sitting opened between one chair sitting's dispatches D and the next's D+1 — by the hook's bracket

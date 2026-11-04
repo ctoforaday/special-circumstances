@@ -193,51 +193,35 @@ func TestDispatchNextRecordsOncePerSittingAndRefusesAnUnopenedOne(t *testing.T) 
 	}
 }
 
-// THE PROSE FORM CARRIES THE RELAY (m16, chair sitting 6), AND THE MACHINE FORM IS THE RELAY. A
-// chair that asked for the prose and never for the machine form held no plan object, composed one
-// from the envelope's schema, and its relay ended the run; a chair that lifted the plan out of an
-// ok envelope's `result` nested it under `plan` about one sitting in five (m26-m30). The line
-// under the prose form's `relay` and the whole of what `--json` prints are the same bytes — for a
-// plan with parties and for the empty plan that ends a run — so neither form leaves the chair a
-// plan to build or to unwrap.
-func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
-	relayLine := func(t *testing.T, prose string) string {
-		t.Helper()
-		lines := strings.Split(prose, "\n")
-		for i, l := range lines {
-			if strings.HasPrefix(l, "relay — ") && i+1 < len(lines) {
-				return lines[i+1]
-			}
-		}
-		t.Fatalf("the prose form prints no relay — the chair is left to compose the plan:\n%s", prose)
-		return ""
-	}
+// THE MACHINE FORM IS THE PLAN OBJECT AND NOTHING ELSE, for a plan with parties and for the empty plan
+// that ends a run, and the prose form is for reading: the plan reaches the workflow through the record,
+// so neither form offers the chair anything to copy into its envelope.
+func TestDispatchNextPrintsThePlanAloneAndOffersNothingToCopy(t *testing.T) {
 	check := func(t *testing.T, runDir string, wantParties int) {
 		t.Helper()
 		prose, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair")
 		if err != nil {
 			t.Fatalf("dispatch next: %v\n%s", err, prose)
 		}
+		if strings.Contains(prose, `"parties":`) {
+			t.Errorf("the prose form prints the plan object:\n%s", prose)
+		}
 		out, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
 		if err != nil {
 			t.Fatalf("dispatch next --json: %v\n%s", err, out)
 		}
-		a, machine := relayLine(t, prose), strings.TrimSpace(out)
-		if a != machine {
-			t.Errorf("the prose form's relay is not what the machine form prints:\n relay   %s\n machine %s", a, machine)
-		}
-		var relay any
-		if err := json.Unmarshal([]byte(a), &relay); err != nil {
-			t.Fatalf("the line under `relay` is not one JSON object: %v\n%s", err, a)
+		var plan map[string]any
+		if err := json.Unmarshal([]byte(out), &plan); err != nil {
+			t.Fatalf("the machine form is not one JSON object: %v\n%s", err, out)
 		}
 		_ = planOf(t, out)
-		parties, _ := relay.(map[string]any)["parties"].([]any)
+		parties, _ := plan["parties"].([]any)
 		if len(parties) != wantParties {
-			t.Errorf("the relay names %d parties, want %d: %s", len(parties), wantParties, a)
+			t.Errorf("the plan names %d parties, want %d: %s", len(parties), wantParties, out)
 		}
 		for _, f := range []string{"head", "docket", "remand_owed", "exchanges", "pass_permitted", "stale_areas", "ceiling", "max_epochs", "epoch", "final_sitting", "epoch_limit_reached", "blockers", "why"} {
-			if _, ok := relay.(map[string]any)[f]; !ok {
-				t.Errorf("the relay carries no %q — the workflow refuses a plan without it: %s", f, a)
+			if _, ok := plan[f]; !ok {
+				t.Errorf("the plan carries no %q — the workflow refuses a plan without it: %s", f, out)
 			}
 		}
 	}

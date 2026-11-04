@@ -132,7 +132,7 @@ A run is one research question taken from setup to its outcome.
 
 ## epoch
 
-An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
+An epoch runs from one chair sitting to the next: the chair asks the record who sits, the parties the record names sit, and the chair sits again.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -206,7 +206,7 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 ## chair
 
-The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
+The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 

@@ -118,39 +118,16 @@ func CanonicalToolName(raw string) string {
 
 // DetectEngine sniffs the harness environment from environment variables and payload signatures.
 func DetectEngine(raw []byte) Engine {
+	if override := os.Getenv("HOOKCORE_ENGINE"); override != "" {
+		if override == string(EngineAntigravity) {
+			return EngineAntigravity
+		}
+		return EngineClaude
+	}
 	if len(raw) > 0 {
 		var probe map[string]any
 		if err := json.Unmarshal(raw, &probe); err == nil {
-			if _, ok := probe["session_id"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["hook_event_name"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["source"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["tool_name"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["tool_input"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["tool_response"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["permission_mode"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["session_id"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["transcript_path"]; ok {
-				return EngineClaude
-			}
-			if _, ok := probe["custom_instructions"]; ok {
-				return EngineClaude
-			}
+			// Definitive Antigravity keys
 			if _, ok := probe["conversationId"]; ok {
 				return EngineAntigravity
 			}
@@ -163,6 +140,40 @@ func DetectEngine(raw []byte) Engine {
 			if _, ok := probe["artifactDirectoryPath"]; ok {
 				return EngineAntigravity
 			}
+
+			// Definitive Claude Code keys
+			if _, ok := probe["session_id"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["transcript_path"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["permission_mode"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["hook_event_name"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["source"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["custom_instructions"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["tool_name"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["tool_input"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["tool_response"]; ok {
+				return EngineClaude
+			}
+		}
+		if bytes.Contains(raw, []byte(`"conversationId"`)) ||
+			bytes.Contains(raw, []byte(`"workspacePaths"`)) ||
+			bytes.Contains(raw, []byte(`"toolCall"`)) {
+			return EngineAntigravity
 		}
 		if bytes.Contains(raw, []byte(`"tool_name"`)) ||
 			bytes.Contains(raw, []byte(`"tool_input"`)) ||
@@ -170,18 +181,7 @@ func DetectEngine(raw []byte) Engine {
 			bytes.Contains(raw, []byte(`"hook_event_name"`)) {
 			return EngineClaude
 		}
-		if bytes.Contains(raw, []byte(`"conversationId"`)) ||
-			bytes.Contains(raw, []byte(`"workspacePaths"`)) ||
-			bytes.Contains(raw, []byte(`"toolCall"`)) {
-			return EngineAntigravity
-		}
 		return EngineClaude
-	}
-	if os.Getenv("CLAUDE_PLUGIN_ROOT") != "" || os.Getenv("CLAUDE_PROJECT_DIR") != "" {
-		return EngineClaude
-	}
-	if os.Getenv("ANTIGRAVITY_CONVERSATION_ID") != "" {
-		return EngineAntigravity
 	}
 	return EngineClaude
 }
@@ -292,6 +292,10 @@ func Read(event string, stdin io.Reader) Request {
 		Raw:    raw,
 		Engine: DetectEngine(raw),
 	}
+
+	req.PluginRoot = PluginRoot(os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Getenv("PLUGIN_ROOT"), "")
+	req.ProjectDir = ProjectDir(os.Getenv("CLAUDE_PROJECT_DIR"), "", nil, "")
+	req.PluginDataDir = PluginDataDir(os.Getenv("CLAUDE_PLUGIN_DATA"), os.Getenv("PLUGIN_DATA"), "", filepath.Base(req.PluginRoot), req.ProjectDir)
 
 	var env map[string]any
 	if err := json.Unmarshal(raw, &env); err != nil {
