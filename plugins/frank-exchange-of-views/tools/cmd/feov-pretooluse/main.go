@@ -11,7 +11,11 @@ package main
 import (
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookcmd"
 )
 
-func main() { os.Exit(hookcmd.Run("feov-pretooluse", "PreToolUse", hookcmd.Pre, os.Stdin, os.Stdout)) }
+func main() {
+	gcpolicy.Short()
+	os.Exit(hookcmd.Run("feov-pretooluse", "PreToolUse", hookcmd.Pre, os.Stdin, os.Stdout))
+}

@@ -400,21 +400,14 @@ func ExistingProposalByText(run Run, seatID, question, hypothesis string) (strin
 
 // ---- gap class ----
 
-// stampClassMaterial writes the class's default onto a mint, which no seat may do itself.
+// stampClassMaterial writes the class's default onto a mint, which no writer may do itself.
 //
-// Outside a migration a mint that ARRIVES with the field set is refused: a lens that could choose
-// its gap's materiality could mint every gap harmless. Under a migration the source is the record,
-// not a seat, so a value the archived mint carries is kept as recorded; an archived mint without
-// one (a run written before the field) is stamped by the live rule, from its class's default.
+// A mint that ARRIVES with the field set is refused: a lens that could choose its gap's
+// materiality could mint every gap harmless. Migrate takes an archived mint's stamp off before the
+// write, and the stamp this writes is stated where it is not the source's (migrate's replay).
 func stampClassMaterial(m *recordpb.Mint) error {
 	if m.ClassMaterial != nil {
-		if !Migrating {
-			return fmt.Errorf("a mint's class material is stamped by the tool from the class's material default, never supplied by a seat — mint without it")
-		}
-		if m.GetClassMaterial() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
-			return fmt.Errorf("the archived mint of %s carries a class material that is not always | never | by_grade", m.GetGapId())
-		}
-		return nil
+		return fmt.Errorf("a mint's class material is stamped by the tool from the class's material default, never supplied by a seat — mint without it")
 	}
 	if m.GetClass() == recordpb.GapClass_GAP_CLASS_UNSPECIFIED {
 		return nil // the required-field refusal names --class, which comes first

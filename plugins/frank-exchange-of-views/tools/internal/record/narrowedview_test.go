@@ -334,21 +334,27 @@ func TestEveryClosedGapInTheFamilyCarriesItsClosureWhileALensCloses(t *testing.T
 // close of each, not yet written.
 func gapsALensCloses(t *testing.T) (Run, []*Event) {
 	t.Helper()
+	return gapsTheLensCloses(t, "red-lens-r1-logic")
+}
+
+// gapsTheLensCloses is gapsALensCloses for the lens seat lens.
+func gapsTheLensCloses(t *testing.T, lens string) (Run, []*Event) {
+	t.Helper()
 	dir := newRun(t)
 	str := proto.String
 	medium := recordtest.P(recordpb.Grade_GRADE_MEDIUM)
 	const gaps = 25
 	seed := []*recordpb.Event{
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: str("test")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Register{ToolVersion: str("test")}),
+		recordtest.Event(t, lens, &recordpb.Register{ToolVersion: str("test")}),
 	}
 	closes := make([]*recordpb.Event, 0, gaps)
 	for i := 1; i <= gaps; i++ {
 		id := fmt.Sprintf("G%d", i)
-		seed = append(seed, recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+		seed = append(seed, recordtest.Event(t, lens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}))
-		closes = append(closes, recordtest.Stamped(recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str(id),
+		closes = append(closes, recordtest.Stamped(recordtest.Event(t, lens, &recordpb.Close{GapId: str(id),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   str("L1"), AnchorTool: str("go test"), AnchorTarget: str("./x"), Prose: str("verified")}),
 			"2026-01-01T01:00:00Z"))
@@ -415,7 +421,7 @@ func benchClosing(id string) *recordpb.MotionRule {
 
 // THE WORK LIST IS READ OFF ONE SNAPSHOT. It takes which act closed a gap from the `gap` view and
 // that act's body from the events; asked of the record at two moments, a bench closure landing
-// between them names an act the read did not load, and the list cannot be computed. The bench rules while a lens reads its work list and the oracle reads
+// between them names an act the read did not load, and the list cannot be computed. The bench rules while it reads its own work list and the oracle reads
 // the run's, and every gap is on every list, open or estopped by the ruling that closed it.
 func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	const gaps = 25
@@ -450,17 +456,92 @@ func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 		}
 	}
 	whileWriting(t, run, acts, func() {
-		w, err := WorkOfSeat(run, "lens", evLens)
+		w, err := WorkOfSeat(run, "bench", benchSeat)
 		if err != nil {
 			t.Fatal(err)
 		}
-		check("the lens's work list", w)
+		check("the bench's work list", w)
 		w, err = WorkJSONOfRun(run)
 		if err != nil {
 			t.Fatal(err)
 		}
 		check("the run's work list", w)
 	})
+}
+
+// A LENS'S MINT BUDGET IS READ OFF THE WORK LIST'S SNAPSHOT. The list states the gaps a lens holds
+// open and, beside them, how many mints that leaves it; asked of the record at two moments, a close
+// landing between them counts a gap the list still shows, or leaves out one it no longer does. The
+// lens closes its gaps while it reads its list, and on every read the budget counts exactly the
+// gaps the list shows it holding open.
+func TestTheMintBudgetCountsTheGapsOnItsOwnWorkListWhileALensCloses(t *testing.T) {
+	const lens = "red-lens-logic"
+	run, closes := gapsTheLensCloses(t, lens)
+	whileWriting(t, run, closes, func() {
+		w, err := WorkOfSeat(run, "lens", lens)
+		if err != nil {
+			t.Fatal(err)
+		}
+		budgetAgreesWithList(t, w, lens)
+	})
+}
+
+// The same, made deterministic on the reader: the snapshot is pinned, every close commits on a
+// seat's own connection, and only then are the list and the budget read off it. Both still see all
+// 25 gaps open; a budget read anywhere but q would count none.
+func TestTheMintBudgetIsReadOffTheListsTransaction(t *testing.T) {
+	const lens = "red-lens-logic"
+	run, closes := gapsTheLensCloses(t, lens)
+	db := seatWriter(t, filepath.Join(run.Records(), "record.db"))
+	err := readSnapshot(run, func(q recordsql.Querier) error {
+		if _, _, err := eventsAt(q); err != nil { // the snapshot starts at the first read
+			return err
+		}
+		for _, ev := range closes {
+			if _, err := recordsql.Insert(db, ev); err != nil {
+				return err
+			}
+		}
+		r, err := workReadsAt(q, budgetAskOf(run, "lens", lens))
+		if err != nil {
+			return err
+		}
+		open := 0
+		for _, g := range r.gaps {
+			if g.Open && g.MintedBy == lens {
+				open++
+			}
+		}
+		if r.budget == nil || r.budget.err != nil {
+			t.Fatalf("the budget did not read: %+v", r.budget)
+		}
+		if got := r.budget.st.Open + r.budget.st.Answering; open != 25 || got != open {
+			t.Errorf("the list holds %d of the lens's gaps open and the budget counts %d, want 25 and 25 — the budget came off another read of the record", open, got)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// budgetAgreesWithList fails w where its mint budget counts other than the gaps its list shows
+// lens holding open.
+func budgetAgreesWithList(t *testing.T, w WorkJSON, lens string) {
+	t.Helper()
+	listed := 0
+	for _, g := range w.Open {
+		if g.MintedBy == lens {
+			listed++
+		}
+	}
+	b := w.Sitting.MintBudget
+	if b == nil {
+		t.Fatalf("the lens's work list carries no mint budget")
+	}
+	if got := b.Open + b.Answering; got != listed {
+		t.Fatalf("the list shows %d gap(s) the lens holds open and its mint budget counts %d — the budget and the list came off two reads of the record", listed, got)
+	}
 }
 
 // whileCommitting commits acts in ONE transaction on a seat's own connection (seatWriter) from a

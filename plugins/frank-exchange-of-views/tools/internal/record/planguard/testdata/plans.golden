@@ -775,6 +775,10 @@
   SCAN e
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
+== stmt 6799aad63552
+-- SELECT "seat_id", "ts", "type" FROM "events" WHERE "id" = ?
+  SEARCH events USING INTEGER PRIMARY KEY (rowid=?)
+
 == stmt 751199db797c
 -- SELECT (SELECT count(*) FROM "verify"), (SELECT count(*) FROM "cite")
   SCAN CONSTANT ROW
@@ -809,42 +813,39 @@
 -- SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'
   SCAN sqlite_master
 
-== stmt c8f27ee8ea40
--- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" ORDER BY e."id"
-  MATERIALIZE sittings
-    SCAN e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+== stmt 4e1d7b4a9741
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" ORDER BY e."id"
   SCAN e
-  BLOOM FILTER ON s (id=?)
-  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
-== stmt 98b157b7f9fa
--- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?) ORDER BY e."id"
-  MATERIALIZE sittings
-    SCAN e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+== stmt 324798c7829c
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."id" > ? ORDER BY e."id"
+  SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+
+== stmt 3fcb0d56cb9c
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."type" IN (?, ?, ?, ?, ?) ORDER BY e."id"
   SEARCH e USING INDEX events_type (type=?)
-  BLOOM FILTER ON s (id=?)
-  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt 738391e7eee3
--- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?, ?) ORDER BY e."id"
-  MATERIALIZE sittings
-    SCAN e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+== stmt 71f8a909b694
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."type" IN (?, ?, ?, ?, ?, ?) ORDER BY e."id"
   SEARCH e USING INDEX events_type (type=?)
-  BLOOM FILTER ON s (id=?)
-  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt a10e28afe1a9
--- SELECT l."event_id", l."value" FROM "mint_found_by" l ORDER BY l."event_id", l."ord"
-  SCAN l USING INDEX sqlite_autoindex_mint_found_by_1
+== stmt 30c374d83d36
+-- SELECT l."event_id", l."value" FROM "mint_found_by" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
+  SEARCH l USING INDEX sqlite_autoindex_mint_found_by_1 (event_id>?)
 
-== stmt 6b5b2533bb1a
--- SELECT l."event_id", l."value" FROM "mint_supersedes" l ORDER BY l."event_id", l."ord"
-  SCAN l USING INDEX sqlite_autoindex_mint_supersedes_1
+== stmt dfd2a5dfacc1
+-- SELECT l."event_id", l."value" FROM "mint_supersedes" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
+  SEARCH l USING INDEX sqlite_autoindex_mint_supersedes_1 (event_id>?)
 
 == stmt 3d352b108dd8
 -- SELECT o."id", o."sitting" FROM "events" o WHERE o."id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)
@@ -857,9 +858,9 @@
 -- SELECT o."verdict" FROM "outcome" o ORDER BY o."event_id" DESC LIMIT 1
   SCAN o
 
-== stmt dccafc16c8de
--- SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."mint_reason", t."class_material" FROM "mint" t
-  SCAN t
+== stmt 6140ddb450fa
+-- SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."mint_reason", t."class_material" FROM "mint" t WHERE t."event_id" > ?
+  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt d196121f7f29
 -- SELECT v."value" FROM "cast_seat_ids" v WHERE v."event_id" = (SELECT MAX("event_id") FROM "cast") ORDER BY v."ord"

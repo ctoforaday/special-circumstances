@@ -135,7 +135,7 @@ func TestRenderAntigravityManifestCopiesSharedFieldsAndStripsClaudeOnlyFields(t 
   "dependencies": [
     "prosthetic-conscience"
   ],
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./.claude-plugin/hooks.json"
 }`
 	out, err := renderAntigravityManifest("frank-exchange-of-views", []byte(in))
 	if err != nil {

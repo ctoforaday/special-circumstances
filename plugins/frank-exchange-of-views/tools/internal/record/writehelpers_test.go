@@ -41,13 +41,6 @@ func mustAppend(t *testing.T, id Identity, body proto.Message) *Event {
 	return ev
 }
 
-// replayed appends as migrate replays an archived act.
-func replayed(id Identity, body proto.Message) (*Event, error) {
-	Migrating = true
-	defer func() { Migrating = false }()
-	return Append(id, body)
-}
-
 func seatLog(text string) *recordpb.Log {
 	return &recordpb.Log{Text: proto.String(text), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}
 }

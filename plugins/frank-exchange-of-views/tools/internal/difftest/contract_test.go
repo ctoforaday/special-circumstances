@@ -274,11 +274,15 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a second closing on a gap in one sitting", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered, restated"}},
 		{"repeat target: blue's manifest row for GAP001", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked the sentence"}},
 		{"a second manifest row for a gap in one sitting", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked it again"}},
-		{"repeat target: the lens closes GAP001", []string{"close", "--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
+		{"a lens closing a gap a docket motion stands on", []string{"close", "--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
+			"--verified-against", "t", "--reason", "verified at the leaf"}},
+		{"repeat target: a gap nothing is before the bench on", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",
+			"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "the gap the carry restates"}},
+		{"repeat target: the lens closes it", []string{"close", "--id", "GAP002", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 			"--verified-against", "t", "--reason", "verified at the leaf"}},
 		{"repeat target: the chair sits again", []string{"register", "--seat-id", "red-chair"}},
-		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "0", "--as", "repaired", "--reason", "restating"}},
-		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "0", "--as", "not_a_defect", "--reason", "restating otherwise"}},
+		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP002", "--carried-from", "0", "--as", "repaired", "--reason", "restating"}},
+		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP002", "--carried-from", "0", "--as", "not_a_defect", "--reason", "restating otherwise"}},
 
 		// A RUN CARRIED TO THE END OF A LONGER REPLACEMENT. The two target rows place two findings on
 		// one sentence; the refusal prints what the record holds about each and the replacement's

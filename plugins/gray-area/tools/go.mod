@@ -4,6 +4,7 @@ go 1.27.1
 
 require (
 	github.com/spf13/cobra v1.10.2
+	github.com/ctoforaday/special-circumstances/shared v0.0.0
 	github.com/yuin/goldmark v1.8.7
 	modernc.org/sqlite v1.61.1
 	mvdan.cc/sh/v3 v3.14.1
@@ -22,3 +23,6 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
+
+replace github.com/ctoforaday/special-circumstances/shared => ../../../shared
+

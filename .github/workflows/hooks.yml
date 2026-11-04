@@ -27,6 +27,13 @@ on:
 permissions:
   contents: read
 
+# THE CAP ON EACH JOB'S GO BUILD CACHE, in MiB on disk, which .github/actions/go-cache trims to
+# before main's nightly saves it. A trim first drops everything the run did not use, so the cap
+# binds only on a job whose own working set outgrows it. Each trim prints what it kept against
+# the cap; those lines, beside the repository's 10 GB cache allowance, are what to size it by.
+env:
+  GO_CACHE_MAX_MIB: "2048"
+
 defaults:
   run:
     working-directory: plugins/prosthetic-conscience/tools
@@ -69,8 +76,8 @@ jobs:
   # targets COEXIST — it grew 61M -> 127M -> 183M and never evicted — which is also why the
   # loop order below does not matter: each platform is built once whatever order it is
   # reached in. Cold is therefore ~6-7 min on this job and ~30s warm, off the critical path
-  # either way, and a cold run only happens when the cache key moves (this file, or a
-  # dependency bump), which is the same moment every other job goes cold too.
+  # either way, and a cold run only happens when the cache key moves (a dependency bump or a
+  # new Go release), which is the same moment every other job goes cold too.
   #
   # gofmt comes along because it is host-independent outright: it formats text and reads no
   # build constraints, so seven runs of it across the matrix were seven identical answers.
@@ -85,20 +92,23 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Pull requests and the nightly, for the reason the first setup-go states in full:
-          # the schedule is what puts a cache on main for a new branch to restore.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
+          go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
           # Every module, because this job is the only one that vets any of them now.
-          cache-dependency-path: |
+          dependency-files: |
             plugins/prosthetic-conscience/tools/go.mod
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/gray-area/tools/go.mod
             scripts/go.sum
-          go-version: "1.27"
+            shared/go.mod
       - name: gofmt, once, for the whole repository
         run: |
           set -euo pipefail
-          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts; do
+          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts shared; do
             # An explicit `if`, not `cd && test || {...}`: that reads as if-then-else and is
             # not one (shellcheck SC2015) — a failed `cd` would take the else branch and
             # report the module unformatted when the truth is that it was never looked at.
@@ -112,12 +122,15 @@ jobs:
       - name: vet every module against every operating system we ship
         run: |
           set -euo pipefail
-          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts; do
+          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts shared; do
             for os in windows darwin linux; do
               echo "== $mod :: $os =="
               ( cd "$mod" && GOOS="$os" GOARCH=amd64 go vet ./... )
             done
           done
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
 
   test:
     strategy:
@@ -170,8 +183,8 @@ jobs:
           $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
           $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
           Format-Volume -DriveLetter V -DevDrive | Out-Null
-          # setup-go resolves GOCACHE/GOMODCACHE through `go env` when ITS step runs, and
-          # this step runs first, so exporting the paths here lands the pull-request cache
+          # .github/actions/go-cache resolves GOCACHE/GOMODCACHE through `go env` when ITS
+          # step runs, and this step runs first, so exporting the paths here lands the cache
           # restore on the dev drive. TEMP is deliberately NOT here - it is the RAM disk's.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -226,69 +239,8 @@ jobs:
           Write-Host "TEMP is on the kernel-mode RAM disk (X:)."
       - uses: actions/setup-go@v7
         with:
-          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
-          # a sharper version of the blanket `cache: false` that stood here, not a retreat
-          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
-          # can restore, and a run can only restore caches from its own ref or the default
-          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
-          # dangerous caches are MAIN's, which only `push` events would write — and this
-          # workflow pushes only on main and tags, so with the condition below neither ever
-          # writes one (a tag build is event_name == push, so this is false there too).
-          # The invariant to keep: if caching is ever enabled for `push`, the release build
-          # starts restoring main's caches and the original finding reopens.
-          #
-          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
-          # pull request's FIRST run warm rather than only its later ones. A run restores
-          # caches from its own ref or the default branch; saving on pull_request alone put
-          # every cache on a merge ref, so a new branch could see none of them. Measured
-          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
-          # held ZERO, which is why a first run rebuilt the standard library every time.
-          # A scheduled run executes on main's ref at full depth, so it writes exactly the
-          # caches a later pull request wants.
-          #
-          # THE CONDITION IS THE INVARIANT, STATED: `!= push`. Both dangerous cases are the
-          # same event — a main push and a tag build are both event_name == push — so the
-          # rule the comment above spent a paragraph describing is now the expression
-          # itself, and it cannot drift out of step with a list of events somebody has to
-          # remember to extend. A release run still neither writes a cache nor restores
-          # one. Everything that is NOT a push — pull requests, the nightly, a manual
-          # dispatch — may cache, and the last two are the ones that put a cache on MAIN
-          # for a new branch to restore.
-          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
-          # statically. The finding is answered, not suppressed-and-forgotten: the release
-          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
-          # a tag), so published bytes never touch any cache — and `push` writes none, so a
-          # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          # The modules are not at the repo root, and setup-go's default lookup is — with
-          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
-          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
-          # enough to be the right trade against four hand-kept per-job paths.
-          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
-          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
-          # at once, and setup-go passes only a primary key to restoreCache with no
-          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
-          # rather than partial — each job rebuilt the standard library from scratch, ~150s
-          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
-          # whoever was editing CI, which is the work most in need of a fast loop.
-          #
-          # It was there to keep a bad save from persisting: the key is otherwise
-          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
-          # that worry without a key component. A FAILED job never saves at all (its post
-          # step is skipped — observed), so a broken run cannot poison anything. And a
-          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
-          # by hand would have rebuilt, worse, something GitHub ships.
-          #
-          # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
-          # own and needs nothing here.
-          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
-          # inputs, so they raced to save one key and the smallest job always won —
-          # that is the whole story of the frozen 27 MB cache: the pc-tools job
-          # finished first and its little build cache became everyone's. Each job now
-          # keys on what IT builds, so each save is the cache its restore expects.
-          cache-dependency-path: |
-            plugins/prosthetic-conscience/tools/go.mod
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -297,6 +249,11 @@ jobs:
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
           go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          dependency-files: |
+            plugins/prosthetic-conscience/tools/go.mod
       - run: go test ./...
       # This module had no race leg at all, while gray-area ran `-race ./...` and
       # feov-record races its shipped binaries' import graph (see that job for the scope
@@ -311,6 +268,9 @@ jobs:
       - run: go test -race -timeout=30m ./...
         env:
           CGO_ENABLED: "1"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
 
   ocr-corpus:
     # THE EXPENSIVE PAGES, IN THEIR OWN JOB, ON LINUX ONLY.
@@ -483,8 +443,8 @@ jobs:
           $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
           $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
           Format-Volume -DriveLetter V -DevDrive | Out-Null
-          # setup-go resolves GOCACHE/GOMODCACHE through `go env` when ITS step runs, and
-          # this step runs first, so exporting the paths here lands the pull-request cache
+          # .github/actions/go-cache resolves GOCACHE/GOMODCACHE through `go env` when ITS
+          # step runs, and this step runs first, so exporting the paths here lands the cache
           # restore on the dev drive. TEMP is deliberately NOT here - it is the RAM disk's.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -539,72 +499,8 @@ jobs:
           Write-Host "TEMP is on the kernel-mode RAM disk (X:)."
       - uses: actions/setup-go@v7
         with:
-          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
-          # a sharper version of the blanket `cache: false` that stood here, not a retreat
-          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
-          # can restore, and a run can only restore caches from its own ref or the default
-          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
-          # dangerous caches are MAIN's, which only `push` events would write — and this
-          # workflow pushes only on main and tags, so with the condition below neither ever
-          # writes one (a tag build is event_name == push, so this is false there too).
-          # The invariant to keep: if caching is ever enabled for `push`, the release build
-          # starts restoring main's caches and the original finding reopens.
-          #
-          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
-          # pull request's FIRST run warm rather than only its later ones. A run restores
-          # caches from its own ref or the default branch; saving on pull_request alone put
-          # every cache on a merge ref, so a new branch could see none of them. Measured
-          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
-          # held ZERO, which is why a first run rebuilt the standard library every time.
-          # A scheduled run executes on main's ref at full depth, so it writes exactly the
-          # caches a later pull request wants.
-          #
-          # THE CONDITION IS THE INVARIANT, STATED: `!= push`. Both dangerous cases are the
-          # same event — a main push and a tag build are both event_name == push — so the
-          # rule the comment above spent a paragraph describing is now the expression
-          # itself, and it cannot drift out of step with a list of events somebody has to
-          # remember to extend. A release run still neither writes a cache nor restores
-          # one. Everything that is NOT a push — pull requests, the nightly, a manual
-          # dispatch — may cache, and the last two are the ones that put a cache on MAIN
-          # for a new branch to restore.
-          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
-          # statically. The finding is answered, not suppressed-and-forgotten: the release
-          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
-          # a tag), so published bytes never touch any cache — and `push` writes none, so a
-          # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          # The modules are not at the repo root, and setup-go's default lookup is — with
-          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
-          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
-          # enough to be the right trade against four hand-kept per-job paths.
-          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
-          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
-          # at once, and setup-go passes only a primary key to restoreCache with no
-          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
-          # rather than partial — each job rebuilt the standard library from scratch, ~150s
-          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
-          # whoever was editing CI, which is the work most in need of a fast loop.
-          #
-          # It was there to keep a bad save from persisting: the key is otherwise
-          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
-          # that worry without a key component. A FAILED job never saves at all (its post
-          # step is skipped — observed), so a broken run cannot poison anything. And a
-          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
-          # by hand would have rebuilt, worse, something GitHub ships.
-          #
-          # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
-          # own and needs nothing here.
-          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
-          # inputs, so they raced to save one key and the smallest job always won —
-          # that is the whole story of the frozen 27 MB cache: the pc-tools job
-          # finished first and its little build cache became everyone's. Each job now
-          # keys on what IT builds, so each save is the cache its restore expects.
-          # scripts/go.sum as well: the race step builds scripts/racescope, whose
-          # dependencies are this job's to cache.
-          cache-dependency-path: |
-            plugins/frank-exchange-of-views/tools/go.sum
-            scripts/go.sum
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -613,6 +509,14 @@ jobs:
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
           go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          # scripts/go.sum as well: the race step builds scripts/racescope, whose
+          # dependencies are this job's to cache.
+          dependency-files: |
+            plugins/frank-exchange-of-views/tools/go.sum
+            scripts/go.sum
       - uses: actions/setup-node@v7
         with:
           # The bump the previous comment here was waiting for. `cache: false` was never
@@ -815,53 +719,39 @@ jobs:
         shell: bash
         env:
           CGO_ENABLED: "1"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
 
-  release-fuzz:
-    # THE DEBATE SWEEPS ON THE PULL REQUESTS THAT CAN MOVE THEM (ruled 2026-10-25: "CI on PRs +
-    # local once"). releasegate/fuzz's binary-driving sweeps — forty debates against the built
-    # binary, the shipped hooks resolved against it — run here on every pull request that
-    # changes what they drive, so a red lands on the branch that caused it, and an agent reads
-    # this job's result instead of sweeping on a shared dev box.
+  release-fuzz-build:
+    # THE SWEEP'S BINARIES, COMPILED ONCE FOR EVERY PART (#1624). `go test` in each of the four
+    # release-fuzz parts and in release-fuzz-tally compiles one test binary five times from cold,
+    # and each part links feov-record and the commands it drives again besides; the tally alone
+    # spends about a minute compiling a test that runs in under a second, on the pull request's
+    # critical path. This job compiles the package's test binary and builds every command of the
+    # module once, and uploads both; the parts and the tally download and run them.
+    #
+    # THE SAME BUILD `go test` RAN: no tags, no flags, the job's toolchain. The commands are the
+    # default build internal/testbuild runs (`go build ./cmd/<name>`); the parts name the directory
+    # in FEOV_TESTBUILD_PREBUILT, and testbuild returns a command from it instead of building one,
+    # refusing a command it lacks. Every command, derived from ./cmd/..., so no list here can fall
+    # behind what the suite runs.
     #
     # THE JOB ALWAYS RUNS AND DECIDES FOR ITSELF. The filter is a step, not `on.pull_request.paths`:
     # this workflow holds every job, and a workflow-level filter that skipped the workflow would
     # leave a required check pending forever. A pull request that touches none of the paths below
-    # reports this job green with the sweep step skipped, and the scope step says so.
+    # reports this job and every part green with their steps skipped, and the scope step says so.
     #
     # THE PATHS are what the sweeps execute or read: the FEOV tools module (the binary, the record,
     # the hook commands, the fuzz itself), the plugin's hooks (hooks.json is resolved against the
-    # built binary), the debate engine script, and this workflow, so a change to this job proves
-    # itself on its own pull request.
+    # built binary), the debate engine script, this workflow and the cache action it uses, so a
+    # change to these jobs proves itself on its own pull request.
     #
-    # LINUX ONLY: the sweeps are statistics on debate semantics, which are platform-independent;
-    # what the platform contributes, feov-record's Windows leg proves without them.
-    #
-    # FOUR PARTS, JUDGED TOGETHER (#1616). Each part runs the whole package with FUZZ_PART=k/4, so
-    # TestFuzzDebate runs the seeds where (seed-1)%4 == k, fails on its own failed runs, and writes
-    # what it measured to its tally; the once-per-sweep drives arm in part 0 alone. No part judges
-    # the sweep's gates: release-fuzz-tally reads the four tallies and judges them over the whole
-    # sweep. fail-fast is off so one red part leaves the others' tallies standing. The nightly and
-    # the release job run the sweep whole, in one process.
-    #
-    # NO BUILD CACHE: this job runs on pull requests only, and a pull request's cache lives on its
-    # merge ref, where no other pull request can restore it. Sharing feov-record's key instead
-    # would race it for the save (see that job's setup-go comment). The compile is a minute or two
-    # against a sweep of about seventy.
-    #
-    # timeout-minutes 75: the whole sweep measured 4271s (71 min) on one runner (run 40178244370),
-    # and a part runs a quarter of its seeds. The test's own -timeout=60m fires first and names the
-    # running test; this bound is for a runner that never reaches it.
-    #
-    # NO CONCURRENCY GROUP, here or anywhere in this workflow: a new push to the branch starts a
-    # new run and the old one finishes and reports against its own commit.
+    # IT RESTORES feov-record's CACHE FROM MAIN, read-only: that job compiles this module's whole
+    # test graph on main's nightly, so what a pull request did not change is already compiled.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 75
-    strategy:
-      fail-fast: false
-      matrix:
-        part: [0, 1, 2, 3]
-    # Every part reads the same diff, so the scope is one value whichever part writes it last.
+    timeout-minutes: 30
     outputs:
       run: ${{ steps.scope.outputs.run }}
     env:
@@ -887,7 +777,10 @@ jobs:
             echo "::error::HEAD is not the pull request's merge commit, so its changes cannot be read"
             exit 1
           }
-          hits=$(git diff --name-only HEAD^1 HEAD | grep -E '^(plugins/frank-exchange-of-views/(tools/|hooks/|skills/research-protocol/scripts/debate\.js$)|\.github/workflows/hooks\.yml$)' || true)
+          hits=$(git diff --name-only HEAD^1 HEAD | grep -E \
+            -e '^plugins/frank-exchange-of-views/(tools/|hooks/|skills/research-protocol/scripts/debate\.js$)' \
+            -e '^\.github/workflows/hooks\.yml$' \
+            -e '^\.github/actions/go-cache/' || true)
           if [ -z "$hits" ]; then
             echo "::notice::this pull request changes nothing the release sweeps drive; they skip"
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -896,43 +789,144 @@ jobs:
             echo "$hits"
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: tmpfs for TEMP
-        if: steps.scope.outputs.run == 'true'
-        run: |
-          mkdir -p /dev/shm/tmp
-          echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
       - uses: actions/setup-go@v7
         if: steps.scope.outputs.run == 'true'
         with:
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
           cache: false
           go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        if: steps.scope.outputs.run == 'true'
+        with:
+          phase: restore
+          job: feov-record
+          dependency-files: |
+            plugins/frank-exchange-of-views/tools/go.sum
+            scripts/go.sum
+      - name: Compile the sweep's test binary and the module's commands
+        if: steps.scope.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/release-fuzz-build"
+          mkdir -p "$out/bin"
+          go test -c -o "$out/fuzz.test" ./releasegate/fuzz/
+          go build -o "$out/bin/" ./cmd/...
+          ls -l "$out" "$out/bin"
+      - uses: actions/upload-artifact@v7
+        if: steps.scope.outputs.run == 'true'
+        with:
+          name: release-fuzz-build
+          path: ${{ runner.temp }}/release-fuzz-build/
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
+
+  release-fuzz:
+    # THE DEBATE SWEEPS ON THE PULL REQUESTS THAT CAN MOVE THEM (ruled 2026-10-25: "CI on PRs +
+    # local once"). releasegate/fuzz's binary-driving sweeps — forty debates against the built
+    # binary, the shipped hooks resolved against it — run here on every pull request that
+    # changes what they drive, so a red lands on the branch that caused it, and an agent reads
+    # this job's result instead of sweeping on a shared dev box. release-fuzz-build decides the
+    # scope and compiles what every part runs; each part runs the downloaded test binary from the
+    # package directory, as `go test` would, with no Go toolchain of its own.
+    #
+    # LINUX ONLY: the sweeps are statistics on debate semantics, which are platform-independent;
+    # what the platform contributes, feov-record's Windows leg proves without them.
+    #
+    # FOUR PARTS, JUDGED TOGETHER (#1616). Each part runs the whole package with FUZZ_PART=k/4, so
+    # TestFuzzDebate runs the seeds where (seed-1)%4 == k, fails on its own failed runs, and writes
+    # what it measured to its tally; the once-per-sweep drives arm in part 0 alone, and the
+    # dedicated paths (halt, unverified, verified, the shipped hooks) run in part 3 alone (#1624),
+    # which the step asserts. No part judges the sweep's gates: release-fuzz-tally reads the four
+    # tallies and judges them over the whole sweep. fail-fast is off so one red part leaves the
+    # others' tallies standing. The nightly and the release job run the sweep whole, in one process.
+    #
+    # timeout-minutes 75: the whole sweep measured 4271s (71 min) on one runner (run 40178244370),
+    # and a part runs a quarter of its seeds. The test's own -test.timeout=60m fires first and names
+    # the running test; this bound is for a runner that never reaches it.
+    #
+    # NO CONCURRENCY GROUP, here or anywhere in this workflow: a new push to the branch starts a
+    # new run and the old one finishes and reports against its own commit.
+    #
+    # A PART WITHOUT A BUILD FAILS rather than skipping: a skipped part reads as a green one.
+    needs: release-fuzz-build
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3]
+    defaults:
+      run:
+        working-directory: plugins/frank-exchange-of-views/tools/releasegate/fuzz
+    steps:
+      - name: The sweep's build succeeded
+        if: needs.release-fuzz-build.result != 'success'
+        working-directory: .
+        env:
+          BUILD: ${{ needs.release-fuzz-build.result }}
+        run: |
+          echo "::error::release-fuzz-build ended ${BUILD}, so this part has nothing to run"
+          exit 1
+      - uses: actions/checkout@v7
+        if: needs.release-fuzz-build.outputs.run == 'true'
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
+      - name: tmpfs for TEMP
+        if: needs.release-fuzz-build.outputs.run == 'true'
+        run: |
+          mkdir -p /dev/shm/tmp
+          echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v8
+        if: needs.release-fuzz-build.outputs.run == 'true'
+        with:
+          name: release-fuzz-build
+          path: ${{ runner.temp }}/release-fuzz-build
       # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE, as in the release job: the sweeps
       # skip when FEOV_RELEASE_GATE is unset, so a typo'd variable would exit 0 having measured
-      # nothing. The full log is kept and uploaded when the step fails.
+      # nothing — and the dedicated paths skip outside their part, so the part that runs them
+      # asserts each one's PASS line. The full log is kept and uploaded when the step fails.
       - name: This part of the debate sweeps holds on this pull request
-        if: steps.scope.outputs.run == 'true'
+        if: needs.release-fuzz-build.outputs.run == 'true'
         shell: bash
         env:
           FEOV_RELEASE_GATE: "1"
           FUZZ_PART: ${{ matrix.part }}/4
           FUZZ_TALLY: ${{ runner.temp }}/release-fuzz-tally-${{ matrix.part }}.json
+          FEOV_TESTBUILD_PREBUILT: ${{ runner.temp }}/release-fuzz-build/bin
         run: |
+          build="$RUNNER_TEMP/release-fuzz-build"
+          # An artifact keeps no file mode.
+          chmod +x "$build/fuzz.test" "$build"/bin/*
           log="$RUNNER_TEMP/release-fuzz.log"
-          go test -v -count=1 -timeout=60m ./releasegate/fuzz/ >"$log" 2>&1 || {
+          "$build/fuzz.test" -test.v -test.paniconexit0 -test.timeout=60m >"$log" 2>&1 || {
             # The verdict lines, not the goroutine dump a timeout ends with: the dump is in the
             # uploaded log.
-            grep -E '^(--- |panic:|FAIL|ok)|RUNSTAT|running tests:|^[[:space:]]+Test[A-Za-z]+ \(' "$log" | tail -60
+            grep -E '^(--- |panic:|FAIL|PASS|ok)|RUNSTAT|running tests:|^[[:space:]]+Test[A-Za-z]+ \(' "$log" | tail -60
             exit 1
           }
-          grep -E "^(--- |ok)" "$log" | tail -30
+          grep -E "^(--- |PASS)" "$log" | tail -30
           grep -qE '^--- PASS: TestFuzzDebate \(' "$log" || {
             echo "::error::the sweep did not run TestFuzzDebate; the gate guarded nothing"
             exit 1
           }
+          # The last part runs the dedicated paths: the rule sweepPart.runsSweepPaths states.
+          if [ "${FUZZ_PART%/*}" -eq $(( ${FUZZ_PART#*/} - 1 )) ]; then
+            for name in TestFuzzHaltPath TestFuzzUnverifiedPath TestFuzzVerifiedPath TestTheShippedHooksResolveAgainstTheBuiltBinary; do
+              grep -qE "^--- PASS: ${name} \(" "$log" || {
+                echo "::error::${name} did not pass in part ${FUZZ_PART}, the part that runs the sweep's dedicated paths"
+                exit 1
+              }
+            done
+          fi
       # THE TALLY IS KEPT WHETHER THE PART PASSED OR FAILED: a part with failed runs still measured
       # the rest, and release-fuzz-tally refuses a sweep with a part's tally missing.
       - uses: actions/upload-artifact@v7
-        if: always() && steps.scope.outputs.run == 'true'
+        if: always() && needs.release-fuzz-build.outputs.run == 'true'
         with:
           name: release-fuzz-tally-${{ matrix.part }}
           path: ${{ runner.temp }}/release-fuzz-tally-${{ matrix.part }}.json
@@ -940,7 +934,7 @@ jobs:
           # A re-run part replaces its own tally rather than failing on the name.
           overwrite: true
       - uses: actions/upload-artifact@v7
-        if: (failure() || cancelled()) && steps.scope.outputs.run == 'true'
+        if: (failure() || cancelled()) && needs.release-fuzz-build.outputs.run == 'true'
         with:
           name: release-fuzz-log-${{ matrix.part }}
           path: ${{ runner.temp }}/release-fuzz.log
@@ -953,26 +947,25 @@ jobs:
     # TestFuzzSweepTally, which refuses a set that is not one whole sweep — a part missing, a part
     # twice, parts that disagree, seeds other than 1..N once each — and then judges the gates over
     # the merge. It runs after the parts whatever they ended as, so a red part still has its
-    # sweep judged, and a part that wrote no tally reads as that refusal.
+    # sweep judged, and a part that wrote no tally reads as that refusal. It runs the test binary
+    # release-fuzz-build compiled, so it compiles nothing.
     #
     # THE PASS IS ASSERTED, as in the parts: the test skips without FUZZ_TALLIES.
-    needs: release-fuzz
-    if: always() && github.event_name == 'pull_request' && needs.release-fuzz.outputs.run == 'true'
+    needs: [release-fuzz-build, release-fuzz]
+    if: always() && github.event_name == 'pull_request' && needs.release-fuzz-build.result == 'success' && needs.release-fuzz-build.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      GOTOOLCHAIN: local
     defaults:
       run:
-        working-directory: plugins/frank-exchange-of-views/tools
+        working-directory: plugins/frank-exchange-of-views/tools/releasegate/fuzz
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v7
+      - uses: actions/download-artifact@v8
         with:
-          cache: false
-          go-version: "1.27"
+          name: release-fuzz-build
+          path: ${{ runner.temp }}/release-fuzz-build
       - uses: actions/download-artifact@v8
         with:
           pattern: release-fuzz-tally-*
@@ -983,12 +976,14 @@ jobs:
         env:
           FUZZ_TALLIES: ${{ runner.temp }}/release-fuzz-tallies
         run: |
+          build="$RUNNER_TEMP/release-fuzz-build"
+          chmod +x "$build/fuzz.test"
           log="$RUNNER_TEMP/release-fuzz-tally.log"
-          go test -v -count=1 -run '^TestFuzzSweepTally$' ./releasegate/fuzz/ >"$log" 2>&1 || {
-            grep -E '^(--- |panic:|FAIL|ok)|^[[:space:]]+[a-z_]+_test\.go:[0-9]+:' "$log" | tail -80
+          "$build/fuzz.test" -test.v -test.paniconexit0 -test.run '^TestFuzzSweepTally$' >"$log" 2>&1 || {
+            grep -E '^(--- |panic:|FAIL|PASS|ok)|^[[:space:]]+[a-z_]+_test\.go:[0-9]+:' "$log" | tail -80
             exit 1
           }
-          grep -E "^(--- |ok)" "$log" | tail -30
+          grep -E "^(--- |PASS)" "$log" | tail -30
           grep -qE '^--- PASS: TestFuzzSweepTally \(' "$log" || {
             echo "::error::TestFuzzSweepTally did not run; the sweep's gates judged nothing"
             exit 1
@@ -1059,8 +1054,8 @@ jobs:
           $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
           $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
           Format-Volume -DriveLetter V -DevDrive | Out-Null
-          # setup-go resolves GOCACHE/GOMODCACHE through `go env` when ITS step runs, and
-          # this step runs first, so exporting the paths here lands the pull-request cache
+          # .github/actions/go-cache resolves GOCACHE/GOMODCACHE through `go env` when ITS
+          # step runs, and this step runs first, so exporting the paths here lands the cache
           # restore on the dev drive. TEMP is deliberately NOT here - it is the RAM disk's.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -1115,69 +1110,8 @@ jobs:
           Write-Host "TEMP is on the kernel-mode RAM disk (X:)."
       - uses: actions/setup-go@v7
         with:
-          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
-          # a sharper version of the blanket `cache: false` that stood here, not a retreat
-          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
-          # can restore, and a run can only restore caches from its own ref or the default
-          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
-          # dangerous caches are MAIN's, which only `push` events would write — and this
-          # workflow pushes only on main and tags, so with the condition below neither ever
-          # writes one (a tag build is event_name == push, so this is false there too).
-          # The invariant to keep: if caching is ever enabled for `push`, the release build
-          # starts restoring main's caches and the original finding reopens.
-          #
-          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
-          # pull request's FIRST run warm rather than only its later ones. A run restores
-          # caches from its own ref or the default branch; saving on pull_request alone put
-          # every cache on a merge ref, so a new branch could see none of them. Measured
-          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
-          # held ZERO, which is why a first run rebuilt the standard library every time.
-          # A scheduled run executes on main's ref at full depth, so it writes exactly the
-          # caches a later pull request wants.
-          #
-          # THE CONDITION IS THE INVARIANT, STATED: `!= push`. Both dangerous cases are the
-          # same event — a main push and a tag build are both event_name == push — so the
-          # rule the comment above spent a paragraph describing is now the expression
-          # itself, and it cannot drift out of step with a list of events somebody has to
-          # remember to extend. A release run still neither writes a cache nor restores
-          # one. Everything that is NOT a push — pull requests, the nightly, a manual
-          # dispatch — may cache, and the last two are the ones that put a cache on MAIN
-          # for a new branch to restore.
-          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
-          # statically. The finding is answered, not suppressed-and-forgotten: the release
-          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
-          # a tag), so published bytes never touch any cache — and `push` writes none, so a
-          # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          # The modules are not at the repo root, and setup-go's default lookup is — with
-          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
-          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
-          # enough to be the right trade against four hand-kept per-job paths.
-          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
-          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
-          # at once, and setup-go passes only a primary key to restoreCache with no
-          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
-          # rather than partial — each job rebuilt the standard library from scratch, ~150s
-          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
-          # whoever was editing CI, which is the work most in need of a fast loop.
-          #
-          # It was there to keep a bad save from persisting: the key is otherwise
-          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
-          # that worry without a key component. A FAILED job never saves at all (its post
-          # step is skipped — observed), so a broken run cannot poison anything. And a
-          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
-          # by hand would have rebuilt, worse, something GitHub ships.
-          #
-          # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
-          # own and needs nothing here.
-          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
-          # inputs, so they raced to save one key and the smallest job always won —
-          # that is the whole story of the frozen 27 MB cache: the pc-tools job
-          # finished first and its little build cache became everyone's. Each job now
-          # keys on what IT builds, so each save is the cache its restore expects.
-          cache-dependency-path: |
-            plugins/gray-area/tools/go.mod
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -1185,6 +1119,37 @@ jobs:
           # toolchain nobody had pinned. v7 defaults GOTOOLCHAIN=local, which turns that
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
+          go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          dependency-files: |
+            plugins/gray-area/tools/go.mod
+      - run: go test ./...
+      - run: go test -race -timeout=30m ./...
+        env:
+          CGO_ENABLED: "1"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
+
+  shared:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: shared
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          cache: ${{ github.event_name != 'push' }}
+          cache-dependency-path: |
+            shared/go.mod
           go-version: "1.27"
       - run: go test ./...
       - run: go test -race -timeout=30m ./...
@@ -1284,9 +1249,17 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
-          go-version-file: scripts/go.mod
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          cache-dependency-path: scripts/go.sum
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
+          # The scripts job's pin, because the cache this job restores is that job's, and the Go
+          # version is in its key.
+          go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          job: scripts
+          dependency-files: |
+            scripts/go.sum
       # The guard's own suite runs first and unconditionally. It reconstructs #633's branch
       # shape in a scratch repository and asserts the answer flips when the base merges — a
       # containment check that stopped answering would otherwise report every stack as live,
@@ -1327,41 +1300,14 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
-          # Pull requests and the nightly, for the reason the first setup-go states in full:
-          # a tag run restores nothing because `push` stays cache-free, while the schedule
-          # writes the main-scoped cache a new pull-request branch can actually restore.
-          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
-          # statically. The finding is answered, not suppressed-and-forgotten: the release
-          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
-          # a tag), so published bytes never touch any cache — and `push` writes none, so a
-          # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
-          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
-          # at once, and setup-go passes only a primary key to restoreCache with no
-          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
-          # rather than partial — each job rebuilt the standard library from scratch, ~150s
-          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
-          # whoever was editing CI, which is the work most in need of a fast loop.
-          #
-          # It was there to keep a bad save from persisting: the key is otherwise
-          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
-          # that worry without a key component. A FAILED job never saves at all (its post
-          # step is skipped — observed), so a broken run cannot poison anything. And a
-          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
-          # by hand would have rebuilt, worse, something GitHub ships.
-          #
-          # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
-          # own and needs nothing here.
-          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
-          # inputs, so they raced to save one key and the smallest job always won —
-          # that is the whole story of the frozen 27 MB cache: the pc-tools job
-          # finished first and its little build cache became everyone's. Each job now
-          # keys on what IT builds, so each save is the cache its restore expects.
-          cache-dependency-path: |
-            scripts/go.sum
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
           go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          dependency-files: |
+            scripts/go.sum
       - uses: actions/setup-node@v7
         with:
           # The bump the previous comment here was waiting for. `cache: false` was never
@@ -1404,6 +1350,9 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: go run ./archaeology -base "origin/$BASE_REF"
         working-directory: scripts
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
 
   scripts:
     # The repo's dev tooling, now Go: rule-sweep, golden and the four CI guards. Its own
@@ -1427,41 +1376,14 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Pull requests and the nightly, for the reason the first setup-go states in full:
-          # a tag run restores nothing because `push` stays cache-free, while the schedule
-          # writes the main-scoped cache a new pull-request branch can actually restore.
-          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
-          # statically. The finding is answered, not suppressed-and-forgotten: the release
-          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
-          # a tag), so published bytes never touch any cache — and `push` writes none, so a
-          # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
-          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
-          # at once, and setup-go passes only a primary key to restoreCache with no
-          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
-          # rather than partial — each job rebuilt the standard library from scratch, ~150s
-          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
-          # whoever was editing CI, which is the work most in need of a fast loop.
-          #
-          # It was there to keep a bad save from persisting: the key is otherwise
-          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
-          # that worry without a key component. A FAILED job never saves at all (its post
-          # step is skipped — observed), so a broken run cannot poison anything. And a
-          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
-          # by hand would have rebuilt, worse, something GitHub ships.
-          #
-          # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
-          # own and needs nothing here.
-          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
-          # inputs, so they raced to save one key and the smallest job always won —
-          # that is the whole story of the frozen 27 MB cache: the pc-tools job
-          # finished first and its little build cache became everyone's. Each job now
-          # keys on what IT builds, so each save is the cache its restore expects.
-          cache-dependency-path: |
-            scripts/go.sum
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
           go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          dependency-files: |
+            scripts/go.sum
       - run: go test ./...
       # THE MODULE'S CONCURRENCY IS REAL NOW, so the detector gets a look. golden/interrupt.go
       # guards signal state with a mutex against its interrupt handler, where an unsynchronised
@@ -1469,6 +1391,9 @@ jobs:
       # by reading rather than by CI, because scripts was the one module with no -race leg. The
       # suite is seconds; the detector is cheap here.
       - run: go test -race -timeout=30m ./...
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
 
   qlty:
     # The quality gate had no CI leg at all. `qlty check` is mandatory during
@@ -1514,6 +1439,12 @@ jobs:
     # Goldens are a contract, so STALENESS IS A FAILURE: a behaviour change that
     # was never re-recorded must not merge quietly. This runs the same command a
     # developer runs, without --update, across both languages.
+    #
+    # FEOV'S GO LEG IS SUBSUMED, as scripts/check subsumes it locally (#626): the leg is the
+    # module's whole suite, and feov-record's Linux leg compiles and runs that suite on this
+    # same commit, without a test cache (GOFLAGS=-count=1, set by .github/actions/go-cache).
+    # Running it here as well compiles and runs the module twice per run. golden prints the
+    # subsumed leg and the job that runs it, so the leg is reported, never silently absent.
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -1538,71 +1469,8 @@ jobs:
           node-version: "24"
       - uses: actions/setup-go@v7
         with:
-          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
-          # a sharper version of the blanket `cache: false` that stood here, not a retreat
-          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
-          # can restore, and a run can only restore caches from its own ref or the default
-          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
-          # dangerous caches are MAIN's, which only `push` events would write — and this
-          # workflow pushes only on main and tags, so with the condition below neither ever
-          # writes one (a tag build is event_name == push, so this is false there too).
-          # The invariant to keep: if caching is ever enabled for `push`, the release build
-          # starts restoring main's caches and the original finding reopens.
-          #
-          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
-          # pull request's FIRST run warm rather than only its later ones. A run restores
-          # caches from its own ref or the default branch; saving on pull_request alone put
-          # every cache on a merge ref, so a new branch could see none of them. Measured
-          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
-          # held ZERO, which is why a first run rebuilt the standard library every time.
-          # A scheduled run executes on main's ref at full depth, so it writes exactly the
-          # caches a later pull request wants.
-          #
-          # THE CONDITION IS THE INVARIANT, STATED: `!= push`. Both dangerous cases are the
-          # same event — a main push and a tag build are both event_name == push — so the
-          # rule the comment above spent a paragraph describing is now the expression
-          # itself, and it cannot drift out of step with a list of events somebody has to
-          # remember to extend. A release run still neither writes a cache nor restores
-          # one. Everything that is NOT a push — pull requests, the nightly, a manual
-          # dispatch — may cache, and the last two are the ones that put a cache on MAIN
-          # for a new branch to restore.
-          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
-          # statically. The finding is answered, not suppressed-and-forgotten: the release
-          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
-          # a tag), so published bytes never touch any cache — and `push` writes none, so a
-          # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          # The modules are not at the repo root, and setup-go's default lookup is — with
-          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
-          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
-          # enough to be the right trade against four hand-kept per-job paths.
-          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
-          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
-          # at once, and setup-go passes only a primary key to restoreCache with no
-          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
-          # rather than partial — each job rebuilt the standard library from scratch, ~150s
-          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
-          # whoever was editing CI, which is the work most in need of a fast loop.
-          #
-          # It was there to keep a bad save from persisting: the key is otherwise
-          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
-          # that worry without a key component. A FAILED job never saves at all (its post
-          # step is skipped — observed), so a broken run cannot poison anything. And a
-          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
-          # by hand would have rebuilt, worse, something GitHub ships.
-          #
-          # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
-          # own and needs nothing here.
-          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
-          # inputs, so they raced to save one key and the smallest job always won —
-          # that is the whole story of the frozen 27 MB cache: the pc-tools job
-          # finished first and its little build cache became everyone's. Each job now
-          # keys on what IT builds, so each save is the cache its restore expects.
-          cache-dependency-path: |
-            scripts/go.sum
-            plugins/frank-exchange-of-views/tools/go.sum
-            plugins/prosthetic-conscience/tools/go.mod
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -1611,8 +1479,16 @@ jobs:
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
           go-version: "1.27"
-      - run: go run ./golden
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          dependency-files: |
+            scripts/go.sum
+      - run: go run ./golden -subsume plugins/frank-exchange-of-views/tools=feov-record
         working-directory: scripts
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
 
   debate-sim:
     # Zero-token regression suite for the FEOV debate engine: the simulator stubs the
@@ -1629,55 +1505,16 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Pull requests and the nightly, for the reason the first setup-go states in full:
-          # a tag run restores nothing because `push` stays cache-free, while the schedule
-          # writes the main-scoped cache a new pull-request branch can actually restore.
-          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
-          # statically. The finding is answered, not suppressed-and-forgotten: the release
-          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
-          # a tag), so published bytes never touch any cache — and `push` writes none, so a
-          # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
-          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
-          # at once, and setup-go passes only a primary key to restoreCache with no
-          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
-          # rather than partial — each job rebuilt the standard library from scratch, ~150s
-          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
-          # whoever was editing CI, which is the work most in need of a fast loop.
-          #
-          # It was there to keep a bad save from persisting: the key is otherwise
-          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
-          # that worry without a key component. A FAILED job never saves at all (its post
-          # step is skipped — observed), so a broken run cannot poison anything. And a
-          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
-          # by hand would have rebuilt, worse, something GitHub ships.
-          #
-          # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
-          # own and needs nothing here.
-          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
-          # inputs, so they raced to save one key and the smallest job always won —
-          # that is the whole story of the frozen 27 MB cache: the pc-tools job
-          # finished first and its little build cache became everyone's. Each job now
-          # keys on what IT builds, so each save is the cache its restore expects.
-          # SCRIPTS, NOT FEOV, because that is what this job actually builds. Its Go work is
-          # `go run ./mjsparity`, `./validatejson`, `./frontmatter`, `./decisions`
-          # and `./pluginparity` — every one of them a scripts-module tool. It declared the
-          # feov module, which it never builds, and the key did exactly as it was told: this
-          # job saved an 18 MB cache under the feov key at 08:00:28 and feov-record (ubuntu),
-          # which builds ~280 MB, was refused at 08:05:54 with "Unable to reserve cache with
-          # key ... another job may be creating this cache". A primary-key hit skips the save,
-          # so the big job would have restored the small one's cache until feov's go.sum moved.
-          #
-          # The bug was the DECLARATION, not the keying. Sharing a key with rule-sweep and
-          # scripts is now correct rather than accidental: all three build the same module on
-          # the same platform, so they are one cache domain and should have one cache. The
-          # invariant is not "a key per job" — it is a key per (module, platform), and jobs
-          # that build the same thing SHOULD share one.
-          cache-dependency-path: |
-            scripts/go.sum
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
           go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          # SCRIPTS, NOT FEOV, because that is what this job actually builds: its Go work is
+          # `go run` of scripts-module tools.
+          dependency-files: |
+            scripts/go.sum
       - uses: actions/setup-node@v7
         with:
           # The bump the previous comment here was waiting for. `cache: false` was never
@@ -1755,6 +1592,9 @@ jobs:
       - name: Every module's failure record matches the one authored copy
         run: go run ./hookfailgen -check
         working-directory: scripts
+      - name: Every module's GC policy matches the one authored copy
+        run: go run ./gcpolicygen -check
+        working-directory: scripts
       - name: Every plugin with binaries is pinned to the release tag its plugin.json names
         run: go run ./marketplacegen -check
         working-directory: scripts
@@ -1773,6 +1613,15 @@ jobs:
       - name: The engine script's seat block and envelope vocabulary match the record (a stale one dispatches a seat, or offers an envelope word, the record does not give)
         run: go run ./devcmd/enginegen -check
         working-directory: plugins/frank-exchange-of-views/tools
+      - name: The record's enum-value annotations and the term definitions match record.proto and the terms registry (a stale table gives a value a meaning or a facet the schema does not declare)
+        run: go run ./devcmd/vocabgen -check
+        working-directory: plugins/frank-exchange-of-views/tools
+      - name: The verbs' help pages and the required-field table match their documents and the schema (a stale page or table teaches a seat what the tool no longer does)
+        run: go run ./devcmd/cmdtreegen -check
+        working-directory: plugins/frank-exchange-of-views/tools
+      - name: The secrets gate's generated gitleaks table matches gitleaks.toml and gitleaks' default configuration (a stale table refuses a different set of keys)
+        run: go run ./devcmd/secretsgen -check
+        working-directory: plugins/prosthetic-conscience/tools
       - name: Nothing in any Go module is unreachable from its binaries, its generators and its tests (every function the pinned deadcode leaves unreached is a failure; there is no allowlist)
         run: go run ./deadcode
         working-directory: scripts
@@ -1790,7 +1639,7 @@ jobs:
           EMPTY="$(mktemp -d)"
           node -e "
             const fs = require('fs');
-            const files = fs.globSync('plugins/*/hooks/hooks.json');
+            const files = fs.globSync('plugins/*/.claude-plugin/hooks.json');
             if (!files.length) { console.error('no hooks.json found — the glob is wrong'); process.exit(1); }
             const rows = [];
             for (const f of files) {
@@ -1825,6 +1674,9 @@ jobs:
             node -e "$onejson" </tmp/hook-stdout.txt || { echo "guard printed more than one line, or invalid JSON, handing off for: $cmd"; exit 1; }
           done < /tmp/hook-cmds.txt
           echo "every hook command exits 0 on an empty root and on a copied root whose release is unreachable"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
 
   release:
     # Cross-compile + publish binaries when a plugin version tag is pushed.
@@ -1852,71 +1704,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
-          # a sharper version of the blanket `cache: false` that stood here, not a retreat
-          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
-          # can restore, and a run can only restore caches from its own ref or the default
-          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
-          # dangerous caches are MAIN's, which only `push` events would write — and this
-          # workflow pushes only on main and tags, so with the condition below neither ever
-          # writes one (a tag build is event_name == push, so this is false there too).
-          # The invariant to keep: if caching is ever enabled for `push`, the release build
-          # starts restoring main's caches and the original finding reopens.
-          #
-          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
-          # pull request's FIRST run warm rather than only its later ones. A run restores
-          # caches from its own ref or the default branch; saving on pull_request alone put
-          # every cache on a merge ref, so a new branch could see none of them. Measured
-          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
-          # held ZERO, which is why a first run rebuilt the standard library every time.
-          # A scheduled run executes on main's ref at full depth, so it writes exactly the
-          # caches a later pull request wants.
-          #
-          # THE CONDITION IS THE INVARIANT, STATED: `!= push`. Both dangerous cases are the
-          # same event — a main push and a tag build are both event_name == push — so the
-          # rule the comment above spent a paragraph describing is now the expression
-          # itself, and it cannot drift out of step with a list of events somebody has to
-          # remember to extend. A release run still neither writes a cache nor restores
-          # one. Everything that is NOT a push — pull requests, the nightly, a manual
-          # dispatch — may cache, and the last two are the ones that put a cache on MAIN
-          # for a new branch to restore.
-          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
-          # statically. The finding is answered, not suppressed-and-forgotten: the release
-          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
-          # a tag), so published bytes never touch any cache — and `push` writes none, so a
-          # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
-          # The modules are not at the repo root, and setup-go's default lookup is — with
-          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
-          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
-          # enough to be the right trade against four hand-kept per-job paths.
-          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
-          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
-          # at once, and setup-go passes only a primary key to restoreCache with no
-          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
-          # rather than partial — each job rebuilt the standard library from scratch, ~150s
-          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
-          # whoever was editing CI, which is the work most in need of a fast loop.
-          #
-          # It was there to keep a bad save from persisting: the key is otherwise
-          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
-          # that worry without a key component. A FAILED job never saves at all (its post
-          # step is skipped — observed), so a broken run cannot poison anything. And a
-          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
-          # by hand would have rebuilt, worse, something GitHub ships.
-          #
-          # The go TOOLCHAIN is already in setup-go's own key
-          # (setup-go-Windows-x64-go-1.27.1-<hash>), so a version bump invalidates on its
-          # own and needs nothing here.
-          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
-          # inputs, so they raced to save one key and the smallest job always won —
-          # that is the whole story of the frozen 27 MB cache: the pc-tools job
-          # finished first and its little build cache became everyone's. Each job now
-          # keys on what IT builds, so each save is the cache its restore expects.
-          cache-dependency-path: |
-            plugins/prosthetic-conscience/tools/go.mod
-            plugins/frank-exchange-of-views/tools/go.sum
-            plugins/gray-area/tools/go.mod
+          # A RELEASE READS NO CACHE: every published byte is built from source here.
+          # .github/actions/go-cache states why a push, a tag build included, touches none.
+          cache: false
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently

@@ -24,6 +24,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/claims"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/trajectory"
 )
 
@@ -322,6 +323,7 @@ func truncate(s string, n int) string {
 }
 
 func main() {
+	gcpolicy.Short()
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr, func(p string) (io.ReadCloser, error) {
 		return os.Open(p)
 	}))

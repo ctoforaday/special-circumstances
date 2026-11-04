@@ -67,7 +67,7 @@ func WouldRefuse(run Run, seatID string, typ recordpb.EventType, body proto.Mess
 	if db == nil {
 		return validate(writeView{q: db, files: filesOf(run)}, seatID, typ, body)
 	}
-	tx, err := db.Begin()
+	tx, err := recordsql.BeginWrite(db)
 	if err != nil {
 		return err
 	}

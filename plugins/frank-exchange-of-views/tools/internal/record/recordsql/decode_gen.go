@@ -49,13 +49,13 @@ var bodyTables = map[string]func() bodyTable{
 	"envelope_admitted": func() bodyTable { return &envelopeAdmittedTable{} },
 }
 
-// registerTable reads the "register" table whole, with its lists and oneof arms, keyed by event.
+// registerTable reads the "register" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type registerTable struct {
 	rows map[int64]*recordpb.Register
 	bad  map[int64]error
 }
 
-func (t *registerTable) load(q Querier) error {
+func (t *registerTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Register{}
 	{
 		var id int64
@@ -65,7 +65,7 @@ func (t *registerTable) load(q Querier) error {
 		var c3 sql.NullString
 		var c4 sql.NullString
 		var c5 sql.NullString
-		if err := scanRows(q, "register", `SELECT t."event_id", t."tool_version", t."hook_version", t."agent_id", t."run_via", t."agent_type", t."occasion" FROM "register" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
+		if err := scanRows(q, "register", `SELECT t."event_id", t."tool_version", t."hook_version", t."agent_id", t."run_via", t."agent_type", t."occasion" FROM "register" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
 			m := &recordpb.Register{}
 			if c0.Valid {
 				m.ToolVersion = ref(c0.String)
@@ -109,18 +109,18 @@ func (t *registerTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// gateTable reads the "gate" table whole, with its lists and oneof arms, keyed by event.
+// gateTable reads the "gate" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type gateTable struct {
 	rows map[int64]*recordpb.Gate
 	bad  map[int64]error
 }
 
-func (t *gateTable) load(q Querier) error {
+func (t *gateTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Gate{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "gate", `SELECT t."event_id", t."verdict" FROM "gate" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "gate", `SELECT t."event_id", t."verdict" FROM "gate" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.Gate{}
 			if c0.Valid {
 				if v, err := wordOf[recordpb.Verdict]("gate.verdict", c0.String); err != nil {
@@ -134,7 +134,7 @@ func (t *gateTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "gate_migration_admitted_gap_ids", `SELECT l."event_id", l."value" FROM "gate_migration_admitted_gap_ids" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "gate_migration_admitted_gap_ids", `SELECT l."event_id", l."value" FROM "gate_migration_admitted_gap_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -158,13 +158,13 @@ func (t *gateTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// outcomeTable reads the "outcome" table whole, with its lists and oneof arms, keyed by event.
+// outcomeTable reads the "outcome" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type outcomeTable struct {
 	rows map[int64]*recordpb.Outcome
 	bad  map[int64]error
 }
 
-func (t *outcomeTable) load(q Querier) error {
+func (t *outcomeTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Outcome{}
 	{
 		var id int64
@@ -172,7 +172,7 @@ func (t *outcomeTable) load(q Querier) error {
 		var c1 sql.NullString
 		var c2 sql.NullString
 		var c3 sql.NullString
-		if err := scanRows(q, "outcome", `SELECT t."event_id", t."verdict", t."prose", t."verdict_why", t."verdict_basis" FROM "outcome" t`, []any{&id, &c0, &c1, &c2, &c3}, func() {
+		if err := scanRows(q, "outcome", `SELECT t."event_id", t."verdict", t."prose", t."verdict_why", t."verdict_basis" FROM "outcome" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3}, func() {
 			m := &recordpb.Outcome{}
 			if c0.Valid {
 				if v, err := wordOf[recordpb.RunOutcome]("outcome.verdict", c0.String); err != nil {
@@ -210,19 +210,19 @@ func (t *outcomeTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// positionTable reads the "position" table whole, with its lists and oneof arms, keyed by event.
+// positionTable reads the "position" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type positionTable struct {
 	rows map[int64]*recordpb.Position
 	bad  map[int64]error
 }
 
-func (t *positionTable) load(q Querier) error {
+func (t *positionTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Position{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
-		if err := scanRows(q, "position", `SELECT t."event_id", t."text", t."position_id" FROM "position" t`, []any{&id, &c0, &c1}, func() {
+		if err := scanRows(q, "position", `SELECT t."event_id", t."text", t."position_id" FROM "position" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
 			m := &recordpb.Position{}
 			if c0.Valid {
 				m.Text = ref(c0.String)
@@ -250,18 +250,18 @@ func (t *positionTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// haltTable reads the "halt" table whole, with its lists and oneof arms, keyed by event.
+// haltTable reads the "halt" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type haltTable struct {
 	rows map[int64]*recordpb.Halt
 	bad  map[int64]error
 }
 
-func (t *haltTable) load(q Querier) error {
+func (t *haltTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Halt{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "halt", `SELECT t."event_id", t."opinion" FROM "halt" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "halt", `SELECT t."event_id", t."opinion" FROM "halt" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.Halt{}
 			if c0.Valid {
 				m.Opinion = ref(c0.String)
@@ -286,18 +286,18 @@ func (t *haltTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// certifyTable reads the "certify" table whole, with its lists and oneof arms, keyed by event.
+// certifyTable reads the "certify" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type certifyTable struct {
 	rows map[int64]*recordpb.Certify
 	bad  map[int64]error
 }
 
-func (t *certifyTable) load(q Querier) error {
+func (t *certifyTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Certify{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "certify", `SELECT t."event_id", t."statement" FROM "certify" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "certify", `SELECT t."event_id", t."statement" FROM "certify" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.Certify{}
 			if c0.Valid {
 				m.Statement = ref(c0.String)
@@ -322,18 +322,18 @@ func (t *certifyTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// declareTable reads the "declare" table whole, with its lists and oneof arms, keyed by event.
+// declareTable reads the "declare" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type declareTable struct {
 	rows map[int64]*recordpb.Declare
 	bad  map[int64]error
 }
 
-func (t *declareTable) load(q Querier) error {
+func (t *declareTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Declare{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "declare", `SELECT t."event_id", t."holding" FROM "declare" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "declare", `SELECT t."event_id", t."holding" FROM "declare" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.Declare{}
 			if c0.Valid {
 				m.Holding = ref(c0.String)
@@ -343,7 +343,7 @@ func (t *declareTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "declare_gap_ids", `SELECT l."event_id", l."value" FROM "declare_gap_ids" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "declare_gap_ids", `SELECT l."event_id", l."value" FROM "declare_gap_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -367,7 +367,7 @@ func (t *declareTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// motionTable reads the "motion" table whole, with its lists and oneof arms, keyed by event.
+// motionTable reads the "motion" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type motionTable struct {
 	rows              map[int64]*recordpb.Motion
 	bad               map[int64]error
@@ -384,7 +384,7 @@ type motionTable struct {
 	filingPositionBad map[int64]error
 }
 
-func (t *motionTable) load(q Querier) error {
+func (t *motionTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Motion{}
 	{
 		var id int64
@@ -392,7 +392,7 @@ func (t *motionTable) load(q Querier) error {
 		var c1 sql.NullString
 		var c2 sql.NullString
 		var k0 sql.NullString
-		if err := scanRows(q, "motion", `SELECT t."event_id", t."motion_id", t."basis", t."relief", t."filing_case" FROM "motion" t`, []any{&id, &c0, &c1, &c2, &k0}, func() {
+		if err := scanRows(q, "motion", `SELECT t."event_id", t."motion_id", t."basis", t."relief", t."filing_case" FROM "motion" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &k0}, func() {
 			m := &recordpb.Motion{}
 			if c0.Valid {
 				m.MotionId = ref(c0.String)
@@ -422,7 +422,7 @@ func (t *motionTable) load(q Querier) error {
 			var c0 sql.NullString
 			var c1 sql.NullString
 			var c2 sql.NullString
-			if err := scanRows(q, "motion_grade", `SELECT t."event_id", t."gap_id", t."dimension", t."proposed" FROM "motion_grade" t`, []any{&id, &c0, &c1, &c2}, func() {
+			if err := scanRows(q, "motion_grade", `SELECT t."event_id", t."gap_id", t."dimension", t."proposed" FROM "motion_grade" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 				m := &recordpb.GradeMotion{}
 				if c0.Valid {
 					m.GapId = ref(c0.String)
@@ -453,7 +453,7 @@ func (t *motionTable) load(q Querier) error {
 		{
 			var id int64
 			var c0 sql.NullString
-			if err := scanRows(q, "motion_petition", `SELECT t."event_id", t."class" FROM "motion_petition" t`, []any{&id, &c0}, func() {
+			if err := scanRows(q, "motion_petition", `SELECT t."event_id", t."class" FROM "motion_petition" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 				m := &recordpb.PetitionMotion{}
 				if c0.Valid {
 					if v, err := wordOf[recordpb.PetitionClass]("motion_petition.class", c0.String); err != nil {
@@ -474,7 +474,7 @@ func (t *motionTable) load(q Querier) error {
 		{
 			var id int64
 			var c0 sql.NullString
-			if err := scanRows(q, "motion_inquiry", `SELECT t."event_id", t."inquiry_id" FROM "motion_inquiry" t`, []any{&id, &c0}, func() {
+			if err := scanRows(q, "motion_inquiry", `SELECT t."event_id", t."inquiry_id" FROM "motion_inquiry" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 				m := &recordpb.InquiryMotion{}
 				if c0.Valid {
 					m.InquiryId = ref(c0.String)
@@ -493,7 +493,7 @@ func (t *motionTable) load(q Querier) error {
 			var c0 sql.NullString
 			var c1 sql.NullString
 			var c2 sql.NullString
-			if err := scanRows(q, "motion_docket", `SELECT t."event_id", t."gap_id", t."grounds", t."grounds_quote" FROM "motion_docket" t`, []any{&id, &c0, &c1, &c2}, func() {
+			if err := scanRows(q, "motion_docket", `SELECT t."event_id", t."gap_id", t."grounds", t."grounds_quote" FROM "motion_docket" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 				m := &recordpb.DocketMotion{}
 				if c0.Valid {
 					m.GapId = ref(c0.String)
@@ -516,7 +516,7 @@ func (t *motionTable) load(q Querier) error {
 		{
 			var id int64
 			var c0 sql.NullString
-			if err := scanRows(q, "motion_position", `SELECT t."event_id", t."position_id" FROM "motion_position" t`, []any{&id, &c0}, func() {
+			if err := scanRows(q, "motion_position", `SELECT t."event_id", t."position_id" FROM "motion_position" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 				m := &recordpb.PositionMotion{}
 				if c0.Valid {
 					m.PositionId = ref(c0.String)
@@ -589,7 +589,7 @@ func (t *motionTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// motionRuleTable reads the "motion_rule" table whole, with its lists and oneof arms, keyed by event.
+// motionRuleTable reads the "motion_rule" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type motionRuleTable struct {
 	rows              map[int64]*recordpb.MotionRule
 	bad               map[int64]error
@@ -600,7 +600,7 @@ type motionRuleTable struct {
 	rulingPositionBad map[int64]error
 }
 
-func (t *motionRuleTable) load(q Querier) error {
+func (t *motionRuleTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.MotionRule{}
 	{
 		var id int64
@@ -612,7 +612,7 @@ func (t *motionRuleTable) load(q Querier) error {
 		var c5 sql.NullString
 		var c6 sql.NullString
 		var k0 sql.NullString
-		if err := scanRows(q, "motion_rule", `SELECT t."event_id", t."motion_id", t."opinion", t."grade", t."petition", t."inquiry", t."binds", t."relief", t."ruling_case" FROM "motion_rule" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &k0}, func() {
+		if err := scanRows(q, "motion_rule", `SELECT t."event_id", t."motion_id", t."opinion", t."grade", t."petition", t."inquiry", t."binds", t."relief", t."ruling_case" FROM "motion_rule" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &k0}, func() {
 			m := &recordpb.MotionRule{}
 			if c0.Valid {
 				m.MotionId = ref(c0.String)
@@ -675,7 +675,7 @@ func (t *motionRuleTable) load(q Querier) error {
 			var c5 sql.NullString
 			var c6 sql.NullInt64
 			var c7 sql.NullString
-			if err := scanRows(q, "motion_rule_docket", `SELECT t."event_id", t."disposition", t."principle", t."tension", t."review_flag", t."settled", t."reopens_on", t."final", t."direction" FROM "motion_rule_docket" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
+			if err := scanRows(q, "motion_rule_docket", `SELECT t."event_id", t."disposition", t."principle", t."tension", t."review_flag", t."settled", t."reopens_on", t."final", t."direction" FROM "motion_rule_docket" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
 				m := &recordpb.DocketRuling{}
 				if c0.Valid {
 					if v, err := wordOf[recordpb.Disposition]("motion_rule_docket.disposition", c0.String); err != nil {
@@ -719,7 +719,7 @@ func (t *motionRuleTable) load(q Querier) error {
 			var c0 sql.NullString
 			var c1 sql.NullString
 			var c2 sql.NullString
-			if err := scanRows(q, "motion_rule_position", `SELECT t."event_id", t."ruling", t."lens", t."direction" FROM "motion_rule_position" t`, []any{&id, &c0, &c1, &c2}, func() {
+			if err := scanRows(q, "motion_rule_position", `SELECT t."event_id", t."ruling", t."lens", t."direction" FROM "motion_rule_position" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 				m := &recordpb.PositionHearing{}
 				if c0.Valid {
 					if v, err := wordOf[recordpb.PositionRuling]("motion_rule_position.ruling", c0.String); err != nil {
@@ -739,7 +739,7 @@ func (t *motionRuleTable) load(q Querier) error {
 				return err
 			}
 		}
-		if err := scanList(q, "motion_rule_position_gap_ids", `SELECT l."event_id", l."value" FROM "motion_rule_position_gap_ids" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+		if err := scanList(q, "motion_rule_position_gap_ids", `SELECT l."event_id", l."value" FROM "motion_rule_position_gap_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 			m := t.rulingPosition[id]
 			if m == nil {
 				return // the owner's row is missing, and its event is refused for that
@@ -784,13 +784,13 @@ func (t *motionRuleTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// mintTable reads the "mint" table whole, with its lists and oneof arms, keyed by event.
+// mintTable reads the "mint" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type mintTable struct {
 	rows map[int64]*recordpb.Mint
 	bad  map[int64]error
 }
 
-func (t *mintTable) load(q Querier) error {
+func (t *mintTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Mint{}
 	{
 		var id int64
@@ -812,7 +812,7 @@ func (t *mintTable) load(q Querier) error {
 		var c15 sql.NullString
 		var c16 sql.NullString
 		var c17 sql.NullString
-		if err := scanRows(q, "mint", `SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."mint_reason", t."class_material" FROM "mint" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17}, func() {
+		if err := scanRows(q, "mint", `SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."mint_reason", t."class_material" FROM "mint" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17}, func() {
 			m := &recordpb.Mint{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -905,7 +905,7 @@ func (t *mintTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "mint_supersedes", `SELECT l."event_id", l."value" FROM "mint_supersedes" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "mint_supersedes", `SELECT l."event_id", l."value" FROM "mint_supersedes" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -914,7 +914,7 @@ func (t *mintTable) load(q Querier) error {
 	}); err != nil {
 		return err
 	}
-	if err := scanList(q, "mint_found_by", `SELECT l."event_id", l."value" FROM "mint_found_by" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "mint_found_by", `SELECT l."event_id", l."value" FROM "mint_found_by" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -938,13 +938,13 @@ func (t *mintTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// closeTable reads the "close" table whole, with its lists and oneof arms, keyed by event.
+// closeTable reads the "close" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type closeTable struct {
 	rows map[int64]*recordpb.Close
 	bad  map[int64]error
 }
 
-func (t *closeTable) load(q Querier) error {
+func (t *closeTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Close{}
 	{
 		var id int64
@@ -956,7 +956,7 @@ func (t *closeTable) load(q Querier) error {
 		var c5 sql.NullString
 		var c6 sql.NullString
 		var c7 sql.NullString
-		if err := scanRows(q, "close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."successor", t."prose" FROM "close" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
+		if err := scanRows(q, "close", `SELECT t."event_id", t."gap_id", t."closure_class", t."anchor_seat", t."anchor_tool", t."anchor_target", t."carried_from", t."successor", t."prose" FROM "close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
 			m := &recordpb.Close{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -991,7 +991,7 @@ func (t *closeTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "close_anchors", `SELECT l."event_id", l."value" FROM "close_anchors" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "close_anchors", `SELECT l."event_id", l."value" FROM "close_anchors" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -1015,19 +1015,19 @@ func (t *closeTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// closingTable reads the "closing" table whole, with its lists and oneof arms, keyed by event.
+// closingTable reads the "closing" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type closingTable struct {
 	rows map[int64]*recordpb.Closing
 	bad  map[int64]error
 }
 
-func (t *closingTable) load(q Querier) error {
+func (t *closingTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Closing{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
-		if err := scanRows(q, "closing", `SELECT t."event_id", t."gap_id", t."text" FROM "closing" t`, []any{&id, &c0, &c1}, func() {
+		if err := scanRows(q, "closing", `SELECT t."event_id", t."gap_id", t."text" FROM "closing" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
 			m := &recordpb.Closing{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1055,13 +1055,13 @@ func (t *closingTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// regradeTable reads the "regrade" table whole, with its lists and oneof arms, keyed by event.
+// regradeTable reads the "regrade" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type regradeTable struct {
 	rows map[int64]*recordpb.Regrade
 	bad  map[int64]error
 }
 
-func (t *regradeTable) load(q Querier) error {
+func (t *regradeTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Regrade{}
 	{
 		var id int64
@@ -1071,7 +1071,7 @@ func (t *regradeTable) load(q Querier) error {
 		var c3 sql.NullString
 		var c4 sql.NullString
 		var c5 sql.NullString
-		if err := scanRows(q, "regrade", `SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis" FROM "regrade" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
+		if err := scanRows(q, "regrade", `SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis" FROM "regrade" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
 			m := &recordpb.Regrade{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1127,18 +1127,18 @@ func (t *regradeTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// spotCheckTable reads the "spot_check" table whole, with its lists and oneof arms, keyed by event.
+// spotCheckTable reads the "spot_check" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type spotCheckTable struct {
 	rows map[int64]*recordpb.SpotCheck
 	bad  map[int64]error
 }
 
-func (t *spotCheckTable) load(q Querier) error {
+func (t *spotCheckTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.SpotCheck{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "spot_check", `SELECT t."event_id", t."reason" FROM "spot_check" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "spot_check", `SELECT t."event_id", t."reason" FROM "spot_check" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.SpotCheck{}
 			if c0.Valid {
 				m.Reason = ref(c0.String)
@@ -1148,7 +1148,7 @@ func (t *spotCheckTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "spot_check_ids", `SELECT l."event_id", l."value" FROM "spot_check_ids" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "spot_check_ids", `SELECT l."event_id", l."value" FROM "spot_check_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -1157,7 +1157,7 @@ func (t *spotCheckTable) load(q Querier) error {
 	}); err != nil {
 		return err
 	}
-	if err := scanList(q, "spot_check_areas", `SELECT l."event_id", l."value" FROM "spot_check_areas" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "spot_check_areas", `SELECT l."event_id", l."value" FROM "spot_check_areas" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -1181,13 +1181,13 @@ func (t *spotCheckTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// findingTable reads the "finding" table whole, with its lists and oneof arms, keyed by event.
+// findingTable reads the "finding" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type findingTable struct {
 	rows map[int64]*recordpb.Finding
 	bad  map[int64]error
 }
 
-func (t *findingTable) load(q Querier) error {
+func (t *findingTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Finding{}
 	{
 		var id int64
@@ -1200,7 +1200,7 @@ func (t *findingTable) load(q Querier) error {
 		var c6 sql.NullString
 		var c7 sql.NullString
 		var c8 sql.NullString
-		if err := scanRows(q, "finding", `SELECT t."event_id", t."id", t."finding_key", t."location", t."text", t."severity", t."likelihood", t."impact", t."about_kind", t."about_ref" FROM "finding" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8}, func() {
+		if err := scanRows(q, "finding", `SELECT t."event_id", t."id", t."finding_key", t."location", t."text", t."severity", t."likelihood", t."impact", t."about_kind", t."about_ref" FROM "finding" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8}, func() {
 			m := &recordpb.Finding{}
 			if c0.Valid {
 				m.Id = ref(c0.String)
@@ -1265,20 +1265,20 @@ func (t *findingTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// anchorTable reads the "anchor" table whole, with its lists and oneof arms, keyed by event.
+// anchorTable reads the "anchor" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type anchorTable struct {
 	rows map[int64]*recordpb.Anchor
 	bad  map[int64]error
 }
 
-func (t *anchorTable) load(q Querier) error {
+func (t *anchorTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Anchor{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
 		var c2 sql.NullString
-		if err := scanRows(q, "anchor", `SELECT t."event_id", t."id", t."location", t."sentence_of" FROM "anchor" t`, []any{&id, &c0, &c1, &c2}, func() {
+		if err := scanRows(q, "anchor", `SELECT t."event_id", t."id", t."location", t."sentence_of" FROM "anchor" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 			m := &recordpb.Anchor{}
 			if c0.Valid {
 				m.Id = ref(c0.String)
@@ -1309,13 +1309,13 @@ func (t *anchorTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// citeTable reads the "cite" table whole, with its lists and oneof arms, keyed by event.
+// citeTable reads the "cite" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type citeTable struct {
 	rows map[int64]*recordpb.Cite
 	bad  map[int64]error
 }
 
-func (t *citeTable) load(q Querier) error {
+func (t *citeTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Cite{}
 	{
 		var id int64
@@ -1341,7 +1341,7 @@ func (t *citeTable) load(q Querier) error {
 		var c19 sql.NullString
 		var c20 sql.NullString
 		var c21 sql.NullString
-		if err := scanRows(q, "cite", `SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."access_date", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url" FROM "cite" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17, &c18, &c19, &c20, &c21}, func() {
+		if err := scanRows(q, "cite", `SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."access_date", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url" FROM "cite" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17, &c18, &c19, &c20, &c21}, func() {
 			m := &recordpb.Cite{}
 			if c0.Valid {
 				m.Label = ref(c0.String)
@@ -1430,7 +1430,7 @@ func (t *citeTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "cite_pages", `SELECT l."event_id", l."value" FROM "cite_pages" l ORDER BY l."event_id", l."ord"`, func(id int64, v int64) {
+	if err := scanList(q, "cite_pages", `SELECT l."event_id", l."value" FROM "cite_pages" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v int64) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -1454,13 +1454,13 @@ func (t *citeTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// verifyTable reads the "verify" table whole, with its lists and oneof arms, keyed by event.
+// verifyTable reads the "verify" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type verifyTable struct {
 	rows map[int64]*recordpb.Verify
 	bad  map[int64]error
 }
 
-func (t *verifyTable) load(q Querier) error {
+func (t *verifyTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Verify{}
 	{
 		var id int64
@@ -1481,7 +1481,7 @@ func (t *verifyTable) load(q Querier) error {
 		var c14 sql.NullString
 		var c15 sql.NullString
 		var c16 sql.NullInt64
-		if err := scanRows(q, "verify", `SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url", t."carried_by", t."carrier_minted" FROM "verify" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16}, func() {
+		if err := scanRows(q, "verify", `SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url", t."carried_by", t."carrier_minted" FROM "verify" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16}, func() {
 			m := &recordpb.Verify{}
 			if c0.Valid {
 				m.Claim = ref(c0.String)
@@ -1574,13 +1574,13 @@ func (t *verifyTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// computationTable reads the "computation" table whole, with its lists and oneof arms, keyed by event.
+// computationTable reads the "computation" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type computationTable struct {
 	rows map[int64]*recordpb.Computation
 	bad  map[int64]error
 }
 
-func (t *computationTable) load(q Querier) error {
+func (t *computationTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Computation{}
 	{
 		var id int64
@@ -1597,7 +1597,7 @@ func (t *computationTable) load(q Querier) error {
 		var c10 sql.NullString
 		var c11 sql.NullString
 		var c12 sql.NullString
-		if err := scanRows(q, "computation", `SELECT t."event_id", t."computation_id", t."key", t."bundle_sha", t."answers", t."cites", t."drift", t."text", t."exit", t."location", t."toolchain_path", t."toolchain_sha256", t."basis", t."invariant" FROM "computation" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12}, func() {
+		if err := scanRows(q, "computation", `SELECT t."event_id", t."computation_id", t."key", t."bundle_sha", t."answers", t."cites", t."drift", t."text", t."exit", t."location", t."toolchain_path", t."toolchain_sha256", t."basis", t."invariant" FROM "computation" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12}, func() {
 			m := &recordpb.Computation{}
 			if c0.Valid {
 				m.ComputationId = ref(c0.String)
@@ -1647,7 +1647,7 @@ func (t *computationTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "computation_argv", `SELECT l."event_id", l."value" FROM "computation_argv" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "computation_argv", `SELECT l."event_id", l."value" FROM "computation_argv" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -1671,13 +1671,13 @@ func (t *computationTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// reproduceTable reads the "reproduce" table whole, with its lists and oneof arms, keyed by event.
+// reproduceTable reads the "reproduce" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type reproduceTable struct {
 	rows map[int64]*recordpb.Reproduce
 	bad  map[int64]error
 }
 
-func (t *reproduceTable) load(q Querier) error {
+func (t *reproduceTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Reproduce{}
 	{
 		var id int64
@@ -1690,7 +1690,7 @@ func (t *reproduceTable) load(q Querier) error {
 		var c6 sql.NullInt64
 		var c7 sql.NullString
 		var c8 sql.NullString
-		if err := scanRows(q, "reproduce", `SELECT t."event_id", t."bundle_sha", t."soundness", t."note", t."computation_id", t."rerun", t."ran", t."rerun_exit", t."drift", t."rerun_sha" FROM "reproduce" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8}, func() {
+		if err := scanRows(q, "reproduce", `SELECT t."event_id", t."bundle_sha", t."soundness", t."note", t."computation_id", t."rerun", t."ran", t."rerun_exit", t."drift", t."rerun_sha" FROM "reproduce" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8}, func() {
 			m := &recordpb.Reproduce{}
 			if c0.Valid {
 				m.BundleSha = ref(c0.String)
@@ -1747,13 +1747,13 @@ func (t *reproduceTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// inquiryTable reads the "inquiry" table whole, with its lists and oneof arms, keyed by event.
+// inquiryTable reads the "inquiry" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type inquiryTable struct {
 	rows map[int64]*recordpb.Inquiry
 	bad  map[int64]error
 }
 
-func (t *inquiryTable) load(q Querier) error {
+func (t *inquiryTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Inquiry{}
 	{
 		var id int64
@@ -1764,7 +1764,7 @@ func (t *inquiryTable) load(q Querier) error {
 		var c4 sql.NullString
 		var c5 sql.NullString
 		var c6 sql.NullString
-		if err := scanRows(q, "inquiry", `SELECT t."event_id", t."inquiry_id", t."question", t."hypothesis", t."method", t."status", t."supersedes_status", t."reason" FROM "inquiry" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
+		if err := scanRows(q, "inquiry", `SELECT t."event_id", t."inquiry_id", t."question", t."hypothesis", t."method", t."status", t."supersedes_status", t."reason" FROM "inquiry" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6}, func() {
 			m := &recordpb.Inquiry{}
 			if c0.Valid {
 				m.InquiryId = ref(c0.String)
@@ -1811,13 +1811,13 @@ func (t *inquiryTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// blueEditTable reads the "blue_edit" table whole, with its lists and oneof arms, keyed by event.
+// blueEditTable reads the "blue_edit" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type blueEditTable struct {
 	rows map[int64]*recordpb.BlueEdit
 	bad  map[int64]error
 }
 
-func (t *blueEditTable) load(q Querier) error {
+func (t *blueEditTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.BlueEdit{}
 	{
 		var id int64
@@ -1829,7 +1829,7 @@ func (t *blueEditTable) load(q Querier) error {
 		var c5 sql.NullInt64
 		var c6 sql.NullInt64
 		var c7 sql.NullInt64
-		if err := scanRows(q, "blue_edit", `SELECT t."event_id", t."edit_key", t."answers", t."old", t."new", t."text", t."applied_verbatim", t."accepted", t."exact_span" FROM "blue_edit" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
+		if err := scanRows(q, "blue_edit", `SELECT t."event_id", t."edit_key", t."answers", t."old", t."new", t."text", t."applied_verbatim", t."accepted", t."exact_span" FROM "blue_edit" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7}, func() {
 			m := &recordpb.BlueEdit{}
 			if c0.Valid {
 				m.EditKey = ref(c0.String)
@@ -1860,7 +1860,7 @@ func (t *blueEditTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "blue_edit_reopened", `SELECT l."event_id", l."value" FROM "blue_edit_reopened" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "blue_edit_reopened", `SELECT l."event_id", l."value" FROM "blue_edit_reopened" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -1884,13 +1884,13 @@ func (t *blueEditTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// retireTable reads the "retire" table whole, with its lists and oneof arms, keyed by event.
+// retireTable reads the "retire" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type retireTable struct {
 	rows map[int64]*recordpb.Retire
 	bad  map[int64]error
 }
 
-func (t *retireTable) load(q Querier) error {
+func (t *retireTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Retire{}
 	{
 		var id int64
@@ -1900,7 +1900,7 @@ func (t *retireTable) load(q Querier) error {
 		var c3 sql.NullString
 		var c4 sql.NullInt64
 		var c5 sql.NullString
-		if err := scanRows(q, "retire", `SELECT t."event_id", t."claim", t."reason", t."superseded_by", t."removal_basis", t."claim_kept", t."answers" FROM "retire" t`, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
+		if err := scanRows(q, "retire", `SELECT t."event_id", t."claim", t."reason", t."superseded_by", t."removal_basis", t."claim_kept", t."answers" FROM "retire" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5}, func() {
 			m := &recordpb.Retire{}
 			if c0.Valid {
 				m.Claim = ref(c0.String)
@@ -1925,7 +1925,7 @@ func (t *retireTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "retire_anchors", `SELECT l."event_id", l."value" FROM "retire_anchors" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "retire_anchors", `SELECT l."event_id", l."value" FROM "retire_anchors" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -1949,19 +1949,19 @@ func (t *retireTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// manifestRowTable reads the "manifest_row" table whole, with its lists and oneof arms, keyed by event.
+// manifestRowTable reads the "manifest_row" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type manifestRowTable struct {
 	rows map[int64]*recordpb.ManifestRow
 	bad  map[int64]error
 }
 
-func (t *manifestRowTable) load(q Querier) error {
+func (t *manifestRowTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.ManifestRow{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
-		if err := scanRows(q, "manifest_row", `SELECT t."event_id", t."gap_id", t."row" FROM "manifest_row" t`, []any{&id, &c0, &c1}, func() {
+		if err := scanRows(q, "manifest_row", `SELECT t."event_id", t."gap_id", t."row" FROM "manifest_row" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
 			m := &recordpb.ManifestRow{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -1989,20 +1989,20 @@ func (t *manifestRowTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// logTable reads the "log" table whole, with its lists and oneof arms, keyed by event.
+// logTable reads the "log" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type logTable struct {
 	rows map[int64]*recordpb.Log
 	bad  map[int64]error
 }
 
-func (t *logTable) load(q Querier) error {
+func (t *logTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Log{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
 		var c2 sql.NullString
-		if err := scanRows(q, "log", `SELECT t."event_id", t."text", t."type", t."source" FROM "log" t`, []any{&id, &c0, &c1, &c2}, func() {
+		if err := scanRows(q, "log", `SELECT t."event_id", t."text", t."type", t."source" FROM "log" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 			m := &recordpb.Log{}
 			if c0.Valid {
 				m.Text = ref(c0.String)
@@ -2041,18 +2041,18 @@ func (t *logTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// inquiryReviewTable reads the "inquiry_review" table whole, with its lists and oneof arms, keyed by event.
+// inquiryReviewTable reads the "inquiry_review" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type inquiryReviewTable struct {
 	rows map[int64]*recordpb.InquiryReview
 	bad  map[int64]error
 }
 
-func (t *inquiryReviewTable) load(q Querier) error {
+func (t *inquiryReviewTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.InquiryReview{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "inquiry_review", `SELECT t."event_id", t."reason" FROM "inquiry_review" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "inquiry_review", `SELECT t."event_id", t."reason" FROM "inquiry_review" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.InquiryReview{}
 			if c0.Valid {
 				m.Reason = ref(c0.String)
@@ -2077,18 +2077,18 @@ func (t *inquiryReviewTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// reportPartTable reads the "report_part" table whole, with its lists and oneof arms, keyed by event.
+// reportPartTable reads the "report_part" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type reportPartTable struct {
 	rows map[int64]*recordpb.ReportPart
 	bad  map[int64]error
 }
 
-func (t *reportPartTable) load(q Querier) error {
+func (t *reportPartTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.ReportPart{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "report_part", `SELECT t."event_id", t."text" FROM "report_part" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "report_part", `SELECT t."event_id", t."text" FROM "report_part" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.ReportPart{}
 			if c0.Valid {
 				m.Text = ref(c0.String)
@@ -2113,20 +2113,20 @@ func (t *reportPartTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// sittingOpenTable reads the "sitting_open" table whole, with its lists and oneof arms, keyed by event.
+// sittingOpenTable reads the "sitting_open" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type sittingOpenTable struct {
 	rows map[int64]*recordpb.SittingOpen
 	bad  map[int64]error
 }
 
-func (t *sittingOpenTable) load(q Querier) error {
+func (t *sittingOpenTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.SittingOpen{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
 		var c2 sql.NullString
-		if err := scanRows(q, "sitting_open", `SELECT t."event_id", t."agent_id", t."agent_type", t."seat_id" FROM "sitting_open" t`, []any{&id, &c0, &c1, &c2}, func() {
+		if err := scanRows(q, "sitting_open", `SELECT t."event_id", t."agent_id", t."agent_type", t."seat_id" FROM "sitting_open" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 			m := &recordpb.SittingOpen{}
 			if c0.Valid {
 				m.AgentId = ref(c0.String)
@@ -2157,19 +2157,19 @@ func (t *sittingOpenTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// sittingCloseTable reads the "sitting_close" table whole, with its lists and oneof arms, keyed by event.
+// sittingCloseTable reads the "sitting_close" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type sittingCloseTable struct {
 	rows map[int64]*recordpb.SittingClose
 	bad  map[int64]error
 }
 
-func (t *sittingCloseTable) load(q Querier) error {
+func (t *sittingCloseTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.SittingClose{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
-		if err := scanRows(q, "sitting_close", `SELECT t."event_id", t."agent_id", t."agent_transcript_path" FROM "sitting_close" t`, []any{&id, &c0, &c1}, func() {
+		if err := scanRows(q, "sitting_close", `SELECT t."event_id", t."agent_id", t."agent_transcript_path" FROM "sitting_close" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
 			m := &recordpb.SittingClose{}
 			if c0.Valid {
 				m.AgentId = ref(c0.String)
@@ -2197,15 +2197,15 @@ func (t *sittingCloseTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// castTable reads the "cast" table whole, with its lists and oneof arms, keyed by event.
+// castTable reads the "cast" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type castTable struct {
 	rows map[int64]*recordpb.Cast
 	bad  map[int64]error
 }
 
-func (t *castTable) load(q Querier) error {
+func (t *castTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Cast{}
-	if err := scanList(q, "cast_seat_ids", `SELECT l."event_id", l."value" FROM "cast_seat_ids" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "cast_seat_ids", `SELECT l."event_id", l."value" FROM "cast_seat_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			m = &recordpb.Cast{}
@@ -2215,7 +2215,7 @@ func (t *castTable) load(q Querier) error {
 	}); err != nil {
 		return err
 	}
-	if err := scanList(q, "cast_lane_seat_ids", `SELECT l."event_id", l."value" FROM "cast_lane_seat_ids" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "cast_lane_seat_ids", `SELECT l."event_id", l."value" FROM "cast_lane_seat_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			m = &recordpb.Cast{}
@@ -2240,19 +2240,19 @@ func (t *castTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// dispatchTable reads the "dispatch" table whole, with its lists and oneof arms, keyed by event.
+// dispatchTable reads the "dispatch" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type dispatchTable struct {
 	rows map[int64]*recordpb.Dispatch
 	bad  map[int64]error
 }
 
-func (t *dispatchTable) load(q Querier) error {
+func (t *dispatchTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Dispatch{}
 	{
 		var id int64
 		var c0 sql.NullInt64
 		var c1 sql.NullString
-		if err := scanRows(q, "dispatch", `SELECT t."event_id", t."pin", t."seat_id" FROM "dispatch" t`, []any{&id, &c0, &c1}, func() {
+		if err := scanRows(q, "dispatch", `SELECT t."event_id", t."pin", t."seat_id" FROM "dispatch" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
 			m := &recordpb.Dispatch{}
 			if c0.Valid {
 				m.Pin = ref(c0.Int64)
@@ -2265,7 +2265,7 @@ func (t *dispatchTable) load(q Querier) error {
 			return err
 		}
 	}
-	if err := scanList(q, "dispatch_gap_ids", `SELECT l."event_id", l."value" FROM "dispatch_gap_ids" l ORDER BY l."event_id", l."ord"`, func(id int64, v string) {
+	if err := scanList(q, "dispatch_gap_ids", `SELECT l."event_id", l."value" FROM "dispatch_gap_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
 		m := t.rows[id]
 		if m == nil {
 			return // the owner's row is missing, and its event is refused for that
@@ -2289,20 +2289,20 @@ func (t *dispatchTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// sittingLimitTable reads the "sitting_limit" table whole, with its lists and oneof arms, keyed by event.
+// sittingLimitTable reads the "sitting_limit" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type sittingLimitTable struct {
 	rows map[int64]*recordpb.SittingLimit
 	bad  map[int64]error
 }
 
-func (t *sittingLimitTable) load(q Querier) error {
+func (t *sittingLimitTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.SittingLimit{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullInt64
 		var c2 sql.NullInt64
-		if err := scanRows(q, "sitting_limit", `SELECT t."event_id", t."seat_id", t."sitting", t."limit" FROM "sitting_limit" t`, []any{&id, &c0, &c1, &c2}, func() {
+		if err := scanRows(q, "sitting_limit", `SELECT t."event_id", t."seat_id", t."sitting", t."limit" FROM "sitting_limit" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 			m := &recordpb.SittingLimit{}
 			if c0.Valid {
 				m.SeatId = ref(c0.String)
@@ -2333,18 +2333,18 @@ func (t *sittingLimitTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// planTable reads the "plan" table whole, with its lists and oneof arms, keyed by event.
+// planTable reads the "plan" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type planTable struct {
 	rows map[int64]*recordpb.Plan
 	bad  map[int64]error
 }
 
-func (t *planTable) load(q Querier) error {
+func (t *planTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Plan{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "plan", `SELECT t."event_id", t."printed" FROM "plan" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "plan", `SELECT t."event_id", t."printed" FROM "plan" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.Plan{}
 			if c0.Valid {
 				m.Printed = ref(c0.String)
@@ -2369,19 +2369,19 @@ func (t *planTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// staleTable reads the "stale" table whole, with its lists and oneof arms, keyed by event.
+// staleTable reads the "stale" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type staleTable struct {
 	rows map[int64]*recordpb.Stale
 	bad  map[int64]error
 }
 
-func (t *staleTable) load(q Querier) error {
+func (t *staleTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.Stale{}
 	{
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullInt64
-		if err := scanRows(q, "stale", `SELECT t."event_id", t."gap_id", t."through" FROM "stale" t`, []any{&id, &c0, &c1}, func() {
+		if err := scanRows(q, "stale", `SELECT t."event_id", t."gap_id", t."through" FROM "stale" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
 			m := &recordpb.Stale{}
 			if c0.Valid {
 				m.GapId = ref(c0.String)
@@ -2409,18 +2409,18 @@ func (t *staleTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// reportReadTable reads the "report_read" table whole, with its lists and oneof arms, keyed by event.
+// reportReadTable reads the "report_read" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type reportReadTable struct {
 	rows map[int64]*recordpb.ReportRead
 	bad  map[int64]error
 }
 
-func (t *reportReadTable) load(q Querier) error {
+func (t *reportReadTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.ReportRead{}
 	{
 		var id int64
 		var c0 sql.NullInt64
-		if err := scanRows(q, "report_read", `SELECT t."event_id", t."head" FROM "report_read" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "report_read", `SELECT t."event_id", t."head" FROM "report_read" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.ReportRead{}
 			if c0.Valid {
 				m.Head = ref(c0.Int64)
@@ -2445,18 +2445,18 @@ func (t *reportReadTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// envelopeAdmittedTable reads the "envelope_admitted" table whole, with its lists and oneof arms, keyed by event.
+// envelopeAdmittedTable reads the "envelope_admitted" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type envelopeAdmittedTable struct {
 	rows map[int64]*recordpb.EnvelopeAdmitted
 	bad  map[int64]error
 }
 
-func (t *envelopeAdmittedTable) load(q Querier) error {
+func (t *envelopeAdmittedTable) load(q Querier, after int64) error {
 	t.rows = map[int64]*recordpb.EnvelopeAdmitted{}
 	{
 		var id int64
 		var c0 sql.NullString
-		if err := scanRows(q, "envelope_admitted", `SELECT t."event_id", t."agent_id" FROM "envelope_admitted" t`, []any{&id, &c0}, func() {
+		if err := scanRows(q, "envelope_admitted", `SELECT t."event_id", t."agent_id" FROM "envelope_admitted" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
 			m := &recordpb.EnvelopeAdmitted{}
 			if c0.Valid {
 				m.AgentId = ref(c0.String)

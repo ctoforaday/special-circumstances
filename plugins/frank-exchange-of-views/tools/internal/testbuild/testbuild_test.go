@@ -132,3 +132,35 @@ func TestTheBuildKeepsTheRealHome(t *testing.T) {
 		t.Errorf("buildEnv carries %v for %s, want exactly [%q]", got, homeKey(), want)
 	}
 }
+
+// A PREBUILT COMMAND IS RETURNED, NOT BUILT. The name is one no cmd/ directory holds, so a
+// build would fail: the path coming back proves nothing was built.
+func TestAPrebuiltCommandIsReturnedAndNothingIsBuilt(t *testing.T) {
+	pre := t.TempDir()
+	want := filepath.Join(pre, ExeName("feov-prebuilt-only"))
+	if err := os.WriteFile(want, []byte("prebuilt"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(PrebuiltVar, pre)
+	if got := Binary(t, "feov-prebuilt-only"); got != want {
+		t.Errorf("Binary returned %q, want the prebuilt %q", got, want)
+	}
+}
+
+// A PREBUILT SET IS NEVER COMPLETED BY A BUILD: a command it lacks, or a relative directory, is
+// refused.
+func TestAPrebuiltSetRefusesWhatItCannotServe(t *testing.T) {
+	pre := t.TempDir()
+	if _, err := prebuilt(pre, "feov-record"); err == nil || !strings.Contains(err.Error(), "holds no") {
+		t.Errorf("an empty prebuilt directory served feov-record: %v", err)
+	}
+	if _, err := prebuilt("bin", "feov-record"); err == nil || !strings.Contains(err.Error(), "not an absolute path") {
+		t.Errorf("a relative prebuilt directory was accepted: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(pre, ExeName("feov-dir")), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := prebuilt(pre, "feov-dir"); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Errorf("a directory was served as a command: %v", err)
+	}
+}

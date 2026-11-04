@@ -46,6 +46,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittinghook"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // The stages Run records for any entry point. A hook that panicked, or returned an error, did not do
@@ -91,13 +92,15 @@ type Entry func(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) e
 func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code int) {
 	rec := hookfailures.New("frank-exchange-of-views", bin, event, time.Now(), os.Stderr)
 	var buf bytes.Buffer
+	raw, _ := io.ReadAll(stdin)
+	req := hookcore.Read(event, bytes.NewReader(raw))
 	defer func() {
 		if r := recover(); r != nil {
 			rec.Fail(StagePanic, fmt.Sprintf("recovered from %v (exiting 0: a hook must never block on its own fault)", r))
 		} else {
 			rec.OK(StagePanic)
 		}
-		if err := respond(stdout, buf.Bytes(), rec.Settle()); err != nil {
+		if err := respond(req, stdout, buf.Bytes(), rec.Settle()); err != nil {
 			// The decision never reached the client. Recorded rather than said — the channel for
 			// saying it is the thing that failed — and read out by the next call that can.
 			//
@@ -115,7 +118,7 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 		}
 		code = 0
 	}()
-	if err := f(stdin, &buf, rec); err != nil {
+	if err := f(bytes.NewReader(raw), &buf, rec); err != nil {
 		rec.Fail(StageError, err.Error()+" (exiting 0)")
 	} else {
 		rec.OK(StageError)
@@ -124,7 +127,21 @@ func Run(bin, event string, f Entry, stdin io.Reader, stdout io.Writer) (code in
 }
 
 // respond writes the entry's document, with the record's message added when there is one.
-func respond(stdout io.Writer, doc []byte, msg string) error {
+func respond(req hookcore.Request, stdout io.Writer, doc []byte, msg string) error {
+	if req.Engine == hookcore.EngineAntigravity {
+		if msg != "" {
+			hookcore.QueueSay(req.PluginDataDir, req.SessionID, msg)
+		}
+		if req.Event == "PostToolUse" || req.Event == "PostTool" || req.Event == "PostToolUseFailure" {
+			_, err := stdout.Write([]byte("{}\n"))
+			return err
+		}
+		if len(bytes.TrimSpace(doc)) > 0 {
+			_, err := stdout.Write(doc)
+			return err
+		}
+		return nil
+	}
 	if msg == "" {
 		_, err := stdout.Write(doc)
 		return err
@@ -142,25 +159,14 @@ func respond(stdout io.Writer, doc []byte, msg string) error {
 	return json.NewEncoder(stdout).Encode(m)
 }
 
-// readInput returns the parsed Input, the raw bytes, and whether the parse succeeded.
-func readInput(stdin io.Reader) (hookgate.Input, []byte, bool) {
-	var in hookgate.Input
-	raw, err := io.ReadAll(stdin)
-	if err != nil || len(raw) == 0 {
-		return in, raw, false
-	}
-	ok := json.Unmarshal(raw, &in) == nil
-	return in, raw, ok
-}
-
 // Pre injects the run directory and the calling agent's id into a Bash call made inside a live
 // run, so a seat never mistypes the path and never loses the identity that binds it to its seat on
 // the record — and it refuses two things: any tool call past the seat's per-sitting call limit
 // (enforceLimit), and a tool command carrying a backtick the shell would run, which would rewrite
 // the seat's prose before the tool saw it (hookgate/substitution.go).
 func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
-	in, raw, ok := readInput(stdin)
-	if !ok {
+	req := hookcore.Read("PreToolUse", stdin)
+	if !req.Parsed {
 		// Not "nothing to do": the client always sends a payload, and one this hook cannot read
 		// means no turn limit counted and no run directory injected for this call. The sitting
 		// hooks record the same failure; this path, which carries both of those, did not.
@@ -168,9 +174,20 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		return nil
 	}
 	rec.OK(StageInput)
+	in := hookgate.Input{
+		AgentID:   req.AgentID,
+		AgentType: req.AgentType,
+		SessionID: req.SessionID,
+		ToolName:  req.ToolName,
+		ToolInput: req.ToolInput,
+	}
+	cwd := req.CWD
+	if cwd == "" {
+		cwd = cwdOf(req.Raw)
+	}
 	// THE TURN LIMIT COMES FIRST, and covers every tool: a refused call runs nothing, so it needs
 	// nothing injected. A counting fault goes to stderr and the call proceeds.
-	denied, err := enforceLimit(in, cwdOf(raw), stdout, rec)
+	denied, err := enforceLimit(in, cwd, stdout, rec, req)
 	if err != nil {
 		// The seat is still refused when it should be — enforcement survives — but the record's
 		// account of WHY does not, and that used to be a stderr line nobody read.
@@ -184,7 +201,7 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
 	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).
 	if in.ToolName == envelopeTool {
-		gateEnvelope(in, cwdOf(raw), stdout, rec)
+		gateEnvelope(in, cwd, stdout, rec, req)
 		return nil
 	}
 	// The gate says which calls it acts on — every Bash call, and a Read of the report file — so
@@ -195,14 +212,14 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	// The run directory is resolved from the payload's `cwd` — the SEAT's working directory,
 	// which is wire-supplied and documented, never this hook process's os.Getwd(). Absent or
 	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than guess".
-	inferred := runlive.InferRunDir(cwdOf(raw), callerAgent(in))
+	inferred := runlive.InferRunDir(cwd, callerAgent(in))
 	noteInference(inferred, rec)
 	switch outcome, payload := hookgate.PreOutcome(in, inferred.Dir); outcome {
 	case hookgate.OutcomeRewrite:
-		emitPreRewrite(stdout, in.ToolInput, payload)
+		emitPreRewrite(stdout, in.ToolInput, payload, req)
 		rec.OK(StageToolInput)
 	case hookgate.OutcomeDeny:
-		emitPreDeny(stdout, payload)
+		emitPreDeny(stdout, payload, req)
 		rec.OK(StageToolInput)
 		// A DENIAL IS A REFUSAL, and the tool logs every refusal it gives a seat. This one is given
 		// outside every verb, so it is written here or not at all.
@@ -231,7 +248,7 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 //
 // The one call a limited sitting lets through is a register (hookgate.InvokesRegister), because
 // that is what opens the next sitting's count.
-func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) (denied bool, err error) {
+func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder, req ...hookcore.Request) (denied bool, err error) {
 	caller := callerAgent(in)
 	agentID := caller.ID
 	if agentID == "" {
@@ -251,7 +268,7 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	if d.First {
 		err = recordLimit(runDir, agentID, d.Sitting, d.Limit)
 	}
-	emitPreDeny(stdout, hookgate.LimitReason(d.Count, d.Limit))
+	emitPreDeny(stdout, hookgate.LimitReason(d.Count, d.Limit), req...)
 	return true, err
 }
 
@@ -311,19 +328,23 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 const envelopeTool = "StructuredOutput"
 
 // gateEnvelope is the hook on the call returning a seat's envelope. It denies the call when the record
-// refuses it (record.EnvelopeRefusal, asked through the writer): a seat's sitting cannot end while a
-// blocking item on its own work list stands. The writer logs the refusal. An envelope it lets through
-// carries the record's read: the hook writes `record_read` onto the call's input, overwriting anything
-// the seat typed there, and the harness returns the rewritten input to the engine, which reads what it
-// knows of the record from that field and from nothing a seat composed (record.RecordRead). The
-// envelope is admitted only once the call succeeds — by the PostToolUse hook (Post), after the harness
-// has checked it against its schema.
+// refuses it (record.EnvelopeRefusal, record.ChairEnvelope, asked through the writer): a seat's sitting
+// cannot end while a blocking item on its own work list stands, and a chair's envelope carries no copy
+// of the plan. The writer logs the refusal. An envelope it lets through carries the record's read: the
+// hook writes `record_read` onto the call's input, overwriting anything the seat typed there, and the
+// harness returns the rewritten input to the engine, which reads what it knows of the record from that
+// field and from nothing a seat composed (record.RecordRead). Where the record supplies the envelope
+// itself — the chair's, holding the plan the record stored last in its sitting — the read is written onto
+// that envelope and the call carries it instead of what the chair stated: the workflow script's only
+// surface is a seat's envelope, so this is how the stored plan reaches it. The envelope is admitted only
+// once the call succeeds — by the PostToolUse hook (Post), after the harness has checked it against its
+// schema.
 //
 // A CHECK THAT CANNOT RUN REFUSES THE ENVELOPE, naming the error (gblock's standing rule: an
 // unreadable record refuses). An envelope nothing checked is not admitted on the strength of the
 // check having failed. A call from no seat — no agent, no run — is no seat's envelope, and passes
 // with nothing written on it.
-func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) {
+func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder, req ...hookcore.Request) {
 	caller := callerAgent(in)
 	agentID := caller.ID
 	if agentID == "" {
@@ -333,7 +354,7 @@ func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	if runDir == "" {
 		return
 	}
-	answer, err := envelopeAnswer(runDir, agentID)
+	answer, err := envelopeAnswer(runDir, agentID, in.ToolInput)
 	if err != nil {
 		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record, and was refused: "+err.Error())
 		if answer.Refusal == "" {
@@ -344,24 +365,37 @@ func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	}
 	switch {
 	case answer.Refusal != "":
-		emitPreDeny(stdout, answer.Refusal)
+		emitPreDeny(stdout, answer.Refusal, req...)
 	case answer.Read != nil:
-		emitEnvelopeRead(stdout, in.ToolInput, answer.Read, rec)
+		base := in.ToolInput
+		if answer.Envelope != nil {
+			base = answer.Envelope
+		}
+		emitEnvelopeRead(stdout, base, answer.Read, rec, req...)
 	}
 }
 
-// emitEnvelopeRead replaces the envelope call's input with the same input carrying the record's read.
-// The field is the hook's: a value the seat typed there is overwritten, as a Bash call's run directory
-// is. An input that does not parse cannot carry it, and the envelope is refused rather than returned
-// with no read, which would stop the run over a call the seat can simply make again.
-func emitEnvelopeRead(stdout io.Writer, toolInput, read json.RawMessage, rec *hookfailures.Recorder) {
+// emitEnvelopeRead replaces the envelope call's input with base — the call's own input, or the envelope
+// the record supplied in its place — carrying the record's read. The field is the hook's: a value the
+// seat typed there is overwritten, as a Bash call's run directory is. An input that does not parse
+// cannot carry it, and the envelope is refused rather than returned with no read, which would stop the
+// run over a call the seat can simply make again.
+func emitEnvelopeRead(stdout io.Writer, base, read json.RawMessage, rec *hookfailures.Recorder, req ...hookcore.Request) {
 	updated := map[string]any{}
-	if err := json.Unmarshal(toolInput, &updated); err != nil {
+	if err := json.Unmarshal(base, &updated); err != nil {
 		rec.Fail(StageEnvelope, "a seat's envelope did not parse, so the record's read could not be written on it: "+err.Error())
-		emitPreDeny(stdout, envelopeReadRefusal(err))
+		emitPreDeny(stdout, envelopeReadRefusal(err), req...)
 		return
 	}
-	updated[envelopeReadField] = read
+	updated[hookgate.EnvelopeReadField] = read
+	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
+		emit(stdout, map[string]any{
+			"decision":  "allow",
+			"reason":    "feov-record: the record's read is written by the hook, not typed by the seat",
+			"overwrite": updated,
+		})
+		return
+	}
 	emit(stdout, map[string]any{
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":            "PreToolUse",
@@ -371,9 +405,6 @@ func emitEnvelopeRead(stdout io.Writer, toolInput, read json.RawMessage, rec *ho
 		},
 	})
 }
-
-// envelopeReadField is the envelope key the record's read travels under (record.RecordRead).
-const envelopeReadField = "record_read"
 
 // envelopeReadRefusal is the refusal of an envelope whose check against the record could not run,
 // naming the error.
@@ -415,15 +446,29 @@ func cwdOf(raw []byte) string {
 // The whole tool_input is preserved and only `command` is replaced: a Bash call may carry other
 // fields (description, timeout, run_in_background) and dropping them would silently change how
 // the seat's command runs.
-func emitPreRewrite(stdout io.Writer, toolInput json.RawMessage, command string) {
+func emitPreRewrite(stdout io.Writer, toolInput json.RawMessage, command string, req ...hookcore.Request) {
+	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
+		emit(stdout, map[string]any{
+			"decision": "allow",
+			"reason":   "feov-record: the run directory is injected by the engine, not typed by the seat",
+			"overwrite": map[string]any{
+				"CommandLine": command,
+			},
+		})
+		return
+	}
 	updated := map[string]any{}
-	if err := json.Unmarshal(toolInput, &updated); err != nil {
+	if len(req) > 0 && len(req[0].RawToolInput) > 0 {
+		for k, v := range req[0].RawToolInput {
+			updated[k] = v
+		}
+	} else if err := json.Unmarshal(toolInput, &updated); err != nil {
 		// SAYING NOTHING NAMES THE WRONG CAUSE. Without the injection the seat hits the "no run
 		// directory" refusal from a different layer entirely, and nobody learns the real reason.
 		// Declining to send a shape the client cannot use is right; `ask` IS a shape it can use.
 		emitPreAsk(stdout, fmt.Sprintf("feov-record: tool_input did not parse (%v), so the run "+
 			"directory could not be injected. Nothing is blocked — this is surfaced rather than "+
-			"swallowed, because the refusal you would otherwise hit names the wrong cause.", err))
+			"swallowed, because the refusal you would otherwise hit names the wrong cause.", err), req...)
 		return
 	}
 	updated["command"] = command
@@ -447,7 +492,14 @@ func emitPreRewrite(stdout io.Writer, toolInput json.RawMessage, command string)
 // This is the SYNCHRONOUS half of the answer; a log entry of type LOG_TYPE_FAILURE
 // is the durable half. The reason string reaches the agent NOW; the log entry is what a
 // later reader finds. Neither replaces the other.
-func emitPreAsk(stdout io.Writer, reason string) {
+func emitPreAsk(stdout io.Writer, reason string, req ...hookcore.Request) {
+	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
+		emit(stdout, map[string]any{
+			"decision": "ask",
+			"reason":   reason,
+		})
+		return
+	}
 	emit(stdout, map[string]any{
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":            "PreToolUse",
@@ -460,7 +512,15 @@ func emitPreAsk(stdout io.Writer, reason string) {
 // emitPreDeny writes the PreToolUse deny document. `permissionDecisionReason` is carried back to
 // the model, so the seat reads what the shell would have run and the form that works, in the same
 // turn — a refusal that teaches rather than one the seat has to reverse-engineer.
-func emitPreDeny(stdout io.Writer, reason string) {
+func emitPreDeny(stdout io.Writer, reason string, req ...hookcore.Request) {
+	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
+		emit(stdout, map[string]any{
+			"decision":    "deny",
+			"reason":      reason,
+			"deny_reason": reason,
+		})
+		return
+	}
 	emit(stdout, map[string]any{
 		"hookSpecificOutput": map[string]any{
 			"hookEventName":            "PreToolUse",

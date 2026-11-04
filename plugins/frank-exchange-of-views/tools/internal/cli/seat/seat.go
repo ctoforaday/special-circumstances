@@ -444,17 +444,11 @@ func Repeated(act string) string {
 	return act + " — this call repeats an act already on the record, so nothing was written"
 }
 
-// Relayed is a result whose machine form IS the object the seat relays, and nothing else: --json
-// prints Relay() alone, with no {verb, role, ok, result, standing} around it. A refusal keeps the
-// refusal envelope.
-//
-// A COPY, NOT A COMPOSITION. The chair's envelope IS `dispatch next`'s plan. While the verb printed
-// the plan as `result` inside the ok envelope, the chair lifted it out and renamed it, and about
-// one sitting in five (m26-m30, 7 of 34) nested it and was refused. Printing exactly the relayed
-// object makes "copy what the verb printed" and "return the envelope" one act.
-type Relayed interface {
+// PrintsBare is a result whose machine form is one object and nothing else: --json prints Bare()
+// alone, with no {verb, role, ok, result, standing} around it. A refusal keeps the refusal envelope.
+type PrintsBare interface {
 	Result
-	Relay() any
+	Bare() any
 }
 
 // Msg is the shared result for verbs that only CONFIRM — they carry no command-specific
@@ -482,12 +476,12 @@ type okEnvelope struct {
 }
 
 // outputOf is a verb's --json success as its page states it, generated from the verb's own result
-// type: okEnvelope with that type in the place of the interface, or, for a Relayed result, the
-// object it relays alone — the two types that are marshalled, so the tree is the wire.
+// type: okEnvelope with that type in the place of the interface, or, for a PrintsBare result, the
+// object alone — the two types that are marshalled, so the tree is the wire.
 func outputOf(result Result) string {
 	var tree string
-	if r, ok := result.(Relayed); ok {
-		tree = jsonshape.Tree(r.Relay())
+	if r, ok := result.(PrintsBare); ok {
+		tree = jsonshape.Tree(r.Bare())
 	} else {
 		env := reflect.TypeOf(okEnvelope{})
 		fields := make([]reflect.StructField, 0, env.NumField())
@@ -939,8 +933,8 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 	if res != nil && reflect.TypeOf(res).String() != cmd.Annotations[resultKey] {
 		return taught{feov.Errorf(feov.Internal, "%s returned a %T, and its page states the --json result of a %s — the tool is at fault, not your call", cmd.CommandPath(), res, cmd.Annotations[resultKey])}
 	}
-	if r, ok := res.(Relayed); ok && jsonMode(cmd) {
-		return json.NewEncoder(cmd.OutOrStdout()).Encode(r.Relay())
+	if r, ok := res.(PrintsBare); ok && jsonMode(cmd) {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(r.Bare())
 	}
 	standing := standingAfter(cmd)
 	if jsonMode(cmd) {

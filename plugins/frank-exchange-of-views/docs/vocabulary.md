@@ -132,7 +132,7 @@ A run is one research question taken from setup to its outcome.
 
 ## epoch
 
-An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
+An epoch runs from one chair sitting to the next: the chair asks the record who sits, the parties the record names sit, and the chair sits again.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -172,7 +172,7 @@ A failed sitting is a sitting of a seat whose work arrives as items that closed 
 
 ## exchange
 
-An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
+An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -206,7 +206,7 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 ## chair
 
-The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
+The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -538,7 +538,7 @@ Grade movement is the change a lens's regrade makes to a gap's severity, likelih
 
 **Collisions:**
 
-- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
+- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue answers it with a computation or a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
 
 ## grade motion
 

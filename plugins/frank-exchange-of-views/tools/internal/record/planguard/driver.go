@@ -155,8 +155,8 @@ type guardConn struct {
 // QueryContext explains the statement, then runs it.
 //
 // database/sql prefers this over Prepare when the connection offers it, and the sqlite driver
-// does, so every db.Query and db.QueryRow in the record arrives here. A statement issued through
-// an explicitly prepared handle would not, which is a real limit and is why the caller checks
+// does, so a db.Query or db.QueryRow the record's statement cache does not keep arrives here; one
+// it keeps arrives at PrepareContext and is watched there (guardStmt). The caller still checks
 // Statements() rather than trusting an empty findings list.
 func (c *guardConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	q, ok := c.Conn.(driver.QueryerContext)
@@ -184,12 +184,51 @@ func (c *guardConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.
 	return b.BeginTx(ctx, opts)
 }
 
+// PrepareContext prepares the statement, and hands back one that explains and counts each time
+// it is queried.
+//
+// THE RECORD'S READS ARRIVE HERE AS WELL AS AT QueryContext: recordsql keeps its reads prepared on
+// the connection (recordsql/stmtcache.go), so a read is prepared once and then queried through
+// the statement, never through the connection. A statement that ran unseen would be the hole
+// Statements() exists to expose, so the guard watches the statement as it watches the connection.
 func (c *guardConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
 	p, ok := c.Conn.(driver.ConnPrepareContext)
 	if !ok {
 		return c.Conn.Prepare(query)
 	}
-	return p.PrepareContext(ctx, query)
+	st, err := p.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return &guardStmt{Stmt: st, conn: c, query: query}, nil
+}
+
+// guardStmt is a prepared statement the guard explains and counts on each query, as it does a
+// query on the connection.
+type guardStmt struct {
+	driver.Stmt
+	conn  *guardConn
+	query string
+}
+
+func (s *guardStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	q, ok := s.Stmt.(driver.StmtQueryContext)
+	if !ok {
+		return nil, driver.ErrSkip
+	}
+	s.conn.rec.countStatement()
+	if cq, ok := s.conn.Conn.(driver.QueryerContext); ok {
+		s.conn.explain(ctx, cq, s.query, args)
+	}
+	return q.QueryContext(ctx, args)
+}
+
+func (s *guardStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	e, ok := s.Stmt.(driver.StmtExecContext)
+	if !ok {
+		return nil, driver.ErrSkip
+	}
+	return e.ExecContext(ctx, args)
 }
 
 // explain asks SQLite how it intends to answer, on the SAME connection, so temp tables and

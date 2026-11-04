@@ -9,6 +9,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/klippa-app/go-pdfium v1.21.4
 	github.com/microcosm-cc/bluemonday v1.0.27
+	github.com/ctoforaday/special-circumstances/shared v0.0.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -39,3 +40,6 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
+
+replace github.com/ctoforaday/special-circumstances/shared => ../../../shared
+

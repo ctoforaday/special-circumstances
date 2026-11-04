@@ -464,12 +464,12 @@ test('a petition standing at the exit: the terminal sitting rules it, and a halt
 
 // ── the seats' contracts ────────────────────────────────────────────────────────────────────
 
-test('the chair runs the debate: relays the plan verbatim, mints nothing, closes nothing, owns the verdict', async () => {
+test('the chair runs the debate: copies no plan, mints nothing, closes nothing, owns the verdict', async () => {
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, ARGS)
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
-  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Your envelope IS the object it prints, its fields copied VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked, and relay THAT plan; your verdict prints the plan you relay/.test(p))
+  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /COPY NONE OF IT/.test(p) && !/VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked: the plan stored last is the one that goes/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/ANSWER EVERY INQUIRY ON ONE READ/.test(p) && /where neither has changed, your last read stands/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
@@ -580,7 +580,7 @@ test('a plan that engages blue alone on a gap sits no lens, and the lens sits on
   assert.ok(lens.includes('YOU ARE ENGAGED ON: G-00000001 —'), 'the lens is told the gap it sits on')
 })
 
-test('blue is engaged on named gaps, works from the report and its work list, and is told how to argue the closings its work list names', async () => {
+test('blue is engaged on named gaps, works from the report and its work list, and files the closings its work list names', async () => {
   const owed = [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-logic' }, { kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' },
     { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'unruled_motion', subject: 'M-00000001', owner: 'judge' }]
   const world = makeWorld(makeResponder({
@@ -602,11 +602,16 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const banned of [/READ THE BOARD/, /the board and work projections/, /the board shows/, /the board you read/, /red's argument for it/, /basis of each change of grade/]) {
     assert.ok(!banned.test(first), `blue is sent to the board or to red's argument: ${banned}`)
   }
-  // THE WORK LIST NAMES THE CLOSINGS OWED; THE DISPATCH NAMES NONE. The plan is read at the epoch's
-  // start, and a lens that closes the gap before blue sits ends the duty (#1663 smoke, ev530, ev608).
-  assert.ok(/A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE/.test(first) && /argue in ~120 words/.test(first))
+  // WHICH CLOSINGS ARE OWED IS THE WORK LIST'S, read live: the prompt is composed from the plan at the
+  // epoch's start, which a seat sitting earlier in the epoch can already have overtaken (#1663 smoke,
+  // ev530, ev608). The dispatch sends a seat the plan holds one owed by to its list, and names no gap.
+  assert.ok(/WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED/.test(first), 'blue is not sent to its list for its closing')
   assert.ok(!/A CLOSING ARGUMENT IS OWED/.test(second), 'a plan that holds blue to no closing tells it of one')
   for (const prompt of [first, second]) assert.ok(!/OWED ON/.test(prompt) && !/G-00000002/.test(prompt), 'the dispatch names a gap a closing is owed on')
+  for (const seat of ['blue-researcher', 'red-lens-logic']) {
+    const md = readFileSync(new URL(`../../agents/${seat}.md`, import.meta.url), 'utf8')
+    assert.ok(/A closing argues in ~120 words/.test(md), `${seat}'s constitution does not say what a closing argues`)
+  }
   assert.ok(!/round \d/.test(first), 'no round is named to blue')
   // #1209: blue rules nothing, so the bench's law clause is not blue's; every read is a projection,
   // so no scratch-file copy of one; and a clean sitting owes no log entry.
@@ -617,7 +622,8 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('judge', 'G-00000001', 'G-00000002')], { docket: ['G-00000001'] }) }), passChair()] }))
   await world.run(script, ARGS)
   const bench = firstPrompt(world, 'judge')
-  for (const want of ['Docketed for you: G-00000001, G-00000002', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
+  assert.ok(!/G-0000000/.test(bench), 'the bench is told its docket from the plan')
+  for (const want of ['YOUR WORK LIST NAMES THE MOTIONS DOCKETED FOR YOU', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
     'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
     "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and its refusal names the dispositions that close the gap', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE', "WHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE"]) {
@@ -923,6 +929,19 @@ const lensAndBlue = () => chairEnv({ plan: plan([party('red-lens-evidence'), par
 // THE BENCH HEARS WHENEVER NOTHING IS RUNNING (gblock, 2026-10-31): after the lens group, after each blue
 // sitting, after the docket bench. Any close of a group says so: an earlier close with nothing owed read
 // before the filing landed, and the last close alone would read nothing when that seat died.
+// A LENS READIED ALONE IS HEARD ALL THE SAME. Its plan has no blue and no bench, so the barrier after its
+// group is the only one left in the epoch: the filing is heard there, and the next chair plans on it.
+test('a lens the plan readies alone: its filing is heard before the next chair sits, and nobody else sits', async () => {
+  const alone = () => chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001')]) })
+  const world = makeWorld(readsAt(makeResponder({ chair: [alone(), passChair()] }), { 'red-lens-evidence': read({ bench_owed: ['petition'] }) }))
+  assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
+  const order = labels(world)
+  const heard = order.indexOf('judge · petition')
+  assert.ok(heard > order.indexOf('red-lens-evidence #1'), 'the hearing sat before the lens that filed')
+  assert.ok(heard < order.indexOf('red-chair #2'), 'the next chair sat before the hearing')
+  assert.ok(!order.includes('blue-respond #1'), 'blue sat in a lens-alone epoch')
+  assert.ok(!order.includes('judge #1'), 'the bench was convened on a docket in a lens-alone epoch')
+})
 test('a lens that files in a parallel group is heard before blue sits, whichever close reports it', async () => {
   for (const reader of ['red-lens-evidence', 'red-lens-logic']) {
     const world = makeWorld(readsAt(makeResponder({ chair: [lensAndBlue(), passChair()] }), { [reader]: read({ bench_owed: ['petition'] }) }))
@@ -1292,7 +1311,7 @@ test('R2: the closing duty is stated to the sitting the plan dispatched, and not
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-77cc033b')], { blockers }) }), passChair()], blueRespond }))
   await world.run(script, ARGS)
   const [first, second] = world.calls.filter((c) => /^blue-respond /.test(c.opts.label)).map((c) => c.prompt)
-  assert.ok(first.includes('A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE'), 'the dispatched sitting is not told how to argue a closing')
+  assert.ok(first.includes('WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU'), 'the dispatched sitting is not sent to its list for its closing')
   assert.ok(second && !second.includes('A CLOSING ARGUMENT IS OWED'), 'the second sitting is told of a closing')
 })
 test('R2: no second sitting without a gap found closed, or on a successor this epoch already engaged blue on', async () => {

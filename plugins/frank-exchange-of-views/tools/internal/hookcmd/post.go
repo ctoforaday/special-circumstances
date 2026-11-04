@@ -1,10 +1,10 @@
 package hookcmd
 
 import (
-	"encoding/json"
 	"io"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // Post is the PostToolUse entry point: a seat's call returning its envelope that SUCCEEDED is
@@ -20,26 +20,23 @@ import (
 // the tool name is still checked here, because the matcher is configuration and this is the claim.
 // A call from no seat — no agent, no run — is no seat's envelope, and nothing is written.
 func Post(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error {
-	var in struct {
-		ToolName  string `json:"tool_name"`
-		AgentID   string `json:"agent_id"`
-		AgentType string `json:"agent_type"`
-		Cwd       string `json:"cwd"`
-		SessionID string `json:"session_id"`
-	}
-	b, err := io.ReadAll(stdin)
-	if err != nil || json.Unmarshal(b, &in) != nil {
+	req := hookcore.Read("PostToolUse", stdin)
+	if !req.Parsed {
 		rec.Fail(StageAdmission, "cannot read or parse the PostToolUse payload — a seat's accepted envelope was not recorded as admitted")
 		return nil
 	}
-	if in.ToolName != envelopeTool {
+	if req.ToolName != envelopeTool {
 		return nil
 	}
-	caller := callerOf(in.AgentID, in.AgentType, in.SessionID)
+	caller := callerOf(req.AgentID, req.AgentType, req.SessionID)
 	if caller.ID == "" {
 		return nil
 	}
-	runDir := seatRunDir(in.Cwd, caller, rec)
+	cwd := req.CWD
+	if cwd == "" {
+		cwd = cwdOf(req.Raw)
+	}
+	runDir := seatRunDir(cwd, caller, rec)
 	if runDir == "" {
 		return nil
 	}

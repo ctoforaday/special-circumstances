@@ -78,8 +78,8 @@ var mjsSuites = []string{
 // gates subsume (#626); this var stays swappable for the tests that fake a module.
 var goModules = goldenmods.Modules
 
-// subsumed maps a module dir to the check gate that already ran its exact go leg in the
-// same invocation. Set only by -subsume on a plain verify run; a subsumed leg is REPORTED,
+// subsumed maps a module dir to what runs its exact go leg on the same tree: a check gate in the
+// same invocation, or a job of the same CI run. Set only by -subsume on a plain verify run; a subsumed leg is REPORTED,
 // never silently absent — a leg that vanishes from the output is indistinguishable from
 // one that passed.
 var subsumed = map[string]string{}
@@ -119,10 +119,11 @@ func runLegs(root string, update bool) bool {
 	// ---- go ----
 	for _, mod := range goModules {
 		// A SUBSUMED LEG IS STATED, NOT SKIPPED SILENTLY. check passes -subsume only for a
-		// module whose `:test` gate runs this exact command in the same invocation (#626) —
-		// and never on an update run, where the gate does not record.
+		// module whose `:test` gate runs this exact command in the same invocation (#626), and
+		// the hooks workflow's goldens job only for a module whose suite another job of the same
+		// run executes without a test cache — and never on an update run, which records.
 		if by, ok := subsumed[mod]; ok && !update {
-			fmt.Printf("\n── go goldens in %s: not re-run — %s runs the same suite command here in this same check\n", mod, by)
+			fmt.Printf("\n── go goldens in %s: not re-run — %s runs the same suite on this tree\n", mod, by)
 			continue
 		}
 		// -count=1 defeats Go's TEST CACHE. Without it an update run can be satisfied
@@ -171,7 +172,7 @@ func main() {
 	accept := flag.String("accept", "", "with -review: comma-separated goldens to keep (bare filename is enough); everything else is reverted")
 	acceptAll := flag.Bool("accept-all", false, "with -review: keep every proposal; requires -reason")
 	reason := flag.String("reason", "", "with -accept-all: why this whole batch is a deliberate contract change")
-	subsume := flag.String("subsume", "", "comma-separated module=gate pairs whose go leg the named gate already ran in this same check invocation (passed by scripts/check, #626)")
+	subsume := flag.String("subsume", "", "comma-separated module=gate pairs whose go leg the named gate or CI job runs on this same tree: scripts/check passes its own gates (#626), the hooks workflow's goldens job names feov-record")
 	flag.Parse()
 
 	root, err := gitx.Root()

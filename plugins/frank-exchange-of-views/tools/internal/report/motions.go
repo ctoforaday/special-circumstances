@@ -30,13 +30,23 @@ func motions(fam record.Family) string {
 	return out
 }
 
+// atSitting names a writer and the sitting it acted in. A writer that sits in no sitting — the
+// harness, which files the docket motion migrate translates from a bench opinion — has no
+// sitting number, and none is printed.
+func atSitting(who string, sitting int) string {
+	if sitting == 0 {
+		return who
+	}
+	return fmt.Sprintf("%s #%d", who, sitting)
+}
+
 func motionRow(m *record.Motion, unruled *int) string {
 	var b strings.Builder
 	filer := m.Filer
 	if filer == "" {
 		filer = "the record does not say"
 	}
-	fmt.Fprintf(&b, "- **%s** · %s · filed by %s #%d", m.ID, motionHead(m), filer, m.Sitting)
+	fmt.Fprintf(&b, "- **%s** · %s · filed by %s", m.ID, motionHead(m), atSitting(filer, m.Sitting))
 	if m.Basis != "" {
 		fmt.Fprintf(&b, "\n  - asked: %s", inItem(m.Basis, "    "))
 	}
@@ -52,7 +62,7 @@ func motionRow(m *record.Motion, unruled *int) string {
 		fmt.Fprintf(&b, "\n  - on new grounds, the report's text: %s", inItem(q, "    "))
 	}
 	if m.Ruled() {
-		fmt.Fprintf(&b, "\n  - **ruled %s** by %s #%d", m.Ruling, m.RulingBy, m.RulingSitting)
+		fmt.Fprintf(&b, "\n  - **ruled %s** by %s", m.Ruling, atSitting(m.RulingBy, m.RulingSitting))
 		if m.Opinion != "" {
 			fmt.Fprintf(&b, " — %s", inItem(m.Opinion, "    "))
 		}

@@ -367,7 +367,8 @@ func openMaterialGaps(q recordsql.Querier) ([]string, error) {
 // state it could stand over any open gap with verify reporting nothing. Under Migrating a
 // non-PASS carrying it is refused (a FAIL admits nothing), and a PASS whose source already carries
 // it — a run this binary migrated before — must carry exactly what the board yields now: the
-// gaps' class material is kept as recorded, so the two agree unless the record was altered.
+// replay stamps each mint's class material from its class's default, as the run this binary
+// migrated before was stamped, so the two agree unless the record was altered.
 func stampMigrationAdmission(q recordsql.Querier, g *recordpb.Gate) error {
 	arrived := append([]string(nil), g.GetMigrationAdmittedGapIds()...)
 	if !Migrating {

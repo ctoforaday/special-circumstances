@@ -1,8 +1,6 @@
 package record
 
 import (
-	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -118,7 +116,7 @@ func readSnapshot(run Run, read func(q recordsql.Querier) error) error {
 	if db == nil {
 		return read(nil)
 	}
-	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	tx, err := recordsql.BeginRead(db)
 	if err != nil {
 		return fmt.Errorf("opening a read of the record: %w", err)
 	}

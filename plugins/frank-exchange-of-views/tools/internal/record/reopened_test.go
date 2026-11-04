@@ -100,7 +100,7 @@ func failedChecksT(t *testing.T, evs ...*Event) []failedCheck {
 	t.Helper()
 	dir := newRun(t)
 	recordtest.Seed(t, dir, evs...)
-	got, err := failedChecksAt(recordOf(t, mustRun(t, dir)))
+	got, err := failedChecksAt(recordOf(t, mustRun(t, dir)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

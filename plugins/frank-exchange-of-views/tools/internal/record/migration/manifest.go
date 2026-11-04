@@ -46,10 +46,11 @@ type Manifest struct {
 	In         map[string]int `json:"events_in"`
 	Out        map[string]int `json:"events_out"`
 	Refusals   []Refusal      `json:"refusals,omitempty"`
-	// StatedFills are the values the migration SUPPLIED where the source predates a field and no
-	// value can say "never recorded" in its own terms — an enum has no such word. Each names where
-	// it was written, the slug, the value and why, so the fill is on the record rather than posing
-	// as what the archive said.
+	// StatedFills are the values the migration SUPPLIED that the source did not hold: where the
+	// source predates a field and no value can say "never recorded" in its own terms — an enum has
+	// no such word — and where the tool stamps a field the source held a different value in. Each
+	// names where it was written, the slug, the value and why, so the fill is on the record rather
+	// than posing as what the archive said.
 	StatedFills []StatedFill `json:"stated_fills,omitempty"`
 	// ClassTranslations is each archived class slug some mint carried that resolved through an
 	// authored row of migrate's gapclass.go — a merged or dropped registry class, or a coined slug —
@@ -113,9 +114,9 @@ type Refusal struct {
 	Err   string `json:"error"`
 }
 
-// StatedFill is one value the migration supplied for a field its source predates.
+// StatedFill is one value the migration supplied that its source did not hold.
 type StatedFill struct {
-	Where string `json:"where"` // "mint <gap_id>": a mint whose source predates class_material
+	Where string `json:"where"` // "mint <gap_id>": a mint whose migrated class_material is not the source's
 	Slug  string `json:"slug"`
 	Value string `json:"value"`
 	Why   string `json:"why"`

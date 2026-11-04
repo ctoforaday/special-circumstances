@@ -1,7 +1,6 @@
 package recordpb
 
 import (
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -25,18 +24,26 @@ func MaterialDefault(c GapClass) ClassMaterial {
 
 // ValueNeighbor is the word a value's `neighbor` option names; "" where it declares none.
 func ValueNeighbor(vd protoreflect.EnumValueDescriptor) string {
-	if vd == nil || vd.Options() == nil || !proto.HasExtension(vd.Options(), E_Neighbor) {
+	if vd == nil {
 		return ""
 	}
-	return proto.GetExtension(vd.Options(), E_Neighbor).(string)
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return ""
+	}
+	return a.Neighbor
 }
 
 // ValueDistinguisher is a value's `distinguisher` option; "" where it declares none.
 func ValueDistinguisher(vd protoreflect.EnumValueDescriptor) string {
-	if vd == nil || vd.Options() == nil || !proto.HasExtension(vd.Options(), E_Distinguisher) {
+	if vd == nil {
 		return ""
 	}
-	return proto.GetExtension(vd.Options(), E_Distinguisher).(string)
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return ""
+	}
+	return a.Distinguisher
 }
 
 // Neighbor is the value nearest to c, which its distinguisher tells it apart from. False for the
@@ -56,21 +63,28 @@ func Neighbor(c GapClass) (GapClass, bool) {
 // GapClassesOf is the gap classes a reading of a citation with outcome o may mint its gap in — the
 // outcome's `gap_classes` option, in declaration order — and nil for an outcome that declares none:
 // an outcome that does not find against a sentence admits no gap.
-func GapClassesOf(o SourceOutcome) []GapClass { return outcomeClasses(o, E_GapClasses) }
+func GapClassesOf(o SourceOutcome) []GapClass {
+	return outcomeClasses(o, func(a *ValueAnnotations) []GapClass { return a.GapClasses })
+}
 
 // FoundSourceGapClassesOf is the gap classes a reading of a source the lens found (no anchor) with
 // outcome o may mint its gap in — the outcome's `found_source_gap_classes` option — and nil for an
 // outcome that declares none (`absent`, `unreachable`).
 func FoundSourceGapClassesOf(o SourceOutcome) []GapClass {
-	return outcomeClasses(o, E_FoundSourceGapClasses)
+	return outcomeClasses(o, func(a *ValueAnnotations) []GapClass { return a.FoundSourceGapClasses })
 }
 
-func outcomeClasses(o SourceOutcome, xt protoreflect.ExtensionType) []GapClass {
+// outcomeClasses reads one of o's class lists off its row of the generated annotation table.
+func outcomeClasses(o SourceOutcome, pick func(*ValueAnnotations) []GapClass) []GapClass {
 	vd := o.Descriptor().Values().ByNumber(o.Number())
-	if vd == nil || vd.Options() == nil || !proto.HasExtension(vd.Options(), xt) {
+	if vd == nil {
 		return nil
 	}
-	return proto.GetExtension(vd.Options(), xt).([]GapClass)
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return nil
+	}
+	return pick(a)
 }
 
 // Distinguisher is the question that tells c from its neighbour; empty for the catch-all.

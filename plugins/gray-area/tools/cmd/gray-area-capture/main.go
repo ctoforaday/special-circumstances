@@ -58,7 +58,9 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 	"sort"
 )
 
@@ -504,9 +506,33 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
-	raw, _ := io.ReadAll(stdin)
+	req := hookcore.Read(*event, stdin)
 	var in hookInput
-	_ = json.Unmarshal(raw, &in)
+	_ = json.Unmarshal(req.Raw, &in)
+	if in.CWD == "" {
+		in.CWD = req.ProjectDir
+	}
+	if in.SessionID == "" {
+		in.SessionID = req.SessionID
+	}
+	if in.TranscriptPath == "" {
+		in.TranscriptPath = req.TranscriptPath
+	}
+	if in.AgentID == "" {
+		in.AgentID = req.AgentID
+	}
+	if in.AgentType == "" {
+		in.AgentType = req.AgentType
+	}
+	if in.AgentTranscriptPath == "" {
+		in.AgentTranscriptPath = req.AgentTranscriptPath
+	}
+	if !in.StopHookActive && req.StopHookActive {
+		in.StopHookActive = req.StopHookActive
+	}
+	if projectDir == "" {
+		projectDir = req.ProjectDir
+	}
 
 	r := newReport(*event, now, stderr)
 	// THE VERSION CHECK IS THIS HOOK'S TOO on SessionStart, so the event has one hook in this plugin.
@@ -520,11 +546,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		}
 		healed = msg
 	}
-	capture(in, raw, *event, projectDir, now, stat, r)
+	capture(in, req.Raw, *event, projectDir, now, stat, r)
 	// This hook emits no document of its own on any event it fires on, so the message is the
 	// whole response. A hook that DOES emit one merges the text into it instead.
-	hookfailures.Emit(stdout, hookfailures.JoinMessages(healed, r.Settle()))
-	return 0
+	msg := hookfailures.JoinMessages(healed, r.Settle())
+	return hookcore.Respond(req, hookcore.Response{Say: msg}, stdout, stderr, nil)
 }
 
 // capture does the event's work. Every outcome it cannot act on goes to r; run settles r once, at
@@ -603,6 +629,7 @@ func statSize(p string) (int64, error) {
 }
 
 func main() {
+	gcpolicy.Short()
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr,
 		os.Getenv("CLAUDE_PROJECT_DIR"), time.Now(), statSize))
 }

@@ -41,6 +41,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/pushfreezeguard"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secretsgate"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // merge is the event's decision policy, kept pure so it can be tested without units.
@@ -60,60 +61,62 @@ func merge(results []hookunit.Result) (decision, warnings, say string) {
 	return decision, strings.Join(warn, "\n"), strings.Join(said, "\n")
 }
 
-// respond writes the ONE object this event answers with. A decision and a message travel together —
-// measured 2026-09-16 against the real client: a PreToolUse response carrying both had the message
-// displayed, the decision honoured and the tool run. The decision is a document a unit composed, so
-// it is decoded and the message added to it rather than wrapped, which would bury the decision one
-// level down where the client does not look.
-func respond(stdout io.Writer, decision, say string) {
-	if decision == "" {
-		hookfailures.Emit(stdout, say)
-		return
-	}
-	if say == "" {
-		fmt.Fprint(stdout, decision)
-		return
-	}
-	var doc map[string]any
-	if err := json.Unmarshal([]byte(decision), &doc); err != nil {
-		// The decision is what protects the session; it goes out intact whatever happened here, and
-		// the message follows on its own line rather than corrupting it.
-		fmt.Fprint(stdout, decision)
-		return
-	}
-	doc["systemMessage"] = say
-	b, err := json.Marshal(doc)
-	if err != nil {
-		fmt.Fprint(stdout, decision)
-		return
-	}
-	fmt.Fprintln(stdout, string(b))
-}
-
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
 	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-pretooluse")) {
 		return 0
 	}
 
-	raw, _ := io.ReadAll(stdin)
-	var in struct {
-		CWD string `json:"cwd"`
+	req := hookcore.Read("PreToolUse", stdin)
+	if projectDir == "" {
+		projectDir = req.ProjectDir
+	} else {
+		projectDir = hookenv.ProjectDir(projectDir, "")
 	}
-	_ = json.Unmarshal(raw, &in)
 
 	rec := hookfailures.New("prosthetic-conscience", "sc-pretooluse", "PreToolUse", now, stderr)
-	ctx := hookunit.NewCtx("PreToolUse", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
+	ctx := hookunit.NewCtx("PreToolUse", req.Raw, projectDir, now, rec)
 	hookenv.Note(ctx.ProjectDir, rec) // recorded, never a reason to skip the secrets gate
 	decision, warnings, say := merge(hookunit.Run(ctx, units))
 
-	if warnings != "" {
-		fmt.Fprintln(stderr, warnings)
+	resp := hookcore.Response{
+		Warnings: warnings,
+		Say:      strings.TrimSpace(say + "\n\n" + rec.Settle()),
 	}
-	// The record's message joins this call's own: both are for the human, and the event answers
-	// with one object.
-	respond(stdout, decision, strings.TrimSpace(say+"\n\n"+rec.Settle()))
-	// ALWAYS 0: the block travels in the JSON, never in the status.
-	return 0
+
+	if decision != "" {
+		var testDoc map[string]any
+		if err := json.Unmarshal([]byte(decision), &testDoc); err != nil {
+			fmt.Fprint(stdout, decision)
+			return 0
+		}
+		var doc struct {
+			HookSpecificOutput struct {
+				PermissionDecision       string         `json:"permissionDecision"`
+				PermissionDecisionReason string         `json:"permissionDecisionReason"`
+				UpdatedInput             map[string]any `json:"updatedInput"`
+			} `json:"hookSpecificOutput"`
+		}
+		if err := json.Unmarshal([]byte(decision), &doc); err == nil && doc.HookSpecificOutput.PermissionDecision != "" {
+			resp.Decision = hookcore.Decision(doc.HookSpecificOutput.PermissionDecision)
+			resp.Reason = doc.HookSpecificOutput.PermissionDecisionReason
+			if cmd, ok := doc.HookSpecificOutput.UpdatedInput["command"].(string); ok {
+				resp.UpdatedCommand = cmd
+			}
+		} else {
+			if d, ok := testDoc["permissionDecision"].(string); ok {
+				resp.Decision = hookcore.Decision(d)
+			} else if d, ok := testDoc["decision"].(string); ok {
+				resp.Decision = hookcore.Decision(d)
+			}
+			if r, ok := testDoc["permissionDecisionReason"].(string); ok {
+				resp.Reason = r
+			} else if r, ok := testDoc["reason"].(string); ok {
+				resp.Reason = r
+			}
+		}
+	}
+
+	return hookcore.Respond(req, resp, stdout, stderr, nil)
 }
 
 // Units are this event's checks, in the order a decision is taken from.

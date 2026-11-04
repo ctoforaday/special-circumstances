@@ -143,6 +143,7 @@ func Close(path string) error {
 		return nil
 	}
 	delete(openCache, abs)
+	forgetHandle(db)
 	return db.Close()
 }
 
@@ -168,6 +169,7 @@ func CloseUnder(dir string) error {
 		if !strings.HasPrefix(k, prefix) {
 			continue
 		}
+		forgetHandle(db)
 		if err := db.Close(); err != nil && first == nil {
 			first = err
 		}
@@ -347,6 +349,7 @@ func SealedBytes(path string) ([]byte, error) {
 			return nil, err
 		}
 		delete(openCache, abs)
+		forgetHandle(db)
 		if err := db.Close(); err != nil {
 			return nil, err
 		}
@@ -376,6 +379,7 @@ func CloseAll() error {
 	defer openMu.Unlock()
 	var first error
 	for k, db := range openCache {
+		forgetHandle(db)
 		if err := db.Close(); err != nil && first == nil {
 			first = err
 		}
@@ -437,6 +441,7 @@ func Open(path string) (*sql.DB, error) {
 		return nil, err
 	}
 	openCache[abs] = db
+	rememberHandle(db, abs)
 	return db, nil
 }
 
@@ -470,7 +475,7 @@ func openUncached(path string) (*sql.DB, error) {
 	// a writer waiting for a writer is a queue rather than a deadlock. It also fixes the correctness
 	// half: a deferred transaction's count could be read from a snapshot another writer has already
 	// moved past, which is what SQLITE_BUSY_SNAPSHOT exists to refuse.
-	db, err := sql.Open(driverName(), dsnFor(path))
+	db, err := openDB(dsnFor(path))
 	if err != nil {
 		return nil, err
 	}

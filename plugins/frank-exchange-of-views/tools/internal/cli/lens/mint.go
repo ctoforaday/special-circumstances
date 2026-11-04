@@ -446,7 +446,8 @@ func verifiedFix(p *recordpb.Mint, report, gapID string, at gapPlace, fixNew str
 	if err != nil {
 		return err
 	}
-	if _, err := blue.PlanAccept(placed, gapID, at.quote, fixNew); errors.Is(err, reportproj.ErrNoChange) {
+	a, err := blue.PlanAccept(placed, gapID, at.quote, fixNew)
+	if errors.Is(err, reportproj.ErrNoChange) {
 		return fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix %s so its replacement changes the report, or state the fix as prose in --fix", err, fixWhat(at))
 	} else if err != nil {
 		// The accept's refusal of a dropped anchor is worded for blue, whose acts it names; red's is the
@@ -468,6 +469,11 @@ func verifiedFix(p *recordpb.Mint, report, gapID string, at gapPlace, fixNew str
 			"or %s; "+
 			"or leave --new off and state the fix as prose in --fix", at.subject, why, carry)
 	}
+	// The accept refuses a fix that leaves an anchor bare where no act could take it out
+	// (blue.BaredAnchors), so the mint asks the same of the edit it planned, and words it for red.
+	if citations, leftOut := blue.BaredAnchors(placed, a.Planned, a.Applied); len(citations)+len(leftOut) > 0 {
+		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(at, citations, leftOut))
+	}
 	p.FixNew = proto.String(fixNew)
 	p.FixBasis = proto.String("verified")
 	return nil
@@ -480,6 +486,45 @@ func fixWhat(at gapPlace) string {
 		return "--new"
 	}
 	return "the quote"
+}
+
+// mintBaredRefusal is the refusal of a prescription whose --new would leave these anchors bare: the
+// citations, and the tokens of the other anchors --new does not carry. A reading's gap stands on the
+// sentence the tool reads by its citation's token, which the seat cannot widen, so its refusal offers
+// no carry through a quote.
+func mintBaredRefusal(at gapPlace, citations, leftOut []string) string {
+	var refusals []string
+	if len(citations) > 0 {
+		what, it, its := "citation "+citations[0], "it", "its"
+		if len(citations) > 1 {
+			what, it, its = "citations "+strings.Join(citations, ", "), "them", "their"
+		}
+		refusals = append(refusals, fmt.Sprintf(
+			"--new would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against, and blue's accept would refuse it. NOTHING IS RECORDED. "+
+				"Keep the sentence in --new; or, where the sentence is to go, leave --new off and state the fix as prose in --fix",
+			what, it, its, it))
+	}
+	if len(leftOut) > 0 {
+		toks := strings.Join(leftOut, "")
+		what, it, its := "anchor "+leftOut[0], "it", "its"
+		if len(leftOut) > 1 {
+			what, it, its = "anchors "+strings.Join(leftOut, ", "), "them", "their"
+		}
+		if at.of != "" {
+			refusals = append(refusals, fmt.Sprintf(
+				"--new would leave %s standing bare — no prose before %s in %s sentence — and %s leaves %s out, so no retire could take %s out with the claim, and blue's accept would refuse it. NOTHING IS RECORDED. "+
+					"Keep a sentence before %s in --new; or leave --new off and state the fix as prose in --fix",
+				what, it, its, at.subject, it, it, it))
+		} else {
+			// The carry is the lens's own: a token written into --new beside the one the report keeps past
+			// the span would be a second copy, so --quote reaches it and --new writes it.
+			refusals = append(refusals, fmt.Sprintf(
+				"--new would leave %s standing bare — no prose before %s in %s sentence — and --quote leaves %s out, so no retire could take %s out with the claim, and blue's accept would refuse it. NOTHING IS RECORDED. "+
+					"Keep a sentence before %s in --new; or carry %s: end --quote with %s as `show report` prints it, and write %s into --new; or leave --new off and state the fix as prose in --fix",
+				what, it, its, it, it, it, it, toks, toks))
+		}
+	}
+	return strings.Join(refusals, " ")
 }
 
 // contains reports membership, so an --supersedes that already names the estopping gap

@@ -647,6 +647,10 @@ type WorkJSON struct {
 	// command would be a second way to ask a question this view should have been answering.
 	Sitting SittingJSON   `json:"sitting"`
 	Open    []WorkGapJSON `json:"open"`
+	// ClosingsOwed is each docketed gap this party owes its closing on: a docketed gap leaves a
+	// party's `open` until it is ruled (keepClosingsOf), and what its closing argues rides here, on
+	// a lens's and blue's list alone. Never omitted: empty is the answer "no closing is owed from you".
+	ClosingsOwed []WorkGapJSON `json:"closings_owed"`
 	// Estopped is what this seat may NOT re-raise. See EstoppedJSON.
 	Estopped []EstoppedJSON `json:"estopped"`
 	Counts   struct {
@@ -821,6 +825,9 @@ type WorkGapJSON struct {
 	// regrade this gap. requireOriginator refuses any other seat, so a reader that has to derive
 	// this is deriving a refusal it could have been handed.
 	YoursToClose bool `json:"yours_to_close"`
+	// YourTurn is whether the dispatch engages THIS reader on this gap (partiesOnRoute), the plan's own
+	// predicate: a row beside a dispatch naming another gap says nothing is asked of its reader here.
+	YourTurn bool `json:"your_turn"`
 	// RegradesOwed is every grade motion on this gap that was ACCEPTED and that no regrade has
 	// followed, on the list of the seat whose regrade the write path admits — the gap's minting
 	// lens: the motion, the axis it contested and the grade the ruling accepted. It is the
@@ -991,11 +998,15 @@ type WorkGapState struct {
 	// plan's own fold (exchangesOf) — and remand the stage the work list states, read off the route
 	// (stageOnRoute), so the stage, the remand items and the plan say one thing. unruledDocket is the view's
 	// `unruled_docket_filed`, which routeOf reads as the plan does. Open gaps only.
-	remand           remandStage
-	route            gapRoute
-	unruledDocket    bool
-	latestRemandOwed bool  // GapExchanges.latestRemandOwed, which the PASS gate's list reads
-	remandRuled      int64 // GapExchanges.latestRemand, which the remand's items read (remandItemsOf)
+	remand        remandStage
+	route         gapRoute
+	unruledDocket bool
+	// lensDue and blueDue are whether the route engages the gap's minting lens and blue on it
+	// (partiesOnRoute); lensTurn and lensRead are GapExchanges', which the lens's items read.
+	lensDue, blueDue, lensTurn bool
+	lensRead                   int64
+	latestRemandOwed           bool  // GapExchanges.latestRemandOwed, which the PASS gate's list reads
+	remandRuled                int64 // GapExchanges.latestRemand, which the remand's items read (remandItemsOf)
 	// remandLimit is the place of the gap's remand at impasse where the bench's remand of it now
 	// would be refused as its second (remandPastLimit), 0 where a remand is admitted: the bench's
 	// item on a docket motion says so before it rules.
@@ -1020,18 +1031,42 @@ type WorkGapState struct {
 
 // workReads is every answer the work list takes off the record, read on one snapshot (workReadsAt)
 // and folded after it closes (workGapStatesOf): the stream, the gap view's rows, the two list
-// tables, the gaps' edits, the report's rows and the bench's remands. absent is a run with no
-// record yet, which has no work.
+// tables, the gaps' edits, the report's rows, the bench's remands and, on a lens's list, its mint
+// standing. absent is a run with no record yet, which has no work.
 type workReads struct {
 	absent              bool
 	evs                 []*Event
 	win                 WindowIndex
 	foundBy, supersedes map[int64][]string
 	edits               map[string][]GapEdit
-	reportOps           []ReportOp
-	reportErr           error
+	report              *reportRender
 	gaps                []workGapRow
 	remands             map[string][]remandRow
+	budget              *budgetRead
+}
+
+// reportRender is the report folded from one snapshot's rows (ReportProjectionAt), folded on the
+// first ask and kept.
+//
+// THE WORK LIST RENDERS THE REPORT ONCE. Its gap locations, its mint budget's measure and its
+// unverifiable citations each read the report; each rendering it from the rows was the same fold
+// done again, and the budget's own render read the rows a second time off a connection outside the
+// list's snapshot. A pointer, so every copy of workReads asks the one fold.
+type reportRender struct {
+	ops      []ReportOp
+	opsErr   error
+	rendered bool
+	text     string
+	err      error
+}
+
+// get is the report, folded on the first call.
+func (p *reportRender) get() (string, error) {
+	if !p.rendered {
+		p.rendered = true
+		p.text, p.err = renderProjection(p.ops, p.opsErr)
+	}
+	return p.text, p.err
 }
 
 // workGapRow is one row of the `gap` view as the work list scans it, with the event that minted
@@ -1042,9 +1077,22 @@ type workGapRow struct {
 	closeEvent, benchEvent sql.NullInt64
 }
 
-// workReadsAt reads the work list's answers off q, the read transaction every one of them comes off.
-func workReadsAt(q recordsql.Querier) (workReads, error) {
-	var r workReads
+// workReadsAt reads the work list's answers off q, the read transaction every one of them comes off,
+// and, where ask names a lens, its mint standing off the same q (lensMintStanding). A standing that
+// does not read is the list's sentence (mintBudgetOf), not the list's error.
+func workReadsAt(q recordsql.Querier, ask *budgetAsk) (workReads, error) {
+	r, err := workListReadsAt(q)
+	if err != nil || ask == nil {
+		return r, err
+	}
+	st, err := lensMintStanding(q, r.report.get, &heldStream{evs: r.evs, win: r.win}, ask.params, ask.seatID, ask.area)
+	r.budget = &budgetRead{st: st, err: err}
+	return r, nil
+}
+
+// workListReadsAt reads the work list's own answers off q.
+func workListReadsAt(q recordsql.Querier) (workReads, error) {
+	r := workReads{report: &reportRender{}}
 	var err error
 	if r.evs, r.win, err = eventsAt(q); err != nil || noRecord(q) {
 		r.absent = noRecord(q)
@@ -1059,7 +1107,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	if r.edits, err = reopeningEditsAt(q); err != nil {
 		return r, err
 	}
-	r.reportOps, r.reportErr = ReportProjectionAt(q)
+	r.report.ops, r.report.opsErr = ReportProjectionAt(q)
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_computation", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1115,7 +1163,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	}
 	byID := eventsByID(r.evs, r.win)
 	// The report, once for the whole work list — see boardJSONOfRecord for why once.
-	located := newLocatedReport(renderProjection(r.reportOps, r.reportErr))
+	located := newLocatedReport(r.report.get())
 	var out []WorkGapState
 	for _, row := range r.gaps {
 		g := row.WorkGapState
@@ -1156,6 +1204,8 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		}
 		g.route = routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
 		g.remand = stageOnRoute(g.route, x.Remand)
+		g.lensDue, g.blueDue = partiesOnRoute(g.route, g.Stranded, x)
+		g.lensTurn, g.lensRead = x.lensTurn, x.lensRead
 		g.latestRemandOwed, g.remandRuled = x.latestRemandOwed, x.latestRemand
 		g.remandLimit, _ = remandPastLimit(x, r.remands[g.ID], r.win.LatestSittingOf(benchSeat))
 	}
@@ -1224,7 +1274,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
 	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
 	// computed" where the truth is "nothing open".
-	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}, Declarations: []DeclarationJSON{}, Relief: []ReliefJSON{}}
+	out := WorkJSON{Open: []WorkGapJSON{}, ClosingsOwed: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}, Declarations: []DeclarationJSON{}, Relief: []ReliefJSON{}}
 	for _, g := range gaps {
 		if g.Open {
 			item := WorkGapJSON{
@@ -1242,8 +1292,10 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				MintedBy:        g.MintedBy,
 				// THE CONCLUSION, NOT THE PREMISES. requireOriginator refuses a close or regrade
 				// from any other seat; a reader deriving this from MintedBy is deriving a refusal
-				// it could have been handed. Empty reader (the oracle) is nobody's list, so false.
-				YoursToClose: reader != "" && g.MintedBy == reader,
+				// it could have been handed. Empty reader (the oracle) is nobody's list, so false. The
+				// close is refused while a docket motion stands on the gap (requireNoStandingDocket).
+				YoursToClose: reader != "" && g.MintedBy == reader && !g.unruledDocket,
+				YourTurn:     (reader != "" && g.MintedBy == reader && g.lensDue) || (reader == blueRespondSeat && g.blueDue),
 				RegradesOwed: []OwedRegradeJSON{},
 				CheckKind:    g.CheckKind, AwaitingComputation: g.AwaitingComputation,
 				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
@@ -1281,7 +1333,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 // to its raw walk. The seat-addressed halves (sitting, counterparty) need a role and seat and
 // are added by WorkJSONBytes.
 func WorkJSONOfRun(run Run) (WorkJSON, error) {
-	r, err := workView(run)
+	r, err := workView(run, nil)
 	if err != nil {
 		return WorkJSON{}, err
 	}
@@ -1294,19 +1346,20 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 
 // unverifiableIn reads, from the report as it renders now, why a citation's sentence cannot be
 // verified — the report does not render, its anchor is not in it, or it stands bare — the checks
-// `verify` refuses on (cli/lens/verify.go citedSentence). The report renders on the first question,
-// and only then: most work lists ask none.
+// `verify` refuses on (cli/lens/verify.go citedSentence). It reads the list's one render
+// (reportRender), and finds the bare anchors on the first question, and only then: most work lists
+// ask none.
 func unverifiableIn(r workReads) unverifiableFunc {
 	var (
-		rendered  bool
+		asked     bool
 		report    string
 		renderErr error
 		bare      []string
 	)
 	return func(id string) string {
-		if !rendered {
-			rendered = true
-			report, renderErr = renderProjection(r.reportOps, r.reportErr)
+		if !asked {
+			asked = true
+			report, renderErr = r.report.get()
 			if renderErr == nil {
 				bare = claimcount.BareAnchorIDs(report)
 			}
@@ -1323,13 +1376,13 @@ func unverifiableIn(r workReads) unverifiableFunc {
 	}
 }
 
-// workView reads the work list's answers on one snapshot of the record (workReadsAt); its callers
-// fold them after the transaction closes.
-func workView(run Run) (workReads, error) {
+// workView reads the work list's answers on one snapshot of the record (workReadsAt), with ask's
+// mint standing where it names a lens; its callers fold them after the transaction closes.
+func workView(run Run, ask *budgetAsk) (workReads, error) {
 	var r workReads
 	err := readSnapshot(run, func(q recordsql.Querier) error {
 		var err error
-		r, err = workReadsAt(q)
+		r, err = workReadsAt(q, ask)
 		return err
 	})
 	return r, err
@@ -1396,8 +1449,8 @@ func epochOfSeatOnBoard(evs []*Event, win WindowIndex, seatID string) int {
 // Seats write in parallel, so every question here is asked of the one snapshot the events came off,
 // and the list is folded after that transaction closes (workView).
 func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
-	// The stream through the loader (no fold), the gap facts off the view.
-	r, err := workView(run)
+	// The stream through the loader (no fold), the gap facts off the view, a lens's standing.
+	r, err := workView(run, budgetAskOf(run, role, seatID))
 	if err != nil {
 		return WorkJSON{}, err
 	}
@@ -1408,11 +1461,14 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	evs, win := r.evs, r.win
 	epoch := epochOfSeatOnBoard(evs, win, seatID)
 	w := workJSONOfGaps(gaps, epoch-1, backingOf(evs), seatID)
+	if role == "lens" || role == "blue" {
+		w.keepClosingsOf(evs, win, gaps, seatID)
+	}
 	reads := sittingReads{unverifiable: unverifiableIn(r)}
 	var budget *MintBudgetJSON
 	var budgetLine string
 	if role == "lens" {
-		budget, budgetLine = mintBudgetOf(run, seatID)
+		budget, budgetLine = mintBudgetOf(r.budget)
 	}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	if role == "lens" {
@@ -1425,12 +1481,12 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 				}
 			}
 		}
-		// THE MINTS LEFT, ON THE LIST A LENS DECIDES "GAP OR FINDING" FROM. It is not read off the
-		// snapshot above: the count and the measure are the write path's own reads
-		// (lensMintStanding), so the list states the number the next mint is judged against. The
-		// count is the seat's open gaps, so its own mint or close moves it and so does a bench ruling
-		// that closes one; the units may move under a blue edit, as they may between this read and
-		// the mint.
+		// THE MINTS LEFT, ON THE LIST A LENS DECIDES "GAP OR FINDING" FROM. The count and the
+		// measure are the write path's own reads (lensMintStanding), asked of the snapshot above, so
+		// the list states the number the next mint is judged against, from the same record as the
+		// gaps it lists. The count is the seat's open gaps, so its own mint or close moves it and so
+		// does a bench ruling that closes one; the units may move under a blue edit between this read
+		// and the mint.
 		//
 		// LAST, AND NEVER BLOCKING: it is a fact about the run's terms, neither owed nor work, and
 		// it follows the statement that the list is empty where SittingOf made one.
@@ -1451,6 +1507,33 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	}
 	w.Relief = reliefOf(evs, win)
 	return w, nil
+}
+
+// keepClosingsOf takes each docketed gap off a party's `open` (ruled by gblock 2026-10-31), and keeps
+// on `closings_owed` the row of each it owes its closing on: the one act left to it there, off the
+// gate's own list of closings.
+func (w *WorkJSON) keepClosingsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) {
+	docketed := map[string]bool{}
+	for _, g := range gaps {
+		docketed[g.ID] = g.Open && g.unruledDocket
+	}
+	owed := map[string]bool{}
+	for _, b := range closingBlockersOf(evs, win.IDs(evs), win, blockerGapsOfStates(gaps)) {
+		if b.Owner == seatID {
+			owed[b.Subject] = true
+		}
+	}
+	open := []WorkGapJSON{}
+	for _, row := range w.Open {
+		switch {
+		case !docketed[row.ID]:
+			open = append(open, row)
+		case owed[row.ID]:
+			w.ClosingsOwed = append(w.ClosingsOwed, row)
+		}
+	}
+	w.Open = open
+	w.Counts.Open = len(open)
 }
 
 // WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal transcript),

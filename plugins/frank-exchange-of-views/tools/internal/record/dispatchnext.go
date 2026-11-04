@@ -8,6 +8,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // DispatchNext is `dispatch next`'s whole act, in ONE write transaction: the chair's sitting is
@@ -54,7 +55,7 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 	}
 	files := filesOf(run)
 	WriteBegins()
-	tx, err := db.Begin()
+	tx, err := recordsql.BeginWrite(db)
 	if err != nil {
 		return emptyPlan(), false, err
 	}
@@ -65,7 +66,7 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 		if err != nil {
 			return err
 		}
-		return writeIn(tx, ev, id.SeatID, typ, body, func(tx *sql.Tx) error {
+		return writeIn(tx.Tx, ev, id.SeatID, typ, body, func(*sql.Tx) error {
 			return validate(writeView{q: tx, files: files}, id.SeatID, typ, body)
 		})
 	}
@@ -149,8 +150,8 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 		plan.Blockers, plan.Why = after.Blockers, after.Why
 		plan = plan.WithKey()
 	}
-	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the workflow reads the
-	// chair's copy of it and nothing else, and capture compares every relayed plan with this one.
+	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the hook writes it
+	// into the chair's envelope (ChairEnvelope), and capture compares what the workflow received with it.
 	if err := write(&recordpb.Plan{Printed: proto.String(plan.Printed())}); err != nil {
 		return emptyPlan(), false, fmt.Errorf("storing the plan: %w", err)
 	}
@@ -161,7 +162,7 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 }
 
 // planAt is PlanDispatch asked of q, the writing transaction DispatchNext holds.
-func planAt(q *sql.Tx, files runFiles) (Plan, error) {
+func planAt(q *recordsql.Tx, files runFiles) (Plan, error) {
 	r, err := planReadsAt(q)
 	if err != nil {
 		return emptyPlan(), err

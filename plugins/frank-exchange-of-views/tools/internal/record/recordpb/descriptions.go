@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/terms"
@@ -49,8 +48,11 @@ func EnumValueDoc(v protoreflect.EnumValueDescriptor) (string, error) {
 	if v == nil {
 		return "", noValue("the value's meaning")
 	}
-	means, _ := proto.GetExtension(v.Options(), E_Means).(string)
-	term, _ := proto.GetExtension(v.Options(), E_DefinedTerm).(string)
+	a, err := annotationsOf(v)
+	if err != nil {
+		return "", err
+	}
+	means, term := a.Means, a.DefinedTerm
 	switch {
 	case means != "" && term != "":
 		return "", fmt.Errorf("enum value %s carries both (means) and (defined_term) = %q — "+
@@ -67,19 +69,11 @@ func EnumValueDoc(v protoreflect.EnumValueDescriptor) (string, error) {
 		"situation warrants which", v.FullName(), v.Name())
 }
 
-// registry is the terms registry, parsed once, on the first value that names a defined term.
-var registry = sync.OnceValues(terms.Load)
-
-// definedTerm resolves a `(defined_term)` to the registry's definition of it.
+// definedTerm resolves a `(defined_term)` to the registry's definition of it, from the registry's
+// generated table: the parsed registry, with its ban patterns compiled, is the vocabulary gate's.
 func definedTerm(v protoreflect.EnumValueDescriptor, term string) (string, error) {
-	reg, err := registry()
-	if err != nil {
-		return "", fmt.Errorf("enum value %s names the defined term %q and the terms registry does not load: %w", v.FullName(), term, err)
-	}
-	for _, e := range reg.Entries {
-		if e.Term == term {
-			return e.Definition, nil
-		}
+	if def, ok := terms.Defined(term); ok {
+		return def, nil
 	}
 	return "", fmt.Errorf("enum value %s names the defined term %q, which the terms registry "+
 		"(internal/terms/terms.json) does not define — name an entry's `term`, or give the value a (means)",
@@ -177,8 +171,12 @@ func RulerOf(v protoreflect.EnumValueDescriptor) (string, error) {
 	if v == nil {
 		return "", noValue("the ruler")
 	}
-	if r, _ := proto.GetExtension(v.Options(), E_RuledBy).(string); r != "" {
-		return r, nil
+	a, err := annotationsOf(v)
+	if err != nil {
+		return "", err
+	}
+	if a.RuledBy != "" {
+		return a.RuledBy, nil
 	}
 	return "", fmt.Errorf("no ruler on motion subject %s — put one on the value itself, "+
 		"`%s = N [(ruled_by) = \"…\"]`; a subject nobody holds the gavel for is a motion that "+

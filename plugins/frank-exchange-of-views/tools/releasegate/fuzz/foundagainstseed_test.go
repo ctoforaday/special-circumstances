@@ -187,10 +187,10 @@ func (r *runner) ownerPinHeld(seatID string) string {
 	return ""
 }
 
-// foundAgainstPlanRelayed names, in the chain's stage, a plan the chair relays while the chain waits
+// foundAgainstPlanStored names, in the chain's stage, a plan the record stores while the chain waits
 // for its owner's next sitting that readies blue and not the owner: blue's remedy lands first, and the
 // stage carries the plan's reason for the owner.
-func (r *runner) foundAgainstPlanRelayed() {
+func (r *runner) foundAgainstPlanStored() {
 	r.mu.Lock()
 	due := r.forceFoundAgainst && r.foundAgainstAnchor != "" && !r.foundAgainstChained
 	anchorID := r.foundAgainstAnchor
@@ -513,7 +513,7 @@ func TestTheFoundAgainstChainSitsAgainBeforeBlue(t *testing.T) {
 		t.Helper()
 		r.sit("chair", chair)
 		r.planThisSitting = r.dispatchNext(chair)
-		r.foundAgainstPlanRelayed()
+		r.foundAgainstPlanStored()
 	}
 	blueSits := func() {
 		t.Helper()

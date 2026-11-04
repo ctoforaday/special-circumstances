@@ -37,7 +37,7 @@ func filingBy(subj recordpb.MotionSubject) proto.Message {
 // THE RECORD REFUSES A FILING BY THE SEAT THAT RULES ITS SUBJECT, whatever path the body took to
 // Append — the verb's absence from the ruler's surface is the first refusal, and this is the one a
 // fixture, a harness or a hand-built body meets. Walked over the MotionSubject enum: every subject
-// is refused its ruler and admitted another seat, and migrate replays what an archive holds.
+// is refused its ruler and admitted another seat.
 func TestTheWriteRefusesAFilingByTheSubjectsRuler(t *testing.T) {
 	vals := recordpb.MotionSubject(0).Descriptor().Values()
 	// A seat of another role that the write admits as the subject's filer.
@@ -77,18 +77,6 @@ func TestTheWriteRefusesAFilingByTheSubjectsRuler(t *testing.T) {
 		t.Run(word+", filed by another seat", func(t *testing.T) {
 			run := motionGuardRun(t)
 			mustAppend(t, sit(t, run, filer), filingBy(subj))
-		})
-		replayer := g.seat
-		if subj == recordpb.MotionSubject_MOTION_SUBJECT_POSITION {
-			// An archive holds no position but the chair's: the position is the chair's alone at every
-			// era, so its ruler's filing is no archived shape to replay.
-			replayer = chairSeat
-		}
-		t.Run(word+", replayed by migrate", func(t *testing.T) {
-			run := motionGuardRun(t)
-			if _, err := replayed(sit(t, run, replayer), filingBy(subj)); err != nil {
-				t.Fatalf("migrate replays what an archive holds, and an archived record holds motions their ruler filed: %v", err)
-			}
 		})
 		checked++
 	}

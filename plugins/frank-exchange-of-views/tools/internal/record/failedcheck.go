@@ -225,8 +225,9 @@ func openGapIDsAt(q recordsql.Querier) (map[string]bool, error) {
 }
 
 // failedChecksAt is failedChecksOf asked of q: the stream and the gap view's open set on one snapshot.
-func failedChecksAt(q recordsql.Querier) ([]failedCheck, error) {
-	evs, win, err := eventsAt(q)
+// held is the stream q holds where the reader already took it (heldStream), nil where none is held.
+func failedChecksAt(q recordsql.Querier, held *heldStream) ([]failedCheck, error) {
+	evs, win, err := held.all(q)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +270,7 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 	if Migrating || !fails {
 		return nil
 	}
-	fs, err := failedChecksAt(q)
+	fs, err := failedChecksAt(q, nil)
 	if err != nil {
 		return feov.Wrap(feov.Conflict, err, "the record's checks could not be read, so whether %s already stands as a failed check by %s cannot be told: %v", anchor, seatID, err)
 	}
@@ -393,7 +394,7 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 	if Migrating || b.Successor != nil || b.CarriedFrom != nil {
 		return nil
 	}
-	fs, err := failedChecksAt(q)
+	fs, err := failedChecksAt(q, nil)
 	if err != nil {
 		return feov.Wrap(feov.Conflict, err, "the record's checks could not be read, so whether gap %s carries a failed check that still stands cannot be told: %v", b.GetGapId(), err)
 	}

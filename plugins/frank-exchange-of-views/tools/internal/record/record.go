@@ -695,7 +695,7 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 // held by an open gap of its class, the Mint and the Anchor are dropped and the reading is written
 // alone, naming that gap — decided here, under the write lock, never before it.
 func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *readingAct) ([]*Event, error) {
-	var tx *sql.Tx
+	var tx *recordsql.Tx
 	defer func() {
 		if tx != nil {
 			_ = tx.Rollback()
@@ -706,7 +706,7 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *read
 	for _, body := range bodies {
 		readsReport = readsReport || validationReadsReport(id.SeatID, body)
 	}
-	begin := func() (*sql.Tx, error) {
+	begin := func() (*recordsql.Tx, error) {
 		if tx != nil {
 			return tx, nil
 		}
@@ -718,7 +718,7 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *read
 			*rendering = *renderBefore(id.Run)
 		}
 		WriteBegins()
-		tx, err = db.Begin()
+		tx, err = recordsql.BeginWrite(db)
 		return tx, err
 	}
 	var out []*Event
@@ -757,7 +757,7 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *read
 // write's report (landingReport), nil on a Batch's act.
 //
 // act is the reading's act this body is a member of (readingAct), nil for every other write.
-func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), guards []Guard, rendering *landingReport, act *readingAct) (*Event, error) {
+func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, rendering *landingReport, act *readingAct) (*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -794,7 +794,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 	// counted the lines and appended — two steps with a gap, held together only by one seat owning
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
-	if err := writeIn(tx, ev, seatID, typ, body, func(tx *sql.Tx) error {
+	if err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
 		w := writeView{q: tx, files: files, rendering: rendering, act: act}
 		if err := validate(w, seatID, typ, body); err != nil {
 			return err
@@ -1121,16 +1121,22 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Close:
+		if b.CarriedFrom == nil {
+			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
+				return err
+			}
+			// Off under Migrating: an archived lens that closed a docketed gap closed it.
+			if !Migrating {
+				if err := requireNoStandingDocket(q, b.GetGapId()); err != nil {
+					return err
+				}
+			}
+		}
 		if err := requireClosureAnchors(q, b.GetGapId(), b.GetAnchors(), "--"+flags.Anchor); err != nil {
 			return err
 		}
 		if err := requireFailedCheckAnswered(q, b); err != nil {
 			return err
-		}
-		if b.CarriedFrom == nil {
-			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
-				return err
-			}
 		}
 		ids, err := allGapIDs(q)
 		if err != nil {
@@ -1880,6 +1886,21 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// requireNoStandingDocket refuses the close of a gap a docket motion stands unruled on (ruled by
+// gblock 2026-10-31). The lens's preference comes before the docket: once the gap is before the bench,
+// the bench disposes of it, and the lens's one act there is its closing. On universe-m37 five dockets
+// closed within minutes of being filed, and the bench sat to rule three times on gaps that were over.
+func requireNoStandingDocket(q recordsql.Querier, gapID string) error {
+	var motion string
+	found, err := queryRowAt(q, []any{&motion}, `SELECT COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found || motion == "" {
+		return err
+	}
+	return feov.Errorf(feov.Conflict,
+		"gap %s is docketed for the bench: motion %s stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
+		gapID, motion, gapID)
 }
 
 // closingThisSittingSQL is the seat's closing on a gap attributed to its current sitting, or no row

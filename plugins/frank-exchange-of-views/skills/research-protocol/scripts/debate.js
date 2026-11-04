@@ -403,7 +403,7 @@ const PLAN = {
     head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
     parties: { type: 'array', items: { anyOf: [BENCH_PARTY, LENS_OR_BLUE_PARTY] } },
     docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
-    remand_owed: { type: 'array', description: 'gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: blue is among the parties for it, and its minting lens once blue has acted', items: { type: 'object', required: ['gap_id', 'direction'], additionalProperties: false, properties: { gap_id: { type: 'string' }, direction: { type: 'string', pattern: '\\S', description: 'never blank: the record refuses a remand without one' } } } },
+    remand_owed: { type: 'array', description: 'gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: blue is among the parties for it until it has acted, and then its minting lens alone, whose re-audit ends the exchange', items: { type: 'object', required: ['gap_id', 'direction'], additionalProperties: false, properties: { gap_id: { type: 'string' }, direction: { type: 'string', pattern: '\\S', description: 'never blank: the record refuses a remand without one' } } } },
     exchanges: { type: 'array', description: 'one entry per gap a party is engaged on: the exchanges had on it, and the engaged sittings the record cannot close — not counted, and not zero', items: { type: 'object', required: ['gap_id', 'count', 'unresolved'], additionalProperties: false, properties: { gap_id: { type: 'string' }, count: { type: 'integer', minimum: 0 }, unresolved: { type: 'integer', minimum: 0 } } } },
     pass_permitted: { type: 'boolean' },
     stale_areas: { type: 'array', description: 'each retired lens whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS', items: { type: 'object', required: ['seat_id', 'pin'], additionalProperties: false, properties: { seat_id: { type: 'string' }, pin: { type: 'integer', minimum: 0 } } } },
@@ -563,12 +563,12 @@ const BLUE_ENVELOPE = {
 }
 
 // The chair's envelope IS THE PLAN (plans/roundless.md §III.B.1): its fields are the JSON `dispatch
-// next` printed, verbatim — the verb computed it from the board and stored it as printed; the chair
-// could drop, add or alter any field of it on the way, which is why capture's dispatch-parity audit
-// compares each relayed plan with the plan the record stored, whole, and why requirePlan below
-// type-checks every field read. The verdict is the plan's own field — what the chair RECORDED in the
-// sitting that asked — so the engine ends the debate on a record fact the chair copies, never one it
-// restates. Beside the plan's fields is one more, `notes`, the chair's line to the operator. Nothing
+// next` printed — the verb computed it from the board and stored it as printed, and the PreToolUse
+// hook writes it into the chair's call, because this script has no other surface the record can reach
+// (record.ChairEnvelope). The chair copies none of it. Capture's dispatch-parity audit compares each
+// plan with the plan the record stored, whole, and requirePlan below type-checks every field read. The
+// verdict is the plan's own field — what the chair RECORDED in the sitting that asked — so the engine
+// ends the debate on a record fact. Beside the plan's fields is one more, `notes`, the chair's line to the operator. Nothing
 // else is here: the record holds it and every seat reads it through the tool.
 //
 // A PARTY IS ONE OF TWO SHAPES (BENCH_PARTY, LENS_OR_BLUE_PARTY, generated). requirePlan below refuses a
@@ -576,10 +576,10 @@ const BLUE_ENVELOPE = {
 // chair sitting, with every sitting before it paid for. So each refusal there is a shape in the
 // schema: the harness hands a mis-shaped relay back to the chair to send again, and the run goes on.
 //
-// EVERY FIELD THE WORKFLOW READS FROM THE RELAY IS CHECKED, AND A MISS THROWS NAMING IT. The plan
-// reaches this script only as the chair model's copy, and a field dropped or mistyped on the way read
-// as its fallback: `plan.docket || []` was "nothing docketed" for a docket the chair lost. The Go verb
-// prints every field and every array as an array, so a plan that fails here was altered in transit.
+// EVERY FIELD THE WORKFLOW READS FROM THE ENVELOPE IS CHECKED, AND A MISS THROWS NAMING IT: a field
+// missing or mistyped would otherwise read as its fallback, `plan.docket || []` as "nothing docketed".
+// The Go verb prints every field and every array as an array, so a plan that fails here did not come
+// through the hook.
 // The fields and their types are the record's: PLAN_FIELD_TYPES for the plan's own, PLAN_ITEM_TYPES
 // for each entry of each of its lists.
 //
@@ -590,7 +590,7 @@ const BLUE_ENVELOPE = {
 const typeName = (t) => (t === 'integer' ? 'an integer' : t === 'boolean' ? 'a boolean' : t === 'string' ? 'a string' : 'an array')
 const typeOk = (v, t) => (t === 'integer' ? Number.isInteger(v) : t === 'boolean' ? typeof v === 'boolean' : t === 'string' ? typeof v === 'string' : Array.isArray(v))
 const requirePlan = (plan, epoch) => {
-  const refuse = (field, v, t) => { throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`${field}\` is ${JSON.stringify(v)}, not ${typeName(t)} — the plan is \`dispatch next\`'s JSON, relayed verbatim`) }
+  const refuse = (field, v, t) => { throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`${field}\` is ${JSON.stringify(v)}, not ${typeName(t)} — the plan is \`dispatch next\`'s JSON, as the record stored it`) }
   for (const [f, t] of Object.entries(PLAN_FIELD_TYPES)) if (!typeOk(plan[f], t)) refuse(f, plan[f], t)
   for (const [list, types] of Object.entries(PLAN_ITEM_TYPES)) {
     plan[list].forEach((x, i) => {
@@ -600,7 +600,7 @@ const requirePlan = (plan, epoch) => {
   // THE CHAIR CONVENES THE BENCH FOR ITS DOCKET AND NOTHING ELSE, so a bench party with no gap was
   // altered on the way.
   plan.parties.forEach((p) => {
-    if (roleOfSeat(p.seat_id) === 'bench' && !p.gap_ids.length) throw new Error(`red-chair sitting ${epoch} relayed a bench party with no gap — the bench is a party for its docket; the plan is \`dispatch next\`'s JSON, relayed verbatim`)
+    if (roleOfSeat(p.seat_id) === 'bench' && !p.gap_ids.length) throw new Error(`red-chair sitting ${epoch} relayed a bench party with no gap — the bench is a party for its docket; the plan is \`dispatch next\`'s JSON, as the record stored it`)
   })
   // A REMAND'S DIRECTION IS THE RECORD'S, and the record refuses it blank on a remand: a blank one
   // here was lost on the way, and blue would be handed a remand owing nothing.
@@ -611,11 +611,11 @@ const requirePlan = (plan, epoch) => {
   // refuses to print one that does not, so a relay holding one was emptied on the way — and an
   // emptied plan reads as the record's word that nobody sits and the debate is over.
   for (const [list, flag] of Object.entries(PLAN_EMPTY_ONLY_WITH)) {
-    if (!plan[list].length && plan[flag] !== true) throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`${list}\` is empty and whose \`${flag}\` is false — the record states \`${list}\` empty only when \`${flag}\` is true, so the relay emptied it; the plan is \`dispatch next\`'s JSON, relayed verbatim`)
+    if (!plan[list].length && plan[flag] !== true) throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`${list}\` is empty and whose \`${flag}\` is false — the record states \`${list}\` empty only when \`${flag}\` is true, so the relay emptied it; the plan is \`dispatch next\`'s JSON, as the record stored it`)
   }
   // THE VERDICT ENDS THE DEBATE, so it is read only as one of the record's words, or absent: the
   // verb prints it only once the sitting has recorded one.
-  if (plan.verdict !== undefined && !PLAN.properties.verdict.enum.includes(plan.verdict)) throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`verdict\` is ${JSON.stringify(plan.verdict)}, not one of ${PLAN.properties.verdict.enum.join(' | ')} or absent — the plan is \`dispatch next\`'s JSON, relayed verbatim`)
+  if (plan.verdict !== undefined && !PLAN.properties.verdict.enum.includes(plan.verdict)) throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`verdict\` is ${JSON.stringify(plan.verdict)}, not one of ${PLAN.properties.verdict.enum.join(' | ')} or absent — the plan is \`dispatch next\`'s JSON, as the record stored it`)
 }
 // THE ENVELOPE IS THE PLAN, CLOSED: PLAN's own fields at the top level, with its required keys,
 // its closure and its if/else, and `notes` beside them. A `plan` slot holding the relay drew the whole
@@ -625,9 +625,13 @@ const requirePlan = (plan, epoch) => {
 //
 // NOTES IS THE CHAIR'S LINE TO THE OPERATOR, printed on its progress line below. It carries no
 // description: described, it drew more wrapping than bare in the m28 replay (2 of 12 against 0 of 16).
-// THE READ IS THE HOOK'S, beside the plan and no part of it: capture strips it, as it does `notes`,
-// before comparing the relay with the plan the record stored.
-const CHAIR_ENVELOPE = { ...PLAN, properties: { ...PLAN.properties, notes: { type: 'string' }, record_read: RECORD_READ } }
+// THE SCHEMA HOLDS THE CALL AS THE HOOK LEAVES IT: the harness checks it inside the tool's own call,
+// after every PreToolUse hook, so what it requires is the plan the hook writes, and a missing hook
+// fails here. The chair is shown the same schema, and its description says the chair fills none of it.
+//
+// THE READ IS THE HOOK'S TOO, beside the plan and no part of it: capture strips it, as it does
+// `notes`, before comparing the plan with the plan the record stored.
+const CHAIR_ENVELOPE = { ...PLAN, description: 'The tool writes every field of the plan into this call. Return it empty, or holding only notes.', properties: { ...PLAN.properties, notes: { type: 'string' }, record_read: RECORD_READ } }
 
 // THE STRATEGIC AREAS (#771). Each is a distinct kind of attack on the report and each gets
 // exactly one seat, named for what it audits: `found_by` labels are <area>-F<n> and every
@@ -860,7 +864,7 @@ if (blueEnv) readOf('blue-synthesize', blueEnv)
 //
 // THE SAME IS THE PLAN'S KEY. The record computes it over the whole plan but the fields that say
 // when it was asked (record.Plan's `key:"-"` tags), and capture compares every relayed plan with
-// the stored one, key included, so the valve reads one field a chair cannot alter unseen. A blocker
+// the stored one, key included, so the valve reads one field no seat writes. A blocker
 // that changes alone — a motion filed or ruled, a source read — moves the key, and that is movement
 // on the board.
 //
@@ -880,8 +884,8 @@ const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invis
 // THE LENS: it audits its area and puts what it finds on the board ITSELF (plans/roundless.md
 // §III.B.3). The duties of the seat that mints — asking for the answer to be PRODUCED, classing
 // the probe, reading the program, keeping lineage — sit here, with the minter.
-// THE LENS'S SITTING IS READ FROM THE RECORD, NOT FROM THE RELAY. A head copied into this prompt from
-// the chair's relay could be present and wrong and nothing would object; the lens's work view carries
+// THE LENS'S SITTING IS READ FROM THE RECORD, NOT FROM THE PLAN. A head copied into this prompt from
+// the plan is stale by the time the lens sits, and nothing would object; the lens's work view carries
 // its last sitting as a field with an explicit kind, computed from the record (lastSittingBefore).
 // THE RE-READ IS SCOPED HERE, WITH THE KIND THAT DECIDES IT, and not stated flat in the prompt body.
 // Measured 2026-09-22: the body said "RE-READ THE FULL REPORT IN CONTEXT" unconditionally, one
@@ -890,17 +894,17 @@ const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invis
 // already been narrowed to excuse them, so the two rules disagreed and the unconditional one won.
 const lastReadClause = ` YOUR PIN IS ON YOUR WORK LIST: read \`sitting.last_read\` first — its kind decides what to audit. \`first\`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows. \`behind\`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise. \`unchanged\`: the report is unchanged since your pin (head H) — NOTHING TO AUDIT: your earlier read stands, and where nothing engages you the sitting owes no entry. \`served\`: served to you whole this sitting (pin P) — audit it. \`undispatched\`: the record holds no dispatch for you — log that and end the sitting. Only a whole read of the report moves your pin. A FRESH gap on text an earlier sitting of yours read and passed states, in its mint reason, why you missed it then.`
 // A PARTY'S CLOSING IS OWED ON EACH DOCKETED GAP (record/closingowed.go), AND ITS WORK LIST IS THE ONE
-// PLACE THAT SAYS WHICH. The plan is read at the epoch's start; a lens that closes a gap before blue
-// sits ends the closing owed on it, and a dispatch naming the gaps from that plan told blue to file a
-// closing its work list said was not owed (#1663 smoke, blue ev530, ev608). The dispatch states how to
-// argue a closing, to a seat the plan holds one owed by, and names no gap.
+// PLACE THAT SAYS WHICH. The plan is read at the epoch's start, and a seat sitting earlier in the epoch
+// can already have overtaken it: a dispatch naming the gaps from that plan told blue to file a closing
+// its work list said was not owed (#1663 smoke, blue ev530, ev608). So the dispatch sends a seat the
+// plan holds one owed by to its list and names no gap, and what a closing argues is the constitution's.
 const owesClosing = (plan, seat) => plan.blockers.some((b) => b.kind === 'closing_owed' && b.owner === seat)
-const closingClause = (owes) => !owes ? '' : ` A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE: it is your argument on a DOCKETED gap, and the bench rules the gap once you and the other party to it have each filed yours. For EACH, argue in ~120 words why it should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case. This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.`
+const closingClause = (owes) => !owes ? '' : ` WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED: file it, and the gap asks nothing else of you until the bench has ruled it.`
 const lensPrompt = (seatID, gaps, owes) => {
   const area = SEATS[seatID].area
   const extra = area === 'evidence' ? ledgerClause : (area === 'logic' || area === 'dark-side') ? steelmanClause : ''
   const engaged = gaps.length
-    ? ` YOU ARE ENGAGED ON: ${gaps.join(', ')} — gaps you minted that are still open and below their limits. DID BLUE ACTUALLY DO WHAT YOU ASKED? YOUR WORK LIST SAYS WHETHER BLUE MOVED: each gap carries its location state and the edits that changed its sentence since you last sat. A \`marked\` gap with no edits is unanswered — nothing you read afterwards changes that, so say so and end. \`gone\`: the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands. Otherwise re-read the report where each is anchored, put your required fix and blue's edits side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds. A gap you neither regrade nor close this sitting is a NULL TURN on it, and null turns count toward impasse — silence is a turn taken.`
+    ? ` YOU ARE ENGAGED ON: ${gaps.join(', ')} — gaps you minted that are still open, each with something for you to audit: your work list says what, gap by gap, and its row gives its location state and the edits that changed its sentence since you last sat. DID BLUE ACTUALLY DO WHAT YOU ASKED? \`gone\`: the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands. Otherwise re-read the report where each is anchored, put your required fix and what blue did side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds. On a gap you are engaged on, a sitting with neither a regrade nor a close is a NULL TURN, and it ends the exchange all the same — silence is a turn taken. A gap you hold and are not engaged on asks nothing of you this sitting: its turn has not come, and the row says so.`
     : ''
   return `Red lens sitting, area ${area}, topic "${topic}".${extra}${engaged}${closingClause(owes)}${lastReadClause} ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED. The ids of your findings and of the gaps you mint are the tool's to assign. HARNESS NOTES: a search's count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting.
 YOU MINT YOUR OWN GAPS. What you find that is real and belongs on the board goes there as YOUR gap: read the board first: whether it already holds a candidate is your judgement — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, under its class, or the catch-all with the reason none does. A finding is your graded observation; a gap is your claim on the board. Your budget caps the gaps you hold open at once: the larger of the run's floor (mintBudget in run-config.json) and a rate per unit of what your area audits, read off the record at each mint — a refused mint states the arithmetic. A gap of yours that closes frees a mint: what the budget refuses you record as a finding, and that finding becomes your gap once one has closed. Hold your mints for defects a reader would pay to have fixed, not nitpicks — a trifle takes a mint while it stays open and holds nothing back, because a gap that is not material — by its class, or graded below medium — does not hold the gate.
@@ -908,11 +912,10 @@ ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED. Where a claim is arithmetic, an
 A CITATION OR COMPUTATION YOUR WORK LIST OFFERS IS YOURS TO CHECK; ANY OTHER IS CONTENT YOU AUDIT, AND ANOTHER LENS CHECKS IT. For a computation, YOU BELIEVE NO BYTES YOU DID NOT WATCH BEING PRODUCED: READ THE PROGRAM FIRST — the evidence layer, read at its anchor, gives the program and the output blue recorded — and work out what it ACTUALLY COMPUTES, then RE-RUN IT — the bundle runs once and THIS computation's output is compared; a clean exit or '0 failing' is not an output — giving your judgement of the program with that reading in one act: the re-run records your judgement as it runs, so a judgement given before the reading stands on the record as yours. A program that re-runs clean and establishes nothing is the dangerous case: it looks maximally credible.
 THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours for its whole life: only you and the bench hearing it regrade it, only you close it — with the triple (who verified, with what, against what) — and a successor you mint names the gaps it supersedes, a closure that regressed says so, and the docket follows those chains. The chair carries archived closures and dispatches you when your gap needs acting on; the bench disposes of a docketed gap through its ruling.${speedClause}${emptySittingClause}${recordClause(seatID)} Return your envelope.`
 }
-// THE CHAIR RUNS THE DEBATE. It mints nothing and closes nothing; the record says who sits and the
-// chair relays it; the verdict, the position on a PASS it withholds, the spot-check, the rulings on blue's motions and
+// THE CHAIR RUNS THE DEBATE. It mints nothing and closes nothing; the record says who sits; the verdict, the position on a PASS it withholds, the spot-check, the rulings on blue's motions and
 // on its inquiries, and the review of the inquiries, are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${lawClause}
-FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose pin the report head has moved past, blue on every open material gap below its limits and its lens once blue has acted since the lens did, the bench for every gap at impasse (it dockets those itself) once its two closings are in, and the seat that owes a blocker another seat must clear — the lens whose check failed until its gap is minted, and blue to remedy it. Your envelope IS the object it prints, its fields copied VERBATIM; the record stores that plan and the workflow dispatches what it says, and capture compares your relay with it, so anything you drop, add or alter fails its dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan; your verdict prints the plan you relay. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling the run is at its epoch limit.
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose pin the report head has moved past, blue on every open material gap below its limits and its lens once blue has acted since the lens did, the lens alone ahead of any docket, the bench for every gap at impasse (it dockets those itself) once its two closings are in, and the seat that owes a blocker another seat must clear — the lens whose check failed until its gap is minted, and blue to remedy it. The tool writes the plan the record stores into your envelope: COPY NONE OF IT. Return your envelope empty or holding only notes, whatever its schema requires; one carrying a field of the plan is refused. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked: the plan stored last is the one that goes. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling the run is at its epoch limit.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or a FAIL if the board as it stands still stops you, which it does until it converges: nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak. Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
 AT final_sitting NOBODY SITS AFTER YOU: decide on the board as it is.
 WHEN THE REPORT OR AN INQUIRY HAS CHANGED SINCE YOUR LAST READ, ANSWER EVERY INQUIRY ON ONE READ: read the report ONCE and answer every inquiry against that pass, the way anyone checks a document against a list — not once per inquiry, and from THIS read, because the report is rewritten between sittings; where neither has changed, your last read stands and nothing is owed. RULE ON BLUE'S INQUIRIES: a ruling is an ARGUMENT, not a command — it needs a reason, and blue decides what becomes of the inquiry with that reason in front of it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and the grade stands — a seat that disagrees with your ruling puts the gap before the bench, so your reason carries the argument.
@@ -925,7 +928,7 @@ WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to ta
 OWNERSHIP BINDS, AS IT DID AT SYNTHESIS: you write ONLY your own surfaces — TL;DR, Catechism, the report's own sections, open questions, your citations. THEIR ORDER BINDS TOO: \`## TL;DR\` first, \`## The Catechism\` second, the report's own sections after them, \`## Open questions\` last. The report ships in the order it is written, so an edit that puts one of them out of place — a section added after the open questions, say — is refused. You MUST NOT introduce a \`**Outcome:**\` line or any tool-owned section (${TOOL_COMPOSED}, a \`## Blue team report\` wrapper): assembly composes those from the record, and an edit that would leave one in the report is refused; the refusal says how content reaches that section, and the assembled layout says it for every section.${NO_LIST_OF_APPROACHES} AND WHICH MODEL IS ANSWERING THIS RUN IS NOT A FACT YOU HOLD: you can see what was REQUESTED, never what replied; if your argument turns on the models used, say that the record's measurement decides it. GRADING SEMANTICS (mapping ${MASS_MAPPING_VERSION}): likelihood and impact are CONSEQUENCE axes — how likely the harm lands and how much it costs when it does — and severity is red's overall grade; they multiply into mass, and materiality is the class's default: always, never, or by grade from medium.
 ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in the report through \`edit\` — expand and repair where red is right (each edit naming the gap it answers, so the repair joins to it), REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact — or, where the gap changes no reader decision or asks for complexity that does not pay, argue \`defect_accepted\` with that reason. DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT (a grade motion on the axis, with the grade you say it should be and your evidence; where the chair rejects it and you still disagree, put the gap before the bench with a docket motion, which the bench rules). Compact and reorganize prose as clarity demands — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it. PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — a bare corrected FIGURE needs a report-wide sweep of its own. A sitting in which you record nothing on a gap you were engaged on is a NULL TURN on it, and null turns count toward its impasse: silence is a turn taken.
 AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you REPAIRED — one an edit of yours this sitting answers — and the manifest array in your envelope names them; a gap you rebut without an edit owes none. A gap you are engaged on that you FOUND CLOSED when you sat — its lens sat before you and closed it — owes no row: your work list names each one, with the seat that closed it, its fate and its open successors, and you name it in found_closed from that list. Engage your next sitting on each successor it owes, and name it in successors.`
-const benchPrompt = (gaps) => `Adjudication, topic "${topic}". Docketed for you: ${gaps.join(', ')} — each reached impasse under the run's terms and the record docketed it. THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
+const benchPrompt = () => `Adjudication, topic "${topic}". YOUR WORK LIST NAMES THE MOTIONS DOCKETED FOR YOU: the record filed each, and its basis says why. THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two parties' recorded closings, the full transcript, and the final state of the artifacts — the board and the report as the record now renders them. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${lawClause}${declareClause}${inspectionClause}
 Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension (where none pulled, the ruling's weakest point: what a party would argue against the rule you applied), what a human should look at again (where nothing needs a human, what on the record already settles it), your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and, for a ruling that closes the gap, what would reopen it or that nothing would (final). Two fates send the work on rather than ending it: a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange between its minting lens and blue, on the research direction you state, which the record refuses blank — if that exchange leaves it at impasse it comes back to you, to be closed: a second remand at impasse is refused, and its refusal names the dispositions that close the gap; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. WHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE. Rule every motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${speedClause}${recordClause('judge', OCCASION.docket)} Return your envelope.`
 
@@ -1053,7 +1056,7 @@ while (!stopped() && !seatStop) {
   for (const p of benches) {
     if (stopped()) break
     log(`epoch ${epoch}: the bench sits on ${p.gap_ids.join(', ')}`)
-    const judge = await sit((o) => agent(benchPrompt(p.gap_ids), o), { ...dispatchAs('judge'), label: labelFor('judge'), phase: 'Debate', schema: EMPTY_ENVELOPE })
+    const judge = await sit((o) => agent(benchPrompt(), o), { ...dispatchAs('judge'), label: labelFor('judge'), phase: 'Debate', schema: EMPTY_ENVELOPE })
     // A FAILED BENCH SITTING RULED NOTHING the engine can read: the docket stands on the record, and
     // the plan convenes the bench on it again in the next epoch.
     if (!judge) {
@@ -1109,8 +1112,8 @@ log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDIC
 // from the loop above follows a chair's plan with nobody dispatched after it, so the last plan's
 // blockers are the board at the exit: a blocker the bench owns — a motion whose gavel is the
 // bench's — is what this sitting rules. A chair-ruled motion (grade, inquiry) never convenes it: the
-// bench has no ruling verb for one. The plan the chair relays is the one it asked for LAST in its
-// sitting, and capture compares every relayed plan with the one the record stored; `bench outcome` refuses
+// bench has no ruling verb for one. The plan the workflow receives is the one the chair asked for LAST
+// in its sitting, and capture compares each with the one the record stored; `bench outcome` refuses
 // while a bench-owned motion stands, so one filed after it is ruled at assembly.
 //
 // A PETITION STANDING HERE IS HEARD HERE, and its ruling and a halt travel as the petition sitting's

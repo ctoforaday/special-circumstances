@@ -87,10 +87,11 @@ func TestAnOldInquiryRulingMigratesUnderTheOneWord(t *testing.T) {
 
 // AN OLD INQUIRY MOTION ARM ARRIVES AS THE INQUIRY ARM, its id column with it. The old schema kept
 // the arm as a table under an earlier name, keyed by an id column under an earlier name; no archive
-// holds a row of it, so this plants one into b9. The arm table and its id column are both renamed, or identity refuses
-// the act.
+// holds a row of it, so this plants one into b9, filed by blue: the chair rules the subject, and the
+// write refuses a filing by its ruler. The arm table and its id column are both renamed, or identity
+// refuses the act.
 func TestAnOldInquiryMotionArmMigratesUnderTheOneWord(t *testing.T) {
-	runDir := plantInB9(t, "motion", "red-chair",
+	runDir := plantInB9(t, "motion", "blue-respond",
 		`INSERT INTO motion (event_id, motion_id, subject, basis, filing_case) VALUES (?, 'M9', 'direction', 'the proposal is in scope and its hypothesis carries its budget', 'direction')`,
 		`INSERT INTO motion_direction (event_id, avenue_id) VALUES (?, 'Q1')`)
 	m, fam := migratePlanted(t, runDir)

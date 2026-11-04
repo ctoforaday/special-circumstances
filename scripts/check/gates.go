@@ -108,8 +108,9 @@ type gate struct {
 	why   string
 }
 
-// noCache is the difference between running the suite and reading a memory of it, and it is
-// the one flag here that CI does NOT pass — deliberately, because CI cannot need it.
+// noCache is the difference between running the suite and reading a memory of it. CI passes it
+// too, as GOFLAGS=-count=1, set by .github/actions/go-cache in every job that restores a build
+// cache.
 //
 // A GREEN CACHE AND A GREEN SUITE ARE THE SAME BYTES. Go caches a test package's PASS keyed on
 // the inputs it can see, and a test that shells out to a built binary — which is what the help
@@ -121,24 +122,25 @@ type gate struct {
 // exit 0. The same package under `-count=1` FAILED on a stale help golden that a commit three
 // back had invalidated. The green was reported to a human as verification.
 //
-// CI never sees this because every job runs on a fresh runner with an empty cache and
-// `cache: false` on setup-go — so a stale PASS is structurally impossible there and structurally
-// available here. That asymmetry is precisely the drift this whole command was built to remove;
-// leaving it in place would mean the local gate set can pass where CI fails, which is the
-// original defect wearing this tool's name. parity_test.go compares gate IDENTITY (which module,
+// CI is exposed to it the same way: a pull request's jobs restore main's Go build cache, and the
+// build cache is where Go keeps test results. So the defeat is set in both places — here per gate,
+// in CI per job — and a stale PASS is impossible in either. Leaving either side without it would
+// mean one gate set can pass where the other fails, which is the original defect wearing this
+// tool's name. parity_test.go compares gate IDENTITY (which module,
 // which race scope, which tool), not argv, so declaring it here claims no coverage CI lacks.
 //
 // One constant for both carriers: a suite gate passes it itself, and a module whose suite is
 // run by scripts/testsplit has it passed for it, on both of that tool's paths.
 const noCache = testsplit.NoCache
 
-// modules are the four Go modules. Enumerated rather than globbed for the same reason CI
+// modules are the five Go modules. Enumerated rather than globbed for the same reason CI
 // enumerates them: a glob that matches nothing is a silent pass.
 var modules = []struct{ dir, ciJob string }{
 	{"plugins/prosthetic-conscience/tools", "run"},
 	{"plugins/frank-exchange-of-views/tools", "feov-record"},
 	{"plugins/gray-area/tools", "gray-area"},
 	{"scripts", "scripts"},
+	{"shared", "shared"},
 }
 
 // raceScope is what each job races. NOT uniform, and the difference is deliberate. Encoding
@@ -183,6 +185,7 @@ var raceScope = map[string][]string{
 	// package list: a hand-kept list of "the concurrent ones" is the next thing to go stale,
 	// and this module's suite is seconds.
 	"scripts": {"./..."},
+	"shared":  {"./..."},
 }
 
 // depsScopePrefix marks a race scope that is a binary's module-local import graph. A scope so
@@ -250,6 +253,8 @@ var tools = []gate{
 		why: "one authored fetch-bin.sh, copied into every plugin that ships binaries; a guard's event literal decides whether its message is displayed"},
 	{id: "hookfailgen", kind: kindTool, dir: "scripts", args: []string{"run", "./hookfailgen", "-check"}, ciJob: "debate-sim",
 		why: "one authored failure record, copied into every plugin whose hooks exit 0 — the copies must be identical or a plugin's failures go somewhere else"},
+	{id: "gcpolicygen", kind: kindTool, dir: "scripts", args: []string{"run", "./gcpolicygen", "-check"}, ciJob: "debate-sim",
+		why: "one authored GC policy, copied into every module whose mains state their GC class"},
 	{id: "marketplacegen", kind: kindTool, dir: "scripts", args: []string{"run", "./marketplacegen", "-check"}, ciJob: "debate-sim",
 		why: "a plugin with binaries is installed from its release tag; a version bump that left the ref behind ships main's hooks against the old release's binaries"},
 	{id: "schemagen", kind: kindTool, dir: "scripts", args: []string{"run", "./schemagen", "-check"}, ciJob: "debate-sim",
@@ -260,10 +265,16 @@ var tools = []gate{
 		why: "docs/vocabulary.md is generated from the terms registry; a hand-kept copy drifts"},
 	{id: "agentgen", kind: kindTool, dir: "scripts", args: []string{"run", "./agentgen", "-check"}, ciJob: "debate-sim",
 		why: "each agent definition carries the verb surface the tool renders, and each definition and preloaded skill is written from its source; a hand-edited or stale one teaches a seat a surface the binary does not have, or a duty its source no longer states"},
+	{id: "secretsgen", kind: kindTool, dir: "plugins/prosthetic-conscience/tools", args: []string{"run", "./devcmd/secretsgen", "-check"}, ciJob: "debate-sim",
+		why: "the secrets gate builds its detector from a table generated from gitleaks.toml and gitleaks' default configuration; a stale table refuses what the configuration no longer names, or lets through what it now does"},
 	{id: "deadcode", kind: kindTool, dir: "scripts", args: []string{"run", "./deadcode"}, ciJob: "debate-sim",
 		why: "a function nothing reaches reads as part of the design to whoever opens the file; every Go module is analysed with its tests, on each platform it ships on, a generated copy's caller keeps its authored source alive, and every function left is a failure"},
 	{id: "enginegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/enginegen", "-check"}, ciJob: "debate-sim",
 		why: "the engine script's seat block and envelope vocabulary are written from the record's roster, enums and plan; a stale or hand-edited one dispatches a seat under a configuration, tier, area or occasion the record does not give it, or offers an envelope word or a plan shape the record does not hold"},
+	{id: "vocabgen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/vocabgen", "-check"}, ciJob: "debate-sim",
+		why: "the enum-value annotations and the term definitions every record process reads are generated as Go literals from record.proto and terms.json; a stale table gives a value a meaning, a facet or a ruler the schema no longer declares"},
+	{id: "cmdtreegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/cmdtreegen", "-check"}, ciJob: "debate-sim",
+		why: "each verb's help page and each event body's required fields are written from the help documents and the schema's annotations; a stale page ships text its document no longer says, and a stale table marks REQUIRED a set the write does not refuse"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because

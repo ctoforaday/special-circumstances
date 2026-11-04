@@ -89,6 +89,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/transcript"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // keepSnapshots bounds the snapshot directory. Recovery reads the newest; older
@@ -552,10 +553,26 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		return 0 // a bad flag is never worth wedging a compaction over
 	}
 
-	raw, _ := io.ReadAll(stdin)
-	var in hookInput
-	_ = json.Unmarshal(raw, &in)
-	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	req := hookcore.Read(fixedEvent, stdin)
+	in := hookInput{
+		SessionID:           req.SessionID,
+		TranscriptPath:      req.TranscriptPath,
+		CWD:                 req.CWD,
+		Trigger:             req.Trigger,
+		CustomInstructions:  req.CustomInstructions,
+		AgentID:             req.AgentID,
+		AgentTranscriptPath: req.AgentTranscriptPath,
+		AgentType:           req.AgentType,
+		Reason:              req.Reason,
+		HookEventName:       req.HookEventName,
+		BackgroundTasks:     req.BackgroundTasks,
+		SessionCrons:        req.SessionCrons,
+	}
+	if req.ProjectDir != "" {
+		projectDir = req.ProjectDir
+	} else {
+		projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	}
 	// EVERY operator- and agent-facing line names the binary that was INVOKED. #201 step 3
 	// retired "sc-checkpoint-seal"; -version was corrected then, and these eleven were not.
 	// A reader grepping their logs for sc-precompact found nothing.
@@ -563,6 +580,7 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 	if event == "" && flagEvent != nil {
 		event = resolveEvent(*flagEvent, in)
 	}
+	req.Event = event
 	bin := binaryFor(event)
 	// NONE of this binary's three events displays anything, so the recorder only ever records here
 	// and a later displaying event says it. SubagentStop additionally must never write to stdout —
@@ -656,16 +674,15 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 	// established; on SessionEnd there is no summarizer left to address. An
 	// unknown event is treated as neither — seal, say nothing.
 	if event != evPreCompact {
-		return 0
+		return hookcore.Respond(req, hookcore.Response{}, stdout, stderr, rec)
 	}
 	// Absent a note there is nothing established to preserve; stay silent rather
 	// than manufacture an instruction (see the package comment). The text was composed
 	// before the seal so the row could record it; emitting a second, separately computed
 	// copy would let the record and the instruction disagree.
-	if steerText != "" {
-		fmt.Fprintln(stdout, steerText)
-	}
-	return 0
+	return hookcore.Respond(req, hookcore.Response{
+		PreCompactSteer: steerText,
+	}, stdout, stderr, rec)
 }
 
 // MainFor is the process boundary for ONE seal event.

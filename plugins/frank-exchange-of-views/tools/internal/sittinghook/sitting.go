@@ -35,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // writerName is the binary that owns the write. It sits beside this hook in the plugin's bin
@@ -92,20 +93,21 @@ func Failure(runDir, agentID, text string) error {
 	return toolEntry(runDir, phaseFailure, agentID, text)
 }
 
-// Envelope asks the writer about the envelope the agent is returning. The PreToolUse hook denies the
-// call with the refusal, or writes the read onto the call.
+// Envelope asks the writer what the record answers the call returning the agent's envelope, input
+// being that call's arguments. The PreToolUse hook denies the call with the refusal, or writes the read
+// onto the call — onto the envelope the record supplied, where it supplied one.
 //
 // THE WRITER'S STDOUT IS THE ANSWER, kept even when the writer exits non-zero: it prints a refusal
 // before it logs it, so a failed log reaches the caller as the error beside a refusal that still
 // stands.
-func Envelope(runDir, agentID string) (hookgate.EnvelopeAnswer, error) {
+func Envelope(runDir, agentID string, input []byte) (hookgate.EnvelopeAnswer, error) {
 	writer := writerPath()
 	if writer == "" {
 		return hookgate.EnvelopeAnswer{}, fmt.Errorf("%s is not beside this hook, so %s's envelope was not checked against the record", writerName, agentID)
 	}
 	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseEnvelope, "-agent-id", agentID)
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = bytes.NewReader(input), &stdout, &stderr
 	runErr := cmd.Run()
 	var answer hookgate.EnvelopeAnswer
 	var decodeErr error
@@ -220,17 +222,34 @@ const (
 // bookkeeping failed, and an error returned from here would reach the harness as a failed hook on
 // an event the seat cannot even see.
 func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Recorder) error {
-	raw, err := io.ReadAll(stdin)
-	if err != nil {
-		rec.Fail(StageInput, "cannot read the hook payload: "+err.Error()+" — this sitting is not on the record")
-		return nil
+	event := "SubagentStart"
+	if phase == phaseClose {
+		event = "SubagentStop"
 	}
-	var in sittingInput
-	if err := json.Unmarshal(raw, &in); err != nil {
-		rec.Fail(StageInput, "the hook payload does not parse: "+err.Error()+" — this sitting is not on the record")
+	req := hookcore.Read(event, stdin)
+	if !req.Parsed {
+		errStr := "syntax error"
+		if req.ParseErr != nil {
+			errStr = req.ParseErr.Error()
+		}
+		rec.Fail(StageInput, "the hook payload does not parse: "+errStr+" — this sitting is not on the record")
 		return nil
 	}
 	rec.OK(StageInput)
+	in := sittingInput{
+		AgentID:             req.AgentID,
+		AgentType:           req.AgentType,
+		Cwd:                 req.CWD,
+		SessionID:           req.SessionID,
+		AgentTranscriptPath: req.AgentTranscriptPath,
+	}
+	if in.Cwd == "" {
+		var p struct {
+			Cwd string `json:"cwd"`
+		}
+		_ = json.Unmarshal(req.Raw, &p)
+		in.Cwd = p.Cwd
+	}
 	// NOT A SEAT, AND THIS IS THE FILTER THE FREQUENCY ARGUMENT RESTS ON. Both halves are
 	// required and for different reasons: no agent id means nothing to join a span to, and no
 	// agent type means this is a main-agent turn boundary rather than a sitting. Without it a
@@ -283,7 +302,7 @@ func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Re
 	// printing anything on close — a diagnostic moved to stdout, a future phase — would have re-armed
 	// the seat, and nothing here would have refused it.
 	if phase == phaseOpen && seat != nil && len(strings.TrimSpace(string(forSeat))) > 0 {
-		emitForSeat(seat, string(forSeat))
+		emitForSeat(req, seat, string(forSeat))
 	}
 	return nil
 }
@@ -294,20 +313,10 @@ func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Re
 // MARSHALLED, NEVER FORMATTED. The work list is JSON inside a JSON string, and every quote, newline
 // and backslash in it has to survive; a Sprintf of this shape would corrupt the first list that
 // carried a quoted claim, which is every list that carries a gap location.
-func emitForSeat(stdout io.Writer, context string) {
-	type hookSpecific struct {
-		HookEventName     string `json:"hookEventName"`
-		AdditionalContext string `json:"additionalContext"`
-	}
-	b, err := json.Marshal(struct {
-		HookSpecificOutput hookSpecific `json:"hookSpecificOutput"`
-	}{hookSpecific{HookEventName: "SubagentStart", AdditionalContext: context}})
-	if err != nil {
-		// Unreachable for two strings, and silence is the right failure anyway: a malformed document
-		// on this event is worse than no document, because the seat can still ask for its list.
-		return
-	}
-	stdout.Write(append(b, '\n'))
+func emitForSeat(req hookcore.Request, stdout io.Writer, context string) {
+	hookcore.Respond(req, hookcore.Response{
+		AdditionalContext: context,
+	}, stdout, os.Stderr, nil)
 }
 
 // unusableDetail says which fault the inference hit, because each is fixed differently.

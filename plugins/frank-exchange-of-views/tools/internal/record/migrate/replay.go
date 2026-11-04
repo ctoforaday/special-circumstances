@@ -54,6 +54,10 @@ type Result struct {
 // stamp the live rule gives it.
 const preFieldFillWhy = "the source predates class_material; the gap takes the material default of the value its archived slug translates to"
 
+// restampWhy is the reason a mint whose archived class_material is not its class's material default
+// today records for the stamp the live rule gives it. %s is the archived stamp.
+const restampWhy = "the source stamped %s; the tool stamps a mint's class_material from its class's material default, and the gap takes that default"
+
 // Replay re-drives an old record's events, in order, through the current write path into
 // dst. Each act is validated by the same code every seat verb runs, and each event's stamp
 // is the ORIGINAL stamp: record.Now is pinned per event, which is safe exactly because the
@@ -465,11 +469,13 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				v.Anchor, v.Url, v.Title = nil, proto.String(ls.url), proto.String(ls.title)
 			}
-			// A MINT THAT PREDATES class_material is stamped by the live rule — its translated
-			// value's material default, at the write — and the fill is stated, every one of them:
-			// which of them moved is computable only against a table this binary does not hold. A
-			// stamp the source carries is kept as recorded. Both the fill and the translation count
-			// are recorded once the write lands: a refused mint stamped nothing.
+			// A MINT'S class_material IS THE TOOL'S STAMP, and the write refuses a mint that arrives
+			// with one. The archived stamp is taken off and the live rule stamps the translated class's
+			// material default at the write. A fill is stated where the migrated stamp is not the
+			// source's: every mint that predates the field (which of those moved is computable only
+			// against a table this binary does not hold), and every mint whose archived stamp differs
+			// from its class's default today. Both the fill and the translation count are recorded
+			// once the write lands: a refused mint stamped nothing.
 			var translatedSlug string
 			var fill *migration.StatedFill
 			if m, ok := body.(*recordpb.Mint); ok {
@@ -477,9 +483,18 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				if archivedGapClasses[slug] != "" {
 					translatedSlug = slug
 				}
-				if m.ClassMaterial == nil && m.Class != nil {
-					fill = &migration.StatedFill{Where: "mint " + m.GetGapId(), Slug: slug,
-						Value: recordpb.Word(recordpb.MaterialDefault(m.GetClass())), Why: preFieldFillWhy}
+				archived := m.ClassMaterial
+				m.ClassMaterial = nil
+				if m.Class != nil {
+					stamp := recordpb.MaterialDefault(m.GetClass())
+					switch {
+					case archived == nil:
+						fill = &migration.StatedFill{Where: "mint " + m.GetGapId(), Slug: slug,
+							Value: recordpb.Word(stamp), Why: preFieldFillWhy}
+					case *archived != stamp:
+						fill = &migration.StatedFill{Where: "mint " + m.GetGapId(), Slug: slug,
+							Value: recordpb.Word(stamp), Why: fmt.Sprintf(restampWhy, recordpb.Word(*archived))}
+					}
 				}
 			}
 			if err := proseRefs(source, batch.Querier(), body); err != nil {
@@ -546,7 +561,11 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				continue
 			}
-			ev, err := batch.Append(id, body)
+			filer := id
+			if seat, ok := opinionFiler(src, body); ok {
+				filer = record.Identity{Run: dst, SeatID: seat}
+			}
+			ev, err := batch.Append(filer, body)
 			if err != nil {
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
