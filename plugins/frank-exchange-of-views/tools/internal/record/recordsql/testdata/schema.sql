@@ -1194,11 +1194,11 @@ GROUP BY "agent_id", "bucket";
 -- "delta" is in CHARACTERS because SQLite's length() counts code points on TEXT, which is what Go's
 -- len([]rune(s)) counted. length() on a BLOB would count bytes, and these columns are TEXT.
 --
--- A CITATION RETIRE IS A CHANGE TOO. It takes a citation's anchor off a sentence the report keeps
--- word for word, and it names the gap it answers with the key an edit carries — so the gap's change
--- log lists it beside the edits, or a citation blue took off a sentence because a gap asked for it
--- reads as no answer at all. Its row holds the sentence on both sides (the words did not move) and
--- "retired" names the citation that left; "retired" is '' on an edit.
+-- AN EVIDENCE ANCHOR'S RETIRE IS A CHANGE TOO. It takes a citation's or a computation's anchor off a
+-- sentence the report keeps word for word, and it names the gap it answers with the key an edit
+-- carries — so the gap's change log lists it beside the edits, or an anchor blue took off a sentence
+-- because a gap asked for it reads as no answer at all. Its row holds the sentence on both sides (the
+-- words did not move) and "retired" names the anchor that left; "retired" is '' on an edit.
 CREATE VIEW "change" AS
 SELECT
   e."seat_id"                           AS "seat_id",

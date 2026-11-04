@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -23,21 +22,13 @@ import (
 // and the assembled report carried the raw anchor token while mentioning the
 // computation ZERO times. The evidence existed everywhere except the document a human reads.
 
-// computationNumbers assigns each computation it is handed — the ones the set anchors — its RUN-WIDE
-// number, in record order.
-//
-// The number is not per-document, and it is not first-appearance. Across a multi-file set,
-// first-appearance numbering makes "K3" mean a different computation in the report than in the
-// debate, which is worse than no number at all. Record order is the one ordering every document
-// agrees on because none of them produced it.
-func computationNumbers(computations []record.Computation) (map[string]int, map[string]record.Computation) {
-	num := map[string]int{}
+// computationsByLabel is each computation it is handed — the ones the set anchors — by its anchor.
+func computationsByLabel(computations []record.Computation) map[string]record.Computation {
 	byLabel := map[string]record.Computation{}
-	for i, p := range computations {
-		num[p.Label] = i + 1
+	for _, p := range computations {
 		byLabel[p.Label] = p
 	}
-	return num, byLabel
+	return byLabel
 }
 
 // computationLabelsIn is the computation anchors md carries, in reading order, each once — the
@@ -60,36 +51,33 @@ func computationLabelsIn(md string) []string {
 // document anchors are appended. It returns the labels it hit so the caller can compose the
 // evidence document from the union.
 //
+// A NUMBER BELONGS TO THE ONE DOCUMENT THAT CARRIES IT, as a citation's does: [^K1], [^K2] … in
+// order of first appearance in this document. A computation's identity across documents is its
+// K-… id, which each definition links to in evidence.md, so one computation can carry different
+// numbers in different documents, and a seat names it by its id, never by a number.
+//
 // THE DEFINITION IS THE HALF THAT WAS MISSING (#590). The first cut rewrote the anchors to
 // numbered references and then wrote the appendix headings as numbered references too, which markdown reads as a SECOND
 // dangling reference rather than a heading — so every computation footnote in the shipped report
 // pointed at nothing, and a human repaired it by hand after the fact. A reference with no
 // definition is not a citation; it is a broken link that renders as one.
 func weaveComputationRefs(md string, computations []record.Computation) (string, []string) {
-	num, byLabel := computationNumbers(computations)
+	byLabel := computationsByLabel(computations)
+	num := map[string]int{}
 	var order []string
-	seen := map[string]bool{}
-	extra := len(computations)
 	body := anchor.Replace(md, func(tok, label string) string {
 		if anchor.AssemblyOf(label) != anchor.WeaveComputation {
 			return tok
 		}
-		if !seen[label] {
-			seen[label] = true
+		if _, seen := num[label]; !seen {
 			order = append(order, label)
-			if _, ok := num[label]; !ok {
-				// Anchored, and not on the record. It gets a number and a definition that says
-				// so — a silent drop here is indistinguishable from a document with no computations.
-				extra++
-				num[label] = extra
-			}
+			num[label] = len(order)
 		}
 		return computationNote(num[label])
 	})
 	if len(order) == 0 {
 		return body, nil
 	}
-	sort.SliceStable(order, func(i, j int) bool { return num[order[i]] < num[order[j]] })
 
 	var b strings.Builder
 	b.WriteString(strings.TrimRight(body, "\n"))
@@ -97,6 +85,8 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 	for _, label := range order {
 		p, ok := byLabel[label]
 		if !ok {
+			// Anchored, and not on the record. It gets a number and a definition that says so — a
+			// silent drop here is indistinguishable from a document with no computations.
 			fmt.Fprintf(&b, "%s: _(unresolved computation %s — no computation event on the record)_\n", computationNote(num[label]), label)
 			continue
 		}
@@ -106,7 +96,10 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 	return b.String(), order
 }
 
-// evidenceDoc is the run's computations in full — the document the computation footnotes point at.
+// evidenceDoc is the live computations in full — the ones the set anchors, each with the sentence it
+// backs (backs, keyed by anchor) — the document the computation footnotes point at. It numbers its own
+// entries, K1, K2 … in its own order, and each entry carries its K-… anchor, which every document's
+// footnote links to: the number is this document's, the id is the computation's.
 //
 // A COMPUTATION SHOWS ITS WORK. A citation can be a one-line reference because the source is
 // elsewhere and permanent; a computation's program IS the evidence, so this carries the bundle and
@@ -124,11 +117,10 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 // each bundle file's path and each out/ file's name are the program author's, and a raw one can open
 // a heading, a link, a footnote or raw HTML in the document; outputs and drifts are fenced longer
 // than any backtick run they hold.
-func evidenceDoc(run record.Run, computations []record.Computation) string {
+func evidenceDoc(run record.Run, computations []record.Computation, backs map[string]string) string {
 	if len(computations) == 0 {
 		return ""
 	}
-	num, _ := computationNumbers(computations)
 
 	var b strings.Builder
 	b.WriteString("## " + evidenceHeading + "\n\n")
@@ -141,11 +133,13 @@ func evidenceDoc(run record.Run, computations []record.Computation) string {
 	b.WriteString("can run it again. A re-run executes a program once, and each computation's own recorded output\n")
 	b.WriteString("is compared against that execution.\n\n")
 
-	for _, p := range computations {
+	for i, p := range computations {
 		label := p.Label
-		n := num[label]
 		b.WriteString(computationAnchorMark(label) + "\n\n")
-		fmt.Fprintf(&b, "### K%d — %s\n\n", n, firstNonEmpty(plain(p.Reason), Literal(commandOf(p))))
+		fmt.Fprintf(&b, "### K%d — %s\n\n", i+1, firstNonEmpty(plain(p.Reason), Literal(commandOf(p))))
+		if sentence := plain(backs[label]); sentence != "" {
+			fmt.Fprintf(&b, "- **backs**: %s\n", sentence)
+		}
 		fmt.Fprintf(&b, "- **basis**: %s\n", p.Basis)
 		if p.Invariant != "" {
 			fmt.Fprintf(&b, "- **holds across both runs**: %s\n", plain(p.Invariant))
@@ -204,7 +198,10 @@ func evidenceDoc(run record.Run, computations []record.Computation) string {
 		}
 		if p.Cites != "" {
 			// The METHOD is cited and the INSTANCE is computed: naming the citation here is
-			// what makes the pair legible as one argument rather than two artifacts.
+			// what makes the pair legible as one argument rather than two artifacts. It is named by
+			// its C-… id and never by a [^N]: a footnote number belongs to the one document that
+			// carries it, and this document defines no citation footnote. It is never a retired
+			// citation: retiring one a live computation applies is refused.
 			fmt.Fprintf(&b, "- **applies the method cited at**: %s\n", p.Cites)
 		}
 		b.WriteString("\n")

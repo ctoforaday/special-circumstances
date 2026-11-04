@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -12,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
 // THE SMOKE'S MET GAPS CLOSE THROUGH THE CLI (V1a′.7(a), L1 as widened): on the 2026-10-30 CEILING,
@@ -64,5 +66,53 @@ func TestTheSmokesMetGapsCloseThroughTheCLI(t *testing.T) {
 		if err := lensClose(t, dir, lens, g, "moot"); err != nil {
 			t.Errorf("the close of %s, whose demand a retire met, was refused: %v", g, err)
 		}
+	}
+}
+
+// THE SMOKE'S EVIDENCE HOLDS NO RETIRED COMPUTATION (V1a′.7(a)): the 2026-10-30 CEILING, migrated and
+// assembled, ships an evidence.md holding none of the four computations blue retired, and no entry
+// reading "anchored to nothing"; the computations the report still anchors are there, each with the
+// sentence it backs.
+func TestTheSmokesEvidenceHoldsNoRetiredComputation(t *testing.T) {
+	const name = "2026-10-30_mersenne-31-prime-sum.tar.gz"
+	migrated := filepath.Join(t.TempDir(), "run")
+	t.Cleanup(func() { _ = recordsql.CloseUnder(migrated) })
+	if _, err := migrate.Migrate(recordtest.RequireArchive(t, name), migrated, migrate.Entries(), migrate.Options{}); err != nil {
+		t.Fatalf("migrating %s: %v", name, err)
+	}
+	if err := recordsql.CloseUnder(migrated); err != nil {
+		t.Fatal(err)
+	}
+	rd := runtest.Open(t, migrated)
+	ev, err := record.MergedEvents(rd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retired := record.RetiredAnchors(ev.Events, ev.At)
+	gone := []string{"K-414ee920", "K-72d5d71a", "K-71a99b9a", "K-bc8ac2b6"}
+	for _, k := range gone {
+		if !retired[k] {
+			t.Fatalf("the archive does not hold %s retired", k)
+		}
+	}
+	a, err := report.Assemble(rd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(filepath.Dir(a.Report), report.FileEvidence))
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence := string(b)
+	for _, k := range gone {
+		if strings.Contains(evidence, k) {
+			t.Errorf("evidence.md holds the retired computation %s", k)
+		}
+	}
+	if strings.Contains(evidence, "anchored to nothing") {
+		t.Error(`evidence.md holds an entry "anchored to nothing"`)
+	}
+	if !strings.Contains(evidence, "### K1 — ") || !strings.Contains(evidence, "- **backs**: ") {
+		t.Errorf("evidence.md holds no live computation with the sentence it backs, so this measures nothing:\n%.2000s", evidence)
 	}
 }

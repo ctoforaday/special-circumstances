@@ -95,7 +95,7 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(changelog), "**The sky is blue.** — stays in the report; a source it cited was retired from it") {
+	if !strings.Contains(string(changelog), "**The sky is blue.** — stays in the report; a citation it stood on was retired from it") {
 		t.Errorf("the changelog does not list the sentence that kept its place:\n%s", changelog)
 	}
 

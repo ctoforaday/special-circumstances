@@ -227,7 +227,7 @@ func TestACitationRetireAnsweringAGapIsInItsChangeLog(t *testing.T) {
 		t.Fatal(err)
 	}
 	if changelog, err := os.ReadFile(filepath.Join(filepath.Dir(a.Report), report.FileChangelog)); err != nil ||
-		!strings.Contains(string(changelog), "a source it cited was retired from it, answering **"+gap+"**") {
+		!strings.Contains(string(changelog), "a citation it stood on was retired from it, answering **"+gap+"**") {
 		t.Errorf("the changelog's retirements do not name the gap the retire answers (%v):\n%s", err, changelog)
 	}
 

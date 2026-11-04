@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -12,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
 // ONE ANCHOR LIFECYCLE, EVERY EVIDENCE KIND (V1a′.1, the verbs' arms). The same script runs for a
@@ -50,6 +54,12 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 				}
 			}
 			tok := anchor.Token(id)
+			// shows is what evidence.md prints of the anchor: a computation's entry carries its id, a
+			// citation's its source.
+			shows := id
+			if kind == "citation" {
+				shows = "https://sky/1"
+			}
 
 			// AN EDIT LEAVING IT BARE IS REFUSED, carried or not, naming the anchor by its kind and the retire.
 			before := readReport(t, runDir)
@@ -73,6 +83,16 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 				t.Fatalf("a gap about a live %s was refused: %v", kind, err)
 			}
 
+			// EVERY DOCUMENT AND THE EVIDENCE TABLE CARRY IT WHILE IT STANDS: evidence.md's entry names
+			// the sentence it backs.
+			set := assembledSet(t, runDir)
+			if ev := set[report.FileEvidence]; !strings.Contains(ev, shows) || !strings.Contains(ev, "- **backs**: "+sentence) {
+				t.Errorf("evidence.md does not carry the live %s %s with the sentence it backs:\n%s", kind, id, ev)
+			}
+			if rows, _ := evidenceRows(t, runDir); !rows[id] {
+				t.Errorf("show evidence's lists do not hold the live %s %s", kind, id)
+			}
+
 			// RETIRED ALONE, ITS SENTENCE KEPT.
 			out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", id, "--answers", gap, "--reason", "it does not hold")
 			if err != nil {
@@ -87,6 +107,28 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 			}
 			if rep := readReport(t, runDir); strings.Contains(rep, tok) || !strings.Contains(rep, sentence) {
 				t.Errorf("after the retire the report should hold the sentence and not the anchor:\n%s", rep)
+			}
+
+			// A RETIRED ANCHOR IS IN NO DOCUMENT, and in none of show evidence's lists or counts; read at
+			// its id it says it is retired, and every surface naming the retire names it by its kind.
+			set = assembledSet(t, runDir)
+			for _, file := range []string{report.FileReport, report.FileEvidence} {
+				if strings.Contains(set[file], id) || strings.Contains(set[file], shows) {
+					t.Errorf("%s still holds the retired %s %s:\n%s", file, kind, id, set[file])
+				}
+			}
+			if cl := set[report.FileChangelog]; !strings.Contains(cl, "a "+kind+" it stood on was retired from it, answering **"+gap+"**") {
+				t.Errorf("CHANGELOG does not name the retire by its kind:\n%s", cl)
+			}
+			if rows, counts := evidenceRows(t, runDir); rows[id] || counts != 0 {
+				t.Errorf("show evidence still lists or counts the retired %s %s (%d anchor(s) counted)", kind, id, counts)
+			}
+			at, err := run(t, "show", "evidence", "--run", runDir, "--seat-id", lensSeat, "--anchor", id)
+			if err != nil || !strings.Contains(at, `"retired": {`) || !strings.Contains(at, `"reason": "it does not hold"`) {
+				t.Errorf("show evidence --anchor %s = %v, want its row with the retire:\n%s", id, err, at)
+			}
+			if ch, err := run(t, "show", "changes", "--run", runDir, "--seat-id", lensSeat); err != nil || !strings.Contains(ch, "retired "+kind+" "+id+", its sentence kept") {
+				t.Errorf("show changes does not name the retire by its kind (%v):\n%s", err, ch)
 			}
 
 			// ITS CHECK IS REFUSED, NAMING THE RETIRE.
@@ -114,6 +156,43 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 			}
 		})
 	}
+}
+
+// assembledSet is the run's assembled report set, each document's text by its file name.
+func assembledSet(t *testing.T, runDir string) map[string]string {
+	t.Helper()
+	a, err := report.Assemble(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for _, file := range []string{report.FileReport, report.FileEvidence, report.FileChangelog} {
+		if b, err := os.ReadFile(filepath.Join(filepath.Dir(a.Report), file)); err == nil {
+			out[file] = string(b)
+		}
+	}
+	return out
+}
+
+// evidenceRows is the anchors `show evidence --json` lists, and how many sources and computations it counts.
+func evidenceRows(t *testing.T, runDir string) (map[string]bool, int) {
+	t.Helper()
+	out, err := run(t, "show", "evidence", "--run", runDir, "--seat-id", lensSeat, "--json")
+	if err != nil {
+		t.Fatalf("show evidence --json: %v", err)
+	}
+	var ev record.EvidenceJSON
+	if err := json.Unmarshal([]byte(out), &ev); err != nil {
+		t.Fatalf("show evidence --json: %v\n%s", err, out)
+	}
+	rows := map[string]bool{}
+	for _, s := range ev.Sources {
+		rows[s.Anchor] = true
+	}
+	for _, c := range ev.Computations {
+		rows[c.Anchor] = true
+	}
+	return rows, ev.Counts.Sources + ev.Counts.Computations
 }
 
 // RETRY, CROSS-KIND REFERENCE AND THE CITATION'S ANSWER (V1a′.4, the verbs' arms). A keyed compute

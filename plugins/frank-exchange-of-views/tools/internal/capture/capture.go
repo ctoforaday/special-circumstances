@@ -438,7 +438,17 @@ func AssemblyScreen(run record.Run) Audit {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
 	ev := record.EvidenceJSONOf(fam.Events, fam.At)
-	anchors := ev.Counts.Sources + ev.Counts.Computations
+	// THE SCREEN COUNTS EVERY EVIDENCE ANCHOR ON THE RECORD, retired ones included: the table's
+	// lists hold the live ones, and a retired anchor is one the screen has found out of the report.
+	citations, computations := ev.Counts.Sources, ev.Counts.Computations
+	for _, r := range ev.Retired {
+		if r.Computation != nil {
+			computations++
+		} else {
+			citations++
+		}
+	}
+	anchors := citations + computations
 	if anchors == 0 {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no evidence anchors on the record — nothing to screen"}
 	}
@@ -488,14 +498,20 @@ func AssemblyScreen(run record.Run) Audit {
 	// EVER FOUND AGAINST is this audit's own count, read off the verification rows: sources_refuted
 	// is the standing set, which a PASS here has just shown empty.
 	ever := 0
-	for _, s := range ev.Sources {
+	sources := slices.Clone(ev.Sources)
+	for _, r := range ev.Retired {
+		if r.Source != nil {
+			sources = append(sources, *r.Source)
+		}
+	}
+	for _, s := range sources {
 		if slices.ContainsFunc(s.Verified, record.EvidenceVerificationJSON.FindsAgainst) {
 			ever++
 		}
 	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
 		Detail: fmt.Sprintf("%d citation(s) and %d computation(s), none with a standing check against the sentence it backs (refutes|absent, unsound); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
-			ev.Counts.Sources, ev.Counts.Computations, ever, ev.Counts.SourcesUnverified)}
+			citations, computations, ever, ev.Counts.SourcesUnverified)}
 }
 
 // ---- AUDIT 6: record parity ----

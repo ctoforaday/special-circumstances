@@ -42,6 +42,20 @@ func liveSentenceIn(report string, bare []string, id string) (string, sentenceGo
 	return sentence, sentenceLive
 }
 
+// LiveSentencesIn is the live sentence of each of ids in report (liveSentenceIn), keyed by id: the
+// sentence each backs as the report renders, read once for all of them. An id with none — absent
+// from report, or standing bare — has no key.
+func LiveSentencesIn(report string, ids []string) map[string]string {
+	out := map[string]string{}
+	bare := claimcount.BareAnchorIDs(report)
+	for _, id := range ids {
+		if sentence, gone := liveSentenceIn(report, bare, id); gone == sentenceLive {
+			out[id] = sentence
+		}
+	}
+	return out
+}
+
 // LiveSentence is the sentence evidence anchor id backs in the report as it renders now — the claim
 // a check of it records — or the refusal of a check of an anchor with none, naming the anchor by its
 // kind's noun (recordsql.EvidenceTables). A retired anchor's refusal names its retire: the event,
