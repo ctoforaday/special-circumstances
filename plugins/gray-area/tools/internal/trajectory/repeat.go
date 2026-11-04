@@ -1,9 +1,10 @@
 package trajectory
 
 import (
-	"encoding/json"
 	"sort"
 	"strings"
+
+	sharedtraj "github.com/ctoforaday/special-circumstances/shared/trajectory"
 )
 
 // Repetition is the substrate for Phase 2's rework and stalls inspections: the
@@ -91,39 +92,12 @@ type GroupResult struct {
 // the same answer, and two copies of "which field holds the path" is exactly the
 // drift that makes one of them silently stop matching.
 func WriteTarget(e Event) string {
-	switch e.ToolName {
-	case "Write", "Edit", "NotebookEdit", "MultiEdit":
-	default:
-		return ""
-	}
-	if len(e.ToolInput) == 0 {
-		return ""
-	}
-	var in struct {
-		FilePath string `json:"file_path"`
-		Path     string `json:"path"`
-	}
-	if json.Unmarshal(e.ToolInput, &in) != nil {
-		return ""
-	}
-	if in.FilePath != "" {
-		return in.FilePath
-	}
-	return in.Path
+	return sharedtraj.WriteTarget(e)
 }
 
 // BashCommand returns a Bash event's command string, or "".
 func BashCommand(e Event) string {
-	if e.ToolName != "Bash" || len(e.ToolInput) == 0 {
-		return ""
-	}
-	var in struct {
-		Command string `json:"command"`
-	}
-	if json.Unmarshal(e.ToolInput, &in) != nil {
-		return ""
-	}
-	return in.Command
+	return sharedtraj.BashCommand(e)
 }
 
 // Group buckets citable tool uses into repeated acts.

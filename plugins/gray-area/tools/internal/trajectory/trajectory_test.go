@@ -120,3 +120,41 @@ func TestStringContentIsNotABadLine(t *testing.T) {
 		t.Errorf("Lines = %d, want 6", res.Lines)
 	}
 }
+
+func TestAntigravityTrajectoryParsing(t *testing.T) {
+	agyBody := `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-11-04T07:26:20Z","content":"run tests"}
+{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-04T07:26:21Z","tool_calls":[{"name":"run_command","args":{"CommandLine":"go test ./...","WaitMsBeforeAsync":5000}}]}
+{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","created_at":"2026-11-04T07:26:22Z","content":"ok"}
+{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-04T07:26:23Z","tool_calls":[{"name":"write_file","args":{"Path":"/w/new.go","Content":"package main\n"}}]}
+{"step_index":4,"source":"MODEL","type":"GENERIC","status":"DONE","created_at":"2026-11-04T07:26:24Z","content":"Created file."}
+`
+	res := parse(t, agyBody)
+	if res.Lines != 5 {
+		t.Errorf("Lines = %d, want 5", res.Lines)
+	}
+	uses := res.ToolUses()
+	if len(uses) != 2 {
+		t.Fatalf("ToolUses = %d, want 2", len(uses))
+	}
+	if uses[0].ToolName != "Bash" || BashCommand(uses[0]) != "go test ./..." {
+		t.Errorf("uses[0] = %+v, want Bash 'go test ./...'", uses[0])
+	}
+	if uses[1].ToolName != "Write" || WriteTarget(uses[1]) != "/w/new.go" {
+		t.Errorf("uses[1] = %+v, want Write '/w/new.go'", uses[1])
+	}
+	for i, e := range res.Events {
+		if !e.Cited() {
+			t.Errorf("Antigravity event %d not cited: %+v", i, e)
+		}
+	}
+}
+
+func TestParseAll(t *testing.T) {
+	events, err := ParseAll(strings.NewReader(realShape), "/w/session.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) == 0 {
+		t.Fatal("ParseAll returned no events")
+	}
+}

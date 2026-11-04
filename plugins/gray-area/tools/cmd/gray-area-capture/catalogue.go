@@ -66,16 +66,26 @@ func ingestForSession(sessionID string, r *report) {
 	if sessionID == "" {
 		return
 	}
-	root := projectsRoot()
-	if root == "" {
-		return
-	}
 	db := openCatalogue(r)
 	if db == nil {
 		return
 	}
 	defer db.Close()
-	ingestInto(db, root, sessionID, r)
+	root := projectsRoot()
+	brainDirs := catalogue.DefaultAntigravityBrainDirs()
+	files, err := catalogue.SessionTranscriptFilesMulti(root, brainDirs, sessionID)
+	if err != nil {
+		r.fail(stageEnumerate, fmt.Sprintf("catalogue: enumerating transcripts: %v (capture unaffected)", err))
+		return
+	}
+	r.ok(stageEnumerate)
+	for _, f := range files {
+		if _, err := catalogue.IngestFile(db, f); err != nil {
+			r.fail(stageIngest, fmt.Sprintf("catalogue: %v (capture unaffected)", err))
+			return
+		}
+	}
+	r.ok(stageIngest)
 }
 
 // atStop runs at every turn end: ONE open, then the registration, then the ingest. Registering
@@ -91,6 +101,18 @@ func atStop(in hookInput, r *report) {
 	}
 	defer db.Close()
 	register(db, in, r)
+	if in.TranscriptPath != "" {
+		tf := catalogue.TranscriptFile{
+			Path:      in.TranscriptPath,
+			SessionID: in.SessionID,
+			AgentID:   in.AgentID,
+		}
+		if _, err := catalogue.IngestFile(db, tf); err != nil {
+			r.fail(stageIngest, fmt.Sprintf("catalogue: %v (capture unaffected)", err))
+		} else {
+			r.ok(stageIngest)
+		}
+	}
 	if root := projectsRoot(); root != "" {
 		ingestInto(db, root, in.SessionID, r)
 	}
@@ -181,7 +203,8 @@ func sweep(in hookInput, r *report) {
 	defer db.Close()
 	register(db, in, r)
 
-	files, err := catalogue.TranscriptFiles(root)
+	brainDirs := catalogue.DefaultAntigravityBrainDirs()
+	files, err := catalogue.TranscriptFilesMulti(root, brainDirs)
 	if err != nil {
 		r.fail(stageEnumerate, fmt.Sprintf("catalogue: enumerating transcripts: %v (capture unaffected)", err))
 		return
