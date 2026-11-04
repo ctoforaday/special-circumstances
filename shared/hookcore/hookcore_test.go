@@ -863,4 +863,3 @@ func TestQueueSay(t *testing.T) {
 		t.Errorf("expected %q, got %q", "advisory notice", items[0].Say)
 	}
 }
-
