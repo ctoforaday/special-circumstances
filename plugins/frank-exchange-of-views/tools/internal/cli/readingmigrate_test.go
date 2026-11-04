@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // idOf is the events.id of the first event in runDir whose body is a T that match accepts.
@@ -117,6 +118,12 @@ func TestARecordWrittenAtThisEpochMigratesWithNoRefusal(t *testing.T) {
 	}
 	openBefore := b.standing(lensL).Open
 	renderBefore := readReport(t, b.runDir)
+	// THE ACTS ABOVE CROSS THE CHECKPOINT SPACING: a reading's placement by sentence_of and by quote,
+	// blue's accept at an occurrence and the fill's mints each land ops, and every read through the
+	// checkpoints the write path stamped is the whole replay — before the migration and after it.
+	if n := checkpointsHold(t, b.runDir); n < 2 {
+		t.Fatalf("the acts landed %d report checkpoint(s), so none was stamped past the first op", n)
+	}
 
 	to, in, out, refusals := migrated(t, b.runDir)
 	if len(refusals) != 0 {
@@ -151,6 +158,9 @@ func TestARecordWrittenAtThisEpochMigratesWithNoRefusal(t *testing.T) {
 	tb := readingBoard{t: t, runDir: to}
 	if got := tb.standing(lensL).Open; got != openBefore {
 		t.Errorf("L's open count %d → %d across the migration", openBefore, got)
+	}
+	if n := checkpointsHold(t, to); n < 2 {
+		t.Fatalf("the migrated record holds %d report checkpoint(s), so its replay stamped none past the first op", n)
 	}
 	if got := readReport(t, to); got != renderBefore {
 		t.Errorf("the migrated render differs:\n%s\n---\n%s", got, renderBefore)
@@ -244,4 +254,38 @@ func dropEvents(t *testing.T, runDir string, ids ...int64) {
 			t.Fatal(err)
 		}
 	}
+}
+
+// checkpointsHold holds runDir's report checkpoints to the whole replay: the report as of every event
+// that adds an op, read from the checkpoint at or below it and the ops after it, is the replay of every
+// op up to it from the empty text. It returns how many checkpoints the record stores.
+func checkpointsHold(t *testing.T, runDir string) int {
+	t.Helper()
+	ops, err := record.ReportProjection(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := recordsql.Open(filepath.Join(runDir, "records", "record.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, op := range ops {
+		if k+1 < len(ops) && ops[k+1].EventID == op.EventID {
+			continue // the event's last op closes it
+		}
+		want, werr := reportproj.Replay("", false, ops[:k+1])
+		src, err := recordsql.ReportSourceAt(db, op.EventID)
+		if err != nil {
+			t.Fatalf("the report as of event %d: %v", op.EventID, err)
+		}
+		got, gerr := src.Fold(reportproj.Replay)
+		if got != want || fmt.Sprint(gerr) != fmt.Sprint(werr) {
+			t.Fatalf("the report as of event %d read through its checkpoint is (%q, %v), the whole replay (%q, %v)", op.EventID, got, gerr, want, werr)
+		}
+	}
+	var n int
+	if err := db.QueryRow(`SELECT count(*) FROM "report_checkpoint"`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
 }
