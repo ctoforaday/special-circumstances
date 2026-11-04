@@ -1440,6 +1440,9 @@ const StaleRule = "A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT
 func init() {
 	HelpValues["StaleRule"] = StaleRule
 	HelpValues["GradeMovementRule"] = record.GradeMovementRule
+	// The live-answer demand, stated once (recordpb.DemandClause), on every page that says when a
+	// `source` or `computation` gap closes.
+	HelpValues["DemandClause"] = recordpb.DemandClause
 }
 
 // AppendFresh records an act about gapID through write, handing it the guard that refuses the act

@@ -735,6 +735,9 @@ func (r *runner) fixFoundAgainst(seatID string, b record.Blocker) {
 	// citation is retired.
 	words := wordsBefore(cur, b.Subject)
 	if words == "" || r.coin(50) {
+		if !r.retireCitingFirst(seatID, b.Subject) {
+			return
+		}
 		rt := r.do("retire", seatID).set("--anchor", b.Subject).
 			set("--reason", "fuzz: a lens's reading finds the source against the sentence, so the sentence stands without it")
 		if g := b.AnsweredBy(); g != "" {

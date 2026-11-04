@@ -76,8 +76,13 @@ var otherIDs = []kind{
 	{name: "position", prefix: "A-"},
 }
 
-// lifecycle is what Label says of every kind alike, because every kind lives the same way.
+// lifecycle is what Label says of every kind alike, because every kind lives the same way; an evidence
+// anchor (backs) may also leave alone, and Label says so of it (evidenceLeaves).
 const lifecycle = " (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit)"
+
+// evidenceLeaves is what Label adds of an evidence anchor: it never stands bare, so it leaves its
+// sentence alone, by a retire that keeps the sentence word for word.
+const evidenceLeaves = " (the tool places it and every edit carries it; it never stands bare, so it leaves by `retire --anchor` alone, which keeps its sentence word for word, or with its claim by `edit` then `retire` — never by a raw edit)"
 
 const tokenOpen, tokenClose = "<!--", "-->"
 
@@ -319,6 +324,9 @@ func Label(id string) string {
 	k := rowOf(id)
 	if k.name == "" {
 		return id
+	}
+	if k.backs {
+		return k.label + " " + Token(id) + evidenceLeaves
 	}
 	return k.label + " " + Token(id) + lifecycle
 }

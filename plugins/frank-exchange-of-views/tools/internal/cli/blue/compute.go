@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -109,7 +108,7 @@ func newCompute() *cobra.Command {
 			if err := seat.RepeatsKeyed(key, "computation", prior.GetComputationId(), prior, retry, computeAsserted...); err != nil {
 				return nil, err
 			}
-			return computeResult{SHA: prior.GetBundleSha(), Idempotent: true, VoiceTells: tells}, nil
+			return computeResult{Label: prior.GetComputationId(), SHA: prior.GetBundleSha(), Idempotent: true, VoiceTells: tells}, nil
 		}
 
 		res, err := compute.Run(run.Dir(), prog)
@@ -192,7 +191,7 @@ func newCompute() *cobra.Command {
 		if err := compute.WriteAct(run.Dir(), res.Bundle, label, []byte(res.Output), res.Out); err != nil {
 			return nil, err
 		}
-		if _, err := seat.AppendPlaced(s, body, label, location, computeRefusal); err != nil {
+		if _, err := seat.AppendPlaced(s, body, label, location, placementRefusal(record.EvidenceNoun(label))); err != nil {
 			if rerr := compute.RemoveAct(run.Dir(), res.Bundle, label); rerr != nil {
 				return nil, errors.Join(err, rerr)
 			}
@@ -213,11 +212,11 @@ func newCompute() *cobra.Command {
 	seat.Require(c, flags.Quote, flags.Dir)
 	c.Use = "compute [flags] -- <command> [args...]"
 	c.Args = cobra.ArbitraryArgs
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ComputeCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.LiveCitationExists(record.ComputeCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed. A retired citation is in no document, and naming one is refused")
 	flags.Text(c, flags.Variance, "what holds across the two runs when they differ — the invariant the result is evidence of (\"every run reports 91 = 7 × 13; the timing line moves\"). Required when the runs differ and refused when they agree")
 	c.Flags().Bool(flags.ExpectError, false, "this computation's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
 	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another bundle or command, --quote, --cites, --answers, --reason or --variance is refused: a handle names one computation")
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation answers — the computation is placed as that gap's answer, and a gap whose check kind is computation closes only on a live answer of its kind or the demand's other arms, which prose cannot meet; omit only for a computation that answers no gap")
 	seat.Records(c, "computation")
 	seat.Supplies(c, "basis", "the tool runs the program twice and records `reproducible` when the runs agree, `variant` when they differ")
 	return c
@@ -265,8 +264,6 @@ var computeAsserted = []seat.Asserted{
 	{Flag: flags.Variance, Field: "invariant"},
 }
 
-func computeRefusal(err error) error { return anchortext.Refusal(err) }
-
 type computeResult struct {
 	Label      string `json:"computation_id,omitempty"`
 	SHA        string `json:"sha256"`
@@ -281,7 +278,7 @@ type computeResult struct {
 func (r computeResult) Human() string {
 	note := reportvoice.Note("the computation's footnote, and its heading in evidence.md", r.VoiceTells)
 	if r.Idempotent {
-		return seat.Repeated("the computation of bundle "+compute.Short(r.SHA)) + note
+		return seat.Repeated("computation "+r.Label+" of bundle "+compute.Short(r.SHA)) + note
 	}
 	out := fmt.Sprintf("computation %s recorded (%s, exit %d) — anchored, program and output stored", r.Label, r.Basis, r.Exit)
 	if r.Drift != "" {

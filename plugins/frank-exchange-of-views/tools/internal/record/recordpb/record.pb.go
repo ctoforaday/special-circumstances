@@ -8499,12 +8499,12 @@ const file_record_proto_rawDesc = "" +
 	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\x9e\x02\n" +
 	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\x84\x02\x8a\xb5\x18\xff\x01the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run\x12f\n" +
 	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
-	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xe8\x04\n" +
+	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\x9c\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
-	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xaa\x02\n" +
-	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\x8d\x02\x8a\xb5\x18\x88\x02RUNNING something settles it. {{.DemandClause}}. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\x90\x01\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03\x1ay\x8a\xb5\x18uverifying an external source settles it: the claim stands or falls on what the cited material says. {{.DemandClause}}*\xba\x03\n" +
+	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xc3\x02\n" +
+	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xa6\x02\x8a\xb5\x18\xa1\x02RUNNING something settles it. The demand on its close: {{.DemandClause}}. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\xab\x01\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1a\x93\x01\x8a\xb5\x18\x8e\x01verifying an external source settles it: the claim stands or falls on what the cited material says. The demand on its close: {{.DemandClause}}*\xba\x03\n" +
 	"\rClassMaterial\x12\x1e\n" +
 	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\x91\x01\n" +
 	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1av\x8a\xb5\x18revery gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on\x12\x85\x01\n" +

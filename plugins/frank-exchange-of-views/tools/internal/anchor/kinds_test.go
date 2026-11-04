@@ -52,11 +52,16 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 			t.Errorf("Token(%q) = %q reads back as an anchor token", id, tok)
 		}
 	}
-	// ONE LIFECYCLE: every kind's label says the same thing after its noun. It names the anchor by its
-	// TOKEN, never the bare id: a finding id in text stands beside its lens's area (S9), which a reader
-	// of report text alone does not know, and the token is what a seat reproduces.
+	// ONE LIFECYCLE: every kind's label says the same thing after its noun, and every evidence kind's
+	// the same again, adding that it leaves alone. It names the anchor by its TOKEN, never the bare id:
+	// a finding id in text stands beside its lens's area (S9), which a reader of report text alone
+	// does not know, and the token is what a seat reproduces.
 	for id, noun := range map[string]string{"F-00001a2b": "finding anchor", "C-00001a2b": "citation anchor", "K-00001a2b": "computation anchor", "G-00000003": "gap anchor"} {
-		if got := Label(id); got != noun+" "+Token(id)+lifecycle {
+		says := lifecycle
+		if Backs(id) {
+			says = evidenceLeaves
+		}
+		if got := Label(id); got != noun+" "+Token(id)+says {
 			t.Errorf("Label(%s) = %q", id, got)
 		}
 	}

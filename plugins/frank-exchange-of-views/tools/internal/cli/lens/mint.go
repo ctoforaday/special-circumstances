@@ -466,8 +466,8 @@ func verifiedFix(p *recordpb.Mint, report, gapID string, at gapPlace, fixNew str
 	}
 	// The accept refuses a fix that leaves an anchor bare where no act could take it out
 	// (blue.BaredAnchors), so the mint asks the same of the edit it planned, and words it for red.
-	if citations, leftOut := blue.BaredAnchors(placed, a.Planned, a.Applied); len(citations)+len(leftOut) > 0 {
-		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(at, citations, leftOut))
+	if evidence, leftOut := blue.BaredAnchors(placed, a.Planned, a.Applied); len(evidence)+len(leftOut) > 0 {
+		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(at, evidence, leftOut))
 	}
 	p.FixNew = proto.String(fixNew)
 	p.FixBasis = proto.String("verified")
@@ -484,16 +484,13 @@ func fixWhat(at gapPlace) string {
 }
 
 // mintBaredRefusal is the refusal of a prescription whose --new would leave these anchors bare: the
-// citations, and the tokens of the other anchors --new does not carry. A reading's gap stands on the
-// sentence the tool reads by its citation's token, which the seat cannot widen, so its refusal offers
-// no carry through a quote.
-func mintBaredRefusal(at gapPlace, citations, leftOut []string) string {
+// evidence anchors, and the tokens of the other anchors --new does not carry. A reading's gap stands
+// on the sentence the tool reads by its citation's token, which the seat cannot widen, so its refusal
+// offers no carry through a quote.
+func mintBaredRefusal(at gapPlace, evidence, leftOut []string) string {
 	var refusals []string
-	if len(citations) > 0 {
-		what, it, its := "citation "+citations[0], "it", "its"
-		if len(citations) > 1 {
-			what, it, its = "citations "+strings.Join(citations, ", "), "them", "their"
-		}
+	if len(evidence) > 0 {
+		what, it, its := blue.EvidenceNamed(evidence)
 		refusals = append(refusals, fmt.Sprintf(
 			"--new would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against, and blue's accept would refuse it. NOTHING IS RECORDED. "+
 				"Keep the sentence in --new; or, where the sentence is to go, leave --new off and state the fix as prose in --fix",

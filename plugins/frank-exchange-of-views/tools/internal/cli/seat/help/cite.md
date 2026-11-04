@@ -8,6 +8,8 @@ The tool fetches and caches the source and splices an invisible anchor at the se
 
 The sentence is found in the report as the record holds it, so a lane must have recorded its part first; before that there is nothing to anchor in.
 
+A CITATION CAN BE A GAP'S ANSWER. Name the gap it answers, and the citation is placed as that gap's answer; while it stands it answers that gap, and retiring it takes the answer away. Only a live citation answers a gap whose check kind is `source`, and the demand on its close is this: {{.DemandClause}}. A citation may answer a gap of any check kind; only the demanded kind discharges a demand.
+
 To RESOLVE an anchor you meet while reading (not create one), read the `evidence` projection, which lists every source by anchor id.
 
 A CITATION QUOTES THE SOURCE. Where the tool holds the source's text — a page's text, a PDF's text layer, an OCR reading — the citation names the words it relies on, copied from that cached text, and the tool finds them there once and records where, with the source's text around them. That text is what a lens reads your sentence against; your reason is shown beside it as yours. Copy enough of the sentence that it is found once. OCR-DERIVED TEXT CAN MISREAD, so for it the tool also records the PDF page the span sits on — never type a page — and the span must sit whole on one page of the reading; the refusal says which fix applies when it does not. A source the tool holds no text for is cited without a span, and the citation records that its text origin is none.

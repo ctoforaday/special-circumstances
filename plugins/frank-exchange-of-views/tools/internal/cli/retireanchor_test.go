@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -48,14 +50,24 @@ func citeSentence(t *testing.T, runDir, sentence, url string) string {
 	return m[1]
 }
 
-// gutToAnchor edits an anchored sentence down to its bare anchor — the only edit that removes
-// the sentence, because an edit may not drop the anchor. A citation's anchor is never left bare
-// (TestACitedSentenceIsNotCutToItsAnchor), so the anchor gutted is a computation's.
+// gutToAnchor records an edit of an anchored sentence down to its bare anchor, as an archived record
+// holds one: `edit` refuses it for an evidence anchor (TestAnEditBaringEvidenceIsRefused), so an
+// evidence anchor reaches a claim retire bare only from such a record or the synthesizer's round-0
+// write, and the test writes the edit's event as that record carries it.
 func gutToAnchor(t *testing.T, runDir, sentence, tok string) {
 	t.Helper()
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", strings.TrimRight(sentence, ".")+tok+".", "--new", tok, "--reason", "the claim cannot stand"); err != nil {
-		t.Fatalf("edit %q down to its anchor: %v", sentence, err)
+	recordEdit(t, runDir, strings.TrimRight(sentence, ".")+tok+".", tok)
+	if !slices.Contains(claimcount.BareAnchorIDs(readReport(t, runDir)), anchor.IDs(tok)[0]) {
+		t.Fatalf("the recorded edit did not leave %s bare:\n%s", tok, readReport(t, runDir))
+	}
+}
+
+// recordEdit writes blue's edit of old to new as an archived record holds it, past `edit`'s guards.
+func recordEdit(t *testing.T, runDir, old, new string) {
+	t.Helper()
+	cut := &recordpb.BlueEdit{Old: proto.String(old), New: proto.String(new), Text: proto.String("the claim cannot stand")}
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, cut); err != nil {
+		t.Fatalf("record the edit of %q: %v", old, err)
 	}
 }
 
@@ -286,9 +298,11 @@ func markerOfKind(t *testing.T, runDir, kind, sentence string) (id, gap string) 
 
 // AN ANCHOR THE QUOTE LEFT OUT IS NOT LEFT BARE. The #1677 smoke's edit cut a sentence down to the six
 // anchors its quote did not carry, and they stood in the report with nothing to mark: a retire takes
-// what the edit carried. Refused for every kind but a citation, whose own refusal is the row below,
-// naming the anchor and what to do; carried in the quote, the same cut is admitted and the anchor
-// stands bare until the retire takes it, and a second retire of the same words takes nothing.
+// what the edit carried. Refused for every kind, naming the anchor and what to do. An evidence
+// anchor's refusal names it by its kind and sends blue to `retire --anchor`, and the same cut carrying
+// it is refused too: evidence never stands bare. A finding or gap anchor carried in the quote is
+// admitted and stands bare until the retire takes it, and a second retire of the same words takes
+// nothing.
 func TestAnEditBaringAnAnchorItsQuoteLeftOutIsRefused(t *testing.T) {
 	const sentence = "Water is wet."
 	const words = "Water is wet"
@@ -306,8 +320,8 @@ func TestAnEditBaringAnAnchorItsQuoteLeftOutIsRefused(t *testing.T) {
 				t.Fatal("an edit leaving an anchor bare that its quote left out was recorded")
 			}
 			want := []string{"anchor " + tok + " standing bare", "your quote leaves it out", "Nothing is recorded", "as `show report` prints it", "then retire the claim"}
-			if kind == "citation" {
-				want = []string{"citation " + id + " standing bare", "Nothing is recorded", "`retire --anchor <its id>`"}
+			if anchor.Backs(id) {
+				want = []string{kind + " " + id + " standing bare", "Nothing is recorded", "`retire --anchor <its id>`"}
 			}
 			for _, w := range want {
 				if !strings.Contains(err.Error(), w) {
@@ -322,9 +336,9 @@ func TestAnEditBaringAnAnchorItsQuoteLeftOutIsRefused(t *testing.T) {
 			}
 			quote := words + tok + "."
 			_, err = run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", quote, "--new", tok, "--reason", "the claim cannot stand")
-			if kind == "citation" { // carried or not: a citation never stands bare
-				if err == nil || !strings.Contains(err.Error(), "citation "+id+" standing bare") {
-					t.Fatalf("a citation carried to bare: %v", err)
+			if anchor.Backs(id) { // carried or not: evidence never stands bare
+				if err == nil || !strings.Contains(err.Error(), kind+" "+id+" standing bare") {
+					t.Fatalf("a %s carried to bare: %v", kind, err)
 				}
 				return
 			}
@@ -360,11 +374,11 @@ func TestTheBareRefusalNamesOnlyWhatTheEditLeftOut(t *testing.T) {
 	runDir := citedRun(t, "https://water/1")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	k1, _ := markerOfKind(t, runDir, "computation", words+".")
+	f1, _ := markerOfKind(t, runDir, "finding", words+".")
 	g, _ := markerOfKind(t, runDir, "gap", words+".")
-	first, second := k1, g
-	if !strings.Contains(readReport(t, runDir), words+anchor.Token(k1)+anchor.Token(g)) {
-		first, second = g, k1
+	first, second := f1, g
+	if !strings.Contains(readReport(t, runDir), words+anchor.Token(f1)+anchor.Token(g)) {
+		first, second = g, f1
 	}
 	// The quote carries the first anchor of the run and stops there: the second stands after the cut.
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words+anchor.Token(first), "--new", anchor.Token(first), "--reason", "gone")
@@ -575,7 +589,7 @@ func TestRetireTakesTwoProvedSentencesOutAtOnce(t *testing.T) {
 	d := citeSentence(t, runDir, "Delta stands.", "https://d/1")
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", "Gamma stands"+anchor.Token(g)+". Delta stands"+anchor.Token(d)+".", "--new", anchor.Token(g)+anchor.Token(d), "--reason", "both refuted")
-	if err == nil || !strings.Contains(err.Error(), "citations "+g+", "+d+" standing bare") || !strings.Contains(err.Error(), "before them in their sentence") {
+	if err == nil || !strings.Contains(err.Error(), "citation "+g+" and citation "+d+" standing bare") || !strings.Contains(err.Error(), "before them in their sentence") {
 		t.Errorf("cutting two cited sentences to their anchors = %v, want a refusal naming both", err)
 	}
 	a := computeSentence(t, runDir, "Alpha holds.")
@@ -585,10 +599,13 @@ func TestRetireTakesTwoProvedSentencesOutAtOnce(t *testing.T) {
 		hi, lo = lo, hi
 	}
 	tok := anchor.Token
+	// The two computed sentences cut to their anchors as an archived record holds the edit: `edit`
+	// refuses it now, as it refuses the cited pair above.
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--quote", "Alpha holds"+tok(a)+". Beta holds"+tok(b)+".", "--new", tok(hi)+tok(lo), "--reason", "both refuted"); err != nil {
-		t.Fatalf("edit both down to their anchors: %v", err)
+		"--quote", "Alpha holds"+tok(a)+". Beta holds"+tok(b)+".", "--new", tok(hi)+tok(lo), "--reason", "both refuted"); err == nil {
+		t.Fatal("an edit cutting two computed sentences to their anchors was recorded")
 	}
+	recordEdit(t, runDir, "Alpha holds"+tok(a)+". Beta holds"+tok(b)+".", tok(hi)+tok(lo))
 
 	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "holds", "--reason", "refuted"); err == nil ||
 		!strings.Contains(err.Error(), a) || !strings.Contains(err.Error(), b) {

@@ -12,6 +12,8 @@ The bundle holds at most 1 MiB, and no symlink, no non-regular file, no `out` or
 
 The sentence is found in the report as the record holds it, so a lane must have recorded its part first; before that there is nothing to anchor in.
 
+A COMPUTATION CAN BE A GAP'S ANSWER. Name the gap it answers, and the computation is placed as that gap's answer; while it stands it answers that gap, and retiring it takes the answer away. Only a live computation answers a gap whose check kind is `computation`, and the demand on its close is this: {{.DemandClause}}. A computation may answer a gap of any check kind; only the demanded kind discharges a demand. The citation a computation names as its method is one still in the report: a retired one is refused.
+
 Identical output, exit and out/ twice is recorded as `reproducible`. A difference in any of them is REFUSED until you state what holds across the runs: make the output deterministic (seed it, sort it, drop the timestamp), or state the invariant the result is evidence of, and it is recorded as `variant` with that invariant beside what moved — still evidence, of a system in motion, but a MEASUREMENT, not a proof, and the report does not read it as a reproducible one. An invariant over two runs that agreed is refused. The tool says which you produced, and what moved.
 
 A PROGRAM THAT CALLS THIS TOOL CAN BE CHECKED BY NOBODY. The tool refuses every call a program makes to it while a checker runs it, so a program that calls it is REFUSED and nothing is recorded. Compute the claim in the program itself, reading its inputs from files in its bundle.

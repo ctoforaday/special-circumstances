@@ -64,12 +64,8 @@ func LiveSentence(run Run, id string) (string, error) {
 			return "", err
 		}
 		if found {
-			kept := "it left the report with its claim " + quoted(r.Claim)
-			if r.Kept {
-				kept = "its sentence " + quoted(r.Claim) + " kept"
-			}
-			return "", feov.Errorf(feov.Conflict, "%s %s is retired — blue retired it at event %d (%s; %s) — so it is in no document and the report holds no sentence for it to check. "+
-				"Check the %ss whose anchors the report carries", row.Noun, id, r.Event, reasonOf(r.Reason), kept, row.Noun)
+			return "", feov.Errorf(feov.Conflict, "%s %s is retired — %s — so it is in no document and the report holds no sentence for it to check. "+
+				"Check the %ss whose anchors the report carries", row.Noun, id, r.Said(), row.Noun)
 		}
 		return "", feov.Errorf(feov.Conflict, "%s %s's anchor is not in the report — the anchor never placed — so the report holds no sentence for it and there is nothing to check. "+
 			"Check the %ss whose anchors the report carries", row.Noun, id, row.Noun)
@@ -78,6 +74,15 @@ func LiveSentence(run Run, id string) (string, error) {
 			"The anchor leaves with blue's retire of its claim", row.Noun, id)
 	}
 	return sentence, nil
+}
+
+// EvidenceNoun is the word an evidence anchor's kind names it by (recordsql.EvidenceTables), and the
+// kind's own name for an anchor of a kind that backs nothing.
+func EvidenceNoun(id string) string {
+	if row, ok := recordsql.EvidenceTableOf(anchor.Kind(id)); ok {
+		return row.Noun
+	}
+	return anchor.Kind(id)
 }
 
 // quoted is s in double quotes, flattened to one line.

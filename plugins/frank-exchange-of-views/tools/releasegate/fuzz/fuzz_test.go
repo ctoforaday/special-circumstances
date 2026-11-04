@@ -438,12 +438,12 @@ type runner struct {
 	// recorded, or refused without saying the span is not in the text; it fails the run.
 	spansRefused    int
 	spanAdmittedErr string
-	// leftOutRefused counts the edits the tool REFUSED for leaving an anchor bare that their quote left
-	// out (cutLeavingAnchorOut). The sweep gates it at zero, and leftOutSeed's run fails without one.
-	// leftOutAdmittedErr is the first such edit the tool recorded, or refused without saying so; it
-	// fails the run.
-	leftOutRefused     int
-	leftOutAdmittedErr string
+	// bareEvidenceRefused counts the edits the tool REFUSED for leaving an evidence anchor bare, its
+	// quote leaving the anchor out or carrying it (cutBaringEvidence). The sweep gates it at zero, and
+	// bareEvidenceSeed's run fails without one. bareEvidenceAdmittedErr is the first such edit the tool
+	// recorded, or refused without naming the anchor and its retire; it fails the run.
+	bareEvidenceRefused     int
+	bareEvidenceAdmittedErr string
 	// mintBareRefused counts the mints the tool REFUSED for a prescription that would leave a citation
 	// bare (mintBaringCitation). The sweep gates it at zero, and mintBareSeed's run fails without one.
 	// mintBareAdmittedErr is the first such mint the tool recorded, or refused without saying so; it
@@ -779,8 +779,8 @@ type runner struct {
 	foundAgainstStage                             string
 	foundAgainstCite, foundAgainstAnchor          string
 	foundAgainstCiteTried                         bool
-	// forceLeftOut drives cutLeavingAnchorOut on leftOutSeed's run, once.
-	forceLeftOut, leftOutDriven bool
+	// forceBareEvidence drives cutBaringEvidence on bareEvidenceSeed's run, once.
+	forceBareEvidence, bareEvidenceDriven bool
 	// forceMintBare drives citeForBareMint and then mintBaringCitation on mintBareSeed's run;
 	// mintBareCited is whether blue's half has fired, and mintBareDriving holds the lens's half to one
 	// sitting at a time.
@@ -1350,6 +1350,9 @@ func (r *runner) fixFailed(seatID string) {
 			}
 			// THE RETIRE NAMES THE GAP IT ANSWERS, the gap the unread reading's lens minted about the
 			// citation, so `show changes --id` joins it to that gap as an edit would be.
+			if !r.retireCitingFirst(seatID, b.Subject) {
+				continue
+			}
 			rt := r.do("retire", seatID).set("--anchor", b.Subject).
 				set("--reason", "fuzz: no lens could read the source of "+b.Subject+", so the sentence stands without it")
 			g := r.openGapAboutAnchor(b.Subject)
@@ -2962,15 +2965,17 @@ func (r *runner) citeAbsentSpan(seatID string) {
 	r.citeSpanRefused(seatID, out, err)
 }
 
-// cutLeavingAnchorOut is the forced drive of leftOutSeed's run, one claim out of the report as a seat
-// takes it: blue adds a sentence and computes it, a cut whose quote stops before the anchor is refused
-// and changes nothing, the cut carrying the anchor is admitted and leaves it bare, and the retire takes
-// it. The report ends as it stood but for the sentence's join. It draws nothing from the run's RNG.
-func (r *runner) cutLeavingAnchorOut(seatID string) {
+// cutBaringEvidence is the forced drive of bareEvidenceSeed's run, one evidenced claim out of the
+// report as a seat takes it: blue adds a sentence and computes it; a cut whose quote stops before the
+// computation's anchor, and a cut carrying it, would each leave it bare, and each is refused and
+// changes nothing; the computation's retire alone takes the anchor out and keeps the sentence; and an
+// edit then cuts the sentence as prose. The report ends as it stood. It draws nothing from the run's
+// RNG.
+func (r *runner) cutBaringEvidence(seatID string) {
 	r.mu.Lock()
-	due := r.forceLeftOut && !r.leftOutDriven && seatID == "blue-respond"
+	due := r.forceBareEvidence && !r.bareEvidenceDriven && seatID == "blue-respond"
 	if due {
-		r.leftOutDriven = true
+		r.bareEvidenceDriven = true
 	}
 	r.mu.Unlock()
 	if !due {
@@ -2979,42 +2984,114 @@ func (r *runner) cutLeavingAnchorOut(seatID string) {
 	const open, claim = "Whether the trend outlasts the sample", "Whether the forced claim stands"
 	r.do("edit", seatID).set("--quote", open).set("--new", open+". "+claim).
 		set("--reason", "fuzz: a claim added to be taken out").admit()
-	dir, argv, err := r.writeBundle("fuzz-left-out.js", "console.log('fuzz: the claim that leaves');")
+	dir, argv, err := r.writeBundle("fuzz-bare-evidence.js", "console.log('fuzz: the claim that leaves');")
 	if err != nil {
 		return
 	}
 	if _, ok := r.do("compute", seatID).set("--quote", claim).set("--dir", dir).
-		set("--reason", "fuzz: the anchor the cut leaves or carries").runs(argv).admit(); !ok {
+		set("--reason", "fuzz: the anchor the cut would leave bare").runs(argv).admit(); !ok {
 		return
 	}
+	k := lastComputationOn(r.run(), claim)
 	before, err := record.RenderRun(r.run())
 	if err != nil {
-		r.noteActErr("the report could not be rendered for leftOutSeed's cut: " + err.Error())
+		r.noteActErr("the report could not be rendered for bareEvidenceSeed's cut: " + err.Error())
 		return
 	}
-	out, err := r.do("edit", seatID).set("--quote", claim).set("--new", "").
-		set("--reason", "fuzz: the claim cannot stand").result()
-	after, _ := record.RenderRun(r.run())
-	r.mu.Lock()
-	switch {
-	case err == nil || after != before:
-		if r.leftOutAdmittedErr == "" {
-			r.leftOutAdmittedErr = seatID + " left a computation's anchor bare that its quote left out and the edit was recorded: " + firstLine(out)
-		}
-	case !strings.Contains(out, "your quote leaves it out"):
-		if r.leftOutAdmittedErr == "" {
-			r.leftOutAdmittedErr = seatID + "'s cut of a claim without its anchor was refused without saying so: " + firstLine(out)
-		}
-	default:
-		r.leftOutRefused++
-	}
-	r.mu.Unlock()
 	run := abuttingRun(before, claim)
-	if _, ok := r.do("edit", seatID).set("--quote", claim+run+".").set("--new", run).
-		set("--reason", "fuzz: the claim cannot stand").admit(); !ok {
+	for _, cut := range []*cmd{
+		r.do("edit", seatID).set("--quote", claim).set("--new", ""),
+		r.do("edit", seatID).set("--quote", claim+run+".").set("--new", run),
+	} {
+		out, err := cut.set("--reason", "fuzz: the claim cannot stand").result()
+		after, _ := record.RenderRun(r.run())
+		r.mu.Lock()
+		switch {
+		case err == nil || after != before:
+			if r.bareEvidenceAdmittedErr == "" {
+				r.bareEvidenceAdmittedErr = seatID + " left a computation's anchor bare and the edit was recorded: " + firstLine(out)
+			}
+		case k == "" || !strings.Contains(out, "computation "+k+" standing bare") || !strings.Contains(out, "retire --anchor"):
+			if r.bareEvidenceAdmittedErr == "" {
+				r.bareEvidenceAdmittedErr = seatID + "'s cut baring computation " + k + " was refused without naming it and its retire: " + firstLine(out)
+			}
+		default:
+			r.bareEvidenceRefused++
+		}
+		r.mu.Unlock()
+	}
+	if k == "" {
 		return
 	}
-	r.do("retire", seatID).set("--quote", claim+".").set("--reason", "fuzz: the claim went with the edit").admit()
+	if _, ok := r.do("retire", seatID).set("--anchor", k).set("--reason", "fuzz: the computation leaves its sentence").admit(); !ok {
+		return
+	}
+	r.do("edit", seatID).set("--quote", open+". "+claim).set("--new", open).
+		set("--reason", "fuzz: the claim cannot stand").admit()
+}
+
+// computationsCiting are the computations still in the report that name citation as their method
+// (--cites), in record order.
+func computationsCiting(run record.Run, citation string) []string {
+	b, err := record.FamilyOf(run)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range b.Events {
+		c, ok := recordpb.BodyAs[*recordpb.Computation](e)
+		if !ok || c.GetCites() != citation || slices.Contains(out, c.GetComputationId()) {
+			continue
+		}
+		if _, retired, err := record.AnchorRetiredAt(run, c.GetComputationId()); err == nil && !retired {
+			out = append(out, c.GetComputationId())
+		}
+	}
+	return out
+}
+
+// retireCitingFirst is blue retiring the computations that apply citation's method before it retires
+// the citation, as the record requires (L6): the citation's retire alone is refused while one stands,
+// naming each, and is then admitted once each has been retired. It reports whether the citation's
+// retire may now land.
+func (r *runner) retireCitingFirst(seatID, citation string) bool {
+	citing := computationsCiting(r.run(), citation)
+	if len(citing) == 0 {
+		return true
+	}
+	out, err := r.do("retire", seatID).set("--anchor", citation).
+		set("--reason", "fuzz: the citation leaves while a computation still applies it").result()
+	if err == nil {
+		r.noteActErr("blue retired citation " + citation + " while computation " + citing[0] + " still applies it, and the retire was recorded")
+		return false
+	}
+	for _, k := range citing {
+		if !strings.Contains(out, k) {
+			r.noteActErr("the retire of citation " + citation + " was refused without naming computation " + k + ", which applies it: " + firstLine(out))
+			return false
+		}
+	}
+	for _, k := range citing {
+		if _, ok := r.do("retire", seatID).set("--anchor", k).
+			set("--reason", "fuzz: the method it applies leaves the report").admit(); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// lastComputationOn is the computation last placed on claim, read off the record, or "".
+func lastComputationOn(run record.Run, claim string) string {
+	b, err := record.FamilyOf(run)
+	if err != nil {
+		return ""
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		if c, ok := recordpb.BodyAs[*recordpb.Computation](b.Events[i]); ok && c.GetLocation() == claim {
+			return c.GetComputationId()
+		}
+	}
+	return ""
 }
 
 // mintBareClaim is the sentence mintBareSeed's run adds and cites, for a lens to prescribe away.
@@ -4912,7 +4989,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.citeForFoundAgainst(seatID)
 		r.stockRepeatedSentence(seatID)
 		r.acceptRepeated(seatID)
-		r.cutLeavingAnchorOut(seatID)
+		r.cutBaringEvidence(seatID)
 		r.citeForBareMint(seatID)
 		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM FATE HERE. settleOpenInquiries owns every later fate: one decision per open
@@ -5082,12 +5159,13 @@ func (r *runner) extras(role, seatID string, open []string) {
 				switch {
 				case id == "" || !r.coin(60):
 					rt.admit()
-				case left:
+				case left && len(computationsCiting(r.run(), id)) == 0:
 					rt.set("--anchor", id).admit()
 				default:
 					// A MARKER DRAWN FROM THE WHOLE REPORT is admitted where it stands bare where the
 					// claim was and refused elsewhere, which is the draw's call; a refused one is
-					// followed by the same retire without it, which is admitted.
+					// followed by the same retire without it, which is admitted. So is a citation the
+					// cut left that a computation still applies: the retire taking it is refused (L6).
 					bare := append([]string(nil), rt.args...)
 					if _, err := rt.set("--anchor", id).result(); err != nil {
 						r.admit(bare...)
@@ -5931,9 +6009,9 @@ type outcome struct {
 	// spansRefused is the cites the tool refused for a span the source does not hold
 	// (runner.spansRefused).
 	spansRefused int
-	// leftOutRefused is the edits the tool refused for leaving bare an anchor their quote left out
-	// (runner.leftOutRefused).
-	leftOutRefused int
+	// bareEvidenceRefused is the edits the tool refused for leaving an evidence anchor bare
+	// (runner.bareEvidenceRefused).
+	bareEvidenceRefused int
 	// mintBareRefused is the mints the tool refused for a prescription that would leave a citation
 	// bare (runner.mintBareRefused).
 	mintBareRefused int
@@ -6480,10 +6558,10 @@ const owedComputationSeed = 4
 // sweep where no run does reads ZERO.
 const absentSpanSeed = 8
 
-// leftOutSeed is the seed whose run is FORCED to cut a claim down to an anchor its quote left out
-// (forceLeftOut). No drawn edit cuts a sentence: every one rewrites words, so the refusal has no other
+// bareEvidenceSeed is the seed whose run is FORCED to cut an evidenced claim, leaving its computation's
+// anchor bare (forceBareEvidence). No drawn edit cuts a sentence: every one rewrites words, so the refusal has no other
 // reach. It is none of the other forced seeds.
-const leftOutSeed = 17
+const bareEvidenceSeed = 17
 
 // mintBareSeed is the seed whose run is FORCED to mint a prescription that would leave a citation bare
 // (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
@@ -6538,7 +6616,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
 	r.forceFoundAgainst = seed == foundAgainstSeed
-	r.forceLeftOut = seed == leftOutSeed
+	r.forceBareEvidence = seed == bareEvidenceSeed
 	r.forceMintBare = seed == mintBareSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
@@ -6633,8 +6711,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "source span: " + r.spanAdmittedErr
 		return res
 	}
-	if r.leftOutAdmittedErr != "" {
-		res.err = "left-out anchor: " + r.leftOutAdmittedErr
+	if r.bareEvidenceAdmittedErr != "" {
+		res.err = "bare evidence anchor: " + r.bareEvidenceAdmittedErr
 		return res
 	}
 	if r.mintBareAdmittedErr != "" {
@@ -7335,7 +7413,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.positionsUpheldLens, res.positionsUpheldGaps, res.positionsOverruled = r.positionsUpheldLens, r.positionsUpheldGaps, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
-	res.leftOutRefused = r.leftOutRefused
+	res.bareEvidenceRefused = r.bareEvidenceRefused
 	res.mintBareRefused = r.mintBareRefused
 	res.sourceSearches = r.sourceSearches
 	res.copiesRead = r.copiesRead
@@ -7387,9 +7465,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err += "; no blue sitting reached the cite"
 		}
 	}
-	if r.forceLeftOut && r.leftOutRefused == 0 && res.err == "" {
-		res.err = "forced left-out anchor: no edit leaving bare an anchor its quote left out was refused"
-		if !r.leftOutDriven {
+	if r.forceBareEvidence && r.bareEvidenceRefused == 0 && res.err == "" {
+		res.err = "forced bare evidence anchor: no edit leaving a computation's anchor bare was refused"
+		if !r.bareEvidenceDriven {
 			res.err += "; blue-respond never sat"
 		}
 	}

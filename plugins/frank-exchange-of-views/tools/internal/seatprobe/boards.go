@@ -287,7 +287,7 @@ Each claim below rests on a cited source.
 		},
 		Expect: []Expectation{
 			{Seat: "blue-respond", Verb: "cite", Because: "A source-kind check is settled by verifying an external source, and the cite verb is the only path that caches it and splices the anchor. Hand-typing a footnote is both refused and pointless."},
-			{Seat: "blue-respond", Verb: "retire", Because: "A claim leaves the report only through this verb. Deleting the sentence with an edit leaves its anchor bare and no account of why the claim went."},
+			{Seat: "blue-respond", Verb: "retire", Because: "A claim leaves the report only through this verb. An edit that cuts a cited sentence is refused for leaving its citation bare; the retire takes the citation off the sentence, keeping it word for word, and records why it went."},
 		},
 	}
 }

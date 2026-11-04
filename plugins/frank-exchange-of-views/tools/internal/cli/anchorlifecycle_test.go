@@ -1,0 +1,277 @@
+package cli
+
+import (
+	"slices"
+	"strings"
+	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+)
+
+// ONE ANCHOR LIFECYCLE, EVERY EVIDENCE KIND (V1a′.1, the verbs' arms). The same script runs for a
+// citation and a computation through the CLI: placed as a gap's answer; an edit leaving it bare is
+// refused, naming `retire --anchor`; a gap about it is admitted while it stands; `retire --anchor`
+// alone takes it out and keeps its sentence word for word, the result naming it by its kind; its
+// check and a gap about it are then refused, each naming the retire, and nothing is recorded.
+func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
+	const sentence, words = "The sky is blue.", "The sky is blue"
+	for _, kind := range []string{"citation", "computation"} {
+		t.Run(kind, func(t *testing.T) {
+			runDir := citedRun(t, "https://sky/1")
+			gap := mintGap(t, runDir, "G", "spec_underspecification")
+			var id string
+			switch kind {
+			case "citation":
+				if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence, "--url", "https://sky/1",
+					"--title", "Source", "--answers", gap); err != nil {
+					t.Fatalf("cite --answers: %v", err)
+				}
+				c := lastBody(t, runDir, &recordpb.Cite{})
+				id = c.GetLabel()
+				if c.GetAnswers() != gap {
+					t.Errorf("the citation answers %q, want %s", c.GetAnswers(), gap)
+				}
+			case "computation":
+				s := script(t, runDir, "sky.js", "console.log('blue');")
+				if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence, "--dir", s,
+					"--reason", "the computation settles it", "--answers", gap, "--", "node", "sky.js"); err != nil {
+					t.Fatalf("compute --answers: %v", err)
+				}
+				c := lastBody(t, runDir, &recordpb.Computation{})
+				id = c.GetComputationId()
+				if c.GetAnswers() != gap {
+					t.Errorf("the computation answers %q, want %s", c.GetAnswers(), gap)
+				}
+			}
+			tok := anchor.Token(id)
+
+			// AN EDIT LEAVING IT BARE IS REFUSED, carried or not, naming the anchor by its kind and the retire.
+			before := readReport(t, runDir)
+			for _, cut := range [][2]string{{words, ""}, {words + tok + ".", tok}} {
+				_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", cut[0], "--new", cut[1], "--reason", "the claim cannot stand", "--answers", gap)
+				if err == nil {
+					t.Fatalf("an edit leaving %s %s bare was recorded (--quote %q)", kind, id, cut[0])
+				}
+				for _, w := range []string{kind + " " + id + " standing bare", "`retire --anchor <its id> --answers " + gap + "`", "Nothing is recorded"} {
+					if !strings.Contains(err.Error(), w) {
+						t.Errorf("the refusal does not say %q:\n%v", w, err)
+					}
+				}
+			}
+			if after := readReport(t, runDir); after != before {
+				t.Fatalf("a refused edit changed the report:\n%s", after)
+			}
+
+			// A GAP ABOUT IT IS ADMITTED WHILE IT STANDS.
+			if _, err := mintWith(t, runDir, "--key", "about-live", "--about-kind", "anchor", "--about", id); err != nil {
+				t.Fatalf("a gap about a live %s was refused: %v", kind, err)
+			}
+
+			// RETIRED ALONE, ITS SENTENCE KEPT.
+			out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", id, "--answers", gap, "--reason", "it does not hold")
+			if err != nil {
+				t.Fatalf("retire --anchor %s alone: %v", id, err)
+			}
+			ev := lastBody(t, runDir, &recordpb.Retire{})
+			if !ev.GetClaimKept() || !slices.Equal(ev.GetAnchors(), []string{id}) || ev.GetClaim() != sentence || ev.GetAnswers() != gap {
+				t.Errorf("the retire recorded claim %q kept=%v anchors %v answers %q, want %q kept, [%s], %s", ev.GetClaim(), ev.GetClaimKept(), ev.GetAnchors(), ev.GetAnswers(), sentence, id, gap)
+			}
+			if !strings.Contains(out, "retired "+kind+" "+id) {
+				t.Errorf("the retire's result does not name the %s by its kind:\n%s", kind, out)
+			}
+			if rep := readReport(t, runDir); strings.Contains(rep, tok) || !strings.Contains(rep, sentence) {
+				t.Errorf("after the retire the report should hold the sentence and not the anchor:\n%s", rep)
+			}
+
+			// ITS CHECK IS REFUSED, NAMING THE RETIRE.
+			check := []string{"verify", "--run", runDir, "--seat-id", lensSeat, "--anchor", id, "--as", "supports", "--confidence", "high", "--reason", "read it"}
+			if kind == "computation" {
+				check = []string{"reproduce", "--run", runDir, "--seat-id", "red-lens-computation", "--anchor", id, "--as", "sound", "--reason", "re-ran it"}
+			}
+			if _, err := run(t, check...); err == nil || !strings.Contains(err.Error(), kind+" "+id+" is retired") || !strings.Contains(err.Error(), `reason: "it does not hold"`) {
+				t.Errorf("a check of the retired %s = %v, want refused naming its retire", kind, err)
+			}
+
+			// A GAP ABOUT IT IS REFUSED, NAMING THE RETIRE, and nothing is recorded.
+			mints := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
+			_, err = mintWith(t, runDir, "--key", "about-retired", "--about-kind", "anchor", "--about", id)
+			if err == nil {
+				t.Fatalf("a gap about a retired %s was recorded", kind)
+			}
+			for _, w := range []string{kind + " " + id + ", which is retired", "blue retired it at event", `reason: "it does not hold"`, "its sentence \"" + sentence + "\" kept", "mint it with --quote"} {
+				if !strings.Contains(err.Error(), w) {
+					t.Errorf("the refusal does not say %q:\n%v", w, err)
+				}
+			}
+			if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != mints {
+				t.Errorf("the refused mint recorded %d mint(s)", n-mints)
+			}
+		})
+	}
+}
+
+// RETRY, CROSS-KIND REFERENCE AND THE CITATION'S ANSWER (V1a′.4, the verbs' arms). A keyed compute
+// retry returns its computation's id; a keyed cite retry naming another gap is refused; a Cite naming no
+// gap is refused by the record past the flag; `--cites` refuses a retired citation; and a citation two
+// live computations apply cannot be retired until both are (ruling L6).
+func TestACitationAComputationAppliesStaysWhileTheComputationDoes(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1", "https://grass/1")
+	g1 := mintGap(t, runDir, "G1", "spec_underspecification")
+	g2 := mintGap(t, runDir, "G2", "invalid_inference")
+
+	// THE KEYED CITE RETRY RESTATES THE GAP IT ANSWERS.
+	cite := func(answers string) (string, error) {
+		return run(t, "cite", "--run", runDir, "--seat-id", blueSeat, "--quote", "The sky is blue.", "--url", "https://sky/1",
+			"--title", "Source", "--key", "C1", "--answers", answers)
+	}
+	if _, err := cite(g1); err != nil {
+		t.Fatalf("cite --answers: %v", err)
+	}
+	c := lastBody(t, runDir, &recordpb.Cite{}).GetLabel()
+	if _, err := cite(g2); err == nil || !strings.Contains(err.Error(), "answers") {
+		t.Errorf("a keyed cite retry naming another gap = %v, want refused naming answers", err)
+	}
+
+	// THE RECORD REFUSES A CITATION ANSWERING NO GAP, past the flag.
+	stray := proto.Clone(lastBody(t, runDir, &recordpb.Cite{})).(*recordpb.Cite)
+	stray.Label, stray.CiteKey, stray.Answers = proto.String(record.NewID("citation")), proto.String("stray"), proto.String("G-0000dead")
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, stray); err == nil || !strings.Contains(err.Error(), "no mint event created") {
+		t.Errorf("a Cite whose answers names no gap = %v, want refused by the record", err)
+	}
+
+	// THE KEYED COMPUTE RETRY RETURNS ITS ID.
+	compute := func(sentence, name, key string) (string, error) {
+		s := script(t, runDir, name, "console.log('it holds');")
+		return run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence, "--dir", s, "--key", key,
+			"--cites", c, "--reason", "the computation settles it", "--", "node", name)
+	}
+	if _, err := compute("Water is wet.", "wet.js", "P1"); err != nil {
+		t.Fatalf("compute --cites: %v", err)
+	}
+	k1 := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
+	if out, err := compute("Water is wet.", "wet.js", "P1"); err != nil || !strings.Contains(out, k1) {
+		t.Errorf("the keyed compute retry = %q (%v), want it to name %s", out, err, k1)
+	}
+	if _, err := compute("Fire is hot.", "hot.js", "P2"); err != nil {
+		t.Fatalf("compute --cites: %v", err)
+	}
+	k2 := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
+
+	// L6: REFUSED WHILE EITHER STANDS, NAMING EACH THAT DOES; ADMITTED ONCE BOTH ARE RETIRED.
+	retire := func(id string) (string, error) {
+		return run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", id, "--reason", "it does not hold")
+	}
+	retires := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE)
+	if _, err := retire(c); err == nil || !strings.Contains(err.Error(), k1) || !strings.Contains(err.Error(), k2) {
+		t.Errorf("retiring %s while %s and %s apply it = %v, want refused naming both", c, k1, k2, err)
+	}
+	if _, err := retire(k1); err != nil {
+		t.Fatalf("retire --anchor %s: %v", k1, err)
+	}
+	if _, err := retire(c); err == nil || strings.Contains(err.Error(), k1) || !strings.Contains(err.Error(), k2) {
+		t.Errorf("retiring %s while %s alone applies it = %v, want refused naming it alone", c, k2, err)
+	}
+	if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != retires+1 {
+		t.Errorf("%d retire(s) recorded, want the computation's alone", n-retires)
+	}
+	if _, err := retire(k2); err != nil {
+		t.Fatalf("retire --anchor %s: %v", k2, err)
+	}
+	if _, err := retire(c); err != nil {
+		t.Fatalf("retiring %s once no live computation applies it: %v", c, err)
+	}
+	if ev := lastBody(t, runDir, &recordpb.Retire{}); !slices.Equal(ev.GetAnchors(), []string{c}) {
+		t.Errorf("the citation's retire took %v, want [%s] alone", ev.GetAnchors(), c)
+	}
+
+	// --CITES A RETIRED CITATION IS REFUSED.
+	if _, err := compute("The grass is green.", "green.js", "P3"); err == nil || !strings.Contains(err.Error(), "retired citation") {
+		t.Errorf("compute --cites a retired citation = %v, want refused", err)
+	}
+}
+
+// A CLAIM RETIRE IS HELD TO L6, AND ONE ACT MAY TAKE BOTH (ruling Same-act L6). Blue's edit cuts the
+// sentence a citation and the computation applying it stood on, carrying both onto the sentence that
+// stays; a claim retire taking the citation alone is refused, naming the computation, and one taking
+// both is admitted.
+func TestAClaimRetireTakesACitationWithTheComputationsApplyingIt(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1")
+	c := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+	s := script(t, runDir, "sky.js", "console.log('blue');")
+	if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "The sky is blue", "--dir", s, "--cites", c,
+		"--reason", "the computation settles it", "--", "node", "sky.js"); err != nil {
+		t.Fatalf("compute --cites: %v", err)
+	}
+	k := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
+	run1 := abutting(t, readReport(t, runDir), "The sky is blue")
+	if !strings.Contains(run1, anchor.Token(c)) || !strings.Contains(run1, anchor.Token(k)) {
+		t.Fatalf("the citation and the computation do not stand at the sentence's end: %q\n%s", run1, readReport(t, runDir))
+	}
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", "The sky is blue"+run1+". The grass is green",
+		"--new", "The grass is green"+run1, "--reason", "the sky claim cannot stand"); err != nil {
+		t.Fatalf("the cut carrying both anchors onto the sentence that stays: %v", err)
+	}
+	retire := func(anchors string) error {
+		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "The sky is blue.", "--anchor", anchors, "--reason", "refuted")
+		return err
+	}
+	if err := retire(c); err == nil || !strings.Contains(err.Error(), k) {
+		t.Errorf("a claim retire taking %s while %s applies it = %v, want refused naming it", c, k, err)
+	}
+	if err := retire(c + "," + k); err != nil {
+		t.Fatalf("a claim retire taking the citation and the computation applying it: %v", err)
+	}
+	if ev := lastBody(t, runDir, &recordpb.Retire{}); !slices.Contains(ev.GetAnchors(), c) || !slices.Contains(ev.GetAnchors(), k) {
+		t.Errorf("the retire took %v, want both %s and %s", ev.GetAnchors(), c, k)
+	}
+}
+
+// abutting is the run of anchor tokens standing right after words in md.
+func abutting(t *testing.T, md, words string) string {
+	t.Helper()
+	at := strings.Index(md, words)
+	if at < 0 {
+		t.Fatalf("the report does not hold %q:\n%s", words, md)
+	}
+	rest := md[at+len(words):]
+	return rest[:anchor.SkipRun(rest, 0)]
+}
+
+// THE RETIRED-ANCHOR REFUSALS ARE ASKED IN THE WRITE. A retire of the citation commits on another
+// seat's connection at the instant a `compute --cites` of it, or a gap about it, opens its write: the
+// flag checks have passed, and the write still refuses each.
+func TestARetireRacingAnActOnItsAnchorRefusesTheAct(t *testing.T) {
+	for _, act := range []string{"compute --cites", "mint --about-kind anchor"} {
+		t.Run(act, func(t *testing.T) {
+			runDir := citedRun(t, "https://sky/1")
+			registerChairOnce(t, runDir)
+			registerLensOnce(t, runDir)
+			c := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+			retired := recordtest.At(t, "blue-lane-1", "race:retire", &recordpb.Retire{Claim: proto.String("The sky is blue."), Reason: proto.String("unreadable"),
+				Anchors: []string{c}, ClaimKept: proto.Bool(true), RemovalBasis: proto.String(record.RemovalAsserted)})
+			s := script(t, runDir, "wet.js", "console.log('wet');")
+			err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{retired}, func() error {
+				var err error
+				if act == "compute --cites" {
+					_, err = run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "Water is wet.", "--dir", s, "--cites", c,
+						"--reason", "the computation settles it", "--", "node", "wet.js")
+				} else {
+					_, err = mintWith(t, runDir, "--key", "race", "--about-kind", "anchor", "--about", c)
+				}
+				return err
+			})
+			if err == nil || !strings.Contains(err.Error(), "retired") {
+				t.Errorf("%s racing the retire of %s = %v, want refused naming the retire", act, c, err)
+			}
+			if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION) + countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); act == "compute --cites" && n != 0 {
+				t.Errorf("the refused compute recorded %d event(s)", n)
+			}
+		})
+	}
+}

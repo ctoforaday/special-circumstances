@@ -47,20 +47,28 @@ func mintRefusedBare(t *testing.T, runDir, quote, new string, want ...string) {
 }
 
 // A PRESCRIPTION THAT WOULD BARE AN ANCHOR IS REFUSED AT THE MINT. Blue's accept refuses an edit that
-// leaves a citation bare, or another anchor bare that it does not carry; the mint asks the same of the
-// edit the accept would make, so the lens hears it while it can still change --new.
-func TestAMintPrescriptionBaringACitationIsRefused(t *testing.T) {
-	runDir := citedRun(t, "https://water/1")
-	registerChairOnce(t, runDir)
-	registerLensOnce(t, runDir)
-	cite := citeSentence(t, runDir, "Water is wet.", "https://water/1")
-	tok := anchor.Token(cite)
-	for _, new := range []string{tok, tok + "."} {
-		mintRefusedBare(t, runDir, "Water is wet", new, "--new would leave citation "+cite, "Keep the sentence in --new")
-	}
-	// Kept on prose, the citation is admitted.
-	if _, err := mintQuote(t, runDir, "K", "Water is wet", "--new", "Water is damp"+tok+".", "--class", "unsourced_claim"); err != nil {
-		t.Errorf("a prescription keeping the citation on prose was refused: %v", err)
+// leaves an evidence anchor bare, carried or not, or another anchor bare that it does not carry; the
+// mint asks the same of the edit the accept would make, so the lens hears it while it can still change
+// --new. The evidence anchor is named by its kind.
+func TestAMintPrescriptionBaringEvidenceIsRefused(t *testing.T) {
+	for _, kind := range anchor.Kinds() {
+		runDir := citedRun(t, "https://water/1")
+		registerChairOnce(t, runDir)
+		registerLensOnce(t, runDir)
+		id, _ := markerOfKind(t, runDir, kind, "Water is wet.")
+		if !anchor.Backs(id) {
+			continue // the rows below
+		}
+		t.Run(kind, func(t *testing.T) {
+			tok := anchor.Token(id)
+			for _, new := range []string{tok, tok + "."} {
+				mintRefusedBare(t, runDir, "Water is wet", new, "--new would leave "+kind+" "+id, "Keep the sentence in --new")
+			}
+			// Kept on prose, the anchor is admitted.
+			if _, err := mintQuote(t, runDir, "K", "Water is wet", "--new", "Water is damp"+tok+".", "--class", "unsourced_claim"); err != nil {
+				t.Errorf("a prescription keeping the %s on prose was refused: %v", kind, err)
+			}
+		})
 	}
 }
 
@@ -68,8 +76,8 @@ func TestAMintPrescriptionBaringAnAnchorItLeavesOutIsRefused(t *testing.T) {
 	const sentence = "She wrote \"water is wet.\""
 	const quote = "She wrote \"water is wet"
 	for _, kind := range anchor.Kinds() {
-		if kind == "citation" {
-			continue // carried or not, the row above
+		if kind == "citation" || kind == "computation" {
+			continue // evidence, carried or not: the row above
 		}
 		t.Run(kind, func(t *testing.T) {
 			runDir := quotedRun(t)
@@ -103,23 +111,20 @@ func TestAMintPrescriptionBaringAnAnchorItLeavesOutIsRefused(t *testing.T) {
 	}
 }
 
-// A PRESCRIPTION THAT CARRIES THE ANCHOR IS ADMITTED, bare or not: the accept moves an anchor at the
-// sentence's end with the gap's, and one carried may stand bare until blue retires the claim.
+// A PRESCRIPTION THAT CARRIES THE ANCHOR IS ADMITTED, bare or not: the accept moves a finding or gap
+// anchor at the sentence's end with the gap's, and one carried may stand bare until blue retires the
+// claim. Evidence never stands bare (the row above).
 func TestAMintPrescriptionCarryingTheAnchorIsAdmitted(t *testing.T) {
 	for _, kind := range anchor.Kinds() {
-		if kind == "citation" {
-			continue // a citation never stands bare
+		if kind == "citation" || kind == "computation" {
+			continue // evidence never stands bare
 		}
 		t.Run(kind, func(t *testing.T) {
 			runDir := citedRun(t, "https://water/1")
 			registerChairOnce(t, runDir)
 			registerLensOnce(t, runDir)
-			id, _ := markerOfKind(t, runDir, kind, "Water is wet.")
-			new := "."
-			if anchor.Backs(id) {
-				new = anchor.Token(id) + "."
-			}
-			gap, err := mintQuote(t, runDir, "P", "Water is wet", "--new", new, "--class", "unsourced_claim")
+			_, _ = markerOfKind(t, runDir, kind, "Water is wet.")
+			gap, err := mintQuote(t, runDir, "P", "Water is wet", "--new", ".", "--class", "unsourced_claim")
 			if err != nil {
 				t.Fatalf("a prescription carrying the %s anchor was refused: %v", kind, err)
 			}
@@ -137,14 +142,14 @@ func TestAMintPrescriptionCarryingTheAnchorIsAdmitted(t *testing.T) {
 func TestAReadingPrescriptionBaringAnAnchorTheSentenceLeavesOutIsRefused(t *testing.T) {
 	const sentence = "She wrote \"water is wet.\""
 	runDir := quotedRun(t)
-	id, _ := markerOfKind(t, runDir, "computation", sentence)
+	id, _ := markerOfKind(t, runDir, "finding", sentence)
 	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat, "--quote", "She wrote \"water is wet",
 		"--url", "https://water/1", "--title", "Source"); err != nil {
 		t.Fatalf("cite: %v", err)
 	}
 	cite := lastBody(t, runDir, &recordpb.Cite{}).GetLabel()
 	if rep := readReport(t, runDir); !strings.Contains(rep, "wet"+anchor.Token(cite)+".\""+anchor.Token(id)) {
-		t.Fatalf("the computation does not stand past the closing quotation mark, after the citation's sentence:\n%s", rep)
+		t.Fatalf("the finding does not stand past the closing quotation mark, after the citation's sentence:\n%s", rep)
 	}
 	verifies := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_VERIFY)
 	mints := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)

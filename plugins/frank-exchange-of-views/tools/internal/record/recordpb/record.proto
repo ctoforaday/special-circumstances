@@ -358,8 +358,8 @@ enum RunOutcome {
 enum CheckKind {
   CHECK_KIND_UNSPECIFIED = 0;
   CHECK_KIND_DOCUMENT = 1 [(means) = "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"];
-  CHECK_KIND_COMPUTATION = 2 [(means) = "RUNNING something settles it. {{.DemandClause}}. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"];
-  CHECK_KIND_SOURCE = 3 [(means) = "verifying an external source settles it: the claim stands or falls on what the cited material says. {{.DemandClause}}"];
+  CHECK_KIND_COMPUTATION = 2 [(means) = "RUNNING something settles it. The demand on its close: {{.DemandClause}}. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"];
+  CHECK_KIND_SOURCE = 3 [(means) = "verifying an external source settles it: the claim stands or falls on what the cited material says. The demand on its close: {{.DemandClause}}"];
 }
 
 // ClassMaterial is where a gap's materiality starts: from its class. A claim, figure or citation

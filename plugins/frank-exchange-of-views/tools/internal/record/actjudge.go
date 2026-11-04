@@ -74,6 +74,12 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// THE RUN'S TERMINAL ACT. The verdict itself is derived and needs no defence; a motion whose
 		// gavel is the bench's, standing unruled, is a settlement the run would record without it.
 		return requireBenchMotionsRuled(q)
+	case *recordpb.Retire:
+		// L6, OF EVERY ANCHOR THE RETIRE TAKES: an anchor-alone retire and a claim retire alike, asked
+		// in the write's transaction. It is a rule of the act, not of the record's shape: universe-m37
+		// retired a citation its computation K-93f0a1a7 still applied (event 859), and its replay
+		// writes that retire as it was made.
+		return requireCitationUncited(q, b.GetAnchors())
 	case *recordpb.Cite:
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT: the tool finds the span in the
 		// cached text before it writes.

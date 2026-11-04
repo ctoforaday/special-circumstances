@@ -359,11 +359,30 @@ type AnchorRetire struct {
 // for an anchor no retire named — then it is a stale reference or another run's id, and the caller
 // says so.
 func AnchorRetiredAt(run Run, id string) (r AnchorRetire, found bool, err error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return r, false, err
+	}
+	return anchorRetiredAt(db, id)
+}
+
+// anchorRetiredAt is AnchorRetiredAt asked of q — on the write path the writing transaction, so a
+// check that refuses an act on a retired anchor and the retire racing it cannot both land.
+func anchorRetiredAt(q recordsql.Querier, id string) (r AnchorRetire, found bool, err error) {
 	var c, why sql.NullString
 	var k sql.NullBool
-	found, err = queryRow(run, []any{&r.Event, &c, &why, &k},
+	found, err = queryRowAt(q, []any{&r.Event, &c, &why, &k},
 		`SELECT r."event_id", r."claim", r."reason", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
 		 WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1`, id)
 	r.Claim, r.Reason, r.Kept = c.String, why.String, k.Bool
 	return r, found, err
+}
+
+// Said is the retire as a refusal names it: its event, its reason, and whether the sentence stayed.
+func (r AnchorRetire) Said() string {
+	kept := "it left the report with its claim " + quoted(r.Claim)
+	if r.Kept {
+		kept = "its sentence " + quoted(r.Claim) + " kept"
+	}
+	return fmt.Sprintf("blue retired it at event %d (%s; %s)", r.Event, reasonOf(r.Reason), kept)
 }

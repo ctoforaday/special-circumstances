@@ -999,6 +999,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
+		if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
+		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
 		// The 2026-08-05 smoke produced ZERO computations across a full run. Not because blue
@@ -1071,7 +1074,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
+		if err := requireLiveCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
 			return err
 		}
 	case *recordpb.Reproduce:
@@ -1477,7 +1480,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// claim answers the gap, and a second answer from the retire would join one repair to the gap
 		// twice.
 		if b.GetAnswers() != "" && !b.GetClaimKept() {
-			return fmt.Errorf("--answers names the gap a citation retire answers — a retire naming one citation and no claim. A claim leaves through the edit that cut it, and that edit names the gap it answers")
+			return fmt.Errorf("--answers names the gap an evidence-anchor retire answers — a retire naming one citation or computation and no claim. A claim leaves through the edit that cut it, and that edit names the gap it answers")
 		}
 		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
@@ -1621,6 +1624,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	case *recordpb.Halt:
 	case *recordpb.Certify:
 	case *recordpb.Cite:
+		// THE GAP A CITATION ANSWERS RESOLVES, as a computation's does: a dangling --answers is refused
+		// here rather than accepted and dropped at replay.
+		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+			return err
+		}
 		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool
 		// defect, not a seat's omission — so the refusal names no flag. The OCR pins are refused
 		// on any other origin: a page list on an author's own text has no reading to have been
