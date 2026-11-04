@@ -6,6 +6,10 @@ import (
 	"os"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/doctor"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/gcpolicy"
 )
 
-func main() { os.Exit(doctor.Main()) }
+func main() {
+	gcpolicy.Short()
+	os.Exit(doctor.Main())
+}

@@ -14,10 +14,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
 
 func main() {
+	gcpolicy.Short()
 	run := flag.String("run", "", "the run directory whose record to append to")
 	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call), failure (a call failed) envelope (the record's refusal of the seat's envelope, printed) or admission (the call returning the seat's envelope succeeded, recorded as admitted)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")

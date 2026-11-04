@@ -5,7 +5,7 @@
 // THE FAILURE. Every agent and skill declares its capabilities in YAML
 // frontmatter, and Claude Code's loader responds to a parse failure by dropping the WHOLE
 // block — name, tools, skills, model, all of it — and loading the file anyway with empty
-// metadata. Nothing raises. An agent that declared `tools: Read, Write, Bash` and
+// metadata. Nothing raises. An agent that declared `tools: [Read, Write, Bash]` and
 // `skills: [...]` runs with neither, behaving exactly like an agent whose declarations do
 // not work.
 //
@@ -96,6 +96,7 @@ func check(file, text string) (problems []problem, scanned bool) {
 	}
 
 	problems = append(problems, skillNameProblems(file, doc)...)
+	problems = append(problems, agentToolsProblems(file, doc)...)
 
 	// Then the thing no parser can see: valid YAML that does not mean what it says.
 	for i, line := range strings.Split(block, "\n") {
@@ -139,6 +140,45 @@ func skillNameProblems(file string, doc map[string]any) []problem {
 			file, name, dir, plugin, name, plugin, dir))}
 	}
 	return nil
+}
+
+// agentListKeys are the agent frontmatter fields Antigravity's loader decodes as `[]string`.
+var agentListKeys = []string{"tools", "skills"}
+
+// agentToolsProblems refuses an agent whose `tools` or `skills` frontmatter field is not a YAML
+// sequence of non-empty strings.
+//
+// Antigravity's loader unmarshals these fields into `[]string` and skips the entire agent when
+// one is a comma-separated scalar (`cannot unmarshal !!str ... into []string`) — the agent
+// vanishes from `agy agents` and nothing else says so. A YAML sequence
+// (`tools: [Read, Write, Bash]`) loads in both Claude Code and Antigravity.
+func agentToolsProblems(file string, doc map[string]any) []problem {
+	if !agentFile.MatchString(filepath.ToSlash(file)) {
+		return nil
+	}
+	var problems []problem
+	for _, key := range agentListKeys {
+		raw, exists := doc[key]
+		if !exists {
+			continue
+		}
+		items, ok := raw.([]any)
+		if !ok || len(items) == 0 {
+			problems = append(problems, problem(fmt.Sprintf(
+				"%s: `%s` must be a non-empty YAML sequence (e.g. `%s: [a, b]`), got %T — Antigravity's loader unmarshals it into `[]string` and skips the whole agent on a scalar.",
+				file, key, key, raw)))
+			continue
+		}
+		for _, it := range items {
+			if s, ok := it.(string); !ok || strings.TrimSpace(s) == "" {
+				problems = append(problems, problem(fmt.Sprintf(
+					"%s: every entry in `%s` must be a non-empty string, got %v.",
+					file, key, it)))
+				break
+			}
+		}
+	}
+	return problems
 }
 
 // mustCarryFrontmatter says which files are BROKEN rather than merely plain when they have no

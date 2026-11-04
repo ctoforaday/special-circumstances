@@ -684,16 +684,15 @@ message Event {
   //
   // The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
   // collision is unrepresentable. "Which dispatch was this" is still answerable — it is the rank of
-  // the row's stored sitting among that seat's stored sittings, which is what events_w."sitting"
-  // is.
+  // the row's stored sitting among that seat's stored sittings, which is what events.sitting
+  // stores.
   //
   // `round` WAS FIELD 5 AND IS GONE (plans/roundless.md §III.A.2). It was the third stamped
-  // derivation on this envelope, and the last: first recovered from the seat id by regex, then
-  // counted from chair registers in the write's own transaction. Both were a READ-BEFORE-WRITE
-  // to store a number the record could already answer, and the answer is a window function over
-  // this table — events_w."epoch" for the chair-sitting count, events_w."sitting" for the seat's
-  // own — computed when a reader wants it, exactly as seq's removal argued above. The debate no
-  // longer has rounds; the record has a sequence ("id") and two clocks derived from it.
+  // derivation on this envelope: first recovered from the seat id by regex, then counted from
+  // chair registers in the write's own transaction. The debate has no rounds; the record has a
+  // sequence ("id") and two clocks derived from it — events.epoch for the chair-sitting count,
+  // events.sitting for the seat's own — which the write path stamps from the rows below each new
+  // one (recordsql.sittingOf), so no seat carries or supplies either.
   reserved 5;
   reserved "round";
 
@@ -2381,7 +2380,7 @@ message SittingClose {
 //
 // UNLIKE THE SPAN ENDS IT NAMES THE SEAT. A limit is counted from a register, so the agent is
 // already bound, and the writer resolves the seat from that binding rather than taking it from
-// the hook. The sitting is the seat's own sitting number, as events_w counts it: one per opening
+// the hook. The sitting is the seat's own sitting number, as events.sitting stores it: one per opening
 // — a register of its own, or a harness bracket that names it — and a sitting-record repair opens
 // none.
 message SittingLimit {
@@ -2418,7 +2417,7 @@ message Cast {
 // Dispatch is the chair engaging ONE party: the seat, the gaps it is engaged on, and the report
 // head it is to audit (plans/roundless.md §III.B.1). The chair's `dispatch next` writes one of
 // these per ready party in one sitting, so "dispatch D" — the unit the parity audit and the
-// exchange counter reason about — is the set written in one chair sitting, read off events_w.
+// exchange counter reason about — is the set written in one chair sitting, read off events.epoch.
 //
 // ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is

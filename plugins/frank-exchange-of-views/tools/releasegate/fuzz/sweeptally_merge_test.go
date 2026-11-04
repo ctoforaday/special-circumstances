@@ -291,6 +291,17 @@ func TestParseSweepPart(t *testing.T) {
 	if !(sweepPart{K: 0, Of: 4}).armsSweepDrives() || (sweepPart{K: 1, Of: 4}).armsSweepDrives() || !wholeSweep.armsSweepDrives() {
 		t.Error("the once-per-sweep drives arm in part 0 and in the whole sweep, and in no other part")
 	}
+	for of := 1; of <= 6; of++ {
+		var runs []int
+		for k := 0; k < of; k++ {
+			if (sweepPart{K: k, Of: of}).runsSweepPaths() {
+				runs = append(runs, k)
+			}
+		}
+		if len(runs) != 1 || (of > 1 && runs[0] == 0) {
+			t.Errorf("of %d part(s), %v run the dedicated paths; want exactly one, and not part 0 when there are several", of, runs)
+		}
+	}
 }
 
 // THE FOLD READS EVERY FIELD A RUN CARRIES AND WRITES EVERY FIELD THE GATES READ. A run field the

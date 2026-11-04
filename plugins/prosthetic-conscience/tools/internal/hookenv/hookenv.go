@@ -24,15 +24,13 @@ package hookenv
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // ProjectDir returns the project root, preferring the environment and falling back to the
 // payload the harness already sent. Empty means genuinely unknown.
 func ProjectDir(env, payloadCWD string) string {
-	if env != "" {
-		return env
-	}
-	return payloadCWD
+	return hookcore.ProjectDir(env, payloadCWD, nil, "")
 }
 
 // StageProjectRoot is recorded when no project root resolves: every hook that calls Explain then

@@ -87,7 +87,11 @@ func TestNoHookGuessesAProjectRootFromItsWorkingDirectory(t *testing.T) {
 func withoutProjectRoot(env []string) []string {
 	out := env[:0:0]
 	for _, kv := range env {
-		if strings.HasPrefix(kv, "CLAUDE_PROJECT_DIR=") || strings.HasPrefix(kv, "CLAUDE_PLUGIN_ROOT=") {
+		if strings.HasPrefix(kv, "CLAUDE_PROJECT_DIR=") ||
+			strings.HasPrefix(kv, "CLAUDE_PLUGIN_ROOT=") ||
+			strings.HasPrefix(kv, "PLUGIN_ROOT=") ||
+			strings.HasPrefix(kv, "PLUGIN_DATA=") ||
+			strings.HasPrefix(kv, "ANTIGRAVITY_CONVERSATION_ID=") {
 			continue
 		}
 		out = append(out, kv)

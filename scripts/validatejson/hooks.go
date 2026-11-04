@@ -39,12 +39,68 @@ func keySet(keys ...string) map[string]bool {
 	return s
 }
 
-// isPluginHooks reports whether a tracked, slash-separated path is a plugin's hooks.json. path.Match,
-// not filepath.Match: on Windows the latter's `*` also crosses `/`, and would accept a hooks.json
-// nested one directory deeper than any plugin puts one.
+// isPluginHooks reports whether a tracked, slash-separated path is a Claude plugin's hooks.json.
 func isPluginHooks(p string) bool {
-	ok, _ := path.Match("plugins/*/hooks/hooks.json", filepath.ToSlash(p))
+	ok, _ := path.Match("plugins/*/.claude-plugin/hooks.json", filepath.ToSlash(p))
 	return ok
+}
+
+// isAntigravityPluginHooks reports whether a tracked, slash-separated path is an Antigravity plugin's hooks.json.
+func isAntigravityPluginHooks(p string) bool {
+	ok, _ := path.Match("plugins/*/hooks.json", filepath.ToSlash(p))
+	return ok
+}
+
+var agyAllowedEvents = keySet(
+	"SessionStart", "PreInvocation", "PreTool", "PreToolUse",
+	"PostTool", "PostToolUse", "PostInvocation", "Stop",
+)
+
+func antigravityHookKeyProblems(b []byte) []string {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(b, &top); err != nil {
+		return []string{"not a JSON object: " + err.Error()}
+	}
+	if len(top) == 0 {
+		return []string{"empty hooks.json registers nothing"}
+	}
+	var out []string
+	for groupName, groupRaw := range top {
+		var events map[string]json.RawMessage
+		if err := json.Unmarshal(groupRaw, &events); err != nil {
+			out = append(out, fmt.Sprintf("group %q is not an object: %v", groupName, err))
+			continue
+		}
+		for ev, evRaw := range events {
+			if !agyAllowedEvents[ev] {
+				out = append(out, fmt.Sprintf("group %q: event %q is not a known Antigravity hook event", groupName, ev))
+				continue
+			}
+			var list []map[string]json.RawMessage
+			if err := json.Unmarshal(evRaw, &list); err != nil {
+				out = append(out, fmt.Sprintf("group %q event %q is not an array: %v", groupName, ev, err))
+				continue
+			}
+			for i, item := range list {
+				at := fmt.Sprintf("group %q event %q[%d]", groupName, ev, i)
+				switch ev {
+				case "PreTool", "PreToolUse", "PostTool", "PostToolUse":
+					if _, hasHooks := item["hooks"]; !hasHooks {
+						if _, hasCmd := item["command"]; !hasCmd {
+							out = append(out, at+": tool hook entry must specify 'hooks' or 'command'")
+						}
+					}
+				default:
+					if _, hasCmd := item["command"]; !hasCmd {
+						if _, hasHooks := item["hooks"]; !hasHooks {
+							out = append(out, at+": lifecycle hook entry must specify 'command'")
+						}
+					}
+				}
+			}
+		}
+	}
+	return out
 }
 
 // hookKeyProblems names every key in a plugin hooks.json that the hooks reference does not

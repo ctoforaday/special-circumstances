@@ -8,7 +8,7 @@ Put a pull request body against the trajectory. Model [[terse-communication]]: r
 The adjudication lives in the tested binary, not in this prompt. Your job is to run it and report what it says.
 
 1. Get the body into a file — from the pull request, or from the draft you are about to post. If there is no body, say so in one line and stop.
-2. Run `${CLAUDE_PLUGIN_ROOT}/bin/gray-area` (`.exe` on Windows) as `gray-area pr <body.md>`, passing `--json` straight through if the caller gave it. With no transcript argument the binary resolves this session's from gray-area's own manifest and prints which row it used.
+2. Run `gray-area` (`B="${CLAUDE_PLUGIN_ROOT}/bin/gray-area"; [ -x "$B" ] || B="gray-area"; "$B" pr <body.md>`, append `.exe` on Windows), passing `--json` straight through if the caller gave it. With no transcript argument the binary resolves this session's from gray-area's own manifest and prints which row it used.
 3. Relay the rows verbatim, including the closing line.
 
 **THE BOUNDARY, AND YOU MUST NOT CROSS IT.** The trajectory records what was **RUN**. It does not record what the run **SAID** — result bodies are conversation content and this plugin does not copy them. So a claim like ``` `go run ./check` → 26 passed ``` splits into an act this record can check and an outcome it cannot see at all. Every row whose claim asserted an outcome prints `NOT MEASURED:` naming it.

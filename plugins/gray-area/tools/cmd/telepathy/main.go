@@ -18,7 +18,11 @@ package main
 import (
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/telecli"
 )
 
-func main() { os.Exit(telecli.Execute()) }
+func main() {
+	gcpolicy.Short()
+	os.Exit(telecli.Execute())
+}

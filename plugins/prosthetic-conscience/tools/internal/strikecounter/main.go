@@ -66,6 +66,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikes"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 type hookInput struct {
@@ -131,15 +132,21 @@ func target(key string) string {
 // same call failed three times in fifteen minutes, and does not know whether the approach
 // changed between them. Naming what it actually observed leaves the judgement where
 // anti-spinning puts it, and makes the claim falsifiable.
-func message(in hookInput, key string, count int) string {
+// Message is what the model (and the operator) are handed on the third strike.
+//
+// It states the COUNT and the WINDOW rather than asserting a verdict: the hook knows the
+// same call failed three times in fifteen minutes, and does not know whether the approach
+// changed between them. Naming what it actually observed leaves the judgement where
+// anti-spinning puts it, and makes the claim falsifiable.
+func Message(toolName, errText, key string, count int) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "anti-spinning: %s has now failed %d times in %s at the same target",
-		in.ToolName, count, strikes.Window)
+		toolName, count, strikes.Window)
 	if t := target(key); t != "" {
 		fmt.Fprintf(&b, " (%s)", t)
 	}
 	b.WriteString(". ")
-	if e := excerpt(in.Error); e != "" {
+	if e := excerpt(errText); e != "" {
 		fmt.Fprintf(&b, "Last error: %s. ", e)
 	}
 	// It never blocks, and a message arriving at a failure reads like the cause of it.
@@ -148,25 +155,26 @@ func message(in hookInput, key string, count int) string {
 	return b.String()
 }
 
+func message(in hookInput, key string, count int) string {
+	return Message(in.ToolName, in.Error, key, count)
+}
+
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
 	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-strike-counter")) {
 		return 0
 	}
 
-	raw, _ := io.ReadAll(stdin)
-	var in hookInput
-	_ = json.Unmarshal(raw, &in)
-
-	// HONOR THE CANCEL. anti-spinning's other clause: a user interrupt is not a failed
-	// attempt, and counting it would have the rule nag about the act of stopping.
-	if in.IsInterrupt {
-		return 0
-	}
-	if in.ToolName == "" {
+	req := hookcore.Read("PostToolUseFailure", stdin)
+	if req.IsInterrupt || req.ToolName == "" {
 		return 0
 	}
 
-	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	if projectDir == "" {
+		projectDir = req.ProjectDir
+	} else {
+		projectDir = hookenv.ProjectDir(projectDir, "")
+	}
+
 	rec := hookfailures.New("prosthetic-conscience", "sc-strike-counter", "PostToolUseFailure", now, stderr)
 	if !hookenv.Explain(projectDir, rec, "sc-strike-counter") {
 		rec.Persist() // recorded, not said: no project root means no stdout at all
@@ -182,7 +190,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	} else {
 		rec.OKIn(StageStrikesRead, projectDir)
 	}
-	key := strikes.Key(in.ToolName, in.ToolInput)
+	key := strikes.Key(req.ToolName, req.ToolInput)
 	count, tripped := strikes.Record(&state, key, now)
 	if err := strikes.Save(path, state); err != nil {
 		rec.FailIn(StageStrikesWrite, projectDir, "cannot write "+path+": "+err.Error()+
@@ -191,36 +199,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		rec.OKIn(StageStrikesWrite, projectDir)
 	}
 
-	if !tripped {
-		emit(stdout, "", rec)
-		return 0
+	var msg string
+	if tripped {
+		msg = Message(req.ToolName, req.ToolError, key, count)
+		fmt.Fprintln(stderr, msg)
 	}
 
-	msg := message(in, key, count)
-	// Both channels, deliberately — see the package comment. Injection is measured (#234);
-	// stderr is for the operator watching the session, not a fallback for a doubted one.
-	fmt.Fprintln(stderr, msg)
-	emit(stdout, msg, rec)
-	return 0
-}
+	resp := hookcore.Response{
+		AdditionalContext: msg,
+	}
 
-// emit writes this event's ONE document: the strike for the agent, the record's message for the
-// human, or nothing.
-func emit(stdout io.Writer, msg string, rec *hookfailures.Recorder) {
-	said := rec.Settle()
-	if msg == "" && said == "" {
-		return
-	}
-	var out hookOutput
-	out.HookSpecificOutput.HookEventName = "PostToolUseFailure"
-	out.HookSpecificOutput.AdditionalContext = msg
-	out.SystemMessage = said
-	if err := json.NewEncoder(stdout).Encode(out); err != nil {
-		// The encode used to be discarded outright (`_ =`): a strike counted and never delivered,
-		// on the one hook whose whole job is to interrupt a loop.
-		rec.Fail(StageEncode, "cannot encode response: "+err.Error())
-		rec.Persist()
-	}
+	return hookcore.Respond(req, resp, stdout, stderr, rec)
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

@@ -86,9 +86,9 @@ func main() {
 		if _, err := os.Stat(filepath.Join(root, "plugins", p, "bin", ".gitkeep")); err != nil {
 			problems = append(problems, fmt.Sprintf("plugins/%s ships binaries but has no bin/.gitkeep, so a fresh install has no bin/ to put on PATH", p))
 		}
-		hj, err := os.ReadFile(filepath.Join(root, "plugins", p, "hooks", "hooks.json"))
+		hj, err := os.ReadFile(filepath.Join(root, "plugins", p, ".claude-plugin", "hooks.json"))
 		if err != nil {
-			problems = append(problems, fmt.Sprintf("plugins/%s ships binaries but its hooks/hooks.json cannot be read: %v", p, err))
+			problems = append(problems, fmt.Sprintf("plugins/%s ships binaries but its .claude-plugin/hooks.json cannot be read: %v", p, err))
 			continue
 		}
 		problems = append(problems, guardProblems(p, hj)...)
@@ -153,7 +153,7 @@ func guardProblems(plugin string, data []byte) []string {
 		} `json:"hooks"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return []string{fmt.Sprintf("plugins/%s/hooks/hooks.json does not parse: %v", plugin, err)}
+		return []string{fmt.Sprintf("plugins/%s/.claude-plugin/hooks.json does not parse: %v", plugin, err)}
 	}
 	events := make([]string, 0, len(doc.Hooks))
 	for ev := range doc.Hooks {

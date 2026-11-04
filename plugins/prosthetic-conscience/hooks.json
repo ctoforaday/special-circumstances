@@ -1,0 +1,39 @@
+{
+  "prosthetic-conscience-hooks": {
+    "SessionStart": [
+      {
+        "command": "R=\"${PWD}\"; B=\"$R/bin/sc-sessionstart\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SessionStart; fi"
+      }
+    ],
+    "PreInvocation": [
+      {
+        "command": "R=\"${PWD}\"; B=\"$R/bin/sc-sessionstart\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event PreInvocation; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PreInvocation; fi"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "read_url_content|read_browser_page|search_web|run_command",
+        "hooks": [
+          {
+            "command": "R=\"${PWD}\"; B=\"$R/bin/sc-pretooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PreToolUse; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "command": "R=\"${PWD}\"; B=\"$R/bin/sc-posttooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PostToolUse; fi"
+          }
+        ]
+      }
+    ],
+    "PostInvocation": [
+      {
+        "command": "R=\"${PWD}\"; B=\"$R/bin/sc-stop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook Stop; fi"
+      }
+    ]
+  }
+}

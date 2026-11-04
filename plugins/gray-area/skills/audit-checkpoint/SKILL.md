@@ -8,7 +8,7 @@ Adjudicate a sealed checkpoint against the trajectory. Model [[terse-communicati
 The check logic lives in the tested binary, not in this prompt. Your job is to run it and report what it says.
 
 1. Locate the note — active `projects/<name>/` or `research/<slug>/`, else `.claude/checkpoints/CHECKPOINT.md`. If none exists, say so in one line and stop. Do NOT reconstruct one; an invented note is adjudicated exactly as seriously as a real one.
-2. Run `${CLAUDE_PLUGIN_ROOT}/bin/gray-area` (`.exe` on Windows) as `gray-area checkpoint <note>`, passing `--json` straight through if the caller gave it. With no transcript argument the binary resolves this session's from gray-area's own manifest and prints which row it used; pass a transcript path only when auditing a different session.
+2. Run `gray-area` (`B="${CLAUDE_PLUGIN_ROOT}/bin/gray-area"; [ -x "$B" ] || B="gray-area"; "$B" checkpoint <note>`, append `.exe` on Windows), passing `--json` straight through if the caller gave it. With no transcript argument the binary resolves this session's from gray-area's own manifest and prints which row it used; pass a transcript path only when auditing a different session.
 3. Relay the rows verbatim. Exit is non-zero when anything is `STALE` or `NO-EVIDENCE`.
 
 **Read the verdicts as written, and do not upgrade them.**

@@ -117,3 +117,82 @@ func TestAPluginWithBinariesButNoVersionIsRefused(t *testing.T) {
 		t.Fatal("a plugin with binaries and no version has no tag to pin to")
 	}
 }
+
+func TestRenderAntigravityManifestCopiesSharedFieldsAndStripsClaudeOnlyFields(t *testing.T) {
+	in := `{
+  "name": "frank-exchange-of-views",
+  "displayName": "Special Circumstances — Frank Exchange of Views",
+  "version": "0.14.0",
+  "description": "Structured multi-agent debate — adversarial",
+  "author": {
+    "name": "Greg Block"
+  },
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "debate"
+  ],
+  "dependencies": [
+    "prosthetic-conscience"
+  ],
+  "hooks": "./.claude-plugin/hooks.json"
+}`
+	out, err := renderAntigravityManifest("frank-exchange-of-views", []byte(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(out)
+	if strings.Contains(s, "dependencies") || strings.Contains(s, "hooks") {
+		t.Fatalf("Claude-only fields leaked into .antigravity-plugin/plugin.json:\n%s", s)
+	}
+	for _, want := range []string{
+		`"name": "frank-exchange-of-views"`,
+		`"displayName": "Special Circumstances — Frank Exchange of Views"`,
+		`"version": "0.14.0"`,
+		`"description": "Structured multi-agent debate — adversarial"`,
+		`"name": "Greg Block"`,
+		`"license": "MIT"`,
+		`"research"`,
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("missing %s in output:\n%s", want, s)
+		}
+	}
+}
+
+func TestRenderAntigravityManifestRefusesUnknownClaudeManifestField(t *testing.T) {
+	in := `{"name":"bins","version":"1.2.0","unexpected":true}`
+	if _, err := renderAntigravityManifest("bins", []byte(in)); err == nil {
+		t.Fatal("expected unknown field in .claude-plugin/plugin.json to be refused")
+	}
+}
+
+func TestRenderAntigravityManifestRefusesMismatchedNameOrMissingVersion(t *testing.T) {
+	if _, err := renderAntigravityManifest("bins", []byte(`{"name":"other","version":"1.2.0"}`)); err == nil {
+		t.Fatal("expected mismatched name to be refused")
+	}
+	if _, err := renderAntigravityManifest("bins", []byte(`{"name":"bins"}`)); err == nil {
+		t.Fatal("expected missing version to be refused")
+	}
+}
+
+func TestSyncAntigravityManifestsDetectsMissingAndStaleFiles(t *testing.T) {
+	root := fixture(t)
+	marketBytes, err := render(root, []byte(manifestIn))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := syncAntigravityManifests(root, marketBytes, true); err == nil {
+		t.Fatal("expected check=true to fail when .antigravity-plugin/plugin.json files do not exist")
+	}
+	if err := syncAntigravityManifests(root, marketBytes, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := syncAntigravityManifests(root, marketBytes, true); err != nil {
+		t.Fatalf("expected check=true to pass after writing manifests: %v", err)
+	}
+	writeFile(t, filepath.Join(root, "plugins", "bins", ".antigravity-plugin", "plugin.json"), `{"name":"bins","version":"0.0.1"}`)
+	if err := syncAntigravityManifests(root, marketBytes, true); err == nil {
+		t.Fatal("expected check=true to fail when .antigravity-plugin/plugin.json is stale")
+	}
+}

@@ -31,7 +31,7 @@
 package sessionstart
 
 import (
-	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -45,6 +45,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchainnudge"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 type hookOutput struct {
@@ -92,27 +93,32 @@ func merge(results []hookunit.Result) (text string, watch []string, logged strin
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
-	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-sessionstart")) {
+	eventName := "SessionStart"
+	declare := func(fs *flag.FlagSet) {
+		fs.StringVar(&eventName, "event", "SessionStart", "hook event name")
+	}
+	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-sessionstart"), declare) {
 		return 0
 	}
 
-	raw, _ := io.ReadAll(stdin)
-	var in struct {
-		CWD string `json:"cwd"`
+	req := hookcore.Read(eventName, stdin)
+	if projectDir == "" {
+		projectDir = req.ProjectDir
+	} else {
+		projectDir = hookenv.ProjectDir(projectDir, "")
 	}
-	_ = json.Unmarshal(raw, &in)
 
-	rec := hookfailures.New("prosthetic-conscience", "sc-sessionstart", "SessionStart", now, stderr)
+	rec := hookfailures.New("prosthetic-conscience", "sc-sessionstart", eventName, now, stderr)
 	// THE VERSION CHECK IS THIS HOOK'S TOO, so SessionStart has one hook in this plugin. It runs
 	// before the project root is resolved: the binaries are the machine's, and a session with no
 	// root still heals — only the message waits, because such a session writes nothing to stdout.
-	healed, err := ensure("SessionStart")
+	healed, err := ensure(eventName)
 	if err != nil {
 		rec.Fail(hookfailures.StageEnsure, "sc-sessionstart: "+err.Error())
 	} else {
 		rec.OK(hookfailures.StageEnsure)
 	}
-	ctx := hookunit.NewCtx("SessionStart", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
+	ctx := hookunit.NewCtx(eventName, req.Raw, projectDir, now, rec)
 	if !hookenv.Explain(ctx.ProjectDir, rec, "sc-sessionstart") {
 		// Recorded, and NOT said here: a hook with no project root writes nothing to stdout
 		// (projectroot_test.go pins that for every binary). The next event that resolves one
@@ -126,23 +132,16 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		fmt.Fprintln(stderr, logged)
 	}
 	said := hookfailures.JoinMessages(healed, rec.Settle())
-	// Silence is a valid outcome and MUST stay silent. watchPaths alone is reason enough to
-	// speak: a note can be worth watching with nothing to say about it.
-	if strings.TrimSpace(text) == "" && len(watch) == 0 && said == "" {
+	if strings.TrimSpace(text) == "" && len(watch) == 0 && strings.TrimSpace(said) == "" {
 		return 0
 	}
-	var out hookOutput
-	out.HookSpecificOutput.HookEventName = "SessionStart"
-	out.HookSpecificOutput.AdditionalContext = text
-	out.HookSpecificOutput.WatchPaths = watch
-	out.SystemMessage = said
-	if err := json.NewEncoder(stdout).Encode(out); err != nil {
-		// Discarded outright until now (`_ =`), which made a restored checkpoint that never
-		// arrived look exactly like a session that had none.
-		rec.Fail(StageEncode, "sc-sessionstart: cannot encode response: "+err.Error())
-		rec.Persist()
+
+	resp := hookcore.Response{
+		AdditionalContext: strings.TrimSpace(text),
+		WatchPaths:        watch,
+		Say:               strings.TrimSpace(said),
 	}
-	return 0
+	return hookcore.Respond(req, resp, stdout, stderr, nil)
 }
 
 // Units are this event's checks, in the order their text should appear.

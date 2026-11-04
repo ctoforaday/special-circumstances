@@ -46,6 +46,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittinghook"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // The stages Run records for any entry point. A hook that panicked, or returned an error, did not do
@@ -142,25 +143,14 @@ func respond(stdout io.Writer, doc []byte, msg string) error {
 	return json.NewEncoder(stdout).Encode(m)
 }
 
-// readInput returns the parsed Input, the raw bytes, and whether the parse succeeded.
-func readInput(stdin io.Reader) (hookgate.Input, []byte, bool) {
-	var in hookgate.Input
-	raw, err := io.ReadAll(stdin)
-	if err != nil || len(raw) == 0 {
-		return in, raw, false
-	}
-	ok := json.Unmarshal(raw, &in) == nil
-	return in, raw, ok
-}
-
 // Pre injects the run directory and the calling agent's id into a Bash call made inside a live
 // run, so a seat never mistypes the path and never loses the identity that binds it to its seat on
 // the record — and it refuses two things: any tool call past the seat's per-sitting call limit
 // (enforceLimit), and a tool command carrying a backtick the shell would run, which would rewrite
 // the seat's prose before the tool saw it (hookgate/substitution.go).
 func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
-	in, raw, ok := readInput(stdin)
-	if !ok {
+	req := hookcore.Read("PreToolUse", stdin)
+	if !req.Parsed {
 		// Not "nothing to do": the client always sends a payload, and one this hook cannot read
 		// means no turn limit counted and no run directory injected for this call. The sitting
 		// hooks record the same failure; this path, which carries both of those, did not.
@@ -168,9 +158,20 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		return nil
 	}
 	rec.OK(StageInput)
+	in := hookgate.Input{
+		AgentID:   req.AgentID,
+		AgentType: req.AgentType,
+		SessionID: req.SessionID,
+		ToolName:  req.ToolName,
+		ToolInput: req.ToolInput,
+	}
+	cwd := req.CWD
+	if cwd == "" {
+		cwd = cwdOf(req.Raw)
+	}
 	// THE TURN LIMIT COMES FIRST, and covers every tool: a refused call runs nothing, so it needs
 	// nothing injected. A counting fault goes to stderr and the call proceeds.
-	denied, err := enforceLimit(in, cwdOf(raw), stdout, rec)
+	denied, err := enforceLimit(in, cwd, stdout, rec)
 	if err != nil {
 		// The seat is still refused when it should be — enforcement survives — but the record's
 		// account of WHY does not, and that used to be a stderr line nobody read.
@@ -184,7 +185,7 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
 	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).
 	if in.ToolName == envelopeTool {
-		gateEnvelope(in, cwdOf(raw), stdout, rec)
+		gateEnvelope(in, cwd, stdout, rec)
 		return nil
 	}
 	// The gate says which calls it acts on — every Bash call, and a Read of the report file — so
@@ -195,7 +196,7 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	// The run directory is resolved from the payload's `cwd` — the SEAT's working directory,
 	// which is wire-supplied and documented, never this hook process's os.Getwd(). Absent or
 	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than guess".
-	inferred := runlive.InferRunDir(cwdOf(raw), callerAgent(in))
+	inferred := runlive.InferRunDir(cwd, callerAgent(in))
 	noteInference(inferred, rec)
 	switch outcome, payload := hookgate.PreOutcome(in, inferred.Dir); outcome {
 	case hookgate.OutcomeRewrite:

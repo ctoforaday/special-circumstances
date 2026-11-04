@@ -54,7 +54,7 @@ var protocolSurfaces = []*regexp.Regexp{
 	// gates" — a census drawn from what was FAILING rather than from who CALLS this — and shipped
 	// a plugin that denied every mutating tool call in any session that installed it. The tests
 	// could be taught the new model; hooks.json could not.
-	regexp.MustCompile(`/hooks/hooks\.json$`),
+	regexp.MustCompile(`/(?:\.claude-plugin/)?hooks\.json$`),
 }
 
 // protocolExemptions are paths that LOOK like a protocol surface and are not authored like one.

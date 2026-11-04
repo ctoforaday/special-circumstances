@@ -85,6 +85,7 @@ func repo(t *testing.T, version string) string {
 		}
 	}
 	write(t, dir, "plugins/demo/.claude-plugin/plugin.json", `{"name":"demo","version":"`+version+`"}`)
+	write(t, dir, "plugins/demo/.antigravity-plugin/plugin.json", `{"name":"demo","version":"`+version+`"}`)
 	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x\n")
 	git("init", "-q", "-b", "main")
 	git("add", "-A")
@@ -122,6 +123,7 @@ func commit(t *testing.T, dir, msg string) {
 func TestCatchesAVersionGoingBackwards(t *testing.T) {
 	dir := repo(t, "0.22.0")
 	write(t, dir, "plugins/demo/.claude-plugin/plugin.json", `{"name":"demo","version":"0.21.0"}`)
+	write(t, dir, "plugins/demo/.antigravity-plugin/plugin.json", `{"name":"demo","version":"0.21.0"}`)
 	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed\n")
 	commit(t, dir, "a branch that carries an older version")
 
@@ -162,6 +164,7 @@ func TestContentMayChangeWithoutABump(t *testing.T) {
 func TestPassesWhenTheVersionMovesForward(t *testing.T) {
 	dir := repo(t, "0.21.0")
 	write(t, dir, "plugins/demo/.claude-plugin/plugin.json", `{"name":"demo","version":"0.22.0"}`)
+	write(t, dir, "plugins/demo/.antigravity-plugin/plugin.json", `{"name":"demo","version":"0.22.0"}`)
 	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed\n")
 	commit(t, dir, "content change with a bump")
 
@@ -233,6 +236,7 @@ func TestUncommittedContentIsStillMeasured(t *testing.T) {
 func TestBackwardsVersionFiresEvenUncommitted(t *testing.T) {
 	dir := repo(t, "0.22.0")
 	write(t, dir, "plugins/demo/.claude-plugin/plugin.json", `{"name":"demo","version":"0.21.0"}`)
+	write(t, dir, "plugins/demo/.antigravity-plugin/plugin.json", `{"name":"demo","version":"0.21.0"}`)
 	write(t, dir, "plugins/demo/skills/x/SKILL.md", "# x, changed\n")
 
 	problems, _, err := check(dir, "main")
@@ -309,5 +313,21 @@ func TestReleaseTagMustNameAPluginAndVersion(t *testing.T) {
 	}
 	if err := releaseTagMatchesManifest(dir, "nosuchplugin--v1.0.0"); err == nil {
 		t.Error("a tag naming a plugin with no manifest must be refused, not silently pass")
+	}
+}
+
+func TestAntigravityManifestVersionMustAgreeWithClaudeManifestAndTag(t *testing.T) {
+	dir := repo(t, "0.21.0")
+	write(t, dir, "plugins/demo/.claude-plugin/plugin.json", `{"name":"demo","version":"0.22.0"}`)
+	// .antigravity-plugin/plugin.json left at 0.21.0
+	problems, _, err := check(dir, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "disagrees with") {
+		t.Fatalf("expected version disagreement problem, got %v", problems)
+	}
+	if err := releaseTagMatchesManifest(dir, "demo--v0.22.0"); err == nil {
+		t.Fatal("releaseTagMatchesManifest must refuse a tag when .antigravity-plugin/plugin.json disagrees")
 	}
 }

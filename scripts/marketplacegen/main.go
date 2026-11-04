@@ -1,5 +1,6 @@
 // Command marketplacegen pins every plugin that ships binaries to its own release tag in
-// .claude-plugin/marketplace.json.
+// .claude-plugin/marketplace.json and generates each plugin's .antigravity-plugin/plugin.json
+// from its authored .claude-plugin/plugin.json.
 //
 // Dev tooling for this repository only.
 //
@@ -13,6 +14,10 @@
 // The ref is a function of plugin.json's version, so it is generated rather than hand-kept;
 // -check fails when a version bump did not regenerate it. A plugin without tools/cmd has no
 // binaries and no tag (the release job refuses one), so it keeps its relative path.
+//
+// Antigravity reads .antigravity-plugin/plugin.json first and rejects Claude-only fields
+// (dependencies, hooks) under `agy plugin validate --strict`. Generating it from
+// .claude-plugin/plugin.json keeps a single authored manifest per plugin.
 package main
 
 import (
@@ -27,8 +32,10 @@ import (
 )
 
 const (
-	manifest = ".claude-plugin/marketplace.json"
-	repoURL  = "https://github.com/ctoforaday/special-circumstances.git"
+	manifest            = ".claude-plugin/marketplace.json"
+	claudePluginRelPath = ".claude-plugin/plugin.json"
+	agyPluginRelPath    = ".antigravity-plugin/plugin.json"
+	repoURL             = "https://github.com/ctoforaday/special-circumstances.git"
 )
 
 type gitSubdir struct {
@@ -53,6 +60,38 @@ type market struct {
 	} `json:"owner"`
 	Description string  `json:"description"`
 	Plugins     []entry `json:"plugins"`
+}
+
+type manifestAuthor struct {
+	Name string `json:"name"`
+}
+
+// claudeManifest is the authored per-plugin manifest at plugins/<name>/.claude-plugin/plugin.json.
+// Decoding refuses unknown fields so a newly added field must be explicitly classified as shared
+// with Antigravity or Claude-only.
+type claudeManifest struct {
+	Name         string          `json:"name"`
+	DisplayName  string          `json:"displayName,omitempty"`
+	Version      string          `json:"version"`
+	Description  string          `json:"description,omitempty"`
+	Author       *manifestAuthor `json:"author,omitempty"`
+	License      string          `json:"license,omitempty"`
+	Keywords     []string        `json:"keywords,omitempty"`
+	Dependencies []string        `json:"dependencies,omitempty"`
+	Hooks        string          `json:"hooks,omitempty"`
+}
+
+// antigravityManifest is the generated per-plugin manifest at
+// plugins/<name>/.antigravity-plugin/plugin.json. It carries the fields accepted by
+// `agy plugin validate --strict` and omits Claude-only fields (dependencies, hooks).
+type antigravityManifest struct {
+	Name        string          `json:"name"`
+	DisplayName string          `json:"displayName,omitempty"`
+	Version     string          `json:"version"`
+	Description string          `json:"description,omitempty"`
+	Author      *manifestAuthor `json:"author,omitempty"`
+	License     string          `json:"license,omitempty"`
+	Keywords    []string        `json:"keywords,omitempty"`
 }
 
 func main() {
@@ -80,14 +119,95 @@ func main() {
 			fmt.Fprintf(os.Stderr, "marketplacegen: %s does not pin each plugin to the release its plugin.json names — run `go -C scripts run ./marketplacegen` (a version bump regenerates the ref)\n", manifest)
 			os.Exit(1)
 		}
-		fmt.Printf("marketplacegen: %s pins every plugin with binaries to its release tag\n", manifest)
+		if err := syncAntigravityManifests(root, want, true); err != nil {
+			fmt.Fprintln(os.Stderr, "marketplacegen:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("marketplacegen: %s pins every plugin with binaries to its release tag and all %s files are in sync\n", manifest, agyPluginRelPath)
 		return
 	}
 	if err := os.WriteFile(path, want, 0o644); err != nil {
 		fmt.Fprintln(os.Stderr, "marketplacegen:", err)
 		os.Exit(1)
 	}
-	fmt.Printf("marketplacegen: wrote %s\n", manifest)
+	if err := syncAntigravityManifests(root, want, false); err != nil {
+		fmt.Fprintln(os.Stderr, "marketplacegen:", err)
+		os.Exit(1)
+	}
+	fmt.Printf("marketplacegen: wrote %s and plugin %s files\n", manifest, agyPluginRelPath)
+}
+
+// syncAntigravityManifests writes or checks plugins/<name>/.antigravity-plugin/plugin.json for
+// every plugin listed in the marketplace manifest.
+func syncAntigravityManifests(root string, marketBytes []byte, check bool) error {
+	var m market
+	if err := json.Unmarshal(marketBytes, &m); err != nil {
+		return fmt.Errorf("%s: %w", manifest, err)
+	}
+	for _, p := range m.Plugins {
+		claudeRel := filepath.ToSlash(filepath.Join("plugins", p.Name, claudePluginRelPath))
+		agyRel := filepath.ToSlash(filepath.Join("plugins", p.Name, agyPluginRelPath))
+		claudeBytes, err := os.ReadFile(filepath.Join(root, claudeRel))
+		if err != nil {
+			return err
+		}
+		want, err := renderAntigravityManifest(p.Name, claudeBytes)
+		if err != nil {
+			return fmt.Errorf("%s: %w", claudeRel, err)
+		}
+		agyPath := filepath.Join(root, agyRel)
+		if check {
+			have, err := os.ReadFile(agyPath)
+			if err != nil {
+				return fmt.Errorf("%s is missing or unreadable (%v) — run `go -C scripts run ./marketplacegen`", agyRel, err)
+			}
+			if !bytes.Equal(have, want) {
+				return fmt.Errorf("%s is out of sync with %s — run `go -C scripts run ./marketplacegen`", agyRel, claudeRel)
+			}
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(agyPath), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(agyPath, want, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// renderAntigravityManifest projections an authored .claude-plugin/plugin.json into its
+// .antigravity-plugin/plugin.json counterpart, stripping Claude-only fields.
+func renderAntigravityManifest(dirName string, claudeBytes []byte) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(claudeBytes))
+	dec.DisallowUnknownFields()
+	var cm claudeManifest
+	if err := dec.Decode(&cm); err != nil {
+		return nil, err
+	}
+	if cm.Name != dirName {
+		return nil, fmt.Errorf("name %q does not match plugin directory %q", cm.Name, dirName)
+	}
+	if cm.Version == "" {
+		return nil, fmt.Errorf("plugin %s has no version", dirName)
+	}
+	am := antigravityManifest{
+		Name:        cm.Name,
+		DisplayName: cm.DisplayName,
+		Version:     cm.Version,
+		Description: cm.Description,
+		Author:      cm.Author,
+		License:     cm.License,
+		Keywords:    cm.Keywords,
+	}
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(am); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
 
 // render returns the manifest with every plugin's source set from its tree.

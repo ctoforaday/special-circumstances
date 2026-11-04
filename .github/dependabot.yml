@@ -10,7 +10,7 @@
 # unlike code scanning, dependency review and artifact attestations, all of which want
 # a paid tier here. It is the whole of what this repository can adopt at no cost.
 #
-# Grouped and monthly on purpose: an ungrouped weekly schedule across four ecosystems
+# Grouped on purpose: an ungrouped schedule across every module and the actions
 # produces more pull requests than this repository merges, and a bot that outpaces its
 # reviewers gets muted — which returns us to hand-bumping, with extra steps.
 version: 2
@@ -57,8 +57,10 @@ updates:
   #
   # It will also propose actions/setup-node v4 -> a later major, which is what makes
   # `package-manager-cache: false` available and closes zizmor's last four findings.
+  # The workflows, and the composite action hooks.yml's jobs share, whose actions/cache pin
+  # moves with the workflows' own.
   - package-ecosystem: github-actions
-    directory: /
+    directories: ["/", "/.github/actions/go-cache"]
     schedule:
       interval: weekly
     groups:

@@ -46,7 +46,17 @@ import (
 // marks it REQUIRED, so a verb whose schema requires a field it does not offer a flag for is
 // simply not marked — which is correct, and stated where that happens. A field an ARM requires is
 // marked on the verb that declares it fills that arm (seat.FillsArm), and on no other.
-func RequiredFields(typ string) []RequiredField {
+//
+// THE LIST IS GENERATED from that derivation. Every feov-record process marks every verb it
+// builds, and reading the `(sql).required` extension off every field of every body was a sixth of
+// the command tree's build; devcmd/cmdtreegen writes RequiredFieldsFromSchema's answer for every
+// body into required_gen.go. TestRequiredTableIsTheSchema and `cmdtreegen -check` fail a table that
+// no longer equals the schema. The slice is shared: a caller reads it and never writes it.
+func RequiredFields(typ string) []RequiredField { return requiredFieldsOf(typ) }
+
+// RequiredFieldsFromSchema is RequiredFields read off the schema's annotations: what
+// devcmd/cmdtreegen writes, and what the staleness test compares the table with.
+func RequiredFieldsFromSchema(typ string) []RequiredField {
 	body, ok := recordpb.BodyField(typ)
 	if !ok {
 		return nil

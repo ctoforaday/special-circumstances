@@ -1,5 +1,8 @@
-// Package planguard answers one question about the record's SQL: does any statement the code
-// runs SCAN a table that GROWS with the run?
+// Package planguard reads the query plans of the record's SQL. It asks two questions: does any
+// statement the code runs SCAN a table that GROWS with the run (Defects), and what SHAPE is each
+// plan — an automatic index, a per-row scan or sort beneath a correlated subquery, one CTE or
+// view computed more than once (Analyzer.Shapes). Every view and every intercepted statement is
+// planned, the plans are kept as a golden, and the shapes are held to a committed baseline.
 //
 // # Why a scan is the thing to watch, and why not every scan
 //

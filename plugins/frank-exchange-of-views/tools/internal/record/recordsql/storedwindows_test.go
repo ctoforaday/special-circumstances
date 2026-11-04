@@ -33,9 +33,9 @@ func TestTheSittingOrdinalIsOpeningInclusiveAndPerSeat(t *testing.T) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`SELECT "seat_id","type","sitting" FROM "events_w" ORDER BY "id"`)
+	rows, err := db.Query(`SELECT "seat_id","type","sitting" FROM "events" ORDER BY "id"`)
 	if err != nil {
-		t.Fatalf("events_w did not answer: %v", err)
+		t.Fatalf("events did not answer: %v", err)
 	}
 	defer rows.Close()
 	want := []struct {
@@ -64,7 +64,7 @@ func TestTheSittingOrdinalIsOpeningInclusiveAndPerSeat(t *testing.T) {
 		i++
 	}
 	if i != len(want) {
-		t.Fatalf("events_w returned %d rows for %d events — a window that drops rows is a reader that undercounts", i, len(want))
+		t.Fatalf("events returned %d rows for %d events — a window that drops rows is a reader that undercounts", i, len(want))
 	}
 }
 
@@ -94,9 +94,9 @@ func TestTheEpochCountsChairSittingsForEveryRow(t *testing.T) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`SELECT "seat_id","type","epoch" FROM "events_w" ORDER BY "id"`)
+	rows, err := db.Query(`SELECT "seat_id","type","epoch" FROM "events" ORDER BY "id"`)
 	if err != nil {
-		t.Fatalf("events_w did not answer: %v", err)
+		t.Fatalf("events did not answer: %v", err)
 	}
 	defer rows.Close()
 	want := []int{0, 0, 1, 1, 1, 2, 2}
@@ -116,6 +116,6 @@ func TestTheEpochCountsChairSittingsForEveryRow(t *testing.T) {
 		i++
 	}
 	if i != len(want) {
-		t.Fatalf("events_w returned %d rows for %d events", i, len(want))
+		t.Fatalf("events returned %d rows for %d events", i, len(want))
 	}
 }

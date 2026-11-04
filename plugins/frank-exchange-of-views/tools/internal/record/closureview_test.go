@@ -240,7 +240,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			}
 
 			// The work list.
-			r, err := workView(s.run)
+			r, err := workView(s.run, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -448,7 +448,7 @@ func TestAClosingActTheReadDidNotLoadIsLoud(t *testing.T) {
 		if len(bj.Closed) != 1 || bj.Closed[0].Closure != nil {
 			t.Errorf("board closed = %+v, want G1 closed with no embedded closure", bj.Closed)
 		}
-		r, err := workReadsAt(q)
+		r, err := workReadsAt(q, nil)
 		if err != nil {
 			return err
 		}

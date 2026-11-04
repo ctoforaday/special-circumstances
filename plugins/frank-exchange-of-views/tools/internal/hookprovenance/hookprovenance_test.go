@@ -194,7 +194,7 @@ func TestAnUnreadableHooksFileIsStatedNotAnEmptyList(t *testing.T) {
 // command form drifts from the one the reader knows, this fails here rather than at a run whose
 // provenance then says nothing.
 func TestTheShippedHooksFileRegistersItsBinaries(t *testing.T) {
-	path, err := repotree.Plugin("hooks", "hooks.json")
+	path, err := repotree.Plugin(".claude-plugin", "hooks.json")
 	if err != nil {
 		t.Fatal(err)
 	}
