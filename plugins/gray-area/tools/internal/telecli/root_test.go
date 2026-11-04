@@ -224,7 +224,7 @@ func TestEveryVerbIsDocumented(t *testing.T) {
 	}
 	// The roster itself. A verb removed by accident is as much a regression as one added
 	// undocumented, and nothing else in this package would notice.
-	want := []string{"agents", "backfill", "find", "session", "sql", "touched"}
+	want := []string{"agents", "backfill", "find", "link", "send", "session", "sql", "touched"}
 	if strings.Join(sorted(seen), " ") != strings.Join(want, " ") {
 		t.Errorf("the verb set is %v, want %v", sorted(seen), want)
 	}

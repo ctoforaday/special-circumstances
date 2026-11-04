@@ -49,6 +49,10 @@ const (
 	columns           = "archive\tbundle\toutcome"
 )
 
+// remeasure is how the outcomes file is brought in step with the archives: it is measured, never
+// edited.
+const remeasure = "The outcomes are measured on the pinned image: dispatch the archive-rerun job, download its outcomes artifact and commit it"
+
 // Format is the outcomes file: a header naming each interpreter's version, then one row per bundle,
 // sorted.
 func Format(versions map[string]string, rows []Row) string {
@@ -77,9 +81,51 @@ func Format(versions map[string]string, rows []Row) string {
 // the measurement lacks, and an outcome that moved. A file that measured nothing is a failure,
 // never a pass over zero rows.
 func Compare(held string, versions map[string]string, rows []Row) []string {
-	var problems []string
-	heldVersions := map[string]string{}
-	heldRows := map[string]string{}
+	heldVersions, heldRows, problems := parse(held)
+	if len(heldRows) == 0 {
+		return append(problems, "NOT MEASURED: the outcomes file holds no row. "+remeasure)
+	}
+	for n, v := range versions {
+		if heldVersions[n] != v {
+			problems = append(problems, fmt.Sprintf("interpreter %s is %q here and %q in the file: the outcomes were measured under another interpreter, and no row is compared", n, v, heldVersions[n]))
+		}
+	}
+	for n := range heldVersions {
+		if _, ok := versions[n]; !ok {
+			problems = append(problems, fmt.Sprintf("the file names interpreter %s, which this check does not ask for", n))
+		}
+	}
+	if len(problems) > 0 {
+		return problems
+	}
+	seen := map[string]bool{}
+	for _, r := range rows {
+		seen[r.key()] = true
+		want, ok := heldRows[r.key()]
+		switch {
+		case !ok:
+			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, and the file holds no row for it. %s", r.Archive, r.Bundle, r.Outcome, remeasure))
+		case !satisfies(want, r):
+			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, the file holds %s", r.Archive, r.Bundle, r.Outcome, want))
+		}
+	}
+	var gone []string
+	for k := range heldRows {
+		if !seen[k] {
+			gone = append(gone, strings.ReplaceAll(k, "\t", " "))
+		}
+	}
+	sort.Strings(gone)
+	for _, k := range gone {
+		problems = append(problems, fmt.Sprintf("%s: the file holds a row no archive re-ran", k))
+	}
+	return problems
+}
+
+// parse reads an outcomes file: each interpreter's version, each row's outcome keyed by archive and
+// old sha, and every line that is neither.
+func parse(held string) (heldVersions, heldRows map[string]string, problems []string) {
+	heldVersions, heldRows = map[string]string{}, map[string]string{}
 	sawColumns := false
 	for i, line := range strings.Split(held, "\n") {
 		switch {
@@ -103,42 +149,35 @@ func Compare(held string, versions map[string]string, rows []Row) []string {
 			heldRows[parts[0]+"\t"+parts[1]] = parts[2]
 		}
 	}
-	if len(heldRows) == 0 {
-		return append(problems, "NOT MEASURED: the outcomes file holds no row. The outcomes are measured on the pinned image: dispatch the archive-rerun job, download its outcomes artifact and commit it")
+	return heldVersions, heldRows, problems
+}
+
+// Unmeasured is every archive the outcomes file and the archive directory disagree on: a tarball
+// the file holds no row for, and an archive the file holds rows for that no tarball is. It reads
+// names only and executes nothing, so it holds on every pull request what the nightly re-run would
+// otherwise be the first to report.
+func Unmeasured(held string, tarballs []string) []string {
+	_, heldRows, problems := parse(held)
+	inFile := map[string]bool{}
+	for k := range heldRows {
+		inFile[strings.SplitN(k, "\t", 2)[0]] = true
 	}
-	for n, v := range versions {
-		if heldVersions[n] != v {
-			problems = append(problems, fmt.Sprintf("interpreter %s is %q here and %q in the file: the outcomes were measured under another interpreter, and no row is compared", n, v, heldVersions[n]))
-		}
-	}
-	for n := range heldVersions {
-		if _, ok := versions[n]; !ok {
-			problems = append(problems, fmt.Sprintf("the file names interpreter %s, which this check does not ask for", n))
-		}
-	}
-	if len(problems) > 0 {
-		return problems
-	}
-	seen := map[string]bool{}
-	for _, r := range rows {
-		seen[r.key()] = true
-		want, ok := heldRows[r.key()]
-		switch {
-		case !ok:
-			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, and the file holds no row for it", r.Archive, r.Bundle, r.Outcome))
-		case !satisfies(want, r):
-			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, the file holds %s", r.Archive, r.Bundle, r.Outcome, want))
+	present := map[string]bool{}
+	for _, tb := range tarballs {
+		present[tb] = true
+		if !inFile[tb] {
+			problems = append(problems, fmt.Sprintf("%s: the outcomes file holds no row for this archive. %s", tb, remeasure))
 		}
 	}
 	var gone []string
-	for k := range heldRows {
-		if !seen[k] {
-			gone = append(gone, strings.ReplaceAll(k, "\t", " "))
+	for a := range inFile {
+		if !present[a] {
+			gone = append(gone, a)
 		}
 	}
 	sort.Strings(gone)
-	for _, k := range gone {
-		problems = append(problems, fmt.Sprintf("%s: the file holds a row no archive re-ran", k))
+	for _, a := range gone {
+		problems = append(problems, fmt.Sprintf("%s: the outcomes file holds rows for an archive the archive directory does not hold. %s", a, remeasure))
 	}
 	return problems
 }

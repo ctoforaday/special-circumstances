@@ -159,7 +159,7 @@ func run(archives, outcomes string, m mode, w io.Writer) error {
 	}
 	held, err := os.ReadFile(outcomes)
 	if errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("NOT MEASURED: %s does not exist. The outcomes are measured on the pinned image: dispatch the archive-rerun job, download its outcomes artifact and commit it", outcomes)
+		return fmt.Errorf("NOT MEASURED: %s does not exist. %s", outcomes, remeasure)
 	}
 	if err != nil {
 		return err
