@@ -10,7 +10,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // A SECTION OUT OF THE ORDER THE REPORT SHIPS IN IS REFUSED AT THE WRITE, through the real verbs.
@@ -88,7 +87,7 @@ func TestEditRefusesASectionOutOfOrderAndMovesOneInOneEdit(t *testing.T) {
 	if out, err := edit("O4", span(orderOwn1, orderOwn2), span(orderOwn2, orderOwn1)); err != nil {
 		t.Fatalf("two of the report's own sections were not swapped in one edit: %v\n%s", err, out)
 	}
-	got, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
+	got, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +123,7 @@ func TestARecordHoldingASectionOutOfOrderStillTakesEdits(t *testing.T) {
 	if out, err := edit("L3", one+"\n\n"+cat, cat+"\n\n"+one); err != nil {
 		t.Fatalf("the edit that moves the misplaced section to its place was refused: %v\n%s", err, out)
 	}
-	got, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
+	got, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

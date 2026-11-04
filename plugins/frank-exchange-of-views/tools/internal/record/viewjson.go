@@ -380,8 +380,8 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	}
 
 	// THE REPORT, RENDERED ONCE FOR THE WHOLE BOARD, so each gap's location is read where its anchor
-	// stands (#1091). Once per board and not once per gap: replaying the mutations is the expensive
-	// part. A report that does not render is not an error — every quote gap reads `unrendered`, and
+	// stands (#1091). Once per board and not once per gap: each render reads the report checkpoint and
+	// replays the ops after it. A report that does not render is not an error — every quote gap reads `unrendered`, and
 	// the anomaly below says why.
 	report, renderErr := RenderAt(q)
 	located := newLocatedReport(report, renderErr)
@@ -1044,16 +1044,16 @@ type workReads struct {
 	budget              *budgetRead
 }
 
-// reportRender is the report folded from one snapshot's rows (ReportProjectionAt), folded on the
-// first ask and kept.
+// reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
+// reportSourceAt), folded on the first ask and kept.
 //
 // THE WORK LIST RENDERS THE REPORT ONCE. Its gap locations, its mint budget's measure and its
 // unverifiable citations each read the report; each rendering it from the rows was the same fold
 // done again, and the budget's own render read the rows a second time off a connection outside the
 // list's snapshot. A pointer, so every copy of workReads asks the one fold.
 type reportRender struct {
-	ops      []ReportOp
-	opsErr   error
+	src      recordsql.ReportSource
+	srcErr   error
 	rendered bool
 	text     string
 	err      error
@@ -1063,7 +1063,7 @@ type reportRender struct {
 func (p *reportRender) get() (string, error) {
 	if !p.rendered {
 		p.rendered = true
-		p.text, p.err = renderProjection(p.ops, p.opsErr)
+		p.text, p.err = renderSource(p.src, p.srcErr)
 	}
 	return p.text, p.err
 }
@@ -1106,7 +1106,7 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 	if r.edits, err = reopeningEditsAt(q); err != nil {
 		return r, err
 	}
-	r.report.ops, r.report.opsErr = ReportProjectionAt(q)
+	r.report.src, r.report.srcErr = reportSourceAt(q, recordsql.Newest)
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_computation", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",

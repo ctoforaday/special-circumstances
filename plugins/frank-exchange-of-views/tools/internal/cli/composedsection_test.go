@@ -18,7 +18,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // A SECTION THE TOOL COMPOSES IS REFUSED AT THE WRITE, through the real verbs, AND THE REFUSAL
@@ -267,7 +266,7 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	refusedWithNothingRecorded(t, runDir, "blue-lane-1", out, err, 0, "is the synthesizer's to write, not a lane's")
 
 	// MIGRATED: the record holds the heading, and everything under it ships.
-	blue, err := reportproj.RenderFromRecord(dst)
+	blue, err := record.RenderRun(dst)
 	if err != nil {
 		t.Fatal(err)
 	}

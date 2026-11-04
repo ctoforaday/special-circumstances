@@ -22,7 +22,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
@@ -131,7 +130,7 @@ func citedSentence(s seat.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	report, err := reportproj.RenderFromRecord(run)
+	report, err := record.RenderRun(run)
 	if err != nil {
 		return "", feov.Wrap(feov.Conflict, err, "the report does not render, so the sentence citation %s marks cannot be read, and nothing can be verified until it does: %v. "+
 			"The board's anomalies say why; record that you could not verify it with `log`", id, err)

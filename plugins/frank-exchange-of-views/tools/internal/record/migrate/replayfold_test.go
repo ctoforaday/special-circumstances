@@ -8,7 +8,7 @@ import (
 )
 
 // THE REPORT'S REPLAY IS A FOLD. A write folds the ops another write added onto the render it made
-// before taking the lock, and reads that as the report it lands on (record.RegisterReportRenderer), so
+// before taking the lock, and reads that as the report it lands on (the record's reportRenderer), so
 // replaying ops[k:] over what ops[:k] replayed to must give the whole replay's bytes, at every k. Asked
 // of archived runs, whose ops are real edits, placements and retires rather than a fixture's.
 func TestTheReportReplayIsAFold(t *testing.T) {

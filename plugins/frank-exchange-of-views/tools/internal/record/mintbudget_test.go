@@ -11,18 +11,19 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // withRenderer stands in for the renderer internal/reportproj registers, for the test's duration.
-func withRenderer(t *testing.T, fn func(string, bool, []ReportOp) (string, error)) {
+func withRenderer(t *testing.T, fn func(string, bool, []reportproj.ReportOp) (string, error)) {
 	t.Helper()
 	was := reportRenderer
 	reportRenderer = fn
 	t.Cleanup(func() { reportRenderer = was })
 }
 
-func renders(md *string) func(string, bool, []ReportOp) (string, error) {
-	return func(string, bool, []ReportOp) (string, error) { return *md, nil }
+func renders(md *string) func(string, bool, []reportproj.ReportOp) (string, error) {
+	return func(string, bool, []reportproj.ReportOp) (string, error) { return *md, nil }
 }
 
 func budgetMint(id string, supersedes ...string) *recordpb.Mint {
@@ -147,15 +148,20 @@ func TestEachMeasureReadsTheRecord(t *testing.T) {
 	}
 }
 
+// unreadable is a renderer whose replay fails: the report a measure reads cannot be read.
+func unreadable(string, bool, []reportproj.ReportOp) (string, error) {
+	return "", errors.New("replaying event 3's op (edit): it does not apply")
+}
+
 // A measure that cannot be read refuses the mint and says why; it never reads as the floor.
 func TestAMeasureThatCannotReadIsLoud(t *testing.T) {
 	id := budgetRun(t, 1, 0, 0, "red-lens-voice")
-	withRenderer(t, nil)
-	if _, err := lensBudgetAt(recordOf(t, id.Run), "voice", 1); err == nil || !strings.Contains(err.Error(), "no report renderer") {
-		t.Errorf("an unregistered renderer measured something: %v", err)
+	withRenderer(t, unreadable)
+	if _, err := lensBudgetAt(recordOf(t, id.Run), "voice", 1); err == nil || !strings.Contains(err.Error(), "it does not apply") {
+		t.Errorf("a report that does not replay measured something: %v", err)
 	}
 	if _, err := lensBudgetAt(recordOf(t, id.Run), "evidence", 1); err != nil {
-		t.Errorf("the record-row measures do not need the renderer: %v", err)
+		t.Errorf("the record-row measures do not need the report: %v", err)
 	}
 	if _, err := Append(id, budgetMint("G1")); err != nil {
 		t.Fatalf("a mint below the floor needs no measure and was refused: %v", err)
@@ -164,17 +170,11 @@ func TestAMeasureThatCannotReadIsLoud(t *testing.T) {
 	if err == nil {
 		t.Fatal("a mint past the floor landed with the measure unreadable — the budget was read as the floor")
 	}
-	for _, want := range []string{"red-lens-voice holds 1 gap(s) open", "voice lens", "3 mints for every 5 of the prose paragraphs in the current report", "cannot be read", "no report renderer",
+	for _, want := range []string{"red-lens-voice holds 1 gap(s) open", "voice lens", "3 mints for every 5 of the prose paragraphs in the current report", "cannot be read", "replaying event 3's op (edit): it does not apply",
 		"or on a gap you minted closing, which frees a mint under the floor", "naming that finding in --found-by", "regrade or close"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the unmeasured refusal lost %q:\n%v", want, err)
 		}
-	}
-	withRenderer(t, func(string, bool, []ReportOp) (string, error) {
-		return "", errors.New("replaying mutation 3 of 3")
-	})
-	if _, err := Append(id, budgetMint("G2")); err == nil || !strings.Contains(err.Error(), "replaying mutation 3 of 3") {
-		t.Errorf("a failed render did not refuse with its cause: %v", err)
 	}
 }
 
@@ -401,7 +401,7 @@ func TestTheWorkListStatesTheMintsLeft(t *testing.T) {
 	// floor still admits, and the fields say the budget above it is not measured.
 	t.Run("the measure cannot be read", func(t *testing.T) {
 		id := budgetRun(t, 2, 0, 0, "red-lens-voice")
-		withRenderer(t, nil)
+		withRenderer(t, unreadable)
 		for minted, sentence := range []string{
 			"so 2 mint(s) are left to you under the floor",
 			"so 1 mint(s) are left to you under the floor",
@@ -412,7 +412,7 @@ func TestTheWorkListStatesTheMintsLeft(t *testing.T) {
 			if got != want {
 				t.Errorf("after %d mint(s): mint_budget = %+v, want %+v", minted, got, want)
 			}
-			if !mentions(items, sentence) || !mentions(items, "NOT MEASURED") || !mentions(items, "no report renderer") {
+			if !mentions(items, sentence) || !mentions(items, "NOT MEASURED") || !mentions(items, "it does not apply") {
 				t.Errorf("after %d mint(s): the unmeasured budget is not stated with its cause and %q: %v", minted, sentence, hows(items))
 			}
 			_, err := Append(id, budgetMint(fmt.Sprintf("G%d", minted+1)))

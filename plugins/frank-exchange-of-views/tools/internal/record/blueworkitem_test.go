@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 const (
@@ -38,7 +39,7 @@ func blueWorkStage(t *testing.T) Run {
 	// The record package links no renderer; the report is the one a mint over this sentence leaves.
 	was := reportRenderer
 	t.Cleanup(func() { reportRenderer = was })
-	reportRenderer = func(string, bool, []ReportOp) (string, error) {
+	reportRenderer = func(string, bool, []reportproj.ReportOp) (string, error) {
 		return "# R\n\nThe sky is teal at noon." + anchor.Token(quotedGap) + " Next one.\n", nil
 	}
 	b := newStage(t).cast(evLens, "red-chair", blueSeatID).ingest().
