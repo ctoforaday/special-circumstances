@@ -20,7 +20,7 @@ var planKindRenames = map[record.BlockerKind]record.BlockerKind{
 }
 
 // planKindsRetired is each blocker kind word an archived plan prints that names a duty the record no
-// longer holds (EventSchema 57): the chair's inquiry review, whose event translates to none
+// longer holds (EventSchema 58): the chair's inquiry review, whose event translates to none
 // (entries.go). Its blocker has no equivalent and leaves the plan; it was the chair's own, so it
 // never held pass_permitted, which the plan keeps as stored.
 var planKindsRetired = map[record.BlockerKind]bool{

@@ -10,7 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // newCountClaims counts the report's claims deterministically. Like verify/graph it is a root,
@@ -38,7 +38,7 @@ func newCountClaims() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			md, err := reportproj.RenderFromRecord(run)
+			md, err := record.RenderRun(run)
 			if err != nil {
 				return feov.Errorf(feov.MissingField, "cannot read the report: %v", err)
 			}

@@ -67,7 +67,10 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 	asWritten, moved := partsAsWritten(ops, res.parts)
 	have := len(res.parts) > 0
 	if moved {
-		now, nerr := reportproj.Replay("", false, ops)
+		now, nerr := record.RenderAt(batch.Querier())
+		// THE ONE REPLAY FROM THE EMPTY TEXT OUTSIDE A TEST, AND IT IS OF NO RECORD: the stream as its
+		// authors wrote it is the record's ops with the parts the source held, which no record stores,
+		// so there is no checkpoint to start it from.
 		written, werr := reportproj.Replay("", false, asWritten)
 		if len(res.Refusals) == 0 && nerr == nil && werr == nil && now == report.Ordered(written) {
 			if err := batch.Commit(); err != nil {
@@ -97,7 +100,7 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 		res.ReportOrder = OrderNoReport
 		return res, nil
 	}
-	text, err := reportproj.RenderFromRecord(dst)
+	text, err := record.RenderRun(dst)
 	if err != nil {
 		return nil, fmt.Errorf("the migrated record's report does not render: %w", err)
 	}
@@ -110,8 +113,8 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 
 // partsAsWritten is ops with each part's text as the source wrote it, and whether any part was
 // written otherwise — the replay the reordered one is held to.
-func partsAsWritten(ops []record.ReportOp, parts []string) ([]record.ReportOp, bool) {
-	out := make([]record.ReportOp, len(ops))
+func partsAsWritten(ops []reportproj.ReportOp, parts []string) ([]reportproj.ReportOp, bool) {
+	out := make([]reportproj.ReportOp, len(ops))
 	copy(out, ops)
 	moved, k := false, 0
 	for i, op := range out {

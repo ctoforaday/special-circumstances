@@ -7,7 +7,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // THE REPORT IS THE RECORD, NOT A FILE (#709).
@@ -50,7 +49,7 @@ func ApplySplice(report string, start, end int, new string) string {
 
 // Op is one recorded splice from the diff-stack: the (old, new) of a BlueEdit event. Render takes
 // plain strings rather than *recordpb.BlueEdit so callers testing the edit path need not build the
-// record schema — the record-aware path is RenderFromRecord.
+// record schema — the record-aware path is Replay over the record's ReportOps.
 type Op struct {
 	Old, New string
 	// Exact is the edit's exact_span: Old is located as written (bluedoc.LocateLiteral) rather
@@ -59,7 +58,7 @@ type Op struct {
 }
 
 // Render reproduces a report from a text and an ordered splice stack. It is the edit-only surface
-// blue edit's fidelity tests drive against planEdit; RenderFromRecord composes the full event
+// blue edit's fidelity tests drive against planEdit; Replay folds the full event
 // stream (splices AND marker insertions).
 func Render(text string, ops []Op) (string, error) {
 	for i, op := range ops {
@@ -243,16 +242,21 @@ func collapseNewlinesAt(s string, at int) string {
 	return s[:a] + strings.Repeat("\n", keep) + s[b:]
 }
 
-// RenderFromRecord is the record-aware render: it reads the run's ordered stream of text mutations
-// from the record — the report_op view SELECTS and orders them in SQL — and folds them from the empty
-// text. This is the ONLY way to obtain the current report.
+// ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "append"
+// (A=a lane's part), "edit" (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id) or
+// "remove" (A=anchor id). Replay folds these; the SELECTION and ordering are the view's, not a Go walk
+// of the event log. EventID is the event the op is of. Exact is an edit's exact_span: the splice
+// replaces A as written rather than the span the ordinary locate finds. False for every insert and
+// remove, and for every edit recorded without the field.
 //
-// The FOLD is the irreducible sequential part: a splice must be located in the running text a prior
-// op left, which SQL cannot carry. Everything before it — which events mutate the text, and in what
-// order — is the record's own answer (record.RenderRun, over the report_op view), not a walk of the
-// whole event log rebuilt here. A record with no part has no report, and says so (Replay).
-func RenderFromRecord(run record.Run) (string, error) {
-	return record.RenderRun(run)
+// IT LIVES WITH THE FOLD, NOT WITH THE RECORD, because the record's write path folds the ops: the
+// insert that writes an event stamps the report as it stands after it (recordsql's report checkpoint),
+// so the record imports this package and this package imports nothing of the record's.
+type ReportOp struct {
+	EventID int64
+	Kind    string
+	A, B    string
+	Exact   bool
 }
 
 // NoPart is the refusal of every read or change of a report no lane has recorded a part of.
@@ -266,9 +270,10 @@ const NoPart = "no part of the report is recorded yet — there is nothing to re
 // the empty text starts with none, and a mutation other than a part's, or the end of the fold, before
 // any part is NoPart. Each mutation reads only the running text, so replaying ops[k:] over what
 // ops[:k] left is replaying ops whole: the write path relies on it to fold another write's ops onto a
-// render it made before its lock (record.RegisterReportRenderer).
-func Replay(text string, parted bool, ops []record.ReportOp) (string, error) {
-	for i, op := range ops {
+// render it made before its lock, and every reader replays only the ops after the report checkpoint it
+// starts from.
+func Replay(text string, parted bool, ops []ReportOp) (string, error) {
+	for _, op := range ops {
 		mut, err := mutationOf(op)
 		if err != nil {
 			return "", err
@@ -279,7 +284,9 @@ func Replay(text string, parted bool, ops []record.ReportOp) (string, error) {
 		parted = true
 		next, err := mut.apply(text)
 		if err != nil {
-			return "", fmt.Errorf("replaying mutation %d of %d (%s): %w", i+1, len(ops), mut.describe(), err)
+			// NAMED BY ITS EVENT, NOT ITS POSITION: a reader replays the ops after a checkpoint, so a
+			// position would count from wherever the reader started.
+			return "", fmt.Errorf("replaying event %d's op (%s): %w", op.EventID, mut.describe(), err)
 		}
 		text = next
 	}
@@ -292,7 +299,7 @@ func Replay(text string, parted bool, ops []record.ReportOp) (string, error) {
 // mutationOf turns one report_op row into the transform that applies it. "append" adds a lane's part;
 // "edit" is a splice (old→new); "insert" places Token(id) at the anchoring quote — the view already
 // excluded a marker event with no location, so an insert always names a real quote here.
-func mutationOf(op record.ReportOp) (mutation, error) {
+func mutationOf(op ReportOp) (mutation, error) {
 	switch op.Kind {
 	case "append":
 		return appendMut{part: op.A}, nil

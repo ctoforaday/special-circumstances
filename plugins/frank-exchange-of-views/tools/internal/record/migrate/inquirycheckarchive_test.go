@@ -97,7 +97,7 @@ func TestTheChairsInquiryDutiesLeaveAnArchivedRun(t *testing.T) {
 	}
 }
 
-// THE CHAIR'S INQUIRY-REVIEW BLOCKER LEAVES EVERY STORED PLAN (EventSchema 57), and nothing else
+// THE CHAIR'S INQUIRY-REVIEW BLOCKER LEAVES EVERY STORED PLAN (EventSchema 58), and nothing else
 // does: each migrated plan holds its archived blockers less that kind, keeps its pass_permitted, is
 // re-keyed, and is one a relay can carry — no archived plan that held the kind is left with no
 // blocker and no PASS permitted.

@@ -11,7 +11,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // blue edit is the write path for the report's text once the parts are recorded. These drive the
@@ -41,7 +40,7 @@ func ingestReport(t *testing.T, runDir, body string) {
 
 func readReport(t *testing.T, runDir string) string {
 	t.Helper()
-	md, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
+	md, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

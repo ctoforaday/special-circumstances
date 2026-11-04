@@ -154,7 +154,7 @@ func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 	// shape (dimension/proposed beside the subject) needs this entry.
 	if len(old.Arms) > 0 || old.Fields["dimension"] == nil && old.Fields["proposed"] == nil && old.Fields["gap_id"] == nil {
 		old = inquiryArm(old)
-		// A MOTION ON AN INQUIRY TRANSLATES TO NO EVENT (EventSchema 57): the subject is gone, and an
+		// A MOTION ON AN INQUIRY TRANSLATES TO NO EVENT (EventSchema 58): the subject is gone, and an
 		// inquiry's quality is its owning lens's check, which the motion is no equivalent of.
 		if _, ok := old.Arms["inquiry"]; ok {
 			return nil, nil
@@ -203,7 +203,7 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
 	if _, flat := old.Fields["ruling"]; !flat {
 		old = inquiryArm(old)
-		// A RULING ON AN INQUIRY TRANSLATES TO NO EVENT (EventSchema 57): the chair's word on whether
+		// A RULING ON AN INQUIRY TRANSLATES TO NO EVENT (EventSchema 58): the chair's word on whether
 		// an inquiry was worth the run's time has no equivalent — an inquiry's quality is its owning
 		// lens's check, judged against its fate. The archive keeps the ruling.
 		if v, ok := old.Fields["inquiry"]; ok && v != nil {

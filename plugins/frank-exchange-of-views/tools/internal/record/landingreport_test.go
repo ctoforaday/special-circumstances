@@ -12,20 +12,21 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // everyInput stands in for the renderer with one whose text is every input it is handed, so two
 // renders are equal exactly when their inputs are, and it counts the renders. It is a left fold of the
-// ops from the empty text, as the registered renderer is, and an op whose new text is "boom" does not
-// apply, refused with its position in the replay, as reportproj.Replay refuses.
+// ops from the empty text, as reportproj.Replay is, and an op whose new text is "boom" does not apply,
+// refused with its event, as reportproj.Replay refuses.
 func everyInput(t *testing.T) *int {
 	t.Helper()
 	calls := new(int)
-	withRenderer(t, func(text string, parted bool, ops []ReportOp) (string, error) {
+	withRenderer(t, func(text string, parted bool, ops []reportproj.ReportOp) (string, error) {
 		*calls++
-		for i, op := range ops {
+		for _, op := range ops {
 			if op.B == "boom" {
-				return "", fmt.Errorf("replaying mutation %d of %d: it does not apply", i+1, len(ops))
+				return "", fmt.Errorf("replaying event %d's op: it does not apply", op.EventID)
 			}
 			parted = parted || op.Kind == "append"
 			text += fmt.Sprintf(" | %s %q %q %v", op.Kind, op.A, op.B, op.Exact)
@@ -69,12 +70,6 @@ func TestTheReportVersionMovesWithEveryInputOfTheRender(t *testing.T) {
 		{"a part is recorded", func(t *testing.T, dir string) {
 			recordtest.Seed(t, dir, recordtest.Event(t, HarnessSeat, &recordpb.ReportPart{Text: proto.String("## another part")}))
 		}, true},
-		{"a part's row removed", func(t *testing.T, dir string) {
-			db := seatWriter(t, filepath.Join(dir, "records", "record.db"))
-			if _, err := db.Exec(`DELETE FROM "report_part"`); err != nil {
-				t.Fatal(err)
-			}
-		}, true},
 		{"an edit", func(t *testing.T, dir string) {
 			recordtest.Seed(t, dir, recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: proto.String("report"), New: proto.String("account")}))
 		}, true},
@@ -86,7 +81,9 @@ func TestTheReportVersionMovesWithEveryInputOfTheRender(t *testing.T) {
 		}, true},
 		// The two rows below are no write path's: none updates or deletes a row the render reads. They
 		// hold the version's two halves each to its own case — a row gone under a newer one moves only
-		// the count, and one gone with another added moves only the newest id.
+		// the count, and one gone with another added moves only the newest id. Each takes out a row
+		// after the newest checkpoint, the rows a render replays; a row at or below it is read through
+		// the checkpoint's text.
 		{"an anchor's row removed", func(t *testing.T, dir string) {
 			db := seatWriter(t, filepath.Join(dir, "records", "record.db"))
 			if _, err := db.Exec(`DELETE FROM "anchor" WHERE "id" = 'F-1'`); err != nil {
@@ -158,7 +155,7 @@ func reportStage(t *testing.T) (Run, func() error, *landingWrite) {
 	return run, write, got
 }
 
-// fullRender is the report as RenderAt renders it whole, and its failure.
+// fullRender is the report as RenderAt renders it, and its failure.
 func fullRender(t *testing.T, run Run) (string, error) {
 	t.Helper()
 	return RenderAt(recordOf(t, run))
@@ -254,9 +251,9 @@ func TestAPartThatLandsAfterTheRenderIsFoldedOntoIt(t *testing.T) {
 	}
 }
 
-// A FOLD THAT DOES NOT APPLY IS NOT THE REFUSAL. Another write's op does not replay; folded onto the
-// render, the failure would name its place among the ops folded, not among the report's. The write
-// renders the report whole, and the guard reads the full render's failure in its own words.
+// A FOLD THAT DOES NOT APPLY IS NOT THE REFUSAL. Another write's op does not replay; the write renders
+// the report again under the lock (RenderAt), and the guard reads that render's failure in its own
+// words.
 func TestAFoldThatDoesNotApplyIsRenderedWhole(t *testing.T) {
 	everyInput(t)
 	run, write, got := reportStage(t)
@@ -269,8 +266,8 @@ func TestAFoldThatDoesNotApplyIsRenderedWhole(t *testing.T) {
 	if want == nil || got.sawErr == nil || got.sawErr.Error() != want.Error() {
 		t.Fatalf("the guard read the failure %v, want the full render's, %v", got.sawErr, want)
 	}
-	if !strings.Contains(want.Error(), "mutation 3 of 3") || got.rendered != 1 || got.folded != 0 {
-		t.Errorf("the failure %q, renders under the lock %d, folds %d; want mutation 3 of 3, 1 and 0", want, got.rendered, got.folded)
+	if !strings.Contains(want.Error(), "it does not apply") || got.rendered != 1 || got.folded != 0 {
+		t.Errorf("the failure %q, renders under the lock %d, folds %d; want the edit's, 1 and 0", want, got.rendered, got.folded)
 	}
 }
 

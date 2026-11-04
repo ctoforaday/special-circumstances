@@ -10,7 +10,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // EVERY ARCHIVED GAP HAS A NAMED LOCATION. Migrated, every quote gap carries a location state and
@@ -29,7 +28,7 @@ func TestEveryArchivedGapHasANamedLocation(t *testing.T) {
 		}
 		md := ""
 		if haveParts {
-			if md, err = reportproj.RenderFromRecord(dst); err != nil {
+			if md, err = record.RenderRun(dst); err != nil {
 				t.Fatalf("%s: %v", run, err)
 			}
 		}

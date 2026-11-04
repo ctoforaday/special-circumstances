@@ -9,7 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // AN EDIT REOPENS THE SAME ANCHORS WHETHER EACH ANCHOR'S SENTENCE IS READ OFF ONE SPLIT OF THE
@@ -22,7 +22,7 @@ func TestEveryArchivedAnchorReopensAsWhenItsSentenceWasSplitAlone(t *testing.T) 
 	for _, name := range []string{"2026-10-10_is-91-prime-m19.tar.gz", "2026-09-11_is-91-prime-b9.tar.gz", "2026-10-13_is-91-prime-m23.tar.gz"} {
 		t.Run(name, func(t *testing.T) {
 			_, run := migrateArchive(t, name)
-			report, err := reportproj.RenderFromRecord(run)
+			report, err := record.RenderRun(run)
 			if err != nil {
 				t.Fatal(err)
 			}

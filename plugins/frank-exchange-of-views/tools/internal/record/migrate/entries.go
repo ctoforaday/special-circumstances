@@ -39,7 +39,7 @@ func Entries() Registry {
 		// The inquiry, under the word an archive recorded it with: the columns are the current ones but
 		// the proposal's text, which the record calls its question.
 		"avenue": inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),
-		// AN INQUIRY REVIEW TRANSLATES TO NO EVENT (EventSchema 57). It was the chair's prose read of
+		// AN INQUIRY REVIEW TRANSLATES TO NO EVENT (EventSchema 58). It was the chair's prose read of
 		// the report against every inquiry at once; an inquiry's quality is now its owning lens's
 		// check of that one inquiry, and a review names none, so it has no equivalent. A migrated
 		// record's settled inquiries read unchecked, which is the truth of it. The archive keeps the
