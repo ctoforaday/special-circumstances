@@ -984,16 +984,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
 		}
 	case *recordpb.Mint:
-		// The report-voice refusal and the one-gap-per-class rule judge what a seat may mint next,
-		// and run on the live write alone (judgeAct); the roster and the mint budget run for every
-		// writer.
+		// The one-gap-per-class rule, the mint budget and the report-voice refusal judge what a seat
+		// may mint next, and run on the live write alone (judgeAct); the minting seat's place on the
+		// roster is asked of every writer.
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
 		if err := requireMintSubject(b); err != nil {
 			return err
 		}
-		if err := requireMintWithinBudget(w, seatID, b); err != nil {
+		if _, _, err := mintAreaOf(seatID); err != nil {
 			return err
 		}
 		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {

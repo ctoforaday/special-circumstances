@@ -16,7 +16,7 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject, a close of a docketed gap, a docket motion on
+// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a close of a docketed gap, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
 // that names no kind, a reading that names no gap to carry it, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
@@ -37,7 +37,13 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	q := w.q
 	switch b := body.(type) {
 	case *recordpb.Mint:
+		// THE ONE-GAP RULE IS ASKED BEFORE THE BUDGET: a reading's Mint on a sentence a gap of its
+		// class already holds is not minted (readingAct.held), so it spends no mint and the cap cannot
+		// refuse it.
 		if err := requireOneGapPerClassAndSubject(w, b); err != nil {
+			return err
+		}
+		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}
 		return refuseMintReportVoice(b)
