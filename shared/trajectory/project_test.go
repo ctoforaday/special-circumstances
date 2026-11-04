@@ -30,6 +30,19 @@ func TestProjectAntigravity(t *testing.T) {
 	}
 }
 
+func TestProjectAntigravityCWDFromPrompt(t *testing.T) {
+	// A session with no tool calls, but workspace mentioned in prompt
+	input := `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-11-04T00:00:00Z","content":"Working on /home/gblock_ctoforaday_com/projects/special-circumstances/README.md"}
+`
+	proj := Project(strings.NewReader(input), 0)
+	if len(proj.CWDs) == 0 {
+		t.Fatalf("expected CWDs to be extracted from prompt path")
+	}
+	if !strings.Contains(proj.CWDs[0], "special-circumstances") {
+		t.Errorf("expected CWD to be special-circumstances repo root, got %s", proj.CWDs[0])
+	}
+}
+
 func TestProjectClaude(t *testing.T) {
 	proj := Project(strings.NewReader(claudeShape), 0)
 	if len(proj.Acts) != 3 {
