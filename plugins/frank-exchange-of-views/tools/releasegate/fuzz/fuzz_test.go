@@ -359,7 +359,7 @@ type runner struct {
 	// progress is when a command of this run last finished (UnixNano) — what driveDebate's stall
 	// tripwire reads. Atomic: every seat's goroutine writes it.
 	progress atomic.Int64
-	// maxEpochs is the epoch limit this run's config states; zero is setup's default, which every
+	// maxEpochs is the epoch limit this run's config states; zero is sweepEpochLimit, which every
 	// run but the forced-limit seed's carries.
 	maxEpochs int
 
@@ -6135,12 +6135,12 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	// docket, the ceiling and the pass in a few epochs. `/research --smoke` runs a floor of three;
 	// one keeps a lens at its budget, and the budget's refusal driven, in most sittings.
 	//
-	// THE EPOCH LIMIT IS SETUP'S DEFAULT, READ FROM WHERE SETUP READS IT. Every run setup creates
-	// carries one, and a config that states none is held to none (record.RunParams): without it
-	// the computation lens — whose mint budget grows with blue's computations — carried some seeds to
-	// 21–28 chair sittings, past the per-run budget on a loaded box, and no run of the sweep ever
-	// took the epoch-limit exit a real run can.
-	maxEpochs := record.DefaultParams.MaxEpochs
+	// EVERY RUN STATES AN EPOCH LIMIT, sweepEpochLimit unless the run is forced to another. A config
+	// that states none is held to none (record.RunParams): without one the computation lens — whose
+	// mint budget grows with blue's computations — carried some seeds to 21–28 chair sittings, past
+	// the per-run budget on a loaded box, and no run of the sweep ever took the epoch-limit exit a
+	// real run can.
+	maxEpochs := sweepEpochLimit
 	if r.maxEpochs > 0 {
 		maxEpochs = r.maxEpochs
 	}
@@ -6360,7 +6360,7 @@ const estoppelSeed = 2
 const verifiedSeed = 3
 
 // limitSeed is the one seed whose run is FORCED to the epoch-limit exit: its config states a limit
-// of forcedEpochLimit where every other run states setup's default. At the chair's second sitting
+// of forcedEpochLimit where every other run states sweepEpochLimit. At the chair's second sitting
 // every lens has sat once and none has retired, so the plan readies them, the limit dispatches
 // nobody, and the run ends CEILING by its term — on every sweep, not on a draw.
 //
@@ -6375,6 +6375,9 @@ const limitSeed = 7
 
 // forcedEpochLimit is the epoch limit limitSeed's run is set up with.
 const forcedEpochLimit = 2
+
+// sweepEpochLimit is the epoch limit every run but limitSeed's is set up with: setup's default.
+const sweepEpochLimit = 12
 
 // reopenedComputationSeed is the seed whose run is FORCED through a reopened computation; the sweep gates a plan
 // readying the computation owner for one.
