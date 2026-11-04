@@ -123,14 +123,6 @@ func (d drive) endsWithRow(refusal, row string) {
 	}
 }
 
-// endsWithoutARow holds a refusal for which no seat-held act answers the first.
-func (d drive) endsWithoutARow(refusal string) {
-	d.t.Helper()
-	if strings.Contains(refusal, "If it was wrong") || strings.Contains(refusal, "say so in") {
-		d.t.Fatalf("the refusal names an answering act, and this test has driven none for it:\n%s", refusal)
-	}
-}
-
 const (
 	rowPosition     = "a new position at your next sitting (a sitting holds one, and this sitting's stands)"
 	rowSpotCheck    = "a new spot-check at your next sitting (a sitting holds one, and this sitting's stands)"
