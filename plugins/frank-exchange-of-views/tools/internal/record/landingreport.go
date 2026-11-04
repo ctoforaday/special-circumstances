@@ -136,9 +136,8 @@ func (r *landingReport) fold(q recordsql.Querier, v reportVersion) (string, bool
 	return text, err == nil
 }
 
-// report is the report this write lands on. A write with no landingReport is a batch's — a
-// migration's replay, or `dispatch next` — which holds its own transaction across its acts and renders
-// inside it.
+// report is the report this write lands on. A write with no landingReport — a migration's replay,
+// or `dispatch next` — holds its own transaction across its acts and renders inside it.
 func (w writeView) report() (string, error) {
 	if w.rendering == nil {
 		return RenderAt(w.q)

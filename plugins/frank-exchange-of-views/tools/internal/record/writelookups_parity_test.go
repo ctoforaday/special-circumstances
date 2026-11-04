@@ -97,7 +97,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Error("RequireInquiryRef accepted an inquiry nobody proposed")
 	}
 
-	// Findings and their markers: the key lookup, the reference check, the anchor pair heal.
+	// Findings: the key lookup and the reference check.
 	if _, err := Append(Identity{Run: run, SeatID: "red-lens-evidence"}, &recordpb.Finding{
 		Id: proto.String("F-0a0a0a0a"), FindingKey: proto.String("fk-1"),
 		Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
@@ -115,8 +115,4 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if err := requireFindings(recordOf(t, run), []string{"F-0a0a0a0a", "F-99999999"}, "--found-by"); err == nil || !strings.Contains(err.Error(), "F-99999999") {
 		t.Errorf("requireFindings must name the first missing id: %v", err)
 	}
-	if loc, err := UnplacedLocation(run, "F-0a0a0a0a"); err != nil || loc != "L" {
-		t.Errorf("UnplacedLocation = (%q, %v) — no anchor event was appended for this finding, so its stored location is owed", loc, err)
-	}
-
 }

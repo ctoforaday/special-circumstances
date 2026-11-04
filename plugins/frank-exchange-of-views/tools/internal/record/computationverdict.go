@@ -93,11 +93,10 @@ func actVerdictsOf(evs []*Event) map[string]*Event {
 	return out
 }
 
-// validateReproduce is the write's check of a reproduce: the anchor names a computation, the sha is
-// that computation's, the act says what it compared, an act that ran nothing compared against the
-// re-run that STANDS for the bundle — re-read here, inside the write, so a later execution appended
-// between the act's read and its write refuses it — and a bundle no checker can run is never judged
-// sound.
+// validateReproduce is every writer's check of a reproduce's shape: the anchor names a computation,
+// the sha is that computation's, the act says what it compared, and a bundle no checker can run is
+// never judged sound. Which execution the act compared against is the live write's act judgement
+// (requireNamedExecution).
 func validateReproduce(q recordsql.Querier, b *recordpb.Reproduce) error {
 	sha, err := requireComputationAnchor(q, b.GetComputationId(), "--anchor")
 	if err != nil {
@@ -109,57 +108,43 @@ func validateReproduce(q recordsql.Querier, b *recordpb.Reproduce) error {
 	if b.GetRerun() == recordpb.Rerun_RERUN_UNSPECIFIED {
 		return fmt.Errorf("reproduce of %s records no comparison: a reproduce says what its bundle's re-run showed against this act's recorded result", b.GetComputationId())
 	}
-	if !b.GetRan() {
-		if err := validateStandingComparison(q, sha, b); err != nil {
-			return err
-		}
-	}
 	if b.GetRerun() == recordpb.Rerun_RERUN_CALLS_THE_TOOL {
 		return refuseSoundOverTheTool(b)
 	}
 	return nil
 }
 
-// validateStandingComparison checks an act that ran nothing against the re-run it compared with.
+// requireNamedExecution is a reproduce's act judgement (judgeAct): the act names the execution it
+// compared against by its rerun_sha — its own where it ran, else the bundle's standing re-run — and
+// the tool names it before it writes. An archived reproduce from a record that kept no raw re-run
+// names none, and the replay writes it as the archive holds it.
 //
-// A LIVE ACT NAMES THE STANDING RE-RUN by its rerun_sha, and it must still be the standing one: two
+// AN ACT THAT RAN NOTHING NAMES THE STANDING RE-RUN, and it must still be the standing one: two
 // checkers can execute one bundle at once, both executions are recorded, and the later stands, so an
 // act that read the earlier and writes after the later compared against a re-run that no longer
 // stands. Against a standing execution that called the tool there is no output to compare, so the act
 // records `calls_the_tool` too, and no act invents a call its standing execution did not make.
-//
-// A MIGRATED ACT NAMES NO EXECUTION: the record it came from kept no raw re-run. It stands on its
-// bundle's migrated `ran` reproduce and states that reproduce's comparison — migrated acts on one
-// bundle hold one output, so that comparison is each act's.
-func validateStandingComparison(q recordsql.Querier, sha string, b *recordpb.Reproduce) error {
-	var standingSha, standingRerun sql.NullString
-	live, err := queryRowAt(q, []any{&standingSha, &standingRerun}, `SELECT "rerun_sha", "rerun" FROM "reproduce" WHERE "bundle_sha" = ? AND "ran" = 1 AND "rerun_sha" IS NOT NULL ORDER BY "event_id" DESC LIMIT 1`, sha)
-	if err != nil {
-		return err
+func requireNamedExecution(q recordsql.Querier, b *recordpb.Reproduce) error {
+	if b.GetRerunSha() == "" {
+		return fmt.Errorf("reproduce of %s names no execution — the tool names the re-run the act compared against (rerun_sha), its own where it ran, else the bundle's standing one, before it writes, and this write skipped that", b.GetComputationId())
 	}
-	if live {
-		if b.GetRerunSha() != standingSha.String {
-			return fmt.Errorf("the act on %s ran nothing and compared against the re-run %s, but the re-run standing for its bundle is now %s — another execution was recorded after this act read the record, so its comparison is against a re-run that no longer stands; call again to compare against the standing one", b.GetComputationId(), compute.Short(b.GetRerunSha()), compute.Short(standingSha.String))
-		}
-		calls := recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL)
-		if (standingRerun.String == calls) != (b.GetRerun() == recordpb.Rerun_RERUN_CALLS_THE_TOOL) {
-			return fmt.Errorf("the act on %s ran nothing and records %s, but the re-run it compared against is %s — an execution that called the tool has no output to compare, and is the only one an act records `%s` against", b.GetComputationId(), recordpb.Word(b.GetRerun()), standingRerun.String, calls)
-		}
+	if b.GetRan() {
 		return nil
 	}
-	if b.GetRerunSha() != "" {
-		return fmt.Errorf("the act on %s ran nothing and names the re-run %s, which no act on the record executed — an act that ran nothing compares against the re-run standing for its bundle", b.GetComputationId(), compute.Short(b.GetRerunSha()))
-	}
-	var migrated sql.NullString
-	ran, err := queryRowAt(q, []any{&migrated}, `SELECT "rerun" FROM "reproduce" WHERE "bundle_sha" = ? AND "ran" = 1 ORDER BY "event_id" DESC LIMIT 1`, sha)
+	var standingSha, standingRerun sql.NullString
+	live, err := queryRowAt(q, []any{&standingSha, &standingRerun}, `SELECT "rerun_sha", "rerun" FROM "reproduce" WHERE "bundle_sha" = ? AND "ran" = 1 AND "rerun_sha" IS NOT NULL ORDER BY "event_id" DESC LIMIT 1`, b.GetBundleSha())
 	if err != nil {
 		return err
 	}
-	if !ran {
-		return fmt.Errorf("reproduce of %s judged its sentence without running its bundle, and nothing on the record ever ran that bundle — a judgement stands on a re-run, so this one re-runs it", b.GetComputationId())
+	if !live {
+		return fmt.Errorf("the act on %s ran nothing and names the re-run %s, which no act on the record executed — an act that ran nothing compares against the re-run standing for its bundle", b.GetComputationId(), compute.Short(b.GetRerunSha()))
 	}
-	if migrated.String != recordpb.Word(b.GetRerun()) {
-		return fmt.Errorf("reproduce of %s ran nothing and records %s, but the bundle's re-run is %s — an act that ran nothing and names no execution states the comparison of the re-run it stands on", b.GetComputationId(), recordpb.Word(b.GetRerun()), migrated.String)
+	if b.GetRerunSha() != standingSha.String {
+		return fmt.Errorf("the act on %s ran nothing and compared against the re-run %s, but the re-run standing for its bundle is now %s — another execution was recorded after this act read the record, so its comparison is against a re-run that no longer stands; call again to compare against the standing one", b.GetComputationId(), compute.Short(b.GetRerunSha()), compute.Short(standingSha.String))
+	}
+	calls := recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL)
+	if (standingRerun.String == calls) != (b.GetRerun() == recordpb.Rerun_RERUN_CALLS_THE_TOOL) {
+		return fmt.Errorf("the act on %s ran nothing and records %s, but the re-run it compared against is %s — an execution that called the tool has no output to compare, and is the only one an act records `%s` against", b.GetComputationId(), recordpb.Word(b.GetRerun()), standingRerun.String, calls)
 	}
 	return nil
 }

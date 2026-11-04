@@ -7135,18 +7135,10 @@ func (x *EnvelopeAdmitted) GetAgentId() string {
 // `Gate` says what it is. The collision is gone because the name is different, not because it was
 // decorated, and the wire is unaffected either way: field numbers carry the format, names do not.
 type Gate struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Verdict *Verdict               `protobuf:"varint,1,opt,name=verdict,proto3,enum=feov.record.v1.Verdict,oneof" json:"verdict,omitempty"`
-	// The open gaps that were MATERIAL when a migration wrote this PASS (gblock, fork (a),
-	// 2026-09-15). Migrate does not re-judge an archived PASS under the class rule it predates, so
-	// the PASS gate is exempt under `Migrating`; this field is what that exemption leaves behind, so
-	// `verify` can tell a PASS migration admitted from a PASS that violated the gate. Without it the
-	// two are the same bytes. The write path stamps it, only under `Migrating` and only on a PASS;
-	// a live write carrying it is refused, because a PASS that could claim a migration's admission
-	// could stand over any open gap. No flag sets it.
-	MigrationAdmittedGapIds []string `protobuf:"bytes,2,rep,name=migration_admitted_gap_ids,json=migrationAdmittedGapIds,proto3" json:"migration_admitted_gap_ids,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Verdict       *Verdict               `protobuf:"varint,1,opt,name=verdict,proto3,enum=feov.record.v1.Verdict,oneof" json:"verdict,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Gate) Reset() {
@@ -7184,13 +7176,6 @@ func (x *Gate) GetVerdict() Verdict {
 		return *x.Verdict
 	}
 	return Verdict_VERDICT_UNSPECIFIED
-}
-
-func (x *Gate) GetMigrationAdmittedGapIds() []string {
-	if x != nil {
-		return x.MigrationAdmittedGapIds
-	}
-	return nil
 }
 
 // Outcome is the run's TERMINAL act. The verdict is DERIVED from the record — a halt, a recorded
@@ -8402,12 +8387,11 @@ const file_record_proto_rawDesc = "" +
 	"\x05_head\"\xf7\x01\n" +
 	"\x10EnvelopeAdmitted\x12\xd5\x01\n" +
 	"\bagent_id\x18\x01 \x01(\tB\xb4\x01\x82\xb5\x18\xaf\x01\b\x01\x1a\xaa\x01the harness's id for the subagent invocation whose envelope was admitted — the key that joins the admission to the sitting that agent opened and the close it ended withH\x00R\aagentId\x88\x01\x01B\v\n" +
-	"\t_agent_id\"\x87\x01\n" +
+	"\t_agent_id\"P\n" +
 	"\x04Gate\x126\n" +
-	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01\x12;\n" +
-	"\x1amigration_admitted_gap_ids\x18\x02 \x03(\tR\x17migrationAdmittedGapIdsB\n" +
+	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01B\n" +
 	"\n" +
-	"\b_verdict\"\xb6\x05\n" +
+	"\b_verdictJ\x04\b\x02\x10\x03\"\xb6\x05\n" +
 	"\aOutcome\x12\xf1\x01\n" +
 	"\averdict\x18\x01 \x01(\x0e2\x1a.feov.record.v1.RunOutcomeB\xb5\x01\x82\xb5\x18\xb0\x01\b\x01\x12\x02as\x1a\xa7\x01the run's terminal verdict — an outcome event without one records that the run ENDED and not how, and every reader downstream sees a run that never reached a verdictH\x00R\averdict\x88\x01\x01\x12\xfe\x01\n" +
 	"\x05prose\x18\x02 \x01(\tB\xe2\x01\x82\xb5\x18\xd9\x01\b\x01\x12\x06reason\x1a\xcc\x01how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on an UNVERIFIED run it is the only evidence of why the run stopped will ever have\xc0\xb5\x18\x01H\x01R\x05prose\x88\x01\x01\x12$\n" +

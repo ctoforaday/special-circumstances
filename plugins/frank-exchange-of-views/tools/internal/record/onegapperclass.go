@@ -45,12 +45,9 @@ import (
 //
 // A closed gap does not block: a defect that recurs after its gap closed is a new gap.
 //
-// MIGRATE REPLAYS ARCHIVED RECORDS, which hold such pairs: an archived mint is what a seat did, so
-// replay admits it.
+// AN ACT JUDGEMENT (judgeAct): archived records hold such pairs, and an archived mint is what a seat
+// did.
 func requireOneGapPerClassAndSubject(w writeView, m *recordpb.Mint) error {
-	if Migrating {
-		return nil
-	}
 	quote := m.GetLocation()
 	inquiry := ""
 	if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {

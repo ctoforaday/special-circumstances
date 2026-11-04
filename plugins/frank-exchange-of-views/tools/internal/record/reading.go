@@ -106,8 +106,8 @@ func AppendReading(id Identity, reading *recordpb.Verify, gap *recordpb.Mint, pl
 // ReadingGapClasses of the body as stamped, never on its outcome alone:
 //   - a reading whose ReadingGapClasses is empty — a backing reading of a citation, `unreachable`,
 //     any outcome of a not_the_work copy, a found-source reading's `absent` — carries neither field;
-//   - one whose ReadingGapClasses is non-empty names its gap (an archived reading carries none, and
-//     replay admits it);
+//   - one whose ReadingGapClasses is non-empty names its gap — an act judgement (judgeAct,
+//     requireReadingNamesCarrier): an archived reading carries none, and the replay writes it so;
 //   - carrier_minted true only inside the reading's own act, whose Mint is that gap, of an admitted
 //     class;
 //   - carrier_minted false names an open gap of an admitted class standing in the reading's sentence.
@@ -122,10 +122,7 @@ func requireReadingCarrier(w writeView, v *recordpb.Verify) error {
 		return nil
 	}
 	if v.CarriedBy == nil && v.CarrierMinted == nil {
-		if Migrating {
-			return nil // an archived reading: its gap was minted later, or never
-		}
-		return fmt.Errorf("a reading that mints a gap (%s) names the gap that carries it — its own act mints it, or the open gap of its class on the sentence is named; written without one, the defect it found would reach no board", recordpb.Word(v.GetOutcome()))
+		return nil // that the reading names its carrier is the live write's act judgement (requireReadingNamesCarrier)
 	}
 	if v.GetCarriedBy() == "" || v.CarrierMinted == nil {
 		return fmt.Errorf("a reading's carried_by and carrier_minted are written together: the gap that carries it, and whether its own act minted that gap")
@@ -253,4 +250,16 @@ func requireNotARetriedReading(q recordsql.Querier, seatID string, v *recordpb.V
 			v.GetUrl(), at, outcome, carries, tail)
 	}
 	return rows.Err()
+}
+
+// requireReadingNamesCarrier is a reading's act judgement (judgeAct): a reading whose
+// ReadingGapClasses is non-empty names the gap that carries it. The tool names it before it writes —
+// its own act mints the gap, or the open gap of its class on the sentence is named. An archived
+// reading from before the fields carries neither: its gap was minted later, or never, and the replay
+// writes it as the archive holds it.
+func requireReadingNamesCarrier(v *recordpb.Verify) error {
+	if len(ReadingGapClasses(v)) == 0 || v.CarriedBy != nil || v.CarrierMinted != nil {
+		return nil
+	}
+	return fmt.Errorf("a reading that mints a gap (%s) names the gap that carries it — its own act mints it, or the open gap of its class on the sentence is named; written without one, the defect it found would reach no board", recordpb.Word(v.GetOutcome()))
 }

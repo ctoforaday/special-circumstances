@@ -267,23 +267,9 @@ func countInReport(count func(string) int) func(recordsql.Querier, func() (strin
 // THE STANDING IS lensMintStanding'S, the reading the work list states (WorkOfSeat), so the count a
 // lens is shown and the count it is refused on are one read by one function.
 func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error {
-	// THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER. A seat of another
-	// role is not a lens spending a budget; an id with no role is no seat at all, and is refused by
-	// name rather than by an area cut off its spelling — `red-lens-banana` is not the `banana` lens.
-	// requireDispatchableSeat refuses such an id at `register`; a write that reaches here under one
-	// is refused here.
-	role := seatclass.RoleOfSeat(seatID)
-	if role != "" && role != "lens" {
-		return nil
-	}
-	area := AreaOf(seatID)
-	if area == "" {
-		return feov.Errorf(feov.Validation,
-			"%q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
-			seatID)
-	}
-	if _, err := mintScaleOf(area); err != nil {
-		return feov.Errorf(feov.Validation, "%s: %v", seatID, err)
+	area, lens, err := mintAreaOf(seatID)
+	if err != nil || !lens {
+		return err
 	}
 	// THE STANDING IS READ IN THE MINT'S OWN TRANSACTION. Read before it, two mints from one lens —
 	// parallel calls in one sitting — both find the last slot free and both land, and the lens holds
@@ -610,4 +596,29 @@ func mintBudgetOf(read *budgetRead) (*MintBudgetJSON, string) {
 	}
 	return j, fmt.Sprintf("you hold %d gap(s) open of a mint budget of %d%s — %s — so %s; %s. %s",
 		st.Open, b.Budget, answering, b.Arithmetic(), leftWords, tail, mintAnswerOutsideBudget)
+}
+
+// mintAreaOf is the lens area a mint by seatID spends a budget in, and whether seatID is a lens at
+// all; every writer asks it (validate), and the live write's budget reads the area it names.
+//
+// THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER. A seat of another role
+// is not a lens spending a budget; an id with no role is no seat at all, and is refused by name
+// rather than by an area cut off its spelling — `red-lens-banana` is not the `banana` lens.
+// requireDispatchableSeat refuses such an id at `register`; a write that reaches here under one is
+// refused here.
+func mintAreaOf(seatID string) (area string, lens bool, err error) {
+	role := seatclass.RoleOfSeat(seatID)
+	if role != "" && role != "lens" {
+		return "", false, nil
+	}
+	area = AreaOf(seatID)
+	if area == "" {
+		return "", false, feov.Errorf(feov.Validation,
+			"%q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
+			seatID)
+	}
+	if _, err := mintScaleOf(area); err != nil {
+		return "", false, feov.Errorf(feov.Validation, "%s: %v", seatID, err)
+	}
+	return area, true, nil
 }
