@@ -8382,9 +8382,14 @@ func (r *runner) settleOpenInquiries(seatID string) {
 	if !ok {
 		return
 	}
+	// THE FORCED UNSOUND CHAIN SETTLES EVERY ONE: its owner judges the forced computation only in a
+	// sitting whose plan does not ready blue-respond (judgeUnsound), and an open inquiry readies
+	// blue-respond on every plan. A reaffirmed `underway` there left every plan of seed 6 readying blue,
+	// and the chain never reached its judgement.
+	keepOpen := !r.forcedVerdict() && !r.forceUnsoundComputation
 	for _, j := range js {
 		switch {
-		case j.Open() && !r.forcedVerdict() && r.coin(20):
+		case j.Open() && keepOpen && r.coin(20):
 			r.do("inquiry record", seatID).set("--id", j.ID).set("--as", "underway").
 				set("--reason", "fuzz: the research goes on; what this sitting learned narrows it").admit()
 		case j.Open():
@@ -8399,7 +8404,7 @@ func (r *runner) settleOpenInquiries(seatID string) {
 }
 
 // The refusal classes of `inquiry check` the drive holds the tool to, each with the code its refusal
-// carries. An empty reason is refused by the write with an uncoded error, which renders as Internal.
+// carries. An empty reason is the schema's required-field refusal, coded missing_field.
 const (
 	checkNonOwner    = "non_owner"
 	checkEmptyReason = "empty_reason"
@@ -9276,7 +9281,8 @@ func (r *runner) envelopeRefusedEarly(seatID, standing string) {
 //
 // AN ENVELOPE THE RECORD REFUSES IS ANSWERED AND OFFERED AGAIN, as the hook makes a live seat do:
 // another seat's act can land after the drive's last pass — blue's cite or computation while the anchor's
-// owner sits is that sitting's to check — so a lens clears what it now owes and offers the envelope
+// owner sits is that sitting's to check, a sibling lens's close of the gap that held an inquiry wanting
+// the inquiry owner's — so a lens clears what it now owes and offers the envelope
 // again, at most four times, as a parallel blue can place more than once. The check that decides is
 // the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) bool {
@@ -9285,6 +9291,9 @@ func (r *runner) envelopeEnds(seatID string) bool {
 		r.answerContradictions(seatID)
 		r.dischargeOwed(seatID)
 		r.answerFailed(seatID)
+		// AN INQUIRY A SIBLING'S ACT LEFT UNCHECKED: a lens sitting alongside closed or regraded the gap
+		// that held it wanting after the owner's pass, and the owner's list now offers its check.
+		r.checkInquiries(seatID)
 		refusal, err = record.EnvelopeRefusal(r.run(), seatID)
 	}
 	switch {
