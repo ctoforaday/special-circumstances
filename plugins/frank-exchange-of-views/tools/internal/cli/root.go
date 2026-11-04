@@ -12,8 +12,8 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 	"os"
 	"path/filepath"
 	"sort"

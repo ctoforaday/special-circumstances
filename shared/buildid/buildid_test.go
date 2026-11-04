@@ -39,17 +39,17 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go toolchain")
 	}
-	dir, err := filepath.Abs("../..")
+	root, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// THIS TREE'S HEAD, worktree or not: Go 1.27 stamps a worktree's own revision. Go 1.25
-	// stamped the main checkout's (#532), measured side by side at the 1.27 bump.
-	head, err := exec.Command("git", "-C", dir, "rev-parse", "--short=7", "HEAD").Output()
+	head, err := exec.Command("git", "-C", root, "rev-parse", "--short=7", "HEAD").Output()
 	if err != nil {
 		t.Skip("not in a git checkout")
 	}
 	want := strings.TrimSpace(string(head))
+
+	dir := filepath.Join(root, "plugins", "gray-area", "tools")
 
 	// ExeName, not a hand-rolled conditional. This module had no ExeName to call, so the rule
 	// about executable naming was stated here and enforced in the sibling module — the exact

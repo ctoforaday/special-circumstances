@@ -467,3 +467,18 @@ func TestEnsureReturnsTheVersionChecksMessage(t *testing.T) {
 		t.Errorf("outside a plugin hook there is nothing to ensure: %q %v", got, err)
 	}
 }
+
+func TestJoinMessages(t *testing.T) {
+	for _, tc := range []struct {
+		a, b, want string
+	}{
+		{"", "", ""},
+		{"a", "", "a"},
+		{"", "b", "b"},
+		{"a", "b", "a\n\nb"},
+	} {
+		if got := JoinMessages(tc.a, tc.b); got != tc.want {
+			t.Errorf("JoinMessages(%q, %q) = %q, want %q", tc.a, tc.b, got, tc.want)
+		}
+	}
+}

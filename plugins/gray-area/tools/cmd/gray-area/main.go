@@ -22,10 +22,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/claims"
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/trajectory"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 const usage = `gray-area — trajectory evidence

@@ -21,8 +21,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 type requirements struct {

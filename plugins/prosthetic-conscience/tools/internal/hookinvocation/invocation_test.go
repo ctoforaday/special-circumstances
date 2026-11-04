@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	st "github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secrets/secretstest"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // binRef pulls the binary name out of the shipped command string. The commands are

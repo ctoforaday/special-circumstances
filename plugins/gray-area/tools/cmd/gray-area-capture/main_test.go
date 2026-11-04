@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 var noon = time.Date(2026, 7, 28, 13, 0, 0, 0, time.UTC)

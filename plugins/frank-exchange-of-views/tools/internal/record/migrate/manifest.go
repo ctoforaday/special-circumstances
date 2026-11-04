@@ -8,9 +8,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // classTranslations is the counted slugs as rows, ordered by slug, never nil.

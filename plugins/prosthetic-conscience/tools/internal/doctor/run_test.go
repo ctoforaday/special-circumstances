@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // noFix stands in for fix(): the real one reaches the network (gh release download)

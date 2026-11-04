@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // POSTCOMPACT DISPLAYS NOTHING, and an observation that cannot be written used to be a stderr line at

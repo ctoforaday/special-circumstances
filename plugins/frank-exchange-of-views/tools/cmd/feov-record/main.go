@@ -7,7 +7,7 @@ package main
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 func main() {

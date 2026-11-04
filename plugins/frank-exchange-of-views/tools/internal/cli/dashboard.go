@@ -12,7 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/dashboard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 // newDashboard is the operator command that renders a run's live dashboard.html — ported from

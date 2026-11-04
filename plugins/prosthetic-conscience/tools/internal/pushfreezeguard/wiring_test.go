@@ -2,7 +2,7 @@ package pushfreezeguard
 
 import (
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 	"io"
 	"os"
 	"testing"
