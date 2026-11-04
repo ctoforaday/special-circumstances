@@ -51,7 +51,7 @@ only record of those files.`,
 				return err
 			}
 			defer db.Close()
-			files, err := catalogue.TranscriptFiles(env.ProjectsDir)
+			files, err := catalogue.TranscriptFilesMulti(env.ProjectsDir, env.BrainDirs)
 			if err != nil {
 				return err
 			}

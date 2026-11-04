@@ -486,3 +486,41 @@ func TestDecodeHitCallIdentityIsNotItsInput(t *testing.T) {
 		t.Errorf("input: channel %q, want %q", h.Channel, ChannelCall)
 	}
 }
+
+func TestDecodeHitAntigravity(t *testing.T) {
+	userInput := `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-11-04T07:26:20Z","content":"hello world search target"}`
+	h, ok := DecodeHit(userInput, spansOf(userInput, "search target"), false)
+	if !ok || h.Channel != ChannelUser {
+		t.Errorf("USER_INPUT channel = %q, ok = %v, want ChannelUser", h.Channel, ok)
+	}
+	hSub, ok := DecodeHit(userInput, spansOf(userInput, "search target"), true)
+	if !ok || hSub.Channel != ChannelLead {
+		t.Errorf("USER_INPUT in subagent channel = %q, ok = %v, want ChannelLead", hSub.Channel, ok)
+	}
+
+	planner := `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-04T07:26:20Z","content":"I will inspect code","thinking":"planning the deep search","tool_calls":[{"name":"read_file","args":{"Path":"/code/foo.go"}}]}`
+	hContent, _ := DecodeHit(planner, spansOf(planner, "inspect code"), false)
+	if hContent.Channel != ChannelAssistant {
+		t.Errorf("PLANNER_RESPONSE content channel = %q, want ChannelAssistant", hContent.Channel)
+	}
+	hThink, _ := DecodeHit(planner, spansOf(planner, "deep search"), false)
+	if hThink.Channel != ChannelThinking {
+		t.Errorf("PLANNER_RESPONSE thinking channel = %q, want ChannelThinking", hThink.Channel)
+	}
+	hCall, _ := DecodeHit(planner, spansOf(planner, "/code/foo.go"), false)
+	if hCall.Channel != ChannelCall {
+		t.Errorf("PLANNER_RESPONSE tool_calls channel = %q, want ChannelCall", hCall.Channel)
+	}
+
+	generic := `{"step_index":2,"source":"MODEL","type":"GENERIC","status":"DONE","created_at":"2026-11-04T07:26:25Z","content":"file contents line 1"}`
+	hRes, _ := DecodeHit(generic, spansOf(generic, "contents line 1"), false)
+	if hRes.Channel != ChannelResult {
+		t.Errorf("GENERIC content channel = %q, want ChannelResult", hRes.Channel)
+	}
+
+	sysMsg := `{"step_index":3,"source":"SYSTEM","type":"SYSTEM_MESSAGE","status":"DONE","created_at":"2026-11-04T07:26:30Z","content":"cron fired notification"}`
+	hSys, _ := DecodeHit(sysMsg, spansOf(sysMsg, "cron fired"), false)
+	if hSys.Channel != ChannelNotification {
+		t.Errorf("SYSTEM_MESSAGE content channel = %q, want ChannelNotification", hSys.Channel)
+	}
+}

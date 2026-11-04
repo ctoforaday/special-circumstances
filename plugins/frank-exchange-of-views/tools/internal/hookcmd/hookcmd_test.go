@@ -47,6 +47,14 @@ func TestEmitPreAsk(t *testing.T) {
 	}
 }
 
+func TestEmitPreAsk(t *testing.T) {
+	var out bytes.Buffer
+	emitPreAsk(&out, "confirm this action")
+	if !strings.Contains(out.String(), "ask") {
+		t.Errorf("emitPreAsk output = %s, want ask", out.String())
+	}
+}
+
 func TestAntigravityPreToolUseAndPostToolUse(t *testing.T) {
 	req := hookcore.Request{
 		Engine: hookcore.EngineAntigravity,
