@@ -349,8 +349,8 @@ func teachUnknownSubcommand(root *cobra.Command) {
 			}
 			sub := args[0]
 			if at := whereSubcommandLives(group.Name(), sub); len(at) > 0 {
-				// THE ACT IS NAMED AS ITS HOLDER'S. Quoted bare, `inquiry review` reads to blue as a
-				// command it can type; it is the chair's, and the sentence says so where the path is.
+				// THE ACT IS NAMED AS ITS HOLDER'S. Quoted bare, `inquiry check` reads to blue as a
+				// command it can type; it is the logic lens's, and the sentence says so where the path is.
 				holders := make([]string, len(at))
 				for i, a := range at {
 					holders[i] = "the " + a + "'s"

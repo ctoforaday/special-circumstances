@@ -240,7 +240,7 @@ func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
 //
 // A verb group with no RunE answered an unknown subcommand with its own help and EXIT 0: cobra read
 // the word as an argument to a command that cannot run, printed the help, and reported success.
-// `inquiry` is a group on blue's surface (propose, record) and on the chair's (review), so each seat
+// `inquiry` is a group on blue's surface (propose, record) and on the lens's (check), so each seat
 // can type the other's act under a group it does hold, and would be told nothing. The case above is
 // the same failure one level down: a seat that meets a wrong-seat act as "nothing happened" works around it or stops.
 func TestAGroupedActIsToldWhereItLives(t *testing.T) {
@@ -249,8 +249,8 @@ func TestAGroupedActIsToldWhereItLives(t *testing.T) {
 		argv     []string
 		wantSeat string // empty where no seat holds the act
 	}{
-		{"blue-respond", []string{"inquiry", "review"}, "chair"},
-		{"red-chair", []string{"inquiry", "propose"}, "lane"},
+		{"blue-respond", []string{"inquiry", "check"}, "lens"},
+		{"red-lens-evidence", []string{"inquiry", "propose"}, "lane"},
 		{"blue-respond", []string{"inquiry", "nonsense"}, ""},
 		{"blue-respond", []string{"motion", "nonsense"}, ""},
 	} {

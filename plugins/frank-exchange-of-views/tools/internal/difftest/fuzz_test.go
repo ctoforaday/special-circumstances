@@ -439,7 +439,8 @@ var fuzzArms = []fuzzArm{
 }
 
 // tourArms are the recording verbs the random sequences rarely land, each with the prerequisites
-// it needs: one per verb, on a seat whose tree has it — the lens's close, regrade and reproduce;
+// it needs: one per verb, on a seat whose tree has it — the lens's close, regrade and reproduce, and
+// the logic lens's inquiry check;
 // the chair's position; the parties' closing on the docketed GAP002 — its minting lens's and
 // blue-respond's; the bench's declare, certify, halt and outcome.
 // Every arm files its act and then files it AGAIN: where a sitting holds one of the act the repeat
@@ -467,7 +468,6 @@ var tourArms = []fuzzArm{
 	tourArm("lens closing", []string{"red-lens-evidence"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} }, nil),
 	tourArm("log", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
-	tourArm("chair inquiry review", []string{"red-chair"}, []string{"inquiry", "review"}, reasonOnly, nil),
 	tourArm("chair spot-check", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--reason", t} }, nil),
 	tourArm("lens regrade", []string{"red-lens-evidence"}, []string{"regrade"},
 		func(t string) []string { return []string{"--id", "GAP001", "--severity", "high", "--reason", t} }, nil),
@@ -481,6 +481,18 @@ var tourArms = []fuzzArm{
 		}, nil),
 	tourArm("blue inquiry propose", blueSeats, []string{"inquiry", "propose"},
 		func(t string) []string { return []string{"--question", t, "--hypothesis", "it would settle something"} }, nil),
+	// THE LOGIC LENS'S CHECK OF A SETTLED INQUIRY: INQUIRY001 is the proposal above, blue settles it,
+	// and the lens registers after that fate, so its sitting is later than what it judges. The repeat
+	// is refused: a check stands on an inquiry whose fate and gaps have not moved since.
+	tourArm("lens inquiry check", []string{"red-lens-logic"}, []string{"inquiry", "check"},
+		func(t string) []string { return []string{"--id", "INQUIRY001", "--reason", t} },
+		func(name string) []cmd {
+			return []cmd{
+				fuzzStep(name+" · setup", []string{"inquiry", "record"}, "blue-respond",
+					"--id", "INQUIRY001", "--as", "confirmed", "--reason", "the approach ran and answered it"),
+				fuzzStep(name+" · setup", []string{"register"}, "red-lens-logic"),
+			}
+		}),
 	tourArm("lens reproduce", []string{"red-lens-evidence"}, []string{"reproduce"},
 		func(t string) []string { return []string{"--anchor", "{COMPUTATION}", "--as", "sound", "--reason", t} }, nil),
 	tourArm("bench declare", []string{"judge"}, []string{"declare"}, reasonOnly, nil),

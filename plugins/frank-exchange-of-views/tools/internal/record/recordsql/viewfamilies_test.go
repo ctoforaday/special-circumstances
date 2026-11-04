@@ -146,25 +146,22 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 		SupersedesStatus: proto.String("proposed")})); err != nil {
 		t.Fatal(err)
 	}
-	// Two inquiry rulings, inserted past the write that refuses the second: the FIRST stands, as
-	// motion_answers states it for every motion — the later word does not overturn it.
-	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"),
-		Opinion:  proto.String("o"),
-		Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED}})); err != nil {
+	// Two checks: the view carries the LATEST, whose standing the Go fold decides.
+	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_INQUIRY_CHECK, &recordpb.InquiryCheck{
+		InquiryId: proto.String("Q1"), Reason: proto.String("its fate stands")})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"),
-		Opinion:  proto.String("reconsidered"),
-		Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}})); err != nil {
+	latest, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_INQUIRY_CHECK, &recordpb.InquiryCheck{
+		InquiryId: proto.String("Q1"), Reason: proto.String("it stands again")}))
+	if err != nil {
 		t.Fatal(err)
 	}
 
 	var line, status string
-	var ruling sql.NullString
-	if err := db.QueryRow(`SELECT "question", "status", "inquiry_ruling" FROM "inquiry_state" WHERE "inquiry_id" = 'Q1'`).
-		Scan(&line, &status, &ruling); err != nil {
+	var checkSeq sql.NullInt64
+	var checkedBy sql.NullString
+	if err := db.QueryRow(`SELECT "question", "status", "check_seq", "checked_by" FROM "inquiry_state" WHERE "inquiry_id" = 'Q1'`).
+		Scan(&line, &status, &checkSeq, &checkedBy); err != nil {
 		t.Fatal(err)
 	}
 	if line != "a question" {
@@ -173,8 +170,8 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 	if status != "underway" {
 		t.Errorf("status = %q, want the latest recorded fate's", status)
 	}
-	if want := recordpb.Word(recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED); ruling.String != want {
-		t.Errorf("inquiry_ruling = %q, want the first ruling's %q — motion_answers' rule", ruling.String, want)
+	if checkSeq.Int64 != latest || checkedBy.String != "red-chair" {
+		t.Errorf("(check_seq, checked_by) = (%v, %v), want the latest check's (%d, red-chair)", checkSeq, checkedBy, latest)
 	}
 	var n int
 	if err := db.QueryRow(`SELECT count(*) FROM "inquiry_state"`).Scan(&n); err != nil {

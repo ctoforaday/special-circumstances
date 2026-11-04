@@ -654,28 +654,20 @@ func TestARecordedInquiryIsRenderedOnce(t *testing.T) {
 	}
 }
 
-// RED'S RULING IS THE DEBATE, NOT THE SUBJECT. The report is research prose and tool
-// markers, and both the ruling and the proposing seat's id are on the ledger. The ruling's opinion
-// renders in judgments.md, and the ruling beside the inquiry's path in inquiries.md
-// (view.TestAnInquiryRulingRendersBesideTheFateRecordedAgainstIt).
-func TestInquiryRulingAndSeatStayOutOfTheReport(t *testing.T) {
+// THE CHECK OF AN INQUIRY IS THE DEBATE, NOT THE SUBJECT. The report is research prose and tool
+// markers, and both the logic lens's check and the proposing seat's id are on the ledger. The check
+// renders beside the inquiry's path in inquiries.md (TestTheInquiriesShowTheCheckThatStands).
+func TestInquiryCheckAndSeatStayOutOfTheReport(t *testing.T) {
 	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("survey the adjacent literature")}),
-		// The LIVE vocabulary: red rules an inquiry through `motion inquiry rule`, whose motion_id
-		// IS the inquiry's own id — the proposal is the filing, so there is no second identity.
-		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
-			MotionId: proto.String("Q1"),
-			Opinion:  proto.String("a real question, not THIS run's"),
-			Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
-		}),
-		// Blue pursues it ANYWAY: the ruling binds no fate, and the fate is what blue records about it.
-		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("survey the adjacent literature")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), SupersedesStatus: proto.String("1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED), Reason: proto.String("the literature agrees")}),
+		recordtest.Event(t, record.InquiryOwner(), &recordpb.InquiryCheck{InquiryId: proto.String("Q1"), Reason: proto.String("a fate THIS run's research delivers")}),
 	})
 	exp := inquirySection(t, board, "Research areas")
 	if !strings.Contains(exp, "- **Question:** survey the adjacent literature\n") {
 		t.Fatalf("the inquiry itself must still reach the report:\n%s", exp)
 	}
-	for _, leak := range []string{"out_of_scope", "a real question, not THIS run's", "against red's", "ruled", "(blue-r"} {
+	for _, leak := range []string{"a fate THIS run's research delivers", "checked by", record.InquiryOwner(), "(blue-r"} {
 		if strings.Contains(exp, leak) {
 			t.Errorf("the debate over an inquiry leaked into the report as %q:\n%s", leak, exp)
 		}

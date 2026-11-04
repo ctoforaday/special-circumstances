@@ -170,3 +170,51 @@ func TestTheInquiriesShowEveryRecordOfThePath(t *testing.T) {
 		t.Errorf("no inquiries render %q", want)
 	}
 }
+
+// inquiriesDoc assembles a run of the events and returns its inquiries.md, with the inquiries view
+// a seat reads beside it.
+func inquiriesDoc(t *testing.T, evs ...*record.Event) (doc, seatView string) {
+	t.Helper()
+	dir := recordtest.TmpRun(t)
+	recordtest.Seed(t, dir, evs...)
+	run := runtest.Open(t, dir)
+	// The document as composed, under no masthead: it is compared with the view whole.
+	docs, _, _, err := stdReaders().assemble(run, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range docs {
+		if d.File == FileInquiries {
+			doc = d.Body
+		}
+	}
+	fam, err := record.FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doc, view.InquiryBody(fam.Events, fam.At, false, view.AsWritten)
+}
+
+// THE CHECK THAT STANDS SHIPS WITH ITS REASON, in inquiries.md beside the fate it judged, and in the
+// view a seat reads: the logic lens's judgement of an inquiry is work the document claims to show. A
+// check a later fate left stale ships nowhere — the fate it judged is no longer the inquiry's.
+func TestTheInquiriesShowTheCheckThatStands(t *testing.T) {
+	proposal := recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+		Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("Does a list of primes contain 91?")})
+	fate := func(reason string) *record.Event {
+		return recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"), SupersedesStatus: proto.String("1"),
+			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Reason: proto.String(reason), Method: proto.String("Read A000040.")})
+	}
+	check := recordtest.Event(t, record.InquiryOwner(), &recordpb.InquiryCheck{InquiryId: proto.String("Q1"),
+		Reason: proto.String("The fate answers the question.\n\nA000040 omits 91.")})
+	doc, seatView := inquiriesDoc(t, proposal, fate("91 = 7 x 13."), check)
+	for name, got := range map[string]string{"inquiries.md": doc, "the seat's view": seatView} {
+		mustContain(t, got, name, "checked by "+record.InquiryOwner(), "The fate answers the question.", "A000040 omits 91.")
+	}
+	doc, seatView = inquiriesDoc(t, proposal, fate("91 = 7 x 13."), check, fate("91 = 7 x 13, again."))
+	for name, got := range map[string]string{"inquiries.md": doc, "the seat's view": seatView} {
+		if strings.Contains(got, "checked by") || strings.Contains(got, "A000040 omits 91.") {
+			t.Errorf("%s ships a check a later fate left stale:\n%s", name, got)
+		}
+	}
+}

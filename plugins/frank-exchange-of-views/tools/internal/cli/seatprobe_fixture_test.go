@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
@@ -132,14 +133,18 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 			"--question", a.Question, "--hypothesis", a.Hypothesis); err != nil {
 			t.Fatalf("inquiry %d: %v", i, err)
 		}
-		if a.Ruled == "" {
+		if a.Fate == "" {
 			continue
 		}
-		id := fmt.Sprintf("A%d", i+1)
-		if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair",
-			"--id", id, "--as", a.Ruled,
-			"--reason", "ruled "+a.Ruled+" on the line as it was proposed"); err != nil {
-			t.Fatalf("rule %s: %v", id, err)
+		// THE ID IS THE ONE THE RECORD MINTED for the proposal just made.
+		q, _ := recordpb.BodyAs[*recordpb.Inquiry](lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_INQUIRY))
+		args := []string{"inquiry", "record", "--run", runDir, "--seat-id", "blue-respond",
+			"--id", q.GetInquiryId(), "--as", a.Fate, "--reason", a.FateWhy}
+		if a.Method != "" {
+			args = append(args, "--method", a.Method)
+		}
+		if _, err := run(t, args...); err != nil {
+			t.Fatalf("record the fate of %s: %v", q.GetInquiryId(), err)
 		}
 	}
 

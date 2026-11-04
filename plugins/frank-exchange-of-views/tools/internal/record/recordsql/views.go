@@ -693,21 +693,20 @@ FROM "gap";
 -- THE ANSWERS TO A MOTION, one row per answered id, whichever filing shape asked. The FIRST
 -- ruling is the one that counts, and a second is refused at the write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
 -- multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
--- because an inquiry motion has no filing row (the inquiry's proposal IS the
+-- because a position motion has no filing row (the chair's position IS the
 -- filing) and its answers must be askable all the same.
 CREATE VIEW "motion_answers" AS
 SELECT
   ids."motion_id"                                        AS "motion_id",
   fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
-  fr."inquiry"                                           AS "inquiry",
   -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
-  -- Its three siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
+  -- Its two siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
   rd."disposition"                                       AS "docket",
-  COALESCE(fr."grade", fr."petition", fr."inquiry", rd."disposition") AS "ruling",
+  COALESCE(fr."grade", fr."petition", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq"
 FROM (SELECT DISTINCT "motion_id" FROM "motion_rule") ids
@@ -716,12 +715,11 @@ LEFT JOIN "motion_rule" fr ON fr."event_id" =
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
 LEFT JOIN "events" fre ON fre."id" = fr."event_id";
 
--- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and how red
--- ruled it. The proposal row carries the substance; the LATEST inquiry event carries the status;
--- red's answer is motion_answers' row for the inquiry's id — the FIRST ruling, the one rule every
--- reader of a motion's answer states, because the write refuses a second (RequireUnruledMotion).
--- InquiriesOf is the Go reader of the same answer, and inquiryReadersAgree (record's
--- motionguards_test.go) holds the two level.
+-- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and its latest
+-- check. The proposal row carries the substance; the LATEST inquiry event carries the status; the
+-- LATEST inquiry_check carries the check. Whether that check STANDS is not a column: it stands while
+-- it is later than the status and than the latest gap about the inquiry that was material at its
+-- mint, which the Go fold decides (record/inquirycheck.go) and InquiriesOf reads off the same rows.
 CREATE VIEW "inquiry_state" AS
 SELECT
   p."inquiry_id"                       AS "inquiry_id",
@@ -730,9 +728,8 @@ SELECT
   fp."question"                        AS "question",
   ls."status"                          AS "status",
   lse."id"                          AS "status_seq",
-  a."inquiry"                          AS "inquiry_ruling",
-  a."ruled_by"                         AS "ruled_by",
-  a."ruled_seq"                        AS "ruled_seq"
+  ce."id"                           AS "check_seq",
+  ce."seat_id"                         AS "checked_by"
 FROM (SELECT a0."inquiry_id" AS "inquiry_id", MIN(a0."event_id") AS "pid"
         FROM "inquiry" a0
         WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL
@@ -742,7 +739,8 @@ JOIN "events" pe ON pe."id" = p."pid"
 LEFT JOIN "inquiry" ls ON ls."event_id" =
   (SELECT MAX(x."event_id") FROM "inquiry" x WHERE x."inquiry_id" = p."inquiry_id")
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
-LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
+LEFT JOIN "events" ce ON ce."id" =
+  (SELECT MAX(c."event_id") FROM "inquiry_check" c WHERE c."inquiry_id" = p."inquiry_id");
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
 -- this stream folded from the empty text, so the SELECTION of which events mutate the text — and

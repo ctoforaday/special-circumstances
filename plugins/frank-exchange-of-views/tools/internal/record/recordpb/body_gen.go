@@ -117,10 +117,6 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.Log, true
 		}
-	case *Event_InquiryReview:
-		if b != nil {
-			return b.InquiryReview, true
-		}
 	case *Event_ReportPart:
 		if b != nil {
 			return b.ReportPart, true
@@ -160,6 +156,10 @@ func Body(ev *Event) (proto.Message, bool) {
 	case *Event_EnvelopeAdmitted:
 		if b != nil {
 			return b.EnvelopeAdmitted, true
+		}
+	case *Event_InquiryCheck:
+		if b != nil {
+			return b.InquiryCheck, true
 		}
 	}
 	return nil, false

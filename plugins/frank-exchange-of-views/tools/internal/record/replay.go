@@ -268,8 +268,8 @@ func DocketGapByMotion(evs []*Event) map[string]string {
 // zero are the same number.
 //
 // NOT A GENERAL RULE ABOUT SEPARATORS, then or now. Disposition really is `defect_accepted` on the
-// seat's surface, InquiryRuling really is `out_of_scope` (inquiry.go checked it), and a test
-// treats the hyphenated forms as typos of them.
+// seat's surface, GapClass really is `out_of_scope`, and a test treats the hyphenated forms as typos
+// of them.
 //
 // "" for the unspecified zero, matching what `p.Str("severity")` returned when the key was absent,
 // which is what MASS lookups and every caller's rendering already handle.

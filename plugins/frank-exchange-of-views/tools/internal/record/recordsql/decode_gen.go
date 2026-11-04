@@ -36,7 +36,6 @@ var bodyTables = map[string]func() bodyTable{
 	"retire":            func() bodyTable { return &retireTable{} },
 	"manifest_row":      func() bodyTable { return &manifestRowTable{} },
 	"log":               func() bodyTable { return &logTable{} },
-	"inquiry_review":    func() bodyTable { return &inquiryReviewTable{} },
 	"report_part":       func() bodyTable { return &reportPartTable{} },
 	"sitting_open":      func() bodyTable { return &sittingOpenTable{} },
 	"sitting_close":     func() bodyTable { return &sittingCloseTable{} },
@@ -47,6 +46,7 @@ var bodyTables = map[string]func() bodyTable{
 	"stale":             func() bodyTable { return &staleTable{} },
 	"report_read":       func() bodyTable { return &reportReadTable{} },
 	"envelope_admitted": func() bodyTable { return &envelopeAdmittedTable{} },
+	"inquiry_check":     func() bodyTable { return &inquiryCheckTable{} },
 }
 
 // registerTable reads the "register" table's rows past an event id, with its lists and oneof arms, keyed by event.
@@ -376,8 +376,6 @@ type motionTable struct {
 	filingGradeBad    map[int64]error
 	filingPetition    map[int64]*recordpb.PetitionMotion
 	filingPetitionBad map[int64]error
-	filingInquiry     map[int64]*recordpb.InquiryMotion
-	filingInquiryBad  map[int64]error
 	filingDocket      map[int64]*recordpb.DocketMotion
 	filingDocketBad   map[int64]error
 	filingPosition    map[int64]*recordpb.PositionMotion
@@ -469,23 +467,6 @@ func (t *motionTable) load(q Querier, after int64) error {
 		}
 	}
 	// Only an arm some row names is read.
-	if caseNamed(t.filingCase, "inquiry") {
-		t.filingInquiry = map[int64]*recordpb.InquiryMotion{}
-		{
-			var id int64
-			var c0 sql.NullString
-			if err := scanRows(q, "motion_inquiry", `SELECT t."event_id", t."inquiry_id" FROM "motion_inquiry" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
-				m := &recordpb.InquiryMotion{}
-				if c0.Valid {
-					m.InquiryId = ref(c0.String)
-				}
-				t.filingInquiry[id] = m
-			}); err != nil {
-				return err
-			}
-		}
-	}
-	// Only an arm some row names is read.
 	if caseNamed(t.filingCase, "docket") {
 		t.filingDocket = map[int64]*recordpb.DocketMotion{}
 		{
@@ -557,15 +538,6 @@ func (t *motionTable) attach(ev *recordpb.Event, id int64) error {
 			return err
 		}
 		m.Filing = &recordpb.Motion_Petition{Petition: a}
-	case "inquiry":
-		a := t.filingInquiry[id]
-		if a == nil {
-			return noBody(id, "motion_inquiry")
-		}
-		if err := t.filingInquiryBad[id]; err != nil {
-			return err
-		}
-		m.Filing = &recordpb.Motion_Inquiry{Inquiry: a}
 	case "docket":
 		a := t.filingDocket[id]
 		if a == nil {
@@ -610,9 +582,8 @@ func (t *motionRuleTable) load(q Querier, after int64) error {
 		var c3 sql.NullString
 		var c4 sql.NullString
 		var c5 sql.NullString
-		var c6 sql.NullString
 		var k0 sql.NullString
-		if err := scanRows(q, "motion_rule", `SELECT t."event_id", t."motion_id", t."opinion", t."grade", t."petition", t."inquiry", t."binds", t."relief", t."ruling_case" FROM "motion_rule" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &k0}, func() {
+		if err := scanRows(q, "motion_rule", `SELECT t."event_id", t."motion_id", t."opinion", t."grade", t."petition", t."binds", t."relief", t."ruling_case" FROM "motion_rule" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &k0}, func() {
 			m := &recordpb.MotionRule{}
 			if c0.Valid {
 				m.MotionId = ref(c0.String)
@@ -635,21 +606,14 @@ func (t *motionRuleTable) load(q Querier, after int64) error {
 				}
 			}
 			if c4.Valid {
-				if v, err := wordOf[recordpb.InquiryRuling]("motion_rule.inquiry", c4.String); err != nil {
-					t.bad = refuse(t.bad, id, err)
-				} else {
-					m.Ruling = &recordpb.MotionRule_Inquiry{Inquiry: v}
-				}
-			}
-			if c5.Valid {
-				if v, err := wordOf[recordpb.RulingBinds]("motion_rule.binds", c5.String); err != nil {
+				if v, err := wordOf[recordpb.RulingBinds]("motion_rule.binds", c4.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.Binds = ref(v)
 				}
 			}
-			if c6.Valid {
-				m.Relief = ref(c6.String)
+			if c5.Valid {
+				m.Relief = ref(c5.String)
 			}
 			if k0.Valid && k0.String != "" {
 				if t.rulingCase == nil {
@@ -2045,42 +2009,6 @@ func (t *logTable) attach(ev *recordpb.Event, id int64) error {
 	return nil
 }
 
-// inquiryReviewTable reads the "inquiry_review" table's rows past an event id, with its lists and oneof arms, keyed by event.
-type inquiryReviewTable struct {
-	rows map[int64]*recordpb.InquiryReview
-	bad  map[int64]error
-}
-
-func (t *inquiryReviewTable) load(q Querier, after int64) error {
-	t.rows = map[int64]*recordpb.InquiryReview{}
-	{
-		var id int64
-		var c0 sql.NullString
-		if err := scanRows(q, "inquiry_review", `SELECT t."event_id", t."reason" FROM "inquiry_review" t WHERE t."event_id" > ?`, after, []any{&id, &c0}, func() {
-			m := &recordpb.InquiryReview{}
-			if c0.Valid {
-				m.Reason = ref(c0.String)
-			}
-			t.rows[id] = m
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (t *inquiryReviewTable) attach(ev *recordpb.Event, id int64) error {
-	m := t.rows[id]
-	if m == nil {
-		return noBody(id, "inquiry_review")
-	}
-	if err := t.bad[id]; err != nil {
-		return err
-	}
-	ev.Body = &recordpb.Event_InquiryReview{InquiryReview: m}
-	return nil
-}
-
 // reportPartTable reads the "report_part" table's rows past an event id, with its lists and oneof arms, keyed by event.
 type reportPartTable struct {
 	rows map[int64]*recordpb.ReportPart
@@ -2482,5 +2410,45 @@ func (t *envelopeAdmittedTable) attach(ev *recordpb.Event, id int64) error {
 		return err
 	}
 	ev.Body = &recordpb.Event_EnvelopeAdmitted{EnvelopeAdmitted: m}
+	return nil
+}
+
+// inquiryCheckTable reads the "inquiry_check" table's rows past an event id, with its lists and oneof arms, keyed by event.
+type inquiryCheckTable struct {
+	rows map[int64]*recordpb.InquiryCheck
+	bad  map[int64]error
+}
+
+func (t *inquiryCheckTable) load(q Querier, after int64) error {
+	t.rows = map[int64]*recordpb.InquiryCheck{}
+	{
+		var id int64
+		var c0 sql.NullString
+		var c1 sql.NullString
+		if err := scanRows(q, "inquiry_check", `SELECT t."event_id", t."inquiry_id", t."reason" FROM "inquiry_check" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
+			m := &recordpb.InquiryCheck{}
+			if c0.Valid {
+				m.InquiryId = ref(c0.String)
+			}
+			if c1.Valid {
+				m.Reason = ref(c1.String)
+			}
+			t.rows[id] = m
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *inquiryCheckTable) attach(ev *recordpb.Event, id int64) error {
+	m := t.rows[id]
+	if m == nil {
+		return noBody(id, "inquiry_check")
+	}
+	if err := t.bad[id]; err != nil {
+		return err
+	}
+	ev.Body = &recordpb.Event_InquiryCheck{InquiryCheck: m}
 	return nil
 }

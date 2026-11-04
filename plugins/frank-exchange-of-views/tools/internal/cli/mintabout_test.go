@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -105,10 +106,11 @@ func TestAFindingAndAGapAnchorToTheSameThings(t *testing.T) {
 //
 // The inquiries print in the report beside the body, so an approach printed as declined that a
 // section carries is a contradiction on the reader's page. A finding about an inquiry is on no
-// seat's work list, and blue's responding seat answers its list. The gap anchored to the same
-// inquiry is on blue's list with what it is about, and `finding`'s own page says which of the two
-// reaches anybody.
-func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesNoWorkList(t *testing.T) {
+// seat's work list but the logic lens's, and there only on the item for the inquiry's check while
+// that check is owed: blue's responding seat answers its list, and the finding is not on it. The
+// gap anchored to the same inquiry is on blue's list with what it is about, and `finding`'s own
+// page says which of the two reaches whom.
+func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesTheLogicLens(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond", "--question", "test primality by trial division"); err != nil {
 		t.Fatal(err)
@@ -136,11 +138,41 @@ func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesNoWorkList(t *te
 	seats := []string{"blue-respond", "red-chair", lens, lensSeat, "judge"}
 	for _, seat := range seats {
 		if w := work(seat); strings.Contains(w, objection) || strings.Contains(w, `"about_ref": "`+inquiry+`"`) {
-			t.Errorf("a finding about an inquiry is on %s's work list; `finding --help` says it reaches none:\n%s", seat, w)
+			t.Errorf("a finding about an inquiry still proposed is on %s's work list; no check of it is owed yet:\n%s", seat, w)
 		}
 	}
-	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's") {
-		t.Errorf("`finding --help` does not say that a finding about an inquiry reaches no work list and that the gap is what does:\n%s", h)
+	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an inquiry reaches the logic lens, on its work list's item for the inquiry's check while that check is owed; a gap anchors to an inquiry the same way, and a material one is on blue's") {
+		t.Errorf("`finding --help` does not say where a finding about an inquiry reaches and that the gap is what reaches blue:\n%s", h)
+	}
+
+	// SETTLED, THE INQUIRY OWES THE LOGIC LENS ITS CHECK, and another lens's finding about it since
+	// its fate is named on that item, so the judgement is not blind to it. blue's list carries none.
+	if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", "blue-respond", "--id", inquiry, "--as", "confirmed", "--reason", "trial division found 7"); err != nil {
+		t.Fatal(err)
+	}
+	const other = "a second lens reads the fate as resting on one source"
+	out, err := runAt(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F2", "--about-kind", "inquiry", "--about", inquiry,
+		"--reason", other, "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--json")
+	if err != nil {
+		t.Fatalf("another lens's finding about a settled inquiry was refused: %v", err)
+	}
+	var filed struct {
+		Result struct {
+			ID string `json:"finding_id"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &filed); err != nil || filed.Result.ID == "" {
+		t.Fatalf("no finding id on the filing's envelope (%v): %s", err, out)
+	}
+	// The item is listed in a sitting opened after the fate, the one whose check the record admits.
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", lens); err != nil {
+		t.Fatalf("register %s: %v", lens, err)
+	}
+	if w := work(lens); !strings.Contains(w, inquiry) || !strings.Contains(w, filed.Result.ID+" ("+lensSeat+")") {
+		t.Errorf("the logic lens's work list does not carry the settled inquiry's check with %s's finding %s about it:\n%s", lensSeat, filed.Result.ID, w)
+	}
+	if w := work("blue-respond"); strings.Contains(w, filed.Result.ID) || strings.Contains(w, other) {
+		t.Errorf("a finding about an inquiry is on blue's work list; the gap is what reaches blue:\n%s", w)
 	}
 	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lens, "--key", "G1", "--class", "spec_underspecification", "--about-kind", "inquiry", "--about", inquiry,
 		"--problem", "The trial-division approach is listed as never run and a section reports its result.", "--check-kind", "document", "--check", "the inquiry's fate and the section agree",

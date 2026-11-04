@@ -226,8 +226,9 @@ func lineNumerals(p record.Plan) [][]int64 {
 }
 
 // A STORED PLAN CROSSES A RENUMBERING NAMING THE EVENTS ITS SOURCE NAMED (F8). m28 holds two
-// class_new events, a chair's closing and eight positions no chair filed, which migrate writes as
-// none, so every later event lands up to eleven numbers lower; sixteen of its twenty stored plans
+// class_new events, a chair's closing, eight positions no chair filed, eight inquiry reviews and
+// five rulings on an inquiry, which migrate writes as none, so every later event lands up to
+// twenty-four numbers lower; sixteen of its twenty stored plans
 // name such an event — as a head, a pin, or a number a line
 // prints after `head`, `pin`, `edit` or `event`. Driven on the real archive through Migrate, and
 // checked against both databases rather than migrate's own map:
@@ -267,7 +268,7 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 	if firstDropped == 0 {
 		t.Fatal("fixture: every m28 event writes one on the migrated record, so nothing renumbers")
 	}
-	if want := map[string]int{"class_new": 2, "closing": 1, "position": 8}; !maps.Equal(dropped, want) {
+	if want := map[string]int{"class_new": 2, "closing": 1, "inquiry_review": 8, "motion_rule": 5, "position": 8}; !maps.Equal(dropped, want) {
 		t.Errorf("m28's events that write none: %v, want %v", dropped, want)
 	}
 	same := func(a, b int64) bool { e, ok := src[a]; return ok && dst[b] == e }

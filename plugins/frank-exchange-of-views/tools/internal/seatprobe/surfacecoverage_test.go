@@ -181,7 +181,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"motion grade rule":    {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
-		"motion inquiry rule":  {"a proposed inquiry", func(b Board) bool { return len(b.Inquiries) > 0 }},
+		"inquiry check":        {"a settled inquiry", func(b Board) bool { return slices.ContainsFunc(b.Inquiries, settled) }},
 		"reproduce":            {"a recorded computation", func(b Board) bool { return len(b.Computations) > 0 }},
 		"regrade":              {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"close":                {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
@@ -215,6 +215,12 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 	}
 }
 
+// settled reports whether the board records a fate on the inquiry that settles it: any fate but
+// proposed or underway.
+func settled(a Inquiry) bool {
+	return a.Fate != "" && a.Fate != "proposed" && a.Fate != "underway"
+}
+
 func anyClosed(b Board) bool {
 	for _, g := range b.Gaps {
 		if g.Closed {
@@ -245,17 +251,20 @@ func hasMotion(b Board, subject string, ruled bool) bool {
 // about the ARGUMENT behind a refusal. Scoring what a seat did about a verdict it could not read
 // is scoring a coin flip, and no acting probe could ever report it, because a content-free reason
 // and a considered one produce identical events.
+//
+// AN INQUIRY'S FATE IS THE SAME CASE: the logic lens judges whether the fate's account stands, so a
+// board that records a fate owes its account.
 func TestEveryRuledFixtureCarriesTheArgumentForItsRuling(t *testing.T) {
 	for name, b := range Boards() {
 		for i, a := range b.Inquiries {
-			if a.Ruled == "" {
+			if a.Fate == "" {
 				continue
 			}
-			if strings.TrimSpace(a.RuledWhy) == "" {
-				t.Errorf("board %q inquiry %d is ruled %q with no RuledWhy — a seat asked what to do about it is guessing", name, i+1, a.Ruled)
+			if strings.TrimSpace(a.FateWhy) == "" {
+				t.Errorf("board %q inquiry %d has the fate %q with no FateWhy — a lens asked to judge it is guessing", name, i+1, a.Fate)
 				continue
 			}
-			assertNotRestatement(t, name, "inquiry", a.Ruled, a.RuledWhy)
+			assertNotRestatement(t, name, "inquiry", a.Fate, a.FateWhy)
 		}
 		for i, m := range b.Motions {
 			if m.Ruled == "" {

@@ -19,21 +19,37 @@ var planKindRenames = map[record.BlockerKind]record.BlockerKind{
 	"unsound_proof": record.BlockerFailedCheck,
 }
 
-// TranslatePlanKinds respells a stored plan's archived blocker kinds (planKindRenames), and re-keys
-// and re-prints the plan when any moved; a plan whose kinds are all current is left untouched, its
-// bytes the bytes stored. The kind is the plan's field, so it is translated. The plan's `why` lines
-// are the prose it printed, and carry the words they were printed with.
+// planKindsRetired is each blocker kind word an archived plan prints that names a duty the record no
+// longer holds (EventSchema 56): the chair's inquiry review, whose event translates to none
+// (entries.go). Its blocker has no equivalent and leaves the plan; it was the chair's own, so it
+// never held pass_permitted, which the plan keeps as stored.
+var planKindsRetired = map[record.BlockerKind]bool{
+	"inquiry_review": true,
+}
+
+// TranslatePlanKinds respells a stored plan's archived blocker kinds (planKindRenames), drops its
+// retired ones (planKindsRetired), and re-keys and re-prints the plan when any moved; a plan whose
+// kinds are all current is left untouched, its bytes the bytes stored. The kind is the plan's field,
+// so it is translated. The plan's `why` lines are the prose it printed, and carry the words they
+// were printed with.
 func TranslatePlanKinds(pl *recordpb.Plan) error {
 	p, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
 	if err != nil {
 		return fmt.Errorf("this stored plan does not read as a plan: %v", err)
 	}
 	changed := false
-	for i, b := range p.Blockers {
-		if to, ok := planKindRenames[b.Kind]; ok {
-			p.Blockers[i].Kind, changed = to, true
+	kept := p.Blockers[:0]
+	for _, b := range p.Blockers {
+		if planKindsRetired[b.Kind] {
+			changed = true
+			continue
 		}
+		if to, ok := planKindRenames[b.Kind]; ok {
+			b.Kind, changed = to, true
+		}
+		kept = append(kept, b)
 	}
+	p.Blockers = kept
 	if !changed {
 		return nil
 	}

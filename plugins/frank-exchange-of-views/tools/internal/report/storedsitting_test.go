@@ -152,7 +152,11 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 	})
 
 	t.Run("the inquiries view", func(t *testing.T) {
-		got := record.InquiriesJSONOf(fam.Events, fam.At).Inquiries
+		js, err := record.InquiriesJSONOf(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := js.Inquiries
 		if len(got) != 1 || got[0].Epoch != 2 {
 			t.Errorf("show inquiries = %+v, want Q1 at epoch 2", got)
 		}

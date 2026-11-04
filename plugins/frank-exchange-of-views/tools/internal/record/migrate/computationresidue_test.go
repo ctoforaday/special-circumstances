@@ -413,7 +413,7 @@ func TestAPrintedPlanKeepsItsProofIds(t *testing.T) {
 func TestASeatsProofStorePathStaysAsWritten(t *testing.T) {
 	want := map[string]int{
 		"2026-09-02_quadratic-formula.tar.gz":  15,
-		"2026-09-09_is-91-prime-b.tar.gz":      6,
+		"2026-09-09_is-91-prime-b.tar.gz":      4, // and two in its inquiry reviews, which translate to none
 		"2026-09-10_is-91-prime-b3.tar.gz":     2,
 		"2026-09-11_is-91-prime-b4.tar.gz":     2,
 		"2026-09-11_is-91-prime-b5.tar.gz":     6,

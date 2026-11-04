@@ -43,8 +43,6 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsPetitionRuling[:]
 	case "feov.record.v1.PositionRuling":
 		return annotationsPositionRuling[:]
-	case "feov.record.v1.InquiryRuling":
-		return annotationsInquiryRuling[:]
 	case "feov.record.v1.AboutKind":
 		return annotationsAboutKind[:]
 	case "feov.record.v1.SourceTextOrigin":
@@ -89,7 +87,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_HALT", Means: "the bench ending the run on a safety, ethics, consent or integrity boundary"},
 	{Name: "EVENT_TYPE_MANIFEST_ROW", Means: "one row of the run's manifest, tying a gap to what shipped for it"},
 	{Name: "EVENT_TYPE_MINT", Means: "a gap put on the board — the act that creates the entity every other act refers to"},
-	{Name: "EVENT_TYPE_MOTION", Means: "a motion filed: a grade contested, a petition to the bench, or an inquiry proposed"},
+	{Name: "EVENT_TYPE_MOTION", Means: "a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench"},
 	{Name: "EVENT_TYPE_MOTION_RULE", Means: "the bench's ruling on a filed motion, and whom it binds"},
 	{Name: "EVENT_TYPE_OUTCOME", Means: "the run's terminal act: how it ended and whether the question was answered"},
 	{Name: "EVENT_TYPE_POSITION", Means: "the chair's argument to the bench on what is about no one gap"},
@@ -100,7 +98,6 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_SPOT_CHECK", Means: "red re-checking a sample of prior work, or stating that it checked none and why"},
 	{Name: "EVENT_TYPE_VERDICT", Means: "the chair's verdict for its epoch: PASS or FAIL against the open board"},
 	{Name: "EVENT_TYPE_VERIFY", Means: "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"},
-	{Name: "EVENT_TYPE_INQUIRY_REVIEW", Means: "a review of the inquiries themselves, rather than of a finding"},
 	{Name: "EVENT_TYPE_REPORT_PART", Means: "a lane's part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them"},
 	{Name: "EVENT_TYPE_SITTING_OPEN", Means: "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"},
 	{Name: "EVENT_TYPE_SITTING_CLOSE", Means: "the harness's agent returning — the other end of that span"},
@@ -111,6 +108,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_STALE", Means: "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"},
 	{Name: "EVENT_TYPE_REPORT_READ", Means: "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"},
 	{Name: "EVENT_TYPE_ENVELOPE_ADMITTED", Means: "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"},
+	{Name: "EVENT_TYPE_INQUIRY_CHECK", Means: "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"},
 }
 
 var annotationsGrade = [...]ValueAnnotations{
@@ -185,6 +183,7 @@ var annotationsGapClass = [...]ValueAnnotations{
 	{Name: "GAP_CLASS_ARTIFACT_PRESERVATION", Means: "an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it is", Neighbor: "live_source_drift", Distinguisher: "is the artifact present and changed or read live, or missing or broken where the report says it is kept?", MaterialDefault: DeclaredEnum{Declared: true, Value: 3}},
 	{Name: "GAP_CLASS_UNSOURCED_CLAIM", Means: "a claim of fact or a quotation the report states with no source or computation behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names", Neighbor: "citation_figure_misattribution", Distinguisher: "is a source recorded against the claim that says something else, or is there no source behind the claim at all?", MaterialDefault: DeclaredEnum{Declared: true, Value: 3}},
 	{Name: "GAP_CLASS_UNCLASSIFIED", Means: "no other value fits this gap. The mint's reason names the nearest value and what it does not cover", MaterialDefault: DeclaredEnum{Declared: true, Value: 3}},
+	{Name: "GAP_CLASS_OUT_OF_SCOPE", Means: "an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's research", Neighbor: "invalid_inference", Distinguisher: "does the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?", MaterialDefault: DeclaredEnum{Declared: true, Value: 1}},
 }
 
 var annotationsDisposition = [...]ValueAnnotations{
@@ -238,7 +237,7 @@ var annotationsRerun = [...]ValueAnnotations{
 
 var annotationsInquiryStatus = [...]ValueAnnotations{
 	{Name: "INQUIRY_STATUS_UNSPECIFIED"},
-	{Name: "INQUIRY_STATUS_PROPOSED", Means: "put forward and undecided — the state `inquiry propose` gives an inquiry; red may rule on it, and it owes a fate"},
+	{Name: "INQUIRY_STATUS_PROPOSED", Means: "put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it"},
 	{Name: "INQUIRY_STATUS_UNDERWAY", Means: "you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached"},
 	{Name: "INQUIRY_STATUS_CONFIRMED", Means: "you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`"},
 	{Name: "INQUIRY_STATUS_REFUTED", Means: "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this"},
@@ -251,7 +250,6 @@ var annotationsMotionSubject = [...]ValueAnnotations{
 	{Name: "MOTION_SUBJECT_UNSPECIFIED"},
 	{Name: "MOTION_SUBJECT_GRADE", Means: "you contest a gap's grade on one dimension", RuledBy: "chair"},
 	{Name: "MOTION_SUBJECT_PETITION", Means: "you ask the bench to intervene — the constitutional short-circuit available to any party seat", RuledBy: "bench"},
-	{Name: "MOTION_SUBJECT_INQUIRY", Means: "a ruling on an inquiry blue proposed; the id is the INQUIRY's own, because the proposal IS the filing", RuledBy: "chair"},
 	{Name: "MOTION_SUBJECT_DOCKET", Means: "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", RuledBy: "bench"},
 	{Name: "MOTION_SUBJECT_POSITION", Means: "a ruling on the chair's position at a sitting that withheld a PASS its plan permitted; the id is the POSITION's own, because the position IS the filing", RuledBy: "bench"},
 }
@@ -272,13 +270,6 @@ var annotationsPositionRuling = [...]ValueAnnotations{
 	{Name: "POSITION_RULING_UNSPECIFIED"},
 	{Name: "POSITION_RULING_UPHELD", Means: "the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"},
 	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work"},
-}
-
-var annotationsInquiryRuling = [...]ValueAnnotations{
-	{Name: "INQUIRY_RULING_UNSPECIFIED"},
-	{Name: "INQUIRY_RULING_ENDORSED", Means: "worth this run's time — blue should take it up"},
-	{Name: "INQUIRY_RULING_OUT_OF_SCOPE", Means: "a real question, but not THIS question"},
-	{Name: "INQUIRY_RULING_TOO_THIN", Means: "in scope, but the hypothesis as stated does not justify what testing it would cost this run"},
 }
 
 var annotationsAboutKind = [...]ValueAnnotations{

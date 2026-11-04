@@ -10,9 +10,9 @@ import (
 
 // This file is the SHARD ERA's translation set (2026-08-22/23 archives): the vocabulary as
 // it stood before the SQLite cutover. Every mapping here is either the schema's own recorded
-// history (the disposition rename table is commit a1e8e260's, verbatim; inquiry-support's
-// field deletions are commit f516261a's ruling) or a field rename the current message spells
-// out. Nothing here guesses: a word or value neither era declares still refuses by name.
+// history (the disposition rename table is commit a1e8e260's, verbatim) or a field rename the
+// current message spells out. Nothing here guesses: a word or value neither era declares still
+// refuses by name.
 
 // dispositionRename is the closure-class → disposition rename, exactly as commit a1e8e260
 // authored it. The era wrote the words on the left; the schema renamed them because they
@@ -51,16 +51,12 @@ func eraEntries() Registry {
 		"proof": {Translate: proofEntry},
 		// The shard era's inquiry: the same lifecycle and fields, its text the record's question.
 		"line_of_inquiry": inquiryEntry(ren{"line": "question"}),
-		// inquiry-support became inquiry-review, and the schema's own history says why the
-		// two fields die: the four-value `as` answered "does the report still carry this
-		// inquiry", and presence stopped being a question when the inquiries became GENERATED onto
-		// the page (f516261a). The reason — the seat's actual reading — is the survivor.
-		"inquiry_support": mapped("inquiry_review", nil, drops{
-			"inquiry_id": "inquiry-review is a per-round statement about the whole live set; the per-inquiry id answered the presence question the schema retired (f516261a)",
-			"as":         "the closed set {supported, weakened, unsupported, absent} answered report-presence, which is generated now and cannot be cut — the schema deleted the flag rather than accept-and-discard it (f516261a)",
-		}, nil),
-		"motion":      {Translate: eraMotionEntry},
-		"motion_rule": {Translate: eraMotionRuleEntry},
+		// inquiry-support was the inquiry review's ancestor, and translates as it does: to no event
+		// (entries.go). Its `as` answered report-presence, which is generated now, and an inquiry's
+		// quality is its owning lens's check, which no archive holds.
+		"inquiry_support": {Translate: toNoEvent},
+		"motion":          {Translate: eraMotionEntry},
+		"motion_rule":     {Translate: eraMotionRuleEntry},
 	}
 }
 
@@ -146,7 +142,13 @@ func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 	// tables — that shape is the CURRENT one and translates by identity; only the flat shard
 	// shape (dimension/proposed beside the subject) needs this entry.
 	if len(old.Arms) > 0 || old.Fields["dimension"] == nil && old.Fields["proposed"] == nil && old.Fields["gap_id"] == nil {
-		return (Registry{}).Translate(withoutSubject(inquiryArm(old)))
+		old = inquiryArm(old)
+		// A MOTION ON AN INQUIRY TRANSLATES TO NO EVENT (EventSchema 56): the subject is gone, and an
+		// inquiry's quality is its owning lens's check, which the motion is no equivalent of.
+		if _, ok := old.Arms["inquiry"]; ok {
+			return nil, nil
+		}
+		return (Registry{}).Translate(withoutSubject(old))
 	}
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
 		return nil, fmt.Errorf("era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
@@ -183,14 +185,20 @@ func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 }
 
 // eraMotionRuleEntry: the era's ruling was a WORD beside a subject; the schema keyed the
-// verdict set on the subject as one oneof arm per subject. The era's `inquiry` subject is the
-// current one — the ruling on an inquiry, whose motion_id is the inquiry's own id, which is
-// exactly what the era wrote there.
+// verdict set on the subject as one oneof arm per subject. The era's `inquiry` subject was the
+// ruling on an inquiry, which translates to no event.
 func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
 	if _, flat := old.Fields["ruling"]; !flat {
-		bodies, err := (Registry{}).Translate(withoutSubject(inquiryArm(old)))
+		old = inquiryArm(old)
+		// A RULING ON AN INQUIRY TRANSLATES TO NO EVENT (EventSchema 56): the chair's word on whether
+		// an inquiry was worth the run's time has no equivalent — an inquiry's quality is its owning
+		// lens's check, judged against its fate. The archive keeps the ruling.
+		if v, ok := old.Fields["inquiry"]; ok && v != nil {
+			return nil, nil
+		}
+		bodies, err := (Registry{}).Translate(withoutSubject(old))
 		for _, b := range bodies {
 			if r, ok := b.(*recordpb.MotionRule); ok {
 				remandDirection(r.GetDocket())
@@ -201,6 +209,9 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	r := &recordpb.MotionRule{}
 	subject, _ := old.Fields["subject"].(string)
 	ruling, _ := old.Fields["ruling"].(string)
+	if subject == "inquiry" {
+		return nil, nil // a ruling on an inquiry, as above: no equivalent
+	}
 	for col, v := range old.Fields {
 		switch col {
 		case "subject", "ruling":
@@ -219,12 +230,6 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 			return nil, fmt.Errorf("motion_rule.ruling (grade): %w", err)
 		}
 		r.Ruling = &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling(num)}
-	case "inquiry":
-		num, err := enumNumberOf(recordpb.InquiryRuling(0).Descriptor(), ruling)
-		if err != nil {
-			return nil, fmt.Errorf("motion_rule.ruling (inquiry): %w", err)
-		}
-		r.Ruling = &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling(num)}
 	default:
 		return nil, fmt.Errorf("era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
 	}

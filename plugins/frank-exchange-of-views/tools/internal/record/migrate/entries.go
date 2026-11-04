@@ -36,10 +36,16 @@ func Entries() Registry {
 			"agent_id":   "the agent is the input the seat was resolved from; the limit names the seat",
 			"agent_type": "the configuration is the opening end's; the limit names the seat",
 		}, nil),
-		// The inquiry and its review, under the word an archive recorded them with: the columns
-		// are the current ones but the proposal's text, which the record calls its question.
-		"avenue":        inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),
-		"avenue_review": mapped("inquiry_review", nil, nil, nil),
+		// The inquiry, under the word an archive recorded it with: the columns are the current ones but
+		// the proposal's text, which the record calls its question.
+		"avenue": inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),
+		// AN INQUIRY REVIEW TRANSLATES TO NO EVENT (EventSchema 56). It was the chair's prose read of
+		// the report against every inquiry at once; an inquiry's quality is now its owning lens's
+		// check of that one inquiry, and a review names none, so it has no equivalent. A migrated
+		// record's settled inquiries read unchecked, which is the truth of it. The archive keeps the
+		// reviews; the manifest counts each in events_in and none in events_out.
+		"inquiry_review": {Translate: toNoEvent},
+		"avenue_review":  {Translate: toNoEvent},
 		// A spot-check's `none` was the seat's claim that the archive was empty; the board answers
 		// that, so the spot-check carries its ids, areas and reason and nothing else.
 		"spot_check": mapped("spot_check", nil, drops{"none": "whether the archive was empty is the board's count, replayed at read time; the seat's claim of it is not stored"}, nil),
