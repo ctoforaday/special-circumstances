@@ -877,6 +877,11 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	if !ok {
 		return 0, fmt.Errorf("event %d carries no body — every EventType names a body message", id)
 	}
+	if r, ok := body.(*recordpb.Regrade); ok {
+		if err := stampRegradeResult(tx, r); err != nil {
+			return 0, err
+		}
+	}
 	return id, insertBody(tx, id, body.ProtoReflect())
 }
 

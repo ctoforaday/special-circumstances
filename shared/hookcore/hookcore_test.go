@@ -59,12 +59,12 @@ func TestCanonicalToolName(t *testing.T) {
 }
 
 func TestDetectEngine(t *testing.T) {
-	// 1. Env precedence
-	t.Setenv("ANTIGRAVITY_CONVERSATION_ID", "conv-123")
+	// 1. Env override precedence
+	t.Setenv("HOOKCORE_ENGINE", "antigravity")
 	if got := DetectEngine(nil); got != EngineAntigravity {
-		t.Errorf("DetectEngine with ANTIGRAVITY_CONVERSATION_ID = %v, want %v", got, EngineAntigravity)
+		t.Errorf("DetectEngine with HOOKCORE_ENGINE=antigravity = %v, want %v", got, EngineAntigravity)
 	}
-	_ = os.Unsetenv("ANTIGRAVITY_CONVERSATION_ID")
+	_ = os.Unsetenv("HOOKCORE_ENGINE")
 
 	// 2. Claude payload sniffing
 	claudePayload := []byte(`{"session_id":"sess-1","tool_name":"Bash","cwd":"/repo"}`)
@@ -78,11 +78,12 @@ func TestDetectEngine(t *testing.T) {
 		t.Errorf("DetectEngine(agyPayload) = %v, want %v", got, EngineAntigravity)
 	}
 
-	// 4. Default fallback without env
-	_ = os.Unsetenv("CLAUDE_PLUGIN_ROOT")
-	_ = os.Unsetenv("CLAUDE_PROJECT_DIR")
+	// 4. Default fallback on empty payload
+	if got := DetectEngine(nil); got != EngineClaude {
+		t.Errorf("DetectEngine(nil) = %v, want %v", got, EngineClaude)
+	}
 	if got := DetectEngine([]byte(`{}`)); got != EngineClaude {
-		t.Errorf("DetectEngine(empty) = %v, want %v", got, EngineClaude)
+		t.Errorf("DetectEngine({}) = %v, want %v", got, EngineClaude)
 	}
 }
 
@@ -861,5 +862,21 @@ func TestQueueSay(t *testing.T) {
 	}
 	if items[0].Say != "advisory notice" {
 		t.Errorf("expected %q, got %q", "advisory notice", items[0].Say)
+	}
+}
+
+func TestContractMalformedStdinEnvironmentRoots(t *testing.T) {
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "/tmp/fake-plugin-root")
+	t.Setenv("CLAUDE_PROJECT_DIR", "/tmp/fake-proj-dir")
+
+	req := Read("SessionStart", strings.NewReader("{{{ not valid json"))
+	if req.Parsed {
+		t.Fatalf("expected req.Parsed = false")
+	}
+	if req.PluginRoot != "/tmp/fake-plugin-root" {
+		t.Errorf("req.PluginRoot = %q, want %q", req.PluginRoot, "/tmp/fake-plugin-root")
+	}
+	if req.ProjectDir != "/tmp/fake-proj-dir" {
+		t.Errorf("req.ProjectDir = %q, want %q", req.ProjectDir, "/tmp/fake-proj-dir")
 	}
 }

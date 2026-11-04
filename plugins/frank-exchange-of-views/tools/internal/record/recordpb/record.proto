@@ -1094,6 +1094,17 @@ message Regrade {
     flag: "reason"
     why: "grade movement is recorded with its reason"
   }, (prose) = true];
+
+  // THE GAP'S GRADES ONCE THIS REGRADE STANDS, stamped by the write path and never by a seat
+  // (recordsql.stampRegradeResult). On each axis: this regrade's grade where it names one, else the
+  // grade the gap held before it — the result of the gap's latest earlier regrade, or the mint's
+  // grade when there is none. Both inputs are fixed once this regrade is written, so the stored
+  // grades are the gap's grades from this regrade until the next, and gap_grade reads them rather
+  // than deriving them. An axis nothing ever graded stays absent.
+  optional Grade result_severity = 7;
+  optional Grade result_likelihood = 8;
+  optional Grade result_impact = 9;
+  optional Grade result_complexity_cost = 10;
 }
 
 // SpotCheck re-reads archived closures and names the stale areas read before a PASS. THE ARCHIVE'S
