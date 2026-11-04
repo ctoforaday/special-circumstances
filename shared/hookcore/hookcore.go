@@ -44,6 +44,7 @@ type Request struct {
 	Event               string
 	Raw                 []byte           // Exact stdin bytes (preserved for raw scanning)
 	Parsed              bool             // Whether stdin parsed as valid JSON
+	ParseErr            error            // JSON decode error when Parsed is false
 	ProjectDir          string           // CLAUDE_PROJECT_DIR -> cwd -> workspacePaths[0] -> tool-arg git root
 	PluginRoot          string           // CLAUDE_PLUGIN_ROOT -> PLUGIN_ROOT -> os.Executable() grandparent -> os.Getwd()
 	PluginDataDir       string           // CLAUDE_PLUGIN_DATA -> PLUGIN_DATA -> <appDataDir>/plugin-data/<plugin> -> <ProjectDir>/.claude
@@ -293,6 +294,7 @@ func Read(event string, stdin io.Reader) Request {
 	var env map[string]any
 	if err := json.Unmarshal(raw, &env); err != nil {
 		req.Parsed = false
+		req.ParseErr = err
 		return req
 	}
 	req.Parsed = true
@@ -328,6 +330,7 @@ func Read(event string, stdin io.Reader) Request {
 		if req.AgentID == "" {
 			req.AgentID = req.SessionID
 		}
+		req.SessionID = parent
 		if s, ok := env["agentName"].(string); ok && req.AgentType == "" {
 			req.AgentType = s
 		}
@@ -630,7 +633,11 @@ func Respond(req Request, resp Response, stdout, stderr io.Writer, rec Settler) 
 	}
 
 	if !req.Parsed && len(req.Raw) > 0 {
-		fmt.Fprintf(stderr, "[hookcore] unparseable payload for event %q: %s\n", req.Event, string(bytes.TrimSpace(req.Raw)))
+		errStr := "syntax error"
+		if req.ParseErr != nil {
+			errStr = req.ParseErr.Error()
+		}
+		fmt.Fprintf(stderr, "[hookcore] unparseable payload for event %q (%d bytes): %s\n", req.Event, len(req.Raw), errStr)
 	}
 
 	if req.Engine == EngineAntigravity {

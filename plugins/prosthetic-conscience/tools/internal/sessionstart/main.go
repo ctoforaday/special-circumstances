@@ -127,6 +127,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
+	if len(units) == 0 {
+		units = Units(req.PluginRoot)
+	}
 	text, watch, logged := merge(hookunit.Run(ctx, units))
 	if logged != "" {
 		fmt.Fprintln(stderr, logged)
@@ -156,5 +159,5 @@ func Units(pluginRoot string) []hookunit.Unit {
 // exit code, so cmd/ stays a three-line shim and this stays testable.
 func Main() int {
 	return run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr,
-		os.Getenv("CLAUDE_PROJECT_DIR"), time.Now(), Units(os.Getenv("CLAUDE_PLUGIN_ROOT")))
+		os.Getenv("CLAUDE_PROJECT_DIR"), time.Now(), nil)
 }

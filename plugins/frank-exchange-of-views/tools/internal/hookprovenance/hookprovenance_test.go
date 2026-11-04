@@ -35,10 +35,10 @@ func cachePlugin(t *testing.T, cache, marketplace, plugin, version string, bins,
 		hooks += `{"type":"command","command":"B=\"${CLAUDE_PLUGIN_ROOT}/bin/` + r + `\"; exec \"$B\""}`
 	}
 	hooks += `]}]}}`
-	if err := os.MkdirAll(filepath.Join(dir, "hooks"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, ".claude-plugin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "hooks", "hooks.json"), []byte(hooks), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".claude-plugin", "hooks.json"), []byte(hooks), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -170,7 +170,7 @@ func TestAnUnreadableHooksFileIsStatedNotAnEmptyList(t *testing.T) {
 			cache := t.TempDir()
 			cachePlugin(t, cache, "sc", "frank-exchange-of-views", "1.58.0", []string{"feov-record"}, nil)
 			if hooks != "" {
-				dir := filepath.Join(cache, "sc", "frank-exchange-of-views", "1.58.0", "hooks")
+				dir := filepath.Join(cache, "sc", "frank-exchange-of-views", "1.58.0", ".claude-plugin")
 				if err := os.MkdirAll(dir, 0o755); err != nil {
 					t.Fatal(err)
 				}
@@ -204,7 +204,7 @@ func TestTheShippedHooksFileRegistersItsBinaries(t *testing.T) {
 	}
 	cache := t.TempDir()
 	cachePlugin(t, cache, "sc", "frank-exchange-of-views", "9.9.9", nil, nil)
-	dir := filepath.Join(cache, "sc", "frank-exchange-of-views", "9.9.9", "hooks")
+	dir := filepath.Join(cache, "sc", "frank-exchange-of-views", "9.9.9", ".claude-plugin")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}

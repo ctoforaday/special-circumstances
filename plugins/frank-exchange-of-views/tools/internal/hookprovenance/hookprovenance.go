@@ -159,15 +159,7 @@ func registeredButAbsent(versionDir string, present []string) ([]string, error) 
 	path := filepath.Join(versionDir, ".claude-plugin", "hooks.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
-		path = filepath.Join(versionDir, "hooks", "hooks.json")
-		b, err = os.ReadFile(path)
-		if err != nil {
-			path = filepath.Join(versionDir, "hooks.json")
-			b, err = os.ReadFile(path)
-			if err != nil {
-				return nil, err
-			}
-		}
+		return nil, err
 	}
 	var hf hooksFile
 	if err := json.Unmarshal(b, &hf); err != nil {
