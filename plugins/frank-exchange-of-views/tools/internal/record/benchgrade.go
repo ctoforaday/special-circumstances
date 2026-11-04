@@ -5,6 +5,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -228,4 +229,14 @@ func unruledDocketMotionOn(w writeView, gap string) (string, error) {
 		return "", err
 	}
 	return id, nil
+}
+
+// requireNoRegradeResult refuses a regrade that arrives with result grades. The insert stamps them
+// from the gap's grades and the axes the regrade names (recordsql.stampRegradeResult); a writer that
+// could set them could give a gap any grade without naming the axis it moved.
+func requireNoRegradeResult(r *recordpb.Regrade) error {
+	if recordsql.HasRegradeResult(r) {
+		return fmt.Errorf("a regrade's result grades are stamped by the tool from the gap's grades and the axes the regrade names, never supplied by a seat — regrade without them")
+	}
+	return nil
 }

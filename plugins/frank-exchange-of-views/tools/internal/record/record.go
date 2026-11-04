@@ -492,8 +492,8 @@ func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMoti
 		return fmt.Errorf("%q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to gradeAtColumn",
 			recordpb.Word(g.GetDimension()))
 	}
-	// The CURRENT grade is the latest regrade that touched the axis, else the mint's — the same
-	// overlay the board fold applies, asked of the record (queries.go).
+	// The CURRENT grade is the gap view's, the result stored on the gap's latest regrade, else the
+	// mint's — asked of the record (queries.go).
 	current, found, err := gradeAt(q, g.GetGapId(), col)
 	if err != nil {
 		return fmt.Errorf("the record could not be read to tell whether this motion asks for a change, so nothing is filed — retry the call: %w", err)
@@ -1309,6 +1309,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if err := requireRegradeWithinBenchLock(w, seatID, b); err != nil {
+			return err
+		}
+		if err := requireNoRegradeResult(b); err != nil {
 			return err
 		}
 	case *recordpb.Motion:

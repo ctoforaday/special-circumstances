@@ -183,7 +183,8 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 // because which questions get asked is a decision, not a derivation.
 const QueryIndexDDL = `
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
--- gap_grade's per-axis lookups: a gap's latest regrade at or before a point.
+-- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
+-- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
 -- A motion's rulings: motion_answers, inquiry_state, the gap view's unruled docket filing, and the
 -- bench's docket readers.

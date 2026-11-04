@@ -403,9 +403,9 @@ func gradeAtColumn(d recordpb.GradeDimension) string {
 	return ""
 }
 
-// gradeAt is a gap's CURRENT grade at one dimension — the gap view's regrade overlay, which is
-// the one SQL statement of "latest regrade that touched the axis, else the mint's". found=false
-// is a gap that is not on the record.
+// gradeAt is a gap's CURRENT grade at one dimension — the gap view's, read off gap_grade's standing
+// row: the result grades the gap's latest regrade stored (recordsql.stampRegradeResult), else the mint's.
+// found=false is a gap that is not on the record.
 func gradeAt(q recordsql.Querier, gapID, col string) (word string, found bool, err error) {
 	var v sql.NullString
 	// The column name is drawn from gradeAtColumn's closed set, never from input.
