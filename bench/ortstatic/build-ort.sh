@@ -31,12 +31,26 @@ fi
 git -C "$SRC" log -1 --format='ort source %H %cd'
 # Source patches for non-MSVC Windows (zig/mingw), each harmless elsewhere; listed in the log.
 patch_src() { # patch_src <file> <sed expr>
-  sed -i.orig -e "$2" "$SRC/$1" && echo "patched $1: $2"
+  sed -i -e "$2" "$SRC/$1" && echo "patched $1: $2"
 }
+# Windows without MSVC: MSYS2's MinGW patch set for ORT 1.29.0 (msys2/MINGW-packages mingw-w64-onnxruntime 0001-0005),
+# rebased onto 1.31.1 by hand where hunks no longer applied; ETW/TraceLogging, MSVC-only pragmas and flags.
+case "$TC-$TARGET" in zig-windows-*)
+  if git -C "$SRC" apply --reverse --check "$HERE/mingw-1.31.1.patch" 2>/dev/null; then echo "mingw patch already applied"
+  else git -C "$SRC" apply "$HERE/mingw-1.31.1.patch" && echo "applied mingw-1.31.1.patch"; fi
+  DEFS_WIN=(onnxruntime_DISABLE_DEVICE_DISCOVERY=ON) ;;
+esac
 if [ "$TC" = zig ]; then
   # The MSVC STL /DELAYLOAD workaround is applied to the onnxruntime target, an INTERFACE target in a static build.
   # ORT_WARNING_FLAGS is MSVC's /wdNNNN list under `if (WIN32)`; clang reads "/wd4251" as an input file.
   patch_src cmake/CMakeLists.txt '/^set(ORT_WARNING_FLAGS)$/{n;s/^if (WIN32)$/if (MSVC)/;}'
+  # mlas's GEMM scratch buffer: _aligned_malloc under _MSC_VER, else aligned_alloc (C11 only) or posix_memalign,
+  # neither of which mingw has in C++. mingw has _aligned_malloc/_aligned_free, so it takes the MSVC branch.
+  M='s/^#ifdef _MSC_VER$/#if defined(_MSC_VER) || defined(__MINGW32__)/'
+  patch_src onnxruntime/core/mlas/lib/mlasi.h "3446$M;3466$M"
+  # xgetbv: the _WIN32 branch calls the _xgetbv intrinsic, which clang allows only with -mxsave; the GNU inline asm
+  # the other branch uses needs no target feature.
+  patch_src onnxruntime/core/mlas/lib/platform.cpp "1133$M;193s/^#if defined(_WIN32)$/#if defined(_MSC_VER)/"
   patch_src cmake/onnxruntime.cmake 's/^if (WIN32 AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)/if (MSVC AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)/'
 fi
 
@@ -94,8 +108,15 @@ for a; do shift; case $a in
   *) set -- "$@" "$a" ;; esac; done
 EOS
   ;; esac
-  { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q cc -target %s "$@"\n' "$ZIG" "$TRIPLE"; } > "$ZB/zigcc"
-  CXXEXTRA=
+
+  CXXEXTRA=; CEXTRA=
+  if [ "$SYS" = Windows ]; then
+    # ORT includes <Windows.h>, <DbgHelp.h>, <Winver.h>, <SetupAPI.h>; mingw's headers are lower-case and this
+    # host's filesystem is case-sensitive.
+    mkdir -p "$ZB/winshim"
+    for h in Windows DbgHelp Winver SetupAPI; do l=$(printf '%s' "$h" | tr A-Z a-z); printf '#pragma once\n#include <%s.h>\n' "$l" > "$ZB/winshim/$h.h"; done
+    CXXEXTRA="-isystem $ZB/winshim"; CEXTRA="-isystem $ZB/winshim"
+  fi
   if [ "$SYS" = Darwin ]; then
     # abseil's cctz asks CoreFoundation for the local zone name on __APPLE__; zig carries no macOS SDK, so the six
     # declarations it uses are supplied here (Apple's signatures). The link resolves them against CoreFoundation,
@@ -126,6 +147,7 @@ void CFRelease(CFTypeRef cf);
 EOS
     CXXEXTRA="-isystem $ZB/cfstub"
   fi
+  { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q cc -target %s %s "$@"\n' "$ZIG" "$TRIPLE" "$CEXTRA"; } > "$ZB/zigcc"
   { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q c++ -target %s %s "$@"\n' "$ZIG" "$TRIPLE" "$CXXEXTRA"; } > "$ZB/zigcxx"
   printf '#!/bin/sh\nexec %q ar "$@"\n' "$ZIG" > "$ZB/zigar"
   printf '#!/bin/sh\nexec %q ranlib "$@"\n' "$ZIG" > "$ZB/zigranlib"
@@ -144,7 +166,7 @@ EOS
   [ "$SYS" = Darwin ] && DEFS+=(Iconv_IS_BUILT_IN=TRUE CMAKE_OSX_ARCHITECTURES=$PROC)
 fi
 
-ARGS+=(--cmake_extra_defines "${DEFS[@]}")
+ARGS+=(--cmake_extra_defines "${DEFS[@]}" ${DEFS_WIN[@]+"${DEFS_WIN[@]}"})
 start=$(date +%s)
 ( cd "$SRC" && "$PY" "$SRC/tools/ci_build/build.py" "${ARGS[@]}" ) > "$BD/build.log" 2>&1 || {
   rc=$?; echo "build.py failed rc=$rc after $(( $(date +%s) - start ))s; last lines:"; tail -60 "$BD/build.log"; exit $rc; }

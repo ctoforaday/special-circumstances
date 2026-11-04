@@ -1,0 +1,999 @@
+diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
+index 3a3bda1..a1e0a9c 100644
+--- a/cmake/CMakeLists.txt
++++ b/cmake/CMakeLists.txt
+@@ -719,7 +719,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/external)
+ include(external/onnxruntime_external_deps.cmake)
+ 
+ set(ORT_WARNING_FLAGS)
+-if (WIN32)
++if (MSVC)
+     # class needs to have dll-interface to be used by clients
+     list(APPEND ORT_WARNING_FLAGS "/wd4251")
+     # issued by thrust nonstandard extension used: nameless struct/union
+@@ -1258,7 +1258,9 @@ function(onnxruntime_set_compile_flags target_name)
+       target_compile_definitions(${target_name} PRIVATE USE_KLEIDIAI)
+     endif()
+ 
++    if(NOT MINGW)
+     set_target_properties(${target_name} PROPERTIES COMPILE_WARNING_AS_ERROR ON)
++    endif()
+     if (onnxruntime_USE_CUDA)
+       # Suppress a "conversion_function_not_usable" warning in gsl/span
+       target_compile_options(${target_name} PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcudafe \"--diag_suppress=conversion_function_not_usable\">")
+@@ -1400,6 +1402,9 @@ endfunction()
+ 
+ function(onnxruntime_add_shared_library target_name)
+   add_library(${target_name} SHARED ${ARGN})
++  if(MINGW)
++    set_target_properties(${target_name} PROPERTIES PREFIX "")
++  endif()
+   onnxruntime_configure_target(${target_name})
+   if(WIN32)
+         target_compile_definitions(${target_name} PRIVATE VER_MAJOR=${VERSION_MAJOR_PART})
+@@ -1422,6 +1427,9 @@ function(onnxruntime_add_shared_library_module target_name)
+   else()
+     #On Windows, this target shouldn't generate an import lib, but I don't know how to disable it.
+     add_library(${target_name} MODULE ${ARGN})
++    if(MINGW)
++        set_target_properties(${target_name} PROPERTIES PREFIX "")
++    endif()
+     if(WIN32)
+         target_compile_definitions(${target_name} PRIVATE VER_MAJOR=${VERSION_MAJOR_PART})
+         target_compile_definitions(${target_name} PRIVATE VER_MINOR=${VERSION_MINOR_PART})
+diff --git a/cmake/adjust_global_compile_flags.cmake b/cmake/adjust_global_compile_flags.cmake
+index 6e548ac..11f5d51 100644
+--- a/cmake/adjust_global_compile_flags.cmake
++++ b/cmake/adjust_global_compile_flags.cmake
+@@ -223,6 +223,10 @@ macro(check_nvcc_compiler_flag _FLAG _RESULT)
+ endmacro()
+ 
+ #Set global compile flags for all the source code(including third_party code like protobuf)
++if(MINGW)
++  enable_language(ASM_MASM)
++  set(CMAKE_ASM_MASM_FLAGS "${CMAKE_ASM_MASM_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/../onnxruntime/core/mlas/lib/amd64")
++endif()
+ #This section must be before any add_subdirectory, otherwise build may fail because /MD,/MT mismatch
+ if (MSVC)
+   if (onnxruntime_target_platform STREQUAL "ARM64" OR
+diff --git a/cmake/detect_onnxruntime_target_platform.cmake b/cmake/detect_onnxruntime_target_platform.cmake
+index 2f5f6ee..0df963d 100644
+--- a/cmake/detect_onnxruntime_target_platform.cmake
++++ b/cmake/detect_onnxruntime_target_platform.cmake
+@@ -4,7 +4,7 @@ block(PROPAGATE onnxruntime_target_platform)
+ 
+ unset(onnxruntime_target_platform)
+ 
+-if (MSVC)
++if (MSVC OR MINGW)
+   if (CMAKE_VS_PLATFORM_NAME)
+     # Multi-platform generator
+     set(onnxruntime_target_platform ${CMAKE_VS_PLATFORM_NAME})
+diff --git a/cmake/onnxruntime.cmake b/cmake/onnxruntime.cmake
+index a977141..e7e4d19 100644
+--- a/cmake/onnxruntime.cmake
++++ b/cmake/onnxruntime.cmake
+@@ -91,10 +91,8 @@ if(onnxruntime_BUILD_SHARED_LIB)
+   add_custom_target(onnxruntime_generate_def ALL DEPENDS ${SYMBOL_FILE} ${CMAKE_CURRENT_BINARY_DIR}/generated_source.c)
+   if(WIN32)
+     onnxruntime_add_shared_library(onnxruntime
+-      ${SYMBOL_FILE}
+       "${ONNXRUNTIME_ROOT}/core/dll/dllmain.cc"
+       "${ONNXRUNTIME_ROOT}/core/dll/delay_load_hook.cc"
+-      "${ONNXRUNTIME_ROOT}/core/dll/onnxruntime.rc"
+     )
+   elseif(onnxruntime_BUILD_APPLE_FRAMEWORK)
+     # apple framework requires the header file be part of the library
+@@ -177,7 +175,9 @@ if(onnxruntime_BUILD_SHARED_LIB)
+       target_link_options(onnxruntime PRIVATE  "LINKER:--version-script=${SYMBOL_FILE}" "LINKER:--no-undefined" "LINKER:--gc-sections" "LINKER:-z,noexecstack")
+     endif()
+   else()
++    if(MSVC)
+     target_link_options(onnxruntime PRIVATE  "-DEF:${SYMBOL_FILE}")
++    endif()
+   endif()
+ 
+ 
+@@ -345,7 +345,7 @@ install(TARGETS onnxruntime
+         FRAMEWORK DESTINATION ${CMAKE_INSTALL_BINDIR})
+ 
+ 
+-if (WIN32 AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)
++if (MSVC AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)
+   # Workaround STL bug https://github.com/microsoft/STL/issues/434#issuecomment-921321254
+   # Note that the workaround makes std::system_error crash before Windows 10
+ 
+diff --git a/cmake/onnxruntime_common.cmake b/cmake/onnxruntime_common.cmake
+index 6fbe650..545f8f0 100644
+--- a/cmake/onnxruntime_common.cmake
++++ b/cmake/onnxruntime_common.cmake
+@@ -152,6 +152,10 @@ endif()
+ file(GLOB onnxruntime_common_src CONFIGURE_DEPENDS
+     ${onnxruntime_common_src_patterns}
+     )
++if(WIN32 AND NOT MSVC)
++    list(FILTER onnxruntime_common_src EXCLUDE REGEX "windows/telemetry")
++    list(FILTER onnxruntime_common_src EXCLUDE REGEX "windows/logging/")
++endif()
+ 
+ # Remove new/delete intercept. To deal with memory leaks
+ # Use either non-mimalloc build OR use mimalloc built-in features.
+@@ -164,7 +168,7 @@ endif()
+ source_group(TREE ${REPO_ROOT} FILES ${onnxruntime_common_src})
+ 
+ onnxruntime_add_static_library(onnxruntime_common ${onnxruntime_common_src})
+-if(WIN32)
++if(MSVC)
+   if("cxx_std_23" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+     set_property(TARGET onnxruntime_common PROPERTY CXX_STANDARD 23)
+     target_compile_options(onnxruntime_common PRIVATE "/Zc:char8_t-")
+@@ -265,6 +269,9 @@ target_include_directories(onnxruntime_common
+ 
+ 
+ target_link_libraries(onnxruntime_common PUBLIC safeint_interface ${GSL_TARGET} ${ABSEIL_LIBS} date::date)
++if(MINGW)
++  target_link_libraries(onnxruntime_common PRIVATE pathcch imagehlp)
++endif()
+ 
+ add_dependencies(onnxruntime_common ${onnxruntime_EXTERNAL_DEPENDENCIES})
+ 
+diff --git a/cmake/onnxruntime_graph.cmake b/cmake/onnxruntime_graph.cmake
+index fba1a68..3fd6ec9 100644
+--- a/cmake/onnxruntime_graph.cmake
++++ b/cmake/onnxruntime_graph.cmake
+@@ -136,7 +136,7 @@ if (onnxruntime_BUILD_MS_EXPERIMENTAL_OPS)
+   target_compile_definitions(onnxruntime_graph PRIVATE BUILD_MS_EXPERIMENTAL_OPS=1)
+ endif()
+ 
+-if (WIN32)
++if (MSVC)
+   set(onnxruntime_graph_static_library_flags
+       -IGNORE:4221 # LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
+   )
+diff --git a/cmake/onnxruntime_mlas.cmake b/cmake/onnxruntime_mlas.cmake
+index 02168b4..a1da398 100644
+--- a/cmake/onnxruntime_mlas.cmake
++++ b/cmake/onnxruntime_mlas.cmake
+@@ -98,6 +98,19 @@ set(ONNXRUNTIME_MLAS_LIBS onnxruntime_mlas)
+ 
+ #TODO: set MASM flags properly
+ function(setup_mlas_source_for_windows)
++  if(MINGW)
++    set_source_files_properties(${MLAS_SRC_DIR}/qkv_quant_kernel_avx2.cpp PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mavxvnni -mf16c")
++    set_source_files_properties(${MLAS_SRC_DIR}/rotary_embedding_kernel_avx2.cpp PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mavxvnni -mf16c")
++    set_source_files_properties(${MLAS_SRC_DIR}/sqnbitgemm_kernel_avx2.cpp PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mavxvnni -mf16c")
++    set_source_files_properties(${MLAS_SRC_DIR}/sqnbitgemm_kernel_avx2vnni.cpp PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mavxvnni -mf16c")
++    set_source_files_properties(${MLAS_SRC_DIR}/sqnbitgemm_lut_kernel_avx2.cpp PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mavxvnni -mf16c")
++    set_source_files_properties(${MLAS_SRC_DIR}/qgemm_kernel_amx.cpp PROPERTIES COMPILE_FLAGS "-mavx2 -mavx512bw -mavx512dq -mavx512vl -mavx512f -mamx-int8 -mamx-tile")
++    set_source_files_properties(${MLAS_SRC_DIR}/sqnbitgemm_kernel_avx512.cpp PROPERTIES COMPILE_FLAGS "-mfma -mavx512vnni -mavx512bw -mavx512dq -mavx512vl")
++    set_source_files_properties(${MLAS_SRC_DIR}/q4gemm_avx512.cpp PROPERTIES COMPILE_FLAGS "-mfma -mavx512vnni -mavx512bw -mavx512dq -mavx512vl -mavx512f")
++    set_source_files_properties(${MLAS_SRC_DIR}/qkv_quant_kernel_avx512vnni.cpp PROPERTIES COMPILE_FLAGS "-mfma -mf16c -mavx512vnni -mavx512bw -mavx512dq -mavx512vl -mavx512f")
++    set_source_files_properties(${MLAS_SRC_DIR}/sqnbitgemm_kernel_avx512vnni.cpp PROPERTIES COMPILE_FLAGS "-mfma -mf16c -mavx512vnni -mavx512bw -mavx512dq -mavx512vl -mavx512f")
++    set_source_files_properties(${MLAS_SRC_DIR}/sqnbitgemm_kernel_avx512vnni_2bit.cpp PROPERTIES COMPILE_FLAGS "-mfma -mf16c -mavx512vnni -mavx512bw -mavx512dq -mavx512vl -mavx512f")
++  endif()
+ 
+   #
+   # Sources common for all platforms.
+@@ -234,11 +247,8 @@ function(setup_mlas_source_for_windows)
+       add_custom_command(
+         OUTPUT ${obj_filename}
+           COMMAND
+-              cl.exe ${PREPROCESS_ARMASM_FLAGS} /P ${asm_filename} /Fi${preprocess_filename}
+-          COMMAND
+-              armasm64.exe ${ARMASM_FLAGS} ${preprocess_filename} ${obj_filename}
++              clang.exe ${PREPROCESS_ARMASM_FLAGS} ${ARMASM_FLAGS} -c ${asm_filename} -o ${obj_filename}
+         DEPENDS ${asm_filename}
+-        BYPRODUCTS ${preprocess_filename}
+       )
+       target_sources(onnxruntime_mlas PRIVATE ${obj_filename})
+     endforeach()
+@@ -251,12 +261,20 @@ function(setup_mlas_source_for_windows)
+     file(GLOB_RECURSE mlas_platform_srcs_avx CONFIGURE_DEPENDS
+       "${MLAS_SRC_DIR}/intrinsics/avx/*.cpp"
+     )
++    if(MSVC)
+     set_source_files_properties(${mlas_platform_srcs_avx} PROPERTIES COMPILE_FLAGS "/arch:AVX")
++    elseif(MINGW)
++    set_source_files_properties(${mlas_platform_srcs_avx} PROPERTIES COMPILE_FLAGS "-mavx")
++    endif()
+ 
+     file(GLOB_RECURSE mlas_platform_srcs_avx2 CONFIGURE_DEPENDS
+       "${MLAS_SRC_DIR}/intrinsics/avx2/*.cpp"
+     )
++    if(MSVC)
+     set_source_files_properties(${mlas_platform_srcs_avx2} PROPERTIES COMPILE_FLAGS "/arch:AVX2")
++    elseif(MINGW)
++    set_source_files_properties(${mlas_platform_srcs_avx2} PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -mf16c")
++    endif()
+ 
+     set_source_files_properties(${MLAS_SRC_DIR}/layernorm_kernel_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
+ 
+@@ -270,7 +288,11 @@ function(setup_mlas_source_for_windows)
+       ${MLAS_SRC_DIR}/intrinsics/avx512/sconv_depthwise_avx512f.cpp
+     )
+ 
++    if(MSVC)
+     set_source_files_properties(${mlas_platform_srcs_avx512} PROPERTIES COMPILE_FLAGS "/arch:AVX512")
++    elseif(MINGW)
++    set_source_files_properties(${mlas_platform_srcs_avx512} PROPERTIES COMPILE_FLAGS "-mavx512f")
++    endif()
+ 
+     target_sources(onnxruntime_mlas PRIVATE
+       ${MLAS_SRC_DIR}/dgemm.cpp
+@@ -345,7 +367,6 @@ function(setup_mlas_source_for_windows)
+ 
+     if(MSVC_VERSION GREATER_EQUAL 1933)
+       target_sources(onnxruntime_mlas PRIVATE
+-        ${MLAS_SRC_DIR}/amd64/cvtfp16Avx.asm
+       )
+     endif()
+ 
+@@ -453,7 +474,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+     )
+   endif()
+   target_sources(onnxruntime_mlas PRIVATE ${mlas_platform_srcs})
+-elseif(MSVC)
++elseif(WIN32)
+   setup_mlas_source_for_windows()
+ else()
+     if(APPLE)
+@@ -1244,7 +1265,7 @@ foreach(mlas_target ${ONNXRUNTIME_MLAS_LIBS})
+     set_target_properties(${mlas_target} PROPERTIES FOLDER "ONNXRuntime")
+ endforeach()
+ 
+-if (WIN32)
++if (MSVC)
+   target_compile_options(onnxruntime_mlas PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:/wd6385>" "$<$<COMPILE_LANGUAGE:CXX>:/wd4127>")
+   if (onnxruntime_ENABLE_STATIC_ANALYSIS)
+     target_compile_options(onnxruntime_mlas PRIVATE  "$<$<COMPILE_LANGUAGE:CXX>:/analyze:stacksize 131072>")
+diff --git a/cmake/onnxruntime_providers_cpu.cmake b/cmake/onnxruntime_providers_cpu.cmake
+index b7d2bbf..b1af164 100644
+--- a/cmake/onnxruntime_providers_cpu.cmake
++++ b/cmake/onnxruntime_providers_cpu.cmake
+@@ -224,7 +224,7 @@ if (NOT onnxruntime_MINIMAL_BUILD AND NOT onnxruntime_EXTENDED_MINIMAL_BUILD
+   )
+ 
+   source_group(TREE ${ONNXRUNTIME_ROOT}/core FILES ${onnxruntime_providers_shared_cc_srcs})
+-  onnxruntime_add_shared_library(onnxruntime_providers_shared ${onnxruntime_providers_shared_cc_srcs} "${ONNXRUNTIME_ROOT}/core/dll/onnxruntime.rc")
++  onnxruntime_add_shared_library(onnxruntime_providers_shared ${onnxruntime_providers_shared_cc_srcs} )
+   set_target_properties(onnxruntime_providers_shared PROPERTIES FOLDER "ONNXRuntime")
+   set_target_properties(onnxruntime_providers_shared PROPERTIES LINKER_LANGUAGE CXX)
+   #ON AIX, to call dlopen on onnxruntime_providers_shared, we need to generate this library as shared object .so file.
+diff --git a/cmake/onnxruntime_unittests.cmake b/cmake/onnxruntime_unittests.cmake
+index 92ce44f..040acbb 100644
+--- a/cmake/onnxruntime_unittests.cmake
++++ b/cmake/onnxruntime_unittests.cmake
+@@ -1766,6 +1766,9 @@ if (NOT IOS)
+       target_link_libraries(onnx_test_runner PRIVATE Python::Python)
+     endif()
+     set_target_properties(onnx_test_runner PROPERTIES FOLDER "ONNXRuntimeTest")
++if(MINGW)
++  target_link_options(onnx_test_runner PRIVATE -municode)
++endif()
+ 
+     install(TARGETS onnx_test_runner
+             ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+@@ -2193,6 +2196,9 @@ if (NOT onnxruntime_ENABLE_TRAINING_TORCH_INTEROP)
+       endif()
+     endif()
+     set_target_properties(onnxruntime_perf_test PROPERTIES FOLDER "ONNXRuntimeTest")
++    if(MINGW)
++      target_link_options(onnxruntime_perf_test PRIVATE -municode)
++    endif()
+ 
+ endif()
+ 
+@@ -2636,7 +2642,7 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT onnxruntime_CUDA_MINIMAL
+     endif()
+   else()
+     set(ONNXRUNTIME_CUSTOM_OP_LIB_LINK_FLAG "-DEF:${TEST_SRC_DIR}/testdata/custom_op_library/custom_op_library.def")
+-    if (NOT onnxruntime_USE_CUDA)
++    if (MSVC AND NOT onnxruntime_USE_CUDA)
+       target_compile_options(custom_op_library PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:--compiler-options /wd26409>"
+                     "$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:/wd26409>")
+     endif()
+diff --git a/cmake/tensorboard/compat/proto/CMakeLists.txt b/cmake/tensorboard/compat/proto/CMakeLists.txt
+index addc377..e556d17 100644
+--- a/cmake/tensorboard/compat/proto/CMakeLists.txt
++++ b/cmake/tensorboard/compat/proto/CMakeLists.txt
+@@ -20,7 +20,7 @@ onnxruntime_protobuf_generate(APPEND_PATH IMPORT_DIRS ${tensorboard_SOURCE_DIR}
+ onnxruntime_add_include_to_target(tensorboard ${PROTOBUF_LIB})
+ target_include_directories(tensorboard PRIVATE ${PROJECT_BINARY_DIR})
+ add_dependencies(tensorboard ${onnxruntime_EXTERNAL_DEPENDENCIES})
+-if(WIN32)
++if(MSVC)
+   target_compile_options(tensorboard PRIVATE "/wd4100" "/wd4125" "/wd4127" "/wd4267" "/wd4456" "/wd4800" "/wd6011" "/wd6387" "/wd28182")
+ endif()
+ 
+diff --git a/include/onnxruntime/core/common/status.h b/include/onnxruntime/core/common/status.h
+index 43c9c6c..3a345d6 100644
+--- a/include/onnxruntime/core/common/status.h
++++ b/include/onnxruntime/core/common/status.h
+@@ -18,6 +18,7 @@ limitations under the License.
+ #include <string>
+ 
+ #ifdef _WIN32
++#include <windef.h>
+ #include <winerror.h>
+ #endif
+ 
+diff --git a/include/onnxruntime/core/framework/tensor_shape.h b/include/onnxruntime/core/framework/tensor_shape.h
+index d4ee4a0..c33bea9 100644
+--- a/include/onnxruntime/core/framework/tensor_shape.h
++++ b/include/onnxruntime/core/framework/tensor_shape.h
+@@ -8,6 +8,7 @@
+ #include <iosfwd>
+ #include <string>
+ #include <vector>
++#include <cstdint>
+ 
+ #include <gsl/gsl>
+ #include "core/common/inlined_containers_fwd.h"
+diff --git a/include/onnxruntime/core/platform/tracing.h b/include/onnxruntime/core/platform/tracing.h
+index fb61632..260890a 100644
+--- a/include/onnxruntime/core/platform/tracing.h
++++ b/include/onnxruntime/core/platform/tracing.h
+@@ -1,9 +1,6 @@
+-// Copyright (c) Microsoft Corporation. All rights reserved.
+-// Licensed under the MIT License.
+-
+ #pragma once
+-
++#ifdef _MSC_VER
+ #include <windows.h>
+ #include <TraceLoggingProvider.h>
+-
+ TRACELOGGING_DECLARE_PROVIDER(telemetry_provider_handle);
++#endif
+diff --git a/include/onnxruntime/core/session/onnxruntime_c_api.h b/include/onnxruntime/core/session/onnxruntime_c_api.h
+index ee101c2..cd42224 100644
+--- a/include/onnxruntime/core/session/onnxruntime_c_api.h
++++ b/include/onnxruntime/core/session/onnxruntime_c_api.h
+@@ -48,7 +48,7 @@ extern "C" {
+ 
+ //! @}
+ // SAL2 Definitions
+-#ifndef _MSC_VER
++#if !defined(_MSC_VER) && !defined(__MINGW32__)
+ #define _In_
+ #define _In_z_
+ #define _In_opt_
+diff --git a/onnxruntime/core/common/logging/capture.cc b/onnxruntime/core/common/logging/capture.cc
+index ac0d4d5..aa94139 100644
+--- a/onnxruntime/core/common/logging/capture.cc
++++ b/onnxruntime/core/common/logging/capture.cc
+@@ -29,7 +29,7 @@ void Capture::ProcessPrintf(msvc_printf_check const char* format, va_list args)
+   bool error = false;
+   bool truncated = false;
+ 
+-#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__) && !defined(__GNUC__))
++#if defined(_MSC_VER)
+   errno = 0;
+   const int nbrcharacters = vsnprintf_s(message.data(), message.size(), _TRUNCATE, format, args);
+   if (nbrcharacters < 0) {
+diff --git a/onnxruntime/core/common/logging/logging.cc b/onnxruntime/core/common/logging/logging.cc
+index 2f02199..c46afaf 100644
+--- a/onnxruntime/core/common/logging/logging.cc
++++ b/onnxruntime/core/common/logging/logging.cc
+@@ -13,7 +13,9 @@
+ 
+ #ifdef _WIN32
+ #include <Windows.h>
++#ifdef _MSC_VER
+ #include "core/platform/windows/logging/etw_sink.h"
++#endif
+ #else
+ #include <unistd.h>
+ #if defined(__MACH__) || defined(__wasm__) || defined(_AIX)
+@@ -297,12 +299,14 @@ unsigned int GetProcessId() {
+ 
+ std::unique_ptr<ISink> EnhanceSinkWithEtw(std::unique_ptr<ISink> existing_sink, logging::Severity original_severity,
+                                           logging::Severity etw_severity) {
+-#ifdef _WIN32
++#ifdef _MSC_VER
+   auto& manager = EtwRegistrationManager::Instance();
+   if (manager.IsEnabled()) {
+     auto compositeSink = std::make_unique<CompositeSink>();
+     compositeSink->AddSink(std::move(existing_sink), original_severity);
++#ifdef ETW_TRACE_LOGGING_SUPPORTED
+     compositeSink->AddSink(std::make_unique<EtwSink>(), etw_severity);
++#endif
+     return compositeSink;
+   } else {
+     return existing_sink;
+@@ -316,7 +320,7 @@ std::unique_ptr<ISink> EnhanceSinkWithEtw(std::unique_ptr<ISink> existing_sink,
+ }
+ 
+ Severity OverrideLevelWithEtw(Severity original_severity) {
+-#ifdef _WIN32
++#ifdef _MSC_VER
+   auto& manager = logging::EtwRegistrationManager::Instance();
+   if (manager.IsEnabled() &&
+       (manager.Keyword() & static_cast<ULONGLONG>(onnxruntime::logging::ORTTraceLoggingKeyword::Logs)) != 0) {
+diff --git a/onnxruntime/core/common/logging/sinks/cerr_sink.h b/onnxruntime/core/common/logging/sinks/cerr_sink.h
+index 2f4c5f8..b297c81 100644
+--- a/onnxruntime/core/common/logging/sinks/cerr_sink.h
++++ b/onnxruntime/core/common/logging/sinks/cerr_sink.h
+@@ -12,7 +12,7 @@ namespace logging {
+ /// A std::cerr based ISink
+ /// </summary>
+ /// <seealso cref="ISink" />
+-#ifdef _WIN32
++#ifdef _MSC_VER
+ class CErrSink : public WOStreamSink {
+  public:
+   CErrSink() : WOStreamSink(std::wcerr, /*flush*/ false) {  // std::cerr isn't buffered so no flush required
+diff --git a/onnxruntime/core/common/logging/sinks/clog_sink.h b/onnxruntime/core/common/logging/sinks/clog_sink.h
+index 6fa882a..1191293 100644
+--- a/onnxruntime/core/common/logging/sinks/clog_sink.h
++++ b/onnxruntime/core/common/logging/sinks/clog_sink.h
+@@ -12,7 +12,7 @@ namespace logging {
+ /// A std::clog based ISink
+ /// </summary>
+ /// <seealso cref="ISink" />
+-#ifdef _WIN32
++#ifdef _MSC_VER
+ class CLogSink : public WOStreamSink {
+  public:
+   CLogSink() : WOStreamSink(std::wclog, /*flush*/ true) {
+diff --git a/onnxruntime/core/common/logging/sinks/file_sink.h b/onnxruntime/core/common/logging/sinks/file_sink.h
+index 2b151a9..9701ee4 100644
+--- a/onnxruntime/core/common/logging/sinks/file_sink.h
++++ b/onnxruntime/core/common/logging/sinks/file_sink.h
+@@ -4,6 +4,7 @@
+ #pragma once
+ 
+ #include <fstream>
++#include <filesystem>
+ #include "core/common/logging/sinks/ostream_sink.h"
+ 
+ namespace onnxruntime {
+@@ -75,7 +76,7 @@ class FileSink : public WOStreamSink {
+   /// <param name="filter_user_data">If set to <c>true</c> [removes user data].</param>
+   /// <remarks>Filtering of user data can alternatively be done at the <see cref="LoggingManager" /> level.</remarks>
+   FileSink(const std::wstring& filename, bool append, bool filter_user_data)
+-      : FileSink{std::make_unique<std::wofstream>(filename, std::ios::out | (append ? std::ios::app : std::ios::trunc)),
++      : FileSink{std::make_unique<std::wofstream>(std::filesystem::path{filename}, std::ios::out | (append ? std::ios::app : std::ios::trunc)),
+                  filter_user_data} {
+   }
+ 
+diff --git a/onnxruntime/core/common/logging/sinks/ostream_sink.cc b/onnxruntime/core/common/logging/sinks/ostream_sink.cc
+index 1c49685..70b7535 100644
+--- a/onnxruntime/core/common/logging/sinks/ostream_sink.cc
++++ b/onnxruntime/core/common/logging/sinks/ostream_sink.cc
+@@ -21,7 +21,7 @@ struct Color {
+ };
+ #endif
+ 
+-#ifndef _WIN32
++#if 1  // OStreamSink always available
+ void OStreamSink::SendImpl(const Timestamp& timestamp, const std::string& logger_id, const Capture& message) {
+   // Two options as there may be multiple calls attempting to write to the same sink at once:
+   // 1) Use mutex to synchronize access to the stream.
+@@ -60,7 +60,8 @@ void OStreamSink::SendImpl(const Timestamp& timestamp, const std::string& logger
+     stream_->flush();
+   }
+ }
+-#else
++#endif
++#if defined(_WIN32)
+ void WOStreamSink::SendImpl(const Timestamp& timestamp, const std::string& logger_id, const Capture& message) {
+   // Two options as there may be multiple calls attempting to write to the same sink at once:
+   // 1) Use mutex to synchronize access to the stream.
+diff --git a/onnxruntime/core/common/logging/sinks/ostream_sink.h b/onnxruntime/core/common/logging/sinks/ostream_sink.h
+index 2e76243..e789b4c 100644
+--- a/onnxruntime/core/common/logging/sinks/ostream_sink.h
++++ b/onnxruntime/core/common/logging/sinks/ostream_sink.h
+@@ -12,7 +12,7 @@
+ 
+ namespace onnxruntime {
+ namespace logging {
+-#ifndef _WIN32
++#if 1  // OStreamSink always available
+ /// <summary>
+ /// A std::ostream based ISink
+ /// </summary>
+@@ -30,7 +30,8 @@ class OStreamSink : public ISink {
+   std::ostream* stream_;
+   const bool flush_;
+ };
+-#else
++#endif
++#if defined(_WIN32)
+ /// <summary>
+ /// A std::wostream based ISink
+ /// </summary>
+diff --git a/onnxruntime/core/common/profiler.cc b/onnxruntime/core/common/profiler.cc
+index d6546b0..d3b034e 100644
+--- a/onnxruntime/core/common/profiler.cc
++++ b/onnxruntime/core/common/profiler.cc
+@@ -2,6 +2,7 @@
+ // Licensed under the MIT License.
+ 
+ #include "profiler.h"
++#include <filesystem>
+ 
+ #if !defined(ORT_MINIMAL_BUILD)
+ #include "core/common/json_utils.h"
+@@ -64,7 +65,7 @@ template <typename T>
+ void Profiler::StartProfiling(const std::basic_string<T>& file_name) {
+   enabled_ = true;
+ #if !defined(__wasm__)
+-  profile_stream_.open(file_name, std::ios::out | std::ios::trunc);
++  profile_stream_.open(std::filesystem::path{file_name}, std::ios::out | std::ios::trunc);
+ #endif
+   profile_stream_file_ = ToUTF8String(file_name);
+   profiling_start_time_ = std::chrono::high_resolution_clock::now();
+diff --git a/onnxruntime/core/framework/allocation_planner.cc b/onnxruntime/core/framework/allocation_planner.cc
+index 829d996..1412f2c 100644
+--- a/onnxruntime/core/framework/allocation_planner.cc
++++ b/onnxruntime/core/framework/allocation_planner.cc
+@@ -7,6 +7,7 @@
+ #include <algorithm>
+ #include <deque>
+ #include <sstream>
++#include <filesystem>
+ #include <ctime>
+ #include <iomanip>
+ #include <iterator>
+@@ -2592,7 +2593,7 @@ void DeviceBasedPartitioner::Initialize() {
+   if (config_file_.empty()) {
+     return;
+   }
+-  std::ifstream if_stream(config_file_);
++  std::ifstream if_stream{std::filesystem::path{config_file_}};
+   if (if_stream.is_open()) {
+     ORT_TRY {
+       json json_config = json::parse(if_stream, nullptr, false);
+@@ -2675,7 +2676,7 @@ void DeviceBasedPartitioner::SaveConfig() const {
+         json_config["devices"].insert(json_config["devices"].end(), std::to_string(device_type));
+       }
+     }
+-    std::ofstream of_stream(config_file_);
++    std::ofstream of_stream{std::filesystem::path{config_file_}};
+     if (of_stream.is_open()) {
+       of_stream << json_config.dump();
+       of_stream.close();
+@@ -2694,7 +2695,7 @@ std::unique_ptr<IGraphPartitioner> IGraphPartitioner::CreateGraphPartitioner(con
+   IGraphPartitioner::GraphPartitioningStrategy partitioner_type =
+       IGraphPartitioner::GraphPartitioningStrategy::DeviceBasedPartition;
+   if (!config_file.empty()) {
+-    std::ifstream f(config_file);
++    std::ifstream f{std::filesystem::path{config_file}};
+     if (f.is_open()) {
+       ORT_TRY {
+         json json_config = json::parse(f, nullptr, false);
+diff --git a/onnxruntime/core/framework/execution_providers.h b/onnxruntime/core/framework/execution_providers.h
+index 999386d..d3ecbcb 100644
+--- a/onnxruntime/core/framework/execution_providers.h
++++ b/onnxruntime/core/framework/execution_providers.h
+@@ -14,7 +14,7 @@
+ #include "core/common/logging/logging.h"
+ #include "core/platform/telemetry_strings.h"
+ #include "core/platform/telemetry_redaction.h"
+-#ifdef _WIN32
++#ifdef _MSC_VER
+ #include <Windows.h>
+ #include <winmeta.h>
+ #include <evntrace.h>
+@@ -33,7 +33,7 @@ GetProviderOptionsSnapshot(), which is explicitly synchronized for ETW capture-s
+ class ExecutionProviders {
+  public:
+   ExecutionProviders() {
+-#ifdef _WIN32
++#ifdef _MSC_VER
+     // Register callback for ETW capture state (rundown)
+     etw_callback_ = onnxruntime::WindowsTelemetry::EtwInternalCallback(
+         [this](
+@@ -64,7 +64,7 @@ class ExecutionProviders {
+   }
+ 
+   ~ExecutionProviders() {
+-#ifdef _WIN32
++#ifdef _MSC_VER
+     WindowsTelemetry ::UnregisterInternalCallback(etw_callback_);
+ #endif
+   }
+@@ -120,7 +120,7 @@ class ExecutionProviders {
+       return duplicate_status;
+     }
+ 
+-#ifdef _WIN32
++#ifdef _MSC_VER
+     LogProviderOptions(provider_id, providerOptions, false);
+ #endif
+     return Status::OK();
+@@ -209,7 +209,7 @@ class ExecutionProviders {
+   // or whether it was explicitly added by the caller.
+   bool cpu_execution_provider_was_implicitly_added_ = false;
+ 
+-#ifdef _WIN32
++#ifdef _MSC_VER
+   WindowsTelemetry::EtwInternalCallback etw_callback_;
+ #endif
+ };
+diff --git a/onnxruntime/core/mlas/lib/amd64/macamd64.inc b/onnxruntime/core/mlas/lib/amd64/macamd64.inc
+new file mode 100644
+index 0000000..0c8e39f
+--- /dev/null
++++ b/onnxruntime/core/mlas/lib/amd64/macamd64.inc
+@@ -0,0 +1,60 @@
++; macamd64.inc -- SEH frame macros for UASM (replaces Windows SDK header)
++push_reg MACRO reg
++    push    reg
++    .pushreg reg
++ENDM
++
++rex_push_reg MACRO reg
++    push    reg
++    .pushreg reg
++ENDM
++
++alloc_stack MACRO size
++    sub     rsp, size
++    .allocstack size
++ENDM
++
++save_reg MACRO reg, offset
++    mov     [rsp+offset], reg
++    .savereg reg, offset
++ENDM
++
++save_xmm128 MACRO reg, offset
++    movaps  [rsp+offset], reg
++    .savexmm128 reg, offset
++ENDM
++
++END_PROLOGUE MACRO
++    .endprolog
++ENDM
++
++BEGIN_EPILOGUE MACRO
++ENDM
++
++LEAF_ENTRY MACRO Name, Section
++    Section SEGMENT
++    ALIGN   16
++    PUBLIC  Name
++    Name PROC
++ENDM
++
++LEAF_END MACRO Name, Section
++    Name ENDP
++    Section ENDS
++ENDM
++
++NESTED_ENTRY MACRO Name, Section, Handler
++    Section SEGMENT
++    ALIGN   16
++    PUBLIC  Name
++    IF @SizeStr(<Handler>) GT 0
++        Name PROC FRAME:Handler
++    ELSE
++        Name PROC FRAME
++    ENDIF
++ENDM
++
++NESTED_END MACRO Name, Section
++    Name ENDP
++    Section ENDS
++ENDM
+diff --git a/onnxruntime/core/mlas/lib/amd64/mlasi.inc b/onnxruntime/core/mlas/lib/amd64/mlasi.inc
+index a4f58c1..b688569 100644
+--- a/onnxruntime/core/mlas/lib/amd64/mlasi.inc
++++ b/onnxruntime/core/mlas/lib/amd64/mlasi.inc
+@@ -17,6 +17,7 @@
+ 
+         .xlist
+ INCLUDE macamd64.inc
++        option evex:1
+         .list
+ 
+ ;
+diff --git a/onnxruntime/core/mlas/lib/mlasi.h b/onnxruntime/core/mlas/lib/mlasi.h
+index 89ecf92..e87f006 100644
+--- a/onnxruntime/core/mlas/lib/mlasi.h
++++ b/onnxruntime/core/mlas/lib/mlasi.h
+@@ -96,11 +96,13 @@ Abstract:
+ // Macro to force inline expansion of a function.
+ //
+ 
++#ifndef MLAS_FORCEINLINE
+ #if defined(_MSC_VER)
+ #define MLAS_FORCEINLINE __forceinline
+ #else
+ #define MLAS_FORCEINLINE __attribute__ ((always_inline)) inline
+ #endif
++#endif // MLAS_FORCEINLINE
+ 
+ MLAS_FORCEINLINE
+ bool
+@@ -3443,7 +3445,7 @@ MlasReadTimeStampCounter(void)
+ 
+ constexpr size_t ThreadedBufAlignment = 64;
+ extern thread_local size_t ThreadedBufSize;
+-#ifdef _MSC_VER
++#if defined(_MSC_VER) || defined(_WIN32)
+ extern thread_local std::unique_ptr<uint8_t, decltype(&_aligned_free)> ThreadedBufHolder;
+ #else
+ extern thread_local std::unique_ptr<uint8_t, decltype(&free)> ThreadedBufHolder;
+@@ -3463,7 +3465,7 @@ void
+ MlasThreadedBufAlloc(size_t size)
+ {
+     if (size > ThreadedBufSize) {
+-#ifdef _MSC_VER
++#if defined(_MSC_VER) || defined(_WIN32)
+         ThreadedBufHolder.reset(
+             reinterpret_cast<uint8_t*>(_aligned_malloc(size, ThreadedBufAlignment)));
+ #elif (__STDC_VERSION__ >= 201112L) && !defined(__APPLE__)
+diff --git a/onnxruntime/core/mlas/lib/platform.cpp b/onnxruntime/core/mlas/lib/platform.cpp
+index c5f6f3a..e2e6727 100644
+--- a/onnxruntime/core/mlas/lib/platform.cpp
++++ b/onnxruntime/core/mlas/lib/platform.cpp
+@@ -692,7 +692,9 @@ Return Value:
+                 // Check if the processor supports AVX NE CONVERT.
+                 //
+                 if ((Cpuid7_1[3] & (0b1 << 5)) != 0) {
++#ifndef __MINGW32__  // cvtfp16Avx.asm needs AVX-NE-CONVERT, not yet in UASM
+                     this->CastF16ToF32Kernel = &MlasCastF16ToF32KernelAvx;
++#endif
+                 }
+ #endif  // (defined(_MSC_VER) && (_MSC_VER >= 1933)) || (defined(__GNUC__) && (__GNUC__ >= 13))
+ 
+@@ -1130,7 +1132,7 @@ MlasPlatformU8S8Overflow(
+ 
+ #endif
+ thread_local size_t ThreadedBufSize = 0;
+-#ifdef _MSC_VER
++#if defined(_MSC_VER) || defined(_WIN32)
+ thread_local std::unique_ptr<uint8_t, decltype(&_aligned_free)> ThreadedBufHolder(nullptr, &_aligned_free);
+ #else
+ thread_local std::unique_ptr<uint8_t, decltype(&free)> ThreadedBufHolder(nullptr, &free);
+diff --git a/onnxruntime/core/platform/windows/env.cc b/onnxruntime/core/platform/windows/env.cc
+index 68bed62..2462095 100644
+--- a/onnxruntime/core/platform/windows/env.cc
++++ b/onnxruntime/core/platform/windows/env.cc
+@@ -28,6 +28,8 @@ limitations under the License.
+ #include <process.h>
+ #include <fcntl.h>
+ #include <io.h>
++#include <share.h>
++#include <sys/stat.h>
+ 
+ #include <gsl/gsl>
+ #include "core/common/logging/logging.h"
+@@ -40,10 +42,21 @@ limitations under the License.
+ #include "core/platform/windows/hardware_core_enumerator.h"
+ #endif
+ #include <unsupported/Eigen/CXX11/ThreadPool>
++#ifdef _MSC_VER
+ #include <wil/Resource.h>
++#else
++#include "core/platform/windows/mingw_wil_shim.h"
++#endif
+ 
+ #include "core/platform/path_lib.h"  // for LoopDir()
+ #include "core/platform/windows/dll_load_error.h"
++#ifndef _MSC_VER
++#include <cpuid.h>
++#undef __cpuid
++static inline void __cpuid(int info[4], int leaf) {
++    __cpuid_count(leaf, 0, info[0], info[1], info[2], info[3]);
++}
++#endif
+ 
+ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+ 
+@@ -1108,7 +1121,7 @@ void* SearchModulesForSymbol(const char* name) {
+     DWORD cb_needed = 0;
+     if (MyEnumProcessModules(current_proc, modules_ptr, size, &cb_needed) != 0 && size == cb_needed) {
+       for (size_t i = 0; i < num_handles; i++) {
+-        symbol = GetProcAddress(modules[i], name);
++        symbol = reinterpret_cast<void*>(GetProcAddress(modules[i], name));
+         if (symbol != nullptr) {
+           break;
+         }
+@@ -1127,7 +1140,7 @@ Status WindowsEnv::GetSymbolFromLibrary(void* handle, const std::string& symbol_
+   if (handle == nullptr) {
+     *symbol = dlfcn_win32::SearchModulesForSymbol(symbol_name.c_str());
+   } else {
+-    *symbol = ::GetProcAddress(reinterpret_cast<HMODULE>(handle), symbol_name.c_str());
++    *symbol = reinterpret_cast<void*>(::GetProcAddress(reinterpret_cast<HMODULE>(handle), symbol_name.c_str()));
+   }
+ 
+   if (!*symbol) {
+diff --git a/onnxruntime/core/platform/windows/env.h b/onnxruntime/core/platform/windows/env.h
+index f57d7d3..8a56e68 100644
+--- a/onnxruntime/core/platform/windows/env.h
++++ b/onnxruntime/core/platform/windows/env.h
+@@ -15,7 +15,11 @@ limitations under the License.
+ // Portions Copyright (c) Microsoft Corporation
+ 
+ #include "core/platform/env.h"
++#if defined(USE_WINDOWS_TELEMETRY) || defined(USE_1DS_TELEMETRY)
+ #include "core/platform/windows/telemetry.h"
++#else
++#include "core/platform/telemetry.h"
++#endif
+ #ifdef USE_1DS_TELEMETRY
+ #include "core/platform/telemetry_1ds.h"
+ #endif
+diff --git a/onnxruntime/core/platform/windows/env_time.cc b/onnxruntime/core/platform/windows/env_time.cc
+index 3644f91..433da6f 100644
+--- a/onnxruntime/core/platform/windows/env_time.cc
++++ b/onnxruntime/core/platform/windows/env_time.cc
+@@ -36,7 +36,7 @@ class WindowsEnvTime : public EnvTime {
+       // versions of Windows, so we need to check for its existence here.
+       // All std::chrono clocks on Windows proved to return
+       // values that may repeat, which is not good enough for some uses.
+-      constexpr int64_t kUnixEpochStartTicks = 116444736000000000i64;
++      constexpr int64_t kUnixEpochStartTicks = 116444736000000000LL;
+       constexpr int64_t kFtToMicroSec = 10;
+ 
+       // This interface needs to return system time and not
+diff --git a/onnxruntime/core/platform/windows/logging/etw_sink.h b/onnxruntime/core/platform/windows/logging/etw_sink.h
+index d0c08a2..4de5961 100644
+--- a/onnxruntime/core/platform/windows/logging/etw_sink.h
++++ b/onnxruntime/core/platform/windows/logging/etw_sink.h
+@@ -116,6 +116,8 @@ class EtwRegistrationManager {
+ // ETW is not supported on this platform but should still define a dummy EtwRegistrationManager
+ // so that it can be used in the EP provider bridge.
+ #include "core/common/logging/severity.h"
++#include <functional>
++#include <cstdint>
+ 
+ namespace onnxruntime {
+ namespace logging {
+@@ -125,8 +127,8 @@ class EtwRegistrationManager {
+                                                  ULONGLONG MatchAnyKeyword, ULONGLONG MatchAllKeyword,
+                                                  PEVENT_FILTER_DESCRIPTOR FilterData, PVOID CallbackContext)>;
+ 
+-  static EtwRegistrationManager& Instance();
+-  static bool SupportsETW();
++  static EtwRegistrationManager& Instance() { static EtwRegistrationManager instance; return instance; }
++  static bool SupportsETW() { return false; }
+   bool IsEnabled() const { return false; }
+   UCHAR Level() const { return 0; }
+   Severity MapLevelToSeverity() { return Severity::kFATAL; }
+diff --git a/onnxruntime/core/platform/windows/mingw_wil_shim.h b/onnxruntime/core/platform/windows/mingw_wil_shim.h
+new file mode 100644
+index 0000000..4846fff
+--- /dev/null
++++ b/onnxruntime/core/platform/windows/mingw_wil_shim.h
+@@ -0,0 +1,29 @@
++#pragma once
++#include <Windows.h>
++#include <cstdlib>
++#ifndef FAIL_FAST_LAST_ERROR_IF
++#define FAIL_FAST_LAST_ERROR_IF(cond) do { if (cond) std::abort(); } while(0)
++#endif
++namespace wil {
++class unique_handle {
++  HANDLE h_ = nullptr;
++  void close() { if (h_ && h_ != INVALID_HANDLE_VALUE) { CloseHandle(h_); h_ = nullptr; } }
++public:
++  unique_handle() = default;
++  explicit unique_handle(HANDLE h) : h_(h) {}
++  ~unique_handle() { close(); }
++  unique_handle(unique_handle&& o) noexcept : h_(o.h_) { o.h_ = nullptr; }
++  unique_handle& operator=(unique_handle&& o) noexcept {
++    if (this != &o) { close(); h_ = o.h_; o.h_ = nullptr; }
++    return *this;
++  }
++  unique_handle(const unique_handle&) = delete;
++  unique_handle& operator=(const unique_handle&) = delete;
++  HANDLE get() const { return h_; }
++  HANDLE* addressof() { return &h_; }
++  HANDLE* put() { close(); return &h_; }
++  explicit operator bool() const { return h_ != nullptr && h_ != INVALID_HANDLE_VALUE; }
++  void reset(HANDLE h = nullptr) { close(); h_ = h; }
++};
++using unique_hfile = unique_handle;
++}
+diff --git a/onnxruntime/core/platform/windows/telemetry.h b/onnxruntime/core/platform/windows/telemetry.h
+index 9c7d5b1..8091c1b 100644
+--- a/onnxruntime/core/platform/windows/telemetry.h
++++ b/onnxruntime/core/platform/windows/telemetry.h
+@@ -2,6 +2,22 @@
+ // Licensed under the MIT License.
+ 
+ #pragma once
++#ifndef _MSC_VER
++#include "core/platform/telemetry.h"
++#include <functional>
++#include <Windows.h>
++#include <evntprov.h>
++static constexpr size_t TelemetrySampleCount = 10;
++namespace onnxruntime {
++class WindowsTelemetry : public Telemetry {
++public:
++  using EtwInternalCallback = std::function<void(LPCGUID, ULONG, UCHAR,
++      ULONGLONG, ULONGLONG, PEVENT_FILTER_DESCRIPTOR, PVOID)>;
++  static void RegisterInternalCallback(const EtwInternalCallback&) {}
++  static void UnregisterInternalCallback(const EtwInternalCallback&) {}
++};
++}
++#else
+ #include <atomic>
+ #include <vector>
+ 
+@@ -165,3 +181,4 @@ class WindowsTelemetry : public Telemetry {
+ };
+ 
+ }  // namespace onnxruntime
++#endif  // _MSC_VER
+diff --git a/onnxruntime/core/session/inference_session.cc b/onnxruntime/core/session/inference_session.cc
+index 9227930..9f758ca 100644
+--- a/onnxruntime/core/session/inference_session.cc
++++ b/onnxruntime/core/session/inference_session.cc
+@@ -7,6 +7,7 @@
+ #include <charconv>
+ #include <memory>
+ #include <sstream>
++#include <filesystem>
+ #include <list>
+ #include <string>
+ #include <unordered_map>
+@@ -370,8 +371,8 @@ const char* OrtDeviceTypeToString(OrtDevice::DeviceType type) {
+ 
+ std::atomic<uint32_t> InferenceSession::global_session_id_{1};
+ std::map<uint32_t, InferenceSession*> InferenceSession::active_sessions_;
+-#ifdef _WIN32
+ std::mutex InferenceSession::active_sessions_mutex_;  // Protects access to active_sessions_
++#ifdef _MSC_VER
+ onnxruntime::WindowsTelemetry::EtwInternalCallback InferenceSession::callback_ML_ORT_provider_;
+ #endif
+ 
+@@ -685,7 +686,7 @@ void InferenceSession::ConstructorCommon(const SessionOptions& session_options,
+ 
+   telemetry_ = {};
+ 
+-#ifdef _WIN32
++#ifdef _MSC_VER
+   // Scope the lock so that it is not held across WindowsTelemetry::RegisterInternalCallback below.
+   // Holding active_sessions_mutex_ while taking the telemetry callback registry lock would invert
+   // the order used by the ETW dispatch path and can deadlock the process. See the destructor.
+@@ -957,7 +958,7 @@ InferenceSession::~InferenceSession() {
+ 
+   // Unregister the session and ETW callbacks
+   //
+-#ifdef _WIN32
++#ifdef _MSC_VER
+   // Remove the session first so that callbacks cannot observe it during teardown. Release
+   // active_sessions_mutex_ before unregistering because the callback registries have their own
+   // locks, and ETW dispatch takes those locks before LogAllSessions takes active_sessions_mutex_.
+diff --git a/onnxruntime/core/session/ort_apis.h b/onnxruntime/core/session/ort_apis.h
+index c448312..346964d 100644
+--- a/onnxruntime/core/session/ort_apis.h
++++ b/onnxruntime/core/session/ort_apis.h
+@@ -25,7 +25,7 @@ ORT_API(void, ReleaseNode, _Frees_ptr_opt_ OrtNode*);
+ ORT_API(void, ReleaseGraph, _Frees_ptr_opt_ OrtGraph*);
+ ORT_API(void, ReleaseModel, _Frees_ptr_opt_ OrtModel*);
+ 
+-_Check_return_ _Ret_notnull_ [[nodiscard]] OrtStatus* ORT_API_CALL CreateStatus(OrtErrorCode code, _In_z_ const char* msg)
++_Check_return_ _Ret_notnull_ OrtStatus* ORT_API_CALL CreateStatus(OrtErrorCode code, _In_z_ const char* msg)
+     NO_EXCEPTION;
+ 
+ OrtErrorCode ORT_API_CALL GetErrorCode(_In_ const OrtStatus* status) NO_EXCEPTION ORT_ALL_ARGS_NONNULL;
+diff --git a/onnxruntime/core/session/provider_registration.cc b/onnxruntime/core/session/provider_registration.cc
+index 9fef7a6..1f2f90c 100644
+--- a/onnxruntime/core/session/provider_registration.cc
++++ b/onnxruntime/core/session/provider_registration.cc
+@@ -18,7 +18,7 @@
+ #include "core/session/ort_apis.h"
+ #include "core/providers/openvino/openvino_provider_factory_creator.h"
+ 
+-#ifdef _WIN32
++#ifdef _MSC_VER
+ #include <winmeta.h>
+ #include "core/platform/tracing.h"
+ #endif
+@@ -137,7 +137,7 @@ ORT_API_STATUS_IMPL(OrtApis::SessionOptionsAppendExecutionProvider,
+     return status;
+   }
+ 
+-#if defined(_WIN32) && defined(ONNXRUNTIME_ENABLE_INSTRUMENT)
++#if defined(_MSC_VER) && defined(ONNXRUNTIME_ENABLE_INSTRUMENT)
+   size_t option_count = 0;
+   for (const auto& config_pair : provider_options) {
+     if (option_count++ == telemetry_detail::kMaxTelemetryCollectionEntries) break;
