@@ -60,7 +60,9 @@ type requiredProbe struct {
 // help carries the alternative in prose (helpcontract_test.go's satisfiedByAnother reads the
 // same shape from the other side). `motion docket rule` answers what follows its ruling with one
 // of three, chosen by --as: --direction on a remand, else --reopens-on or --final. `motion position
-// rule` names an upheld ruling's work one of two ways: --lens or --ids.
+// rule` names an upheld ruling's work one of two ways: --lens or --ids. `verify` names its subject one
+// of two ways, a flag group cobra refuses at the parse: --anchor (a citation) or --url (a source the
+// lens found).
 var oneOfAnother = map[string]string{
 	"problem":    "reason",
 	"reason":     "problem",
@@ -69,13 +71,21 @@ var oneOfAnother = map[string]string{
 	"direction":  "final",
 	"lens":       "ids",
 	"ids":        "lens",
+	"anchor":     "url",
+	"url":        "anchor",
 }
 
-// verbsWithAOneOf are the verbs on which oneOfAnother applies — --reason is ordinary everywhere
-// but `mint`, where it stands in for --problem. A pair exempts a flag only where its partner is
+// verbsWithAOneOf are the verbs on which oneOfAnother applies, each with the flags it applies to —
+// --reason is ordinary everywhere but `mint`, where it stands in for --problem; `verify` takes both,
+// and holds each to the marker like any other flag. A pair exempts a flag only where its partner is
 // registered: `motion docket rule` has --final/--reopens-on and no --problem, so its --reason is
 // held to the marker like any other.
-var verbsWithAOneOf = map[string]bool{"mint": true, "motion docket rule": true, "motion position rule": true}
+var verbsWithAOneOf = map[string][]string{
+	"mint":                 {"problem", "reason"},
+	"motion docket rule":   {"reopens-on", "final", "direction"},
+	"motion position rule": {"lens", "ids"},
+	"verify":               {"anchor", "url"},
+}
 
 func requiredProbes() map[string]requiredProbe {
 	probes := map[string]requiredProbe{}
@@ -102,17 +112,13 @@ func requiredProbes() map[string]requiredProbe {
 				"--url", "https://src/v", "--title", "T")
 			return actVars{"anchor": firstCiteEvent(t, runDir).GetLabel()}
 		},
+		// A CLEAN SET THAT FINDS AGAINST: a refuting reading mints its gap, so the seven gap flags it
+		// requires are in the set and each omission is refused naming its flag. The backing path, which
+		// refuses them, is driven by TestABackingReadingWithGapFlagsIsRefused.
 		args: func(v actVars) []string {
-			return []string{"verify", "--anchor", v["anchor"],
-				"--as", "supports", "--confidence", "high", "--reason", "r"}
+			return append([]string{"verify", "--anchor", v["anchor"],
+				"--as", "refutes", "--confidence", "high", "--reason", "r"}, gapFlagArgs("claim_contradicts_source")...)
 		}}
-	probes["lens corroborate"] = requiredProbe{seat: lensSeat,
-		setup: func(t *testing.T, runDir string) actVars {
-			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/c": []byte("<html>the source</html>")}})
-			return nil
-		},
-		args: fixed("corroborate", "--url", "https://src/c", "--title", "T",
-			"--quote", "§2 the finding prose lands in a quoted sentence.", "--as", "supports", "--confidence", "high", "--reason", "r")}
 	probes["blue edit"] = requiredProbe{seat: "blue-respond", args: fixed("edit",
 		"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r")}
 	probes["blue retire"] = requiredProbe{seat: "blue-respond", args: fixed("retire",
@@ -354,7 +360,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 					}
 					return
 				}
-				if other := oneOfAnother[f.Name]; verbsWithAOneOf[verb] && other != "" && c.Flags().Lookup(other) != nil {
+				if other := oneOfAnother[f.Name]; slices.Contains(verbsWithAOneOf[verb], f.Name) && other != "" && c.Flags().Lookup(other) != nil {
 					return // satisfied by --other, which the help states in prose
 				}
 				err := invoke(f)

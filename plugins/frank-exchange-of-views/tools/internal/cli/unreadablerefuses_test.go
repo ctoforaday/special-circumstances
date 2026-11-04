@@ -61,7 +61,7 @@ func unreadableIndex(t *testing.T, runDir string) {
 // Every outcome reads the index once, for the copy every fact about it comes from — whether it can
 // establish absence, whether the work stands, which part of the work it is, whose bytes it is — so
 // each is refused on the one read.
-func TestACorroborationOverAnUnreadableFetchIndexIsRefused(t *testing.T) {
+func TestAFoundSourceReadingOverAnUnreadableFetchIndexIsRefused(t *testing.T) {
 	for _, c := range []struct{ as, what string }{
 		{"absent", "which copy of https://example.org/a this run holds"},
 		{"supports", "which copy of https://example.org/a this run holds"},
@@ -72,7 +72,7 @@ func TestACorroborationOverAnUnreadableFetchIndexIsRefused(t *testing.T) {
 			writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 			unreadableIndex(t, runDir)
 			registerLensOnce(t, runDir)
-			_, err := runAt(t, "corroborate", "--run", runDir, "--seat-id", lensSeat,
+			_, err := runAt(t, "verify", "--run", runDir, "--seat-id", lensSeat,
 				"--url", "https://example.org/a", "--quote", "Seven is prime.", "--as", c.as,
 				"--confidence", "high", "--title", "A", "--reason", "read it")
 			wantUnreadableRefusal(t, err, c.what)

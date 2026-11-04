@@ -27,6 +27,12 @@ import (
 // It is bounded to VERBATIM application on purpose. If blue counter-edited, the text is
 // blue's authorship and red never proposed it, so nothing estops red from auditing it
 // normally. Estoppel attaches to red's own words, and to nothing else.
+//
+// A READING'S GAP IS EXEMPT (gblock, 2026-10-31: "Exempt, stated"). A lens's reading of a source
+// that finds against the sentence mints its gap in the reading's own act (AppendReading), and no
+// estoppel guard is attached there: the source's refutation is new evidence the prescription never
+// weighed, not red relitigating its own words. So a reading's gap opens also on text blue applied
+// verbatim from a red --new, nothing is logged, and EstoppelRejectionsOf counts lens mints alone.
 
 // minEstoppelOverlap is the shortest prescribed text that may trigger the guard, in
 // characters after whitespace collapse.
@@ -172,10 +178,12 @@ func prescriptionAt(q recordsql.Querier, gapID string) (loc, fix string, found b
 	return l.String, f.String, found, err
 }
 
-// ProposalOver is a gap's prescribed pair over report. Where the location, located as an edit locates
-// it, is followed by an anchor run holding the gap's own anchor — after any trailing punctuation,
-// where an edit's abutting-anchor rule reads it — old is the location as the report holds it, through
-// that run, then the location's own trailing punctuation: the edit then replaces the sentence with its
+// ProposalOver is a gap's prescribed pair over report. The location is LOCATED BY THE GAP'S TOKEN,
+// never by its text alone: among the location's occurrences, the one followed by an anchor run holding
+// the gap's own anchor — after any trailing punctuation, where an edit's abutting-anchor rule reads
+// it — is the gap's, and the report holds that token once, so a sentence whose words the report holds
+// twice yields the occurrence the gap stands at. old is the location as the report holds it there,
+// through that run, then the location's own trailing punctuation: the edit then replaces the sentence with its
 // anchors as `show report` prints them. new is fix with each anchor of the run it does not carry that
 // does not back its sentence — the gap and finding anchors — placed at its content end, where Attach
 // places an anchor on any quote ending there; the run's citations and computations are the edit's to carry
@@ -186,28 +194,34 @@ func prescriptionAt(q recordsql.Querier, gapID string) (loc, fix string, found b
 // had changed (m25 ev512, ev644: 0 of 3 accepts applied). A citation or computation is the sentence's
 // evidence, and carried onto red's rewording it would back text its source was never read against, so
 // it comes along only where AutoPlace finds its sentence word for word. `lens mint` judges its pair
-// through this function too (blue.PlanAccept), so a pair the accept would refuse is refused there.
+// through this function too (blue.PlanAccept), so a pair the accept would refuse is refused there. No
+// occurrence whose run holds the gap's token — the token gone, or a run that does not hold it — is
+// the recorded pair.
 func ProposalOver(report, gapID, loc, fix string) (string, string) {
-	start, end, err := anchortext.LocateOnce(report, loc, anchortext.CrossParagraphs)
-	if fix == "" || err != nil {
+	if fix == "" {
 		return loc, fix
 	}
-	tail := report[end:]
-	after := strings.TrimLeft(tail, anchortext.TrailingPunct)
-	run := after[:anchor.SkipRun(after, 0)]
-	if !strings.Contains(run, anchor.Token(gapID)) {
-		return loc, fix
-	}
-	trimmed := strings.TrimSpace(loc)
-	old := report[start:end+len(tail)-len(after)+len(run)] + trimmed[len(strings.TrimRight(trimmed, anchortext.TrailingPunct)):]
-	at := anchortext.ContentEnd(fix)
-	var carried strings.Builder
-	for _, id := range anchor.IDs(run) {
-		if !anchor.Backs(id) && !strings.Contains(fix, anchor.Token(id)) {
-			carried.WriteString(anchor.Token(id))
+	tok := anchor.Token(gapID)
+	for _, sp := range anchortext.LocateAll(report, loc) {
+		start, end := sp[0], sp[1]
+		tail := report[end:]
+		after := strings.TrimLeft(tail, anchortext.TrailingPunct)
+		run := after[:anchor.SkipRun(after, 0)]
+		if !strings.Contains(run, tok) {
+			continue
 		}
+		trimmed := strings.TrimSpace(loc)
+		old := report[start:end+len(tail)-len(after)+len(run)] + trimmed[len(strings.TrimRight(trimmed, anchortext.TrailingPunct)):]
+		at := anchortext.ContentEnd(fix)
+		var carried strings.Builder
+		for _, id := range anchor.IDs(run) {
+			if !anchor.Backs(id) && !strings.Contains(fix, anchor.Token(id)) {
+				carried.WriteString(anchor.Token(id))
+			}
+		}
+		return old, fix[:at] + carried.String() + fix[at:]
 	}
-	return old, fix[:at] + carried.String() + fix[at:]
+	return loc, fix
 }
 
 // ProposalAppliedVerbatim reports whether the pair a seat typed is EXACTLY the fix the named gap

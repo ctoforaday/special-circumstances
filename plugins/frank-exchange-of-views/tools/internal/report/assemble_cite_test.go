@@ -169,18 +169,18 @@ func TestARetractedSourceIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
 	}
 }
 
-// THE WARNING IS NOT THE CHOSEN ROW'S TO WITHHOLD. One url can carry several citations — a blue
-// cite and red's corroboration of the same source — and the Bibliography picks ONE of them for
-// its title. Reading the status off that pick alone means a corroboration stamped RETRACTED goes
-// unprinted whenever a blue cite for the same url won the title, which is the common case.
+// THE WARNING IS NOT THE CHOSEN ROW'S TO WITHHOLD. One url can carry several citations — two cites
+// of the same source — and the Bibliography picks ONE of them for its title. Reading the status off
+// that pick alone means a later cite stamped RETRACTED goes unprinted whenever an earlier cite for
+// the same url won the title, which is the common case.
 func TestARetractionOnAnyCitationOfAUrlReachesItsBibliographyLine(t *testing.T) {
 	sources := []record.Source{
-		// The blue cite wins the title and predates the stamp (an older run, migrated).
+		// The first cite wins the title and predates the stamp (an older run, migrated).
 		{Label: "C-00000001", URL: "https://ex/p", Title: "Blue's Title", AccessDate: "2026-08-03",
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_NOT_RECORDED},
-		// Red corroborated the same url later, and the index had the answer by then.
-		{Label: "C-00000002", URL: "https://ex/p", Title: "Red's Title", AccessDate: "2026-09-01",
-			Corroborated: true, WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
+		// A later cite of the same url, when the index had the answer.
+		{Label: "C-00000002", URL: "https://ex/p", Title: "A Later Title", AccessDate: "2026-09-01",
+			WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
 	}
 	got := weaveCitations("A claim<!--cite:C-00000001-->. The same source again<!--cite:C-00000002-->.", sources)
 	if !strings.Contains(got, "- Blue's Title. [https://ex/p](https://ex/p) (accessed 2026-08-03) **[RETRACTED]**") {
@@ -223,7 +223,7 @@ func TestTheBibliographyMarksAWorkOnlyWhenEveryCitationOfItIsTheAbstract(t *test
 	sources := []record.Source{
 		{Label: "C-00000001", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-08-03",
 			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT},
-		{Label: "C-00000002", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-09-01", Corroborated: true,
+		{Label: "C-00000002", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-09-01",
 			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNVERIFIED},
 	}
 	got := weaveCitations("A claim<!--cite:C-00000001-->. Another<!--cite:C-00000002-->.", sources)

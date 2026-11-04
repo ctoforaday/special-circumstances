@@ -71,15 +71,18 @@ const (
 	seedOpen  = "## Open questions\n\nWhether the trend outlasts the sample."
 )
 
-// lanePartText is lane i's part: a sentence of its own, under no heading of its own.
+// lanePartText is lane i's part: a sentence of its own, under no heading of its own. Lanes 1 and 3
+// each close on a sentence that differs from the other's by one word (repeatedSentenceSeeds), which
+// blue cites in each copy and then edits to one wording: the report then holds one sentence twice,
+// each copy cited by its own citation (stockRepeatedSentence).
 func lanePartText(lane string) string {
 	switch lane {
 	case seatclass.LaneSeatPrefix + "1":
-		return "A § fuzz sentence to anchor findings.\n"
+		return "A § fuzz sentence to anchor findings. " + repeatedSentenceSeeds[0] + "\n"
 	case seatclass.LaneSeatPrefix + "2":
 		return "The cost is rising over time across the whole sampled corpus.\n"
 	}
-	return "Across the sampled corpus the rise holds in every year measured.\n"
+	return "Across the sampled corpus the rise holds in every year measured. " + repeatedSentenceSeeds[1] + "\n"
 }
 
 // partsArm is whether this run takes a part arm now: always on the forced seed, and by the draw
@@ -135,7 +138,7 @@ func (r *runner) frontierReadsNoPart(seatID string) {
 }
 
 // withholdsPart is whether lane records no part this run: the forced run's third lane, and a drawn run's
-// one time in five.
+// one time in five — never foundAgainstSeed's, whose twice-held sentence needs it.
 func (r *runner) withholdsPart(lane string) bool {
 	if lane != withheldLane {
 		return false
@@ -144,7 +147,8 @@ func (r *runner) withholdsPart(lane string) bool {
 	defer r.mu.Unlock()
 	if r.withheld == nil {
 		r.withheld = map[string]bool{}
-		r.withheld[lane] = r.forceParts || r.rng.Intn(100) < 20
+		// FOUND-AGAINST SEED'S LANES ALL RECORD: its twice-held sentence closes lanes 1 and 3.
+		r.withheld[lane] = r.forceParts || !r.forceFoundAgainst && r.rng.Intn(100) < 20
 	}
 	return r.withheld[lane]
 }

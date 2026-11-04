@@ -67,10 +67,8 @@ func Entries() Registry {
 			"distinguisher": mintCoiningDrop,
 			"distinct_from": "the open gaps a lens named as different defects answered a word-overlap refusal of the mint, which the record does not make: whether a gap is a duplicate is the lens's reading of the board, and the claim is not carried",
 		}, nil),
-		// A CREDIT TRANSLATES TO NO EVENT. A source at epoch 42 to 44 may hold one: a lens adding its
-		// raising finding to an open gap's found_by, which answered the contradiction that finding
-		// raised. The record answers a contradiction with the gap minted from its raising finding and
-		// with nothing else, so a credited contradiction comes forward unanswered and the credited
+		// A CREDIT TRANSLATES TO NO EVENT. A source at epoch 42 to 44 may hold one: a lens adding a
+		// finding to an open gap's found_by after the mint. No live act writes it, so the credited
 		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
 		"credit": {Translate: toNoEvent},
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its

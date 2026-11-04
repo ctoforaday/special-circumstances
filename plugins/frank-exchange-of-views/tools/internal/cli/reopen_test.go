@@ -26,8 +26,12 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	}
 	seedBlueReport(t, runDir)
 	const claim = "§2 the finding prose lands in a quoted sentence."
-	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--url", "https://example.org/red", "--title", "T", "--quote", claim,
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://example.org/red": []byte("<html>the source</html>")}})
+	if _, err := run(t, "cite", "--run", runDir, "--seat-id", "blue-respond",
+		"--url", "https://example.org/red", "--title", "T", "--quote", claim); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "verify", "--run", runDir, "--seat-id", "red-lens-evidence", "--anchor", firstCiteEvent(t, runDir).GetLabel(),
 		"--as", "supports", "--confidence", "high", "--reason", "read it at the leaf"); err != nil {
 		t.Fatal(err)
 	}
@@ -58,12 +62,12 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	printed, tok := anchoredLine(t, runDir)
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", printed, "--new", "§2 an entirely different assertion now"+tok+".",
-		"--reason", "rewrote the sentence red corroborated"); err != nil {
+		"--reason", "rewrote the sentence red read"); err != nil {
 		t.Fatal(err)
 	}
 	got := evidence().Unchecked
 	if len(got) != 1 || !strings.HasPrefix(got[0].Anchor, "C-") || got[0].Edit <= got[0].LastCheck {
-		t.Fatalf("reopened = %+v, want the corroboration's citation, its edit after its check — the footnote now backs a sentence nobody read", got)
+		t.Fatalf("reopened = %+v, want the citation, its edit after its check — the footnote now backs a sentence nobody read", got)
 	}
 	anchor := got[0].Anchor
 	// The anchor is still THERE: reopening is not losing, and the no-loss promise still holds.

@@ -10,7 +10,7 @@ import (
 )
 
 // A MARKER ON A MID-SENTENCE CLAUSE IS NEVER BARE, so the retire named nothing and said nothing.
-// B9's G4: a corroboration marker sat on "not a hypothetical edge case, …" inside a sentence; blue
+// B9's G4: a lens-placed citation marker sat on "not a hypothetical edge case, …" inside a sentence; blue
 // edited the clause down to its markers and retired it twice, and both retires printed only
 // "retired: …" while the marker stayed. The seat now names the marker, and the retire says what
 // stayed when it names none.

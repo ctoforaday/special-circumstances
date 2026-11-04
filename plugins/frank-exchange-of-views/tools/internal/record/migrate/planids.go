@@ -9,6 +9,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // planIDPhrases is every phrase after which a stored plan's `why` line prints an events.id, one
@@ -26,8 +27,11 @@ import (
 //     (retirement.go, unsatSitting), in the lens fold's `has sat through no sitting` and `head moved`
 //     lines. Two tokens: a bare `at` would read the count in `it retires at %d` as an id;
 //   - edit, event: `changed at edit %d … its last check is event %d` (passblockers.go, reopenedFact);
-//   - contradiction: `contradiction %s` among a lens's debts (retirement.go, owedBlocker) and
-//     `contradiction %s` of a contradiction blocker (passblockers.go, contradictionFact).
+//     a failed check's `… at event %d`, each state (passblockers.go, failedFact: `%s's reading of
+//     citation %s at event %d finds the source against the sentence`; dispatch.go: `%s's reading
+//     at event %d`);
+//   - contradiction: archived bytes only, printed by no live verb — `contradiction %s` among a
+//     lens's debts and of a contradiction blocker, in plans stored before EventSchema 59.
 var planIDPhrases = []string{"head", "pin", "opened at", "edit", "event", "contradiction"}
 
 // afterIDPhrase reports whether the numeral at line[i:] follows one of planIDPhrases and one space,
@@ -54,8 +58,8 @@ const remandDirectionPrefix = "on the ruling's direction: "
 // TranslatePlanIDs carries the events.ids a stored plan names through newID — the events.id each
 // source event that wrote one landed at — and re-keys and re-prints the plan when any moved. A plan
 // whose ids all kept their numbers is left untouched, its bytes the bytes stored. The ids are the
-// plan's head, each stale area's pin, a contradiction blocker's subject, and the numbers its `why`
-// lines print after an id phrase (planIDPhrases). Seat words are carried as written: a Go-quoted
+// plan's head, each stale area's pin, and the numbers its `why` lines print after an id phrase
+// (planIDPhrases). Seat words are carried as written: a Go-quoted
 // span (a claim) and a remand line's tail after remandDirectionPrefix (the bench's direction), and
 // RemandOwed's direction is not read. An id that wrote no event, and a moved id's number printed
 // outside every id phrase, are refusals: the first has nothing to name, and the second cannot be
@@ -86,20 +90,6 @@ func TranslatePlanIDs(pl *recordpb.Plan, newID map[int64]int64) error {
 		if p.StaleAreas[i].Pin, err = to(p.StaleAreas[i].Pin); err != nil {
 			return err
 		}
-	}
-	for i, b := range p.Blockers {
-		if b.Kind != record.BlockerContradiction {
-			continue
-		}
-		n, perr := strconv.ParseInt(b.Subject, 10, 64)
-		if perr != nil {
-			return fmt.Errorf("this stored plan's contradiction blocker names %q, which is not an events.id", b.Subject)
-		}
-		m, err := to(n)
-		if err != nil {
-			return err
-		}
-		p.Blockers[i].Subject = strconv.FormatInt(m, 10)
 	}
 	for i, line := range p.Why {
 		out, err := translateWhyLine(line, newID, to)
@@ -182,4 +172,60 @@ func translateWhyLine(line string, newID map[int64]int64, to func(int64) (int64,
 		}
 	}
 	return b.String(), nil
+}
+
+// archivedReadingBlocker is the blocker kind an archived plan printed for a reading that found
+// against its sentence, its subject the reading's events.id. The live table holds no such kind: the
+// reading's found-against check is a failed_check blocker on the citation it read.
+const archivedReadingBlocker record.BlockerKind = "contradiction"
+
+// TranslateReadingBlockers carries each of a stored plan's archived reading blockers
+// (archivedReadingBlocker) to the failed check the migrated record holds for it: kind failed_check,
+// subject the anchor of the Verify the reading was written as — its source events.id carried through
+// newID and read through q, the replay's batch — and its owner unchanged, the reader. A blocker whose
+// reading names no anchor (a reading of a source the lens found) leaves the plan: the migrated record
+// holds no failed check for it and no gap carries it, the loss the plan's residue states (GAP 2). The
+// plan is re-keyed and re-printed when any moved, and left untouched otherwise. A subject that is no
+// events.id, or that wrote no event or no reading, is a refusal naming it: the loud miss; so is a plan
+// that permits no PASS and would be left holding no blocker.
+func TranslateReadingBlockers(pl *recordpb.Plan, newID map[int64]int64, q recordsql.Querier) error {
+	p, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
+	if err != nil {
+		return fmt.Errorf("this stored plan does not read as a plan: %v", err)
+	}
+	changed := false
+	kept := p.Blockers[:0:0]
+	for _, b := range p.Blockers {
+		if b.Kind != archivedReadingBlocker {
+			kept = append(kept, b)
+			continue
+		}
+		n, perr := strconv.ParseInt(b.Subject, 10, 64)
+		if perr != nil {
+			return fmt.Errorf("this stored plan's reading blocker names %q, which is not an events.id", b.Subject)
+		}
+		m, landed := newID[n]
+		if !landed {
+			return fmt.Errorf("this stored plan's reading blocker names event %d, which wrote no event on the migrated record before it", n)
+		}
+		var anchorID string
+		if err := q.QueryRow(`SELECT COALESCE("anchor", '') FROM "verify" WHERE "event_id" = ?`, m).Scan(&anchorID); err != nil {
+			return fmt.Errorf("this stored plan's reading blocker names event %d (written as %d), which is no reading on the migrated record: %v", n, m, err)
+		}
+		changed = true
+		if anchorID == "" {
+			continue
+		}
+		b.Kind, b.Subject = record.BlockerFailedCheck, anchorID
+		kept = append(kept, b)
+	}
+	if len(kept) == 0 && len(p.Blockers) > 0 && !p.PassPermitted {
+		return fmt.Errorf("this stored plan permits no PASS and its every blocker is a reading of a source its lens found, which the migrated record holds no failed check for: the plan would hold no blocker while it permits no PASS")
+	}
+	p.Blockers = kept
+	if !changed {
+		return nil
+	}
+	pl.Printed = proto.String(p.WithKey().Printed())
+	return nil
 }

@@ -1,7 +1,6 @@
 package record
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -314,54 +313,24 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 	})
 }
 
-// A CONTRADICTION ANOTHER LENS RAISED HOLDS ITS READER WHILE THE READER CAN MINT ITS GAP, and not
-// once the reader is at its mint cap: its mint from another seat's finding takes a mint, and only the
-// raiser's own takes none (answersOwnRaiseAt).
-func TestAContradictionAnotherLensRaisedHoldsItsReaderOnlyBelowItsCap(t *testing.T) {
-	staged := func(t *testing.T, mints int) Run {
-		b := newStage(t).cast(evLens, outsideLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").register(outsideLens).register(evLens).add(evLens, contradictingVerify("the sky is green"))
-		for i := 1; i <= mints; i++ {
-			b.mint(evLens, fmt.Sprintf("G%d", i), "low")
-		}
-		run := b.seed()
-		id := onlyContradiction(t, b.runDir).ID
-		if _, err := Append(Identity{Run: run, SeatID: outsideLens}, referenceFinding("F-f0000001", id)); err != nil {
-			t.Fatal(err)
-		}
-		return run
+// A CITATION FOUND AGAINST NEVER HOLDS ITS READER'S ENVELOPE. Its reading minted the gap that carries
+// it in the same act; a reading no gap carries — an archived one — owes nothing the reader can mint,
+// since what clears the check is blue's edit or retire, or the reader's own later backing reading. Either
+// way the reader's list offers it, and nothing it lists holds the envelope.
+func TestAFoundAgainstCitationNeverHoldsItsReader(t *testing.T) {
+	for name, gap := range map[string]string{"carried by its gap": "G-1", "carried by none": ""} {
+		t.Run(name, func(t *testing.T) {
+			run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().
+				register("red-chair").register(evLens).cite("C-1").foundAgainst(evLens, "C-1", gap).seed()
+			if r := refusalOf(t, run, evLens); r != "" {
+				t.Errorf("the reader's envelope is refused over the citation its reading found against: %q", r)
+			}
+			blocking, open := itemsOn(t, run, "lens", evLens, "C-1")
+			if len(blocking) != 0 || len(open) != 1 {
+				t.Errorf("the reader's list holds C-1 as %d blocking and %d open item(s), want one, not blocking: %+v %+v", len(blocking), len(open), blocking, open)
+			}
+		})
 	}
-	if r := refusalOf(t, staged(t, 1), evLens); !strings.Contains(r, "the sky is green") {
-		t.Errorf("below its cap, the reader's envelope is not held by the contradiction: %q", r)
-	}
-	run := staged(t, 15)
-	w, err := WorkOfSeat(run, "lens", evLens)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if w.Sitting.MintBudget == nil || w.Sitting.MintBudget.Left != 0 {
-		t.Fatalf("the fixture does not put the reader at its cap: %+v", w.Sitting.MintBudget)
-	}
-	if r := refusalOf(t, run, evLens); r != "" {
-		t.Errorf("at its cap, the reader's envelope is refused over a gap it cannot mint: %q", r)
-	}
-	if _, open := itemsOn(t, run, "lens", evLens, "you have none left"); len(open) != 1 {
-		t.Errorf("the contradiction is not listed with why it does not hold the reader: %+v", open)
-	}
-	t.Run("raised by the reader itself, it holds the reader at its cap: that mint takes none", func(t *testing.T) {
-		b := newStage(t).cast(evLens, outsideLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").register(evLens).add(evLens, contradictingVerify("the sky is green"))
-		for i := 1; i <= 15; i++ {
-			b.mint(evLens, fmt.Sprintf("G%d", i), "low")
-		}
-		run := b.seed()
-		if _, err := Append(Identity{Run: run, SeatID: evLens}, referenceFinding("F-f0000001", onlyContradiction(t, b.runDir).ID)); err != nil {
-			t.Fatal(err)
-		}
-		if r := refusalOf(t, run, evLens); !strings.Contains(r, "the sky is green") {
-			t.Errorf("the reader's own raise does not hold its envelope at its cap: %q", r)
-		}
-	})
 }
 
 // THE CHAIR'S BLOCKING ITEMS HOLD A PASS, NOT ITS SITTING: its envelope is refused on none of them.

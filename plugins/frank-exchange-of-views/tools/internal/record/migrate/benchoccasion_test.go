@@ -9,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // AN ARCHIVED BENCH ROW IS A DOCKET. Every archived bench row carries gaps, whatever occasions it named,
@@ -79,12 +80,16 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 			t.Fatalf("%s: %d refusal(s); the first: %+v", name, len(res.Refusals), res.Refusals[0])
 		}
 		srcPlans, dstPlans, srcEvs, dstEvs, _ := planPairsOf(t, name)
+		var anchors map[int64]string
+		if len(srcPlans) > 0 {
+			anchors = sourceReadingAnchors(t, recordtest.ExtractArchive(t, name))
+		}
 		if len(dstPlans) != len(srcPlans) {
 			t.Errorf("%s: migrated with %d stored plan(s), the source stored %d — a migrated record stores exactly the source's plans", name, len(dstPlans), len(srcPlans))
 			continue
 		}
 		for i := range srcPlans {
-			s, d := kindsTranslated(t, srcPlans[i].printed), dstPlans[i].printed
+			s, d := readingBlockersTranslated(t, kindsTranslated(t, srcPlans[i].printed), anchors), dstPlans[i].printed
 			if !strings.Contains(s, `"verdict":`) {
 				for _, w := range []string{"PASS", "FAIL"} {
 					if v := `,"verdict":"` + w + `"}`; strings.HasSuffix(d, v) {
