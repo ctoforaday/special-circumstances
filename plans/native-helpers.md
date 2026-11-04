@@ -1,15 +1,17 @@
 # Native code leaves `feov-record`: the `feov-ocr` and `feov-embed` helpers
 
-> STATUS: proposed 2026-11-04, not started. Forks F1–F5 (§I.4) are open and go to gblock before the auditor gate.
-> Ownership after approval (gblock, 2026-11-04): Part 1 (helper mechanics) and Part 3 (`feov-embed`) are built in
-> the vector-search session; Part 2 (`feov-ocr`) is handed to the session working on OCR.
+> STATUS: proposed 2026-11-04, not started. F1, F2, F4 and F5 ruled by gblock 2026-11-04 (§I.4); F3 waits on Part 0.
+> The auditor gate runs once F3 is ruled.
+> Ownership (gblock, 2026-11-04, "You'll handle vector here but hand ocr to the agent working on ocr"; F4): the OCR
+> session builds Part 1 (helper mechanics) inside Part 2 (`feov-ocr`); the vector-search session builds Part 3
+> (`feov-embed`) on top of Part 1 once it lands.
 
 ## I. Summary & Goals
 
 ### 1. Objective
 
 FEOV's C and C++ code moves out of the Go binary into two native helper executables, each shipped per
-target, fetched when first needed and verified by hash:
+target, fetched with the hook binaries by `fetch-bin.sh` and verified by hash (F1):
 
 - **`feov-ocr`** carries tesseract 5.5.3 and leptonica 1.87.0 (today's `internal/tessocr` cgo engine, `shim.cpp`, and
   the embedded `eng.traineddata`).
@@ -33,7 +35,7 @@ load the official DLL on Windows.
 | A tesseract crash | Kills `feov-record` and the seat's command | The helper exits; Go reports a failed page and restarts it |
 | Race detector | Covers the stub, never the real engine (`scripts/check/gates.go:167`, a recorded open decision) | Covers everything that ships in Go; the C++ sits behind a process boundary |
 | Go link | `-linkmode external` with zig, for every FEOV command (`hooks.yml:1786-1828`) | Plain `go build` |
-| Download | The engine rides inside the 41,032,712-byte `feov-record` (v1.73.0, linux_amd64) whether or not a run reads a scan | Fetched on first scan or first search |
+| Download | The engine rides inside the 41,032,712-byte `feov-record` (v1.73.0, linux_amd64) | Separate assets, fetched with the hook binaries (F1); `feov-record` shrinks by the engine's share (unmeasured) |
 | Each new C++ library | Must build under zig for all six targets inside the Go link | Builds per helper, with the native toolchain where zig cannot |
 
 **What it costs:**
@@ -66,42 +68,28 @@ The measurements behind it are on #1171 (comment 6621511526), in `~/.claude/scra
 - **S7.** A helper that is missing, fails its hash, or crashes produces a loud, named refusal. It never comes back as an
   empty reading or an empty search result (§III.1.3).
 
-### 4. Forks for gblock (resolve before the gate)
+### 4. Rulings and the open fork
 
-**F1: How helpers are provisioned.**
-- *Recommended:* `feov-record` fetches a helper on first use, from the release it was built for. The asset hash is
-  compiled in.
-  - Hooks never wait on a helper download.
-  - The engine identity can be computed without starting the helper (§III.1.4).
-- *Alternative:* `fetch-bin.sh` fetches the helpers eagerly with the hook binaries. Its all-or-none rule would then make
-  every hook's first start wait on tens of MB (`scripts/fetchbingen/fetch-bin.sh:246-256`).
-- This revises the earlier ruling, "model as a release asset via fetch-bin.sh" (2026-10-31): the model would be fetched
-  the same way as `feov-embed`, not through `fetch-bin.sh`.
+Rulings are gblock's, 2026-11-04, picked from options the agent wrote; the option wording is not a quote.
 
-**F2: Release cadence.**
-- *Recommended:* helpers ship in the FEOV plugin release, built by the same release run. The release job reads no cache
-  (`hooks.yml:1681-1700`), so every FEOV release rebuilds both helpers from pinned sources. The agent's estimate is
-  15–25 minutes per target, run in parallel.
-- *Alternative:* helpers get their own tag namespace, with a committed pin file. Each FEOV release is then faster, but it
-  needs a second release kind, and the release job today refuses a tag that names no plugin (`hooks.yml:1718-1729`).
-
-**F3: Windows `feov-embed`.**
-- *Static:* built with MSVC and `/MT`, importing OS DLLs only. Part 0 tests whether that is possible.
-- *DLL:* the helper loads the official `onnxruntime.dll`, fetched beside it.
-- gblock ruled "Windows loads a dll" before the helper design existed. With a helper, the DLL is no longer forced, so
-  this is asked again once Part 0 reports.
-
-**F4: Who builds Part 1.**
-- *Recommended:* the vector-search session builds Part 1 first. Part 2 (OCR, the other session) and Part 3 (embed, this
-  session) then build on it in parallel.
-- *Alternative:* the OCR session builds Part 1 inside Part 2, and embed waits for it.
-
-**F5: Universe runs.**
-- *Recommended:* `universe.sh build --native` builds both helpers from the checkout and installs them where the fetcher
-  looks. A plain `build` has no helpers, so OCR and search refuse loudly. That matches today: a universe has no OCR
-  engine at all (census G, `scripts/universe.sh:430-449`).
-- What a universe must never do is fetch the *published* helpers, which would test the release instead of the change
-  (AGENTS.md, "prove the universe carries your change").
+- **F1, provisioning: `fetch-bin.sh`, eagerly.** The helpers and the model are fetched with the hook binaries, by the
+  same all-or-none install (`scripts/fetchbingen/fetch-bin.sh:246-256`). A first hook start therefore waits on them too:
+  the model alone is 33,844,232 bytes. This keeps the 2026-10-31 choice of shipping the model as a release asset through
+  `fetch-bin.sh`. The recommended alternative, a fetch by `feov-record` on first use, was not taken.
+- **F2, release cadence: the same FEOV release.** Helpers are built by the FEOV release run. The release job reads no
+  cache (`hooks.yml:1681-1700`), so every FEOV release rebuilds both helpers from pinned sources: 15–25 minutes per
+  target by the agent's estimate, run in parallel.
+- **F3, Windows `feov-embed`: OPEN until Part 0 reports.**
+  - *Static:* MSVC with `/MT`, importing OS DLLs only.
+  - *DLL:* the helper loads the official `onnxruntime.dll`, fetched beside it.
+  - gblock ruled "Windows loads a dll" before the helper design existed. A helper removes the reason the DLL was forced,
+    so this is asked again.
+- **F4, Part 1: built by the OCR session inside Part 2.** OCR proves the mechanics with working code first, and
+  Part 3 (`feov-embed`) waits for Part 1 to land.
+- **F5, universe runs: `universe.sh build --native`.** It builds both helpers from the checkout and installs them where
+  `fetch-bin.sh` would. A plain `build` has no helpers, so OCR and search refuse loudly. That matches today, where a
+  universe has no OCR engine at all (census G, `scripts/universe.sh:430-449`). A universe never fetches the *published*
+  helpers (AGENTS.md, "prove the universe carries your change").
 
 ### 5. Non-goals
 
@@ -174,7 +162,7 @@ ONNX Runtime 1.31.1 reduced, built with MSVC and `--enable_msvc_static_runtime`,
 
 Output: `~/.claude/scratch/vecplan/msvcprobe/REPORT.md`. This answers F3 and nothing ships from it.
 
-### Part 1: Helper mechanics (owner per F4)
+### Part 1: Helper mechanics (owner: the OCR session, inside Part 2; F4)
 
 #### 1.1 Layout
 
@@ -217,26 +205,29 @@ Each case is a distinct error:
 working engine". `ocr_reason` names which case it was. These replace `tessocr.ErrNotCompiledIn` and its text, "build
 with -tags tessocr" (`pageread.go:88-95`, `tessocr.go:107`).
 
-#### 1.4 Provisioning and identity (per F1/F2)
+#### 1.4 Provisioning and identity (F1, F2)
 
+- **`fetch-bin.sh` learns a second list.** Today it enumerates `tools/cmd/*` (`fetch-bin.sh:122-133, :225-239`).
+  It also enumerates `native/*/`, the helper sources, which are present in the plugin cache because the whole plugin
+  directory installs. A helper directory may name extra release assets in a file `native/<helper>/ASSETS`, one asset
+  name per line. `native/embed/ASSETS` names the model `gte-small.int8.ort`.
+- **Assets and verification:**
+  - Helpers are named `<helper>_<os>_<arch>[.exe]` like the Go binaries; the model is target-independent.
+  - Every asset is in the same `SHA256SUMS`, and is verified before any is installed (the existing all-or-none rule).
+  - Everything lands in `<plugin cache>/bin/` and is stamped by the existing `.fetch/installed`.
+  - The edit is made in `scripts/fetchbingen/fetch-bin.sh` and regenerated into the three plugin copies.
 - **Hashes go in at build time.** The release job writes each helper asset's sha256 into `feov-record` with
   `-ldflags -X`. A dev build has no pinned hash: it uses a helper from the override directory (§II.4), and its identity
   is the sha256 of the file it actually opened.
-- **Fetching:**
-  - The fetch reads the same release's assets, `<helper>_<os>_<arch>[.exe]` and `SHA256SUMS`.
-  - It writes the helper into `<plugin cache>/bin/` beside `feov-record`.
-  - It verifies the hash before the file is ever made executable.
-  - It takes the same machine-wide lock pattern the release fuzz uses, so two seats don't race the download.
-- **The model** `gte-small.int8.ort` is fetched the same way and verified the same way.
 - **Identity can be computed without the helper.**
   - `Identity()` gains `+feov-ocr@<sha256[:12]>` and keeps the pure-Go `tessocr@<hash>` part, which hashes the Go source
     that remains.
   - It reads the hash compiled into the binary, so the cache-reuse paths that call it before any read
-    (`pageread.go:299`, `readscanned.go:108`) never start or fetch the helper (census J).
+    (`pageread.go:299`, `readscanned.go:108`) never start the helper (census J).
   - The source hash no longer covers `shim.cpp` and `shim.h`, which move out. The helper's asset hash covers them
     instead, because the asset is built from them.
-- **`setup` preflight** (`internal/setup/run.go:214-232`) reports whether each helper is installed and matches its
-  hash, and fetches nothing. A run learns before its first sitting that OCR is unavailable, not halfway through one.
+- **`setup` preflight** (`internal/setup/run.go:214-232`) checks each helper is present and matches its compiled-in
+  hash, so a run learns before its first sitting that OCR or search is unavailable.
 
 #### 1.5 Release job (`.github/workflows/hooks.yml`)
 
@@ -263,11 +254,17 @@ with -tags tessocr" (`pageread.go:88-95`, `tessocr.go:107`).
 
 #### 1.6 Enumerators (census G)
 
-- **Helpers are not Go `cmd/` directories**, so `fetch-bin.sh`, `fetchbingen`, `pluginparity`, `bootstrap-plugins.sh`,
-  `marketplacegen`, `versionguard` and `gcpolicy` are unchanged under F1.
-- **`sc-doctor`** reports each helper as installed, missing or hash-mismatched. Its fix is to fetch, never to build:
-  there is no source-build fallback for C++ (`doctor/main.go:533-535`).
-- **`pluginparity`** gains one check: the helpers named in `requirements.json` match the directories under `native/`.
+- **`fetch-bin.sh` and `fetchbingen`** change as in §III.1.4. Their contract tests change with them:
+  `doctor/fetchbin_contract_test.go:74,218,287`, and the `fetch-bin-platforms` CI job's fixture plugin
+  (`hooks.yml:1159-1216`), which gains a fake helper and an `ASSETS` entry.
+- **`sc-doctor`** enumerates `native/*/` and `ASSETS` the same way. It reports each helper as installed, missing or
+  hash-mismatched, and its fix is to fetch, never to build: there is no source-build fallback for C++
+  (`doctor/main.go:533-535`).
+- **`pluginparity`** gains a check: every `native/<helper>/` has a release build step and a `staticproof` allowlist.
+- **`bootstrap-plugins.sh`** builds Go commands from the cache (`:85-97`). It cannot build helpers, so a cold-bootstrapped
+  session has no OCR or search. That is no worse than today, where it builds without the C stack. It says so in one
+  line of output.
+- **Unchanged:** `marketplacegen`, `versionguard` and `gcpolicy`, because helpers are not Go `cmd/` directories.
 - **`universe.sh`** follows F5.
 
 #### 1.7 Gates and docs
@@ -306,7 +303,7 @@ with -tags tessocr" (`pageread.go:88-95`, `tessocr.go:107`).
 
 **Goldens:** the 13 corpus goldens are regenerated, and S3 is checked by diffing everything after line 1.
 
-### Part 3: `feov-embed` (owner: the vector-search session)
+### Part 3: `feov-embed` (owner: the vector-search session; starts once Part 1 lands)
 
 **The helper:** `native/embed/` holds the ONNX Runtime reduced operator set (`ops.config` from the scratch proof) and the
 Release minimal build: 6,057,720 bytes added on linux-amd64, at full speed. One op, `embed(ids, mask) -> float32[n][384]`,
@@ -346,7 +343,7 @@ line.
 | R1 | The OCR readings change when the code moves (decode, normalization or threading differences) | M × H | PNG bytes still cross the boundary; S3's line-1-only diff on all 13 goldens decides it (Part 2) |
 | R2 | The MSVC static build is not possible, or not reproducible | M × M | Part 0 settles possibility before anything ships; `/Brepro` plus a release re-run in CI settles reproducibility (§V.6). If it fails, F3 falls back to the DLL |
 | R3 | A protocol defect returns empty results that look like a clean reading or no hits | L × H | The distinct errors of §III.1.3; the fuzzed decoder; a test that kills the helper mid-request and asserts `helper-crashed` |
-| R4 | Concurrent seats race the first-use fetch | M × L | The lock in §III.1.4; verify the hash before chmod; write to a temp file and rename |
+| R4 | The eager fetch makes a first hook start slower (the model alone is 33.8 MB) | H × L | Accepted under F1; `fetch-bin.sh`'s existing all-or-none install and stamp, unchanged in shape |
 | R5 | A universe tests the published helper instead of the checkout's | M × M | F5 and `universe.sh build --native`; the grep-the-staged-marketplace rule is extended to `cmp` the helper |
 | R6 | The `sc-doctor` contract test matches a helper step's `-o` | H × L | §III.1.5 placement, and the test enumerates helpers |
 | R7 | Release time grows by about 25 minutes | H × L | Accepted under F2; the alternative is a second release kind |
@@ -377,7 +374,7 @@ line.
    - `scripts/universe.sh build --native`, then `cmp` the staged helpers against the checkout's build.
    - A smoke run that fetches one scanned PDF and runs one `--search`, with the run's `engine.log` read.
 8. **The PR's `release-fuzz` parts and `release-fuzz-tally`**, read on the final head (FEOV's tools module changes).
-9. **The auditor gate:** `/prosthetic-conscience:plan-audit` on this plan once F1–F5 are ruled.
+9. **The auditor gate:** `/prosthetic-conscience:plan-audit` on this plan once F3 is ruled.
 
 ## Appendix A: Census detail
 
