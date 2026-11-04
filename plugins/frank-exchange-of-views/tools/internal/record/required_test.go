@@ -1,6 +1,7 @@
 package record
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -188,5 +189,28 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	}
 	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, grade); err == nil {
 		t.Error("a grade ruling named M9, which nobody filed, and was accepted — the ordering hazard stands for the subjects that DO have a filing")
+	}
+}
+
+// THE GENERATED TABLE IS THE SCHEMA'S ANSWER, for every event body and for a word that is none.
+// RequiredFields reads required_gen.go, which devcmd/cmdtreegen writes from
+// RequiredFieldsFromSchema; an annotation changed without regenerating would mark the help from the
+// old schema while the write refused by the new one.
+func TestRequiredTableIsTheSchema(t *testing.T) {
+	od := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
+	words := []string{"no-such-body"}
+	for i := 0; i < od.Fields().Len(); i++ {
+		words = append(words, string(od.Fields().Get(i).Name()))
+	}
+	marked := 0
+	for _, w := range words {
+		got, want := RequiredFields(w), RequiredFieldsFromSchema(w)
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: the generated table says %v, the schema %v — run go -C plugins/frank-exchange-of-views/tools run ./devcmd/cmdtreegen", w, got, want)
+		}
+		marked += len(want)
+	}
+	if marked == 0 {
+		t.Fatal("the schema requires no field of any body — the annotations did not read, and this comparison passed vacuously")
 	}
 }

@@ -22,7 +22,7 @@ import (
 // `inquiry` has none: proposing the inquiry is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
 	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: %s.",
-	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.",
+	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started.",
 	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.\n\nON A GAP THE BENCH HAS RULED CLOSED IT IS A RECONSIDERATION, ADMITTED ON NEW GROUNDS ONLY: give --grounds or --quote, and the tool checks that what they locate was recorded after that ruling and is about this gap, refusing the filing and saying which failed. The gap's row in your work list's `estopped` states the ruling — what it settled, and what would reopen it or that it is final; a final ruling still admits new grounds. A gap the bench remanded is back in the debate and needs none.",
 }
 
@@ -291,11 +291,11 @@ var ruleDetail = map[string]string{
 		record.GradeMovementRule + ". The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it." +
 		"\n\nA REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap, and blue's sitting cannot end until it has; the dispatch readies the minting lens on the gap once blue has acted, to audit the answer. " +
 		"A REMAND PAST THE LIMIT IS REFUSED — " + record.RemandLimitRule + ". So a gap you remanded at impasse, back before you at impasse — or docketed again while its exchange is owed — takes a disposition that closes it; the refusal names them, and your work list says so on the motion before you rule. A second motion on the gap remanded in the sitting that remanded it is the same hearing, and is admitted. " +
-		"A gap can close while its docket motion stands — its lens closed it — and a remand of it is refused, naming the close, because a closed gap has no exchange to have and the record does not reopen it: rule that motion with a disposition that closes, on the record as it stands.",
+		"A gap can close while a second docket motion on it stands — your ruling on the first closed it — and a remand of it is refused, naming the close, because a closed gap has no exchange to have and the record does not reopen it: rule that motion with a disposition that closes, on the record as it stands.",
 	"inquiry": "\n\nAN INQUIRY HAS NO FILING: blue's proposal is the filing, so the id is the inquiry's own — the " +
 		"`Q-` id `show inquiries` lists with each inquiry's question and hypothesis, which are what you rule on, and its ruling, empty while you have not ruled it; a ruling on an inquiry is a motion ruling whose filing is the proposal itself. An id no inquiry on " +
-		"the record holds is refused. Rule on each inquiry blue " +
-		"proposed that you have not ruled — an unruled one is on your work list and holds your PASS: say whether it is " +
+		"the record holds is refused. An inquiry you have not ruled is no motion: no work list names it, no sitting waits on it, and it holds no PASS. " +
+		"Your ruling says whether the inquiry is " +
 		"worth this run's time — a judgment you argue in the reason: `endorsed` asks blue to take it up, `out_of_scope` and `too_thin` argue against it. The ruling is an argument beside the inquiry and changes no " +
 		"fate — the fate is what blue records with `inquiry record` (that page lists the fates), with your reason in front of it, " +
 		"whichever way you ruled; blue owes every open inquiry a fate each sitting. The first ruling on an " +
@@ -323,8 +323,8 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		Long: "rule on " + what + " — this verb is the " + ruler + " seat's, and it " +
 			"appears only on that surface.\n\n" +
 			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's three each convene a " +
-			"sitting of their own: a petition at the next chair sitting, before any party of that epoch " +
-			"sits; a position by the plan of the chair sitting that withheld the PASS, before any party of the next epoch sits; a docket after blue has sat on the gap." + ruleDetail[subject],
+			"sitting of their own: a petition as soon as nothing is running, in the turn it was filed; a " +
+			"position the same way, after the chair sitting that withheld the PASS; a docket after blue has sat on the gap." + ruleDetail[subject],
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
@@ -422,11 +422,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				// the word (record's requirePositionHearing) in the ruling's own terms.
 				h := &recordpb.PositionHearing{Ruling: &v, Lens: seat.OptStr(cmd, flags.Lens), Direction: seat.OptStr(cmd, flags.Direction)}
 				if csv, ok := cmd.Flags().Lookup(flags.IDs).Value.(*flags.CSV); ok {
-					for _, g := range csv.Value() {
-						if err := flags.GapID().Set(g); err != nil {
-							return nil, feov.Errorf(feov.Validation, "--%s: %v", flags.IDs, err)
-						}
-					}
 					h.GapIds = csv.Value()
 				}
 				body.Ruling = &recordpb.MotionRule_Position{Position: h}
@@ -473,7 +468,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// A seat id: closed form, so no quoting rule.
 			c.Flags().String(f, "", help)
 		case flags.IDs:
-			c.Flags().Var(new(flags.CSV), f, help)
+			c.Flags().Var(flags.IDList(flags.GapID), f, help)
 		default:
 			flags.Text(c, f, help)
 		}

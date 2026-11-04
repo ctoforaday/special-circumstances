@@ -88,7 +88,7 @@ type EditJSON struct {
 // --id <gap> --json` returned all 55 edits of the run and no required_fix while the bare form beside it
 // was scoped. A rendering that formats this value cannot select differently from its sibling.
 //
-// A QUERY, NOT A FOLD. The edits come from the `change` view, which states the clock (events_w) and
+// A QUERY, NOT A FOLD. The edits come from the `change` view, which states the clock (events.sitting, events.epoch) and
 // the character delta where every reader can see them, so asking about the edits does not scale with
 // the size of the whole record. The gap and its edits are read on one snapshot.
 func ChangesOf(run Run, gapID string) (ChangesJSON, error) {

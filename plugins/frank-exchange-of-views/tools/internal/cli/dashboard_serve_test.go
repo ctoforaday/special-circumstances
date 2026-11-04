@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/dashboard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -175,6 +176,23 @@ func liveProjectAt(t *testing.T, proj, runDir string) string {
 		t.Fatal(err)
 	}
 	return marker
+}
+
+// A VERDICT THE BOARD DERIVES IS NOT THE OUTCOME. On #1677's smoke `--watch` exited on the final
+// chair's register, printing that the record held the outcome, 4m17s before the assembly sitting
+// recorded it; the terminal and assembly sittings ran unwatched, and the lead repeated the line.
+func TestAVerdictTheBoardDerivesDoesNotEndTheWatch(t *testing.T) {
+	runDir := newRun(t)
+	proj, _ := liveProject(t, runDir)
+	recordtest.Seed(t, runDir, recordtest.At(t, "judge", "judge:halt:1",
+		&recordpb.Halt{Opinion: proto.String("a boundary the run may not cross")}))
+	run := runtest.Open(t, runDir)
+	if v, err := record.TerminalVerdict(run); err != nil || v == "" {
+		t.Fatalf("the seeded board derives no verdict (%q, %v), so this measures nothing", v, err)
+	}
+	if over, why := watchIsOver(proj, run); over {
+		t.Errorf("a derived verdict with no outcome recorded ended the watch: %q", why)
+	}
 }
 
 // #270: the watchers must end on ANY signal. The row's only remover is `capture`, which is

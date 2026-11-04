@@ -1,0 +1,119 @@
+---
+# THE GO BUILD CACHE FOR ONE JOB OF hooks.yml: main's, restored read-only everywhere but a push,
+# and saved only by main's nightly or a dispatch on main, trimmed to a cap first.
+#
+# Two phases, because a composite action has no post step: `restore` straight after setup-go (whose
+# own `cache` stays false), and `save` as the job's last step, which a failed job never reaches — so
+# a broken run cannot save anything.
+#
+# WHO WRITES. Only `schedule` and `workflow_dispatch` on refs/heads/main. A pull request restores
+# main's cache and saves nothing: its cache would live on its merge ref, where no other pull request
+# can restore it, spending the repository's 10 GB cache allowance on caches nobody reads. A push saves nothing and
+# restores nothing, because a main push and a tag build are the same event, and a tag build — which
+# publishes — must touch no cache (the cache-poisoning finding zizmor states). The release job
+# builds from source with no cache in reach.
+#
+# THE KEY. `go-<os>-<job>-<go version>-<hash of the job's dependency files>-` names a lineage; each
+# save appends the run id, so a nightly writes a NEW entry instead of colliding with the one it
+# restored (a cache key is immutable, so a key without the run id keeps whatever its first save
+# held), and a restore takes the newest entry of the lineage by prefix. Per job, because jobs build
+# different things: a key shared between jobs makes them race to save and the smallest job wins.
+# The workflow file is not in the key; an edit to it invalidates nothing.
+#
+# THE CAP. A cache restored and saved again only grows, so before the save scripts/gocachetrim
+# deletes every entry this run neither wrote nor read, then the oldest of the rest until it fits
+# GO_CACHE_MAX_MIB (hooks.yml's env). The module cache rides along untrimmed: it holds the
+# dependencies the key already names.
+#
+# NO TEST RESULT IS EVER READ FROM IT. The Go build cache also stores test results, keyed only on
+# what the test binary can see — and a test that drives a binary it builds has inputs the key cannot
+# see, so a restored PASS can be stale. The restore phase sets GOFLAGS=-count=1 for the rest of the
+# job, on every event, so every `go test` runs; scripts/check passes the same flag locally.
+name: Go build cache
+description: Restore main's Go build cache read-only, or trim and save it on main's nightly.
+inputs:
+  phase:
+    description: "`restore` straight after setup-go, or `save` as the job's last step."
+    required: true
+  dependency-files:
+    description: Newline-separated dependency files, relative to the workspace; the key moves when any of them does. Read by `restore`.
+    required: false
+    default: ""
+  job:
+    description: The job whose lineage to restore, for a job that reads another job's cache and saves none.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Key, paths and GOFLAGS
+      id: key
+      if: inputs.phase == 'restore'
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        FILES: ${{ inputs.dependency-files }}
+        LINEAGE_JOB: ${{ inputs.job || github.job }}
+      run: |
+        set -euo pipefail
+        sum=""
+        while IFS= read -r f; do
+          [ -n "$f" ] || continue
+          if [ ! -f "$f" ]; then
+            echo "::error::go-cache: dependency file $f does not exist"
+            exit 1
+          fi
+          sum="$sum$f $(sha256sum "$f" | cut -d' ' -f1)"$'\n'
+        done <<<"$FILES"
+        if [ -z "$sum" ]; then
+          echo "::error::go-cache: the restore phase names no dependency file, so its key would never move"
+          exit 1
+        fi
+        hash=$(printf '%s' "$sum" | sha256sum | cut -c1-16)
+        prefix="go-${RUNNER_OS}-${LINEAGE_JOB}-$(go env GOVERSION)-${hash}-"
+        gocache=$(go env GOCACHE)
+        gomodcache=$(go env GOMODCACHE)
+        # Outputs for the restore below; the environment for the save phase, a later step of the job.
+        {
+          echo "prefix=$prefix"
+          echo "gocache=$gocache"
+          echo "gomodcache=$gomodcache"
+        } >> "$GITHUB_OUTPUT"
+        {
+          echo "GO_CACHE_PREFIX=$prefix"
+          echo "GO_CACHE_DIR=$gocache"
+          echo "GO_CACHE_MODDIR=$gomodcache"
+          echo "GOFLAGS=${GOFLAGS:+$GOFLAGS }-count=1"
+        } >> "$GITHUB_ENV"
+    - name: Restore main's Go build cache
+      if: inputs.phase == 'restore' && github.event_name != 'push'
+      uses: actions/cache/restore@v6  # zizmor: ignore[cache-poisoning]
+      with:
+        path: |
+          ${{ steps.key.outputs.gocache }}
+          ${{ steps.key.outputs.gomodcache }}
+        key: ${{ steps.key.outputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
+    - name: Mark the restore
+      if: inputs.phase == 'restore'
+      shell: bash
+      run: echo "GO_CACHE_SINCE=$(date +%s)" >> "$GITHUB_ENV"
+    - name: Trim the Go build cache to its cap
+      if: inputs.phase == 'save' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        set -euo pipefail
+        if [ -z "${GO_CACHE_PREFIX:-}" ] || [ -z "${GO_CACHE_SINCE:-}" ]; then
+          echo "::error::go-cache: the save phase runs without a restore phase before it in this job"
+          exit 1
+        fi
+        go -C scripts run ./gocachetrim -dir "$GO_CACHE_DIR" -since "$GO_CACHE_SINCE" -max-mib "$GO_CACHE_MAX_MIB"
+    - name: Save the Go build cache
+      if: inputs.phase == 'save' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      uses: actions/cache/save@v6  # zizmor: ignore[cache-poisoning]
+      with:
+        path: |
+          ${{ env.GO_CACHE_DIR }}
+          ${{ env.GO_CACHE_MODDIR }}
+        key: ${{ env.GO_CACHE_PREFIX }}${{ github.run_id }}-${{ github.run_attempt }}

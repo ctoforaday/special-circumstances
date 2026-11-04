@@ -27,6 +27,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
@@ -66,18 +67,12 @@ const (
 	Admission Phase = "admission"
 )
 
-// EnvelopeAnswer is the writer's answer to the call returning a seat's envelope, as it prints it. The
-// hook, which links no record, reads it into sittinghook.EnvelopeAnswer.
-type EnvelopeAnswer struct {
-	Refusal  string          `json:"refusal,omitempty"`
-	Envelope json.RawMessage `json:"envelope,omitempty"`
-}
-
-// WriteEnvelopeAnswer prints the record's answer to the call returning the envelope of the agent's
-// seat (record.AgentEnvelope), input being that call's arguments, as an EnvelopeAnswer, and
-// logs a refusal as the tool's refusal entry under that seat. When the record has nothing to say, or
-// the agent is bound to no seat, nothing is printed or written. A record that cannot be read is the
-// error, and the hook refuses the envelope naming it.
+// WriteEnvelopeAnswer prints the writer's answer about the envelope the agent's seat is returning, input
+// being the arguments of the call returning it: the record's refusal (record.AgentEnvelope), logged as
+// the tool's refusal entry under that seat, or, when it refuses nothing, the record's read
+// (record.ReadRecord) with, for the chair, the envelope the call carries instead of what it stated
+// (record.ChairEnvelope). An agent bound to no seat gets nothing printed and nothing written. A record
+// that cannot be read is the error, and the hook refuses the envelope naming it.
 //
 // THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
 // of the refusal and never the refusal itself: the hook denies on what reached it.
@@ -89,17 +84,25 @@ func WriteEnvelopeAnswer(runDir, agentID string, input []byte, out io.Writer) er
 	if err != nil {
 		return err
 	}
-	filled, refusal, err := record.AgentEnvelope(run, agentID, input)
-	if err != nil || (refusal == "" && filled == nil) {
+	filled, refusal, seat, err := record.AgentEnvelope(run, agentID, input)
+	if err != nil || seat == "" {
 		return err
 	}
-	if err := json.NewEncoder(out).Encode(EnvelopeAnswer{Refusal: refusal, Envelope: filled}); err != nil {
+	if refusal != "" {
+		if err := json.NewEncoder(out).Encode(hookgate.EnvelopeAnswer{Refusal: refusal}); err != nil {
+			return err
+		}
+		return WriteToolEntry(runDir, Refusal, agentID, "refused the call returning this seat's envelope: "+refusal)
+	}
+	read, err := record.ReadRecord(run)
+	if err != nil {
 		return err
 	}
-	if refusal == "" {
-		return nil
+	raw, err := json.Marshal(read)
+	if err != nil {
+		return err
 	}
-	return WriteToolEntry(runDir, Refusal, agentID, "refused the call returning this seat's envelope: "+refusal)
+	return json.NewEncoder(out).Encode(hookgate.EnvelopeAnswer{Read: raw, Envelope: filled})
 }
 
 // WriteAdmission records the agent's envelope as admitted (recordpb.EnvelopeAdmitted), under the

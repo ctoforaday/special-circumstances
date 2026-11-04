@@ -1,7 +1,6 @@
 package recordpb
 
 import (
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -25,18 +24,26 @@ func MaterialDefault(c GapClass) ClassMaterial {
 
 // ValueNeighbor is the word a value's `neighbor` option names; "" where it declares none.
 func ValueNeighbor(vd protoreflect.EnumValueDescriptor) string {
-	if vd == nil || vd.Options() == nil || !proto.HasExtension(vd.Options(), E_Neighbor) {
+	if vd == nil {
 		return ""
 	}
-	return proto.GetExtension(vd.Options(), E_Neighbor).(string)
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return ""
+	}
+	return a.Neighbor
 }
 
 // ValueDistinguisher is a value's `distinguisher` option; "" where it declares none.
 func ValueDistinguisher(vd protoreflect.EnumValueDescriptor) string {
-	if vd == nil || vd.Options() == nil || !proto.HasExtension(vd.Options(), E_Distinguisher) {
+	if vd == nil {
 		return ""
 	}
-	return proto.GetExtension(vd.Options(), E_Distinguisher).(string)
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return ""
+	}
+	return a.Distinguisher
 }
 
 // Neighbor is the value nearest to c, which its distinguisher tells it apart from. False for the

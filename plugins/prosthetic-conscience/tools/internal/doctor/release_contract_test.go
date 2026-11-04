@@ -105,7 +105,13 @@ func TestAssetNameMatchesWhatTheReleaseJobWrites(t *testing.T) {
 	wf := workflowSource(t)
 	pairs := publishedPairs(t, wf)
 
-	out := reOutput.FindStringSubmatch(wf)
+	// THE RELEASE JOB'S -o, not the first in the file: other jobs build too (release-fuzz-build
+	// writes a test binary), and their outputs are no asset.
+	start := strings.Index(wf, "\n  release:\n")
+	if start < 0 {
+		t.Fatal("could not find the release job in the workflow")
+	}
+	out := reOutput.FindStringSubmatch(wf[start:])
 	if out == nil {
 		t.Fatal("could not find the release job's -o template")
 	}

@@ -379,3 +379,46 @@ func TestStopAndSessionEndWriteNoManifestRow(t *testing.T) {
 		})
 	}
 }
+
+func TestAntigravitySessionStartAndSubagentStopCapture(t *testing.T) {
+	dir := t.TempDir()
+	transcriptPath := filepath.Join(dir, "transcript.jsonl")
+	if err := os.WriteFile(transcriptPath, []byte(`{"step_index":0}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. SessionStart under Antigravity
+	sessionIn := fmt.Sprintf(`{"conversationId":"session-ag-1","workspacePaths":[%s],"transcriptPath":%s}`,
+		strconv.Quote(dir), strconv.Quote(transcriptPath))
+	_, stderr, code := call(t, sessionIn, "", okStat(10), "-event", "SessionStart")
+	if code != 0 {
+		t.Fatalf("SessionStart exit %d, stderr: %s", code, stderr)
+	}
+	rows := readManifest(t, dir, "session-ag-1")
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 session row, got %d (stderr: %s)", len(rows), stderr)
+	}
+	if rows[0].SessionID != "session-ag-1" || rows[0].TranscriptPath != transcriptPath {
+		t.Errorf("unexpected session row: %+v", rows[0])
+	}
+
+	// 2. SubagentStop under Antigravity
+	subagentTranscript := filepath.Join(dir, "subagent-transcript.jsonl")
+	if err := os.WriteFile(subagentTranscript, []byte(`{"step_index":0}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	subagentIn := fmt.Sprintf(`{"conversationId":"subagent-ag-2","parentConversationId":"session-ag-1","agentName":"test-lane","workspacePaths":[%s],"transcriptPath":%s}`,
+		strconv.Quote(dir), strconv.Quote(subagentTranscript))
+	_, stderr, code = call(t, subagentIn, "", okStat(20), "-event", "SubagentStop")
+	if code != 0 {
+		t.Fatalf("SubagentStop exit %d, stderr: %s", code, stderr)
+	}
+	rows = readManifest(t, dir, "session-ag-1")
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows in manifest, got %d (stderr: %s)", len(rows), stderr)
+	}
+	seatRow := rows[1]
+	if seatRow.SessionID != "session-ag-1" || seatRow.AgentID != "subagent-ag-2" || seatRow.AgentType != "test-lane" || seatRow.AgentTranscriptPath != subagentTranscript {
+		t.Errorf("unexpected seat row: %+v", seatRow)
+	}
+}

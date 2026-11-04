@@ -20,7 +20,18 @@ import (
 type CSV struct {
 	items []string
 	set   bool
+	// item parses each item when the list holds ids: IDList.
+	item func() *ShapedValue
 }
+
+// IDList is a CSV whose every item is an id of one shape, refused at parse and stored as the shape
+// stores it: a token whole, where the shape takes one, is stored as the bare id.
+//
+// A LIST OF IDS LEFT UNSHAPED SAYS SOMETHING FALSE. Its items reach the record's existence checks as
+// typed, so `--found-by '<!--fx:F-1d8a5455-->'` was told no lens recorded a finding that one did: what
+// the record lacks is an id spelled that way. An item that is not an id at all is not an id the
+// record lacks, and shape is what tells the two apart.
+func IDList(item func() *ShapedValue) *CSV { return &CSV{item: item} }
 
 func (c *CSV) String() string {
 	if c == nil {
@@ -29,16 +40,11 @@ func (c *CSV) String() string {
 	return strings.Join(c.items, ",")
 }
 
-// Set takes the flag's one value. A SECOND OCCURRENCE IS REFUSED, never merged and never
-// replaced: pflag calls Set once per occurrence, and keeping either list would record a value the
-// seat stated and drop another it also stated. AN EMPTY ITEM IS REFUSED for the same reason —
-// "G1,,G2" and "G1," name an item that is not there, and dropping it silently records a list other
-// than the one typed. The empty value is the list with no items, stated. Space around an item is
-// not part of it.
+// Set takes the flag's one value; a second occurrence never reaches it (FirstRepeat). AN EMPTY ITEM
+// IS REFUSED: "G1,,G2" and "G1," name an item that is not there, and dropping it silently records a
+// list other than the one typed. The empty value is the list with no items, stated. Space around an
+// item is not part of it.
 func (c *CSV) Set(s string) error {
-	if c.set {
-		return fmt.Errorf("given more than once (%q after %q): pass one comma-separated list", s, strings.Join(c.items, ","))
-	}
 	// A FRESH SLICE: Value() hands it out without copying, and seat.SetList stores it straight into
 	// the record payload.
 	var items []string
@@ -50,6 +56,13 @@ func (c *CSV) Set(s string) error {
 		t := strings.TrimSpace(part)
 		if t == "" {
 			return fmt.Errorf("%q holds an empty item: name each item, separated by single commas", s)
+		}
+		if c.item != nil {
+			v := c.item()
+			if err := v.Set(t); err != nil {
+				return err
+			}
+			t = v.String()
 		}
 		items = append(items, t)
 	}

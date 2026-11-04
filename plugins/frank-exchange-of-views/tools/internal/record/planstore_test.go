@@ -359,6 +359,16 @@ func TestTheChairsEnvelopeIsThePlanTheRecordStored(t *testing.T) {
 		t.Errorf("the notes changed the plan:\n got %v\nwant %s", withNotes, plan.Printed())
 	}
 
+	// THE READ IS THE HOOK'S, written over whatever the chair typed: typing it is no copy of the plan,
+	// and the envelope returned does not carry what was typed.
+	filled, refusal, err = ChairEnvelope(run, []byte(`{"notes":"a line","record_read":{"event":999}}`))
+	if err != nil || refusal != "" {
+		t.Fatalf("an envelope with a typed read was refused (%v): %q", err, refusal)
+	}
+	if _, typed := fields(filled)["record_read"]; typed {
+		t.Errorf("the typed read was carried onto the plan: %s", filled)
+	}
+
 	trimmed := fields([]byte(plan.Printed()))
 	trimmed["blockers"] = trimmed["blockers"].([]any)[:1]
 	raw, _ := json.Marshal(trimmed)
@@ -423,15 +433,15 @@ func TestAgentEnvelopeRoutesOnTheSeat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filled, refusal, err := AgentEnvelope(run, "agent-chair", []byte(`{}`))
-	if err != nil || refusal != "" {
+	filled, refusal, seat, err := AgentEnvelope(run, "agent-chair", []byte(`{}`))
+	if err != nil || refusal != "" || seat != "red-chair" {
 		t.Fatalf("the chair's envelope (%v): %q", err, refusal)
 	}
 	if _, printed, err := ReadPlan(filled); err != nil || printed != plan.Printed() {
 		t.Errorf("the chair's call does not carry the stored plan (%v): %s", err, filled)
 	}
-	filled, refusal, err = AgentEnvelope(run, "agent-of-no-seat", []byte(`{"anything":1}`))
-	if err != nil || refusal != "" || filled != nil {
+	filled, refusal, seat, err = AgentEnvelope(run, "agent-of-no-seat", []byte(`{"anything":1}`))
+	if err != nil || refusal != "" || filled != nil || seat != "" {
 		t.Errorf("an agent bound to no seat was answered (%v): filled %s, refusal %q", err, filled, refusal)
 	}
 }

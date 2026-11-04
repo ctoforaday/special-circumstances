@@ -56,35 +56,29 @@ func TestTheLensWorkListSaysWhetherBlueAnswered(t *testing.T) {
 		has(t, items(t, runDir), "has been ANSWERED")
 	})
 
-	// BLUE ENGAGED, ITS SITTING CLOSED, NO EDIT. The lens is told so rather than left to infer it
-	// from an absence.
+	// BLUE ENGAGED, ITS SITTING CLOSED, NO EDIT. The lens's turn has not come, so nothing asks it to
+	// report blue's silence (ruled by gblock 2026-10-31): universe-m37's lens obeyed such an item and
+	// kept a grade with nothing to audit.
 	t.Run("engaged and no answer", func(t *testing.T) {
 		runDir, id := answeredBoard(t)
 		dispatchBlueOnto(t, runDir, id)
 		registerBlue(t, runDir)
-		// Blue's sitting is closed by its agent's return, which the SubagentStop hook writes. Without
-		// it the sitting is unresolved and the NOT MEASURED arm is the correct answer instead.
 		closeBlueSitting(t, runDir)
-		got := items(t, runDir)
-		has(t, got, "NO edit answers it")
-		for _, g := range got {
-			if strings.Contains(g, "NOT MEASURED") {
-				t.Errorf("blue's sitting is closed on the record, so nothing here is unmeasured: %q", g)
+		for _, g := range items(t, runDir) {
+			if strings.Contains(g, id) {
+				t.Errorf("the lens's turn on %s has not come, and its list names the gap: %q", id, g)
 			}
 		}
 	})
 
-	// BLUE IS STILL SITTING. "has not answered" and "may yet answer" are the same silence, and this
-	// is the arm that keeps them apart.
+	// BLUE IS STILL SITTING, and the same holds.
 	t.Run("blue is still sitting", func(t *testing.T) {
 		runDir, id := answeredBoard(t)
 		dispatchBlueOnto(t, runDir, id)
 		registerBlue(t, runDir)
-		got := items(t, runDir)
-		has(t, got, "NOT MEASURED")
-		for _, g := range got {
-			if strings.Contains(g, "NO edit answers it") {
-				t.Errorf("blue's sitting is open, so this is not a report that no answer came: %q", g)
+		for _, g := range items(t, runDir) {
+			if strings.Contains(g, id) {
+				t.Errorf("the lens's turn on %s has not come, and its list names the gap: %q", id, g)
 			}
 		}
 	})
@@ -129,7 +123,7 @@ func TestBlueAnsweredReadsAGoneGapAsMoved(t *testing.T) {
 	}
 	var said bool
 	for _, it := range w.Sitting.Open {
-		if strings.Contains(it.What, "NO edit answers it") {
+		if strings.Contains(it.What, "NO edit or computation answers it") {
 			t.Errorf("a gap whose sentence blue cut was reported as unanswered: %q", it.What)
 		}
 		said = said || strings.Contains(it.What, "gap "+id+" is open and its anchor is no longer in the report — judge whether the report as it stands")

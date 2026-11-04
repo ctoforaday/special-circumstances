@@ -16,5 +16,6 @@
     "blue-team",
     "debate",
     "verification"
-  ]
+  ],
+  "hooks": "./.claude-plugin/hooks.json"
 }

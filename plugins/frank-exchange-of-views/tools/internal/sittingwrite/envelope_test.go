@@ -9,6 +9,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -39,8 +40,7 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 			Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 		at("blue-respond", docket("M1")),
 		at("blue-respond", docket("M2")),
-		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"},
-			Occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}}),
+		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}}),
 		at("judge", &recordpb.Register{AgentId: proto.String("agent-bench"), Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()}),
 	)
 	var out bytes.Buffer
@@ -94,7 +94,7 @@ func TestTheWriterAnswersTheChairsEnvelopeWithTheStoredPlan(t *testing.T) {
 	if err := WriteEnvelopeAnswer(run, "AG", []byte(`{"notes":"n"}`), &out); err != nil {
 		t.Fatal(err)
 	}
-	var answer EnvelopeAnswer
+	var answer hookgate.EnvelopeAnswer
 	if err := json.Unmarshal(out.Bytes(), &answer); err != nil {
 		t.Fatalf("the writer printed no answer: %v: %q", err, out.String())
 	}
@@ -117,7 +117,7 @@ func TestTheWriterAnswersTheChairsEnvelopeWithTheStoredPlan(t *testing.T) {
 	if err := WriteEnvelopeAnswer(run, "AG", []byte(`{"blockers":[]}`), &out); err != nil {
 		t.Fatal(err)
 	}
-	answer = EnvelopeAnswer{}
+	answer = hookgate.EnvelopeAnswer{}
 	if err := json.Unmarshal(out.Bytes(), &answer); err != nil {
 		t.Fatalf("the writer printed no answer: %v: %q", err, out.String())
 	}

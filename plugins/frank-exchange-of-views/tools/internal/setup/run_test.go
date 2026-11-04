@@ -48,7 +48,7 @@ func runCfg(t *testing.T, exec ExecFunc) (Config, string) {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	manifest := fmt.Sprintf(`{"eventSchema":%d}`+"\n", record.EventSchema)
+	manifest := fmt.Sprintf(`{"eventSchema":%d,"tools":[{"name":"claude","min_version":"2.1.305"}]}`+"\n", record.EventSchema)
 	if err := os.WriteFile(filepath.Join(home, "plugin", "requirements.json"), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,10 @@ func runCfg(t *testing.T, exec ExecFunc) (Config, string) {
 var skewedEpoch = strconv.Itoa(record.EventSchema + 1)
 
 func reports(epoch string) ExecFunc {
-	return func(string, []string) ExecResult {
+	return func(name string, _ []string) ExecResult {
+		if name == clientBin {
+			return ExecResult{Status: 0, Stdout: "2.1.309 (Claude Code)\n"}
+		}
 		// --schema answers with the epoch alone; the caller parses a number, not a sentence.
 		return ExecResult{Status: 0, Stdout: epoch + "\n"}
 	}

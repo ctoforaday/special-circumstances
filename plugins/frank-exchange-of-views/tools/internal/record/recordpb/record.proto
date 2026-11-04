@@ -684,16 +684,15 @@ message Event {
   //
   // The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
   // collision is unrepresentable. "Which dispatch was this" is still answerable — it is the rank of
-  // the row's stored sitting among that seat's stored sittings, which is what events_w."sitting"
-  // is.
+  // the row's stored sitting among that seat's stored sittings, which is what events.sitting
+  // stores.
   //
   // `round` WAS FIELD 5 AND IS GONE (plans/roundless.md §III.A.2). It was the third stamped
-  // derivation on this envelope, and the last: first recovered from the seat id by regex, then
-  // counted from chair registers in the write's own transaction. Both were a READ-BEFORE-WRITE
-  // to store a number the record could already answer, and the answer is a window function over
-  // this table — events_w."epoch" for the chair-sitting count, events_w."sitting" for the seat's
-  // own — computed when a reader wants it, exactly as seq's removal argued above. The debate no
-  // longer has rounds; the record has a sequence ("id") and two clocks derived from it.
+  // derivation on this envelope: first recovered from the seat id by regex, then counted from
+  // chair registers in the write's own transaction. The debate has no rounds; the record has a
+  // sequence ("id") and two clocks derived from it — events.epoch for the chair-sitting count,
+  // events.sitting for the seat's own — which the write path stamps from the rows below each new
+  // one (recordsql.sittingOf), so no seat carries or supplies either.
   reserved 5;
   reserved "round";
 
@@ -1406,6 +1405,13 @@ message Verify {
   // source row, and a labelled corroboration's note and Bibliography line in the report.
   optional CopySubstitution copy_substitution = 18 [(prose) = false];
   optional string copy_url = 19 [(prose) = false];
+
+  // THE COPY A LABELLED CORROBORATION READ, by the sha the run's cache holds it under, stamped by the
+  // tool with the footnote as a cite's sha256 is. Empty where the cache held no copy
+  // (copy_substitution says not_cached), and on a reading that minted no footnote. Its readers: the
+  // corroboration's source row in `show evidence`, which is how a lens names that copy to `show
+  // source` and `render-page`, and `show source --anchor`.
+  optional string sha256 = 20 [(prose) = false];
 
   // `independent` restated the empty anchor as a bool.
   reserved 2, 4;
@@ -2172,10 +2178,10 @@ enum RulingBinds {
 enum Occasion {
   OCCASION_UNSPECIFIED = 0;
   OCCASION_DOCKET = 1 [(means) = "ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting"];
-  OCCASION_PETITION = 2 [(means) = "hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits"];
+  OCCASION_PETITION = 2 [(means) = "hearing the petitions filed since the bench last sat to hear one. The engine convenes it as soon as nothing is running, when a close's record_read reports a petition unheard: in the turn that filed it, at no epoch"];
   OCCASION_TERMINAL = 3 [(means) = "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"];
   OCCASION_ASSEMBLE = 4 [(means) = "assembling the final report by union-copy. The last step of the run"];
-  OCCASION_POSITION = 5 [(means) = "hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The plan the withholding sitting relays convenes it, before any party of the next epoch sits"];
+  OCCASION_POSITION = 5 [(means) = "hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch"];
 }
 
 // Register is every seat's FIRST record action, and the only event Append does not write —
@@ -2374,7 +2380,7 @@ message SittingClose {
 //
 // UNLIKE THE SPAN ENDS IT NAMES THE SEAT. A limit is counted from a register, so the agent is
 // already bound, and the writer resolves the seat from that binding rather than taking it from
-// the hook. The sitting is the seat's own sitting number, as events_w counts it: one per opening
+// the hook. The sitting is the seat's own sitting number, as events.sitting stores it: one per opening
 // — a register of its own, or a harness bracket that names it — and a sitting-record repair opens
 // none.
 message SittingLimit {
@@ -2411,7 +2417,7 @@ message Cast {
 // Dispatch is the chair engaging ONE party: the seat, the gaps it is engaged on, and the report
 // head it is to audit (plans/roundless.md §III.B.1). The chair's `dispatch next` writes one of
 // these per ready party in one sitting, so "dispatch D" — the unit the parity audit and the
-// exchange counter reason about — is the set written in one chair sitting, read off events_w.
+// exchange counter reason about — is the set written in one chair sitting, read off events.epoch.
 //
 // ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
@@ -2429,15 +2435,12 @@ message Dispatch {
     why: "the party engaged; refused unless it is in the cast"
   }];
   repeated string gap_ids = 3;
-  // occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
-  // petitions no petition sitting has heard). The bench's one seat id cannot say which question it
-  // is asked, so the row says it, and the bench's sitting for each is the one whose register states
-  // the same occasion. Required on a bench row and refused on any other seat's, at the write.
-  repeated Occasion occasions = 4;
+  // 4 held `occasions`, what the bench was convened for. The chair convenes it for a docket and
+  // nothing else, and a docket is a bench row's gaps.
   // 5 held `remand_owed`, the gaps whose remand exchange the row readied. The plan the row was
   // written from is stored whole (Plan), and its `remand_owed` says the same with the direction.
-  reserved 5;
-  reserved "remand_owed";
+  reserved 4, 5;
+  reserved "occasions", "remand_owed";
 }
 
 // Plan is the plan `dispatch next` printed, WHOLE: the bytes of record.Plan as the verb marshals

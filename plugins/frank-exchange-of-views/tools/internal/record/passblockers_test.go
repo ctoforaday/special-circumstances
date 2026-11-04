@@ -110,6 +110,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		{"nothing holds", "", true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		}, true},
+		// AN UNRULED INQUIRY IS NO MOTION, so it is on no list and holds no PASS: its ruling is what
+		// creates the motion (motionsAt). The review is here because the proposal owes one.
+		{"an unruled inquiry holds nothing", "", true, true, func(b *stage) {
+			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a question"),
+				Hypothesis: proto.String("h"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
+			b.add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")})
+		}, true},
 	}
 	// A KIND THAT NEVER HOLDS ALONE, and the kind it holds beside: a closing is owed on a docketing,
 	// and the docket motion is an unruled motion until the bench rules it.

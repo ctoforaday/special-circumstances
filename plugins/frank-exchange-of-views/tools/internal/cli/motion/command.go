@@ -70,7 +70,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		"contest a gap's grade: the chair rules, and its ruling stands — "+docketRoute(actingRole),
 		[]string{flags.ID, flags.Dimension, flags.Proposed}, nil))
 	mount(subject(actingRole, "petition",
-		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — at the next chair sitting, before any party of that epoch sits",
+		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — as soon as nothing is running, in the turn it was filed",
 		[]string{flags.Class, flags.Relief}, []string{flags.Relief}))
 	mount(subject(actingRole, "docket",
 		"put a GAP before the bench: any seat but the bench files, the BENCH rules, and its disposition decides the gap's fate",

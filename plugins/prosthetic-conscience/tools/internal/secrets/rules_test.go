@@ -91,10 +91,7 @@ func mustScan(t *testing.T, command string) []string {
 
 func ownRules(t *testing.T) []string {
 	t.Helper()
-	d, err := Detector()
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := fullDetector(t)
 	var ids []string
 	for id, r := range d.Config.Rules {
 		if slices.Contains(r.Tags, ownTag) {
@@ -121,10 +118,7 @@ func TestEveryAddedRuleHasGapSamples(t *testing.T) {
 
 // The default configuration is loaded too: the extension adds to it rather than replacing it.
 func TestTheDefaultConfigurationIsExtendedNotReplaced(t *testing.T) {
-	d, err := Detector()
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := fullDetector(t)
 	if n := len(d.Config.Rules) - len(gapFormats); n < 200 {
 		t.Fatalf("only %d rules besides the gate's own: gitleaks' default configuration did not load", n)
 	}
@@ -228,10 +222,7 @@ func TestAnEncodedKeyIsFound(t *testing.T) {
 // No finding the detector returns holds the value it matched: Secret, Match and Line are
 // redacted before ScanPayload reads the rule id.
 func TestFindingsCarryNoValue(t *testing.T) {
-	d, err := Detector()
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := fullDetector(t)
 	var keys []string
 	for _, f := range st.Vendors {
 		keys = append(keys, f.Draw(st.Rand(f.Name)))
@@ -291,9 +282,6 @@ func windows(s string) []string {
 // The sizes are the 99th percentile (6 KiB) and the maximum (56 KiB) of the Bash, WebFetch,
 // WebSearch and MCP inputs in this box's transcripts on 2026-10-18, and 1 MiB.
 func BenchmarkScanPayload(b *testing.B) {
-	if _, err := Detector(); err != nil {
-		b.Fatal(err)
-	}
 	line := `git -C /home/u/p log --oneline -n 20 && go test -count=1 ./internal/... # a token, a key, a secret\n`
 	for _, size := range []int{6 << 10, 56 << 10, 1 << 20} {
 		b.Run(fmt.Sprintf("%dKiB", size>>10), func(b *testing.B) {

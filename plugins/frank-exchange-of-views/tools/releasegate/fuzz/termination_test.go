@@ -100,7 +100,7 @@ func party(seat string, gaps ...string) map[string]any {
 		g = append(g, x)
 	}
 	if seat == "judge" {
-		return map[string]any{"seat_id": seat, "gap_ids": g, "occasions": []any{"docket"}}
+		return map[string]any{"seat_id": seat, "gap_ids": g}
 	}
 	return map[string]any{"seat_id": seat, "gap_ids": g}
 }
@@ -160,8 +160,9 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 				e.Relay(p)
 			case m.halt:
 				engaged = []any{"G1"}
-				// A petition on the record convenes the bench, through the plan; the halt is its ruling.
-				p := plan([]any{party("blue-respond", "G1"), map[string]any{"seat_id": "judge", "gap_ids": []any{}, "occasions": []any{"petition"}}}, false, false, nil, "engaged")
+				// A petition on the record convenes the bench, through the chair's read; the halt is its
+				// sitting's, and blue, on the plan, has not started.
+				p := plan([]any{party("blue-respond", "G1")}, false, false, nil, "engaged")
 				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
 				e.Relay(p)
 			case m.bench:
@@ -186,14 +187,6 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			e["manifest"] = engaged
 		case strings.Contains(label, "· petition"):
 			e["rulings"] = []any{map[string]any{"class": "safety", "ruling": "denied", "opinion": "no"}}
-			if lastMove.halt {
-				e["halt"] = map[string]any{"opinion": "the run is halted for the schedule under test"}
-			}
-		// The position sitting's envelope carries only a halt.
-		case strings.Contains(label, "· position"):
-			if lastMove.halt {
-				e["halt"] = map[string]any{"opinion": "the run is halted for the schedule under test"}
-			}
 		// ROUTE THE BENCH ON THE QUESTION, NOT THE SEAT. One seat heads five sittings' labels, so
 		// a seat-id switch sends the assembly down the docket-ruling arm and open_gaps is never
 		// set — the run then reports 0 outstanding over a board holding 1. The question is in the
@@ -212,9 +205,22 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 		}
 		return e
 	}
+	// THE READ IS WHAT THE SCHEDULE PUT ON THE RECORD: a halt move's chair closes with a petition
+	// unheard, and the sitting that hears it closes with the halt on the record.
+	read := func(d debatejs.Dispatch) any {
+		r, _ := debatejs.StandInRead(d).(map[string]any)
+		switch {
+		case !lastMove.halt:
+		case d.SeatID == "red-chair":
+			r["bench_owed"] = []any{"petition"}
+		case d.SeatID == "judge":
+			r["halted"] = true
+		}
+		return r
+	}
 	ds, out, err := debatejs.CaptureRun(script, debatejs.Config{
 		Topic: "termination", RunDir: t.TempDir(), BinDir: t.TempDir(), Lanes: 1,
-		Model: "haiku", JudgmentModel: "haiku", Backend: backend, Timeout: 2 * time.Minute,
+		Model: "haiku", JudgmentModel: "haiku", Backend: backend, Read: read, Timeout: 2 * time.Minute,
 	})
 	if err != nil {
 		t.Fatalf("schedule %s: %v", scheduleName(sched), err)

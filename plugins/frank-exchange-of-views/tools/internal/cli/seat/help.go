@@ -32,18 +32,18 @@ package seat
 // Each page still teaches its verb on its own, and the shared text has one source, so the two
 // pages cannot drift. The include lands the base's sections in place, so the variant's own text
 // continues whichever section the base ends in; an addition that lands in the menu makes the menu
-// more than one line, which is a panic below.
+// more than one line, which is refused below.
 //
 // A FILE LOOKED UP BY NAME IS A PATTERN STANDING IN FOR A SCHEMA, so every seam here is loud. A
-// missing file, a missing section, an empty section, or a file no verb claims is a PANIC at
-// construction — these commands are built at process start, so the binary fails immediately and
-// visibly rather than shipping a blank menu entry. A verb whose help silently rendered empty would
-// be indistinguishable from a verb with nothing to say, and the seat reading that listing would
-// have no way to tell.
+// missing file, a missing section, an empty section, or an unresolved placeholder refuses the
+// render, so devcmd/cmdtreegen writes no page for it; a verb with no generated page is a PANIC at
+// construction, so the binary fails immediately and visibly rather than shipping a blank menu entry;
+// a file no verb claims fails TestEveryHelpDocumentIsClaimedByAVerb. A verb whose help silently
+// rendered empty would be indistinguishable from a verb with nothing to say, and the seat reading
+// that listing would have no way to tell.
 
 import (
 	"embed"
-	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"io/fs"
 	"strings"
@@ -75,22 +75,22 @@ var HelpValues = map[string]any{}
 
 type helpDoc struct{ menu, detail string }
 
-// RAW AT INIT, RENDERED AT USE. Rendering here would run before any other package's init had
-// contributed to HelpValues — measured: the first version panicked on a placeholder because
-// package seat initializes before the package that supplies it. The command tree is built after
-// every init has run, so resolution happens there.
-var helpSrc = mustLoadHelp()
+// RENDERED AT GENERATION, LOOKED UP AT USE. Every value a document names comes from a fixed table,
+// so the rendered page is a fact of the build, not of the process: devcmd/cmdtreegen renders every
+// document through RenderHelp and writes the pages into help_gen.go, and newVerb reads them from
+// there. Every feov-record process builds its whole command tree, and parsing and executing all the
+// templates per process was a third of that build. TestShippedHelpIsTheRenderedDocument and
+// `cmdtreegen -check` fail a page that no longer equals its document's render.
+//
+// The documents load on first ask, which only the generator and the tests make.
+var helpSrc = sync.OnceValue(mustLoadHelp)
 
-// GUARDED, BECAUSE TREES ARE BUILT CONCURRENTLY. The rendered cache and the claim set are written
-// on first use of each verb, and a command tree is constructed per invocation — the tests build one
-// per role in parallel and hit `concurrent map read and map write` immediately. The shipped binary
-// builds one tree per process today and would not have shown this, which is precisely why it is
-// worth fixing rather than noting: the next caller that builds two is a server, and it would find
-// out in production.
-var (
-	helpMu    sync.Mutex
-	helpCache = map[string]helpDoc{}
-)
+// GUARDED, BECAUSE TREES ARE BUILT CONCURRENTLY. The template set and the claim set are written on
+// first use, and a command tree is constructed per invocation — the tests build one per role in
+// parallel and hit `concurrent map read and map write` immediately. The shipped binary builds one
+// tree per process, which is precisely why it is worth guarding rather than noting: the next caller
+// that builds two is a server, and it would find out in production.
+var helpMu sync.Mutex
 
 func mustLoadHelp() map[string]string {
 	out := map[string]string{}
@@ -114,11 +114,14 @@ func mustLoadHelp() map[string]string {
 var helpSet *template.Template
 
 // render substitutes the values and documents a document may name, and refuses one it cannot
-// resolve.
+// resolve. HelpValues is read here, after every package's init has supplied its values — package
+// seat initializes before the packages that supply them.
 func render(key string) string {
+	helpMu.Lock()
+	defer helpMu.Unlock()
 	if helpSet == nil {
 		set := template.New("").Option("missingkey=error")
-		for k, src := range helpSrc {
+		for k, src := range helpSrc() {
 			if _, err := set.New(k).Parse(src); err != nil {
 				panic("seat: help/" + k + ".md: " + err.Error())
 			}
@@ -171,35 +174,44 @@ func parseHelp(src string) (helpDoc, error) {
 	return d, nil
 }
 
-// LoadHelp resolves a document and returns its two fields, or an error naming what is wrong. It is
-// the testable form of helpFor: the gates live in package cli, where the whole command tree can be
-// built and every package's init has supplied its HelpValues.
-func LoadHelp(key string) (menu, detail string, err error) {
+// RenderHelp renders a document from its source and returns its two fields, or an error naming
+// what is wrong. It is what devcmd/cmdtreegen writes into help_gen.go, and what the staleness test
+// compares the shipped page with; it runs in package cli or the generator, where every package's
+// init has supplied its HelpValues.
+func RenderHelp(key string) (menu, detail string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = feov.Errorf(feov.Internal, "%v", r)
 		}
 	}()
-	d := helpFor(key)
+	if _, ok := helpSrc()[key]; !ok {
+		return "", "", feov.Errorf(feov.Internal, "no help/%s.md", key)
+	}
+	d, err := parseHelp(render(key))
+	if err != nil {
+		return "", "", feov.Errorf(feov.Internal, "help/%s.md: %v", key, err)
+	}
 	return d.menu, d.detail, nil
 }
 
-// helpFor resolves a verb's document, or panics naming what is missing.
+// LoadHelp returns the page a verb ships with, or an error when none was generated for the key.
+func LoadHelp(key string) (menu, detail string, err error) {
+	d, ok := generatedHelp(key)
+	if !ok {
+		return "", "", feov.Errorf(feov.Internal, "no generated page for help/%s.md — run devcmd/cmdtreegen", key)
+	}
+	return d.menu, d.detail, nil
+}
+
+// helpFor returns a verb's generated page, or panics naming what is missing.
 func helpFor(name string) helpDoc {
+	d, ok := generatedHelp(name)
+	if !ok {
+		panic("seat: no generated page for help/" + name + ".md — every verb owns a help document, and a verb without one would render a blank entry in the listing that a seat cannot distinguish from a verb with nothing to say; write the document and run devcmd/cmdtreegen")
+	}
 	helpMu.Lock()
-	defer helpMu.Unlock()
-	if d, ok := helpCache[name]; ok {
-		return d
-	}
-	if _, ok := helpSrc[name]; !ok {
-		panic("seat: no help/" + name + ".md — every verb owns a help document, and a verb without one would render a blank entry in the listing that a seat cannot distinguish from a verb with nothing to say")
-	}
-	d, err := parseHelp(render(name))
-	if err != nil {
-		panic(fmt.Sprintf("help/%s.md: %v", name, err))
-	}
-	helpCache[name] = d
 	registeredKeys[name] = true
+	helpMu.Unlock()
 	return d
 }
 
@@ -221,13 +233,13 @@ func RegisteredHelpKeys() []string {
 }
 
 // HelpSourceFor reports whether a document exists for a key, for the orphan gate.
-func HelpSourceFor(key string) (string, bool) { src, ok := helpSrc[key]; return src, ok }
+func HelpSourceFor(key string) (string, bool) { src, ok := helpSrc()[key]; return src, ok }
 
 // HelpNames is every verb a help document exists for, so a test can check the bijection against the
 // verbs actually registered — a document nobody claims is as much a defect as a verb with none.
 func HelpNames() []string {
 	var out []string
-	for k := range helpSrc {
+	for k := range helpSrc() {
 		out = append(out, k)
 	}
 	return out

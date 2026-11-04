@@ -45,7 +45,7 @@ type hooksFile struct {
 
 func load(t *testing.T) hooksFile {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", "hooks", "hooks.json"))
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", ".claude-plugin", "hooks.json"))
 	if err != nil {
 		t.Fatalf("cannot read the shipped hooks.json: %v", err)
 	}

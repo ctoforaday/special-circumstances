@@ -30,18 +30,18 @@ func TestTheListSaysWhetherBlueAnsweredThisGap(t *testing.T) {
 		absent    []string
 	}{
 		{name: "answered", answered: true, engaged: true, want: "has been ANSWERED",
-			absent: []string{"NOT MEASURED", "NO edit answers it"}},
-		{name: "engaged and blue's sitting closed with no answer", engaged: true, want: "NO edit answers it",
+			absent: []string{"NOT MEASURED", "NO edit or computation answers it"}},
+		{name: "engaged and blue's sitting closed with no answer", engaged: true, want: "NO edit or computation answers it",
 			absent: []string{"NOT MEASURED", "has been ANSWERED"}},
 		{name: "engaged and blue is still sitting", engaged: true, unresolve: true, want: "NOT MEASURED",
-			absent: []string{"NO edit answers it", "has been ANSWERED"}},
+			absent: []string{"NO edit or computation answers it", "has been ANSWERED"}},
 		{name: "blue never engaged", want: "",
-			absent: []string{"NOT MEASURED", "NO edit answers it", "has been ANSWERED"}},
+			absent: []string{"NOT MEASURED", "NO edit or computation answers it", "has been ANSWERED"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := strings.Join(blueAnswersT(t,
 				answerScenario(t, lens, tc.engaged, tc.answered, tc.unresolve),
-				[]WorkGapState{{ID: "G1", Open: true}}, lens), "\n")
+				[]WorkGapState{{ID: "G1", Open: true, lensDue: true}}, lens), "\n")
 			if tc.want == "" {
 				if got != "" {
 					t.Fatalf("want silence, got:\n%s", got)
@@ -65,14 +65,14 @@ func TestTheListSaysWhetherBlueAnsweredThisGap(t *testing.T) {
 // one exchangesOf already refuses to count as movement.
 func TestOnlyASubstantiveEditOnThisGapCounts(t *testing.T) {
 	const lens = "red-lens-evidence"
-	gaps := []WorkGapState{{ID: "G1", Open: true}}
+	gaps := []WorkGapState{{ID: "G1", Open: true, lensDue: true}}
 
 	noop := blueAnswersT(t, answerScenarioEdit(t, lens, "G1", "same", "same"), gaps, lens)
-	if len(noop) != 1 || !strings.Contains(noop[0], "NO edit answers it") {
+	if len(noop) != 1 || !strings.Contains(noop[0], "NO edit or computation answers it") {
 		t.Errorf("an edit that replaced a span with itself counted as an answer: %v", noop)
 	}
 	other := blueAnswersT(t, answerScenarioEdit(t, lens, "G2", "old", "new"), gaps, lens)
-	if len(other) != 1 || !strings.Contains(other[0], "NO edit answers it") {
+	if len(other) != 1 || !strings.Contains(other[0], "NO edit or computation answers it") {
 		t.Errorf("an edit answering another gap counted as an answer to this one: %v", other)
 	}
 }
@@ -81,7 +81,7 @@ func TestOnlyASubstantiveEditOnThisGapCounts(t *testing.T) {
 // re-audits and closes it — so this is news for one seat and noise for every other.
 func TestOnlyTheMintingLensIsToldAboutItsGap(t *testing.T) {
 	evs := answerScenario(t, "red-lens-evidence", true, true, false)
-	gaps := []WorkGapState{{ID: "G1", Open: true}}
+	gaps := []WorkGapState{{ID: "G1", Open: true, lensDue: true}}
 	if got := blueAnswersT(t, evs, gaps, "red-lens-logic"); len(got) != 0 {
 		t.Errorf("a lens was told about a gap it did not mint: %v", got)
 	}
@@ -158,7 +158,7 @@ func blueEditOf(t *testing.T, answers, old, new string) *Event {
 // that recorded none is reported as missing the inquiry record — never as missing an edit.
 func TestAGapAnchoredOnAnInquiryIsAnsweredByItsFate(t *testing.T) {
 	const lens = "red-lens-dark-side"
-	gaps := []WorkGapState{{ID: "G1", Open: true, AboutKind: "inquiry", AboutRef: "Q-1"}}
+	gaps := []WorkGapState{{ID: "G1", Open: true, lensDue: true, AboutKind: "inquiry", AboutRef: "Q-1"}}
 	scenario := func(fatedOn string) []*Event {
 		evs := []*Event{
 			recordtest.Event(t, "frontier", &recordpb.Inquiry{InquiryId: proto.String("Q-1"), Question: proto.String("q"),
@@ -177,11 +177,11 @@ func TestAGapAnchoredOnAnInquiryIsAnsweredByItsFate(t *testing.T) {
 		absent              []string
 	}{
 		{"blue recorded the inquiry's fate", "Q-1", "has been ANSWERED by an inquiry record — blue recorded the fate `deferred` on Q-1",
-			[]string{"NO edit answers it", "NO inquiry record answers it"}},
-		{"blue recorded another inquiry's fate", "Q-2", "NO inquiry record answers it — it is anchored on Q-1",
-			[]string{"NO edit answers it", "has been ANSWERED"}},
-		{"blue recorded no fate", "", "NO inquiry record answers it — it is anchored on Q-1",
-			[]string{"NO edit answers it", "has been ANSWERED"}},
+			[]string{"NO edit or computation answers it", "NO inquiry record answers it"}},
+		{"blue recorded another inquiry's fate", "Q-2", "NO inquiry record answers it since you last acted on it — it is anchored on Q-1",
+			[]string{"NO edit or computation answers it", "has been ANSWERED"}},
+		{"blue recorded no fate", "", "NO inquiry record answers it since you last acted on it — it is anchored on Q-1",
+			[]string{"NO edit or computation answers it", "has been ANSWERED"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := strings.Join(blueAnswersT(t, scenario(tc.fatedOn), gaps, lens), "\n")

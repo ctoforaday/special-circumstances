@@ -4540,8 +4540,14 @@ type Verify struct {
 	// source row, and a labelled corroboration's note and Bibliography line in the report.
 	CopySubstitution *CopySubstitution `protobuf:"varint,18,opt,name=copy_substitution,json=copySubstitution,proto3,enum=feov.record.v1.CopySubstitution,oneof" json:"copy_substitution,omitempty"`
 	CopyUrl          *string           `protobuf:"bytes,19,opt,name=copy_url,json=copyUrl,proto3,oneof" json:"copy_url,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// THE COPY A LABELLED CORROBORATION READ, by the sha the run's cache holds it under, stamped by the
+	// tool with the footnote as a cite's sha256 is. Empty where the cache held no copy
+	// (copy_substitution says not_cached), and on a reading that minted no footnote. Its readers: the
+	// corroboration's source row in `show evidence`, which is how a lens names that copy to `show
+	// source` and `render-page`, and `show source --anchor`.
+	Sha256        *string `protobuf:"bytes,20,opt,name=sha256,proto3,oneof" json:"sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Verify) Reset() {
@@ -4689,6 +4695,13 @@ func (x *Verify) GetCopySubstitution() CopySubstitution {
 func (x *Verify) GetCopyUrl() string {
 	if x != nil && x.CopyUrl != nil {
 		return *x.CopyUrl
+	}
+	return ""
+}
+
+func (x *Verify) GetSha256() string {
+	if x != nil && x.Sha256 != nil {
+		return *x.Sha256
 	}
 	return ""
 }
@@ -6780,7 +6793,7 @@ func (x *SittingClose) GetAgentTranscriptPath() string {
 //
 // UNLIKE THE SPAN ENDS IT NAMES THE SEAT. A limit is counted from a register, so the agent is
 // already bound, and the writer resolves the seat from that binding rather than taking it from
-// the hook. The sitting is the seat's own sitting number, as events_w counts it: one per opening
+// the hook. The sitting is the seat's own sitting number, as events.sitting stores it: one per opening
 // — a register of its own, or a harness bracket that names it — and a sitting-record repair opens
 // none.
 type SittingLimit struct {
@@ -6914,7 +6927,7 @@ func (x *Cast) GetLaneSeatIds() []string {
 // Dispatch is the chair engaging ONE party: the seat, the gaps it is engaged on, and the report
 // head it is to audit (plans/roundless.md §III.B.1). The chair's `dispatch next` writes one of
 // these per ready party in one sitting, so "dispatch D" — the unit the parity audit and the
-// exchange counter reason about — is the set written in one chair sitting, read off events_w.
+// exchange counter reason about — is the set written in one chair sitting, read off events.epoch.
 //
 // ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
@@ -6922,15 +6935,10 @@ func (x *Cast) GetLaneSeatIds() []string {
 // G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — the report
 // head moved past its pin — and gap_ids is empty, which is "lineage none", not "unknown".
 type Dispatch struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Pin    *int64                 `protobuf:"varint,1,opt,name=pin,proto3,oneof" json:"pin,omitempty"`
-	SeatId *string                `protobuf:"bytes,2,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
-	GapIds []string               `protobuf:"bytes,3,rep,name=gap_ids,json=gapIds,proto3" json:"gap_ids,omitempty"`
-	// occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
-	// petitions no petition sitting has heard). The bench's one seat id cannot say which question it
-	// is asked, so the row says it, and the bench's sitting for each is the one whose register states
-	// the same occasion. Required on a bench row and refused on any other seat's, at the write.
-	Occasions     []Occasion `protobuf:"varint,4,rep,packed,name=occasions,proto3,enum=feov.record.v1.Occasion" json:"occasions,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pin           *int64                 `protobuf:"varint,1,opt,name=pin,proto3,oneof" json:"pin,omitempty"`
+	SeatId        *string                `protobuf:"bytes,2,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
+	GapIds        []string               `protobuf:"bytes,3,rep,name=gap_ids,json=gapIds,proto3" json:"gap_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6982,13 +6990,6 @@ func (x *Dispatch) GetSeatId() string {
 func (x *Dispatch) GetGapIds() []string {
 	if x != nil {
 		return x.GapIds
-	}
-	return nil
-}
-
-func (x *Dispatch) GetOccasions() []Occasion {
-	if x != nil {
-		return x.Occasions
 	}
 	return nil
 }
@@ -8136,7 +8137,7 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
 	"\t_copy_urlJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vR\x05claimR\x10source_text_read\"\xc5\r\n" +
+	"\x10\vR\x05claimR\x10source_text_read\"\xf3\r\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
@@ -8160,7 +8161,8 @@ const file_record_proto_rawDesc = "" +
 	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\rR\x12sourceCompleteness\x88\x01\x01\x12E\n" +
 	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\x0eR\x06bridge\x88\x01\x01\x12X\n" +
 	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x0fR\x10copySubstitution\x88\x01\x01\x12$\n" +
-	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\acopyUrl\x88\x01\x01B\b\n" +
+	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\acopyUrl\x88\x01\x01\x12!\n" +
+	"\x06sha256\x18\x14 \x01(\tB\x04\xc0\xb5\x18\x00H\x11R\x06sha256\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
@@ -8178,7 +8180,8 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\t\n" +
 	"\a_bridgeB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\xcd\t\n" +
+	"\t_copy_urlB\t\n" +
+	"\a_sha256J\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\xcd\t\n" +
 	"\vComputation\x12*\n" +
 	"\x0ecomputation_id\x18\x01 \x01(\tH\x00R\rcomputationId\x88\x01\x01\x12 \n" +
 	"\x03key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\x03key\x88\x01\x01\x12\"\n" +
@@ -8458,15 +8461,14 @@ const file_record_proto_rawDesc = "" +
 	"agent_type\"E\n" +
 	"\x04Cast\x12\x19\n" +
 	"\bseat_ids\x18\x01 \x03(\tR\aseatIds\x12\"\n" +
-	"\rlane_seat_ids\x18\x02 \x03(\tR\vlaneSeatIds\"\xb4\x03\n" +
+	"\rlane_seat_ids\x18\x02 \x03(\tR\vlaneSeatIds\"\x8d\x03\n" +
 	"\bDispatch\x12\xce\x01\n" +
 	"\x03pin\x18\x01 \x01(\x03B\xb6\x01\x82\xb5\x18\xb1\x01\b\x01\x1a\xac\x01the events.id of the report head this party audits — the text it anchors to, reconstructible from the record; a dispatch with no pin is a dispatch against a moving targetH\x00R\x03pin\x88\x01\x01\x12_\n" +
 	"\aseat_id\x18\x02 \x01(\tBA\x82\xb5\x18=\b\x01\x12\x04seat\x1a3the party engaged; refused unless it is in the castH\x01R\x06seatId\x88\x01\x01\x12\x17\n" +
-	"\agap_ids\x18\x03 \x03(\tR\x06gapIds\x126\n" +
-	"\toccasions\x18\x04 \x03(\x0e2\x18.feov.record.v1.OccasionR\toccasionsB\x06\n" +
+	"\agap_ids\x18\x03 \x03(\tR\x06gapIdsB\x06\n" +
 	"\x04_pinB\n" +
 	"\n" +
-	"\b_seat_idJ\x04\b\x05\x10\x06R\vremand_owed\"\xd5\x01\n" +
+	"\b_seat_idJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\toccasionsR\vremand_owed\"\xd5\x01\n" +
 	"\x04Plan\x12\xc0\x01\n" +
 	"\aprinted\x18\x01 \x01(\tB\xa0\x01\x82\xb5\x18\x9b\x01\b\x01\x1a\x96\x01the plan as the verb printed it, the original every relay of it is compared with; a plan event with nothing printed records a decision nobody can readH\x00R\aprinted\x88\x01\x01B\n" +
 	"\n" +
@@ -8767,14 +8769,14 @@ const file_record_proto_rawDesc = "" +
 	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x11RULING_BINDS_BLUE\x10\x04\x1a`\x8a\xb5\x18\\the relief binds the response seat — what blue must do, or must not, in its coming sitting\x12L\n" +
 	"\x10RULING_BINDS_RED\x10\x05\x1a6\x8a\xb5\x182it binds the audit seats: the lenses and the chair\x12\\\n" +
-	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE*\x9f\a\n" +
+	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE*\x8e\b\n" +
 	"\bOccasion\x12\x18\n" +
 	"\x14OCCASION_UNSPECIFIED\x10\x00\x12\x8f\x01\n" +
-	"\x0fOCCASION_DOCKET\x10\x01\x1az\x8a\xb5\x18vruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting\x12\xba\x01\n" +
-	"\x11OCCASION_PETITION\x10\x02\x1a\xa2\x01\x8a\xb5\x18\x9d\x01hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits\x12\x9f\x01\n" +
+	"\x0fOCCASION_DOCKET\x10\x01\x1az\x8a\xb5\x18vruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting\x12\xf2\x01\n" +
+	"\x11OCCASION_PETITION\x10\x02\x1a\xda\x01\x8a\xb5\x18\xd5\x01hearing the petitions filed since the bench last sat to hear one. The engine convenes it as soon as nothing is running, when a close's record_read reports a petition unheard: in the turn that filed it, at no epoch\x12\x9f\x01\n" +
 	"\x11OCCASION_TERMINAL\x10\x03\x1a\x87\x01\x8a\xb5\x18\x82\x01the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here\x12^\n" +
-	"\x11OCCASION_ASSEMBLE\x10\x04\x1aG\x8a\xb5\x18Cassembling the final report by union-copy. The last step of the run\x12\xa7\x02\n" +
-	"\x11OCCASION_POSITION\x10\x05\x1a\x8f\x02\x8a\xb5\x18\x8a\x02hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The plan the withholding sitting relays convenes it, before any party of the next epoch sits:I\n" +
+	"\x11OCCASION_ASSEMBLE\x10\x04\x1aG\x8a\xb5\x18Cassembling the final report by union-copy. The last step of the run\x12\xde\x02\n" +
+	"\x11OCCASION_POSITION\x10\x05\x1a\xc6\x02\x8a\xb5\x18\xc1\x02hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:8\n" +
 	"\x05prose\x12\x1d.google.protobuf.FieldOptions\x18؆\x03 \x01(\bR\x05prose\x88\x01\x01:<\n" +
 	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:I\n" +
@@ -8988,30 +8990,29 @@ var file_record_proto_depIdxs = []int32{
 	64,  // 92: feov.record.v1.MotionRule.position:type_name -> feov.record.v1.PositionHearing
 	29,  // 93: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
 	30,  // 94: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	30,  // 95: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
-	2,   // 96: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	3,   // 97: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	83,  // 98: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	83,  // 99: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	84,  // 100: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	84,  // 101: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	84,  // 102: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	84,  // 103: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	84,  // 104: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	84,  // 105: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	84,  // 106: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
-	84,  // 107: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
-	84,  // 108: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
-	84,  // 109: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	85,  // 110: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	32,  // 111: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	5,   // 112: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	31,  // 113: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	114, // [114:114] is the sub-list for method output_type
-	114, // [114:114] is the sub-list for method input_type
-	111, // [111:114] is the sub-list for extension type_name
-	98,  // [98:111] is the sub-list for extension extendee
-	0,   // [0:98] is the sub-list for field type_name
+	2,   // 95: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	3,   // 96: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	83,  // 97: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	83,  // 98: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	84,  // 99: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	84,  // 100: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	84,  // 101: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	84,  // 102: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	84,  // 103: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	84,  // 104: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	84,  // 105: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
+	84,  // 106: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
+	84,  // 107: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
+	84,  // 108: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
+	85,  // 109: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	32,  // 110: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	5,   // 111: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	31,  // 112: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	113, // [113:113] is the sub-list for method output_type
+	113, // [113:113] is the sub-list for method input_type
+	110, // [110:113] is the sub-list for extension type_name
+	97,  // [97:110] is the sub-list for extension extendee
+	0,   // [0:97] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }

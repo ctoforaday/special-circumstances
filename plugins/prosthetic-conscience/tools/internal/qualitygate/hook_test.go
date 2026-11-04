@@ -324,6 +324,18 @@ func TestPathFieldIsUsedWhenFilePathIsAbsent(t *testing.T) {
 	}
 }
 
+func TestAntigravityWriteToFileInvokesQlty(t *testing.T) {
+	dir, file := project(t, "main.go")
+	f := &fakeQlty{}
+	e := healthy(dir)
+	e.exec = f.runner()
+
+	call(t, `{"conversationId":"conv-1","toolCall":{"name":"write_to_file","args":{"TargetFile":`+quote(file)+`}}}`, e)
+	if argv := strings.Join(f.argv("check"), " "); !strings.Contains(argv, "main.go") {
+		t.Fatalf("check argv = %q", argv)
+	}
+}
+
 // Every firing appends; the log is the evidence that the hook reached here at all
 // (including inside a subagent), so a second firing must not overwrite the first.
 func TestHookLogAppends(t *testing.T) {

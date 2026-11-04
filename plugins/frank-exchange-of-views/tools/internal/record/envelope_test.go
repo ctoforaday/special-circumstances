@@ -113,7 +113,7 @@ func TestTheBenchsEnvelopeIsHeldByWhatItsSittingIsConvenedToRule(t *testing.T) {
 	petition := func(t *testing.T, build func(b *stage)) Run {
 		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").add("blue-respond", petitionMotion("P1")).
-			benchDispatch(2, nil, recordpb.Occasion_OCCASION_PETITION).benchRegister(recordpb.Occasion_OCCASION_PETITION)
+			benchRegister(recordpb.Occasion_OCCASION_PETITION)
 		build(b)
 		return b.seed()
 	}
@@ -137,11 +137,11 @@ func TestTheBenchsEnvelopeIsHeldByWhatItsSittingIsConvenedToRule(t *testing.T) {
 			t.Errorf("a petition filed while it sat, or a docket, refuses the petition sitting: %q", r)
 		}
 	})
-	t.Run("petition: a row that also convenes a docket owes that register to the next sitting, not this one", func(t *testing.T) {
+	t.Run("petition: a docket's row standing owes its register to the next sitting, not this one", func(t *testing.T) {
 		run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "low").
 			add("blue-respond", petitionMotion("P1")).docketMotion("blue-respond", "M1", "G1").
-			benchDispatch(2, []string{"G1"}, recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_DOCKET).
+			benchDispatch(2, []string{"G1"}).
 			benchRegister(recordpb.Occasion_OCCASION_PETITION).add(benchSeat, petitionRuling("P1")).seed()
 		if r := refusalOf(t, run, benchSeat); r != "" {
 			t.Errorf("the petition sitting is refused over the docket sitting's register: %q", r)
@@ -390,7 +390,7 @@ func TestAnEnvelopeCheckThatCannotReadTheRecordFails(t *testing.T) {
 	if _, err := EnvelopeRefusal(run, benchSeat); err == nil || !strings.Contains(err.Error(), "not readable") {
 		t.Errorf("a missing record was not an error naming it: %v", err)
 	}
-	if _, _, err := AgentEnvelope(run, "agent-x", []byte(`{}`)); err == nil {
+	if _, _, _, err := AgentEnvelope(run, "agent-x", []byte(`{}`)); err == nil {
 		t.Error("an agent's envelope was checked against a missing record")
 	}
 }

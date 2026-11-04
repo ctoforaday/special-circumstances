@@ -268,7 +268,7 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 	}
 	parties = append(parties,
 		map[string]any{"seat_id": "blue-respond", "gap_ids": []any{gap}},
-		map[string]any{"seat_id": "judge", "gap_ids": []any{gap}, "occasions": []any{"petition", "position", "docket"}})
+		map[string]any{"seat_id": "judge", "gap_ids": []any{gap}})
 	chair := 0
 	return func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},
@@ -277,6 +277,8 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 			chair++
 			if chair == 1 {
 				e.Relay(plan(parties, []any{gap}, debatejs.HeldBy(parties), false))
+				// THE CHAIR'S CLOSE OWES BOTH HEARINGS, as the hook writes it, so the drive reaches their sites.
+				e["record_read"] = map[string]any{"event": 1, "bench_owed": []any{"petition", "position"}, "halted": false}
 			} else {
 				e.Relay(plan([]any{}, []any{}, []any{map[string]any{"kind": "unruled_motion", "subject": "M-1", "owner": "judge"}}, true))
 				e["verdict"] = "PASS"

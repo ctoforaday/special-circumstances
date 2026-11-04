@@ -30,7 +30,7 @@ import (
 // forever. Reads go through Querier.
 type Batch struct {
 	run  Run
-	tx   *sql.Tx
+	tx   *recordsql.Tx
 	err  error // the failure that ended the batch; every later call returns it
 	done bool  // committed or rolled back
 }
@@ -66,7 +66,7 @@ func BeginBatch(run Run) (*Batch, error) {
 		return nil, err
 	}
 	WriteBegins()
-	tx, err := db.Begin()
+	tx, err := recordsql.BeginWrite(db)
 	if err != nil {
 		return nil, err
 	}
@@ -94,11 +94,14 @@ func (b *Batch) Append(id Identity, body proto.Message) (*Event, error) {
 	if err := b.savepoint("SAVEPOINT " + actSavepoint); err != nil {
 		return nil, err
 	}
-	ev, err := appendAct(id, body, func() (*sql.Tx, error) { return b.tx, nil }, nil, nil)
+	ev, err := appendAct(id, body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil, nil)
 	if err != nil {
 		if ferr := b.savepoint("ROLLBACK TO " + actSavepoint); ferr != nil {
 			return ev, ferr
 		}
+		// The rolled-back act's ids are free again, so a stream read before the rollback is not a
+		// prefix of the next read.
+		b.tx.ForgetReads()
 		if ferr := b.savepoint("RELEASE " + actSavepoint); ferr != nil {
 			return ev, ferr
 		}

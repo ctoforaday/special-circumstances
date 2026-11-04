@@ -18,14 +18,14 @@ func sampleVocabulary() vocabulary {
 		grades: []string{"low", "high"}, dimensions: []string{"severity"},
 		outcomes:  []string{"VERIFIED"},
 		benchSeat: "judge", lensOrBlue: []string{"blue-respond", "red-lens-evidence"},
-		dispatchOccasions: []string{"docket"},
-		party:             party,
+		party:         party,
+		benchHearings: []string{"petition"},
+		read:          []record.PlanField{{Name: "Event", JSON: "event", Type: "integer", Min: &zero, Desc: "where it was read"}},
 		plan: []record.PlanField{
 			{Name: "Head", JSON: "head", Type: "integer", Min: &zero, Desc: "the report's head"},
 			{Name: "Parties", JSON: "parties", Type: "array", Of: party, Items: []record.PlanField{
 				{Name: "SeatID", JSON: "seat_id", Type: "string"},
 				{Name: "GapIDs", JSON: "gap_ids", Type: "array", Elem: "string", Desc: "a party's gaps", Bench: "the bench's docket"},
-				{Name: "Occasions", JSON: "occasions", Type: "array", Elem: "string", Optional: true, Desc: "absent", Bench: "what it sits for"},
 			}},
 			{Name: "Debts", JSON: "debts", Type: "array", Desc: "what the run's owed", EmptyOnlyWith: "ceiling", Of: reflect.TypeFor[sampleDebt](), Items: []record.PlanField{
 				{Name: "Kind", JSON: "kind", Type: "string", Enum: []string{"infra", "source"}},
@@ -51,16 +51,15 @@ func TestTheVocabularyRegionStatesEachSetAndThePlanAsDeclared(t *testing.T) {
 	want := `const GRADE = { type: 'string', enum: ['low', 'high'] }
 const DISPUTE_DIMENSION = { type: 'string', enum: ['severity'] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED'] }
-const BENCH_PARTY_OCCASIONS = ['docket']
+const BENCH_HEARINGS = ['petition']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
 const BENCH_PARTY = {
   type: 'object',
-  required: ['seat_id', 'gap_ids', 'occasions'],
+  required: ['seat_id', 'gap_ids'],
   additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['judge'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: "the bench's docket" },
-    occasions: { type: 'array', minItems: 1, items: { type: 'string', enum: BENCH_PARTY_OCCASIONS }, description: 'what it sits for' },
+    gap_ids: { type: 'array', minItems: 1, items: { type: 'string' }, description: "the bench's docket" },
   },
 }
 const LENS_OR_BLUE_PARTY = {
@@ -70,7 +69,6 @@ const LENS_OR_BLUE_PARTY = {
   properties: {
     seat_id: { type: 'string', enum: ['blue-respond', 'red-lens-evidence'] },
     gap_ids: { type: 'array', items: { type: 'string' }, description: "a party's gaps" },
-    occasions: { type: 'array', maxItems: 0, description: 'absent' },
   },
 }
 const PLAN = {
@@ -93,11 +91,21 @@ const PLAN_ITEM_TYPES = {
   parties: { seat_id: 'string', gap_ids: 'array' },
   debts: { kind: 'string', why: 'string' },
 }
+const RECORD_READ = {
+  type: 'object',
+  required: ['event'],
+  additionalProperties: false,
+  properties: {
+    event: { type: 'integer', minimum: 0, description: 'where it was read' },
+  },
+  description: "written by the record's hook; leave it out",
+}
 const LENS_ENVELOPE = {
   type: 'object',
   required: [],
   additionalProperties: false,
   properties: {
+    record_read: RECORD_READ,
   },
 }
 `
@@ -115,10 +123,11 @@ func TestAVocabularyAHarnessCouldNotValidateAgainstIsRefused(t *testing.T) {
 	}{
 		{"an empty set", func(v *vocabulary) { v.outcomes = nil }, "no word for the run's outcomes"},
 		{"no party seat", func(v *vocabulary) { v.lensOrBlue = nil }, "no seat a plan's party can be"},
-		{"no dispatch occasion", func(v *vocabulary) { v.dispatchOccasions = nil }, "for no occasion"},
+		{"no hearing a filing convenes", func(v *vocabulary) { v.benchHearings = nil }, "no occasion a filing convenes"},
+		{"a read field no schema can carry", func(v *vocabulary) { v.read[0].Defect = "no set" }, "record.RecordRead's event cannot be carried"},
 		{"a plan with no parties", func(v *vocabulary) { v.plan = v.plan[:1] }, "no list of parties"},
-		{"a party with no occasions", func(v *vocabulary) { v.plan[1].Items = v.plan[1].Items[:2] }, "no field Occasions"},
-		{"a party whose occasions are required", func(v *vocabulary) { v.plan[1].Items[2].Optional = false }, "not an optional list of words"},
+		{"a party with no gaps", func(v *vocabulary) { v.plan[1].Items = v.plan[1].Items[:1] }, "no field GapIDs"},
+		{"a party whose gaps are no list", func(v *vocabulary) { v.plan[1].Items[1].Type = "string" }, "not a list"},
 		{"a field no schema can carry", func(v *vocabulary) { v.plan[3].Defect = "its Go type map[string]int has no JSON type here" }, "ceiling cannot be carried under a schema"},
 		{"a nested field no schema can carry", func(v *vocabulary) { v.plan[2].Items[0].Defect = "no set" }, "kind cannot be carried under a schema"},
 		{"a key that is no word", func(v *vocabulary) { v.plan[0].JSON = "report-head" }, `"report-head" is not a word`},

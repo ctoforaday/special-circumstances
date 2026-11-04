@@ -243,6 +243,163 @@ func TestTheBareCitationRefusalNamesTheGapTheEditAnswers(t *testing.T) {
 	}
 }
 
+// markerOfKind anchors an anchor of kind on sentence, with the gap a retire of it bears on where it has one.
+func markerOfKind(t *testing.T, runDir, kind, sentence string) (id, gap string) {
+	t.Helper()
+	mint := func(args ...string) string {
+		t.Helper()
+		out, err := run(t, append([]string{"mint", "--run", runDir, "--seat-id", lensSeat,
+			"--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
+			"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
+			"--likelihood", "medium", "--impact", "medium", "--complexity", "low"}, args...)...)
+		if err != nil {
+			t.Fatalf("mint: %v", err)
+		}
+		return gapID(out)
+	}
+	switch kind {
+	case "finding":
+		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", sentence,
+			"--reason", "overclaim", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
+			t.Fatalf("finding: %v", err)
+		}
+		f := lastBody(t, runDir, &recordpb.Finding{})
+		id = f.GetId()
+		gap = mint("--key", "credits", "--found-by", id, "--about-kind", "section", "--about", "Findings")
+	case "citation":
+		id = citeSentence(t, runDir, sentence, "https://water/1")
+	case "computation":
+		s := script(t, runDir, "wet.js", "console.log('wet');")
+		if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
+			"--dir", s, "--reason", "the computation settles it", "--", "node", "wet.js"); err != nil {
+			t.Fatalf("compute: %v", err)
+		}
+		id = lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
+	case "gap":
+		id = mint("--key", "itself", "--quote", sentence)
+		gap = id
+	default:
+		t.Fatalf("no row drives the %s kind — a kind added to the table needs one here", kind)
+	}
+	return id, gap
+}
+
+// AN ANCHOR THE QUOTE LEFT OUT IS NOT LEFT BARE. The #1677 smoke's edit cut a sentence down to the six
+// anchors its quote did not carry, and they stood in the report with nothing to mark: a retire takes
+// what the edit carried. Refused for every kind but a citation, whose own refusal is the row below,
+// naming the anchor and what to do; carried in the quote, the same cut is admitted and the anchor
+// stands bare until the retire takes it, and a second retire of the same words takes nothing.
+func TestAnEditBaringAnAnchorItsQuoteLeftOutIsRefused(t *testing.T) {
+	const sentence = "Water is wet."
+	const words = "Water is wet"
+	for _, kind := range anchor.Kinds() {
+		t.Run(kind, func(t *testing.T) {
+			runDir := citedRun(t, "https://water/1")
+			registerChairOnce(t, runDir)
+			registerLensOnce(t, runDir)
+			id, _ := markerOfKind(t, runDir, kind, sentence)
+			tok := anchor.Token(id)
+			before := readReport(t, runDir)
+			edits := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+			_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words, "--new", "", "--reason", "the claim cannot stand")
+			if err == nil {
+				t.Fatal("an edit leaving an anchor bare that its quote left out was recorded")
+			}
+			want := []string{"anchor " + tok + " standing bare", "your quote leaves it out", "Nothing is recorded", "as `show report` prints it", "then retire the claim"}
+			if kind == "citation" {
+				want = []string{"citation " + id + " standing bare", "Nothing is recorded", "`retire --anchor <its id>`"}
+			}
+			for _, w := range want {
+				if !strings.Contains(err.Error(), w) {
+					t.Errorf("the refusal does not say %q:\n%v", w, err)
+				}
+			}
+			if after := readReport(t, runDir); after != before {
+				t.Errorf("the refused edit changed the report:\n got %q\nwant %q", after, before)
+			}
+			if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != edits {
+				t.Errorf("%d edit(s) recorded by a refused edit", n-edits)
+			}
+			quote := words + tok + "."
+			_, err = run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", quote, "--new", tok, "--reason", "the claim cannot stand")
+			if kind == "citation" { // carried or not: a citation never stands bare
+				if err == nil || !strings.Contains(err.Error(), "citation "+id+" standing bare") {
+					t.Fatalf("a citation carried to bare: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("the cut with the anchor in its quote: %v", err)
+			}
+			rep := readReport(t, runDir)
+			if !strings.Contains(rep, tok) || strings.Contains(rep, words) {
+				t.Fatalf("the carried cut did not leave the anchor bare:\n%s", rep)
+			}
+			out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence, "--reason", "refuted")
+			if err != nil {
+				t.Fatalf("the retire after the carried cut: %v", err)
+			}
+			if ev := lastBody(t, runDir, &recordpb.Retire{}); !slices.Equal(ev.GetAnchors(), []string{id}) {
+				t.Errorf("the retire took %v and said %q, want %s", ev.GetAnchors(), out, id)
+			}
+			if rep := readReport(t, runDir); strings.Contains(rep, tok) {
+				t.Errorf("the anchor stood through its retire:\n%s", rep)
+			}
+			// As a later retire quoting what the edit recorded would.
+			if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", quote, "--reason", "again"); err != nil {
+				t.Errorf("a second retire of the edit's old span: %v", err)
+			}
+		})
+	}
+}
+
+// A BARED ANCHOR THAT WAS ALREADY BARE IS NOT THIS EDIT'S, and one the edit carries beside one it left
+// out is not named. A citation and a finding bared together both get their own way out in one refusal.
+func TestTheBareRefusalNamesOnlyWhatTheEditLeftOut(t *testing.T) {
+	const words = "Water is wet"
+	runDir := citedRun(t, "https://water/1")
+	registerChairOnce(t, runDir)
+	registerLensOnce(t, runDir)
+	k1, _ := markerOfKind(t, runDir, "computation", words+".")
+	g, _ := markerOfKind(t, runDir, "gap", words+".")
+	first, second := k1, g
+	if !strings.Contains(readReport(t, runDir), words+anchor.Token(k1)+anchor.Token(g)) {
+		first, second = g, k1
+	}
+	// The quote carries the first anchor of the run and stops there: the second stands after the cut.
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words+anchor.Token(first), "--new", anchor.Token(first), "--reason", "gone")
+	if err == nil {
+		t.Fatal("a cut carrying one anchor and leaving the other bare was recorded")
+	}
+	if !strings.Contains(err.Error(), "anchor "+anchor.Token(second)+" standing bare") || strings.Contains(err.Error(), anchor.Token(first)) {
+		t.Errorf("the refusal must name the anchor left out and only it, got: %v", err)
+	}
+	// Carrying the whole run admits it; the anchors now stand bare, and an edit elsewhere is not refused for them.
+	both := anchor.Token(first) + anchor.Token(second)
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words+both+".", "--new", both, "--reason", "gone"); err != nil {
+		t.Fatalf("the carried cut: %v", err)
+	}
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", "Fire is hot", "--new", "Fire burns", "--reason", "sharper"); err != nil {
+		t.Errorf("an edit elsewhere refused for anchors already bare: %v", err)
+	}
+
+	// A citation and a finding on one sentence, neither carried: both ways out, the citation's unchanged.
+	runDir = citedRun(t, "https://water/1")
+	registerChairOnce(t, runDir)
+	registerLensOnce(t, runDir)
+	c := citeSentence(t, runDir, words+".", "https://water/1")
+	f, _ := markerOfKind(t, runDir, "finding", words+".")
+	_, err = run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words, "--new", "", "--reason", "gone")
+	if err == nil {
+		t.Fatal("a cut baring a citation and a finding was recorded")
+	}
+	for _, w := range []string{"citation " + c + " standing bare", "`retire --anchor <its id>`", "anchor " + anchor.Token(f) + " standing bare", "then retire the claim"} {
+		if !strings.Contains(err.Error(), w) {
+			t.Errorf("the refusal does not say %q:\n%v", w, err)
+		}
+	}
+}
+
 // ONE LIFECYCLE: an anchor of every kind but a citation, cut to bare and named to the retire, leaves
 // with its claim; a citation, named alone, leaves its sentence standing — a finding's while a gap crediting it is open, a gap's while the gap itself is open. The
 // retire names it, reading the report at it names the retire, and the gap reads gone. A hold on
@@ -254,42 +411,7 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 			runDir := citedRun(t, "https://water/1")
 			registerChairOnce(t, runDir)
 			registerLensOnce(t, runDir)
-			mint := func(args ...string) string {
-				t.Helper()
-				out, err := run(t, append([]string{"mint", "--run", runDir, "--seat-id", lensSeat,
-					"--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
-					"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
-					"--likelihood", "medium", "--impact", "medium", "--complexity", "low"}, args...)...)
-				if err != nil {
-					t.Fatalf("mint: %v", err)
-				}
-				return gapID(out)
-			}
-			var id, gap string
-			switch kind {
-			case "finding":
-				if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", sentence,
-					"--reason", "overclaim", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-					t.Fatalf("finding: %v", err)
-				}
-				f := lastBody(t, runDir, &recordpb.Finding{})
-				id = f.GetId()
-				gap = mint("--key", "credits", "--found-by", id, "--about-kind", "section", "--about", "Findings")
-			case "citation":
-				id = citeSentence(t, runDir, sentence, "https://water/1")
-			case "computation":
-				s := script(t, runDir, "wet.js", "console.log('wet');")
-				if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
-					"--dir", s, "--reason", "the computation settles it", "--", "node", "wet.js"); err != nil {
-					t.Fatalf("compute: %v", err)
-				}
-				id = lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
-			case "gap":
-				id = mint("--key", "itself", "--quote", sentence)
-				gap = id
-			default:
-				t.Fatalf("no row drives the %s kind — a kind added to the table needs one here", kind)
-			}
+			id, gap := markerOfKind(t, runDir, kind, sentence)
 			tok := anchor.Token(id)
 			if !strings.Contains(readReport(t, runDir), "Water is wet"+tok) {
 				t.Fatalf("no %s anchor on the bullet:\n%s", kind, readReport(t, runDir))
@@ -571,7 +693,7 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(computeSentence(t, runDir, "The sky is blue.")))
 
 	i := strings.Index(recordsql.ViewsDDL, `CREATE VIEW "report_op" AS`)
-	j := strings.Index(recordsql.ViewsDDL[i:], "\n  UNION ALL\n  SELECT e.\"id\", 'remove'")
+	j := strings.Index(recordsql.ViewsDDL[i:], "\n  UNION ALL\n  SELECT ra.\"event_id\", 'remove'")
 	if i < 0 || j < 0 {
 		t.Fatal("cannot find the report_op view's remove branch to rebuild the pre-change view")
 	}

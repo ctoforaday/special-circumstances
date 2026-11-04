@@ -25,25 +25,25 @@ func (b *stage) benchRegister(occ recordpb.Occasion) *stage {
 	return b.add(benchSeat, &recordpb.Register{Occasion: occ.Enum()})
 }
 
-// benchDispatch is the chair's row convening the bench for occ, on gaps.
-func (b *stage) benchDispatch(pin int64, gaps []string, occ ...recordpb.Occasion) *stage {
-	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(benchSeat), GapIds: gaps, Occasions: occ})
+// benchDispatch is the chair's row convening the bench for its docket on gaps.
+func (b *stage) benchDispatch(pin int64, gaps []string) *stage {
+	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(benchSeat), GapIds: gaps})
 }
 
 // DISPATCH READIES THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER, ONCE PER CAUSE (#1202, #1203). A
-// petition filed on the record by any party seat convenes the bench at the next chair sitting, as a
-// petition sitting; a docket motion whose gap has since closed convenes it for that docket; a
+// petition filed on the record by any party seat is on no plan: the record's read reports its hearing
+// owed; a docket motion whose gap has since closed convenes the bench for that docket; a
 // contradiction no finding raises readies the lens that read it; a citation or computation unchecked since
 // its sentence changed readies its owner (anchorOwnerOf; TestAReopenedAnchorReadiesItsOwner). Each edge the definition
 // distinguishes is a row: an owner that has sat for the cause since it arose is not readied again,
 // and only a sitting OF THE RIGHT OCCASION counts for a petition.
 func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 	type want struct {
-		seat      string
-		ready     bool
-		occasions []string
-		gaps      []string
-		why       string // a fragment of the plan's reason
+		seat  string
+		ready bool
+		gaps  []string
+		why   string // a fragment of the plan's reason
+		owed  []BenchHearing
 	}
 	rows := []struct {
 		name  string
@@ -51,63 +51,62 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 		want  want
 	}{
 		{"a lens's petition", func(b *stage) { b.add(outsideLens, petitionMotion("M1")) },
-			want{benchSeat, true, []string{occasionPetition}, nil, "M1: petition, unruled — the bench is ready to hear it"}},
+			want{benchSeat, false, nil, "M1: petition, unruled — the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
 		{"a lane's petition", func(b *stage) { b.add("blue-lane-1", petitionMotion("M1")) },
-			want{benchSeat, true, []string{occasionPetition}, nil, "the bench is ready to hear it"}},
+			want{benchSeat, false, nil, "the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
 		{"blue-respond's petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) },
-			want{benchSeat, true, []string{occasionPetition}, nil, "the bench is ready to hear it"}},
+			want{benchSeat, false, nil, "the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
 		{"blue-synthesize's petition", func(b *stage) { b.add("blue-synthesize", petitionMotion("M1")) },
-			want{benchSeat, true, []string{occasionPetition}, nil, "the bench is ready to hear it"}},
+			want{benchSeat, false, nil, "the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
 		{"the chair's petition", func(b *stage) { b.add("red-chair", petitionMotion("M1")) },
-			want{benchSeat, true, []string{occasionPetition}, nil, "the bench is ready to hear it"}},
+			want{benchSeat, false, nil, "the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
 		{"a ruled petition readies nobody", func(b *stage) {
 			b.add(outsideLens, petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_PETITION).
 				add(benchSeat, petitionRuling("M1"))
-		}, want{benchSeat, false, nil, nil, ""}},
+		}, want{benchSeat, false, nil, "", nil}},
 		{"a petition the bench sat to hear and left unruled is not heard again", func(b *stage) {
 			b.add(outsideLens, petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_PETITION)
-		}, want{benchSeat, false, nil, nil, "M1: petition, unruled, and the bench has sat to hear petitions since it was filed"}},
+		}, want{benchSeat, false, nil, "M1: petition, unruled, and the bench has sat to hear petitions since it was filed", nil}},
 		{"a docket sitting after the filing does not hear a petition", func(b *stage) {
 			b.add(outsideLens, petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_DOCKET)
-		}, want{benchSeat, true, []string{occasionPetition}, nil, "the bench is ready to hear it"}},
+		}, want{benchSeat, false, nil, "the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
 		{"a petition filed after a petition sitting is heard", func(b *stage) {
 			b.benchRegister(recordpb.Occasion_OCCASION_PETITION).add(outsideLens, petitionMotion("M1"))
-		}, want{benchSeat, true, []string{occasionPetition}, nil, "the bench is ready to hear it"}},
+		}, want{benchSeat, false, nil, "the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
 		{"a docket motion on a closed gap", func(b *stage) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1")
-		}, want{benchSeat, true, []string{occasionDocket}, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready"}},
+		}, want{benchSeat, true, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready", nil}},
 		{"a docket motion on a closed gap the bench has sat for", func(b *stage) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
 				dispatch(2, benchSeat, "G1").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
-		}, want{benchSeat, false, nil, nil, "and the bench has sat since it was filed — not re-readied"}},
-		{"a docket and a petition at once: one bench, both occasions", func(b *stage) {
+		}, want{benchSeat, false, nil, "and the bench has sat since it was filed — not re-readied", nil}},
+		{"a docket and a petition at once: the docket on the plan, the hearing on the read", func(b *stage) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
 				add(outsideLens, petitionMotion("M2"))
-		}, want{benchSeat, true, []string{occasionDocket, occasionPetition}, []string{"G1"}, "M2: petition, unruled — the bench is ready to hear it"}},
-		// ONE ROW, TWO SITTINGS, AND THE PETITION SITTING ANSWERS NO DOCKET. The bench convened for
-		// both sits to hear the petition first; its docket sitting never comes. Keyed on the first
-		// register after the row, the petition sitting read as the docket's and the docket was never
-		// readied again.
-		{"a bench convened for both that sat only for the petition is readied for the docket again", func(b *stage) {
+		}, want{benchSeat, true, []string{"G1"}, "M2: petition, unruled — the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
+		// A HEARING ANSWERS NO DOCKET. The engine hears a petition between the row and the bench's
+		// docket sitting; keyed on the first register after the row, the hearing read as the docket's
+		// and the docket was never readied again.
+		{"a bench that sat only to hear a petition after its docket's row is readied for the docket again", func(b *stage) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
 				add(outsideLens, petitionMotion("M2")).
-				benchDispatch(2, []string{"G1"}, recordpb.Occasion_OCCASION_DOCKET, recordpb.Occasion_OCCASION_PETITION).
+				benchDispatch(2, []string{"G1"}).
 				benchRegister(recordpb.Occasion_OCCASION_PETITION).add(benchSeat, petitionRuling("M2"))
-		}, want{benchSeat, true, []string{occasionDocket}, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready"}},
+		}, want{benchSeat, true, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready", nil}},
 		{"a contradiction readies the lens that read it", func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green"))
-		}, want{evLens, true, nil, nil, evLens + ` read a source contradicting "the sky is green" (contradiction `}},
+		}, want{evLens, true, nil, evLens + ` read a source contradicting "the sky is green" (contradiction `, nil}},
 		{"a contradiction its lens has sat since is not readied again", func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green")).sit(2, evLens)
-		}, want{evLens, false, nil, nil, evLens + " has sat since it read a source contradicting"}},
+		}, want{evLens, false, nil, evLens + " has sat since it read a source contradicting", nil}},
 		// A reopened anchor's owner owes its check, so it is not retired, and the edit moved the head.
 		{"a reopened citation readies the evidence lens", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
-		}, want{evLens, true, nil, nil, evLens + ": the whole report was last served to it at its pin 2, behind head 12 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3 owing nothing, and it owes unchecked C-1)"}},
+		}, want{evLens, true, nil, evLens + ": the whole report was last served to it at its pin 2, behind head 12 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3 owing nothing, and it owes unchecked C-1)", nil}},
 		{"a reopened citation its lens has sat since is not readied again", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
-		}, want{evLens, false, nil, nil, evLens + ": served the report at the head (pin 12) — ready when the head moves"}},
+		}, want{evLens, false, nil, evLens + ": served the report at the head (pin 12) — ready when the head moves", nil}},
 	}
 	for _, c := range rows {
 		t.Run(c.name, func(t *testing.T) {
@@ -124,19 +123,18 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 			if ready != c.want.ready {
 				t.Fatalf("%s ready = %v, want %v (parties %+v, why %q)", c.want.seat, ready, c.want.ready, plan.Parties, plan.Why)
 			}
-			if ready && !slices.Equal(p.Occasions, c.want.occasions) {
-				t.Errorf("%s occasions = %q, want %q", c.want.seat, p.Occasions, c.want.occasions)
-			}
 			if ready && !slices.Equal(p.GapIDs, append([]string{}, c.want.gaps...)) {
 				t.Errorf("%s gap_ids = %q, want %q", c.want.seat, p.GapIDs, c.want.gaps)
 			}
 			if c.want.why != "" && !slices.ContainsFunc(plan.Why, func(w string) bool { return strings.Contains(w, c.want.why) }) {
 				t.Errorf("no reason says %q: %q", c.want.why, plan.Why)
 			}
-			for _, q := range plan.Parties {
-				if (q.SeatID == benchSeat) != (len(q.Occasions) > 0) {
-					t.Errorf("party %s carries occasions %q — the bench carries one and no other seat does", q.SeatID, q.Occasions)
-				}
+			read, err := ReadRecord(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(read.BenchOwed, append([]BenchHearing{}, c.want.owed...)) {
+				t.Errorf("the record's read owes %q, want %q", read.BenchOwed, c.want.owed)
 			}
 			// The plan relays the gate's list, owner and all.
 			blockers, err := PassBlockers(run)
@@ -206,32 +204,24 @@ func TestTheLensThatReadAContradictionOwesItOnItsWorkList(t *testing.T) {
 	}
 }
 
-// THE BENCH'S ROW SAYS WHAT IT IS CONVENED FOR, AND ONLY THE BENCH'S ROW DOES — refused at the
-// write, both ways. A docket is the bench on gaps, so the occasion and the gap list are one fact; the
-// terminal and assembly sittings are the engine's, and no row convenes them.
-func TestTheDispatchRowCarriesTheBenchsOccasionsAndNoOtherSeats(t *testing.T) {
+// A BENCH ROW IS ITS DOCKET, refused at the write with no gap: a hearing has no row, and the terminal
+// and assembly sittings are the engine's. A lens engaged on no gap is a lens auditing the report.
+func TestABenchRowNamesItsDocket(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
 		mint(evLens, "G1", "high").seed()
 	chair := Identity{Run: run, SeatID: "red-chair"}
-	row := func(seat string, gaps []string, occ ...recordpb.Occasion) error {
-		_, err := Append(chair, &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(seat), GapIds: gaps, Occasions: occ})
+	row := func(seat string, gaps ...string) error {
+		_, err := Append(chair, &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(seat), GapIds: gaps})
 		return err
 	}
-	pet, dock := recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_DOCKET
 	for _, c := range []struct {
 		name   string
 		err    error
 		refuse string
 	}{
-		{"the bench with no occasion", row(benchSeat, []string{"G1"}), "a bench row names what the bench is convened for"},
-		{"a lens convened for an occasion", row(evLens, nil, dock), "is convened for no occasion"},
-		{"a docket with no gap", row(benchSeat, nil, dock), "a docket sitting is the bench engaged on gaps"},
-		{"gaps with no docket", row(benchSeat, []string{"G1"}, pet), "a docket sitting is the bench engaged on gaps"},
-		{"an occasion the engine convenes", row(benchSeat, nil, recordpb.Occasion_OCCASION_TERMINAL), "is a sitting the engine convenes"},
-		{"an occasion twice", row(benchSeat, nil, pet, pet), "names petition twice"},
-		{"a petition-only bench", row(benchSeat, nil, pet), ""},
-		{"a docket and a petition", row(benchSeat, []string{"G1"}, pet, dock), ""},
-		{"a lens with none", row(evLens, nil), ""},
+		{"a bench row with no gap", row(benchSeat), "a petition or a position has no row"},
+		{"a bench row on its docket", row(benchSeat, "G1"), ""},
+		{"a lens with no gap", row(evLens), ""},
 	} {
 		if c.refuse == "" && c.err != nil {
 			t.Errorf("%s: refused: %v", c.name, c.err)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // DispatchNext is `dispatch next`'s whole act, in ONE write transaction: the chair's sitting is
@@ -54,7 +55,7 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 	}
 	files := filesOf(run)
 	WriteBegins()
-	tx, err := db.Begin()
+	tx, err := recordsql.BeginWrite(db)
 	if err != nil {
 		return emptyPlan(), false, err
 	}
@@ -65,7 +66,7 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 		if err != nil {
 			return err
 		}
-		return writeIn(tx, ev, id.SeatID, typ, body, func(tx *sql.Tx) error {
+		return writeIn(tx.Tx, ev, id.SeatID, typ, body, func(*sql.Tx) error {
 			return validate(writeView{q: tx, files: files}, id.SeatID, typ, body)
 		})
 	}
@@ -129,18 +130,8 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 			break
 		}
 		wrote = true
-		// THE OCCASIONS ARE ON THE ROW: the bench's sitting for each is the one whose register states
-		// it, and capture holds the bench's registers to the row.
-		var occasions []recordpb.Occasion
-		for _, w := range p.Occasions {
-			o, ok := OccasionOf(w)
-			if !ok {
-				return emptyPlan(), false, feov.Errorf(feov.Internal, "the plan convenes %s for %q, which is not an occasion", p.SeatID, w)
-			}
-			occasions = append(occasions, o)
-		}
 		if err := write(&recordpb.Dispatch{
-			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs, Occasions: occasions,
+			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs,
 		}); err != nil {
 			return emptyPlan(), false, err
 		}
@@ -171,7 +162,7 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 }
 
 // planAt is PlanDispatch asked of q, the writing transaction DispatchNext holds.
-func planAt(q *sql.Tx, files runFiles) (Plan, error) {
+func planAt(q *recordsql.Tx, files runFiles) (Plan, error) {
 	r, err := planReadsAt(q)
 	if err != nil {
 		return emptyPlan(), err

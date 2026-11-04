@@ -34,6 +34,15 @@
 // the process would have to key on source state, which is what the build cache already does
 // properly. So this removes the repeats it can see and claims nothing about the rest.
 //
+// # The prebuilt set
+//
+// Across PROCESSES ON DIFFERENT RUNNERS the build cache is not there to share: the hooks
+// workflow's release-fuzz parts each run one test binary on a runner of their own. Their build
+// job builds every command once (`go build -o <dir>/ ./cmd/...`, the default build this package
+// runs) and names the directory in PrebuiltVar; Binary then returns the command from there and
+// builds nothing. A command the directory lacks is refused rather than built, so a set that
+// stopped holding everything the suite runs fails the test that needed it.
+//
 // # Finding the module
 //
 // By walking up from the working directory to the go.mod that owns it — not by locating the
@@ -95,7 +104,14 @@ func Main(m *testing.M, after ...func() error) {
 		fmt.Fprintln(os.Stderr, "testbuild:", err)
 		os.Exit(1)
 	}
+	restoreClient, err := stubClient()
+	if err != nil {
+		restore()
+		fmt.Fprintln(os.Stderr, "testbuild:", err)
+		os.Exit(1)
+	}
 	code := m.Run()
+	restoreClient()
 	restore()
 	for _, check := range after {
 		if err := check(); err != nil {
@@ -107,6 +123,36 @@ func Main(m *testing.M, after ...func() error) {
 	}
 	Cleanup()
 	os.Exit(code)
+}
+
+// stubClient puts a `claude` first on PATH that prints a version and nothing else: `setup` refuses a
+// client it cannot read, and CI has none. A test of that refusal injects its own Exec.
+func stubClient() (func(), error) {
+	dir, err := os.MkdirTemp("", "sc-testclient-")
+	if err != nil {
+		return nil, fmt.Errorf("no directory for the stub client: %w", err)
+	}
+	name, body := "claude", "#!/bin/sh\necho '99.0.0 (Claude Code)'\n"
+	if runtime.GOOS == "windows" {
+		name, body = "claude.bat", "@echo 99.0.0 (Claude Code)\r\n"
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, fmt.Errorf("writing the stub client: %w", err)
+	}
+	old, had := os.LookupEnv("PATH")
+	if err := os.Setenv("PATH", dir+string(os.PathListSeparator)+old); err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, fmt.Errorf("putting the stub client on PATH: %w", err)
+	}
+	return func() {
+		if had {
+			_ = os.Setenv("PATH", old)
+		} else {
+			_ = os.Unsetenv("PATH")
+		}
+		_ = os.RemoveAll(dir)
+	}, nil
 }
 
 // homeKey is the environment variable os.UserHomeDir reads on this platform.
@@ -229,6 +275,26 @@ func ExeName(name string) string {
 	return name
 }
 
+// PrebuiltVar names an absolute directory holding this module's commands, already built. Set, it
+// replaces every build Binary would run; see the package comment.
+const PrebuiltVar = "FEOV_TESTBUILD_PREBUILT"
+
+// prebuilt is cmd/<name> from the prebuilt directory dir.
+func prebuilt(dir, name string) (string, error) {
+	if !filepath.IsAbs(dir) {
+		return "", fmt.Errorf("%s=%s is not an absolute path; each test binary runs in its own package directory, so a relative one names a different place in each", PrebuiltVar, dir)
+	}
+	path := filepath.Join(dir, ExeName(name))
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("%s=%s holds no %s, and a prebuilt set is never completed by a build: %w", PrebuiltVar, dir, ExeName(name), err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%s=%s: %s is not a regular file", PrebuiltVar, dir, ExeName(name))
+	}
+	return path, nil
+}
+
 // built records one command's build, so a failure is reported to every caller rather than
 // only to the first one that raced into the Once.
 type built struct {
@@ -249,16 +315,12 @@ var (
 // Binary builds cmd/<name> for this module and returns the path to the executable.
 //
 // The build happens on the first call in this test binary; later calls return the same path.
+// With PrebuiltVar set, the path is the prebuilt command's and nothing is built.
 // It fails the test rather than returning an error: a test that cannot build the binary it
 // drives has nothing left to assert, and every previous copy of this helper called t.Fatalf
 // for the same reason.
 func Binary(t *testing.T, name string) string {
 	t.Helper()
-
-	dirOne.Do(func() { dir, dirErr = os.MkdirTemp("", "sc-testbuild-") })
-	if dirErr != nil {
-		t.Fatalf("testbuild: no temp dir: %v", dirErr)
-	}
 
 	mu.Lock()
 	once, ok := cache[name]
@@ -270,8 +332,18 @@ func Binary(t *testing.T, name string) string {
 
 	once.Do(func() {
 		b := &built{}
+		if pre := os.Getenv(PrebuiltVar); pre != "" {
+			b.path, b.err = prebuilt(pre, name)
+			mu.Lock()
+			result[name] = b
+			mu.Unlock()
+			return
+		}
+		dirOne.Do(func() { dir, dirErr = os.MkdirTemp("", "sc-testbuild-") })
 		root, err := moduleRoot()
-		if err != nil {
+		if dirErr != nil {
+			b.err = fmt.Errorf("no temp dir: %w", dirErr)
+		} else if err != nil {
 			b.err = err
 		} else {
 			// The platform convention, not a fixed spelling — see the package comment.
@@ -293,7 +365,7 @@ func Binary(t *testing.T, name string) string {
 	b := result[name]
 	mu.Unlock()
 	if b.err != nil {
-		t.Fatalf("testbuild: building cmd/%s: %v\n%s", name, b.err, b.out)
+		t.Fatalf("testbuild: cmd/%s: %v\n%s", name, b.err, b.out)
 	}
 	return b.path
 }

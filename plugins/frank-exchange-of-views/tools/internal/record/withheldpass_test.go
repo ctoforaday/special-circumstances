@@ -78,16 +78,16 @@ func partySeats(p Plan) []string {
 	return out
 }
 
-// HOLDING BACK A PERMITTED PASS READIES THE BENCH ON THE POSITION (gblock, 2026-10-30). The position
-// the chair files where its plan permitted the PASS is a motion the bench rules: the plan convenes the
-// bench for a position sitting, the PASS is refused while it stands, and the position is the sitting's
-// duty discharged. A position at a sitting whose plan permitted none, or after the PASS, readies
+// HOLDING BACK A PERMITTED PASS OWES THE POSITION A HEARING (gblock, 2026-10-30). The position the
+// chair files where its plan permitted the PASS is a motion the bench rules: the record's read reports
+// a position sitting owed, the PASS is refused while it stands, and the position is the sitting's duty
+// discharged. A position at a sitting whose plan permitted none, or after the PASS, readies
 // nobody.
 func TestAWithheldPassReadiesTheBenchOnThePosition(t *testing.T) {
 	b := permittingBoard(t)
 	if p := runPlan(t, b.withhold(heardID).seed()); true {
-		if p.PassPermitted || !slices.Equal(partySeats(p), []string{benchSeat}) || !slices.Equal(p.Parties[0].Occasions, []string{occasionPosition}) {
-			t.Fatalf("plan after the withheld PASS = %+v, want the bench alone, convened for a position sitting", p)
+		if p.PassPermitted || len(p.Parties) != 0 {
+			t.Fatalf("plan after the withheld PASS = %+v, want nobody ready and no PASS: the hearing is on no plan", p)
 		}
 		if !slices.Contains(p.Blockers, PlanBlocker{Kind: BlockerUnruledMotion, Subject: heardID, Owner: benchSeat}) {
 			t.Errorf("blockers = %+v, want the position unruled, the bench's to rule", p.Blockers)
@@ -159,8 +159,13 @@ func TestAnUpheldPositionReadiesTheWorkItNames(t *testing.T) {
 		}
 		acted := b.blueSitsOn("G1", true).register("red-chair")
 		recordReset(t, acted)
-		if p := runPlan(t, acted.seed()); !slices.Contains(partySeats(p), evLens) || slices.Contains(p.RemandOwed, RemandOwed{GapID: "G1", Direction: direction}) {
-			t.Errorf("plan after blue's act on G1 = %+v (remands owed %+v), want its minting lens's turn and the remand's exchange begun", p.Parties, p.RemandOwed)
+		if p := runPlan(t, acted.seed()); !slices.Contains(gapsOf(p, evLens), "G1") || slices.Contains(gapsOf(p, blueRespondSeat), "G1") {
+			t.Errorf("plan after blue's act on G1 = %+v (remands owed %+v), want its minting lens's turn alone: its audit ends the remand's exchange", p.Parties, p.RemandOwed)
+		}
+		audited := acted.dispatch(2, evLens, "G1").registerAs(evLens, "lens-audits").served(evLens, b.head()).stop("lens-audits").register("red-chair")
+		recordReset(t, audited)
+		if p := runPlan(t, audited.seed()); len(p.RemandOwed) != 0 {
+			t.Errorf("plan after the lens's audit of G1 = %+v (remands owed %+v), want the remand's exchange had", p.Parties, p.RemandOwed)
 		}
 	})
 }

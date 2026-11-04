@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -31,9 +32,9 @@ import (
 //
 // # Bodies load per TABLE, not per event
 //
-// This read is always the WHOLE record, and every body-table row belongs to it — `event_id` is a
-// primary key referencing `events(id)`, so a full scan of each table touched by the record reads
-// exactly the rows the per-event queries used to fetch one at a time. That turns a query count
+// A read of the whole record takes every body-table row past the events it already holds —
+// `event_id` is a primary key referencing `events(id)`, so a range scan of each table touched by
+// those events reads exactly the rows the per-event queries used to fetch one at a time. That turns a query count
 // proportional to the number of EVENTS (one body row, one per list field, two per oneof arm — the
 // N+1 every projection paid on every render) into one proportional to the number of TABLES the
 // record's event types use, which the schema bounds. Validation still walks the events in record
@@ -43,14 +44,21 @@ import (
 // # Each event comes back with the window it sits in
 //
 // The second slice is aligned with the first by position: where each event sits on the record,
-// read off events_w, the stored sitting_id and that sitting's owner in ONE statement. A reader that
+// read off the row's stored sitting_id, sitting and epoch and that sitting's owner in ONE statement. A reader that
 // needs which sitting an act belongs to takes it from here rather than counting openings over the
 // slice — the write path decided that once (sittingOf), and a second count is a second definition.
 //
 // One statement is one snapshot. Read as two on a pooled handle, a sitting a seat opened between
 // them loads with its id and no owner, and the seat's latest sitting is then the one before.
+//
+// # A handle reads each event once
+//
+// On a handle Open returned, and through a transaction BeginRead or BeginWrite opened on one, the
+// events decoded before are kept and only the rows past them are read (eventcache.go says why that
+// read is the whole record). The events returned are shared with every later read on the handle: a
+// caller reads them and never edits one.
 func Events(db Querier) ([]*recordpb.Event, []Window, error) {
-	return eventsWhere(db, true, ``)
+	return cachedEvents(db)
 }
 
 // Window is where an event sits on the record: its row, the sitting it belongs to, and that
@@ -60,10 +68,8 @@ func Events(db Querier) ([]*recordpb.Event, []Window, error) {
 // the rest is read beside it. OWNER is the seat whose sitting that is (the `sittings` view's owner:
 // a register's seat, or the seat a hook bracket's body names). SITTING is the rank of that sitting
 // among its owner's, and EPOCH is how many of the chair's sittings opened at or before this row.
-// Both numbers come off the events_w view, which ranks the stored sittings; neither is stamped on
-// the row, and nothing in Go counts them again. The envelope's own history says why: seq, nonce and
-// epoch were each a derivation stored at the write, each cost the write a read, and each was
-// retired once the record could simply be asked.
+// Both numbers are columns of the row, stamped by the write beside SittingID (sittingOf), and
+// nothing in Go counts them again.
 //
 // A row in no sitting — the harness's own bookkeeping, a cast, a seat's act before it ever sat —
 // has SittingID 0, Owner "" and Sitting 0. An OPENING is a row whose SittingID is its own ID.
@@ -120,32 +126,41 @@ func EventsOfTypes(db Querier, words ...string) ([]*recordpb.Event, []Window, er
 	for i, w := range words {
 		args[i] = w
 	}
-	return eventsWhere(db, true, ` WHERE e."type" IN (`+marks+`)`, args...)
+	return eventsWhere(db, true, 0, ` WHERE e."type" IN (`+marks+`)`, args...)
 }
 
 // EventAt is the event stored at row id, with its body, and nil where no row has that id. It reads
 // no window: a read by one row prints no sitting.
 func EventAt(db Querier, id int64) (*recordpb.Event, error) {
-	evs, _, err := eventsWhere(db, false, ` WHERE e."id" = ?`, id)
+	evs, _, err := eventsWhere(db, false, 0, ` WHERE e."id" = ?`, id)
 	if err != nil || len(evs) == 0 {
 		return nil, err
 	}
 	return evs[0], nil
 }
 
-// eventsWhere is the one read path. withWindows reads each row's Window beside it, off events_w
-// joined to the stored sitting_id and the `sittings` view's owner, in one statement; without it the
-// read is the events table alone. events_w ranks every sitting on the record, so a windowed read
-// pays for the whole record however narrow its WHERE: a read by one key, which prints no window,
-// does not ask for one.
-func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*recordpb.Event, []Window, error) {
+// eventsWhere is the one read path. withWindows reads each row's Window beside it — the stored
+// sitting_id, sitting and epoch, and the sitting's owner — in one statement; without it the read is
+// the events table alone. A read by one key prints no window and does not ask for one.
+//
+// THE OWNER IS LOOKED UP BY KEY, NOT THROUGH THE `sittings` VIEW. The view's owner is the opening
+// event's seat, or the seat its sitting_open body names; the join below asks exactly that of the one
+// opening event each row's sitting_id names — a rowid SEARCH per row. Joined through the view, SQLite
+// materialises every sitting first, a scan of the whole events table that a tail read of five rows
+// paid in full. The migrate package's archived-run test holds each owner to the view's.
+//
+// after bounds the body tables' reads to rows past that event id, and where MUST select no event at
+// or before it: a body row the bound leaves out is a body the event is then refused for lacking. The
+// stream cache's tail read (eventcache.go) is the one caller that passes more than 0.
+func eventsWhere(db Querier, withWindows bool, after int64, where string, args ...any) ([]*recordpb.Event, []Window, error) {
 	q := `SELECT e."id", e."seat_id", e."ts", e."type", e."key" FROM "events" e` + where + ` ORDER BY e."id"`
 	if withWindows {
-		q = `SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting",
-		            COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '')
-		     FROM "events_w" w
-		     JOIN "events" e ON e."id" = w."id"
-		     LEFT JOIN "sittings" s ON s."id" = e."sitting_id"` + where + ` ORDER BY w."id"`
+		q = `SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting",
+		            COALESCE(e."sitting_id", 0),
+		            CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END
+		     FROM "events" e
+		     LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id"
+		     LEFT JOIN "sitting_open" o ON o."event_id" = s."id"` + where + ` ORDER BY e."id"`
 	}
 	rows, err := db.Query(q, args...)
 	if err != nil {
@@ -190,7 +205,7 @@ func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*re
 	if err := rows.Err(); err != nil {
 		return nil, nil, err
 	}
-	if err := loadBodies(db, ids, out); err != nil {
+	if err := loadBodies(db, ids, out, after); err != nil {
 		return nil, nil, err
 	}
 	return out, windows, nil
@@ -241,301 +256,139 @@ func refuseUndeclaredTypes(db Querier) error {
 		strings.Join(undeclared, ", "))
 }
 
-// tableBatch is one body table's whole contribution to the read: its descriptor walk done once,
-// its rows, lists and arms each fetched by one scan.
-type tableBatch struct {
-	md      protoreflect.MessageDescriptor
-	table   string
-	scalars []protoreflect.FieldDescriptor // non-list, non-message: the row's columns
-	oneofs  []protoreflect.OneofDescriptor // non-synthetic: each carries a `_case` discriminator
-	rows    map[int64][]any                // scalar values, then one case word per oneof, aligned
-	lists   map[string]map[int64][]any     // list-field name → event → values in ord order
-	arms    map[string]*armBatch           // arm-field name → its table's scan
-}
-
-type armBatch struct {
-	scalars []protoreflect.FieldDescriptor
-	rows    map[int64][]any
-	// lists is each list field's rows, keyed by the field's name, as tableBatch's.
-	lists map[string]map[int64][]any
-}
-
-// loadBodies fills every event's body from its table, by the same descriptor walk the write used.
+// bodyTable is one body message's reader, generated by scripts/protogen into decode_gen.go: load
+// reads its table, list tables and oneof arm tables whole, keyed by event, scanning each column
+// straight into its typed Go field; attach puts one event's body on it.
 //
-// The message is minted BY THE EVENT — `NewField` on the oneof arm — rather than built dynamically
-// and assigned. A dynamic message satisfies the descriptor and not the Go type, so it round-trips
-// through the schema and then fails at the first `BodyAs[*recordpb.Mint]`, which is every reader.
-// Asking the event for its own field gets the concrete type by construction.
-func loadBodies(db Querier, ids []int64, evs []*recordpb.Event) error {
-	// The event's own arm on the envelope, resolved per event; the batches, resolved per table.
-	arms := make([]protoreflect.FieldDescriptor, len(evs))
-	msgs := make([]protoreflect.Message, len(evs))
-	batches := map[string]*tableBatch{}
-	for i, ev := range evs {
-		evm := ev.ProtoReflect()
-		arm, ok := recordpb.BodyField(recordpb.Word(ev.GetType()))
+// # Every identifier is table-qualified, so a missing column is an error
+//
+// SQLite reads a double-quoted identifier that names no column as a STRING LITERAL — `SELECT
+// "exact_span" FROM "blue_edit"` succeeds and hands back the word as every row's value — but only
+// where the name stands alone. A qualified `t."exact_span"` resolves as a column or fails to prepare
+// with `no such column`. The generated statements qualify every column, so the read refuses a column
+// the table lacks without asking the table for its columns first.
+type bodyTable interface {
+	load(q Querier, after int64) error
+	attach(ev *recordpb.Event, id int64) error
+}
+
+// tableOfType is bodyTables keyed by event type rather than word, resolved once: the word is the
+// arm's name and EventTypeOf is the one word → type lookup.
+var tableOfType = sync.OnceValue(func() map[recordpb.EventType]func() bodyTable {
+	out := make(map[recordpb.EventType]func() bodyTable, len(bodyTables))
+	for word, mk := range bodyTables {
+		if t, ok := recordpb.EventTypeOf(word); ok {
+			out[t] = mk
+		}
+	}
+	return out
+})
+
+// loadBodies fills every event's body from its table.
+//
+// Each table touched by the record is read once, from the row past after onward (0 is the whole
+// table); validation then walks the events in record order, so which refusal fires first does not
+// depend on which table loaded first.
+func loadBodies(db Querier, ids []int64, evs []*recordpb.Event, after int64) error {
+	readers := tableOfType()
+	tables := map[recordpb.EventType]bodyTable{}
+	for _, ev := range evs {
+		t := ev.GetType()
+		if _, ok := tables[t]; ok {
+			continue
+		}
+		mk, ok := readers[t]
 		if !ok {
-			return fmt.Errorf("no body message for %s", recordpb.Word(ev.GetType()))
+			return fmt.Errorf("no body message for %s", recordpb.Word(t))
 		}
-		arms[i] = arm
-		msgs[i] = evm.NewField(arm).Message()
-		md := arm.Message()
-		if _, ok := batches[TableName(md)]; !ok {
-			batches[TableName(md)] = newTableBatch(md)
-		}
+		tables[t] = mk()
 	}
-	for _, b := range batches {
-		if err := b.load(db); err != nil {
+	for _, t := range tables {
+		if err := t.load(db, after); err != nil {
 			return err
 		}
 	}
-	// Validation walks the events in record order, so which refusal fires first does not depend
-	// on which table happened to load first.
 	for i, ev := range evs {
-		b := batches[TableName(arms[i].Message())]
-		if err := b.fill(ids[i], msgs[i]); err != nil {
+		if err := tables[ev.GetType()].attach(ev, ids[i]); err != nil {
 			return err
 		}
-		ev.ProtoReflect().Set(arms[i], protoreflect.ValueOfMessage(msgs[i]))
 	}
 	return nil
 }
 
-func newTableBatch(md protoreflect.MessageDescriptor) *tableBatch {
-	b := &tableBatch{md: md, table: TableName(md)}
-	for i := 0; i < md.Fields().Len(); i++ {
-		fd := md.Fields().Get(i)
-		if fd.IsList() || fd.Message() != nil {
-			continue
-		}
-		b.scalars = append(b.scalars, fd)
-	}
-	for i := 0; i < md.Oneofs().Len(); i++ {
-		if od := md.Oneofs().Get(i); !od.IsSynthetic() {
-			b.oneofs = append(b.oneofs, od)
-		}
-	}
-	return b
-}
-
-func (b *tableBatch) load(db Querier) error {
-	var cols []string
-	for _, fd := range b.scalars {
-		cols = append(cols, fmt.Sprintf("%q", fd.Name()))
-	}
-	for _, od := range b.oneofs {
-		cols = append(cols, fmt.Sprintf("%q", string(od.Name())+"_case"))
-	}
-	var err error
-	if b.rows, err = scanTable(db, b.table, cols); err != nil {
-		return err
-	}
-	b.lists = map[string]map[int64][]any{}
-	for i := 0; i < b.md.Fields().Len(); i++ {
-		fd := b.md.Fields().Get(i)
-		if !fd.IsList() {
-			continue
-		}
-		vals, err := scanLists(db, b.table+"_"+string(fd.Name()))
-		if err != nil {
-			return err
-		}
-		b.lists[string(fd.Name())] = vals
-	}
-	// Only the arms some event in the record actually filed get a scan — the discriminators
-	// just read say which those are.
-	b.arms = map[string]*armBatch{}
-	for oi, od := range b.oneofs {
-		for _, row := range b.rows {
-			which := wordAt(row, len(b.scalars)+oi)
-			if which == "" {
-				continue
-			}
-			fd := od.Fields().ByName(protoreflect.Name(which))
-			if fd == nil || fd.Message() == nil {
-				continue
-			}
-			if _, ok := b.arms[which]; ok {
-				continue
-			}
-			a := &armBatch{}
-			amd := fd.Message()
-			var acols []string
-			for i := 0; i < amd.Fields().Len(); i++ {
-				afd := amd.Fields().Get(i)
-				if afd.IsList() || afd.Message() != nil {
-					continue
-				}
-				a.scalars = append(a.scalars, afd)
-				acols = append(acols, fmt.Sprintf("%q", afd.Name()))
-			}
-			if a.rows, err = scanTable(db, b.table+"_"+which, acols); err != nil {
-				return err
-			}
-			a.lists = map[string]map[int64][]any{}
-			for i := 0; i < amd.Fields().Len(); i++ {
-				afd := amd.Fields().Get(i)
-				if !afd.IsList() {
-					continue
-				}
-				if a.lists[string(afd.Name())], err = scanLists(db, b.table+"_"+which+"_"+string(afd.Name())); err != nil {
-					return err
-				}
-			}
-			b.arms[which] = a
-		}
-	}
-	return nil
-}
-
-// fill assembles one event's body from the batch, setting ONLY the columns that were non-NULL.
-//
-// A NULL column leaves the field UNSET rather than zero, which is the round trip the whole schema
-// turns on: a mint with no severity comes back ungraded, not graded zero, and `Has` answers the
-// same question after a write-read cycle that it answered before one.
-func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
-	row, ok := b.rows[id]
-	if !ok && len(b.scalars) > 0 {
-		return fmt.Errorf("event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, b.table)
-	}
-	for i, fd := range b.scalars {
-		v := row[i]
-		if v == nil {
-			continue // absent, and absent is not zero
-		}
-		pv, err := protoValue(fd, v)
-		if err != nil {
-			return fmt.Errorf("%s.%s: %w", b.table, fd.Name(), err)
-		}
-		msg.Set(fd, pv)
-	}
-	// Repeated fields came back as their own rows, in the order they were written.
-	if err := fillLists(msg, b.lists, id, b.table); err != nil {
-		return err
-	}
-	// The oneof's message arms, found through the discriminator the write recorded.
-	for oi, od := range b.oneofs {
-		which := wordAt(row, len(b.scalars)+oi)
-		if which == "" {
-			continue
-		}
-		fd := od.Fields().ByName(protoreflect.Name(which))
-		if fd == nil || fd.Message() == nil {
-			continue
-		}
-		a := b.arms[which]
-		arow, ok := a.rows[id]
-		if !ok && len(a.scalars) > 0 {
-			return fmt.Errorf("event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, b.table+"_"+which)
-		}
-		inner := msg.NewField(fd).Message()
-		for i, afd := range a.scalars {
-			v := arow[i]
-			if v == nil {
-				continue
-			}
-			pv, err := protoValue(afd, v)
-			if err != nil {
-				return fmt.Errorf("%s.%s: %w", b.table+"_"+which, afd.Name(), err)
-			}
-			inner.Set(afd, pv)
-		}
-		if err := fillLists(inner, a.lists, id, b.table+"_"+which); err != nil {
-			return err
-		}
-		msg.Set(fd, protoreflect.ValueOfMessage(inner))
-	}
-	return nil
-}
-
-// fillLists sets msg's list fields from their rows for event id, in the order they were written —
-// a body's lists and an arm's alike.
-func fillLists(msg protoreflect.Message, lists map[string]map[int64][]any, id int64, table string) error {
-	for name, vals := range lists {
-		v := vals[id]
-		if len(v) == 0 {
-			continue
-		}
-		lfd := msg.Descriptor().Fields().ByName(protoreflect.Name(name))
-		l := msg.Mutable(lfd).List()
-		for _, e := range v {
-			pv, err := protoValue(lfd, e)
-			if err != nil {
-				return fmt.Errorf("%s_%s: %w", table, name, err)
-			}
-			l.Append(pv)
-		}
-	}
-	return nil
-}
-
-// scanTable reads a whole body table into memory, keyed by event. Every row belongs to this read:
-// `event_id` is a primary key referencing `events(id)`, and the read is always the whole record.
-func scanTable(db Querier, table string, cols []string) (map[int64][]any, error) {
-	out := map[int64][]any{}
-	if len(cols) == 0 {
-		return out, nil
-	}
-	// EVERY COLUMN IS CHECKED BEFORE THE SELECT, because SQLite will not refuse a missing one here.
-	// A double-quoted identifier that names no column is read as a STRING LITERAL, so the query
-	// succeeds and every row carries the column's own name as its value — a string field reads
-	// back as its name, a bool as false, and nothing says so. The write path has no such trap (an
-	// INSERT column list must resolve). The open holds a record to this binary's epoch
-	// (requireThisEpoch), and an epoch names its columns, so a miss here is not an older run and the
-	// error says only what is missing.
-	if have, err := columnsOf(db, table); err == nil && len(have) > 0 {
-		var absent []string
-		for _, c := range cols {
-			if !have[strings.Trim(c, `"`)] {
-				absent = append(absent, c)
-			}
-		}
-		if len(absent) > 0 {
-			return nil, fmt.Errorf("reading %s: the table has no column %s", table, strings.Join(absent, ", "))
-		}
-	}
-	q := `SELECT "event_id", ` + join(cols, ", ") + fmt.Sprintf(" FROM %q", table)
-	rows, err := db.Query(q)
+// scanRows runs one generated SELECT, scanning each row into targets and handing it to row.
+func scanRows(q Querier, table, query string, after int64, targets []any, row func()) error {
+	rows, err := q.Query(query, after)
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", table, err)
+		return fmt.Errorf("reading %s: %w", table, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		targets := make([]any, len(cols)+1)
-		var id int64
-		targets[0] = &id
-		for i := 1; i < len(targets); i++ {
-			targets[i] = new(any)
-		}
 		if err := rows.Scan(targets...); err != nil {
-			return nil, fmt.Errorf("reading %s: %w", table, err)
+			return fmt.Errorf("reading %s: %w", table, err)
 		}
-		vals := make([]any, len(cols))
-		for i := range vals {
-			vals[i] = *(targets[i+1].(*any))
-		}
-		out[id] = vals
+		row()
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("reading %s: %w", table, err)
+	}
+	return nil
 }
 
-func scanLists(db Querier, table string) (map[int64][]any, error) {
-	rows, err := db.Query(fmt.Sprintf("SELECT \"event_id\", \"value\" FROM %q ORDER BY \"event_id\", \"ord\"", table))
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", table, err)
-	}
-	defer rows.Close()
-	out := map[int64][]any{}
-	for rows.Next() {
-		var id int64
-		var v any
-		if err := rows.Scan(&id, &v); err != nil {
-			return nil, err
-		}
-		out[id] = append(out[id], v)
-	}
-	return out, rows.Err()
+// scanList runs one list table's SELECT, handing each element to add in the order it was written.
+func scanList[V any](q Querier, table, query string, after int64, add func(id int64, v V)) error {
+	var id int64
+	var v V
+	return scanRows(q, table, query, after, []any{&id, &v}, func() { add(id, v) })
 }
+
+// protoEnum is a generated enum type.
+type protoEnum interface {
+	~int32
+	Descriptor() protoreflect.EnumDescriptor
+}
+
+// wordOf resolves a stored enum word through BySpelling, so a word the schema stopped declaring
+// FAILS rather than becoming the zero — which would read as a seat that never answered. where is the
+// column, named in the refusal.
+func wordOf[E protoEnum](where, word string) (E, error) {
+	var zero E
+	ed := zero.Descriptor()
+	vd, ok := recordpb.BySpelling(ed, word)
+	if !ok {
+		return zero, fmt.Errorf("%s: %q is not a value of %s", where, word, ed.FullName())
+	}
+	return E(vd.Number()), nil
+}
+
+// refuse records the first refusal of an event's row. It is returned when that event is attached,
+// so a refused value in a row no read asks for refuses nothing.
+func refuse(bad map[int64]error, id int64, err error) map[int64]error {
+	if bad == nil {
+		bad = map[int64]error{}
+	}
+	if _, ok := bad[id]; !ok {
+		bad[id] = err
+	}
+	return bad
+}
+
+func noBody(id int64, table string) error {
+	return fmt.Errorf("event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, table)
+}
+
+// caseNamed reports whether some row's oneof discriminator names arm.
+func caseNamed(cases map[int64]string, arm string) bool {
+	for _, c := range cases {
+		if c == arm {
+			return true
+		}
+	}
+	return false
+}
+
+// ref is a field with presence, set: NULL left it unset, and absent is not zero.
+func ref[T any](v T) *T { return &v }
 
 // queryRower is what both a *sql.DB and a *sql.Tx offer for a one-row question.
 type queryRower interface {
@@ -579,83 +432,4 @@ const olderRunAdvice = "it was created by an older binary than this one, " +
 // rowsQuerier is what both a *sql.DB and a *sql.Tx offer for a many-row question.
 type rowsQuerier interface {
 	Query(query string, args ...any) (*sql.Rows, error)
-}
-
-func columnsOf(q rowsQuerier, table string) (map[string]bool, error) {
-	rows, err := q.Query(`SELECT "name" FROM pragma_table_info(?)`, table)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[string]bool{}
-	for rows.Next() {
-		var n string
-		if err := rows.Scan(&n); err != nil {
-			return nil, err
-		}
-		out[n] = true
-	}
-	return out, rows.Err()
-}
-
-// wordAt is a discriminator column read back: TEXT, or NULL when the oneof was never filed.
-func wordAt(row []any, i int) string {
-	if i >= len(row) {
-		return ""
-	}
-	switch v := row[i].(type) {
-	case string:
-		return v
-	case []byte:
-		return string(v)
-	}
-	return ""
-}
-
-// protoValue turns a stored column back into a field value. An enum resolves through BySpelling, so
-// a word the schema stopped declaring FAILS here rather than becoming the zero — which would read
-// as a seat that never answered.
-func protoValue(fd protoreflect.FieldDescriptor, v any) (protoreflect.Value, error) {
-	switch fd.Kind() {
-	case protoreflect.EnumKind:
-		s, _ := v.(string)
-		vd, ok := recordpb.BySpelling(fd.Enum(), s)
-		if !ok {
-			return protoreflect.Value{}, fmt.Errorf("%q is not a value of %s", s, fd.Enum().FullName())
-		}
-		return protoreflect.ValueOfEnum(vd.Number()), nil
-	case protoreflect.BoolKind:
-		if n, ok := v.(int64); ok {
-			return protoreflect.ValueOfBool(n != 0), nil
-		}
-		b, _ := v.(bool)
-		return protoreflect.ValueOfBool(b), nil
-	case protoreflect.Int32Kind:
-		n, _ := v.(int64)
-		return protoreflect.ValueOfInt32(int32(n)), nil
-	case protoreflect.Int64Kind:
-		n, _ := v.(int64)
-		return protoreflect.ValueOfInt64(n), nil
-	case protoreflect.BytesKind:
-		b, _ := v.([]byte)
-		return protoreflect.ValueOfBytes(b), nil
-	}
-	switch s := v.(type) {
-	case string:
-		return protoreflect.ValueOfString(s), nil
-	case []byte:
-		return protoreflect.ValueOfString(string(s)), nil
-	}
-	return protoreflect.ValueOfString(fmt.Sprint(v)), nil
-}
-
-func join(xs []string, sep string) string {
-	out := ""
-	for i, x := range xs {
-		if i > 0 {
-			out += sep
-		}
-		out += x
-	}
-	return out
 }

@@ -93,8 +93,8 @@ func massFromVocabulary() map[string]float64 {
 // rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It is the record's — events_w."epoch", the count of the
-// chair's stored sittings at or before a row — and a seat id carries no epoch at all. A terminal
+// THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It is the record's — events.epoch, stamped at the write:
+// the count of the chair's sittings at or before a row — and a seat id carries no epoch at all. A terminal
 // seat's epoch is read the same way, so it acts in the epoch the chair has reached.
 
 var seatIDRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]*$`)
@@ -115,8 +115,8 @@ type Event = recordpb.Event
 
 // Identity is WHO IS WRITING, carried to the write instead of recovered at it.
 //
-// An Identity carries no epoch: the epoch is the record's (events_w."epoch", the chair's stored
-// sittings at or before the row), so no caller supplies it.
+// An Identity carries no epoch: the epoch is the record's (events.epoch, the chair's sittings at or
+// before the row, stamped at the write), so no caller supplies it.
 //
 // ROLE IS DELIBERATELY NOT A FIELD HERE. The PARTY that wrote an event is the role of its seat
 // (PartyOf), and seat.Context.Role answers a different question — which command group the verb is
@@ -299,9 +299,8 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	}
 	// THE DISPATCH NUMBER IS THE SITTING'S RANK, NOT A COUNT OF REGISTERS. A sitting the bracket
 	// opened that the seat never registered in is still a dispatch of it, and a register that joined
-	// its bracket's sitting is not a second one — the same rows events_w ranks "sitting" from.
-	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ? AND "id" <= ?`,
-		seatID, sitting).Scan(&dispatch); err != nil {
+	// its bracket's sitting is not a second one. The rank is stored on the opening (events.sitting).
+	if err := tx.QueryRow(`SELECT "sitting" FROM "events" WHERE "id" = ?`, sitting).Scan(&dispatch); err != nil {
 		return 0, "", err
 	}
 	if found {
@@ -431,8 +430,8 @@ func envelope(ev *Event, ts, seatID string, key string) {
 //
 // SINGLETON MEANS ONCE PER SITTING, AND THE DUTY IS NOT THE KEY. One chair sits many times
 // (plans/roundless.md §III.A.1), so a key of `red-chair:position` would make a position once per
-// RUN. The ordinal below is the count of this seat's stored sittings (the `sittings` view), the
-// rank events_w exposes as "sitting", taken inside the writing transaction. The duty itself is asked of the
+// RUN. The ordinal below is the rank of this seat's latest sitting, stored on its opening
+// (events.sitting) and read inside the writing transaction. The duty itself is asked of the
 // ATTRIBUTED sitting, in requireOncePerSitting (oncepersitting.go), which is what makes the
 // refusal's "this sitting" true.
 //
@@ -521,14 +520,14 @@ func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMoti
 // refused rather than silently written twice.
 func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
 	slug := recordpb.Word(typ)
-	// IT ASKS THE RECORD WHICH SITTING, IT DOES NOT WORK IT OUT. `sittings` is the stored fact
-	// (recordsql/views.go): one row per opening, register or harness bracket, stamped at the write.
-	// Counting registers here left a seat woken with nothing to do (#1089) on sitting 0 for every
-	// sitting it ever had, so a singleton act in its second sitting keyed identically to its first
-	// and was refused as a duplicate; counting openings here fixed that number and left the view
-	// counting a different one.
+	// IT ASKS THE RECORD WHICH SITTING, IT DOES NOT WORK IT OUT. The rank of the seat's latest
+	// sitting is stored on its opening (events.sitting), stamped at the write; a seat that has never
+	// sat is on sitting 0. Counting registers here left a seat woken with nothing to do (#1089) on
+	// sitting 0 for every sitting it ever had, so a singleton act in its second sitting keyed
+	// identically to its first and was refused as a duplicate.
 	var sitting int
-	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ?`,
+	if err := tx.QueryRow(`SELECT COALESCE((SELECT "sitting" FROM "events"
+	    WHERE "id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)), 0)`,
 		seatID).Scan(&sitting); err != nil {
 		return "", fmt.Errorf("counting %s's sittings for its key: %w", seatID, err)
 	}
@@ -677,7 +676,7 @@ func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards .
 // reads it (validationReadsReport). Under the lock the render is reused where the report has not
 // moved, so the lock is held for one query rather than a render.
 func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
-	var tx *sql.Tx
+	var tx *recordsql.Tx
 	defer func() {
 		if tx != nil {
 			_ = tx.Rollback()
@@ -688,7 +687,7 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 	for _, body := range bodies {
 		readsReport = readsReport || validationReadsReport(id.SeatID, body)
 	}
-	begin := func() (*sql.Tx, error) {
+	begin := func() (*recordsql.Tx, error) {
 		if tx != nil {
 			return tx, nil
 		}
@@ -700,7 +699,7 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 			*rendering = *renderBefore(id.Run)
 		}
 		WriteBegins()
-		tx, err = db.Begin()
+		tx, err = recordsql.BeginWrite(db)
 		return tx, err
 	}
 	var first *Event
@@ -729,7 +728,7 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 // begin is called only once the checks before it have passed, so a refused act opens nothing, and
 // a write that names no run is refused by name before any handle is asked for. rendering is the
 // write's report (landingReport), nil on a Batch's act.
-func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), guards []Guard, rendering *landingReport) (*Event, error) {
+func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, rendering *landingReport) (*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -766,7 +765,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 	// counted the lines and appended — two steps with a gap, held together only by one seat owning
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
-	if err := writeIn(tx, ev, seatID, typ, body, func(tx *sql.Tx) error {
+	if err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
 		w := writeView{q: tx, files: files, rendering: rendering}
 		if err := validate(w, seatID, typ, body); err != nil {
 			return err
@@ -1102,16 +1101,22 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Close:
+		if b.CarriedFrom == nil {
+			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
+				return err
+			}
+			// Off under Migrating: an archived lens that closed a docketed gap closed it.
+			if !Migrating {
+				if err := requireNoStandingDocket(q, b.GetGapId()); err != nil {
+					return err
+				}
+			}
+		}
 		if err := requireClosureAnchors(q, b.GetGapId(), b.GetAnchors(), "--"+flags.Anchor); err != nil {
 			return err
 		}
 		if err := requireFailedCheckAnswered(q, b); err != nil {
 			return err
-		}
-		if b.CarriedFrom == nil {
-			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
-				return err
-			}
 		}
 		ids, err := allGapIDs(q)
 		if err != nil {
@@ -1511,7 +1516,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGaps(q, b.GetGapIds(), "--seat"); err != nil {
 			return err
 		}
-		if err := requireDispatchOccasions(b); err != nil {
+		if err := requireBenchDocket(b); err != nil {
 			return err
 		}
 		// A ROW BLUE WRITES IS ITS `engage`: the successors its responding seat's sitting owes, and
@@ -1857,6 +1862,21 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// requireNoStandingDocket refuses the close of a gap a docket motion stands unruled on (ruled by
+// gblock 2026-10-31). The lens's preference comes before the docket: once the gap is before the bench,
+// the bench disposes of it, and the lens's one act there is its closing. On universe-m37 five dockets
+// closed within minutes of being filed, and the bench sat to rule three times on gaps that were over.
+func requireNoStandingDocket(q recordsql.Querier, gapID string) error {
+	var motion string
+	found, err := queryRowAt(q, []any{&motion}, `SELECT COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found || motion == "" {
+		return err
+	}
+	return feov.Errorf(feov.Conflict,
+		"gap %s is docketed for the bench: motion %s stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
+		gapID, motion, gapID)
 }
 
 // closingThisSittingSQL is the seat's closing on a gap attributed to its current sitting, or no row

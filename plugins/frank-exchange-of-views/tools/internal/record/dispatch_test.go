@@ -72,11 +72,7 @@ func docketMotion(id, gap string) *recordpb.Motion {
 func (b *stage) docketMotion(seat, id, gap string) *stage { return b.add(seat, docketMotion(id, gap)) }
 
 func (b *stage) dispatch(pin int64, seat string, gaps ...string) *stage {
-	d := &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps}
-	if seat == "judge" {
-		d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET} // the bench on gaps is a docket
-	}
-	return b.add("red-chair", d)
+	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps})
 }
 func (b *stage) edit(gap, old, new string) *stage {
 	return b.add("blue-respond", &recordpb.BlueEdit{Answers: proto.String(gap), Old: proto.String(old), New: proto.String(new), EditKey: proto.String(fmt.Sprintf("E%d", b.n+1))})
@@ -92,11 +88,11 @@ func (b *stage) seed() Run {
 
 const evLens = "red-lens-evidence"
 
-// One exchange is a red-party sitting engaged on G followed by a blue-party sitting engaged on G,
-// both complete — each closed by THAT SEAT's next opening or its agent's stop. Movement in it
-// resets the stall; a null turn — blue sat and recorded nothing on G — counts as an exchange and
-// stalls it. The sittings of the last epoch are still open: they are not counted, and they are not
-// zero either.
+// One exchange is blue's sitting engaged on G and its minting lens's sitting that audits it, both
+// complete — each closed by THAT SEAT's next opening or its agent's stop. Movement in it resets the
+// stall; a null turn — blue sat and recorded nothing on G — leaves the lens nothing to audit, ends
+// the exchange there and stalls it. The sittings of the last epoch are still open: they are not
+// counted, and they are not zero either.
 func TestAGapsExchangesAndStallsAreCountedFromTheRecord(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).mint(evLens, "G1", "high").                 // epoch 1: the lens mints

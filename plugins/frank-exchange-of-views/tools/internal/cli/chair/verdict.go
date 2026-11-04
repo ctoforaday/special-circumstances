@@ -47,7 +47,7 @@ func newVerdict() *cobra.Command {
 		// THE VERDICT REACHES THE WORKFLOW ON THE PLAN, AND THIS ACT PRINTS THAT PLAN. The chair's
 		// envelope is the plan, and the plan carries the verdict its sitting recorded; so the act
 		// records the verdict and asks the dispatch on the record it leaves, in one transaction
-		// (record.RecordVerdict, which stores the plan capture compares the relay with), and prints
+		// (record.RecordVerdict, which stores the plan the hook writes into the envelope), and prints
 		// the plan as `dispatch next` does.
 		plan, standing, err := record.RecordVerdict(s.Identity(), v)
 		if err != nil {

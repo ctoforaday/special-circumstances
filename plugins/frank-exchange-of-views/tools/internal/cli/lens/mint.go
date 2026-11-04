@@ -32,7 +32,7 @@ import (
 // subject can use those words too.
 func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
-	var supersedes, foundBy flags.CSV
+	supersedes, foundBy := flags.IDList(flags.GapID), flags.IDList(flags.FindingID)
 
 	c := seat.Prose(seat.New("mint", mintResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -268,7 +268,7 @@ func newMint() *cobra.Command {
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor. It is CHECKED against the record")
+	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", bluedoc.MaxProposalGrowth))
@@ -278,8 +278,8 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
 	c.Flags().Var(&impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))
 	c.Flags().Var(&cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
-	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
-	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
+	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
+	c.Flags().Var(foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
@@ -355,26 +355,67 @@ func verifiedFix(p *recordpb.Mint, report, gapID, quote, fixNew string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := blue.PlanAccept(placed, gapID, quote, fixNew); errors.Is(err, reportproj.ErrNoChange) {
+	a, err := blue.PlanAccept(placed, gapID, quote, fixNew)
+	if errors.Is(err, reportproj.ErrNoChange) {
 		return fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
 	} else if err != nil {
 		// The accept's refusal of a dropped anchor is worded for blue, whose acts it names; red's is the
 		// same fact, the anchor and its sentence.
 		why := err.Error()
+		// THE FORM THAT WORKS IS NAMED WITH THE ANCHOR IN IT. Told to write "the anchor" into --new
+		// "as `show report` prints it", three lenses of the #1663 smoke read that the quote had to
+		// carry it too, or gave up and wrote the fix as prose (ev130, ev172, ev205).
+		carry := "write the anchor into --new after the text it marks, as `show report` prints it"
 		var dropped *bluedoc.ErrAnchorDropped
 		if errors.As(err, &dropped) {
 			why = fmt.Sprintf("the span carries %s %s %s, and --new neither carries it nor keeps that sentence word for word", anchor.Kind(dropped.ID), anchor.Token(dropped.ID), dropped.On())
+			carry = fmt.Sprintf("write %s into --new after the text it marks — --quote stays as it is", anchor.Token(dropped.ID))
 		}
 		return feov.Wrap(feov.Validation, err, "--new is not a fix blue's accept would apply to the report as it stands, with this gap's anchor at the end of --quote: %s. "+
 			"NOTHING IS RECORDED. A fix is verified only where the accept applies it, so what the accept would refuse is refused here. "+
 			"The accept moves the gap's and the findings' anchors at the sentence's end to the end of --new; any other anchor in the span — a citation or a computation, which backs its sentence, or one inside the sentence — stays only where --new keeps its sentence word for word or holds the anchor itself. "+
 			"Where such an anchor is what does not survive: keep the sentence it marks word for word in --new, and the tool puts the anchor back on it; "+
-			"or write the anchor into --new after the text it marks, as `show report` prints it; "+
-			"or leave --new off and state the fix as prose in --fix", why)
+			"or %s; "+
+			"or leave --new off and state the fix as prose in --fix", why, carry)
+	}
+	// The accept refuses a fix that leaves an anchor bare where no act could take it out
+	// (blue.BaredAnchors), so the mint asks the same of the edit it planned, and words it for red.
+	if citations, leftOut := blue.BaredAnchors(placed, a.Planned, a.Applied); len(citations)+len(leftOut) > 0 {
+		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(citations, leftOut))
 	}
 	p.FixNew = proto.String(fixNew)
 	p.FixBasis = proto.String("verified")
 	return nil
+}
+
+// mintBaredRefusal is the refusal of a prescription whose --new would leave these anchors bare: the
+// citations, and the tokens of the other anchors --new does not carry.
+func mintBaredRefusal(citations, leftOut []string) string {
+	var refusals []string
+	if len(citations) > 0 {
+		what, it, its := "citation "+citations[0], "it", "its"
+		if len(citations) > 1 {
+			what, it, its = "citations "+strings.Join(citations, ", "), "them", "their"
+		}
+		refusals = append(refusals, fmt.Sprintf(
+			"--new would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against, and blue's accept would refuse it. NOTHING IS RECORDED. "+
+				"Keep the sentence in --new; or, where the sentence is to go, leave --new off and state the fix as prose in --fix",
+			what, it, its, it))
+	}
+	if len(leftOut) > 0 {
+		toks := strings.Join(leftOut, "")
+		what, it, its := "anchor "+leftOut[0], "it", "its"
+		if len(leftOut) > 1 {
+			what, it, its = "anchors "+strings.Join(leftOut, ", "), "them", "their"
+		}
+		// The carry is the lens's own: a token written into --new beside the one the report keeps past
+		// the span would be a second copy, so --quote reaches it and --new writes it.
+		refusals = append(refusals, fmt.Sprintf(
+			"--new would leave %s standing bare — no prose before %s in %s sentence — and --quote leaves %s out, so no retire could take %s out with the claim, and blue's accept would refuse it. NOTHING IS RECORDED. "+
+				"Keep a sentence before %s in --new; or carry %s: end --quote with %s as `show report` prints it, and write %s into --new; or leave --new off and state the fix as prose in --fix",
+			what, it, its, it, it, it, it, toks, toks))
+	}
+	return strings.Join(refusals, " ")
 }
 
 // contains reports membership, so an --supersedes that already names the estopping gap

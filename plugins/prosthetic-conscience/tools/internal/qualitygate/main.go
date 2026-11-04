@@ -36,6 +36,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // Modes for SC_QUALITY_GATE. Formatting rewrites files, so it gets its own
@@ -310,13 +311,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, e env) int {
 		return 0
 	}
 
-	raw, _ := io.ReadAll(stdin)
-	var in hookInput
-	_ = json.Unmarshal(raw, &in)
-	e.projectDir = hookenv.ProjectDir(e.projectDir, in.CWD)
-	file := fileFrom(in)
+	req := hookcore.Read("PostToolUse", stdin)
+	if e.projectDir == "" {
+		e.projectDir = req.ProjectDir
+	} else {
+		e.projectDir = hookenv.ProjectDir(e.projectDir, req.CWD)
+	}
+	file := fileFromInput(req.ToolInput)
 
-	out := gate(e, in.ToolName, file, time.Now())
+	out := gate(e, req.ToolName, file, time.Now())
 	hooklog.Append(e.projectDir, out.Log)
 	if out.Stderr != "" {
 		fmt.Fprintln(stderr, out.Stderr)

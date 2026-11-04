@@ -13,28 +13,34 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// EVERY DOCUMENT LOADS, HERE, RATHER THAN AT FIRST USE.
+// EVERY DOCUMENT RENDERS, AND EVERY VERB SHIPS ITS DOCUMENT'S RENDER.
 //
-// Rendering moved out of package init because init order could not supply the values (measured: the
-// first version panicked on a placeholder, because package seat initializes before the package
-// that supplies it). The cost of that move is that a malformed document now fails when its verb is
-// first constructed rather than at startup — so this forces all of them, and CI sees a broken one
-// without anybody having to run the verb it belongs to.
-func TestEveryHelpDocumentLoads(t *testing.T) {
+// The pages a verb ships are generated (devcmd/cmdtreegen), so a document edited without
+// regenerating would ship its old text, and one that no longer renders would ship nothing new
+// while every tree still built. This renders every document here, in package cli, where every
+// package's init has supplied the values a document names, and compares the shipped page byte for
+// byte.
+func TestShippedHelpIsTheRenderedDocument(t *testing.T) {
 	if len(seat.HelpNames()) == 0 {
 		t.Fatal("no help documents embedded at all — the //go:embed pattern matched nothing, and every verb would panic on construction")
 	}
 	for _, n := range seat.HelpNames() {
-		func() {
-			menu, detail, err := seat.LoadHelp(n)
-			if err != nil {
-				t.Errorf("help/%s.md: %v", n, err)
-				return
-			}
-			if strings.TrimSpace(menu) == "" || strings.TrimSpace(detail) == "" {
-				t.Errorf("help/%s.md parsed to an empty section", n)
-			}
-		}()
+		menu, detail, err := seat.RenderHelp(n)
+		if err != nil {
+			t.Errorf("help/%s.md: %v", n, err)
+			continue
+		}
+		if strings.TrimSpace(menu) == "" || strings.TrimSpace(detail) == "" {
+			t.Errorf("help/%s.md parsed to an empty section", n)
+		}
+		gotMenu, gotDetail, err := seat.LoadHelp(n)
+		if err != nil {
+			t.Errorf("%v", err)
+			continue
+		}
+		if gotMenu != menu || gotDetail != detail {
+			t.Errorf("help/%s.md: the shipped page is not the document's render — run go -C plugins/frank-exchange-of-views/tools run ./devcmd/cmdtreegen", n)
+		}
 	}
 }
 

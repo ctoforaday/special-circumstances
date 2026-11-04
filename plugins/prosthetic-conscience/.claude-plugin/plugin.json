@@ -13,5 +13,6 @@
     "spec-driven-development",
     "pair-programming",
     "code-review"
-  ]
+  ],
+  "hooks": "./.claude-plugin/hooks.json"
 }

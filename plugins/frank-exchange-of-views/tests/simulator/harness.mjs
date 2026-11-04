@@ -22,11 +22,20 @@ export function loadDebateScript(path) {
   return new AsyncFunction('agent', 'parallel', 'pipeline', 'log', 'phase', 'args', 'budget', src)
 }
 
+// read is a close's record_read, as the hook writes it; a stub states what differs.
+export const read = (over = {}) => ({ event: 1, bench_owed: [], halted: false, ...over })
+// standInRead is the read on a close no stub stated: at the assembly it holds the outcome the prompt
+// told the seat to stamp, which a real assembly seat records.
+export const standInRead = (prompt) => {
+  const told = /Debate outcome: ([A-Z]+)/.exec(prompt)
+  return read(told ? { outcome: told[1] } : {})
+}
+
 // A stub world. `respond(prompt, opts, call)` supplies each agent() result (return null to
 // model a dead agent); every call is recorded on `calls` for assertions. parallel/pipeline
 // mirror the real semantics that matter to the script: a throwing thunk resolves to null,
 // never rejects the batch.
-export function makeWorld(respond) {
+export function makeWorld(respond, { deadHook = false } = {}) {
   const calls = []
   const logs = []
   const phases = []
@@ -35,7 +44,13 @@ export function makeWorld(respond) {
     agent: async (prompt, opts = {}) => {
       const call = { n: calls.length, prompt, opts }
       calls.push(call)
-      return respond(prompt, opts, call)
+      const env = await respond(prompt, opts, call)
+      // THE PreToolUse HOOK WRITES THE RECORD'S READ on every envelope returned under a schema. No hook
+      // runs here and no record stands behind this world, so the read is canned: nothing owed unless a
+      // stub states what its close says. `deadHook` is a run whose hook does not fire. The hook's own
+      // test is in internal/hookcmd, and the release fuzz calls the Go reader on a real record.
+      if (deadHook || !opts.schema || !env || typeof env !== 'object' || env.record_read !== undefined) return env
+      return { ...env, record_read: standInRead(prompt) }
     },
     parallel: async (thunks) => {
       const out = []
@@ -67,12 +82,8 @@ export const blueEnv = (over = {}) => ({ manifest: ['G-00000001'], ...over })
 // next` printed. A stubbed chair is a stubbed plan; the default sequence is one sitting that engages
 // the evidence lens and blue on G-00000001, then one with nobody ready and PASS permitted, on which the chair
 // records PASS — the shortest VERIFIED run.
-// The bench's party carries what it is convened for, as `dispatch next` prints it: `party('judge',
-// …gaps)` is the bench on its docket, `petitionBench()` the bench convened to hear petitions.
-export const party = (seat_id, ...gap_ids) => (seat_id === 'judge' ? { seat_id, gap_ids, occasions: ['docket'] } : { seat_id, gap_ids })
-export const petitionBench = () => ({ seat_id: 'judge', gap_ids: [], occasions: ['petition'] })
-// positionBench is the bench convened to hear the chair's position on a PASS it withheld.
-export const positionBench = () => ({ seat_id: 'judge', gap_ids: [], occasions: ['position'] })
+// `party('judge', …gaps)` is the bench on its docket.
+export const party = (seat_id, ...gap_ids) => ({ seat_id, gap_ids })
 // blocker is one entry of the plan's `blockers`: what holds a PASS and the seat whose act clears it.
 export const blocker = (subject, owner, kind = 'unruled_motion') => ({ kind, subject, owner })
 // exchanges is the plan's entry for each gap its parties are engaged on, in the order first named,
@@ -101,8 +112,8 @@ export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
-// The docket sitting's envelope declares no field, and a petition sitting's carries only a halt: the
-// rulings are on the record, and no envelope relays one.
+// The docket sitting's and a hearing's envelope declare only the read the hook writes: the rulings are
+// on the record, and no envelope relays one.
 export const judgeEnv = (over = {}) => ({ ...over })
 export const petitionRulingEnv = (over = {}) => ({ ...over })
 // makeResponder serves envelopes by seat, in order; the last one repeats. A lens returns its empty

@@ -279,8 +279,12 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 	if len(w.Estopped) != 1 || w.Estopped[0].ID != "G9" {
 		t.Fatalf("a bench ruling is not on the estoppel register: %+v", w.Estopped)
 	}
-	if w.Estopped[0].ClosedBy != "bench" {
-		t.Errorf("estopped %s says closed_by=%q, want bench", w.Estopped[0].ID, w.Estopped[0].ClosedBy)
+	// NO CLOSER ON THE ROW: every row is the bench's word by what the register is, and `show board`
+	// answers who ended the gap (closed_by_bench) — a lens's close the bench ruled after reads false
+	// there, so a constant "bench" here contradicted it (#1677's smoke: G-d52f1356, G-530b6b27).
+	blob, _ := json.Marshal(w.Estopped[0])
+	if strings.Contains(string(blob), `"closed_by"`) {
+		t.Errorf("an estopped row carries a closer the board may contradict: %s", blob)
 	}
 	if blob, _ := json.Marshal(w); strings.Contains(string(blob), "SECRET_RULED_PROSE") {
 		t.Errorf("the estoppel register carries the ruling's prose; it is a bar, not a reading:\n%s", blob)

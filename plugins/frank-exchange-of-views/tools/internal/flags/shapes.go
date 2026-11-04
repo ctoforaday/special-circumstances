@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -44,6 +45,26 @@ import (
 func idShape(kinds ...string) *regexp.Regexp {
 	return regexp.MustCompile(`^` + anchor.IDPattern(kinds...) + `$`)
 }
+
+// EACH SHAPE IS COMPILED ONCE PER PROCESS, on first use. Every feov-record process builds its whole
+// command tree, and one shape backs many flags: compiled per flag, the anchor-id pattern cost up to
+// 23 compiles per tree. A ShapedValue only reads its pattern, so flags share one. Lazy rather than
+// a plain package var because a binary that links this package without building a tree compiles
+// none of them.
+var (
+	anyAnchorShape     = sync.OnceValue(func() *regexp.Regexp { return idShape() })
+	gapShape           = sync.OnceValue(func() *regexp.Regexp { return idShape("gap") })
+	citationShape      = sync.OnceValue(func() *regexp.Regexp { return idShape("citation") })
+	findingShape       = sync.OnceValue(func() *regexp.Regexp { return idShape("finding") })
+	aboutAnchorShape   = sync.OnceValue(func() *regexp.Regexp { return idShape("citation", "computation") })
+	inquiryShape       = sync.OnceValue(func() *regexp.Regexp { return idShape("inquiry") })
+	motionShape        = sync.OnceValue(func() *regexp.Regexp { return idShape("motion") })
+	positionShape      = sync.OnceValue(func() *regexp.Regexp { return idShape("position") })
+	computationShape   = sync.OnceValue(func() *regexp.Regexp { return idShape("computation") })
+	closureAnchorShape = sync.OnceValue(func() *regexp.Regexp {
+		return regexp.MustCompile(`^(?:` + anchor.IDPattern() + `|` + anchor.IDPattern("inquiry") + `)$`)
+	})
+)
 
 // Checker resolves a flag's value against the record. It is what a shaped flag carries so the
 // EXISTENCE half travels with the declaration instead of being remembered separately.
@@ -152,20 +173,20 @@ func BareID(id string) string { return "`" + id + "`, never `" + anchor.Tagged(i
 
 // GapID refuses anything that is not a gap id.
 func GapID() *ShapedValue {
-	return &ShapedValue{kind: "gap-id", re: idShape("gap"),
+	return &ShapedValue{kind: "gap-id", re: gapShape(),
 		hint: "a gap id is G- and eight hex, as the mint returned it; `show board` lists them"}
 }
 
 // AnchorID refuses anything that is not a tool-inserted anchor id of any class.
 func AnchorID() *ShapedValue {
-	return &ShapedValue{kind: "anchor", re: idShape(), unwrapsAnchor: true,
+	return &ShapedValue{kind: "anchor", re: anyAnchorShape(), unwrapsAnchor: true,
 		hint: "an anchor is a `" + anchor.Token("C-…") + "`, `" + anchor.Token("F-…") + "`, `" + anchor.Token("K-…") + "` or `" + anchor.Token("G-…") + "` token in the report, or the bare id inside one (" + BareID("F-…") + ") — paste either; `show evidence`, `show findings` and `show board` resolve them"}
 }
 
 // ClosureAnchorID refuses anything that is not what a closure rests on: an anchor of any class, or an
 // inquiry's id — an inquiry's fate is a record act a closure can be verified with.
 func ClosureAnchorID() *ShapedValue {
-	return &ShapedValue{kind: "anchor", re: regexp.MustCompile(`^(?:` + anchor.IDPattern() + `|` + anchor.IDPattern("inquiry") + `)$`), unwrapsAnchor: true,
+	return &ShapedValue{kind: "anchor", re: closureAnchorShape(), unwrapsAnchor: true,
 		hint: "an anchor is a `" + anchor.Token("C-…") + "`, `" + anchor.Token("F-…") + "`, `" + anchor.Token("K-…") + "` or `" + anchor.Token("G-…") + "` token in the report, or the bare id inside one (" + BareID("F-…") + ") — paste either — or an inquiry's Q- id; `show evidence`, `show findings`, `show board` and `show inquiries` resolve them"}
 }
 
@@ -177,33 +198,47 @@ func ClosureAnchorID() *ShapedValue {
 // which kind of thing an id is; a flag that accepts all three throws that away and defers the
 // error to a record lookup whose message is about existence rather than kind.
 func CitationAnchor() *ShapedValue {
-	return &ShapedValue{kind: "citation-anchor", re: idShape("citation"), unwrapsAnchor: true,
+	return &ShapedValue{kind: "citation-anchor", re: citationShape(), unwrapsAnchor: true,
 		hint: "a citation anchor is a `" + anchor.Token("C-…") + "` token in the report or the bare id inside one (" + BareID("C-…") + ") — paste either — while `F-` is a finding and `K-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
+}
+
+// FindingID refuses anything that is not a finding's id: `mint --found-by` names the findings that
+// surfaced a gap, and a seat copies one out of the findings view or the report's token.
+func FindingID() *ShapedValue {
+	return &ShapedValue{kind: "finding-id", re: findingShape(), unwrapsAnchor: true,
+		hint: "a finding id is the bare id inside a `" + anchor.Token("F-…") + "` token in the report (" + BareID("F-…") + "), or the token whole — paste either; `show findings` lists them"}
+}
+
+// AboutAnchor refuses what `--about-kind anchor` cannot name: only a citation and a computation stand
+// behind a sentence, and a finding or a gap has its own way to be named.
+func AboutAnchor() *ShapedValue {
+	return &ShapedValue{kind: "citation or computation anchor", re: aboutAnchorShape(), unwrapsAnchor: true,
+		hint: "it takes a `" + anchor.Token("C-…") + "` or `" + anchor.Token("K-…") + "` token in the report or the bare id inside one (" + BareID("K-…") + ") — paste either — while `F-` is a finding and `G-` is a gap, which --about-kind gap names; `show evidence` lists every citation and computation by anchor"}
 }
 
 // InquiryID refuses anything that is not an inquiry id. Its letter is Q, for the QUESTION the inquiry
 // asks, which is what `--question` holds.
 func InquiryID() *ShapedValue {
-	return &ShapedValue{kind: "inquiry-id", re: idShape("inquiry"),
+	return &ShapedValue{kind: "inquiry-id", re: inquiryShape(),
 		hint: "an inquiry id is Q- and eight hex, and is ASSIGNED when you propose the inquiry; `show inquiries` lists every one with its fate"}
 }
 
 // MotionID refuses anything that is not a motion id.
 func MotionID() *ShapedValue {
-	return &ShapedValue{kind: "motion-id", re: idShape("motion"),
+	return &ShapedValue{kind: "motion-id", re: motionShape(),
 		hint: "a motion id is M- and eight hex, and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
 }
 
 // PositionID refuses anything that is not a position id.
 func PositionID() *ShapedValue {
-	return &ShapedValue{kind: "position-id", re: idShape("position"),
+	return &ShapedValue{kind: "position-id", re: positionShape(),
 		hint: "a position id is A- and eight hex, and is assigned when the chair records the position; your work list names each position before you"}
 }
 
 // ComputationAnchor refuses an anchor of the wrong CLASS: `lens reproduce --anchor` judges one computation's
 // sentence, and a citation's, finding's or gap's id cannot name one.
 func ComputationAnchor() *ShapedValue {
-	return &ShapedValue{kind: "computation-anchor", re: idShape("computation"), unwrapsAnchor: true,
+	return &ShapedValue{kind: "computation-anchor", re: computationShape(), unwrapsAnchor: true,
 		hint: "a computation anchor is a `" + anchor.Token("K-…") + "` token in the report or the bare id inside one (" + BareID("K-…") + ") — paste either — while `C-` is a citation, `F-` a finding and `G-` a gap; `show evidence` lists every computation by anchor"}
 }
 

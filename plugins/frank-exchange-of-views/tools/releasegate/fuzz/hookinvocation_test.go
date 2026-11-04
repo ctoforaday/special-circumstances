@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
 // THE SHIPPED HOOK'S OWN COMMAND LINE, RUN AGAINST THE BUILT BINARY. Nothing else in the suite
@@ -38,6 +39,7 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("hooks.json's command is /bin/sh; the binary's argv contract is covered by the same gate on Linux")
 	}
+	sweepPath(t)
 	// The binary each command names is DERIVED from the command, never listed here. A hand-kept
 	// roster of hook binaries beside the manifest that already names them is the same defect one
 	// level up: it goes stale silently, and a gate reading a stale roster builds the wrong thing
@@ -47,7 +49,7 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hooksPath, err := repotree.Plugin("hooks", "hooks.json")
+	hooksPath, err := repotree.Plugin(".claude-plugin", "hooks.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,8 +149,10 @@ const ensureCommand = `F="${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh"; if [ -f "$F
 // binFromCommand pulls the ${CLAUDE_PLUGIN_ROOT}/bin/<name> a hook command resolves.
 var binFromCommand = regexp.MustCompile(`\$\{CLAUDE_PLUGIN_ROOT\}/bin/([A-Za-z0-9._-]+)`)
 
-// installHookBinary builds the command's named binary from ./cmd/<name> and lays it out the way
-// an install does, because ${CLAUDE_PLUGIN_ROOT}/bin/<name> is part of what is under test.
+// installHookBinary builds the command's named binary from ./cmd/<name> through testbuild, which
+// builds each command once per test binary (or takes it from the CI job's prebuilt set), and lays a
+// copy out the way an install does, because ${CLAUDE_PLUGIN_ROOT}/bin/<name> is part of what is
+// under test.
 func installHookBinary(t *testing.T, pluginRoot, command string) {
 	t.Helper()
 	m := binFromCommand.FindStringSubmatch(command)
@@ -169,14 +173,11 @@ func installHookBinary(t *testing.T, pluginRoot, command string) {
 		t.Fatalf("hooks.json invokes %q, and there is no cmd/%s to build it from (%v) — the manifest "+
 			"and the tree disagree about which binaries this plugin ships", name, name, err)
 	}
-	toolsDir, err := repotree.Plugin("tools")
+	built, err := os.ReadFile(testbuild.Binary(t, name))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("reading the built cmd/%s, which hooks.json invokes: %v", name, err)
 	}
-	build := exec.Command("go", "build", "-o", dest, "./cmd/"+name)
-	build.Dir = toolsDir // ./cmd is the MODULE's, not this test package's
-	out, err := build.CombinedOutput()
-	if err != nil {
-		t.Fatalf("building cmd/%s, which hooks.json invokes: %v\n%s", name, err, out)
+	if err := os.WriteFile(dest, built, 0o755); err != nil {
+		t.Fatalf("laying out cmd/%s at %s: %v", name, dest, err)
 	}
 }

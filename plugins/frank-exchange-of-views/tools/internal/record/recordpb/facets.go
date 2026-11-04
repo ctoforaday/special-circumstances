@@ -27,12 +27,20 @@ import (
 // one arrived: `closes` answers a yes/no about a word, `mass` says what a word WEIGHS. Both are
 // "what the record DOES about it" — the distinction from `means` is unchanged — so they share the
 // registry, the partly-annotated refusal, and the column-name rule, and differ only in the Go type
-// a reader gets back.
-var facets = map[string]protoreflect.ExtensionType{
-	"closes":        E_Closes,
-	"mass":          E_Mass,
-	"seat_may_file": E_SeatMayFile,
-	"gap_may_name":  E_GapMayName,
+// a reader gets back. Each entry reads its column off the value's row of the generated annotation
+// table (annotations.go), and its kind is the reader it carries: a facet is numeric because it
+// reads a number, so no second list can disagree about which facets those are.
+var facets = map[string]facet{
+	"closes":        {flag: func(a *ValueAnnotations) DeclaredBool { return a.Closes }},
+	"mass":          {number: func(a *ValueAnnotations) DeclaredNumber { return a.Mass }},
+	"seat_may_file": {flag: func(a *ValueAnnotations) DeclaredBool { return a.SeatMayFile }},
+	"gap_may_name":  {flag: func(a *ValueAnnotations) DeclaredBool { return a.GapMayName }},
+}
+
+// facet is one boolean or numeric facet: exactly one of its readers is set.
+type facet struct {
+	flag   func(*ValueAnnotations) DeclaredBool
+	number func(*ValueAnnotations) DeclaredNumber
 }
 
 // enumFacets are the facets whose values are WORDS OF ANOTHER ENUM: `material_default` says which
@@ -41,8 +49,15 @@ var facets = map[string]protoreflect.ExtensionType{
 // `.(bool)`; a third kind behind a second flag would be one more caller to forget. The column the
 // schema derives REFERENCES the target enum's vocabulary table, so the word is checked by protoc
 // and by the database.
-var enumFacets = map[string]protoreflect.ExtensionType{
-	"material_default": E_MaterialDefault,
+var enumFacets = map[string]enumFacet{
+	"material_default": {E_MaterialDefault, func(a *ValueAnnotations) DeclaredEnum { return a.MaterialDefault }},
+}
+
+// enumFacet is one enum-valued facet: the extension that declares it, whose type names the target
+// enum, and its column of the annotation table.
+type enumFacet struct {
+	extension protoreflect.ExtensionType
+	read      func(*ValueAnnotations) DeclaredEnum
 }
 
 // IsEnumFacet reports whether a declared facet carries a word of another enum.
@@ -51,13 +66,9 @@ func IsEnumFacet(name string) bool {
 	return ok
 }
 
-// numericFacets are the facets whose values are numbers rather than flags. The schema generator
-// asks this to pick a column type, so a facet added to `facets` and forgotten here becomes a
-// column of the wrong type rather than a silent success.
-var numericFacets = map[string]bool{"mass": true}
-
-// IsNumeric reports whether a declared facet carries a number.
-func IsNumeric(name string) bool { return numericFacets[name] }
+// IsNumeric reports whether a declared facet carries a number. The schema generator asks this to
+// pick a column type.
+func IsNumeric(name string) bool { return facets[name].number != nil }
 
 // IsProse reports whether a field declares itself the seat's own wording. Undeclared answers
 // false.
@@ -86,7 +97,7 @@ func FacetNames() []string {
 // EnumFacet reads an ENUM-VALUED facet off one value, with the declared/undeclared split Facet
 // makes: an absent material default is nobody asked, never the zero word.
 func EnumFacet(vd protoreflect.EnumValueDescriptor, name string) (value protoreflect.EnumNumber, declared bool, err error) {
-	xt, ok := enumFacets[name]
+	f, ok := enumFacets[name]
 	if !ok {
 		if _, other := facets[name]; other {
 			return 0, false, fmt.Errorf("facet %q is not enum-valued — read it with Facet or Number", name)
@@ -96,20 +107,21 @@ func EnumFacet(vd protoreflect.EnumValueDescriptor, name string) (value protoref
 	if vd == nil {
 		return 0, false, noValue("facet " + name)
 	}
-	opts := vd.Options()
-	if opts == nil || !proto.HasExtension(opts, xt) {
-		return 0, false, nil
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return 0, false, err
 	}
-	return proto.GetExtension(opts, xt).(protoreflect.Enum).Number(), true, nil
+	d := f.read(a)
+	return d.Value, d.Declared, nil
 }
 
 // EnumFacetTarget is the enum an enum-valued facet's words belong to.
 func EnumFacetTarget(name string) (protoreflect.EnumDescriptor, bool) {
-	xt, ok := enumFacets[name]
+	f, ok := enumFacets[name]
 	if !ok {
 		return nil, false
 	}
-	return xt.TypeDescriptor().Enum(), true
+	return f.extension.TypeDescriptor().Enum(), true
 }
 
 // EnumFacetTargets are the enums ed's enum-valued facets reference — the vocabularies whose tables
@@ -123,11 +135,10 @@ func EnumFacetTargets(ed protoreflect.EnumDescriptor) []protoreflect.EnumDescrip
 	}
 	sort.Strings(names)
 	for _, n := range names {
-		xt := enumFacets[n]
+		f := enumFacets[n]
 		for i := 0; i < ed.Values().Len(); i++ {
-			opts := ed.Values().Get(i).Options()
-			if opts != nil && proto.HasExtension(opts, xt) {
-				out = append(out, xt.TypeDescriptor().Enum())
+			if a, err := annotationsOf(ed.Values().Get(i)); err == nil && f.read(a).Declared {
+				out = append(out, f.extension.TypeDescriptor().Enum())
 				break
 			}
 		}
@@ -142,22 +153,23 @@ func Facet(vd protoreflect.EnumValueDescriptor, name string) (value bool, declar
 	if IsEnumFacet(name) {
 		return false, false, fmt.Errorf("facet %q is enum-valued — read it with EnumFacet", name)
 	}
-	xt, ok := facets[name]
+	f, ok := facets[name]
 	if !ok {
 		return false, false, fmt.Errorf("%q is not a declared value facet (have %v) — "+
 			"an unresolved facet name would silently admit every value, so it refuses instead", name, FacetNames())
 	}
-	if numericFacets[name] {
+	if f.flag == nil {
 		return false, false, fmt.Errorf("facet %q is not boolean — read it with Number", name)
 	}
 	if vd == nil {
 		return false, false, noValue("facet " + name)
 	}
-	opts := vd.Options()
-	if opts == nil || !proto.HasExtension(opts, xt) {
-		return false, false, nil
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return false, false, err
 	}
-	return proto.GetExtension(opts, xt).(bool), true, nil
+	d := f.flag(a)
+	return d.Value, d.Declared, nil
 }
 
 // Number reads a NUMERIC facet off one value, with the same declared/undeclared split Facet
@@ -167,21 +179,22 @@ func Number(vd protoreflect.EnumValueDescriptor, name string) (value float64, de
 	if IsEnumFacet(name) {
 		return 0, false, fmt.Errorf("facet %q is enum-valued — read it with EnumFacet", name)
 	}
-	xt, ok := facets[name]
+	f, ok := facets[name]
 	if !ok {
 		return 0, false, fmt.Errorf("%q is not a declared value facet (have %v)", name, FacetNames())
 	}
-	if !numericFacets[name] {
+	if f.number == nil {
 		return 0, false, fmt.Errorf("facet %q is not numeric — read it with Facet", name)
 	}
 	if vd == nil {
 		return 0, false, noValue("facet " + name)
 	}
-	opts := vd.Options()
-	if opts == nil || !proto.HasExtension(opts, xt) {
-		return 0, false, nil
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return 0, false, err
 	}
-	return proto.GetExtension(opts, xt).(float64), true, nil
+	d := f.number(a)
+	return d.Value, d.Declared, nil
 }
 
 // GradeMass is what one grade weighs, off the vocabulary rather than out of a hand-kept map.

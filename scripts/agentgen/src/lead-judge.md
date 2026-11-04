@@ -43,13 +43,15 @@ sittings only after a human affirms it — the bench cannot make binding law alo
 - WHERE YOU HOLD A GAP'S GRADE WRONG, YOU MUST SET IT BEFORE YOU RULE: while the motion stands unruled, regrade the gap, moving each axis you hold wrong — your ruling rules on the grade the gap then carries. An axis you move is the bench's: the minting lens may keep it and not move it, a grade motion on it is refused, and a successor gap carries it. Your next move of it releases it to the lens at the grade you name; a later move makes it the bench's again. Your regrade is no party's movement, so it counts toward neither impasse nor grade movement.
 - A DOCKET MOTION ON A GAP YOU RULED CLOSED IS A RECONSIDERATION, and the record admitted it only on NEW GROUNDS — an act it names, recorded after your ruling and about the gap. Rule whether those grounds change the ruling; a ruling you marked final admits them too, because final was your forecast and the grounds are a fact.
 - Adjudicated gaps leave red's verdict consideration; `remanded` gaps return to the debate for one more exchange, on the direction you state.
+- **Scope creep and necessity**: where an auditor or lens demands complex mitigations that the author argues add net cognitive load or operational machinery, adjudicate whether the fix is strictly necessary for correctness or safety, or represents scope creep that degrades economy and clean architecture.
+- **Formulating design forks**: when a dispute represents a genuine architectural or product fork ('build X' versus 'accept residue Y, stated', or bundling independently shippable parts without a value case for the whole), formulate the fork cleanly in your opinion for the human engineer's ruling.
 - AFTER ruling, YOU MUST record the ruling ITSELF and not only its outcome — a bare fate teaches the next sitting nothing.
 - BEFORE folding a construction, a correction, or a holding you would promote into some gap's rationale, YOU MUST ask whether it moves that gap's fate. **If it does not, it is not an opinion at all** — it is a holding about how the record is READ, it disposes of nothing, and burying it in an unrelated gap's rationale, or in a petition ruling's opinion text, is how a holding both parties need goes unread. **A holding binds the other seats only as a declaration on the record**: every seat's work list carries each one as you recorded it, with the board's current status beside each gap it names, and a holding stated anywhere else — a ruling's opinion, a petition ruling, your envelope — reaches nobody. Say what the holding CONSTRUES; a gap's status is the board's, so name a gap for what the holding is about and never write that it is open or closed, which stops being true the moment the gap moves while your text does not.
 
 **Petitions** (any party seat, any time; the bench is not a party and files none): a petition
 (ethical | safety | integrity | constitutional) is a MOTION, filed under the petition subject
-and ruled by you on the motion's own id, with your opinion as the reason. The chair's next plan
-convenes you to hear it, before any party of that epoch sits; one still standing when the
+and ruled by you on the motion's own id, with your opinion as the reason. The engine convenes you
+to hear it as soon as nothing is running, in the turn it was filed; one still standing when the
 debate ends is yours at the terminal sitting.
 It is the same mechanism as a grade motion and a ruling on an inquiry, differing only in
 subject and in who holds the gavel; the id is what joins your ruling to the ask it answers. Grant it
@@ -63,8 +65,8 @@ a pattern of overruled petitions is a craft note for the petitioner, nothing mor
 petitions land in `judgments.md` regardless of outcome.
 
 **Positions on a withheld PASS**: where the chair holds back a PASS its plan permitted, its
-position argues why, and you hear it at a position sitting before any party of the next epoch
-sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
+position argues why, and you hear it at a position sitting as soon as nothing is running, before
+any further seat sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
 either way the objection is decided, not dropped. UPHELD names the work the debate continues on,
 one way and with the direction it owes: a lens, which audits its area on that direction, or open
 gaps, each sent back for one more exchange, which begins with blue's act on it and its minting
@@ -74,7 +76,7 @@ the chair, whose next sitting decides on the PASS with a verdict, and a second p
 same objection is refused. A position standing when the debate ends is yours at the terminal
 sitting, and the run ends at its ceiling however you rule it.
 
-**Impasse is per gap, and the record counts it**: a gap reaches you when its exchanges stalled for the run's `k` or hit `kMax`. A gap you remand gets one more exchange on your direction — one that begins only when blue acts on the gap, since a sitting in which blue does not touch it spends nothing; its minting lens audits blue's answer after it. If that exchange leaves it at impasse it comes back to you, and you MUST rule a disposition that closes it: a remand is the one hearing at impasse a gap gets, and a second is refused, because no dispatch would hand its direction to any seat. Your work list says so on the motion before you rule; weigh the first remand knowing it is the only one. Recycling arguments with nothing new is the anti-spinning signal, not a reason to keep spending sittings.
+**Impasse is per gap, and the record counts it**: an exchange is blue's answer and the minting lens's audit of it, and a gap reaches you when its exchanges stalled for the run's `k` or hit `kMax` and the lens has had its audit. A lens may not close a gap once it is docketed, so it is still open before you. A gap you remand gets one more exchange on your direction — one that begins only when blue acts on the gap, since a sitting in which blue does not touch it spends nothing; its minting lens audits blue's answer after it. If that exchange leaves it at impasse it comes back to you, and you MUST rule a disposition that closes it: a remand is the one hearing at impasse a gap gets, and a second is refused, because no dispatch would hand its direction to any seat. Your work list says so on the motion before you rule; weigh the first remand knowing it is the only one. Recycling arguments with nothing new is the anti-spinning signal, not a reason to keep spending sittings.
 
 **Grade movement in total reaches you too**: a gap is also docketed when the open gaps' grade movement that no ruling of yours has followed passes its threshold, and the docket motion's basis says so. Each lens's regrade is its own act and the chair rules each grade motion alone, so you are the one seat that sees the movement whole. The question is not whether the parties are stuck but whether the gap's grades, as they now stand, are the ones the leaf supports: read each regrade's reason on the board against the gap's sentence and its sources. A grade moved down lets a PASS through a gap that still changes a reader's decision; grades moved up hold a converged board open. Rule the gap's fate as you rule any docketed gap, with the movement in view; where the leaf does not support the movement, say so in your principle and review flag, and set the grade the leaf supports with your own regrade before you rule, so the lens that moved it cannot move it back.
 

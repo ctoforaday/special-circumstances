@@ -30,8 +30,8 @@ func TestAnHTMLPageIsReadAsItsText(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Carmichael numbers are substantially rarer than primes, yet there are enough of them.",
-		"For 91, 290 ≡ 64 (mod 91).",
-		"\none\n", "\ntwo\n", "a b",
+		"For 91, 2^90 ≡ 64 (mod 91).",
+		"\n- one\n", "\n- two\n", "a b",
 	} {
 		if !strings.Contains(ex.Text, want) {
 			t.Errorf("text lacks %q:\n%s", want, ex.Text)

@@ -19,7 +19,7 @@ import (
 // chair to read. The hook writes the stored plan into the chair's envelope (record.ChairEnvelope), so
 // the workflow dispatches what the record says and nothing else.
 //
-// At impasse the verb files the docket motion itself, the moment impasse is first computed, so
+// At impasse the verb files the docket motion itself, once the gap's lens has had its audit, so
 // "docketed" and "at impasse" are one fact and no seat's discretion sits between a stalled gap
 // and the bench. An empty party list is the termination signal, not an error.
 func newDispatch() *cobra.Command {
@@ -50,8 +50,7 @@ func newDispatch() *cobra.Command {
 
 // dispatchResult is the plan, which IS the --json output (seat.PrintsBare), and whether it was
 // already on the record — said in prose only, so the JSON the verb prints is the same plan either
-// way. The prose form ends with that same object, so the chair relays one object whichever form it
-// asked for, copied whole.
+// way. Neither form is copied: the hook writes the stored plan into the chair's envelope.
 type dispatchResult struct {
 	record.Plan
 	standing bool
@@ -77,14 +76,6 @@ func (r dispatchResult) Human() string {
 	} else {
 		fmt.Fprintf(&b, "dispatch against head %d:\n", r.Head)
 		for _, p := range r.Parties {
-			if len(p.Occasions) > 0 {
-				what := "sits for: " + strings.Join(p.Occasions, ", ")
-				if len(p.GapIDs) > 0 {
-					what += " — " + strings.Join(p.GapIDs, ", ")
-				}
-				fmt.Fprintf(&b, "  %s %s\n", p.SeatID, what)
-				continue
-			}
 			if len(p.GapIDs) == 0 {
 				fmt.Fprintf(&b, "  %s — audits the report (its state is in the reasons below)\n", p.SeatID)
 			} else {

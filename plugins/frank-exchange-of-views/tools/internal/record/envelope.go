@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -65,25 +66,26 @@ func EnvelopeRefusal(run Run, seatID string) (string, error) {
 }
 
 // AgentEnvelope answers the call returning the envelope of the seat the agent is bound to
-// (SeatOfAgent), input being that call's arguments: its refusal, or for the chair the envelope the
-// call carries instead (ChairEnvelope). Neither, for a seat the record does not refuse, and for an
-// agent bound to no seat, which returns no seat's envelope. A run whose record is absent cannot say
-// whether the agent is a seat, so it is an error, not "no seat".
-func AgentEnvelope(run Run, agentID string, input []byte) (filled []byte, refusal string, err error) {
+// (SeatOfAgent), input being that call's arguments, with that seat: its refusal, or for the chair the
+// envelope the call carries instead (ChairEnvelope). Neither, for a seat the record does not refuse;
+// and no seat for an agent bound to none, which returns no seat's envelope. A run whose record is
+// absent cannot say whether the agent is a seat, so it is an error, not "no seat".
+func AgentEnvelope(run Run, agentID string, input []byte) (filled []byte, refusal, seatID string, err error) {
 	if err := recordPresent(run); err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 	seatID, found, err := SeatOfAgent(run, agentID)
 	if err != nil || !found {
-		return nil, "", err
+		return nil, "", "", err
 	}
 	if refusal, err = EnvelopeRefusal(run, seatID); err != nil || refusal != "" {
-		return nil, refusal, err
+		return nil, refusal, seatID, err
 	}
 	if seatID != chairSeat {
-		return nil, "", nil
+		return nil, "", seatID, nil
 	}
-	return ChairEnvelope(run, input)
+	filled, refusal, err = ChairEnvelope(run, input)
+	return filled, refusal, seatID, err
 }
 
 // chairNotes is the one field of the chair's envelope that is the chair's: its line to the operator.
@@ -103,6 +105,10 @@ const chairNotes = "notes"
 // A PLAN FIELD IN THE ENVELOPE IS REFUSED, A FAITHFUL COPY'S INCLUDED: overwriting it would ignore what
 // the seat stated, and comparing it would keep the copy this exists to end. No plan standing in the
 // sitting is refused too: the envelope has nothing to carry, and the chair has an act to do.
+//
+// THE RECORD'S READ IS NO FIELD OF THE PLAN, AND NOT THE CHAIR'S: the hook writes it onto every
+// envelope, this one included, over anything typed there (RecordRead), so a chair that typed it is
+// not refused for it and the envelope returned here does not carry it.
 func ChairEnvelope(run Run, input []byte) (filled []byte, refusal string, err error) {
 	var stated map[string]json.RawMessage
 	if err := json.Unmarshal(input, &stated); err != nil || stated == nil {
@@ -119,7 +125,7 @@ func ChairEnvelope(run Run, input []byte) (filled []byte, refusal string, err er
 	}
 	var copied []string
 	for k := range stated {
-		if k != chairNotes {
+		if k != chairNotes && k != hookgate.EnvelopeReadField {
 			copied = append(copied, "`"+k+"`")
 		}
 	}
@@ -152,6 +158,10 @@ func recordPresent(run Run) error {
 // the record as events, which every reader reads there, and the engine threads nothing from a lens
 // to the seats after it. A field here would be a second account of the record or a value no reader
 // reads. The envelope exists so that the sitting ends through the call EnvelopeRefusal answers.
+//
+// THE RECORD'S READ IS NOT A FIELD OF THIS DECLARATION, AND THE SCHEMA STILL CARRIES IT: every envelope
+// declares `record_read` for the hook to write (RecordRead). It is the tool's reading of the record,
+// which the seat cannot supply or change, not the seat's account of its sitting.
 //
 // THE ENGINE'S SCHEMA FOR IT IS GENERATED FROM THIS DECLARATION (LensEnvelopeFields), closed, so a
 // key it does not declare is refused by the harness and handed back to the lens.

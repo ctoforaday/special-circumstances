@@ -32,6 +32,16 @@ func TestNewCtxParsesThePayloadOnce(t *testing.T) {
 	}
 }
 
+func TestNewCtxParsesAntigravityPayload(t *testing.T) {
+	c := ctx(`{"conversationId":"conv-123","toolCall":{"name":"run_command","args":{"CommandLine":"echo 'secret'"}}}`)
+	if c.ToolName != "Bash" {
+		t.Errorf("ToolName = %q, want %q", c.ToolName, "Bash")
+	}
+	if !strings.Contains(string(c.ToolInput), "echo 'secret'") {
+		t.Errorf("ToolInput = %q, want command field", c.ToolInput)
+	}
+}
+
 // THE REASON THE CONTEXT IS SHARED: the second unit to want an expensive read pays nothing.
 // Asserted under concurrency, because that is the only condition it has to hold in.
 func TestMemoBuildsExactlyOnceUnderConcurrency(t *testing.T) {

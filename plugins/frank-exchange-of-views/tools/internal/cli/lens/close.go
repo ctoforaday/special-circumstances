@@ -30,7 +30,7 @@ import (
 // the seat that could not produce them found `--carried-from` offered in the same help as the
 // easier way out. Two verbs, and each requires what it actually requires.
 func newClose() *cobra.Command {
-	var anchors flags.CSV
+	anchors := flags.IDList(flags.ClosureAnchorID)
 	c := seat.New("close", seat.CloseResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
@@ -47,13 +47,7 @@ func newClose() *cobra.Command {
 		// a report anchor or an inquiry: capture's attestation audit joins each to the other tool
 		// calls of the closer's sitting, and an id read back out of --verified-with's words would be
 		// a guess at what the seat meant.
-		for _, a := range anchors.Value() {
-			v := flags.ClosureAnchorID()
-			if err := v.Set(a); err != nil {
-				return nil, feov.Errorf(feov.Validation, "--%s: %v", flags.Anchor, err)
-			}
-			p.Anchors = append(p.Anchors, v.String())
-		}
+		p.Anchors = anchors.Value()
 		// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.
 		//
 		// This is what makes --check-kind a demand rather than a label. Red asked for a
@@ -81,7 +75,7 @@ func newClose() *cobra.Command {
 	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
 	flags.Text(c, flags.VerifiedWith, "WITH WHAT — the tool or command that showed it")
 	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in")
-	c.Flags().Var(&anchors, flags.Anchor, "the `ids` you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("K-…")+"`, `"+anchor.Token("F-…")+"` or `"+anchor.Token("G-…")+"` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. The bare id is "+flags.BareID("F-…")+": `--anchor F-…,C-…`, or a token whole, quoted for the shell: `--anchor '"+anchor.Token("F-…")+"'`. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none")
+	c.Flags().Var(anchors, flags.Anchor, "the `ids` you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("K-…")+"`, `"+anchor.Token("F-…")+"` or `"+anchor.Token("G-…")+"` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. The bare id is "+flags.BareID("F-…")+": `--anchor F-…,C-…`, or a token whole, quoted for the shell: `--anchor '"+anchor.Token("F-…")+"'`. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none")
 	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
 	// them as one fact (`anchored`), so two of three was never a partial closure — it was an
 	// unanchored one that spent the seat's turn before saying so.
