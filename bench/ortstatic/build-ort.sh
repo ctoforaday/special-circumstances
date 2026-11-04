@@ -57,6 +57,9 @@ if [ "$TC" = zig ]; then
   # xgetbv: the _WIN32 branch calls the _xgetbv intrinsic, which clang allows only with -mxsave; the GNU inline asm
   # the other branch uses needs no target feature.
   patch_src onnxruntime/core/mlas/lib/platform.cpp "1133$M;193s/^#if defined(_WIN32)$/#if defined(_MSC_VER)/"
+  # mlas's q4dq command-line tool is an executable in ALL; on darwin its link asks for Foundation, which zig cannot
+  # supply. Nothing here needs the tool.
+  patch_src cmake/onnxruntime_mlas.cmake 's/^  set_target_properties(onnxruntime_mlas_q4dq PROPERTIES FOLDER "ONNXRuntimeTest")$/&\n  set_target_properties(onnxruntime_mlas_q4dq PROPERTIES EXCLUDE_FROM_ALL TRUE)/'
   patch_src cmake/onnxruntime.cmake 's/^if (WIN32 AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)/if (MSVC AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)/'
 fi
 
@@ -151,7 +154,9 @@ void CFRelease(CFTypeRef cf);
 }
 #endif
 EOS
-    CXXEXTRA="-isystem $ZB/cfstub"
+    # zig's macOS headers carry no <sys/syscall.h>; ORT's posix env.cc includes it and uses it only under Linux.
+    mkdir -p "$ZB/cfstub/sys"; printf '#pragma once\n' > "$ZB/cfstub/sys/syscall.h"
+    CXXEXTRA="-isystem $ZB/cfstub"; CEXTRA="-isystem $ZB/cfstub"
   fi
   { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q cc -target %s %s "$@"\n' "$ZIG" "$TRIPLE" "$CEXTRA"; } > "$ZB/zigcc"
   { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q c++ -target %s %s "$@"\n' "$ZIG" "$TRIPLE" "$CXXEXTRA"; } > "$ZB/zigcxx"
@@ -177,6 +182,9 @@ start=$(date +%s)
 ( cd "$SRC" && "$PY" "$SRC/tools/ci_build/build.py" "${ARGS[@]}" ) > "$BD/build.log" 2>&1 || {
   rc=$?; echo "build.py failed rc=$rc after $(( $(date +%s) - start ))s; last lines:"; tail -60 "$BD/build.log"; exit $rc; }
 echo "build.py ok in $(( $(date +%s) - start ))s ($NAME)"
+# A static build with no executable leaves re2 unbuilt (it reaches the link only through the onnxruntime INTERFACE
+# target); the unreduced runtime's tokenizer and regex kernels need it.
+if [ "$VAR" = full ] || [ "$VAR" = reduced ]; then cmake --build "$BD/build/$CFG" --config "$CFG" --target re2 -j "$J" >> "$BD/build.log" 2>&1 && echo "built re2"; fi
 "$HERE/combine.sh" "$BD/build/$CFG" "$SRC" "$OUT" "$AR"
 find "$BD/build/$CFG" \( -name '*.a' -o -name '*.lib' \) -exec ls -l {} + > "$OUT/archive-sizes.txt"
 echo "$NAME" > "$OUT/name.txt"

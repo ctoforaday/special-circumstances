@@ -33,7 +33,8 @@ if [ "$TC" = zig ]; then
     tbd "$F/lib/libresolv.tbd" /usr/lib/libresolv.9.dylib
     tbd "$F/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" /System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation "$(syms CoreFoundation "$CFX")"
     tbd "$F/Frameworks/Security.framework/Security.tbd" /System/Library/Frameworks/Security.framework/Versions/A/Security "$(syms Security)"
-    LIBS="$LIBS -L$F/lib -F$F/Frameworks"; EXTLD="-L$F/lib -F$F/Frameworks"; LDX="-w"
+    # abseil cctz calls CoreFoundation (allowlisted); Go names that framework only when its own packages need it.
+    LIBS="$LIBS -L$F/lib -F$F/Frameworks -framework CoreFoundation"; EXTLD="-L$F/lib -F$F/Frameworks"; LDX="-w"
   fi
 else
   case $GOOS in
