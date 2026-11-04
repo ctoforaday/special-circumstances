@@ -5,8 +5,8 @@ package main
 import (
 	"os"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/posttooluse"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 func main() {

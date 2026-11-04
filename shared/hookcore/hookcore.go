@@ -329,6 +329,10 @@ func Read(event string, stdin io.Reader) Request {
 		req.ArtifactDirPath = s
 	}
 
+	if req.TranscriptPath == "" && req.ArtifactDirPath != "" {
+		req.TranscriptPath = filepath.Join(req.ArtifactDirPath, ".system_generated", "logs", "transcript.jsonl")
+	}
+
 	// Subagent fields
 	if s, ok := env["agent_id"].(string); ok {
 		req.AgentID = s

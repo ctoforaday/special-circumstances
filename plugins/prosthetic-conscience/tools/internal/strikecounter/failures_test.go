@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikes"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 func strikeStages(t *testing.T, scope string) map[hookfailures.Stage]bool {

@@ -63,10 +63,10 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikes"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 type hookInput struct {

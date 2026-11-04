@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // logPath is where the hook's instrumentation lands under a project dir.

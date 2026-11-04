@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
@@ -106,6 +107,7 @@ func atStop(in hookInput, r *report) {
 			Path:      in.TranscriptPath,
 			SessionID: in.SessionID,
 			AgentID:   in.AgentID,
+			Engine:    in.Engine,
 		}
 		if _, err := catalogue.IngestFile(db, tf); err != nil {
 			r.fail(stageIngest, fmt.Sprintf("catalogue: %v (capture unaffected)", err))
@@ -113,9 +115,9 @@ func atStop(in hookInput, r *report) {
 			r.ok(stageIngest)
 		}
 	}
-	if root := projectsRoot(); root != "" {
-		ingestInto(db, root, in.SessionID, r)
-	}
+	root := projectsRoot()
+	brainDirs := catalogue.DefaultAntigravityBrainDirs()
+	ingestInto(db, root, brainDirs, in.SessionID, r)
 }
 
 // register records this session as running (catalogue.RegisterSession). Best-effort, like
@@ -128,7 +130,8 @@ func register(db *sql.DB, in hookInput, r *report) {
 	if home, err := os.UserHomeDir(); err == nil {
 		bridge = bridgeIDFor(filepath.Join(home, ".claude", "sessions"), os.Getppid(), in.SessionID)
 	}
-	if err := catalogue.RegisterSession(db, in.SessionID, projectDirOf(in.TranscriptPath), bridge, time.Now()); err != nil {
+	pDir := projectDirOf(in.TranscriptPath, in.CWD)
+	if err := catalogue.RegisterSession(db, in.SessionID, pDir, bridge, time.Now()); err != nil {
 		r.fail(stageRegister, fmt.Sprintf("%v (capture unaffected)", err))
 		return
 	}
@@ -137,11 +140,20 @@ func register(db *sql.DB, in hookInput, r *report) {
 
 // projectDirOf is the folder the session's transcript lives in, or ” — NEVER ".", which is what
 // filepath.Dir makes of an empty path and which would then read as a directory.
-func projectDirOf(transcriptPath string) string {
+func projectDirOf(transcriptPath, cwd string) string {
 	if transcriptPath == "" {
 		return ""
 	}
-	return filepath.Dir(transcriptPath)
+	clean := filepath.Clean(filepath.Dir(transcriptPath))
+	if strings.Contains(transcriptPath, "/brain/") {
+		if cwd != "" {
+			return cwd
+		}
+		if strings.HasSuffix(clean, filepath.Join(".system_generated", "logs")) {
+			return filepath.Clean(filepath.Join(clean, "..", ".."))
+		}
+	}
+	return clean
 }
 
 // bridgeIDFor reads the Remote Control cloud id from THIS session's own file.
@@ -164,10 +176,10 @@ func bridgeIDFor(sessionsDir string, ppid int, sessionID string) string {
 }
 
 // ingestInto reads every transcript file of one session into an open store. It enumerates that
-// session's files only (catalogue.SessionTranscriptFiles): this runs at every turn end, and the
+// session's files only (catalogue.SessionTranscriptFilesMulti): this runs at every turn end, and the
 // sweep's walk of the whole tree belongs to SessionStart.
-func ingestInto(db *sql.DB, root, sessionID string, r *report) {
-	files, err := catalogue.SessionTranscriptFiles(root, sessionID)
+func ingestInto(db *sql.DB, root string, brainDirs []string, sessionID string, r *report) {
+	files, err := catalogue.SessionTranscriptFilesMulti(root, brainDirs, sessionID)
 	if err != nil {
 		r.fail(stageEnumerate, fmt.Sprintf("catalogue: enumerating transcripts: %v (capture unaffected)", err))
 		return
@@ -219,6 +231,9 @@ func sweep(in hookInput, r *report) {
 		for _, sf := range sfs {
 			live[sf.SessionID] = true
 		}
+	}
+	for convID := range catalogue.ActiveAntigravitySessions() {
+		live[convID] = true
 	}
 	lim := catalogue.DefaultLimits()
 	if st, err := catalogue.Closure(db, files, live, lim); err != nil {

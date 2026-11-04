@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/unwritable"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 	"os"
 	"path/filepath"
 	"strings"

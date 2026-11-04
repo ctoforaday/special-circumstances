@@ -15,7 +15,7 @@ package hookgate
 
 import (
 	"encoding/json"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 	"path/filepath"
 	"slices"
 	"strings"

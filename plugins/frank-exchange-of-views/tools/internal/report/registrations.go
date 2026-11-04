@@ -5,11 +5,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // WHICH BUILD, WHICH HOOK, AND WHICH ROUTE TO THE RUN, AS EACH SEAT REGISTERED (run.md).
