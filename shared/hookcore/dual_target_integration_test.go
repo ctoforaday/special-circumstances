@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -32,9 +33,14 @@ func getHookBinary(t *testing.T, repoRoot, pluginName, binName, buildDir string)
 		return path
 	}
 
+	targetBin := binName
+	if runtime.GOOS == "windows" && !strings.HasSuffix(targetBin, ".exe") {
+		targetBin += ".exe"
+	}
+
 	binDir := filepath.Join(buildDir, pluginName)
 	_ = os.MkdirAll(binDir, 0755)
-	tmpBin := filepath.Join(binDir, binName)
+	tmpBin := filepath.Join(binDir, targetBin)
 	cmd := exec.Command("go", "build", "-C", filepath.Join(repoRoot, "plugins", pluginName, "tools"),
 		"-o", tmpBin, "./cmd/"+binName)
 	cmd.Env = os.Environ()
@@ -116,13 +122,16 @@ func stageMockPlugin(t *testing.T, repoRoot, pluginName, binName, binPath string
 	if err := os.MkdirAll(destBinDir, 0755); err != nil {
 		t.Fatalf("mkdir mockRoot/bin: %v", err)
 	}
-	destBin := filepath.Join(destBinDir, binName)
+	destBin := filepath.Join(destBinDir, filepath.Base(binPath))
 	binData, err := os.ReadFile(binPath)
 	if err != nil {
 		t.Fatalf("read binPath %s: %v", binPath, err)
 	}
 	if err := os.WriteFile(destBin, binData, 0755); err != nil {
 		t.Fatalf("write destBin %s: %v", destBin, err)
+	}
+	if runtime.GOOS == "windows" && !strings.HasSuffix(binName, ".exe") {
+		_ = os.WriteFile(filepath.Join(destBinDir, binName), binData, 0755)
 	}
 	return mockRoot
 }
