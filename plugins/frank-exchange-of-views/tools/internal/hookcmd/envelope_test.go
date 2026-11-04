@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // THE CALL THAT RETURNS A SEAT'S ENVELOPE IS DENIED WITH THE RECORD'S REFUSAL, from the whole
