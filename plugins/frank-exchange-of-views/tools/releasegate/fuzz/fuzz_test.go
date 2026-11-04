@@ -7982,12 +7982,14 @@ func basisRenders(t *testing.T, board record.Family, runDir string) string {
 		return err.Error()
 	}
 	var missing []string
+	retired := record.RetiredAnchors(board.Events, board.At)
 	for _, bf := range basisFields {
 		present := false
 		for _, e := range board.Events {
 			// A CLOSED gap's mint is still on the record but its fix_basis is no longer shown —
 			// the demand was met, and the report's closure index is a one-line index by design.
 			// Only OPEN gaps are checked, which is where the qualifier changes what a reader does.
+			// A RETIRED computation is in no document, so only live computations are checked.
 			if recordpb.Word(e.GetType()) != bf.evType {
 				continue
 			}
@@ -7997,6 +7999,9 @@ func basisRenders(t *testing.T, board record.Family, runDir string) string {
 					if !gapIsOpen(board, m.GetGapId()) {
 						continue
 					}
+				}
+				if c, ok := recordpb.BodyAs[*recordpb.Computation](e); ok && retired[c.GetComputationId()] {
+					continue
 				}
 				present = true
 				break
