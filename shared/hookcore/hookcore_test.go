@@ -322,6 +322,10 @@ func TestRespondClaudePreToolUse(t *testing.T) {
 	}
 
 	// 2. Allow with command rewrite
+	req.RawToolInput = map[string]any{
+		"command":     "unsafe_command",
+		"description": "run script",
+	}
 	respAllow := Response{
 		Decision:       DecisionAllow,
 		UpdatedCommand: "safe_command",
@@ -330,7 +334,7 @@ func TestRespondClaudePreToolUse(t *testing.T) {
 	Respond(req, respAllow, &stdout, &stderr, nil)
 	var outAllow struct {
 		HookSpecificOutput struct {
-			UpdatedInput map[string]string `json:"updatedInput"`
+			UpdatedInput map[string]any `json:"updatedInput"`
 		} `json:"hookSpecificOutput"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &outAllow); err != nil {
@@ -338,6 +342,12 @@ func TestRespondClaudePreToolUse(t *testing.T) {
 	}
 	if outAllow.HookSpecificOutput.UpdatedInput["command"] != "safe_command" {
 		t.Errorf("updatedInput[command] = %q, want safe_command", outAllow.HookSpecificOutput.UpdatedInput["command"])
+	}
+	if outAllow.HookSpecificOutput.UpdatedInput["description"] != "run script" {
+		t.Errorf("updatedInput[description] = %q, want run script", outAllow.HookSpecificOutput.UpdatedInput["description"])
+	}
+	if _, ok := outAllow.HookSpecificOutput.UpdatedInput["CommandLine"]; ok {
+		t.Errorf("updatedInput must not leak CommandLine into Claude response: %+v", outAllow.HookSpecificOutput.UpdatedInput)
 	}
 }
 

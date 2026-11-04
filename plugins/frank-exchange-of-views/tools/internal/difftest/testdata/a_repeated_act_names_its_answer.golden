@@ -106,18 +106,31 @@ motion MOTION003 filed (docket)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · gap GAP001 is docketed for the bench (motion MOTION003) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
-$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the  leaf
-exit 0
-stdout:
-closed GAP001 (repaired)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
-
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the leaf
 exit 2
 stderr:
-feov-record: close: --id names gap GAP001, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure
+feov-record: close: gap GAP001 is docketed for the bench: motion MOTION003 stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on GAP001, which the bench reads before it rules
 
-$ motion docket file --run {RUN} --seat-id red-lens-evidence --id GAP001 --reason my closure lost a word: verified at the leaf
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check a --severity high --likelihood high --impact high --problem the second gap
+exit 0
+stdout:
+minted GAP002
+  acceptance check RECORDED as: a
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP002 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the  leaf
+exit 0
+stdout:
+closed GAP002 (repaired)
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP002 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the leaf
+exit 2
+stderr:
+feov-record: close: --id names gap GAP002, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure
+
+$ motion docket file --run {RUN} --seat-id red-lens-evidence --id GAP002 --reason my closure lost a word: verified at the leaf
 exit 0
 stdout:
 motion MOTION004 filed (docket)
@@ -133,13 +146,15 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · gap GAP001 is docketed for the bench (motion MOTION003) and the closing argument of blue-respond on it is not on the record, and blue-respond has sat since the docketing without filing it — the bench rules on the record as it stands; PASS is refused until the bench rules
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded computation
 exit 0
 stdout:
 manifest row recorded for GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · gap GAP001 is docketed for the bench (motion MOTION003) and the closing argument of blue-respond on it is not on the record, and blue-respond has sat since the docketing without filing it — the bench rules on the record as it stands; PASS is refused until the bench rules
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -151,9 +166,11 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 7 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is docketed for the bench (motion MOTION003) and the closing argument of blue-respond on it is not on the record, and blue-respond has sat since the docketing without filing it — the bench rules on the record as it stands; PASS is refused until the bench rules
   · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · motion MOTION003 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · motion MOTION004 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
@@ -162,9 +179,11 @@ $ position --run {RUN} --seat-id red-chair --reason the board is clean going in
 exit 0
 stdout:
 position POSITION002 recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 8 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is docketed for the bench (motion MOTION003) and the closing argument of blue-respond on it is not on the record, and blue-respond has sat since the docketing without filing it — the bench rules on the record as it stands; PASS is refused until the bench rules
   · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · motion MOTION003 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · motion MOTION004 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
@@ -185,13 +204,15 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, no
 {"key":"red-chair:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion grade rule` with --as --id --reason: motion MOTION001 is already ruled \"rejected\" by red-chair. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. The first stands. If it was wrong, say so in a docket motion on the gap; the record is append-only and bot…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_LOG"}
 {"key":"red-chair:motion:#1","motion":{"basis":"my ruling lost a word: the evidence does not reach it","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_MOTION"}
 {"key":"blue-respond:motion:#2","motion":{"basis":"the ruling reads past the evidence: the bench should decide the gap","docket":{"gap_id":"GAP001"},"motion_id":"MOTION003"},"seat_id":"blue-respond","ts":14,"type":"EVENT_TYPE_MOTION"}
-{"close":{"anchor_seat":"L1","anchor_target":"report.md#S2","anchor_tool":"Read","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"verified at the  leaf"},"key":"red-lens-evidence:close:#1:GAP001","seat_id":"red-lens-evidence","ts":15,"type":"EVENT_TYPE_CLOSE"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: --id names gap GAP001, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from \u003cepoch\u003e` RESTATES an earlier closure","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":16,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:motion:#1","motion":{"basis":"my closure lost a word: verified at the leaf","docket":{"gap_id":"GAP001"},"motion_id":"MOTION004"},"seat_id":"red-lens-evidence","ts":17,"type":"EVENT_TYPE_MOTION"}
-{"key":"blue-respond:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":18,"type":"EVENT_TYPE_REGISTER"}
-{"key":"blue-respond:manifest_row:#2:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via the recorded computation"},"seat_id":"blue-respond","ts":19,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":20,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:position:#2","position":{"position_id":"POSITION002","text":"the board is clean going in"},"seat_id":"red-chair","ts":21,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: gap GAP001 is docketed for the bench: motion MOTION003 stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on GAP001, which the bench reads before it rules","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":15,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the second gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":16,"type":"EVENT_TYPE_MINT"}
+{"close":{"anchor_seat":"L1","anchor_target":"report.md#S2","anchor_tool":"Read","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP002","prose":"verified at the  leaf"},"key":"red-lens-evidence:close:#1:GAP002","seat_id":"red-lens-evidence","ts":17,"type":"EVENT_TYPE_CLOSE"}
+{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: --id names gap GAP002, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from \u003cepoch\u003e` RESTATES an earlier closure","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":18,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:motion:#1","motion":{"basis":"my closure lost a word: verified at the leaf","docket":{"gap_id":"GAP002"},"motion_id":"MOTION004"},"seat_id":"red-lens-evidence","ts":19,"type":"EVENT_TYPE_MOTION"}
+{"key":"blue-respond:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":20,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond:manifest_row:#2:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via the recorded computation"},"seat_id":"blue-respond","ts":21,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":22,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:position:#2","position":{"position_id":"POSITION002","text":"the board is clean going in"},"seat_id":"red-chair","ts":23,"type":"EVENT_TYPE_POSITION"}
 
 ═══ RENDERS ═══
 -- inquiries
@@ -223,7 +244,7 @@ A claim sits under S4.
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| _(no open gaps)_ |  |  |  |  |
+| the first gap | high | high | — | — |
 
 The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
 

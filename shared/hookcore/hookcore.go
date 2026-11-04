@@ -56,6 +56,7 @@ type Request struct {
 	AgentTranscriptPath string           // agent_transcript_path | (transcriptPath when subagent)
 	ToolName            string           // Canonical ("Bash", "Write", "Edit", "Read", "WebSearch", "WebFetch", "Glob", "Grep")
 	RawToolName         string           // Original wire name ("run_command", "write_to_file", "write_file", ...)
+	RawToolInput        map[string]any   // Original wire tool input map without synthetic keys
 	ToolInput           json.RawMessage  // Normalized JSON carrying canonical snake_case keys + original fields
 	ToolResult          json.RawMessage  // tool_response (Claude) | PostToolHookArgs.result (Antigravity 1.4.12+)
 	FilePath            string           // Extracted file path (file_path | path | Path | TargetFile | AbsolutePath)
@@ -81,6 +82,7 @@ type Response struct {
 	Decision          Decision
 	Reason            string
 	UpdatedCommand    string
+	UpdatedInput      map[string]any
 	Feedback          string
 	AdditionalContext string
 	WatchPaths        []string
@@ -415,6 +417,7 @@ func Read(event string, stdin io.Reader) Request {
 
 	// Normalize tool arguments and populate canonical keys
 	if toolInputMap != nil {
+		req.RawToolInput = toolInputMap
 		req.ToolInput = normalizeToolArgs(req.ToolName, toolInputMap, &req)
 	}
 
@@ -588,6 +591,14 @@ func queuePending(pluginDataDir, sessionID string, item pendingItem) {
 	_, _ = f.Write(append(b, '\n'))
 }
 
+// QueueSay enqueues an advisory or failure message for delivery on the next Antigravity PreInvocation event.
+func QueueSay(pluginDataDir, sessionID, say string) {
+	if say == "" {
+		return
+	}
+	queuePending(pluginDataDir, sessionID, pendingItem{Say: say})
+}
+
 func flushPending(pluginDataDir, sessionID string) []pendingItem {
 	if pluginDataDir == "" || sessionID == "" {
 		return nil
@@ -672,10 +683,12 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			out.HookSpecificOutput.PermissionDecision = string(resp.Decision)
 			out.HookSpecificOutput.PermissionDecisionReason = resp.Reason
 		}
-		if resp.UpdatedCommand != "" {
-			updated := map[string]any{}
-			if len(req.ToolInput) > 0 {
-				_ = json.Unmarshal(req.ToolInput, &updated)
+		if resp.UpdatedInput != nil {
+			out.HookSpecificOutput.UpdatedInput = resp.UpdatedInput
+		} else if resp.UpdatedCommand != "" {
+			updated := make(map[string]any, len(req.RawToolInput)+1)
+			for k, v := range req.RawToolInput {
+				updated[k] = v
 			}
 			updated["command"] = resp.UpdatedCommand
 			out.HookSpecificOutput.UpdatedInput = updated
@@ -801,13 +814,12 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 				out.DenyReason = resp.Reason
 			}
 		}
-		if resp.UpdatedCommand != "" {
-			overwrite := map[string]any{}
-			if len(req.ToolInput) > 0 {
-				_ = json.Unmarshal(req.ToolInput, &overwrite)
+		if resp.UpdatedInput != nil {
+			out.Overwrite = resp.UpdatedInput
+		} else if resp.UpdatedCommand != "" {
+			out.Overwrite = map[string]any{
+				"CommandLine": resp.UpdatedCommand,
 			}
-			overwrite["CommandLine"] = resp.UpdatedCommand
-			out.Overwrite = overwrite
 		}
 		if resp.Say != "" {
 			queuePending(req.PluginDataDir, req.SessionID, pendingItem{Say: resp.Say})

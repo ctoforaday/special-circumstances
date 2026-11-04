@@ -143,9 +143,12 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			closureProse: "red's close", estopped: true}},
 		// universe-m25 G-e205e589: the chair dockets the gap at its exchange limit (ev391), the lens
 		// closes it repaired (ev440), and the bench rules the docket repaired (ev488) to clear the
-		// PASS. The lens closed it; the ruling's word stands and bars re-raising it.
-		{"f: the lens closes a gap a docket motion stands on, and the bench rules the motion after", func(s *closureStage) {
+		// PASS. The lens closed it; the ruling's word stands and bars re-raising it. The write refuses
+		// that close now, and an archived record holds it.
+		{"f: an archived lens closed a gap a docket motion stands on, and the bench rules the motion after", func(s *closureStage) {
 			m := s.docketed()
+			Migrating = true
+			defer func() { Migrating = false }()
 			s.close(repaired, "red's close")
 			s.rule(m, repaired)
 		}, closureWant{epoch: 1, fate: "repaired", bodyClass: "repaired", benchDispo: "repaired",
