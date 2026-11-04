@@ -241,6 +241,7 @@ func TestLiveShippedClaudePlugins(t *testing.T) {
 		t.Fatalf("abs repo root: %v", err)
 	}
 
+	workDir := t.TempDir()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -250,6 +251,7 @@ func TestLiveShippedClaudePlugins(t *testing.T) {
 		"--plugin-dir", filepath.Join(repoRoot, "plugins", "frank-exchange-of-views"),
 		"--plugin-dir", filepath.Join(repoRoot, "plugins", "gray-area"),
 	)
+	cmd.Dir = workDir
 	var env []string
 	for _, e := range os.Environ() {
 		if strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
@@ -284,6 +286,7 @@ func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
 	testSecretKey := "AKIAIOSFODNN7EXAMPL2"
 	prompt := fmt.Sprintf("Run the bash command: echo '%s'", testSecretKey)
 
+	workDir := t.TempDir()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -292,6 +295,7 @@ func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
 		"--dangerously-skip-permissions",
 		"--plugin-dir", filepath.Join(repoRoot, "plugins", "prosthetic-conscience"),
 	)
+	cmd.Dir = workDir
 	var env []string
 	for _, e := range os.Environ() {
 		if strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {

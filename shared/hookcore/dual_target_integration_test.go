@@ -39,6 +39,7 @@ func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngin
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, binPath, args...)
+	cmd.Dir = t.TempDir()
 	cmd.Stdin = strings.NewReader(stdinPayload)
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
