@@ -201,8 +201,8 @@ Run `feov-record verify --help` for what it takes, flag by flag.
 exit 2
 feov-record: verify: at least one of the flags in the group [anchor url] is required
 
-      --anchor <!--cite:C-…-->   the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`. The sentence holding that token is the claim recorded. Give exactly one of --anchor (a citation blue made) and --url (a source you found, which blue never cited)
-      --url string                 the source's http/https URL — fetched once and cached, so both sides read the same bytes. Single-quote it: ( ) & ? and ; are shell syntax unquoted, and the shell refuses or splits the command before this tool sees it. A source you found, read for the sentence --quote names. Give exactly one of --anchor (a citation blue made) and --url (a source you found, which blue never cited)
+      --anchor <!--cite:C-…-->   the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`. The sentence holding that token is the claim recorded. Give exactly one of --anchor (a citation blue made) and --url (a source read against a sentence that carries no citation of it: one you found, or one blue cites elsewhere)
+      --url string                 the source's http/https URL — fetched once and cached, so both sides read the same bytes. Single-quote it: ( ) & ? and ; are shell syntax unquoted, and the shell refuses or splits the command before this tool sees it. The source read for the sentence --quote names. Give exactly one of --anchor (a citation blue made) and --url (a source read against a sentence that carries no citation of it: one you found, or one blue cites elsewhere)
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 

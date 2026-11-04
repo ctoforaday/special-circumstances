@@ -48,7 +48,7 @@ import (
 // source now carries the verifications OF THAT SOURCE, and `verified: []` means nobody has
 // checked it — stated, not inferred from an absence.
 //
-// Red's INDEPENDENT checks (readings of sources it found itself, which blue never cited) have no
+// Red's INDEPENDENT checks (readings of a source against a sentence that carries no citation of it) have no
 // anchor to join on and never will; they are the `independent` array, and that is a different
 // fact from an unverified citation rather than a missing one.
 //
@@ -287,8 +287,8 @@ func (v EvidenceVerificationJSON) FindsAgainst() bool {
 type EvidenceJSON struct {
 	Sources      []EvidenceSourceJSON      `json:"sources"`
 	Computations []EvidenceComputationJSON `json:"computations"`
-	// Independent is red's readings of sources it went and found, which blue never cited and
-	// which therefore have no anchor. A separate array rather than anchorless rows mixed into the
+	// Independent is red's readings of a source against a sentence that carries no citation of it
+	// — one red found, or one blue cites elsewhere — which therefore have no anchor. A separate array rather than anchorless rows mixed into the
 	// sources, because "checked something blue did not cite" and "checked a citation" answer
 	// different questions and only one of them is about the report's own backing.
 	Independent []EvidenceVerificationJSON `json:"independent"`

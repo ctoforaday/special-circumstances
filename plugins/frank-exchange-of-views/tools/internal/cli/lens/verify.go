@@ -76,8 +76,8 @@ import (
 // # One verb, two subjects
 //
 // Red reads a source for a sentence of the report in two ways: it adjudicates a citation BLUE
-// authored, named by --anchor, or it reads a source it found itself, which blue never cited, named
-// by --url and --title with the sentence as --quote. Both write the same Verify with the same axes
+// authored, named by --anchor, or it reads a source against a sentence that carries no citation of
+// it — one it found, or one blue cites elsewhere — named by --url and --title with the sentence as --quote. Both write the same Verify with the same axes
 // and the same gap flags, and the record already splits on the field — a reading with no anchor is a
 // reading of a source the lens found — so the verb splits there too. The contract differs only in
 // WHICH flag names the subject, and cobra states that at the parse, before the handler: exactly one
@@ -137,9 +137,9 @@ func newVerify() *cobra.Command {
 		}, url)
 	}))
 
-	const oneOf = "Give exactly one of --anchor (a citation blue made) and --url (a source you found, which blue never cited)"
+	const oneOf = "Give exactly one of --anchor (a citation blue made) and --url (a source read against a sentence that carries no citation of it: one you found, or one blue cites elsewhere)"
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the id of the citation you checked, from the report's `"+anchor.Token("C-…")+"` token — resolve it with `show evidence`. The sentence holding that token is the claim recorded. "+oneOf)
-	c.Flags().String(flags.URL, "", flags.DescURL+". A source you found, read for the sentence --quote names. "+oneOf)
+	c.Flags().String(flags.URL, "", flags.DescURL+". The source read for the sentence --quote names. "+oneOf)
 	flags.Text(c, flags.Title, "the source's name, kept on your reading beside its url — it names the source to whoever answers the gap your reading mints; it reaches no report text")
 	flags.Text(c, flags.Quote, flags.DescQuote+". With --url only: the REPORT's sentence your source backs or refutes, under every --as value, never the source's")
 	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page. Refused on a citation with none, and with --url")
