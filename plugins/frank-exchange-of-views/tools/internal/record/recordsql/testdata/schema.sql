@@ -667,11 +667,19 @@ CREATE TABLE "regrade" (
   "impact" TEXT,
   "complexity_cost" TEXT,
   "basis" TEXT NOT NULL,
+  "result_severity" TEXT,
+  "result_likelihood" TEXT,
+  "result_impact" TEXT,
+  "result_complexity_cost" TEXT,
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("impact") REFERENCES "enum_grade"("value"),
-  FOREIGN KEY ("complexity_cost") REFERENCES "enum_grade"("value")
+  FOREIGN KEY ("complexity_cost") REFERENCES "enum_grade"("value"),
+  FOREIGN KEY ("result_severity") REFERENCES "enum_grade"("value"),
+  FOREIGN KEY ("result_likelihood") REFERENCES "enum_grade"("value"),
+  FOREIGN KEY ("result_impact") REFERENCES "enum_grade"("value"),
+  FOREIGN KEY ("result_complexity_cost") REFERENCES "enum_grade"("value")
 ) STRICT;
 
 CREATE TABLE "spot_check" (
@@ -979,7 +987,8 @@ CREATE TABLE "envelope_admitted" (
 ) STRICT;
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
--- gap_grade's per-axis lookups: a gap's latest regrade at or before a point.
+-- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
+-- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
 -- A motion's rulings: motion_answers, inquiry_state, the gap view's unruled docket filing, and the
 -- bench's docket readers.
@@ -1261,11 +1270,12 @@ WHERE rp."ruling" = 'upheld';
 -- of the record over which its grades held — from "from_seq" up to, not including, "until_seq" (NULL:
 -- they hold now). The row that holds at a point P is the one with from_seq <= P and until_seq NULL or
 -- above P. The gap view reads the row that holds now; convergence_at reads the one that held at each
--- verdict. This is the ONE statement of the regrade overlay and of the materiality rule.
+-- verdict. This is the ONE statement of the materiality rule.
 --
--- THE OVERLAY: on each axis, the latest regrade that touched the axis among the regrades written at
--- or before the point (events.id <= P); else the mint's grade. A stretch begins at the mint and at
--- each regrade, the only points where that answer can change.
+-- THE GRADES ARE STORED, NOT DERIVED HERE. A stretch begins at the mint and at each regrade, the
+-- only points where a gap's grades can change: the mint's row carries the mint's grades, and a
+-- regrade's row the result grades the write path stamped on it (recordsql.stampRegradeResult, the one
+-- statement of the regrade overlay). LEAD over the stretches of one mint ends each at the next.
 --
 -- THE MATERIALITY RULE: the class's default says 'always' or 'never', and a 'by_grade' class is
 -- material at a severity of medium (mass 2.0) and above. A gap that is not material stays on the
@@ -1274,39 +1284,21 @@ WHERE rp."ruling" = 'upheld';
 --
 -- "mass" is MASS[likelihood] * MASS[impact] and "severity_mass" MASS[severity] — a grade's weight is
 -- a facet on the vocabulary (enum_grade.mass).
---
--- THE PER-AXIS LOOKUPS READ regrade ITSELF, so each is a search on its (gap_id, event_id) index
--- (QueryIndexDDL). A materialized copy of regrade carries no index, and each lookup against it is a
--- scan and a sort.
 CREATE VIEW "gap_grade" AS
-WITH "turn" AS (
-  SELECT m."event_id" AS "minted_event", m."event_id" AS "seq" FROM "mint" m
-  UNION
-  SELECT m."event_id", a."event_id" FROM "mint" m JOIN "regrade" a ON a."gap_id" = m."gap_id"
+WITH "stretch" AS (
+  SELECT m."event_id" AS "minted_event", m."event_id" AS "from_seq", m."class_material" AS "class_material",
+         m."severity" AS "severity", m."likelihood" AS "likelihood", m."impact" AS "impact",
+         m."complexity_cost" AS "complexity_cost"
+  FROM "mint" m
+  UNION ALL
+  SELECT m."event_id", a."event_id", m."class_material",
+         a."result_severity", a."result_likelihood", a."result_impact", a."result_complexity_cost"
+  FROM "regrade" a
+  JOIN "mint" m ON m."gap_id" = a."gap_id"
 ),
 "graded" AS (
-  SELECT t."minted_event" AS "minted_event",
-         t."seq"          AS "from_seq",
-         LEAD(t."seq") OVER (PARTITION BY t."minted_event" ORDER BY t."seq") AS "until_seq",
-         m."class_material" AS "class_material",
-         COALESCE((SELECT a."severity" FROM "regrade" a
-                    WHERE a."gap_id" = m."gap_id" AND a."severity" IS NOT NULL
-                      AND a."event_id" <= t."seq"
-                    ORDER BY a."event_id" DESC LIMIT 1), m."severity")               AS "severity",
-         COALESCE((SELECT a."likelihood" FROM "regrade" a
-                    WHERE a."gap_id" = m."gap_id" AND a."likelihood" IS NOT NULL
-                      AND a."event_id" <= t."seq"
-                    ORDER BY a."event_id" DESC LIMIT 1), m."likelihood")             AS "likelihood",
-         COALESCE((SELECT a."impact" FROM "regrade" a
-                    WHERE a."gap_id" = m."gap_id" AND a."impact" IS NOT NULL
-                      AND a."event_id" <= t."seq"
-                    ORDER BY a."event_id" DESC LIMIT 1), m."impact")                 AS "impact",
-         COALESCE((SELECT a."complexity_cost" FROM "regrade" a
-                    WHERE a."gap_id" = m."gap_id" AND a."complexity_cost" IS NOT NULL
-                      AND a."event_id" <= t."seq"
-                    ORDER BY a."event_id" DESC LIMIT 1), m."complexity_cost")        AS "complexity_cost"
-  FROM "turn" t
-  JOIN "mint" m ON m."event_id" = t."minted_event"
+  SELECT s.*, LEAD(s."from_seq") OVER (PARTITION BY s."minted_event" ORDER BY s."from_seq") AS "until_seq"
+  FROM "stretch" s
 )
 SELECT g."minted_event"                                      AS "minted_event",
        g."from_seq"                                          AS "from_seq",
@@ -1350,8 +1342,8 @@ JOIN "enum_disposition" d ON d."value" = rd."disposition"
 WHERE d."closes";
 
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
--- row that stands now (until_seq IS NULL) — the one definition of both the regrade overlay and the
--- materiality rule, which convergence_at reads at every other point of the record.
+-- row that stands now (until_seq IS NULL) — the one definition of the materiality rule, which
+-- convergence_at reads at every other point of the record.
 --
 -- THIS COLUMN LIST IS HAND-AUTHORED, AND IT IS WHERE A NEW GAP FIELD GOES MISSING. The table DDL
 -- is DERIVED from the protobuf descriptors, so a new field on Mint gets its column and its write
@@ -1480,8 +1472,8 @@ SELECT
   (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
   -- THE CURRENT GRADES, one per axis, off gap_grade's standing row. The plain "severity" columns
   -- above are MINT-TIME grades — a reader that wants what the gap is graded NOW and reaches for them
-  -- silently reads a number a regrade may have moved, which is why the overlay is answered here
-  -- rather than left to each reader.
+  -- silently reads a number a regrade may have moved, which is why the current grades are answered
+  -- here rather than left to each reader.
   gg."severity"                                                                       AS "current_severity",
   gg."likelihood"                                                                     AS "current_likelihood",
   gg."impact"                                                                         AS "current_impact",

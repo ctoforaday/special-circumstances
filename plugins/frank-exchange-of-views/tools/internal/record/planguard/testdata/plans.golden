@@ -22,24 +22,13 @@
     MATERIALIZE gap_grade
       CO-ROUTINE graded
         CO-ROUTINE (subquery)
-          CO-ROUTINE turn
-            MERGE (UNION)
-              LEFT
-                SCAN m
-              RIGHT
-                SCAN m
-                SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
-          SCAN t
-          SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+          MERGE (UNION ALL)
+            LEFT
+              SCAN m
+            RIGHT
+              SCAN m
+              SEARCH a USING INDEX regrade_gap (gap_id=?)
         SCAN (subquery)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       SCAN g
       SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
       SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
@@ -158,24 +147,13 @@
           MATERIALIZE held
             CO-ROUTINE graded
               CO-ROUTINE (subquery)
-                CO-ROUTINE turn
-                  MERGE (UNION)
-                    LEFT
-                      SCAN m
-                    RIGHT
-                      SCAN m
-                      SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
-                SCAN t
-                SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+                MERGE (UNION ALL)
+                  LEFT
+                    SCAN m
+                  RIGHT
+                    SCAN m
+                    SEARCH a USING INDEX regrade_gap (gap_id=?)
               SCAN (subquery)
-              CORRELATED SCALAR SUBQUERY
-                SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-              CORRELATED SCALAR SUBQUERY
-                SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-              CORRELATED SCALAR SUBQUERY
-                SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-              CORRELATED SCALAR SUBQUERY
-                SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
             SCAN g
             SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
             SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
@@ -210,24 +188,13 @@
   MATERIALIZE gap_grade
     CO-ROUTINE graded
       CO-ROUTINE (subquery)
-        CO-ROUTINE turn
-          MERGE (UNION)
-            LEFT
-              SCAN m
-            RIGHT
-              SCAN m
-              SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
-        SCAN t
-        SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+        MERGE (UNION ALL)
+          LEFT
+            SCAN m
+          RIGHT
+            SCAN m
+            SEARCH a USING INDEX regrade_gap (gap_id=?)
       SCAN (subquery)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     SCAN g
     SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
@@ -304,24 +271,13 @@
 == view gap_grade
   CO-ROUTINE graded
     CO-ROUTINE (subquery)
-      CO-ROUTINE turn
-        MERGE (UNION)
-          LEFT
-            SCAN m
-          RIGHT
-            SCAN m
-            SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
-      SCAN t
-      SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+      MERGE (UNION ALL)
+        LEFT
+          SCAN m
+        RIGHT
+          SCAN m
+          SEARCH a USING INDEX regrade_gap (gap_id=?)
     SCAN (subquery)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
   SCAN g
   SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
   SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
@@ -493,24 +449,13 @@
   MATERIALIZE gap_grade
     CO-ROUTINE graded
       CO-ROUTINE (subquery)
-        CO-ROUTINE turn
-          MERGE (UNION)
-            LEFT
-              SCAN m
-            RIGHT
-              SCAN m
-              SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
-        SCAN t
-        SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+        MERGE (UNION ALL)
+          LEFT
+            SCAN m
+          RIGHT
+            SCAN m
+            SEARCH a USING INDEX regrade_gap (gap_id=?)
       SCAN (subquery)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     SCAN g
     SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
@@ -584,24 +529,13 @@
   MATERIALIZE gap_grade
     CO-ROUTINE graded
       CO-ROUTINE (subquery)
-        CO-ROUTINE turn
-          MERGE (UNION)
-            LEFT
-              SCAN m
-            RIGHT
-              SCAN m
-              SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
-        SCAN t
-        SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+        MERGE (UNION ALL)
+          LEFT
+            SCAN m
+          RIGHT
+            SCAN m
+            SEARCH a USING INDEX regrade_gap (gap_id=?)
       SCAN (subquery)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-      CORRELATED SCALAR SUBQUERY
-        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     SCAN g
     SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
@@ -676,24 +610,13 @@
     MATERIALIZE gap_grade
       CO-ROUTINE graded
         CO-ROUTINE (subquery)
-          CO-ROUTINE turn
-            MERGE (UNION)
-              LEFT
-                SCAN m
-              RIGHT
-                SCAN m
-                SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
-          SCAN t
-          SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+          MERGE (UNION ALL)
+            LEFT
+              SCAN m
+            RIGHT
+              SCAN m
+              SEARCH a USING INDEX regrade_gap (gap_id=?)
         SCAN (subquery)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
-        CORRELATED SCALAR SUBQUERY
-          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       SCAN g
       SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
       SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
