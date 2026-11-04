@@ -7,7 +7,8 @@ name: ortstatic
 on:
   push:
     branches: [bench/embed-engines]
-    paths: ["bench/ortstatic/**", ".github/workflows/ortstatic.yml"]
+    # The MSVC helper probe (bench/ortstatic/msvc) runs in ortmsvc.yml.
+    paths: ["bench/ortstatic/**", "!bench/ortstatic/msvc/**", ".github/workflows/ortstatic.yml"]
   workflow_dispatch:
 
 permissions:
