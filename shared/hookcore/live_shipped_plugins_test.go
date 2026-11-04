@@ -215,3 +215,96 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 		t.Errorf("expected secret block from sc-secrets-gate, got:\n%s", output)
 	}
 }
+
+func findClaudeBin() string {
+	if bin, err := exec.LookPath("claude"); err == nil {
+		return bin
+	}
+	home, _ := os.UserHomeDir()
+	fallback := filepath.Join(home, ".local", "bin", "claude")
+	if _, err := os.Stat(fallback); err == nil {
+		return fallback
+	}
+	return ""
+}
+
+// TestLiveShippedClaudePlugins verifies that real shipped hook binaries execute
+// under `claude -p` with --plugin-dir.
+func TestLiveShippedClaudePlugins(t *testing.T) {
+	claudeBin := findClaudeBin()
+	if claudeBin == "" {
+		t.Skip("claude CLI not found on PATH or ~/.local/bin/claude; skipping live Claude test")
+	}
+
+	repoRoot, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("abs repo root: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, claudeBin,
+		"-p", "Print exactly: LIVE_CLAUDE_VERIFIED_SUCCESS",
+		"--plugin-dir", filepath.Join(repoRoot, "plugins", "prosthetic-conscience"),
+		"--plugin-dir", filepath.Join(repoRoot, "plugins", "frank-exchange-of-views"),
+		"--plugin-dir", filepath.Join(repoRoot, "plugins", "gray-area"),
+	)
+	var env []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
+			continue
+		}
+		env = append(env, e)
+	}
+	cmd.Env = env
+
+	out, err := cmd.CombinedOutput()
+	output := string(out)
+	if err != nil {
+		t.Fatalf("claude -p failed: %v\nOutput: %s", err, output)
+	}
+	if !strings.Contains(output, "LIVE_CLAUDE_VERIFIED_SUCCESS") {
+		t.Errorf("expected output to contain LIVE_CLAUDE_VERIFIED_SUCCESS, got:\n%s", output)
+	}
+}
+
+// TestLiveShippedClaudeSecretsBlocking verifies that sc-pretooluse blocks AWS keys live under `claude -p`.
+func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
+	claudeBin := findClaudeBin()
+	if claudeBin == "" {
+		t.Skip("claude CLI not found; skipping live Claude test")
+	}
+
+	repoRoot, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("abs repo root: %v", err)
+	}
+
+	testSecretKey := "AKIAIOSFODNN7EXAMPL2"
+	prompt := fmt.Sprintf("Run the bash command: echo '%s'", testSecretKey)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, claudeBin,
+		"-p", prompt,
+		"--dangerously-skip-permissions",
+		"--plugin-dir", filepath.Join(repoRoot, "plugins", "prosthetic-conscience"),
+	)
+	var env []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
+			continue
+		}
+		env = append(env, e)
+	}
+	cmd.Env = env
+
+	out, _ := cmd.CombinedOutput()
+	output := string(out)
+
+	if !strings.Contains(output, "sc-secrets-gate: BLOCKED") && !strings.Contains(output, "aws-access-token") && !strings.Contains(output, "denied by pre-tool hook") {
+		t.Errorf("expected secret block from sc-secrets-gate under claude -p, got:\n%s", output)
+	}
+}

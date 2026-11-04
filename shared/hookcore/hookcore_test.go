@@ -863,3 +863,19 @@ func TestQueueSay(t *testing.T) {
 		t.Errorf("expected %q, got %q", "advisory notice", items[0].Say)
 	}
 }
+
+func TestContractMalformedStdinEnvironmentRoots(t *testing.T) {
+	t.Setenv("CLAUDE_PLUGIN_ROOT", "/tmp/fake-plugin-root")
+	t.Setenv("CLAUDE_PROJECT_DIR", "/tmp/fake-proj-dir")
+
+	req := Read("SessionStart", strings.NewReader("{{{ not valid json"))
+	if req.Parsed {
+		t.Fatalf("expected req.Parsed = false")
+	}
+	if req.PluginRoot != "/tmp/fake-plugin-root" {
+		t.Errorf("req.PluginRoot = %q, want %q", req.PluginRoot, "/tmp/fake-plugin-root")
+	}
+	if req.ProjectDir != "/tmp/fake-proj-dir" {
+		t.Errorf("req.ProjectDir = %q, want %q", req.ProjectDir, "/tmp/fake-proj-dir")
+	}
+}
