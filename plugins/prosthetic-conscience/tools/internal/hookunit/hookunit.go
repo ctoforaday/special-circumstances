@@ -30,12 +30,14 @@
 package hookunit
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // Ctx is everything the units share, built ONCE per event.
@@ -74,12 +76,10 @@ type Ctx struct {
 func NewCtx(event string, raw []byte, projectDir string, now time.Time, rec *hookfailures.Recorder) *Ctx {
 	c := &Ctx{Event: event, Raw: raw, ProjectDir: projectDir, Now: now, Rec: rec,
 		memo: map[string]any{}, onces: map[string]*sync.Once{}}
-	var in struct {
-		ToolName  string          `json:"tool_name"`
-		ToolInput json.RawMessage `json:"tool_input"`
-	}
-	c.Parsed = json.Unmarshal(raw, &in) == nil
-	c.ToolName, c.ToolInput = in.ToolName, in.ToolInput
+	req := hookcore.Read(event, bytes.NewReader(raw))
+	c.Parsed = req.Parsed
+	c.ToolName = req.ToolName
+	c.ToolInput = req.ToolInput
 	return c
 }
 

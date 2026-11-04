@@ -227,7 +227,11 @@ func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Re
 	}
 	req := hookcore.Read(event, stdin)
 	if !req.Parsed {
-		rec.Fail(StageInput, "the hook payload does not parse — this sitting is not on the record")
+		errStr := "syntax error"
+		if req.ParseErr != nil {
+			errStr = req.ParseErr.Error()
+		}
+		rec.Fail(StageInput, "the hook payload does not parse: "+errStr+" — this sitting is not on the record")
 		return nil
 	}
 	rec.OK(StageInput)

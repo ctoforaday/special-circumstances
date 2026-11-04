@@ -78,10 +78,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	hookenv.Note(ctx.ProjectDir, rec) // recorded, never a reason to skip the secrets gate
 	decision, warnings, say := merge(hookunit.Run(ctx, units))
 
-	if warnings != "" {
-		fmt.Fprintln(stderr, warnings)
-	}
-
 	resp := hookcore.Response{
 		Warnings: warnings,
 		Say:      strings.TrimSpace(say + "\n\n" + rec.Settle()),
@@ -111,8 +107,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 				resp.Decision = hookcore.Decision(d)
 			} else if d, ok := testDoc["decision"].(string); ok {
 				resp.Decision = hookcore.Decision(d)
-			} else {
-				resp.Decision = hookcore.DecisionDeny
 			}
 			if r, ok := testDoc["permissionDecisionReason"].(string); ok {
 				resp.Reason = r
