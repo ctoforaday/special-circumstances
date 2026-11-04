@@ -175,12 +175,10 @@ func DetectEngine(raw []byte) Engine {
 			bytes.Contains(raw, []byte(`"hook_event_name"`)) {
 			return EngineClaude
 		}
+		return EngineClaude
 	}
 	if os.Getenv("ANTIGRAVITY_CONVERSATION_ID") != "" {
 		return EngineAntigravity
-	}
-	if os.Getenv("CLAUDE_PLUGIN_ROOT") != "" || os.Getenv("CLAUDE_PROJECT_DIR") != "" || os.Getenv("CLAUDECODE") != "" {
-		return EngineClaude
 	}
 	return EngineClaude
 }
