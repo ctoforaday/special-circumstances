@@ -27,15 +27,17 @@ type writeView struct {
 	q recordsql.Querier
 	// files is the run's files the checks read: setup's terms.
 	files runFiles
-	// rendering is the write's report, rendered before the lock (landingReport); nil on a replay's
-	// write, which renders under its own transaction.
-	rendering *landingReport
 	// act is the reading's act the body being validated is a member of (readingAct): the Mint, the
 	// Anchor and the Verify a reading that finds against its sentence writes in one transaction. Its
 	// Mint's rules read the act's other bodies, which are not on the record yet. nil for every other
 	// write.
 	act *readingAct
 }
+
+// report is the report this write lands on, rendered in the writing transaction (RenderAt): the
+// newest report checkpoint and the ops after it, fewer than the checkpoints' spacing
+// (recordsql.ReportSourceAt), so the lock is held for a checkpoint read and a short replay.
+func (w writeView) report() (string, error) { return RenderAt(w.q) }
 
 // runFiles is the file the write path reads besides the record: inputs/run-config.json (the run's
 // terms). It is not a record a seat writes, so it cannot move under a write; it is read from the

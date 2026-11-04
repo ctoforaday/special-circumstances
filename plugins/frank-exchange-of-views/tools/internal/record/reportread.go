@@ -43,7 +43,7 @@ func ServeReport(id Identity) (text string, head int64, err error) {
 		return ReportAtHead(id.Run)
 	}
 	body := &recordpb.ReportRead{}
-	_, err = Append(id, body, CheckOnReport(func(l *Landing) error {
+	_, err = Append(id, body, Check(func(l *Landing) error {
 		if text, err = l.Report(); err != nil {
 			return err
 		}
