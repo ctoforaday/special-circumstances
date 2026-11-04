@@ -117,7 +117,7 @@ var (
 		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		DocketMotion.grounds InquiryCheck.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id
+		Declare.gap_ids Close.anchors Stale.gap_id
 		Position.position_id PositionMotion.position_id PositionHearing.gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text

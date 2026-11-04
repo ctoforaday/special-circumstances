@@ -109,11 +109,6 @@ func newCompute() *cobra.Command {
 			if err := seat.RepeatsKeyed(key, "computation", prior.GetComputationId(), prior, retry, computeAsserted...); err != nil {
 				return nil, err
 			}
-			// A computation on the record without its anchor — one migrate brought forward from an archive
-			// whose run crashed between the two — is finished by the retry, at the location it states.
-			if err := seat.PlaceOwed(s, prior.GetComputationId(), key); err != nil {
-				return nil, err
-			}
 			return computeResult{SHA: prior.GetBundleSha(), Idempotent: true, VoiceTells: tells}, nil
 		}
 

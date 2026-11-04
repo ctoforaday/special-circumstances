@@ -68,7 +68,7 @@ func requirePositionRef(q recordsql.Querier, id string) error {
 // 2026-10-30): upheld names a cast lens or open gaps — one or the other — with a direction; overruled
 // names none. A named gap the bench has already remanded at impasse is refused as a second remand
 // at impasse is (remandPastLimit), and one with a docket motion standing unruled is before the bench
-// already. Off under a migration, as a remand's checks are: an archived ruling is what the bench did.
+// already.
 func requirePositionHearing(w writeView, seatID string, h *recordpb.PositionHearing) error {
 	lens, gaps := strings.TrimSpace(h.GetLens()), h.GetGapIds()
 	switch h.GetRuling() {
@@ -86,9 +86,6 @@ func requirePositionHearing(w writeView, seatID string, h *recordpb.PositionHear
 	}
 	if strings.TrimSpace(h.GetDirection()) == "" {
 		return fmt.Errorf("--as %s requires --direction: the work the ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its minting lens", positionUpheld)
-	}
-	if Migrating {
-		return nil
 	}
 	if lens != "" {
 		cast, err := castAt(w.q)
@@ -155,7 +152,7 @@ func requirePositionHearing(w writeView, seatID string, h *recordpb.PositionHear
 // or not the sitting has recorded its verdict yet: a FAIL there does not reopen the objection, and a
 // position after it would be heard again on the same withholding.
 func requireNoRepeatedPosition(w writeView, seatID string) error {
-	if seatID != chairSeat || Migrating {
+	if seatID != chairSeat {
 		return nil
 	}
 	evs, win, err := eventsAt(w.q)

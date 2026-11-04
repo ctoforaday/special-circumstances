@@ -79,9 +79,6 @@ func printReport(cmd *cobra.Command, checks []verify.Check, s verify.Stats) {
 		for _, v := range c.Violations {
 			fmt.Fprintf(w, "         · %s\n", v)
 		}
-		for _, a := range c.Admitted {
-			fmt.Fprintf(w, "         · %s — admitted by migration\n", a)
-		}
 	}
 	if na := verify.NotApplicable(checks); len(na) > 0 {
 		// Named again, together, because one `n/a` in a list of seven is easy to read past —

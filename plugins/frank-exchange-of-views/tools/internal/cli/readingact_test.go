@@ -357,15 +357,11 @@ func TestAReadingOfAFoundAgainstCitationIsWordedByItsState(t *testing.T) {
 	})
 	t.Run("d: carrier-less", func(t *testing.T) {
 		b := readingRun(t)
-		record.Migrating = true
-		_, err := record.Append(record.Identity{Run: runtest.Open(t, b.runDir), SeatID: lensL}, &recordpb.Verify{Anchor: proto.String(b.c1), Claim: proto.String(rdCited),
+		// AN ARCHIVED READING, AS THE REPLAY WRITES IT: from before the carrier fields, naming no gap.
+		recordtest.Seed(t, b.runDir, recordtest.At(t, lensL, lensL+":seeded:archived-reading", &recordpb.Verify{Anchor: proto.String(b.c1), Claim: proto.String(rdCited),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
 			Text: proto.String("read at the leaf"), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
-			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_ASKED.Enum()})
-		record.Migrating = false
-		if err != nil {
-			t.Fatal(err)
-		}
+			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_ASKED.Enum()}))
 		b.sit(lensL)
 		check(t, b, lensL, unreachable(b), lensL, "", "no gap names it")
 		check(t, b, lensM, unreachable(b), lensL, "", "no gap names it")

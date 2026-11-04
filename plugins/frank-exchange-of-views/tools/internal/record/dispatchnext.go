@@ -67,8 +67,8 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 			return err
 		}
 		return writeIn(tx.Tx, ev, id.SeatID, typ, body, func(*sql.Tx) error {
-			return validate(writeView{q: tx, files: files}, id.SeatID, typ, body)
-		})
+			return validateAct(writeView{q: tx, files: files}, id.SeatID, typ, body)
+		}, stamp)
 	}
 	if first != nil {
 		if err := write(first); err != nil {

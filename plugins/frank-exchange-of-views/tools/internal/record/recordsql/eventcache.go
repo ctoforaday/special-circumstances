@@ -52,7 +52,7 @@ import (
 // so the events it has inserted and not committed are in it. Those may still roll back, so the
 // handle's stream takes only the rows at or below the highest id committed when the transaction
 // began (committedMax, read under the write lock BEGIN takes). Within the transaction a second read
-// extends from the first (Tx.own): a migration's Batch validates every act against the record so
+// extends from the first (Tx.own): a migration's Replay validates every act against the record so
 // far, and each validation reads only the acts since the last.
 
 // stream is one handle's decoded record: the file it was read from, and the events with their
