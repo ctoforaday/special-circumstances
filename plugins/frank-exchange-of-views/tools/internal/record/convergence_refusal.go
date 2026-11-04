@@ -74,7 +74,7 @@ func convergenceOf(w writeView) (Convergence, error) {
 // material. The report is not held open by gaps that change no reader decision.
 //
 // IT STANDS ONLY WHERE A PASS IS THE CHAIR'S TO RECORD. While a blocker another seat must clear
-// holds the PASS — a petition the bench has not ruled, a contradiction no lens has raised, a
+// holds the PASS — a petition the bench has not ruled, a check that failed, a
 // citation or computation unchecked since its sentence changed — the refusal's "or issue `--as PASS`" is
 // false, and refusing the FAIL too left the chair able to record no verdict at all (#1202). The
 // chair's own item (the stale-area spot-check) does not lift it: the refusal names it, and the PASS is the chair's once it has done it.

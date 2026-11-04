@@ -169,12 +169,12 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 				"--dir", script(t, runDir, "m.js", "console.log(1)"), "--reason", "r", "--", "node", "m.js")
 			return err
 		}},
-		{"lens corroborate", false, func(t *testing.T, runDir string) error {
+		{"lens verify --url", false, func(t *testing.T, runDir string) error {
 			if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
 				t.Fatal(err)
 			}
-			_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence", "--url", "https://m/2", "--title", "M",
-				"--quote", "Method", "--as", "supports", "--confidence", "high", "--reason", "r")
+			_, err := run(t, append([]string{"verify", "--run", runDir, "--seat-id", "red-lens-evidence", "--url", "https://m/2", "--title", "M",
+				"--quote", "Method", "--as", "supports", "--confidence", "high", "--reason", "r"}, gapFlagArgs("unsourced_claim")...)...)
 			return err
 		}},
 	} {
@@ -257,7 +257,7 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 	}
 }
 
-// EVERY PLACING ACT IS FOLLOWED BY ITS ANCHOR. A citation, a computation and a corroboration each append
+// EVERY PLACING ACT IS FOLLOWED BY ITS ANCHOR. A citation and a computation each append
 // their own event and then one Anchor carrying the act's id and its quote, from the same seat; the
 // report holds the marker because of that Anchor, so an act with none places nothing.
 func TestEveryPlacerAppendsItsAnchorAfterItsAct(t *testing.T) {
@@ -271,8 +271,6 @@ func TestEveryPlacerAppendsItsAnchorAfterItsAct(t *testing.T) {
 			func(e *record.Event) string { return e.GetCite().GetLabel() }},
 		{blueSeat, []string{"compute", "--dir", "scratch/p", "--reason", "r", "--", "node", "p.js"},
 			func(e *record.Event) string { return e.GetComputation().GetComputationId() }},
-		{lensSeat, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--as", "supports", "--confidence", "high", "--reason", "r"},
-			func(e *record.Event) string { return e.GetVerify().GetLabel() }},
 	} {
 		t.Run(c.args[0], func(t *testing.T) {
 			runDir := newRun(t)
@@ -321,8 +319,6 @@ func TestEveryPlacerStoresItsQuoteWithoutAnchors(t *testing.T) {
 			func(e *record.Event) string { return e.GetCite().GetLabel() }, func(e *record.Event) string { return e.GetCite().GetLocation() }},
 		{"compute", blueSeat, []string{"compute", "--dir", "scratch/p", "--reason", "r", "--", "node", "p.js"},
 			func(e *record.Event) string { return e.GetComputation().GetComputationId() }, func(e *record.Event) string { return e.GetComputation().GetLocation() }},
-		{"corroborate", lensSeat, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--as", "supports", "--confidence", "high", "--reason", "r"},
-			func(e *record.Event) string { return e.GetVerify().GetLabel() }, func(e *record.Event) string { return e.GetVerify().GetClaim() }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir := newRun(t)

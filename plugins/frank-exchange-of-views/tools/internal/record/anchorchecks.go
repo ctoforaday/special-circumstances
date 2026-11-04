@@ -15,7 +15,8 @@ import (
 //     (reopened evidence, a PASS blocker);
 //   - what does the record say of a computation's sentence — sound, unsound, not yet judged? (the
 //     evidence view, the report's computations section, the work list);
-//   - which contradiction does a reading of a citation raise? (the contradiction blocker).
+//   - does a reading of a citation find its source against the sentence as it stands? (the
+//     found-against failed check).
 //
 // The re-run's fold was keyed by the computation's SHA, so one lens's `unsound` on one sentence was
 // overwritten by another lens's `sound` on another sentence over the same script. A check is of
@@ -67,8 +68,8 @@ type anchorStanding struct {
 	computation bool
 	// sha is a computation's bundle_sha — the script every computation anchor on it shares; "" for a citation.
 	sha string
-	// placed is the events.id of the act that put the anchor on the record: blue's cite or computation, or
-	// red's corroboration. Neither moves the report head, so dispatch readies the owner off it.
+	// placed is the events.id of the act that put the anchor on the record: blue's cite or computation.
+	// Neither moves the report head, so dispatch readies the owner off it.
 	placed int64
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has since
 	// the anchor was placed or last retired.
@@ -103,9 +104,9 @@ func (s *anchorStanding) standing() []anchorCheck {
 }
 
 // holds reports whether the record says this anchor's sentence stands up: a check of it stands, and
-// every one that stands holds. It is a computation's `sound` and the answer to a contradiction of a
-// citation (unansweredContradictions) — one reading, so a lens's standing `refutes` keeps a
-// citation's contradiction open exactly as its standing `unsound` keeps a computation unsound.
+// every one that stands holds. It is a computation's `sound` and a citation's backing — one reading,
+// so a lens's standing `refutes` keeps a citation found against exactly as its standing `unsound`
+// keeps a computation unsound.
 func (s *anchorStanding) holds() bool {
 	standing := s.standing()
 	for _, c := range standing {
@@ -122,9 +123,9 @@ func (s *anchorStanding) holds() bool {
 // A CITATION THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25): "the doc is flawed, and red
 // should demand the citation withdrawn or text changed or *something. Blocks lens and pass. Citation
 // checking isn't optional. Ever." So every state but holding and retired holds the PASS: unchecked is
-// the owner lens's to check (the unchecked blocker), unread and unsound are the failed check its
-// reader or judge carries to blue by a gap (the failed_check blocker), and found against is the
-// contradiction's.
+// the owner lens's to check (the unchecked blocker), and unread, unsound and found against are the
+// failed check (the failed_check blocker): an unread or unsound one its reader or judge carries to
+// blue by a gap about the anchor, a found-against one the gap its reading minted.
 type anchorState int
 
 const (
@@ -140,7 +141,8 @@ const (
 	stateUnread
 	// stateUnsound: a computation whose sentence a lens's standing judgement calls unsound.
 	stateUnsound
-	// stateFoundAgainst: a citation a standing `refutes` or `absent` reads against (the contradiction).
+	// stateFoundAgainst: a citation a standing reading finds against (FindsAgainst): it read the
+	// work, and the source says otherwise than the sentence, or not at all.
 	stateFoundAgainst
 )
 
@@ -225,10 +227,6 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 		switch b := body.(type) {
 		case *recordpb.Cite:
 			hold(e, b.GetLabel(), false, "")
-		case *recordpb.Verify:
-			if b.GetClaim() != "" { // red's own corroboration: a source of the report, as EvidenceJSONOf lists it
-				hold(e, b.GetLabel(), false, "")
-			}
 		case *recordpb.Computation:
 			hold(e, b.GetComputationId(), true, b.GetBundleSha())
 		}
@@ -258,12 +256,8 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 			}
 		case *recordpb.Verify:
 			reads := VerifyReads(b)
-			c := anchorCheck{reads: reads, holds: reads && !contradicts(b.GetOutcome())}
+			c := anchorCheck{reads: reads, holds: reads && !FindsAgainst(b)}
 			check(l.byAnchor[b.GetAnchor()], c)
-			// A corroboration that minted its own footnote is a check of that footnote's sentence.
-			if b.GetClaim() != "" && b.GetLabel() != "" && b.GetLabel() != b.GetAnchor() {
-				check(l.byAnchor[b.GetLabel()], c)
-			}
 		case *recordpb.Reproduce:
 			check(l.byAnchor[b.GetComputationId()], anchorCheck{
 				reads:     true,
@@ -277,7 +271,8 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 
 // VerifyReads reports whether a verify is a reading of the sentence against its source: an outcome
 // that read it, of a copy that is the work. `refutes` and `absent` are readings: the sentence as it
-// now stands was read, and what a finding against it means for a PASS is the contradiction blocker's.
+// now stands was read, and one that finds against it is a found-against failed check, carried by
+// the gap the reading minted.
 // `unreachable` is not — nothing was verified — and neither is the zero, which no verb writes. Nor is
 // any outcome of a copy the tool stamped not_the_work (a sign-in page, a sales page): what was read
 // there is not the cited work, whatever the seat says it found in it.

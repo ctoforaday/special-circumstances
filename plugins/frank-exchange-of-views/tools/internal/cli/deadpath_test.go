@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // EVERY COMMAND PATH A SEAT IS TOLD TO TYPE MUST RESOLVE IN THE TREE IT WILL TYPE IT INTO.
@@ -613,25 +614,25 @@ func flatten(e ast.Expr, parts *[]string, leaves *[]ast.Expr) {
 	*parts = append(*parts, " ")
 }
 
-// THE CHAIR'S PASS OVER AN UNRAISED CONTRADICTION IS ANSWERED IN THE CHAIR'S TERMS.
-//
-// No other test delivers this refusal to the chair, so assertRefusalSpeaksToItsSeat never read it,
-// and it shipped telling the chair to raise a `finding` — a lens's verb the chair does not hold.
-// Driven here through the chair's own tree so the harness reads it against that tree.
-func TestThePassRefusalOverAContradictionNamesWhoRaisesIt(t *testing.T) {
-	runDir := corroborateRun(t)
-	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+// THE CHAIR'S PASS OVER A READING'S GAP IS REFUSED NAMING IT. A lens's reading of a source it found
+// that refutes a sentence mints a claim_contradicts_source gap in its own act, material by its
+// class, and the chair's PASS is refused while it is open — driven through the chair's own tree.
+func TestThePassRefusalOverAReadingsGapNamesIt(t *testing.T) {
+	runDir := foundSourceRun(t)
+	out, err := run(t, append([]string{"--json", "verify", "--run", runDir, "--seat-id", lensSeat,
 		"--url", "https://example.org/contradicts", "--title", "A source that disagrees",
-		"--quote", corroborated, "--as", "refutes", "--confidence", "high",
-		"--reason", "the source says the opposite at page 9"); err != nil {
-		t.Fatal(err)
+		"--quote", foundSentence, "--as", "refutes", "--confidence", "high",
+		"--reason", "the source says the opposite at page 9"}, gapFlagArgs("claim_contradicts_source")...)...)
+	if err != nil {
+		t.Fatalf("verify --url --as refutes: %v\n%s", err, out)
 	}
+	gap := lastBody(t, runDir, &recordpb.Mint{}).GetGapId()
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
-	if err == nil || !strings.Contains(err.Error(), corroborated) {
-		t.Fatalf("the chair's PASS over a contradiction nobody raised was not refused over it: %v", err)
+	_, err = run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
+	if err == nil || !strings.Contains(err.Error(), gap) {
+		t.Fatalf("the chair's PASS over the reading's open gap %s was not refused naming it: %v", gap, err)
 	}
 }
 

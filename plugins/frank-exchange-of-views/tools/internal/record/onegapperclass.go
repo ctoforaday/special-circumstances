@@ -34,12 +34,14 @@ import (
 // one class on one subject. The check runs in the mint's own transaction, which takes the write lock
 // at BEGIN (`_txlock=immediate`), so the second of two concurrent mints reads the first.
 //
-// WHAT THE RECORD PROVES IS ANOTHER RELATION IS ADMITTED:
-//   - a gap the mint names in --supersedes does not block it: a successor states its ancestor's
-//     subject by design;
-//   - a mint whose --found-by names the finding that raised an unanswered contradiction is that
-//     contradiction's answer, which nothing else gives: refusing it would hold the PASS on a
-//     contradiction no act could answer.
+// WHAT THE RECORD PROVES IS ANOTHER RELATION IS ADMITTED: a gap the mint names in --supersedes does
+// not block it, since a successor states its ancestor's subject by design.
+//
+// A READING'S MINT IS NOT REFUSED, IT IS HELD (readingAct): where the sentence a reading finds
+// against already holds an open gap of the Mint's class, the rule names that gap to the act (held)
+// and the act writes the reading alone, carrying it. Its Mint is placed by the act's own Anchor —
+// at the end of the sentence another anchor's token sits in, for a sentence_of Anchor — and a
+// placement that fails there is a refusal, never a pass.
 //
 // A closed gap does not block: a defect that recurs after its gap closed is a new gap.
 //
@@ -62,11 +64,6 @@ func requireOneGapPerClassAndSubject(w writeView, m *recordpb.Mint) error {
 	if len(held) == 0 {
 		return nil
 	}
-	if answers, err := answersRaisedContradictionAt(w.q, m.GetFoundBy()); err != nil {
-		return fmt.Errorf("the record's contradictions could not be read, so whether this mint answers one cannot be told: %w", err)
-	} else if answers {
-		return nil
-	}
 	if inquiry != "" {
 		return oneGapRefusal(m, held[0], "inquiry "+inquiry)
 	}
@@ -74,10 +71,14 @@ func requireOneGapPerClassAndSubject(w writeView, m *recordpb.Mint) error {
 	if err != nil {
 		return fmt.Errorf("the report does not render, so the sentence this gap quotes cannot be found to ask whether an open gap of class %s stands on it: %w", recordpb.Word(m.GetClass()), err)
 	}
-	// A quote the report does not hold once places nothing: the anchor's own placement refuses it,
-	// in its own words, after this check.
-	placed, err := anchortext.Attach(report, m.GetGapId(), quote)
-	if err != nil {
+	var placed string
+	if of := pairedSentenceOf(w, m); of != "" {
+		if placed, err = anchortext.AttachToSentenceOf(report, m.GetGapId(), of); err != nil {
+			return fmt.Errorf("gap %s is placed at the end of the sentence %s sits in, and the report this act lands on refuses that placement: %w", m.GetGapId(), anchor.Token(of), err)
+		}
+	} else if placed, err = anchortext.Attach(report, m.GetGapId(), quote); err != nil {
+		// A quote the report does not hold once places nothing: the anchor's own placement refuses it,
+		// in its own words, after this check.
 		return nil
 	}
 	spans, bare := anchor.Sentences(placed), claimcount.BareAnchorIDs(placed)
@@ -87,10 +88,23 @@ func requireOneGapPerClassAndSubject(w writeView, m *recordpb.Mint) error {
 	}
 	for _, g := range held {
 		if sp, ok := gapSentenceIn(placed, spans, bare, g.id); ok && sp == at {
+			if w.act.pairs(m) {
+				w.act.held = g.id
+				return errReadingHeld
+			}
 			return oneGapRefusal(m, g, "the sentence "+fmt.Sprintf("%q", strings.Join(strings.Fields(claimcount.StripAnchors(placed[at[0]:at[1]])), " ")))
 		}
 	}
 	return nil
+}
+
+// pairedSentenceOf is the anchor whose sentence m's marker ends, where m is a reading's Mint placed by
+// its act's sentence_of Anchor; "" for every other mint.
+func pairedSentenceOf(w writeView, m *recordpb.Mint) string {
+	if !w.act.pairs(m) || w.act.anchor == nil {
+		return ""
+	}
+	return w.act.anchor.GetSentenceOf()
 }
 
 // heldGap is an open gap as the one-gap rule names it: its id, who minted it and what it says is wrong.
@@ -126,24 +140,6 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass, inquiry str
 		out = append(out, g)
 	}
 	return out, rows.Err()
-}
-
-// answersRaisedContradictionAt is whether foundBy names the finding that raised a contradiction no
-// gap answers yet: the mint is that contradiction's answer, whoever raised it.
-func answersRaisedContradictionAt(q recordsql.Querier, foundBy []string) (bool, error) {
-	if len(foundBy) == 0 {
-		return false, nil
-	}
-	evs, win, err := eventsOfAt(q, contradictionActs...)
-	if err != nil {
-		return false, err
-	}
-	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
-		if c.raisedBy != "" && c.answeredBy == "" && slices.Contains(foundBy, c.raisedBy) {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // oneGapRefusal names the open gap that holds the subject and the act the point is owed as.

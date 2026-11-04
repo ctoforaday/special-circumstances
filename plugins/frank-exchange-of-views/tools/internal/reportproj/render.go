@@ -20,8 +20,8 @@ import (
 //   - a blue edit → a splice (old→new), located by bluedoc.LocateUniqueReplacing, or by
 //                   bluedoc.LocateLiteral when the event recorded exact_span (spliceMut).
 //   - an Anchor   → the marker of the act it names, spliced at the end of its quote (insertMut).
-//                   Every placing verb — cite, compute, finding, mint, and a corroboration that
-//                   backs its claim — appends one after its own event, which is metadata and
+//                   Every placing verb — cite, compute, finding, mint, and a reading that
+//                   mints its gap — appends one after its own event, which is metadata and
 //                   inserts nothing.
 //   - a retire    → each anchor it names, taken out with the husk it leaves (removeMut).
 //
@@ -127,6 +127,23 @@ func (m insertMut) apply(text string) (string, error) {
 }
 
 func (m insertMut) describe() string { return fmt.Sprintf("insert %s at %q", m.marker, m.location) }
+
+// sentenceOfMut places marker at the end of the sentence the token of the anchor `of` sits in, found
+// by that token's identity (anchortext.AttachToSentenceOf) — a reading's gap. A missing or bare `of`
+// is a replay error naming the mutation, never a skip: the marker would drop out of the render with
+// no word said.
+type sentenceOfMut struct{ of, id string }
+
+func (m sentenceOfMut) apply(text string) (string, error) {
+	if strings.Contains(text, anchor.Token(m.id)) {
+		return text, nil
+	}
+	return anchortext.AttachToSentenceOf(text, m.id, m.of)
+}
+
+func (m sentenceOfMut) describe() string {
+	return fmt.Sprintf("insert %s at the end of the sentence %s sits in", anchor.Token(m.id), anchor.Token(m.of))
+}
 
 // Place is replay's placement of id's marker at location in text: text unchanged where the marker
 // already stands, else InsertAnchor's.
@@ -243,11 +260,12 @@ func collapseNewlinesAt(s string, at int) string {
 }
 
 // ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "append"
-// (A=a lane's part), "edit" (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id) or
-// "remove" (A=anchor id). Replay folds these; the SELECTION and ordering are the view's, not a Go walk
-// of the event log. EventID is the event the op is of. Exact is an edit's exact_span: the splice
-// replaces A as written rather than the span the ordinary locate finds. False for every insert and
-// remove, and for every edit recorded without the field.
+// (A=a lane's part), "edit" (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id),
+// "sentence_of" (A=the anchor whose sentence the marker ends, B=marker id) or "remove" (A=anchor id).
+// Replay folds these; the SELECTION and ordering are the view's, not a Go walk of the event log.
+// EventID is the event the op is of. Exact is an edit's exact_span: the splice replaces A as written
+// rather than the span the ordinary locate finds. False for every insert, sentence_of and remove, and
+// for every edit recorded without the field.
 //
 // IT LIVES WITH THE FOLD, NOT WITH THE RECORD, because the record's write path folds the ops: the
 // insert that writes an event stamps the report as it stands after it (recordsql's report checkpoint),
@@ -298,7 +316,8 @@ func Replay(text string, parted bool, ops []ReportOp) (string, error) {
 
 // mutationOf turns one report_op row into the transform that applies it. "append" adds a lane's part;
 // "edit" is a splice (old→new); "insert" places Token(id) at the anchoring quote — the view already
-// excluded a marker event with no location, so an insert always names a real quote here.
+// excluded a marker event with no location, so an insert always names a real quote here;
+// "sentence_of" places Token(id) at the end of the sentence another anchor's token sits in.
 func mutationOf(op ReportOp) (mutation, error) {
 	switch op.Kind {
 	case "append":
@@ -307,10 +326,12 @@ func mutationOf(op ReportOp) (mutation, error) {
 		return spliceMut{old: op.A, new: op.B, exact: op.Exact}, nil
 	case "insert":
 		return insertMut{location: op.A, marker: anchor.Token(op.B)}, nil
+	case "sentence_of":
+		return sentenceOfMut{of: op.A, id: op.B}, nil
 	case "remove":
 		return removeMut{id: op.A}, nil
 	default:
-		return nil, fmt.Errorf("unknown report_op kind %q — the report_op view emits only append, edit, insert and remove", op.Kind)
+		return nil, fmt.Errorf("unknown report_op kind %q — the report_op view emits only append, edit, insert, sentence_of and remove", op.Kind)
 	}
 }
 

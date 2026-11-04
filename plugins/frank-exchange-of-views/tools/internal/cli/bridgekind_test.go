@@ -56,13 +56,13 @@ func TestVerifyNamesWhatItBridged(t *testing.T) {
 	}
 }
 
-// corroborate SHARES THE AXIS: its supports_with_bridge needs a bridge too.
-func TestCorroborateNamesWhatItBridged(t *testing.T) {
-	runDir, _ := citedClause(t)
-	out, err := run(t, "corroborate", "--run", runDir, "--seat-id", lensSeat, "--url", "https://sky/v", "--title", "Sky",
-		"--quote", verifiedSentence, "--as", "supports_with_bridge", "--confidence", "medium", "--reason", "read at the leaf")
+// A READING OF A SOURCE THE LENS FOUND SHARES THE AXIS: its supports_with_bridge needs a bridge too.
+func TestAFoundSourceReadingNamesWhatItBridged(t *testing.T) {
+	runDir := foundSourceRun(t)
+	out, err := run(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--url", "https://sky/v", "--title", "Sky",
+		"--quote", foundSentence, "--as", "supports_with_bridge", "--confidence", "medium", "--reason", "read at the leaf"}, gapFlagArgs("unsourced_claim")...)...)
 	if !refusedSaying(out, err, "supports_with_bridge requires --bridge") {
-		t.Fatalf("corroborate supports_with_bridge with no --bridge: err=%v\n%s", err, out)
+		t.Fatalf("verify --url supports_with_bridge with no --bridge: err=%v\n%s", err, out)
 	}
 }
 

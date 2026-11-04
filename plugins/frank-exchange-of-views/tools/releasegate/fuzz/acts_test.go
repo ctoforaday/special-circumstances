@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -177,7 +176,7 @@ func bundleSha(name, body string) string {
 	return compute.BundleSha([]string{"node", name}, compute.Sums([]compute.File{{Path: name, Body: []byte(body)}}))
 }
 
-// sourceTitle is the title the drive gives a source it cites or corroborates. It is a source's own
+// sourceTitle is the title the drive gives a source it cites or reads as one it found. It is a source's own
 // title, as a seat is told to give one: a title naming the seat that found the source is refused
 // by the report's voice check, and the refusal would stand in for the act the drive meant.
 const sourceTitle = "A Survey of the Sampled Trend, Fuzz Press"
@@ -199,47 +198,6 @@ func (r *runner) firstThisSitting(seatID, anchor string) bool {
 	}
 	r.judged[seatID][anchor] = true
 	return true
-}
-
-// corroborations numbers the sources the corroborate drive reads, one fresh source per act.
-var corroborations atomic.Int64
-
-// backsTheClaim is the outcomes under which a corroboration places a citation, and so is repeated
-// as a retry rather than recorded again.
-func backsTheClaim(outcome string) bool {
-	return outcome == "supports" || outcome == "supports_with_bridge" || outcome == "weak"
-}
-
-// retryCorroboration repeats an admitted corroboration that placed a citation. An identical repeat
-// is a retry: admitted, idempotent, and answered with the stored row. A repeat that reads the
-// source with another confidence is a second reading, refused as a conflict with the stored one.
-func (r *runner) retryCorroboration(args []string, first string) {
-	switch {
-	case r.coin(20):
-		out, ok := r.admit(args...)
-		if !ok {
-			return
-		}
-		var a, b struct {
-			Result struct {
-				Label      string `json:"label"`
-				Outcome    string `json:"outcome"`
-				Idempotent bool   `json:"idempotent"`
-			} `json:"result"`
-		}
-		if json.Unmarshal([]byte(first), &a) != nil || json.Unmarshal([]byte(out), &b) != nil ||
-			!b.Result.Idempotent || b.Result.Label != a.Result.Label || b.Result.Outcome != a.Result.Outcome {
-			r.noteActErr("an identical corroboration retry did not answer with the stored row: " + firstLine(out))
-		}
-	case r.coin(15):
-		other := append([]string(nil), args...)
-		for i := range other {
-			if other[i] == "--confidence" && i+1 < len(other) {
-				other[i+1] = map[string]string{"high": "low", "medium": "high", "low": "medium"}[other[i+1]]
-			}
-		}
-		r.refuse(feov.Conflict, other...)
-	}
 }
 
 // admitFresh runs an act about gapID that the drive expects admitted, as a seat issues it: the

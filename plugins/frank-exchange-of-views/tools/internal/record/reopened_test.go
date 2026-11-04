@@ -10,6 +10,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // The evidence acts a reopened anchor is folded from, seeded with only the fields the fold joins on.
@@ -26,6 +27,30 @@ func (b *stage) verify(seat, anchor string, o recordpb.SourceOutcome) *stage {
 
 func (b *stage) supports(seat, anchor string) *stage {
 	return b.verify(seat, anchor, recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)
+}
+
+// foundAgainst is lens's `refutes` reading of citation anchorID and, with gap named, the gap its act
+// mints: the Mint (claim_contradicts_source, on ingestCited's sentence), the Anchor placing its
+// marker at the end of the sentence anchorID's token sits in, and the Verify carried_by it. gap ""
+// is a reading no gap carries, as an archived one is.
+func (b *stage) foundAgainst(lens, anchorID, gap string) *stage {
+	v := &recordpb.Verify{Anchor: proto.String(anchorID), Claim: proto.String("the claim " + anchorID + " backs"),
+		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES.Enum(),
+		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("the source says otherwise")}
+	if gap != "" {
+		b.add(lens, readingGap(gap))
+		b.add(lens, &recordpb.Anchor{Id: proto.String(gap), SentenceOf: proto.String(anchorID)})
+		v.CarriedBy, v.CarrierMinted = proto.String(gap), proto.Bool(true)
+	}
+	return b.add(lens, v)
+}
+
+// readingGap is the Mint of a reading's gap on ingestCited's sentence.
+func readingGap(gap string) *recordpb.Mint {
+	return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE.Enum(),
+		Location: proto.String("The claim stands before."), Problem: proto.String("the source says otherwise"),
+		AcceptanceCheck: proto.String("the sentence says what the source says"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+		Severity: recordpb.Grade_GRADE_HIGH.Enum(), Likelihood: recordpb.Grade_GRADE_HIGH.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}
 }
 
 func (b *stage) computation(id, sha string) *stage {
@@ -70,6 +95,19 @@ func (b *stage) reopen(anchors ...string) *stage {
 // replaces, so the reopened citation is one a verify can reach (unverifiableIn).
 func (b *stage) ingestCited() *stage {
 	return b.add("harness", &recordpb.ReportPart{Text: proto.String("# report\n\nThe claim stands before " + anchor.Token("C-1") + ".\n")})
+}
+
+// failedChecksT is the failed checks of a run seeded with evs, read as the write path reads them:
+// the events and the gap view's open set in one snapshot.
+func failedChecksT(t *testing.T, evs ...*Event) []failedCheck {
+	t.Helper()
+	dir := newRun(t)
+	recordtest.Seed(t, dir, evs...)
+	got, err := failedChecksAt(recordOf(t, mustRun(t, dir)), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
 }
 
 // at is the events.id of the act last staged: the seed stores the acts in order from 1.
@@ -204,13 +242,11 @@ func TestAnUnreachableVerifyDoesNotClear(t *testing.T) {
 	if got := reopenedRows(t, b); len(got) != 0 {
 		t.Fatalf("rows after a later sitting's `unreachable` = %+v, want none: the citation was checked, and the check read nothing", got)
 	}
-	m := loadedT(t, b.evs...)
-	if got := failedChecksOf(m.Events, m.At); len(got) != 1 || got[0].anchor != "C-1" || got[0].owner != evLens || got[0].computation {
+	if got := failedChecksT(t, b.evs...); len(got) != 1 || got[0].anchor != "C-1" || got[0].owner != evLens || got[0].computation {
 		t.Fatalf("failed checks after a later sitting's `unreachable` = %+v, want C-1's, owned by %s", got, evLens)
 	}
 	b.supports(evLens, "C-1")
-	m = loadedT(t, b.evs...)
-	if got, failed := reopenedRows(t, b), failedChecksOf(m.Events, m.At); len(got) != 0 || len(failed) != 0 {
+	if got, failed := reopenedRows(t, b), failedChecksT(t, b.evs...); len(got) != 0 || len(failed) != 0 {
 		t.Errorf("rows %+v and failed checks %+v after the same sitting then reads the source, want none", got, failed)
 	}
 }
@@ -244,15 +280,22 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 			continue
 		}
 		// EVERY CHECK TAKES THE CITATION OUT OF THE UNCHECKED ROWS; one that read nothing leaves it on
-		// a failed check, which holds the PASS as the row did.
+		// an unread failed check, which holds the PASS as the row did, and one that read the work and
+		// found the source against the sentence leaves it found against.
 		b := reopenedBoard(t).reopen("C-1")
 		b.sit(b.at(), evLens).verify(evLens, "C-1", o)
-		m := loadedT(t, b.evs...)
 		if rows := reopenedRows(t, b); len(rows) != 0 {
 			t.Errorf("a later sitting's verify %s leaves C-1 unchecked: %+v", o, rows)
 		}
-		if read := len(failedChecksOf(m.Events, m.At)) == 0; read != want {
+		states := map[CheckState]bool{}
+		for _, f := range failedChecksT(t, b.evs...) {
+			states[f.state] = true
+		}
+		if read := !states[CheckUnread]; read != want {
 			t.Errorf("a later sitting's verify %s reads the source = %v, want %v", o, read, want)
+		}
+		if against := FindsAgainst(&recordpb.Verify{Outcome: &o}); states[CheckFoundAgainst] != against {
+			t.Errorf("a later sitting's verify %s leaves C-1 found against = %v, want %v", o, states[CheckFoundAgainst], against)
 		}
 	}
 	// A READING OF A COPY THE TOOL STAMPED not_the_work reads nothing, whatever it found there.
@@ -262,8 +305,8 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 		Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
 		SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK.Enum(),
 	})
-	if m := loadedT(t, b.evs...); len(failedChecksOf(m.Events, m.At)) != 1 {
-		t.Errorf("a `supports` of a copy stamped not_the_work reads the source: failed checks %+v", failedChecksOf(m.Events, m.At))
+	if got := failedChecksT(t, b.evs...); len(got) != 1 {
+		t.Errorf("a `supports` of a copy stamped not_the_work reads the source: failed checks %+v", got)
 	}
 
 	// A judgement clears whatever it found: a lens judged the sentence as it stands. The zero

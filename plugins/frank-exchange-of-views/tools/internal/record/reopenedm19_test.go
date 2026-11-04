@@ -120,7 +120,6 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	owners := map[string]bool{computationSeat: true, evLens: true}
 	var got []unchecked
 	var ready []string
-	unraised := false
 	inquiries := 0
 	for _, b := range blockers {
 		if b.Kind == BlockerLensReady {
@@ -133,12 +132,6 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			ready = append(ready, b.Subject)
 			continue
 		}
-		// AND A CONTRADICTION NO FINDING NAMED: the reading at 113. The archive's finding about it
-		// quotes the claim and names no contradiction, and a quote raises nothing.
-		if b.Kind == BlockerContradiction && b.Subject == "113" && b.Owner == evLens && b.raisedBy == "" {
-			unraised = true
-			continue
-		}
 		// AND EVERY INQUIRY IT SETTLED: m19's chair read its inquiries and no check of any stands, so
 		// each is owed the logic lens's.
 		if b.Kind == BlockerUncheckedInquiry && b.Owner == inquiryOwner {
@@ -146,7 +139,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			continue
 		}
 		if b.Kind != BlockerUnchecked {
-			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors, their owners' readiness and contradiction 113", b.Kind, b.Subject, b.Owner)
+			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors, their owners' readiness and the settled inquiries", b.Kind, b.Subject, b.Owner)
 			continue
 		}
 		r := unchecked{anchor: b.Subject, computation: b.Detail != "", sha: b.Detail, edit: b.since, lastCheck: b.lastCheck}
@@ -157,9 +150,6 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	}
 	if inquiries != 10 {
 		t.Errorf("%d settled inquiries hold the PASS unchecked, want m19's 10", inquiries)
-	}
-	if !unraised {
-		t.Error("contradiction 113, which no finding named, does not hold the PASS unraised")
 	}
 	if !slices.Equal(got, m19Reopened) {
 		t.Fatalf("reopened blockers = %+v\nwant %+v", got, m19Reopened)

@@ -30,6 +30,11 @@ type writeView struct {
 	// rendering is the write's report, rendered before the lock (landingReport); nil on a replay's
 	// write, which renders under its own transaction.
 	rendering *landingReport
+	// act is the reading's act the body being validated is a member of (readingAct): the Mint, the
+	// Anchor and the Verify a reading that finds against its sentence writes in one transaction. Its
+	// Mint's rules read the act's other bodies, which are not on the record yet. nil for every other
+	// write.
+	act *readingAct
 }
 
 // runFiles is the file the write path reads besides the record: inputs/run-config.json (the run's

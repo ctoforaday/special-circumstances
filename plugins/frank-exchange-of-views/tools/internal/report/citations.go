@@ -21,14 +21,7 @@ const citationsHeading = "Citations"
 // citationsSection renders evidence.md's citations, or "" for a run that cited nothing and read nothing.
 func citationsSection(fam record.Family) string {
 	ev := record.EvidenceJSONOf(fam.Events, fam.At)
-	// A labelled corroboration is listed among the sources, with its own reading first; it is under
-	// `independent` as well, where it would be listed twice.
-	var others []record.EvidenceVerificationJSON
-	for _, v := range ev.Independent {
-		if v.Label == "" || v.Claim == "" {
-			others = append(others, v)
-		}
-	}
+	others := ev.Independent
 	if len(ev.Sources) == 0 && len(others) == 0 {
 		return ""
 	}
@@ -46,9 +39,6 @@ func citationsSection(fam record.Family) string {
 		b.WriteString("\n")
 		if loc != "" {
 			fmt.Fprintf(&b, "- **backs**: %s\n", loc)
-		}
-		if s.CorroboratedBy != "" {
-			fmt.Fprintf(&b, "- **red's corroboration**, found by `%s`: blue did not cite it\n", s.CorroboratedBy)
 		}
 		if len(s.Verified) == 0 {
 			b.WriteString("- **not read against its sentence** — no reading of this source is on the record\n")

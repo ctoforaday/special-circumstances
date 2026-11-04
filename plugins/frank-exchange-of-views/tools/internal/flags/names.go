@@ -70,7 +70,7 @@ const (
 	New = "new"
 
 	// The citation axis. --url is the source a `fetch` reads, a `blue cite` anchors and a
-	// `lens corroborate` corroborates from; --title is the human name it carries
+	// `lens verify` reads for a sentence; --title is the human name it carries
 	// into the composed bibliography. A source is named by these two, everywhere.
 	URL   = "url"
 	Title = "title"

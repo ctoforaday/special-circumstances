@@ -34,7 +34,6 @@ var facets = map[string]facet{
 	"closes":        {flag: func(a *ValueAnnotations) DeclaredBool { return a.Closes }},
 	"mass":          {number: func(a *ValueAnnotations) DeclaredNumber { return a.Mass }},
 	"seat_may_file": {flag: func(a *ValueAnnotations) DeclaredBool { return a.SeatMayFile }},
-	"gap_may_name":  {flag: func(a *ValueAnnotations) DeclaredBool { return a.GapMayName }},
 }
 
 // facet is one boolean or numeric facet: exactly one of its readers is set.

@@ -16,7 +16,7 @@ import (
 // disposed of L6-F8..F16, which no event created. It is also minted with no count of what the
 // record holds, so two seats minting at once cannot be handed one id. The columns an id is MINTED
 // into are UNIQUE — finding.id, mint.gap_id, motion.motion_id, and anchor.id for every placed act —
-// so a repeat there is a refused write. cite.label, computation.computation_id, verify.label and
+// so a repeat there is a refused write. cite.label, computation.computation_id and
 // inquiry.inquiry_id are not, and need not be: an inquiry writes one row per recorded fate.
 func NewID(kind string) string {
 	var b [4]byte

@@ -2,6 +2,7 @@ package recordpb
 
 import (
 	"fmt"
+	"slices"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -29,9 +30,14 @@ type ValueAnnotations struct {
 	Neighbor           string
 	Distinguisher      string
 
-	Closes, SeatMayFile, GapMayName DeclaredBool
-	Mass                            DeclaredNumber
-	MaterialDefault                 DeclaredEnum
+	Closes, SeatMayFile DeclaredBool
+	Mass                DeclaredNumber
+	MaterialDefault     DeclaredEnum
+
+	// GapClasses and FoundSourceGapClasses are a SourceOutcome's `gap_classes` and
+	// `found_source_gap_classes` options, in declaration order: the classes a reading with that
+	// outcome may mint its gap in. Nil where the value declares none.
+	GapClasses, FoundSourceGapClasses []GapClass
 }
 
 // DeclaredBool is a boolean facet with its declared/undeclared split: false is an answer, absent
@@ -68,13 +74,20 @@ func AnnotationsFromOptions(vd protoreflect.EnumValueDescriptor) ValueAnnotation
 	}
 	a.Means, a.DefinedTerm, a.RuledBy = str(E_Means), str(E_DefinedTerm), str(E_RuledBy)
 	a.Neighbor, a.Distinguisher = str(E_Neighbor), str(E_Distinguisher)
-	a.Closes, a.SeatMayFile, a.GapMayName = flag(E_Closes), flag(E_SeatMayFile), flag(E_GapMayName)
+	a.Closes, a.SeatMayFile = flag(E_Closes), flag(E_SeatMayFile)
 	if proto.HasExtension(opts, E_Mass) {
 		a.Mass = DeclaredNumber{true, proto.GetExtension(opts, E_Mass).(float64)}
 	}
 	if proto.HasExtension(opts, E_MaterialDefault) {
 		a.MaterialDefault = DeclaredEnum{true, proto.GetExtension(opts, E_MaterialDefault).(protoreflect.Enum).Number()}
 	}
+	classes := func(xt protoreflect.ExtensionType) []GapClass {
+		if !proto.HasExtension(opts, xt) {
+			return nil
+		}
+		return slices.Clone(proto.GetExtension(opts, xt).([]GapClass))
+	}
+	a.GapClasses, a.FoundSourceGapClasses = classes(E_GapClasses), classes(E_FoundSourceGapClasses)
 	return a
 }
 

@@ -31,7 +31,7 @@ import (
 // A soft tell in the printed text ("this run", "epoch 3") is flagged and not refused because a
 // subject can use those words too.
 func newMint() *cobra.Command {
-	var severity, likelihood, impact, cx flags.GradeValue
+	var gf gapFlags
 	supersedes, foundBy := flags.IDList(flags.GapID), flags.IDList(flags.FindingID)
 
 	c := seat.Prose(seat.New("mint", mintResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
@@ -47,37 +47,9 @@ func newMint() *cobra.Command {
 		}
 		// The id is minted once the retry check has passed: a retry answers with the stored one.
 		var gapID string
-		// ONE FLAG, ONE FIELD. --problem states what is wrong and is the only thing that does;
-		// --reason is red's argument for the gap and is never read as the problem. The problem
-		// used to fall back to --reason when --problem was absent, so the same flag meant the
-		// problem on one mint and the argument on the next, and a seat could not tell from its own
-		// call which field its text had landed in. An absent --problem is refused by the record's
-		// required field, in the problem's own words.
-		problem := seat.Str(cmd, flags.Problem)
-		// RED'S ARGUMENT IS KEPT.
-		//
-		// MEASURED 2026-08-16 BY ASKING THE BENCH. Dispatched to a petition sitting about what
-		// a required_fix may demand, it reported first among its missing things: "Red's closing
-		// or reasoning — Why did red mint this gap? Do they believe blue DID run a search and
-		// just didn't describe it? The gap's problem statement is clear, but red's intent for
-		// the fix isn't visible to me." It was adjudicating red's intent with red's intent
-		// unrecorded.
-		//
-		// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
-		// answers and a bench weighs.
-		p := &recordpb.Mint{}
-		if text != "" {
-			p.MintReason = proto.String(text)
-		}
-		p.MintKey = proto.String(seat.Str(cmd, flags.Key))
-		// THE CLASS IS A WORD OF THE CLOSED GapClass SET; the flag's parser refused any other, so
-		// an empty word here is an absent flag, which the required-field walk names.
-		if w := seat.Str(cmd, flags.Class); w != "" {
-			gc, ok := record.GapClassOf(w)
-			if !ok {
-				return nil, feov.Errorf(feov.Validation, "%q is not a gap class — it says what KIND of defect this is", w)
-			}
-			p.Class = &gc
+		p, err := gf.fill(cmd, text, seat.Str(cmd, flags.Key))
+		if err != nil {
+			return nil, err
 		}
 		var guards []record.Guard
 
@@ -113,48 +85,17 @@ func newMint() *cobra.Command {
 		p.Location = proto.String(loc)
 		p.AboutKind = about
 		p.AboutRef = aboutRefP
-		p.Problem = proto.String(problem)
-		p.RequiredFix = proto.String(seat.Str(cmd, flags.Fix))
-		// THE CONCRETE PROPOSAL, AND WHY fix_basis IS DERIVED (#267 stage 3).
-		//
-		// `required_fix` is prose ("acknowledge the shared definition"), which blue cannot
-		// apply verbatim. Red MAY instead state the exact span and the exact replacement —
-		// and stating one legally is impossible from memory of what the report probably
-		// says, which is the forced re-read this whole axis exists for: all three of the
-		// smoke's round-2 gaps were contradictions between blue's new text and text red
-		// never re-read before prescribing.
-		//
-		// So `fix_basis` is COMPUTED from whether a validated pair is present. It is not a
-		// flag. A seat asked to self-report "verified | proposed" reports the flattering
-		// one, and the field becomes decoration — the same reason the finding id and the
-		// gap id are tool-assigned rather than claimed.
-		//
-		// THE PAIR IS CHECKED AGAINST THE REPORT THE MINT LANDS ON. Blue's edit can commit in
-		// parallel, and a pair validated against the report before it is a "verified" fix of text
-		// the report no longer holds.
-		p.FixBasis = proto.String("proposed")
+		// THE CONCRETE PROPOSAL is verified against the report the mint lands on (gapFlags.fill says
+		// why fix_basis is derived, not claimed).
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
 			guards = append(guards, record.CheckOnReport(func(l *record.Landing) error {
 				report, err := l.Report()
 				if err != nil {
 					return err
 				}
-				return verifiedFix(p, report, gapID, seat.Str(cmd, flags.Quote), fixNew)
+				return verifiedFix(p, report, gapID, quotePlace(seat.Str(cmd, flags.Quote)), fixNew)
 			}))
 		}
-		p.AcceptanceCheck = proto.String(seat.Str(cmd, flags.Check))
-
-		if w := seat.Str(cmd, flags.CheckKind); w != "" {
-			ck, ok := record.CheckKindOf(w)
-			if !ok {
-				return nil, feov.Errorf(feov.Validation, "%q is not a check kind — it says WHAT WOULD SETTLE the acceptance check", w)
-			}
-			p.CheckKind = &ck
-		}
-		p.Severity = seat.GradeOrNil(&severity)
-		p.Likelihood = seat.GradeOrNil(&likelihood)
-		p.Impact = seat.GradeOrNil(&impact)
-		p.ComplexityCost = seat.GradeOrNil(&cx)
 		p.Supersedes = supersedes.Value()
 		p.FoundBy = foundBy.Value()
 
@@ -199,6 +140,11 @@ func newMint() *cobra.Command {
 		// parallel, and a mint checked against the record before it opens a fresh gap against red's
 		// own words. The refusal is decided under the write lock; the log entry
 		// that records it is written after, as its own act.
+		//
+		// `verify` ATTACHES NO SUCH GUARD (gblock, 2026-10-31: "Exempt, stated"). A reading's gap is
+		// minted by a source read against the sentence, and a source that finds against text blue
+		// applied from a red --new is new evidence the prescription never weighed, not red
+		// relitigating its own words; the reading's act checks nothing and logs nothing here.
 		guards = append(guards, record.Check(func(l *record.Landing) error {
 			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.Value())
 		}))
@@ -257,22 +203,12 @@ func newMint() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject, --reason, --supersedes or --found-by — is refused: a handle names one gap")
-	enumhelp.Flag(c, flags.Class, record.MustEnum("mint", "class"),
-		"the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover")
+	gf.register(c, mintSubject)
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote")
 	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
-	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
-	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
-	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", bluedoc.MaxProposalGrowth))
-	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition")
-	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check"))
-	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
-	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
-	c.Flags().Var(&impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))
-	c.Flags().Var(&cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
 	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
@@ -283,6 +219,125 @@ func newMint() *cobra.Command {
 	seat.Supplies(c, "gap_id", "the tool mints it (record.NewID), at random — an id a seat chose would name a gap the record does not hold")
 	seat.Supplies(c, "class_material", "stamped from the class's material default at the write path")
 	return c
+}
+
+// gapFlags is the judgment a gap is minted with — its class, problem, fix, proposal, acceptance check
+// and grades — as ONE registration and ONE fill, shared by `mint` and `verify` (whose reading mints
+// its gap in its own act), so the two cannot drift: the same flag names, the same descriptions where
+// the description is true on both pages, and one code path from the flags to the Mint's fields.
+type gapFlags struct {
+	severity, likelihood, impact, cx flags.GradeValue
+}
+
+// gapSubject is what differs between the pages the gap flags are registered on: the class set the
+// verb admits, how its --class is described, and the text its --new replaces, named as that page's
+// subject.
+type gapSubject struct {
+	class      record.EnumField
+	classUsage string
+	span       string
+}
+
+var (
+	// mintSubject is `mint`'s: any class, the gap at the end of --quote.
+	mintSubject = gapSubject{
+		class:      record.MustEnum("mint", "class"),
+		classUsage: "the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover",
+		span:       "--quote",
+	}
+	// readingSubject is `verify`'s: the classes a reading's gap may take (no reading admits
+	// unclassified), the gap at the end of the sentence the reading read — the one its --anchor's token
+	// sits in, or its --quote.
+	readingSubject = gapSubject{
+		class:      record.ReadingClassField(),
+		classUsage: "the KIND of defect this reading finds, from the values below",
+		span:       "the sentence your --anchor's token sits in, or your --quote,",
+	}
+)
+
+// register registers the ten gap flags on c, each described as it is true on c's page.
+func (g *gapFlags) register(c *cobra.Command, subject gapSubject) {
+	enumhelp.Flag(c, flags.Class, subject.class, subject.classUsage)
+	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
+	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
+	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text %s should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", subject.span, bluedoc.MaxProposalGrowth))
+	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition")
+	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check"))
+	c.Flags().Var(&g.severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
+	c.Flags().Var(&g.likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
+	c.Flags().Var(&g.impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))
+	c.Flags().Var(&g.cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
+}
+
+// fill is the Mint the gap flags state, with text as its argument and key as its --key ("" on a verb
+// that takes none, PRESENT and empty as on a mint given none). Where the gap stands — its location or
+// subject, its id, a verified --new — is the verb's to set.
+func (g *gapFlags) fill(cmd *cobra.Command, text, key string) (*recordpb.Mint, error) {
+	// RED'S ARGUMENT IS KEPT.
+	//
+	// MEASURED 2026-08-16 BY ASKING THE BENCH. Dispatched to a petition sitting about what
+	// a required_fix may demand, it reported first among its missing things: "Red's closing
+	// or reasoning — Why did red mint this gap? Do they believe blue DID run a search and
+	// just didn't describe it? The gap's problem statement is clear, but red's intent for
+	// the fix isn't visible to me." It was adjudicating red's intent with red's intent
+	// unrecorded.
+	//
+	// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
+	// answers and a bench weighs.
+	p := &recordpb.Mint{}
+	if text != "" {
+		p.MintReason = proto.String(text)
+	}
+	p.MintKey = proto.String(key)
+	// THE CLASS IS A WORD OF THE CLOSED GapClass SET; the flag's parser refused any other, so
+	// an empty word here is an absent flag, which the required-field walk names.
+	if w := seat.Str(cmd, flags.Class); w != "" {
+		gc, ok := record.GapClassOf(w)
+		if !ok {
+			return nil, feov.Errorf(feov.Validation, "%q is not a gap class — it says what KIND of defect this is", w)
+		}
+		p.Class = &gc
+	}
+	// ONE FLAG, ONE FIELD. --problem states what is wrong and is the only thing that does;
+	// --reason is red's argument for the gap and is never read as the problem. The problem
+	// used to fall back to --reason when --problem was absent, so the same flag meant the
+	// problem on one mint and the argument on the next, and a seat could not tell from its own
+	// call which field its text had landed in. An absent --problem is refused by the record's
+	// required field, in the problem's own words.
+	p.Problem = proto.String(seat.Str(cmd, flags.Problem))
+	p.RequiredFix = proto.String(seat.Str(cmd, flags.Fix))
+	// THE CONCRETE PROPOSAL, AND WHY fix_basis IS DERIVED (#267 stage 3).
+	//
+	// `required_fix` is prose ("acknowledge the shared definition"), which blue cannot
+	// apply verbatim. Red MAY instead state the exact span and the exact replacement —
+	// and stating one legally is impossible from memory of what the report probably
+	// says, which is the forced re-read this whole axis exists for: all three of the
+	// smoke's round-2 gaps were contradictions between blue's new text and text red
+	// never re-read before prescribing.
+	//
+	// So `fix_basis` is COMPUTED from whether a validated pair is present. It is not a
+	// flag. A seat asked to self-report "verified | proposed" reports the flattering
+	// one, and the field becomes decoration — the same reason the finding id and the
+	// gap id are tool-assigned rather than claimed. The verb's guard (verifiedFix) sets it to
+	// verified.
+	//
+	// THE PAIR IS CHECKED AGAINST THE REPORT THE MINT LANDS ON. Blue's edit can commit in
+	// parallel, and a pair validated against the report before it is a "verified" fix of text
+	// the report no longer holds.
+	p.FixBasis = proto.String("proposed")
+	p.AcceptanceCheck = proto.String(seat.Str(cmd, flags.Check))
+	if w := seat.Str(cmd, flags.CheckKind); w != "" {
+		ck, ok := record.CheckKindOf(w)
+		if !ok {
+			return nil, feov.Errorf(feov.Validation, "%q is not a check kind — it says WHAT WOULD SETTLE the acceptance check", w)
+		}
+		p.CheckKind = &ck
+	}
+	p.Severity = seat.GradeOrNil(&g.severity)
+	p.Likelihood = seat.GradeOrNil(&g.likelihood)
+	p.Impact = seat.GradeOrNil(&g.impact)
+	p.ComplexityCost = seat.GradeOrNil(&g.cx)
+	return p, nil
 }
 
 // mintResult reports the tool-assigned gap id; a retry returns the existing one.
@@ -312,11 +367,18 @@ func (r mintResult) Human() string {
 	if r.Idempotent {
 		head = seat.Repeated("gap " + r.GapID)
 	}
-	note := reportvoice.Note("the risk matrix, the first sentence of the problem and of the fix, while the gap is open; the body, a --new replacement blue accepts", r.VoiceTells)
-	if r.Check == "" {
-		return head + note
+	return head + mintEcho(r.Check, r.VoiceTells)
+}
+
+// mintEcho is what a minted gap's confirmation prints after its head, on `mint` and on a reading that
+// mints in its own act alike: the acceptance check as recorded, and the advice on the gap's printed
+// text.
+func mintEcho(check string, tells []string) string {
+	note := reportvoice.Note("the risk matrix, the first sentence of the problem and of the fix, while the gap is open; the body, a --new replacement blue accepts", tells)
+	if check == "" {
+		return note
 	}
-	return head + "\n  acceptance check RECORDED as: " + r.Check +
+	return "\n  acceptance check RECORDED as: " + check +
 		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)" + note
 }
 
@@ -339,20 +401,49 @@ type estopped struct{ record.Estoppel }
 
 func (e estopped) Error() string { return "estoppel against " + e.Gap }
 
-// verifiedFix marks p's fix verified where --quote and --new are a pair blue's accept applies to report
-// with the gap's anchor placed — judged by the accept's own planner (blue.PlanAccept), so a fix
-// verified here is one the accept applies, and one it would refuse is refused here.
-func verifiedFix(p *recordpb.Mint, report, gapID, quote, fixNew string) error {
-	if err := bluedoc.RefuseAuthoring(quote, fixNew); err != nil {
+// gapPlace is where a gap's anchor stands, as `--new` is verified against it: at the end of a quote
+// the report holds once (`mint --quote`, `verify --url`), or at the end of the sentence a citation's
+// token sits in (`verify --anchor`, by that token's identity, so a sentence whose words the report
+// holds twice is still one place). quote is the gap's location — the text blue's accept replaces —
+// and subject is how a refusal names the call's subject, so a verb that took no --quote is never
+// told about one.
+type gapPlace struct {
+	quote, of, subject string
+}
+
+// quotePlace is a gap placed at the end of --quote.
+func quotePlace(quote string) gapPlace { return gapPlace{quote: quote, subject: "--quote"} }
+
+// sentenceOfPlace is a reading's gap placed at the end of the sentence citation of's token sits in,
+// whose words are quote.
+func sentenceOfPlace(quote, of string) gapPlace {
+	return gapPlace{quote: quote, of: of, subject: "the sentence your --anchor's token sits in"}
+}
+
+// placed is report with gapID's anchor standing where at puts it.
+func (at gapPlace) placed(report, gapID string) (string, error) {
+	if at.of != "" {
+		return anchortext.AttachToSentenceOf(report, gapID, at.of)
+	}
+	return anchortext.Attach(report, gapID, at.quote)
+}
+
+// verifiedFix marks p's fix verified where the gap's location and --new are a pair blue's accept
+// applies to report with the gap's anchor placed — judged by the accept's own planner
+// (blue.PlanAccept), so a fix verified here is one the accept applies, and one it would refuse is
+// refused here. The anchor is placed as the act places it (gapPlace), and the refusal names the
+// subject the call took.
+func verifiedFix(p *recordpb.Mint, report, gapID string, at gapPlace, fixNew string) error {
+	if err := bluedoc.RefuseAuthoring(at.quote, fixNew); err != nil {
 		return err
 	}
-	placed, err := anchortext.Attach(report, gapID, quote)
+	placed, err := at.placed(report, gapID)
 	if err != nil {
 		return err
 	}
-	a, err := blue.PlanAccept(placed, gapID, quote, fixNew)
+	a, err := blue.PlanAccept(placed, gapID, at.quote, fixNew)
 	if errors.Is(err, reportproj.ErrNoChange) {
-		return fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
+		return fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix %s so its replacement changes the report, or state the fix as prose in --fix", err, fixWhat(at))
 	} else if err != nil {
 		// The accept's refusal of a dropped anchor is worded for blue, whose acts it names; red's is the
 		// same fact, the anchor and its sentence.
@@ -364,28 +455,39 @@ func verifiedFix(p *recordpb.Mint, report, gapID, quote, fixNew string) error {
 		var dropped *bluedoc.ErrAnchorDropped
 		if errors.As(err, &dropped) {
 			why = fmt.Sprintf("the span carries %s %s %s, and --new neither carries it nor keeps that sentence word for word", anchor.Kind(dropped.ID), anchor.Token(dropped.ID), dropped.On())
-			carry = fmt.Sprintf("write %s into --new after the text it marks — --quote stays as it is", anchor.Token(dropped.ID))
+			carry = fmt.Sprintf("write %s into --new after the text it marks — %s stays as it is", anchor.Token(dropped.ID), at.subject)
 		}
-		return feov.Wrap(feov.Validation, err, "--new is not a fix blue's accept would apply to the report as it stands, with this gap's anchor at the end of --quote: %s. "+
+		return feov.Wrap(feov.Validation, err, "--new is not a fix blue's accept would apply to the report as it stands, with this gap's anchor at the end of %s: %s. "+
 			"NOTHING IS RECORDED. A fix is verified only where the accept applies it, so what the accept would refuse is refused here. "+
 			"The accept moves the gap's and the findings' anchors at the sentence's end to the end of --new; any other anchor in the span — a citation or a computation, which backs its sentence, or one inside the sentence — stays only where --new keeps its sentence word for word or holds the anchor itself. "+
 			"Where such an anchor is what does not survive: keep the sentence it marks word for word in --new, and the tool puts the anchor back on it; "+
 			"or %s; "+
-			"or leave --new off and state the fix as prose in --fix", why, carry)
+			"or leave --new off and state the fix as prose in --fix", at.subject, why, carry)
 	}
 	// The accept refuses a fix that leaves an anchor bare where no act could take it out
 	// (blue.BaredAnchors), so the mint asks the same of the edit it planned, and words it for red.
 	if citations, leftOut := blue.BaredAnchors(placed, a.Planned, a.Applied); len(citations)+len(leftOut) > 0 {
-		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(citations, leftOut))
+		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(at, citations, leftOut))
 	}
 	p.FixNew = proto.String(fixNew)
 	p.FixBasis = proto.String("verified")
 	return nil
 }
 
+// fixWhat is what a no-op prescription is told to fix: its quote, or, for a reading of a citation,
+// its --new — the sentence is the tool's to read, not the seat's to change.
+func fixWhat(at gapPlace) string {
+	if at.of != "" {
+		return "--new"
+	}
+	return "the quote"
+}
+
 // mintBaredRefusal is the refusal of a prescription whose --new would leave these anchors bare: the
-// citations, and the tokens of the other anchors --new does not carry.
-func mintBaredRefusal(citations, leftOut []string) string {
+// citations, and the tokens of the other anchors --new does not carry. A reading's gap stands on the
+// sentence the tool reads by its citation's token, which the seat cannot widen, so its refusal offers
+// no carry through a quote.
+func mintBaredRefusal(at gapPlace, citations, leftOut []string) string {
 	var refusals []string
 	if len(citations) > 0 {
 		what, it, its := "citation "+citations[0], "it", "its"
@@ -403,12 +505,19 @@ func mintBaredRefusal(citations, leftOut []string) string {
 		if len(leftOut) > 1 {
 			what, it, its = "anchors "+strings.Join(leftOut, ", "), "them", "their"
 		}
-		// The carry is the lens's own: a token written into --new beside the one the report keeps past
-		// the span would be a second copy, so --quote reaches it and --new writes it.
-		refusals = append(refusals, fmt.Sprintf(
-			"--new would leave %s standing bare — no prose before %s in %s sentence — and --quote leaves %s out, so no retire could take %s out with the claim, and blue's accept would refuse it. NOTHING IS RECORDED. "+
-				"Keep a sentence before %s in --new; or carry %s: end --quote with %s as `show report` prints it, and write %s into --new; or leave --new off and state the fix as prose in --fix",
-			what, it, its, it, it, it, it, toks, toks))
+		if at.of != "" {
+			refusals = append(refusals, fmt.Sprintf(
+				"--new would leave %s standing bare — no prose before %s in %s sentence — and %s leaves %s out, so no retire could take %s out with the claim, and blue's accept would refuse it. NOTHING IS RECORDED. "+
+					"Keep a sentence before %s in --new; or leave --new off and state the fix as prose in --fix",
+				what, it, its, at.subject, it, it, it))
+		} else {
+			// The carry is the lens's own: a token written into --new beside the one the report keeps past
+			// the span would be a second copy, so --quote reaches it and --new writes it.
+			refusals = append(refusals, fmt.Sprintf(
+				"--new would leave %s standing bare — no prose before %s in %s sentence — and --quote leaves %s out, so no retire could take %s out with the claim, and blue's accept would refuse it. NOTHING IS RECORDED. "+
+					"Keep a sentence before %s in --new; or carry %s: end --quote with %s as `show report` prints it, and write %s into --new; or leave --new off and state the fix as prose in --fix",
+				what, it, its, it, it, it, it, toks, toks))
+		}
 	}
 	return strings.Join(refusals, " ")
 }
@@ -453,7 +562,9 @@ type familyReader interface {
 // requireNotEstopped refuses a mint whose location is text a red seat prescribed and blue applied
 // verbatim, unless the mint supersedes that gap — and refuses any mint whose record could not be
 // read to ask: a gap opened because the estoppel question could not be asked is one the tool
-// admitted on nothing.
+// admitted on nothing. It guards `mint` alone: a reading's gap, minted in `verify`'s act, is exempt
+// (record.AppendReading), its source's finding being new evidence rather than a prescription
+// relitigated.
 func requireNotEstopped(l familyReader, quote string, supersedes []string) error {
 	fam, err := l.Family()
 	if err != nil {
