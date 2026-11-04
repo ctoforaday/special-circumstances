@@ -100,7 +100,7 @@ Always-on rules bind every session (`CLAUDE.md` imports them via `@` for Claude 
 - CI tests the merge with `main`: bring `main` in early. BEFORE merging a PR whose CI ran before another help- or golden-changing PR merged, YOU MUST rebase, regenerate goldens at `-count=1`, read each changed line and re-run CI — goldens conflict semantically, not textually (difftest's `manual` golden renders every help page).
 - Generated conflicts (`record.pb.go`, `record.proto.sha256`, `body_gen.go`, `recordsql/decode_gen.go`) resolve by re-running `go -C scripts run ./protogen`, never by hand. `annotations_gen.go` and `definitions_gen.go` resolve by re-running `vocabgen` after it, and `help_gen.go` and `required_gen.go` by re-running `cmdtreegen`. prosthetic-conscience's `internal/secrets/table.go` resolves by re-running `go -C plugins/prosthetic-conscience/tools run ./devcmd/secretsgen`.
 - The repository deletes a branch on merge. BEFORE pushing to a PR's branch, YOU MUST check `gh pr view <n> --json state`; "Create a pull request for" in push output is a HARD STOP — the PR merged and the push re-created its branch. Retarget a stacked child to `main` BEFORE merging its parent, or GitHub closes the child.
-- AFTER committing plan updates or repository-level instruction updates that land directly, YOU MUST push them onto `origin/main` rather than leaving commits stranded on a side branch.
+- AFTER committing plan updates or repository-level instruction updates that land directly, YOU MUST push them onto `origin/main` rather than leaving commits stranded on a side branch. Every other change — code, tests, generated carriers — lands through a pull request whose CI is the merge gate.
 
 ### Releases
 
