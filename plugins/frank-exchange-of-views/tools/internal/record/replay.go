@@ -101,7 +101,11 @@ func MergedEvents(run Run) (Merged, error) {
 	if err != nil {
 		return Merged{}, err
 	}
-	return Merged{Events: evs, At: windowIndexOf(evs, ws)}, nil
+	at := windowIndexOf(evs, ws)
+	if at.reach, err = reachingRetiresOf(db); err != nil {
+		return Merged{}, err
+	}
+	return Merged{Events: evs, At: at}, nil
 }
 
 // Gap is the replayed state of one board gap.

@@ -602,6 +602,10 @@
 -- SELECT "event_id", "value" FROM "mint_supersedes" ORDER BY "event_id", "ord"
   SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1
 
+== stmt 1b9d404875bf
+-- SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"
+  SCAN retire_anchors USING INDEX sqlite_autoindex_retire_anchors_1
+
 == stmt c586d15901a4
 -- SELECT "gap_id", "minted_epoch", "open", "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix", "acceptance_check", "check_kind", "awaiting_evidence", "fix_basis", "fix_new", "minted_by", "minted_event", "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last", "material", "remanded", "docket_direction", "evidence_answered", "answers_retired_event" FROM "gap" ORDER BY "minted_event"
   MATERIALIZE gap_grade

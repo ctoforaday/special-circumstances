@@ -331,6 +331,9 @@ func TestAReconsiderationIsAdmittedOnNewGroundsOnly(t *testing.T) {
 		{name: "a quote no edit since wrote", quote: proto.String("never written"), want: []string{`--quote "never written" is not new grounds on gap G1`}},
 		{name: "a finding about the gap since the ruling", after: newFinding, grounds: proto.String("F-00000002")},
 		{name: "a computation answering the gap since the ruling", after: func(st *stage) { st.blueComputes("G1") }, grounds: proto.String("K-")},
+		{name: "a citation placed as its answer since the ruling", after: func(st *stage) {
+			st.add("blue-respond", &recordpb.Cite{Label: proto.String("C-0000a0a0"), Url: proto.String("https://x/a"), Sha256: proto.String("abc"), Answers: proto.String("G1")})
+		}, grounds: proto.String("C-0000a0a0")},
 		{name: "a quote of text an edit answering the gap wrote since", after: func(st *stage) { st.edit("G1", "the old sentence", "the sentence the search now backs") },
 			quote: proto.String("the search now backs")},
 	} {

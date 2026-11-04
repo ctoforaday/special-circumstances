@@ -493,7 +493,12 @@ func (r *runner) remandHeldBeforeRegister() {
 		r.noteActErr("the record could not be read before blue registered")
 		return
 	}
-	acts, _, _ := actsOnGaps(b.Events)
+	carried, ok := r.carryingOf()
+	if !ok {
+		r.noteActErr("the record's carrying readings could not be read before blue registered")
+		return
+	}
+	acts, _, _ := actsOnGaps(b.Events, carried)
 	ruled := remandRulings(b.Events)
 	dispatched := -1 // blue's latest dispatch row, a stream position
 	for i, e := range b.Events {

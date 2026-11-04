@@ -20,22 +20,29 @@ import (
 //
 //   - the minting lens: a regrade (one that keeps the grade included), a close, a closing, a finding
 //     about the gap, a mint superseding it, a judgement of a computation that answers it;
-//   - blue: an edit answering it, a computation answering it, a fate on the inquiry it is anchored on, a
-//     closing;
+//   - blue: an edit answering it, an evidence anchor (a citation or a computation) placed as its
+//     answer, a fate on the inquiry it is anchored on, a closing, and a REACHING RETIRE — a retire
+//     taking out the anchor the gap is about, or the anchor of a reading it carries, whatever gap the
+//     retire named (WindowIndex.Reaches). Without it a retire that meets the gap's demand leaves the
+//     lens's turn never coming, and the plan readies blue alone on a gap only its lens can close;
+//   - the lens whose check it is: a check (`verify` or `reproduce`) of an anchor placed as its answer.
+//     A reading reaches a gap only through its citation's answer, never through the gap that carries
+//     it: a reading that names its gap moves no turn;
 //   - either: a docket or grade motion on it.
 //
-// Each is validated at its write against the gap the record holds, so a gap named here is one the
-// seat named, never one recovered from prose.
+// Each is validated at its write against the gap the record holds, or read off the record's rows
+// (a reaching retire), so a gap named here is one the record names, never one recovered from prose.
 type gapAct struct {
 	seat string
 	at   int64 // the act's events.id
 }
 
-// gapActsOf is every act on each gap, in record order. ids are evs's places.
-func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
+// gapActsOf is every act on each gap, in record order. ids are evs's places; win is the whole-record
+// index the reaching retires are read off.
+func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 	out := map[string][]gapAct{}
-	computationGap := map[string]string{} // a computation's anchor → the gap it answers
-	anchoredOn := map[string][]string{}   // an inquiry → the gaps minted about it
+	answering := map[string]string{}    // an evidence anchor → the gap it was placed as the answer to
+	anchoredOn := map[string][]string{} // an inquiry → the gaps minted about it
 	for i, e := range evs {
 		var on []string
 		switch b := mustBody(e).(type) {
@@ -58,18 +65,26 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 			on = []string{b.GetAnswers()}
 		case *recordpb.Retire:
 			on = []string{retireAnswers(e)}
+			for _, r := range win.Reaches(e) {
+				on = append(on, r.gap)
+			}
 		case *recordpb.Computation:
-			computationGap[b.GetComputationId()] = b.GetAnswers()
+			answering[b.GetComputationId()] = b.GetAnswers()
+			on = []string{b.GetAnswers()}
+		case *recordpb.Cite:
+			answering[b.GetLabel()] = b.GetAnswers()
 			on = []string{b.GetAnswers()}
 		case *recordpb.Reproduce:
-			on = []string{computationGap[b.GetComputationId()]}
+			on = []string{answering[b.GetComputationId()]}
+		case *recordpb.Verify:
+			on = []string{answering[b.GetAnchor()]}
 		case *recordpb.Inquiry:
 			on = anchoredOn[b.GetInquiryId()]
 		case *recordpb.Motion:
 			on = []string{b.GetDocket().GetGapId(), b.GetGrade().GetGapId()}
 		}
-		for _, g := range on {
-			if g != "" {
+		for k, g := range on {
+			if g != "" && !slices.Contains(on[:k], g) {
 				out[g] = append(out[g], gapAct{seat: e.GetSeatId(), at: ids[i]})
 			}
 		}

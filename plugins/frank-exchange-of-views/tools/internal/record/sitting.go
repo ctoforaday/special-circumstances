@@ -118,6 +118,9 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 type sittingReads struct {
 	// unverifiable: why no check can reach an evidence anchor's sentence (unverifiableIn).
 	unverifiable unverifiableFunc
+	// mintsLeft: a lens's mints left (mintBudgetOf), for the clause on an item whose answer is a mint
+	// (answersRetiredItems); nil where the budget was not read or not measured.
+	mintsLeft *int
 }
 
 // unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
@@ -410,6 +413,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
+		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS ARE ALL RETIRED (ruling Closures are history): news,
+		// never a blocker — the closure stands, and the item says what a mint in answer would be.
+		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, all, seatID, reads.mintsLeft)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
 			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the

@@ -398,7 +398,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	report, renderErr := RenderAt(q)
 	located := newLocatedReport(report, renderErr)
 
-	verified := backingOf(evs)
+	verified := backingOf(evs, win)
 	// THE CLOSURE IS THE GAP VIEW'S (the last act of each arm, by its events.id, with the body
 	// looked up in evs); the regrade history is every regrade, in record order.
 	byID := eventsByID(evs, win)
@@ -710,13 +710,17 @@ type GapBackingJSON struct {
 	// Kind is citation | computation | finding, from the id's prefix — the one string-encoded fact this
 	// tree keeps on purpose, because the id and its token are minted together (see anchor.Token).
 	Kind string `json:"kind"`
-	// Outcome and Confidence are the verification, where one exists — the SourceOutcome and
+	// Outcome and Confidence are a citation's reading, where one exists — the SourceOutcome and
 	// Confidence vocabularies, not a second spelling of them.
 	Outcome    string `json:"outcome,omitempty"`
 	Confidence string `json:"confidence,omitempty"`
+	// Soundness is a computation's judgement, where one exists — the Soundness vocabulary.
+	Soundness string `json:"soundness,omitempty"`
 	// VerifiedBy is the seat that checked it, so a lens can see whether its OWN check is the one
 	// standing — re-verifying your own reading is not independent.
 	VerifiedBy string `json:"verified_by,omitempty"`
+	// Event is the events.id of that check; 0, and absent, where no check exists.
+	Event int64 `json:"event,omitempty"`
 }
 
 // CounterpartyJSON is what the OTHER party has done in this run, for a seat that has to decide
@@ -1248,23 +1252,30 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 // own, so a seat sitting in epoch 3 sees what happened in epoch 2 — the epoch it was not present
 // for. Zero means "no epoch known", and then every edit is shown rather than none: a reader whose
 // epoch could not be determined is better handed the whole history than silently handed none.
-// backingOf indexes every verification by the anchor it checked, so the work list can say what
-// stands behind a gap's sentence without a seat reading the whole evidence table.
+// backingOf indexes every check of an evidence anchor by the anchor it checked, so the work list can
+// say what stands behind a gap's sentence without a seat reading the whole evidence table: both check
+// verbs, a citation's reading (`verify`) and a computation's judgement (`reproduce`), each anchor's
+// row of recordsql.EvidenceTables naming the one that checks it.
 //
-// THE LAST VERIFICATION WINS, as it does everywhere else a seat may revisit its own act: a lens
+// THE LAST CHECK WINS, as it does everywhere else a seat may revisit its own act: a lens
 // re-verifying a source after blue moved it is stating the current answer, not a second one.
-func backingOf(evs []*Event) map[string]GapBackingJSON {
+func backingOf(evs []*Event, win WindowIndex) map[string]GapBackingJSON {
 	out := map[string]GapBackingJSON{}
 	for _, e := range evs {
-		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
-		if !ok || v.GetAnchor() == "" {
+		var b GapBackingJSON
+		switch body := mustBody(e).(type) {
+		case *recordpb.Verify:
+			b = GapBackingJSON{Anchor: body.GetAnchor(), Outcome: recordpb.Word(body.GetOutcome()), Confidence: recordpb.Word(body.GetConfidence())}
+		case *recordpb.Reproduce:
+			b = GapBackingJSON{Anchor: body.GetComputationId(), Soundness: recordpb.Word(body.GetSoundness())}
+		default:
 			continue
 		}
-		out[v.GetAnchor()] = GapBackingJSON{
-			Anchor: v.GetAnchor(), Kind: anchor.Kind(v.GetAnchor()),
-			Outcome: recordpb.Word(v.GetOutcome()), Confidence: recordpb.Word(v.GetConfidence()),
-			VerifiedBy: e.GetSeatId(),
+		if b.Anchor == "" {
+			continue
 		}
+		b.Kind, b.VerifiedBy, b.Event = anchor.Kind(b.Anchor), e.GetSeatId(), win.Of(e).ID
+		out[b.Anchor] = b
 	}
 	return out
 }
@@ -1371,7 +1382,7 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	return workJSONOfGaps(gaps, 0, backingOf(r.evs), ""), nil
+	return workJSONOfGaps(gaps, 0, backingOf(r.evs, r.win), ""), nil
 }
 
 // unverifiableIn reads, from the report as it renders now, why no check can reach an evidence
@@ -1491,7 +1502,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	}
 	evs, win := r.evs, r.win
 	epoch := epochOfSeatOnBoard(evs, win, seatID)
-	w := workJSONOfGaps(gaps, epoch-1, backingOf(evs), seatID)
+	w := workJSONOfGaps(gaps, epoch-1, backingOf(evs, win), seatID)
 	if role == "lens" || role == "blue" {
 		w.keepClosingsOf(evs, win, gaps, seatID)
 	}
@@ -1500,6 +1511,9 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	var budgetLine string
 	if role == "lens" {
 		budget, budgetLine = mintBudgetOf(r.budget)
+		if budget != nil && budget.Measured {
+			reads.mintsLeft = &budget.Left
+		}
 	}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	if role == "lens" {

@@ -24,6 +24,8 @@ package seatprobe
 // of the UNION — which is what surfacecoverage_test.go checks, against the verb list the cobra
 // tree actually offers rather than a list maintained here.
 
+import "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+
 // Gap is one item on a probe board, with the verb it baits.
 type Gap struct {
 	Key, Class, Location, Problem, Fix, Check, CheckKind string
@@ -184,7 +186,7 @@ The remaining cases are out of scope.
 				Check:    "The stated total equals the sum of the per-source rows.", CheckKind: "computation",
 				Severity: "high", Likelihood: "certain", Impact: "high", Complexity: "low",
 				Baits: "compute",
-				Why: "A computation check CANNOT be closed by prose — the tool says so at the write path. " +
+				Why: "Prose cannot close a computation check, and the tool says so at the write path: " + recordpb.DemandClause + ". " +
 					"Twelve numbers is exactly the size where typing the sum feels cheaper than running " +
 					"it, and typing it is how the wrong total got there in the first place.",
 			},
@@ -225,7 +227,7 @@ The remaining cases are out of scope.
 			},
 		},
 		Expect: []Expectation{
-			{Seat: "blue-respond", Verb: "compute", Because: "TWO gaps here are check-kind computation, and such a check closes ONLY when a computation answers it. A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
+			{Seat: "blue-respond", Verb: "compute", Because: "TWO gaps here are check-kind computation, and " + recordpb.DemandClause + ". A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
 			{Seat: "blue-respond", Verb: "manifest-row", Because: "The manifest is the receipt for a repair, one row per repaired gap, and the report NAMES a gap blue repaired that carries no row as a repair nobody audited including its author."},
 			{Seat: "blue-respond", Verb: "motion grade file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Contesting that is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
 			{Seat: "blue-respond", Verb: "edit", Because: "The control. The document-kind gap is legitimately answered by repairing the prose, and a board where the ordinary move is never right would teach a seat to reach for machinery it does not need."},

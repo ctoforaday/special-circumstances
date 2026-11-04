@@ -268,7 +268,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 	movement := map[string][]int64{}  // gap -> ids of movement events
 	anchored := map[string][]string{} // inquiry -> the gaps minted about it
 	fates := map[string]recordpb.InquiryStatus{}
-	acts := gapActsOf(evs, ids)
+	acts := gapActsOf(evs, ids, win)
 
 	for i, e := range evs {
 		id := ids[i]
@@ -313,6 +313,11 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			if g := b.GetAnswers(); g != "" && seatclass.RoleOfSeat(e.GetSeatId()) == "blue" {
 				movement[g] = append(movement[g], id)
 			}
+		case *recordpb.Cite:
+			// AN EVIDENCE ANCHOR PLACED AS THE ANSWER MOVES THE GAP, of either kind.
+			if g := b.GetAnswers(); g != "" && seatclass.RoleOfSeat(e.GetSeatId()) == "blue" {
+				movement[g] = append(movement[g], id)
+			}
 		case *recordpb.Inquiry:
 			// A FATE IS THE ANSWER TO A GAP ANCHORED ON THE INQUIRY, as an edit is to one anchored on
 			// text: no edit can answer it, and a fate restated moves nothing.
@@ -323,9 +328,16 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			}
 			fates[b.GetInquiryId()] = b.GetStatus()
 		case *recordpb.Retire:
-			// A citation retire moves the report as an edit does: the citation leaves its sentence.
+			// A citation retire moves the report as an edit does: the citation leaves its sentence. A
+			// REACHING RETIRE moves each gap it reaches as a named one does: it meets the gap's demand
+			// whatever gap it named (WindowIndex.Reaches).
 			if g := retireAnswers(e); g != "" {
 				movement[g] = append(movement[g], id)
+			}
+			for _, r := range win.Reaches(e) {
+				if !slices.Contains(movement[r.gap], id) {
+					movement[r.gap] = append(movement[r.gap], id)
+				}
 			}
 		case *recordpb.Close:
 			movement[b.GetGapId()] = append(movement[b.GetGapId()], id)

@@ -38,6 +38,8 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		{"an edit answering it", blue, "G1", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("a")}},
 		{"a computation answering it", blue, "G1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("P1"), Answers: proto.String("G1")}},
 		{"a judgement of a computation answering it", lens, "G1", &recordpb.Reproduce{ComputationId: proto.String("P1")}},
+		{"a citation placed as its answer", blue, "G1", &recordpb.Cite{Label: proto.String("C-1"), Answers: proto.String("G1")}},
+		{"a reading of a citation answering it", lens, "G1", &recordpb.Verify{Anchor: proto.String("C-1")}},
 		{"a fate on the inquiry it is anchored on", blue, "G2", &recordpb.Inquiry{InquiryId: proto.String("I1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum()}},
 		{"a docket motion", blue, "G1", &recordpb.Motion{MotionId: proto.String("M1"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}},
 		{"a grade motion", blue, "G1", &recordpb.Motion{MotionId: proto.String("M2"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}}},
@@ -60,8 +62,13 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		at(lens, &recordpb.Finding{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Text: proto.String("G1 is wrong")}),
 		at(blue, &recordpb.BlueEdit{Old: proto.String("G1"), New: proto.String("b")}),
 		at(lens, &recordpb.Reproduce{ComputationId: proto.String("K-unknown")}),
+		// A READING NAMES ITS GAP IN carried_by AND MOVES NO TURN THERE: only its citation's answer does.
+		at(blue, &recordpb.Cite{Label: proto.String("C-2")}),
+		at(lens, &recordpb.Verify{Anchor: proto.String("C-2"), CarriedBy: proto.String("G1")}),
 	}
-	acts := gapActsOf(evs, ids)
+	// No retire is here, so no whole index is needed: a reaching retire is read off the record's rows
+	// (TestAReachingRetireIsBluesActOnTheGap).
+	acts := gapActsOf(evs, ids, WindowIndex{})
 	for i, r := range rows {
 		if !slices.ContainsFunc(acts[r.gap], func(a gapAct) bool { return a.at == places[i] && a.seat == r.seat }) {
 			t.Errorf("%s by %s is not read as an act on %s: %+v", r.name, r.seat, r.gap, acts[r.gap])

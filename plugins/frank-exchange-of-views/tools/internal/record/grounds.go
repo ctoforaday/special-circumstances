@@ -23,7 +23,7 @@ import (
 // ruling) and about THIS gap, refusing otherwise with which of the two failed.
 //
 // WHAT COUNTS. An id: a finding about the gap (`--about-kind gap`), a gap minted about it or
-// superseding it, a computation answering it, or a citation placed in text an edit answering it wrote —
+// superseding it, a citation or computation placed as its answer, or a citation placed in text an edit answering it wrote —
 // each recorded after the ruling. A quote: report text an edit answering the gap wrote after the
 // ruling, which the report still carries (the verb's placement guard asks that of the report the
 // motion lands on). A ruling marked final still admits new grounds: final is the bench's forecast,
@@ -70,7 +70,7 @@ func (r closedBy) words(gap string) string {
 }
 
 // GroundsKinds is what --grounds takes, in the words a page and a refusal state it.
-const GroundsKinds = "the id of a finding about the gap, a gap minted about it or superseding it, a computation answering it, or a citation placed in text an edit answering it wrote"
+const GroundsKinds = "the id of a finding about the gap, a gap minted about it or superseding it, a citation or computation placed as its answer, or a citation placed in text an edit answering it wrote"
 
 // requireNewGrounds is the docket arm's check of a reconsideration's grounds.
 func requireNewGrounds(q recordsql.Querier, d *recordpb.DocketMotion) error {
@@ -112,12 +112,13 @@ func requireNewGrounds(q recordsql.Querier, d *recordpb.DocketMotion) error {
 
 // groundsActSQL is the act that placed id, the earliest first: its place, its kind, whether it is about
 // gap ?2, and a citation's location. An evidence anchor is read off the evidence_anchor view, the one
-// statement of which acts place one.
+// statement of which acts place one, and it is about the gap when it was placed as the gap's answer,
+// of either kind.
 const groundsActSQL = `SELECT e, kind, about, loc FROM (
        SELECT "event_id" e, 'finding' kind, ("about_kind" = 'gap' AND "about_ref" = ?2) about, '' loc FROM "finding" WHERE "id" = ?1
        UNION ALL SELECT m."event_id", 'gap', ((m."about_kind" = 'gap' AND m."about_ref" = ?2)
            OR EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id" AND s."value" = ?2)), '' FROM "mint" m WHERE m."gap_id" = ?1
-       UNION ALL SELECT ea."placed_event", ea."kind", (ea."kind" = 'computation' AND ea."answers" = ?2), COALESCE(c."location", '')
+       UNION ALL SELECT ea."placed_event", ea."kind", COALESCE(ea."answers" = ?2, 0), COALESCE(c."location", '')
            FROM "evidence_anchor" ea LEFT JOIN "cite" c ON c."event_id" = ea."placed_event" WHERE ea."anchor_id" = ?1)
      ORDER BY e LIMIT 1`
 
@@ -142,7 +143,9 @@ func requireGroundsAct(q recordsql.Querier, gap string, ruling closedBy, id stri
 			kind, id, at, ruling.at, ruling.words(gap))
 	}
 	concerns := about.Valid && about.Bool
-	if kind == "citation" {
+	// A CITATION AN EDIT WROTE CONCERNS THE GAP TOO: one placed by an edit answering it, which
+	// names no gap of its own.
+	if kind == "citation" && !concerns {
 		edit, err := editWroteAfter(q, gap, ruling.at, loc)
 		if err != nil {
 			return err
