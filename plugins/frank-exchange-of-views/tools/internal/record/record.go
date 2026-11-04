@@ -479,7 +479,13 @@ var numbered = map[recordpb.EventType]bool{
 // earlier here. A name the schema no
 // longer has is skipped — which is the same silent staleness the paragraph above warns about, and
 // the reason a name is only ever REMOVED from this list deliberately.
-var keyFields = []protoreflect.Name{"gap_id", "label", "id", "anchor", "url"}
+//
+// `url` IS NOT ON IT. A reading of a source the lens found carries no anchor and takes the ordinal
+// key, because its identity is TWO fields — its source and its sentence — and one sentence may be
+// read against several sources in a sitting, one source against several sentences.
+// requireNotARetriedReading holds it to one reading per (url, sentence) per sitting and names the
+// stored reading when it refuses.
+var keyFields = []protoreflect.Name{"gap_id", "label", "id", "anchor"}
 
 // requireGradeMotionAsksForAChange refuses a grade motion proposing the grade already on the board.
 func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMotion) error {
@@ -676,6 +682,19 @@ func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards .
 // reads it (validationReadsReport). Under the lock the render is reused where the report has not
 // moved, so the lock is held for one query rather than a render.
 func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
+	evs, err := appendBodies(id, bodies, guards, nil)
+	if len(evs) == 0 {
+		return nil, err
+	}
+	return evs[0], err
+}
+
+// appendBodies is appendOwn returning every event it wrote, in order; on a refusal, the events
+// written before it (rolled back) and the refused body's. act is the reading's act (readingAct) when
+// these bodies are one, nil otherwise: where the one-gap rule finds the reading's sentence already
+// held by an open gap of its class, the Mint and the Anchor are dropped and the reading is written
+// alone, naming that gap — decided here, under the write lock, never before it.
+func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *readingAct) ([]*Event, error) {
 	var tx *recordsql.Tx
 	defer func() {
 		if tx != nil {
@@ -702,21 +721,29 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 		tx, err = recordsql.BeginWrite(db)
 		return tx, err
 	}
-	var first *Event
+	var out []*Event
 	for i, body := range bodies {
 		g := guards
 		if i > 0 {
 			g = nil
 		}
-		ev, err := appendAct(id, body, begin, g, rendering)
-		if i == 0 {
-			first = ev
+		ev, err := appendAct(id, body, begin, g, rendering, act)
+		if err != nil && i == 0 && act != nil && act.held != "" {
+			// THE READING'S SENTENCE IS HELD: its Mint was refused by the one-gap rule inside this
+			// transaction, nothing of it written, and the reading lands alone carrying the held gap.
+			act.verify.CarriedBy, act.verify.CarrierMinted = proto.String(act.held), proto.Bool(false)
+			ev, err = appendAct(id, act.verify, begin, nil, rendering, act)
+			if err != nil {
+				return []*Event{ev}, err
+			}
+			return []*Event{ev}, tx.Commit()
 		}
+		out = append(out, ev)
 		if err != nil {
-			return first, err
+			return out, err
 		}
 	}
-	return first, tx.Commit()
+	return out, tx.Commit()
 }
 
 // appendAct is one act's write, whoever holds the transaction: the checks every act passes, then
@@ -728,7 +755,9 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 // begin is called only once the checks before it have passed, so a refused act opens nothing, and
 // a write that names no run is refused by name before any handle is asked for. rendering is the
 // write's report (landingReport), nil on a Batch's act.
-func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, rendering *landingReport) (*Event, error) {
+//
+// act is the reading's act this body is a member of (readingAct), nil for every other write.
+func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, rendering *landingReport, act *readingAct) (*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -758,7 +787,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, err
 	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
 		return ev, err
 	}
-	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards, false); err != nil {
+	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering, act: act}, guards, false); err != nil {
 		return ev, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
@@ -766,7 +795,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, err
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
 	if err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
-		w := writeView{q: tx, files: files, rendering: rendering}
+		w := writeView{q: tx, files: files, rendering: rendering, act: act}
 		if err := validate(w, seatID, typ, body); err != nil {
 			return err
 		}
@@ -938,15 +967,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	}
 	switch b := body.(type) {
 	case *recordpb.Anchor:
-		// An Anchor places one marker, of any kind, at its quote's end. It keys on `id` via
+		// An Anchor places one marker, of any kind, at its quote's end, or at the end of the sentence
+		// another anchor's token sits in (sentence_of, a reading's gap). It keys on `id` via
 		// deriveKey, so a retry writes one event rather than a second marker.
 		// An id no anchor kind claims spells no token a reader recognises, so its gap would read `gone`
 		// beside a stray comment in the report: the empty id and every such id are refused here.
 		if anchor.Kind(b.GetId()) == "" {
 			return fmt.Errorf("anchor requires id — the id of the finding, citation, computation or gap whose marker this places; %q is none of them", b.GetId())
 		}
-		if b.GetLocation() == "" {
-			return fmt.Errorf("anchor requires location (the quote the marker sits at the end of)")
+		if (b.GetLocation() == "") == (b.GetSentenceOf() == "") {
+			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
 		}
 	case *recordpb.Mint:
 		// Every check here that replay exempts carries its own Migrating gate beside the part it
@@ -963,11 +993,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
-		}
-		// A CONTRADICTION IS RAISED BY A FINDING, and the gap is minted from that finding — which
-		// carries the contradiction's id in its own anchor, where the gap's found_by reaches it.
-		if k := b.GetAboutKind(); k != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED && !slices.Contains(Names(gapAboutKinds()), recordpb.Word(k)) {
-			return fmt.Errorf("a gap is not about a %s: raise it with a finding (`--about-kind %s --about <its id>`), and mint the gap from that finding with --found-by", recordpb.Word(k), recordpb.Word(k))
 		}
 		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
@@ -1061,11 +1086,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Finding:
-		if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
-			if err := requireOpenContradiction(q, b.GetAboutRef()); err != nil {
-				return err
-			}
-		}
 		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
@@ -1749,7 +1769,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// skips.
 		//
 		// The ANCHOR case is the verb's own, because it needs the record to answer it (does that
-		// citation exist?) and because "`verify` names an anchor, `corroborate` names none" is a
+		// citation exist?) and because "a reading names an anchor or a url, never both" is a
 		// shape this table cannot express. What is enforced here is that the row says something: which claim, what the
 		// source did for it, and the reading behind that verdict.
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
@@ -1775,12 +1795,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := copyProvenance("verify", b.GetCopySubstitution(), b.CopyUrl); err != nil {
 			return err
 		}
-		if b.GetAnchor() != "" {
-			if err := requireNotARepeatFailedCheck(q, seatID, b.GetAnchor(), !VerifyReads(b)); err != nil {
-				return err
-			}
+		// A RETRY IS REFUSED FIRST, then a repeat: a lens re-recording a reading of this sitting is
+		// told of the stored one; a lens re-recording its own standing reading of an earlier sitting
+		// is told of the gap that carries it, whatever carrier fields its write named.
+		if err := requireNotARetriedReading(q, seatID, b); err != nil {
+			return err
 		}
-		if err := refuseCorroborationTitleVoice(b); err != nil {
+		if err := requireNotARepeatReading(q, seatID, b); err != nil {
+			return err
+		}
+		if err := requireReadingCarrier(w, b); err != nil {
 			return err
 		}
 	}

@@ -127,7 +127,7 @@ func requireAboutAnchor(q recordsql.Querier, kind recordpb.AboutKind, ref string
 	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil
 	}
-	found, err := queryRowAt(q, []any{new(int)}, `SELECT 1 FROM "computation" WHERE "computation_id" = ? UNION ALL SELECT 1 FROM "cite" WHERE "label" = ? UNION ALL SELECT 1 FROM "verify" WHERE "label" = ? AND COALESCE("claim", '') != '' LIMIT 1`, ref, ref, ref)
+	found, err := queryRowAt(q, []any{new(int)}, `SELECT 1 FROM "computation" WHERE "computation_id" = ? UNION ALL SELECT 1 FROM "cite" WHERE "label" = ? LIMIT 1`, ref, ref)
 	if err != nil {
 		return err
 	}
@@ -197,12 +197,12 @@ func requireClosureAnchors(q recordsql.Querier, gapID string, ids []string, flag
 }
 
 // HoldsAnchor is whether an act on q's record carries the anchor id: an anchor id is the id its
-// placing act minted — a finding's, a gap's, a citation's, a computation's or a corroboration's.
+// placing act minted — a finding's, a gap's, a citation's or a computation's.
 func HoldsAnchor(q recordsql.Querier, id string) (bool, error) {
 	return queryRowAt(q, []any{new(int)},
 		`SELECT 1 FROM (SELECT "id" FROM "finding" UNION ALL SELECT "gap_id" FROM "mint"
-		   UNION ALL SELECT "label" FROM "cite" UNION ALL SELECT "computation_id" FROM "computation"
-		   UNION ALL SELECT "label" FROM "verify") WHERE "id" = ? LIMIT 1`, id)
+		   UNION ALL SELECT "label" FROM "cite" UNION ALL SELECT "computation_id" FROM "computation")
+		  WHERE "id" = ? LIMIT 1`, id)
 }
 
 // requireFindings refuses found_by attribution to a finding that does not exist.
@@ -249,10 +249,7 @@ func requireCitation(q recordsql.Querier, label, flag, advice string) error {
 			return nil
 		}
 	}
-	// "blue has cited" WAS TRUE AND IS NOT. The set now includes red's supporting
-	// corroborations, which mint a label of their own — so a count described as blue's would
-	// misstate what a seat is being compared against.
-	return fmt.Errorf("%s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. %s",
+	return fmt.Errorf("%s=%s names no citation on the record — %d source(s) are cited, and `show evidence` lists them by anchor. %s",
 		flag, label, len(known), advice)
 }
 

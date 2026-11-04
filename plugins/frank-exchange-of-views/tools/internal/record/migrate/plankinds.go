@@ -22,7 +22,7 @@ var planKindRenames = map[record.BlockerKind]record.BlockerKind{
 // planKindsRetired is each blocker kind word an archived plan prints that names a state the record no
 // longer holds. The chair's inquiry review (EventSchema 58), whose event translates to none
 // (entries.go): it was the chair's own, so it never held pass_permitted. A superseded gap still open
-// (EventSchema 59): a mint superseding an open gap closes it, so no gap is in that state; every
+// (EventSchema 60): a mint superseding an open gap closes it, so no gap is in that state; every
 // archived plan that printed one printed another blocker beside it. Neither has an equivalent, and
 // it leaves the plan, which keeps pass_permitted as stored.
 var planKindsRetired = map[record.BlockerKind]bool{

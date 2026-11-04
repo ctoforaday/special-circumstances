@@ -195,7 +195,7 @@ func TestTheRefusalStatesTheArithmetic(t *testing.T) {
 	for _, want := range []string{"red-lens-evidence holds 2 gap(s) open and its mint budget admits no more", "caps the gaps a lens holds open at once",
 		"the evidence lens's is the larger of the run's floor", "and its rate, 3 mints for every 2 of the citations on the record",
 		"max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2", "mintBudget in inputs/run-config.json", "grows as the report does",
-		"A gap of yours that closes, by your close, by a mint of yours superseding it or by the bench's ruling, frees one, and a mint superseding an open gap of yours takes none",
+		"A gap of yours that closes, by your close, by a mint of yours superseding it or by the bench's ruling, frees one, and a mint superseding an open gap of yours that takes one takes none",
 		"Record what you found as a finding now, and mint it when a gap of yours has closed, naming that finding in --found-by",
 		"verify, record findings, and regrade or close the gaps you minted"} {
 		if !strings.Contains(err.Error(), want) {
@@ -370,7 +370,7 @@ func TestTheWorkListStatesTheMintsLeft(t *testing.T) {
 	t.Run("measured", func(t *testing.T) {
 		id := budgetRun(t, 1, 1, 0, "red-lens-evidence")
 		for minted, sentence := range []string{
-			"you hold 0 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so 2 mint(s) are left to you; every open gap you minted takes one, a gap of yours that closes frees one, a mint superseding an open gap of yours closes it and takes none",
+			"you hold 0 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so 2 mint(s) are left to you; every open gap you minted takes one, a gap of yours that closes frees one, a mint superseding an open gap of yours that takes one closes it and takes none",
 			"you hold 1 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so 1 mint(s) are left to you; every open gap you minted takes one",
 			"you hold 2 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so NO mint is left to you; what you find now goes in a finding, and when a gap of yours closes it frees a mint and the finding is minted then",
 		} {

@@ -98,7 +98,7 @@ func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
 		{name: "the neighbour's problem flag", seat: "red-lens-evidence",
 			args: []string{"finding", "--quote", "§1 first — a finding sits in sec 1 here.", "--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "r", "--problem", "p"},
 			verb: "finding", role: "lens", writes: "finding",
-			says: []string{"unknown flag: --problem", "On this surface `mint` takes it.",
+			says: []string{"unknown flag: --problem", "On this surface `mint` and `verify` take it.",
 				"This verb's flags: --about, --about-kind, --impact, --key, --likelihood, --quote, --reason, --severity.", "`" + InvokedAs() + " finding --help`"}},
 		{name: "a flag nothing takes", seat: "red-lens-evidence",
 			args: []string{"close", "--nonesuch", "x"},

@@ -1273,13 +1273,17 @@ func (t *anchorTable) load(q Querier, after int64) error {
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
-		if err := scanRows(q, "anchor", `SELECT t."event_id", t."id", t."location" FROM "anchor" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
+		var c2 sql.NullString
+		if err := scanRows(q, "anchor", `SELECT t."event_id", t."id", t."location", t."sentence_of" FROM "anchor" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 			m := &recordpb.Anchor{}
 			if c0.Valid {
 				m.Id = ref(c0.String)
 			}
 			if c1.Valid {
 				m.Location = ref(c1.String)
+			}
+			if c2.Valid {
+				m.SentenceOf = ref(c2.String)
 			}
 			t.rows[id] = m
 		}); err != nil {
@@ -1464,17 +1468,16 @@ func (t *verifyTable) load(q Querier, after int64) error {
 		var c5 sql.NullString
 		var c6 sql.NullString
 		var c7 sql.NullString
-		var c8 sql.NullString
-		var c9 sql.NullInt64
+		var c8 sql.NullInt64
+		var c9 sql.NullString
 		var c10 sql.NullString
 		var c11 sql.NullString
 		var c12 sql.NullString
 		var c13 sql.NullString
 		var c14 sql.NullString
 		var c15 sql.NullString
-		var c16 sql.NullString
-		var c17 sql.NullString
-		if err := scanRows(q, "verify", `SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."label", t."page", t."page_render_sha", t."reading_render_sha", t."work_status", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url", t."sha256" FROM "verify" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17}, func() {
+		var c16 sql.NullInt64
+		if err := scanRows(q, "verify", `SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url", t."carried_by", t."carrier_minted" FROM "verify" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16}, func() {
 			m := &recordpb.Verify{}
 			if c0.Valid {
 				m.Claim = ref(c0.String)
@@ -1509,50 +1512,43 @@ func (t *verifyTable) load(q Querier, after int64) error {
 				m.Text = ref(c7.String)
 			}
 			if c8.Valid {
-				m.Label = ref(c8.String)
+				m.Page = ref(int32(c8.Int64))
 			}
 			if c9.Valid {
-				m.Page = ref(int32(c9.Int64))
+				m.PageRenderSha = ref(c9.String)
 			}
 			if c10.Valid {
-				m.PageRenderSha = ref(c10.String)
+				m.ReadingRenderSha = ref(c10.String)
 			}
 			if c11.Valid {
-				m.ReadingRenderSha = ref(c11.String)
-			}
-			if c12.Valid {
-				if v, err := wordOf[recordpb.WorkStatus]("verify.work_status", c12.String); err != nil {
-					t.bad = refuse(t.bad, id, err)
-				} else {
-					m.WorkStatus = ref(v)
-				}
-			}
-			if c13.Valid {
-				if v, err := wordOf[recordpb.SourceCompleteness]("verify.source_completeness", c13.String); err != nil {
+				if v, err := wordOf[recordpb.SourceCompleteness]("verify.source_completeness", c11.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.SourceCompleteness = ref(v)
 				}
 			}
-			if c14.Valid {
-				if v, err := wordOf[recordpb.BridgeKind]("verify.bridge", c14.String); err != nil {
+			if c12.Valid {
+				if v, err := wordOf[recordpb.BridgeKind]("verify.bridge", c12.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.Bridge = ref(v)
 				}
 			}
-			if c15.Valid {
-				if v, err := wordOf[recordpb.CopySubstitution]("verify.copy_substitution", c15.String); err != nil {
+			if c13.Valid {
+				if v, err := wordOf[recordpb.CopySubstitution]("verify.copy_substitution", c13.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.CopySubstitution = ref(v)
 				}
 			}
-			if c16.Valid {
-				m.CopyUrl = ref(c16.String)
+			if c14.Valid {
+				m.CopyUrl = ref(c14.String)
 			}
-			if c17.Valid {
-				m.Sha256 = ref(c17.String)
+			if c15.Valid {
+				m.CarriedBy = ref(c15.String)
+			}
+			if c16.Valid {
+				m.CarrierMinted = ref(c16.Int64 != 0)
 			}
 			t.rows[id] = m
 		}); err != nil {

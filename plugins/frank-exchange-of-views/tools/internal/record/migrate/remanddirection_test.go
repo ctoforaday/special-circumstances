@@ -15,7 +15,7 @@ import (
 // the count of the source's rulings of that fate that stated one, and no remand keeps a reopen
 // condition. An archived opinion that stated neither migrates with a stated miss in the field its
 // fate owns, and is counted there. A ruling migrate leaves out with its docket, an act on a gap a
-// successor's mint had closed (epoch 59), is the residue supersededRulings states.
+// successor's mint had closed (epoch 60), is the residue supersededRulings states.
 func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 	remands := 0
 	for _, name := range archivedRuns(t) {

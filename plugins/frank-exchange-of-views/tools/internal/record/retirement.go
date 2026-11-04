@@ -17,7 +17,7 @@ import (
 // OTHERWISE. A second look at an unchanged report finds what the first did: across the archived
 // runs, the lenses readied at the head they had last sat at minted nothing and checked nothing,
 // and four in five recorded no act at all. A lens that has never sat is ready for its first look.
-// The gaps a lens is engaged on and a contradiction it read ready it on their own grounds
+// The gaps a lens is engaged on and a check of its that failed ready it on their own grounds
 // (foldPlan), whatever the head.
 //
 // A lens that keeps finding nothing stops being asked: b5's chair readied the voice lens alone
@@ -139,9 +139,10 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 //     or is a judgement it could make at mint, so a later sitting with nothing new gives it nothing to
 //     act on. universe-m28's architecture and voice lenses held their own gaps that are not material,
 //     which ready nobody and which blue never answers, and sat after every edit to the epoch limit.
-//   - A blocker on the stream whose owner it is (events is eventBlockersOf): a contradiction it read,
-//     a citation or computation it owns with no check of the sentence the report carries, a check of its
-//     that failed and that no gap of its carries yet.
+//   - A blocker on the stream whose owner it is (events is eventBlockersOf): a citation or
+//     computation it owns with no check of the sentence the report carries, a check of its that read
+//     nothing or judged a computation unsound and that no gap of its carries yet. A found-against
+//     check never holds its reader: its gap was minted by its reading.
 //
 // The work list keeps offering an item after the lens has sat on it; only the debt ends there.
 func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
@@ -162,9 +163,10 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 		owe(minted[n.gap], n.at, n.item)
 	}
 	for _, b := range events {
-		// A CHECK OF ITS THAT FAILED IS OWED UNTIL ITS GAP IS MINTED: from then the gap carries it to
-		// blue, and what clears the blocker is blue's remedy, which the lens cannot make.
-		if b.Kind == BlockerFailedCheck && b.answeredBy != "" {
+		// AN UNREAD OR UNSOUND CHECK OF ITS IS OWED UNTIL ITS GAP IS MINTED: from then the gap carries
+		// it to blue, and what clears the blocker is blue's remedy, which the lens cannot make. A
+		// FOUND-AGAINST CHECK IS NEVER OWED by its reader, carried or not.
+		if b.Kind == BlockerFailedCheck && !b.owed() {
 			continue
 		}
 		if b.Owner != "" {

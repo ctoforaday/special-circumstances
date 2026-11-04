@@ -282,9 +282,6 @@ func walk(events []*record.Event) *groundTruth {
 			}
 		case *recordpb.Verify:
 			gt.verifyEvents++
-			if id := m.GetLabel(); id != "" && m.GetClaim() != "" {
-				gt.placedIDs[id] = true
-			}
 		case *recordpb.Inquiry:
 			if id := m.GetInquiryId(); id != "" {
 				gt.inquiries[id] = recordpb.Word(m.GetStatus())

@@ -1,6 +1,9 @@
 package trajectory
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -27,6 +30,30 @@ func TestProjectAntigravity(t *testing.T) {
 	a2 := proj.Acts[1]
 	if a2.Seq != 11 || a2.Tool != "Bash" || a2.Target != "go test ./..." || a2.Outcome != OutcomeError {
 		t.Errorf("Act[1] = %+v, want Seq=11, Tool=Bash, Target='go test ./...', Outcome=error", a2)
+	}
+}
+
+func TestProjectAntigravityCWDFromPrompt(t *testing.T) {
+	tempDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(tempDir, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	testFile := filepath.Join(tempDir, "README.md")
+	if err := os.WriteFile(testFile, []byte("hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Escape backslashes for JSON on Windows
+	escapedPath := strings.ReplaceAll(testFile, `\`, `\\`)
+	input := fmt.Sprintf(`{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-11-04T00:00:00Z","content":"Working on %s"}
+`, escapedPath)
+
+	proj := Project(strings.NewReader(input), 0)
+	if len(proj.CWDs) == 0 {
+		t.Fatalf("expected CWDs to be extracted from prompt path")
+	}
+	if filepath.Clean(proj.CWDs[0]) != filepath.Clean(tempDir) {
+		t.Errorf("expected CWD to be %s, got %s", tempDir, proj.CWDs[0])
 	}
 }
 

@@ -759,17 +759,29 @@
       ]
     },
     {
-      "term": "contradiction",
-      "definition": "A contradiction is a source red read that refutes, or is silent on, a claim of the report, raised by the finding that names its id (a reading of that claim after the raise opens a new contradiction with its own id), and held open until the gap minted from that finding answers it, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it; the finding alone answers nothing, and a contradiction is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.",
+      "term": "reading",
+      "definition": "A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and one that reads the work and finds the source against the sentence mints the gap that carries it in the same act or names the open gap of that class the sentence already holds, and one of a source the lens found that backs an uncited sentence mints the gap that asks blue to cite it, except an `absent` on a source the lens found, which mints nothing.",
       "seats": [
         "lens",
-        "chair"
+        "chair",
+        "blue",
+        "lane",
+        "bench",
+        "operator"
       ],
       "bans": [],
       "collisions": [
         {
-          "word": "contradiction (ordinary English)",
-          "resolution": "a text at odds with itself, such as a report contradicting itself or a stamp that says the opposite of the board, keeps the ordinary word; the record's contradiction is the reading red recorded, whether its outcome is `refutes` or `absent`"
+          "word": "reading (OCR)",
+          "resolution": "the OCR reading is the machine's reading of a scanned document's page images (`reading_render_sha`, `render-page`'s `reading:` line, OCR-derived text); a lens's reading is a recorded check of a source against a sentence, and a page's OCR reading may be what a lens's reading finds wrong"
+        },
+        {
+          "word": "verdict",
+          "resolution": "the verdict is the chair's PASS or FAIL; a reading has an outcome, and a reading that reads nothing is never called a verdict"
+        },
+        {
+          "word": "report read",
+          "resolution": "a report read is the tool serving a lens the whole report; a reading is a lens's check of one source against one sentence"
         }
       ]
     },
@@ -804,7 +816,7 @@
     },
     {
       "term": "lens retirement",
-      "definition": "Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns, no gap owed about a check of its that failed — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.",
+      "definition": "Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no check it owns, no gap owed about a check of its that failed — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.",
       "seats": [
         "lens",
         "chair",
@@ -1077,7 +1089,7 @@
     },
     {
       "term": "failed check",
-      "definition": "A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.",
+      "definition": "A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, every reading of the citation since its sentence last changed read nothing of the cited work, or a lens's standing reading found the cited source against the sentence and, in the same act, minted the gap that carries it or named the open gap that already does — which holds the PASS and is cleared by no bench ruling; an unread or unsound check obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation or a found-against citation by the checking lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work.",
       "seats": [
         "lens",
         "chair",

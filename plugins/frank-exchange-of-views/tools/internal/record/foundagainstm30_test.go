@@ -12,8 +12,10 @@ import (
 const m30Archive = "2026-10-19_is-91-prime-m30.tar.gz"
 
 // M30'S REFUTATION WAS ANSWERED, AND THE STANDING SAYS SO. The adversary refuted C-4f4b8cfa at event
-// 417, against a sentence that inverted the definition; blue rewrote it at 450, reopening the
-// citation; the adversary and the evidence lens read the new sentence as supported at 467 and 470.
+// 417, against a sentence that inverted the definition; blue rewrote it at 449, reopening the
+// citation; the adversary and the evidence lens read the new sentence as supported at 466 and 469.
+// (The raise the adversary filed at 418 is written as no event, so every event after it is one
+// earlier than the archive's own migration placed it.)
 // Red finds against C-4f4b8cfa from 417 until the edit, and not after it — while every citation of
 // the same url (C-3b8d7782, C-f0ae536b) is never found against at all.
 func TestM30RefutationIsAnsweredByTheEditAndTheRecheck(t *testing.T) {
@@ -21,8 +23,8 @@ func TestM30RefutationIsAnsweredByTheEditAndTheRecheck(t *testing.T) {
 	if v := whole[416].GetVerify(); v.GetAnchor() != "C-4f4b8cfa" || v.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES {
 		t.Fatalf("event 417 is not the adversary's refutation of C-4f4b8cfa: %v", whole[416])
 	}
-	if e := whole[449].GetBlueEdit(); !slices.Contains(e.GetReopened(), "C-4f4b8cfa") {
-		t.Fatalf("event 450 is not the edit reopening C-4f4b8cfa: %v", whole[449])
+	if e := whole[448].GetBlueEdit(); !slices.Contains(e.GetReopened(), "C-4f4b8cfa") {
+		t.Fatalf("event 449 is not the edit reopening C-4f4b8cfa: %v", whole[448])
 	}
 	at := func(n int) []string {
 		run := archiveAt(t, m30Archive, whole, n)
@@ -35,7 +37,7 @@ func TestM30RefutationIsAnsweredByTheEditAndTheRecheck(t *testing.T) {
 	if got := at(416); len(got) != 0 {
 		t.Errorf("before the refutation, red finds against %v, want none", got)
 	}
-	if got := at(449); !slices.Equal(got, []string{"C-4f4b8cfa"}) {
+	if got := at(448); !slices.Equal(got, []string{"C-4f4b8cfa"}) {
 		t.Errorf("after the refutation and before the edit, red finds against %v, want [C-4f4b8cfa]", got)
 	}
 	if got := at(len(whole)); len(got) != 0 {
@@ -56,7 +58,7 @@ func TestM30SourcesRefutedCountsOnlyTheStanding(t *testing.T) {
 		}
 		return EvidenceJSONOf(fam.Events, fam.At)
 	}
-	if got := at(449).Counts.SourcesRefuted; got != 1 {
+	if got := at(448).Counts.SourcesRefuted; got != 1 {
 		t.Errorf("after the refutation and before the edit, sources_refuted = %d, want 1 (C-4f4b8cfa)", got)
 	}
 	end := at(len(whole))
@@ -66,7 +68,7 @@ func TestM30SourcesRefutedCountsOnlyTheStanding(t *testing.T) {
 	refutedRow := false
 	for _, s := range end.Sources {
 		if s.Anchor == "C-4f4b8cfa" {
-			refutedRow = slices.ContainsFunc(s.Verified, EvidenceVerificationJSON.Refuted)
+			refutedRow = slices.ContainsFunc(s.Verified, EvidenceVerificationJSON.FindsAgainst)
 		}
 	}
 	if !refutedRow {

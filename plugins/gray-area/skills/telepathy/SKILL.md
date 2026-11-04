@@ -33,7 +33,22 @@ telepathy touched <path>         which sessions acted on a path, and when
 telepathy find <term>            ripgrep across every local transcript, joined to who
 telepathy sql '<SELECT …>'       anything else
 telepathy backfill               read the existing corpus into the store (explicit, safe to repeat)
+telepathy send <id> <message>    deliver a message to a Claude Code or Antigravity session ("-" reads stdin)
+telepathy link                   from an Antigravity shell: make this conversation wakeable by send
 ```
+
+`send` is the one verb that acts rather than reads, and the only way a message crosses harnesses.
+
+- BEFORE messaging another Claude Code session from a Claude Code session, YOU MUST use
+  `SendMessage`, which carries a reply address and the sender's identity. `send` is for when either
+  side is Antigravity.
+- AFTER a `send`, YOU MUST read the route it printed. `antigravity-mailbox` means QUEUED: the
+  conversation reads it at its next turn and nothing wakes it, so do not wait on a reply.
+  `claude-socket` means it reached the session's inbox, where a session that bypasses permission
+  prompts holds it for its human. No route says the message was read.
+- An Antigravity conversation becomes reachable live by running `telepathy link` (or any other
+  verb) from its own shell; the server's token reaches nothing else. Running it at the start of
+  coordinated work is what makes you wakeable.
 
 `find` answers in one query: one row per session and agent, **newest first**, with the hit count,
 the time of the most recent hit, the channel it landed in, and the text around it. `--in C` keeps
@@ -138,6 +153,31 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
 - AFTER the catalogue has told you WHAT an agent did, and the open question is WHY — a rule it read and
   did not apply, a command it ran twice — YOU SHOULD interview a tool-less fork of its session with the
   [[elicitation-testing]] skill. The catalogue supplies the cited acts that the interview asks about.
+
+## Cross-harness session identification and peer messaging
+
+Both Anthropic Claude Code and Google Antigravity run on this host in Remote Control (`rc`) mode.
+When coordinating across harnesses:
+
+### 1. Identifying the peer session
+Query `telepathy agents` or `telepathy sql`:
+```bash
+telepathy sql "SELECT session_id, bridge_session_id, cwd, project_dir FROM session WHERE closed_at IS NULL;"
+```
+- **Claude RC sessions**: `cwd` is under `.claude/worktrees/bridge-cse_*` and `bridge_session_id` is set. Each live Claude session file under `~/.claude/sessions/<pid>.json` defines its active Unix domain socket under `messagingSocketPath`.
+- **Antigravity sessions**: `project_dir` is under `~/.gemini/antigravity-cli/brain/<conv_id>`. (Note: the installed plugin cache holds released binaries, so cross-harness indexing requires the dual-engine trajectory build).
+
+### 2. Messaging a peer session
+
+Use `telepathy send <session-id> <message>` in both directions. It finds the session by id or
+prefix, picks the route — a Claude Code session's inbox socket, the language server hosting an
+Antigravity conversation, or that conversation's mailbox — prefixes your own session id so the
+recipient can reply, and prints which route carried it (see `## The verbs` above for what each
+promises).
+
+### 3. Model & project hygiene rules
+- **Cheapest model only**: when you start an `agy` or `claude` process for any other reason, specify `--model gemini-3.8-flash-low` for `agy` (prevents quota exhaustion on pro models) and `--model haiku` for `claude`.
+- **Zero project-list pollution**: Never pass `--new-project` or `--remote-agent` in `agy`, and never pass `--cloud` in `claude`.
 
 ## The rule this exists to serve
 

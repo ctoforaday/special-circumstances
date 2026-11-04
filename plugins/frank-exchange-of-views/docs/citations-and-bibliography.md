@@ -16,7 +16,7 @@ flowchart TB
   end
   FETCH --> CACHE["run cache: &lt;run&gt;/cache/&lt;sha256&gt; + index entry"]
   CACHE --> CITE["blue cite: reading, origin, work_status, completeness stamped; marker inserted at the quoted sentence"]
-  CACHE --> RED["red: fetch (cache hit, same bytes) → verify / corroborate"]
+  CACHE --> RED["red: fetch (cache hit, same bytes) → verify"]
   CITE --> REC["THE RECORD (cite / verify events)"]
   RED --> REC
   REC --> EV["evidence view (red's lookup table)"]
@@ -155,41 +155,58 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   A cite or a computation moves no report head, so dispatch readies the owner for the anchor itself, once
   per cause — the act that placed it, or the edit that reopened it: a citation blue places after its
   owner has sat is not left for a head move that may never come.
-- **A check that reads nothing is a failed check.** A verify `unreachable`, or any verdict on a
-  copy stamped `not_the_work`, leaves the citation unread: a `failed_check` PASS blocker, which no
-  bench ruling clears. The first lens whose reading read nothing since the sentence last changed
-  owes a gap about the anchor (`--about-kind anchor`), outside its mint budget, and that gap cannot
-  close while the citation stays unread — the close is refused, unless it names a successor with
-  `--superseded-by`. A second reading by the same lens that again reads nothing, while its gap is
-  open and the sentence unchanged, is refused. It clears when a reading reads the work, an edit
-  changes the sentence, or blue retires the citation. A computation judged unsound is the same blocker,
-  and its gap does not close while the judgement stands.
+- **A failed check holds the PASS, in one of three states.** A `failed_check` PASS blocker, which
+  no bench ruling clears, is a citation `unread`, a computation `unsound`, or a citation
+  `found_against`.
+  - *Unread*: a `verify` `unreachable`, or any outcome on a copy stamped `not_the_work`, reads
+    nothing. The first lens whose reading read nothing since the sentence last changed owes a gap
+    about the anchor (`--about-kind anchor`), outside its mint budget. It clears when any lens's
+    reading reads the work, an edit changes the sentence, or blue retires the citation. A second
+    reading by the same lens that again reads nothing, while its gap is open and the sentence
+    unchanged, is refused.
+  - *Unsound*: a computation judged unsound owes its judging lens's gap the same way, and clears
+    when that lens's own later judgement calls it sound, an edit changes the sentence, or blue
+    retires the computation.
+  - *Found against*: a `verify --anchor` that reads the work and finds the source against the
+    sentence (`refutes`, `absent`) mints its gap in the same act, at the end of the sentence the
+    citation's token sits in, with the mint's judgement flags and its `--reason` as the gap's
+    argument, outside the mint budget. It clears when the same lens's later reading of the sentence
+    as it stands backs it, an edit changes the sentence, or blue retires the citation; another
+    lens's backing reading is a disagreement and clears nothing.
+
+  In every state the seat's close of the gap that carries the check is refused while the check
+  stands, unless it names a successor with `--superseded-by`; a closing ruling of the bench closes
+  the gap, and the check still holds the PASS.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it
 
-Red fetches the cited url, a cache hit on blue's exact bytes, and records a verdict with
-`lens verify` (a check of blue's citation) or `lens corroborate` (a source red found itself). The
-outcome vocabulary has a negative half — `refutes` and `absent` are findings, not failures to grade.
+Red fetches the cited url, a cache hit on blue's exact bytes, and records a reading with
+`lens verify`: `--anchor` for a check of blue's citation, or `--url` with `--title` and `--quote`
+for a source red found itself, read against the report's sentence. The outcome vocabulary has a
+negative half — a reading of the work that finds the source against the sentence mints its gap in
+the same act, and a reading that reads nothing mints none.
 
 - **`absent` is refused** on a copy recorded as abstract or not the work: an abstract's silence is
   not the work's.
-- **`supports` from an abstract is allowed, and says so.** Every verdict naming a url is stamped
+- **`supports` from an abstract is allowed, and says so.** Every reading, of either subject, is stamped
   with the copy's `source_completeness`. A support read off an abstract confirms what the abstract
   says, not what the study shows, and the record carries which.
-- **Every verdict records the copy it was read against.** `copy_substitution` and `copy_url` are
-  stamped from the cache's entry for the source's url — the citation's for `verify`, the named one
-  for `corroborate` — on the same terms as a cite. A url the cache holds no copy of is
-  `not_cached`: red read it outside the tool, or the cache is gone. Both verbs print a copy that is
+- **Every reading records the copy it was read against.** `copy_substitution` and `copy_url` are
+  stamped from the cache's entry for the source's url — the citation's for `--anchor`, the named
+  one for `--url` — on the same terms as a cite. A url the cache holds no copy of is
+  `not_cached`: red read it outside the tool, or the cache is gone. The verb prints a copy that is
   not the url's own, and `show evidence` carries it on each verification row.
-- **A supporting corroboration becomes a footnote.** It carries an id, `work_status` and its copy,
-  exactly as a blue cite does; its note and Bibliography line name a substituted copy. A refuting
-  or weak one is a board matter, never a reference.
+- **A source red found places no citation.** A `--url` reading of the work that backs a sentence
+  no citation or computation marks mints an `unsourced_claim` gap; one that refutes the sentence
+  mints `claim_contradicts_source`; an `absent` mints nothing. The source reaches the report only by
+  blue's cite, which a lens then reads; its reading names the gap it carries (`carried_by`) in
+  `show evidence`, and `docket.md` names the source beside the gap.
 
 The **evidence view** (`show evidence`) is red's lookup table. It lists each anchor with the
-source's url, hash, title and quoted sentence, the stamped facts, and red's verdicts, plus
-independent corroborations, the citations and computations with no check of the sentence the report carries, and
-contradictions nobody has raised a finding about.
+source's url, hash, title and quoted sentence, the stamped facts, and red's readings, each naming
+the gap that carries it, plus red's readings of sources it found and the citations and computations
+with no check of the sentence the report carries.
 
 ## 4. Assembly — what the reader sees
 
@@ -199,7 +216,7 @@ cross a file boundary. Finding markers are stripped; citation markers are resolv
 - Each anchor becomes `[^N]`, numbered by first appearance. Each note reads `Title, PDF p. N. url
   (accessed date)`: the page locator appears only for OCR quotes, and the date is the record's clock.
 - `## Bibliography` has **one line per url**. Its title comes from a blue cite where one exists,
-  otherwise from red's corroboration, and its access date is the earliest recorded.
+  and its access date is the earliest recorded.
 - **Marks**, in the note and in the Bibliography, because a reader following one may never see the
   other:
   - `**[RETRACTED]**`: a fact about the work, so any citation of the url that carries it marks the

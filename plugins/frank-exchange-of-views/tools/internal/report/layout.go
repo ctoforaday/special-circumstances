@@ -163,7 +163,7 @@ var layout = []Section{
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
 		From:    "the gaps and findings on the record, blue's correctness manifest and the chair's spot-checks",
-		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, and the lens's `close` and `regrade` move them; blue's `manifest-row` adds a manifest row and the chair's `spot-check` a spot-check.",
+		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, as a lens's `verify` does where its reading mints a gap, and the lens's `close` and `regrade` move them; blue's `manifest-row` adds a manifest row and the chair's `spot-check` a spot-check.",
 		compose: func(a *assembly, _ Section) string { return boardSection(a.fam) }},
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts, spot-checks and rulings on the record, sitting by sitting",
@@ -179,8 +179,8 @@ var layout = []Section{
 		From: "the computations on the record: each with its program, its output and red's re-run",
 		Path: "Blue's `compute` records a computation and a lens's `reproduce` its re-run."},
 	{File: FileEvidence, Heading: citationsHeading, Composer: Tool,
-		From: "the citations on the record and red's corroborations: each with the sentence it backs and every reading of it, its outcome, its confidence and what was read; then red's readings of sources the report does not cite",
-		Path: "Blue's `cite` records a citation, a lens's `verify` a reading of it, and a lens's `corroborate` a source of its own."},
+		From: "the citations on the record: each with the sentence it backs and every reading of it, its outcome, its confidence and what was read; then red's readings of sources the report does not cite",
+		Path: "Blue's `cite` records a citation, and a lens's `verify` a reading of it or of a source the lens found."},
 	// FIRST in run.md, because it is the fact about the run a reader of the verdict most needs:
 	// what answered each seat, measured from the seat's own trajectory (#589).
 	{File: FileRun, Heading: "How this run was conducted", Composer: Tool,

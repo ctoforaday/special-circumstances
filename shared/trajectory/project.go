@@ -157,6 +157,18 @@ func projectAntigravity(p *Projection, lines [][]byte, startSeq int) {
 		ts := parseRFC3339(al.CreatedAt)
 		stepPID := fmt.Sprintf("step-%d", al.StepIndex)
 
+		if strings.TrimSpace(al.Content) != "" {
+			for _, word := range strings.Fields(al.Content) {
+				clean := strings.Trim(word, "\"'`(),;:<>")
+				if filepath.IsAbs(clean) || strings.HasPrefix(clean, "/") {
+					if repo := findRepoRoot(clean); repo != "" && !seenCWD[repo] {
+						seenCWD[repo] = true
+						p.CWDs = append(p.CWDs, repo)
+					}
+				}
+			}
+		}
+
 		switch al.Type {
 		case "USER_INPUT":
 			curPromptID = stepPID

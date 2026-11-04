@@ -53,8 +53,8 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid/paper --trust high --access-date 2026-07-18
 exit 2
 stderr:
-feov-record: verify: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it.
-This verb's flags: --access-date, --anchor, --as, --bridge, --confidence, --page, --reason.
+feov-record: verify: unknown flag: --trust — not one of this verb's flags, and no verb on this surface takes it.
+This verb's flags: --access-date, --anchor, --as, --bridge, --check, --check-kind, --class, --complexity, --confidence, --fix, --impact, --likelihood, --new, --page, --problem, --quote, --reason, --severity, --title, --url.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
@@ -115,7 +115,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
 {"key":"blue-respond:manifest_row:#0:GAP001","manifest_row":{"gap_id":"GAP001","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_MANIFEST_ROW"}
 {"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_MOTION"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify`: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --title: unknown flag: --trust — not one of this verb's flags, and no verb on this surface takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_LOG"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":9,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002"},"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_MOTION"}
 {"closing":{"gap_id":"GAP001","text":"the lens's closing"},"key":"red-lens-evidence:closing:#1:GAP001","seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_CLOSING"}

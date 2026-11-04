@@ -112,7 +112,7 @@ func (r *runner) mintHeldTrifle(seatID string) {
 		r.noteActErr("the gap class vocabulary holds no class that is never material, so the gaps run has no gap to hold open for the bench to name")
 		return
 	}
-	if r.mintWith(seatID, "", class) == "" {
+	if r.mintWith(seatID, class) == "" {
 		r.mu.Lock()
 		r.heldTrifle = false
 		r.mu.Unlock()

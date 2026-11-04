@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
@@ -94,7 +96,7 @@ func (b *Batch) Append(id Identity, body proto.Message) (*Event, error) {
 	if err := b.savepoint("SAVEPOINT " + actSavepoint); err != nil {
 		return nil, err
 	}
-	ev, err := appendAct(id, body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil, nil)
+	ev, err := appendAct(id, body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil, nil, nil)
 	if err != nil {
 		if ferr := b.savepoint("ROLLBACK TO " + actSavepoint); ferr != nil {
 			return ev, ferr
@@ -111,6 +113,90 @@ func (b *Batch) Append(id Identity, body proto.Message) (*Event, error) {
 		return ev, err
 	}
 	return ev, nil
+}
+
+// StampedBody is one body of an act a batch writes whole (AppendBodies), with the stamp its source
+// event carried: each body is written under its own.
+type StampedBody struct {
+	Body proto.Message
+	At   time.Time
+}
+
+// WrittenBody is one event an act a batch wrote whole (AppendBodies) wrote, and its events.id.
+type WrittenBody struct {
+	Event *Event
+	ID    int64
+}
+
+// AppendBodies writes a reading's act whole inside the batch, as AppendReading wrote it live: its
+// gap's Mint, the Anchor that places it and the reading, in that order, in one savepoint, each body
+// validated with the act in hand (readingAct) — so the budget's admission of a citation reading's
+// Mint and the reading's carrier_minted read the act, not a record the act is not on yet — and each
+// stamped with its own At. A refusal of any body rolls the savepoint back whole and is returned; the
+// batch takes the next act. It returns each event written and its events.id, read inside the
+// savepoint after that body's insert, so a caller maps every source event to the event written from
+// it and never reads the act's last id for its first.
+func (b *Batch) AppendBodies(id Identity, bodies []StampedBody) ([]WrittenBody, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if b.done {
+		return nil, fmt.Errorf("this batch is already committed or rolled back")
+	}
+	if id.Run != b.run {
+		return nil, feov.Errorf(feov.Internal,
+			"this act is addressed to the run at %s, and the batch writes the run at %s — an act lands on the run it names or nowhere",
+			id.Run.Dir(), b.run.Dir())
+	}
+	act, err := readingActOf(bodies)
+	if err != nil {
+		return nil, err
+	}
+	if err := b.savepoint("SAVEPOINT " + actSavepoint); err != nil {
+		return nil, err
+	}
+	was := Now
+	defer func() { Now = was }()
+	var out []WrittenBody
+	for _, sb := range bodies {
+		at := sb.At
+		Now = func() time.Time { return at }
+		ev, err := appendAct(id, sb.Body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil, nil, act)
+		if err == nil {
+			var n int64
+			if err = b.tx.QueryRow(`SELECT MAX("id") FROM "events"`).Scan(&n); err == nil {
+				out = append(out, WrittenBody{Event: ev, ID: n})
+				continue
+			}
+		}
+		if ferr := b.savepoint("ROLLBACK TO " + actSavepoint); ferr != nil {
+			return nil, ferr
+		}
+		if ferr := b.savepoint("RELEASE " + actSavepoint); ferr != nil {
+			return nil, ferr
+		}
+		return nil, err
+	}
+	if err := b.savepoint("RELEASE " + actSavepoint); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// readingActOf is the reading's act its bodies are: a Mint, the Anchor whose id is its gap, and the
+// Verify its own act minted that gap for (carrier_minted true, carried_by the gap), in that order.
+func readingActOf(bodies []StampedBody) (*readingAct, error) {
+	if len(bodies) == 3 {
+		m, mok := bodies[0].Body.(*recordpb.Mint)
+		a, aok := bodies[1].Body.(*recordpb.Anchor)
+		v, vok := bodies[2].Body.(*recordpb.Verify)
+		if mok && aok && vok && m.GetGapId() != "" && a.GetId() == m.GetGapId() &&
+			v.GetCarriedBy() == m.GetGapId() && v.GetCarrierMinted() {
+			return &readingAct{mint: m, anchor: a, verify: v}, nil
+		}
+	}
+	return nil, feov.Errorf(feov.Internal,
+		"an act a batch writes whole is a reading's: its gap's Mint, the Anchor whose id is that gap, and the Verify its act minted the gap for, in that order")
 }
 
 // savepoint runs one savepoint statement. A failure ends the batch: past it, the savepoints no

@@ -298,8 +298,17 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 	dir := ""
 	isAgy := tf.Engine == "antigravity" || strings.Contains(tf.Path, "/brain/")
 	if tf.AgentID == "" {
-		if isAgy && len(p.CWDs) > 0 {
-			dir = p.CWDs[0]
+		if isAgy {
+			if len(p.CWDs) > 0 {
+				dir = p.CWDs[0]
+			} else {
+				clean := filepath.Clean(filepath.Dir(tf.Path))
+				if strings.HasSuffix(clean, filepath.Join(".system_generated", "logs")) {
+					dir = filepath.Clean(filepath.Join(clean, "..", ".."))
+				} else {
+					dir = clean
+				}
+			}
 		} else {
 			dir = filepath.Dir(tf.Path)
 		}

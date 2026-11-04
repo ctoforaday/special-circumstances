@@ -51,9 +51,8 @@ func weaveCitations(md string, sources []record.Source) string {
 	for _, s := range sources {
 		byLabel[s.Label] = s
 	}
-	// ONE NOTE PER (URL, PAGES). A red corroboration and a blue cite of the same URL are two
-	// labels on one source; keyed by label, B9's report wove them into "[^1][^2]" on one clause,
-	// both notes naming the same page. Pages split the key, because a note points at a place:
+	// ONE NOTE PER (URL, PAGES). Two cites of the same URL are two labels on one source; keyed by
+	// label, B9's report wove them into "[^1][^2]" on one clause, both notes naming the same page. Pages split the key, because a note points at a place:
 	// two quotes from one PDF on different pages are two notes. A label with no source on the
 	// record keys by itself.
 	keyOf := func(label string) string {
@@ -64,7 +63,7 @@ func weaveCitations(md string, sources []record.Source) string {
 		return s.URL + "\x00" + pageLocator(s.Pages)
 	}
 	// A PAGELESS ANCHOR BESIDE A PAGED ANCHOR OF THE SAME URL READS AS THAT NOTE (gblock,
-	// 2026-09-15): red's corroboration of blue's OCR cite is the same pointer, and a second note
+	// 2026-09-15): a pageless cite of an OCR cite's url is the same pointer, and a second note
 	// without the page would restore B9's doubled reference.
 	keys := map[int]string{} // anchor start offset → key
 	type woven struct {
@@ -166,16 +165,15 @@ func weaveCitations(md string, sources []record.Source) string {
 }
 
 // bibliographyEntry is a URL's one Bibliography line, never with a page. ONE LINE PER URL, the
-// URL being what a reader follows: its title is the first blue cite's for that URL (a
-// corroboration's only when no blue cite names it), and its date the earliest any cite or
-// corroboration of it records — read over every source on the record, so the line does not
+// URL being what a reader follows: its title is the first cite's for that URL, and its date the
+// earliest any cite of it records — read over every source on the record, so the line does not
 // depend on which label the text happened to reference first.
 func bibliographyEntry(url string, sources []record.Source) string {
 	var pick record.Source
 	found, date := false, ""
 	// A RETRACTION IS A FACT ABOUT THE WORK, NOT ABOUT WHICH SEAT CITED IT. The title comes from
-	// one chosen row; the status is taken over EVERY row for this url, so a corroboration that
-	// carries the stamp still warns the reader when the blue cite whose title won did not.
+	// one chosen row; the status is taken over EVERY row for this url, so a cite that carries the
+	// stamp still warns the reader when the cite whose title won did not.
 	status := recordpb.WorkStatus_WORK_STATUS_UNSPECIFIED
 	// WHETHER ONLY THE ABSTRACT WAS READ IS A FACT ABOUT THE COPIES, NOT THE WORK, so it is the
 	// opposite quantifier: the line is marked only when EVERY citation of this url rests on the
@@ -202,7 +200,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 		if src.SourceCompleteness != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT {
 			abstractOnly = false
 		}
-		if !found || (pick.Corroborated && !src.Corroborated) {
+		if !found {
 			pick, found = src, true
 		}
 	}
@@ -215,8 +213,8 @@ func bibliographyEntry(url string, sources []record.Source) string {
 // A followed pointer is the same work at the place its publisher named, so it is said plainly; a
 // recovered or another copy is a different artifact — a snapshot, a repository's copy, possibly
 // another version — and is marked. A substitution with no copy url read no document at all: its
-// bytes are the fetch tool's statement of what it found. NONE prints nothing; NOT_RECORDED and a
-// corroboration's NOT_CACHED are the record's absence of an answer, which the record carries for red.
+// bytes are the fetch tool's statement of what it found. NONE prints nothing; NOT_RECORDED and
+// NOT_CACHED are the record's absence of an answer, which the record carries for red.
 func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
 	copyURL = plainURL(copyURL)
 	switch kind {
@@ -1014,6 +1012,7 @@ func boardSection(fam record.Family) string {
 			findings[f.GetId()] = e
 		}
 	}
+	read := readingsCarried(fam)
 	var open, closed []string
 	for _, g := range fam.Gaps {
 		if g == nil {
@@ -1042,7 +1041,7 @@ func boardSection(fam record.Family) string {
 			// the location, the grades, the demanded fix and the check that would settle it —
 			// render as ONE sentence-shaped paragraph, because that is what markdown does with
 			// a single newline. Forty-five kilobytes of the archived docket read that way.
-			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s%s",
+			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s%s%s",
 				g.ID, oneLine(g.Mint.GetProblem()),
 				oneLine(g.Mint.GetLocation()),
 				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(recordpb.Word(g.Mint.GetClass())),
@@ -1051,6 +1050,7 @@ func boardSection(fam record.Family) string {
 				fixProposal(g.Mint),
 				oneLine(g.Mint.GetAcceptanceCheck()),
 				mintReason(g.Mint),
+				readFor(read[g.ID], "  \n"),
 				foundBy))
 		} else {
 			// THE `close` EVENT'S CLASS, and the fallback covers the gap a BENCH DISPOSITION
@@ -1082,7 +1082,7 @@ func boardSection(fam record.Family) string {
 			// claimed. A run where every finding was minted and every gap closed printed red's
 			// leaf-level words nowhere. The closure answers what happened; it does not restate
 			// what was observed, and an audit of a closure needs both.
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, oneLine(g.Mint.GetProblem()), succ, regradeHistory(g), closureDetail(g), provenance(g, findings)))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, oneLine(g.Mint.GetProblem()), succ, regradeHistory(g), closureDetail(g, read[g.ID]), provenance(g, findings)))
 		}
 	}
 	var b strings.Builder
@@ -1117,6 +1117,46 @@ func boardSection(fam record.Family) string {
 	return b.String()
 }
 
+// readForLabel opens each line naming a source read for a gap's sentence.
+const readForLabel = "read for the sentence"
+
+// readingsCarried is, for each gap, one line per reading that names it in carried_by, in stream order:
+// the source read for the sentence — the citation's cited url for a reading of a citation, its --url
+// for a source the lens found — and whose reading it was, its outcome and its event. Read from the
+// record's Verify fields, never from the gap's text. "Read for", not "read against": a reading of a
+// source the lens found that backs an uncited sentence is not read against it.
+func readingsCarried(fam record.Family) map[string][]string {
+	cited := map[string]string{}
+	for _, e := range fam.Events {
+		if c, ok := recordpb.BodyAs[*recordpb.Cite](e); ok {
+			cited[c.GetLabel()] = c.GetUrl()
+		}
+	}
+	out := map[string][]string{}
+	for _, e := range fam.Events {
+		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
+		if !ok || v.GetCarriedBy() == "" {
+			continue
+		}
+		url := v.GetUrl()
+		if a := v.GetAnchor(); a != "" {
+			url = cited[a]
+		}
+		out[v.GetCarriedBy()] = append(out[v.GetCarriedBy()], fmt.Sprintf("%s — %s's `%s` reading, event %d",
+			url, e.GetSeatId(), recordpb.Word(v.GetOutcome()), fam.At.Of(e).ID))
+	}
+	return out
+}
+
+// readFor is a gap's source lines under its open block, each opened by sep.
+func readFor(lines []string, sep string) string {
+	var b strings.Builder
+	for _, l := range lines {
+		b.WriteString(sep + readForLabel + ": " + l)
+	}
+	return b.String()
+}
+
 // mintReason is the lens's argument for minting the gap, under the open gap's block, or "".
 func mintReason(m *recordpb.Mint) string {
 	if r := oneLine(m.GetMintReason()); r != "" {
@@ -1130,7 +1170,7 @@ func mintReason(m *recordpb.Mint) string {
 // attestation at the close — what it found, who verified, with what and against what — and the
 // bench's ruling when a ruling closed it. The index line says THAT a gap closed; a reader auditing
 // the closure needs the demand and the check beside the attestation that they were met.
-func closureDetail(g *record.Gap) string {
+func closureDetail(g *record.Gap, read []string) string {
 	var rows []string
 	add := func(label, text string) {
 		if t := oneLine(text); t != "" {
@@ -1138,6 +1178,9 @@ func closureDetail(g *record.Gap) string {
 		}
 	}
 	add("minted because", g.Mint.GetMintReason())
+	for _, r := range read {
+		add(readForLabel, r)
+	}
 	add("required_fix", g.Mint.GetRequiredFix())
 	add("acceptance_check", g.Mint.GetAcceptanceCheck())
 	if c := g.Closure; c != nil {

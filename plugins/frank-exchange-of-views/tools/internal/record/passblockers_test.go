@@ -40,8 +40,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
 			b.register("judge").add("judge", remandRuling("M1", remandDirection))
 		}, false},
-		{"unraised contradiction", BlockerContradiction, true, true, func(b *stage) {
-			b.add(evLens, contradictingVerify("the sky is green"))
+		// A citation found against with no gap carrying it — an archived reading — is blue's.
+		{"citation found against", BlockerFailedCheck, true, true, func(b *stage) {
+			b.cite("C-1").foundAgainst(evLens, "C-1", "")
 		}, false},
 		{"reopened citation", BlockerUnchecked, true, true, func(b *stage) {
 			// checked in the lens's last sitting, then its sentence changes; its sitting at the
@@ -270,13 +271,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 	}
 }
 
-// THE REFUSAL COUNTS BLOCKERS, NOT KINDS. Two material gaps and a contradiction are three things
-// holding the PASS; the paragraphs group them by kind.
+// THE REFUSAL COUNTS BLOCKERS, NOT KINDS. Two material gaps and a citation found against are three
+// things holding the PASS; the paragraphs group them by kind.
 func TestTheBlockerRefusalCountsBlockers(t *testing.T) {
 	err := blockerRefusal([]Blocker{
 		{Kind: BlockerMaterialGap, Subject: "G1", Owner: evLens},
 		{Kind: BlockerMaterialGap, Subject: "G2", Owner: evLens},
-		{Kind: BlockerContradiction, Subject: "a claim", Owner: evLens},
+		{Kind: BlockerFailedCheck, Subject: "C-1", Owner: "blue-respond", state: CheckFoundAgainst},
 	})
 	if err == nil || !strings.Contains(err.Error(), "3 things hold it, in 2 kinds") {
 		t.Errorf("refusal = %v, want it to count 3 blockers in 2 kinds", err)
@@ -307,15 +308,8 @@ func petitionMotion(id string) *recordpb.Motion {
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordpb.PetitionClass_PETITION_CLASS_INTEGRITY.Enum()}}}
 }
 
-func contradictingVerify(claim string) *recordpb.Verify {
-	return &recordpb.Verify{Url: proto.String("https://example.org"), Claim: proto.String(claim),
-		Label: proto.String("v-1"), Title: proto.String("e"),
-		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES.Enum(),
-		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("the source says otherwise")}
-}
-
 // PASS_PERMITTED NEVER STANDS OVER A BLOCKER ANOTHER SEAT MUST CLEAR (#1202). The plan said
-// `"pass_permitted":true,"parties":[]` over an unruled petition, an unanswered contradiction and a
+// `"pass_permitted":true,"parties":[]` over an unruled petition, a citation found against and a
 // docket motion on a gap that had since closed, and the gate refused the PASS the chair then tried.
 // The inquiry review is the chair's own act, owed from the start of its sitting wherever the report or an
 // inquiry changed since the last one, so a plan that permits PASS over it is the plan saying "once you
@@ -331,7 +325,7 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 		{"an open inquiry", func(b *stage) {
 			b.add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true))
 		}, false},
-		{"unanswered contradiction", func(b *stage) { b.add(evLens, contradictingVerify("the claim")) }, false},
+		{"citation found against", func(b *stage) { b.cite("C-1").foundAgainst(evLens, "C-1", "") }, false},
 		{"docket motion on a closed gap", func(b *stage) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1")
 		}, false},
@@ -407,7 +401,7 @@ func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
 		build func(b *stage)
 	}{
 		{"unruled petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) }},
-		{"unanswered contradiction", func(b *stage) { b.add(evLens, contradictingVerify("the claim")) }},
+		{"citation found against", func(b *stage) { b.cite("C-1").foundAgainst(evLens, "C-1", "") }},
 	} {
 		t.Run("converged, "+c.name, func(t *testing.T) {
 			b := convergedBoard(t)
@@ -527,7 +521,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 func TestOnlyTheChairsListHoldsWhatAnotherSeatClears(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
 		dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium")
-	b.add(evLens, contradictingVerify("the sky is green"))
+	b.cite("C-1").foundAgainst(evLens, "C-1", "")
 	b.docketMotion("red-chair", "M1", "G1")
 	b.register("blue-respond").benchRegister(recordpb.Occasion_OCCASION_TERMINAL)
 	run := b.seed()
