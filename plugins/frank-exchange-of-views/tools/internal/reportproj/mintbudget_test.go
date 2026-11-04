@@ -1,4 +1,4 @@
-package reportproj
+package reportproj_test
 
 import (
 	"fmt"

@@ -71,7 +71,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
@@ -858,7 +857,7 @@ func (r *runner) noteInquiryIDErr(msg string) {
 // written after the section that closes the text, or a TL;DR after text of the report's own — and
 // holds the tool to refusing it with the order named and the report as it stood.
 func (r *runner) orderRefused(seatID string) {
-	before, err := reportproj.RenderFromRecord(r.run())
+	before, err := record.RenderRun(r.run())
 	if err != nil || !strings.Contains(before, "Whether the trend outlasts the sample") {
 		return
 	}
@@ -867,7 +866,7 @@ func (r *runner) orderRefused(seatID string) {
 		text = "Whether the trend outlasts the sample.\n\n## TL;DR\n\nA summary at the end"
 	}
 	out, err := r.exec("edit", "--seat-id", seatID, "--quote", "Whether the trend outlasts the sample", "--new", text, "--reason", "fuzz: a section out of order")
-	after, _ := reportproj.RenderFromRecord(r.run())
+	after, _ := record.RenderRun(r.run())
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
@@ -1285,7 +1284,7 @@ func (r *runner) fixFailed(seatID string) {
 			r.mu.Unlock()
 			continue
 		}
-		cur, err := reportproj.RenderFromRecord(r.run())
+		cur, err := record.RenderRun(r.run())
 		if err != nil {
 			r.noteActErr("the report could not be rendered to fix computation " + b.Subject + ": " + err.Error())
 			return
@@ -2793,7 +2792,7 @@ func (r *runner) computeToReopen(seatID string) {
 		if slices.Contains(offered, a) || reopened[a] {
 			continue
 		}
-		cur, err := reportproj.RenderFromRecord(r.run())
+		cur, err := record.RenderRun(r.run())
 		if err != nil {
 			return
 		}
@@ -2867,7 +2866,7 @@ func (r *runner) computeOwed(seatID string) {
 	// head; at its pin the clause is another. Left to blue's drawn edits, the forced run kept the
 	// owner by an unchecked computation 2 times in 12 epochs. The edit rewrites the edit target, not the
 	// sentence the computation backs, so the computation stays unchecked rather than reopened.
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered for owedComputationSeed's edit: " + err.Error())
 		return
@@ -2998,14 +2997,14 @@ func (r *runner) cutLeavingAnchorOut(seatID string) {
 		set("--reason", "fuzz: the anchor the cut leaves or carries").runs(argv).admit(); !ok {
 		return
 	}
-	before, err := reportproj.RenderFromRecord(r.run())
+	before, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered for leftOutSeed's cut: " + err.Error())
 		return
 	}
 	out, err := r.do("edit", seatID).set("--quote", claim).set("--new", "").
 		set("--reason", "fuzz: the claim cannot stand").result()
-	after, _ := reportproj.RenderFromRecord(r.run())
+	after, _ := record.RenderRun(r.run())
 	r.mu.Lock()
 	switch {
 	case err == nil || after != before:
@@ -3073,7 +3072,7 @@ func (r *runner) mintBaringCitation(seatID string) {
 		r.mintBareDriving = false
 		r.mu.Unlock()
 	}()
-	before, err := reportproj.RenderFromRecord(r.run())
+	before, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the report could not be rendered for mintBareSeed's mint: " + err.Error())
 		return
@@ -3091,7 +3090,7 @@ func (r *runner) mintBaringCitation(seatID string) {
 		set("--class", mintPoolClasses[0]).set("--problem", "fuzz problem").set("--check-kind", "document").
 		set("--check", "acc").set("--fix", dirApply).set("--severity", "low").set("--likelihood", "low").
 		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the citation bare").result()
-	after, _ := reportproj.RenderFromRecord(r.run())
+	after, _ := record.RenderRun(r.run())
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
@@ -3782,7 +3781,7 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	// the file — and both branches (proposal present / prose only) run across the sweep.
 	if proposing {
 		anchored := false
-		if cur, err := reportproj.RenderFromRecord(r.run()); err == nil {
+		if cur, err := record.RenderRun(r.run()); err == nil {
 			fixOld, fixNew := "rising over time", "climbing sharply"
 			if !strings.Contains(string(cur), fixOld) {
 				fixOld, fixNew = fixNew, fixOld
@@ -4178,7 +4177,7 @@ func (r *runner) mintEstopped(seatID string) {
 	// old length ("The cost is rising over time.", 29 chars) NO span of the fixture reached 40,
 	// so the estoppel guard was unreachable from this sweep no matter what was minted — and
 	// `verbatimApplied` counted the precondition happily for the whole time.
-	cur, rerr := reportproj.RenderFromRecord(r.run())
+	cur, rerr := record.RenderRun(r.run())
 	if rerr != nil {
 		r.noteEstoppelMiss("could not render the report to find the applied sentence")
 		return
@@ -4860,7 +4859,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// gap: prose naming a real gap with --answers empty is REFUSED, and this drive must
 		// exercise the path that is allowed to succeed.
 		r.maybe(45, func() {
-			cur, err := reportproj.RenderFromRecord(r.run())
+			cur, err := record.RenderRun(r.run())
 			if err != nil {
 				return
 			}
@@ -7252,7 +7251,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// #256: count the citation axis's two real artifacts (see outcome). A cite that fetched and
 	// anchored leaves BOTH; a cite event alone leaves neither. The report is the record projection
 	// now (#709), so the anchors are counted in the render, not a file.
-	md, mErr := reportproj.RenderFromRecord(oracleRun)
+	md, mErr := record.RenderRun(oracleRun)
 	if mErr != nil && res.err == "" {
 		res.err = "citation axis: the report could not be rendered, so its cite anchors are uncounted: " + mErr.Error()
 	}
@@ -8266,7 +8265,7 @@ func (r *runner) recentlyEditedOut() string {
 	if err != nil {
 		return ""
 	}
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		return ""
 	}
@@ -8294,7 +8293,7 @@ func (r *runner) anchorsLeftFor(claim string) (id string, left bool) {
 	if err != nil {
 		return "", false
 	}
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		return "", false
 	}
@@ -8485,7 +8484,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// able to say whether the branch was never taken, took and found no proposal, took
 			// and found the span already edited away, or ran and was REFUSED. Four causes, one
 			// zero — the plausible-zero shape, in the instrument meant to detect it.
-			cur, err := reportproj.RenderFromRecord(r.run())
+			cur, err := record.RenderRun(r.run())
 			gid, fo, fn := r.proposalFor(id, cur)
 			switch {
 			case gid == "":
@@ -8625,7 +8624,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 
 // counterEdit makes a real edit that is NOT red's proposed text.
 func (r *runner) counterEdit(seatID, gapID string) {
-	cur, err := reportproj.RenderFromRecord(r.run())
+	cur, err := record.RenderRun(r.run())
 	if err != nil {
 		return
 	}

@@ -68,7 +68,7 @@ func TestTheMigratedM20HoldsItsTextInTheOrderItShips(t *testing.T) {
 	if m.ReportOrder != migrate.OrderReordered {
 		t.Fatalf("the manifest says the report's order is %q, want %q", m.ReportOrder, migrate.OrderReordered)
 	}
-	text, err := reportproj.RenderFromRecord(dst)
+	text, err := record.RenderRun(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,11 +220,11 @@ func TestMigrateReordersTheBaseOnlyWhereEveryActReplays(t *testing.T) {
 			if tc.base == "" {
 				return
 			}
-			was, err := reportproj.RenderFromRecord(runtest.Open(t, from))
+			was, err := record.RenderRun(runtest.Open(t, from))
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, err := reportproj.RenderFromRecord(runtest.Open(t, to))
+			got, err := record.RenderRun(runtest.Open(t, to))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -278,7 +278,7 @@ func TestAReorderedReplayThatRefusesAnActIsNotKept(t *testing.T) {
 	if m.ReportOrder != migrate.OrderAsWritten {
 		t.Errorf("the manifest says the report's order is %q, want %q", m.ReportOrder, migrate.OrderAsWritten)
 	}
-	if got, err := reportproj.RenderFromRecord(runtest.Open(t, to)); err != nil || got != written {
+	if got, err := record.RenderRun(runtest.Open(t, to)); err != nil || got != written {
 		t.Errorf("the record left for review does not hold the text as written (%v):\n%s", err, got)
 	}
 }

@@ -139,6 +139,15 @@ END;
 // are VIEWS over it (#684 F16). One writer, many readers, and no derived column anyone has to
 // keep in step.
 //
+// THE REPORT CHECKPOINT IS THE ONE STORED ANSWER, and it is stored for three reasons none of these
+// metrics has (ReportCheckpointDDL). Its question is asked one way only — what the report says at
+// event N — by every reader of the report. Its answer is fixed once N is written: the record is
+// append-only and the report is a left fold of its ops (reportproj.Replay), so no later write moves
+// the text at N. And asking it again is the expensive read: a replay of every op from the empty text,
+// on every board, work list and report read. The second place the question lives is the renderer's
+// code at the time of the write: a record written before the renderer changed, at the same epoch,
+// keeps the text the older renderer gave, and nothing compares the two.
+//
 // # Identity is a JOIN, not a copy
 //
 // A row is keyed by the HARNESS AGENT ID, and that is all the identity it carries. Which seat
@@ -174,6 +183,42 @@ CREATE TABLE "seat_turn" (
 CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 `
 
+// ReportCheckpointDDL is the third table written by hand: the report's text as it stands after an
+// event, stamped by the insert that writes the event (stampReportCheckpoint). It is not a
+// body — no seat writes it, and nothing on the wire carries it.
+//
+// A ROW EVERY reportCheckpointEvery OPS, NOT ONE ROW OVERWRITTEN. A reader reads the report as of an
+// event — the newest, or an older one (the report as a lane's part left it) — so it needs the
+// checkpoint at or below that event, and an overwritten row holds only the newest. A row per op would
+// store the whole text once per op. So a row lands at the first event that adds a report op, and
+// after that at the first event that brings the ops since the last row to reportCheckpointEvery; a
+// reader starts from the newest row at or below the event it reads at and replays fewer than
+// reportCheckpointEvery ops after it.
+//
+// A ROW HOLDS THE TEXT OR THE REPLAY'S FAILURE, never both. The write path's guards decide which ops
+// land; the checkpoint records what folding them gives, and an op the report cannot replay through —
+// a change before any part, a quote the text no longer holds — leaves a report every later read fails
+// on with the replay's own words, as a replay from the empty text does. A checkpoint after a failed
+// one carries the failure on: a left fold that failed at an op fails at every op after it.
+//
+// APPEND-ONLY BY TRIGGER, as events are: the text at an event is fixed once the event is written, so
+// a row that changed would be a report no write ever left.
+const ReportCheckpointDDL = `
+CREATE TABLE "report_checkpoint" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events" ("id"),
+  "text"     TEXT,
+  "failure"  TEXT,
+  CHECK (("text" IS NULL) <> ("failure" IS NULL))
+) STRICT;
+
+CREATE TRIGGER "report_checkpoint_is_append_only_update" BEFORE UPDATE ON "report_checkpoint" BEGIN
+  SELECT RAISE(ABORT, 'a report checkpoint is the text an event left: it cannot be edited after it is written');
+END;
+CREATE TRIGGER "report_checkpoint_is_append_only_delete" BEFORE DELETE ON "report_checkpoint" BEGIN
+  SELECT RAISE(ABORT, 'a report checkpoint is the text an event left: it cannot be removed after it is written');
+END;
+`
+
 // Schema returns the full DDL: the envelope, then one table per body type in a stable order.
 // QueryIndexDDL is the authored index set for the QUESTIONS the readers ask of growing body
 // tables — the storage half of a view conversion. The table DDL is generated from the
@@ -199,6 +244,7 @@ func Schema() (string, error) {
 	var b strings.Builder
 	b.WriteString(EnvelopeDDL)
 	b.WriteString(SeatTurnDDL)
+	b.WriteString(ReportCheckpointDDL)
 	bodies, err := Bodies()
 	if err != nil {
 		return "", err

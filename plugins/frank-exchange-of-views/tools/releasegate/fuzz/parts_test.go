@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -244,7 +245,7 @@ func (r *runner) synthesize(seatID string) {
 		r.refusePart(partNotALane, feov.RoleViolation, `"ingest" is not on your surface — it is the lane seat's verb`, "ingest", "--seat-id", seatID)
 		_ = os.Remove(r.partFile(seatID))
 	}
-	text, err := reportproj.RenderFromRecord(r.run())
+	text, err := record.RenderRun(r.run())
 	if err != nil {
 		r.noteActErr("the synthesizer could not read the lanes' parts: " + err.Error())
 		return

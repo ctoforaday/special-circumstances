@@ -254,6 +254,11 @@ func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[in
 	// capture never went.
 	case t == "seat_turn":
 		return nil
+	// `report_checkpoint` is the report's text as an event left it, a fold of the events' report ops
+	// that the write path stamps beside them. The replay writes every event through that path, so the
+	// destination's checkpoints are its own folds; the source's are not carried.
+	case t == "report_checkpoint":
+		return nil
 	case byTable[t] != "":
 		return s.readBody(t, byID, byTable[t])
 	case renamedBodyTables[t] != "":

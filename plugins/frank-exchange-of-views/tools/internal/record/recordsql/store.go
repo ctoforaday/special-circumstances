@@ -859,6 +859,9 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (place, error) {
 // read-then-write with a gap in it. Here the count, the derivation and the insert are one atomic
 // unit, which is a guarantee the shard layout got by giving each seat its own file and lost the
 // moment two processes shared one.
+//
+// THE STAMPS ARE WRITTEN IN THE SAME UNIT: the sitting and the two windows on the envelope, a
+// regrade's result grades, and the report checkpoint the event lands (stampReportCheckpoint).
 func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	p, err := sittingOf(tx, ev)
 	if err != nil {
@@ -882,7 +885,10 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 			return 0, err
 		}
 	}
-	return id, insertBody(tx, id, body.ProtoReflect())
+	if err := insertBody(tx, id, body.ProtoReflect()); err != nil {
+		return 0, err
+	}
+	return id, stampReportCheckpoint(tx, id)
 }
 
 // insertBody writes one message into its table, and recurses for the message arms of a oneof.

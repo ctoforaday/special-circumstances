@@ -8,18 +8,20 @@ import (
 // reportVersion names the state of everything the report's render reads, so a render made at one
 // version is the render of any record at the same version.
 //
-// THE RENDER READS ONE SOURCE AND NOTHING ELSE. RenderAt is renderProjection over ReportProjectionAt
-// (queries.go): the report_op view's rows, ordered, handed to the registered renderer, a pure
-// function of them that asks the record nothing (reportRenderer). The view is report_part,
-// blue_edit, anchor and retire_anchors, each joined to its event (recordsql/views.go). So the
-// version is the count and the newest event id of the view.
+// THE RENDER READS ONE SOURCE AND NOTHING ELSE. RenderAt is the newest report checkpoint and the
+// report_op view's rows after it, handed to the renderer, a pure function of them that asks the record
+// nothing (reportRenderer). The view is report_part, blue_edit, anchor and retire_anchors, each joined
+// to its event (recordsql/views.go), and the checkpoints are folds of its rows written with them. So
+// the version is the count and the newest event id of the view.
 //
 // COUNT AND NEWEST ID ARE ENOUGH BECAUSE A ROW IS ONLY EVER ADDED. events is append-only by trigger,
 // and its id is the rowid, so every event takes an id above every id before it. Each row of either
 // view is written with the event it belongs to and carries that event's id, so a new row raises the
 // newest id. No write path updates or deletes a row of the four tables the view reads; a deleted
-// row would lower the count. A version that misses an input accepts a stale render, and the write is
-// then decided on a report it does not land on (#1252).
+// row would lower the count. A report checkpoint is written by the insert of an event that adds an
+// op, so a new checkpoint comes with a new row of the view and raises its newest id. A version that
+// misses an input accepts a stale render, and the write is then decided on a report it does not land
+// on (#1252).
 type reportVersion struct {
 	ops, lastOp int64
 }
@@ -41,22 +43,20 @@ func reportVersionAt(q recordsql.Querier) (reportVersion, error) {
 // landingReport is the report a write's checks read: rendered before the write takes the lock, and
 // rendered again under it only where another write has moved the report in between.
 //
-// THE RENDER IS THE SLOW PART OF A CHECK, AND IT GROWS WITH THE RECORD. Made under the write lock, it
-// holds every other seat's write for as long as it takes: about 35 ms at 700 events and 440 ms at
-// 3,100, so seven lenses writing at once queue for seconds against the busy budget past which a
-// write fails. Made before the lock, it is checked under the lock with one query: the version it was
-// rendered at against the version the write lands on. Equal, the render is the landing report's, by
-// what the version covers.
+// THE RENDER IS HELD OFF THE LOCK. Made under the write lock, a render holds every other seat's write
+// for as long as it takes, and seven lenses writing at once queue behind each other against the busy
+// budget past which a write fails. The render reads the newest report checkpoint and replays the
+// ops after it (RenderAt), fewer than a checkpoint's spacing; made before the lock, it is checked
+// under the lock with one query: the version it was rendered at against the version the write lands
+// on. Equal, the render is the landing report's, by what the version covers.
 //
 // MOVED IS THE COMMON CASE UNDER LOAD, NOT THE RARE ONE. Every placing act writes an anchor, and an
 // anchor is a report op, so of seven lenses filing findings at once, the six that wait for the lock
-// all find the version moved: measured, six of seven, every round. Rendering again from the empty text,
-// each holds the lock as long as it did before (#1394), and the queue is as long. So the ops the other
-// writes added are folded onto the render made before the lock: the replay is a left fold of the ops
-// from the empty text (RegisterReportRenderer), and the ops added since are exactly the rows above the
-// version's newest id, where the count says no other row moved. A fold that cannot be made —
-// the count disagrees, a mutation does not apply — renders again from the empty text, so the
-// report and any failure to replay it are the full render's own.
+// all find the version moved: measured, six of seven, every round. So the ops the other writes added
+// are folded onto the render made before the lock: the replay is a left fold of the ops (reportRenderer),
+// and the ops added since are exactly the rows above the version's newest id, where the count says no
+// other row moved. A fold that cannot be made — the count disagrees, a mutation does not apply —
+// renders again (RenderAt), so the report and any failure to replay it are RenderAt's own.
 type landingReport struct {
 	// declared is whether the write said it reads the report (CheckOnReport, or a validation that
 	// reads it), and so made a render before the lock. A write that did not declare it and reads it
@@ -67,7 +67,7 @@ type landingReport struct {
 	text     string
 	err      error
 	// foldedInside and renderedInside count what the write did under the lock — folded the ops added
-	// since onto its render, or rendered from the empty text — for the tests that hold each to its case.
+	// since onto its render, or rendered again (RenderAt) — for the tests that hold each to its case.
 	foldedInside, renderedInside int
 }
 
@@ -76,22 +76,22 @@ type landingReport struct {
 // leaves nothing to reuse, and the write renders under the lock.
 func renderBefore(run Run) *landingReport {
 	r := &landingReport{declared: true}
-	var ops []ReportOp
-	var perr error
+	var src recordsql.ReportSource
+	var serr error
 	if err := readSnapshot(run, func(q recordsql.Querier) error {
 		v, err := reportVersionAt(q)
 		if err != nil {
 			return err
 		}
 		r.at = v
-		ops, perr = ReportProjectionAt(q)
+		src, serr = reportSourceAt(q, recordsql.Newest)
 		return nil
-	}); err != nil || perr != nil {
+	}); err != nil || serr != nil {
 		return r // a read that failed is not the report at any version
 	}
 	// The renderer asks the record nothing, so it replays after the snapshot has closed. A render that
 	// fails is kept: it fails the same way on the same rows.
-	r.text, r.err = renderProjection(ops, nil)
+	r.text, r.err = renderSource(src, nil)
 	r.have = true
 	return r
 }
@@ -128,8 +128,8 @@ func (r *landingReport) fold(q recordsql.Querier, v reportVersion) (string, bool
 	if !r.have || r.err != nil || v.lastOp <= r.at.lastOp {
 		return "", false
 	}
-	ops, err := reportOpsAfter(q, r.at.lastOp)
-	if err != nil || int64(len(ops)) != v.ops-r.at.ops || reportRenderer == nil {
+	ops, err := recordsql.ReportOpsBetween(q, r.at.lastOp, recordsql.Newest)
+	if err != nil || int64(len(ops)) != v.ops-r.at.ops {
 		return "", false
 	}
 	text, err := reportRenderer(r.text, true, ops)

@@ -100,7 +100,7 @@ func newEdit() *cobra.Command {
 			// fix red recorded, read here for the note alone.
 			tells := spanVoiceTells(newStr)
 			if accepting {
-				if peek, err := reportproj.RenderFromRecord(run); err == nil {
+				if peek, err := record.RenderRun(run); err == nil {
 					if _, fix, found, err := record.Proposal(run, gapID, peek); err == nil && found {
 						tells = spanVoiceTells(fix)
 					}

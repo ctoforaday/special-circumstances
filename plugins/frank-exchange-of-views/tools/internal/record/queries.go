@@ -7,6 +7,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // This file is plans/record-sqlite.md §III step 4: the hand-written projections, replaced with
@@ -248,25 +249,43 @@ func SeatsThatSat(run Run) ([]string, error) {
 	return out, rows.Err()
 }
 
-// ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "append"
-// (A=a lane's part), "edit" (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id) or
-// "remove" (A=anchor id). reportproj folds these from the empty text; the SELECTION and ordering are
-// the view's, not a Go walk of the event log. EventID is the event the op is of. Exact is an edit's exact_span: the splice replaces A as written rather than the
-// span the ordinary locate finds. False for every insert and remove, and for every edit recorded
-// without the field.
-type ReportOp struct {
-	EventID int64
-	Kind    string
-	A, B    string
-	Exact   bool
+// reportRenderer folds report ops onto a text: reportproj.Replay. It is a variable a test sets, as
+// Now is: this package's own tests stand in a report the ops on their record would not give.
+//
+// IT IS A LEFT FOLD OF THE OPS FROM THE EMPTY TEXT: replaying B over the text A replayed to is
+// replaying A then B from empty. `parted` says whether the text it starts from holds a part, which
+// every checkpoint and every render that succeeded does; a fold from the empty text starts with none.
+// Three things rest on it: every read starts from the report checkpoint at or below the event it
+// reads at and folds only the ops after it (recordsql.ReportSourceAt); the insert that lands a
+// checkpoint folds the ops since the one before (recordsql.stampReportCheckpoint); and the write path
+// folds the ops another write added onto a render it made before its lock (landingReport.fold).
+// TestTheReportReplayIsAFold (internal/record/migrate) holds the renderer to it on archived runs.
+var reportRenderer = reportproj.Replay
+
+// renderSource folds a report source — recordsql.ReportSourceAt's checkpoint and the ops after it —
+// into the report, or says why it cannot: the source did not read, the checkpoint holds the replay's
+// failure, or the ops after it do not replay.
+func renderSource(src recordsql.ReportSource, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	return src.Fold(reportRenderer)
 }
 
-// ReportProjection returns the ordered stream of report ops that reconstruct blue's report — the
-// input reportproj.Render folds from the empty text. The lanes' parts are its `append` ops, so a run
-// whose lanes have recorded nothing yet has no part, and the render says so. The ops arrive in
-// event-id order straight from the report_op view, so no reader rebuilds that selection by scanning
-// every event.
-func ReportProjection(run Run) (ops []ReportOp, err error) {
+// reportSourceAt is recordsql.ReportSourceAt asked of q: a nil q is a run with no record yet, which
+// holds no checkpoint and no op.
+func reportSourceAt(q recordsql.Querier, at int64) (recordsql.ReportSource, error) {
+	if noRecord(q) {
+		return recordsql.ReportSource{}, nil
+	}
+	return recordsql.ReportSourceAt(q, at)
+}
+
+// ReportProjection returns the whole ordered stream of report ops, from the record's first part —
+// the stream the checkpoints are folds of. No read of the report replays it: a reader starts from a
+// checkpoint (RenderAt). A migration's reordering trial reads it to replay the record as written
+// (migrate.replayInOrder), and the tests that hold the checkpoints to a whole replay read it.
+func ReportProjection(run Run) (ops []reportproj.ReportOp, err error) {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
 		return nil, err // no record yet — no part, nothing to render
@@ -274,12 +293,12 @@ func ReportProjection(run Run) (ops []ReportOp, err error) {
 	return ReportProjectionAt(db)
 }
 
-// RenderAt is the report as q holds it: its ops, read from q and folded by the registered renderer. q
-// is the run's handle, a read transaction, or a migration's batch (Batch.Querier), whose own writes
-// the render then includes. It is the ONE render over a querier; RenderRun asks it of the run's
-// handle.
+// RenderAt is the report as q holds it: the newest report checkpoint and the ops after it, read from
+// q and folded. q is the run's handle, a read transaction, or a migration's batch (Batch.Querier),
+// whose own writes the render then includes. It is the ONE render over a querier; RenderRun asks it
+// of the run's handle.
 func RenderAt(q recordsql.Querier) (string, error) {
-	return renderProjection(ReportProjectionAt(q))
+	return renderSource(reportSourceAt(q, recordsql.Newest))
 }
 
 // RenderRun is RenderAt asked of run's record, opened for reading: a run that has recorded no part
@@ -292,19 +311,18 @@ func RenderRun(run Run) (string, error) {
 	return RenderAt(db) // a nil handle is a record with nothing on it (noRecord)
 }
 
-// ReportProjectionAt is ReportProjection asked of q — a read transaction a projection holds, so
-// the report it renders is the one on the snapshot its other answers came off. A nil q is a run
-// with no record yet.
-func ReportProjectionAt(db recordsql.Querier) (ops []ReportOp, err error) {
+// ReportProjectionAt is ReportProjection asked of q. A nil q is a run with no record yet.
+func ReportProjectionAt(db recordsql.Querier) (ops []reportproj.ReportOp, err error) {
 	if noRecord(db) {
 		return nil, nil
 	}
-	return reportOpsAfter(db, 0)
+	return recordsql.ReportOpsBetween(db, 0, recordsql.Newest)
 }
 
-// ReportAtPart is the report as it stood once seat's part was recorded: the ops up to and including
-// that part, folded. `ingest` asks it of the part it has just recorded, so another lane's part recorded
-// after it is not read as this one's. A seat with no part is an error: there is no such report.
+// ReportAtPart is the report as it stood once seat's part was recorded: the checkpoint at or below
+// that part's event and the ops after it up to the part, folded. `ingest` asks it of the part it has
+// just recorded, so another lane's part recorded after it is not read as this one's. A seat with no
+// part is an error: there is no such report.
 func ReportAtPart(run Run, seat string) (string, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
@@ -322,36 +340,7 @@ func ReportAtPart(run Run, seat string) (string, error) {
 	if !found {
 		return "", fmt.Errorf("%s has recorded no part of the report", seat)
 	}
-	ops, err := reportOpsAfter(db, 0)
-	var upto []ReportOp
-	for _, op := range ops {
-		if op.EventID <= at {
-			upto = append(upto, op)
-		}
-	}
-	return renderProjection(upto, err)
-}
-
-// reportOpsAfter is the report_op rows of the events after event id `after`, in replay order: every
-// row, for an `after` of 0. The second key orders the one case where an event yields several rows — a
-// retire naming more than one anchor — so replay is deterministic rather than whatever SQLite returns.
-func reportOpsAfter(db recordsql.Querier, after int64) ([]ReportOp, error) {
-	opRows, err := db.Query(`SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? ORDER BY "event_id", "a"`, after)
-	if err != nil {
-		return nil, fmt.Errorf("reading the report ops: %w", err)
-	}
-	defer opRows.Close()
-	var ops []ReportOp
-	for opRows.Next() {
-		var op ReportOp
-		var a, b sql.NullString
-		if err := opRows.Scan(&op.EventID, &op.Kind, &a, &b, &op.Exact); err != nil {
-			return nil, err
-		}
-		op.A, op.B = a.String, b.String
-		ops = append(ops, op)
-	}
-	return ops, opRows.Err()
+	return renderSource(reportSourceAt(db, at))
 }
 
 // ReportHasParts reports whether any lane has recorded its part of the report — whether the report
