@@ -1130,7 +1130,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			f.readingsMinted, f.readingsHeld, f.foundSourceGaps, f.maxOpenPerClassSentence)
 		t.Logf("found against: %d close(s) refused, %d repeat(s) refused, %d edit(s) and %d retire(s) by blue, %d cleared by the reader's own re-read and closed; seed %d's forced chain reached: %s",
 			f.foundAgainstClosesRefused, f.foundAgainstRepeats, f.foundAgainstEdits, f.foundAgainstRetires, f.foundAgainstClearedByOwnReading, foundAgainstSeed, cmp.Or(f.foundAgainstStage, "no stage (its run is not in this tally)"))
-		t.Logf("live-answer demand: %d close(s) of a source gap refused, %d of them of a gap carrying a reading", f.sourceClosesRefused, f.readingDemandRefused)
+		t.Logf("live-answer demand: %d close(s) of a source gap refused, %d of them of a gap carrying a reading; seed %d's run is forced through both", f.sourceClosesRefused, f.readingDemandRefused, sourceDemandSeed)
 		for _, c := range []struct {
 			n    int
 			what string
@@ -1141,6 +1141,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			{f.foundAgainstEdits + f.foundAgainstRetires, "remedies by blue of a found-against check (an edit of its sentence, or a retire of its citation)"},
 			{f.foundAgainstClearedByOwnReading, "closes admitted after the reader's own backing re-read cleared its found-against check"},
 			{f.sourceClosesRefused, "closes of a source gap nothing answers, refused by its live-answer demand"},
+			{f.readingDemandRefused, "closes of a source gap carrying a reading nothing answers, refused by its live-answer demand"},
 			{f.foundAgainstRepeats, "repeat readings refused over the lens's own standing found-against check"},
 			{f.notTheWorkFlagsRefused, "gap flags refused on a reading of a copy that is not the work"},
 			{f.notTheWorkReadingsUnread, "readings of a copy that is not the work leaving the citation unread"},

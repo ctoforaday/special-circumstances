@@ -783,6 +783,10 @@ type runner struct {
 	// mintBareCited is whether blue's half has fired, and mintBareDriving holds the lens's half to one
 	// sitting at a time.
 	forceMintBare, mintBareCited, mintBareDriving bool
+	// forceSourceDemand drives forcedSourceDemand on sourceDemandSeed's run, once; sourceDemandStage is
+	// how far it reached, sourceDemandDriven where it drove every step.
+	forceSourceDemand bool
+	sourceDemandStage string
 	// provedExpectedError fires the --expect-error drive once per run. A computation whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering computation beside it, and the sweep had never passed the flag that says so.
@@ -4369,7 +4373,8 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	//
 	// A `SOURCE` GAP IS FIRST CLOSED UNANSWERED, half the time, and the close is refused by the demand
 	// (demandCloseRefused): a reading's gap after blue's edit of its sentence lands here, where #1647's
-	// drive expected the edit to admit the close.
+	// drive expected the edit to admit the close. Blue answers an engaged gap's demand before its lens
+	// sits again, so this draw seldom finds one unmet; sourceDemandSeed's run drives both refusals.
 	if r.coin(50) {
 		r.demandCloseRefused(closer, id)
 	}
@@ -5620,6 +5625,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.auditRead(seatID)
 		r.checkAnchorOffers(seatID)
 		r.mintBaringCitation(seatID)
+		r.forcedSourceDemand(seatID)
 		r.closeDocketed(seatID)
 		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
 		locked := r.lensMovesBenchAxis(seatID)
@@ -6658,6 +6664,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceFoundAgainst = seed == foundAgainstSeed
 	r.forceBareEvidence = seed == bareEvidenceSeed
 	r.forceMintBare = seed == mintBareSeed
+	r.forceSourceDemand = seed == sourceDemandSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
 	r.benchOrders = sweepBenchOrders
@@ -7511,6 +7518,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if !r.bareEvidenceDriven {
 			res.err += "; blue-respond never sat"
 		}
+	}
+	if msg := r.sourceDemandForcedErr(); msg != "" && res.err == "" {
+		res.err = msg
 	}
 	if r.forceMintBare && r.mintBareRefused == 0 && res.err == "" {
 		res.err = "forced bare prescription: no mint prescribing a citation bare was refused"
