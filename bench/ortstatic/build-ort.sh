@@ -35,6 +35,8 @@ patch_src() { # patch_src <file> <sed expr>
 }
 if [ "$TC" = zig ]; then
   # The MSVC STL /DELAYLOAD workaround is applied to the onnxruntime target, an INTERFACE target in a static build.
+  # ORT_WARNING_FLAGS is MSVC's /wdNNNN list under `if (WIN32)`; clang reads "/wd4251" as an input file.
+  patch_src cmake/CMakeLists.txt '/^set(ORT_WARNING_FLAGS)$/{n;s/^if (WIN32)$/if (MSVC)/;}'
   patch_src cmake/onnxruntime.cmake 's/^if (WIN32 AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)/if (MSVC AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)/'
 fi
 
@@ -85,7 +87,38 @@ for a; do shift; case $a in -fno-unwind-tables|-fno-asynchronous-unwind-tables) 
 EOS
   ;; esac
   { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q cc -target %s "$@"\n' "$ZIG" "$TRIPLE"; } > "$ZB/zigcc"
-  { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q c++ -target %s "$@"\n' "$ZIG" "$TRIPLE"; } > "$ZB/zigcxx"
+  CXXEXTRA=
+  if [ "$SYS" = Darwin ]; then
+    # abseil's cctz asks CoreFoundation for the local zone name on __APPLE__; zig carries no macOS SDK, so the six
+    # declarations it uses are supplied here (Apple's signatures). The link resolves them against CoreFoundation,
+    # which FEOV's darwin allowlist already holds.
+    mkdir -p "$ZB/cfstub/CoreFoundation"
+    cat > "$ZB/cfstub/CoreFoundation/CFTimeZone.h" <<'EOS'
+#pragma once
+#include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef const struct __CFTimeZone *CFTimeZoneRef;
+typedef const struct __CFString *CFStringRef;
+typedef const void *CFTypeRef;
+typedef long CFIndex;
+typedef uint32_t CFStringEncoding;
+typedef unsigned char Boolean;
+enum { kCFStringEncodingUTF8 = 0x08000100 };
+CFTimeZoneRef CFTimeZoneCopyDefault(void);
+CFStringRef CFTimeZoneGetName(CFTimeZoneRef tz);
+CFIndex CFStringGetLength(CFStringRef theString);
+CFIndex CFStringGetMaximumSizeForEncoding(CFIndex length, CFStringEncoding encoding);
+Boolean CFStringGetCString(CFStringRef theString, char *buffer, CFIndex bufferSize, CFStringEncoding encoding);
+void CFRelease(CFTypeRef cf);
+#ifdef __cplusplus
+}
+#endif
+EOS
+    CXXEXTRA="-isystem $ZB/cfstub"
+  fi
+  { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q c++ -target %s %s "$@"\n' "$ZIG" "$TRIPLE" "$CXXEXTRA"; } > "$ZB/zigcxx"
   printf '#!/bin/sh\nexec %q ar "$@"\n' "$ZIG" > "$ZB/zigar"
   printf '#!/bin/sh\nexec %q ranlib "$@"\n' "$ZIG" > "$ZB/zigranlib"
   chmod +x "$ZB"/*
@@ -99,7 +132,8 @@ EOS
          CMAKE_POLICY_VERSION_MINIMUM=3.5 ${ZIG_EXTRA_DEFINES:-})
   # ORT links Iconv on every non-Windows target but calls none of it; macOS keeps iconv outside libSystem, and zig
   # carries no SDK to find it in, so it is declared built in rather than adding a libiconv dependency.
-  [ "$SYS" = Darwin ] && DEFS+=(Iconv_IS_BUILT_IN=TRUE)
+  # mlas and the platform probe choose kernels by CMAKE_OSX_ARCHITECTURES on Apple; unset, they pick the host's (x86).
+  [ "$SYS" = Darwin ] && DEFS+=(Iconv_IS_BUILT_IN=TRUE CMAKE_OSX_ARCHITECTURES=$PROC)
 fi
 
 ARGS+=(--cmake_extra_defines "${DEFS[@]}")

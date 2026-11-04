@@ -25,11 +25,13 @@ if [ "$TC" = zig ]; then
   if [ "$GOOS" = darwin ]; then
     # build-cstack.sh's darwin recipe: tapi stubs exporting what Go imports from libresolv, CoreFoundation, Security.
     F=$O/frameworks; GOSRC=$(go env GOROOT)/src; PROC=${TRIPLE%%-*}; [ "$PROC" = aarch64 ] && PROC=arm64
-    syms() { grep -rhoE "//go:cgo_import_dynamic [^ ]+ [^ ]+ \"[^\"]*$1\"" "$GOSRC" | awk '{print "_" $3}' | sort -u | paste -sd, - | sed 's/,/, /g'; }
+    # $2: extra symbols the C stack imports (abseil cctz's CoreFoundation calls), merged with Go's own.
+    syms() { { grep -rhoE "//go:cgo_import_dynamic [^ ]+ [^ ]+ \"[^\"]*$1\"" "$GOSRC" | awk '{print "_" $3}'; printf '%s\n' ${2:-}; } | sort -u | paste -sd, - | sed 's/,/, /g'; }
+    CFX="_CFTimeZoneCopyDefault _CFTimeZoneGetName _CFStringGetLength _CFStringGetMaximumSizeForEncoding _CFStringGetCString _CFRelease"
     tbd() { mkdir -p "$(dirname "$1")"; { printf -- "--- !tapi-tbd\ntbd-version: 4\ntargets: [ %s-macos ]\ninstall-name: '%s'\ncurrent-version: 1.0\n" "$PROC" "$2"
             [ -n "${3:-}" ] && printf -- "exports:\n  - targets: [ %s-macos ]\n    symbols: [ %s ]\n" "$PROC" "$3"; printf -- '...\n'; } > "$1"; }
     tbd "$F/lib/libresolv.tbd" /usr/lib/libresolv.9.dylib
-    tbd "$F/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" /System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation "$(syms CoreFoundation)"
+    tbd "$F/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" /System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation "$(syms CoreFoundation "$CFX")"
     tbd "$F/Frameworks/Security.framework/Security.tbd" /System/Library/Frameworks/Security.framework/Versions/A/Security "$(syms Security)"
     LIBS="$LIBS -L$F/lib -F$F/Frameworks"; EXTLD="-L$F/lib -F$F/Frameworks"; LDX="-w"
   fi
