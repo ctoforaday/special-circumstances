@@ -1,7 +1,6 @@
 # Native code leaves `feov-record`: the `feov-ocr` and `feov-embed` helpers
 
-> STATUS: proposed 2026-11-04, not started. F1, F2, F4 and F5 ruled by gblock 2026-11-04 (§I.4); F3 waits on Part 0.
-> The auditor gate runs once F3 is ruled.
+> STATUS: proposed 2026-11-04, not started. F1–F5 ruled by gblock 2026-11-04 (§I.4); next is the auditor gate.
 > Ownership (gblock, 2026-11-04, "You'll handle vector here but hand ocr to the agent working on ocr"; F4): the OCR
 > session builds Part 1 (helper mechanics) inside Part 2 (`feov-ocr`); the vector-search session builds Part 3
 > (`feov-embed`) on top of Part 1 once it lands.
@@ -31,7 +30,7 @@ load the official DLL on Windows.
 
 | | In-process static, plus a Windows DLL | Helpers (this plan) |
 |---|---|---|
-| Windows embedding | Official `onnxruntime.dll`, plus `msvcp140`/`vcruntime140` | Static MSVC `/MT` executable, if Part 0 proves it (F3) |
+| Windows embedding | Official `onnxruntime.dll`, plus `msvcp140`/`vcruntime140` | Static MSVC `/MT` executable, 3.67 MB, OS DLLs only (Part 0, F3) |
 | A tesseract crash | Kills `feov-record` and the seat's command | The helper exits; Go reports a failed page and restarts it |
 | Race detector | Covers the stub, never the real engine (`scripts/check/gates.go:167`, a recorded open decision) | Covers everything that ships in Go; the C++ sits behind a process boundary |
 | Go link | `-linkmode external` with zig, for every FEOV command (`hooks.yml:1786-1828`) | Plain `go build` |
@@ -79,11 +78,10 @@ Rulings are gblock's, 2026-11-04, picked from options the agent wrote; the optio
 - **F2, release cadence: the same FEOV release.** Helpers are built by the FEOV release run. The release job reads no
   cache (`hooks.yml:1681-1700`), so every FEOV release rebuilds both helpers from pinned sources: 15–25 minutes per
   target by the agent's estimate, run in parallel.
-- **F3, Windows `feov-embed`: OPEN until Part 0 reports.**
-  - *Static:* MSVC with `/MT`, importing OS DLLs only.
-  - *DLL:* the helper loads the official `onnxruntime.dll`, fetched beside it.
-  - gblock ruled "Windows loads a dll" before the helper design existed. A helper removes the reason the DLL was forced,
-    so this is asked again.
+- **F3, Windows `feov-embed`: static, with the allowlist widened for it.** Part 0 proved it on both arches: built
+  with MSVC and `/MT`, the helper imports only KERNEL32, ADVAPI32, dbghelp and `api-ms-win-core-path-l1-1-0`, all
+  shipped with Windows. `staticproof`'s PE allowlist becomes per-artifact and admits those three extras for `feov-embed`
+  only, each with its reason. This replaces the earlier "Windows loads a dll" ruling, which predated the helper design.
 - **F4, Part 1: built by the OCR session inside Part 2.** OCR proves the mechanics with working code first, and
   Part 3 (`feov-embed`) waits for Part 1 to land.
 - **F5, universe runs: `universe.sh build --native`.** It builds both helpers from the checkout and installs them where
@@ -152,15 +150,26 @@ values per text come back, mean-pooled and L2-normalized in the helper. The mode
 
 ## III. Proposed Changes (the spec)
 
-### Part 0: Windows feasibility probe (in flight, scratch only)
+### Part 0: Windows feasibility probe (done, scratch only)
 
-ONNX Runtime 1.31.1 reduced, built with MSVC and `--enable_msvc_static_runtime`, linked `/MT` into a probe C++
-`embed-probe.exe`. CI runs on branch `bench/embed-engines` (scratch, no PR) and reports:
-- the executable's DLL imports;
-- `staticproof`'s verdict;
-- int8 and f32 fidelity, and one-thread speed.
+ONNX Runtime 1.31.1 reduced, built with MSVC 14.51 and `--enable_msvc_static_runtime`
+(plus `onnxruntime_DISABLE_DEVICE_DISCOVERY=ON`, which drops `dxgi` and `setupapi`), and linked `/MT` into a probe
+`embed-probe.exe`. Runs 41798616860, 41803563965 and 41808776479 of `ortmsvc.yml` on the scratch branch
+`bench/embed-engines`; run 3 is the source of the import list.
 
-Output: `~/.claude/scratch/vecplan/msvcprobe/REPORT.md`. This answers F3 and nothing ships from it.
+| | windows-amd64 (`windows-latest`) | windows-arm64 (`windows-11-arm`) |
+|---|---|---|
+| DLL imports | KERNEL32, ADVAPI32, dbghelp, api-ms-win-core-path-l1-1-0 | the same four |
+| Helper size | 3,665,408 B | 3,670,528 B |
+| int8 fidelity, mean / min | 0.984411 / 0.968026 | 0.984464 / 0.968446 |
+| f32 fidelity | 1.000000 | 1.000000 |
+| 1 thread, int8 / f32 chunks/s | 6.0–7.7 / 4.4–5.6 (EPYC 7763 and 9V74, host-dependent) | 6.4 / 2.75 (Cobalt 100, stable) |
+| ONNX Runtime build | 22–31 min | 25–28 min |
+
+**Residue:**
+- The probe ran only on the build runner images, never on a clean Windows install without Visual Studio. §V.6 adds that.
+- The objects that import ADVAPI32 (event tracing), dbghelp (stack traces) and PathCch were identified from symbol
+  names, not traced.
 
 ### Part 1: Helper mechanics (owner: the OCR session, inside Part 2; F4)
 
@@ -249,8 +258,9 @@ with -tags tessocr" (`pageread.go:88-95`, `tessocr.go:107`).
   - The test list that used to come from grepping for the `tessocr` build tag (`hooks.yml:588`) is derived from a
     `nativehelper.Require(t, "feov-ocr")` call instead.
   - The Windows leg now exercises the real client against a real helper, not only the stub.
-- **`staticproof`** takes the allowlist per artifact. `feov-ocr` keeps today's lists. `feov-embed`'s Windows list is
-  whatever Part 0 measures, each DLL named with the reason it is there.
+- **`staticproof`** takes the allowlist per artifact. `feov-ocr` keeps today's lists. `feov-embed`'s Windows list adds
+  `advapi32.dll` (event tracing), `dbghelp.dll` (stack traces) and `api-ms-win-core-path-l1-1-0.dll` (path handling) to
+  the shared base, each with its reason in the list (F3).
 
 #### 1.6 Enumerators (census G)
 
@@ -341,7 +351,7 @@ line.
 | # | Risk | L × I | Mitigation |
 |---|---|---|---|
 | R1 | The OCR readings change when the code moves (decode, normalization or threading differences) | M × H | PNG bytes still cross the boundary; S3's line-1-only diff on all 13 goldens decides it (Part 2) |
-| R2 | The MSVC static build is not possible, or not reproducible | M × M | Part 0 settles possibility before anything ships; `/Brepro` plus a release re-run in CI settles reproducibility (§V.6). If it fails, F3 falls back to the DLL |
+| R2 | The MSVC static build is not reproducible, or needs something absent from a clean Windows | M × M | Part 0 proved it builds static on both arches; `/Brepro` plus a release re-run in CI settles reproducibility, and a run on a clean Windows image settles the rest (§V.6) |
 | R3 | A protocol defect returns empty results that look like a clean reading or no hits | L × H | The distinct errors of §III.1.3; the fuzzed decoder; a test that kills the helper mid-request and asserts `helper-crashed` |
 | R4 | The eager fetch makes a first hook start slower (the model alone is 33.8 MB) | H × L | Accepted under F1; `fetch-bin.sh`'s existing all-or-none install and stamp, unchanged in shape |
 | R5 | A universe tests the published helper instead of the checkout's | M × M | F5 and `universe.sh build --native`; the grep-the-staged-marketplace rule is extended to `cmp` the helper |
@@ -370,11 +380,12 @@ line.
 6. **Release:**
    - A release dry-run on a scratch tag builds every asset and passes `staticproof` on each helper.
    - A re-run of the same tag reports "SHA256SUMS match" (R2).
+   - Windows `feov-embed` runs its fidelity set on a Windows image with no Visual Studio installed (R2).
 7. **Running the engine:**
    - `scripts/universe.sh build --native`, then `cmp` the staged helpers against the checkout's build.
    - A smoke run that fetches one scanned PDF and runs one `--search`, with the run's `engine.log` read.
 8. **The PR's `release-fuzz` parts and `release-fuzz-tally`**, read on the final head (FEOV's tools module changes).
-9. **The auditor gate:** `/prosthetic-conscience:plan-audit` on this plan once F3 is ruled.
+9. **The auditor gate:** `/prosthetic-conscience:plan-audit` on this plan.
 
 ## Appendix A: Census detail
 
