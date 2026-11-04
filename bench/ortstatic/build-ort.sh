@@ -29,6 +29,14 @@ if [ ! -d "$SRC/.git" ]; then
   git clone -q --depth 1 --branch "$TAG" https://github.com/microsoft/onnxruntime.git "$SRC"
 fi
 git -C "$SRC" log -1 --format='ort source %H %cd'
+# Source patches for non-MSVC Windows (zig/mingw), each harmless elsewhere; listed in the log.
+patch_src() { # patch_src <file> <sed expr>
+  sed -i.orig -e "$2" "$SRC/$1" && echo "patched $1: $2"
+}
+if [ "$TC" = zig ]; then
+  # The MSVC STL /DELAYLOAD workaround is applied to the onnxruntime target, an INTERFACE target in a static build.
+  patch_src cmake/onnxruntime.cmake 's/^if (WIN32 AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)/if (MSVC AND NOT CMAKE_CXX_STANDARD_LIBRARIES MATCHES kernel32.lib)/'
+fi
 
 case $TARGET in
   linux-amd64)   TRIPLE=x86_64-linux-musl;   SYS=Linux;   PROC=x86_64 ;;
@@ -40,7 +48,7 @@ case $TARGET in
   *) echo "unknown target $TARGET" >&2; exit 2 ;;
 esac
 
-ARGS=(--build_dir "$BD/build" --update --build --parallel "$J" --skip_tests --skip_submodule_sync
+ARGS=(--build_dir "$BD/build" ${ORT_PHASES:---update --build} --parallel "$J" --skip_tests --skip_submodule_sync
       --compile_no_warning_as_error)
 DEFS=(onnxruntime_BUILD_UNIT_TESTS=OFF)
 case $VAR in
@@ -52,13 +60,32 @@ case $VAR in
   full)    ARGS+=(--config Release) ;;
   *) echo "unknown variant $VAR" >&2; exit 2 ;;
 esac
+if [ "$TC" = native ]; then case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*)
+  VSW="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+  V=$("$VSW" -latest -products '*' -property installationVersion | tr -d '\r'); echo "Visual Studio $V"
+  case ${V%%.*} in 17) ARGS+=(--cmake_generator "Visual Studio 17 2022") ;; 18) ARGS+=(--cmake_generator "Visual Studio 18 2026") ;; esac ;;
+esac; fi
 CFG=$(printf '%s\n' "${ARGS[@]}" | grep -A1 -- '--config' | tail -1)
 
 AR=ar
 if [ "$TC" = zig ]; then
   ZIG=${ZIG:-zig}; ZB=$WORK/zigbin-$TARGET; mkdir -p "$ZB"
-  printf '#!/bin/sh\nexec %q cc -target %s "$@"\n' "$ZIG" "$TRIPLE" > "$ZB/zigcc"
-  printf '#!/bin/sh\nexec %q c++ -target %s "$@"\n' "$ZIG" "$TRIPLE" > "$ZB/zigcxx"
+  # zig cc maps -march to a CPU name and rejects ORT's per-file "-march=armv8.2-a+bf16" (and the cmake probe of it);
+  # the same request spelled as zig CPU features is -mcpu=generic+v8_2a+bf16 (fp16 is "fullfp16" there).
+  cat > "$ZB/marchfix" <<'EOS'
+for a; do shift; case $a in
+  -march=armv8.2-a*) r=$(printf '%s' "${a#-march=armv8.2-a}" | sed 's/+fp16/+fullfp16/g'); set -- "$@" "-mcpu=generic+v8_2a$r" ;;
+  *) set -- "$@" "$a" ;; esac; done
+EOS
+  # Windows: ORT's minimal build adds -fno-unwind-tables -fno-asynchronous-unwind-tables, and cmake passes compile
+  # flags to the link, where zig builds mingw's crtexe.c with them and its .seh_handler asm then fails
+  # (".seh_ directive must appear within an active frame"); x64/arm64 Windows needs unwind info anyway.
+  case $TRIPLE in *windows*) cat >> "$ZB/marchfix" <<'EOS'
+for a; do shift; case $a in -fno-unwind-tables|-fno-asynchronous-unwind-tables) ;; *) set -- "$@" "$a" ;; esac; done
+EOS
+  ;; esac
+  { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q cc -target %s "$@"\n' "$ZIG" "$TRIPLE"; } > "$ZB/zigcc"
+  { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q c++ -target %s "$@"\n' "$ZIG" "$TRIPLE"; } > "$ZB/zigcxx"
   printf '#!/bin/sh\nexec %q ar "$@"\n' "$ZIG" > "$ZB/zigar"
   printf '#!/bin/sh\nexec %q ranlib "$@"\n' "$ZIG" > "$ZB/zigranlib"
   chmod +x "$ZB"/*
@@ -70,6 +97,9 @@ if [ "$TC" = zig ]; then
          CMAKE_C_COMPILER_AR=$ZB/zigar CMAKE_CXX_COMPILER_AR=$ZB/zigar
          CMAKE_C_COMPILER_RANLIB=$ZB/zigranlib CMAKE_CXX_COMPILER_RANLIB=$ZB/zigranlib
          CMAKE_POLICY_VERSION_MINIMUM=3.5 ${ZIG_EXTRA_DEFINES:-})
+  # ORT links Iconv on every non-Windows target but calls none of it; macOS keeps iconv outside libSystem, and zig
+  # carries no SDK to find it in, so it is declared built in rather than adding a libiconv dependency.
+  [ "$SYS" = Darwin ] && DEFS+=(Iconv_IS_BUILT_IN=TRUE)
 fi
 
 ARGS+=(--cmake_extra_defines "${DEFS[@]}")
