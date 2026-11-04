@@ -120,6 +120,8 @@ What it can do today:
 | `telepathy session` | One session's shape: calls and errors by tool |
 | `telepathy find` | Search every local transcript, joined back to who and when |
 | `telepathy sql` | Read-only SQL over the catalogue's published views |
+| `telepathy send` | Deliver a message to another Claude Code or Antigravity session |
+| `telepathy link` | Make an Antigravity conversation wakeable by `send` (run from its own shell) |
 
 Each row cites both documents — the claim and the evidence — so a reader can check it rather than trust it. Verdicts are deliberately weak where the record is weak: `NO-EVIDENCE` means *nothing matched*, printed with the tokens searched, never *it did not happen*.
 
