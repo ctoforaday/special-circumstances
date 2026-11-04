@@ -14,7 +14,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 func fp(f float64) *float64 { return &f }
@@ -255,7 +254,7 @@ func TestTheDashboardCountsClaimsFromTheReport(t *testing.T) {
 	if _, err := record.Append(record.Identity{Run: run, SeatID: "blue-synthesize"}, &recordpb.ReportPart{Text: proto.String(base)}); err != nil {
 		t.Fatal(err)
 	}
-	md, err := reportproj.RenderFromRecord(run)
+	md, err := record.RenderRun(run)
 	if err != nil {
 		t.Fatal(err)
 	}

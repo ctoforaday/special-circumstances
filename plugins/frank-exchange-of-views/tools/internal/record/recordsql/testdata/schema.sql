@@ -100,6 +100,20 @@ CREATE TABLE "seat_turn" (
 
 CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 
+CREATE TABLE "report_checkpoint" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events" ("id"),
+  "text"     TEXT,
+  "failure"  TEXT,
+  CHECK (("text" IS NULL) <> ("failure" IS NULL))
+) STRICT;
+
+CREATE TRIGGER "report_checkpoint_is_append_only_update" BEFORE UPDATE ON "report_checkpoint" BEGIN
+  SELECT RAISE(ABORT, 'a report checkpoint is the text an event left: it cannot be edited after it is written');
+END;
+CREATE TRIGGER "report_checkpoint_is_append_only_delete" BEFORE DELETE ON "report_checkpoint" BEGIN
+  SELECT RAISE(ABORT, 'a report checkpoint is the text an event left: it cannot be removed after it is written');
+END;
+
 CREATE TABLE "enum_event_type" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL

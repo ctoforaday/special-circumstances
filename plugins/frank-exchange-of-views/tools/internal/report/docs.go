@@ -29,7 +29,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -363,7 +362,7 @@ func blueReport(run record.Run) (string, error) {
 	have, err := record.ReportHasParts(run)
 	if err == nil && have {
 		var md string
-		if md, err = reportproj.RenderFromRecord(run); err == nil {
+		if md, err = record.RenderRun(run); err == nil {
 			return md, nil
 		}
 	}

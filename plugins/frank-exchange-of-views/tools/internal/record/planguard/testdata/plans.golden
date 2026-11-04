@@ -421,20 +421,24 @@
 -- SELECT "epoch" FROM "schema_epoch" WHERE "id" = 1
   SEARCH schema_epoch USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 31fe08f079c1
--- SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? ORDER BY "event_id", "a"
+== stmt 8a98e29fded4
+-- SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? AND "event_id" <= ? ORDER BY "event_id", "a"
   CO-ROUTINE report_op
     COMPOUND QUERY
       LEFT-MOST SUBQUERY
-        SEARCH p USING INTEGER PRIMARY KEY (rowid>?)
+        SEARCH p USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)
       UNION ALL
-        SEARCH b USING INTEGER PRIMARY KEY (rowid>?)
+        SEARCH b USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)
       UNION ALL
-        SEARCH a USING INTEGER PRIMARY KEY (rowid>?)
+        SEARCH a USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)
       UNION ALL
-        SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id>?)
+        SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id>? AND event_id<?)
   SCAN report_op
   USE TEMP B-TREE FOR ORDER BY
+
+== stmt 179f570c06e4
+-- SELECT "event_id", "text", "failure" FROM "report_checkpoint" WHERE "event_id" <= ? ORDER BY "event_id" DESC LIMIT 1
+  SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid<?)
 
 == stmt 014ad841ca9c
 -- SELECT "event_id", "value" FROM "mint_found_by" ORDER BY "event_id", "ord"
@@ -723,6 +727,20 @@
 == stmt 5c99c3b8890b
 -- SELECT DISTINCT type FROM events
   SCAN events USING COVERING INDEX events_type
+
+== stmt c35ee8ac7f39
+-- SELECT count(*) FROM "report_op" WHERE "event_id" = ?
+  CO-ROUTINE report_op
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
+      UNION ALL
+        SEARCH b USING INTEGER PRIMARY KEY (rowid=?)
+      UNION ALL
+        SEARCH a USING INTEGER PRIMARY KEY (rowid=?)
+      UNION ALL
+        SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id=?)
+  SCAN report_op
 
 == stmt e3db4a15c258
 -- SELECT count(*) FROM sqlite_master WHERE type = 'table' AND "name" = 'schema_epoch'

@@ -56,7 +56,7 @@ func TestEveryArchivedRunRenders(t *testing.T) {
 			lines = append(lines, run+" no-base - - - -")
 			continue
 		}
-		md, err := reportproj.RenderFromRecord(dst)
+		md, err := record.RenderRun(dst)
 		if err != nil {
 			t.Fatalf("%s: the archived run does not render: %v", run, err)
 		}

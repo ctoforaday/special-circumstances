@@ -13,7 +13,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -144,7 +143,7 @@ func jsonl(path string) []map[string]any {
 // or no record at all — has nothing to count, and a zero there would read as a report with no
 // cited claim in it.
 func blueClaimsOf(run record.Run) *int {
-	md, err := reportproj.RenderFromRecord(run)
+	md, err := record.RenderRun(run)
 	if err != nil {
 		return nil
 	}

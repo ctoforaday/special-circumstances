@@ -11,6 +11,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // The cast is the record's, written once under harness; membership admits a seat and its
@@ -86,7 +87,7 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	unchecked := anchor.Token("C-99887766")
 	was := reportRenderer
 	t.Cleanup(func() { reportRenderer = was })
-	reportRenderer = func(string, bool, []ReportOp) (string, error) {
+	reportRenderer = func(string, bool, []reportproj.ReportOp) (string, error) {
 		return "# R\n\nA sentence " + cited + " and another" + unchecked + anchor.Token("F-0b0b0b0b") + anchor.Token("G-00000001") + anchor.Token("G-00000009") + ". Next one.\n", nil
 	}
 	dir := newRun(t)
