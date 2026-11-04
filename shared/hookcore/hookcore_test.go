@@ -843,3 +843,23 @@ func TestContractMalformedStdinSecretsScanning(t *testing.T) {
 		t.Errorf("req.Raw does not preserve raw secret token: %q", string(req.Raw))
 	}
 }
+
+func TestQueueSay(t *testing.T) {
+	tmpDir := t.TempDir()
+	sessionID := "test-sess-say"
+
+	QueueSay(tmpDir, sessionID, "")
+	items := flushPending(tmpDir, sessionID)
+	if len(items) != 0 {
+		t.Fatalf("expected 0 items for empty say, got %d", len(items))
+	}
+
+	QueueSay(tmpDir, sessionID, "advisory notice")
+	items = flushPending(tmpDir, sessionID)
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].Say != "advisory notice" {
+		t.Errorf("expected %q, got %q", "advisory notice", items[0].Say)
+	}
+}
