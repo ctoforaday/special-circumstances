@@ -182,9 +182,13 @@ start=$(date +%s)
 ( cd "$SRC" && "$PY" "$SRC/tools/ci_build/build.py" "${ARGS[@]}" ) > "$BD/build.log" 2>&1 || {
   rc=$?; echo "build.py failed rc=$rc after $(( $(date +%s) - start ))s; last lines:"; tail -60 "$BD/build.log"; exit $rc; }
 echo "build.py ok in $(( $(date +%s) - start ))s ($NAME)"
-# A static build with no executable leaves re2 unbuilt (it reaches the link only through the onnxruntime INTERFACE
-# target); the unreduced runtime's tokenizer and regex kernels need it.
-if [ "$VAR" = full ] || [ "$VAR" = reduced ]; then cmake --build "$BD/build/$CFG" --config "$CFG" --target re2 -j "$J" >> "$BD/build.log" 2>&1 && echo "built re2"; fi
+# A static build with no executable in ALL leaves dependencies that reach the link only through the onnxruntime
+# INTERFACE target unbuilt: cpuinfo always (the mlas q4dq tool, taken out of ALL for zig, was what built it), re2 for
+# the unreduced runtime's tokenizer and regex kernels.
+for t in cpuinfo re2; do
+  if [ "$t" = re2 ] && [ "$VAR" != full ] && [ "$VAR" != reduced ]; then continue; fi
+  cmake --build "$BD/build/$CFG" --config "$CFG" --target "$t" -j "$J" >> "$BD/build.log" 2>&1 && echo "built $t" || echo "no target $t"
+done
 "$HERE/combine.sh" "$BD/build/$CFG" "$SRC" "$OUT" "$AR"
 find "$BD/build/$CFG" \( -name '*.a' -o -name '*.lib' \) -exec ls -l {} + > "$OUT/archive-sizes.txt"
 echo "$NAME" > "$OUT/name.txt"
