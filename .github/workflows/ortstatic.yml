@@ -182,8 +182,10 @@ jobs:
           O=$RUNNER_TEMP/w/${{ matrix.target }}-native-${{ matrix.variant }}/out
           if [ "${{ runner.os }}" = Windows ]; then
             # MSVC-built .lib archives, linked by Go's mingw gcc: every archive, grouped.
-            L=$(find "$RUNNER_TEMP/w/${{ matrix.target }}-native-${{ matrix.variant }}/build" -name '*.lib' ! -name '*test*' ! -name 'gtest*' ! -name 'gmock*' ! -name 'libprotoc*' ! -name 'protoc*' | tr '\n' ' ')
-            export CGO_CFLAGS="-I$O/include" CGO_LDFLAGS="-Wl,--start-group $L -Wl,--end-group -lstdc++"
+            # cgo refuses backslash paths in LDFLAGS as flags; mixed-form paths and an explicit allow-list get past that.
+            L=$(find "$RUNNER_TEMP/w/${{ matrix.target }}-native-${{ matrix.variant }}/build" -name '*.lib' ! -name '*test*' ! -name 'gtest*' ! -name 'gmock*' ! -name 'libprotoc*' ! -name 'protoc*' ! -name 'libprotobuf.lib' -exec cygpath -m {} \; | tr '\n' ' ')
+            export CGO_LDFLAGS_ALLOW='.*' CGO_CFLAGS="-I$(cygpath -m "$O/include")" CGO_LDFLAGS="-Wl,--start-group $L -Wl,--end-group -lstdc++"
+            echo "CC: $(command -v gcc) $(gcc --version | head -1)"
             (cd bench/ortstatic/probe && go build -ldflags '-linkmode external -extldflags "-static"' -o "$RUNNER_TEMP/out/bin/ortprobe.exe" . ) 2>&1 | tail -60
             (cd bench/ortstatic/probe && go build -tags noort -ldflags '-linkmode external -extldflags "-static"' -o "$RUNNER_TEMP/out/bin/noort.exe" . ) 2>&1 | tail -20
             ls -l "$RUNNER_TEMP/out/bin" || true

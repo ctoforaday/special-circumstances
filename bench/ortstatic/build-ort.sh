@@ -39,6 +39,12 @@ case "$TC-$TARGET" in zig-windows-*)
   if git -C "$SRC" apply --reverse --check "$HERE/mingw-1.31.1.patch" 2>/dev/null; then echo "mingw patch already applied"
   else git -C "$SRC" apply "$HERE/mingw-1.31.1.patch" && echo "applied mingw-1.31.1.patch"; fi
   DEFS_WIN=(onnxruntime_DISABLE_DEVICE_DISCOVERY=ON) ;;
+zig-darwin-*)
+  # The Apple log sink is Objective-C++ over Foundation (NSLog); zig has no macOS SDK, and Foundation is outside
+  # FEOV's darwin allowlist. The portable clog sink is used instead; device discovery (IOKit) is switched off.
+  patch_src cmake/onnxruntime_common.cmake '/core\/platform\/apple\/logging\/\*\.h"/,/core\/platform\/apple\/logging\/\*\.mm"/d'
+  patch_src onnxruntime/core/platform/logging/make_platform_default_log_sink.cc 's/^#elif defined(__APPLE__)$/#elif defined(__APPLE__) \&\& 0/'
+  DEFS_WIN=(onnxruntime_DISABLE_DEVICE_DISCOVERY=ON) ;;
 esac
 if [ "$TC" = zig ]; then
   # The MSVC STL /DELAYLOAD workaround is applied to the onnxruntime target, an INTERFACE target in a static build.
