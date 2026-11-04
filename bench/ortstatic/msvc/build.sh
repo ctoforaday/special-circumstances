@@ -50,12 +50,14 @@ find "$BD/Release" -name '*.lib' ! -name 'protoc*.lib' ! -name 'libprotoc*.lib' 
 while IFS= read -r l; do cygpath -m "$l"; done < "$OUT/libs-unix.txt" > "$OUT/libs.txt"
 wc -l < "$OUT/libs.txt"; while IFS= read -r l; do wc -c < "$l" | tr -d '\n'; echo " $l"; done < "$OUT/libs-unix.txt" > "$OUT/lib-sizes.txt"
 
-DUMPBIN=$(find "$VSDIR/VC/Tools/MSVC" -iname dumpbin.exe | grep -i "Host${ARCH,,}/${ARCH,,}/" | head -1)
-[ -n "$DUMPBIN" ] || DUMPBIN=$(find "$VSDIR/VC/Tools/MSVC" -iname dumpbin.exe | head -1)
+# The image carries several toolsets, some partial (an old one's dumpbin printed nothing); the newest host-native one.
+find "$VSDIR/VC/Tools/MSVC" -iname dumpbin.exe > "$OUT/dumpbin-all.txt" || true
+DUMPBIN=$(grep -i "/Host${ARCH,,}/${ARCH,,}/" "$OUT/dumpbin-all.txt" | sort -V | tail -1 || true)
+[ -n "$DUMPBIN" ] || DUMPBIN=$(sort -V "$OUT/dumpbin-all.txt" | tail -1)
 echo "$DUMPBIN" > "$OUT/dumpbin-path.txt"; echo "dumpbin: $DUMPBIN"
 # Which C runtime each archive asks for: /DEFAULTLIB:LIBCMT (static, /MT) vs MSVCRT (DLL, /MD).
 { while IFS= read -r l; do
-    d=$("$DUMPBIN" /nologo /directives "$l" 2>/dev/null | tr -d '\r' || true)
+    d=$("$DUMPBIN" /nologo /directives "$l" 2>&1 | tr -d '\r' || true)
     printf '%s libcmt=%s msvcrt=%s libcpmt=%s msvcprt=%s\n' "$(basename "$l")" \
       "$(grep -ciE 'DEFAULTLIB:"?LIBCMT' <<<"$d")" "$(grep -ciE 'DEFAULTLIB:"?MSVCRT' <<<"$d")" \
       "$(grep -ciE 'DEFAULTLIB:"?LIBCPMT' <<<"$d")" "$(grep -ciE 'DEFAULTLIB:"?MSVCPRT' <<<"$d")"

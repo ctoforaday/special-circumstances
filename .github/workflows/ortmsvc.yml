@@ -59,11 +59,12 @@ jobs:
       - name: imports
         if: always()
         run: |
+          set +e +o pipefail
           O=$RUNNER_TEMP/out; E=$O/embed-probe.exe; D=$(cat "$O/dumpbin-path.txt")
-          { echo "== size"; wc -c < "$E"
-            echo "== dumpbin /headers (debug directories, machine)"; "$D" /nologo /headers "$E" | grep -iE 'machine|debug|subsystem'
-            echo "== dumpbin /dependents"; "$D" /nologo /dependents "$E"
-            echo "== dumpbin /imports"; "$D" /nologo /imports "$E"
+          { echo "== dumpbin $D"; echo "== size"; wc -c < "$E"
+            echo "== dumpbin /headers"; "$D" /nologo /headers "$E"; echo "dumpbin exit=$?"
+            echo "== dumpbin /dependents"; "$D" /nologo /dependents "$E"; echo "dumpbin exit=$?"
+            echo "== dumpbin /imports"; "$D" /nologo /imports "$E"; echo "dumpbin exit=$?"
           } > "$O/dumpbin.txt" 2>&1
           cat "$O/dumpbin.txt"
           OBJ=$(command -v llvm-objdump || ls "/c/Program Files/LLVM/bin/llvm-objdump.exe" 2>/dev/null || true)
