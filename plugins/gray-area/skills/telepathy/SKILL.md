@@ -139,6 +139,49 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   did not apply, a command it ran twice — YOU SHOULD interview a tool-less fork of its session with the
   [[elicitation-testing]] skill. The catalogue supplies the cited acts that the interview asks about.
 
+## Cross-harness session identification and peer messaging
+
+Both Anthropic Claude Code and Google Antigravity run on this host in Remote Control (`rc`) mode.
+When coordinating across harnesses:
+
+### 1. Identifying the peer session
+Query `telepathy agents` or `telepathy sql`:
+```bash
+telepathy sql "SELECT session_id, bridge_session_id, cwd, project_dir FROM session WHERE closed_at IS NULL;"
+```
+- **Claude RC sessions**: `cwd` is under `.claude/worktrees/bridge-cse_*` and `bridge_session_id` is set. Each live Claude session file under `~/.claude/sessions/<pid>.json` defines its active Unix domain socket under `messagingSocketPath`.
+- **Antigravity sessions**: `project_dir` is under `~/.gemini/antigravity-cli/brain/<conv_id>`. (Note: the installed plugin cache holds released binaries, so cross-harness indexing requires the dual-engine trajectory build).
+
+### 2. Messaging a peer session
+
+- **Claude $\to$ Antigravity**:
+  Relay via a one-shot Antigravity CLI call using the native `send_message` tool:
+  ```bash
+  agy -p "Call send_message with recipient '<conv_id>' and message '<message>'." \
+      --model gemini-3.8-flash-low \
+      --dangerously-skip-permissions
+  ```
+  The one-shot invokes `send_message`, delivering the message directly into the recipient Antigravity agent's reactive message queue.
+
+- **Antigravity $\to$ Claude**:
+  Inject directly into the live Claude session's inbox socket. Find the target's `messagingSocketPath` in `~/.claude/sessions/<pid>.json`, and send one newline-terminated JSON payload:
+  ```bash
+  python3 -c '
+  import socket, json, sys
+  sock, msg = sys.argv[1], sys.argv[2]
+  s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+  s.connect(sock)
+  s.sendall((json.dumps({"type": "user", "message": {"role": "user", "content": msg}}) + "\n").encode())
+  s.close()
+  ' "<messagingSocketPath>" "From Antigravity session <conv_id>: <message>"
+  ```
+  The message arrives directly mid-turn in the live Claude session. Because the inbox socket provides no return address to the receiver, always include your own conversation ID in the message body.
+  *(Note: do NOT use `claude -p` in the worktree, which spawns a separate detached session rather than reaching the live agent; do NOT write directly to the worktree's `CHECKPOINT.md`, which is read only on restart/compaction and would overwrite the session's active state).*
+
+### 3. Model & project hygiene rules
+- **Cheapest model only**: Always specify `--model gemini-3.8-flash-low` for `agy` (prevents quota exhaustion on pro models) and `--model haiku` for `claude`.
+- **Zero project-list pollution**: Never pass `--new-project` or `--remote-agent` in `agy`, and never pass `--cloud` in `claude`.
+
 ## The rule this exists to serve
 
 Exploration may summarize; **adjudication must cite**. The catalogue is a citing surface: every
