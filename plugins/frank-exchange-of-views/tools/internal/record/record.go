@@ -1028,6 +1028,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
 			}
 		}
+		if err := requireSupersedable(q, seatID, b); err != nil {
+			return err
+		}
 		if err := requireSuccessorKeepsBenchGrades(w, b); err != nil {
 			return err
 		}
@@ -1149,6 +1152,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// The run used it zero times out of nine closures, so this costs nothing today.
 		// It is here for the cheaper tier, where an anchor is exactly the work a seat
 		// under pressure would rather skip.
+		// A carry restates a closure, and a gap its successor's mint closed has none to restate: the
+		// refusal names the successor, which holds its purpose now.
+		if b.CarriedFrom != nil {
+			if err := requireNotSuperseded(q, b.GetGapId(), "--id"); err != nil {
+				return err
+			}
+		}
 		if !anchored && b.CarriedFrom != nil {
 			prior, err := priorClosureEpochs(q, b.GetGapId())
 			if err != nil {
@@ -1184,8 +1194,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 		}
+		// --superseded-by NAMES THE REGRESSION, and nothing else. A gap whose purpose moves to a
+		// successor is closed by that successor's mint (supersession.go), so the one remainder a close
+		// carries forward is the regression a repair caused, in a gap that does not supersede this one.
 		if b.GetClosureClass() == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor == nil {
 			return fmt.Errorf("repaired_with_regression requires --superseded-by (lineage never drops)")
+		}
+		if b.GetClosureClass() != recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor != nil {
+			return feov.Errorf(feov.Validation,
+				"--superseded-by names the gap carrying a regression, and is given only with --as repaired_with_regression. "+
+					"A gap whose purpose passes to a successor is closed by minting that successor with --supersedes %s, which closes it in the same act", b.GetGapId())
 		}
 		// THE NEAR-MISS CHECK IS GONE BECAUSE THE OPEN SET IS GONE, not because it stopped
 		// mattering. It refused `closed-with-regression` and `Closed_With_Regression`: spellings
@@ -1368,6 +1386,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
 		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
+				return err
+			}
+			// A SUPERSEDED GAP IS NOT DOCKETED: the successor holds its purpose, and a ruling on the
+			// ancestor would rule on nothing the debate still owes.
+			if err := requireNotSuperseded(q, b.GetDocket().GetGapId(), "--id"); err != nil {
 				return err
 			}
 			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {

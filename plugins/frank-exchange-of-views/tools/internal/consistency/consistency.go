@@ -164,6 +164,19 @@ func walk(events []*record.Event) *groundTruth {
 			if m.GetLocation() != "" {
 				gt.placedIDs[id] = true
 			}
+			// A MINT SUPERSEDING AN OPEN GAP CLOSES IT, as its lens's closing act: the first such
+			// mint, where no closing act of either arm came before it.
+			for _, anc := range m.GetSupersedes() {
+				a := gt.gaps[anc]
+				if a == nil || a.everClosed {
+					continue
+				}
+				a.firstCloser = "red"
+				a.open, a.everClosed = false, true
+				a.lastCloser = "red"
+				a.lastClass = record.ClosedSuperseded
+				a.lastCloseEpoch = epoch
+			}
 		case *recordpb.Regrade:
 			g := gt.gaps[m.GetGapId()]
 			if g == nil {

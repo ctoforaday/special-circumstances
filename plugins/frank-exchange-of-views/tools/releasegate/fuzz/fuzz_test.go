@@ -388,6 +388,9 @@ type runner struct {
 	// issues has to be issued as that lens. The chair mints nothing now; its acts on a gap are
 	// `carry`, `spot-check`, `position`, `verdict` and `dispatch`.
 	minter map[string]string
+	// closingNow is each gap whose close the drive is driving, which a mint drawn meanwhile does not
+	// supersede (holdClosing).
+	closingNow map[string]bool
 	// planThisSitting is the plan `dispatch next` printed at the start of the chair sitting in progress.
 	planThisSitting map[string]any
 	// lastPassRefusal is the gate's refusal of a PASS the plan permitted — the chair's duty undone.
@@ -3807,10 +3810,14 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	} else if fl != "" && r.coin(50) {
 		args = append(args, "--found-by", fl) // the lens finding that surfaced it (real TOOL-assigned id)
 	}
+	// LINEAGE: this gap replaces an ancestor, which its mint closes (ruled by gblock 2026-11-04). Only
+	// a gap's minter supersedes it while it is open, and not while a docket motion stands on it: the
+	// ancestor is drawn from the seat's own open gaps no docket holds, and none a close of the seat's
+	// is being driven on (closingNow), whose close the supersession would refuse.
 	ancestor := ""
-	if open := r.openGaps(); len(open) > 0 && r.coin(30) {
+	if open := r.supersedable(seatID); len(open) > 0 && r.coin(30) {
 		ancestor = open[r.rng.Intn(len(open))]
-		args = append(args, "--supersedes", ancestor) // lineage: this gap replaces an ancestor
+		args = append(args, "--supersedes", ancestor)
 	}
 	// #267 stage 3: a CONCRETE proposed fix, which the tool validates against the live report
 	// and which DERIVES fix_basis: verified. It swaps the seeded edit-target sentence, exactly
@@ -3904,6 +3911,7 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 		landed = true
 		r.noteMint(seatID, env.Result.GapID)
 		r.inheritBenchGrades(env.Result.GapID, ancestor)
+		r.supersessionClosed(ancestor, env.Result.GapID)
 		r.checkOneGap(env.Result.GapID, args)
 		if unclassified {
 			r.mu.Lock()
@@ -4377,9 +4385,13 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		// forwarded to a gap the board already holds open — which is what a successor is: a real,
 		// still-open gap, and the record refuses a dead-end forwarding address either way.
 		// A forced run past its first sitting forwards only: a successor is a fresh gap (see findsFresh).
+		// THE SUCCESSOR CARRIES THE REGRESSION, and does not supersede the gap: a mint superseding it
+		// would close it before its repair could be recorded.
 		succ := ""
 		if r.mintsFresh(closer) {
+			r.holdClosing(id, true)
 			succ = r.mint(closer)
+			r.holdClosing(id, false)
 		}
 		if succ == "" {
 			for _, other := range r.openGaps() {
@@ -4576,12 +4588,10 @@ func (r *runner) carryPrior(seatID string) {
 		if r.coin(50) {
 			carry = append(carry, "--reason", "fuzz: carried from the prior round")
 		}
-		// A carry names where the remainder went as often as a close does; the flag is on both
-		// verbs and was driven on neither once the two split. The successor is MINTED here for
-		// the same reason the regression close mints one: it must be a real, still-open gap, and
-		// the record refuses a dead-end forwarding address.
-		if open := r.openGaps(); len(open) > 0 && r.coin(50) {
-			carry = append(carry, "--superseded-by", open[r.rng.Intn(len(open))])
+		// --superseded-by NAMES A REGRESSION, and only beside --as repaired_with_regression: on a
+		// carry restating a repair it is refused, and the carry without it is admitted.
+		if open := r.openGaps(); len(open) > 0 && r.coin(20) {
+			r.refuse(feov.Validation, append(slices.Clone(carry), "--superseded-by", open[r.rng.Intn(len(open))])...)
 		}
 		r.admit(carry...)
 	}

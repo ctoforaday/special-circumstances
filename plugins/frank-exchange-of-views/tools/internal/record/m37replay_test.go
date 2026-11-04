@@ -12,19 +12,22 @@ import (
 )
 
 // m37Archive is universe-m37: 1263 events, CEILING at epoch 12 under k-max 2, six dockets filed by the
-// dispatch and six rulings on them. It holds the bundle store (computations/<bundle>/), which the
+// dispatch and six rulings on them, five of each on the migrated record (TestM37DocketsComeAfterTheLensHasRead). It holds the bundle store (computations/<bundle>/), which the
 // migrate package's archive census does not read as the proof store of every run in run-archive/, so
 // it stands in a directory of its own.
 const m37Archive = "bundle-store/2026-10-31_is-91-prime-m37.tar.gz"
 
-// UNIVERSE-M37, REPLAYED (ruled by gblock 2026-10-31). Each of the run's six dockets is folded again on
-// the record as it stood before the plan that filed it. On all six the plan now files nothing and
-// readies the gap's minting lens alone. What that lens did next is the run's own record: on five it
+// UNIVERSE-M37, REPLAYED (ruled by gblock 2026-10-31). Each of the run's dockets is folded again on the
+// record as it stood before the plan that filed it. On every one the plan now files nothing and
+// readies the gap's minting lens alone. What that lens did next is the run's own record: on four it
 // closed the gap, each within minutes, so no docket exists and the bench has nothing to rule. On
 // G-deced912's first docket it kept its grade, and that docket and its remand stand a sitting later:
-// the one ruling of the six that decided anything.
+// the one ruling that decided anything.
 //
-//   - G-8405d5e1: its lens promised the close when its successor closed; stranded, its lens goes first.
+// The run filed six; the migrated record holds five. G-8405d5e1's successor G-07884fea was minted
+// superseding it while it was open, which closes it (ruled by gblock 2026-11-04), so its docket and
+// its ruling are acts on a closed gap and are left out of the migration.
+//
 //   - G-584d152f: blue's fix landed under G-07884fea's name; the edit's `reopened` gives the lens its turn.
 //   - G-c3f84f98: blue's computation answered the kept grade; the lens reads it before any docket.
 //   - G-deced912, first: the lens audits blue's answer, and keeps. The dispute is real.
@@ -36,7 +39,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 	want := []struct {
 		gap     string
 		remains bool
-	}{{"G-8405d5e1", false}, {"G-584d152f", false}, {"G-c3f84f98", false}, {"G-deced912", true}, {"G-deced912", false}, {"G-37347c3c", false}}
+	}{{"G-584d152f", false}, {"G-c3f84f98", false}, {"G-deced912", true}, {"G-deced912", false}, {"G-37347c3c", false}}
 	minted := mintedBy(whole)
 	k, remain := 0, 0
 	for i, e := range whole {
@@ -45,7 +48,7 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 			continue
 		}
 		if k == len(want) {
-			t.Fatalf("a seventh docket motion on the record: %s", m.GetMotionId())
+			t.Fatalf("a sixth docket motion on the record: %s", m.GetMotionId())
 		}
 		g := m.GetDocket().GetGapId()
 		if g != want[k].gap {
@@ -73,6 +76,11 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 				continue
 			}
 			if c := f.GetClose(); c != nil && c.GetGapId() == g {
+				closed = true
+				break
+			}
+			// A mint of the lens's superseding the gap closes it in that act (G-584d152f's, at 556).
+			if mt := f.GetMint(); mt != nil && slices.Contains(mt.GetSupersedes(), g) {
 				closed = true
 				break
 			}
@@ -281,38 +289,24 @@ func TestACompliantRemandAnswerIsNotRedocketed(t *testing.T) {
 	}
 }
 
-// A STRANDED GAP KEEPS ITS CLOSE (G-8405d5e1). At its limits with nothing from blue to audit, its lens
-// has one sitting before the docket, for the close its successor promised, and the close is admitted. If
-// it does not close, the docket comes: a gap whose lens never acts still reaches the bench.
-func TestAStrandedGapAtItsLimitsKeepsItsClose(t *testing.T) {
-	build := func(t *testing.T) (*stage, Run) {
-		st := mintedOn(t)
-		st.add(evLens, successorMint("G2", "G1"))
-		st.blueSitsOn("G1", false)
-		st.blueSitsOn("G1", false)
-		run := st.register("red-chair").seed()
-		writeRunConfig(t, run.Dir(), `{"kMax": 2}`)
-		return st, run
-	}
-	st, run := build(t)
+// A SUPERSEDED GAP AT ITS LIMITS IS CLOSED (G-8405d5e1, ruled by gblock 2026-11-04). Its successor's
+// mint closed it: the plan files nothing on it and readies no seat on it, and its lens's close is
+// refused, naming the successor.
+func TestASupersededGapAtItsLimitsIsClosed(t *testing.T) {
+	st := mintedOn(t)
+	st.add(evLens, successorMint("G2", "G1"))
+	run := st.register("red-chair").seed()
+	writeRunConfig(t, run.Dir(), `{"kMax": 2}`)
 	plan, err := PlanDispatch(run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.ToFile) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-		t.Fatalf("a stranded gap at its limits readies its lens alone, and files nothing: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+	if slices.Contains(plan.ToFile, "G1") || slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+		t.Fatalf("a superseded gap is closed, and the plan must name it nowhere: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
 	}
-	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_CLOSE, repairClose("G1")); err != nil {
-		t.Errorf("the stranded gap's close is refused: %v", err)
-	}
-	sat := st.more()
-	sat.dispatch(2, evLens, "G1").registerAs(evLens, "lens-silent").served(evLens, 2).stop("lens-silent").register("red-chair").seed()
-	after, err := PlanDispatch(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(after.ToFile, []string{"G1"}) {
-		t.Errorf("its lens sat and did not close: the gap goes to the bench: to file %v, parties %+v, why %q", after.ToFile, after.Parties, after.Why)
+	err = validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_CLOSE, repairClose("G1"))
+	if err == nil || !strings.Contains(err.Error(), "G1, which closed when G2 was minted superseding it") || !strings.Contains(err.Error(), "Act on G2") {
+		t.Errorf("the close of a superseded gap = %v, want it refused naming its successor G2", err)
 	}
 }
 
@@ -536,7 +530,7 @@ func TestGradeMovementWaitsOnTheLensToo(t *testing.T) {
 		{"its audit spent", GapExchanges{lensTurn: true}, routeGradeMovement},
 		{"no turn", GapExchanges{}, routeGradeMovement},
 	} {
-		if got := routeOf(true, false, false, true, &c.x); got != c.want {
+		if got := routeOf(true, false, true, &c.x); got != c.want {
 			t.Errorf("%s: route %v, want %v", c.name, got, c.want)
 		}
 	}

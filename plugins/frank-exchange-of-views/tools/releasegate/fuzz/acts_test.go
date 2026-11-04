@@ -403,15 +403,10 @@ func otherGrade(g string) string {
 
 // THE CHAIR'S FAIL IS DRIVEN BY WHAT THE BOARD SAYS THE GATE WILL ANSWER, and each answer is read.
 //
-// The chair records a FAIL while a gap is open. The gate refuses EVERY verdict while a superseded
-// gap stands open (record.Blocker.Every), and the sweep supersedes on about a third of its mints, so
-// most chair sittings meet one: a sweep measured 368 of 423 verdict acts refused, every one on that
-// blocker. The drive used to read the refusal as "no verdict this sitting" and drop it, so the one
-// counter held the driven refusals and any regression alike — a FAIL the gate began refusing for
-// another reason would have read as one more of 368.
+// The chair records a FAIL while a gap is open. The drive once read a refused FAIL as "no verdict
+// this sitting" and dropped it, so the one counter held the driven refusals and any regression alike.
 //
 // So the blockers are read first, and the act goes through the door they decide:
-//   - a blocker that holds every verdict: refused, as a conflict with the board;
 //   - a blocker another seat must clear: admitted — the convergence rule stands only where the PASS is
 //     the chair's own to record (record.requireFailIsNotConvergent);
 //   - only the chair's own items, or none: the convergence rule decides, so either answer is the
@@ -423,16 +418,11 @@ func (r *runner) chairFail(seatID string) (verdict, printed string) {
 		r.noteActErr("the chair's FAIL: the blockers could not be read to say what the gate will answer: " + err.Error())
 		return "", ""
 	}
-	every, othersOwn := false, false
+	othersOwn := false
 	for _, b := range blockers {
-		every = every || b.Every()
 		othersOwn = othersOwn || !b.ChairOwned()
 	}
 	switch {
-	case every:
-		r.refuse(feov.Conflict, args...)
-		noteFail("refused: a blocker holds every verdict")
-		return "", ""
 	case othersOwn:
 		out, ok := r.admit(append([]string{"--json"}, args...)...)
 		if !ok {

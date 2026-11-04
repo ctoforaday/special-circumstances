@@ -29,10 +29,6 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		build         func(b *stage)
 		wantPermitted bool
 	}{
-		{"stranded gap", BlockerStrandedGap, true, true, func(b *stage) {
-			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-			b.add(outsideLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low", "G1"))
-		}, false},
 		{"material gap", BlockerMaterialGap, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 		}, false},
@@ -179,8 +175,10 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 						t.Errorf("the PASS refusal does not name %q: %v", bl.Subject, passErr)
 					}
 				}
-				if every := kindOf(c.kind).every; (failErr != nil) != every {
-					t.Errorf("FAIL refused = %v (%v), want refused exactly when the kind holds every verdict (%v)", failErr != nil, failErr, every)
+				// NO KIND HOLDS A FAIL: another seat clears each of these, so the convergence rule does
+				// not stand and the FAIL is the chair's to record.
+				if failErr != nil {
+					t.Errorf("FAIL refused over %s: %v — no blocker kind holds a FAIL", c.kind, failErr)
 				}
 				// THE REFUSAL IS A CONFLICT WITH THE BOARD, by its code: a caller reading the envelope
 				// tells a blocked verdict from a tool failure without reading the sentence.

@@ -134,8 +134,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			// rules it, so docketing a gap that is not material would create the block the gap
 			// itself does not — the one the chair's by-class listing exists to avoid. The verb is
 			// not refused (a party may still docket such a gap); the list just does not offer it.
-			// A stranded gap is held as material, so the offer stays on it.
-			if !g.Open || pending[g.ID] || !(g.Material || g.Stranded) {
+			if !g.Open || pending[g.ID] || !g.Material {
 				continue
 			}
 			// ONE ROW PER GAP, BETTER WORDS WHEN THE BOARD KNOWS MORE (#759).

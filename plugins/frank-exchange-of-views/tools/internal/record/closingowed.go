@@ -124,6 +124,13 @@ func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
 			closings = append(closings, filing{seat: e.GetSeatId(), gap: b.GetGapId(), at: ids[i]})
 		}
 	}
+	// A SUPERSESSION IS THE LENS'S CLOSING ACT TOO: the successor's mint closed the gap where no
+	// close came first.
+	for g, i := range supersessionsOf(evs) {
+		if at, seen := closedAt[g]; !seen || ids[i] < at {
+			closedAt[g] = ids[i]
+		}
+	}
 	_, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
 	var out []ClosingDuty

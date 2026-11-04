@@ -44,8 +44,10 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		m.Location = proto.String("the sky is teal at noon")
 		m.FixNew = proto.String("the sky is blue at noon")
 	})
+	// G2's mint supersedes G0, which closes in that act.
+	mint("G0", recordpb.CheckKind_CHECK_KIND_DOCUMENT, nil)
 	mint("G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, func(m *recordpb.Mint) {
-		m.Supersedes = []string{"G1"}
+		m.Supersedes = []string{"G0"}
 	})
 	mint("G3", recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil)
 
@@ -125,9 +127,13 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Error("a motion proposing the mint's grade on an axis no regrade touched was not refused")
 	}
 
-	// The stranded-ancestor join: G1 is superseded by G2 and still open.
-	if err := passRefusalOver(t, run, BlockerStrandedGap); err == nil || !strings.Contains(err.Error(), "G1 (superseded by G2)") {
-		t.Errorf("the stranded refusal = %v, want the stranded pair named", err)
+	// The supersession join: G2's mint names G0, which closed in that act, and an act on G0 is refused
+	// naming G2. G1, which no mint names, is open and refused nothing.
+	if err := requireNotSuperseded(recordOf(t, run), "G0", "--id"); err == nil || !strings.Contains(err.Error(), "G0, which closed when G2 was minted superseding it") {
+		t.Errorf("the superseded refusal = %v, want G0's successor G2 named", err)
+	}
+	if err := requireNotSuperseded(recordOf(t, run), "G1", "--id"); err != nil {
+		t.Errorf("the superseded refusal on G1, which nothing superseded = %v", err)
 	}
 
 	// requireInquiry: the proposed inquiry resolves, an unknown one is refused.
@@ -201,8 +207,8 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if closed, err := gapState(recordOf(t, run), "G1"); closed || err != nil {
 		t.Errorf("gapState = (%v, %v)", closed, err)
 	}
-	if err := passRefusalOver(t, run, BlockerStrandedGap); err != nil {
-		t.Errorf("the stranded refusal = %v", err)
+	if err := requireNotSuperseded(recordOf(t, run), "G1", "--id"); err != nil {
+		t.Errorf("the superseded refusal = %v", err)
 	}
 	if got := awaitingComputationT(t, run); got != nil {
 		t.Errorf("the work list's awaiting-computation gaps = %v", got)

@@ -385,9 +385,14 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	if g2 := byID["G2"]; !g2.Open {
 		t.Error("a carried ruling closed G2 — the vocabulary's own facet says it must not")
 	}
-	// G1 (computation, unproved) and G2 (carried) stay open; G3 closed by both arms.
-	if bj.Counts.Open != 2 || bj.Counts.Closed != 1 || bj.Counts.ClosedByBench != 0 {
-		t.Errorf("counts = %+v", bj.Counts)
+	// G1 closed when G2 was minted superseding it: no closing body, and the successor named.
+	if g1 := byID["G1"]; g1.Open || g1.SupersededBy != "G2" || g1.Closure != nil || g1.ClosedEpoch != 1 {
+		t.Errorf("G1 = open=%v superseded_by=%q closure=%v epoch=%d, want closed in epoch 1 by G2's mint, with no closing body",
+			g1.Open, g1.SupersededBy, g1.Closure, g1.ClosedEpoch)
+	}
+	// G2 (carried) stays open; G1 closed by its successor's mint, G3 by both arms.
+	if bj.Counts.Open != 1 || bj.Counts.Closed != 2 || bj.Counts.ClosedByBench != 0 {
+		t.Errorf("counts = %+v, anomalies %v", bj.Counts, bj.Anomalies)
 	}
 	if bj.Counts.Citations != 1 || bj.Counts.CitationsAuthored != 1 {
 		t.Errorf("citation split = %d/%d, want 1/1", bj.Counts.Citations, bj.Counts.CitationsAuthored)
@@ -423,12 +428,12 @@ func TestAClosingActTheReadDidNotLoadIsLoud(t *testing.T) {
 		{"the red close", absent, sql.NullInt64{}, "names event 4242 as its close_event"},
 		{"the bench's ruling", sql.NullInt64{}, absent, "names event 4242 as its bench_close_event"},
 	} {
-		got, err := closeStateOf("G1", c.close, c.bench, c.bench.Valid, c.bench.Valid, map[int64]*Event{}, WindowIndex{})
+		got, err := closeStateOf("G1", gapClosure{closeEvent: c.close, benchEvent: c.bench, closedByBench: c.bench.Valid, benchClosedLast: c.bench.Valid}, map[int64]*Event{}, WindowIndex{})
 		if got != nil || err == nil || !strings.Contains(err.Error(), "gap G1") || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s the read did not load: closeStateOf = (%v, %v), want an error naming gap G1 and %q", c.name, got, err, c.want)
 		}
 	}
-	if got, err := closeStateOf("G1", sql.NullInt64{}, sql.NullInt64{}, false, false, nil, WindowIndex{}); got != nil || err != nil {
+	if got, err := closeStateOf("G1", gapClosure{}, nil, WindowIndex{}); got != nil || err != nil {
 		t.Errorf("a gap no act closes: closeStateOf = (%v, %v), want (nil, nil)", got, err)
 	}
 

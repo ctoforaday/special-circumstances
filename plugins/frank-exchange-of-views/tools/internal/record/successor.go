@@ -93,8 +93,7 @@ func owedSuccessorsOf(evs []*Event, win WindowIndex, s BlueSitting, open func(st
 	engaged := blueEngagedThisEpoch(evs, win)
 	seen := map[string]bool{}
 	for _, c := range s.FoundClosed {
-		cl, _ := recordpb.BodyAs[*recordpb.Close](c)
-		g := cl.GetGapId()
+		g := c.GapID
 		for _, sg := range succ[g] {
 			if seen[sg] || engaged[sg] || !open(sg) {
 				continue
@@ -202,9 +201,12 @@ func requireEngage(q recordsql.Querier, writer string, b *recordpb.Dispatch) err
 		}
 		seen[g] = true
 	}
+	// Off under Migrating: an archived blue engaged the successors its sitting owed under the rule of
+	// its day, when a mint superseding a gap left the gap open and blue found it closed only at its
+	// lens's close.
 	var missing []string
 	for _, o := range owed {
-		if !seen[o.GapID] {
+		if !seen[o.GapID] && !Migrating {
 			missing = append(missing, fmt.Sprintf("%s (successor of %s)", o.GapID, o.Of))
 		}
 	}

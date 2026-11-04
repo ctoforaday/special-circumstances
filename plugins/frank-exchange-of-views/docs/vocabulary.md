@@ -58,6 +58,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [reopened](#reopened) | lens, chair, blue, lane, operator |
 | [unchecked](#unchecked) | lens, chair, blue, lane, operator |
 | [failed check](#failed-check) | lens, chair, blue, lane, bench, operator |
+| [superseded](#superseded) | lens, chair, blue, bench, operator |
 
 ## the report
 
@@ -629,3 +630,22 @@ A citation or computation is unchecked when no check of the sentence the report 
 A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
+
+## superseded
+
+A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor, so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.
+
+**Delivered to:** lens, chair, blue, bench, operator
+
+**Not:**
+
+| variant | kind | pattern | masks | allowed in |
+|---|---|---|---|---|
+| stranded gap | GATED | `stranded (superseded )?(gaps?\|ancestors?)` |  |  |
+
+**Collisions:**
+
+- **superseded (a closed gap)** — a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, so only the mint that names the gap while it is open supersedes it
+- **`--superseded-by` (close)** — names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed
+- **superseded_by (retire)** — a retired claim's replacement in the report; not a gap
+- **superseded (an inquiry's record or a bench statement)** — a later record of the same thing standing in its place; not a gap's fate

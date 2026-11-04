@@ -221,8 +221,9 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	bundleOf := map[string]string{}              // archived script sha -> the bundle_sha its computation was written with
 	standing := map[string]*recordpb.Reproduce{} // bundle_sha -> the latest reproduce written that ran it
 	res.reruns = map[string][]string{}
-	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
-	classMints := map[string]int{}        // archived class slug an authored row translates -> the mints written with it
+	proposalMethod := map[string]string{}  // inquiry id -> the method its proposal carried (before epoch 30)
+	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
+	classMints := map[string]int{}         // archived class slug an authored row translates -> the mints written with it
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -333,6 +334,20 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if drop, err := refusedArgument(batch.Querier(), body, seatID); err != nil {
 				return nil, err
 			} else if drop {
+				continue
+			}
+			if drop, err := actOnSupersededGap(batch.Querier(), body, supersededMotions); err != nil {
+				return nil, err
+			} else if drop {
+				// A PIN THAT NAMED THE ACT LEFT OUT names the record as it stood before it: the last
+				// event written, which is what a read at that act saw less the act.
+				if _, seen := newID[old.ID]; !seen {
+					var last int64
+					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
+					}
+					newID[old.ID] = last
+				}
 				continue
 			}
 			if b, ok := body.(*recordpb.ReportPart); ok {
@@ -690,6 +705,42 @@ func contradictionRef(ref string, newID map[int64]int64) (string, error) {
 // refusedArgument reports whether body is a closing or a position the write path refuses from
 // seatID at this place (record.ClosingRefusal, record.PositionRefusal) — one replay writes as no
 // event. A read that fails is returned, never taken for a refusal.
+// actOnSupersededGap reports whether body is an act on a gap a successor's mint closed by superseding
+// it, which the write refuses (EventSchema 59): a close, a regrade, a docket or grade motion on it, and
+// the ruling of a motion so left out. An archive's lens superseded an open gap and went on acting on
+// it — closing it repaired, regrading it, docketing it — under the rule of its day, when superseding
+// closed nothing. Since the ruling of gblock 2026-11-04 the successor's mint closes the ancestor and
+// holds its purpose, so the migrated record holds the ancestor closed there and each such act is left
+// out — the residue, stated with the change, that run-archive/ holds byte for byte. A closing on a
+// motion left out is refusedArgument's, since no docket stands for it. motions collects the ids of
+// the motions left out, for their rulings.
+func actOnSupersededGap(q recordsql.Querier, body proto.Message, motions map[string]bool) (bool, error) {
+	var gap string
+	switch b := body.(type) {
+	case *recordpb.Close:
+		gap = b.GetGapId()
+	case *recordpb.Regrade:
+		gap = b.GetGapId()
+	case *recordpb.Motion:
+		gap = b.GetDocket().GetGapId() + b.GetGrade().GetGapId()
+	case *recordpb.MotionRule:
+		return motions[b.GetMotionId()], nil
+	default:
+		return false, nil
+	}
+	if gap == "" {
+		return false, nil
+	}
+	superseded, err := record.SupersededGap(q, gap)
+	if err != nil || !superseded {
+		return false, err
+	}
+	if m, ok := body.(*recordpb.Motion); ok {
+		motions[m.GetMotionId()] = true
+	}
+	return true, nil
+}
+
 func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bool, error) {
 	var err error
 	switch b := body.(type) {

@@ -173,10 +173,10 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 // (failedChecksOf): the gap is the failure's carrier to blue, and a closure — repaired, accepted, not
 // a defect — while the record still holds the anchor unread or unsound would say the defect left the
 // report when it did not. b6's G3 closed repaired over two dead anchors the report still cited. A
-// close that hands the defect to a live successor (`--superseded-by`) moves it rather than ending it,
-// and is admitted. Replay exempts it: an archived close is what a seat DID.
+// successor minted superseding the gap moves the defect rather than ending it, and closes the gap in
+// that act (supersession.go). Replay exempts it: an archived close is what a seat DID.
 func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
-	if Migrating || b.Successor != nil || b.CarriedFrom != nil {
+	if Migrating || b.CarriedFrom != nil {
 		return nil
 	}
 	evs, win, err := eventsAt(q)
@@ -191,12 +191,12 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 			if f.computation {
 				return feov.Errorf(feov.Conflict,
 					"gap %s carries computation %s, which %s's judgement at event %d still calls unsound, and the report still carries it — the defect has not left the report, so the gap does not close. Nothing is recorded. "+
-						"It closes once the computation is judged sound again, blue edits its sentence (the computation is then owed a fresh judgement) or blue retires it; a close that hands the defect on names its successor with `--superseded-by`",
+						"It closes once the computation is judged sound again, blue edits its sentence (the computation is then owed a fresh judgement) or blue retires it; a gap that carries the defect on is minted with --supersedes naming this one, which closes it",
 					g, f.anchor, f.owner, f.since)
 			}
 			return feov.Errorf(feov.Conflict,
 				"gap %s carries citation %s, whose source no check since its sentence last changed has read (%s's check at event %d read nothing), and the report still cites it — the defect has not left the report, so the gap does not close. Nothing is recorded. "+
-					"It closes once blue retires the citation (its sentence may stay), blue edits its sentence (the citation is then owed a fresh check) or a lens reads its source; a close that hands the defect on names its successor with `--superseded-by`",
+					"It closes once blue retires the citation (its sentence may stay), blue edits its sentence (the citation is then owed a fresh check) or a lens reads its source; a gap that carries the defect on is minted with --supersedes naming this one, which closes it",
 				g, f.anchor, f.owner, f.since)
 		}
 	}

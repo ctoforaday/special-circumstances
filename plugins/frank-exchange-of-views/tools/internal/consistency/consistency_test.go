@@ -219,7 +219,8 @@ func TestSupersedesChainWithAmendsPrior(t *testing.T) {
 		chairSits(t, 1),
 		mint(t, "red-chair", "G1"),
 		chairSits(t, 2),
-		mint(t, "red-chair", "G2", "G1"),
+		// G2 holds the regression G1's repair caused, and supersedes nothing.
+		mint(t, "red-chair", "G2"),
 		recordtest.At(t, "red-chair", "red-chair:close:G1", &recordpb.Close{
 			GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
 			Successor:  proto.String("G2"),
@@ -227,8 +228,8 @@ func TestSupersedesChainWithAmendsPrior(t *testing.T) {
 			Prose: proto.String("repaired here; the regression carries forward"),
 		}),
 		chairSits(t, 3),
+		// G3 names the closed G1 as lineage and supersedes the open G2, which its mint closes.
 		mint(t, "red-chair", "G3", "G1", "G2"),
-		redClose(t, "red-chair", "G2", recordpb.Disposition_DISPOSITION_REPAIRED),
 		recordtest.At(t, "red-chair", "red-chair:close:G3", &recordpb.Close{
 			GapId: proto.String("G3"), ClosureClass: recordpb.Disposition_DISPOSITION_AMENDS_PRIOR.Enum(),
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./..."),

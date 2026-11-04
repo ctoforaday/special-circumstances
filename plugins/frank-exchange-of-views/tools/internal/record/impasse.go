@@ -56,9 +56,6 @@ type GapExchanges struct {
 	// that turn is read from: its last act or sitting on the gap, the mint, the latest remand ruling.
 	lensTurn bool
 	lensRead int64
-	// strandedDue: a successor names the gap and no sitting of its minting lens engaged on it has
-	// opened since. What it owes there is the close the supersession promised, whatever blue did.
-	strandedDue bool
 	// answeredRemand: blue has acted on the gap since the latest remand ruling on it (gapActsOf).
 	answeredRemand bool
 	// lensFirst: the gap is at its limits, or the audit the lens now owes would bring it there, and the
@@ -183,14 +180,13 @@ func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when Read
 //
 // ONE AUDIT PAST THE LIMIT, then the docket. Blue can still move the sentence under another gap's
 // name, which gives the lens its turn every epoch (lensTurnOn), so a deferral resting on the turn
-// alone would never file: the round its audit ended is what spends the preference (auditSpent). A
-// stranded gap at its limits has the same one sitting, for its close.
+// alone would never file: the round its audit ended is what spends the preference (auditSpent).
 func lensGoesFirst(x *GapExchanges, p Params) bool {
 	switch {
 	case auditSpent(x, p):
 		return false
 	case x.Impasse:
-		return x.lensTurn || x.strandedDue
+		return x.lensTurn
 	case !x.lensTurn:
 		return false
 	}
@@ -258,12 +254,10 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 // and the round stays open until the lens's sitting ends it, or leaves nothing: the lens's turn does
 // not come, and the round ends with blue's sitting, so a gap blue never answers stalls exchange by
 // exchange. A minter that is no lens has no re-audit to wait on, and blue's sitting ends its round. A
-// lens sitting with no turn come, which only a stranded gap's lens or an archived dispatch has, ends
-// nothing.
+// lens sitting with no turn come, which only an archived dispatch has, ends nothing.
 func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
 	minted := map[string]string{}     // gap -> the lens that minted it
 	mintedAt := map[string]int64{}    // gap -> the place of its mint
-	namedAt := map[string]int64{}     // gap -> the place of the first mint superseding it
 	grades := map[string][3]string{}  // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{}  // gap -> ids of movement events
 	anchored := map[string][]string{} // inquiry -> the gaps minted about it
@@ -285,9 +279,6 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			}
 			for _, s := range b.GetSupersedes() {
 				movement[s] = append(movement[s], id)
-				if _, seen := namedAt[s]; !seen {
-					namedAt[s] = id
-				}
 			}
 		case *recordpb.Regrade:
 			g := b.GetGapId()
@@ -396,9 +387,6 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 		x.lensTurn = audits && lensTurnOn(turns[g], lens, mintedAt[g], floor, math.MaxInt64)
 		x.answeredRemand = blueActed(acts[g], floor, math.MaxInt64)
 		x.pending = exchangeRound{start: start, end: math.MaxInt64 - 1, moved: movedIn(start, math.MaxInt64), acted: blueActed(acts[g], start, math.MaxInt64), audited: true}
-		if at, named := namedAt[g]; named && audits {
-			x.strandedDue = !slices.ContainsFunc(sittings[g], func(s partySitting) bool { return s.red && !s.open && s.start > at })
-		}
 	}
 	return out
 }

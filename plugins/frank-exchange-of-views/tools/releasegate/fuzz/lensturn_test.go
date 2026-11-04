@@ -35,9 +35,9 @@ type gapActs map[string][]struct {
 	at   int
 }
 
-// actsOnGaps reads every act on a gap off evs, and each gap's mint position and stranded state.
-func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int, superseded map[string]bool) {
-	acts, minted, superseded = gapActs{}, map[string]int{}, map[string]bool{}
+// actsOnGaps reads every act on a gap off evs, and each gap's mint position.
+func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int) {
+	acts, minted = gapActs{}, map[string]int{}
 	computationGap := map[string]string{} // computation id → the gap it answers
 	anchored := map[string][]string{}     // inquiry id → the gaps minted about it
 	add := func(seat string, at int, gaps ...string) {
@@ -55,9 +55,6 @@ func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int, super
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
 			if _, seen := minted[m.GetGapId()]; !seen {
 				minted[m.GetGapId()] = i
-			}
-			for _, s := range m.GetSupersedes() {
-				superseded[s] = true
 			}
 			if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {
 				anchored[m.GetAboutRef()] = append(anchored[m.GetAboutRef()], m.GetGapId())
@@ -96,7 +93,7 @@ func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int, super
 			add(seat, i, b.GetDocket().GetGapId(), b.GetGrade().GetGapId())
 		}
 	}
-	return acts, minted, superseded
+	return acts, minted
 }
 
 // turnsOnGaps is acts with what else ends or begins a lens's turn: blue's edit of a sentence a gap is
@@ -196,7 +193,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		r.noteActErr("lens-turn oracle: the record could not be read after the chair's dispatch")
 		return
 	}
-	acts, minted, superseded := actsOnGaps(b.Events)
+	acts, minted := actsOnGaps(b.Events)
 	turnActs, sittings := turnsOnGaps(b.Events, b.At, acts)
 	remanded := remandRulings(b.Events)
 	minter := map[string]string{}
@@ -265,12 +262,12 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 			alone++
 		}
 		for seat := range seats {
-			if seatclass.RoleOfSeat(seat) == "lens" && !superseded[gap] && !turnCame(seat, gap) {
+			if seatclass.RoleOfSeat(seat) == "lens" && !turnCame(seat, gap) {
 				r.noteActErr(fmt.Sprintf("lens-turn oracle: the plan engages %s on %s, and blue has recorded no act on %s since %s's last act there — the lens would audit an answer that does not exist yet", seat, gap, gap, seat))
 				return
 			}
 		}
-		if !seats["blue-respond"] || lens == "" || superseded[gap] {
+		if !seats["blue-respond"] || lens == "" {
 			continue
 		}
 		switch came := turnCame(lens, gap); {
@@ -299,7 +296,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		}
 		gap := m.GetDocket().GetGapId()
 		lens := minter[gap]
-		if seatclass.RoleOfSeat(lens) != "lens" || superseded[gap] {
+		if seatclass.RoleOfSeat(lens) != "lens" {
 			continue
 		}
 		floor, sat := max(minted[gap], remanded[gap]), false

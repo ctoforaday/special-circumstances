@@ -82,9 +82,10 @@ func (o ManifestOwing) NotMeasured() string {
 type BlueSitting struct {
 	Engaged []string // the gaps the dispatch named
 	Open    []string // of those, the ones no close preceded blue's register — what the sitting owed an answer on
-	// FoundClosed is the rest of Engaged, in its order: for each gap a close preceded blue's register
-	// on, that close — the latest one, whose seat and class are what blue found when it sat.
-	FoundClosed []*Event
+	// FoundClosed is the rest of Engaged, in its order: for each gap a closing act of its lens's
+	// preceded blue's register on, that act — the latest close, whose seat and class are what blue
+	// found when it sat, or the mint that closed it by superseding it.
+	FoundClosed []FoundClosure
 	Acts        []*Event // blue-respond's standing events in the sitting, its register first, then any repair of it
 	// Unresolved is a sitting the record cannot close while the run is running: neither blue's next
 	// register nor its agent's stop is on the record since it began. Acts then runs to the end of the
@@ -145,19 +146,42 @@ func BlueSittings(evs []*Event, win WindowIndex, when ReadWhen) []BlueSitting {
 func engagementOf(evs []*Event, d dispatchRow, end int64) BlueSitting {
 	s := BlueSitting{Engaged: d.gaps}
 	closedFirst := map[string]*Event{}
-	for _, e := range evs[d.at+1 : end] {
-		if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok {
-			closedFirst[c.GetGapId()] = e
+	superseded := supersessionsOf(evs[:end])
+	for i, e := range evs[d.at+1 : end] {
+		switch b := mustBody(e).(type) {
+		case *recordpb.Close:
+			closedFirst[b.GetGapId()] = e
+		case *recordpb.Mint:
+			for _, anc := range b.GetSupersedes() {
+				if superseded[anc] == int(d.at)+1+i {
+					closedFirst[anc] = e
+				}
+			}
 		}
 	}
 	for _, g := range d.gaps {
 		if c := closedFirst[g]; c != nil {
-			s.FoundClosed = append(s.FoundClosed, c)
+			s.FoundClosed = append(s.FoundClosed, FoundClosure{GapID: g, Act: c})
 		} else {
 			s.Open = append(s.Open, g)
 		}
 	}
 	return s
+}
+
+// FoundClosure is one engaged gap blue found closed, and the lens's act that closed it: a close, or
+// the successor's mint that superseded it.
+type FoundClosure struct {
+	GapID string
+	Act   *Event
+}
+
+// Fate is the word the act closed the gap with: the close's class, or the supersession's.
+func (f FoundClosure) Fate() string {
+	if c, ok := recordpb.BodyAs[*recordpb.Close](f.Act); ok {
+		return recordpb.Word(c.GetClosureClass())
+	}
+	return ClosedSuperseded
 }
 
 // laterBlueDispatchBefore reports whether a later row naming blue-respond precedes its register.

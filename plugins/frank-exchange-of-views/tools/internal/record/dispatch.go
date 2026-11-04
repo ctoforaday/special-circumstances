@@ -191,9 +191,6 @@ type openGap struct {
 	// direction is the gap view's `docket_direction`: the research direction the latest remand
 	// states, which the plan's reason quotes when the remand's exchange is owed.
 	direction string
-	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
-	// is still open — the gap view's `stranded`. The PASS gate refuses a verdict over one.
-	supersededBy string
 	// inquiry is the inquiry the gap is about, "" for a gap about anything else (inquiryAbout).
 	inquiry string
 }
@@ -331,7 +328,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// debate readies the parties the route engages on a gap (partiesOnRoute): the lens sits before blue
 	// in an epoch, so readied sooner it audits an answer that does not exist yet. It reports which.
 	debate := func(g openGap, route gapRoute, x *GapExchanges) (lens, blue bool) {
-		lens, blue = partiesOnRoute(route, g.supersededBy != "", x)
+		lens, blue = partiesOnRoute(route, x)
 		if lens && g.mintedBy != "" {
 			engage(g.mintedBy, g.id)
 		}
@@ -390,22 +387,12 @@ func foldPlan(params Params, r planReads) Plan {
 		movedBlocker[b.Subject] = b
 	}
 	for _, g := range gaps {
-		// A STRANDED GAP IS READY WORK WHATEVER ITS CLASS OR GRADE. Superseding is a promise to
-		// replace, and the PASS gate refuses a verdict while the ancestor is open (refs.go) — so a
-		// non-material ancestor nobody is dispatched to close would leave the plan saying "pass
-		// permitted" and the gate saying no, forever, and the run ends UNVERIFIED with nobody ready.
-		// Found by the release sweep. Held as material here: its minter and blue are engaged, its
-		// exchanges count, and at impasse it reaches the bench like any other.
-		stranded := g.supersededBy != ""
 		x := exch[g.id]
 		if x == nil {
 			x = &GapExchanges{GapID: g.id}
 		}
 		// THE ROUTE IS routeOf, the one predicate the work lists read too.
-		route := routeOf(g.material, stranded, g.unruledFiled > 0, moved.docketed(g.id), x)
-		if stranded && route != routeBench {
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and superseded by %s — held as material until its minter closes it", g.id, g.supersededBy))
-		}
+		route := routeOf(g.material, g.unruledFiled > 0, moved.docketed(g.id), x)
 		switch route {
 		case routeBench:
 			// A DOCKET MOTION IS THE ESCALATION ROUTE, and it readies the bench whether the gap is at
@@ -482,7 +469,7 @@ func foldPlan(params Params, r planReads) Plan {
 			case lens:
 				ready = "blue has acted, and its minting lens is ready to audit that answer, which ends the one more exchange the remand grants"
 			}
-			if !g.material && !stranded {
+			if !g.material {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s), and remanded by the bench, whose remand outranks materiality — %s, "+RemandDirectionPrefix+"%s",
 					g.id, notMaterialBecause(g.classMaterial, g.severity), ready, g.direction))
 				continue
@@ -1439,7 +1426,7 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 }
 
 // openGaps reads the open gaps with what the plan needs of each: who minted it, its current
-// severity, whether it is stranded, its docket and its remand's direction — all off the gap view, the
+// severity, its docket and its remand's direction — all off the gap view, the
 // same fold every reader uses (how many remands count is the exchange fold's, exchangesOf). "A docket stands unruled" is the view's `unruled_docket_filed` (recordsql/views.go),
 // the one definition the view's own `remanded` is derived from; the PASS gate (motionsAt) asks
 // the same per-motion question of the events, and
@@ -1448,7 +1435,6 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 func openGaps(db recordsql.Querier) ([]openGap, error) {
 	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
 	    g."material", COALESCE(g."class_material", ''),
-	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    COALESCE(g."unruled_docket_filed", 0),
 	    COALESCE(g."unruled_docket_motion", ''),
 	    COALESCE(g."docket_direction", ''),
@@ -1462,7 +1448,7 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	for rows.Next() {
 		var g openGap
 		var aboutKind, aboutRef string
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.unruledFiled, &g.unruledMotion,
+		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.unruledFiled, &g.unruledMotion,
 			&g.direction, &aboutKind, &aboutRef); err != nil {
 			return nil, err
 		}

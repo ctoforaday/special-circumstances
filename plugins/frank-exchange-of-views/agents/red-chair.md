@@ -67,6 +67,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
   - A citation or computation is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.
   - A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.
+  - A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor, so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.
 
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
@@ -167,6 +168,8 @@ It makes no fresh claim, so it needs no verification triple — you are RESTATIN
 
 Closing on verification done THIS sitting is the originating lens's `close`, not this verb. Closing a gap again after a carry restated it double-counts the closure history.
 
+A gap a successor superseded closed at the successor's mint, and the record holds no close of it to restate: a carry of it is refused, naming the successor.
+
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{gap_id,class,carried},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
@@ -180,7 +183,7 @@ Flags:
       --carried-from string    REQUIRED — the epoch (chair sitting) whose closure this restates
       --id gap-id              REQUIRED — the gap id
       --reason string          your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. → SHARED §4
-      --superseded-by gap-id   the gap id carrying the unresolved remainder forward
+      --superseded-by gap-id   the gap id carrying the regression forward; only with --as repaired_with_regression
 
 Enumerated values:
   --as
@@ -294,6 +297,8 @@ file a docket motion — the tool assigns its id.
 It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.
 
 ON A GAP THE BENCH HAS RULED CLOSED IT IS A RECONSIDERATION, ADMITTED ON NEW GROUNDS ONLY: give --grounds or --quote, and the tool checks that what they locate was recorded after that ruling and is about this gap, refusing the filing and saying which failed. The gap's row in your work list's `estopped` states the ruling — what it settled, and what would reopen it or that it is final; a final ruling still admits new grounds. A gap the bench remanded is back in the debate and needs none.
+
+A GAP A SUCCESSOR SUPERSEDED IS NOT DOCKETED: the successor's mint closed it and holds its purpose, and the filing is refused, naming the successor — docket the successor.
 
 A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats sit while you do, so a gap can be closed, regraded, remanded, answered by blue, or argued in another seat's finding after you read it. The refusal records none of the act and lists each change on its own line, with its event number and the seat that made it. Read the gap as it now stands; if the act still holds, record it again — the refusal moved your reading of that gap past what it showed, so the same act is not refused for those changes twice. Only other seats' acts count: your own never refuse you.
 
@@ -420,7 +425,7 @@ THE BOARD — open and closed gaps with grades, closures, anchors, observations 
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 
-OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_computation,fix_basis,fix_old,fix_new,minted_by,found_by:[string],supersedes:[string],material,remanded,docket_direction,closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_computation,fix_basis,fix_old,fix_new,minted_by,found_by:[string],supersedes:[string],material,remanded,docket_direction,closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,area,seat_id,key,kind,text,minted}],counts:{open,closed,closed_by_bench,unminted_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
+OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_computation,fix_basis,fix_old,fix_new,minted_by,found_by:[string],supersedes:[string],superseded_by,material,remanded,docket_direction,closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_computation,fix_basis,fix_old,fix_new,minted_by,found_by:[string],supersedes:[string],superseded_by,material,remanded,docket_direction,closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,area,seat_id,key,kind,text,minted}],counts:{open,closed,closed_by_bench,unminted_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -574,9 +579,9 @@ the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 It prints the plan as `dispatch next` prints it, asked of the record this verdict leaves and stored: the plan carries the verdict, and it is the plan the tool writes into your envelope — the workflow reads the verdict off it and nowhere else. After it, the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still holds it — a superseded gap still open (this holds a FAIL too), an open material gap (material by its class, else graded medium or above), a gap that is not material, remanded by the bench, whose one more exchange has not been had, a contradicting source no gap answers, a citation or computation with no check of the sentence the report carries, a citation whose source no check could read, or a computation a lens's standing judgement calls unsound, no ingested report, a ready lens, a stale area no spot-check this sitting names, grade movement the bench has not ruled on past its threshold in total, a docketed gap's closing argument a party has not filed, an unruled motion, an audit the bench named in upholding the chair's position, not yet had, an inquiry still proposed or underway, with no fate that settles it, a settled inquiry with no check of its latest fate. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+A PASS is REFUSED while anything still holds it — an open material gap (material by its class, else graded medium or above), a gap that is not material, remanded by the bench, whose one more exchange has not been had, a contradicting source no gap answers, a citation or computation with no check of the sentence the report carries, a citation whose source no check could read, or a computation a lens's standing judgement calls unsound, no ingested report, a ready lens, a stale area no spot-check this sitting names, grade movement the bench has not ruled on past its threshold in total, a docketed gap's closing argument a party has not filed, an unruled motion, an audit the bench named in upholding the chair's position, not yet had, an inquiry still proposed or underway, with no fate that settles it, a settled inquiry with no check of its latest fate. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
-A FAIL is for a board that, as it stands, still stops you. It is refused while a superseded gap is still open, and over a converged board — nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak — where nothing another seat must clear holds the PASS: there, PASS, or record no verdict.
+A FAIL is for a board that, as it stands, still stops you. It is refused over a converged board — nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak — where nothing another seat must clear holds the PASS: there, PASS, or record no verdict.
 
 (OUTPUT (JSON, with --json — the …) → SHARED §5
 

@@ -115,7 +115,7 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 		}
 	}
 	// EVERY ACT THAT MOVES A GAP ABOUT IT IS A CAUSE: the mint that made it wanting, and the regrade,
-	// close or docket ruling that may have ended that. A cause the owner has sat through since readies
+	// close, superseding mint or docket ruling that may have ended that. A cause the owner has sat through since readies
 	// it no more (dispatch's Source 4).
 	about := map[string]int{}
 	moved := func(gap string, at int64) {
@@ -130,6 +130,9 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 		}
 		switch t := body.(type) {
 		case *recordpb.Mint:
+			for _, anc := range t.GetSupersedes() {
+				moved(anc, ids[k])
+			}
 			if t.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY {
 				continue
 			}
