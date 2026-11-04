@@ -63,32 +63,32 @@ func TestMintAcceptsProcessWordsInMintReason(t *testing.T) {
 	}
 }
 
-// Migration re-drives an archived mint through this write path, and an archived mint is what a seat
+// The replay writes an archived mint without the act judgements, and an archived mint is what a seat
 // DID: its process words are kept, not refused.
-func TestMigratingReplaySkipsVoiceRefusal(t *testing.T) {
+func TestTheReplayKeepsAVoicedMint(t *testing.T) {
 	run, lens := liveRun(t)
-	Migrating = true
-	defer func() { Migrating = false }()
 	m := liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_MEDIUM)
 	m.Problem = proto.String("blue-synthesize merged a claim from blue-lane-2 unsourced.")
 	m.RequiredFix = proto.String("Source it [minority: lane-2/primary-literature].")
-	appendOK(t, lens, m)
+	if _, err := replayed(t, lens, m); err != nil {
+		t.Fatal(err)
+	}
 	if got := familyGaps(t, run)["G1"].Mint.GetProblem(); !strings.Contains(got, "blue-synthesize") {
 		t.Errorf("the migrated problem was not kept as archived: %q", got)
 	}
 }
 
-// A --new prescription becomes the report's text when blue accepts it, so migration replays one that
-// carries a refused tell as archived — the same exemption the problem and the fix have.
-func TestMigratingReplayKeepsAVoicedFixNew(t *testing.T) {
+// A --new prescription becomes the report's text when blue accepts it, so the replay writes one that
+// carries a refused tell as archived — as it does the problem and the fix.
+func TestTheReplayKeepsAVoicedFixNew(t *testing.T) {
 	run, lens := liveRun(t)
-	Migrating = true
-	defer func() { Migrating = false }()
 	m := liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_MEDIUM)
 	m.Problem = proto.String("The error bound is stated without its derivation.")
 	m.Location = proto.String("The bound holds.")
 	m.FixNew = proto.String("The bound holds, as blue-respond conceded.")
-	appendOK(t, lens, m)
+	if _, err := replayed(t, lens, m); err != nil {
+		t.Fatal(err)
+	}
 	if got := familyGaps(t, run)["G1"].Mint.GetFixNew(); !strings.Contains(got, "blue-respond") {
 		t.Errorf("the migrated prescription was not kept as archived: %q", got)
 	}

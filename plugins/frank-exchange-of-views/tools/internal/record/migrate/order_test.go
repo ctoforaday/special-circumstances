@@ -302,7 +302,7 @@ func TestAFailedTrialBatchFailsTheMigration(t *testing.T) {
 		return nil
 	}
 	m, err := migrate.Migrate(from, to, migrate.Entries(), migrate.Options{})
-	if !errors.Is(err, record.ErrBatchFailed) {
+	if !errors.Is(err, record.ErrReplayFailed) {
 		t.Fatalf("a migration whose trial batch failed answered %v (manifest %+v); want the batch's failure", err, m)
 	}
 	if m != nil {

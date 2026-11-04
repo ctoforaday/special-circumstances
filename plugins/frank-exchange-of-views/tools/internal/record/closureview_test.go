@@ -147,9 +147,9 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 		// that close now, and an archived record holds it.
 		{"f: an archived lens closed a gap a docket motion stands on, and the bench rules the motion after", func(s *closureStage) {
 			m := s.docketed()
-			Migrating = true
-			defer func() { Migrating = false }()
-			s.close(repaired, "red's close")
+			if _, err := replayed(s.t, s.lens, closureOf(repaired, "red's close")); err != nil {
+				s.t.Fatal(err)
+			}
 			s.rule(m, repaired)
 		}, closureWant{epoch: 1, fate: "repaired", bodyClass: "repaired", benchDispo: "repaired",
 			closureProse: "red's close", estopped: true}},

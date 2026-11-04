@@ -129,10 +129,8 @@ func answersOwnFailedCheck(evs []*Event, win WindowIndex, seatID string, kind re
 // one of the same sentence would owe a second gap for the defect the open one holds — the release-gate
 // fuzz minted ~490 such gaps per 40 runs. A check that holds is never refused here: it clears the
 // blocker. Another lens's check is its own.
-//
-// Replay exempts it: an archived check is what a seat DID, recorded before this refusal existed.
 func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fails bool) error {
-	if Migrating || !fails {
+	if !fails {
 		return nil
 	}
 	evs, win, err := eventsAt(q)
@@ -174,9 +172,9 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 // a defect — while the record still holds the anchor unread or unsound would say the defect left the
 // report when it did not. b6's G3 closed repaired over two dead anchors the report still cited. A
 // close that hands the defect to a live successor (`--superseded-by`) moves it rather than ending it,
-// and is admitted. Replay exempts it: an archived close is what a seat DID.
+// and is admitted.
 func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
-	if Migrating || b.Successor != nil || b.CarriedFrom != nil {
+	if b.Successor != nil || b.CarriedFrom != nil {
 		return nil
 	}
 	evs, win, err := eventsAt(q)

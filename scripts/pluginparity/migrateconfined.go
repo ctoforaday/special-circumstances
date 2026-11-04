@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -27,15 +28,11 @@ const (
 	recordPkg     = "internal/record"
 )
 
-// recordVarWriters are the files outside package record that assign a package-level variable of
-// record, by variable. Each entry is a mode the replay sets on the shared write path, which phase 4
-// of the migrate separation (the migrate-owned replay writer, taking its timestamp as a parameter)
-// deletes; when it does, its entry here goes with it — an entry whose file no longer assigns the
-// variable fails, so the list cannot outlive the sites it names.
-var recordVarWriters = map[string]map[string]bool{
-	"internal/record/migrate/order.go":  {"Now": true, "Migrating": true},
-	"internal/record/migrate/replay.go": {"Now": true, "Migrating": true},
-}
+// migrateOnly is the directive that marks a declaration of package record as the migration's alone:
+// the replay writer, which writes an archived act without the live write's act judgements. A
+// reference to a marked name from any package but migratePkg is a finding. The mark sits on the
+// declaration, so a new migrate-only name is gated by being written, never by a list kept here.
+const migrateOnly = "//pluginparity:migrate-only"
 
 // shippedPackage is one package of a shipped binary's import graph, as `go list` reports it.
 type shippedPackage struct {
@@ -49,6 +46,17 @@ type shippedPackage struct {
 // a package's GoFiles, and a test-only import is in neither Imports nor Deps — what is listed is
 // exactly what a release build links.
 func listShipped(tools string) (module string, pkgs []shippedPackage, err error) {
+	return listPackages(tools, "-deps", "./cmd/...")
+}
+
+// listModule asks the go command for every package of the module, with each package's own files
+// and imports: what any of its builds links, a dev command's included. Test files are not listed.
+func listModule(tools string) (module string, pkgs []shippedPackage, err error) {
+	return listPackages(tools, "./...")
+}
+
+// listPackages runs `go list` with args over tools and keeps the module's own packages.
+func listPackages(tools string, args ...string) (module string, pkgs []shippedPackage, err error) {
 	run := func(args ...string) (string, error) {
 		c := exec.Command("go", args...)
 		c.Dir = tools
@@ -65,9 +73,9 @@ func listShipped(tools string) (module string, pkgs []shippedPackage, err error)
 	}
 	module = strings.TrimSpace(m)
 	const sep = "\x1f"
-	out, err := run("list", "-deps", "-f",
-		"{{.ImportPath}}"+sep+"{{.Name}}"+sep+"{{.Dir}}"+sep+`{{join .GoFiles " "}}`+sep+`{{join .Imports " "}}`+sep+`{{join .Deps " "}}`,
-		"./cmd/...")
+	listArgs := []string{"list", "-f",
+		"{{.ImportPath}}" + sep + "{{.Name}}" + sep + "{{.Dir}}" + sep + `{{join .GoFiles " "}}` + sep + `{{join .Imports " "}}` + sep + `{{join .Deps " "}}`}
+	out, err := run(append(listArgs, args...)...)
 	if err != nil {
 		return "", nil, err
 	}
@@ -86,20 +94,24 @@ func listShipped(tools string) (module string, pkgs []shippedPackage, err error)
 	return module, pkgs, nil
 }
 
-// migrateConfinementProblems holds FEOV's migration to its own binary, by two rules read from the
-// shipped import graph — `go list`, never a hand-kept list of binaries.
+// migrateConfinementProblems holds FEOV's migration to its own binary, by three rules read from the
+// module's import graph — `go list`, never a hand-kept list of binaries.
 //
 // THE PACKAGE: no directory under cmd/ but feov-migrate has internal/record/migrate in its import
 // graph. feov-migrate must have it, so the exemption names a binary that exists and links what it
 // is exempted for.
 //
 // THE MODE: no package-level variable of package record is assigned from outside package record,
-// in a package any shipped binary links. A variable of record that another package sets is a mode
-// of the write path that every binary's copy of the write path reads, and it is set by code the
-// write path cannot see. The sites that do so today are recordVarWriters, each named.
+// in a package any shipped binary links. A variable of record that another package sets is a mode of the
+// write path that every binary's copy of the write path reads, and it is set by code the write path
+// cannot see: the value goes to the call that needs it.
 //
-// A graph that lists no binary, or a record package with no variables, is refused rather than
-// passed: a rule that read nothing reports what a clean tree reports.
+// THE WRITER: a declaration of record marked migrateOnly — the replay writer — is named by no
+// package's non-test code but migratePkg's, a dev command's or a test helper's included.
+//
+// A graph that lists no binary, a record package with no variables, or one with no marked
+// declaration, is refused rather than passed: a rule that read nothing reports what a clean tree
+// reports.
 func migrateConfinementProblems(tools string) []string {
 	module, pkgs, err := listShipped(tools)
 	if err != nil {
@@ -139,46 +151,30 @@ func migrateConfinementProblems(tools string) []string {
 		add("%s/cmd/%s does not exist — the migration's binary moved or was renamed, and the confinement names nothing.", feovTools, migrateBinary)
 	}
 
+	_, all, err := listModule(tools)
+	if err != nil {
+		return append(problems, fmt.Sprintf("%s: cannot list the module's packages, so the record variables and the migrate-only writer were not checked: %v", feovTools, err))
+	}
 	problems = append(problems, recordVarProblems(tools, module, pkgs)...)
+	problems = append(problems, migrateOnlyProblems(tools, module, all)...)
+	sort.Strings(problems)
 	return problems
 }
 
-// recordVarProblems is the second rule of migrateConfinementProblems: every assignment, increment
-// or address-of a package-level variable of record, made in a shipped package other than record.
-func recordVarProblems(tools, module string, pkgs []shippedPackage) []string {
-	var problems []string
-	add := func(format string, a ...any) { problems = append(problems, fmt.Sprintf(format, a...)) }
+// parsedFile is one non-test file of a package that imports record, parsed, with the name it
+// imports record under ("" where it does not).
+type parsedFile struct {
+	at     string // the file, relative to the module
+	fset   *token.FileSet
+	file   *ast.File
+	record string // the import name of package record
+}
+
+// filesImportingRecord parses every file of every package but record that imports record. A file
+// that cannot be parsed, or that dot-imports record, is a problem.
+func filesImportingRecord(tools, module string, pkgs []shippedPackage, add func(string, ...any)) []parsedFile {
 	recordPath := module + "/" + recordPkg
-
-	vars := map[string]bool{}
-	for _, p := range pkgs {
-		if p.path != recordPath {
-			continue
-		}
-		for _, f := range p.files {
-			file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(p.dir, f), nil, parser.SkipObjectResolution)
-			if err != nil {
-				add("%s/%s/%s: cannot parse it: %v", feovTools, recordPkg, f, err)
-				continue
-			}
-			for _, d := range file.Decls {
-				if g, ok := d.(*ast.GenDecl); ok && g.Tok == token.VAR {
-					for _, s := range g.Specs {
-						for _, n := range s.(*ast.ValueSpec).Names {
-							if n.IsExported() {
-								vars[n.Name] = true
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	if len(vars) == 0 {
-		return []string{fmt.Sprintf("%s/%s: read no exported package-level variable, so no assignment to one could be found.", feovTools, recordPkg)}
-	}
-
-	seen := map[string]map[string]bool{}
+	var out []parsedFile
 	for _, p := range pkgs {
 		if p.path == recordPath || !contains(p.imports, recordPath) {
 			continue
@@ -188,7 +184,7 @@ func recordVarProblems(tools, module string, pkgs []shippedPackage) []string {
 			at, _ := filepath.Rel(tools, path)
 			at = filepath.ToSlash(at)
 			fset := token.NewFileSet()
-			file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+			file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution|parser.ParseComments)
 			if err != nil {
 				add("%s/%s: cannot parse it: %v", feovTools, at, err)
 				continue
@@ -203,56 +199,155 @@ func recordVarProblems(tools, module string, pkgs []shippedPackage) []string {
 				}
 			}
 			if alias == "." {
-				add("%s/%s dot-imports %s, so an assignment to its variables cannot be told from a local one. Import it by name.", feovTools, at, recordPkg)
+				add("%s/%s dot-imports %s, so a use of its names cannot be told from a local one. Import it by name.", feovTools, at, recordPkg)
 				continue
 			}
-			written := func(e ast.Expr, how string) {
-				sel, ok := e.(*ast.SelectorExpr)
-				if !ok {
-					return
-				}
-				if id, ok := sel.X.(*ast.Ident); !ok || id.Name != alias || !vars[sel.Sel.Name] {
-					return
-				}
-				if recordVarWriters[at][sel.Sel.Name] {
-					if seen[at] == nil {
-						seen[at] = map[string]bool{}
-					}
-					seen[at][sel.Sel.Name] = true
-					return
-				}
-				add("%s/%s:%d %s record.%s, a package-level variable of record, from outside record. A variable another package sets is a mode of the write path that every binary's copy reads and that the write path cannot see being set: pass the value to the call that needs it.",
-					feovTools, at, fset.Position(sel.Pos()).Line, how, sel.Sel.Name)
+			out = append(out, parsedFile{at: at, fset: fset, file: file, record: alias})
+		}
+	}
+	return out
+}
+
+// recordDecls parses package record's own files, the test files excluded, and hands each to visit.
+func recordDecls(module string, pkgs []shippedPackage, add func(string, ...any), visit func(*ast.File)) {
+	for _, p := range pkgs {
+		if p.path != module+"/"+recordPkg {
+			continue
+		}
+		for _, f := range p.files {
+			file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(p.dir, f), nil, parser.SkipObjectResolution|parser.ParseComments)
+			if err != nil {
+				add("%s/%s/%s: cannot parse it: %v", feovTools, recordPkg, f, err)
+				continue
 			}
-			ast.Inspect(file, func(n ast.Node) bool {
-				switch s := n.(type) {
-				case *ast.AssignStmt:
-					for _, l := range s.Lhs {
-						written(l, "assigns")
-					}
-				case *ast.IncDecStmt:
-					written(s.X, "assigns")
-				case *ast.UnaryExpr:
-					if s.Op == token.AND {
-						written(s.X, "takes the address of")
-					}
-				}
+			visit(file)
+		}
+	}
+}
+
+// migrateOnlyProblems is the third rule of migrateConfinementProblems: every reference to a
+// declaration of record marked migrateOnly, from a package other than migratePkg.
+func migrateOnlyProblems(tools, module string, pkgs []shippedPackage) []string {
+	var problems []string
+	add := func(format string, a ...any) { problems = append(problems, fmt.Sprintf(format, a...)) }
+	marked := func(doc *ast.CommentGroup) bool {
+		if doc == nil {
+			return false
+		}
+		for _, c := range doc.List {
+			if strings.TrimSpace(c.Text) == migrateOnly {
 				return true
-			})
-		}
-	}
-	files := make([]string, 0, len(recordVarWriters))
-	for f := range recordVarWriters {
-		files = append(files, f)
-	}
-	sort.Strings(files)
-	for _, f := range files {
-		for v := range recordVarWriters[f] {
-			if !seen[f][v] {
-				add("scripts/pluginparity names %s/%s as assigning record.%s, and it does not — the site is gone, so its entry in recordVarWriters goes too.", feovTools, f, v)
 			}
 		}
+		return false
 	}
-	sort.Strings(problems)
+	names := map[string]bool{}
+	recordDecls(module, pkgs, add, func(file *ast.File) {
+		for _, d := range file.Decls {
+			switch d := d.(type) {
+			case *ast.FuncDecl:
+				if d.Recv == nil && marked(d.Doc) {
+					names[d.Name.Name] = true
+				}
+			case *ast.GenDecl:
+				for _, sp := range d.Specs {
+					doc := d.Doc
+					var ids []*ast.Ident
+					switch sp := sp.(type) {
+					case *ast.TypeSpec:
+						if sp.Doc != nil {
+							doc = sp.Doc
+						}
+						ids = []*ast.Ident{sp.Name}
+					case *ast.ValueSpec:
+						if sp.Doc != nil {
+							doc = sp.Doc
+						}
+						ids = sp.Names
+					}
+					if marked(doc) {
+						for _, id := range ids {
+							names[id.Name] = true
+						}
+					}
+				}
+			}
+		}
+	})
+	if len(names) == 0 {
+		return append(problems, fmt.Sprintf("%s/%s: no declaration carries %s, so no reference to the migration's writer could be found.", feovTools, recordPkg, migrateOnly))
+	}
+	for _, pf := range filesImportingRecord(tools, module, pkgs, add) {
+		if pf.record == "" || path.Dir(pf.at) == migratePkg {
+			continue
+		}
+		ast.Inspect(pf.file, func(n ast.Node) bool {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			if id, ok := sel.X.(*ast.Ident); ok && id.Name == pf.record && names[sel.Sel.Name] {
+				add("%s/%s:%d names record.%s, the migration's writer. It writes an act without the live write's act judgements, and %s alone holds it: write through record.Append.",
+					feovTools, pf.at, pf.fset.Position(sel.Pos()).Line, sel.Sel.Name, migratePkg)
+			}
+			return true
+		})
+	}
+	return problems
+}
+
+// recordVarProblems is the second rule of migrateConfinementProblems: every assignment, increment
+// or address-of a package-level variable of record, made in a shipped package other than record.
+func recordVarProblems(tools, module string, pkgs []shippedPackage) []string {
+	var problems []string
+	add := func(format string, a ...any) { problems = append(problems, fmt.Sprintf(format, a...)) }
+	vars := map[string]bool{}
+	recordDecls(module, pkgs, add, func(file *ast.File) {
+		for _, d := range file.Decls {
+			if g, ok := d.(*ast.GenDecl); ok && g.Tok == token.VAR {
+				for _, sp := range g.Specs {
+					for _, n := range sp.(*ast.ValueSpec).Names {
+						if n.IsExported() {
+							vars[n.Name] = true
+						}
+					}
+				}
+			}
+		}
+	})
+	if len(vars) == 0 {
+		return []string{fmt.Sprintf("%s/%s: read no exported package-level variable, so no assignment to one could be found.", feovTools, recordPkg)}
+	}
+	for _, pf := range filesImportingRecord(tools, module, pkgs, add) {
+		if pf.record == "" {
+			continue
+		}
+		written := func(e ast.Expr, how string) {
+			sel, ok := e.(*ast.SelectorExpr)
+			if !ok {
+				return
+			}
+			if id, ok := sel.X.(*ast.Ident); !ok || id.Name != pf.record || !vars[sel.Sel.Name] {
+				return
+			}
+			add("%s/%s:%d %s record.%s, a package-level variable of record, from outside record. A variable another package sets is a mode of the write path that every binary's copy reads and that the write path cannot see being set: pass the value to the call that needs it.",
+				feovTools, pf.at, pf.fset.Position(sel.Pos()).Line, how, sel.Sel.Name)
+		}
+		ast.Inspect(pf.file, func(n ast.Node) bool {
+			switch s := n.(type) {
+			case *ast.AssignStmt:
+				for _, l := range s.Lhs {
+					written(l, "assigns")
+				}
+			case *ast.IncDecStmt:
+				written(s.X, "assigns")
+			case *ast.UnaryExpr:
+				if s.Op == token.AND {
+					written(s.X, "takes the address of")
+				}
+			}
+			return true
+		})
+	}
 	return problems
 }

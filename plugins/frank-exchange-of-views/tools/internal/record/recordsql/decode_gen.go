@@ -134,15 +134,6 @@ func (t *gateTable) load(q Querier, after int64) error {
 			return err
 		}
 	}
-	if err := scanList(q, "gate_migration_admitted_gap_ids", `SELECT l."event_id", l."value" FROM "gate_migration_admitted_gap_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
-		m := t.rows[id]
-		if m == nil {
-			return // the owner's row is missing, and its event is refused for that
-		}
-		m.MigrationAdmittedGapIds = append(m.MigrationAdmittedGapIds, v)
-	}); err != nil {
-		return err
-	}
 	return nil
 }
 

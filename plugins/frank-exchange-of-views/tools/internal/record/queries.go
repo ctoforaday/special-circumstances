@@ -275,7 +275,7 @@ func ReportProjection(run Run) (ops []ReportOp, err error) {
 }
 
 // RenderAt is the report as q holds it: its ops, read from q and folded by the registered renderer. q
-// is the run's handle, a read transaction, or a migration's batch (Batch.Querier), whose own writes
+// is the run's handle, a read transaction, or a migration's replay (Replay.Querier), whose own writes
 // the render then includes. It is the ONE render over a querier; RenderRun asks it of the run's
 // handle.
 func RenderAt(q recordsql.Querier) (string, error) {

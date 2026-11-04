@@ -67,6 +67,12 @@ func Entries() Registry {
 		// with nothing else, so a credited contradiction comes forward unanswered and the credited
 		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
 		"credit": {Translate: toNoEvent},
+		// A PASS BEFORE EPOCH 57 MAY CARRY THE GAPS A MIGRATION ADMITTED IT OVER. The record carries an
+		// archived verdict as history, and the replay writes it without the live gate's judgement, so
+		// nothing is admitted and the list is not carried.
+		"verdict": mapped("verdict", nil, drops{
+			"migration_admitted_gap_ids": "the gaps an earlier migration stamped on an archived PASS: the record carries the verdict as the chair issued it, with no admission beside it",
+		}, nil),
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
 		// re-run is the script's; its soundness is carried to every anchor on that script when it was
 		// written — the fan-out is the replay's, because it reads the computations replayed before it

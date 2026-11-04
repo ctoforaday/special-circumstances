@@ -27,8 +27,8 @@ import (
 // seats and stay on the record; they are where the run's part of a finding goes, so refusing process
 // words there would close the one channel the refusal points to.
 //
-// The mint's check exempts itself under Migrating, beside the refusal it gates: an archived mint is
-// what a seat DID, and migration does not re-judge it under a rule it predates.
+// The mint's check is an act judgement (judgeAct): an archived mint is what a seat DID, and the
+// replay does not re-judge it under a rule it predates.
 
 // reportSpan is one field of red's text that the report prints, named by the flag that sets it.
 type reportSpan struct{ flag, text string }
@@ -46,11 +46,6 @@ func refusedTells(spans ...reportSpan) []string {
 
 // refuseMintReportVoice holds the three mint fields the report prints to the report's voice.
 func refuseMintReportVoice(m *recordpb.Mint) error {
-	// THE VOICE RULE JUDGES WHAT A SEAT MAY WRITE NEXT; an archived mint is what a seat wrote, under
-	// the rules of its day, and the gaps it minted carry every later act that cites them.
-	if Migrating {
-		return nil
-	}
 	hits := refusedTells(
 		reportSpan{"--problem", m.GetProblem()},
 		reportSpan{"--fix", m.GetRequiredFix()},

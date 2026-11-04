@@ -106,7 +106,7 @@ func (b Blocker) ChairOwned() bool { return b.Owner == chairSeat }
 // blockerKind is one row of the table every surface words a blocker from.
 type blockerKind struct {
 	kind BlockerKind
-	// every: it holds every verdict, not only a PASS. Under a migration only these refuse.
+	// every: it holds every verdict, not only a PASS.
 	every bool
 	// gloss is the help page's phrase for the kind.
 	gloss string
@@ -811,20 +811,18 @@ func passBlockersOfReads(r planReads) []Blocker {
 	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh)
 }
 
-// requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict, and
-// any verdict a migration replays, over the kinds that hold every verdict. A FAIL is then held to
-// the convergence rule, which stands only while nothing another seat must act on holds
-// the PASS — so its "or issue `--as PASS`" is true apart from the chair's own items.
+// requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict over the
+// kinds that hold every verdict. A FAIL is then held to the convergence rule, which stands only while
+// nothing another seat must act on holds the PASS — so its "or issue `--as PASS`" is true apart from
+// the chair's own items.
 //
-// NOT UNDER A MIGRATION for the PASS-only kinds (gblock, 2026-09-11). Migrate translates history;
-// it does not re-judge an archived PASS under a rule that did not exist when the PASS was issued.
-// The archived b7 and b9 runs' PASSes stand over gaps their classes now make material, and
-// refusing them would drop a real event and call the loss a translation. The exemption is not
-// silent: stampMigrationAdmission records those gaps on the PASS, and verify reads them there.
+// AN ACT JUDGEMENT (judgeAct; gblock, 2026-10-24): an archived verdict is carried as history. The
+// archived b7 and b9 runs' PASSes stand over gaps their classes now make material, and the replay
+// writes them as the chair issued them.
 func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker) error {
 	var holding []Blocker
 	for _, b := range blockers {
-		if b.Every() || (verdict == recordpb.Verdict_VERDICT_PASS && !Migrating) {
+		if b.Every() || verdict == recordpb.Verdict_VERDICT_PASS {
 			holding = append(holding, b)
 		}
 	}
@@ -847,6 +845,10 @@ func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker
 //
 // A HALT IS EXEMPT. It is the bench's own decision to end the run, taken with the record in view;
 // refusing it would force rulings after the bench has already stopped the run.
+//
+// AN ACT JUDGEMENT (judgeAct): an archived run's positions were argued to a bench that was never
+// convened for them, and its outcome is what the run did. The migrated record holds the position
+// unruled.
 func requireBenchMotionsRuled(q recordsql.Querier) error {
 	halted, err := recordHasAt(q, `SELECT 1 FROM "halt" LIMIT 1`)
 	if err != nil || halted {
@@ -859,13 +861,6 @@ func requireBenchMotionsRuled(q recordsql.Querier) error {
 	var named []string
 	for _, b := range blockers {
 		if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
-			continue
-		}
-		// NOT UNDER A MIGRATION for a withheld PASS's position (gblock, 2026-10-30, the ruling that
-		// made one a motion). An archived run's positions were argued to a bench that was never
-		// convened for them, and its outcome is what the run did; migrate translates that history
-		// and does not re-judge it under the rule. The migrated record holds the position unruled.
-		if Migrating && b.motionSubject == positionSubject {
 			continue
 		}
 		named = append(named, b.Subject+" ("+b.Detail+")")

@@ -20,7 +20,7 @@ import (
 // THE CACHE IS ON THE CONNECTION, NOT ON *sql.DB, because the pool holds one connection
 // (SetMaxOpenConns(1) in openUncached) and the record's reads arrive on it two ways: through the
 // handle, and through a transaction that holds the same connection (readSnapshot, the write path's
-// writeView, Batch.Querier). A *sql.Stmt prepared on the handle cannot be asked through a *sql.Tx
+// writeView, Replay.Querier). A *sql.Stmt prepared on the handle cannot be asked through a *sql.Tx
 // without tx.Stmt, and a Querier does not say which handle a transaction came from; a statement
 // kept by the connection serves both, because both reach the one connection.
 //

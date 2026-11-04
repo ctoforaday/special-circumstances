@@ -1,0 +1,95 @@
+package record
+
+import (
+	"fmt"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
+
+// THE WRITE PATH ASKS TWO KINDS OF QUESTION OF AN ACT, and only the live write asks both.
+//
+// THE SHAPE (validate) is what makes an event a record: the fields it requires, the references it
+// names resolving on the record, the closed sets its words come from, the roster and the cast. Every
+// writer runs it — Append, `dispatch next`, and the migration's replay (replaywriter.go) — because a
+// replayed record must be a record.
+//
+// THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
+// a blocker, a second gap of one class on one subject, a close of a docketed gap, a docket motion on
+// no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
+// grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
+// that names no kind. Each is the act's to answer at the moment it is written. An archived act is
+// what a seat DID, under the rules of its day, and the replay writes it without asking them: refusing
+// it would drop a real event and call the loss a translation.
+
+// validateAct is the live write's validation: the shape, then the act judgements.
+func validateAct(w writeView, seatID string, typ recordpb.EventType, body proto.Message) error {
+	if err := validate(w, seatID, typ, body); err != nil {
+		return err
+	}
+	return judgeAct(w, seatID, body)
+}
+
+// judgeAct asks the act judgements of a body the shape check (validate) has admitted. It runs inside
+// the write's transaction, so every question is asked of the record the event lands on.
+func judgeAct(w writeView, seatID string, body proto.Message) error {
+	q := w.q
+	switch b := body.(type) {
+	case *recordpb.Mint:
+		if err := requireOneGapPerClassAndSubject(w, b); err != nil {
+			return err
+		}
+		return refuseMintReportVoice(b)
+	case *recordpb.Close:
+		if b.CarriedFrom == nil {
+			return requireNoStandingDocket(q, b.GetGapId())
+		}
+	case *recordpb.Motion:
+		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+			return requireNewGrounds(q, b.GetDocket())
+		}
+	case *recordpb.MotionRule:
+		return requirePetitionRelief(b)
+	case *recordpb.Gate:
+		// A PASS is a claim that nothing left on the board holds the gate. Enforce it here, at the
+		// one write path, so no verdict route can record a PASS over an unadjudicated board (the
+		// 2026-07-20 rubber-stamp: PASS with 9 open gaps). What holds it is PassBlockers — the one
+		// list the chair's work list, the plan's pass_permitted and the FAIL convergence refusal
+		// also read (passblockers.go).
+		blockers, err := passBlockersAt(q)
+		if err != nil {
+			return err
+		}
+		return requireNoBlockers(w, b.GetVerdict(), blockers)
+	case *recordpb.Outcome:
+		// THE RUN'S TERMINAL ACT. The verdict itself is derived and needs no defence; a motion whose
+		// gavel is the bench's, standing unruled, is a settlement the run would record without it.
+		return requireBenchMotionsRuled(q)
+	case *recordpb.Cite:
+		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT: the tool finds the span in the
+		// cached text before it writes.
+		switch origin := b.GetSourceTextOrigin(); origin {
+		case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
+			if !citeLocated(b) {
+				return citeSpanRefusal(origin)
+			}
+		}
+	case *recordpb.Verify:
+		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE && b.Bridge == nil {
+			return fmt.Errorf("supports_with_bridge requires --bridge summary|secondary_citation|near_restatement — WHAT you bridged. A reading whose gap is none of those three (a term on another object, a condition dropped, a relation reversed) bridged nothing: the source says something else, which is refutes or weak")
+		}
+	}
+	return nil
+}
+
+// citeLocated is whether a cite carries any part of a located span.
+func citeLocated(b *recordpb.Cite) bool {
+	return b.SourceSpan != nil || b.SpanStart != nil || b.SpanEnd != nil || b.SpanTextSha != nil ||
+		b.SourceBefore != nil || b.SourceMatched != nil || b.SourceAfter != nil
+}
+
+// citeSpanRefusal refuses a cite of a source with text whose located span is absent or partial.
+func citeSpanRefusal(origin recordpb.SourceTextOrigin) error {
+	return fmt.Errorf("cite of a source with %s text carries no located span (source_span, span_start, span_end, span_text_sha, source_matched) — the tool finds the span in the cached text before it writes, and this write skipped that", recordpb.Word(origin))
+}

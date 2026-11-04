@@ -3,7 +3,6 @@ package record
 import (
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -334,72 +333,6 @@ func requireClosedGaps(q recordsql.Querier, ids []string, flag string) error {
 			return fmt.Errorf("%s names gap %s, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it", flag, id)
 		}
 	}
-	return nil
-}
-
-// openMaterialGaps is the board's open MATERIAL gaps, sorted: the set the PASS gate refuses over
-// and the set a migrated PASS records as admitted. One query, so the gate and the admission it
-// is exempt from cannot disagree about which gaps they mean.
-func openMaterialGaps(q recordsql.Querier) ([]string, error) {
-	if noRecord(q) {
-		return nil, nil
-	}
-	rows, err := q.Query(`SELECT g."gap_id" FROM "gap" g WHERE g."open" AND g."material" ORDER BY g."minted_event"`)
-	if err != nil {
-		return nil, fmt.Errorf("asking the record for its open gaps: %w", err)
-	}
-	defer rows.Close()
-	var open []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		open = append(open, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	sort.Strings(open)
-	return open, nil
-}
-
-// stampMigrationAdmission writes, on a PASS a migration replays, the open gaps the exempt PASS
-// gate would have refused over (Gate.migration_admitted_gap_ids). Outside Migrating any Gate
-// carrying the field is refused: the fact is the migration's to state, and a live PASS that could
-// state it could stand over any open gap with verify reporting nothing. Under Migrating a
-// non-PASS carrying it is refused (a FAIL admits nothing), and a PASS whose source already carries
-// it — a run this binary migrated before — must carry exactly what the board yields now: the
-// replay stamps each mint's class material from its class's default, as the run this binary
-// migrated before was stamped, so the two agree unless the record was altered.
-func stampMigrationAdmission(q recordsql.Querier, g *recordpb.Gate) error {
-	arrived := append([]string(nil), g.GetMigrationAdmittedGapIds()...)
-	if !Migrating {
-		if len(arrived) > 0 {
-			return fmt.Errorf("it carries migration_admitted_gap_ids (%s), which only a migration writes: it records the open material gaps an archived PASS was admitted over. A live PASS closes its material gaps or is refused; record the verdict without it",
-				strings.Join(arrived, ", "))
-		}
-		return nil
-	}
-	if g.GetVerdict() != recordpb.Verdict_VERDICT_PASS {
-		if len(arrived) > 0 {
-			return fmt.Errorf("the archived %s verdict carries migration_admitted_gap_ids (%s) — only a PASS is admitted over open gaps",
-				recordpb.Word(g.GetVerdict()), strings.Join(arrived, ", "))
-		}
-		return nil
-	}
-	open, err := openMaterialGaps(q)
-	if err != nil {
-		return err
-	}
-	if len(arrived) > 0 {
-		sort.Strings(arrived)
-		if strings.Join(arrived, "\x00") != strings.Join(open, "\x00") {
-			return fmt.Errorf("the archived PASS carries migration_admitted_gap_ids (%s), but the open material gaps at it are (%s) — the record was altered after it was written",
-				strings.Join(arrived, ", "), strings.Join(open, ", "))
-		}
-	}
-	g.MigrationAdmittedGapIds = open
 	return nil
 }
 
