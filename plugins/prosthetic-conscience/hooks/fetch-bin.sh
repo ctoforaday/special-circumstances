@@ -21,11 +21,28 @@
 
 ROOT=${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}}
 SELF=$0
+
+# Refuse to download or heal inside a source tree or checkout holding tools/go.mod
+if [ -f "$ROOT/tools/go.mod" ] || { [ -f "$ROOT/../../.claude-plugin/marketplace.json" ] && [ -d "$ROOT/../../scripts" ]; }; then
+	printf 'fetch-bin.sh: refusing to fetch release binaries into source tree (%s)\n' "$ROOT" >&2
+	exit 0
+fi
+
 STATE=
 [ -n "$ROOT" ] && STATE="$ROOT/.fetch"
 BASE_URL=${SC_RELEASE_BASE_URL:-https://github.com/ctoforaday/special-circumstances/releases/download}
 EVENT=
 DISPLAYING=0
+
+IS_ANTIGRAVITY=0
+if [ ! -t 0 ]; then
+	RAW_SNIFF=$(head -n 20 2>/dev/null || true)
+	case "$RAW_SNIFF" in
+	*conversationId* | *workspacePaths* | *toolCall* | *artifactDirectoryPath* | *stepIdx* | *invocationNum*)
+		IS_ANTIGRAVITY=1
+		;;
+	esac
+fi
 
 # field prints a top-level string field of plugin.json, or nothing. Top level is the two-space
 # indent: author.name sits deeper and must not answer for name.
@@ -62,9 +79,13 @@ speak() {
 		: >"$mark" 2>/dev/null
 	fi
 	m=$(printf '%s' "$2" | clean)
-	if { [ -n "${ANTIGRAVITY_CONVERSATION_ID:-}" ] || [ -n "${PLUGIN_ROOT:-}" ]; } && [ -z "${CLAUDE_PLUGIN_ROOT:-}" ] && [ "${SC_ENSURE_INTERNAL:-}" != "1" ]; then
+	if [ "$IS_ANTIGRAVITY" = 1 ]; then
 		if [ "$EVENT" = SessionStart ] || [ "$EVENT" = PreInvocation ]; then
 			printf '{"injectSteps":[{"systemMessage":{"systemMessage":"%s","metadata":{"user_markdown":"%s"}}}]}\n' "$m" "$m"
+		elif [ "$EVENT" = PreToolUse ]; then
+			printf '{"decision":"allow"}\n'
+		elif [ "$EVENT" = PostToolUse ]; then
+			printf '{}\n'
 		fi
 		return 0
 	fi
@@ -136,7 +157,7 @@ up_to_date() {
 hook() {
 	EVENT=${1:-}
 	case "$EVENT" in
-	SessionStart | PreToolUse | PostToolUse | PostToolUseFailure | Stop) DISPLAYING=1 ;;
+	SessionStart | PreToolUse | PostToolUse | PostToolUseFailure | Stop | PreInvocation) DISPLAYING=1 ;;
 	esac
 	name=$(field name)
 	version=$(field version)

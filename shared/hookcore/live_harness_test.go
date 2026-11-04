@@ -142,6 +142,9 @@ func getArchiveBaseDir(t *testing.T) string {
 }
 
 func TestLiveClaudeContract(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live Claude CLI test without HOOKCORE_LIVE=1")
+	}
 	if testing.Short() {
 		t.Skip("skipping live Claude CLI test under -short")
 	}
@@ -272,7 +275,7 @@ func TestLiveClaudeContract(t *testing.T) {
 	}
 	env = append(env,
 		"HOME="+fakeHome,
-		"PATH=/home/gblock_ctoforaday_com/.local/bin:/usr/local/go/bin:/home/gblock_ctoforaday_com/go/bin:"+os.Getenv("PATH"),
+		"PATH="+os.Getenv("PATH"),
 	)
 	cmd.Env = env
 
@@ -314,6 +317,9 @@ func TestLiveClaudeContract(t *testing.T) {
 }
 
 func TestLiveAntigravityContract(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live Antigravity CLI test without HOOKCORE_LIVE=1")
+	}
 	if testing.Short() {
 		t.Skip("skipping live Antigravity CLI test under -short")
 	}
@@ -437,7 +443,7 @@ func TestLiveAntigravityContract(t *testing.T) {
 	}
 	env = append(env,
 		"HOME="+fakeHome,
-		"PATH=/home/gblock_ctoforaday_com/.local/bin:/usr/local/go/bin:/home/gblock_ctoforaday_com/go/bin:"+os.Getenv("PATH"),
+		"PATH="+os.Getenv("PATH"),
 	)
 	cmd.Env = env
 
