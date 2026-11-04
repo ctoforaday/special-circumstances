@@ -35,9 +35,10 @@ import (
 // written against "however long ago that was in real time". Defaults come from Defaults(); a test
 // supplies a fixture corpus and a frozen clock, and then exercises the SAME code path a user gets.
 type Env struct {
-	Store       string // the catalogue database
-	ProjectsDir string // ~/.claude/projects — the transcripts, which we read and never write
-	SessionsDir string // ~/.claude/sessions — the client's liveness advertisements
+	Store       string   // the catalogue database
+	ProjectsDir string   // ~/.claude/projects — the transcripts, which we read and never write
+	SessionsDir string   // ~/.claude/sessions — the client's liveness advertisements
+	BrainDirs   []string // Antigravity brain directories
 	Now         func() time.Time
 	// Boot is when the host last booted, in Unix seconds, and whether that could be measured —
 	// injected for the same reason Now is: no golden may depend on when the test host booted, or on
@@ -56,6 +57,7 @@ func Defaults() Env {
 		e.ProjectsDir = filepath.Join(home, ".claude", "projects")
 		e.SessionsDir = filepath.Join(home, ".claude", "sessions")
 	}
+	e.BrainDirs = catalogue.DefaultAntigravityBrainDirs()
 	return e
 }
 

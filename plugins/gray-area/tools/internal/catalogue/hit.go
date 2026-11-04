@@ -109,6 +109,12 @@ func DecodeHit(line string, spans []Span, inSubagent bool) (Hit, bool) {
 			return Hit{Channel: ChannelUnknown, Snippet: place(line, 0, snippetWidth), Stale: true}, true
 		}
 	}
+	if strings.Contains(line, `"step_index"`) {
+		var agyRec agyHitRecord
+		if json.Unmarshal([]byte(line), &agyRec) == nil && (agyRec.StepIndex != 0 || agyRec.Type != "") {
+			return decodeAntigravityHit(line, &agyRec, spans, inSubagent)
+		}
+	}
 	var rec record
 	if json.Unmarshal([]byte(line), &rec) != nil {
 		// Span bytes intact, line unparseable: cut after its match, still being written, or never
@@ -487,6 +493,78 @@ func place(s string, i, n int) string {
 		out += "…"
 	}
 	return out
+}
+
+type agyHitRecord struct {
+	StepIndex int    `json:"step_index"`
+	Source    string `json:"source"`
+	Type      string `json:"type"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
+	Content   string `json:"content"`
+	Thinking  string `json:"thinking"`
+}
+
+func decodeAntigravityHit(line string, rec *agyHitRecord, spans []Span, inSubagent bool) (Hit, bool) {
+	h := Hit{TS: parseTS(rec.CreatedAt), Channel: ChannelUnknown}
+	if len(spans) == 0 {
+		h.Snippet = place(line, 0, snippetWidth)
+		return h, true
+	}
+	ordered := append([]Span(nil), spans...)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Start < ordered[j].Start })
+
+	ex, whole := locate(line)
+	if !whole {
+		h.Snippet = place(line, ordered[0].Start, snippetWidth)
+		return h, false
+	}
+
+	for _, sp := range ordered {
+		x := innermost(ex, sp.Start)
+		if x < 0 {
+			continue
+		}
+		p := pathOf(ex, x)
+		if len(p) == 0 {
+			continue
+		}
+		switch {
+		case len(p) == 1 && p[0].key == "content" && ex[x].str:
+			switch rec.Type {
+			case "USER_INPUT":
+				ch := ChannelUser
+				if inSubagent {
+					ch = ChannelLead
+				}
+				h.Channel, h.Snippet = ch, windowAt(line, ex[x].s, ex[x].e, sp.Start, snippetWidth)
+				return h, true
+			case "PLANNER_RESPONSE":
+				h.Channel, h.Snippet = ChannelAssistant, windowAt(line, ex[x].s, ex[x].e, sp.Start, snippetWidth)
+				return h, true
+			case "GENERIC":
+				h.Channel, h.Snippet = ChannelResult, windowAt(line, ex[x].s, ex[x].e, sp.Start, snippetWidth)
+				return h, true
+			case "SYSTEM_MESSAGE":
+				h.Channel, h.Snippet = ChannelNotification, windowAt(line, ex[x].s, ex[x].e, sp.Start, snippetWidth)
+				return h, true
+			}
+		case len(p) == 1 && p[0].key == "thinking" && ex[x].str:
+			h.Channel, h.Snippet = ChannelThinking, windowAt(line, ex[x].s, ex[x].e, sp.Start, snippetWidth)
+			return h, true
+		case len(p) >= 1 && p[0].key == "tool_calls":
+			h.Channel = ChannelCall
+			r := ex[ancestorAt(ex, x, 1)]
+			h.Snippet = place(line[r.s:r.e], sp.Start-r.s, callWidth)
+			return h, true
+		case len(p) == 1 && p[0].key == "error" && ex[x].str:
+			h.Channel, h.Snippet = ChannelResult, windowAt(line, ex[x].s, ex[x].e, sp.Start, snippetWidth)
+			return h, true
+		}
+	}
+
+	h.Snippet = place(line, ordered[0].Start, snippetWidth)
+	return h, true
 }
 
 // flatten collapses every whitespace run to one space, so one hit stays on one line.
