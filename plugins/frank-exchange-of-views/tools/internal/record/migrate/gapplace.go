@@ -26,7 +26,7 @@ import (
 // rewritten old and new is the archived bytes, so the render's prose is the archived render's. It
 // rewrites nothing else: an exact-span edit or a placement that no longer places is refused.
 //
-// It reads the destination through q, the replay's batch (record.Batch.Querier): the batch holds the
+// It reads the destination through q, the replay's batch (record.Replay.Querier): the batch holds the
 // record's one connection, so a render through the run would wait on it forever.
 type placer struct {
 	q        recordsql.Querier

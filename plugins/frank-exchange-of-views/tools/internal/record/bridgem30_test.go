@@ -39,38 +39,40 @@ func TestM30BridgesAreRefusedWithoutAKind(t *testing.T) {
 	}
 }
 
-// THE BRIDGE IS THE OUTCOME'S AND NO OTHER'S, live and under Migrating alike; only its ABSENCE on
-// supports_with_bridge is admitted under Migrating, where an archive before the field holds it.
+// THE BRIDGE IS THE OUTCOME'S AND NO OTHER'S, for every writer; only its ABSENCE on
+// supports_with_bridge is written by the replay, which asks no act judgement (judgeAct), where an
+// archive before the field holds it.
 func TestABridgeBelongsToSupportsWithBridgeAlone(t *testing.T) {
 	v := func(o recordpb.SourceOutcome, k *recordpb.BridgeKind) *recordpb.Verify {
 		return &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Claim: proto.String("c"), Anchor: proto.String("C-00000001"), Outcome: o.Enum(), Bridge: k,
 			Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("t")}
 	}
 	run := mustRun(t, t.TempDir())
-	validate := func(b *recordpb.Verify) error {
-		return validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_VERIFY, b)
+	writers := map[string]func(b *recordpb.Verify) error{
+		"live": func(b *recordpb.Verify) error {
+			return validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_VERIFY, b)
+		},
+		"replay": func(b *recordpb.Verify) error {
+			return wouldReplay(t, run, evLens, recordpb.EventType_EVENT_TYPE_VERIFY, b)
+		},
 	}
-	defer func() { Migrating = false }()
 	swb := recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE
 	summary := recordpb.BridgeKind_BRIDGE_KIND_SUMMARY.Enum()
-	for _, migrating := range []bool{false, true} {
-		Migrating = migrating
+	for name, validate := range writers {
 		if err := validate(v(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS, summary)); err == nil || !strings.Contains(err.Error(), "drop --bridge") {
-			t.Errorf("migrating=%v: a bridge on supports: %v, want it refused", migrating, err)
+			t.Errorf("%s: a bridge on supports: %v, want it refused", name, err)
 		}
 		if err := validate(v(swb, recordpb.BridgeKind_BRIDGE_KIND_UNSPECIFIED.Enum())); err == nil {
-			t.Errorf("migrating=%v: an unspecified bridge was admitted", migrating)
+			t.Errorf("%s: an unspecified bridge was admitted", name)
 		}
 		if err := validate(v(swb, summary)); err != nil {
-			t.Errorf("migrating=%v: a named bridge: %v", migrating, err)
+			t.Errorf("%s: a named bridge: %v", name, err)
 		}
 	}
-	Migrating = true
-	if err := validate(v(swb, nil)); err != nil {
-		t.Errorf("under Migrating, an archived bridge with no kind: %v, want it carried", err)
+	if err := writers["replay"](v(swb, nil)); err != nil {
+		t.Errorf("the replay, an archived bridge with no kind: %v, want it carried", err)
 	}
-	Migrating = false
-	if err := validate(v(swb, nil)); err == nil {
+	if err := writers["live"](v(swb, nil)); err == nil {
 		t.Error("live, supports_with_bridge with no kind was admitted")
 	}
 }

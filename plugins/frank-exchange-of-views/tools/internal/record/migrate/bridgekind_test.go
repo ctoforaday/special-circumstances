@@ -9,9 +9,10 @@ import (
 
 // AN ARCHIVED BRIDGE CARRIES NO KIND, AND MIGRATE INVENTS NONE. Before epoch 34 a
 // supports_with_bridge reading named nothing it bridged; what it bridged is prose in its reason, if
-// anywhere, and m30's three such readings each describe a defect that is none of the three kinds. So
-// the reading migrates with its outcome and no bridge — the stated residue — and the outcome is
-// never moved: what the seat recorded is what the record keeps.
+// anywhere, and no kind can be read back out of it. The reading is carried as archived (gblock,
+// 2026-11-04): the replay writer writes it with its outcome and no bridge, the kind being the live
+// write's act judgement, and the outcome is never moved. m30 holds seventeen such readings, and
+// every one comes through.
 func TestAnArchivedBridgeMigratesWithoutAKind(t *testing.T) {
 	_, run := migrateArchive(t, "2026-10-19_is-91-prime-m30.tar.gz")
 	fam, err := record.FamilyOf(run)
@@ -29,7 +30,7 @@ func TestAnArchivedBridgeMigratesWithoutAKind(t *testing.T) {
 			t.Errorf("an archived supports_with_bridge reading migrated with bridge %s — the archive names no kind, and migrate must not choose one", recordpb.Word(v.GetBridge()))
 		}
 	}
-	if bridged == 0 {
-		t.Fatal("m30 migrated with no supports_with_bridge reading — the archive holds them (ev138, ev386, ev387), so the residue went unmeasured")
+	if bridged != 17 {
+		t.Fatalf("m30 migrated with %d supports_with_bridge reading(s), want the archive's 17", bridged)
 	}
 }
