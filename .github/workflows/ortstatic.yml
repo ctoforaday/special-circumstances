@@ -1,0 +1,217 @@
+name: ortstatic
+
+# Static ONNX Runtime in a Go cgo binary, for FEOV's six release targets. Runs only on the bench branch or by hand.
+# models: export gte-small, convert to ORT format.  zig: cross-build reduced static ORT + probe for each target on
+# linux with zig cc/c++ (the build-cstack.sh way).  native: the same with each runner's own compiler.
+# run-zig: run each zig-built probe on its native runner.  Third-party code is fetched under $RUNNER_TEMP, never the checkout.
+on:
+  push:
+    branches: [bench/embed-engines]
+    paths: ["bench/ortstatic/**", ".github/workflows/ortstatic.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GOFLAGS: -mod=mod
+  JOBS: "8"
+
+jobs:
+  models:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: export and convert
+        run: bash bench/ortstatic/models.sh bench "$RUNNER_TEMP/w" "$RUNNER_TEMP/models"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: models
+          path: ${{ runner.temp }}/models
+          if-no-files-found: error
+
+  zig:
+    name: zig ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [linux-amd64, linux-arm64, windows-amd64, windows-arm64, darwin-amd64, darwin-arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27"
+          cache: false
+      - name: pinned zig and cmake (PINS.txt)
+        run: |
+          P=plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt; T=$RUNNER_TEMP/tools; mkdir -p "$T"
+          for f in zig-0.17.0.tar.xz cmake-4.4.3.tar.gz; do
+            u=$(awk -v f=$f '$0 !~ /^#/ && $2==f {print $3}' $P); h=$(awk -v f=$f '$0 !~ /^#/ && $2==f {print $1}' $P)
+            curl -fsSL --retry 5 -o "$T/$f" "$u"; echo "$h  $T/$f" | sha256sum -c -; tar -C "$T" -xf "$T/$f"
+          done
+          echo "ZIG=$T/zig-x86_64-linux-0.17.0/zig" >> "$GITHUB_ENV"
+          echo "CMAKE_DIR=$T/cmake-4.4.3-linux-x86_64/bin" >> "$GITHUB_ENV"
+          nproc; uptime
+      - name: build reduced static ORT with zig
+        run: |
+          start=$(date +%s)
+          ORT_OPS_CONFIG=$PWD/bench/ortstatic/ops.config bash bench/ortstatic/build-ort.sh ${{ matrix.target }} "$RUNNER_TEMP/w" zig min
+          echo "ORT build seconds: $(( $(date +%s) - start ))"
+      - name: build probe
+        if: always()
+        run: |
+          start=$(date +%s)
+          ZIG_GLOBAL_CACHE_DIR=$RUNNER_TEMP/w/zig-cache bash bench/ortstatic/probe.sh ${{ matrix.target }} zig "$RUNNER_TEMP/w/${{ matrix.target }}-zig-min/out" bench/ortstatic/probe "$RUNNER_TEMP/out/bin" "$ZIG"
+          echo "probe build seconds: $(( $(date +%s) - start ))"
+      - name: staticproof
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP"/out/bin/ortprobe* "$RUNNER_TEMP"/out/bin/noort*; do
+            [ -f "$f" ] || continue
+            go -C plugins/frank-exchange-of-views/tools run ./third_party/pins/staticproof "$f"; echo "staticproof $(basename "$f") exit=$?"
+          done 2>&1 | tee "$RUNNER_TEMP/out/staticproof.txt"
+      - name: collect
+        if: always()
+        run: |
+          O=$RUNNER_TEMP/out; B=$RUNNER_TEMP/w/${{ matrix.target }}-zig-min; mkdir -p "$O/logs"
+          cp "$B/build.log" "$O/logs/" 2>/dev/null || true
+          cp "$B/out/archive-sizes.txt" "$B/out/archives.txt" "$O/logs/" 2>/dev/null || true
+          ls -l "$B/out/lib" > "$O/logs/combined.txt" 2>&1 || true
+          rm -rf "$O/bin/zigbin" "$O/bin/zig-cache" "$O/bin/frameworks"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: zig-${{ matrix.target }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
+
+  run-zig:
+    name: run zig ${{ matrix.target }}
+    needs: [models, zig]
+    if: always() && needs.models.result == 'success'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: linux-amd64, os: ubuntu-24.04, plat: amd64 }
+          - { target: linux-arm64, os: ubuntu-24.04-arm, plat: arm }
+          - { target: windows-amd64, os: windows-2025, plat: amd64 }
+          - { target: windows-arm64, os: windows-11-arm, plat: arm }
+          - { target: darwin-amd64, os: macos-15-intel, plat: amd64 }
+          - { target: darwin-arm64, os: macos-15, plat: arm }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27"
+          cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: models
+          path: ${{ runner.temp }}/models
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: zig-${{ matrix.target }}
+          path: ${{ runner.temp }}/zig
+      - name: run
+        run: |
+          B=$RUNNER_TEMP/zig/bin/ortprobe.s; [ -f "$B" ] || B=$B.exe
+          chmod +x "$B"
+          if [ "$(uname -s)" = Darwin ]; then codesign -dv "$B" 2>&1 | head -5 || true; fi
+          cp "$RUNNER_TEMP/models/vocab.txt" "$RUNNER_TEMP/models/${{ matrix.plat }}/vocab.txt"
+          bash bench/ortstatic/run.sh "$B" "$RUNNER_TEMP/models/${{ matrix.plat }}" bench/embed/data "$RUNNER_TEMP/res" "$PWD"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: run-zig-${{ matrix.target }}
+          path: ${{ runner.temp }}/res
+          if-no-files-found: warn
+
+  native:
+    name: native ${{ matrix.target }}
+    needs: [models]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: linux-amd64, os: ubuntu-24.04, plat: amd64, variant: min }
+          - { target: linux-amd64, os: ubuntu-24.04, plat: amd64, variant: full }
+          - { target: linux-arm64, os: ubuntu-24.04-arm, plat: arm, variant: min }
+          - { target: darwin-amd64, os: macos-15-intel, plat: amd64, variant: min }
+          - { target: darwin-arm64, os: macos-15, plat: arm, variant: min }
+          - { target: windows-amd64, os: windows-2025, plat: amd64, variant: min }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27"
+          cache: false
+      - name: host
+        run: |
+          uname -a; cmake --version | head -1; (cc --version || gcc --version || true) 2>&1 | head -2; command -v python3 python || true
+          (nproc || sysctl -n hw.ncpu) 2>/dev/null
+      - name: build ORT (native compiler)
+        run: |
+          start=$(date +%s); PY=python3; command -v python3 >/dev/null && python3 -c 1 2>/dev/null || PY=python
+          PYTHON=$PY ORT_OPS_CONFIG=$PWD/bench/ortstatic/ops.config bash bench/ortstatic/build-ort.sh ${{ matrix.target }} "$RUNNER_TEMP/w" native ${{ matrix.variant }}
+          echo "ORT build seconds: $(( $(date +%s) - start ))"
+      - name: build probe
+        if: always()
+        run: |
+          O=$RUNNER_TEMP/w/${{ matrix.target }}-native-${{ matrix.variant }}/out
+          if [ "${{ runner.os }}" = Windows ]; then
+            # MSVC-built .lib archives, linked by Go's mingw gcc: every archive, grouped.
+            L=$(find "$RUNNER_TEMP/w/${{ matrix.target }}-native-${{ matrix.variant }}/build" -name '*.lib' ! -name '*test*' ! -name 'gtest*' ! -name 'gmock*' ! -name 'libprotoc*' ! -name 'protoc*' | tr '\n' ' ')
+            export CGO_CFLAGS="-I$O/include" CGO_LDFLAGS="-Wl,--start-group $L -Wl,--end-group -lstdc++"
+            (cd bench/ortstatic/probe && go build -ldflags '-linkmode external -extldflags "-static"' -o "$RUNNER_TEMP/out/bin/ortprobe.exe" . ) 2>&1 | tail -60
+            (cd bench/ortstatic/probe && go build -tags noort -ldflags '-linkmode external -extldflags "-static"' -o "$RUNNER_TEMP/out/bin/noort.exe" . ) 2>&1 | tail -20
+            ls -l "$RUNNER_TEMP/out/bin" || true
+          else
+            bash bench/ortstatic/probe.sh ${{ matrix.target }} native "$O" bench/ortstatic/probe "$RUNNER_TEMP/out/bin"
+          fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: always()
+        with:
+          name: models
+          path: ${{ runner.temp }}/models
+      - name: run
+        if: always()
+        run: |
+          B=$RUNNER_TEMP/out/bin/ortprobe.s; [ -f "$B" ] || B=$RUNNER_TEMP/out/bin/ortprobe.exe
+          [ -f "$B" ] || { echo "no probe binary"; exit 1; }
+          cp "$RUNNER_TEMP/models/vocab.txt" "$RUNNER_TEMP/models/${{ matrix.plat }}/vocab.txt"
+          bash bench/ortstatic/run.sh "$B" "$RUNNER_TEMP/models/${{ matrix.plat }}" bench/embed/data "$RUNNER_TEMP/out/res" "$PWD"
+      - name: collect
+        if: always()
+        run: |
+          O=$RUNNER_TEMP/out; B=$RUNNER_TEMP/w/${{ matrix.target }}-native-${{ matrix.variant }}; mkdir -p "$O/logs"
+          cp "$B/build.log" "$B/out/archive-sizes.txt" "$B/out/archives.txt" "$O/logs/" 2>/dev/null || true
+          ls -l "$B/out/lib" > "$O/logs/combined.txt" 2>&1 || true
+          find "$B/build" \( -name '*.lib' -o -name '*.a' \) -exec ls -l {} + > "$O/logs/all-archives.txt" 2>/dev/null || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: native-${{ matrix.target }}-${{ matrix.variant }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
