@@ -49,8 +49,10 @@ func TestALensThatOwesIsNotRetired(t *testing.T) {
 			func(b *stage) {
 				b.computation("K-1", "s1").reproduce(compLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("K-1")
 			}, "unchecked K-1"},
-		{"a contradiction it read that nothing answers", evLens, []string{evLens},
-			func(b *stage) { b.add(evLens, contradictingVerify("the sky is green")) }, "contradiction "},
+		{"a citation it owns whose check read nothing", evLens, []string{evLens},
+			func(b *stage) {
+				b.cite("C-1").verify(evLens, "C-1", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
+			}, "failed_check C-1"},
 	} {
 		for _, owed := range []bool{true, false} {
 			name := c.name

@@ -289,13 +289,12 @@ var EnumFields = map[string][]EnumField{
 			Key: "check_kind", Flag: flags.CheckKind, Values: evsOf(recordpb.CheckKind(0).Descriptor()),
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever that asks blue for a program. A run whose checks are all document probes can only ever ask whether the report SAYS something; a `computation` check is a demand that cannot be answered in prose",
 		},
-		// THE SET `finding` CARRIES, LESS `contradiction`, FROM THE SAME DECLARATION, because it is
-		// the same question asked at the next step of one act. Mint's help used to send an omission
-		// back to a borrowed quote — "quote the sentence where it SHOULD be" — which is the handle the
-		// finding had just been taught to stop using. A contradiction is raised by a finding, and the
-		// gap is minted from that finding, so a gap is never about one (the write refuses it).
+		// THE SET `finding` CARRIES, FROM THE SAME DECLARATION, because it is the same question asked
+		// at the next step of one act. Mint's help used to send an omission back to a borrowed quote —
+		// "quote the sentence where it SHOULD be" — which is the handle the finding had just been
+		// taught to stop using.
 		{
-			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: gapAboutKinds(),
+			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
 			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",
 		},
 	},
@@ -342,21 +341,29 @@ func MustEnum(typ, key string) EnumField {
 	return e
 }
 
-// gapAboutKinds is what a gap may be about: the AboutKinds whose `gap_may_name` facet admits them.
-// A value that declares no facet panics, as a disposition with no `closes` does: read as admitted
-// by default, it would offer a gap an anchor nobody decided it may carry.
-func gapAboutKinds() []EnumValue {
-	ed := recordpb.AboutKind(0).Descriptor()
-	var out []EnumValue
-	for _, v := range evsOf(ed) {
-		vd, _ := recordpb.BySpelling(ed, v.Name)
-		may, declared, err := recordpb.Facet(vd, "gap_may_name")
-		if err != nil || !declared {
-			panic(fmt.Sprintf("about kind %s does not declare whether a gap may name it: %v", v.Name, err))
-		}
-		if may {
-			out = append(out, v)
+// ReadingClassField is the class a reading's gap may take, as `verify --class` registers it: the mint's
+// class field (its key, flag and why) narrowed to the classes some reading admits — the union, over
+// every SourceOutcome, of its `gap_classes` (a reading of a citation) and its
+// `found_source_gap_classes` (a reading of a source the lens found), read off the descriptor. A
+// Verify has no class field, so no EnumFields row declares it: the class is the reading's Mint's. The
+// parse refuses a class outside the union; ReadingGapClasses then narrows to the form's and the
+// outcome's at the write.
+func ReadingClassField() EnumField {
+	e := MustEnum("mint", "class")
+	admitted := map[recordpb.GapClass]bool{}
+	vals := recordpb.SourceOutcome(0).Descriptor().Values()
+	for i := range vals.Len() {
+		o := recordpb.SourceOutcome(vals.Get(i).Number())
+		for _, c := range append(recordpb.GapClassesOf(o), recordpb.FoundSourceGapClassesOf(o)...) {
+			admitted[c] = true
 		}
 	}
-	return out
+	var narrowed []EnumValue
+	for _, v := range e.Values {
+		if c, ok := GapClassOf(v.Name); ok && admitted[c] {
+			narrowed = append(narrowed, v)
+		}
+	}
+	e.Values = narrowed
+	return e
 }

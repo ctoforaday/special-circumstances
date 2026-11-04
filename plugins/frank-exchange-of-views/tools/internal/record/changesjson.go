@@ -71,7 +71,8 @@ type EditJSON struct {
 	// Reason is blue's account of the edit. It sits BESIDE the diff rather than instead of it.
 	Reason string `json:"reason"`
 	// AppliedVerbatim and Accepted are how the edit came about — red's prescribed text taken as
-	// given, and taken through the accept path. Estoppel is enforced on the first.
+	// given, and taken through the accept path. Estoppel is enforced on the first, on a lens's mint,
+	// never on a reading's gap.
 	AppliedVerbatim bool `json:"applied_verbatim"`
 	Accepted        bool `json:"accepted"`
 	// Retired is the citation a retire took off a sentence it kept, whose words are Old and New alike;

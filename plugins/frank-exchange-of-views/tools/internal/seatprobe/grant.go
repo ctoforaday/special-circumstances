@@ -13,8 +13,8 @@ package seatprobe
 //	              ungranted Bash call comes back "This command requires approval".
 //
 // The old dispatch passed a hand-written list with --system-prompt-file, where it was doing BOTH
-// jobs — and the list omitted WebSearch and ToolSearch, so `corroborate` was unperformable and every
-// run scored the seat UNMET on it. Removing the list fixed availability and silently removed the
+// jobs — and the list omitted WebSearch and ToolSearch, so reading a source the seat found (`verify --url`)
+// was unperformable and every run scored the seat UNMET on it. Removing the list fixed availability and silently removed the
 // grant: the seat's first two calls, both `--seat-id … --help`, came back needing approval, it
 // concluded the record tool was not responding, and it spent the sitting reasoning about a blocker
 // the harness had created. `--permission-mode dontAsk` and `auto` do not help — measured, both still

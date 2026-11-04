@@ -150,13 +150,24 @@ func annotationLiteral(a recordpb.ValueAnnotations) string {
 	str("Distinguisher", a.Distinguisher)
 	flag("Closes", a.Closes)
 	flag("SeatMayFile", a.SeatMayFile)
-	flag("GapMayName", a.GapMayName)
 	if a.Mass.Declared {
 		fields = append(fields, "Mass: DeclaredNumber{Declared: true, Value: "+strconv.FormatFloat(a.Mass.Value, 'g', -1, 64)+"}")
 	}
 	if a.MaterialDefault.Declared {
 		fields = append(fields, fmt.Sprintf("MaterialDefault: DeclaredEnum{Declared: true, Value: %d}", a.MaterialDefault.Value))
 	}
+	classes := func(name string, cs []recordpb.GapClass) {
+		if cs == nil {
+			return
+		}
+		ns := make([]string, len(cs))
+		for i, c := range cs {
+			ns[i] = strconv.Itoa(int(c))
+		}
+		fields = append(fields, name+": []GapClass{"+strings.Join(ns, ", ")+"}")
+	}
+	classes("GapClasses", a.GapClasses)
+	classes("FoundSourceGapClasses", a.FoundSourceGapClasses)
 	return "{" + strings.Join(fields, ", ") + "}"
 }
 

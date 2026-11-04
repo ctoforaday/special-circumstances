@@ -1,7 +1,6 @@
 package migrate
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -150,87 +149,78 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 	}
 }
 
-// A RAISED CONTRADICTION IS RAISED ON THE MIGRATED RECORD. A finding names a contradiction by
-// the events.id of the reading that opened it, and every archive renumbers: the cast is written
-// first, an anchor lands after the act that placed it. The reference is translated to the id the
-// reading was written as; untranslated, it names another event or none.
+// A RAISE ON A RENUMBERED ARCHIVE IS WRITTEN AS NO EVENT (EventSchema 59). A raise names a reading by
+// the events.id it was written at, and every archive renumbers: the cast is written first, an anchor
+// lands after the act that placed it. The ref is carried through newID to the reading the replay
+// wrote, and the raise is then dropped; a ref that names no reading is refused, so nothing but a
+// raise is dropped.
 //
-// No archive holds such a finding — the kind arrives at epoch 28 — so one is seeded into the
-// quadratic-formula archive, right after its first refuting reading, by that reading's seat.
-func TestARaisedContradictionIsRaisedOnTheMigratedRecord(t *testing.T) {
+// No sqlite archive before epoch 28 holds a raise, so one is seeded into the quadratic-formula
+// archive, right after its first refuting reading, by that reading's seat — and a second, naming an
+// event that is no reading, is seeded on a copy.
+func TestARaiseOnARenumberedArchiveIsWrittenAsNoEvent(t *testing.T) {
 	from := recordtest.ExtractArchive(t, "2026-09-02_quadratic-formula.tar.gz")
 	src := archivedSource(t, from)
 	evs, err := src.Events()
 	if err != nil {
 		t.Fatal(err)
 	}
-	var seeded []OldEvent
+	raise := func(old OldEvent, id string, ref int64) OldEvent {
+		return OldEvent{ID: 1<<40 + ref, SeatID: old.SeatID, Round: old.Round, TS: old.TS, Key: old.SeatID + ":finding:" + id,
+			Word: "finding", Fields: map[string]any{"id": id, "text": "the source contradicts the sentence",
+				"severity": "medium", "likelihood": "medium", "impact": "medium",
+				"about_kind": "contradiction", "about_ref": strconv.FormatInt(ref, 10)}}
+	}
+	var seeded, misnamed []OldEvent
 	var reading OldEvent
 	for _, old := range evs {
-		seeded = append(seeded, old)
+		seeded, misnamed = append(seeded, old), append(misnamed, old)
 		if o, _ := old.Fields["outcome"].(string); old.Word == "verify" && reading.ID == 0 && (o == "refutes" || o == "absent") {
 			reading = old
-			seeded = append(seeded, OldEvent{ID: 1 << 40, SeatID: old.SeatID, Round: old.Round, TS: old.TS, Key: old.SeatID + ":finding:contradiction",
-				Word: "finding", Fields: map[string]any{"id": "F-0000c0de", "text": "the source contradicts the sentence",
-					"severity": "medium", "likelihood": "medium", "impact": "medium",
-					"about_kind": "contradiction", "about_ref": strconv.FormatInt(old.ID, 10)}})
+			seeded = append(seeded, raise(old, "F-0000c0de", old.ID))
+			misnamed = append(misnamed, raise(old, "F-0000beef", evs[0].ID))
 		}
 	}
 	if reading.ID == 0 {
 		t.Fatal("the archive holds no refuting reading")
 	}
-	// The run's channels, as Migrate stages them before a replay.
-	to := recordtest.TmpRun(t)
-	if err := copyChannels(from, to); err != nil {
-		t.Fatal(err)
+	run := func(stream []OldEvent) (*Result, record.Run) {
+		t.Helper()
+		// The run's channels, as Migrate stages them before a replay.
+		to := recordtest.TmpRun(t)
+		if err := copyChannels(from, to); err != nil {
+			t.Fatal(err)
+		}
+		dst := runtest.New(t, to)
+		res, err := replayInOrder(sliceOf(stream), Entries(), dst, Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res, dst
 	}
-	dst := runtest.New(t, to)
-	res, err := replayInOrder(sliceOf(seeded), Entries(), dst, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	res, dst := run(seeded)
 	if len(res.Refusals) != 0 {
 		t.Fatalf("%d refusal(s); the first: %+v", len(res.Refusals), res.Refusals[0])
 	}
-	b, err := record.EvidenceJSONBytes(dst)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var ev record.EvidenceJSON
-	if err := json.Unmarshal(b, &ev); err != nil {
-		t.Fatal(err)
-	}
-	claim, _ := reading.Fields["claim"].(string)
 	m, err := record.MergedEvents(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var ref string
 	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
-			ref = f.GetAboutRef()
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetId() == "F-0000c0de" {
+			t.Errorf("the seeded raise was written as a finding about %s %q; a raise is written as no event", recordpb.Word(f.GetAboutKind()), f.GetAboutRef())
 		}
 	}
-	// THE ID SHIFTED, or this test is vacuous: an untranslated reference would pass by luck.
-	if ref == strconv.FormatInt(reading.ID, 10) || ref == "" {
-		t.Fatalf("the migrated finding names contradiction %q, the reading's source id %d — the archive did not renumber, so nothing was tested", ref, reading.ID)
+	if res.In["finding"] != res.Out["finding"]+1 {
+		t.Errorf("findings in %d, out %d: the raise is read and written as no event, so out is one fewer", res.In["finding"], res.Out["finding"])
 	}
-	// The finding raises it and no gap answers it, so it is listed — raised by the seeded finding.
-	// A reference left untranslated would raise another reading's contradiction, or none.
-	raised := false
-	for _, c := range ev.UnansweredContradictions {
-		if c.Claim == claim {
-			raised = c.RaisedBy == "F-0000c0de"
-			if !raised {
-				t.Errorf("the raised claim %q is listed raised by %q on the migrated record, want F-0000c0de", claim, c.RaisedBy)
-			}
-		}
+	res, _ = run(misnamed)
+	refusedRaise := false
+	for _, r := range res.Refusals {
+		refusedRaise = refusedRaise || r.OldID == 1<<40+evs[0].ID
 	}
-	if !raised {
-		t.Errorf("the raised claim %q is not listed raised by F-0000c0de on the migrated record", claim)
-	}
-	if len(ev.UnansweredContradictions) == 0 {
-		t.Errorf("no unanswered contradiction remains: the archive's other readings must still be listed, or the read is blank")
+	if !refusedRaise {
+		t.Errorf("a raise naming event %d, which is no reading, was dropped without a word (refusals %+v) — only a raise is dropped, and a ref that names no reading is the loud miss", evs[0].ID, res.Refusals)
 	}
 }
 
@@ -244,11 +234,14 @@ func (s sliceOf) Close() error                  { return nil }
 // A REFERENCE MIGRATE CANNOT TRANSLATE IS A REFUSAL BY NAME, and a carried reproduce with no
 // computation of its bundle before it has nowhere to go.
 func TestAnUntranslatableReferenceIsRefusedByName(t *testing.T) {
-	if _, err := contradictionRef("17", map[int64]int64{3: 4}); err == nil {
-		t.Error("a contradiction reference to a reading the replay wrote nothing for was translated")
+	raise := func(ref string) *recordpb.Finding {
+		return &recordpb.Finding{Id: proto.String("F-0000c0de"), AboutRef: proto.String(ref)}
 	}
-	if got, err := contradictionRef("3", map[int64]int64{3: 4}); err != nil || got != "4" {
-		t.Errorf("contradictionRef(3) = %q, %v, want 4", got, err)
+	if err := raisedReading(nil, raise("17"), map[int64]int64{3: 4}); err == nil {
+		t.Error("a raise of a reading the replay wrote nothing for was dropped")
+	}
+	if err := raisedReading(nil, raise("not-an-id"), map[int64]int64{3: 4}); err == nil {
+		t.Error("a finding about an anchor whose ref is neither an anchor nor an events.id was dropped as a raise")
 	}
 	if _, err := reproduceAnchors([]proto.Message{&recordpb.Reproduce{BundleSha: proto.String("s1")}}, map[string][]string{}); err == nil {
 		t.Error("a reproduce of a bundle no computation was written on was carried to an anchor")

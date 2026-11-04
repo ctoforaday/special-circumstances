@@ -8,18 +8,21 @@
 // report-as-record (#709) the report is REPLAYED from the record by internal/reportproj, which
 // must re-place every marker — and cli/lens must read the replayed report to locate its own
 // splice, so cli/lens now imports reportproj. Geometry in cli/lens would have closed that loop
-// into a cycle. It depends on nothing but the standard library and the internal/anchor leaf, so
+// into a cycle. It depends on nothing but the standard library and the internal/anchor and
+// internal/claimcount leaves (the sentence rule and which anchors stand bare), so
 // reportproj, cli/lens, cli/blue and bluedoc can all share the one locator.
 package anchortext
 
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 )
 
 // trailingPunct is the run of punctuation trimmed from the END of a quote (only the
@@ -336,6 +339,22 @@ func LocateOnce(doc, quote string, scope SpanScope) (start, end int, err error) 
 	return start, end, nil
 }
 
+// LocateAll is the span of every occurrence of quote in doc, in order, as LocateOnce walks them for
+// its ambiguity refusal. A reader that holds an identity — an anchor's token — picks the occurrence
+// the token marks; one that holds only text uses LocateOnce, which refuses a second.
+func LocateAll(doc, quote string) [][2]int {
+	var out [][2]int
+	for off := 0; off <= len(doc); {
+		s, e := locate(doc[off:], quote, CrossParagraphs)
+		if s < 0 || e <= 0 {
+			break
+		}
+		out = append(out, [2]int{off + s, off + e})
+		off += e
+	}
+	return out
+}
+
 // SpanBoundaryOK rejects only a span that SPLITS A WORD.
 //
 // It is deliberately not a whitespace rule: normalizeQuote trims trailing punctuation, so a
@@ -566,6 +585,57 @@ func Attach(doc, id, quote string) (string, error) {
 		return "", ErrInQuotation
 	}
 	return string(insertMarker([]byte(doc), at, anchor.Token(id))), nil
+}
+
+// AttachToSentenceOf's refusals: the anchor whose sentence the marker would end is not in the text, or
+// stands bare — backing no prose, so it sits in no sentence a marker could end.
+var (
+	ErrAnchorGone = errors.New("the anchor whose sentence the marker ends is not in the report")
+	ErrAnchorBare = errors.New("the anchor whose sentence the marker ends stands bare, backing no prose")
+)
+
+// AttachToSentenceOf is doc with the anchor id's token at the end of the sentence the token of the
+// anchor `of` sits in — at the offset Attach gives a quote of that whole sentence at that occurrence:
+// past its last content character and any closing quotation mark touching it (placement), before its
+// terminator — so a token of `of` at the sentence's end stays after the new one, as it would beside a
+// gap minted on a quote of the sentence. The sentence is found by `of`'s token, which the report holds
+// once, never by searching its text: a sentence whose words the report holds twice is placed at the
+// occurrence that token sits in. Refuses ErrAnchorGone, ErrAnchorBare, and ErrInFence or ErrOnHeading
+// where the sentence's end is in a fence or on a heading. It never stops inside a quotation.
+func AttachToSentenceOf(doc, id, of string) (string, error) {
+	tok := anchor.Token(of)
+	at := strings.Index(doc, tok)
+	if at < 0 {
+		return "", fmt.Errorf("%w: %s", ErrAnchorGone, tok)
+	}
+	if slices.Contains(claimcount.BareAnchorIDs(doc), of) {
+		return "", fmt.Errorf("%w: %s", ErrAnchorBare, tok)
+	}
+	var sp [2]int
+	found := false
+	for _, s := range anchor.Sentences(doc) {
+		if s[0] <= at && at+len(tok) <= s[1] {
+			sp, found = s, true
+			break
+		}
+	}
+	if !found {
+		return "", fmt.Errorf("%w: %s sits in no sentence", ErrAnchorBare, tok)
+	}
+	sentence := doc[sp[0]:sp[1]]
+	quote := strings.TrimSpace(claimcount.StripAnchors(sentence))
+	_, end := locate(sentence, quote, CrossParagraphs)
+	if end < 0 {
+		return "", fmt.Errorf("%w: the sentence %s sits in", ErrMisQuote, tok)
+	}
+	place := sp[0] + placement(sentence, quote, end)
+	switch {
+	case InBlock(doc, place, anchor.Fence):
+		return "", ErrInFence
+	case InBlock(doc, place, anchor.Heading):
+		return "", ErrOnHeading
+	}
+	return string(insertMarker([]byte(doc), place, anchor.Token(id))), nil
 }
 
 // ContentEnd is where Attach places an anchor on a quote of all of text: just past its last content

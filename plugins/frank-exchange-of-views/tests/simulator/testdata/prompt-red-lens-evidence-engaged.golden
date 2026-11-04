@@ -1,4 +1,4 @@
-prompt sha256: caa48e4a64f2031a92cb5fec9104e770fcc6dd02633443c770b8475a169c5b05
+prompt sha256: 4987d97f99d8b6905f6a9133f01a42f63d0730a03a0b6a904366c0cfddcf9398
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -9,7 +9,7 @@ A citation whose evidence entry lists pages is OCR text — a machine's reading 
 Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most.
 WHAT NOT TO RE-CHECK, because it is the sitting's whole economy: a claim verified at HIGH confidence in a prior sitting STAYS verified — do not re-fetch it UNLESS your work list says its sentence changed since, OR more than 2 epochs have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats).
 RECORD every claim you verify.
-A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it — and it answers a different question: whether the claim is true in the WORLD, where verification asks only what blue's source did for it.
+A SOURCE READ AGAINST A SENTENCE THAT CARRIES NO CITATION OF IT — one you found, or one blue cites elsewhere — asks whether the claim is true in the WORLD; where it backs an uncited sentence or refutes one, your reading records the gap, and blue answers it with a citation.
 VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source.
 Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim through the run's cached read, so every seat after you reads the same bytes (an issue thread through `gh issue view <n> --comments`), and read it.
 WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation.

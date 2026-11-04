@@ -63,8 +63,9 @@ func TestAColumnNoReaderReadIsNotCarried(t *testing.T) {
 // anchorless one not marked independent — because then the bool carried a fact and dropping it would
 // lose it. It also fails on a migrated record holding a different number of verifications, cites,
 // sitting ends or limits than its source, or a different number of corroborations than the source's
-// independent rows, and on an archive set holding no independent row at all, which would leave the
-// translation tested by nothing.
+// independent rows and its readings of a citation a labelled corroboration placed (each comes forward
+// as a reading of the label's source, EventSchema 59), and on an archive set holding no independent
+// row at all, which would leave the translation tested by nothing.
 func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing.T) {
 	independent := 0
 	for _, name := range archivedRuns(t) {
@@ -78,11 +79,16 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 			// A SOURCE WRITTEN AFTER THE BOOL WAS CUT carries none: its corroboration is its empty
 			// anchor already, and that is what it migrates as.
 			carriesBool := false
+			labels := map[string]bool{}
 			for _, old := range evs {
 				if _, ok := old.Fields["independent"]; ok && old.Word == "verify" {
 					carriesBool = true
 				}
+				if l, _ := old.Fields["label"].(string); l != "" && old.Word == "verify" {
+					labels[l] = true
+				}
 			}
+			reReadings := 0
 			for _, old := range evs {
 				switch old.Word {
 				case "verify", "cite", "sitting_open", "sitting_close", "sitting_limit":
@@ -109,6 +115,9 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 				}
 				if ind {
 					wantIndependent++
+				}
+				if labels[anchor] {
+					reReadings++
 				}
 			}
 			_, dir := MigratedArchive(t, name)
@@ -140,8 +149,8 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 					t.Errorf("migrated %d %s event(s), the source holds %d", got[w], w, n)
 				}
 			}
-			if gotCorroborations != wantIndependent {
-				t.Errorf("migrated %d corroboration(s), the source marks %d verification(s) independent", gotCorroborations, wantIndependent)
+			if gotCorroborations != wantIndependent+reReadings {
+				t.Errorf("migrated %d corroboration(s), the source marks %d verification(s) independent and holds %d reading(s) of a label", gotCorroborations, wantIndependent, reReadings)
 			}
 			independent += wantIndependent
 		})

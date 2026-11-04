@@ -19,21 +19,15 @@ func TestAReadingsJSONCarriesTheConfidenceItRecords(t *testing.T) {
 			t.Errorf("verify --json confidence = %v, the record holds %q; want medium in both", r["confidence"], stored)
 		}
 	})
-	t.Run("corroborate and its retry", func(t *testing.T) {
+	t.Run("verify --url", func(t *testing.T) {
 		runDir := newRun(t)
 		writeReport(t, runDir, fermatReport)
 		cachedCopy(t, runDir, "", "")
 		registerLensOnce(t, runDir)
-		args := []string{"corroborate", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
-			"--quote", fermatClaim, "--as", "supports", "--confidence", "medium", "--reason", "read at the leaf"}
-		for _, pass := range []string{"first", "retry"} {
-			r := jsonResult(t, args...)
-			if r["confidence"] != "medium" {
-				t.Errorf("%s corroborate --json confidence = %v, want medium", pass, r["confidence"])
-			}
-			if idem, _ := r["idempotent"].(bool); idem != (pass == "retry") {
-				t.Errorf("%s corroborate --json idempotent = %v", pass, r["idempotent"])
-			}
+		r := jsonResult(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
+			"--quote", fermatClaim, "--as", "supports", "--confidence", "medium", "--reason", "read at the leaf"}, gapFlagArgs("unsourced_claim")...)...)
+		if stored := recordpb.Word(firstVerify(t, runDir).GetConfidence()); stored != "medium" || r["confidence"] != stored {
+			t.Errorf("verify --url --json confidence = %v, the record holds %q; want medium in both", r["confidence"], stored)
 		}
 	})
 }

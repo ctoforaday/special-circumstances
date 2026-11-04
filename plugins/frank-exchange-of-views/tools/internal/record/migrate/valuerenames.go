@@ -24,7 +24,11 @@ var valueRenames = map[protoreflect.FullName]map[string]string{
 	"feov.record.v1.AboutKind": {"avenue": "inquiry",
 		// ONE KIND FOR EVERY ANCHOR WHOSE CHECK FAILED: a gap about a proof judged unsound is a gap
 		// about its anchor, as one about a citation nobody could read is (EventSchema 48).
-		"proof": "anchor"},
+		"proof": "anchor",
+		// A RAISE NAMES A READING BY ITS EVENT, never an anchor, and replay writes it as no event
+		// (raisedReading): decoded as a finding about an anchor, it is recognised by a ref that
+		// names no anchor (EventSchema 59).
+		"contradiction": "anchor"},
 	"feov.record.v1.InquiryStatus": {"pursued": "underway", "concluded": "confirmed"},
 	// A GAP'S CLASS: every archived slug the closed set merged, dropped or never had (gapclass.go).
 	"feov.record.v1.GapClass": archivedGapClasses,

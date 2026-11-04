@@ -12,8 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// aboutShapes are the --about-kinds whose reference is an id of a known shape. A section is a heading,
-// in any words; a contradiction's id is a number, which requireOpenContradiction reads.
+// aboutShapes are the --about-kinds whose reference is an id of a known shape.
 var aboutShapes = map[recordpb.AboutKind]func() *flags.ShapedValue{
 	recordpb.AboutKind_ABOUT_KIND_INQUIRY: flags.InquiryID,
 	recordpb.AboutKind_ABOUT_KIND_GAP:     flags.GapID,
@@ -21,8 +20,7 @@ var aboutShapes = map[recordpb.AboutKind]func() *flags.ShapedValue{
 }
 
 // ResolveAbout turns the --about-kind/--about pair into a checked anchor, for EVERY verb that
-// takes one. admitted is the set the verb declares for --about-kind: a gap is never about a
-// contradiction, and a finding may be.
+// takes one. admitted is the set the verb declares for --about-kind.
 //
 // IT LIVES HERE RATHER THAN BESIDE EITHER CALLER BECAUSE THERE ARE TWO. `lens finding` files the
 // finding and `lens mint` files the gap that finding becomes; a seat that anchors an omission at
@@ -54,9 +52,6 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 	names := Names(admitted.Values)
 	k, ok := AboutKindOf(kind)
 	if !ok || k == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED || !slices.Contains(names, kind) {
-		if k == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
-			return nil, nil, fmt.Errorf("a gap is not about a contradiction: raise the contradiction with a finding (`--about-kind contradiction --about <its id>`), and mint the gap from that finding with --found-by")
-		}
 		return nil, nil, fmt.Errorf("%q is not a thing this can be about (%s)", kind, strings.Join(names, " | "))
 	}
 	// THE REFERENCE IS CHECKED AGAINST THE RECORD, which is the whole advantage over a quote
@@ -94,14 +89,6 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 			return nil, nil, err
 		}
 		if err := requireAboutAnchor(db, k, ref); err != nil {
-			return nil, nil, err
-		}
-	case recordpb.AboutKind_ABOUT_KIND_CONTRADICTION:
-		db, err := openRunForRead(run)
-		if err != nil {
-			return nil, nil, err
-		}
-		if err := requireOpenContradiction(db, ref); err != nil {
 			return nil, nil, err
 		}
 	}

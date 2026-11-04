@@ -1,6 +1,6 @@
 ---
 name: research-protocol
-description: Use when performing or auditing deep research — the tool-mediated exchange, both sides' bibliography, how the report is read, and the report set's structure.
+description: Use when performing or auditing deep research — the tool-mediated exchange, the bibliography, how the report is read, and the report set's structure.
 disable-slash-command: true
 user-invocable: false
 ---
@@ -11,12 +11,14 @@ Research that survives an adversary.
 
 ## The bibliography
 
-- **The bibliography is BOTH sides'.** A red CORROBORATION — a source red went and found for a
-  claim blue made — mints an anchor and joins the footnotes the same way when it SUPPORTS the
-  claim. A reader cares that the text has appropriate references, not which seat inserted them.
-  A `refutes` or `absent` reading is not a reference backing the sentence and is never spliced: it
-  is red finding the text unsupported, which is a defect, and it goes to the board as a finding —
-  a PASS is refused until one is raised for it.
+- **The bibliography is blue's citations.** A source red goes and finds for a claim blue made is
+  read against that sentence and places no anchor, footnote or Bibliography entry: where it backs
+  a sentence the report cites nothing for, the reading records a gap asking blue to cite a source,
+  and where it refutes the sentence, a gap that the source states otherwise. Blue answers with a
+  citation, and a lens reads blue's citation. A `refutes` or `absent` reading of a citation is not
+  a reference backing the sentence and is never spliced: it is red finding the text unsupported,
+  which is a defect, and the reading records its gap on the sentence in the same act — the gap
+  and the citation's failed check hold the PASS.
 
 ## The exchange is TOOL-MEDIATED
 

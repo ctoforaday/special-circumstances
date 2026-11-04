@@ -61,10 +61,10 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	app(chair, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Finding{Id: proto.String("F-00000002"), Text: proto.String("second epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	app(lens, &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Url: proto.String("https://example.org"), Claim: proto.String("c"),
-		Label: proto.String("v-1"), Title: proto.String("t"),
-		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
+		Title:      proto.String("t"),
+		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
-		Text:       proto.String("the source states it plainly")})
+		Text:       proto.String("the source says nothing of it")})
 	app(chair, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the round narrative")})
 
 	evs, err := MergedEvents(run)

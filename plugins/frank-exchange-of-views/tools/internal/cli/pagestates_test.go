@@ -136,15 +136,13 @@ func TestTheEvidencePageSaysWhereAComputationsVerdictLives(t *testing.T) {
 		"`not_compared`: the bundle was re-run and nobody compared this act", "`not_rerun`: the bundle was never re-run", "`bundle_bases`",
 		"`verified` is true when this act's comparison reproduced AND this sentence is judged sound",
 		"`counts.computations_unverified` is how many computations are not verified",
-		"`--about-kind contradiction --about <id>`",
 	} {
 		if !strings.Contains(page, says) {
 			t.Errorf("show evidence's page does not say %q", says)
 		}
 	}
 	// AND THE PATHS IT NAMES ARE THE SHAPE'S, read off the field tree the same page generates.
-	for _, shape := range []string{"computations:[{anchor,sha256,argv:[string],basis,cites,drift,invariant,seat_id,epoch,bundle_bases:[string],rerun,soundness,verified,checks:[{rerun,ran,soundness,standing,",
-		"unanswered_contradictions:[{id,claim,reader,anchor,raised_by}]", "counts:{sources,computations,computations_unverified,"} {
+	for _, shape := range []string{"computations:[{anchor,sha256,argv:[string],basis,cites,drift,invariant,seat_id,epoch,bundle_bases:[string],rerun,soundness,verified,checks:[{rerun,ran,soundness,standing,", "counts:{sources,computations,computations_unverified,"} {
 		if !strings.Contains(page, shape) {
 			t.Errorf("the page names a path its own field tree does not hold (%q)", shape)
 		}

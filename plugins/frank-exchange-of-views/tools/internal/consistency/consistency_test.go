@@ -264,18 +264,16 @@ func TestFindingsAndCitations(t *testing.T) {
 		recordtest.At(t, "blue-synthesize", "blue-synthesize:anchor:C-aa000001", &recordpb.Anchor{
 			Id: proto.String("C-aa000001"), Location: proto.String("the cited sentence"),
 		}),
-		// Red's leaf reads are VERIFY events (a corroboration goes through the same verb); a
+		// Red's leaf reads are VERIFY events (a reading of a source red found included); a
 		// red-authored Cite is unconstructible through the tool — only `blue cite` writes one.
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:C-aa000001", &recordpb.Verify{
-			Claim: proto.String("the cited sentence"), Label: proto.String("C-aa000001"),
-			Url:        proto.String("https://example.org/a"),
+			Claim: proto.String("the cited sentence"), Anchor: proto.String("C-aa000001"),
 			Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
 			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
 			Text:       proto.String("read at the leaf"),
 		}),
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:C-aa000001:#2", &recordpb.Verify{
-			Claim: proto.String("the cited sentence"), Label: proto.String("C-aa000001"),
-			Url:        proto.String("https://example.org/a"),
+			Claim: proto.String("the cited sentence"), Anchor: proto.String("C-aa000001"),
 			Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
 			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
 			Text:       proto.String("re-read in round 2 — counts a second time, which the doc now admits"),

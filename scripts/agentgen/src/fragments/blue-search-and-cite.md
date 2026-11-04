@@ -21,10 +21,17 @@
   for a computation. A check by any lens from a sitting opened after the edit clears it, and a PASS
   waits until one does.
 - **A CHECK THAT FAILED HOLDS THE PASS, AND THE ANCHOR IS YOURS TO FIX OR RETIRE.** While a lens's
-  judgement that a computation does not establish its sentence stands, or while no reading of a citation
-  has read the work it cites, no PASS can be recorded, and you are readied for it — no bench ruling
-  clears it. Fix a computation with an edit that makes the sentence say what the program shows, which
-  reopens it for a fresh judgement, or a new computation with the old one retired, or retire the claim.
-  Fix a citation by citing a source a lens can read and retiring the dead citation, or by retiring
-  the citation and letting the sentence stand on what else backs it, or by editing the sentence.
-  The lens's gap about the anchor, once minted, states the defect and its fix.
+  judgement that a computation does not establish its sentence stands, while no reading of a citation
+  has read the work it cites, or while a lens's reading finds a citation's source against its
+  sentence, no PASS can be recorded, and you are readied for it — no bench ruling clears it. Fix a
+  computation with an edit that makes the sentence say what the program shows, which reopens it for a
+  fresh judgement, or a new computation with the old one retired, or retire the claim. Fix a citation
+  no reading could read by citing a source a lens can read and retiring the dead citation, or by
+  retiring the citation and letting the sentence stand on what else backs it, or by editing the
+  sentence. Fix a citation found against by editing its sentence to say what the source says, or by
+  retiring or replacing the citation. The gap that carries the check states the defect and its fix.
+- **A GAP A LENS'S OWN SOURCE CARRIES IS ANSWERED WITH A CITATION.** A source a lens found and read
+  against a sentence places no citation: where it backs a sentence the report cites nothing for, its
+  gap asks you to cite a source for that sentence, and where it refutes the sentence, its gap says the
+  source states otherwise. The evidence on the record names the source the lens read for the gap;
+  answer by citing a source on the sentence, or by editing it, and a lens reads your citation.

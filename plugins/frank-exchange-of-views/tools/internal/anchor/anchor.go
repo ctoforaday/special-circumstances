@@ -10,8 +10,8 @@
 //
 // # Why it is a leaf
 //
-// Each kind is placed by its own verb — `lens finding`, `lens mint`, `blue cite`, `blue compute`,
-// `lens corroborate` — and read back by the edit guard, the board, the assembly and every seat that
+// Each kind is placed by its own verb — `lens finding`, `lens mint`, `lens verify` (the gap its
+// reading mints), `blue cite`, `blue compute` — and read back by the edit guard, the board, the assembly and every seat that
 // wants the live text at one. That is a vocabulary several layers share, so it depends on NOTHING
 // but the standard library. It was in `internal/bluedoc`, which reaches up into `internal/cli/lens`
 // for its span locator; anything importing it inherited a command package, and `internal/cli/seat`

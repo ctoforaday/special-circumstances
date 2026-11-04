@@ -51,7 +51,22 @@ func (src ReportSource) Fold(replay func(text string, parted bool, ops []reportp
 // reportCheckpointEvery (stampReportCheckpoint). So an op at or below at with no checkpoint below it,
 // or a tail of reportCheckpointEvery ops or more, is a record this binary's write path did not write,
 // and the read says so rather than replaying from wherever it can.
+//
+// THE CHECKPOINT AND THE OPS AFTER IT ARE READ FROM ONE SNAPSHOT. Asked of the run's handle, the two
+// statements are two snapshots, and a write committed between them lands the op that brings the tail
+// to reportCheckpointEvery and its checkpoint after the checkpoint already read: the tail read is then
+// one this write path never leaves, refused as above while every other seat writes (release fuzz seeds
+// 5, 37, 40, a lens's `verify --url` rendering beside the other lenses' anchors). So a handle is read
+// through a read transaction of its own; a transaction the caller holds is its own snapshot.
 func ReportSourceAt(q Querier, at int64) (ReportSource, error) {
+	if db, ok := q.(*sql.DB); ok {
+		tx, err := BeginRead(db)
+		if err != nil {
+			return ReportSource{}, fmt.Errorf("opening a read of the report: %w", err)
+		}
+		defer tx.Rollback() //nolint:errcheck // a read-only transaction; nothing to keep
+		q = tx
+	}
 	var src ReportSource
 	var cp int64
 	var text, failure sql.NullString

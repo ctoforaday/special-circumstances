@@ -213,8 +213,8 @@ func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 	}
 }
 
-// AN INDEPENDENT CHECK HAS NO ANCHOR AND IS NOT A MISSING ONE. Corroboration red found itself
-// is a different fact from an unverified citation, so it lands in its own array.
+// AN INDEPENDENT CHECK HAS NO ANCHOR AND IS NOT A MISSING ONE. A reading of a source red found
+// itself is a different fact from an unverified citation, so it lands in its own array.
 func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("https://example.org/p")}),
@@ -247,7 +247,7 @@ func TestEvidence_UncheckedSourceSaysSoInTheJSON(t *testing.T) {
 	}
 }
 
-// REFUTES AND ABSENT ARE THE FINDING HALF, and they are counted — that count is what the
+// REFUTES AND ABSENT ARE THE NEGATIVE HALF, and they are counted — that count is what the
 // assembly screen acts on, and what the old high|medium|low enum could never produce.
 func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 	for _, outcome := range []recordpb.SourceOutcome{
@@ -266,9 +266,22 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 			t.Errorf("outcome %q: SourcesRefuted = %d, want 1 — a source red found against must be countable",
 				recordpb.Word(outcome), got.Counts.SourcesRefuted)
 		}
-		if !got.Sources[0].Verified[0].Refuted() {
-			t.Errorf("outcome %q: Refuted() = false; the screen and the counts must agree on what 'found against' means", outcome)
+		if !got.Sources[0].Verified[0].FindsAgainst() {
+			t.Errorf("outcome %q: FindsAgainst() = false; the screen and the counts must agree on what 'found against' means", outcome)
 		}
+	}
+	// A READING OF A COPY THE TOOL STAMPED not_the_work reads nothing, whatever it found there: its
+	// row is not found against, by the one predicate the ledger reads (record.FindsAgainst).
+	nw := evidenceBoard(
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}),
+		evidenceEvent(t, 2, "lens-r2", &recordpb.Verify{
+			Anchor: proto.String("c-1"), Claim: proto.String("x"),
+			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("read a sign-in page"),
+			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK.Enum(),
+		}),
+	)
+	if row := evidenceJSONT(t, nw).Sources[0].Verified[0]; row.SourceCompleteness != "not_the_work" || row.FindsAgainst() {
+		t.Errorf("a `refutes` of a copy stamped not_the_work: row %+v, FindsAgainst() = %v — want the stamp on the row and false: it read nothing of the work", row, row.FindsAgainst())
 	}
 	// And the supporting half is NOT counted as found-against.
 	b := evidenceBoard(

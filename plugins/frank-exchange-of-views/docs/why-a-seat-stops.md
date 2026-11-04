@@ -94,13 +94,13 @@ Two things follow, and both are actionable.
 **The help text routes traffic away from the new verb.** `verify`'s Short says *"An UNEVIDENCED claim
 is a finding"*; `finding`'s says it is *"THE CHANNEL FOR ANY DEFECT IN THE TEXT… a claim resting on
 NO citation and no computation"*. Both are correct about whether the TEXT stands up, and both silently
-answer a different question than whether the claim is TRUE IN THE WORLD — which is `corroborate`'s.
+answer a different question than whether the claim is TRUE IN THE WORLD — which a reading of a source the lens finds answers.
 The #474 split is semantically sound and the seat walked to it perfectly when asked; it never fired
 because the two neighbouring help texts each say "that's a finding" without qualifying which question
 they are answering.
 
-> **FIXED.** All three Shorts now name the question they answer — `finding` the TEXT, `corroborate`
-> the WORLD, `verify` blue's own source — and each routes to the others at the boundary. `finding`
+> **FIXED.** The Shorts name the question they answer — `finding` the TEXT, `verify` a source read
+> against the sentence, blue's citation or one the lens found in the WORLD — and each routes to the other at the boundary. `finding`
 > also states the asymmetry the seat identified rather than leaving it to act: *"this verb cannot
 > fail, needing no fetch and risking no `absent`, and the evidence verbs can."*
 >

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -267,4 +268,47 @@ func TestAnEditRetryIsComparedWithoutTheAnchorsPutBack(t *testing.T) {
 	if out, err := run(t, edit...); err != nil || !strings.Contains(out, repeatedWords) {
 		t.Errorf("the identical retry answered %q, %v; want the stored edit", out, err)
 	}
+}
+
+// 23. A RETRIED NEGATIVE READING IS REFUSED NAMING ITS GAP: `verify` takes no --key, so a reading run
+// twice in one sitting is answered by refusal, and the refusal names the first reading's event and the
+// gap that carries it — how a crash-retried reading learns its first write landed.
+func TestARetriedNegativeReadingIsRefusedNamingItsGap(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		args func(b readingBoard) []string
+	}{
+		{"verify --anchor", func(b readingBoard) []string { return citeReading(b.c1, "refutes", "claim_contradicts_source") }},
+		{"verify --url", func(b readingBoard) []string { return urlReading(rdU3, rdFree1, "refutes", "claim_contradicts_source") }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			b := readingRun(t)
+			g := b.mustRead(lensL, c.args(b)...).Gap.ID
+			_, first := b.lastVerify()
+			_, err := b.verify(lensL, c.args(b)...)
+			mustRefuse(t, err, "", fmt.Sprintf("at event %d", first), g)
+			// The citation reading meets the repeat rule (a conflict); the found-source retry meets
+			// requireNotARetriedReading, coded as the duplicate key it stands in for.
+			if c.name == "verify --anchor" && feov.CodeOf(err) != string(feov.Conflict) {
+				t.Errorf("the refusal is not a conflict: %v", err)
+			}
+			if got := b.counts(); got != [3]int{1, 1, 1} {
+				t.Errorf("the record holds verify/mint/anchor %v, want the first act alone", got)
+			}
+		})
+	}
+	t.Run("verify --url --as absent", func(t *testing.T) {
+		b := readingRun(t)
+		b.mustRead(lensL, urlReading(rdU3, rdFree1, "absent", "")...)
+		_, first := b.lastVerify()
+		_, err := b.verify(lensL, urlReading(rdU3, rdFree1, "absent", "")...)
+		mustRefuse(t, err, "", "you recorded a reading of "+rdU3+" for this sentence", fmt.Sprintf("at event %d", first))
+		if got := b.counts(); got != [3]int{1, 0, 0} {
+			t.Errorf("the record holds verify/mint/anchor %v, want one reading", got)
+		}
+		b.mustRead(lensL, urlReading(rdU3, rdFree2, "absent", "")...)
+		if got := b.counts(); got != [3]int{2, 0, 0} {
+			t.Errorf("the same source's absent for a second sentence: verify/mint/anchor %v, want two readings", got)
+		}
+	})
 }

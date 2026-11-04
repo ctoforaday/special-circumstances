@@ -11,6 +11,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
@@ -125,6 +126,19 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 
 	evs, res.Serialized = serializeInstances(evs)
 	rm := newRemap(res.SourceHash)
+	// A LABELLED CORROBORATION'S CITATION IS DROPPED (EventSchema 59): no reading places a citation.
+	// Its label leaves every field (remap.dropped) and the Anchor that placed it is written as no
+	// event; a reading that named it comes forward as a reading of the label's source. The labels and
+	// their sources are read off the SOURCE stream: the migrated Verify has no label to be found by.
+	labelled := labelSources(evs, rm)
+	// A READING'S ACT IS WRITTEN WHOLE (readingActs): a record written at this epoch holds a reading
+	// that minted its gap as three events one transaction wrote, and the write rules that read the
+	// act — the budget's admission, the reading's carrier_minted — meet it on replay as they did live.
+	acts := readingActs(evs)
+	pos := make(map[int64]int, len(evs)) // source events.id -> its place in the stream
+	for i, old := range evs {
+		pos[old.ID] = i
+	}
 	rm.archivedNotes = true
 	if sq, ok := src.(*SQLiteSource); ok {
 		if e, known := sq.SourceEpoch(); known && e >= computationEpoch {
@@ -223,7 +237,35 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	res.reruns = map[string][]string{}
 	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
 	classMints := map[string]int{}        // archived class slug an authored row translates -> the mints written with it
+	raises := map[string]bool{}           // the ids of the archived raises written as no event
+	held := map[string][]heldMember{}     // gap -> the members of its reading act held for the act's write
+	failedActs := map[string]int64{}      // gap -> the source events.id of the member of its act that was refused
+	// actMember is the reading act's member the previous source event was, and whether its iteration
+	// held, wrote or refused it by name. A member whose iteration ended on any other refusal fails
+	// its act: each member held is refused naming it, and each still to come is refused on arrival.
+	var actMember *readingActMembers
+	var actMemberID int64
+	actMemberDone := true
+	failAct := func(act *readingActMembers, refusedID int64) {
+		failedActs[act.gap] = refusedID
+		for _, h := range held[act.gap] {
+			res.Refusals = append(res.Refusals, migration.Refusal{OldID: h.old.ID, Word: h.old.Word, Err: act.refusedWith(refusedID)})
+		}
+		delete(held, act.gap)
+	}
 	for _, old := range evs {
+		if actMember != nil && !actMemberDone {
+			failAct(actMember, actMemberID)
+		}
+		actMember, actMemberID, actMemberDone = acts[old.ID], old.ID, false
+		if actMember != nil {
+			if refusedID, failed := failedActs[actMember.gap]; failed {
+				res.In[old.Word]++
+				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: actMember.refusedWith(refusedID)})
+				actMemberDone = true
+				continue
+			}
+		}
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
 		if old.Word == correctionWord || replaces[old.Key] {
@@ -373,13 +415,18 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			}
 			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
-			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds.
+			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds,
+			// and TranslateReadingBlockers carries an archived reading blocker to its failed check.
 			if pl, ok := body.(*recordpb.Plan); ok {
 				if err := TranslatePlanParties(pl); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
 				if err := TranslatePlanKinds(pl); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
+				if err := TranslateReadingBlockers(pl, newID, batch.Querier()); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
@@ -392,16 +439,35 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 					continue
 				}
 			}
-			// A FINDING ABOUT A CONTRADICTION NAMES IT BY events.id — the reading that opened it —
-			// and is translated as the pin is: through the id of the event that reading was written
-			// as. An untranslated id names whatever the migrated record holds at that number.
-			if f, ok := body.(*recordpb.Finding); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
-				to, err := contradictionRef(f.GetAboutRef(), newID)
-				if err != nil {
+			// A RAISE IS WRITTEN AS NO EVENT (EventSchema 59): a finding about a reading that found
+			// against its sentence — decoded as about an anchor, its ref a reading's events.id rather
+			// than an anchor id — has no place in a record where that reading's gap is minted in its
+			// own act. The ref must name a reading the replay wrote, or the finding is refused: nothing
+			// but a raise is dropped. A gap's found_by naming it loses that entry, below.
+			if f, ok := body.(*recordpb.Finding); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && anchor.Kind(f.GetAboutRef()) == "" {
+				if err := raisedReading(batch.Querier(), f, newID); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
-				f.AboutRef = proto.String(to)
+				raises[f.GetId()] = true
+				continue
+			}
+			if m, ok := body.(*recordpb.Mint); ok && len(raises) > 0 {
+				m.FoundBy = slices.DeleteFunc(m.FoundBy, func(id string) bool { return raises[id] })
+			}
+			// A DROPPED LABEL'S ANCHOR IS WRITTEN AS NO EVENT, and a reading of the citation it placed
+			// becomes a reading of the label's source.
+			if a, ok := body.(*recordpb.Anchor); ok && rm.dropped[a.GetId()] {
+				continue
+			}
+			if v, ok := body.(*recordpb.Verify); ok && rm.dropped[v.GetAnchor()] {
+				ls, known := labelled[v.GetAnchor()]
+				if !known {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
+						Err: fmt.Sprintf("this reading names citation %s, a label no labelled reading in the source minted", v.GetAnchor())})
+					continue
+				}
+				v.Anchor, v.Url, v.Title = nil, proto.String(ls.url), proto.String(ls.title)
 			}
 			// A MINT'S class_material IS THE TOOL'S STAMP, and the write refuses a mint that arrives
 			// with one. The archived stamp is taken off and the live rule stamps the translated class's
@@ -460,6 +526,41 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 					res.Out[admissionWord]++
 				}
 			}
+			// A READING ACT'S MEMBERS ARE HELD UNTIL ITS READING, which writes all three whole.
+			if actMember != nil {
+				h := heldMember{old: old, body: body, at: ts, slug: translatedSlug, fill: fill}
+				if anchorAfter != nil || chained {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
+						Err: fmt.Sprintf("this event is a member of the reading act of %s, which places its own gap and is no correction chain's link", actMember.gap)})
+					continue
+				}
+				if old.ID != actMember.verify {
+					held[actMember.gap] = append(held[actMember.gap], h)
+					actMemberDone = true
+					continue
+				}
+				members := append(held[actMember.gap], h)
+				delete(held, actMember.gap)
+				actMemberDone = true
+				written, err := writeReadingAct(batch, id, actMember, members, pos)
+				if err != nil {
+					for _, m := range members {
+						res.Refusals = append(res.Refusals, migration.Refusal{OldID: m.old.ID, Word: m.old.Word, Err: err.Error()})
+					}
+					continue
+				}
+				for i, w := range written {
+					res.Out[wordOf(w.Event)]++
+					newID[members[i].old.ID] = w.ID
+					if members[i].slug != "" {
+						classMints[members[i].slug]++
+					}
+					if members[i].fill != nil {
+						res.StatedFills = append(res.StatedFills, *members[i].fill)
+					}
+				}
+				continue
+			}
 			filer := id
 			if seat, ok := opinionFiler(src, body); ok {
 				filer = record.Identity{Run: dst, SeatID: seat}
@@ -514,6 +615,15 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
 				}
 			}
+		}
+	}
+	if actMember != nil && !actMemberDone {
+		failAct(actMember, actMemberID)
+	}
+	for gap, hs := range held {
+		for _, h := range hs {
+			res.Refusals = append(res.Refusals, migration.Refusal{OldID: h.old.ID, Word: h.old.Word,
+				Err: fmt.Sprintf("this event is a member of the reading act of %s, whose reading the source does not hold after it — the act is written whole or not at all", gap)})
 		}
 	}
 	// THE BATCH'S FAILURE IS ASKED ONCE, HERE. After a savepoint fails, every later append answers
@@ -672,21 +782,6 @@ func archivedSha(src OldEvent) (string, bool) {
 	return "", false
 }
 
-// contradictionRef translates a finding's contradiction reference — a source events.id — to the
-// events.id the reading it names was written as. A reference the replay wrote nothing for is a
-// refusal: left as it was, it would name whatever the migrated record holds at that number.
-func contradictionRef(ref string, newID map[int64]int64) (string, error) {
-	n, err := strconv.ParseInt(strings.TrimSpace(ref), 10, 64)
-	if err != nil {
-		return "", fmt.Errorf("this finding raises contradiction %q, which is not an events.id", ref)
-	}
-	to, landed := newID[n]
-	if !landed {
-		return "", fmt.Errorf("this finding raises contradiction %d, whose reading wrote no event on the migrated record before it — the reference would name whatever event holds that number", n)
-	}
-	return strconv.FormatInt(to, 10), nil
-}
-
 // refusedArgument reports whether body is a closing or a position the write path refuses from
 // seatID at this place (record.ClosingRefusal, record.PositionRefusal) — one replay writes as no
 // event. A read that fails is returned, never taken for a refusal.
@@ -706,4 +801,145 @@ func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bo
 		return false, fmt.Errorf("reading whether the write refuses an archived %T: %w", body, err)
 	}
 	return true, nil
+}
+
+// raisedReading checks that a raise — a finding about an anchor whose ref names no anchor — names a
+// reading: its ref a source events.id, carried through newID to a Verify the replay wrote. A ref that
+// is no events.id, wrote no event, or names no Verify is refused naming the finding — the loud miss,
+// so nothing but a raise is dropped.
+func raisedReading(q recordsql.Querier, f *recordpb.Finding, newID map[int64]int64) error {
+	n, err := strconv.ParseInt(strings.TrimSpace(f.GetAboutRef()), 10, 64)
+	if err != nil {
+		return fmt.Errorf("finding %s is about %q, which names no anchor and is no events.id", f.GetId(), f.GetAboutRef())
+	}
+	to, landed := newID[n]
+	if !landed {
+		return fmt.Errorf("finding %s raises the reading at event %d, which wrote no event on the migrated record before it", f.GetId(), n)
+	}
+	var one int
+	if err := q.QueryRow(`SELECT 1 FROM "verify" WHERE "event_id" = ?`, to).Scan(&one); err != nil {
+		return fmt.Errorf("finding %s raises event %d (written as %d), which is no reading on the migrated record: %v", f.GetId(), n, to, err)
+	}
+	return nil
+}
+
+// labelSource is a dropped label's source: the url and title its labelled reading read.
+type labelSource struct{ url, title string }
+
+// labelSources reads every citation label an archived reading of a source its lens found minted off
+// the source stream, records each on rm to drop (remap.dropLabels), and returns each label's source,
+// keyed by both spellings, for the readings that named the citation it placed.
+func labelSources(evs []OldEvent, rm *remap) map[string]labelSource {
+	out := map[string]labelSource{}
+	var labels []string
+	for _, old := range evs {
+		l, _ := old.Fields["label"].(string)
+		if old.Word != "verify" || l == "" {
+			continue
+		}
+		url, _ := old.Fields["url"].(string)
+		title, _ := old.Fields["title"].(string)
+		labels = append(labels, l)
+		out[l] = labelSource{url: url, title: title}
+		out[rm.spelling("citation", l)] = out[l]
+	}
+	rm.dropLabels(labels)
+	return out
+}
+
+// readingActMembers is one reading's act a record written at this epoch holds: the source events.ids
+// of its gap's Mint, the Anchor that places it and the reading.
+type readingActMembers struct {
+	gap                  string
+	mint, anchor, verify int64
+}
+
+// refusedWith is the refusal of a member of the act whose member refusedID was refused.
+func (a *readingActMembers) refusedWith(refusedID int64) string {
+	return fmt.Sprintf("this event is one act with event %d — the reading act of %s, source events %d, %d and %d — which was refused, so no member is written alone",
+		refusedID, a.gap, a.mint, a.anchor, a.verify)
+}
+
+// heldMember is one member of a reading act held, translated, until the act's reading writes it.
+type heldMember struct {
+	old  OldEvent
+	body proto.Message
+	at   time.Time
+	slug string
+	fill *migration.StatedFill
+}
+
+// readingActs pairs each reading whose own act minted its gap (carrier_minted true) with the Mint
+// whose gap_id is its carried_by and the Anchor whose id is that gap, keyed by each member's source
+// events.id. The pairing is read from the record's fields, never from adjacency.
+func readingActs(evs []OldEvent) map[int64]*readingActMembers {
+	mints, anchors := map[string]int64{}, map[string]int64{}
+	for _, old := range evs {
+		switch old.Word {
+		case "mint":
+			if g, _ := old.Fields["gap_id"].(string); g != "" {
+				mints[g] = old.ID
+			}
+		case "anchor":
+			if g, _ := old.Fields["id"].(string); g != "" {
+				anchors[g] = old.ID
+			}
+		}
+	}
+	out := map[int64]*readingActMembers{}
+	for _, old := range evs {
+		g, _ := old.Fields["carried_by"].(string)
+		if old.Word != "verify" || g == "" || !truthy(old.Fields["carrier_minted"]) {
+			continue
+		}
+		a := &readingActMembers{gap: g, mint: mints[g], anchor: anchors[g], verify: old.ID}
+		for _, id := range []int64{a.mint, a.anchor, a.verify} {
+			if id != 0 {
+				out[id] = a
+			}
+		}
+	}
+	return out
+}
+
+// truthy reads a stored bool: SQLite's 0/1, or a bool.
+func truthy(v any) bool {
+	switch b := v.(type) {
+	case int64:
+		return b != 0
+	case bool:
+		return b
+	}
+	return false
+}
+
+// writeReadingAct writes a reading's act whole (record.Batch.AppendBodies), each member under its own
+// stamp, and returns what each member wrote, in order. Its members must be the act's Mint, Anchor
+// and reading, adjacent in the stream in that order, of one seat — the act wrote them in one
+// transaction, so none of these arises from a record the write made — and a refusal names the act.
+func writeReadingAct(batch *record.Batch, id record.Identity, act *readingActMembers, members []heldMember, pos map[int64]int) ([]record.WrittenBody, error) {
+	refuse := func(why string, args ...any) error {
+		return fmt.Errorf("the reading act of %s — source events %d, %d and %d — is one act, and %s", act.gap, act.mint, act.anchor, act.verify, fmt.Sprintf(why, args...))
+	}
+	if len(members) != 3 {
+		return nil, refuse("its reading's place holds %d of its three members", len(members))
+	}
+	want := []int64{act.mint, act.anchor, act.verify}
+	for i, m := range members {
+		if m.old.ID != want[i] || (i > 0 && pos[m.old.ID] != pos[members[i-1].old.ID]+1) {
+			return nil, refuse("its members are not adjacent in the stream in the order Mint, Anchor, reading")
+		}
+		if m.old.SeatID != members[0].old.SeatID {
+			return nil, refuse("its members are not of one seat")
+		}
+	}
+	bodies := make([]record.StampedBody, len(members))
+	for i, m := range members {
+		bodies[i] = record.StampedBody{Body: m.body, At: m.at}
+	}
+	written, err := batch.AppendBodies(id, bodies)
+	if err != nil {
+		return nil, refuse("the write refuses it: %v", err)
+	}
+	return written, nil
 }

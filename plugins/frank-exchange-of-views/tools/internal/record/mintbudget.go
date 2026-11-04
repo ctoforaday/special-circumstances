@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -32,13 +31,18 @@ import (
 // every mint never refilled: a lens that had minted its budget and closed two of the three was
 // refused the next real defect while holding one open, and a finding obliges nobody.
 //
-// A GAP THAT ANSWERS A CONTRADICTION ITS OWN LENS RAISED IS OUTSIDE THE BUDGET (gblock, 2026-10-20:
-// the lens can always answer what it raised). A contradiction is raised by a finding and answered
-// only by the gap minted from that finding (contradictionsOf); counted, a lens at its cap could
-// raise one and never answer it, and the contradiction held the PASS until a slot freed — a CEILING
-// made by the bound, not by the report. The link is the mint's own found_by, so no field marks the
-// gap: the fold says which gap answered which raise, and whose. Every other mint counts — one
-// naming another seat's raising finding in found_by, or a finding that raised nothing.
+// A GAP A LENS'S READING OF A CITATION MINTS IS OUTSIDE THE BUDGET (gblock, 2026-10-30, F6; amended
+// 2026-11-03). A reading of blue's citation that finds its source against the sentence mints its gap
+// in the same act (AppendReading); counted, a lens at its cap could not record what a cited source
+// says, and a cap would be a reason to read `supports`. A gap a reading of a source the lens FOUND
+// mints (`verify --url`: `unsourced_claim` or `claim_contradicts_source`) takes a mint and counts
+// while open, as a plain mint does: it is the lens's own finding, not a check of blue's citation.
+// Two readers, two sources, each keyed on the paired Verify's `anchor`, neither inferred from "some
+// Verify names this gap": at the write, the Mint is paired with its reading in the act (readingAct),
+// and the pair is admitted without counting where the reading names a citation; while open, the gap
+// a Verify by the lens with an anchor names with carrier_minted true — its own act minted it — is left
+// out of the count. A gap the lens minted with plain `mint` that a later reading names
+// (carrier_minted false), and a successor of a reading's gap, are plain mints and count.
 //
 // ONE TABLE. The check, the refusal and the tests all read mintScales; an area with no row is an
 // error, never a default — a default would size an unknown lens by some other lens's unit.
@@ -202,21 +206,6 @@ func (h *heldStream) all(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 	return h.evs, h.win, nil
 }
 
-// of is the events of types q holds, in record order — eventsOfAt's answer. The held index serves
-// the subset: it is keyed by the event, so a filtered slice still finds each event's window.
-func (h *heldStream) of(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
-	if h == nil {
-		return eventsOfAt(q, types...)
-	}
-	var out []*Event
-	for _, e := range h.evs {
-		if slices.Contains(types, e.GetType()) {
-			out = append(out, e)
-		}
-	}
-	return out, h.win, nil
-}
-
 // renderFrom is the report q holds, rendered when asked.
 func renderFrom(q recordsql.Querier) func() (string, error) {
 	return func() (string, error) { return RenderAt(q) }
@@ -229,6 +218,9 @@ func renderFrom(q recordsql.Querier) func() (string, error) {
 // write renders the report before it takes the lock (appendOwn); a mint whose seat validation turns
 // away before the measure renders for nothing.
 func validationReadsReport(seatID string, body proto.Message) bool {
+	if v, ok := body.(*recordpb.Verify); ok {
+		return v.GetCarriedBy() != "" && !v.GetCarrierMinted() // requireStandingCarrier reads its sentence
+	}
 	m, ok := body.(*recordpb.Mint)
 	if !ok {
 		return false
@@ -296,11 +288,11 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 	// parallel calls in one sitting — both find the last slot free and both land, and the lens holds
 	// one gap more than its budget admits. The report it is measured on is the write's landing
 	// report, rendered before the lock where nothing has moved it since.
-	// AN ANSWER TO ITS OWN RAISE IS ADMITTED AT ANY STANDING, before the standing is read: it takes
-	// no mint, so neither the count nor the measure decides it.
-	if own, err := answersOwnRaiseAt(w.q, seatID, m.GetFoundBy()); err != nil {
-		return feov.Wrap(feov.Conflict, err, "the record's contradictions could not be read, so whether this mint answers one %s raised cannot be told: %v", seatID, err)
-	} else if own != "" {
+	// A CITATION READING'S GAP, AND AN ANSWER TO A FAILED CHECK OF ITS OWN, ARE ADMITTED AT ANY
+	// STANDING, before the standing is read: they take no mint, so neither the count nor the measure
+	// decides them. The reading's is read off the act, whose Verify is not on the record yet; a
+	// reading of a source the lens found names no anchor, and its Mint is counted below.
+	if w.act.pairs(m) && w.act.verify.GetAnchor() != "" {
 		return nil
 	}
 	if own, err := answersOwnFailedCheckAt(w.q, seatID, m); err != nil {
@@ -348,7 +340,7 @@ const mintRefusedNext = "Record what you found as a finding now, and mint it whe
 
 // mintAnswerOutsideBudget is the exemption as every lens-facing surface states it: the refusal, the
 // work list, the PASS blocker and the help say one sentence.
-const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about an anchor whose check of yours failed — a computation whose sentence you judged unsound, a citation whose source you could not read — answers it and takes no mint; so does the logic lens's gap about an inquiry, whose judgement it owes. Each is admitted at the cap, and does not count while it is open"
+const mintAnswerOutsideBudget = "A gap your reading of a citation mints, or about an anchor whose check of yours read nothing or judged a computation unsound, takes no mint; so does the logic lens's gap about an inquiry, whose judgement it owes. Each is admitted at the cap, and does not count while it is open"
 
 // ownsInquiryGap reports whether a mint by seatID about kind is the inquiry owner's gap about an
 // inquiry, which takes no mint (requireMintWithinBudget, ownAnswersAt).
@@ -356,41 +348,32 @@ func ownsInquiryGap(seatID string, kind recordpb.AboutKind) bool {
 	return seatID == inquiryOwner && kind == recordpb.AboutKind_ABOUT_KIND_INQUIRY
 }
 
-// answersOwnRaiseAt is the contradiction a mint by seatID naming foundBy would answer that seatID's
-// own finding raised — its id, or "" where it answers none. It is the fold's own question asked of
-// the record before the mint (contradictionsOf), so the mint it admits is the gap the count then
-// leaves out (ownAnswersAt). A raise another seat recorded, or one already answered, is none.
-func answersOwnRaiseAt(q recordsql.Querier, seatID string, foundBy []string) (string, error) {
-	if len(foundBy) == 0 {
-		return "", nil
-	}
-	evs, win, err := eventsOfAt(q, contradictionActs...)
-	if err != nil {
-		return "", err
-	}
-	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
-		if c.raiser == seatID && c.answeredBy == "" && slices.Contains(foundBy, c.raisedBy) {
-			return c.idWord(), nil
-		}
-	}
-	return "", nil
-}
-
-// ownAnswersAt is the gaps minted to answer a contradiction seatID's own finding raised, or a
-// standing failed check of seatID's own (ownFailedCheckAnswers), and the inquiry owner's gaps about
-// inquiries (ownsInquiryGap). Those seatID minted are the gaps its budget does not count (lensMintStanding); one another seat minted from
-// that finding answers it all the same, and counts against its own minter's budget. held is the
+// ownAnswersAt is the gaps seatID minted that its budget does not count (lensMintStanding): each gap
+// a reading of a citation by seatID minted in its own act (a Verify by seatID with an anchor naming
+// it with carrier_minted true), each that answers a standing failed check of seatID's own
+// (ownFailedCheckAnswers), and the inquiry owner's gaps about inquiries (ownsInquiryGap). held is the
 // stream q holds where the reader already took it (heldStream).
 func ownAnswersAt(q recordsql.Querier, held *heldStream, seatID string) (map[string]bool, error) {
-	evs, win, err := held.of(q, contradictionActs...)
+	out := map[string]bool{}
+	if noRecord(q) {
+		return out, nil
+	}
+	rows, err := q.Query(`SELECT v."carried_by" FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
+	   WHERE e."seat_id" = ? AND v."carrier_minted" AND COALESCE(v."carried_by", '') <> ''
+	     AND COALESCE(v."anchor", '') <> ''`, seatID)
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]bool{}
-	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
-		if c.answeredBy != "" && c.raiser == seatID {
-			out[c.answeredBy] = true
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			rows.Close()
+			return nil, err
 		}
+		out[g] = true
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
 	}
 	if ownsInquiryGap(seatID, recordpb.AboutKind_ABOUT_KIND_INQUIRY) {
 		gaps, err := gapsMintedAbout(q, seatID, recordpb.AboutKind_ABOUT_KIND_INQUIRY)
@@ -402,17 +385,17 @@ func ownAnswersAt(q recordsql.Querier, held *heldStream, seatID string) (map[str
 		}
 	}
 	// THE ANCHOR'S FOLD READS THE WHOLE LEDGER — the checks, the edits and the retires — so it takes
-	// the stream the contradictions' narrower read does not hold, and only where seatID has minted a
-	// gap about an anchor: every mint and every work list asks this.
+	// the whole stream, and only where seatID has minted a gap about an anchor: every mint and every
+	// work list asks this.
 	if about, err := recordHasAt(q, `SELECT 1 FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."about_kind" = ? AND e."seat_id" = ? LIMIT 1`,
 		recordpb.Word(recordpb.AboutKind_ABOUT_KIND_ANCHOR), seatID); err != nil || !about {
 		return out, err
 	}
-	all, allWin, err := held.all(q)
+	fs, err := failedChecksAt(q, held)
 	if err != nil {
 		return nil, err
 	}
-	for g := range ownFailedCheckAnswers(all, allWin, seatID) {
+	for g := range ownFailedCheckAnswers(fs, seatID) {
 		out[g] = true
 	}
 	return out, nil
@@ -424,11 +407,11 @@ func answersOwnFailedCheckAt(q recordsql.Querier, seatID string, m *recordpb.Min
 	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return "", nil
 	}
-	evs, win, err := eventsAt(q)
+	fs, err := failedChecksAt(q, nil)
 	if err != nil {
 		return "", err
 	}
-	return answersOwnFailedCheck(evs, win, seatID, m.GetAboutKind(), m.GetAboutRef()), nil
+	return answersOwnFailedCheck(fs, seatID, m.GetAboutKind(), m.GetAboutRef()), nil
 }
 
 // mintStanding is where a lens stands against its mint budget: the gaps it minted that are open
@@ -436,8 +419,8 @@ func answersOwnFailedCheckAt(q recordsql.Querier, seatID string, m *recordpb.Min
 // read; Budget then holds the area, the unit, the ratio and the floor, and no units or total.
 type mintStanding struct {
 	Open int
-	// Answering is the open gaps this seat minted that answer a contradiction it raised or a check of
-	// its that failed: open, and outside Open.
+	// Answering is the open gaps this seat minted that take no mint — a gap its reading of a citation minted, or
+	// one answering a check of its that failed: open, and outside Open.
 	Answering  int
 	Budget     LensBudget
 	MeasureErr error
@@ -545,9 +528,8 @@ func openGapsMintedBy(q recordsql.Querier, seatID string) ([]string, error) {
 type MintBudgetJSON struct {
 	// Open is the gaps this seat minted that are open now (the gap view's "open"), less Answering.
 	Open int `json:"open"`
-	// Answering is the open gaps this seat minted that answer a contradiction its own finding
-	// raised or a check of its that failed: they take no mint, so Open leaves them out and Left does
-	// not spend on them.
+	// Answering is the open gaps this seat minted that take no mint — a gap its reading of a citation minted, or
+	// one answering a check of its that failed: Open leaves them out and Left does not spend on them.
 	Answering int `json:"answering"`
 	// Budget is max(floor, ceil(units × mints / per)) — or, where Measured is false, the floor alone.
 	Budget int `json:"budget"`
@@ -623,7 +605,7 @@ func mintBudgetOf(read *budgetRead) (*MintBudgetJSON, string) {
 	}
 	answering := ""
 	if st.Answering > 0 {
-		answering = fmt.Sprintf(", and %d more that answer a contradiction you raised or a check of yours that failed", st.Answering)
+		answering = fmt.Sprintf(", and %d more that take no mint — your readings of citations minted them, or they answer a check of yours that failed", st.Answering)
 	}
 	return j, fmt.Sprintf("you hold %d gap(s) open of a mint budget of %d%s — %s — so %s; %s. %s",
 		st.Open, b.Budget, answering, b.Arithmetic(), leftWords, tail, mintAnswerOutsideBudget)

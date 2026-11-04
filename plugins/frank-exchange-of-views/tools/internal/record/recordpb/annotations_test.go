@@ -1,6 +1,7 @@
 package recordpb
 
 import (
+	"reflect"
 	"testing"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -27,7 +28,7 @@ func TestTheAnnotationTableIsWhatTheSchemaDeclares(t *testing.T) {
 					t.Error(err)
 					continue
 				}
-				if want := AnnotationsFromOptions(vd); *row != want {
+				if want := AnnotationsFromOptions(vd); !reflect.DeepEqual(*row, want) {
 					t.Errorf("%s: the table holds %+v and the schema declares %+v — run `go -C plugins/frank-exchange-of-views/tools run ./devcmd/vocabgen`", vd.FullName(), *row, want)
 				}
 				compared++

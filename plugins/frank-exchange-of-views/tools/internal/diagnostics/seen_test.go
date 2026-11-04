@@ -32,16 +32,16 @@ func trajectory(t *testing.T, lines ...string) string {
 
 // lensActs is the role's act list, as cli.CommandPaths() renders it with the role stripped.
 func lensActs() []string {
-	return []string{"finding", "verify", "corroborate", "reproduce", "log", "register", "show"}
+	return []string{"finding", "verify", "render-page", "reproduce", "log", "register", "show"}
 }
 
 // THE PADDED NAME IS NOT DROPPED. Cobra pads the name column to the width of the LONGEST name,
 // leaving exactly that one name followed by a SINGLE space. A `\s{2,}` separator therefore loses
 // precisely one verb per role — silently, from numerator and denominator alike, so the ratio
-// still reads like a measurement. `corroborate` is the longest here and so the one at risk.
+// still reads like a measurement. `render-page` is the longest here and so the one at risk.
 func TestTheLongestNameIsNotDroppedByTheColumnPadding(t *testing.T) {
 	help := "Available Commands:\n" +
-		"  corroborate a claim from a source YOU found\n" +
+		"  render-page draw a page of a cited PDF\n" +
 		"  finding     a lens finding\n" +
 		"  verify      adjudicate ONE citation\n" +
 		"\n"
@@ -49,7 +49,7 @@ func TestTheLongestNameIsNotDroppedByTheColumnPadding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.Leaf["corroborate"] {
+	if !got.Leaf["render-page"] {
 		t.Error("the longest name was dropped — cobra pads to it, so it is the one a two-space separator loses")
 	}
 	if len(got.Leaf) != 3 {
@@ -122,7 +122,7 @@ func TestASeatThatNeverOpenedHelpIsDistinguishableFromOneWhoseListingsWereReject
 func TestCobrasHousekeepingDoesNotDisqualifyTheRolesOwnListing(t *testing.T) {
 	help := "Available Commands:\n" +
 		"  completion  Generate the autocompletion script for the specified shell\n" +
-		"  corroborate a claim from a source YOU found\n" +
+		"  render-page draw a page of a cited PDF\n" +
 		"  finding     a lens finding\n" +
 		"  help        Help about any command\n" +
 		"  verify      adjudicate ONE citation\n" +

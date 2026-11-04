@@ -692,7 +692,7 @@ type GapBackingJSON struct {
 	Outcome    string `json:"outcome,omitempty"`
 	Confidence string `json:"confidence,omitempty"`
 	// VerifiedBy is the seat that checked it, so a lens can see whether its OWN check is the one
-	// standing — re-verifying your own corroboration is not independent.
+	// standing — re-verifying your own reading is not independent.
 	VerifiedBy string `json:"verified_by,omitempty"`
 }
 
@@ -1469,12 +1469,6 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	var budgetLine string
 	if role == "lens" {
 		budget, budgetLine = mintBudgetOf(r.budget)
-		reads.mintsLeft = func() (int, bool) {
-			if budget == nil {
-				return 0, false
-			}
-			return budget.Left, true
-		}
 	}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	if role == "lens" {
