@@ -5,6 +5,7 @@
 #   target:    linux-amd64 | linux-arm64 | windows-amd64 | windows-arm64 | darwin-amd64 | darwin-arm64
 #   toolchain: native (the host's own compiler; target must be the host) | zig (zig cc/c++ cross, as build-cstack.sh does)
 #   variant:   min (default: --minimal_build, no exceptions/RTTI/ML ops, typed op reduction, MinSizeRel)
+#              minrel (as min, Release: -O3 instead of -Os)
 #              minext (as min, --minimal_build extended)
 #              reduced (full runtime, .onnx loading, ops reduced by config without type reduction; exceptions on)
 #              full (no reduction at all; for the size baseline)
@@ -80,6 +81,8 @@ case $VAR in
   min)     ARGS+=(--config MinSizeRel --minimal_build --disable_exceptions --disable_rtti --disable_ml_ops
                   --include_ops_by_config "$ORT_OPS_CONFIG" --enable_reduced_operator_type_support) ;;
   minext)  ARGS+=(--config MinSizeRel --minimal_build extended --disable_exceptions --disable_rtti --disable_ml_ops
+                  --include_ops_by_config "$ORT_OPS_CONFIG" --enable_reduced_operator_type_support) ;;
+  minrel)  ARGS+=(--config Release --minimal_build --disable_exceptions --disable_rtti --disable_ml_ops
                   --include_ops_by_config "$ORT_OPS_CONFIG" --enable_reduced_operator_type_support) ;;
   reduced) ARGS+=(--config MinSizeRel --disable_ml_ops --include_ops_by_config "$ORT_OPS_CONFIG") ;;
   full)    ARGS+=(--config Release) ;;
