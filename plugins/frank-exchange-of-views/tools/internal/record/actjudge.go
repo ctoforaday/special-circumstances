@@ -19,7 +19,7 @@ import (
 // a blocker, a second gap of one class on one subject, a close of a docketed gap, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
-// that names no kind. Each is the act's to answer at the moment it is written. An archived act is
+// that names no kind, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
 // what a seat DID, under the rules of its day, and the replay writes it without asking them: refusing
 // it would drop a real event and call the loss a translation.
 
@@ -51,6 +51,8 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		}
 	case *recordpb.MotionRule:
 		return requirePetitionRelief(b)
+	case *recordpb.Reproduce:
+		return requireNamedExecution(q, b)
 	case *recordpb.Gate:
 		// A PASS is a claim that nothing left on the board holds the gate. Enforce it here, at the
 		// one write path, so no verdict route can record a PASS over an unadjudicated board (the

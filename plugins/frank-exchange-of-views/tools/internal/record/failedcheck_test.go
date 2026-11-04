@@ -232,7 +232,7 @@ func TestTheJudgementsOwnSittingsGapAnswersIt(t *testing.T) {
 func TestARepeatUnsoundJudgementIsRefused(t *testing.T) {
 	again := func(s recordpb.Soundness) *recordpb.Reproduce {
 		return &recordpb.Reproduce{ComputationId: proto.String("K-1"), BundleSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(false),
-			Soundness: s.Enum(), Note: proto.String("read again")}
+			Soundness: s.Enum(), Note: proto.String("read again"), RerunSha: proto.String(rerunOf("s1"))}
 	}
 	answered := func() *stage { return unsoundBoard(t).add(compLens, aboutComputation("G-1", "K-1")) }
 	for _, c := range []struct {
