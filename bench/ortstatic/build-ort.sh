@@ -73,17 +73,25 @@ AR=ar
 if [ "$TC" = zig ]; then
   ZIG=${ZIG:-zig}; ZB=$WORK/zigbin-$TARGET; mkdir -p "$ZB"
   # zig cc maps -march to a CPU name and rejects ORT's per-file "-march=armv8.2-a+bf16" (and the cmake probe of it);
-  # the same request spelled as zig CPU features is -mcpu=generic+v8_2a+bf16 (fp16 is "fullfp16" there).
+  # the same request spelled as zig CPU features is -mcpu=generic+v8_2a+bf16 (fp16 is "fullfp16" there); KleidiAI
+  # also passes plain -march=armv8-a.
   cat > "$ZB/marchfix" <<'EOS'
 for a; do shift; case $a in
-  -march=armv8.2-a*) r=$(printf '%s' "${a#-march=armv8.2-a}" | sed 's/+fp16/+fullfp16/g'); set -- "$@" "-mcpu=generic+v8_2a$r" ;;
+  -march=armv8-a*) r=$(printf '%s' "${a#-march=armv8-a}" | sed 's/+fp16/+fullfp16/g'); set -- "$@" "-mcpu=generic$r" ;;
+  -march=armv8.[0-9]-a*) v=${a#-march=armv8.}; n=${v%%-a*}; r=$(printf '%s' "${v#*-a}" | sed 's/+fp16/+fullfp16/g'); set -- "$@" "-mcpu=generic+v8_${n}a$r" ;;
   *) set -- "$@" "$a" ;; esac; done
 EOS
   # Windows: ORT's minimal build adds -fno-unwind-tables -fno-asynchronous-unwind-tables, and cmake passes compile
   # flags to the link, where zig builds mingw's crtexe.c with them and its .seh_handler asm then fails
   # (".seh_ directive must appear within an active frame"); x64/arm64 Windows needs unwind info anyway.
+  # ORT also adds MSVC options (/wd6385, /wd4834, ...) under `if (WIN32)` in several places; clang reads each as an
+  # input file. A single-segment "/word" that is not an existing path is an MSVC option and is dropped.
   case $TRIPLE in *windows*) cat >> "$ZB/marchfix" <<'EOS'
 for a; do shift; case $a in -fno-unwind-tables|-fno-asynchronous-unwind-tables) ;; *) set -- "$@" "$a" ;; esac; done
+for a; do shift; case $a in
+  /*/*) set -- "$@" "$a" ;;
+  /[A-Za-z]*) [ -e "$a" ] && set -- "$@" "$a" ;;
+  *) set -- "$@" "$a" ;; esac; done
 EOS
   ;; esac
   { printf '#!/bin/sh\n'; cat "$ZB/marchfix"; printf 'exec %q cc -target %s "$@"\n' "$ZIG" "$TRIPLE"; } > "$ZB/zigcc"
