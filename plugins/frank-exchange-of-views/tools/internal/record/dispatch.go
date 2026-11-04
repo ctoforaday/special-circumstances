@@ -18,7 +18,7 @@ import (
 // contradiction it read, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read, a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read, a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry; empty for the logic lens readied to check a settled inquiry; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -94,7 +94,7 @@ type Plan struct {
 	// grade-movement threshold.
 	basis map[string]string
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
-	// list (PassBlockers) is the chair's own to clear this sitting — its inquiry review, its
+	// list (PassBlockers) is the chair's own to clear this sitting — its
 	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
 	// (grade). Its work list marks those blocking until they are done.
 	PassPermitted bool `json:"pass_permitted"`
@@ -194,6 +194,8 @@ type openGap struct {
 	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
 	// is still open — the gap view's `stranded`. The PASS gate refuses a verdict over one.
 	supersededBy string
+	// inquiry is the inquiry the gap is about, "" for a gap about anything else (inquiryAbout).
+	inquiry string
 }
 
 // PlanDispatch computes readiness from four sources — each cast lens the report head has moved past, each
@@ -524,6 +526,35 @@ func foldPlan(params Params, r planReads) Plan {
 		engage(owner)
 		plan.Why = append(plan.Why, fmt.Sprintf("%s owns %s, placed or changed since the last sitting it sat through, and no check of its sentence as it stands is on the record — ready, to check each", owner, strings.Join(uncheckedFor[owner], ", ")))
 	}
+	// AN INQUIRY OWES ITS JUDGEMENT (inquirycheck.go). A settled inquiry no check stands on readies its
+	// owner once per cause — its latest fate, or an act on a gap about it — as an anchor readies its
+	// owner. An open one readies blue-respond for as long as it is open, and the line names each one's
+	// latest fate, so a re-recorded `underway` moves the plan rather than repeating it, and a run that
+	// cannot settle its inquiries reaches its epoch limit and ends CEILING (ruled by gblock 2026-11-01).
+	inquiryCheckFor := map[string][]string{}
+	var inquiryCheckOwners, openInquiries []string
+	for _, b := range blockers {
+		switch {
+		case b.Kind == BlockerUncheckedInquiry && seatclass.RoleOfSeat(b.Owner) == "lens":
+			if _, sat := firstAfter(ends.through[b.Owner], b.placed); sat {
+				continue
+			}
+			if inquiryCheckFor[b.Owner] == nil {
+				inquiryCheckOwners = append(inquiryCheckOwners, b.Owner)
+			}
+			inquiryCheckFor[b.Owner] = append(inquiryCheckFor[b.Owner], b.Subject)
+		case b.Kind == BlockerOpenInquiry:
+			openInquiries = append(openInquiries, fmt.Sprintf("%s (%s, its fate recorded at event %d)", b.Subject, b.Detail, b.since))
+		}
+	}
+	for _, owner := range inquiryCheckOwners {
+		engage(owner)
+		plan.Why = append(plan.Why, fmt.Sprintf("%s owns the check of inquiry %s, settled or put in question since the last sitting it sat through, and no check of its latest fate stands — ready, to check each", owner, strings.Join(inquiryCheckFor[owner], ", ")))
+	}
+	if len(openInquiries) > 0 {
+		engage(blueRespondSeat)
+		plan.Why = append(plan.Why, fmt.Sprintf("%s: inquiry %s open, with no fate that settles it — ready, to record a fate on each", blueRespondSeat, strings.Join(openInquiries, ", ")))
+	}
 	for _, b := range blockers {
 		switch {
 		case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:
@@ -571,10 +602,11 @@ func foldPlan(params Params, r planReads) Plan {
 		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s]})
 	}
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
-	// blocker left is the chair's to clear in this sitting (its inquiry review, its spot-check of
-	// the stale areas, its ruling on a grade or inquiry motion). A blocker another seat must clear —
+	// blocker left is the chair's to clear in this sitting (its spot-check of the stale areas, its
+	// ruling on a grade motion). A blocker another seat must clear —
 	// an unruled petition, a contradiction no gap answers, a docket motion on a gap that has
-	// since closed, a citation or computation with no check of its sentence as it stands — holds it, and its
+	// since closed, a citation or computation with no check of its sentence as it stands, an inquiry
+	// open or unchecked — holds it, and its
 	// reason is stated here, so the plan never says PASS where the gate refuses one the chair
 	// cannot clear (#1202).
 	chairOnly := true
@@ -1419,7 +1451,8 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    COALESCE(g."unruled_docket_filed", 0),
 	    COALESCE(g."unruled_docket_motion", ''),
-	    COALESCE(g."docket_direction", '')
+	    COALESCE(g."docket_direction", ''),
+	    COALESCE(g."about_kind", ''), COALESCE(g."about_ref", '')
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for its open gaps: %w", err)
@@ -1428,10 +1461,12 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	var out []openGap
 	for rows.Next() {
 		var g openGap
+		var aboutKind, aboutRef string
 		if err := rows.Scan(&g.id, &g.mintedBy, &g.severity, &g.material, &g.classMaterial, &g.supersededBy, &g.unruledFiled, &g.unruledMotion,
-			&g.direction); err != nil {
+			&g.direction, &aboutKind, &aboutRef); err != nil {
 			return nil, err
 		}
+		g.inquiry = inquiryAbout(aboutKind, aboutRef)
 		out = append(out, g)
 	}
 	return out, rows.Err()

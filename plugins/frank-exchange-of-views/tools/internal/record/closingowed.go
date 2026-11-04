@@ -197,8 +197,9 @@ func closingBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blocke
 }
 
 // owedBlockersOf is the blockers a seat owes by an act of its own beyond the gaps' own: the stream's
-// arms (eventBlockersOf) and the closings owed (closingBlockersOf). A lens owes each one it owns
-// (lensOwesOf).
+// arms (eventBlockersOf), the closings owed (closingBlockersOf) and the inquiries' (inquiryBlockersOf),
+// which read the open gaps for the wanting ones. A lens owes each one it owns (lensOwesOf).
 func owedBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []Blocker {
-	return append(eventBlockersOf(evs, ids, win), closingBlockersOf(evs, ids, win, gaps)...)
+	out := append(eventBlockersOf(evs, ids, win), closingBlockersOf(evs, ids, win, gaps)...)
+	return append(out, inquiryBlockersOf(evs, ids, win, gaps)...)
 }

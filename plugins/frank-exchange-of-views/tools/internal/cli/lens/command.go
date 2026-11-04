@@ -28,6 +28,7 @@ func Verbs() []*cobra.Command {
 		newRenderPage(),
 		newCorroborate(),
 		newReproduce(),
+		newInquiry(),
 		seat.Closing("closing-red"),
 		seat.Log(),
 	)

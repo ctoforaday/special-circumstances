@@ -10,6 +10,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
@@ -114,40 +115,151 @@ func TestProposeHasNoIDToConfuseTheRecordWith(t *testing.T) {
 	}
 }
 
-// RED RULES AND NEVER PROPOSES: the ruling is red's act on an inquiry.
-func TestRedRulesOnAProposedInquiry(t *testing.T) {
+// THE LOGIC LENS JUDGES A SETTLED INQUIRY, AND NO OTHER SEAT DOES. Driven through the command line,
+// end to end: the check is refused while the inquiry is open and while its fate is newer than the
+// lens's sitting, recorded once the lens sits after the fate, refused to another lens, recorded once
+// however often the same check is sent, refused as a second judgement while it stands, printed on the
+// inquiry's row, and stale once blue records the fate again.
+func TestTheLogicLensChecksASettledInquiry(t *testing.T) {
 	runDir := newRun(t)
-	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
-		"--question", "quantum primality frameworks", "--hypothesis", "post-quantum changes the answer"); err != nil {
+	blue := inquirySeat(t, runDir)
+	logic := record.InquiryOwner()
+	if logic != "red-lens-logic" {
+		t.Fatalf("the inquiry's owner is %q; this test drives the logic lens", logic)
+	}
+	sit := func(seatID string) {
+		t.Helper()
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", seatID); err != nil {
+			t.Fatalf("register %s: %v", seatID, err)
+		}
+	}
+	check := func(seatID, reason string, extra ...string) (string, error) {
+		t.Helper()
+		return runAt(t, append([]string{"inquiry", "check", "--run", runDir, "--seat-id", seatID, "--id", "Q1", "--reason", reason}, extra...)...)
+	}
+	refused := func(what, want string, err error) {
+		t.Helper()
+		if err == nil {
+			t.Fatalf("%s was recorded", what)
+		}
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("%s was refused, but not for its reason — want %q in:\n%v", what, want, err)
+		}
+	}
+	checks := func() int {
+		t.Helper()
+		return len(eventsOfWord(t, runDir, "inquiry_check"))
+	}
+	inquiry := func() record.InquiryJSON {
+		t.Helper()
+		out, err := run(t, "show", "--run", runDir, "--seat-id", logic, "inquiries", "--json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got record.InquiriesJSON
+		if err := json.Unmarshal([]byte(out), &got); err != nil || len(got.Inquiries) != 1 {
+			t.Fatalf("show inquiries --json: %v\n%s", err, out)
+		}
+		return got.Inquiries[0]
+	}
+
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", blue,
+		"--question", "whether trial division to 9 settles whether 91 is prime", "--hypothesis", "a factor below 10 exists"); err != nil {
 		t.Fatal(err)
 	}
-	// An inquiry motion joins on the inquiry's own id: it has no `file` verb because the
-	// proposal IS the filing, which is why Q1 works here and no M-number is minted.
-	if _, err := runAt(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "Q1", "--as", "out_of_scope",
-		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
-		t.Fatalf("rule: %v", err)
+	sit(logic)
+	_, err := check(logic, "the fate stands")
+	refused("a check of a proposed inquiry", "a fate that settles nothing", err)
+	if got := inquiry().State; got != record.InquiryOpen {
+		t.Errorf("a proposed inquiry reads %q, want %q", got, record.InquiryOpen)
 	}
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "inquiries")
+
+	if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", blue, "--id", "Q1", "--as", "confirmed",
+		"--reason", "7 divides 91", "--method", "trial division by every prime up to 9"); err != nil {
+		t.Fatal(err)
+	}
+	if got := inquiry().State; got != record.InquiryUnchecked {
+		t.Errorf("a settled inquiry no check stands on reads %q, want %q", got, record.InquiryUnchecked)
+	}
+	_, err = check(logic, "the fate stands")
+	refused("a check from a sitting opened before the fate", "after your sitting opened", err)
+
+	sit(logic)
+	const reason = "the report's trial division names 7 as the factor, which is what the fate claims"
+	out, err := check(logic, reason)
+	if err != nil {
+		t.Fatalf("the logic lens's check, in a sitting opened after the fate, was refused: %v", err)
+	}
+	if !strings.Contains(out, handleText(t, runDir, "Q1")+" checked") {
+		t.Errorf("the check's reply does not name the inquiry it judged:\n%s", out)
+	}
+
+	sit("red-lens-evidence")
+	_, err = check("red-lens-evidence", "the fate stands")
+	refused("another lens's check", "the check of an inquiry is red-lens-logic's", err)
+
+	out, err = check(logic, reason, "--json")
+	if err != nil {
+		t.Fatalf("the same check again was refused; it records nothing and says so: %v", err)
+	}
+	var env struct {
+		Result struct {
+			Repeated bool `json:"repeated"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.Result.Repeated {
+		t.Errorf("the same check again does not say it repeated one already on the record (%v):\n%s", err, out)
+	}
+	if n := checks(); n != 1 {
+		t.Errorf("the record holds %d checks after the same check twice, want 1", n)
+	}
+
+	// A SECOND JUDGEMENT WHILE ONE STANDS is refused by its own rule, which names what makes the
+	// inquiry owed a check again; no seat-held act answers the first.
+	_, err = check(logic, "a different account of the same fate")
+	refused("a second check while one stands", "a check of inquiry", err)
+	if strings.Contains(err.Error(), "If it was wrong") {
+		t.Errorf("the refusal of a second check names an answering act, and the record holds none:\n%v", err)
+	}
+	if n := checks(); n != 1 {
+		t.Errorf("the record holds %d checks after a refused second one, want 1", n)
+	}
+
+	got := inquiry()
+	if got.State != record.InquirySound || got.CheckedBy != logic || got.Check != reason {
+		t.Errorf("show inquiries --json reads state %q, check %q by %q; want %q, %q by %q", got.State, got.Check, got.CheckedBy, record.InquirySound, reason, logic)
+	}
+	bare, err := run(t, "show", "--run", runDir, "--seat-id", logic, "inquiries")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "RED RULED") || !strings.Contains(out, "out_of_scope") {
-		t.Errorf("the ruling did not reach the projection blue reads:\n%s", out)
+	if !strings.Contains(bare, "checked by "+logic) || !strings.Contains(bare, reason) {
+		t.Errorf("show inquiries does not print the check that stands, with its seat and its reason:\n%s", bare)
+	}
+
+	// A FATE RECORDED AGAIN — the same fate included — leaves the check stale.
+	if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", blue, "--id", "Q1", "--as", "confirmed",
+		"--reason", "7 divides 91, and 13 is its cofactor"); err != nil {
+		t.Fatal(err)
+	}
+	if got := inquiry(); got.State != record.InquiryUnchecked || got.Check != "" || got.CheckedBy != "" {
+		t.Errorf("after a new fate the inquiry reads state %q, check %q by %q; want %q and no check", got.State, got.Check, got.CheckedBy, record.InquiryUnchecked)
 	}
 }
 
-// A ruling is an argument, not a command — so it must carry one.
-func TestRulingRequiresAReason(t *testing.T) {
-	runDir := newRun(t)
-	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat, "--question", "a question"); err != nil {
+// castTheLogicLens adds the logic lens to the run's cast and sits it: a run castRun built names
+// only the evidence lens, and an inquiry's check is the logic lens's alone. The cast the record
+// holds is the last written, so the new one carries every seat the old one did.
+func castTheLogicLens(t *testing.T, runDir string) {
+	t.Helper()
+	cast, err := record.CastOf(runtest.Open(t, runDir))
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "inquiry-rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "Q1", "--ruling", "too_thin"); err == nil {
-		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, "harness:cast:logic",
+		&recordpb.Cast{SeatIds: append(cast, record.InquiryOwner())}))
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", record.InquiryOwner()); err != nil {
+		t.Fatalf("register %s: %v", record.InquiryOwner(), err)
 	}
 }
 

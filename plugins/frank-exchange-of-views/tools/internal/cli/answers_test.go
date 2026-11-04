@@ -123,14 +123,6 @@ func (d drive) endsWithRow(refusal, row string) {
 	}
 }
 
-// endsWithoutARow holds a refusal for which no seat-held act answers the first.
-func (d drive) endsWithoutARow(refusal string) {
-	d.t.Helper()
-	if strings.Contains(refusal, "If it was wrong") || strings.Contains(refusal, "say so in") {
-		d.t.Fatalf("the refusal names an answering act, and this test has driven none for it:\n%s", refusal)
-	}
-}
-
 const (
 	rowPosition     = "a new position at your next sitting (a sitting holds one, and this sitting's stands)"
 	rowSpotCheck    = "a new spot-check at your next sitting (a sitting holds one, and this sitting's stands)"
@@ -440,21 +432,6 @@ func answerDrives() []answerDrive {
 				"--lens", lensSeat, "--direction", "audit the inference", "--reason", "again"), rowPositionRule)
 			d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on the position was wrong, and this is what holds")
 		}},
-		// NO ROW: the chair holds no act that answers its own ruling on an inquiry. A docket motion
-		// names a gap and an inquiry is not one, so the route a grade ruling has is refused here.
-		{name: "a ruling on an inquiry", drive: func(d drive) {
-			proposeQ1(d.t, d.run)
-			d.admitted("the ruling", "red-chair", "motion", "inquiry", "rule", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
-			d.endsWithoutARow(d.refused("a second ruling", "red-chair", "motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed", "--reason", "again"))
-			for _, seatID := range []string{"red-chair", "blue-respond"} {
-				d.refused("a docket motion naming the inquiry, by "+seatID, seatID, "motion", "docket", "file", "--id", "Q1", "--reason", "the bench should decide the inquiry")
-			}
-			// THE RULING BINDS NO FATE: what blue does about one it disagrees with is the inquiry's
-			// own row, in every status.
-			for _, status := range []string{"underway", "declined", "deferred"} {
-				d.admitted("a fate of "+status+" against the ruling", "blue-respond", "inquiry", "record", "--id", "Q1", "--as", status, "--reason", "what the question turns on")
-			}
-		}},
 		{name: "inquiry", row: rowInquiry, helps: []string{"blue inquiry propose", "blue inquiry record", "lane inquiry propose", "lane inquiry record"}, drive: func(d drive) {
 			proposeQ1(d.t, d.run)
 			for _, status := range []string{"underway", "deferred", "declined", "abandoned", "confirmed", "refuted", "proposed"} {
@@ -469,7 +446,6 @@ func answerDrives() []answerDrive {
 			computationAnchor := lastBody(d.t, d.run, &recordpb.Computation{}).GetComputationId()
 			twice(lensSeat, "reproduce", "--anchor", computationAnchor, "--as", "sound")(d)
 		}},
-		{name: "inquiry review", row: "a new review of the inquiries", helps: []string{"chair inquiry review"}, drive: twice("red-chair", "inquiry", "review")},
 		{name: "log", row: "a new log entry", helps: []string{"blue log", "lane log", "lens log", "chair log", "bench log"}, drive: func(d drive) {
 			for _, s := range []string{"blue-respond", "blue-lane-1", lensSeat, "red-chair", "judge"} {
 				twice(s, "log", "--type", "defect")(d)

@@ -274,7 +274,7 @@ func requireInquiry(q recordsql.Querier, id, flag string) error {
 	if found {
 		return nil
 	}
-	return fmt.Errorf("%s=%s names no inquiry on the record — `show inquiries` lists every one with its id and fate. Propose it first (`inquiry propose --question …`, which ASSIGNS the id); --id names an inquiry that already exists",
+	return fmt.Errorf("%s=%s names no inquiry on the record — `show inquiries` lists every one with its id and fate. An inquiry exists once blue's `inquiry propose --question …` ASSIGNS its id; --id names one that already exists",
 		flag, id)
 }
 

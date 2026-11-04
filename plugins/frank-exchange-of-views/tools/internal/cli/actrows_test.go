@@ -158,10 +158,9 @@ func actRows() map[string]actRow {
 		"chair spot-check": {seat: "red-chair", act: func(_ actVars, text string) []string {
 			return []string{"spot-check", "--reason", text}
 		}},
-		"chair inquiry review": {seat: "red-chair", act: prose("inquiry", "review")},
-		"bench declare":        {seat: "judge", act: prose("declare")},
-		"bench certify":        {seat: "judge", act: prose("certify")},
-		"bench halt":           {seat: "judge", act: prose("halt")},
+		"bench declare": {seat: "judge", act: prose("declare")},
+		"bench certify": {seat: "judge", act: prose("certify")},
+		"bench halt":    {seat: "judge", act: prose("halt")},
 		// The outcome is the assembly sitting's: the bench registers for it first.
 		"bench outcome": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {
@@ -184,10 +183,17 @@ func actRows() map[string]actRow {
 			act: func(v actVars, text string) []string {
 				return []string{"motion", "petition", "rule", "--id", v["m"], "--as", "denied", "--reason", text}
 			}},
-		"motion inquiry rule": {seat: "red-chair",
-			setup: func(t *testing.T, runDir string) actVars { proposeQ1(t, runDir); return nil },
+		// THE LOGIC LENS CHECKS A SETTLED INQUIRY, in a sitting opened after its fate: the fixture's
+		// cast names the evidence lens alone, so the setup casts and sits the inquiry's owner.
+		"lens inquiry check": {seat: "red-lens-logic",
+			setup: func(t *testing.T, runDir string) actVars {
+				proposeQ1(t, runDir)
+				must(t, runDir, "inquiry", "record", "--seat-id", "blue-respond", "--id", "Q1", "--as", "confirmed", "--reason", "the approach ran and answered")
+				castTheLogicLens(t, runDir)
+				return nil
+			},
 			act: func(_ actVars, text string) []string {
-				return []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed", "--reason", text}
+				return []string{"inquiry", "check", "--id", "Q1", "--reason", text}
 			}},
 		"motion docket rule": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {

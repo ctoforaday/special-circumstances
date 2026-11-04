@@ -123,9 +123,9 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 		plan := foldPlan(params, *r.plan)
 		// A RUN THAT ENDS OVER AN UNCHECKED OR FAILED CHECK NAMES IT. The run ends on its term or with
 		// no terminal state over a citation or computation nobody has read against the sentence the report
-		// carries, or one whose check failed, and the reason is where a reader of the outcome
-		// learns which. No other blocker kind is named: the reason states why the run stopped, and the
-		// board states what else is open.
+		// carries, or one whose check failed, or over an inquiry still open or unchecked, and the reason
+		// is where a reader of the outcome learns which. No other blocker kind is named: the reason
+		// states why the run stopped, and the board states what else is open.
 		standing = anchorsStanding(plan.Blockers)
 		// THE LIMIT IS READ AFTER THE EXIT TOO. The plan asks who is ready now; the terminal bench
 		// has ruled since the chair's last sitting, and where the bench was all the limit left
@@ -138,9 +138,10 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 }
 
 // anchorsStanding is the outcome reason's clause naming each citation or computation that holds the PASS by
-// its own state — unchecked, or on a failed check — or "" where none does.
+// its own state — unchecked, or on a failed check — and each inquiry open or unchecked, or "" where
+// none does.
 func anchorsStanding(bs []PlanBlocker) string {
-	var unchecked, failed []string
+	var unchecked, failed, open, uncheckedInquiries []string
 	for _, b := range bs {
 		switch b.Kind {
 		case BlockerUnchecked:
@@ -149,6 +150,10 @@ func anchorsStanding(bs []PlanBlocker) string {
 			if !slices.Contains(failed, b.Subject) {
 				failed = append(failed, b.Subject)
 			}
+		case BlockerOpenInquiry:
+			open = append(open, b.Subject)
+		case BlockerUncheckedInquiry:
+			uncheckedInquiries = append(uncheckedInquiries, b.Subject)
 		}
 	}
 	out := ""
@@ -157,6 +162,12 @@ func anchorsStanding(bs []PlanBlocker) string {
 	}
 	if len(failed) > 0 {
 		out += "; on a failed check: " + strings.Join(failed, ", ")
+	}
+	if len(open) > 0 {
+		out += "; inquiries open: " + strings.Join(open, ", ")
+	}
+	if len(uncheckedInquiries) > 0 {
+		out += "; inquiries unchecked: " + strings.Join(uncheckedInquiries, ", ")
 	}
 	return out
 }

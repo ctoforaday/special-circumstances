@@ -29,27 +29,28 @@ import (
 type BlockerKind string
 
 const (
-	BlockerStrandedGap    BlockerKind = "stranded_gap"
-	BlockerMaterialGap    BlockerKind = "material_gap"
-	BlockerRemandOwed     BlockerKind = "remand_owed"
-	BlockerContradiction  BlockerKind = "contradiction"
-	BlockerUnchecked      BlockerKind = "unchecked"
-	BlockerFailedCheck    BlockerKind = "failed_check"
-	BlockerNoReport       BlockerKind = "no_report"
-	BlockerLensReady      BlockerKind = "lens_ready"
-	BlockerStaleArea      BlockerKind = "stale_area"
-	BlockerGradeMovement  BlockerKind = "grade_movement"
-	BlockerClosingOwed    BlockerKind = "closing_owed"
-	BlockerUnruledMotion  BlockerKind = "unruled_motion"
-	BlockerUpheldPosition BlockerKind = "upheld_position"
-	BlockerInquiryReview  BlockerKind = "inquiry_review"
+	BlockerStrandedGap      BlockerKind = "stranded_gap"
+	BlockerMaterialGap      BlockerKind = "material_gap"
+	BlockerRemandOwed       BlockerKind = "remand_owed"
+	BlockerContradiction    BlockerKind = "contradiction"
+	BlockerUnchecked        BlockerKind = "unchecked"
+	BlockerFailedCheck      BlockerKind = "failed_check"
+	BlockerNoReport         BlockerKind = "no_report"
+	BlockerLensReady        BlockerKind = "lens_ready"
+	BlockerStaleArea        BlockerKind = "stale_area"
+	BlockerGradeMovement    BlockerKind = "grade_movement"
+	BlockerClosingOwed      BlockerKind = "closing_owed"
+	BlockerUnruledMotion    BlockerKind = "unruled_motion"
+	BlockerUpheldPosition   BlockerKind = "upheld_position"
+	BlockerOpenInquiry      BlockerKind = "open_inquiry"
+	BlockerUncheckedInquiry BlockerKind = "unchecked_inquiry"
 )
 
 // Blocker is one thing on the board holding the PASS gate, and the seat whose act clears it.
 type Blocker struct {
 	Kind BlockerKind
-	// Subject is what holds it: a gap id, a contradiction's id, a lens seat, a motion id — "" for
-	// the kinds that are about the run as a whole (no_report, inquiry_review).
+	// Subject is what holds it: a gap id, a contradiction's id, a lens seat, a motion id, an inquiry
+	// id — "" for the kind that is about the run as a whole (no_report).
 	Subject string
 	// Owner is the seat whose act clears it — the gap's minter, the lens that read the
 	// contradicting source, the ready lens, the motion's gavel-holder, the chair for its own
@@ -67,15 +68,19 @@ type Blocker struct {
 	motionSubject string
 	// since is the events.id the blocker arose at — a motion's filing, the contradicting verify,
 	// the edit that changed an unchecked anchor's sentence (0 for one no edit has changed), the
-	// failed check — so dispatch can ask whether its owner has sat since, and an unchecked anchor's
-	// wording can name its edit; 0 for the other kinds.
+	// failed check, an inquiry's latest fate — so dispatch can ask whether its owner has sat since,
+	// and an unchecked anchor's wording can name its edit; 0 for the other kinds.
 	since int64
 	// placed is the events.id of the act that put an unchecked anchor on the record, which dispatch
-	// readies its owner off (a cite or a computation moves no report head); 0 for every other blocker.
+	// readies its owner off (a cite or a computation moves no report head), and of an unchecked
+	// inquiry's latest cause (InquiryJudgement.cause); 0 for every other blocker.
 	placed int64
-	// lastCheck is the events.id of an unchecked anchor's latest check, which does not clear it, 0
-	// when it has none.
+	// lastCheck is the events.id of an unchecked anchor's or inquiry's latest check, which does not
+	// clear it, 0 when it has none.
 	lastCheck int64
+	// notes is the findings other lenses filed about an unchecked inquiry since its fate, each as
+	// "<id> (<seat>)"; nil for every other blocker.
+	notes []string
 	// rerun is an unchecked computation's script state (unchecked.rerun), "" for every other blocker.
 	rerun string
 	// raisedBy is the finding that raised a contradiction, "" until one has, and raiser the seat
@@ -559,35 +564,52 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%s: the bench upheld the chair's position, naming %s to audit its area on %q — %s", b.Subject, ownerOr(b, "a lens"), b.Detail, planHold(b, "PASS is not permitted until it has"))
 		},
 	},
-	// THE INQUIRIES ARE READ ONCE FOR EACH CHANGE TO WHAT THE READ READS. One statement per read, not
-	// one per inquiry: presence is not the question, because the inquiries are generated onto the page
-	// from the record. What the read owes is a judgement on whether the BODY delivered them, and where
-	// it did not, a gap. A review recorded before an edit, or before an inquiry's proposal or fate,
-	// answers a question about a document that no longer exists; one recorded after both still stands,
-	// so re-reading an unchanged report owes nothing (InquiryReviewDueOf).
+	// AN OPEN INQUIRY HOLDS THE PASS UNTIL BLUE RECORDS A FATE THAT SETTLES IT (ruled by gblock
+	// 2026-11-01; inquirycheck.go). Its owner is blue-respond, which dispatch readies while any
+	// inquiry is open; the plan's line names the latest fate's event, so a re-recorded `underway`
+	// moves it, and a run that cannot settle its inquiries reaches its epoch limit and ends CEILING.
 	{
-		kind:  BlockerInquiryReview,
-		gloss: "no inquiry review since the report or its inquiries last changed",
-		item: func(Blocker) string {
-			return "the report's account of its own research has not been read since the report or its inquiries last changed — PASS is refused until one `inquiry review` says what the read found"
+		kind:  BlockerOpenInquiry,
+		gloss: "an inquiry still proposed or underway, with no fate that settles it",
+		item: func(b Blocker) string {
+			return openInquiryFact(b) + " — PASS is refused until blue records a fate that settles it: confirmed or refuted for an approach that ran, abandoned for one that gave no answer, declined or deferred with why"
 		},
-		// THE SHORTFALL IS A DEFECT THE CHAIR FOUND, and the chair mints nothing: this refusal told
-		// it to "MINT A GAP" and to "issue `--as FAIL`" otherwise, and the chair reads it alone. It
-		// has no `mint`, and the review is the chair's own item, so over a converged board the FAIL
-		// is refused too (requireFailIsNotConvergent). Where a shortfall stops the chair, it weighs it
-		// like any defect it finds; the stopping judgment in its constitution says where that goes.
-		refusal: func([]Blocker) string {
-			return "no inquiry review is recorded since the report or its inquiries last changed. " +
-				"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
-				"`show inquiries`, and answer in one act: `inquiry review --reason \"<what the report " +
-				"says at those inquiries>\"`. Where an inquiry's research is thin, missing or unsupported by the text, " +
-				"that shortfall is a defect you found, weighed before your verdict like any other; this " +
-				"event only records that the read happened, because an absent review reads exactly like a sound " +
-				"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
-				"of the report; record the review before a PASS"
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, fmt.Sprintf("%s (%s)", b.Subject, b.Detail))
+			}
+			return fmt.Sprintf("%d inquiry(ies) are still OPEN: %s. An open inquiry is a decision the report has not made, and a PASS would certify research the record says is unfinished. "+
+				"Blue records a fate that settles each — confirmed or refuted for an approach that ran, abandoned for one that gave no answer, declined or deferred with why — and the logic lens then checks it. "+
+				"PASS waits for those fates, and `--as FAIL` does not",
+				len(bs), strings.Join(named, ", "))
 		},
 		why: func(b Blocker) string {
-			return "no inquiry review since the report or its inquiries last changed — " + planHold(b, "PASS is not permitted until one is recorded")
+			return openInquiryFact(b) + " — " + planHold(b, "PASS is not permitted until blue records a fate that settles it")
+		},
+	},
+	// A SETTLED INQUIRY HOLDS THE PASS UNTIL A CHECK STANDS ON IT (ruled by gblock 2026-11-01). Its
+	// owner is the logic lens (inquiryOwner), which dispatch readies once per cause; a wanting inquiry
+	// holds the PASS through its gap's material_gap row instead, and has no row here.
+	{
+		kind:  BlockerUncheckedInquiry,
+		gloss: "a settled inquiry with no check of its latest fate",
+		item: func(b Blocker) string {
+			return uncheckedInquiryFact(b) + " — PASS is refused until one does. " + uncheckedInquiryAct(b)
+		},
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, uncheckedInquiryFact(b))
+			}
+			return fmt.Sprintf("%d settled inquiry(ies) have no check of their latest fate:\n  %s\n"+
+				"A settled inquiry is the report's account of research the run did or set aside, and nothing on the record has judged that account. "+
+				"The logic lens judges each: `inquiry check --id <id> --reason \"...\"` where its fate stands as the report's account of it, or the gap about it where it is wanting. "+
+				"A fate recorded again, or a material gap minted about it, leaves its check stale. PASS waits for those checks, and `--as FAIL` does not",
+				len(bs), strings.Join(named, "\n  "))
+		},
+		why: func(b Blocker) string {
+			return uncheckedInquiryFact(b) + " — " + planHold(b, "PASS is not permitted until "+ownerOr(b, inquiryOwner)+" checks it")
 		},
 	},
 }
@@ -621,6 +643,17 @@ type blockerGap struct {
 	// latestRemandOwed is the gap's latest remand with no exchange since its ruling in which blue
 	// acted on the gap (latestRemandOwed).
 	latestRemandOwed bool
+	// inquiry is the inquiry the gap is about, "" for a gap about anything else: an open material
+	// one holds the inquiry wanting (inquiryJudgementsOf).
+	inquiry string
+}
+
+// inquiryAbout is the inquiry a gap about kind and ref is about, "" where it is about anything else.
+func inquiryAbout(kind, ref string) string {
+	if kind != recordpb.Word(recordpb.AboutKind_ABOUT_KIND_INQUIRY) {
+		return ""
+	}
+	return ref
 }
 
 func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
@@ -633,7 +666,8 @@ func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
 		if g.Stranded {
 			sup = g.SupersededBy
 		}
-		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, supersededBy: sup, material: g.Material, latestRemandOwed: g.latestRemandOwed})
+		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, supersededBy: sup, material: g.Material, latestRemandOwed: g.latestRemandOwed,
+			inquiry: inquiryAbout(g.AboutKind, g.AboutRef)})
 	}
 	return out
 }
@@ -644,7 +678,7 @@ func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
 func blockerGapsOfOpen(gaps []openGap, owed map[string]bool) []blockerGap {
 	out := make([]blockerGap, 0, len(gaps))
 	for _, g := range gaps {
-		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, supersededBy: g.supersededBy, material: g.material, latestRemandOwed: owed[g.id]})
+		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, supersededBy: g.supersededBy, material: g.material, latestRemandOwed: owed[g.id], inquiry: g.inquiry})
 	}
 	return out
 }
@@ -693,9 +727,8 @@ func kindRank(k BlockerKind) int {
 
 // eventBlockersOf is the arms of the gate's list that the stream alone answers, in table order: a
 // contradiction no gap answers, a citation or computation with no check of the sentence the report
-// carries, a standing failed check of one, no
-// ingested report, an unruled motion, no inquiry review since the report or its inquiries last
-// changed. ids is evs's places, aligned with it.
+// carries, a standing failed check of one, no ingested report, an unruled motion, an upheld
+// position's audit not yet had. ids is evs's places, aligned with it.
 //
 // IT ANSWERS FOR THE STREAM IT IS HANDED. Asked of a prefix of the record, it says what held a PASS
 // when the record ended there: no arm asks the index for a seat's newest sitting.
@@ -718,9 +751,6 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	}
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)
 	out = append(out, upheldPositionBlockers(evs, ids, win)...)
-	if InquiryReviewDueOf(evs, win) {
-		out = append(out, Blocker{Kind: BlockerInquiryReview, Owner: chairSeat})
-	}
 	return out
 }
 

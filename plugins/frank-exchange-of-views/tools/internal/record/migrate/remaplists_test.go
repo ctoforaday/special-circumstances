@@ -68,7 +68,7 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 			t.Errorf("%s is marked (prose) in record.proto and is not in the seat-argument list", name)
 		}
 		switch strings.SplitN(name, ".", 2)[0] {
-		case "GradeMotion", "DocketMotion", "InquiryMotion", "DocketRuling":
+		case "GradeMotion", "DocketMotion", "DocketRuling":
 			motionArms++
 		}
 	})
@@ -84,8 +84,8 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 			t.Errorf("mints names %s, which is not in the id list", field)
 		}
 	}
-	if motionArms != 11 {
-		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 11 — the walk stopped at the top-level bodies", motionArms)
+	if motionArms != 10 {
+		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 10 — the walk stopped at the top-level bodies", motionArms)
 	}
 	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "39 43 68" {
 		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 39 43 68", got)

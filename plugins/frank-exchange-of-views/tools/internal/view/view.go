@@ -807,8 +807,9 @@ func inquiryMD(in Input) []byte {
 // bare URL runs into it, and report.html shows it as typed.
 //
 // THE CHOOSING, NOT JUST THE PLAN. An inquiry has an id, a hypothesis, a fate recorded with a
-// stated reason, and red's ruling — so the projection renders the DECISION: what was proposed,
-// what became of it, why, and what red said about it. That sequence is the evidence of choosing; a
+// stated reason, and the check that stands on it — so the projection renders the DECISION: what was
+// proposed, what became of it, why, and why red judged that account sound. That sequence is the
+// evidence of choosing; a
 // flat list by final status records only the outcome — which is exactly what report.md carries,
 // and why the path has to ship somewhere.
 //
@@ -818,8 +819,8 @@ func inquiryMD(in Input) []byte {
 // an inquiry went through before it (m28: Q-40ceefaa's five `underway` records before `deferred`)
 // are the human's record of how the fate was reached.
 //
-// value writes each value the record holds — a question, a reason, a hypothesis, a method, a ruling's
-// why — into its row, given the indent of the row's content: the seat view prints it as written
+// value writes each value the record holds — a question, a reason, a hypothesis, a method, a check's
+// reason — into its row, given the indent of the row's content: the seat view prints it as written
 // (AsWritten), because a seat quotes and matches it, and the shipped document keeps its paragraphs
 // inside the item (report's inItem).
 func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool, value func(s, indent string) string) string {
@@ -861,8 +862,10 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool, value 
 					inquiry = append(inquiry, superseded(a, value)...)
 				}
 			}
-			if a.Ruling != "" {
-				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, value(a.RulingWhy, "    ")))
+			// THE CHECK THAT STANDS ON IT, with its reason: what the owning lens judged sound in this
+			// fate. An inquiry no check stands on prints none, and the PASS gate says why it holds.
+			if c := a.Check; c != nil {
+				inquiry = append(inquiry, fmt.Sprintf("  - checked by %s (epoch %d): %s", c.SeatID, c.Epoch, value(c.Reason, "    ")))
 			}
 		}
 		inquiry = append(inquiry, "")

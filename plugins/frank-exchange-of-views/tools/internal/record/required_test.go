@@ -138,47 +138,19 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 // A RULING'S REFERENT DEPENDS ON ITS SUBJECT, and this is the test for the constraint that got
 // that wrong.
 //
-// `motion_rule.motion_id` briefly carried a foreign key onto `motion.motion_id`. It reads right
-// and it is false for one subject in three: an INQUIRY motion has no motion row, because the
-// proposal IS the filing — `motion inquiry rule` names the inquiry's own id. The key
-// refused every inquiry ruling in the tool while looking like a guarantee.
+// `motion_rule.motion_id` briefly carried a foreign key onto `motion.motion_id`. It reads right and
+// it is false for a subject whose filing is no motion row: a heard POSITION is its own filing, and its
+// ruling names the position's id. The key refused such rulings in the tool while looking like a
+// guarantee.
 //
-// The rule is subject-aware, so it is enforced where the subject is known. This pins both arms: a
-// grade ruling resolves against the MOTIONS, an inquiry ruling against the INQUIRIES, and each says
-// which it could not find.
+// The rule is subject-aware, so it is enforced where the subject is known (requireMotionSubjectRef).
+// This pins the arm a key would also hold: a grade ruling resolves against the MOTIONS and says which
+// it could not find.
 func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	id := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
-	}
-
-	// AN INQUIRY ruling names an inquiry. With no such inquiry it is refused; with one it
-	// goes through — and it never needed a motion row, which is the whole point.
-	direction := func() *recordpb.MotionRule {
-		return &recordpb.MotionRule{
-			MotionId: proto.String("Q1"),
-			Opinion:  proto.String("a real question, but not this one"),
-			Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
-		}
-	}
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err == nil {
-		t.Error("an inquiry ruling named Q1, which no inquiry created, and was accepted")
-	}
-	blue := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}
-	if _, _, err := RegisterSeat(blue, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(blue, &recordpb.Inquiry{
-		InquiryId: proto.String("Q1"),
-		Status:    recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED),
-		Question:  proto.String("read the adjacent literature"),
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err != nil {
-		t.Errorf("an inquiry ruling on a REAL inquiry was refused: %v\n\nThis is the case a foreign key "+
-			"onto `motion.motion_id` got wrong: an inquiry motion has no motion row", err)
 	}
 
 	// A GRADE ruling names a motion, and resolves against a different table entirely.

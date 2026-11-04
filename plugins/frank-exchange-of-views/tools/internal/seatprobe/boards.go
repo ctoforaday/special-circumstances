@@ -47,23 +47,25 @@ type Gap struct {
 	//
 	// They are ARGUMENTS, not restatements. A closing that says "this gap should close because it
 	// should close" hands the bench a board it cannot weigh, and then scoring what it did with the
-	// weighing is scoring a coin flip — the same defect Inquiry.RuledWhy exists for.
+	// weighing is scoring a coin flip — the same defect Inquiry.FateWhy exists for.
 	RedClosing, BlueClosing string
 }
 
-// Inquiry is a proposed inquiry, and red's ruling on it if there is one.
+// Inquiry is an inquiry blue proposed, and the fate blue recorded on it if there is one.
 type Inquiry struct {
 	Question, Hypothesis string
-	// Ruled, when set, is the fate red has already given it — which is what makes
-	// recording a fate the seat's next act rather than a fresh proposal.
-	Ruled string
-	// RuledWhy is red's ARGUMENT for that fate, and a board is not honest without it.
+	// Fate, when set, is the fate blue recorded on it after proposing it (`inquiry record`). A
+	// settled fate is what the logic lens judges; with none the inquiry is open, and blue owes it one.
+	Fate string
+	// FateWhy is blue's account of that fate, and a board with a fate is not honest without it.
 	//
-	// Boards ask a seat to ACCEPT a ruling or answer it, and each of those is a judgement
-	// about the ARGUMENT behind it. Handing a seat a verdict with no argument and then scoring
-	// what it did next is scoring a coin flip — and the miss is invisible, because a
+	// The check of a settled inquiry judges whether its fate stands as the report's account of it,
+	// and that is a judgement about the ACCOUNT. Handing a lens a fate with no account and then
+	// scoring what it did next is scoring a coin flip — and the miss is invisible, because a
 	// content-free reason and a considered one occupy the same field.
-	RuledWhy string
+	FateWhy string
+	// Method is what the research the fate settles actually did, empty where the fate names none.
+	Method string
 }
 
 // Motion is an adjudication already on the board — an ask a seat must answer, or an answered one
@@ -311,7 +313,7 @@ No production reversal has been attempted.
 
 Reversibility under load was not tested.
 `,
-		RedNarrative: "Epoch 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second. I have ruled on the inquiries as they stood; where I ruled too-thin, the fix is a named system and a stated bar, not a broader restatement.",
+		RedNarrative: "Epoch 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second.",
 		Gaps: []Gap{
 			{
 				Key: "docketed", Class: "derivation_status_overclaim",
@@ -347,19 +349,13 @@ Reversibility under load was not tested.
 				"grade stands until there is a measurement, not until there is a sentence in Limits.",
 		}},
 		Inquiries: []Inquiry{
-			{Question: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
-				RuledWhy: "this is the one inquiry here that PRODUCES a fact rather than an opinion about a fact. " +
-					"It also answers the gap it touches only partly — staging is not load — so take it knowing " +
-					"it narrows G2 rather than closing it."},
-			{Question: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too_thin",
-				RuledWhy: "the hypothesis is that a standard form exists, and a survey that finds no standard " +
-					"form cannot distinguish `there is none` from `we looked in the wrong places`. Name the three " +
-					"systems and what specifically would count as documenting a reversal, and it stops being thin."},
+			{Question: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load"},
+			{Question: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring"},
 		},
 		Expect: []Expectation{
 
 			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a docket motion is filed by any seat but the bench. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A gap blue puts before the bench owes blue's closing on it: the bench rules from the two parties' closings, the transcript and the final state, and waits for both. A blue that escalates and files no closing has left its case to red's account of it."},
-			{Seat: "blue-respond", Verb: "inquiry record", Because: "Two inquiries are ruled and neither has a fate. Every inquiry at proposed or underway owes its fate recorded each epoch — an inquiry declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead leaves the first one unanswered."},
+			{Seat: "blue-respond", Verb: "inquiry record", Because: "Two inquiries are proposed and neither has a fate. An open inquiry holds the PASS, and blue's work list names each one whose fate predates the sitting — an inquiry declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead leaves the first one unanswered."},
 		},
 	}
 }
@@ -494,8 +490,6 @@ Figures were read from the deployed configuration at the pinned revision.
 		}},
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
-			{Seat: "red-chair", Verb: "motion inquiry rule", Because: "Blue proposed an inquiry and it is unruled; the projection blue reads shows an unruled inquiry as one nobody has sat on."},
-			{Seat: "red-chair", Verb: "inquiry review", Because: "The report's own account of what this run investigated is part of the report, and it is the one part the lens's `verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The read is owed whenever the report or an inquiry has changed since the last one, and `verdict --as PASS` is refused while it is owed, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that inquiry."},
 			{Seat: "red-chair", Verb: "motion docket file", Because: "THIS puts the gap on the record as one the bench owes an answer to, and its parties — the minting lens and blue — then argue it in their closings. A `docket-bound` board with no motion written down lets a gap reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here: the record says who sits — the parties, their gaps, the head they audit. A chair that names parties from its own reading has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "verdict", Because: "The sitting's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
@@ -849,10 +843,46 @@ The fall coincides with the cache layer's release.
 	}
 }
 
+// lensInquiry is the logic lens's sitting over two inquiries blue settled: one whose fate the report
+// delivers, and one that asks a question this run was not asked. A settled inquiry no check stands on
+// holds the PASS and is the logic lens's alone to judge (record.InquiryOwner); the probe dispatches the
+// seat after both fates, so its own register opens the sitting the check is admitted in.
+func lensInquiry() Board {
+	return Board{
+		Name: "lens-inquiry", Seat: "red-lens-logic",
+		Report: `# Is 91 prime? — research report
+
+## TL;DR
+
+91 is not prime: it is 7 × 13.
+
+## Findings
+
+Trial division by the primes up to 9 finds the factor 7, and 91 = 7 × 13.
+
+## Method
+
+Each prime up to the square root of 91 was tried as a divisor in turn.
+`,
+		Inquiries: []Inquiry{
+			{Question: "whether trial division by the primes up to 9 settles whether 91 is prime", Hypothesis: "a prime factor below 10 exists",
+				Fate: "confirmed", Method: "trial division by 2, 3, 5 and 7",
+				FateWhy: "7 divides 91 with no remainder, so 91 = 7 × 13 and is composite; no larger divisor needs trying past the square root"},
+			{Question: "which published table first listed 91 as composite", Hypothesis: "an early factor table records it",
+				Fate:    "abandoned",
+				FateWhy: "the sources searched hold no dated factor table that names 91, so the search gave no answer"},
+		},
+		Expect: []Expectation{
+			{Seat: "red-lens-logic", Verb: "inquiry check", Because: "Q1 is settled and no check stands on it: its fate claims trial division found the factor 7, and the report's Findings and Method deliver exactly that. A settled inquiry with no standing check holds the PASS, the logic lens's work list names it, and the check with its reason is the one act that clears it."},
+			{Seat: "red-lens-logic", Verb: "mint", Because: "Q2 asks which table first listed 91 — a question of history this run, which asks whether 91 is prime, was not asked. Checking it would pass an inquiry the report should not carry; the accounted act is the gap about the inquiry, class out_of_scope, which blue answers by declining it, and which takes none of the logic lens's mint budget."},
+		},
+	}
+}
+
 // Boards is every named starting position, keyed by name.
 func Boards() map[string]Board {
 	out := map[string]Board{}
-	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), lensClosing(), sitting(), boundary(), blocked()} {
+	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), lensClosing(), lensInquiry(), sitting(), boundary(), blocked()} {
 		out[b.Name] = b
 	}
 	return out
