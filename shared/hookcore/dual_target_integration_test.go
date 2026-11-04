@@ -133,6 +133,11 @@ func stageMockPlugin(t *testing.T, repoRoot, pluginName, binName, binPath string
 	if runtime.GOOS == "windows" && !strings.HasSuffix(binName, ".exe") {
 		_ = os.WriteFile(filepath.Join(destBinDir, binName), binData, 0755)
 	}
+
+	// Prevent self-healing / background fetchers from ever running inside mockRoot
+	_ = os.MkdirAll(filepath.Join(mockRoot, "tools"), 0755)
+	_ = os.WriteFile(filepath.Join(mockRoot, "tools", "go.mod"), []byte("module mock\n"), 0644)
+
 	return mockRoot
 }
 
