@@ -394,8 +394,9 @@ func frictionNoneEntry(old OldEvent) ([]proto.Message, error) {
 
 // opinionEntry is the one CONCEPT translation: the bench opinion was retired (fd9e6970) for
 // a docket MOTION naming the gap and a docket RULING carrying the bench's answer. One old
-// event becomes two, both stamped with the opinion's own ts and seat — the bench raised the
-// question and the bench answered it, which is what an opinion was.
+// event becomes two, both stamped with the opinion's own ts. The ruling is the bench's, under the
+// opinion's seat; the motion is filed under the harness (opinionFiler), because the bench rules a
+// docket motion and files none (rulerfiles.go).
 func opinionEntry(old OldEvent) ([]proto.Message, error) {
 	// UNIQUE BY CONSTRUCTION. The pair is named for the opinion's own event id, which no other
 	// event shares and no motion the archive filed is spelled like; the remap then gives that
@@ -473,8 +474,23 @@ func opinionEntry(old OldEvent) ([]proto.Message, error) {
 		ruling.ReopensOn = proto.String("not stated: this ruling predates the reopens-on/final requirement (migrated from a bench opinion)")
 	}
 	remandDirection(ruling)
-	// The motion's ask, in the only words the record has for it: the bench took the gap up
-	// on its own motion. Synthesized text says so rather than posing as a filing.
-	motion.Basis = proto.String("migrated from a bench opinion: the bench took this gap up sua sponte")
+	// The motion's ask, in the only words the record has for it: the engine put the gap before
+	// the bench, and no seat filed it. Synthesized text says so rather than posing as a seat's filing.
+	motion.Basis = proto.String("migrated from a bench opinion: the engine put this gap before the bench, before seats filed docket motions")
 	return []proto.Message{motion, rule}, nil
+}
+
+// opinionFiler is the seat a body translated from src is written under, where that is not src's
+// own: the docket motion an opinion translates to is filed under the harness (record.HarnessSeat).
+//
+// THE OPINION ERA HAD NO DOCKETING PARTY. Before fd9e6970 a gap came before the bench because the
+// engine convened it on the board's open gaps; no seat filed anything to put it there, and no
+// archive holds a docket motion on a gap before the opinion that rules it. The harness is the
+// writer that is no party (outcomeclosed.go), so the filing asserts no seat's act, and the bench —
+// which rules the subject — files nothing on it.
+func opinionFiler(src OldEvent, body proto.Message) (string, bool) {
+	if _, motion := body.(*recordpb.Motion); src.Word != "opinion" || !motion {
+		return "", false
+	}
+	return record.HarnessSeat, true
 }

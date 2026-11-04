@@ -63,3 +63,18 @@ func TestAPositionRulingRendersTheWorkItNames(t *testing.T) {
 		})
 	}
 }
+
+// A WRITER WITH NO SITTING IS NAMED WITHOUT ONE. The harness files the docket motion migrate
+// translates from a bench opinion and sits in no sitting, so its row names it bare; a seat's row
+// keeps its sitting.
+func TestAFilerWithNoSittingIsNamedWithoutANumber(t *testing.T) {
+	var unruled int
+	row := motionRow(&record.Motion{ID: "M1", Subject: "docket", GapID: "G1", Filer: record.HarnessSeat,
+		Ruling: "repaired", RulingBy: "judge", RulingSitting: 2}, &unruled)
+	if !strings.Contains(row, "filed by "+record.HarnessSeat+"\n") || strings.Contains(row, "#0") {
+		t.Errorf("the harness's filing is named with a sitting number:\n%s", row)
+	}
+	if !strings.Contains(row, "by judge #2") {
+		t.Errorf("the bench's ruling lost its sitting:\n%s", row)
+	}
+}

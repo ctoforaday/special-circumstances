@@ -70,7 +70,6 @@ func TestMigratingReplaySkipsVoiceRefusal(t *testing.T) {
 	Migrating = true
 	defer func() { Migrating = false }()
 	m := liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_MEDIUM)
-	m.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()
 	m.Problem = proto.String("blue-synthesize merged a claim from blue-lane-2 unsourced.")
 	m.RequiredFix = proto.String("Source it [minority: lane-2/primary-literature].")
 	appendOK(t, lens, m)
@@ -86,7 +85,6 @@ func TestMigratingReplayKeepsAVoicedFixNew(t *testing.T) {
 	Migrating = true
 	defer func() { Migrating = false }()
 	m := liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_MEDIUM)
-	m.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()
 	m.Problem = proto.String("The error bound is stated without its derivation.")
 	m.Location = proto.String("The bound holds.")
 	m.FixNew = proto.String("The bound holds, as blue-respond conceded.")
