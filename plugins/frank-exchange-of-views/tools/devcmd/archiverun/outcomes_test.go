@@ -7,7 +7,7 @@ import (
 
 var (
 	pinned = map[string]string{"python3": "Python 3.12.16", "node": "v24.19.0"}
-	rows   = []Row{{Archive: "a.tar.gz", OldSha: "0b15", Outcome: Reproduced}, {Archive: "a.tar.gz", OldSha: "62d0", Outcome: Moved}, {Archive: "b.tar.gz", OldSha: "ab6a", Outcome: Differs}}
+	rows   = []Row{{Archive: "a.tar.gz", Bundle: "0b15", Outcome: Reproduced}, {Archive: "a.tar.gz", Bundle: "62d0", Outcome: Moved}, {Archive: "b.tar.gz", Bundle: "ab6a", Outcome: Differs}}
 )
 
 // WHAT -write WRITES, THE CHECK ACCEPTS, and only under the interpreters it names.
@@ -33,8 +33,8 @@ func TestEveryDisagreementIsNamed(t *testing.T) {
 		{"an absent interpreter", held, map[string]string{"python3": "absent", "node": "v24.19.0"}, rows, `interpreter python3 is "absent"`},
 		{"an interpreter the file lacks", held, map[string]string{"python3": "Python 3.12.16", "node": "v24.19.0", "bash": "x"}, rows, "interpreter bash"},
 		{"an interpreter the check lacks", held, map[string]string{"python3": "Python 3.12.16"}, rows, "names interpreter node"},
-		{"a moved outcome", held, pinned, []Row{rows[0], {Archive: "a.tar.gz", OldSha: "62d0", Outcome: Differs}, rows[2]}, "re-ran differs, the file holds moved"},
-		{"a row the file lacks", held, pinned, append(append([]Row{}, rows...), Row{Archive: "c.tar.gz", OldSha: "ffff", Outcome: Reproduced}), "holds no row"},
+		{"a moved outcome", held, pinned, []Row{rows[0], {Archive: "a.tar.gz", Bundle: "62d0", Outcome: Differs}, rows[2]}, "re-ran differs, the file holds moved"},
+		{"a row the file lacks", held, pinned, append(append([]Row{}, rows...), Row{Archive: "c.tar.gz", Bundle: "ffff", Outcome: Reproduced}), "holds no row"},
 		{"a row no archive re-ran", held, pinned, rows[:2], "b.tar.gz ab6a: the file holds a row no archive re-ran"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -56,7 +56,7 @@ func TestAVariantActsOutcomeIsEitherNonFailingOne(t *testing.T) {
 		for _, a := range acts {
 			set[a.Outcome] = true
 		}
-		return Row{Archive: "a.tar.gz", OldSha: "62d0", Outcome: joinOutcomes(set), Acts: acts}
+		return Row{Archive: "a.tar.gz", Bundle: "62d0", Outcome: joinOutcomes(set), Acts: acts}
 	}
 	for _, c := range []struct {
 		name, held string
@@ -75,7 +75,7 @@ func TestAVariantActsOutcomeIsEitherNonFailingOne(t *testing.T) {
 		{"held both, one variant act", Moved + "," + Reproduced, row(variant(Moved)), false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			p := Compare(Format(pinned, []Row{{Archive: "a.tar.gz", OldSha: "62d0", Outcome: c.held}}), pinned, []Row{c.measured})
+			p := Compare(Format(pinned, []Row{{Archive: "a.tar.gz", Bundle: "62d0", Outcome: c.held}}), pinned, []Row{c.measured})
 			if got := len(p) == 0; got != c.ok {
 				t.Errorf("held %q, measured %+v: problems %q, want ok=%v", c.held, c.measured.Acts, p, c.ok)
 			}

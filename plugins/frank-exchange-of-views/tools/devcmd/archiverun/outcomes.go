@@ -19,7 +19,7 @@ const (
 // Row is one archived bundle's measured outcome: the outcome its acts agree on, or each distinct
 // one, and each act's own.
 type Row struct {
-	Archive, OldSha, Outcome string
+	Archive, Bundle, Outcome string
 	// Acts is each act's outcome and basis, as measured; the outcomes file holds only Outcome.
 	Acts []Act
 }
@@ -30,7 +30,7 @@ type Act struct {
 	Variant bool
 }
 
-func (r Row) key() string { return r.Archive + "\t" + r.OldSha }
+func (r Row) key() string { return r.Archive + "\t" + r.Bundle }
 
 // joinOutcomes is the outcome a bundle's acts agree on, or each distinct one, sorted and
 // comma-separated.
@@ -46,7 +46,7 @@ func joinOutcomes(set map[string]bool) string {
 // The file's shape: comment lines, an interpreter line per command, the column header, the rows.
 const (
 	interpreterPrefix = "# interpreter\t"
-	columns           = "archive\told_sha\toutcome"
+	columns           = "archive\tbundle\toutcome"
 )
 
 // Format is the outcomes file: a header naming each interpreter's version, then one row per bundle,
@@ -67,7 +67,7 @@ func Format(versions map[string]string, rows []Row) string {
 	sorted := append([]Row{}, rows...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].key() < sorted[j].key() })
 	for _, r := range sorted {
-		fmt.Fprintf(&b, "%s\t%s\t%s\n", r.Archive, r.OldSha, r.Outcome)
+		fmt.Fprintf(&b, "%s\t%s\t%s\n", r.Archive, r.Bundle, r.Outcome)
 	}
 	return b.String()
 }
@@ -125,9 +125,9 @@ func Compare(held string, versions map[string]string, rows []Row) []string {
 		want, ok := heldRows[r.key()]
 		switch {
 		case !ok:
-			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, and the file holds no row for it", r.Archive, r.OldSha, r.Outcome))
+			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, and the file holds no row for it", r.Archive, r.Bundle, r.Outcome))
 		case !satisfies(want, r):
-			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, the file holds %s", r.Archive, r.OldSha, r.Outcome, want))
+			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, the file holds %s", r.Archive, r.Bundle, r.Outcome, want))
 		}
 	}
 	var gone []string
