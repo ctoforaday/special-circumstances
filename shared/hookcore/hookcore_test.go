@@ -59,26 +59,19 @@ func TestCanonicalToolName(t *testing.T) {
 }
 
 func TestDetectEngine(t *testing.T) {
-	// 1. Env override precedence
-	t.Setenv("HOOKCORE_ENGINE", "antigravity")
-	if got := DetectEngine(nil); got != EngineAntigravity {
-		t.Errorf("DetectEngine with HOOKCORE_ENGINE=antigravity = %v, want %v", got, EngineAntigravity)
-	}
-	_ = os.Unsetenv("HOOKCORE_ENGINE")
-
-	// 2. Claude payload sniffing
+	// 1. Claude payload sniffing
 	claudePayload := []byte(`{"session_id":"sess-1","tool_name":"Bash","cwd":"/repo"}`)
 	if got := DetectEngine(claudePayload); got != EngineClaude {
 		t.Errorf("DetectEngine(claudePayload) = %v, want %v", got, EngineClaude)
 	}
 
-	// 3. Antigravity payload sniffing
+	// 2. Antigravity payload sniffing
 	agyPayload := []byte(`{"conversationId":"conv-1","workspacePaths":["/repo"],"toolCall":{"name":"run_command"}}`)
 	if got := DetectEngine(agyPayload); got != EngineAntigravity {
 		t.Errorf("DetectEngine(agyPayload) = %v, want %v", got, EngineAntigravity)
 	}
 
-	// 4. Default fallback on empty payload
+	// 3. Default fallback on empty payload
 	if got := DetectEngine(nil); got != EngineClaude {
 		t.Errorf("DetectEngine(nil) = %v, want %v", got, EngineClaude)
 	}

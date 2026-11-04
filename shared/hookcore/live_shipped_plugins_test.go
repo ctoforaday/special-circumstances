@@ -94,6 +94,9 @@ func stageShippedPlugin(t *testing.T, fakeHome, repoRoot, pluginName string) {
 // TestLiveShippedAntigravityPlugins verifies that real shipped hook binaries execute
 // under `agy -p` without failures leaking into failures.json, and that secretsgate denies live secrets.
 func TestLiveShippedAntigravityPlugins(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live test without HOOKCORE_LIVE=1")
+	}
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
 		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
@@ -130,7 +133,7 @@ func TestLiveShippedAntigravityPlugins(t *testing.T) {
 	}
 	env = append(env,
 		"HOME="+fakeHome,
-		"PATH=/home/gblock_ctoforaday_com/.local/bin:/usr/local/go/bin:/home/gblock_ctoforaday_com/go/bin:"+os.Getenv("PATH"),
+		"PATH="+os.Getenv("PATH"),
 	)
 	cmd.Env = env
 
@@ -167,6 +170,9 @@ func TestLiveShippedAntigravityPlugins(t *testing.T) {
 
 // TestLiveShippedAntigravitySecretsBlocking verifies that sc-pretooluse blocks AWS keys live under `agy -p`.
 func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live test without HOOKCORE_LIVE=1")
+	}
 	agyBin, err := exec.LookPath("agy")
 	if err != nil {
 		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
@@ -203,7 +209,7 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 	}
 	env = append(env,
 		"HOME="+fakeHome,
-		"PATH=/home/gblock_ctoforaday_com/.local/bin:/usr/local/go/bin:/home/gblock_ctoforaday_com/go/bin:"+os.Getenv("PATH"),
+		"PATH="+os.Getenv("PATH"),
 	)
 	cmd.Env = env
 
@@ -217,23 +223,19 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 }
 
 func findClaudeBin() string {
-	if bin, err := exec.LookPath("claude"); err == nil {
-		return bin
-	}
-	home, _ := os.UserHomeDir()
-	fallback := filepath.Join(home, ".local", "bin", "claude")
-	if _, err := os.Stat(fallback); err == nil {
-		return fallback
-	}
-	return ""
+	bin, _ := exec.LookPath("claude")
+	return bin
 }
 
 // TestLiveShippedClaudePlugins verifies that real shipped hook binaries execute
 // under `claude -p` with --plugin-dir.
 func TestLiveShippedClaudePlugins(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live test without HOOKCORE_LIVE=1")
+	}
 	claudeBin := findClaudeBin()
 	if claudeBin == "" {
-		t.Skip("claude CLI not found on PATH or ~/.local/bin/claude; skipping live Claude test")
+		t.Skip("claude CLI not found on PATH; skipping live Claude test")
 	}
 
 	repoRoot, err := filepath.Abs("../..")
@@ -273,6 +275,9 @@ func TestLiveShippedClaudePlugins(t *testing.T) {
 
 // TestLiveShippedClaudeSecretsBlocking verifies that sc-pretooluse blocks AWS keys live under `claude -p`.
 func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live test without HOOKCORE_LIVE=1")
+	}
 	claudeBin := findClaudeBin()
 	if claudeBin == "" {
 		t.Skip("claude CLI not found; skipping live Claude test")

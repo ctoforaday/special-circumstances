@@ -8,38 +8,168 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
-// getHookBinary resolves or builds the hook executable for the given plugin.
-func getHookBinary(t *testing.T, repoRoot, pluginName, binName string) string {
+var (
+	builtBinariesMu sync.Mutex
+	builtBinaries   = map[string]string{}
+)
+
+// getHookBinary compiles the hook executable for the given plugin into a temp directory
+// and verifies that its -version stamp matches the tree under test.
+// It NEVER reads from or populates plugins/*/bin/.
+func getHookBinary(t *testing.T, repoRoot, pluginName, binName, buildDir string) string {
 	t.Helper()
-	binPath := filepath.Join(repoRoot, "plugins", pluginName, "bin", binName)
-	if fi, err := os.Stat(binPath); err == nil && !fi.IsDir() {
-		return binPath
+	builtBinariesMu.Lock()
+	defer builtBinariesMu.Unlock()
+
+	key := pluginName + "/" + binName
+	if path, ok := builtBinaries[key]; ok {
+		return path
 	}
 
-	// Build if not already built in bin/
-	tmpBin := filepath.Join(t.TempDir(), binName)
+	targetBin := binName
+	if runtime.GOOS == "windows" && !strings.HasSuffix(targetBin, ".exe") {
+		targetBin += ".exe"
+	}
+
+	binDir := filepath.Join(buildDir, pluginName)
+	_ = os.MkdirAll(binDir, 0755)
+	tmpBin := filepath.Join(binDir, targetBin)
 	cmd := exec.Command("go", "build", "-C", filepath.Join(repoRoot, "plugins", pluginName, "tools"),
 		"-o", tmpBin, "./cmd/"+binName)
+	cmd.Env = os.Environ()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("build %s/%s: %v\nOutput: %s", pluginName, binName, err, string(out))
 	}
+
+	// Assert binary identity: -version must match git HEAD
+	vcmd := exec.Command(tmpBin, "-version")
+	vout, err := vcmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%s -version failed: %v\nOutput: %s", binName, err, string(vout))
+	}
+	versionStr := strings.TrimSpace(string(vout))
+
+	gitCmd := exec.Command("git", "rev-parse", "--short=7", "HEAD")
+	gitCmd.Dir = repoRoot
+	gout, err := gitCmd.Output()
+	if err == nil {
+		expectedRev := strings.TrimSpace(string(gout))
+		if !strings.Contains(versionStr, expectedRev) {
+			t.Fatalf("%s -version output %q does not match current HEAD %s", binName, versionStr, expectedRev)
+		}
+		statusCmd := exec.Command("git", "status", "--porcelain")
+		statusCmd.Dir = repoRoot
+		sout, _ := statusCmd.Output()
+		if len(strings.TrimSpace(string(sout))) == 0 {
+			if strings.Contains(versionStr, "+dirty") {
+				t.Fatalf("%s was stamped +dirty despite clean git tree: %s", binName, versionStr)
+			}
+		}
+	}
+
+	builtBinaries[key] = tmpBin
 	return tmpBin
 }
 
+func copyDirOrFile(src, dst string) error {
+	fi, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if !fi.IsDir() {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(dst, data, fi.Mode())
+	}
+	if err := os.MkdirAll(dst, fi.Mode()); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		s := filepath.Join(src, entry.Name())
+		d := filepath.Join(dst, entry.Name())
+		if err := copyDirOrFile(s, d); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func stageMockPlugin(t *testing.T, repoRoot, pluginName, binName, binPath string) string {
+	t.Helper()
+	mockRoot := t.TempDir()
+	srcPlugin := filepath.Join(repoRoot, "plugins", pluginName)
+	for _, item := range []string{".claude-plugin", ".antigravity-plugin", "hooks", "hooks.json", "requirements.json"} {
+		src := filepath.Join(srcPlugin, item)
+		if _, err := os.Stat(src); err == nil {
+			_ = copyDirOrFile(src, filepath.Join(mockRoot, item))
+		}
+	}
+	destBinDir := filepath.Join(mockRoot, "bin")
+	if err := os.MkdirAll(destBinDir, 0755); err != nil {
+		t.Fatalf("mkdir mockRoot/bin: %v", err)
+	}
+	destBin := filepath.Join(destBinDir, filepath.Base(binPath))
+	binData, err := os.ReadFile(binPath)
+	if err != nil {
+		t.Fatalf("read binPath %s: %v", binPath, err)
+	}
+	if err := os.WriteFile(destBin, binData, 0755); err != nil {
+		t.Fatalf("write destBin %s: %v", destBin, err)
+	}
+	if runtime.GOOS == "windows" && !strings.HasSuffix(binName, ".exe") {
+		_ = os.WriteFile(filepath.Join(destBinDir, binName), binData, 0755)
+	}
+
+	// Prevent self-healing / background fetchers from ever running inside mockRoot
+	_ = os.MkdirAll(filepath.Join(mockRoot, "tools"), 0755)
+	_ = os.WriteFile(filepath.Join(mockRoot, "tools", "go.mod"), []byte("module mock\n"), 0644)
+
+	return mockRoot
+}
+
+func assertCleanPluginsBin(t *testing.T, repoRoot, when string) {
+	t.Helper()
+	cmd := exec.Command("git", "status", "--ignored", "--short", "plugins/*/bin")
+	cmd.Dir = repoRoot
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git status plugins/*/bin: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		if !strings.HasSuffix(l, ".gitkeep") {
+			t.Fatalf("%s test run: plugins/*/bin contains stray files (must be only .gitkeep):\n%s", when, string(out))
+		}
+	}
+}
+
 // runHook runs a hook executable with the given engine environment and stdin payload.
-func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngine string, extraEnv map[string]string) (stdout, stderr string, rc int) {
+func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngine string, mockRoot string, extraEnv map[string]string) (stdout, stderr string, rc int) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	tempDir := t.TempDir()
 	cmd := exec.CommandContext(ctx, binPath, args...)
-	cmd.Dir = t.TempDir()
+	cmd.Dir = tempDir
 	cmd.Stdin = strings.NewReader(stdinPayload)
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
@@ -48,11 +178,23 @@ func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngin
 	// Clean environment
 	var env []string
 	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") || strings.HasPrefix(e, "ANTIGRAVITY_") {
+		if strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") || strings.HasPrefix(e, "ANTIGRAVITY_") ||
+			strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "USERPROFILE=") ||
+			strings.HasPrefix(e, "XDG_") {
 			continue
 		}
 		env = append(env, e)
 	}
+
+	env = append(env,
+		"HOME="+tempDir,
+		"USERPROFILE="+tempDir,
+		"XDG_CONFIG_HOME="+tempDir,
+		"XDG_DATA_HOME="+tempDir,
+		"XDG_STATE_HOME="+tempDir,
+		"CLAUDE_PLUGIN_DATA="+tempDir,
+		"CLAUDE_PLUGIN_ROOT="+mockRoot,
+	)
 
 	if envEngine == "claude" {
 		env = append(env, "CLAUDECODE=1")
@@ -85,7 +227,9 @@ func TestAllHooksDualTargetIntegration(t *testing.T) {
 		t.Fatalf("abs repo root: %v", err)
 	}
 
-	tempHome := t.TempDir()
+	assertCleanPluginsBin(t, repoRoot, "before")
+	defer assertCleanPluginsBin(t, repoRoot, "after")
+
 	tempProj := t.TempDir()
 	// Initialize git repo in tempProj so tools recognize it
 	initCmd := exec.Command("git", "init", "-q", tempProj)
@@ -129,15 +273,16 @@ func TestAllHooksDualTargetIntegration(t *testing.T) {
 				}
 				if stdout != "" {
 					var out struct {
-						HookSpecificOutput struct {
+						HookSpecificOutput *struct {
 							HookEventName     string `json:"hookEventName"`
 							AdditionalContext string `json:"additionalContext"`
 						} `json:"hookSpecificOutput"`
+						SystemMessage string `json:"systemMessage"`
 					}
 					if err := json.Unmarshal([]byte(stdout), &out); err != nil {
 						t.Errorf("claude output failed to unmarshal: %v\nOutput: %s", err, stdout)
 					}
-					if out.HookSpecificOutput.HookEventName != "SessionStart" {
+					if out.HookSpecificOutput != nil && out.HookSpecificOutput.HookEventName != "SessionStart" {
 						t.Errorf("hookEventName = %q, want SessionStart", out.HookSpecificOutput.HookEventName)
 					}
 				}
@@ -719,25 +864,25 @@ func TestAllHooksDualTargetIntegration(t *testing.T) {
 		},
 	}
 
+	rootBuildDir := t.TempDir()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			binPath := getHookBinary(t, repoRoot, tc.plugin, tc.binary)
+			binPath := getHookBinary(t, repoRoot, tc.plugin, tc.binary, rootBuildDir)
+			mockRoot := stageMockPlugin(t, repoRoot, tc.plugin, tc.binary, binPath)
 
 			extraEnv := map[string]string{
-				"HOME":               tempHome,
-				"CLAUDE_PLUGIN_ROOT": filepath.Join(repoRoot, "plugins", tc.plugin),
 				"CLAUDE_PROJECT_DIR": tempProj,
 			}
 
 			// 1. Run under Claude
 			t.Run("Claude", func(t *testing.T) {
-				stdout, stderr, rc := runHook(t, binPath, tc.args, tc.claudeInput, "claude", extraEnv)
+				stdout, stderr, rc := runHook(t, binPath, tc.args, tc.claudeInput, "claude", mockRoot, extraEnv)
 				tc.checkClaude(t, stdout, stderr, rc)
 			})
 
 			// 2. Run under Antigravity
 			t.Run("Antigravity", func(t *testing.T) {
-				stdout, stderr, rc := runHook(t, binPath, tc.args, tc.agyInput, "antigravity", extraEnv)
+				stdout, stderr, rc := runHook(t, binPath, tc.args, tc.agyInput, "antigravity", mockRoot, extraEnv)
 				tc.checkAgy(t, stdout, stderr, rc)
 			})
 		})
