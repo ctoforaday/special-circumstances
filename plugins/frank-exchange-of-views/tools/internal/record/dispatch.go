@@ -725,7 +725,6 @@ func (p Plan) BlueHeldOut() bool { return blueHeldOut(Params{MaxEpochs: p.MaxEpo
 // blueHeldOutClause is the plan's words for blue in the epoch blueHeldOut names.
 const blueHeldOutClause = "blue is held out of this epoch, the last that dispatches a lens under the run's epoch limit"
 
-
 // HeardAtTheExit reports whether a motion of subj filed at the run's final sitting still reaches a
 // seat that can change how the run ends. A petition does: the terminal bench hears a petition standing
 // at the exit, and it may halt the run there — a petition is the channel for an objection that the run

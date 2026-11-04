@@ -24,7 +24,7 @@ import (
 func m38Board(t *testing.T) *stage {
 	return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").mint(evLens, "G2", "high"). // epoch 1
-		register("red-chair").dispatch(2, "blue-respond", "G1", "G2").register("blue-respond").    // epoch 2
+		register("red-chair").dispatch(2, "blue-respond", "G1", "G2").register("blue-respond").     // epoch 2
 		edit("G1", "was", "is").
 		register("red-chair") // epoch 3
 }
