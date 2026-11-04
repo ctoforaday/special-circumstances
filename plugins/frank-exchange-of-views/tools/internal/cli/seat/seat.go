@@ -1075,7 +1075,7 @@ func Prose(c *cobra.Command) *cobra.Command {
 // verb carries, so a renamed verb cannot silently fall back to the generic text.
 var ReasonIs = map[string]string{
 	"record":       "the account of what settled this fate, in the SUBJECT's terms — printed in the report on the inquiry's row, beside its question",
-	"review":       "your one read of the report: what it SAYS where it accounts for the inquiries this run investigated — quote it — and where its body falls short of what an inquiry claims; one text covers every inquiry",
+	"check":        "why this inquiry's latest fate stands as the report's account of it: what its reason and method claim, and what in the report delivers that — one check, one inquiry",
 	"finding":      "the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. " + flags.ReasonNotProcess,
 	"cite":         "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",
 	"compute":      "the computation note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",

@@ -24,7 +24,7 @@ research/<date>_<slug>/
 ├── docket.md          # the board: every gap, why it was minted and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
-├── inquiries.md         # each inquiry's fate, the path it took, each step's reason, and its ruling; the chair's reviews
+├── inquiries.md       # each inquiry's fate, the path it took, each step's reason, and the check that stands on it
 ├── evidence.md        # the computations, with program, output and sha256; the citations, with every reading of each
 ├── run.md             # the log, the record's invariant check, and cost
 ├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks, every edit and its reason
@@ -33,8 +33,8 @@ research/<date>_<slug>/
 ├── blue/
 │                      # (the opening hypotheses are INQUIRIES on the record, not a file — read
 │                      #  them as the `inquiries` projection. A hypothesis in a file is one red
-│                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
-│                      #  whole run)
+│                      #  cannot check or find wanting, and the opening ones shape the whole
+│                      #  run)
 │   └── candidates/    # <lane seat id>.md: each lane's part of the report, one method each,
 │                      #   until `ingest` records it and deletes the file. The record keeps
 │                      #   the part; the report is read through the tool

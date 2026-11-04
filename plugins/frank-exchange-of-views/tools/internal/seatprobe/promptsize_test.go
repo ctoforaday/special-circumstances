@@ -133,10 +133,13 @@ import (
 // docket, its shortest wording.
 // The lens's engaged clause scopes the null turn to the gaps it is engaged on, the JOB that a gap with
 // nothing to audit asks nothing of it.
+// red-lens-logic enters at its measured size, 9,156, with the lens-inquiry board: the logic lens owns
+// every settled inquiry's check (ruled by gblock 2026-11-01), and a board now dispatches it.
 var ceilings = map[string]int{
 	"blue-respond":      9557,
 	"red-chair":         6335,
 	"red-lens-evidence": 10820,
+	"red-lens-logic":    9156,
 	"judge":             6057,
 }
 

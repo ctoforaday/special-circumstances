@@ -811,9 +811,9 @@ func truncateRunes(s string, n int) string {
 // Excluding `proposed` from every section would argue that a heading announces a fate and an
 // undecided inquiry has none; but the fuzz invariant `prose absent from report` holds, and a
 // seat's recorded reasoning must reach the reader. A fourth section is no answer either. Three is
-// the decision — an inquiry blue put forward IS an area this run is researching, and red's
-// per-epoch inquiry review is what stops it sitting there undecided, rather than a heading that
-// describes the omission.
+// the decision — an inquiry blue put forward IS an area this run is researching, and the PASS it
+// holds while open is what stops it sitting there undecided, rather than a heading that describes
+// the omission.
 //
 // setAside stays a COMPLEMENT so a status no predicate names cannot silently match nothing. The
 // fate `refuted` is NOT set aside: it is named in ran, with the other approaches that ran.
@@ -886,12 +886,10 @@ func inquiries(a *assembly, s Section) string {
 		// inquiry would make PRESENCE the question. Presence is not a question: the inquiries reach
 		// the report on the WORKLIST generated from this projection, so blue cannot cut them, and
 		// what remains (did blue's body deliver the research) is an ORDINARY GAP that renders under
-		// The board with an id, a grade and a PASS gate. record.Inquiry's own header states the
-		// same decision from the projection's side.
+		// The board with an id, a grade and a PASS gate.
 		//
-		// The one per-epoch read is `InquiryReview`, read by record.InquiryReviewDueOf. Whether the
-		// report should carry a line saying that read happened — and where — is a composition
-		// decision, not a conversion, so nothing is invented here.
+		// The check that stands on an inquiry is process: it ships in inquiries.md beside the
+		// inquiry's path, and report.md carries the subject alone.
 		rows = append(rows, row)
 	}
 	// AN EMPTY SECTION KEEPS ITS HEADING AND SAYS WHAT THE ABSENCE MEANS FOR THE SUBJECT, in the

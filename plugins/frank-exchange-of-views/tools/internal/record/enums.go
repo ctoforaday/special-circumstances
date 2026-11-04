@@ -267,11 +267,9 @@ var EnumFields = map[string][]EnumField{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
 		Why: "the inquiries projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
-	// `inquiry_review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling.
-	// Presence in the report is not a question — the inquiries are generated onto the page from
-	// the record, so blue cannot cut them — and the question that remains, whether the body
-	// delivered the research, is an ORDINARY GAP with the grade vocabulary it already has. The
-	// review carries prose and nothing else.
+	// `inquiry_check` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling. A check
+	// is a positive judgement only; an inquiry found wanting is an ORDINARY GAP with the grade
+	// vocabulary it already has. The check carries the inquiry's id and prose, nothing else.
 	// THE MOTION SETS ARE NOT HERE (#344): they are keyed on (subject, key), which this map cannot
 	// express, and live in record/motion.go.
 	"close": {{

@@ -269,13 +269,15 @@ enum EventType {
   EVENT_TYPE_HALT = 14 [(means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
   EVENT_TYPE_MANIFEST_ROW = 15 [(means) = "one row of the run's manifest, tying a gap to what shipped for it"];
   EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
-  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a grade contested, a petition to the bench, or an inquiry proposed"];
+  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench"];
   // 7 was EVENT_TYPE_CLASS_NEW, 18 EVENT_TYPE_MOTION_APPEAL, 28 EVENT_TYPE_REVISION and 39
   // EVENT_TYPE_CORRECTION: a gap's class is a value of the closed GapClass set, a ruling stands as
   // made, a report's change is its edits, and a wrong act is answered by a new act.
   // Reserved: a stored event carries its type's number.
-  reserved 7, 18, 28, 39, 42;
-  reserved "EVENT_TYPE_CLASS_NEW", "EVENT_TYPE_MOTION_APPEAL", "EVENT_TYPE_REVISION", "EVENT_TYPE_CORRECTION";
+  // 32 was EVENT_TYPE_INQUIRY_REVIEW: an inquiry's quality is a lens's check of it (INQUIRY_CHECK),
+  // and a shortfall is a gap about it.
+  reserved 7, 18, 28, 32, 39, 42;
+  reserved "EVENT_TYPE_CLASS_NEW", "EVENT_TYPE_MOTION_APPEAL", "EVENT_TYPE_REVISION", "EVENT_TYPE_CORRECTION", "EVENT_TYPE_INQUIRY_REVIEW";
   EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
   // 20 was EVENT_TYPE_OBSERVE, a type no verb wrote. Reserved for the reason 21 is.
   reserved 20;
@@ -294,7 +296,6 @@ enum EventType {
   EVENT_TYPE_SPOT_CHECK = 29 [(means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
   EVENT_TYPE_VERDICT = 30 [(means) = "the chair's verdict for its epoch: PASS or FAIL against the open board"];
   EVENT_TYPE_VERIFY = 31 [(means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
-  EVENT_TYPE_INQUIRY_REVIEW = 32 [(means) = "a review of the inquiries themselves, rather than of a finding"];
   EVENT_TYPE_REPORT_PART = 33 [(means) = "a lane's part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them"];
   EVENT_TYPE_SITTING_OPEN = 34 [(means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
   EVENT_TYPE_SITTING_CLOSE = 35 [(means) = "the harness's agent returning — the other end of that span"];
@@ -305,6 +306,7 @@ enum EventType {
   EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
   EVENT_TYPE_REPORT_READ = 43 [(means) = "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"];
   EVENT_TYPE_ENVELOPE_ADMITTED = 44 [(means) = "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"];
+  EVENT_TYPE_INQUIRY_CHECK = 45 [(means) = "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -470,7 +472,13 @@ enum GapClass {
     (distinguisher) = "does the report cite a source for the sentence that does not back it, or does the report cite nothing for it, whatever a lens found?"];
   GAP_CLASS_UNCLASSIFIED = 30 [(means) = "no other value fits this gap. The mint's reason names the nearest value and what it does not cover",
     (material_default) = CLASS_MATERIAL_BY_GRADE];
-  GAP_CLASS_CLAIM_CONTRADICTS_SOURCE = 31 [(means) = "a source read against the sentence — cited by blue or found by red — states otherwise than the report",
+  // OUT OF SCOPE IS AN INQUIRY'S DEFECT (ruled by gblock 2026-11-01: a wanting inquiry holds the PASS
+  // until it is sound or out of scope). Blue answers it with a fate, declined or deferred with why,
+  // and the mint is the judgement, so the class does not go by grade.
+  GAP_CLASS_OUT_OF_SCOPE = 31 [(means) = "an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's research",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "invalid_inference",
+    (distinguisher) = "does the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?"];
+  GAP_CLASS_CLAIM_CONTRADICTS_SOURCE = 32 [(means) = "a source read against the sentence — cited by blue or found by red — states otherwise than the report",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "citation_figure_misattribution",
     (distinguisher) = "does the source say otherwise than the sentence, or not say it at all?"];
 }
@@ -587,7 +595,7 @@ enum Rerun {
 // not taken.
 enum InquiryStatus {
   INQUIRY_STATUS_UNSPECIFIED = 0;
-  INQUIRY_STATUS_PROPOSED = 1 [(means) = "put forward and undecided — the state `inquiry propose` gives an inquiry; red may rule on it, and it owes a fate"];
+  INQUIRY_STATUS_PROPOSED = 1 [(means) = "put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it"];
   INQUIRY_STATUS_UNDERWAY = 2 [(means) = "you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached"];
   // CONFIRMED IS THE END OF AN INQUIRY THAT WORKED: an approach that ran and answered yes ships as
   // an answer, not as a dead end.
@@ -609,12 +617,15 @@ enum MotionSubject {
   MOTION_SUBJECT_UNSPECIFIED = 0;
   MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "chair"];
   MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
-  MOTION_SUBJECT_INQUIRY = 3 [(means) = "a ruling on an inquiry blue proposed; the id is the INQUIRY's own, because the proposal IS the filing", (ruled_by) = "chair"];
+  // 3 was the inquiry subject: an inquiry's quality is its owning lens's check, and a shortfall is a
+  // gap about it. Reserved: a stored motion carries the number.
+  reserved 3;
+  reserved "MOTION_SUBJECT_INQUIRY";
   MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", (ruled_by) = "bench"];
   // A WITHHELD PASS IS HEARD (gblock, 2026-10-30). The chair's position at a sitting that withheld a
   // PASS its plan permitted readies the bench on it, and the bench rules it: upheld names the work,
   // overruled sends the PASS back to the chair's next sitting. The id is the POSITION's own, because
-  // the position IS the filing, as an inquiry's proposal is.
+  // the position IS the filing.
   MOTION_SUBJECT_POSITION = 5 [(means) = "a ruling on the chair's position at a sitting that withheld a PASS its plan permitted; the id is the POSITION's own, because the position IS the filing", (ruled_by) = "bench"];
 }
 
@@ -649,13 +660,6 @@ enum PositionRuling {
   POSITION_RULING_UNSPECIFIED = 0;
   POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
   POSITION_RULING_OVERRULED = 2 [(means) = "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work"];
-}
-
-enum InquiryRuling {
-  INQUIRY_RULING_UNSPECIFIED = 0;
-  INQUIRY_RULING_ENDORSED = 1 [(means) = "worth this run's time — blue should take it up"];
-  INQUIRY_RULING_OUT_OF_SCOPE = 2 [(means) = "a real question, but not THIS question"];
-  INQUIRY_RULING_TOO_THIN = 3 [(means) = "in scope, but the hypothesis as stated does not justify what testing it would cost this run"];
 }
 
 // Event is the log line.
@@ -760,7 +764,6 @@ message Event {
     Retire retire = 47;
     ManifestRow manifest_row = 48;
     Log log = 49;
-    InquiryReview inquiry_review = 51;
     ReportPart report_part = 52;
     SittingOpen sitting_open = 53;
     SittingClose sitting_close = 54;
@@ -771,20 +774,21 @@ message Event {
     Stale stale = 60;
     ReportRead report_read = 62;
     EnvelopeAdmitted envelope_admitted = 63;
+    InquiryCheck inquiry_check = 64;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
   // `report_part`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
-  // plan, 60 for the stale refusal, 62 for the report read, 63 for the envelope admission, which is
-  // what the reserve is for — the block shrinks and nothing is renumbered.
-  reserved 64 to 80;
+  // plan, 60 for the stale refusal, 62 for the report read, 63 for the envelope admission, 64 for the
+  // inquiry check, which is what the reserve is for — the block shrinks and nothing is renumbered.
+  reserved 65 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
-  reserved 29, 31, 38, 46, 58, 61;
-  reserved "motion_appeal", "class_new", "observe", "revision", "correction";
+  reserved 29, 31, 38, 46, 51, 58, 61;
+  reserved "motion_appeal", "class_new", "observe", "revision", "correction", "inquiry_review";
 
   // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
   // permanent even though the message is gone. The bench's disposition is a docket motion's
@@ -1552,32 +1556,29 @@ message Reproduce {
   reserved "reproduced", "recorded_output", "observed_output";
 }
 
-// InquiryReview is the chair's statement, ONCE PER EPOCH, that it read the current report against
-// the record's inquiries.
+// InquiryCheck is the owning lens's judgement that an inquiry is sound: that its latest fate, with
+// its reason and method, stands as the report's account of the research it names (ruled by gblock
+// 2026-11-01: an inquiry's quality judgement lives with a lens, and a shortfall is an ordinary gap).
 //
-// The report's account of its own research — "we pursued X", "we deferred Y" — reaches the page as
-// a row `assemble` GENERATES from the record. It carries no citation anchor, so `lens verify`
-// cannot reach it: without this event nothing on the record says those claims were ever read, and
-// an unread section and a sound one are the same bytes.
+// ONE CHECK PER SETTLED INQUIRY, A POSITIVE JUDGEMENT ONLY. Its absence holds the PASS, so an
+// unjudged inquiry and a sound one are different bytes; an inquiry the lens finds wanting gets a gap
+// about it instead, which reaches blue with the lifecycle, the grade and the gate every gap has. There
+// is no `unsound` word: a second route for a failure beside the gap is the aliasing this schema
+// removes.
 //
-// ONE EVENT PER EPOCH, NOT ONE PER INQUIRY. Presence is not a question: inquiries reach the report
-// generated from the record, so blue cannot cut them. An inquiry is on the page because the record
-// says it is, and a per-inquiry `cut`/`absent` state would name something no writer could produce.
-//
-// WHAT IS LEFT IS AN ORDINARY GAP. The live question is whether blue's BODY delivered the research
-// an inquiry claims — thin treatment, an unanswered hypothesis, a method never run. That is a defect
-// in the report, so it is minted as a gap and gets the lifecycle, the blue duty, the grade and the
-// PASS gate every other gap already has. A second vocabulary for the same fact is exactly the
-// aliasing this schema exists to remove.
-//
-// WHY SILENCE CANNOT DISCHARGE IT, when the log's clean case is derived from silence: the log is
-// for exceptions, and a sitting that recorded acts and filed nothing there is the clean reading.
-// This is a READ, and an absent read is indistinguishable from a read that found the section sound
-// — so the read is the act, stated once per epoch with what it found. `reason` is required at the
-// write path because an explicit negative is only worth more than silence when it says what was
-// looked at.
-message InquiryReview {
-  optional string reason = 1 [(prose) = true];
+// IT STANDS UNTIL WHAT IT JUDGED CHANGES: a later fate recorded on the inquiry, or a material gap
+// minted about it (record/inquirycheck.go). A report edit does not move it: the record holds no link
+// from an inquiry to a sentence.
+message InquiryCheck {
+  optional string inquiry_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    why: "the inquiry this judges — a check of nothing judges nothing"
+  }];
+  optional string reason = 2 [(sql) = {
+    required: true
+    why: "why the inquiry's latest fate stands as the report's account of it — a check that says nothing is the silence it exists to end"
+  }, (prose) = true];
 }
 
 // Inquiry is an inquiry with a lifecycle. A PROPOSAL assigns the id and carries the substance;
@@ -1842,10 +1843,12 @@ message Motion {
   oneof filing {
     GradeMotion grade = 10;
     PetitionMotion petition = 11;
-    InquiryMotion inquiry = 12;
     DocketMotion docket = 13;
     PositionMotion position = 14;
   }
+  // 12 held the inquiry subject's arm. Reserved: a stored motion carries the bytes.
+  reserved 12;
+  reserved "inquiry";
 }
 
 // GradeMotion contests a gap's grade on one dimension. Both of its checks belonged to the
@@ -2033,7 +2036,7 @@ message DocketRuling {
 }
 
 // PositionMotion is the position subject's filing arm, and nothing writes it: the chair's position
-// IS the filing, as blue's proposal is an inquiry's, so the ruling joins on the position's own id.
+// IS the filing, so the ruling joins on the position's own id.
 // The arm exists because every subject is spelled by an arm on both sides of the exchange
 // (Motion.Subject, MotionRule.Subject).
 message PositionMotion {
@@ -2075,12 +2078,6 @@ message PositionHearing {
   }, (prose) = true];
 }
 
-// InquiryMotion rules on an inquiry blue proposed. The id is the INQUIRY's own — an inquiry has
-// no separate filing, because blue's proposal IS the filing.
-message InquiryMotion {
-  optional string inquiry_id = 1;
-}
-
 // MotionRule is the ruling, and its verdict set is keyed on the subject in the same way — one
 // motion-rule event carries granted|denied for a petition and accepted|rejected for a grade.
 // An unrecognized ruling reads as no ruling at all, so a refusal silently becomes permission.
@@ -2097,16 +2094,16 @@ message MotionRule {
     flag: "id"
     // NO `references`, AND THE REASON IS THE DOMAIN RATHER THAN THE MECHANISM.
     //
-    // `references: "motion.motion_id"` would read right and be false for one subject: an INQUIRY
-    // ruling has no motion row. "The proposal IS the filing" — `motion inquiry rule` names the
-    // inquiry's own id, so the referent is an `inquiry`, not a `motion`, and the foreign key would
-    // refuse every inquiry ruling.
+    // `references: "motion.motion_id"` would read right and be false for one subject: a POSITION
+    // ruling has no motion row. The position IS the filing — `motion position rule` names the
+    // position's own id, so the referent is a `position`, not a `motion`, and the foreign key would
+    // refuse every position ruling.
     //
     // A conditional foreign key is not expressible (a CHECK cannot hold a subquery), and a trigger
     // could enforce it while saying nothing useful — RAISE takes a static string, so a seat would
     // learn only that something was refused. The rule is SUBJECT-AWARE, so it lives where the
-    // subject is known: RequireMotionSubjectRef checks a grade or petition ruling against the
-    // motions and an inquiry ruling against the inquiries, and says which it could not find.
+    // subject is known: requireSubjectMatches checks a ruling against the motions, or a position
+    // ruling against the positions, and says which it could not find.
     //
     // A constraint that is wrong for a third of the cases is worse than none: it refuses correct
     // work, and it reads as a guarantee.
@@ -2136,10 +2133,12 @@ message MotionRule {
   oneof ruling {
     GradeRuling grade = 10;
     PetitionRuling petition = 11;
-    InquiryRuling inquiry = 12;
     DocketRuling docket = 13;
     PositionHearing position = 14;
   }
+  // 12 held the inquiry subject's ruling. Reserved: a stored ruling carries the bytes.
+  reserved 12;
+  reserved "inquiry";
 
   // binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which
   // the old table could not police: the filing's copy of the enum loop had always existed and

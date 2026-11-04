@@ -44,8 +44,8 @@ view gap | automatic-index | gap_grade (minted_event=?) | x1
 view gap | automatic-index | latest_remand (gap_id=?) | x1
 view gap | automatic-index | superseded (gap_id=?) | x1
 view gap | automatic-index | unruled_docket (gap_id=?) | x1
-view inquiry_state | automatic-index | motion_answers (motion_id=?) | x1
-view inquiry_state | correlated-scan | x(inquiry|motion_rule) [min/max] | x1
+view inquiry_state | correlated-scan | inquiry [min/max] | x1
+view inquiry_state | correlated-scan | inquiry_check [min/max] | x1
 view seat_metrics | automatic-index | seat_of_agent (agent_id=?) | x1
 view seat_metrics | correlated-scan | events | x1
 view seat_metrics | correlated-scan | register [min/max] | x1

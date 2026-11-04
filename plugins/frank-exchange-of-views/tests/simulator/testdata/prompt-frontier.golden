@@ -1,4 +1,4 @@
-prompt sha256: 89d866cc63a7df3b2b75baf1f4f72a1d85efedee39b746404ce347094d58405b
+prompt sha256: 18c7953d203ed6a4cd54f4adf1c32a69cd16b9018d08432a38c27685d834e7c9
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN INQUIRY — the verb is under a group of its own in your role's help.
@@ -6,8 +6,8 @@ ITS QUESTION IS WHAT the inquiry asks and the approach that would answer it, wit
 ITS HYPOTHESIS IS YOUR PREDICTION — what would be true if the inquiry paid off — printed as a hypothesis beside what the research then finds.
 A result you expect goes in the hypothesis, never in the question.
 ONE inquiry per hypothesis, and the tool assigns each an id.
-THEY ARE INQUIRIES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts.
-On the record it has an id, a fate, and an argument, and the hypotheses opening a run are the ones that shape everything downstream.
+THEY ARE INQUIRIES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot check, cannot find wanting, and cannot hold you to when the run drifts.
+On the record it has an id, a fate, and a check, and the hypotheses opening a run are the ones that shape everything downstream.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.

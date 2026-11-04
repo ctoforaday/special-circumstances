@@ -53,7 +53,7 @@ sittings only after a human affirms it — the bench cannot make binding law alo
 and ruled by you on the motion's own id, with your opinion as the reason. The engine convenes you
 to hear it as soon as nothing is running, in the turn it was filed; one still standing when the
 debate ends is yours at the terminal sitting.
-It is the same mechanism as a grade motion and a ruling on an inquiry, differing only in
+It is the same mechanism as a grade motion, differing only in
 subject and in who holds the gavel; the id is what joins your ruling to the ask it answers. Grant it
 with the relief you ORDER — an instruction the seats it binds can follow without reading your
 opinion — and whom it binds; deny it with your opinion and no order; or — where continuing would

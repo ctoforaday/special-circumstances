@@ -12,7 +12,7 @@ const m32Archive = "2026-10-24_is-91-prime-m32.tar.gz"
 // M32 ENDED UNVERIFIED OVER A COMPUTATION ITS RECORD CALLED UNSOUND. The computation lens judged
 // K-5ba8edea's sentence unsound at event 361 — it names a sieve, and the script does trial division —
 // minted no gap, and retired; the plan said pass_permitted with no blockers, and the final chair
-// (event 552) withheld its verdict because the gate would have admitted a PASS over that sentence.
+// (event 550) withheld its verdict because the gate would have admitted a PASS over that sentence.
 // Under the rule the judgement holds the PASS, names the computation and its judge, and readies the lens to
 // mint its gap and blue to fix or retire the computation. (m32's four raises are written as no
 // event, so every event after them is four earlier than the archive's own migration placed it.)
@@ -22,11 +22,11 @@ func TestM32UnsoundComputationHoldsThePassAndReadies(t *testing.T) {
 	if r.GetComputationId() != "K-5ba8edea" || r.GetSoundness() != recordpb.Soundness_SOUNDNESS_UNSOUND || whole[360].GetSeatId() != compLens {
 		t.Fatalf("event 361 is not the computation lens's unsound judgement of K-5ba8edea: %v", whole[360])
 	}
-	if whole[551].GetSeatId() != "red-chair" {
-		t.Fatalf("event 552 is not the final chair's: %v", whole[551])
+	if whole[549].GetSeatId() != "red-chair" {
+		t.Fatalf("event 550 is not the final chair's: %v", whole[549])
 	}
 	// THE CHAIR'S LAST SITTING: the record as the final chair read it, before its position.
-	run := archiveAt(t, m32Archive, whole, 551)
+	run := archiveAt(t, m32Archive, whole, 549)
 	got := unsoundOf(t, run)
 	if len(got) != 1 || got[0].Subject != "K-5ba8edea" || got[0].Owner != compLens || got[0].AnsweredBy() != "" {
 		t.Fatalf("unsound blockers = %+v, want K-5ba8edea judged by %s and carried by no gap", got, compLens)

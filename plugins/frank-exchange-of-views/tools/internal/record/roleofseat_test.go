@@ -46,7 +46,7 @@ func TestOneAnswerToTheRoleOfASeat(t *testing.T) {
 			t.Errorf("SeatOwesOccasion(%q) = %v, and its role is %q", id, owes, want)
 		}
 		// The seat that rules a subject files nothing on it: the write reads the filer's role.
-		if refused := requireFilerHoldsNoGavel(id, docket, false) != nil; refused != (want == docketRuler) {
+		if refused := requireFilerHoldsNoGavel(id, docket) != nil; refused != (want == docketRuler) {
 			t.Errorf("a docket filing by %q is refused = %v; its role is %q and the %s rules a docket", id, refused, want, docketRuler)
 		}
 		// Only a lens spends a mint budget, and an id off the roster is no lens.

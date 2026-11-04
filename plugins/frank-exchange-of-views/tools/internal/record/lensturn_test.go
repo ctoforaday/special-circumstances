@@ -3,6 +3,7 @@ package record
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -133,6 +134,10 @@ func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]r
 // keep-the-grade regrade ("Blue has not edited the sentence since this gap was minted") and nothing
 // else readied it. Folded now, each of the three readies blue alone, and no plan engages a lens on a
 // gap blue has not acted on since the lens's last act.
+//
+// M36'S INQUIRIES WERE SETTLED AND NEVER CHECKED, so the replay also readies the logic lens, on no gap,
+// for their check (inquirycheck.go). That readiness engages no lens on a gap, and is left out of both
+// counts.
 func TestM36LensesWaitForBlue(t *testing.T) {
 	whole := archivedEvents(t, m36Archive)
 	stored, err := StoredPlans(whole)
@@ -173,7 +178,7 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 		}
 		lenses := func(p Plan) (n int) {
 			for _, q := range p.Parties {
-				if seatclass.RoleOfSeat(q.SeatID) == "lens" {
+				if seatclass.RoleOfSeat(q.SeatID) == "lens" && !checksAnInquiry(p, q) {
 					n++
 				}
 			}
@@ -182,7 +187,8 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 		lensSittings["stored"] += lenses(sp.Plan)
 		lensSittings["replayed"] += lenses(plan)
 		if blueAlone[at] {
-			if len(plan.Parties) != 1 || !slices.Equal(gapsOf(plan, "blue-respond"), gapsOf(sp.Plan, "blue-respond")) {
+			parties := slices.DeleteFunc(slices.Clone(plan.Parties), func(q Party) bool { return checksAnInquiry(plan, q) })
+			if len(parties) != 1 || !slices.Equal(gapsOf(plan, "blue-respond"), gapsOf(sp.Plan, "blue-respond")) {
 				t.Errorf("plan at event %d readies %+v, want blue alone on the gaps it was engaged on", at, plan.Parties)
 			}
 		}
@@ -241,4 +247,14 @@ func TestARemandRulingIsTheFloorOfTheLensTurn(t *testing.T) {
 	if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
 		t.Errorf("blue's answer before the ruling gives the lens no turn on the remanded G1: parties %+v, why %q", plan.Parties, plan.Why)
 	}
+}
+
+// checksAnInquiry reports whether party q is the logic lens readied, on no gap, for an inquiry's check
+// and for nothing else: its line of the lens gate does not ready it to audit the report.
+func checksAnInquiry(p Plan, q Party) bool {
+	return q.SeatID == inquiryOwner && len(q.GapIDs) == 0 &&
+		slices.ContainsFunc(p.Why, func(w string) bool { return strings.HasPrefix(w, inquiryOwner+" owns the check of inquiry") }) &&
+		!slices.ContainsFunc(p.Why, func(w string) bool {
+			return strings.HasPrefix(w, inquiryOwner+":") && strings.Contains(w, "audits the report")
+		})
 }

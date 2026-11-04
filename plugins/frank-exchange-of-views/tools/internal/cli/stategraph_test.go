@@ -82,7 +82,10 @@ type entityProbe struct {
 
 // probeSeats are the seats each act is attempted under. Every role that can touch an entity is
 // here, because an act refused by one seat and allowed by another is allowed.
-var probeSeats = []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}
+//
+// red-lens-logic is here for the one act only it may take: `inquiry check`, whose owner is the logic
+// lens alone (record.InquiryOwner).
+var probeSeats = []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}
 
 // probeReason is what an ATTEMPTED act says, as distinct from what the SETUP said.
 //
@@ -179,7 +182,7 @@ func probeEntity(t *testing.T, e entityProbe) (edges []stateEdge, deadEnds, over
 			// OLD VALUE. Three distinctions, each load-bearing:
 			//
 			//   - a FIRST write into an empty field is an ordinary act that happens not to move
-			//     the state — red ruling a proposed inquiry, say;
+			//     the state — the logic lens checking a settled inquiry, say;
 			//   - an append ALONGSIDE the rewrite means the prior value is still readable, so the
 			//     act records rather than replaces;
 			//   - only a replacement nothing preserves is the defect, because that is the one
@@ -200,10 +203,10 @@ func probeEntity(t *testing.T, e entityProbe) (edges []stateEdge, deadEnds, over
 				if was == "" {
 					// A FIRST WRITE IS NOT NOTHING, and calling it `inert` was this matrix
 					// naming the wrong thing with confidence — the failure mode #666 was
-					// corrected for. `motion inquiry rule` on a proposed inquiry sets `ruling` and
-					// leaves the STATUS alone, which is the whole two-axis design: blue records
-					// the inquiry's fate, red rules it. Reported as inert, that read as a verb the record
-					// ignores.
+					// corrected for. `inquiry check` on a settled inquiry sets `check` and leaves
+					// the STATUS alone, which is the whole two-axis design: blue records the
+					// inquiry's fate, the logic lens judges it. Reported as inert, that read as a
+					// verb the record ignores.
 					firstWrite = true
 					continue
 				}
@@ -395,12 +398,10 @@ func gapOf(t *testing.T, runDir, id string) *record.Gap {
 
 // ---- the motion ----
 
-// motionProbe is the shape all three motion subjects share.
+// motionProbe is the shape the motion subjects share.
 //
-// `prelude` is what must exist before the motion can: the gap a grade motion argues over, the
-// PROPOSAL an inquiry motion rules on. `order` maps each state to the act that reaches it, which
-// is where the inquiry motion differs — it has no `file` verb at all, because its filing half is
-// `inquiry propose` and the motion does not exist until red rules.
+// `prelude` is what must exist before the motion can: the gap a grade motion argues over. `order`
+// maps each state to the act that reaches it.
 func motionProbe(subject, id string, prelude, acts []probeAct, states []string, order, terminal map[string]string) entityProbe {
 	return entityProbe{
 		name: "motion/" + subject, id: id,
@@ -509,31 +510,13 @@ func petitionMotionProbe() entityProbe {
 		})
 }
 
-// inquiryMotionProbe is the INQUIRY motion: the third subject, and the one shaped differently.
-//
-// It has no `file` verb. Its filing half is `inquiry propose`, which records an `inquiry`
-// rather than a motion event, and record.Motions only assembles the motion once a RULING arrives —
-// so `unruled` here means "the proposal exists and nobody has ruled it", not "nothing exists".
-// That asymmetry is why this subject was left unprobed in the first pass, and stating it was not
-// the same as covering it.
-func inquiryMotionProbe() entityProbe {
-	return motionProbe("inquiry", "Q1", []probeAct{inquiryPropose()}, []probeAct{
-		{"rule", []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed",
-			"--reason", "worth this run's time"}},
-	}, []string{"unruled", "ruled"},
-		map[string]string{"ruled": "rule"},
-		map[string]string{
-			"ruled": "The same finish as a grade motion's: the ruling is the motion's one answer. It is an argument beside the question, not a command — the INQUIRY's fate stays open to a new record (the inquiry probe), and the motion's answer does not reopen.",
-		})
-}
-
 // ---- the inquiry ----
 //
 // Its lifecycle has TWO AXES and only one of them is the state. Blue RECORDS a fate for an inquiry among
-// `proposed`, `underway`, `confirmed`, `refuted`, `declined`, `abandoned` and `deferred`; red RULES it `endorsed`,
-// `out_of_scope` or `too_thin`. The status is the state — it is what the inquiry IS — and the ruling
-// is content, which is why a first ruling reads here as an ordinary act that does not move the
-// state rather than as a transition.
+// `proposed`, `underway`, `confirmed`, `refuted`, `declined`, `abandoned` and `deferred`; the logic
+// lens CHECKS a settled one. The status is the state — it is what the inquiry IS — and the check is
+// content, which is why a first check reads here as an ordinary act that does not move the state
+// rather than as a transition.
 
 func inquiryPropose() probeAct {
 	return probeAct{"propose", []string{"inquiry", "propose",
@@ -556,15 +539,20 @@ func inquiryProbe() entityProbe {
 			acts = append(acts, recordTo(fate))
 		}
 	}
-	acts = append(acts, probeAct{"rule", []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed",
-		"--reason", "worth this run's time"}})
+	acts = append(acts, probeAct{"check", []string{"inquiry", "check", "--id", "Q1",
+		"--reason", "its fate stands as the report's account of it"}})
 	return entityProbe{
 		name: "inquiry", id: "Q1",
 		states: states,
 		acts:   acts,
 		buildTo: func(t *testing.T, state string) string {
 			t.Helper()
-			runDir := adversarialRun(t)
+			// A RUN WITH NO CAST, so the logic lens — the inquiry's owner, and no seat castRun
+			// names — may sit in it. blue-respond proposes and records the fates.
+			runDir := newRun(t)
+			if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-respond"); err != nil {
+				t.Fatalf("register blue-respond: %v", err)
+			}
 			if state == "unproposed" {
 				return runDir
 			}
@@ -575,6 +563,11 @@ func inquiryProbe() entityProbe {
 				if !build(t, runDir, recordTo(state)) {
 					t.Fatalf("no seat could record the fate %q for an inquiry", state)
 				}
+			}
+			// THE OWNER SITS AFTER THE FATE: a check judges the fate as it stood when the logic
+			// lens's sitting opened, and one opened before it is refused for that, not for state.
+			if _, err := run(t, "register", "--run", runDir, "--seat-id", record.InquiryOwner()); err != nil {
+				t.Fatalf("register %s: %v", record.InquiryOwner(), err)
 			}
 			return runDir
 		},
@@ -594,7 +587,7 @@ func inquiryProbe() entityProbe {
 			}
 			return map[string]string{
 				"question": q.Question, "hypothesis": q.Hypothesis, "reason": q.Reason, "method": q.Method,
-				"ruling": q.Ruling, "ruling_why": q.RulingWhy,
+				"check": checkOf(q),
 				// APPEND-ONLY, and listed in `accumulates`: History holds an entry per recorded
 				// fate, so a re-recorded fate keeps every earlier one beside it.
 				"history": strings.Join(q.History, " | "),
@@ -608,6 +601,14 @@ func inquiryProbe() entityProbe {
 		// what the lifecycle is for.
 		terminal: map[string]string{},
 	}
+}
+
+// checkOf is the seat and reason of the check that stands on q, empty while none does.
+func checkOf(q *record.Inquiry) string {
+	if q.Check == nil {
+		return ""
+	}
+	return q.Check.SeatID + ": " + q.Check.Reason
 }
 
 func inquiryOf(t *testing.T, runDir, id string) *record.Inquiry {
@@ -641,7 +642,7 @@ var entityEvents = map[string][]string{
 	// entity also owns. One event, two entities, and saying so is what keeps both graphs honest.
 	"gap":     {"mint", "close", "regrade", "opinion", "motion_rule"},
 	"motion":  {"motion", "motion_rule"},
-	"inquiry": {"inquiry"},
+	"inquiry": {"inquiry", "inquiry_check"},
 }
 
 // TestEveryVerbThatTouchesAProbedEntityIsProbed keeps the act tables honest.
@@ -671,7 +672,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 	}
 
 	probed := map[string]bool{}
-	for _, p := range []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryMotionProbe(), inquiryProbe()} {
+	for _, p := range []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryProbe()} {
 		for _, a := range p.acts {
 			var path []string
 			for _, w := range a.args {
@@ -735,7 +736,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 func TestNoEntityCanReachAStateNothingCanLeave(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 
-	probes := []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryMotionProbe(), inquiryProbe()}
+	probes := []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryProbe()}
 
 	var edges []stateEdge
 	var deadEnds, overwrites []string

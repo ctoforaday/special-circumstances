@@ -60,7 +60,7 @@ var createTable = regexp.MustCompile(`(?i)CREATE\s+TABLE\s+"?([A-Za-z_][A-Za-z0-
 // to catch, one level up: the guard would have reported a clean board for exactly the run that
 // added an unguarded growing table.
 //
-// A walk of the `body` oneof arms misses nested message tables such as `motion_inquiry`,
+// A walk of the `body` oneof arms misses nested message tables such as `motion_docket`,
 // `motion_grade` and `motion_petition`, which are not arms of the oneof and so are never visited:
 // a guard whose whole claim is that it derives its own scope cannot rest on that walk.
 //

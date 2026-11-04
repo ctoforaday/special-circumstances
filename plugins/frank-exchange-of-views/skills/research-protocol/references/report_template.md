@@ -88,8 +88,8 @@
 ## Alternatives considered               <!-- [RECORD] inquiries DECLINED (weighed, never run) and ABANDONED (started, no answer) —
                                               each with its reason (the counter), in the subject's terms. The fate is the
                                               one its seat recorded, whatever path led to it. Who proposed an
-                                              inquiry, the path its fate took and red's ruling are the debate,
-                                              not the subject: they render in inquiries.md and judgments.md. -->
+                                              inquiry, the path its fate took and the check that stands on it are
+                                              the debate, not the subject: they render in inquiries.md. -->
 
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding.
                                               The last section of the report's text. -->
@@ -130,19 +130,13 @@
 ## (by fate)                             <!-- [RECORD] every inquiry grouped by its current fate, each with its hypothesis,
                                               its latest fate's reason and method, the PATH its status took epoch
                                               by epoch with each earlier record's own reason and method, the seat
-                                              that last recorded its fate and red's ruling; then the inquiries
-                                              still awaiting a decision. The rendering a seat reads through the
+                                              that last recorded its fate and the check that stands on it, with
+                                              its seat, epoch and reason; then the inquiries still awaiting a
+                                              decision. The rendering a seat reads through the
                                               tool, with the earlier records' reasons and methods added. report.md
                                               carries only each inquiry's latest fate, method and reason; this is
                                               where how it got there lives. Omitted when the run
                                               recorded no inquiry. -->
-
-## Inquiry reviews                       <!-- [RECORD] each of the chair's reads of the report against the inquiries, in
-                                              record order, with the epoch it was made in and its reason quoted whole:
-                                              the chair's account of where the body delivers each inquiry's research.
-                                              An attestation of the read, not a verdict on an inquiry — a shortfall is
-                                              a gap about the inquiry, on the board. Not in the view a seat reads.
-                                              Omitted when the chair recorded no review. -->
 
 # evidence.md — the computations and the citations
 

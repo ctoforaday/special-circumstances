@@ -110,7 +110,6 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 // sitting's plan permitted the PASS and the sitting records none (heardPositionsOf), so the
 // position, the plan and the verdict are read with them.
 var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
-	recordpb.EventType_EVENT_TYPE_INQUIRY,
 	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 	recordpb.EventType_EVENT_TYPE_POSITION,

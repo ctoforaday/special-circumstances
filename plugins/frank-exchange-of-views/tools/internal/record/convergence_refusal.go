@@ -77,7 +77,7 @@ func convergenceOf(w writeView) (Convergence, error) {
 // holds the PASS — a petition the bench has not ruled, a check that failed, a
 // citation or computation unchecked since its sentence changed — the refusal's "or issue `--as PASS`" is
 // false, and refusing the FAIL too left the chair able to record no verdict at all (#1202). The
-// chair's own items (the inquiry review, the stale-area spot-check) do not lift it: the refusal names them, and the PASS is the chair's once it has done them.
+// chair's own item (the stale-area spot-check) does not lift it: the refusal names it, and the PASS is the chair's once it has done it.
 //
 // THE REFUSAL NAMES ONLY THE CHAIR'S OWN ACTS, because the chair is the one seat that reads it. It
 // told the chair to "raise something material — a material finding … minted as a gap", which is a

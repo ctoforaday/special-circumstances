@@ -163,18 +163,12 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		}
 	}
 	// inquiries.md — THE INQUIRIES, and the one home of each inquiry's PATH. report.md files an
-	// inquiry by its final fate and carries neither who recorded it, the path it took nor the ruling
-	// beside it, because those are the debate. It is the SAME rendering `show inquiries` prints
-	// (view.InquiryBody), whole, with each superseded record of an inquiry's path under it and each
-	// value's paragraphs kept inside its item (inItem) — not a section of the table and not a second
-	// account — followed by the chair's reviews of the report against those inquiries (inquiryReviews).
+	// inquiry by its final fate and carries neither who recorded it, the path it took nor the check
+	// that stands on it, because those are the debate. It is the SAME rendering `show inquiries`
+	// prints (view.InquiryBody), whole, with each superseded record of an inquiry's path under it and
+	// each value's paragraphs kept inside its item (inItem) — not a section of the table and not a
+	// second account.
 	inq := view.InquiryBody(evs, fam.At, true, inItem)
-	if reviews := inquiryReviews(evs, fam.At); reviews != "" {
-		if inq != "" {
-			inq = strings.TrimRight(inq, "\n") + "\n\n"
-		}
-		inq += reviews
-	}
 	inq = rd.escapeNotesRead(rd.stripTokensCode(inq, true))
 
 	docs := []Doc{

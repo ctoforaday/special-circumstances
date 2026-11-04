@@ -69,9 +69,12 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// An inquiry proposed and never revisited records an intention rather than a choice.
 		//
 		// THE PREDICATE IS StaleInquiries, NOT A SECOND COPY OF IT. A followed inquiry (underway)
-		// rests there, and the `How` never tells a seat to abandon or defer it.
-		for _, a := range StaleInquiriesOf(evs, win) {
-			add(fmt.Sprintf("inquiry %s is at %q and no fate has been recorded on it since epoch %d — an inquiry declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
+		// rests there, and the `How` never tells a seat to abandon or defer it. Blue-respond's list
+		// carries each open inquiry as owed instead (blueInquiryItemsOf), so it is not offered here too.
+		if seatID != blueRespondSeat {
+			for _, a := range StaleInquiriesOf(evs, win) {
+				add(fmt.Sprintf("inquiry %s is at %q and no fate has been recorded on it since epoch %d — an inquiry declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
+			}
 		}
 		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS
 		// ManifestOwed, the one the report and the scorecard read: a gap blue was dispatched onto,

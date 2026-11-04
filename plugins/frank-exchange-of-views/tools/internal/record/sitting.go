@@ -304,13 +304,16 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		if seatID == blueRespondSeat {
 			s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, true)...)
 		}
-		// THERE IS NO PER-INQUIRY DUTY HERE, and the absence is a ruling rather than a dropped
-		// check. Presence is not a question: the inquiries reach the report on the worklist,
-		// generated from the record, so blue cannot cut them. Where blue's body genuinely failed
-		// to deliver an inquiry's research, red MINTS A GAP, and an open gap already reaches blue
-		// through the ordinary route with a grade and a required fix — with the PASS gate behind
-		// it when the gap is material by its class or grade. A second duty here would be the same
-		// fact told twice.
+		// AN OPEN INQUIRY OWES BLUE-RESPOND A FATE EACH SITTING (inquirycheck.go): it holds the PASS
+		// while it is open, so dispatch readies blue-respond for it, and the sitting cannot end with
+		// one whose fate it has not recorded. A fate recorded this sitting clears the item. Where
+		// blue's body failed to deliver an inquiry's research, the logic lens finds it wanting and
+		// mints a gap about it, which reaches blue through the ordinary route.
+		if seatID == blueRespondSeat {
+			for _, w := range blueInquiryItemsOf(evs, win, seatID) {
+				add(w)
+			}
+		}
 		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage`
 		// (successorsOwedOnTheWorkList): the record names the successor, and blue sits on it a second
 		// time this epoch.
@@ -387,8 +390,8 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 	// THE LENS OWES THE PASS BLOCKERS IT OWNS: CHECKING A CITATION OR COMPUTATION IT OWNS
 	// (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS REACHED, THE GAP ABOUT A CHECK OF
-	// ITS THAT READ NOTHING OR JUDGED A COMPUTATION UNSOUND, AND ITS CLOSING ON A GAP OF ITS OWN THAT
-	// IS DOCKETED (closingowed.go). Beyond the two duties every seat holds above this switch (the log
+	// ITS THAT READ NOTHING OR JUDGED A COMPUTATION UNSOUND, THE CHECK OF A SETTLED INQUIRY IT OWNS
+	// (inquiryOwner), AND ITS CLOSING ON A GAP OF ITS OWN THAT IS DOCKETED (closingowed.go). Beyond the two duties every seat holds above this switch (the log
 	// channel, and the sitting it was dispatched for), each is a PASS blocker whose owner is that lens
 	// (passBlockersOf), and dispatch readies the lens for it — so it qualifies under the rule at the
 	// top of this file, and it is the kind table's own sentence.
@@ -425,6 +428,15 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			if b.Kind == BlockerUpheldPosition && b.Owner == seatID {
 				if win.LatestSittingOf(seatID) > b.since {
 					add(upheldAuditItem(b))
+				}
+				continue
+			}
+			// A SETTLED INQUIRY NO CHECK STANDS ON IS ITS OWNER'S TO JUDGE, in a sitting opened after its
+			// latest fate — a check from a sitting already open when the fate landed is refused
+			// (requireInquiryCheck), so such a sitting does not list it; the next plan readies the lens.
+			if b.Kind == BlockerUncheckedInquiry {
+				if b.Owner == seatID && win.LatestSittingOf(seatID) > b.since {
+					add(b.WorkItem())
 				}
 				continue
 			}

@@ -48,6 +48,7 @@ func ProbeAgentID(seatID string) string { return "probe-" + seatID }
 // unregistered seat is refused before any board state exists.
 var Seats = []struct{ Role, ID string }{
 	{"lens", "red-lens-evidence"},
+	{"lens", "red-lens-logic"},
 	{"chair", "red-chair"},
 	{"blue", "blue-respond"},
 	{"bench", "judge"},
@@ -181,18 +182,25 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if err != nil {
 			return fmt.Errorf("inquiry %d: %w", i+1, err)
 		}
-		if a.Ruled == "" {
+		if a.Fate == "" {
 			continue
 		}
 		id := minted("inquiry", out)
 		if id == "" {
-			return fmt.Errorf("inquiry %d: the tool did not report a minted id in %q — the ruling "+
+			return fmt.Errorf("inquiry %d: the tool did not report a minted id in %q — the fate "+
 				"below needs the id the RECORD assigned, and guessing one is how this broke before", i+1, out)
 		}
-		if _, err := exec("motion", "inquiry", "rule", "--run", run.Dir(), "--seat-id", "red-chair",
-			"--id", id, "--as", a.Ruled,
-			"--reason", rulingReason(a.RuledWhy, a.Ruled)); err != nil {
-			return fmt.Errorf("rule %s: %w", id, err)
+		// A FATE WITH NO ACCOUNT IS A FIXTURE DEFECT, and loud: the logic lens judges the account.
+		if strings.TrimSpace(a.FateWhy) == "" {
+			return fmt.Errorf("inquiry %d: the board records the fate %q with no FateWhy — a check of it would judge nothing", i+1, a.Fate)
+		}
+		args := []string{"inquiry", "record", "--run", run.Dir(), "--seat-id", "blue-respond",
+			"--id", id, "--as", a.Fate, "--reason", a.FateWhy}
+		if a.Method != "" {
+			args = append(args, "--method", a.Method)
+		}
+		if _, err := exec(args...); err != nil {
+			return fmt.Errorf("record the fate of %s: %w", id, err)
 		}
 	}
 

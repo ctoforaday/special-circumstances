@@ -138,18 +138,17 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 // THE ORDERING HAZARD IS ENFORCED IN GO, NOT HERE, AND THE REASON IS THE DOMAIN.
 //
 // This asserted that the STORAGE refuses a ruling naming a motion that does not exist —
-// `motion_rule.motion_id` referencing `motion.motion_id`. It passed, and the constraint was false
-// for one subject in three: an INQUIRY motion has no motion row, because "the proposal IS the
-// filing" and `motion inquiry rule` names the inquiry's own id. The foreign key refused
-// every inquiry ruling in the tool.
+// `motion_rule.motion_id` referencing `motion.motion_id`. It passed, and the constraint is false
+// for a subject whose filing is no motion row: a heard POSITION is its own filing, and its ruling
+// names the position's id. The foreign key refused every such ruling in the tool.
 //
 // A conditional foreign key is not expressible — a CHECK cannot hold a subquery — and a trigger
 // could enforce it while telling a seat nothing, since RAISE takes a static string. The rule is
 // SUBJECT-AWARE, so it lives where the subject is known: `RequireMotionSubjectRef` checks a grade
-// or petition ruling against the motions and an inquiry ruling against the inquiries, and names which
-// it could not find. record's own suite covers it.
+// or petition ruling against the motions and a position ruling against the positions, and names
+// which it could not find. record's own suite covers it.
 //
-// A constraint that is wrong for a third of the cases is worse than none. It refuses correct work,
+// A constraint that is wrong for one subject is worse than none. It refuses correct work,
 // and it reads as a guarantee.
 
 // A RULE THAT SPANS TWO FIELDS IS ENFORCED BY THE DATABASE, not only by the tool.

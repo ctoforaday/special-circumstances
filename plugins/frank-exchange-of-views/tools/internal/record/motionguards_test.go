@@ -23,10 +23,6 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 		return &recordpb.MotionRule{MotionId: proto.String("M1"),
 			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
 	}
-	inquiryRule := func(r recordpb.InquiryRuling) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("Q1"),
-			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Inquiry{Inquiry: r}}
-	}
 	finalDocketRule := func() *recordpb.MotionRule {
 		r := docketRule("M2", "the bench rules again")
 		r.GetDocket().Disposition = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
@@ -37,8 +33,8 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 
 	for _, tc := range []struct {
 		name string
-		// act runs on a record holding grade motion M1 (gap G1), docket motion M2 (gap G2),
-		// inquiry Q1 and petition M3, all unruled; its LAST write is the one under test.
+		// act runs on a record holding grade motion M1 (gap G1), docket motion M2 (gap G2)
+		// and petition M3, all unruled; its LAST write is the one under test.
 		act func(t *testing.T, run Run) error
 		// wants is what the refusal must say; nil means the last write is admitted.
 		wants []string
@@ -67,17 +63,6 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 			},
 			wants:  []string{`motion M2 is already ruled "remanded" by judge`},
 			motion: "M2", ruling: "remanded",
-		},
-		{
-			name: "a second inquiry ruling is refused",
-			act: func(t *testing.T, run Run) error {
-				chair := sit(t, run, "red-chair")
-				mustAppend(t, chair, inquiryRule(recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE))
-				_, err := Append(chair, inquiryRule(recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED))
-				return err
-			},
-			wants:  []string{`motion Q1 is already ruled "out_of_scope" by red-chair`},
-			motion: "Q1", ruling: "out_of_scope",
 		},
 		{
 			name: "a ruling under another subject is refused",
@@ -127,8 +112,8 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	}
 }
 
-// motionGuardRun is a record with four unruled motions: grade M1 on G1 (filed by the lens),
-// docket M2 on G2 (filed by blue), inquiry Q1 (proposed by blue) and petition M3 (filed by the lens).
+// motionGuardRun is a record with three unruled motions: grade M1 on G1 (filed by the lens),
+// docket M2 on G2 (filed by blue) and petition M3 (filed by the lens).
 func motionGuardRun(t *testing.T) Run {
 	t.Helper()
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
@@ -139,8 +124,6 @@ func motionGuardRun(t *testing.T) Run {
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
 	blue := sit(t, run, "blue-respond")
 	mustAppend(t, blue, docketMotion("M2", "G2"))
-	mustAppend(t, blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
 	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M3"), Basis: proto.String("the run is proceeding past a safety objection"),
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}})
 	return run
@@ -198,50 +181,8 @@ func motionReadersAgree(t *testing.T, run Run) map[string]motionAnswer {
 // motionAnswer is one motion's answer as a reader states it.
 type motionAnswer struct{ ruling, by string }
 
-// inquiryReadersAgree holds InquiriesOf to motion_answers on every inquiry — the ruling, and the
-// argument and epoch of the ruling event the view names — and inquiry_state to both: its ruling
-// columns are motion_answers' row. It returns each inquiry as InquiriesOf reads it.
-func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
-	t.Helper()
-	all, err := MergedEvents(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	db, err := openRunForRead(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := map[string]*Inquiry{}
-	for _, a := range InquiriesOf(all.Events, all.At) {
-		out[a.ID] = a
-		var ruling, why sql.NullString
-		var epoch sql.NullInt64
-		err := db.QueryRow(`
-		  SELECT a."inquiry", mr."opinion", w."epoch"
-		  FROM "motion_answers" a
-		  LEFT JOIN "motion_rule" mr ON mr."event_id" = a."ruled_seq"
-		  LEFT JOIN "events" w ON w."id" = a."ruled_seq"
-		  WHERE a."motion_id" = ?`, a.ID).Scan(&ruling, &why, &epoch)
-		if err != nil && err != sql.ErrNoRows {
-			t.Fatal(err)
-		}
-		got := [3]any{a.Ruling, a.RulingWhy, a.RuledEpoch}
-		if want := [3]any{ruling.String, why.String, int(epoch.Int64)}; got != want {
-			t.Errorf("inquiry %s: InquiriesOf reads (ruling, why, epoch) %v and motion_answers reads %v", a.ID, got, want)
-		}
-		var stateRuling sql.NullString
-		if err := db.QueryRow(`SELECT "inquiry_ruling" FROM "inquiry_state" WHERE "inquiry_id" = ?`, a.ID).Scan(&stateRuling); err != nil {
-			t.Fatalf("inquiry %s: inquiry_state: %v", a.ID, err)
-		}
-		if stateRuling.String != a.Ruling {
-			t.Errorf("inquiry %s: inquiry_state reads ruling %q and InquiriesOf reads %q", a.ID, stateRuling.String, a.Ruling)
-		}
-	}
-	return out
-}
-
 // EVERY READER OF A MOTION'S ANSWER STATES THE RULING THAT STANDS, after the legal acts — a grade
-// ruling, an inquiry ruling, a docket remand — went through Append. A motion holds one ruling: the
+// ruling, a docket remand — went through Append. A motion holds one ruling: the
 // write refuses a second, migrate's replay included, so no record holds two.
 func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	run := motionGuardRun(t)
@@ -249,26 +190,15 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 		return &recordpb.MotionRule{MotionId: proto.String("M1"),
 			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
 	}
-	inquiryRule := func(id string, r recordpb.InquiryRuling, opinion string) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String(id),
-			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Inquiry{Inquiry: r}}
-	}
-
-	// A second grade motion and a second inquiry, both left unruled by the write.
+	// A second grade motion, left unruled by the write.
 	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M4"), Basis: proto.String("likelihood is overstated"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
-	mustAppend(t, sit(t, run, "blue-respond"), &recordpb.Inquiry{InquiryId: proto.String("Q2"),
-		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("another question")})
 
 	// The legal acts, through Append.
 	chair := sit(t, run, "red-chair")
 	mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "the grade stands, and here is why"))
-	mustAppend(t, chair, inquiryRule("Q1", recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE, "the ruling's argument"))
 	mustAppend(t, sit(t, run, "judge"), docketRule("M2", "the bench remands"))
-	motionReadersAgree(t, run)
-	inquiryReadersAgree(t, run)
-	mustAppend(t, chair, inquiryRule("Q2", recordpb.InquiryRuling_INQUIRY_RULING_TOO_THIN, "too thin to pursue"))
 
 	motions := motionReadersAgree(t, run)
 	if got, want := motions["M1"], (motionAnswer{ruling: "rejected", by: "red-chair"}); got != want {
@@ -279,13 +209,6 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	}
 	if got := motions["M2"].ruling; got != "remanded" {
 		t.Errorf("docket motion M2 reads ruled %q, want the bench's remand", got)
-	}
-	inquiries := inquiryReadersAgree(t, run)
-	if a := inquiries["Q1"]; a == nil || a.Ruling != "out_of_scope" || a.RulingWhy != "the ruling's argument" {
-		t.Errorf("inquiry Q1 reads %+v; its ruling is out_of_scope, with that ruling's argument", a)
-	}
-	if a := inquiries["Q2"]; a == nil || a.Ruling != "too_thin" {
-		t.Errorf("inquiry Q2 reads %+v; its ruling is too_thin", a)
 	}
 }
 

@@ -23,6 +23,8 @@ func requiredFieldsOf(typ string) []RequiredField {
 		return requiredHalt
 	case "inquiry":
 		return requiredInquiry
+	case "inquiry_check":
+		return requiredInquiryCheck
 	case "log":
 		return requiredLog
 	case "mint":
@@ -79,6 +81,10 @@ var (
 	}
 	requiredInquiry = []RequiredField{
 		{Key: "status", Flag: "as"},
+	}
+	requiredInquiryCheck = []RequiredField{
+		{Key: "inquiry_id", Flag: "id"},
+		{Key: "reason", Flag: "reason"},
 	}
 	requiredLog = []RequiredField{
 		{Key: "type", Flag: "type"},

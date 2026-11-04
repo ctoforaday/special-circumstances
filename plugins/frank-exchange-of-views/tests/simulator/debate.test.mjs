@@ -472,14 +472,16 @@ test('the chair runs the debate: copies no plan, mints nothing, closes nothing, 
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /COPY NONE OF IT/.test(p) && !/VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked: the plan stored last is the one that goes/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
-  assert.ok(/ANSWER EVERY INQUIRY ON ONE READ/.test(p) && /where neither has changed, your last read stands/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
+  assert.ok(/RULE THE GRADE MOTIONS blue filed: a ruling is an ARGUMENT, not a command — it needs a reason\./.test(p))
+  // THE CHAIR HOLDS NO INQUIRY DUTY: the logic lens checks each settled inquiry, and blue owes each open one a fate.
+  assert.ok(!/inquir/i.test(p), 'the chair prompt gives the chair an inquiry duty')
   // THE POSITION AND THE SPOT-CHECK ARE THE CHAIR'S DUTIES, and the constitution is their one carrier:
   // the prompt, which every chair sitting receives unchanged, restates neither. A docketed gap is its
   // parties' to argue, never the chair's.
   const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
   assert.ok(/A docketed gap is argued by its parties — its minting lens and blue — in their closings, never by you/.test(chairMd) && /name in it every stale area the plan lists, and any archived closure you re-read/.test(chairMd) && /YOUR POSITION ARGUES TO THE BENCH/.test(chairMd), 'the chair constitution lost the position, the parties\' closings or the spot-check')
   assert.ok(!/CLOSING ARGUMENTS/.test(p) && !/YOUR POSITION ARGUES TO THE BENCH/.test(p) && !/A CLOSURE IS A CLAIM/.test(p), 'the chair prompt restates a duty its constitution carries')
-  assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|inquiry) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
+  assert.ok(!/dispatch next|--as |show (board|work|motions)|motion grade rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
   const schema = chair.opts.schema
   assert.ok(schema.required.includes('parties') && schema.properties.verdict && !schema.properties.plan && schema.additionalProperties === false, 'the envelope IS the plan, closed, and the verdict is its field')
@@ -533,13 +535,15 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   assert.ok(/STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-logic')) && /STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-dark-side')), 'logic and dark-side audit the declines')
   // AN INQUIRY THAT CONTRADICTS WHAT THE READER IS TOLD IS A GAP, NOT A FINDING. The inquiries print
   // in the report beside the body, so the reader sees both halves. The lens reads the inquiry
-  // sections as they ship before it grades one.
+  // sections as they ship before it judges one.
   for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
     const p = firstPrompt(world, seat)
     assert.ok(/that is a candidate gap, anchored to the inquiry/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a computation contradicts/.test(p) && /a section built on an approach that is no inquiry/.test(p),
       `${seat} is not told that an inquiry contradicting the report is a gap`)
-    assert.ok(/read them in the report's assembled form before you grade an inquiry/.test(p), `${seat} is not told to read the inquiry sections as they ship`)
-    assert.ok(/A contradiction left as a finding ships: a finding about an inquiry is on no seat's work list and obliges nobody/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an inquiry contradiction as a finding`)
+    assert.ok(/read them in the report's assembled form before you judge an inquiry/.test(p), `${seat} is not told to read the inquiry sections as they ship`)
+    assert.ok(/A finding about an inquiry reaches the logic lens, which judges every settled inquiry against its latest fate; a gap about it reaches blue, and a material one holds the PASS\./.test(p) && !/Both are findings/.test(p), `${seat} is not told where a finding and a gap about an inquiry go`)
+    // AN OPEN INQUIRY IS BLUE'S BLOCKER, NOT A LENS'S FINDING.
+    assert.ok(/An inquiry still open already holds the PASS until blue settles it\./.test(p) && !/a decision nobody made/.test(p), `${seat} is told an open inquiry is a finding`)
     // THE BAR IS THE ONE EVERY GAP MEETS. A clause that orders a mint for every mismatch spends a
     // lens's budget — three open gaps, in a smoke — on a duplicate row, against the same prompt's "not on
     // nitpicks"; and the lens that filed findings on universe-m21 had judged by the answer alone.
@@ -592,7 +596,7 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'the report and your work list', 'YOUR WORK LIST CARRIES YOUR GAPS, EACH AS ONE WORK ITEM', 'that text beside the span it replaces',
     'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
-    'INQUIRIES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
+    'AN OPEN INQUIRY HOLDS THE PASS', 'owes a fate that settles it', 'checked by the logic lens against its latest fate', 're-opens that check', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
@@ -656,7 +660,7 @@ test('no seat prompt names a command path or spells a flag — the help page is 
   for (const c of world.calls) {
     const body = c.prompt.replace(/--help\b|--seat-id\b|--run\b|--reason(-file)?\b|--comments\b/g, '')
     assert.ok(!/--[a-z][a-z-]+\b/.test(body), `${c.opts.label} spells a flag: ${(body.match(/.{40}--[a-z][a-z-]+.{20}/) || [''])[0]}`)
-    assert.ok(!/\b(show (board|work|motions|closings|changes)|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal))\b/.test(body),
+    assert.ok(!/\b(show (board|work|motions|closings|changes)|dispatch next|motion (grade|docket|petition) (file|rule|appeal)|inquiry (propose|record|check))\b/.test(body),
       `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|dispatch next|motion \w+ \w+).{20}/) || [''])[0]}`)
   }
 })

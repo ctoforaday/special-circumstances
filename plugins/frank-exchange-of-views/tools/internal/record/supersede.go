@@ -59,11 +59,10 @@ const (
 // superseders holds a row for every type whose second act the record refuses and some command
 // records (RefusesARepeat), and for the numbered types whose answer a seat would otherwise guess.
 //
-// NO ROW IS A STATEMENT TOO, and three are deliberate. The chair holds no act that answers its own
-// ruling on an INQUIRY: a docket motion names a gap, an inquiry is not one, and no verb files a
-// motion on an inquiry — so that refusal ends without a tail. An anchor, a finding and a mint are
-// keyed on an id the tool mints per act, so a second with the same key is a retried write and
-// nothing else. No verb records an observe.
+// NO ROW IS A STATEMENT TOO, and two are deliberate. An anchor, a finding and a mint are keyed on an
+// id the tool mints per act, so a second with the same key is a retried write and nothing else. No
+// verb records an observe. An inquiry's check keys on no label, and a second check while one stands
+// is refused by its own rule (requireInquiryCheck), which names what makes it owed again.
 //
 // A RULING'S ROW IS THE RULER'S, the one seat that can repeat it — and the ruler files nothing on
 // the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. The
@@ -76,7 +75,6 @@ const (
 // refuses it neither.
 var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}:                            {act: "a new record of the inquiry's fate"},
-	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW}:                     {act: "a new review of the inquiries", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}:                            {act: "a new certification", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CITE}:                               {act: "a new citation", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}:                              {act: "a docket motion on the gap"},
@@ -280,8 +278,8 @@ func keyField(body proto.Message) protoreflect.Name {
 // else the payload-key map, which knows that a gap id is typed --id and a status --as. (FlagFor's
 // fallback is the field name itself, which would name --gap-id — a flag no verb has.)
 //
-// AN ENUM ARM OF A ONEOF IS TYPED --as. A ruling's word lands on MotionRule.grade, .petition or
-// .inquiry — one arm per subject — and every one of them is set through --as; named by its field,
+// AN ENUM ARM OF A ONEOF IS TYPED --as. A ruling's word lands on MotionRule.grade or .petition — one
+// arm per subject — and every one of them is set through --as; named by its field,
 // a refusal would send the seat to --petition, which no verb has.
 func flagOf(fd protoreflect.FieldDescriptor) string {
 	if o, _ := proto.GetExtension(fd.Options(), recordpb.E_Sql).(*recordpb.Sql); o.GetFlag() != "" {

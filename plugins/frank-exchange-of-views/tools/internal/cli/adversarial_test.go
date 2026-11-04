@@ -143,28 +143,28 @@ func adversarialCases() []adversarialCase {
 				"satisfy is removed by the first person it blocks.",
 		},
 		{
-			name:    "an inquiry ruling names an inquiry that exists",
-			act:     seatStep{"motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q9", "--as", "endorsed", "--reason", "ruling an inquiry nobody proposed"},
-			refused: "which no inquiry event proposed",
-			guards: "An inquiry motion joins on the INQUIRY's own id, so the dangling-reference discipline " +
-				"has to reach a different id space than the other two subjects.",
+			name:    "an inquiry check names an inquiry that exists",
+			act:     seatStep{"inquiry", "check", "--seat-id", "red-lens-evidence", "--id", "Q9", "--reason", "checking an inquiry nobody proposed"},
+			refused: "names no inquiry on the record",
+			guards: "A check joins on the INQUIRY's own id, so the dangling-reference discipline has to " +
+				"reach a different id space than a gap's or a motion's.",
 		},
 		{
-			name:  "blue pursues an inquiry against its ruling",
-			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
-			act:   seatStep{"inquiry", "record", "--seat-id", "blue-respond", "--id", "Q1", "--as", "underway", "--reason", "the open question turns on exactly this inquiry"},
-			guards: "A RULING ON AN INQUIRY IS AN ARGUMENT, NOT A COMMAND, and this pins it: it binds " +
-				"no fate, so what blue does about one it disagrees with is to record its own. A " +
-				"guard that refused that would leave blue no act at all against the ruling.",
+			name:    "an inquiry check is the logic lens's, and another lens is told so",
+			setup:   []seatStep{propose, {"inquiry", "record", "--seat-id", "blue-respond", "--id", "Q1", "--as", "confirmed", "--reason", "the approach ran and answered"}},
+			act:     seatStep{"inquiry", "check", "--seat-id", "red-lens-evidence", "--id", "Q1", "--reason", "its fate stands"},
+			refused: "the check of an inquiry is red-lens-logic's",
+			guards: "Every lens carries `inquiry check` on its tree and one lens owns the judgement, so " +
+				"two lenses dispatched together never race over one inquiry. Absent-because-not-yours " +
+				"must not read as absent-by-design: the refusal names whose it is and what the other " +
+				"lens does instead.",
 		},
 		{
-			name:    "an inquiry motion is the chair's, and another seat is told so",
-			setup:   []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
-			act:     seatStep{"motion", "inquiry", "rule", "--seat-id", "blue-respond", "--id", "Q1", "--as", "endorsed", "--reason", "ruling my own inquiry"},
-			refused: "the chair's `motion inquiry`",
-			guards: "The inquiry subject holds a ruling and nothing else, so it is on the chair's " +
-				"surface alone. Absent-because-not-yours must not read as absent-by-design: the " +
-				"refusal names whose it is.",
+			name:  "blue records a fate on a settled inquiry",
+			setup: []seatStep{propose, {"inquiry", "record", "--seat-id", "blue-respond", "--id", "Q1", "--as", "confirmed", "--reason", "the approach ran and answered"}},
+			act:   seatStep{"inquiry", "record", "--seat-id", "blue-respond", "--id", "Q1", "--as", "refuted", "--reason", "a later reading answered it the other way"},
+			guards: "A SETTLED INQUIRY STAYS BLUE'S TO REVISIT: a new fate is how blue answers what it " +
+				"learns, and it leaves any check of the old fate stale rather than being refused by it.",
 		},
 		{
 			name:    "a grade motion names a gap that exists",

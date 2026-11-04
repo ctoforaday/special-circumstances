@@ -1,7 +1,7 @@
 // Package motion is the ONE adjudication mechanism (#344).
 //
-// One mechanism covers a grade dispute, a petition and a ruling on a proposed inquiry: an ask and
-// its answer join on the motion id.
+// One mechanism covers a grade dispute, a petition, a gap put before the bench and a withheld
+// PASS: an ask and its answer join on the motion id.
 //
 // # Why this is a top-level group and not a role's verb set
 //
@@ -17,8 +17,8 @@
 // # Why the subjects are SUBGROUPS and not a --on flag
 //
 // Their contracts diverge: a grade motion needs --dimension and --proposed and is ruled by the
-// merge; a petition needs --class and --relief and is ruled by the BENCH; an inquiry needs
-// neither and has no filing verb at all (the proposal IS the filing). Cobra cannot express
+// merge; a petition needs --class and --relief and is ruled by the BENCH; a position needs
+// neither and has no filing verb at all (the chair's position IS the filing). Cobra cannot express
 // "required only when --on=grade", so a flag-discerned subject would put three contracts into
 // hand-written RunE validation — a flag combination policed by prose, which is the shape this
 // suite exists to remove. As subgroups, cobra refuses the nonsense at parse.
@@ -55,7 +55,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	// in internal/record, which cannot import this package, told blocked seats to rule motions
 	// without knowing whose ruling it would be. Both readers take it off the MotionSubject enum
 	// now, so a subject cannot be added with a gavel in one place and not the other.
-	// A SUBJECT IS MOUNTED WHERE IT HOLDS A VERB FOR THIS ROLE. An inquiry motion has a ruling and no
+	// A SUBJECT IS MOUNTED WHERE IT HOLDS A VERB FOR THIS ROLE. A position motion has a ruling and no
 	// filing, so it is on its ruler's surface alone: mounted bare on the others it is a page that
 	// offers no act, and a seat that names it is told whose it is (cli's teachUnknownSubcommand).
 	mount := func(s *cobra.Command) {
@@ -79,9 +79,6 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	mount(subject(actingRole, "position",
 		"rule on the chair's position at a sitting that withheld a PASS its plan permitted: the BENCH rules — upheld names the work the debate continues on, overruled sends the PASS back to the chair. NO file verb — the chair's position is the filing",
 		nil, []string{flags.Lens, flags.IDs, flags.Direction}))
-	mount(subject(actingRole, "inquiry",
-		"rule on an inquiry blue proposed: the chair rules. NO file verb — the proposal (blue's `inquiry propose`) is the filing",
-		nil, nil))
 	seat.MarkTree(c)
 	return c
 }
@@ -123,8 +120,9 @@ func rulerFor(name string) string {
 	return r
 }
 
-// subject builds one subgroup. `inquiry` gets no `file`: red rules on an inquiry blue already
-// proposed, so a filing verb here would be a second way to say what `blue inquiry propose` already says.
+// subject builds one subgroup. `position` gets no `file`: the bench rules on a position the chair
+// already took, so a filing verb here would be a second way to say what the chair's `position`
+// already says.
 func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cobra.Command {
 	ruler := rulerFor(name)
 	subj := mustSubject(name)
@@ -172,7 +170,7 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 		// THE RULER NAMED A FILING ITS SUBJECT HAS: the same refusal, in the same words, the write
 		// gives a body that reaches it another way.
 		if len(args) > 0 && args[0] == "file" && fileFlags != nil && holds {
-			return record.RefuseRulerFiling(subj, seat.DispatchedAs(cmd), false)
+			return record.RefuseRulerFiling(subj, seat.DispatchedAs(cmd))
 		}
 		named := "names no verb"
 		if len(args) > 0 {

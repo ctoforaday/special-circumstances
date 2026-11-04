@@ -104,19 +104,23 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.add("blue-respond", gradeMotion)
 		}, true},
-		{"no inquiry review", BlockerInquiryReview, true, true, func(b *stage) {
-			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a question"),
-				Hypothesis: proto.String("h"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
-		}, true},
+		// AN INQUIRY HOLDS THE PASS UNTIL IT IS SOUND (ruled by gblock 2026-11-01): open, for blue's
+		// fate; settled, for the logic lens's check. Neither is the chair's to clear.
+		{"open inquiry", BlockerOpenInquiry, true, true, func(b *stage) {
+			b.add("blue-synthesize", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true))
+		}, false},
+		{"unchecked inquiry", BlockerUncheckedInquiry, true, true, func(b *stage) {
+			b.add("blue-synthesize", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true))
+			b.add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED, false))
+		}, false},
 		{"nothing holds", "", true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		}, true},
-		// AN UNRULED INQUIRY IS NO MOTION, so it is on no list and holds no PASS: its ruling is what
-		// creates the motion (motionsAt). The review is here because the proposal owes one.
-		{"an unruled inquiry holds nothing", "", true, true, func(b *stage) {
-			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a question"),
-				Hypothesis: proto.String("h"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
-			b.add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")})
+		// A SOUND INQUIRY HOLDS NOTHING: settled, and the logic lens's check stands on its fate.
+		{"a checked inquiry holds nothing", "", true, true, func(b *stage) {
+			b.add("blue-synthesize", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true))
+			b.add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED, false))
+			b.register(inquiryOwner).add(inquiryOwner, inquiryCheck("Q1"))
 		}, true},
 	}
 	// A KIND THAT NEVER HOLDS ALONE, and the kind it holds beside: a closing is owed on a docketing,
@@ -320,10 +324,9 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	}{
 		{"nothing blocks", func(b *stage) {}, true},
 		{"unruled petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) }, false},
-		{"an inquiry no review has read", func(b *stage) {
-			b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
-		}, true},
+		{"an open inquiry", func(b *stage) {
+			b.add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true))
+		}, false},
 		{"citation found against", func(b *stage) { b.cite("C-1").foundAgainst(evLens, "C-1", "") }, false},
 		{"docket motion on a closed gap", func(b *stage) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1")
@@ -417,12 +420,13 @@ func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
 	}
 	t.Run("converged, the chair's own item", func(t *testing.T) {
 		b := convergedBoard(t)
-		b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
+		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M9"),
+			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
+				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
 		run := b.seed()
 		_, err := Append(Identity{Run: run, SeatID: "red-chair"}, fail)
-		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "inquiry review") {
-			t.Fatalf("FAIL over a converged board holding only the chair's inquiry review = %v, want the convergence refusal naming the review", err)
+		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "M9") {
+			t.Fatalf("FAIL over a converged board holding only the chair's ruling of grade motion M9 = %v, want the convergence refusal naming it", err)
 		}
 	})
 }

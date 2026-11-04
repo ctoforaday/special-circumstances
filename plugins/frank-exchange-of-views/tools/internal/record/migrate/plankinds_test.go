@@ -81,7 +81,7 @@ func kindsTranslated(t *testing.T, printed string) string {
 	return pl.GetPrinted()
 }
 
-// THE ARCHIVED BLOCKER KINDS ARE TRANSLATED, AND NOTHING ELSE IS (EventSchema 48, 58). Four archives
+// THE ARCHIVED BLOCKER KINDS ARE TRANSLATED, AND NOTHING ELSE IS (EventSchema 48, 59). Four archives
 // store plans printing the kind `reopened` (m28, m30, 1565, m32): every one migrates printing
 // `unchecked` in its place, re-keyed, with no archived kind word left on any migrated plan, and each
 // plan's other fields as the census tests hold them (TestAnArchivedRunStoresOnlyThePlansItStored).

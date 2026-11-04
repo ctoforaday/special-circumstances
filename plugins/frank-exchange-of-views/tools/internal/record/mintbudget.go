@@ -300,6 +300,12 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 	} else if own != "" {
 		return nil
 	}
+	// THE OWNER'S GAP ABOUT AN INQUIRY TAKES NO MINT (inquirycheck.go): it owes every settled
+	// inquiry's judgement whatever its standing, and the gap is that judgement where the inquiry is
+	// wanting. At the cap it could otherwise neither check nor mint, and the run would stall on it.
+	if ownsInquiryGap(seatID, m.GetAboutKind()) {
+		return nil
+	}
 	st, err := lensMintStanding(w.q, w.report, nil, w.files.params, seatID, area)
 	if err != nil {
 		return err
@@ -334,12 +340,19 @@ const mintRefusedNext = "Record what you found as a finding now, and mint it whe
 
 // mintAnswerOutsideBudget is the exemption as every lens-facing surface states it: the refusal, the
 // work list, the PASS blocker and the help say one sentence.
-const mintAnswerOutsideBudget = "A gap your reading of a citation mints, or about an anchor whose check of yours read nothing or judged a computation unsound, takes no mint; it is admitted at the cap, and does not count while it is open"
+const mintAnswerOutsideBudget = "A gap your reading of a citation mints, or about an anchor whose check of yours read nothing or judged a computation unsound, takes no mint; so does the logic lens's gap about an inquiry, whose judgement it owes. Each is admitted at the cap, and does not count while it is open"
+
+// ownsInquiryGap reports whether a mint by seatID about kind is the inquiry owner's gap about an
+// inquiry, which takes no mint (requireMintWithinBudget, ownAnswersAt).
+func ownsInquiryGap(seatID string, kind recordpb.AboutKind) bool {
+	return seatID == inquiryOwner && kind == recordpb.AboutKind_ABOUT_KIND_INQUIRY
+}
 
 // ownAnswersAt is the gaps seatID minted that its budget does not count (lensMintStanding): each gap
 // a reading of a citation by seatID minted in its own act (a Verify by seatID with an anchor naming
-// it with carrier_minted true), and each that answers a standing failed check of seatID's own
-// (ownFailedCheckAnswers). held is the stream q holds where the reader already took it (heldStream).
+// it with carrier_minted true), each that answers a standing failed check of seatID's own
+// (ownFailedCheckAnswers), and the inquiry owner's gaps about inquiries (ownsInquiryGap). held is the
+// stream q holds where the reader already took it (heldStream).
 func ownAnswersAt(q recordsql.Querier, held *heldStream, seatID string) (map[string]bool, error) {
 	out := map[string]bool{}
 	if noRecord(q) {
@@ -361,6 +374,15 @@ func ownAnswersAt(q recordsql.Querier, held *heldStream, seatID string) (map[str
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
+	}
+	if ownsInquiryGap(seatID, recordpb.AboutKind_ABOUT_KIND_INQUIRY) {
+		gaps, err := gapsMintedAbout(q, seatID, recordpb.AboutKind_ABOUT_KIND_INQUIRY)
+		if err != nil {
+			return nil, err
+		}
+		for _, g := range gaps {
+			out[g] = true
+		}
 	}
 	// THE ANCHOR'S FOLD READS THE WHOLE LEDGER — the checks, the edits and the retires — so it takes
 	// the whole stream, and only where seatID has minted a gap about an anchor: every mint and every
@@ -458,6 +480,25 @@ func lensMintStanding(q recordsql.Querier, report func() (string, error), held *
 	}
 	st.Budget, st.MeasureErr = lensBudgetOver(q, report, area, p.MintBudget)
 	return st, nil
+}
+
+// gapsMintedAbout is the ids of every gap seatID minted about something of kind.
+func gapsMintedAbout(q recordsql.Querier, seatID string, kind recordpb.AboutKind) ([]string, error) {
+	rows, err := q.Query(`SELECT m."gap_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."about_kind" = ? AND e."seat_id" = ?`,
+		recordpb.Word(kind), seatID)
+	if err != nil {
+		return nil, fmt.Errorf("asking the record: %w", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
 }
 
 // openGapsMintedBy is the ids of the gaps seatID minted that are open on the gap view.

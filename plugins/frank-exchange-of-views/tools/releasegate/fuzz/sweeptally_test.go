@@ -219,6 +219,8 @@ type runTally struct {
 	OpenByFoundBy                   map[string]int            `json:"open_by_found_by"`
 	MintsByEpoch                    map[int]int               `json:"mints_by_epoch"`
 	ClosesByEpoch                   map[int]int               `json:"closes_by_epoch"`
+	InquiryChecks                   int                       `json:"inquiry_checks"`
+	InquiryCheckRefused             map[string]int            `json:"inquiry_check_refused"`
 }
 
 // tallyOf is the run's tally.
@@ -230,6 +232,7 @@ func tallyOf(o outcome) runTally {
 		VerifiedBasis: o.verifiedBasis, FoundByMints: o.foundByMints, VerbatimApplied: o.verbatimApplied,
 		TypedVerbatim: o.typedVerbatim, EstoppelMisses: o.estoppelMisses, ApplyMisses: o.applyMisses,
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
+		InquiryChecks: o.inquiryChecks, InquiryCheckRefused: o.inquiryCheckRefused,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
 		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
 		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, LeftOutRefused: o.leftOutRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
@@ -573,6 +576,8 @@ type sweepFold struct {
 	verifiedBasis, foundByMints                     int
 	verbatimApplied, typedVerbatim, estoppels       int
 	inquiryRecords, quotesRefused                   int
+	inquiryChecks                                   int
+	inquiryCheckRefused                             map[string]int
 	bridgesRefused, bridgesNamed                    int
 	ordersRefused, spansRefused, forcedSpansRefused int
 	leftOutRefused, mintBareRefused                 int
@@ -643,6 +648,7 @@ func foldRuns(runs []runTally) sweepFold {
 		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, partRefused: map[string]int{}, verifiedExits: map[int64]forcedExit{},
 		finalBlockers: map[string]map[string]int{}, finalParties: map[string]map[string]int{}, openByFoundBy: map[string]map[string]int{},
 		mintsByEpoch: map[int]int{}, closesByEpoch: map[int]int{},
+		inquiryCheckRefused: map[string]int{},
 	}
 	for _, r := range runs {
 		if r.Err != "" {
@@ -681,6 +687,10 @@ func foldRuns(runs []runTally) sweepFold {
 		f.typedVerbatim += r.TypedVerbatim
 		f.estoppels += r.Estoppels
 		f.inquiryRecords += r.InquiryRecords
+		f.inquiryChecks += r.InquiryChecks
+		for class, n := range r.InquiryCheckRefused {
+			f.inquiryCheckRefused[class] += n
+		}
 		f.closingsFiled, f.closingsRefused, f.closingWaits = f.closingsFiled+r.ClosingsFiled, f.closingsRefused+r.ClosingsRefused, f.closingWaits+r.ClosingWaits
 		f.positionsWithheld += r.PositionsWithheld
 		f.positionsUpheldLens += r.PositionsUpheldLens
@@ -858,6 +868,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		f.completed, f.failed, f.verdicts, f.epochHist, f.whyHist, f.dcov, f.citeAnchors, f.cacheFiles, f.editAnswers, f.dcov["blue_edit"], f.verifiedBasis, f.dcov["mint"], f.verbatimApplied, f.typedVerbatim, f.estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", f.limitExits, f.completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
 	t.Logf("inquiry lifecycle: %d fates recorded on an id read from `inquiry propose` (of %d inquiry events)", f.inquiryRecords, f.dcov["inquiry"])
+	t.Logf("inquiry checks: %d admitted from %s · refusals driven by class %v", f.inquiryChecks, record.InquiryOwner(), f.inquiryCheckRefused)
 	t.Logf("computation owner: %d run(s) offered an unjudged computation to its owner, at a sitting or the run's end", f.ownerOfferedRuns)
 	t.Logf("citation owner: %d run(s) offered an unverified citation to the evidence lens, at a sitting or the run's end", f.citationOfferedRuns)
 	t.Logf("unsound computations: %d plan(s) readied the judge or blue for every unsound computation they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundComputationSeed, f.unsoundAnswers)
@@ -959,6 +970,17 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.inquiryRecords == 0 {
 			t.Errorf("fuzz recorded ZERO fates by an id read from `inquiry propose` across %d runs (with %d inquiry events) — "+
 				"the propose result named no id the harness reads, or the tool refused every record; the inquiry lifecycle past `proposed` is unexercised by the proposing seat (false green)", f.completed, f.dcov["inquiry"])
+		}
+		// THE INQUIRY-CHECK GATE. The owner's check is what makes an inquiry sound, and every refusal
+		// class is a state the write must refuse to judge. A sweep that admitted no check passed no run
+		// that held an inquiry; a class driven zero times is a refusal nothing would notice go.
+		if f.inquiryChecks == 0 {
+			t.Errorf("fuzz admitted ZERO inquiry checks from %s across %d runs — no settled inquiry was ever judged sound, so every run that proposed one ended short of a PASS or the drive stopped reaching the owner (false green)", record.InquiryOwner(), f.completed)
+		}
+		for _, c := range inquiryCheckClasses {
+			if f.inquiryCheckRefused[c.class] == 0 {
+				t.Errorf("fuzz drove the %s refusal of `inquiry check` ZERO times across %d runs — the write's refusal of that state (%s) is unexercised (false green); driven: %v", c.class, f.completed, c.code, f.inquiryCheckRefused)
+			}
 		}
 		// THE REOPENED GATE. A citation or computation whose sentence changed after its check is owed by
 		// its owner, which is then not retired, and the edit moved the head: the plan readies it. A

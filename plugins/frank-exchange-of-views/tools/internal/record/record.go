@@ -1340,7 +1340,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 		// THE FILER DOES NOT RULE THE SUBJECT (rulerfiles.go) — asked of every writer, because the
 		// verb's absence from the ruler's surface refuses only a seat that types it.
-		if err := requireFilerHoldsNoGavel(seatID, b.Subject(), false); err != nil {
+		if err := requireFilerHoldsNoGavel(seatID, b.Subject()); err != nil {
 			return err
 		}
 		// A GRADE MOTION IS ABOUT A GAP. A motion against a gap that does not exist is dropped
@@ -1611,15 +1611,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 		}
-		// A PROPOSAL IS THE INQUIRY SUBJECT'S FILING, so the seat that rules on inquiries proposes none
-		// (rulerfiles.go). A recorded fate files nothing.
-		if b.SupersedesStatus == nil {
-			if err := requireFilerHoldsNoGavel(seatID, recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY, true); err != nil {
-				return err
-			}
-		}
 		if b.GetInquiryId() == "" {
-			return fmt.Errorf("an inquiry requires an id — the tool assigns one on a proposal and --id names it when its fate is recorded; an inquiry with no identity has no lifecycle and cannot be ruled on or revisited")
+			return fmt.Errorf("an inquiry requires an id — the tool assigns one on a proposal and --id names it when its fate is recorded; an inquiry with no identity has no lifecycle and cannot be checked or revisited")
 		}
 		// A PROPOSAL HOLDS NO METHOD. A method is the account of a fate — what was done, or what a
 		// later run should do — and one written at proposal is written before any research, printed
@@ -1656,19 +1649,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			return fmt.Errorf("a %s inquiry requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
-	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S INQUIRIES.
-	//
-	// The inquiry review names no inquiry: the inquiries reach the report on the worklist,
-	// generated from the record, so presence is not a question. Nothing dangles because nothing
-	// is joined.
-	//
-	// The one check is the `friction --none` rule verbatim: a
-	// review with no quoted text is the self-attestation this channel exists to end. TrimSpace,
-	// not `== ""`, because a --reason of one space discharges the duty and says nothing — the
-	// stricter of the two tests is kept deliberately.
-	case *recordpb.InquiryReview:
-		if strings.TrimSpace(b.GetReason()) == "" {
-			return fmt.Errorf("requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where an inquiry's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
+	// AN INQUIRY'S CHECK JUDGES IT AS IT STANDS, by its owner, with a reason (inquirycheck.go).
+	case *recordpb.InquiryCheck:
+		if err := requireInquiryCheck(w, seatID, b); err != nil {
+			return err
 		}
 	case *recordpb.Halt:
 	case *recordpb.Certify:
@@ -1826,7 +1810,7 @@ func copyProvenance(act string, kind recordpb.CopySubstitution, copyURL *string)
 }
 
 // rulingWord is the ruling as a seat spells it, and "" when nothing was ruled. It is the one
-// reading of a ruling's word: the write's refusal, MotionsOf and InquiriesOf all call it.
+// reading of a ruling's word: the write's refusal and MotionsOf call it.
 //
 // THE VERDICT SET IS KEYED ON THE SUBJECT — the schema's `ruling` oneof carries one arm per
 // subject — so there is no single field to read, and it reads whichever arm is set. An unset arm
@@ -1838,8 +1822,6 @@ func rulingWord(r *recordpb.MotionRule) string {
 		return recordpb.Word(v.Grade)
 	case *recordpb.MotionRule_Petition:
 		return recordpb.Word(v.Petition)
-	case *recordpb.MotionRule_Inquiry:
-		return recordpb.Word(v.Inquiry)
 	case *recordpb.MotionRule_Docket:
 		// THE WORD IS ON THE MESSAGE, not the arm — the docket arm is the only one carrying a
 		// message rather than an enum, because the bench records reasoning as well as a verdict.
@@ -1983,6 +1965,10 @@ func requireMintSubject(m *recordpb.Mint) error {
 		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
 	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
 		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, or a gap already on the board")
+	// OUT OF SCOPE IS AN INQUIRY'S DEFECT, always material, and blue answers it with the inquiry's
+	// fate; on report text it would hold the PASS with no fate to answer it.
+	case m.GetClass() == recordpb.GapClass_GAP_CLASS_OUT_OF_SCOPE && m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY:
+		return fmt.Errorf("--class out_of_scope is an inquiry's defect — a real question, but not the one this run was asked — and blue answers it with the inquiry's fate, so its gap is about the inquiry: `--about-kind inquiry --about <its id>`. Report text that strays from the question is a defect of another class")
 	}
 	return nil
 }

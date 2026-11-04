@@ -29,28 +29,24 @@ func HoldsGavel(role string, subj recordpb.MotionSubject) bool {
 	return err == nil && role != "" && role == ruler
 }
 
-// requireFilerHoldsNoGavel refuses a filing on a subject by the seat that rules it. proposal marks
-// the one subject whose filing is not a motion body: an inquiry's is its proposal.
-func requireFilerHoldsNoGavel(seatID string, subj recordpb.MotionSubject, proposal bool) error {
+// requireFilerHoldsNoGavel refuses a filing on a subject by the seat that rules it.
+func requireFilerHoldsNoGavel(seatID string, subj recordpb.MotionSubject) error {
 	if !HoldsGavel(seatclass.RoleOfSeat(seatID), subj) {
 		return nil
 	}
-	return RefuseRulerFiling(subj, seatID, proposal)
+	return RefuseRulerFiling(subj, seatID)
 }
 
 // RefuseRulerFiling is the refusal a seat meets when it files on a subject it rules — one text for the
 // surface that does not carry the verb and for the write that refuses the body. It names both
 // parties, as the refusal of a `rule` that is not the seat's does: who holds the gavel, and who
 // asked.
-func RefuseRulerFiling(subj recordpb.MotionSubject, seatID string, proposal bool) error {
+func RefuseRulerFiling(subj recordpb.MotionSubject, seatID string) error {
 	word := recordpb.Word(subj)
 	ruler, _ := recordpb.SubjectRuler(subj)
 	filing, who := "`file`", "The "+strings.Join(filingRoles(subj), ", ")+" seats file one."
 	if i := strings.LastIndex(who, ", "); i >= 0 {
 		who = who[:i] + " and" + who[i+1:]
-	}
-	if proposal {
-		filing, who = "the proposal that files one", "An inquiry is blue's to propose."
 	}
 	msg := Article(word) + " " + word + " motion is ruled by the " + ruler + " seat, so " + filing + " is not on your surface; you are " +
 		seatID + " (" + seatclass.RoleOfSeat(seatID) + "). The seat that rules a subject files nothing on it, because a motion its own ruler " +
@@ -81,7 +77,7 @@ func filingRoles(subj recordpb.MotionSubject) []string {
 	return out
 }
 
-// Article is the indefinite article for a subject word — "an inquiry", "a grade".
+// Article is the indefinite article for a subject word — "a petition", "a grade".
 func Article(word string) string {
 	if word != "" && strings.ContainsRune("aeiou", rune(word[0])) {
 		return "an"
