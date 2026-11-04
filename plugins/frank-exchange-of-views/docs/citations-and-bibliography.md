@@ -140,12 +140,16 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   - `source_completeness`: full, abstract, unverified, not_the_work, or not_asked. Migrated runs
     carry `not_recorded` for the fields their epoch predates.
 - **The anchor leaves only by `retire`.** The report is the lanes' parts plus an ordered replay of edits and marker
-  inserts. `blue edit` refuses any span that would drop or split an anchor, or leave a citation's
-  anchor bare with no prose before it in its sentence, so the set of `cite` events and the anchors
-  in the text stay in one-to-one correspondence; the scorecard's `unbacked_citations` flags any
-  divergence. A citation leaves by `blue retire --anchor` alone, which keeps its sentence word for
-  word — how a cited sentence goes (retire its citations, then edit it out) and how a dead source
-  gives way to a readable one. When blue rewrites the sentence around an anchor, the anchor stays.
+  inserts. `blue edit` refuses any span that would drop or split an anchor, or leave an evidence
+  anchor — a citation or computation — bare with no prose before it in its sentence, so the set of
+  `cite` events and the anchors in the text stay in one-to-one correspondence; the scorecard's
+  `unbacked_citations` flags any divergence. Evidence of either kind leaves by `blue retire --anchor`
+  alone, which keeps its sentence word for word — how a cited or computed sentence goes (retire its
+  anchors, then edit it out) and how a dead source gives way to a readable one. A retire of a citation
+  a live computation names as its method is refused, naming the computation. A retired anchor is in
+  no document. Retiring an anchor placed as an open gap's answer leaves that gap owed; a closed gap's
+  closure stands whatever later happens to its answers, and its lens is told. When blue rewrites the
+  sentence around an anchor, the anchor stays.
   A citation or computation red has checked is then **reopened** — unchecked again.
 - **A citation or computation is checked, or it holds the PASS.** The evidence view lists every one with
   no check of the sentence the report carries under `unchecked` — never checked, or reopened, with
@@ -176,7 +180,11 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
 
   In every state the seat's close of the gap that carries the check is refused while the check
   stands, unless it names a successor with `--superseded-by`; a closing ruling of the bench closes
-  the gap, and the check still holds the PASS.
+  the gap, and the check still holds the PASS. Whatever cleared the check, a gap whose check kind is
+  `source` or `computation` closes — under every disposition, a close naming a successor included —
+  only on a live answer of its kind placed as its answer, once the anchor it is about or whose
+  reading it carries is retired, or once the seat whose check it carries checks that anchor again
+  after the mint and the check holds.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it

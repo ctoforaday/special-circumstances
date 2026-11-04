@@ -19,7 +19,8 @@ import (
 // The acts, by the field each names the gap in:
 //
 //   - the minting lens: a regrade (one that keeps the grade included), a close, a closing, a finding
-//     about the gap, a mint superseding it, a judgement of a computation that answers it;
+//     about the gap, a mint superseding it, a check (a reading or a judgement) of a citation or
+//     computation placed as its answer;
 //   - blue: an edit answering it, an evidence anchor (a citation or a computation) placed as its
 //     answer, a fate on the inquiry it is anchored on, a closing, and a REACHING RETIRE — a retire
 //     taking out the anchor the gap is about, or the anchor of a reading it carries, whatever gap the

@@ -22,9 +22,10 @@ import (
 // sitting, and a gap blue never acts on reaches impasse with no lens readied on it.
 //
 // Movement is a STATE change: the gap's grade changed, its anchored text changed (a blue edit
-// answering G with old != new, or a citation retire), blue answered it with a computation or a change
-// of fate on the inquiry it is anchored on (ruled by gblock 2026-10-31), its lineage moved (a mint
-// superseding G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
+// answering G with old != new, or an evidence-anchor retire answering it or taking out the anchor it
+// is about or whose reading it carries), blue placed a citation or computation as its answer or
+// recorded a change of fate on the inquiry it is anchored on (ruled by gblock 2026-10-31), its
+// lineage moved (a mint superseding G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
 // grade or an edit that changed nothing are acts but not movement.
 //
 // THE COUNTS ARE A FLOOR AND UNRESOLVED IS THE REST OF THE ANSWER. Exchanges and Stalled state
@@ -328,7 +329,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			}
 			fates[b.GetInquiryId()] = b.GetStatus()
 		case *recordpb.Retire:
-			// A citation retire moves the report as an edit does: the citation leaves its sentence. A
+			// An evidence-anchor retire moves the report as an edit does: the anchor leaves its sentence. A
 			// REACHING RETIRE moves each gap it reaches as a named one does: it meets the gap's demand
 			// whatever gap it named (WindowIndex.Reaches).
 			if g := retireAnswers(e); g != "" {

@@ -182,7 +182,7 @@ func newCite() *cobra.Command {
 		"The tool finds them there once — "+fetchcache.SpanNormalisation+" — and refuses one that cuts into a clause, by the boundary rule above. "+
 		"It records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. "+
 		"A source the tool holds no text for is cited without it")
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this citation answers — the citation is placed as that gap's answer, and a gap whose check kind is source closes only on a live answer of its kind or the demand's other arms; omit only for a citation that answers no gap")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this citation is placed as the answer to — while it stands it answers that gap; the page says what a gap's close demands. Omit only for a citation that answers no gap")
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, --source-span, --answers or --reason is refused: a handle names one citation")
 	return c
 }

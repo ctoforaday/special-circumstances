@@ -80,13 +80,19 @@ already failed your own standard.
   `<!--cite:…-->`, `<!--computation:…-->` and `<!--gap:…-->` — as it is, where it stands. Every kind lives
   one way: the tool places an anchor at the end of its quote, an edit carries it, the tool puts back
   one whose sentence the edit kept word for word, an edit that drops or types one is refused, and
-  retiring its claim is the one way it leaves — except a citation, which never stands bare: an
-  edit that would leave one with no prose before it in its sentence is refused, and a citation
-  leaves by a retire naming it alone, which keeps its sentence word for word. That retire is how a
-  cited sentence goes — retire its citations, then edit the sentence out — and how a citation no
-  lens can read gives way to one it can: cite the readable source, then retire the dead one. An anchor your quote leaves out stays where it
-  stands, and an edit that would leave it bare there is refused: to take its claim out, carry it in
-  both the quote and the replacement, then retire the claim. One your quote carries goes into the replacement after the sentence that now holds its
+  retiring its claim is the one way it leaves — except evidence, a citation or a computation, which
+  never stands bare: an edit that would leave one with no prose before it in its sentence is refused,
+  whether your quote holds it or not, and evidence leaves by a retire naming it alone, which keeps its
+  sentence word for word. That retire is how a cited or computed sentence goes — retire its citations
+  and computations, then edit the sentence out — and how a citation no lens can read gives way to one
+  it can: cite the readable source, then retire the dead one. A citation a computation in the report
+  names as its method stays while that computation does: retire or recompute the computation first.
+  A retired anchor is in no document, and no lens checks it or mints a gap about it. Retiring an
+  anchor placed as an open gap's answer takes that answer away; with no other standing, the gap is
+  owed again. A finding
+  or gap anchor your quote leaves out stays where it stands, and an edit that would leave it bare
+  there is refused: to take its claim out, carry it in both the quote and the replacement, then
+  retire the claim. One your quote carries goes into the replacement after the sentence that now holds its
   claim — never after the last sentence by default. When you split a sentence, each anchor goes
   with its claim: a run of anchors at a sentence's end does not say which part each one marks, so
   read what each one marks on the record before you place it. The record lists each anchor
@@ -100,16 +106,26 @@ already failed your own standard.
   has read the work it cites, or while a lens's reading finds a citation's source against its
   sentence, no PASS can be recorded, and you are readied for it — no bench ruling clears it. Fix a
   computation with an edit that makes the sentence say what the program shows, which reopens it for a
-  fresh judgement, or a new computation with the old one retired, or retire the claim. Fix a citation
-  no reading could read by citing a source a lens can read and retiring the dead citation, or by
-  retiring the citation and letting the sentence stand on what else backs it, or by editing the
-  sentence. Fix a citation found against by editing its sentence to say what the source says, or by
-  retiring or replacing the citation. The gap that carries the check states the defect and its fix.
+  fresh judgement, or by retiring the old computation as the answer to the gap and computing again on
+  the kept sentence as that gap's answer, or retire the claim. Fix a citation no reading could read by
+  citing a source a lens can read and retiring the dead citation, or by retiring the citation and
+  letting the sentence stand on what else backs it, or by editing the sentence. Fix a citation found
+  against by editing its sentence to say what the source says, or by retiring or replacing the
+  citation. The gap that carries the check states the defect and its fix.
+- **A GAP THAT ASKS FOR A SOURCE OR A PROGRAM CLOSES ONLY ON A LIVE ANSWER OF ITS KIND.** A gap whose
+  check kind is `source` or `computation` is closed by its lens only once a citation or computation of
+  that kind, placed as that gap's answer, is still in the report; or once you retire the anchor the
+  gap is about, or whose reading it carries; or once the lens whose check the gap carries checks that
+  anchor again and the check holds. Prose never meets it, and neither does a check clearing: an edit
+  that fixes the sentence leaves the gap owed until one of those stands.
 - **A GAP A LENS'S OWN SOURCE CARRIES IS ANSWERED WITH A CITATION.** A source a lens found and read
   against a sentence places no citation: where it backs a sentence the report cites nothing for, its
   gap asks you to cite a source for that sentence, and where it refutes the sentence, its gap says the
   source states otherwise. The evidence on the record names the source the lens read for the gap;
-  answer by citing a source on the sentence, or by editing it, and a lens reads your citation.
+  answer by citing a source on the sentence as that gap's answer, and a lens reads your citation.
+  Where the source refutes the sentence, edit the sentence to say what the source says, then cite on
+  the edited sentence as that gap's answer: an edit alone leaves the gap unanswered, and its lens
+  cannot close it until the citation placed as its answer stands.
 - Citing a source whose text the tool holds names the words you rely on, copied from that cached
   text — never your own wording of them — so the tool finds them there and keeps the source's
   text beside the citation, where a lens reads it; for OCR-derived text it records the page too.
@@ -180,7 +196,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
   - A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
   - OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
-  - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report.
+  - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
   - The verdict is the chair's PASS or FAIL on the board.
@@ -189,7 +205,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and one that reads the work and finds the source against the sentence mints the gap that carries it in the same act or names the open gap of that class the sentence already holds, and one of a source the lens found that backs an uncited sentence mints the gap that asks blue to cite it, except an `absent` on a source the lens found, which mints nothing.
-  - To retire a claim is to take it out of the report with the retire verb, on the record; retiring a citation alone takes its anchor out of the report and keeps the sentence it stood on word for word.
+  - To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.
@@ -198,7 +214,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with the fate that says what became of it — judged open while its fate is proposed or underway, which holds the PASS until blue settles it; wanting while an open material gap is about it; unchecked once settled with no check standing, which holds the PASS until the logic lens checks its latest fate; and sound while that check stands, which a new fate or a material gap minted about it unseats.
   - A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
   - A citation or computation is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.
-  - A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, every reading of the citation since its sentence last changed read nothing of the cited work, or a lens's standing reading found the cited source against the sentence and, in the same act, minted the gap that carries it or named the open gap that already does — which holds the PASS and is cleared by no bench ruling; an unread or unsound check obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation or a found-against citation by the checking lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work.
+  - A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, every reading of the citation since its sentence last changed read nothing of the cited work, or a lens's standing reading found the cited source against the sentence and, in the same act, minted the gap that carries it or named the open gap that already does — which holds the PASS and is cleared by no bench ruling; an unread or unsound check obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation or a found-against citation by the checking lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about or whose reading it carries and the later check of that anchor by the seat whose check the gap carries that holds.
 
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
@@ -311,7 +327,7 @@ The tool fetches and caches the source and splices an invisible anchor at the se
 
 (The sentence is found in the rep…) → SHARED §3
 
-A CITATION CAN BE A GAP'S ANSWER. Name the gap it answers, and the citation is placed as that gap's answer; while it stands it answers that gap, and retiring it takes the answer away. Only a live citation answers a gap whose check kind is `source`, and the demand on its close is this: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. A citation may answer a gap of any check kind; only the demanded kind discharges a demand.
+A CITATION CAN BE A GAP'S ANSWER. Name the gap it answers, and the citation is placed as that gap's answer; while it stands it answers that gap, and retiring it takes the answer away. Only a live citation answers a gap whose check kind is `source`, and the demand on its close is this: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. A citation may answer a gap of any check kind; only the demanded kind discharges a demand. A `source` gap whose fix rewords the sentence is not answered by the edit: cite the source on the reworded sentence as that gap's answer, and where that citation replaces an older one, retire the older one naming that gap too. A citation leaves by a `retire` naming it alone, its sentence kept, or with its claim.
 
 To RESOLVE an anchor you meet while reading (not create one), read the `evidence` projection, which lists every source by anchor id.
 
@@ -334,7 +350,7 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 IF WHAT YOU RECORDED WAS WRONG, say so in a new citation.
 
 Flags:
-      --answers gap-id       the gap id this citation answers — the citation is placed as that gap's answer, and a gap whose check kind is source closes only on a live answer of its kind or the demand's other arms; omit only for a citation that answers no gap
+      --answers gap-id       the gap id this citation is placed as the answer to — while it stands it answers that gap; the page says what a gap's close demands. Omit only for a citation that answers no gap
       --key string           your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, --source-span, --answers or --reason is refused: a handle names one citation. → SHARED §5
       --quote string         REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
       --reason string        why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
@@ -373,7 +389,7 @@ The bundle holds at most 1 MiB, and no symlink, no non-regular file, no `out` or
 
 (The sentence is found in the rep…) → SHARED §3
 
-A COMPUTATION CAN BE A GAP'S ANSWER. Name the gap it answers, and the computation is placed as that gap's answer; while it stands it answers that gap, and retiring it takes the answer away. Only a live computation answers a gap whose check kind is `computation`, and the demand on its close is this: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. A computation may answer a gap of any check kind; only the demanded kind discharges a demand. The citation a computation names as its method is one still in the report: a retired one is refused.
+A COMPUTATION CAN BE A GAP'S ANSWER. Name the gap it answers, and the computation is placed as that gap's answer; while it stands it answers that gap, and retiring it takes the answer away. Only a live computation answers a gap whose check kind is `computation`, and the demand on its close is this: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. A computation may answer a gap of any check kind; only the demanded kind discharges a demand. The citation a computation names as its method is one still in the report: a retired one is refused. A computation leaves by a `retire` naming it alone, its sentence kept, or with its claim.
 
 Identical output, exit and out/ twice is recorded as `reproducible`. A difference in any of them is REFUSED until you state what holds across the runs: make the output deterministic (seed it, sort it, drop the timestamp), or state the invariant the result is evidence of, and it is recorded as `variant` with that invariant beside what moved — still evidence, of a system in motion, but a MEASUREMENT, not a proof, and the report does not read it as a reproducible one. An invariant over two runs that agreed is refused. The tool says which you produced, and what moved.
 
@@ -395,7 +411,7 @@ Usage:
   feov-record compute [flags] -- <command> [args...]
 
 Flags:
-      --answers gap-id          the gap id this computation answers — the computation is placed as that gap's answer, and a gap whose check kind is computation closes only on a live answer of its kind or the demand's other arms, which prose cannot meet; omit only for a computation that answers no gap
+      --answers gap-id          the gap id this computation is placed as the answer to — while it stands it answers that gap; the page says what a gap's close demands. Omit only for a computation that answers no gap
       --cites citation-anchor   the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed. A retired citation is in no document, and naming one is refused
       --dir string              REQUIRED — the directory holding the program and every file it reads — its bundle, copied whole (at most 1 MiB, no symlinks) into a fresh directory for each run. A relative path is read from the run directory, so a bundle drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the computation, so the computation does not depend on the draft
       --expect-error            this computation's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
@@ -710,7 +726,7 @@ A claim leaves the report only through this verb — never by quietly not being 
 
 An anchored claim leaves in two steps, once you have retired each citation and computation on it by its own retire (below) — an edit may not leave an evidence anchor bare: `edit` the claim out, with its anchors in both the quote and the replacement — an edit may carry an anchor but never drop one, and one the quote left out is refused where the cut would leave it bare — then retire it here, quoting the WHOLE of what the edit cut, or whole sentences of it. The anchors that stood on those sentences in that edit are the claim's. Each that stands bare now — no prose before it in its sentence — leaves with it, whatever its kind: no orphan footnote, no empty bullet, and an edit that cut several claims lets each leave with its own reason. One the edit left on prose that still stands — the rest of its sentence, or text the edit wrote — stays unless you name it: name it when it backed only this claim, and the tool checks it against the edit that took the claim out. A fragment of a sentence takes nothing out, and while that sentence's anchors stand bare it is refused, naming them and the sentence to quote. The result says which anchors left and which stayed.
 
-EVIDENCE LEAVES ON ITS OWN, ITS SENTENCE KEPT. A retire naming one citation or computation and no claim takes that anchor out of the report and keeps the sentence it stood on word for word: the tool reads the sentence off the report and records it. The sentence then stands on whatever else backs it — another citation or computation, or nothing, as prose a lens audits like any other. A retired anchor is in no document, and no lens can check it or mint a gap about it. This is how a citation whose source no lens could read leaves, and how a computation judged unsound leaves a sentence that is right; it is how either is replaced: cite or compute the new evidence on the sentence, then retire the old anchor. It is also how an evidenced sentence leaves: retire its citations and computations, then edit the sentence out as you would any prose. An anchor retired because a gap asked for it names that gap, as an edit names the gap it answers: the gap's change log then lists the retire beside the fix red asked for, and the gap's lens reads it as blue's answer. A claim retire names no gap — the edit that cut the claim names the one it answers.
+EVIDENCE LEAVES ON ITS OWN, ITS SENTENCE KEPT. A retire naming one citation or computation and no claim takes that anchor out of the report and keeps the sentence it stood on word for word: the tool reads the sentence off the report and records it. The sentence then stands on whatever else backs it — another citation or computation, or nothing, as prose a lens audits like any other. A retired anchor is in no document, and no lens can check it or mint a gap about it. This is how a citation whose source no lens could read leaves, and how a computation judged unsound leaves a sentence that is right; it is how either is replaced: cite or compute the new evidence on the sentence, then retire the old anchor. It is also how an evidenced sentence leaves: retire its citations and computations, then edit the sentence out as you would any prose. An anchor retired because a gap asked for it names that gap, as an edit names the gap it answers: the gap's change log then lists the retire beside the fix red asked for, and the gap's lens reads it as blue's answer. A claim retire names no gap — the edit that cut the claim names the one it answers. Retiring an anchor placed as an open gap's answer takes that answer away; with no other answer standing, the gap is owed again. Retiring the answers of a gap already closed leaves its closure standing, and the gap's lens is told.
 
 A CITATION A COMPUTATION APPLIES STAYS WHILE THE COMPUTATION DOES. A retire taking a citation that a computation still in the report names as its method is refused, naming each such computation — whether the retire names the citation alone or takes it with a claim: retired, the citation would be in no document while the computation points at it. Retire or recompute each computation first, or take it with the citation in the same claim retire.
 

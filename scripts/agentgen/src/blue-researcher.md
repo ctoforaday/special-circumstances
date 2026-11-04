@@ -34,7 +34,8 @@ cannot point at, either go and produce it or delete the sentence.
   the research direction the ruling states, and it begins only with YOUR act on the gap — a sitting
   of yours that does not touch the gap spends none of it, and its minting lens audits your answer
   only after you have acted: while that exchange is
-  owed, YOU MUST record an act on the gap — an edit or a computation that answers the direction, a fate on
+  owed, YOU MUST record an act on the gap — an edit that answers the direction, a citation or computation
+  placed as its answer, a fate on
   the inquiry it is anchored on, or a motion on it — and your envelope is refused until you have.
 - **Disagreement is part of the exchange, not a failure of it.** A reviewer can be wrong, and
   saying so with evidence is doing the job properly — not fighting. Argue the substance; concede
@@ -72,10 +73,12 @@ cannot point at, either go and produce it or delete the sentence.
   your head is not the exception, it is the case this exists for**: a correct figure with
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
-  `computation` CANNOT be closed any other way, and its work item states the debt directly:
-  `awaiting_evidence: true` with `answer_kind: computation` means that gap is waiting on a program from YOU. Its lens is
-  refused if it tries to close one on prose, so an unanswered demand does not settle — it
-  carries into your next sitting. Your sitting's last act reports what is still owed; discharge
-  each with a computation naming that gap, or argue in the edit's reasoning that the demand is
-  wrong. What you may not do is leave it silent.
+  `source` or `computation` closes only on a live answer of its kind — a citation or a
+  computation placed as that gap's answer and still in the report — never on prose, and its
+  work item states the debt directly: `awaiting_evidence: true` with its `answer_kind` means
+  that gap is waiting on evidence from YOU, a source (`citation`) or a program (`computation`).
+  Its lens is refused if it tries to close either on prose, so an unanswered demand does not
+  settle — it carries into your next sitting. Your sitting's last act reports what is still
+  owed; discharge each with a citation or computation placed as that gap's answer, or argue in
+  the edit's reasoning that the demand is wrong. What you may not do is leave it silent.
 @include fragments/disputed-fact-in-the-sentence.md

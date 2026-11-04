@@ -74,7 +74,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 			out = append(out, fmt.Sprintf("gap %s: blue retired %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
 				g, a.met.anchor, a.met.how(g), a.metAt, a.met.result(demand[g])))
 		case a.editedAt > read[g]:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or a citation retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
+			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or an evidence-anchor retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
 		case a.placedAt > read[g]:
 			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a %s — blue placed %s as its answer; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.placedNoun(), a.placed))
 		case a.fateAt > read[g]:
@@ -101,7 +101,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 // blueAnswer is what the record says of blue's answer to one gap: what blueAnswers words for the
 // gap's lens, and when it last arrived, which its debt reads (lensOwesOf).
 type blueAnswer struct {
-	editedAt int64  // the latest change to the report answering it: an edit, old != new, or a citation retire
+	editedAt int64  // the latest change to the report answering it: an edit, old != new, or an evidence-anchor retire
 	placedAt int64  // the latest evidence anchor — a citation or a computation — placed as its answer
 	placed   string // that anchor's id
 	// metAt is the latest reaching retire of it (WindowIndex.Reaches): a retire that took out the anchor
@@ -254,7 +254,7 @@ func placedAnswer(e *Event) (id, gap string, ok bool) {
 	return "", "", false
 }
 
-// retireAnswers is the gap a citation retire answers — the key BlueEdit.answers is on the other act
+// retireAnswers is the gap an evidence-anchor retire answers — the key BlueEdit.answers is on the other act
 // that changes the report's text, and every reader of blue's answers reads both. "" for any other
 // event, and for a retire answering no gap; a claim retire carries none (validate refuses one).
 func retireAnswers(e *Event) string {
