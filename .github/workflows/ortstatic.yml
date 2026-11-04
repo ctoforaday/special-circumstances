@@ -3,7 +3,7 @@ name: ortstatic
 # Static ONNX Runtime in a Go cgo binary, for FEOV's six release targets. Runs only on the bench branch or by hand.
 # models: export gte-small, convert to ORT format.  zig: cross-build reduced static ORT + probe for each target on
 # linux with zig cc/c++ (the build-cstack.sh way).  native: the same with each runner's own compiler.
-# run-zig: run each zig-built probe on its native runner.  Third-party code is fetched under $RUNNER_TEMP, never the checkout.
+# run: on each target's native runner, the zig-built and runner-built probes, interleaved.  Third-party code is fetched under $RUNNER_TEMP, never the checkout.
 on:
   push:
     branches: [bench/embed-engines]
@@ -92,9 +92,9 @@ jobs:
           path: ${{ runner.temp }}/out
           if-no-files-found: warn
 
-  run-zig:
-    name: run zig ${{ matrix.target }}
-    needs: [models, zig]
+  run:
+    name: run ${{ matrix.target }}
+    needs: [models, zig, native]
     if: always() && needs.models.result == 'success'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -124,26 +124,40 @@ jobs:
           name: models
           path: ${{ runner.temp }}/models
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
         with:
           name: zig-${{ matrix.target }}
           path: ${{ runner.temp }}/zig
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          name: native-${{ matrix.target }}-min
+          path: ${{ runner.temp }}/native
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: matrix.target == 'linux-amd64'
+        continue-on-error: true
+        with:
+          name: native-${{ matrix.target }}-full
+          path: ${{ runner.temp }}/full
       - name: run
         run: |
-          B=$RUNNER_TEMP/zig/bin/ortprobe.s; [ -f "$B" ] || B=$B.exe
-          chmod +x "$B"
-          if [ "$(uname -s)" = Darwin ]; then codesign -dv "$B" 2>&1 | head -5 || true; fi
+          # The zig-built probe (the FEOV way), the runner-compiler build, and on linux-amd64 the unreduced build,
+          # interleaved on this one host. Stripped binaries; a missing arm is recorded, not fatal.
+          pick() { for f in "$1/bin/ortprobe.s" "$1/bin/ortprobe.s.exe" "$1/bin/ortprobe.exe" "$1/bin/ortprobe"; do [ -f "$f" ] && { echo "$f"; return; }; done; echo "$1/bin/MISSING"; }
+          A="zig=$(pick "$RUNNER_TEMP/zig"),native=$(pick "$RUNNER_TEMP/native")"
+          [ -d "$RUNNER_TEMP/full" ] && A="$A,full=$(pick "$RUNNER_TEMP/full")"
+          echo "$A"
           cp "$RUNNER_TEMP/models/vocab.txt" "$RUNNER_TEMP/models/${{ matrix.plat }}/vocab.txt"
-          bash bench/ortstatic/run.sh "$B" "$RUNNER_TEMP/models/${{ matrix.plat }}" bench/embed/data "$RUNNER_TEMP/res" "$PWD"
+          bash bench/ortstatic/run.sh "$A" "$RUNNER_TEMP/models/${{ matrix.plat }}" bench/embed/data "$RUNNER_TEMP/res" "$PWD"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: run-zig-${{ matrix.target }}
+          name: run-${{ matrix.target }}
           path: ${{ runner.temp }}/res
           if-no-files-found: warn
 
   native:
-    name: native ${{ matrix.target }}
-    needs: [models]
+    name: native ${{ matrix.target }} ${{ matrix.variant }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 150
     strategy:
@@ -192,18 +206,6 @@ jobs:
           else
             bash bench/ortstatic/probe.sh ${{ matrix.target }} native "$O" bench/ortstatic/probe "$RUNNER_TEMP/out/bin"
           fi
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: always()
-        with:
-          name: models
-          path: ${{ runner.temp }}/models
-      - name: run
-        if: always()
-        run: |
-          B=$RUNNER_TEMP/out/bin/ortprobe.s; [ -f "$B" ] || B=$RUNNER_TEMP/out/bin/ortprobe.exe
-          [ -f "$B" ] || { echo "no probe binary"; exit 1; }
-          cp "$RUNNER_TEMP/models/vocab.txt" "$RUNNER_TEMP/models/${{ matrix.plat }}/vocab.txt"
-          bash bench/ortstatic/run.sh "$B" "$RUNNER_TEMP/models/${{ matrix.plat }}" bench/embed/data "$RUNNER_TEMP/out/res" "$PWD"
       - name: collect
         if: always()
         run: |
