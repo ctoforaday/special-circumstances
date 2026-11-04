@@ -22,7 +22,7 @@ func storedOf(p record.Plan) *recordpb.Plan {
 
 // A STORED PLAN NAMING MOVED EVENTS IS TRANSLATED, AND ITS SEAT WORDS ARE NOT (F8, F12). newID moves
 // 412 to 411, as a source event before it that writes none would, and 637 to 636. The head, a stale
-// area's pin, a contradiction blocker and every id phrase of a line follow it; a quoted claim, the
+// area's pin and every id phrase of a line follow it — the archived `contradiction` phrase included; a quoted claim, the
 // remand line's tail after its prefix (an unclosed quote and an id phrase in it) and the remand's
 // direction are carried as written; a content id's hex is not a numeral. A phrase that is not
 // whole tokens (`spin`, `reopened at`), a moved id outside every phrase, a quote that does not close
@@ -44,7 +44,6 @@ func TestAStoredPlanNamingMovedEventsIsTranslated(t *testing.T) {
 		"red-lens-logic: retires once it owes nothing; it owes contradiction 412",
 		claim, prefixed, remand, content)
 	in.StaleAreas = []record.StaleArea{{SeatID: "red-lens-voice", Pin: 412}}
-	in.Blockers = []record.PlanBlocker{{Kind: record.BlockerContradiction, Subject: "412", Owner: "red-lens-evidence"}}
 	in.RemandOwed = []record.RemandOwed{{GapID: "G-1", Direction: direction}}
 	pl := storedOf(in)
 	before := pl.GetPrinted()
@@ -58,8 +57,8 @@ func TestAStoredPlanNamingMovedEventsIsTranslated(t *testing.T) {
 	if pl.GetPrinted() == before || got.Key != got.WithKey().Key {
 		t.Errorf("the translated plan is not re-keyed: key %s, its own %s", got.Key, got.WithKey().Key)
 	}
-	if got.Head != 411 || got.StaleAreas[0].Pin != 411 || got.Blockers[0].Subject != "411" {
-		t.Errorf("head %d, pin %d, contradiction blocker %q; want each 411", got.Head, got.StaleAreas[0].Pin, got.Blockers[0].Subject)
+	if got.Head != 411 || got.StaleAreas[0].Pin != 411 {
+		t.Errorf("head %d, pin %d; want each 411", got.Head, got.StaleAreas[0].Pin)
 	}
 	want := []string{
 		"red-lens-logic: never sat — audits the report at head 411",

@@ -7,8 +7,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// ONE FOOTNOTE PER SOURCE. B9's report carried red's corroboration (C-d49a32c4) and blue's later
-// cite (C-4aa1edf3) of the same Wikipedia page on one clause, woven as "[^1][^2]" with two
+// ONE FOOTNOTE PER SOURCE. B9's report carried two citations (C-d49a32c4, C-4aa1edf3) of the same
+// Wikipedia page on one clause, woven as "[^1][^2]" with two
 // bibliography lines naming one URL. Labels resolving to one URL share one number, and a
 // reference repeated beside itself reads once.
 func TestWeaveCitationsGivesOneFootnotePerSource(t *testing.T) {

@@ -433,12 +433,12 @@ type Result interface {
 }
 
 // Repeated is the human line of a call that wrote NOTHING because it repeats an act already on the
-// record — a keyed retry, or a corroboration or proposal stated again — told apart from a write in
+// record — a keyed retry, or a proposal stated again — told apart from a write in
 // the words the seat reads. act names what the call repeats, by the id the record holds it under.
 //
 // ONE PHRASE FOR EVERY SUCH VERB. Each verb worded its own ("existing id returned", "no second
-// one"), and the corroboration retry worded none: it printed its verdict as a fresh reading,
-// "recorded" included, while the record took nothing. The --json form carries the same fact as
+// one"), and one retry worded none: it printed its verdict as a fresh reading, "recorded"
+// included, while the record took nothing. The --json form carries the same fact as
 // `idempotent`.
 func Repeated(act string) string {
 	return act + " — this call repeats an act already on the record, so nothing was written"
@@ -532,8 +532,8 @@ type Handler func(Context, *cobra.Command) (Result, error)
 // Records declares the event type a verb writes, when that is not the verb's own name.
 //
 // A verb and an event type stopped being 1:1 the moment the verbs that carried TWO CONTRACTS
-// were split into the two verbs they already were — `lens verify` and `lens corroborate` both
-// write a `verify`, `lens close` and `chair carry` both write a `close`. The record's
+// were split into the verbs they already were — `lens close` and `chair carry` both write a
+// `close`. The record's
 // required-field table is keyed by event type, so the lookup needs the event, not the word.
 func Records(c *cobra.Command, eventType string) *cobra.Command {
 	annotate(c, recordsKey, eventType)
@@ -1082,6 +1082,7 @@ var ReasonIs = map[string]string{
 	"manifest-row": "the receipt: what you checked, and what checking it showed",
 	"log":          "the entry: what you concluded about the tooling",
 	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"verify":       "what the source says, in your words, or, where it could not be read, what you tried. Where this reading mints a gap, the same text is that gap's argument, the case blue answers and a bench weighs; where an open gap of its class already carries the sentence, it stays on your reading alone and that gap keeps its own. " + flags.ReasonNotProcess,
 	"mint":         "your argument for the gap — why it is worth one, the case blue answers and a bench weighs; the report never prints it. Under unclassified it is REQUIRED: name the nearest class and what it does not cover. " + flags.ReasonNotProcess,
 	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"spot-check":   "what reading the stale areas and sampling the closure archive found, a defect included — printed with the spot-check in the report's board and in the debate transcript. " + flags.ReasonNotProcess,

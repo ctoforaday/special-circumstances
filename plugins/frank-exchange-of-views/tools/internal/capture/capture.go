@@ -480,7 +480,7 @@ func AssemblyScreen(run record.Run) Audit {
 	// is the standing set, which a PASS here has just shown empty.
 	ever := 0
 	for _, s := range ev.Sources {
-		if slices.ContainsFunc(s.Verified, record.EvidenceVerificationJSON.Refuted) {
+		if slices.ContainsFunc(s.Verified, record.EvidenceVerificationJSON.FindsAgainst) {
 			ever++
 		}
 	}

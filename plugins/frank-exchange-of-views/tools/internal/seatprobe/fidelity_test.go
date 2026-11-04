@@ -19,7 +19,7 @@ import (
 //	SKILLS  the constitution declares `skills: [...]` and a raw system-prompt file loads NONE of
 //	        them. Every probed seat was missing research-protocol — the protocol it operates under.
 //	TOOLS   the constitution declares WebSearch and ToolSearch. The hand-written list had neither,
-//	        so `corroborate` — the verb for a source the seat goes and FINDS — could not be
+//	        so reading a source the seat goes and FINDS (`verify --url`) could not be
 //	        performed, and the board scored the seat UNMET on it in every run. The interview then
 //	        recorded the seat "judging against" a verb it had no means to use.
 //
@@ -53,7 +53,7 @@ func TestTheProbeDispatchesTheProductionAgent(t *testing.T) {
 }
 
 // THE CONSTITUTIONS' DECLARED TOOLS ARE THE CONTRACT, and this is what makes the tools gate mean
-// something: if a constitution stops declaring WebSearch, `corroborate` becomes unperformable again
+// something: if a constitution stops declaring WebSearch, `verify --url` becomes unperformable again
 // and no run would say so.
 func TestTheAuditingConstitutionsDeclareTheToolsTheirVerbsNeed(t *testing.T) {
 	for _, agent := range []string{"red-lens-evidence", "red-chair", "blue-researcher"} {
@@ -71,7 +71,7 @@ func TestTheAuditingConstitutionsDeclareTheToolsTheirVerbsNeed(t *testing.T) {
 		}
 		for _, tool := range []string{"WebSearch", "Bash", "Read"} {
 			if !strings.Contains(head, tool) {
-				t.Errorf("%s does not declare %s — a seat that must fetch a source it FINDS cannot, and `corroborate` is unperformable", agent, tool)
+				t.Errorf("%s does not declare %s — a seat that must fetch a source it FINDS cannot, and `verify --url` is unperformable", agent, tool)
 			}
 		}
 	}

@@ -9,7 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// seededCopies are the copies the drive puts in the cache for a corroboration's url before red reads
+// seededCopies are the copies the drive puts in the cache for a found source's url before red reads
 // it: the url's own bytes, each route by which another copy stands in for it, a recovery whose body
 // is the tool's own statement, and — the last — no copy at all. Turned by a counter, never by the
 // run's rng, so every later draw of the run is the one it was.
@@ -54,8 +54,8 @@ func copyOf(out string) (word, copyURL string) {
 	return env.Result.CopySubstitution, env.Result.CopyURL
 }
 
-// citationCopy is the copy the record holds for citation anchor's source — blue's cite or a labelled
-// corroboration — as `show evidence` renders its source row; ok is false where no row names it.
+// citationCopy is the copy the record holds for citation anchor's source — blue's cite, the only act
+// that places one — as `show evidence` renders its source row; ok is false where no row names it.
 func (r *runner) citationCopy(anchor string) (word, copyURL string, ok bool) {
 	b, bok := r.board()
 	if !bok {

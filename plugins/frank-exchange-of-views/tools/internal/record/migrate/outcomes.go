@@ -16,7 +16,7 @@ import (
 //
 // What the dropped outcome's place held stays as written: the bench's declare and certify after it
 // land under the live rule either way, and a log is no seat act. An act that names the dropped
-// outcome by events.id — a pin, a stale read point, a stored plan, a contradiction — finds no
+// outcome by events.id — a pin, a stale read point, a stored plan — finds no
 // event written from it and is refused by name, as every such reference to an unwritten act is.
 
 // supersededOutcomes is every source event that translates to an outcome and is followed in the

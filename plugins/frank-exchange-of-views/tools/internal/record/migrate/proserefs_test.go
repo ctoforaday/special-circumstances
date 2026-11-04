@@ -109,9 +109,6 @@ func bodyID(e *recordpb.Event) string {
 	if b, ok := recordpb.BodyAs[*recordpb.Computation](e); ok {
 		return b.GetComputationId()
 	}
-	if b, ok := recordpb.BodyAs[*recordpb.Verify](e); ok {
-		return b.GetLabel()
-	}
 	return ""
 }
 
