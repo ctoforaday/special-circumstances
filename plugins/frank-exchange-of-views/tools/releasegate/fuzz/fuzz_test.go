@@ -302,6 +302,12 @@ func (g *gapSet) add(ids ...string) {
 	}
 }
 
+func (g *gapSet) remove(id string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	delete(g.m, id)
+}
+
 func (g *gapSet) has(id string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -451,8 +457,8 @@ type runner struct {
 	// the run.
 	sourceSearches  int
 	sourceSearchErr string
-	// copiesRead counts, per reading verb, the copy words its results named (noteCopy). The sweep
-	// gates that corroborate named every seeded copy and verify a substituted one.
+	// copiesRead counts, per reading form, the copy words its results named (noteCopy). The sweep
+	// gates that `verify --url` named every seeded copy.
 	copiesRead map[string]map[string]int
 	// fragmentsDriven counts the cites driven to be refused for a span that starts mid-clause
 	// (sourceFragment), and truncationsDriven for one that ends mid-clause (sourceTruncation);
@@ -487,12 +493,43 @@ type runner struct {
 	unreadAnswers, unreadRepeats, unreadRetires int
 	unreadRetiresJoined                         int
 	unreadClosesRefused, unsoundClosesRefused   int
-	computationReopenedReadied                  map[string]int
-	owedKept, computationOwedKept               int
-	owedKeptBy                                  map[string]int
-	reopenedOwnerErr                            string
-	// quotesRefused counts the corroborations the tool REFUSED for a quote the report does not
-	// hold (sourceQuoteRefused). The sweep gates it at zero. quoteAdmittedErr is
+	// THE READING THAT MINTS ITS GAP (plans/contradiction-is-a-gap.md §III.11), each count taken after
+	// the record's answer was read: foundAgainstClosesRefused, the closes refused of a gap carrying a
+	// found-against check still standing; foundAgainstRepeats, a lens's repeat reading over its own
+	// standing found-against check refused naming it; foundAgainstEdits and foundAgainstRetires, blue's
+	// remedies of such a check; foundAgainstClearedByOwnReading, the closes admitted after the reader's
+	// own backing re-read cleared it; notTheWorkFlagsRefused, the gap flags refused on a reading of a
+	// copy that is not the work, and notTheWorkReadingsUnread, the readings of such a copy that left the
+	// citation unread; markedSentenceRefused, a backing found-source reading of a marked sentence
+	// refused; foundSourceBudgetRefused, a minting found-source reading refused at the cap;
+	// foundSourceRetriesRefused, the identical found-source reading in one sitting refused;
+	// repeatedSentenceGaps and repeatedSentenceAccepts, a reading's gap placed at the occurrence of a
+	// twice-held sentence its citation marks and blue's accept of its fix there; and
+	// readingsOverPrescriptions, a reading's gap opened over text blue applied from a red --new with no
+	// estoppel. The sweep gates each at zero.
+	foundAgainstClosesRefused, foundAgainstRepeats   int
+	foundAgainstEdits, foundAgainstRetires           int
+	foundAgainstClearedByOwnReading                  int
+	notTheWorkFlagsRefused, notTheWorkReadingsUnread int
+	markedSentenceRefused, foundSourceBudgetRefused  int
+	foundSourceRetriesRefused                        int
+	repeatedSentenceGaps, repeatedSentenceAccepts    int
+	readingsOverPrescriptions                        int
+	// notTheWorkCite is blue's cite of the copy that is not the work, and notTheWorkTried whether the
+	// run's one try at it ran (citeNotTheWork); repeatedCites are the citations of each copy of the
+	// twice-held sentence, and repeatedTried whether blue's one try at making it ran
+	// (stockRepeatedSentence); pendingAccepts are the fixes a reading of one copy prescribed, for blue's
+	// next sitting (acceptRepeated).
+	notTheWorkCite                 string
+	notTheWorkTried, repeatedTried bool
+	repeatedCites                  [2]string
+	pendingAccepts                 []pendingAccept
+	computationReopenedReadied     map[string]int
+	owedKept, computationOwedKept  int
+	owedKeptBy                     map[string]int
+	reopenedOwnerErr               string
+	// quotesRefused counts the found-source readings the tool REFUSED for a quote the report does
+	// not hold (sourceQuoteRefused). The sweep gates it at zero. quoteAdmittedErr is
 	// the first such act the tool recorded, or refused without saying whose sentence the quote
 	// is; it fails the run.
 	quotesRefused    int
@@ -515,12 +552,6 @@ type runner struct {
 	// their sentence or inquiry, and oneGapFindings the findings the refused lens then filed about
 	// that gap. The sweep gates both at zero.
 	oneGapRefused, oneGapFindings int
-	// ownAnswers counts the mints that landed answering a contradiction the minting lens's own
-	// finding raised — the gaps outside its budget; the sweep gates it at zero. answerBudgetErr is
-	// the first such mint the budget refused, which fails the run: a lens can always answer what it
-	// raised.
-	ownAnswers      int
-	answerBudgetErr string
 	// unclassifiedMinted counts the mints under the catch-all `unclassified` that landed, and
 	// unclassifiedRefused the ones the record refused for carrying no --reason. The sweep gates
 	// both at zero.
@@ -580,6 +611,10 @@ type runner struct {
 	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
 	// concurrent seats land at will. nil in the sweep.
 	betweenStaleRetries func(seatID, gapID string)
+	// betweenCloseReadAndAct is called after closeGap read that gapID carries no standing failed check
+	// and before its close is issued: a deterministic test lands there the sibling's reading that a
+	// sweep's concurrent lenses land at will. nil in the sweep.
+	betweenCloseReadAndAct func(gapID string)
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -620,6 +655,10 @@ type runner struct {
 	// whose terminal fate red is answerable for. Blue repairing in the final round leaves a
 	// satisfied gap legitimately open, because red never sits again.
 	evaluated gapSet
+	// heldByCheck records the gaps whose latest close the record refused over a failed check standing
+	// on them (standingCloseRefused): red sat and the record held the gap open, so its open fate is
+	// the record's, not work left unfinished. closeGap clears it before each attempt.
+	heldByCheck gapSet
 	// reproduced records the COMPUTE gaps whose computation a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
 	reproduced gapSet
@@ -727,6 +766,19 @@ type runner struct {
 	// forceAbsentSpan drives one cite of a span its source does not hold on absentSpanSeed's run,
 	// and absentSpanDriven is whether it has fired.
 	forceAbsentSpan, absentSpanDriven bool
+	// forceFoundAgainst drives foundAgainstSeed's run through a found-against check's whole life
+	// (foundagainstseed_test.go): foundAgainstChained is whether the citation owner's chain over one
+	// citation completed, foundAgainstRepeatedRead whether its reading of one copy of the twice-held
+	// sentence minted with a --new, and foundAgainstStage the last step either reached, which the
+	// run's error names when the chain did not complete.
+	// foundAgainstCite is blue's citation the chain prefers to read (citeForFoundAgainst), foundAgainstCiteTried
+	// whether blue's one try at it ran, and foundAgainstAnchor the citation the owner's reading has found
+	// against, awaiting its re-read.
+	forceFoundAgainst                             bool
+	foundAgainstChained, foundAgainstRepeatedRead bool
+	foundAgainstStage                             string
+	foundAgainstCite, foundAgainstAnchor          string
+	foundAgainstCiteTried                         bool
 	// forceLeftOut drives cutLeavingAnchorOut on leftOutSeed's run, once.
 	forceLeftOut, leftOutDriven bool
 	// forceMintBare drives citeForBareMint and then mintBaringCitation on mintBareSeed's run;
@@ -1037,11 +1089,13 @@ func (r *runner) noteSourceSearch(msg string) {
 	}
 }
 
-// sourceQuoteRefused drives a lens corroborating with the SOURCE's sentence as the claim, under any
-// outcome, and holds the tool to refusing it: the quote is the report's sentence whatever the source
-// did for it. Under `refutes` or `absent` a quote the report does not hold is the subject of a PASS
-// blocker no finding can quote, so an admitted one ends the run UNVERIFIED with nobody to ask. A
-// verification takes no quote — its claim is the sentence its anchor marks — so it has no such case.
+// sourceQuoteRefused drives a lens reading a source it found with the SOURCE's sentence as the
+// claim, under any outcome, and holds the tool to refusing it: the quote is the report's sentence
+// whatever the source did for it, and the gap a reading mints stands at it, so a quote the report
+// does not hold places nothing. A reading of a citation takes no quote — its claim is the sentence
+// its anchor marks — so it has no such case. A reading that would mint carries the gap flags, so the
+// refusal it meets is the quote's: the act's placement guard refuses the quote before validation
+// reaches the budget, at the lens's cap as below it.
 //
 // IT DRAWS NOTHING FROM THE RUN'S RNG. Every seventh lens drive fires, and the outcome turns with
 // that count: a draw here would move every later draw of the run, and the forced
@@ -1056,19 +1110,28 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 	}
 	n /= 7
 	outcome := verifyOutcomes[n%len(verifyOutcomes)]
-	out, err := r.exec(append([]string{"corroborate", "--seat-id", seatID, "--url", "https://fuzz.invalid/quoted/" + seatID, "--title", "fuzz source quoted for " + seatID,
-		"--quote", "The fuzz source states this in its own words, and the report does not."},
-		append([]string{"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim"}, bridgeFor(outcome, n)...)...)...)
+	args := []string{"verify", "--seat-id", seatID, "--url", "https://fuzz.invalid/quoted/" + seatID, "--title", "fuzz source quoted for " + seatID,
+		"--quote", "The fuzz source states this in its own words, and the report does not.",
+		"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim"}
+	args = append(args, bridgeFor(outcome, n)...)
+	if o, ok := record.SourceOutcomeOf(outcome); ok {
+		if classes := recordpb.FoundSourceGapClassesOf(o); len(classes) > 0 {
+			args = append(args, "--class", recordpb.Word(classes[0]), "--problem", "fuzz: the sentence and the source disagree",
+				"--check-kind", "document", "--check", "the sentence states what the source says",
+				"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
+		}
+	}
+	out, err := r.exec(args...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
 	case err == nil:
 		if r.quoteAdmittedErr == "" {
-			r.quoteAdmittedErr = seatID + " quoted the source's sentence under --as " + outcome + " and `corroborate` recorded it: " + firstLine(out)
+			r.quoteAdmittedErr = seatID + " quoted the source's sentence under --as " + outcome + " and `verify --url` recorded it: " + firstLine(out)
 		}
 	case !strings.Contains(out, "REPORT's sentence"):
 		if r.quoteAdmittedErr == "" {
-			r.quoteAdmittedErr = seatID + "'s `corroborate --as " + outcome + "` was refused without saying the quote is the report's sentence: " + firstLine(out)
+			r.quoteAdmittedErr = seatID + "'s `verify --url --as " + outcome + "` was refused without saying the quote is the report's sentence: " + firstLine(out)
 		}
 	default:
 		r.quotesRefused++
@@ -1160,8 +1223,8 @@ func (r *runner) closedThisSitting(seatID, gapID string) bool {
 // clear each (record.EnvelopeRefusal refuses an envelope while one stands): its closing on each
 // docketed gap, and for blue-respond a computation for each computation gap its sitting is engaged on and
 // nothing answers, and the remedy of each failed check (fixFailed); for the anchor's owner each
-// citation or computation the record holds unchecked; and each contradiction the lens read, and the gap
-// about each check of its that failed (answerContradictions and answerFailed, in the lens branch).
+// citation or computation the record holds unchecked; and the gap about each check of its that failed
+// (answerFailed, in the lens branch).
 func (r *runner) dischargeOwed(seatID string) {
 	if bs, err := record.PassBlockers(r.runHandle); err == nil {
 		for _, b := range bs {
@@ -1240,11 +1303,14 @@ func (r *runner) noteOwedRecheck(seatID, why string) {
 	r.owedRecheck[seatID] = why
 }
 
-// fixFailed is blue's half of a failed check (record.BlockerFailedCheck): for every computation a lens's
-// standing judgement calls unsound, it rewrites the sentence the computation backs, prefacing its words and
-// keeping the anchor — the fix the work list names, which leaves the computation unchecked for a fresh
-// judgement; for every citation whose source no check could read, it retires the citation and keeps
-// its sentence (`retire --anchor`), the remedy the ruling names.
+// fixFailed is blue's half of a failed check (record.BlockerFailedCheck), chosen by the check's state
+// (record.CheckState), never by what the blocker's other fields happen to hold: for every computation a
+// lens's standing judgement calls unsound, it rewrites the sentence the computation backs, prefacing its
+// words and keeping the anchor — the fix the work list names, which leaves the computation unchecked for
+// a fresh judgement; for every citation whose source no check could read, it retires the citation and
+// keeps its sentence (`retire --anchor`), the remedy the ruling names; for every citation a lens's
+// reading finds against, by coin it rewrites the sentence (the edit reopens the citation) or retires
+// the citation answering the gap that carries the check. A state it does not know fails the run.
 func (r *runner) fixFailed(seatID string) {
 	// ONE COMPUTATION AT A TIME, FROM THE BLOCKERS AS THEY STAND AFTER THE LAST FIX: an edit of a sentence
 	// reopens every computation on it, so a computation read before it may stand no longer.
@@ -1266,7 +1332,17 @@ func (r *runner) fixFailed(seatID string) {
 			return
 		}
 		fixed[b.Subject] = true
-		if b.Detail == "" {
+		switch b.CheckState() {
+		case record.CheckUnread:
+		case record.CheckFoundAgainst:
+			r.fixFoundAgainst(seatID, b)
+			continue
+		case record.CheckUnsound:
+		default:
+			r.noteActErr(fmt.Sprintf("failed check of %s stands in state %q, which blue's remedy drive does not know", b.Subject, b.CheckState()))
+			continue
+		}
+		if b.CheckState() == record.CheckUnread {
 			// ONE TIME IN TEN, BLUE TRIES TO END WITH THE CITATION STANDING, and the record refuses its
 			// envelope naming it.
 			if r.coin(10) {
@@ -1306,19 +1382,28 @@ func (r *runner) fixFailed(seatID string) {
 			continue
 		}
 		// PREPENDED, so every span the drive quotes from this prose still stands in it: the seeded
-		// anchor sentence carries the drive's corroborations and findings.
+		// anchor sentence carries the drive's readings and findings.
 		r.do("edit", seatID).set("--quote", words).set("--new", "Recomputed, "+words).
 			set("--reason", "fuzz: the sentence now says what the script behind "+b.Subject+" shows").admit()
 	}
 }
 
 // wordsBefore is the run of prose standing right before the anchor run that holds id's token in cur
-// — back to the previous anchor token or line break — when it is non-blank and occurs once in cur;
-// "" otherwise.
+// — back to the previous anchor token, line break or the start of the token's sentence — when it is
+// non-blank and occurs once in cur; "" otherwise. An edit of it rewrites the sentence id backs and no
+// other: a line holds more than one sentence (lanePartText), and words reaching into the one before
+// would leave id's own sentence as it stood, which the record rightly does not list reopened.
 func wordsBefore(cur, id string) string {
 	at := strings.Index(cur, anchor.Token(id))
 	if at < 0 {
 		return ""
+	}
+	sentenceStart := 0
+	for _, sp := range anchor.Sentences(cur) {
+		if sp[0] <= at && at < sp[1] {
+			sentenceStart = sp[0]
+			break
+		}
 	}
 	// THE RUN THE TOKEN STANDS IN: anchors abut (anchor.SkipRun), so the prose ends where the first
 	// token of the run begins.
@@ -1344,6 +1429,7 @@ func wordsBefore(cur, id string) string {
 	if nl := strings.LastIndexByte(cur[:at], '\n'); nl+1 > start {
 		start = nl + 1
 	}
+	start = max(start, sentenceStart)
 	words := strings.TrimSpace(cur[start:at])
 	if words == "" || strings.Count(cur, words) != 1 {
 		return ""
@@ -1805,6 +1891,27 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	return plan
 }
 
+// auditRead is a lens sitting's read of the report. THE AUDIT IS SERVED THE WHOLE REPORT, and that
+// read is the lens's pin: a lens that is not served it at the head is ready at the head again, until
+// it is or retires. Most sittings read it, in either whole form; the rest read only a selection,
+// which serves part of it and moves nothing, so the sweep reaches a lens readied again at a head it
+// sat at. A forced run's lens reads it whole every sitting, so each sitting moves its pin: a
+// selection read leaves it ready at the head it sat at, which is one more sitting the bound does not
+// count. The sitting foundAgainstSeed's chain may start in reads a selection
+// (foundAgainstHoldsPin), so the next plan readies the owner before blue's remedy.
+func (r *runner) auditRead(seatID string) {
+	switch n := r.rng.Intn(10); {
+	case r.foundAgainstHoldsPin(seatID):
+		r.readOnly("show", seatID, "report", "--json", "--match", "§")
+	case r.forcedVerdict() || n < 5:
+		r.readOnly("show", seatID, "report")
+	case n < 9:
+		r.readOnly("show", seatID, "report", "--json")
+	default:
+		r.readOnly("show", seatID, "report", "--json", "--match", "§")
+	}
+}
+
 // planReadies is whether the current plan names seatID among its parties.
 func (r *runner) planReadies(seatID string) bool {
 	parties, _ := r.planThisSitting["parties"].([]any)
@@ -1897,6 +2004,7 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	if got, _ := r.planThisSitting["verdict"].(string); got != verdict {
 		r.noteActErr(fmt.Sprintf("the plan relayed after a %q verdict carries verdict %q — the plan carries the verdict its sitting recorded", verdict, got))
 	}
+	r.foundAgainstPlanStored()
 	return r.chairCall(seatID)
 }
 
@@ -2438,17 +2546,25 @@ func (r *runner) findsFresh() bool {
 
 // mintsFresh is whether seatID mints a fresh gap at this sitting: findsFresh, except that
 // owedComputationSeed's run keeps its computation owner barren. A gap the owner mints fresh — a find, the gap
-// carrying an unsound judgement, the answer to a contradicting reading — resets its count of barren
+// carrying an unsound judgement, the gap a reading that finds against mints — resets its count of barren
 // sittings, and only a lens barren three sittings running is kept from retiring by the unchecked
 // computation each blue sitting leaves it: in the sweep where the owner minted as any lens does, the forced
 // run kept it that way zero times, and the one fold the sweep counted was another run's draw.
 func (r *runner) mintsFresh(seatID string) bool {
-	return r.findsFresh() && (!r.forceOwedComputation || seatID != computationOwner)
+	return r.findsFresh() && (!r.forceOwedComputation || seatID != computationOwner) &&
+		(!r.forceFoundAgainst || seatID != citationOwner || r.foundAgainstForcedRead())
 }
 
 // forcedVerdict is whether this run is forced to a terminal verdict, UNVERIFIED or VERIFIED: the
 // runs findsFresh bounds, and whose every sitting counts (dispatchReturns, and the lens's whole read).
 func (r *runner) forcedVerdict() bool { return r.forceUnverified || r.forceVerified }
+
+// chainWantsBlueAbsent is whether this run forces a chain whose owner acts only in a sitting whose plan
+// does not ready blue-respond: the unsound chain's judgement (judgeUnsound) and the found-against
+// chain's reading (forcedFoundAgainstChain). Blue's sitting remedies either before the next plan is read.
+func (r *runner) chainWantsBlueAbsent() bool {
+	return r.forceUnsoundComputation || r.forceFoundAgainst
+}
 
 // landedMints is the mints of seatID that landed in this run.
 func (r *runner) landedMints(seatID string) int {
@@ -2582,9 +2698,8 @@ func (r *runner) someCitation() string {
 }
 
 // citationToVerify is the citation seatID's reading drive verifies, or "" where it verifies none: the
-// citation owner alone verifies (anchorOwnerOf), and every other lens corroborates a source instead.
-// On a coin the owner takes a citation its work list offers; otherwise any source on the record,
-// a corroboration's footnote among them, so a reading of a substituted copy stays driven.
+// citation owner alone verifies (anchorOwnerOf), and every other lens reads a source it found instead.
+// On a coin the owner takes a citation its work list offers; otherwise any citation on the record.
 func (r *runner) citationToVerify(seatID string) string {
 	if seatID != citationOwner {
 		return ""
@@ -2593,152 +2708,6 @@ func (r *runner) citationToVerify(seatID string) string {
 		return pick(r.rng, offered)
 	}
 	return r.someCitation()
-}
-
-// answerContradictions raises a finding, by its id, for every contradiction this lens owes: the
-// rows of show evidence's unanswered_contradictions whose reader it is.
-func (r *runner) answerContradictions(seatID string) {
-	b, ok := r.board()
-	if !ok {
-		return
-	}
-	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-		if c.Reader != seatID {
-			continue
-		}
-		if c.RaisedBy != "" {
-			r.mintFrom(seatID, c.RaisedBy)
-			continue
-		}
-		r.raiseAndMint(seatID, "--about-kind", "contradiction", "--about", c.ID)
-	}
-}
-
-// raisePrinted raises the contradiction a reading printed, by that id, then answers every other
-// contradiction this lens owes.
-func (r *runner) raisePrinted(seatID, printed string) {
-	if printed != "" {
-		r.raiseAndMint(seatID, "--about-kind", "contradiction", "--about", printed)
-	}
-	r.answerContradictions(seatID)
-}
-
-// ownUnansweredRaise is whether finding is seatID's own and raised a contradiction `show evidence`
-// still lists as unanswered: the mint naming it in found_by answers it outside seatID's budget.
-func (r *runner) ownUnansweredRaise(seatID, finding string) bool {
-	b, ok := r.board()
-	if !ok {
-		return false
-	}
-	raised := false
-	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-		raised = raised || c.RaisedBy == finding
-	}
-	if !raised {
-		return false
-	}
-	for _, e := range b.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetId() == finding {
-			return e.GetSeatId() == seatID
-		}
-	}
-	return false
-}
-
-// raiseAndMint raises a contradiction with a finding anchored by anchorArgs and answers it with the
-// gap minted from that finding: a finding alone answers nothing, because a source the report
-// misstates is material by its class. A mint the budget refuses leaves the contradiction raised and
-// held, for the lens's next sitting (answerContradictions).
-func (r *runner) raiseAndMint(seatID string, anchorArgs ...string) {
-	args := append([]string{"--json", "finding", "--seat-id", seatID,
-		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise"}, anchorArgs...)
-	out, err := r.exec(args...)
-	// THE LENSES SIT CONCURRENTLY, and any lens's finding naming a contradiction raises it, so
-	// another lens can raise one between this lens's board read and its write.
-	// A refusal of a raise BY ID is admissible only when the record now holds that contradiction
-	// raised or answered; every other refusal fails the run.
-	if id := contradictionAbout(anchorArgs); id != "" {
-		if err != nil && r.contradictionUnraised(id) {
-			r.noteActErr("refused a raise of a contradiction the record holds unraised: " + err.Error())
-		}
-		noteEither([]string{"finding"}, "raising a contradiction a concurrent lens may answer first", err == nil)
-	} else if err != nil {
-		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
-	}
-	if err != nil {
-		return
-	}
-	var env struct {
-		Result struct {
-			FindingID string `json:"finding_id"`
-		} `json:"result"`
-	}
-	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.FindingID == "" {
-		r.noteActErr("an admitted finding's --json result names no finding_id: " + firstLine(out))
-		return
-	}
-	r.mintFrom(seatID, env.Result.FindingID)
-}
-
-// contradictionAbout is the contradiction id a finding's anchor arguments name, "" for none.
-func contradictionAbout(anchorArgs []string) string {
-	kind, ref := "", ""
-	for i := 0; i+1 < len(anchorArgs); i++ {
-		switch anchorArgs[i] {
-		case "--about-kind":
-			kind = anchorArgs[i+1]
-		case "--about":
-			ref = anchorArgs[i+1]
-		}
-	}
-	if kind != "contradiction" {
-		return ""
-	}
-	return ref
-}
-
-// quoteRaisesNothing files a finding quoting claim and fails the run if any contradiction reads
-// raised by it: only a finding naming a contradiction's id raises it.
-func (r *runner) quoteRaisesNothing(seatID, claim string) {
-	out, err := r.exec("--json", "finding", "--seat-id", seatID, "--quote", claim,
-		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise")
-	if err != nil {
-		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
-		return
-	}
-	var env struct {
-		Result struct {
-			FindingID string `json:"finding_id"`
-		} `json:"result"`
-	}
-	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.FindingID == "" {
-		r.noteActErr("an admitted finding's --json result names no finding_id: " + firstLine(out))
-		return
-	}
-	b, ok := r.board()
-	if !ok {
-		return
-	}
-	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-		if c.RaisedBy == env.Result.FindingID {
-			r.noteActErr("finding " + env.Result.FindingID + " quoting the claim raised contradiction " + c.ID + ", which it does not name")
-		}
-	}
-}
-
-// contradictionUnraised reports whether the record lists contradiction id as unanswered with no
-// finding raising it.
-func (r *runner) contradictionUnraised(id string) bool {
-	b, ok := r.board()
-	if !ok {
-		return true
-	}
-	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-		if c.ID == id {
-			return c.RaisedBy == ""
-		}
-	}
-	return false
 }
 
 // forcedComputations is the anchors of the computations on the record of the reopened computation's bundle.
@@ -2945,8 +2914,9 @@ func (r *runner) computeToJudgeUnsound(seatID string) {
 //
 // ONLY WHERE BLUE IS NOT READIED, because blue's sitting fixes every unsound computation before its envelope
 // (fixUnsound): a judgement in an epoch blue-respond sits in is fixed before the next plan is read,
-// and no plan holds it. The first plan readies the lenses and not blue, and blue-synthesize's
-// sitting has proved the forced computation before it.
+// and no plan holds it. The first plan readies the lenses and not blue — blue-synthesize's sitting
+// settles every inquiry left open (chainWantsBlueAbsent) — and that sitting has proved the forced
+// computation before it.
 func (r *runner) judgeUnsound(seatID string) {
 	if !r.forceUnsoundComputation || seatID != computationOwner || r.unsoundFed() {
 		return
@@ -3239,7 +3209,7 @@ func (r *runner) answerFailed(seatID string) {
 		open[g] = true
 	}
 	for _, b := range bs {
-		if b.Kind == record.BlockerFailedCheck && b.Detail == "" && b.Owner == seatID && b.AnsweredBy() != "" && open[b.AnsweredBy()] &&
+		if b.Kind == record.BlockerFailedCheck && b.CheckState() == record.CheckUnread && b.Owner == seatID && b.AnsweredBy() != "" && open[b.AnsweredBy()] &&
 			r.coin(50) && r.firstThisSitting(seatID, b.Subject) {
 			// A READING THAT READS NOTHING AGAIN, while the gap carrying the first is open, is refused.
 			r.do("verify", seatID).set("--anchor", b.Subject).set("--as", "unreachable").set("--confidence", pick(r.rng, verifyConfidence)).
@@ -3249,7 +3219,7 @@ func (r *runner) answerFailed(seatID string) {
 			r.mu.Unlock()
 			continue
 		}
-		if b.Kind == record.BlockerFailedCheck && b.Detail != "" && b.Owner == seatID && b.AnsweredBy() != "" &&
+		if b.Kind == record.BlockerFailedCheck && b.CheckState() == record.CheckUnsound && b.Owner == seatID && b.AnsweredBy() != "" &&
 			r.coin(50) && r.firstThisSitting(seatID, b.Subject) {
 			as := r.judgement()
 			a := r.do("reproduce", seatID).set("--anchor", b.Subject).set("--as", as).
@@ -3274,7 +3244,17 @@ func (r *runner) answerFailed(seatID string) {
 		if b.Kind != record.BlockerFailedCheck || b.Owner != seatID || b.AnsweredBy() != "" {
 			continue
 		}
-		citation := b.Detail == ""
+		// ONLY AN UNREAD OR AN UNSOUND CHECK IS OWED ITS GAP: a found-against check's reading minted or
+		// named its gap in its own act, and one no gap names (an archived reading) owes its reader nothing.
+		switch b.CheckState() {
+		case record.CheckUnread, record.CheckUnsound:
+		case record.CheckFoundAgainst:
+			continue
+		default:
+			r.noteActErr(fmt.Sprintf("failed check of %s stands in state %q, which the owed-gap drive does not know", b.Subject, b.CheckState()))
+			continue
+		}
+		citation := b.CheckState() == record.CheckUnread
 		// ONE TIME IN TEN, THE LENS TRIES TO END WITH ITS GAP UNMINTED, and the record refuses its
 		// envelope naming the failed check.
 		if r.coin(10) {
@@ -3647,13 +3627,28 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, computations, ci
 		return "anchor owner: blue's work list does not read: " + err.Error(), 0, 0
 	}
 	for _, b := range bs {
-		if b.Kind != record.BlockerFailedCheck || b.Detail != "" {
+		if b.Kind != record.BlockerFailedCheck {
 			continue
 		}
-		if !slices.ContainsFunc(blue.Sitting.Open, func(it record.Item) bool {
-			return strings.Contains(it.What, "check of citation "+b.Subject+" ") && strings.Contains(it.What, "Retire the citation")
-		}) {
-			return fmt.Sprintf("anchor owner: citation %s is on a failed check at the run's end and blue's work list does not name its remedy", b.Subject), 0, 0
+		// BLUE'S ITEM NAMES THE REMEDY OF THE CHECK'S STATE: retire an unread citation; edit the sentence,
+		// or retire or replace a citation a reading finds against.
+		var names func(record.Item) bool
+		switch b.CheckState() {
+		case record.CheckUnsound:
+			continue
+		case record.CheckUnread:
+			names = func(it record.Item) bool {
+				return strings.Contains(it.What, "check of citation "+b.Subject+" ") && strings.Contains(it.What, "Retire the citation")
+			}
+		case record.CheckFoundAgainst:
+			names = func(it record.Item) bool {
+				return strings.Contains(it.What, "reading of citation "+b.Subject+" at event") && strings.Contains(it.What, "edits the sentence, or retires or replaces the citation")
+			}
+		default:
+			return fmt.Sprintf("anchor owner: citation %s stands on a failed check in state %q, which the oracle does not know", b.Subject, b.CheckState()), 0, 0
+		}
+		if !slices.ContainsFunc(blue.Sitting.Open, names) {
+			return fmt.Sprintf("anchor owner: citation %s is on a %s failed check at the run's end and blue's work list does not name its remedy", b.Subject, b.CheckState()), 0, 0
 		}
 	}
 	return "", len(want["computation"]), len(want["citation"])
@@ -3663,15 +3658,11 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, computations, ci
 // run introduces the class; the rest reuse it. seatID is the lens that is sitting: the chair
 // has no mint verb (roundless §III.B.3), and the record remembers the minter as the one seat that
 // may later close or regrade the gap, which is why every landed mint is noted on r.minter.
-func (r *runner) mint(seatID string) string { return r.mintFrom(seatID, "") }
+func (r *runner) mint(seatID string) string { return r.mintWith(seatID, "") }
 
-// mintFrom mints as mint does, naming foundBy in --found-by when it is set: the gap that answers
-// a contradiction the finding foundBy raised.
-func (r *runner) mintFrom(seatID, foundBy string) string { return r.mintWith(seatID, foundBy, "") }
-
-// mintWith mints as mintFrom does, under the gap class class where it is set and the drawn class
-// where it is "".
-func (r *runner) mintWith(seatID, foundBy, class string) string {
+// mintWith mints as mint does, under the gap class class where it is set and the drawn class where
+// it is "".
+func (r *runner) mintWith(seatID, class string) string {
 	// #277: the KIND is randomised, not pinned. Pinning it to `document` would leave the
 	// computation branch — a gap that CANNOT be closed without a computation answering it — driven by
 	// nothing, which is the dead-drive class #276 measured (183/183 refusals on a verb that did
@@ -3802,9 +3793,7 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	if r.coin(50) {
 		args = append(args, "--complexity", r.g())
 	}
-	if fl := r.someFinding(); foundBy != "" {
-		args = append(args, "--found-by", foundBy)
-	} else if fl != "" && r.coin(50) {
+	if fl := r.someFinding(); fl != "" && r.coin(50) {
 		args = append(args, "--found-by", fl) // the lens finding that surfaced it (real TOOL-assigned id)
 	}
 	ancestor := ""
@@ -3845,7 +3834,6 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	if keyed {
 		args = append(args, "--key", contentKey("K", args))
 	}
-	own := foundBy != "" && r.ownUnansweredRaise(seatID, foundBy)
 	// A GAP NO CLASS FITS SAYS WHY. Tried without --reason, the catch-all is refused by the record's
 	// own check, naming the duty; the refusal is counted only when it says so.
 	if unclassified && r.coin(50) {
@@ -3872,22 +3860,11 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	}
 	if err != nil {
 		if strings.Contains(out, "its mint budget admits no more") {
-			// READ AGAIN AFTER THE REFUSAL: a raise answered in between is a mint that counts, and
-			// an answer is never undone, so a raise still unanswered now was unanswered at the write.
-			violated := own && r.ownUnansweredRaise(seatID, foundBy)
 			r.mu.Lock()
 			r.budgetRefused++
-			if violated && r.answerBudgetErr == "" {
-				r.answerBudgetErr = seatID + "'s mint from its own raising finding " + foundBy + " was refused for budget: " + firstLine(out)
-			}
 			r.mu.Unlock()
 		}
 		return ""
-	}
-	if own {
-		r.mu.Lock()
-		r.ownAnswers++
-		r.mu.Unlock()
 	}
 	var env struct {
 		Result struct {
@@ -3965,7 +3942,7 @@ func (r *runner) ownUnreadGapOpen(seatID, anchor string) bool {
 		open[g] = true
 	}
 	for _, b := range bs {
-		if b.Kind == record.BlockerFailedCheck && b.Detail == "" && b.Subject == anchor && b.Owner == seatID && open[b.AnsweredBy()] {
+		if b.Kind == record.BlockerFailedCheck && b.CheckState() == record.CheckUnread && b.Subject == anchor && b.Owner == seatID && open[b.AnsweredBy()] {
 			return true
 		}
 	}
@@ -4085,11 +4062,8 @@ func (r *runner) freeClass(args []string) {
 
 // checkOneGap fails the run where gapID landed while an earlier gap of its class stands open on its
 // subject — a gap still open now was open at the write, since a closed gap does not reopen — unless
-// the mint names it in --supersedes or names a finding in its found_by, whose contradiction it may answer.
+// the mint names it in --supersedes.
 func (r *runner) checkOneGap(gapID string, args []string) {
-	if argOf(args, "--found-by") != "" {
-		return
-	}
 	open, _ := r.sameClassAndSubject(argOf(args, "--class"), args)
 	order := r.mintOrder()
 	for _, g := range open {
@@ -4238,6 +4212,8 @@ func (r *runner) mintEstopped(seatID string) {
 		"--check", "acc", "--fix", "reword it", "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
 		"--quote", sentence,
 		"--reason", "fuzz: estoppel probe — this quotes red's own prescription on "+gapID)
+	// A READING OVER THE SAME TEXT IS NOT ESTOPPED: its gap opens (readOverPrescription).
+	r.readOverPrescription(seatID, sentence)
 	// REFUSED, AND AS A CONFLICT WITH THE RECORD: an admitted mint here is the guard gone.
 	// THE REFUSAL IS NOT COUNTED HERE. `estoppels` is read off the RECORD in the walk below,
 	// where the tool's own `log --type estoppel` entry either exists or does not — a driver that
@@ -4306,6 +4282,7 @@ func (r *runner) openGaps() []string {
 // here is the closer's own, against its own budget. The chair's `carry` lives in carryPrior.
 func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	_ = chairID // the sitting seat; the closer is the minter, looked up below
+	r.heldByCheck.remove(id)
 	closer := r.minterOf(id)
 	// A DOCKETED GAP IS THE BENCH'S UNTIL IT RULES: a drive that reaches for its close is refused, and
 	// the gap stays open for the ruling to dispose of.
@@ -4456,6 +4433,7 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	// it, as a seat does. A refused close left for a later sitting stays open when this sitting is the
 	// lens's last, which the terminal-fate oracle reads as work done and never finished — and whether a
 	// later sitting comes is the interleaving's call, so the sweep goes red on a draw, not a defect.
+	anchor := ""
 	if r.coin(40) {
 		var held []string
 		for _, g := range append(r.openGaps(), r.closedGapIDs()...) {
@@ -4473,23 +4451,62 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		case r.coin(15):
 			r.refuse(feov.Internal, append(args, "--anchor", id)...)
 		case len(held) > 0:
-			if _, ok := r.admit(append(args, "--anchor", held[r.rng.Intn(len(held))])...); ok {
-				return
-			}
+			anchor = held[r.rng.Intn(len(held))]
 		}
 	}
-	r.admit(args...)
+	r.closeVerifiedWith(id, args, anchor)
 }
 
-// standingFailedCheckOf is the standing failed check whose seat minted gap id about its anchor
-// (record.BlockerFailedCheck's AnsweredBy), if there is one.
+// closeVerifiedWith issues the close of gap id that the drive expects admitted, naming anchor — another
+// gap the record holds — as what it was verified with where anchor is set. ONE CLOSE, ONE TALLY: a
+// close refused over a sibling's check landed in the window (admitClose) is settled by that refusal,
+// since the same close without the anchor is refused over the same check and would tally it twice; any
+// other refusal is the drive's failure, which admitClose notes.
+func (r *runner) closeVerifiedWith(id string, args []string, anchor string) {
+	if anchor != "" {
+		args = append(args, "--anchor", anchor)
+	}
+	r.admitClose(id, args)
+}
+
+// admitClose issues a close of gap id that the drive expects admitted, having read that id carries
+// no standing failed check. A refusal is the drive's failure unless a failed check NOW stands on id
+// and the refusal names it (requireFailedCheckAnswered): the closer recorded nothing between the read
+// and the act, so the check is a sibling's — a lens's reading the one-gap rule carried by id, or a
+// carrier closed into id — landed in that window, which concurrent lenses do (seeds 5 and 6 of
+// 2ecae7a9b's sweep). The refusal is then tallied as the standing-check refusal it is. ok is whether
+// the close was admitted.
+func (r *runner) admitClose(id string, args []string) bool {
+	if r.betweenCloseReadAndAct != nil {
+		r.betweenCloseReadAndAct(id)
+	}
+	args = withJSON(args)
+	out, err := r.exec(args...)
+	if err == nil {
+		return true
+	}
+	if b, ok := r.standingFailedCheckOf(id); ok {
+		if r.standingCloseRefused(strings.Join(args, " "), id, out, b) {
+			noteEither(args, "a close of a gap a sibling's check landed on after the drive read it, refused naming the check", false)
+		}
+		return false
+	}
+	r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+	return false
+}
+
+// standingFailedCheckOf is the standing failed check gap id carries (record.Blocker's Carriers), if
+// there is one: for a found-against check that is any gap of its reading's carrier tree, an open
+// ancestor of the gap that names it as much as the gap itself, and the record refuses each one's close.
 func (r *runner) standingFailedCheckOf(id string) (record.Blocker, bool) {
 	bs, err := record.PassBlockers(r.runHandle)
 	if err != nil {
+		// A READ THAT FAILED IS NOT "NONE STANDS": the drive would then expect the close admitted.
+		r.noteActErr("the blockers could not be read to say whether gap " + id + " carries a standing failed check: " + err.Error())
 		return record.Blocker{}, false
 	}
 	for _, b := range bs {
-		if b.Kind == record.BlockerFailedCheck && b.AnsweredBy() == id {
+		if b.Kind == record.BlockerFailedCheck && slices.Contains(b.Carriers(), id) {
 			return b, true
 		}
 	}
@@ -4502,6 +4519,11 @@ func (r *runner) standingFailedCheckOf(id string) (record.Blocker, bool) {
 // the gap and the anchor, both ids — since its code (conflict) is shared with every other refused
 // close.
 func (r *runner) refuseStandingClose(closer, id, as string, b record.Blocker) {
+	// THE COMPUTATION IS ANSWERED FIRST: the close guard asks for one before it reads a failed check,
+	// so a computation gap closed with none is refused for that, naming no anchor.
+	if !r.answerComputationCheck(id, "fuzz-standing-"+id+".js") {
+		return
+	}
 	args := []string{"close", "--seat-id", closer, "--id", id, "--as", as, "--reason", "fuzz close as " + as,
 		"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec", "--json"}
 	out, err := r.exec(args...)
@@ -4510,22 +4532,79 @@ func (r *runner) refuseStandingClose(closer, id, as string, b record.Blocker) {
 		r.noteActErr(argv + ": admitted, and gap " + id + " carries failed check " + b.Subject + ", which still stands: " + firstLine(out))
 		return
 	}
+	r.standingCloseRefused(argv, id, out, b)
+}
+
+// answerComputationCheck has blue answer gap id's computation check where the record holds id minted
+// --check-kind computation and no computation answers it yet — whichever act minted it, since a reading
+// the one-gap rule holds is carried by another lens's gap — so a close of id meets the guards after
+// requireComputationAnswered. name is the bundle's file. ok is false where a read or the compute
+// failed, which is noted as the run's.
+func (r *runner) answerComputationCheck(id, name string) bool {
+	kind, err := record.MintCheckKind(r.run(), id)
+	if err != nil {
+		r.noteActErr("the check kind gap " + id + " was minted with could not be read: " + err.Error())
+		return false
+	}
+	if kind != recordpb.CheckKind_CHECK_KIND_COMPUTATION {
+		return true
+	}
+	answered, err := record.ComputationAnswers(r.run(), id)
+	if err != nil {
+		r.noteActErr("whether a computation answers gap " + id + " could not be read: " + err.Error())
+		return false
+	}
+	if answered {
+		return true
+	}
+	r.register("blue", "blue-respond")
+	dir, argv, err := r.writeBundle(name, "console.log('answers "+id+"');")
+	if err != nil {
+		return false
+	}
+	_, ok := r.admit(append([]string{"compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+		"--dir", dir, "--answers", id, "--reason", "fuzz: settling the computation check", "--"}, argv...)...)
+	return ok
+}
+
+// standingCloseRefused holds a refused close of gap id, under --json, to the refusal of failed check
+// b it carries — conflict, naming the gap and the anchor — and tallies it by the check's kind. ok is
+// whether the refusal was that one; any other is the run's failure.
+func (r *runner) standingCloseRefused(argv, id, out string, b record.Blocker) bool {
 	env, ok := refusalEnvelopeIn(out)
 	switch {
 	case !ok:
 		r.noteActErr(argv + ": refused under --json with no refusal envelope: " + firstLine(out))
-		return
+		return false
 	case env.Code != string(feov.Conflict) || !strings.Contains(env.Error, id) || !strings.Contains(env.Error, b.Subject):
 		r.noteActErr(fmt.Sprintf("%s: refused (%s), and the refusal does not name gap %s and the anchor %s it carries: %s", argv, env.Code, id, b.Subject, firstLine(env.Error)))
-		return
+		return false
 	}
+	r.heldByCheck.add(id)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if b.Detail == "" {
+	switch b.CheckState() {
+	case record.CheckUnread:
 		r.unreadClosesRefused++
-	} else {
+	case record.CheckUnsound:
 		r.unsoundClosesRefused++
+	case record.CheckFoundAgainst:
+		r.foundAgainstClosesRefused++
+	default:
+		if r.actErr == "" {
+			r.actErr = fmt.Sprintf("close of %s refused over failed check %s in state %q, which the tally does not know", id, b.Subject, b.CheckState())
+		}
+		return false
 	}
+	return true
+}
+
+// doneButOpen is the terminal-fate oracle's judgement of gap id, whose scenario is fix: a satisfied
+// scenario red sat on after blue answered, still open — unless red's latest close of it was refused
+// over a failed check standing on it, a refusal the record owes while the check stands (a sibling's
+// found-against reading the gap carries, or one landed between the drive's read and its act).
+func (r *runner) doneButOpen(id, fix string, open bool) bool {
+	return satisfied(fix) && r.evaluated.has(id) && open && !r.heldByCheck.has(id)
 }
 
 // carryPrior is the CHAIR's one closure act (roundless §III.B.3): restating a closure the archive
@@ -4787,6 +4866,10 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.computeToJudgeUnsound(seatID)
 		r.computeOwed(seatID)
 		r.citeAbsentSpan(seatID)
+		r.citeNotTheWork(seatID)
+		r.citeForFoundAgainst(seatID)
+		r.stockRepeatedSentence(seatID)
+		r.acceptRepeated(seatID)
 		r.cutLeavingAnchorOut(seatID)
 		r.citeForBareMint(seatID)
 		r.maybe(45, func() { inquiry("blue") })
@@ -5030,6 +5113,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("blue", seatID)
 		r.synthesize(seatID)
 		r.extras("blue", seatID, nil)
+		// A FORCED CHAIN THAT WANTS BLUE ABSENT HAS ITS FIRST PLAN WITHOUT BLUE: an inquiry the
+		// synthesis leaves open readies blue-respond on the first plan, and later plans ready it on the
+		// gaps the first epoch mints, so the synthesizer settles every one (chainWantsBlueAbsent).
+		if r.chainWantsBlueAbsent() {
+			r.settleOpenInquiries(seatID)
+		}
 		// A forced run's seats file no petition: a petition readies the bench (see chairEnvelope).
 		if !r.forcedVerdict() {
 			r.maybePetition(seatID)
@@ -5086,7 +5175,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				return r.chairEnvelope(seatID, "PASS", out, responses)
 			} else {
 				// A PASS THE BOARD PERMITS AND THE GATE REFUSES is the chair's own duty undone —
-				// an unruled motion, a spot-check owed, a contradiction never raised — and
+				// an unruled motion, a spot-check owed — and
 				// the run then ends UNVERIFIED with the plan saying nothing about why. Kept on
 				// the outcome so the sweep's exit tally names it.
 				// exec's error is "<args>: exit status N\n  <the tool's message>" — the message
@@ -5371,20 +5460,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
 		r.docketedOffTheList("lens", seatID)
-		// THE AUDIT IS SERVED THE WHOLE REPORT, and that read is the lens's pin: a lens that is not
-		// served it at the head is ready at the head again, until it is or retires. Most sittings
-		// read it, in either whole form; the rest read only a selection, which serves part of it and
-		// moves nothing, so the sweep reaches a lens readied again at a head it sat at.
-		// A forced run's lens reads it whole every sitting, so each sitting moves its pin: a selection
-		// read leaves it ready at the head it sat at, which is one more sitting the bound does not count.
-		switch n := r.rng.Intn(10); {
-		case r.forcedVerdict() || n < 5:
-			r.readOnly("show", seatID, "report")
-		case n < 9:
-			r.readOnly("show", seatID, "report", "--json")
-		default:
-			r.readOnly("show", seatID, "report", "--json", "--match", "§")
-		}
+		r.auditRead(seatID)
 		r.checkAnchorOffers(seatID)
 		r.mintBaringCitation(seatID)
 		r.closeDocketed(seatID)
@@ -5503,8 +5579,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// THE FORCED-VERIFIED RUN CHECKS EVERY ONE, AND READS EACH. The owner is readied once
 				// per head move, so an item its sitting leaves holds the PASS until the report moves
 				// again, and the run that exists to write VERIFIED ends UNVERIFIED on a coin.
-				// A CONTRADICTION THIS LENS LEFT OPEN IN AN EARLIER SITTING IS ANSWERED NOW, by its id.
-				r.answerContradictions(seatID)
 				// A COMPUTATION IT JUDGED UNSOUND IS CARRIED TO BLUE BY ITS GAP, and judged again once carried.
 				r.answerFailed(seatID)
 				// ITS CLOSING ON EACH GAP OF ITS OWN THAT IS DOCKETED: the lens is one of the gap's two parties.
@@ -5512,6 +5586,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// EVERY SETTLED INQUIRY NO CHECK STANDS ON IS CHECKED BY ITS OWNER: its item blocks the
 				// owner's envelope. Every other lens drives the owner's refusal.
 				r.checkInquiries(seatID)
+				// FOUND-AGAINST SEED'S CHAIN, before the owed checks: its reading checks the citation it
+				// reads, so the owed loop below finds it read this sitting.
+				r.forcedFoundAgainstChain(seatID)
 				if seatID == "red-lens-evidence" || seatID == computationOwner {
 					var owed []anchorRef
 					for _, it := range r.unchecked() {
@@ -5543,6 +5620,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 							}
 							r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", as).
 								set("--reason", "fuzz: read the script against the sentence as it now stands").admit()
+						} else if r.isNotTheWorkCite(it.Anchor) {
+							// THE COPY THAT IS NOT THE WORK IS READ AND READS NOTHING (readNotTheWork).
+							r.readNotTheWork(seatID, it.Anchor)
 						} else {
 							as := "supports"
 							if !r.forceVerified && r.coin(10) {
@@ -5569,21 +5649,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						}
 					}
 				}
-				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
-				// adjudicating a citation blue authored, and red corroborating a source it found
-				// itself.
-				// TWO VERBS, because they are two acts: `verify` adjudicates a citation BLUE
-				// authored and requires its anchor, `corroborate` records a source RED found
-				// and requires the url and title that are the only thing identifying it.
-				// Falling back to corroborate when blue has cited nothing keeps the axis driven
-				// from round 0 rather than only after the first cite lands. Only the citation's
-				// owner verifies (citationToVerify); every other lens corroborates.
-				// A REAL SPAN OF THE LIVE REPORT. This quoted `"fuzz claim "+seatID`, which is in
-				// no document — and a SUPPORTING corroboration splices a citation anchor at the
-				// claim now, so every one of them would be refused and the drive discards its
-				// error. The seeded anchor sentence is the right span: the edit target below it
-				// is swapped back and forth by blue's edits, this one is left alone precisely so
-				// findings and cites have something stable to attach to.
+				// ONE VERB, BOTH SUBJECTS, and the citation is a REAL one off the record: a lens reads
+				// a citation blue made (--anchor), or a source it found that blue never cited (--url,
+				// --title and the report's sentence as --quote). Only the citation's owner reads a
+				// citation (citationToVerify); every other lens reads a source it found, which keeps the
+				// axis driven from round 0 rather than only after the first cite lands.
 				// ONE PAGE OF A CACHED PDF, for a citation with pages: the lens caches the served scan
 				// unread and draws page 1, or asks for a page the one-page document does not have and
 				// is refused. It records nothing either way.
@@ -5607,19 +5677,22 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", "1").admit()
 				})
 				r.sourceQuoteRefused(seatID)
-				claim := "A § fuzz sentence to anchor findings."
 				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
-				// A CONTRADICTION OWES A GAP, AND A GAP IS A MINT. A forced run mints at its first
-				// sitting only (findsFresh), which is its bound; a contradicting reading after it would
-				// owe a mint the bound forbids, so it reads the source as supporting instead — as does
-				// owedComputationSeed's computation owner, which mints nothing (mintsFresh).
-				if (outcome == "refutes" || outcome == "absent") && !r.mintsFresh(seatID) {
-					outcome = "supports"
+				// A READING THAT MINTS IS A FRESH GAP. A forced run mints at its first sitting only
+				// (findsFresh), which is its bound, and owedComputationSeed's computation owner mints
+				// nothing (mintsFresh); past its stock a lens's sittings draw no fresh mint. A reading of a
+				// citation that would find against reads the source as backing instead, and a reading of
+				// a source the lens found reads it as absent, which mints nothing.
+				fresh := r.mintsFresh(seatID) && r.landedMints(seatID) < fuzzLensStock
+				// THE TWICE-HELD SENTENCE, read by one copy's citation (readRepeatedSentence).
+				if seatID == citationOwner && fresh {
+					r.readRepeatedSentence(seatID, false)
 				}
+				r.forcedRepeatedReading(seatID)
 				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
 				kindless := outcome == "supports_with_bridge" && r.coin(10)
 				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
-				axes := func(c *cmd) *cmd {
+				axes := func(outcome string, c *cmd) *cmd {
 					if outcome == "supports_with_bridge" && !kindless {
 						c = c.set("--bridge", bridge)
 					}
@@ -5628,110 +5701,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						set("--reason", "fuzz: what the source actually says").
 						on(60, "--access-date", "2026-07-24")
 				}
-				read := claim // the sentence the reading recorded, which the finding below quotes
-				// THE CONTRADICTION THE READING NAMES, from its own output: the raise below names it
-				// by that id, so a reading that stopped printing it fails the run.
-				printed := ""
-				names := func(out string, err error) {
-					if err != nil {
-						return
-					}
-					id, ok := contradictionOf(out)
-					switch contradicting := outcome == "refutes" || outcome == "absent"; {
-					case contradicting && !ok:
-						r.noteActErr("a " + outcome + " reading printed no contradiction: " + firstLine(out))
-					case !contradicting && ok:
-						r.noteActErr("a " + outcome + " reading printed contradiction " + id + ": " + firstLine(out))
-					}
-					printed = id
-				}
 				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
-					// A SECOND READING THAT READS NOTHING, while the gap carrying this seat's first is
-					// open and the sentence unchanged, is refused (answerFailed drives that refusal on
-					// its own coin); this drive expects its reading admitted, so it reads the source.
-					if outcome == "unreachable" && r.ownUnreadGapOpen(seatID, anchor) {
-						outcome = "weak"
+					if (outcome == "refutes" || outcome == "absent") && !fresh {
+						outcome = "supports"
 					}
-					// --page names a page image, and no citation this sweep writes has pages, so
-					// a verify carrying one is refused: the flag and its refusal, driven.
-					// The claim is the one verify prints back, as a lens reads it.
-					paged := r.coin(10)
-					v := axes(r.do("verify", seatID)).set("--anchor", anchor).bare("--json")
-					if paged {
-						v = v.set("--page", "1")
-					}
-					// THE COPY THE READING NAMES IS THE ONE ITS CITATION'S SOURCE ROW NAMES: the sweep
-					// never clears the cache and the first entry for a url is the one every read
-					// returns, so a reading and the act that placed the citation resolve to one copy.
-					wantCopy, wantCopyURL, cited := r.citationCopy(anchor)
-					out, err := v.result()
-					if err == nil {
-						read = claimOf(out)
-						if cited {
-							r.noteCopy("verify", out, wantCopy, wantCopyURL)
-						}
-					}
-					names(out, err)
-					r.noteBridge(seatID, outcome, kindless, out, err)
-					// A READING THE DRIVE DOES NOT DRIVE TO BE REFUSED IS ADMITTED: the kindless
-					// bridge is noteBridge's to hold, and a --page is refused as a validation — no
-					// citation this sweep writes has pages, and a corroboration holds none.
-					switch {
-					case paged && err == nil:
-						r.noteActErr("verify --page on a source with no pages was admitted: " + firstLine(out))
-					case paged:
-						if env, ok := refusalEnvelopeIn(out); !ok || env.Code != string(feov.Validation) {
-							r.noteActErr("verify --page refused without a validation envelope: " + firstLine(out))
-						}
-					case !kindless && err != nil:
-						r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
-					}
+					r.readCitation(seatID, anchor, outcome, kindless, axes)
 				} else {
-					// A FRESH SOURCE EACH TIME: a corroboration is one per source and claim, so the
-					// drive's own retry below is the only repeat it makes.
-					// AND A COPY OF IT IN THE CACHE, turned through every route by which the cache
-					// answers a url with another's bytes, and sometimes none: the reading records it.
-					url := fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, corroborations.Add(1))
-					wantCopy, wantCopyURL := r.seedCopy(url)
-					c := axes(r.do("corroborate", seatID)).set("--quote", claim).
-						set("--url", url).
-						set("--title", sourceTitle).bare("--json")
-					out, err := c.result()
-					if err == nil {
-						r.noteCopy("corroborate", out, wantCopy, wantCopyURL)
+					if outcome != "absent" && outcome != "unreachable" && !fresh {
+						outcome, kindless = "absent", false
 					}
-					names(out, err)
-					r.noteBridge(seatID, outcome, kindless, out, err)
-					if !kindless && err != nil {
-						r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
-					}
-					if err == nil && backsTheClaim(outcome) {
-						r.retryCorroboration(c.args, out)
-					}
-				}
-				// AND RED RAISES WHAT IT CONTRADICTED. A `refutes` or `absent` reading is red
-				// saying the report asserts what its source does not, and a PASS is refused until
-				// a finding naming the contradiction by its id raises it and the gap minted from
-				// that finding answers it. The tool will not write the finding itself, because that
-				// would mean inventing its three grades. Driving the remedy here is what makes both
-				// the gate and the act that clears it real in the sweep; without it every run with a
-				// negative reading would wedge at the verdict.
-				//
-				// A QUOTE RAISES NOTHING. On a coin the lens first files a finding quoting the claim
-				// — for a verification, the sentence its anchor marks, which for a quarter of the
-				// citations is the edited one — and the contradiction must still read unraised.
-				//
-				// NOW OR AT THE END OF THE SITTING. Raised now, it is raised by the id the reading
-				// printed. Left on a coin, it is raised by answerContradictions before the envelope:
-				// the sitting cannot end while it stands.
-				if outcome == "refutes" || outcome == "absent" {
-					switch {
-					case r.coin(40):
-						r.quoteRaisesNothing(seatID, read)
-						r.raisePrinted(seatID, printed)
-					case r.forceVerified || r.coin(50):
-						r.raisePrinted(seatID, printed)
-					}
+					r.readFoundSource(seatID, outcome, kindless, axes)
 				}
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				//
@@ -5802,9 +5781,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.extras("lens", seatID, nil)
 			}
 		}
-		// EVERY CONTRADICTION THIS LENS OWES IS RAISED BEFORE ITS ENVELOPE: its sitting cannot end
-		// while one stands (record.EnvelopeRefusal), so one the drive left for later is raised here.
-		r.answerContradictions(seatID)
 		r.dischargeOwed(seatID)
 		// A COMPUTATION JUDGED UNSOUND AFTER answerFailed RAN — a reopened computation re-run, one the owner was
 		// offered — is carried by its gap here, after the drive's last judgement of the sitting.
@@ -5933,7 +5909,7 @@ type outcome struct {
 	// fragmentsDriven and truncationsDriven are the cites driven to be refused for a span starting
 	// and ending mid-clause (runner.fragmentsDriven, runner.truncationsDriven).
 	fragmentsDriven, truncationsDriven int
-	// quotesRefused is the corroborations the tool refused for a quote the report does not hold
+	// quotesRefused is the found-source readings the tool refused for a quote the report does not hold
 	// (runner.quotesRefused).
 	quotesRefused int
 	// bridgesRefused and bridgesNamed are runner's.
@@ -5955,6 +5931,38 @@ type outcome struct {
 	unreadAnswers, unreadRepeats, unreadRetires int
 	unreadRetiresJoined                         int
 	unreadClosesRefused, unsoundClosesRefused   int
+	// foundAgainstClosesRefused through readingsOverPrescriptions are the runner's.
+	foundAgainstClosesRefused, foundAgainstRepeats   int
+	foundAgainstEdits, foundAgainstRetires           int
+	foundAgainstClearedByOwnReading                  int
+	notTheWorkFlagsRefused, notTheWorkReadingsUnread int
+	markedSentenceRefused, foundSourceBudgetRefused  int
+	foundSourceRetriesRefused                        int
+	repeatedSentenceGaps, repeatedSentenceAccepts    int
+	readingsOverPrescriptions                        int
+	// READ OFF THE STORED RECORD, never off --as: readingsMinted, the readings whose own act minted
+	// the gap carrying them (carrier_minted true); readingsHeld, those the one-gap rule refused a mint
+	// (carried_by set, carrier_minted false); foundSourceGaps, the readings of a source the lens found
+	// whose act minted an unsourced_claim or claim_contradicts_source gap; maxOpenPerClassSentence, the
+	// most open gaps of one class standing in one sentence of the report at the run's end.
+	readingsMinted, readingsHeld, foundSourceGaps int
+	maxOpenPerClassSentence                       int
+	// oneGapBreach names the first pair of open gaps of one class in one sentence that no --supersedes
+	// relates, where the run ended holding one: the gaps, the class and the sentence.
+	oneGapBreach string
+	// foundAgainstStage is the runner's: the last step foundAgainstSeed's chain reached, "" on every
+	// other run.
+	foundAgainstStage string
+	// WHAT HELD THE RUN OPEN, said by the run itself (PR #1642's four, F7): finalBlockers is the last
+	// relayed plan's blockers by kind and finalParties the seats it readied; openByFoundBy is the gaps
+	// open at the end by what surfaced each — a reading's own act (reading), a finding in its found_by
+	// (finding), nothing on a gap carrying an unsound judgement of a computation
+	// (unsound_computation), or nothing (none); mintsByEpoch and closesByEpoch are the gaps minted and
+	// closed in each epoch. A CEILING arrives with its cause rather than inviting one.
+	finalBlockers               map[string]int
+	finalParties                []string
+	openByFoundBy               map[string]int
+	mintsByEpoch, closesByEpoch map[int]int
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
 	// ownerOffered is the computations nobody judged that the run ended with, each offered on its owner's
@@ -5971,8 +5979,6 @@ type outcome struct {
 	budgetRefused int
 	// oneGapRefused and oneGapFindings are the runner's.
 	oneGapRefused, oneGapFindings int
-	// ownAnswers is the mints that answered the minting lens's own raise (runner.ownAnswers).
-	ownAnswers int
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
 	// refused for want of a reason (runner.unclassifiedMinted, runner.unclassifiedRefused).
 	unclassifiedMinted, unclassifiedRefused int
@@ -6440,8 +6446,8 @@ const absentSpanSeed = 8
 
 // leftOutSeed is the seed whose run is FORCED to cut a claim down to an anchor its quote left out
 // (forceLeftOut). No drawn edit cuts a sentence: every one rewrites words, so the refusal has no other
-// reach. It is none of the forced seeds before it.
-const leftOutSeed = 15
+// reach. It is none of the other forced seeds.
+const leftOutSeed = 17
 
 // mintBareSeed is the seed whose run is FORCED to mint a prescription that would leave a citation bare
 // (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
@@ -6495,6 +6501,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceUnsoundComputation = seed == unsoundComputationSeed
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
+	r.forceFoundAgainst = seed == foundAgainstSeed
 	r.forceLeftOut = seed == leftOutSeed
 	r.forceMintBare = seed == mintBareSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
@@ -6608,10 +6615,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.rulerFilingErr != "" {
 		res.err = "a ruler's filing: " + r.rulerFilingErr
-		return res
-	}
-	if r.answerBudgetErr != "" {
-		res.err = "the answering mint: " + r.answerBudgetErr
 		return res
 	}
 	if r.passOverAnotherSeat != "" {
@@ -7108,7 +7111,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			// run simply ended CEILING with work sitting done-but-open, and nothing said so.
 			// Scoped to gaps red actually sat on after blue answered: a repair landed in the
 			// final round leaves the gap legitimately open, because red never sits again.
-			if satisfied(g.Mint.GetRequiredFix()) && r.evaluated.has(id) && g.Open {
+			if r.doneButOpen(id, g.Mint.GetRequiredFix(), g.Open) {
 				res.err = "scenario " + g.Mint.GetRequiredFix() + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
 				return res
 			}
@@ -7309,6 +7312,16 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.unreadAnswers, res.unreadRepeats, res.unreadRetires = r.unreadAnswers, r.unreadRepeats, r.unreadRetires
 	res.unreadRetiresJoined = r.unreadRetiresJoined
 	res.unreadClosesRefused, res.unsoundClosesRefused = r.unreadClosesRefused, r.unsoundClosesRefused
+	res.foundAgainstClosesRefused, res.foundAgainstRepeats = r.foundAgainstClosesRefused, r.foundAgainstRepeats
+	res.foundAgainstEdits, res.foundAgainstRetires = r.foundAgainstEdits, r.foundAgainstRetires
+	res.foundAgainstClearedByOwnReading = r.foundAgainstClearedByOwnReading
+	res.foundAgainstStage = r.foundAgainstStage
+	res.notTheWorkFlagsRefused, res.notTheWorkReadingsUnread = r.notTheWorkFlagsRefused, r.notTheWorkReadingsUnread
+	res.markedSentenceRefused, res.foundSourceBudgetRefused = r.markedSentenceRefused, r.foundSourceBudgetRefused
+	res.foundSourceRetriesRefused = r.foundSourceRetriesRefused
+	res.repeatedSentenceGaps, res.repeatedSentenceAccepts = r.repeatedSentenceGaps, r.repeatedSentenceAccepts
+	res.readingsOverPrescriptions = r.readingsOverPrescriptions
+	res.finalBlockers, res.finalParties = planBlockersAndParties(r.planThisSitting)
 	if r.unsoundReadyErr != "" && res.err == "" {
 		res.err = r.unsoundReadyErr
 	}
@@ -7328,6 +7341,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			stage = "nothing: no blue sitting reached the compute"
 		}
 		res.err = fmt.Sprintf("forced unsound computation: no plan readied %s or blue for an unsound computation; the chain reached %s", computationOwner, stage)
+	}
+	if msg := r.foundAgainstForcedErr(); msg != "" && res.err == "" {
+		res.err = msg
 	}
 	if r.forceAbsentSpan && r.spansRefused == 0 && res.err == "" {
 		res.err = "forced absent span: no cite of a span its source does not hold was refused"
@@ -7357,7 +7373,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.blueSittings, res.blueAgain = r.blueSittings, r.blueAgain
 	res.budgetRefused = r.budgetRefused
 	res.oneGapRefused, res.oneGapFindings = r.oneGapRefused, r.oneGapFindings
-	res.ownAnswers = r.ownAnswers
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
@@ -7382,6 +7397,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			minter[m.GetGapId()] = e.GetSeatId()
 		}
 	}
+	readingTally(&res, board, oracleRun)
 	for _, e := range board.Events {
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION && e.GetSeatId() != "red-chair" && res.err == "" {
 			res.err = "position duty: the record holds a position by " + e.GetSeatId() + ", and the position is the chair's"
@@ -7893,9 +7909,10 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 		// (reportdoc.StripTokens: a token in code stays, and a line left a husk goes with them) — a gap
 		// anchor a seat quoted into its retire or a prescription carried is not prose — and, where the
 		// tool places it in a line, on one line; so both sides are read with their whitespace runs one
-		// space, and as a reader reads them (asRead).
-		prose := flat(asRead(reportdoc.StripTokens(fieldStr(t, e, key))))
-		if prose == "" || strings.Contains(flatRpt, prose) {
+		// space, and as a reader reads them (asRead). A token the weave turns into a note is read as
+		// the note reference it ships as (wovenAsNotes, shipsWoven).
+		prose := flat(asRead(reportdoc.StripTokens(wovenAsNotes(fieldStr(t, e, key)))))
+		if prose == "" || shipsWoven(flatRpt, prose) {
 			continue
 		}
 		missing = append(missing, fmt.Sprintf("%s/%s prose absent from report: %q", e.GetSeatId(), w, prose))
@@ -7914,6 +7931,44 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 	return ""
 }
 
+// wovenNote stands in prose for a run of adjacent woven tokens, the place assembly writes a note
+// reference; a byte no seat text and no flat() run holds.
+const wovenNote = "\x00"
+
+// wovenAsNotes is s with each run of adjacent tokens the weave turns into a note — a citation's, a
+// computation's — replaced by wovenNote, so StripTokens takes out only the tokens assembly takes out.
+// A prescription a reading carries holds its sentence's citation token, and an estoppel entry quotes
+// that prescription: run.md ships the token as "[^1]", which the token stripped to nothing never matched.
+func wovenAsNotes(s string) string {
+	var b strings.Builder
+	last, prevEnd := 0, -1
+	anchor.Each(s, func(start, end int, id string) {
+		if anchor.AssemblyOf(id) == anchor.Strip {
+			return
+		}
+		b.WriteString(s[last:start])
+		if start != prevEnd {
+			b.WriteString(wovenNote)
+		}
+		last, prevEnd = end, end
+	})
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// shipsWoven reports whether report holds prose, each wovenNote in it read as the note references
+// the weave wrote there: one or more "[^N]" / "[^KN]" (adjacent cites of one source share a note).
+func shipsWoven(report, prose string) bool {
+	if !strings.Contains(prose, wovenNote) {
+		return strings.Contains(report, prose)
+	}
+	parts := strings.Split(prose, wovenNote)
+	for i := range parts {
+		parts[i] = regexp.QuoteMeta(parts[i])
+	}
+	return regexp.MustCompile(strings.Join(parts, `(?:\[\^K?[0-9]+\])+`)).MatchString(report)
+}
+
 // motionIDOf pulls the tool-assigned motion id out of a filing's JSON envelope.
 func motionIDOf(out string) string {
 	var env struct {
@@ -7925,35 +7980,6 @@ func motionIDOf(out string) string {
 		return ""
 	}
 	return env.Result.MotionID
-}
-
-// claimOf is the claim a --json verify result names, or "".
-// contradictionOf is the id of the contradiction a reading's --json result names, and whether it
-// names one.
-func contradictionOf(out string) (string, bool) {
-	var env struct {
-		Result struct {
-			Contradiction *struct {
-				ID string `json:"id"`
-			} `json:"contradiction"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.Contradiction == nil {
-		return "", false
-	}
-	return env.Result.Contradiction.ID, true
-}
-
-func claimOf(out string) string {
-	var env struct {
-		Result struct {
-			Claim string `json:"claim"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(out), &env); err != nil {
-		return ""
-	}
-	return env.Result.Claim
 }
 
 func binDir(bin string) string { return filepath.ToSlash(filepath.Dir(bin)) }
@@ -8381,11 +8407,11 @@ func (r *runner) settleOpenInquiries(seatID string) {
 	if !ok {
 		return
 	}
-	// THE FORCED UNSOUND CHAIN SETTLES EVERY ONE: its owner judges the forced computation only in a
-	// sitting whose plan does not ready blue-respond (judgeUnsound), and an open inquiry readies
-	// blue-respond on every plan. A reaffirmed `underway` there left every plan of seed 6 readying blue,
-	// and the chain never reached its judgement.
-	keepOpen := !r.forcedVerdict() && !r.forceUnsoundComputation
+	// A FORCED CHAIN THAT WANTS BLUE ABSENT SETTLES EVERY ONE: its owner acts only in a sitting whose
+	// plan does not ready blue-respond (chainWantsBlueAbsent), and an open inquiry readies blue-respond
+	// on every plan. A reaffirmed `underway` there left every plan of seed 6 readying blue, and the chain
+	// never reached its judgement.
+	keepOpen := !r.forcedVerdict() && !r.chainWantsBlueAbsent()
 	for _, j := range js {
 		switch {
 		case j.Open() && keepOpen && r.coin(20):
@@ -9287,7 +9313,6 @@ func (r *runner) envelopeRefusedEarly(seatID, standing string) {
 func (r *runner) envelopeEnds(seatID string) bool {
 	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
 	for i := 0; i < 4 && err == nil && refusal != "" && strings.HasPrefix(seatID, "red-lens-"); i++ {
-		r.answerContradictions(seatID)
 		r.dischargeOwed(seatID)
 		r.answerFailed(seatID)
 		// AN INQUIRY A SIBLING'S ACT LEFT UNCHECKED: a lens sitting alongside closed or regraded the gap

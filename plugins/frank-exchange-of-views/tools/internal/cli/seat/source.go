@@ -17,7 +17,7 @@ import (
 // ReadsSources reports whether a role reads a SOURCE, and so carries `fetch` and `show source`.
 //
 // A lane reads what it researches, blue reads what it cites, and a lens reads the same cached bytes
-// to verify the citation, or a source of its own to corroborate one. The chair and the bench are handed no source to read: the
+// to read a citation's source, or a source it found, against the sentence. The chair and the bench are handed no source to read: the
 // chair reads the report, the board and the changes since a stale area's pin, and the bench's
 // ruling basis is confined to the closings, the transcript and the artifacts as the record renders
 // them. A verb on a surface is a thing its seat reaches for, and every seat reads its whole
@@ -65,7 +65,7 @@ func showSource(cmd *cobra.Command, run record.Run) error {
 			return feov.Errorf(feov.Validation, "%s names no citation on this record, so it names no source to search", at)
 		}
 		if ev.Source.Sha256 == "" {
-			return feov.Errorf(feov.Validation, "%s names a corroboration of %s, and this run's cache held no copy of that source when it was read, so the tool holds no text of it to search", at, ev.Source.URL)
+			return feov.Errorf(feov.Validation, "%s cites %s, and the record holds no copy of that source, so the tool holds no text of it to search", at, ev.Source.URL)
 		}
 		sha = ev.Source.Sha256
 	case sha == "":

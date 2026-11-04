@@ -177,11 +177,11 @@ func TestALensLastSittingSkipsASittingStoppedAtTheLimit(t *testing.T) {
 	}
 }
 
-// A CONTRADICTION IS READIED ONCE PER CAUSE, AND A SITTING STOPPED AT THE LIMIT IS NOT THE ONE: the
-// lens that read it is readied again.
-func TestAContradictionIsReadiedAgainAfterASittingStoppedAtTheLimit(t *testing.T) {
+// A FAILED CHECK IS READIED ONCE PER CAUSE, AND A SITTING STOPPED AT THE LIMIT IS NOT THE ONE: the
+// lens whose check read nothing is readied again.
+func TestAFailedCheckIsReadiedAgainAfterASittingStoppedAtTheLimit(t *testing.T) {
 	for _, limited := range []bool{true, false} {
-		b := retBoard(t).sit(2, evLens).add(evLens, contradictingVerify("the sky is green")).
+		b := retBoard(t).sit(2, evLens).cite("C-1").verify(evLens, "C-1", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE).
 			dispatch(2, evLens).bracket(evLens, "a1")
 		if limited {
 			b.limit(evLens, 2)

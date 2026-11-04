@@ -734,9 +734,12 @@ LEFT JOIN "events" ce ON ce."id" =
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
---            One row per anchor event: every act that places a marker — a finding, a gap, a
---            citation, a computation, a corroboration — appends one after its own event, so where an
---            id is placed is read from one table.
+--            One row per anchor event placed by its quote: every act that places a marker — a
+--            finding, a gap, a citation, a computation — appends one after its own
+--            event, so where an id is placed is read from one table.
+--   sentence_of → a=the id of an anchor already in the text, b=the marker id (Token(b) is spliced
+--            at the end of the sentence Token(a) sits in, found by that token, never by text);
+--            exact=0. One row per anchor event placed by sentence_of — a reading's gap.
 --   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
 --            are removed). One row per named anchor; exact=0.
 -- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
@@ -754,6 +757,10 @@ CREATE VIEW "report_op" AS
   SELECT a."event_id", 'insert', a."location", a."id", 0
     FROM "anchor" a
     WHERE COALESCE(a."location", '') != '' AND COALESCE(a."id", '') != ''
+  UNION ALL
+  SELECT a."event_id", 'sentence_of', a."sentence_of", a."id", 0
+    FROM "anchor" a
+    WHERE COALESCE(a."sentence_of", '') != '' AND COALESCE(a."id", '') != ''
   UNION ALL
   SELECT ra."event_id", 'remove', ra."value", NULL, 0
     FROM "retire_anchors" ra;

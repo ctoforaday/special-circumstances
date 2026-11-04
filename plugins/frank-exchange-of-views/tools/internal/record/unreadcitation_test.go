@@ -116,7 +116,7 @@ func TestABenchRulingDoesNotClearAnUnreadCitation(t *testing.T) {
 	}
 }
 
-// THE GAP THAT CARRIES A FAILED CHECK DOES NOT CLOSE WHILE THE CHECK STANDS (requireFailedCheckAnswered),
+// THE CLOSE OF THE GAP THAT CARRIES A FAILED CHECK IS REFUSED WHILE THE CHECK STANDS (requireFailedCheckAnswered),
 // whatever its class; one that names a live successor hands the defect on and is recorded; and once
 // blue retires the citation, it closes.
 func TestTheGapAboutAFailedCheckClosesOnlyOnceTheCheckIsAnswered(t *testing.T) {

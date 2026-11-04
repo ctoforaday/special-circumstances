@@ -26,3 +26,33 @@ func TestProseRendersReadsTheShippedText(t *testing.T) {
 		t.Error(m)
 	}
 }
+
+// A CITATION TOKEN IN PROSE SHIPS AS ITS NOTE. An estoppel entry quotes the prescription it holds a
+// mint to, and a reading's prescription keeps its sentence's citation token: run.md, as assembly
+// writes it, carries that token woven into "[^1]". The prose is found there; prose whose words differ
+// beside the note is not.
+func TestProseRendersReadsAWovenCitationAsItsNote(t *testing.T) {
+	const cite = "C-2eb55575"
+	text := `estoppel — red-lens-dark-side's fix for G-2fd8052b. Prescribed text: "Costs rose modestly in the first quarter<!--cite:` + cite + `-->."`
+	lt, src := recordpb.LogType_LOG_TYPE_ESTOPPEL, recordpb.LogSource_LOG_SOURCE_TOOL
+	e := recordtest.Event(t, "red-lens-evidence", &recordpb.Log{Text: proto.String(text), Type: &lt, Source: &src})
+	fam := record.Family{Events: []*record.Event{e}}
+	for _, c := range []struct {
+		name, runMD string
+		found       bool
+	}{
+		{"woven", `- **red-lens-evidence** (estoppel): estoppel — red-lens-dark-side's fix for G-2fd8052b. Prescribed text: "Costs rose modestly in the first quarter[^1]."` + "\n\n[^1]: A source. https://example.org/a\n", true},
+		{"other words", `- **red-lens-evidence** (estoppel): estoppel — red-lens-dark-side's fix for G-2fd8052b. Prescribed text: "Costs rose sharply in the first quarter[^1]."` + "\n", false},
+		{"no note", `- **red-lens-evidence** (estoppel): estoppel — red-lens-dark-side's fix for G-2fd8052b. Prescribed text: "Costs rose modestly in the first quarter dropped."` + "\n", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, reportdoc.FileRun), []byte(c.runMD), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if m := proseRenders(t, fam, dir); (m == "") != c.found {
+				t.Errorf("found %v, want %v: %s", m == "", c.found, m)
+			}
+		})
+	}
+}

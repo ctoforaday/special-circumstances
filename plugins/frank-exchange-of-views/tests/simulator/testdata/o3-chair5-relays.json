@@ -116,11 +116,6 @@
     "owner": "red-lens-logic"
    },
    {
-    "kind": "contradiction",
-    "subject": "if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7",
-    "owner": "red-lens-dark-side"
-   },
-   {
     "kind": "lens_ready",
     "subject": "red-lens-logic",
     "owner": "red-lens-logic"
@@ -177,9 +172,7 @@
    "G-198e2158: at impasse (2 exchange(s) (0 stalled)) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it.",
    "G-d918c44d: docketed and unruled — the bench is ready",
    "G-39cd1128: docketed and unruled — the bench is ready",
-   "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits",
-   "red-lens-dark-side has sat since it read a source contradicting \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\", and no finding raises it — readied once per contradiction, so not again",
-   "a source red-lens-dark-side read contradicts or does not support \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\" and no finding raises it — PASS is not permitted until one does"
+   "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits"
   ]
  },
  "relays": [
@@ -303,11 +296,6 @@
         "owner": "red-lens-logic"
        },
        {
-        "kind": "contradiction",
-        "subject": "if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7",
-        "owner": "red-lens-dark-side"
-       },
-       {
         "kind": "lens_ready",
         "subject": "red-lens-logic",
         "owner": "red-lens-logic"
@@ -364,9 +352,7 @@
        "G-198e2158: at impasse (2 exchange(s) (0 stalled)) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it.",
        "G-d918c44d: docketed and unruled — the bench is ready",
        "G-39cd1128: docketed and unruled — the bench is ready",
-       "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits",
-       "red-lens-dark-side has sat since it read a source contradicting \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\", and no finding raises it — readied once per contradiction, so not again",
-       "a source red-lens-dark-side read contradicts or does not support \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\" and no finding raises it — PASS is not permitted until one does"
+       "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits"
       ]
      },
      "verdict": null
@@ -493,11 +479,6 @@
         "owner": "red-lens-logic"
        },
        {
-        "kind": "contradiction",
-        "subject": "if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7",
-        "owner": "red-lens-dark-side"
-       },
-       {
         "kind": "lens_ready",
         "subject": "red-lens-logic",
         "owner": "red-lens-logic"
@@ -554,9 +535,7 @@
        "G-198e2158: at impasse (2 exchange(s) (0 stalled)) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it.",
        "G-d918c44d: docketed and unruled — the bench is ready",
        "G-39cd1128: docketed and unruled — the bench is ready",
-       "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits",
-       "red-lens-dark-side has sat since it read a source contradicting \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\", and no finding raises it — readied once per contradiction, so not again",
-       "a source red-lens-dark-side read contradicts or does not support \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\" and no finding raises it — PASS is not permitted until one does"
+       "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits"
       ]
      },
      "verdict": null,

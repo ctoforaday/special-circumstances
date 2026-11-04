@@ -121,8 +121,7 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 	// THE VERBS COME FROM THE TREE, not from a table of what exists. A hand-kept event-type -> role
 	// map goes stale when a verb becomes a group.
 	//
-	// An event type now has one verb or several — `verify` and `corroborate` both write a verify,
-	// `close` and `carry` both write a close — so every LEAF that writes the type is checked.
+	// An event type has one verb or several — `close` and `carry` both write a close — so every LEAF that writes the type is checked.
 	byType := map[string][]*cobra.Command{}
 	var walk func(*cobra.Command)
 	walk = func(c *cobra.Command) {

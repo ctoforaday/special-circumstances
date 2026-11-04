@@ -605,8 +605,8 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debate
 	//           terse-communication]`, and a raw system-prompt file loads NONE of them. The probed
 	//           seat did not have the protocol it operates under.
 	//   TOOLS   the constitution declares WebSearch and ToolSearch. The hand-written list had
-	//           neither — so `corroborate`, which is the verb for a source the seat goes and FINDS,
-	//           was unmeetable, and the board scored the seat UNMET on it across every run.
+	//           neither — so reading a source the seat goes and FINDS (`verify --url`) was
+	//           unmeetable, and the board scored the seat UNMET on it across every run.
 	//
 	// --agent resolves the same definition production resolves, with its skills and its declared
 	// tools. It requires the plugin to be INSTALLED, which is also what production requires.

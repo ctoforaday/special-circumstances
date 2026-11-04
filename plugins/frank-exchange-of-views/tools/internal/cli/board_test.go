@@ -176,25 +176,14 @@ func TestFindingsViewProjectsLensFindings(t *testing.T) {
 //
 // # A CAPABILITY QUESTION THIS TEST NOW PINS, and it is a real one
 //
-// A verify keys on its reference (`url` is in keyFields), so two verifications of one source in
-// ONE SOURCE MAY CORROBORATE MANY CLAIMS, and this test used to assert the opposite.
-//
-// It pinned a REFUSAL: a corroboration keyed on its `url`, so a second one naming the same source
-// in the same sitting collided and was refused. That was recorded as a real loss with three ways
-// out, and the operator chose one (2026-08-22): red's supporting corroborations mint a label and
-// become ordinary footnotes, exactly as blue's cites do. `keyFields` is walked first-match and
-// `label` sits before `url`, so the key moved off the source and the collision is gone.
-//
-// The loss it described was never exotic: a strong source usually bears on several claims, so
-// "one act per source per sitting" capped red's own evidence-gathering at the first one. The
-// remaining half of the old contract still holds and is asserted below — the same source for the
-// same CLAIM is still one act.
+// ONE SOURCE MAY BE READ FOR MANY SENTENCES: a strong source usually bears on several claims, so
+// "one act per source per sitting" would cap red's own evidence-gathering at the first one. The
+// same source for the same SENTENCE is one reading per sitting — a repeat is refused naming the
+// reading it repeats — and the count does not move.
 func TestBoardCountsCiteEvents(t *testing.T) {
 	runDir := seatRun(t)
-	// THE QUOTES ARE REAL SPANS from the seeded report. A supporting corroboration splices an
-	// anchor at the claim, so the claim must be in the live document — the same rule blue's cite
-	// is held to, and the reason a corroboration of text blue has since edited away is refused
-	// rather than spliced blind.
+	// THE QUOTES ARE REAL SPANS from the seeded report: a reading's quote is held to the live
+	// document, the same rule blue's cite is held to.
 	const (
 		claimA = "§1 first — a finding sits in sec 1 here."
 		claimB = "§2 the finding prose lands in a quoted sentence."
@@ -204,37 +193,33 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 		{claimA, "https://example.com/a"},
 		{claimB, "https://example.com/b"},
 	}
-	corroborate := func(claim, url, title string) error {
-		// Corroborations by construction: these are sources red went and found, not citations blue
-		// authored, so there is no anchor to name.
-		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+	read := func(claim, url, title string) error {
+		// Readings of sources red went and found, not citations blue authored, so there is no
+		// anchor to name. `absent` on a found source mints nothing, so no gap flags ride along.
+		_, err := run(t, "verify", "--run", runDir, "--seat-id", "red-lens-evidence",
 			"--quote", claim, "--url", url, "--title", title,
-			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
+			"--as", "absent", "--confidence", "high", "--reason", "read at the leaf",
 			"--access-date", "2026-07-24")
 		return err
 	}
 	for _, c := range cites {
-		if err := corroborate(c.claim, c.ref, c.ref); err != nil {
-			t.Fatalf("cite %q: %v", c.claim, err)
+		if err := read(c.claim, c.ref, c.ref); err != nil {
+			t.Fatalf("read %q: %v", c.claim, err)
 		}
 	}
-	// THE SAME SOURCE, A DIFFERENT CLAIM: this is what the label bought. It was refused.
-	if err := corroborate(claimC, "https://example.com/a", "a"); err != nil {
-		t.Fatalf("one source corroborating a SECOND claim was refused: %v\n"+
-			"A strong source usually bears on several claims; keyed on the url, only the first could ever record.", err)
+	// THE SAME SOURCE, A DIFFERENT SENTENCE is a second reading.
+	if err := read(claimC, "https://example.com/a", "a"); err != nil {
+		t.Fatalf("one source read for a SECOND sentence was refused: %v", err)
 	}
-	// AND THE SAME SOURCE FOR THE SAME CLAIM IS STILL ONE ACT. Not by refusal any more — the
-	// minted label is fresh every call, so nothing collides — but by returning the anchor already
-	// minted. That is the idempotency the url key used to provide, and losing it silently was the
-	// cost that made "drop url from keyFields" the wrong answer to this in the first place.
-	if err := corroborate(claimC, "https://example.com/a", "a"); err != nil {
-		t.Fatalf("a retried corroboration was refused rather than returning its existing anchor: %v", err)
+	// THE SAME SOURCE FOR THE SAME SENTENCE, IN THE SAME SITTING, is refused.
+	if err := read(claimC, "https://example.com/a", "a"); err == nil {
+		t.Fatal("a repeated reading of one source for one sentence in one sitting was recorded")
 	}
 
-	// THREE, NOT FOUR: three distinct (source, claim) corroborations, and the retry above added
+	// THREE, NOT FOUR: three distinct (source, sentence) readings; the refused repeat added
 	// nothing. This counted 2 when a source could bear on only one claim.
 	if b := board(t, runDir, "red-chair"); b.Counts.Citations != 3 {
-		t.Errorf("counts.citations = %d, want 3 (three distinct source/claim readings, the retry adding none) — the board is the source for citations_checked", b.Counts.Citations)
+		t.Errorf("counts.citations = %d, want 3 (three distinct source/claim readings, the refused repeat adding none) — the board is the source for citations_checked", b.Counts.Citations)
 	}
 }
 

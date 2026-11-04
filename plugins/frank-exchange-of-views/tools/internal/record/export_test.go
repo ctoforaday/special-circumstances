@@ -27,20 +27,38 @@ func OwedBlocker(kind BlockerKind, subject string) string {
 	return owedBlocker(Blocker{Kind: kind, Subject: subject})
 }
 
-// ContradictionReadiness is the plan's reason on an unanswered contradiction a lens read.
-func ContradictionReadiness(owner, claim, subject string, satSince bool) string {
-	return contradictionReadiness(Blocker{Kind: BlockerContradiction, Owner: owner, Detail: claim, Subject: subject}, satSince)
+// FailedCheckReadiness is dispatch's reason on a failed check, for each state, readying seat — blue,
+// or the lens whose check failed — carried by a gap and by none, before and after seat sat since.
+func FailedCheckReadiness(seat, owner, subject string, since func() int64) []string {
+	var out []string
+	for _, state := range []CheckState{CheckUnread, CheckUnsound, CheckFoundAgainst} {
+		for _, carrier := range []string{"", "G-1"} {
+			for _, satSince := range []bool{false, true} {
+				out = append(out, failedCheckReadiness(Blocker{Kind: BlockerFailedCheck, Subject: subject, Owner: owner, state: state, since: since(), answeredBy: carrier}, seat, satSince))
+			}
+		}
+	}
+	return out
 }
 
-// BlockerWhy is the plan's reason for one blocker of each kind that states one, keyed by kind;
+// BlockerWhy is the plan's reason for one blocker of each kind that states one, and for a failed
+// check one per state (CheckState), carried by a gap and by none — every wording the plan prints;
 // subject names the blocker's subject for the kind, and since and lastCheck are its events.ids.
-func BlockerWhy(subject func(BlockerKind) string, owner, detail string, since, lastCheck func() int64) map[BlockerKind]string {
-	out := map[BlockerKind]string{}
+func BlockerWhy(subject func(BlockerKind) string, owner, detail string, since, lastCheck func() int64) []string {
+	var out []string
 	for _, k := range blockerKinds {
 		if k.why == nil {
 			continue
 		}
-		out[k.kind] = k.why(Blocker{Kind: k.kind, Subject: subject(k.kind), Owner: owner, Detail: detail, since: since(), lastCheck: lastCheck()})
+		if k.kind != BlockerFailedCheck {
+			out = append(out, k.why(Blocker{Kind: k.kind, Subject: subject(k.kind), Owner: owner, Detail: detail, since: since(), lastCheck: lastCheck()}))
+			continue
+		}
+		for _, state := range []CheckState{CheckUnread, CheckUnsound, CheckFoundAgainst} {
+			for _, carrier := range []string{"", "G-1"} {
+				out = append(out, k.why(Blocker{Kind: k.kind, Subject: subject(k.kind), Owner: owner, state: state, since: since(), answeredBy: carrier}))
+			}
+		}
 	}
 	return out
 }
