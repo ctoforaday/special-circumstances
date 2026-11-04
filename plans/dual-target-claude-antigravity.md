@@ -39,11 +39,11 @@
 **Split (five independently green PRs, tracked in [#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)–[#1472](https://github.com/ctoforaday/special-circumstances/issues/1472)).**
 > **Upstream Sequencing Gate (2026-11-01):** Full migration execution and `debate.js` runtime orchestration on Antigravity are gated on upstream `/run-workflow` and Antigravity dynamic workflows launching. Only the `hookcore` library ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470)) can be built out in advance; actual plugin migration and `debate.js` execution wait for dynamic workflows to ship.
 
-1. **PR 1 ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469) — Skills & Agents Parity):** `[IN PROGRESS]`
+1. **PR 1 ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469) — Skills & Agents Parity):** `[COMPLETED]` (`9c833e605`, `3bdb87f5a`)
    - [x] Agent `tools:` and `skills:` converted to dual-target YAML flow sequences across all 14 agents (`seat-tools.md`, `agentgen`, `plan-auditor.md`, `probe.md`).
    - [x] `scripts/frontmatter` gate updated and tested to enforce sequences and prevent `agents 0`.
    - [x] `seatprobe.GrantedTools` updated and tested to enforce sequence format.
-   - [ ] Six CLI-invoking `SKILL.md` binary execution path fallbacks (`doctor`, 4 `audit-*`, `feov/research`).
+   - [x] Six CLI-invoking `SKILL.md` binary execution path fallbacks (`doctor`, 4 `audit-*`, `feov/research`).
 2. **PR 2 ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468) — Dual-Target Manifests, `.claude-plugin/hooks.json`, Root `hooks.json`, & `fetch-bin.sh`):** `[COMPLETED]` (`9c833e605`)
    - [x] `.antigravity-plugin/plugin.json` generated for all 4 plugins from `.claude-plugin/plugin.json` via `scripts/marketplacegen`.
    - [x] `.agents/plugins.json` workspace registration created and verified.
