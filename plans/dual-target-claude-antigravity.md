@@ -1,7 +1,7 @@
 # Special Circumstances: Dual-Target Claude Code & Google Antigravity Architecture Plan (#1473)
 
-> **Status:** Empirically Verified Implementation Plan (v2.2.0 — [#1474](https://github.com/ctoforaday/special-circumstances/issues/1474), Umbrella [#1473](https://github.com/ctoforaday/special-circumstances/issues/1473), Plan Audit [#1467](https://github.com/ctoforaday/special-circumstances/issues/1467))  
-> **Target Repository:** `/home/gblock_ctoforaday_com/projects/special-circumstances` (`origin/main` @ `61107ba4`)  
+> **Status:** Empirically Verified Implementation Plan (v2.2.0 — [#1474](https://github.com/ctoforaday/special-circumstances/issues/1474), Umbrella [#1473](https://github.com/ctoforaday/special-circumstances/issues/1473), Plan Audit [#1467](https://github.com/ctoforaday/special-circumstances/issues/1467)) — PRs 1–5 Merged on `main`  
+> **Target Repository:** `/home/gblock_ctoforaday_com/projects/special-circumstances` (`origin/main` @ `8261c80ff`)  
 > **Engines Tested:** Anthropic Claude Code (`claude` v2.1.309) & Google Antigravity (`agy` v1.4.12)  
 > **Primary Source Evidence:** [`plans/antigravity-hooks-empirical-proof.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/antigravity-hooks-empirical-proof.md) (§1–§7), [`plans/hide-non-user-facing-skills-slash-commands.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/hide-non-user-facing-skills-slash-commands.md), [`plans/fr-configurable-hook-manifests-and-reverse-domain-extensions.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/fr-configurable-hook-manifests-and-reverse-domain-extensions.md)
 
@@ -37,14 +37,14 @@
 - Avoids adding a 16th hook binary directory in `tools/cmd/` by handling `PreInvocation` via `sc-sessionstart -event PreInvocation` (matching `gray-area-capture -event <Event>`) and folding `strikecounter` into `sc-posttooluse` when `req.ToolError != ""` on Antigravity (preserving `fetchbingen`'s one-hook-per-event invariant).
 
 **Split (five independently green PRs, tracked in [#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)–[#1472](https://github.com/ctoforaday/special-circumstances/issues/1472)).**
-> **Upstream Sequencing Gate (2026-11-01):** Full migration execution and `debate.js` runtime orchestration on Antigravity are gated on upstream `/run-workflow` and Antigravity dynamic workflows launching. Only the `hookcore` library ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470)) can be built out in advance; actual plugin migration and `debate.js` execution wait for dynamic workflows to ship.
+> **Implementation Status & Upstream Sequencing Gate (2026-11-04):** Phase 1 (PRs 1–5: manifests, agent frontmatter & skills parity, `shared/hookcore` wire adapter library, and hook binary migrations across all three plugins) is **100% completed and merged on `origin/main`** (`81bc42c72..8261c80ff`). Phase 2 (runtime `debate.js` orchestration and dynamic subagent dispatch on Antigravity) remains gated on upstream `/run-workflow` and Antigravity dynamic workflows launching.
 
-1. **PR 1 ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469) — Skills & Agents Parity):** `[COMPLETED]` (`9c833e605`, `3bdb87f5a`)
+1. **PR 1 ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469) — Skills & Agents Parity):** `[COMPLETED]` (`16b9664d0`, `33211091a`)
    - [x] Agent `tools:` and `skills:` converted to dual-target YAML flow sequences across all 14 agents (`seat-tools.md`, `agentgen`, `plan-auditor.md`, `probe.md`).
    - [x] `scripts/frontmatter` gate updated and tested to enforce sequences and prevent `agents 0`.
    - [x] `seatprobe.GrantedTools` updated and tested to enforce sequence format.
    - [x] Six CLI-invoking `SKILL.md` binary execution path fallbacks (`doctor`, 4 `audit-*`, `feov/research`).
-2. **PR 2 ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468) — Dual-Target Manifests, `.claude-plugin/hooks.json`, Root `hooks.json`, & `fetch-bin.sh`):** `[COMPLETED]` (`9c833e605`)
+2. **PR 2 ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468) — Dual-Target Manifests, `.claude-plugin/hooks.json`, Root `hooks.json`, & `fetch-bin.sh`):** `[COMPLETED]` (`16b9664d0`)
    - [x] `.antigravity-plugin/plugin.json` generated for all 4 plugins from `.claude-plugin/plugin.json` via `scripts/marketplacegen`.
    - [x] `.agents/plugins.json` workspace registration created and verified.
    - [x] `scripts/versionguard` checks `.antigravity-plugin/plugin.json` against `.claude-plugin/plugin.json` and release tags.
@@ -54,15 +54,15 @@
    - [x] Place Antigravity named-hook group manifests at `<plugin_root>/hooks.json`.
    - [x] Update `scripts/validatejson` for Antigravity schema.
    - [x] Update `fetch-bin.sh` and `hookfailures.Ensure` for dual-harness detection.
-3. **PR 3 ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470) — `shared/hookcore` Wire Adapter & Live Contract Tests):** `[COMPLETED]` (`88ef622bd`, `07ee767f4`)
+3. **PR 3 ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470) — `shared/hookcore` Wire Adapter & Live Contract Tests):** `[COMPLETED]` (`81bc42c72`, `16fd44ef7`)
    - [x] Created `shared/go.mod` (`module github.com/ctoforaday/special-circumstances/shared`).
    - [x] Authored pure-stdlib wire adapter `shared/hookcore/hookcore.go` with tool argument normalization, dual-engine stdin decoding, and stdout/stderr/queue response emission.
    - [x] Authored table-driven test suite `shared/hookcore/hookcore_test.go` verifying Claude Code and Antigravity fixtures across all hook events.
    - [x] Integrated `shared` Go module into `scripts/check/gates.go` (`modules`, `raceScope`), `scripts/check/parity_test.go`, and `.github/workflows/hooks.yml` (`vet`, `fmt`, `shared` test matrix).
    - [x] Authored comprehensive live harness contract tests (`shared/hookcore/live_harness_test.go`) executing real `claude` and `agy` CLIs across all hook events (`PreInvocation`/`SessionStart`, `PreToolUse`, `PostToolUse`, `PostInvocation`/`Stop`) in isolated temporary environments with session archiving.
-4. **PR 4 ([#1471](https://github.com/ctoforaday/special-circumstances/issues/1471) — `prosthetic-conscience` Hook Migration):** `[COMPLETED]` (`8ee6c8aab`)
+4. **PR 4 ([#1471](https://github.com/ctoforaday/special-circumstances/issues/1471) — `prosthetic-conscience` Hook Migration):** `[COMPLETED]` (`fd50aef19`)
    - [x] Wire all 10 `prosthetic-conscience` hook entrypoints onto `hookcore` (`sc-sessionstart`, `sc-pretooluse`, `sc-posttooluse`, `sc-stop`, `sc-strike-counter`, `sc-checkpointseal`, `sc-filechanged-rearm`, `sc-postcompact-observe`, `sc-precompact`, `sc-sessionend`).
-5. **PR 5 ([#1472](https://github.com/ctoforaday/special-circumstances/issues/1472) — `frank-exchange-of-views` & `gray-area` Hook Migration):** `[COMPLETED]` (`4595dba1f`)
+5. **PR 5 ([#1472](https://github.com/ctoforaday/special-circumstances/issues/1472) — `frank-exchange-of-views` & `gray-area` Hook Migration):** `[COMPLETED]` (`87b39b1a9`)
    - [x] Wire `frank-exchange-of-views` hooks onto `hookcore` (`feov-pretooluse`, `feov-posttooluse`, `feov-posttoolusefailure`, `feov-subagentstart`, `feov-subagentstop`).
    - [x] Wire `gray-area` hook onto `hookcore` (`gray-area-capture`).
    - [x] Verified all 17 check gates locally passing with `0` failures under `-race`.
@@ -155,6 +155,20 @@ plugins/prosthetic-conscience/
   - In `scripts/fetchbingen/fetch-bin.sh`: resolve `ROOT=${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}}`; in `field()`, read `$ROOT/.claude-plugin/plugin.json` (falling back to `$ROOT/.antigravity-plugin/plugin.json`); in `speak()`, when `[ -n "${ANTIGRAVITY_CONVERSATION_ID:-}" ] || [ -n "${PLUGIN_ROOT:-}" ]` and `CLAUDE_PLUGIN_ROOT` is unset (Antigravity) and `SC_ENSURE_INTERNAL` is not `1`, emit `{"injectSteps":[{"systemMessage":{"systemMessage":"%s","metadata":{"user_markdown":"%s"}}}]}` on `SessionStart`/`PreInvocation` and nothing on `stdout` for `PreTool`/`PreToolUse`/`PostTool`/`PostToolUse`/`PostInvocation`/`Stop` (because `protojson.Unmarshal` with `DiscardUnknown: false` rejects `systemMessage` on those result messages).
   - In `scripts/fetchbingen/main.go`: check both `plugins/<p>/.claude-plugin/hooks.json` (`${CLAUDE_PLUGIN_ROOT}` guard) and `plugins/<p>/hooks.json` (`${PWD}` guard).
   - In `scripts/internal/hookfailures/failures.go` (`Ensure`): fall back from `os.Getenv("CLAUDE_PLUGIN_ROOT")` to `os.Getenv("PLUGIN_ROOT")` to `os.Executable()` grandparent / `os.Getwd()` and pass `SC_ENSURE_INTERNAL=1` in the child environment so `Ensure` continues parsing `{"systemMessage":"..."}` uniformly. Regenerate via `go -C scripts run ./fetchbingen` and `go -C scripts run ./hookfailgen`.
+
+#### III.2.1 The Hook Staging & Manifest Activation Invariant (Live-Discovery Safety)
+
+> [!IMPORTANT]
+> **The Active Workspace Hook Invariant:** Because Google Antigravity discovers and registers `<plugin_root>/hooks.json` live from any active repository listed in `.agents/plugins.json` or discovered during development, a hook declaration in `hooks.json` is **immediately live in the developer's session**.
+>
+> Declaring a hook in `hooks.json` whose underlying binary is unmigrated, uncompiled, or whose fallback script (`fetch-bin.sh`) emits invalid protojson causes Antigravity's `protojson` unmarshaler to fail with `unknown field "systemMessage"`, blocking every subsequent tool call in the workspace.
+>
+> **Mandatory 5-Stage Staging Gate:**
+> 1. **Stage 1 (Manifest Foundation — No Root Hooks):** Author `.antigravity-plugin/plugin.json`, `.agents/plugins.json`, and relocate Claude manifests to `.claude-plugin/hooks.json`. Root `<plugin>/hooks.json` MUST NOT exist (or must declare `{}`) at this stage.
+> 2. **Stage 2 (Wire Adapter Library):** Author and test `shared/hookcore` in isolated test harnesses with dual-engine table-driven contract fixtures.
+> 3. **Stage 3 (Binary Migration & Local Build):** Wire plugin hook entrypoints onto `hookcore`. Build binaries into `<plugin>/bin/` so the hook command executes compiled native code.
+> 4. **Stage 4 (Fallback Verification):** Verify that fallback mechanisms (`fetch-bin.sh`) under missing binaries degrade silently on tool events (`PreToolUse`/`PostToolUse`), emitting `{}` with exit `0` and never Claude-specific fields like `systemMessage`.
+> 5. **Stage 5 (Manifest Activation):** ONLY AFTER Stages 1–4 are green may `<plugin>/hooks.json` be created and committed to register the hook event. Any hook event whose binary is not yet migrated must be omitted from `<plugin>/hooks.json`.
 
 ---
 
