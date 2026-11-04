@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // THE CALL THAT RETURNS A SEAT'S ENVELOPE IS DENIED WITH THE RECORD'S REFUSAL, from the whole
@@ -18,7 +19,7 @@ func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 	refusal, checkErr := "", error(nil)
 	var asked []string
 	prev := envelopeAnswer
-	envelopeAnswer = func(dir, agent string) (hookgate.EnvelopeAnswer, error) {
+	envelopeAnswer = func(dir, agent string, _ []byte) (hookgate.EnvelopeAnswer, error) {
 		asked = append(asked, dir+" | "+agent)
 		return hookgate.EnvelopeAnswer{Refusal: refusal}, checkErr
 	}
@@ -74,6 +75,62 @@ func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 	}
 }
 
+// WHERE THE RECORD SUPPLIES THE ENVELOPE, THE CALL GOES ON CARRYING IT, WITH THE READ ON IT. The hook
+// hands the record what the seat stated, and replaces the call's arguments with what comes back, the
+// record's read written onto it: this is the one way the stored plan reaches the workflow script, whose
+// only surface is a seat's envelope. Nothing the seat stated survives but what the record returned.
+func TestTheHookWritesTheEnvelopeTheRecordSupplies(t *testing.T) {
+	cwd, _, _ := limitRun(t, 1000)
+	var stated string
+	prev := envelopeAnswer
+	const read = `{"event":7,"bench_owed":[],"halted":false}`
+	envelopeAnswer = func(_, _ string, input []byte) (hookgate.EnvelopeAnswer, error) {
+		stated = string(input)
+		return hookgate.EnvelopeAnswer{Envelope: json.RawMessage(`{"key":"k","notes":"n"}`), Read: json.RawMessage(read)}, nil
+	}
+	t.Cleanup(func() { envelopeAnswer = prev })
+	b, _ := json.Marshal(map[string]any{"tool_name": envelopeTool, "tool_input": map[string]string{"notes": "n", "stray": "s"}, "cwd": cwd,
+		"session_id": testLead, "agent_id": "a7cc47571ab8b015d", "agent_type": "frank-exchange-of-views:red-chair"})
+	var out bytes.Buffer
+	if err := Pre(bytes.NewReader(b), &out, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		H struct {
+			Event    string          `json:"hookEventName"`
+			Decision string          `json:"permissionDecision"`
+			Updated  json.RawMessage `json:"updatedInput"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out.String())
+	}
+	want := `{"key":"k","notes":"n","record_read":` + read + `}`
+	if doc.H.Event != "PreToolUse" || doc.H.Decision != "allow" || string(doc.H.Updated) != want {
+		t.Errorf("the call does not carry the record's envelope with its read: %s", out.String())
+	}
+	if stated != `{"notes":"n","stray":"s"}` {
+		t.Errorf("the record was not handed what the seat stated: %q", stated)
+	}
+}
+
+// THE CLIENT'S DIALECT CHANGES THE WRAPPER, NOT THE ENVELOPE: under Antigravity the record's envelope,
+// carrying the read, is what the hook overwrites the call with.
+func TestTheAntigravityHookOverwritesWithTheRecordsEnvelope(t *testing.T) {
+	var out bytes.Buffer
+	emitEnvelopeRead(&out, json.RawMessage(`{"key":"k"}`), json.RawMessage(`{"event":3}`), testRecorder(), hookcore.Request{Engine: hookcore.EngineAntigravity})
+	var doc struct {
+		Decision  string          `json:"decision"`
+		Overwrite json.RawMessage `json:"overwrite"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out.String())
+	}
+	if doc.Decision != "allow" || string(doc.Overwrite) != `{"key":"k","record_read":{"event":3}}` {
+		t.Errorf("the Antigravity call does not carry the record's envelope with its read: %s", out.String())
+	}
+}
+
 // THE READ IS THE HOOK'S, OVER ANYTHING THE SEAT TYPED. The call that returns an envelope is allowed
 // with the input it carried and the record's read in record_read: written where the seat left it out,
 // overwritten where it typed one, and a seat typing `halted` changes nothing, so it cannot stop the
@@ -84,7 +141,7 @@ func TestTheHookWritesTheRecordsReadOverAnythingTyped(t *testing.T) {
 	const read = `{"event":7,"bench_owed":["petition"],"halted":false}`
 	answer := hookgate.EnvelopeAnswer{Read: json.RawMessage(read)}
 	prev := envelopeAnswer
-	envelopeAnswer = func(string, string) (hookgate.EnvelopeAnswer, error) { return answer, nil }
+	envelopeAnswer = func(string, string, []byte) (hookgate.EnvelopeAnswer, error) { return answer, nil }
 	t.Cleanup(func() { envelopeAnswer = prev })
 	type doc struct {
 		H struct {

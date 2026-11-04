@@ -148,7 +148,7 @@
     },
     {
       "term": "epoch",
-      "definition": "An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.",
+      "definition": "An epoch runs from one chair sitting to the next: the chair asks the record who sits, the parties the record names sit, and the chair sits again.",
       "seats": [
         "lens",
         "chair",
@@ -295,7 +295,7 @@
     },
     {
       "term": "chair",
-      "definition": "The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.",
+      "definition": "The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.",
       "seats": [
         "lens",
         "chair",

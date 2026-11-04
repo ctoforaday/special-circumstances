@@ -328,13 +328,17 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 const envelopeTool = "StructuredOutput"
 
 // gateEnvelope is the hook on the call returning a seat's envelope. It denies the call when the record
-// refuses it (record.EnvelopeRefusal, asked through the writer): a seat's sitting cannot end while a
-// blocking item on its own work list stands. The writer logs the refusal. An envelope it lets through
-// carries the record's read: the hook writes `record_read` onto the call's input, overwriting anything
-// the seat typed there, and the harness returns the rewritten input to the engine, which reads what it
-// knows of the record from that field and from nothing a seat composed (record.RecordRead). The
-// envelope is admitted only once the call succeeds — by the PostToolUse hook (Post), after the harness
-// has checked it against its schema.
+// refuses it (record.EnvelopeRefusal, record.ChairEnvelope, asked through the writer): a seat's sitting
+// cannot end while a blocking item on its own work list stands, and a chair's envelope carries no copy
+// of the plan. The writer logs the refusal. An envelope it lets through carries the record's read: the
+// hook writes `record_read` onto the call's input, overwriting anything the seat typed there, and the
+// harness returns the rewritten input to the engine, which reads what it knows of the record from that
+// field and from nothing a seat composed (record.RecordRead). Where the record supplies the envelope
+// itself — the chair's, holding the plan the record stored last in its sitting — the read is written onto
+// that envelope and the call carries it instead of what the chair stated: the workflow script's only
+// surface is a seat's envelope, so this is how the stored plan reaches it. The envelope is admitted only
+// once the call succeeds — by the PostToolUse hook (Post), after the harness has checked it against its
+// schema.
 //
 // A CHECK THAT CANNOT RUN REFUSES THE ENVELOPE, naming the error (gblock's standing rule: an
 // unreadable record refuses). An envelope nothing checked is not admitted on the strength of the
@@ -350,7 +354,7 @@ func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	if runDir == "" {
 		return
 	}
-	answer, err := envelopeAnswer(runDir, agentID)
+	answer, err := envelopeAnswer(runDir, agentID, in.ToolInput)
 	if err != nil {
 		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record, and was refused: "+err.Error())
 		if answer.Refusal == "" {
@@ -363,22 +367,27 @@ func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	case answer.Refusal != "":
 		emitPreDeny(stdout, answer.Refusal, req...)
 	case answer.Read != nil:
-		emitEnvelopeRead(stdout, in.ToolInput, answer.Read, rec, req...)
+		base := in.ToolInput
+		if answer.Envelope != nil {
+			base = answer.Envelope
+		}
+		emitEnvelopeRead(stdout, base, answer.Read, rec, req...)
 	}
 }
 
-// emitEnvelopeRead replaces the envelope call's input with the same input carrying the record's read.
-// The field is the hook's: a value the seat typed there is overwritten, as a Bash call's run directory
-// is. An input that does not parse cannot carry it, and the envelope is refused rather than returned
-// with no read, which would stop the run over a call the seat can simply make again.
-func emitEnvelopeRead(stdout io.Writer, toolInput, read json.RawMessage, rec *hookfailures.Recorder, req ...hookcore.Request) {
+// emitEnvelopeRead replaces the envelope call's input with base — the call's own input, or the envelope
+// the record supplied in its place — carrying the record's read. The field is the hook's: a value the
+// seat typed there is overwritten, as a Bash call's run directory is. An input that does not parse
+// cannot carry it, and the envelope is refused rather than returned with no read, which would stop the
+// run over a call the seat can simply make again.
+func emitEnvelopeRead(stdout io.Writer, base, read json.RawMessage, rec *hookfailures.Recorder, req ...hookcore.Request) {
 	updated := map[string]any{}
-	if err := json.Unmarshal(toolInput, &updated); err != nil {
+	if err := json.Unmarshal(base, &updated); err != nil {
 		rec.Fail(StageEnvelope, "a seat's envelope did not parse, so the record's read could not be written on it: "+err.Error())
 		emitPreDeny(stdout, envelopeReadRefusal(err), req...)
 		return
 	}
-	updated[envelopeReadField] = read
+	updated[hookgate.EnvelopeReadField] = read
 	if len(req) > 0 && req[0].Engine == hookcore.EngineAntigravity {
 		emit(stdout, map[string]any{
 			"decision":  "allow",
@@ -396,9 +405,6 @@ func emitEnvelopeRead(stdout io.Writer, toolInput, read json.RawMessage, rec *ho
 		},
 	})
 }
-
-// envelopeReadField is the envelope key the record's read travels under (record.RecordRead).
-const envelopeReadField = "record_read"
 
 // envelopeReadRefusal is the refusal of an envelope whose check against the record could not run,
 // naming the error.

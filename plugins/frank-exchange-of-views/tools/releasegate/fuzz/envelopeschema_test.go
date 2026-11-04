@@ -14,8 +14,8 @@ import (
 
 // EVERY ENVELOPE IS HELD TO THE SCHEMA ITS DISPATCH CARRIED, AS THE WORKFLOW HARNESS HOLDS IT.
 //
-// The sweep's chair relays `dispatch next`'s JSON verbatim, and the harness a real chair answers
-// to validates that relay against the envelope schema debate.js generates from record.Plan. The
+// The sweep's chair returns what the record writes into its call, and the harness a real chair answers
+// to validates that against the envelope schema debate.js generates from record.Plan. The
 // sweep applied no schema at all, so a plan the verb prints and its own schema refuses — a field,
 // a key, a rule the generator states and the verb does not hold — reached the engine here and is
 // refused on every relay of a live run. Validated with a JSON-schema implementation rather than

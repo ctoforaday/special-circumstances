@@ -59,7 +59,7 @@ const (
 	Refusal Phase = "refusal"
 	Failure Phase = "failure"
 	// Envelope is not a write of the span either: it is the seat's call that returns its envelope,
-	// asked whether the record refuses it (WriteEnvelopeRefusal). The refusal is printed for the
+	// asked what the record answers it (WriteEnvelopeAnswer). The answer is printed for the
 	// PreToolUse hook to deny the call with, and logged as the tool's refusal entry.
 	Envelope Phase = "envelope"
 	// Admission is that call having SUCCEEDED, from the PostToolUse hook: the gate let it through and
@@ -67,15 +67,16 @@ const (
 	Admission Phase = "admission"
 )
 
-// WriteEnvelopeAnswer prints the writer's answer about the envelope the agent's seat is returning: the
-// record's refusal (record.AgentEnvelopeRefusal), logged as the tool's refusal entry under that seat,
-// or, when it refuses nothing, the record's read (record.ReadRecord). An agent bound to no seat gets
-// nothing printed and nothing written. A record that cannot be read is the error, and the hook
-// refuses the envelope naming it.
+// WriteEnvelopeAnswer prints the writer's answer about the envelope the agent's seat is returning, input
+// being the arguments of the call returning it: the record's refusal (record.AgentEnvelope), logged as
+// the tool's refusal entry under that seat, or, when it refuses nothing, the record's read
+// (record.ReadRecord) with, for the chair, the envelope the call carries instead of what it stated
+// (record.ChairEnvelope). An agent bound to no seat gets nothing printed and nothing written. A record
+// that cannot be read is the error, and the hook refuses the envelope naming it.
 //
 // THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
 // of the refusal and never the refusal itself: the hook denies on what reached it.
-func WriteEnvelopeAnswer(runDir, agentID string, out io.Writer) error {
+func WriteEnvelopeAnswer(runDir, agentID string, input []byte, out io.Writer) error {
 	if agentID == "" {
 		return fmt.Errorf("sittingwrite: an envelope is asked about with no agent id")
 	}
@@ -83,7 +84,7 @@ func WriteEnvelopeAnswer(runDir, agentID string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	refusal, seat, err := record.AgentEnvelopeRefusal(run, agentID)
+	filled, refusal, seat, err := record.AgentEnvelope(run, agentID, input)
 	if err != nil || seat == "" {
 		return err
 	}
@@ -101,7 +102,7 @@ func WriteEnvelopeAnswer(runDir, agentID string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(out).Encode(hookgate.EnvelopeAnswer{Read: raw})
+	return json.NewEncoder(out).Encode(hookgate.EnvelopeAnswer{Read: raw, Envelope: filled})
 }
 
 // WriteAdmission records the agent's envelope as admitted (recordpb.EnvelopeAdmitted), under the
