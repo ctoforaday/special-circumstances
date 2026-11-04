@@ -1,0 +1,96 @@
+name: ortmsvc
+
+# A fully static Windows embedding helper: ONNX Runtime 1.31.1 built with MSVC against the static C runtime, linked
+# into bench/ortstatic/msvc/embed-probe.cpp with /MT. No Go in the link. Per arch: build, import listing (dumpbin,
+# llvm-objdump, staticproof), fidelity vs ref_gte.npy and one-thread speed on the runner. The models are the
+# `models` artifact of ortstatic run 41789520072, so the export is the one the other targets measured.
+on:
+  push:
+    branches: [bench/embed-engines]
+    paths: ["bench/ortstatic/msvc/**", ".github/workflows/ortmsvc.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GOFLAGS: -mod=mod
+  JOBS: "8"
+
+jobs:
+  probe:
+    name: msvc ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: windows-amd64, os: windows-latest, arch: x64, plat: amd64 }
+          - { target: windows-arm64, os: windows-11-arm, arch: ARM64, plat: arm }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27"
+          cache: false
+      - name: host
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          { uname -a; echo "ImageOS=$ImageOS ImageVersion=$ImageVersion"; nproc
+            powershell -NoProfile -Command "Get-CimInstance Win32_Processor | Select-Object Name,Manufacturer,NumberOfCores,NumberOfLogicalProcessors,MaxClockSpeed | Format-List"
+            powershell -NoProfile -Command "[System.Environment]::OSVersion.VersionString; (Get-CimInstance Win32_OperatingSystem).Caption"
+          } 2>&1 | tee "$RUNNER_TEMP/out/host.txt"
+      - name: build ORT (MSVC, static CRT) and embed-probe
+        run: bash bench/ortstatic/msvc/build.sh ${{ matrix.arch }} "$RUNNER_TEMP/w" "$RUNNER_TEMP/out"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: always()
+        with:
+          name: models
+          path: ${{ runner.temp }}/models
+          run-id: 41789520072
+          github-token: ${{ github.token }}
+      - name: imports
+        if: always()
+        run: |
+          O=$RUNNER_TEMP/out; E=$O/embed-probe.exe; D=$(cat "$O/dumpbin-path.txt")
+          { echo "== size"; wc -c < "$E"
+            echo "== dumpbin /headers (debug directories, machine)"; "$D" /nologo /headers "$E" | grep -iE 'machine|debug|subsystem'
+            echo "== dumpbin /dependents"; "$D" /nologo /dependents "$E"
+            echo "== dumpbin /imports"; "$D" /nologo /imports "$E"
+          } > "$O/dumpbin.txt" 2>&1
+          cat "$O/dumpbin.txt"
+          OBJ=$(command -v llvm-objdump || ls "/c/Program Files/LLVM/bin/llvm-objdump.exe" 2>/dev/null || true)
+          if [ -n "$OBJ" ]; then "$OBJ" -p "$E" | grep -iE 'DLL Name|Delay' | tee "$O/llvm-objdump.txt"; else echo "no llvm-objdump" | tee "$O/llvm-objdump.txt"; fi
+          go -C plugins/frank-exchange-of-views/tools run ./third_party/pins/staticproof "$E" > "$O/staticproof.txt" 2>&1; echo "staticproof exit=$?" >> "$O/staticproof.txt"
+          cat "$O/staticproof.txt"
+      - name: fidelity and speed
+        if: always()
+        run: |
+          O=$RUNNER_TEMP/out; E=$O/embed-probe.exe; M=$RUNNER_TEMP/models/${{ matrix.plat }}; DATA=bench/embed/data; R=$O/run; mkdir -p "$R"
+          # Token ids from the Go WordPiece tokenizer the static Go probe uses (no ORT in this build); cos() is its too.
+          (cd bench/ortstatic/probe && CGO_ENABLED=0 go build -tags noort -o "$R/tok.exe" .)
+          for s in speed len200; do "$R/tok.exe" tok "$DATA/$s.jsonl" "$RUNNER_TEMP/models/vocab.txt" | tr -d '\r' | sed 's/[][]//g; s/,/ /g' > "$R/$s.ids"; wc -l "$R/$s.ids"; done
+          for m in gte-small gte-small.int8; do
+            { "$E" "$(cygpath -w "$M/$m.ort")" 1 < "$R/speed.ids" > "$R/speed-$m.f32"; echo "run exit=$?"
+              wc -c < "$R/speed-$m.f32"
+              "$R/tok.exe" cos "$R/speed-$m.f32" "$DATA/ref_gte.npy"; echo "cos exit=$?"; } > "$O/fid-$m.txt" 2>&1
+            echo "== fidelity $m"; cat "$O/fid-$m.txt"
+          done
+          for r in 1 2 3; do for m in gte-small gte-small.int8; do
+            l=$("$E" "$(cygpath -w "$M/$m.ort")" 1 < "$R/len200.ids" 2>&1 > "$R/len200.f32"; echo "exit=$?")
+            echo "round=$r model=$m $(echo "$l" | tr '\n' ' ')" | tee -a "$O/speed.txt"
+          done; done
+          rm -f "$R"/*.f32 "$R/tok.exe"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: msvc-${{ matrix.target }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
