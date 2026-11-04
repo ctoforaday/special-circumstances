@@ -106,8 +106,8 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 // Projecting check_kind was necessary and not sufficient: with it visible, `compute` moved from
 // 0 uses across eighteen sittings to 1 across nine. A seat reading `"check_kind": "computation"`
 // learns something about the gap; it does not learn that IT owes a program, and only the second
-// changes what the sitting produces.
-func TestAwaitingComputationTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
+// changes what the sitting produces. answer_kind says which it owes: a program or a source.
+func TestAwaitingEvidenceTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"red-chair", "blue-respond"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
@@ -132,15 +132,29 @@ func TestAwaitingComputationTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	mint("G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
 	mint("G2", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
 	mint("G3", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
+	mint("G4", recordpb.CheckKind_CHECK_KIND_SOURCE)
 
-	owed := awaitingComputationT(t, mustRun(t, runDir))
-	if len(owed) != 2 || owed[0] != "G1" || owed[1] != "G2" {
-		t.Fatalf("owed = %v, want the two computation gaps in board order", owed)
+	owed := awaitingEvidenceT(t, mustRun(t, runDir))
+	if len(owed) != 3 || owed[0] != "G1" || owed[1] != "G2" || owed[2] != "G4" {
+		t.Fatalf("owed = %v, want the two computation gaps and the source gap in board order", owed)
 	}
-	// A document gap is never a computation debt — over-reporting would train seats to ignore it.
+	// A document gap is never an evidence debt — over-reporting would train seats to ignore it.
 	for _, id := range owed {
 		if id == "G3" {
-			t.Error("a document-kind gap was reported as awaiting a computation")
+			t.Error("a document-kind gap was reported as awaiting evidence")
+		}
+	}
+	// THE KIND OWED rides beside the debt, on the work list and the board alike: a program for a
+	// computation gap, a source for a source gap, nothing for a document gap.
+	wantKind := map[string]string{"G1": "computation", "G2": "computation", "G3": "", "G4": "citation"}
+	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
+		if g.AnswerKind != wantKind[g.ID] {
+			t.Errorf("work list: %s answer_kind = %q, want %q", g.ID, g.AnswerKind, wantKind[g.ID])
+		}
+	}
+	for _, g := range mustBoardJSONT(t, mustRun(t, runDir)).Open {
+		if g.AnswerKind != wantKind[g.ID] {
+			t.Errorf("board: %s answer_kind = %q, want %q", g.ID, g.AnswerKind, wantKind[g.ID])
 		}
 	}
 
@@ -148,13 +162,14 @@ func TestAwaitingComputationTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	// discharged nothing and the debt could not move. `answers` is the whole join this test is
 	// about: a computation that names no gap is a script that ran for no stated reason.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
-		Answers:   proto.String("G1"),
-		BundleSha: proto.String("sha-s"),
+		ComputationId: proto.String("K-0000c001"),
+		Answers:       proto.String("G1"),
+		BundleSha:     proto.String("sha-s"),
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if owed := awaitingComputationT(t, mustRun(t, runDir)); len(owed) != 1 || owed[0] != "G2" {
-		t.Fatalf("after proving G1, owed = %v, want [G2]", owed)
+	if owed := awaitingEvidenceT(t, mustRun(t, runDir)); len(owed) != 2 || owed[0] != "G2" || owed[1] != "G4" {
+		t.Fatalf("after proving G1, owed = %v, want [G2 G4]", owed)
 	}
 
 	// THE BOARD AND THE GATE MUST NOT DISAGREE about what is owed. They share one join and one
@@ -162,16 +177,16 @@ func TestAwaitingComputationTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	// the write — three bare "computation" literals used to make that possible.
 	fromBoard := map[string]bool{}
 	for _, g := range mustBoardJSONT(t, mustRun(t, runDir)).Open {
-		if g.AwaitingComputation {
+		if g.AwaitingEvidence {
 			fromBoard[g.ID] = true
 		}
 	}
-	if len(fromBoard) != 1 || !fromBoard["G2"] {
-		t.Fatalf("board says %v awaits computation, the work list says [G2]", fromBoard)
+	if len(fromBoard) != 2 || !fromBoard["G2"] || !fromBoard["G4"] {
+		t.Fatalf("board says %v awaits evidence, the work list says [G2 G4]", fromBoard)
 	}
 	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
-		if g.AwaitingComputation != fromBoard[g.ID] {
-			t.Errorf("work and board disagree on %s: %v vs %v", g.ID, g.AwaitingComputation, fromBoard[g.ID])
+		if g.AwaitingEvidence != fromBoard[g.ID] {
+			t.Errorf("work and board disagree on %s: %v vs %v", g.ID, g.AwaitingEvidence, fromBoard[g.ID])
 		}
 	}
 
@@ -185,18 +200,18 @@ func TestAwaitingComputationTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if owed := awaitingComputationT(t, mustRun(t, runDir)); len(owed) != 0 {
-		t.Errorf("a closed gap is still reported as owed: %v", owed)
+	if owed := awaitingEvidenceT(t, mustRun(t, runDir)); len(owed) != 1 || owed[0] != "G4" {
+		t.Errorf("a closed gap is still reported as owed: %v, want [G4]", owed)
 	}
 }
 
-// awaitingComputationT is the open gaps the work list marks as awaiting a computation, in its order — the
+// awaitingEvidenceT is the open gaps the work list marks as awaiting evidence, in its order — the
 // item blue's list carries for each, which is where a seat reads the debt.
-func awaitingComputationT(t *testing.T, run Run) []string {
+func awaitingEvidenceT(t *testing.T, run Run) []string {
 	t.Helper()
 	var out []string
 	for _, g := range mustWorkJSONT(t, run).Open {
-		if g.AwaitingComputation {
+		if g.AwaitingEvidence {
 			out = append(out, g.ID)
 		}
 	}

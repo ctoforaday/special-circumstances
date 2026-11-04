@@ -47,22 +47,22 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 		}
 	}
 	if _, err := Insert(db, event(t, 5, recordpb.EventType_EVENT_TYPE_COMPUTATION, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
-		Answers: proto.String("G3"), Text: proto.String("t"), Exit: proto.Int32(0)})); err != nil {
+		ComputationId: proto.String("K-0000f003"), Answers: proto.String("G3"), Text: proto.String("t"), Exit: proto.Int32(0)})); err != nil {
 		t.Fatal(err)
 	}
 
 	type row struct {
-		curImpact, curLik             sql.NullString
-		computationAnswered, awaiting bool
-		supersededBy                  sql.NullString
-		stranded                      bool
+		curImpact, curLik          sql.NullString
+		evidenceAnswered, awaiting bool
+		supersededBy               sql.NullString
+		stranded                   bool
 	}
 	read := func(id string) row {
 		t.Helper()
 		var r row
-		if err := db.QueryRow(`SELECT "current_impact", "current_likelihood", "computation_answered",
-		    "awaiting_computation", "superseded_by", "stranded" FROM "gap" WHERE "gap_id" = ?`, id).
-			Scan(&r.curImpact, &r.curLik, &r.computationAnswered, &r.awaiting, &r.supersededBy, &r.stranded); err != nil {
+		if err := db.QueryRow(`SELECT "current_impact", "current_likelihood", "evidence_answered",
+		    "awaiting_evidence", "superseded_by", "stranded" FROM "gap" WHERE "gap_id" = ?`, id).
+			Scan(&r.curImpact, &r.curLik, &r.evidenceAnswered, &r.awaiting, &r.supersededBy, &r.stranded); err != nil {
 			t.Fatal(err)
 		}
 		return r
@@ -75,18 +75,18 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 	if r1.curLik.String != "medium" {
 		t.Errorf("current_likelihood = %q, want the mint's grade on an axis no regrade touched", r1.curLik.String)
 	}
-	if r1.computationAnswered || !r1.awaiting {
-		t.Errorf("G1 = (computation_answered=%v, awaiting=%v): an open computation gap with no computation is the debt", r1.computationAnswered, r1.awaiting)
+	if r1.evidenceAnswered || !r1.awaiting {
+		t.Errorf("G1 = (evidence_answered=%v, awaiting=%v): an open computation gap with no computation is the debt", r1.evidenceAnswered, r1.awaiting)
 	}
 	if r1.supersededBy.String != "G2" || !r1.stranded {
 		t.Errorf("G1 = (superseded_by=%q, stranded=%v): an open superseded ancestor is a broken promise", r1.supersededBy.String, r1.stranded)
 	}
 	r3 := read("G3")
-	if !r3.computationAnswered || r3.awaiting {
-		t.Errorf("G3 = (computation_answered=%v, awaiting=%v): the recorded computation discharges the debt", r3.computationAnswered, r3.awaiting)
+	if !r3.evidenceAnswered || r3.awaiting {
+		t.Errorf("G3 = (evidence_answered=%v, awaiting=%v): the recorded computation discharges the debt", r3.evidenceAnswered, r3.awaiting)
 	}
 	if r2 := read("G2"); r2.awaiting {
-		t.Error("a document-check gap can never be awaiting computation")
+		t.Error("a document-check gap can never be awaiting evidence")
 	}
 
 	// Closing the stranded ancestor keeps the lineage and drops the accusation.

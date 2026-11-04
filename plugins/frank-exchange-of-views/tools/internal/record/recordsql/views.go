@@ -384,6 +384,36 @@ JOIN "motion_docket" md ON md."event_id" = mo."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 WHERE d."closes";
 
+-- THE READINGS A GAP CARRIES: each verify whose carried_by names the gap, with the anchor it read
+-- and the seat that read it. EVERY reader of the reading-to-gap link reads it here and nowhere
+-- else (the gap view's evidence_answered arms 3 and 4 among them), so the day the link is stated
+-- from the gap's side instead of the reading's this view is the one statement that changes.
+CREATE VIEW "carrying_reading" AS
+SELECT v."carried_by" AS "gap_id", v."anchor" AS "anchor", e."seat_id" AS "seat_id", v."event_id" AS "event_id"
+FROM "verify" v
+JOIN "events" e ON e."id" = v."event_id"
+WHERE v."carried_by" IS NOT NULL;
+
+-- EVERY EVIDENCE ANCHOR ON THE RECORD, ONE ROW EACH: a citation or a computation, the check kind
+-- a live one answers, the gap it was placed as the answer to, the act that placed it and the
+-- retire that took it out (NULL while it stands). One arm per recordsql.EvidenceTables row,
+-- generated from the row, so a backing kind added to that table lands here with no SQL written.
+-- A retired anchor never comes back (an edit invents no anchor), so its retire is the first
+-- retire naming it.
+CREATE VIEW "evidence_anchor" AS
+WITH "placed" AS (
+` + evidenceAnchorArmsSQL() + `
+),
+"retired" AS (
+  SELECT "value" AS "anchor_id", MIN("event_id") AS "retired_event"
+  FROM "retire_anchors"
+  GROUP BY "value"
+)
+SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "check_kind",
+       p."answers" AS "answers", p."placed_event" AS "placed_event", r."retired_event" AS "retired_event"
+FROM "placed" p
+LEFT JOIN "retired" r ON r."anchor_id" = p."anchor_id";
+
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
 -- row that stands now (until_seq IS NULL) — the one definition of the materiality rule, which
 -- convergence_at reads at every other point of the record.
@@ -408,21 +438,27 @@ WHERE d."closes";
 -- A field added to Finding does not have this problem: the findings view reads the proto.
 --
 -- EACH SUB-QUESTION IS ASKED ONCE FOR THE WHOLE BOARD AND JOINED. closure_act, remand, the unruled
--- docket filing, the latest superseding mint and the computed gaps are each one small set keyed by
--- gap id. Asked as correlated subqueries per gap instead, closure_act and remand are each planned
--- three times and the computation and supersedes lookups scan their tables once per gap.
+-- docket filing, the latest superseding mint, the evidence-answered gaps and the retired answers are
+-- each one small set keyed by gap id. Asked as correlated subqueries per gap instead, closure_act and
+-- remand are each planned three times and the evidence and supersedes lookups scan their tables once
+-- per gap.
 CREATE VIEW "gap" AS
 WITH "closure" AS MATERIALIZED (
   -- HOW THE GAP CLOSED, stated here and nowhere else: the last closing act of each arm by its
   -- events.id (NULL where the arm has none), and the first of each, which says which arm's act
-  -- ended the gap.
-  SELECT "gap_id"                                            AS "gap_id",
-         MAX(CASE WHEN "arm" = 'close' THEN "event_id" END) AS "close_event",
-         MAX(CASE WHEN "arm" = 'bench' THEN "event_id" END) AS "bench_event",
-         MIN(CASE WHEN "arm" = 'close' THEN "event_id" END) AS "first_close",
-         MIN(CASE WHEN "arm" = 'bench' THEN "event_id" END) AS "first_bench"
-  FROM "closure_act"
-  GROUP BY "gap_id"
+  -- ended the gap. judged is the last closing act that is not a carry — a close with no
+  -- carried_from, or a closing ruling: a carry restates a closure the record holds, and this act
+  -- judged the gap anew.
+  SELECT ca."gap_id"                                                                AS "gap_id",
+         MAX(CASE WHEN ca."arm" = 'close' THEN ca."event_id" END)                   AS "close_event",
+         MAX(CASE WHEN ca."arm" = 'bench' THEN ca."event_id" END)                   AS "bench_event",
+         MIN(CASE WHEN ca."arm" = 'close' THEN ca."event_id" END)                   AS "first_close",
+         MIN(CASE WHEN ca."arm" = 'bench' THEN ca."event_id" END)                   AS "first_bench",
+         MAX(CASE WHEN ca."arm" = 'bench' OR cl."carried_from" IS NULL
+                  THEN ca."event_id" END)                                           AS "judged"
+  FROM "closure_act" ca
+  LEFT JOIN "close" cl ON cl."event_id" = ca."event_id"
+  GROUP BY ca."gap_id"
 ),
 "latest_remand" AS MATERIALIZED (
   -- THE LATEST REMAND ON EACH GAP, off the "remand" view every reader of a remand reads.
@@ -455,8 +491,72 @@ WITH "closure" AS MATERIALIZED (
   JOIN "mint" m2 ON m2."event_id" = s."event_id"
   WHERE s."n" = 1
 ),
-"computed" AS MATERIALIZED (
-  SELECT DISTINCT "answers" AS "gap_id" FROM "computation" WHERE "answers" IS NOT NULL
+"evidence" AS MATERIALIZED (
+  -- THE EVIDENCE ANCHORS, read once for the board: every arm below joins this set.
+  SELECT "anchor_id", "kind", "check_kind", "answers", "retired_event" FROM "evidence_anchor"
+),
+"own_check" AS MATERIALIZED (
+  -- THE ANCHORS A GAP'S OWN CHECK REACHES, and whose check it is: the anchor it is about, checked
+  -- by its minter (the seat whose unread or unsound check owed it), and the anchor of each reading
+  -- it carries, checked by that reading's seat. minted is the gap's mint event: a check counts for
+  -- the gap only at or after it.
+  SELECT m."gap_id" AS "gap_id", m."check_kind" AS "check_kind", m."about_ref" AS "anchor",
+         e."seat_id" AS "seat", m."event_id" AS "minted"
+  FROM "mint" m
+  JOIN "events" e ON e."id" = m."event_id"
+  WHERE m."about_kind" = 'anchor'
+  UNION ALL
+  SELECT m."gap_id", m."check_kind", cr."anchor", cr."seat_id", m."event_id"
+  FROM "carrying_reading" cr
+  JOIN "mint" m ON m."gap_id" = cr."gap_id"
+),
+"latest_check" AS MATERIALIZED (
+  -- EACH SEAT'S LATEST CHECK OF EACH EVIDENCE ANCHOR THAT READ IT, and whether it holds: the anchor
+  -- ledger's replacement rule (a seat's check is replaced only by its own later check that reads)
+  -- and its holds, one arm per recordsql.EvidenceTables row, generated from the row's check table,
+  -- reads and holds.
+  SELECT "anchor", "seat", "check_kind", "event_id", "holds" FROM (
+` + latestCheckArmsSQL() + `
+  ) WHERE "n" = 1
+),
+"evidence_met" AS MATERIALIZED (
+  -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause). Four arms, each off rows:
+  --   1. a live evidence anchor of the gap's check kind was placed as its answer;
+  --   2. the anchor the gap is about is retired;
+  --   3. the anchor of a reading the gap carries is retired;
+  --   4. the gap's own check, again: for an anchor the gap reaches (own_check) that is live and of
+  --      the gap's check kind, that seat's latest check of it that read it is at or after the mint
+  --      and holds. Another seat's check meets nothing, and a check of one kind never meets the
+  --      other kind's demand.
+  SELECT ea."answers" AS "gap_id"
+  FROM "evidence" ea
+  JOIN "mint" m ON m."gap_id" = ea."answers" AND m."check_kind" = ea."check_kind"
+  WHERE ea."retired_event" IS NULL
+  UNION
+  SELECT m."gap_id"
+  FROM "mint" m
+  JOIN "evidence" ea ON ea."anchor_id" = m."about_ref"
+  WHERE m."about_kind" = 'anchor' AND ea."retired_event" IS NOT NULL
+  UNION
+  SELECT cr."gap_id"
+  FROM "carrying_reading" cr
+  JOIN "evidence" ea ON ea."anchor_id" = cr."anchor"
+  WHERE ea."retired_event" IS NOT NULL
+  UNION
+  SELECT oc."gap_id"
+  FROM "own_check" oc
+  JOIN "evidence" ea ON ea."anchor_id" = oc."anchor"
+  JOIN "latest_check" lc ON lc."anchor" = oc."anchor" AND lc."seat" = oc."seat" AND lc."check_kind" = oc."check_kind"
+  WHERE ea."retired_event" IS NULL AND lc."event_id" >= oc."minted" AND lc."holds"
+),
+"answers_retired" AS MATERIALIZED (
+  -- THE GAPS WHOSE ANSWERS ARE ALL RETIRED: at least one evidence anchor was placed as the gap's
+  -- answer, and every one has a retire; retired is the last of them.
+  SELECT "answers" AS "gap_id", MAX("retired_event") AS "retired"
+  FROM "evidence"
+  WHERE "answers" IS NOT NULL
+  GROUP BY "answers"
+  HAVING count(*) = count("retired_event")
 )
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -521,13 +621,20 @@ SELECT
   gg."likelihood"                                                                     AS "current_likelihood",
   gg."impact"                                                                         AS "current_impact",
   gg."complexity_cost"                                                                AS "current_complexity_cost",
-  -- THE COMPUTATION JOIN, answered where every asker can share it: a 'computation' gap closes on
-  -- a recorded computation naming it in --answers, and "awaiting computation" is the debt list blue is
-  -- handed. 'computation' is the vocabulary's own word; the Go home for the question
-  -- (Gap.NeedsComputation) reads the enum, and THIS is the one SQL statement of it.
-  (cp."gap_id" IS NOT NULL)                                                           AS "computation_answered",
+  -- THE LIVE-ANSWER DEMAND, answered where every asker can share it: a gap whose check kind an
+  -- evidence anchor answers closes only once evidence_met holds it, and "awaiting evidence" is the
+  -- debt list blue is handed. The demanded kinds are recordsql.EvidenceTables' check words; the
+  -- Go home for which kind is owed (Gap.AnswerKind) reads the same rows, and THIS is the one SQL
+  -- statement of the demand.
+  (em."gap_id" IS NOT NULL)                                                           AS "evidence_answered",
   (c."close_event" IS NULL AND c."bench_event" IS NULL
-     AND m."check_kind" = 'computation' AND cp."gap_id" IS NULL)                      AS "awaiting_computation",
+     AND m."check_kind" IN (` + evidenceChecksSQL() + `) AND em."gap_id" IS NULL)              AS "awaiting_evidence",
+  -- THE ANSWERS TO A CLOSED GAP, ALL RETIRED: the last retire that left none of them live, while
+  -- no closing act other than a carry follows it. The closure stands; the column is the gap's
+  -- lens's news, and NULL on every open gap and on one judged again after the retire.
+  (CASE WHEN NOT (c."close_event" IS NULL AND c."bench_event" IS NULL)
+             AND (c."judged" IS NULL OR c."judged" < ar."retired")
+        THEN ar."retired" END)                                                        AS "answers_retired_event",
   -- The dispatch plan reads the unruled filing to ready the bench and to key the bench's sitting on
   -- the filing; remanded and unruled_docket_motion (outer select) read it, as the "nothing pending"
   -- arm and as the motion's id. The PASS gate asks the same per-motion question of the events
@@ -576,7 +683,8 @@ LEFT JOIN "closure" c ON c."gap_id" = m."gap_id"
 LEFT JOIN "latest_remand" lr ON lr."gap_id" = m."gap_id"
 LEFT JOIN "unruled_docket" ud ON ud."gap_id" = m."gap_id"
 LEFT JOIN "superseded" sp ON sp."gap_id" = m."gap_id"
-LEFT JOIN "computed" cp ON cp."gap_id" = m."gap_id"
+LEFT JOIN "evidence_met" em ON em."gap_id" = m."gap_id"
+LEFT JOIN "answers_retired" ar ON ar."gap_id" = m."gap_id"
 LEFT JOIN "motion" um ON um."event_id" = ud."filed";
 
 -- THE CONVERGENCE RULE'S INPUTS, AS THE BOARD STOOD AT A POINT: one row per verdict, and one for the
@@ -789,6 +897,45 @@ var NotActs = []recordpb.EventType{
 	recordpb.EventType_EVENT_TYPE_REPORT_READ,
 	recordpb.EventType_EVENT_TYPE_ENVELOPE_ADMITTED,
 	recordpb.EventType_EVENT_TYPE_PLAN,
+}
+
+// evidenceAnchorArmsSQL is the evidence_anchor view's placing arms: one per EvidenceTables row,
+// reading the row's placing table and id column. Every placing table names the gap it answers in
+// its `answers` column (Cite.answers, Computation.answers).
+func evidenceAnchorArmsSQL() string {
+	arms := make([]string, len(EvidenceTables))
+	for i, t := range EvidenceTables {
+		arms[i] = `  SELECT x."` + t.IDColumn + `" AS "anchor_id", '` + t.Kind + `' AS "kind", '` + t.Check + `' AS "check_kind",
+         x."answers" AS "answers", x."event_id" AS "placed_event"
+  FROM "` + t.Table + `" x
+  WHERE x."` + t.IDColumn + `" IS NOT NULL`
+	}
+	return strings.Join(arms, "\n  UNION ALL\n")
+}
+
+// latestCheckArmsSQL is the gap view's latest_check arms: one per EvidenceTables row, numbering each
+// seat's checks of each anchor through the row's check table that read it, newest first.
+func latestCheckArmsSQL() string {
+	arms := make([]string, len(EvidenceTables))
+	for i, t := range EvidenceTables {
+		arms[i] = `    SELECT x."` + t.CheckIDColumn + `" AS "anchor", ce."seat_id" AS "seat", '` + t.Check + `' AS "check_kind",
+           x."event_id" AS "event_id", (` + t.Holds("x") + `) AS "holds",
+           row_number() OVER (PARTITION BY x."` + t.CheckIDColumn + `", ce."seat_id" ORDER BY x."event_id" DESC) AS "n"
+    FROM "` + t.CheckTable + `" x
+    JOIN "events" ce ON ce."id" = x."event_id"
+    WHERE ` + t.Reads("x")
+	}
+	return strings.Join(arms, "\n    UNION ALL\n")
+}
+
+// evidenceChecksSQL is every EvidenceTables row's check kind, as quoted words, comma-separated: the
+// check kinds whose gaps demand a live answer.
+func evidenceChecksSQL() string {
+	words := make([]string, len(EvidenceTables))
+	for i, t := range EvidenceTables {
+		words[i] = "'" + t.Check + "'"
+	}
+	return strings.Join(words, ", ")
 }
 
 // notActsSQL is NotActs as the quoted words of events.type, comma-separated.

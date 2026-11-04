@@ -106,7 +106,7 @@ func (r *runner) closeDocketedRefused(seatID, gapID string) {
 	// A COMPUTATION GAP NO COMPUTATION ANSWERS refuses first, as a close of it does whatever the docket
 	// says: the verb's guard runs before the write.
 	if r.computationGaps.has(gapID) {
-		if answered, err := record.ComputationAnswers(r.run(), gapID); err != nil || !answered {
+		if answered, err := record.EvidenceAnswers(r.run(), gapID); err != nil || !answered {
 			return
 		}
 	}

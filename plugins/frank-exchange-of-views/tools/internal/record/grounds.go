@@ -111,13 +111,14 @@ func requireNewGrounds(q recordsql.Querier, d *recordpb.DocketMotion) error {
 }
 
 // groundsActSQL is the act that placed id, the earliest first: its place, its kind, whether it is about
-// gap ?2, and a citation's location.
+// gap ?2, and a citation's location. An evidence anchor is read off the evidence_anchor view, the one
+// statement of which acts place one.
 const groundsActSQL = `SELECT e, kind, about, loc FROM (
        SELECT "event_id" e, 'finding' kind, ("about_kind" = 'gap' AND "about_ref" = ?2) about, '' loc FROM "finding" WHERE "id" = ?1
        UNION ALL SELECT m."event_id", 'gap', ((m."about_kind" = 'gap' AND m."about_ref" = ?2)
            OR EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id" AND s."value" = ?2)), '' FROM "mint" m WHERE m."gap_id" = ?1
-       UNION ALL SELECT "event_id", 'computation', ("answers" = ?2), '' FROM "computation" WHERE "computation_id" = ?1
-       UNION ALL SELECT "event_id", 'citation', 0, COALESCE("location", '') FROM "cite" WHERE "label" = ?1)
+       UNION ALL SELECT ea."placed_event", ea."kind", (ea."kind" = 'computation' AND ea."answers" = ?2), COALESCE(c."location", '')
+           FROM "evidence_anchor" ea LEFT JOIN "cite" c ON c."event_id" = ea."placed_event" WHERE ea."anchor_id" = ?1)
      ORDER BY e LIMIT 1`
 
 // requireGroundsAct checks an id named as grounds: an act on the record placed it, after the ruling,

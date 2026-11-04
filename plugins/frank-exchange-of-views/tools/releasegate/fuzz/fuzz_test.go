@@ -1246,7 +1246,7 @@ func (r *runner) dischargeOwed(seatID string) {
 			return
 		}
 		for _, g := range w.Open {
-			if !g.AwaitingComputation || !slices.Contains(w.Engaged.GapIDs, g.ID) {
+			if !g.AwaitingEvidence || g.AnswerKind != "computation" || !slices.Contains(w.Engaged.GapIDs, g.ID) {
 				continue
 			}
 			if dir, argv, err := r.writeBundle("fuzz-owed-"+g.ID+".js", "console.log('answers "+g.ID+"');"); err == nil {
@@ -4549,9 +4549,9 @@ func (r *runner) answerComputationCheck(id, name string) bool {
 	if kind != recordpb.CheckKind_CHECK_KIND_COMPUTATION {
 		return true
 	}
-	answered, err := record.ComputationAnswers(r.run(), id)
+	answered, err := record.EvidenceAnswers(r.run(), id)
 	if err != nil {
-		r.noteActErr("whether a computation answers gap " + id + " could not be read: " + err.Error())
+		r.noteActErr("whether gap " + id + "'s live-answer demand is met could not be read: " + err.Error())
 		return false
 	}
 	if answered {

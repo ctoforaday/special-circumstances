@@ -126,7 +126,7 @@ func requireAboutAnchor(q recordsql.Querier, kind recordpb.AboutKind, ref string
 	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil
 	}
-	found, err := queryRowAt(q, []any{new(int)}, `SELECT 1 FROM "computation" WHERE "computation_id" = ? UNION ALL SELECT 1 FROM "cite" WHERE "label" = ? LIMIT 1`, ref, ref)
+	found, err := queryRowAt(q, []any{new(int)}, `SELECT 1 FROM "evidence_anchor" WHERE "anchor_id" = ? LIMIT 1`, ref)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func requireClosureAnchors(q recordsql.Querier, gapID string, ids []string, flag
 func HoldsAnchor(q recordsql.Querier, id string) (bool, error) {
 	return queryRowAt(q, []any{new(int)},
 		`SELECT 1 FROM (SELECT "id" FROM "finding" UNION ALL SELECT "gap_id" FROM "mint"
-		   UNION ALL SELECT "label" FROM "cite" UNION ALL SELECT "computation_id" FROM "computation")
+		   UNION ALL SELECT "anchor_id" FROM "evidence_anchor")
 		  WHERE "id" = ? LIMIT 1`, id)
 }
 

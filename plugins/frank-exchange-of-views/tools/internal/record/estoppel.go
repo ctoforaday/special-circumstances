@@ -278,24 +278,28 @@ func EstoppelRejectionsOf(evs []*Event) int {
 // `CheckKindComputation` IS GONE for the same reason. It was the acceptance-check kind prose
 // cannot settle, compared as a bare literal at three sites in three packages — three chances to
 // disagree about the one rule that decides whether a gap can close at all. The schema owns the
-// value (`recordpb.CheckKind_CHECK_KIND_COMPUTATION`) and the QUESTION now has one home:
-// `Gap.NeedsComputation()` in replay.go, which every one of those sites calls. Where a lowercase
-// spelling is genuinely needed for a projection it is `recordpb.Spelling`, never a literal.
+// values, recordsql.EvidenceTables says which check kinds an evidence anchor answers, and the
+// QUESTION has one home: `Gap.AnswerKind()` in replay.go, which every one of those sites calls.
+// Where a lowercase spelling is genuinely needed for a projection it is `recordpb.Spelling`, never
+// a literal.
 
-// ComputationAnswers reports whether any recorded computation names this gap in its --answers.
+// EvidenceAnswers reports whether the gap's live-answer demand is met: the gap view's
+// evidence_answered (recordpb.DemandClause) — a live evidence anchor of its check kind placed as its
+// answer, the anchor it is about or whose reading it carries retired, or its own check of that
+// anchor made again since the mint and holding.
 //
-// It is the join a `computation` acceptance check closes on. The link is a FIELD checked
-// against the board at write time, never a gap id mentioned in prose — the convention
-// blue_edit's --answers replaced after it measured 73% reliable, which is reliable enough to
-// look like a key and not reliable enough to be one.
+// The answer is a FIELD checked against the board at write time (Cite.answers,
+// Computation.answers), never a gap id mentioned in prose — the convention blue_edit's --answers
+// replaced after it measured 73% reliable, which is reliable enough to look like a key and not
+// reliable enough to be one.
 //
-// A read error is returned, never folded into false: "no computation" and "could not look" are two
+// A read error is returned, never folded into false: "not answered" and "could not look" are two
 // answers, and the caller refuses on the second naming it.
-func ComputationAnswers(run Run, gapID string) (bool, error) {
+func EvidenceAnswers(run Run, gapID string) (bool, error) {
 	if gapID == "" {
 		return false, nil
 	}
-	return recordHas(run, `SELECT 1 FROM "computation" WHERE "answers" = ? LIMIT 1`, gapID)
+	return recordHas(run, `SELECT 1 FROM "gap" WHERE "gap_id" = ? AND "evidence_answered" LIMIT 1`, gapID)
 }
 
 // RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the

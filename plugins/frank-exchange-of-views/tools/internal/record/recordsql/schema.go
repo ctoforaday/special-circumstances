@@ -236,8 +236,10 @@ CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
 -- The docket motions on a gap: the bench's latest ruling on it and its unruled filing.
 CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
--- Whether a computation answers a gap, which the closing and estoppel checks ask per gap.
+-- The evidence anchors placed as a gap's answer, which the gap view's live-answer demand and the
+-- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
+CREATE INDEX "cite_answers" ON "cite" ("answers");
 `
 
 func Schema() (string, error) {

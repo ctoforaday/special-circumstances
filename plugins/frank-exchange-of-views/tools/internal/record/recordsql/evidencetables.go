@@ -32,6 +32,10 @@ type EvidenceTable struct {
 	// CheckTable and CheckIDColumn are the event that checks an anchor of the kind and the column
 	// naming the anchor it checks.
 	CheckTable, CheckIDColumn string
+	// Reads is the SQL predicate over a CheckTable row, aliased as given, under which that check
+	// READ its sentence and so replaces its seat's earlier check: the anchor ledger's `reads`
+	// (record.anchorChecksOf), stated in SQL.
+	Reads func(alias string) string
 	// Holds is the SQL predicate over a CheckTable row, aliased as given, under which that check
 	// backs its sentence: the anchor ledger's `holds` (record.anchorChecksOf), stated in SQL.
 	Holds func(alias string) string
@@ -46,11 +50,11 @@ type EvidenceTable struct {
 var EvidenceTables = []EvidenceTable{
 	{
 		Kind: "citation", Table: "cite", IDColumn: "label", Check: recordpb.Word(recordpb.CheckKind_CHECK_KIND_SOURCE),
-		CheckTable: "verify", CheckIDColumn: "anchor", Holds: verifyHolds, Noun: "citation", Failed: "found_against",
+		CheckTable: "verify", CheckIDColumn: "anchor", Reads: verifyReads, Holds: verifyHolds, Noun: "citation", Failed: "found_against",
 	},
 	{
 		Kind: "computation", Table: "computation", IDColumn: "computation_id", Check: recordpb.Word(recordpb.CheckKind_CHECK_KIND_COMPUTATION),
-		CheckTable: "reproduce", CheckIDColumn: "computation_id", Holds: reproduceHolds, Noun: "computation", Failed: "unsound",
+		CheckTable: "reproduce", CheckIDColumn: "computation_id", Reads: reproduceReads, Holds: reproduceHolds, Noun: "computation", Failed: "unsound",
 	},
 }
 
@@ -82,6 +86,16 @@ func verifyHolds(alias string) string {
 	return fmt.Sprintf(`(%[1]s."outcome" IN (%[2]s) AND COALESCE(%[1]s."source_completeness", '') <> '%[3]s')`,
 		alias, strings.Join(backing, ", "), recordpb.Word(recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK))
 }
+
+// verifyReads is a reading that read the work (record.VerifyReads): an outcome other than
+// `unreachable`, of a copy the tool did not stamp not_the_work.
+func verifyReads(alias string) string {
+	return fmt.Sprintf(`(%[1]s."outcome" IS NOT NULL AND %[1]s."outcome" <> '%[2]s' AND COALESCE(%[1]s."source_completeness", '') <> '%[3]s')`,
+		alias, recordpb.Word(recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE), recordpb.Word(recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK))
+}
+
+// reproduceReads is every judgement: a stored bundle always runs, so a reproduce always reads.
+func reproduceReads(string) string { return "1" }
 
 // reproduceHolds is a judgement that the computation establishes its sentence: `sound`.
 func reproduceHolds(alias string) string {

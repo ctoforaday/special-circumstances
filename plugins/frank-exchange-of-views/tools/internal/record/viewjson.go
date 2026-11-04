@@ -130,9 +130,10 @@ type GapJSON struct {
 	RequiredFix    string `json:"required_fix"`
 	AcceptanceGate string `json:"acceptance_check"`
 	// CheckKind says what KIND of evidence settles the acceptance check, and it is the field
-	// with teeth: `computation` means the gap cannot be closed on prose at all — only a
-	// `blue compute --answers <id>` settles it. It lived on the mint event and reached NO view,
-	// so the one seat that can satisfy the demand could not see it existed.
+	// with teeth: `source` and `computation` mean the gap cannot be closed on prose at all — only a
+	// live answer of that kind, or the demand's other arms (recordpb.DemandClause), settle it. It
+	// lived on the mint event and reached NO view, so the one seat that can satisfy the demand could
+	// not see it existed.
 	//
 	// Measured: `compute` was invoked zero times across eighteen probed seat dispatches, on
 	// boards built to demand it. The arithmetic board's seat summed twelve integers in its own
@@ -140,17 +141,28 @@ type GapJSON struct {
 	// verb exists to prevent. The gate DID fire, correctly and with a good message, at the
 	// merge's close in the following epoch, by which time blue's sitting was over.
 	CheckKind string `json:"check_kind"`
-	// AwaitingComputation is check_kind stated as a DEBT rather than as a property.
+	// AwaitingEvidence is check_kind stated as a DEBT rather than as a property, and AnswerKind
+	// is what the debt is owed in: "citation" or "computation" (Gap.AnswerKind), "" on a gap
+	// prose settles.
 	//
 	// Projecting check_kind was necessary and not sufficient: with it visible, `compute` went
 	// from 0 uses in eighteen sittings to 1 in nine. A seat reading `"check_kind":
-	// "computation"` learns a fact about the gap; it does not learn that IT owes a program,
-	// and the difference decides whether the sitting produces one.
+	// "computation"` learns a fact about the gap; it does not learn that IT owes a program or a
+	// source, and the difference decides whether the sitting produces one.
 	//
-	// True only while the gap is OPEN and no computation names it in --answers. It is DERIVED at
-	// projection from the same join the close gate uses, so the board and the gate cannot
-	// disagree about what is owed.
-	AwaitingComputation bool `json:"awaiting_computation"`
+	// True only while the gap is OPEN, its check kind demands a live answer, and the demand is
+	// not met (EvidenceAnswered). It is DERIVED at projection from the same view column the close
+	// gate reads, so the board and the gate cannot disagree about what is owed.
+	AwaitingEvidence bool   `json:"awaiting_evidence"`
+	AnswerKind       string `json:"answer_kind"`
+	// EvidenceAnswered is the gap view's evidence_answered: the live-answer demand is met — a live
+	// answer of its kind, the anchor it is about or whose reading it carries retired, or its own
+	// check of that anchor made again since the mint and holding.
+	EvidenceAnswered bool `json:"evidence_answered"`
+	// AnswersRetiredEvent is, on a closed gap whose answers have all been retired, the event of the
+	// retire that left none of them live, while no closing act other than a carry follows it; null
+	// on every other gap, never omitted. The closure stands; its lens is told.
+	AnswersRetiredEvent *int64 `json:"answers_retired_event"`
 	// The concrete proposal, when red made one (#267 stage 3). fix_basis is DERIVED at mint
 	// from whether fix_old/fix_new validated against the live report — never self-reported —
 	// so blue can tell a remedy red actually checked from one it guessed, and weight its
@@ -347,7 +359,7 @@ func gradeVal(g recordpb.Grade) any {
 func BoardJSONBytes(run Run) ([]byte, error) { return boardView.jsonBytes(run) }
 
 // BoardJSONOfRun is the board projection asked of the RECORD: the gap view answers everything
-// scalar (order, openness, the regrade-overlaid grades, the mint's prose, the computation debt), the
+// scalar (order, openness, the regrade-overlaid grades, the mint's prose, the evidence debt), the
 // list tables answer found_by/supersedes, and only the acts this projection EMBEDS — closures,
 // regrades, findings — come through the typed loader, because their bodies render whole and the
 // schema machinery is the one statement of body shape.
@@ -413,9 +425,9 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
-	    "acceptance_check", "check_kind", "awaiting_computation", "fix_basis", "fix_new", "minted_by", "minted_event",
+	    "acceptance_check", "check_kind", "awaiting_evidence", "fix_basis", "fix_new", "minted_by", "minted_event",
 	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last",
-	    "material", "remanded", "docket_direction"
+	    "material", "remanded", "docket_direction", "evidence_answered", "answers_retired_event"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return out, fmt.Errorf("asking the record for its board: %w", err)
@@ -431,10 +443,12 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		var closeEvent, benchEvent sql.NullInt64
 		var closedByBench, benchClosedLast, material, remanded bool
 		var direction sql.NullString
+		var answered bool
+		var answersRetired sql.NullInt64
 		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedBy, &mintedEvent,
 			&closeEvent, &benchEvent, &closedByBench, &benchClosedLast,
-			&material, &remanded, &direction); err != nil {
+			&material, &remanded, &direction, &answered, &answersRetired); err != nil {
 			return out, err
 		}
 		gj := GapJSON{
@@ -446,7 +460,8 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			Class:     class.String,
 			AboutKind: aboutKind.String, AboutRef: aboutRef.String, Problem: problem.String,
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
-			CheckKind: kind.String, AwaitingComputation: awaiting,
+			CheckKind: kind.String, AwaitingEvidence: awaiting, AnswerKind: AnswerKindOf(kind.String),
+			EvidenceAnswered: answered, AnswersRetiredEvent: nullInt64(answersRetired),
 			Backing: []GapBackingJSON{},
 		}
 		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String, FixBasis: basis.String, FixNew: fixNew.String}
@@ -603,6 +618,14 @@ func closeStateOf(gapID string, closeEvent, benchEvent sql.NullInt64, closedByBe
 func mustBody(e *Event) proto.Message {
 	b, _ := recordpb.Body(e)
 	return b
+}
+
+// nullInt64 is a nullable integer column as a JSON value: null where the column is NULL.
+func nullInt64(n sql.NullInt64) *int64 {
+	if !n.Valid {
+		return nil
+	}
+	return &n.Int64
 }
 
 // nullWord renders a nullable grade word as the projection's `any`: the word, or JSON null for
@@ -841,8 +864,10 @@ type WorkGapJSON struct {
 	// and a seat scanning the open set has to know which of them cannot be answered in prose
 	// before it decides how to spend the sitting.
 	CheckKind string `json:"check_kind"`
-	// The debt, on the read a seat plans its sitting from. See BoardGapJSON.AwaitingComputation.
-	AwaitingComputation bool `json:"awaiting_computation"`
+	// The debt, on the read a seat plans its sitting from, and the kind it is owed in. See
+	// GapJSON.AwaitingEvidence.
+	AwaitingEvidence bool   `json:"awaiting_evidence"`
+	AnswerKind       string `json:"answer_kind"`
 	// THE OTHER DEBT, AND IT IS THE STRUCTURED TWIN OF A PROSE DUTY. The work list says in words
 	// that the bench remanded this gap and what direction its one more exchange owes; a seat acting
 	// on the JSON needs the same fact as a field rather than by matching on the sentence. `omitempty`
@@ -953,7 +978,7 @@ func synopsis(s string) string {
 }
 
 // WorkGapState is one gap's answer from the record for the work path: the view's scalar facts
-// (openness, the regrade-overlaid grades, the computation debt, `closed_by_bench` and `bench_closed_last`)
+// (openness, the regrade-overlaid grades, the evidence debt, `closed_by_bench` and `bench_closed_last`)
 // plus the last closer's word, read off the act the view names. The work list walks the gap view in the order
 // BoardJSONOfRun does, so the two agree on membership and order. It is the input SittingOf and
 // availableOf read instead of a folded Board.
@@ -977,13 +1002,16 @@ type WorkGapState struct {
 	LocationState, sentence string
 	AboutKind, AboutRef     string
 	// Edits are the edits whose recorded `reopened` names the gap, in record order.
-	Edits                                    []GapEdit
-	Open, AwaitingComputation, ClosedByBench bool
+	Edits                                 []GapEdit
+	Open, AwaitingEvidence, ClosedByBench bool
+	// AnswersRetiredEvent is the view's `answers_retired_event` (GapJSON.AnswersRetiredEvent), 0
+	// where it is null.
+	AnswersRetiredEvent int64
 	// benchClosedLast is the view's `bench_closed_last`: whether the later closing act is the
 	// bench's, which the closure's word and its bar on re-raising follow.
 	benchClosedLast bool
 	// Remanded: OPEN, the bench has remanded it, and nothing is pending. Off the view, the same
-	// way AwaitingComputation is — the alternative was a second Go fold of a question the SQL already
+	// way AwaitingEvidence is — the alternative was a second Go fold of a question the SQL already
 	// answers, which is what #681's standing rule forbids.
 	Remanded bool
 	// DocketDirection is the research direction the latest remand states, or "" when the bench has
@@ -1107,12 +1135,13 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	r.report.src, r.report.srcErr = reportSourceAt(q, recordsql.Newest)
-	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_computation", "remanded", "docket_direction", "docket_settled",
+	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
 	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL,
-	    "fix_basis", "fix_new", "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
+	    "fix_basis", "fix_new", "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last",
+	    "answers_retired_event"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return r, fmt.Errorf("asking the record for its work list: %w", err)
@@ -1123,19 +1152,21 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, remandSettled, classMaterial, supersededBy sql.NullString
 		var requiredFix, acceptanceCheck, mintedBy, fixBasis, fixNew sql.NullString
 		var mintedEvent int64
-		var closeEvent, benchEvent sql.NullInt64
+		var closeEvent, benchEvent, answersRetired sql.NullInt64
 		// THE SCAN ORDER IS THE SELECT'S ORDER, and both sides of this merge added a column:
 		// remanded/docket_direction here, about_kind/about_ref on main. A scan that kept
 		// one side's order would still COMPILE and would silently read each value into the wrong
 		// field — every gap's problem text landing in about_ref and so on.
-		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingComputation, &g.Remanded, &reopensOn, &remandSettled,
+		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingEvidence, &g.Remanded, &reopensOn, &remandSettled,
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
 			&requiredFix, &acceptanceCheck, &mintedBy, &g.unruledDocket,
-			&fixBasis, &fixNew, &closeEvent, &benchEvent, &g.ClosedByBench, &g.benchClosedLast); err != nil {
+			&fixBasis, &fixNew, &closeEvent, &benchEvent, &g.ClosedByBench, &g.benchClosedLast,
+			&answersRetired); err != nil {
 			return r, err
 		}
+		g.AnswersRetiredEvent = answersRetired.Int64
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
 		g.DocketDirection, g.DocketSettled = reopensOn.String, remandSettled.String
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
@@ -1296,7 +1327,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				YoursToClose: reader != "" && g.MintedBy == reader && !g.unruledDocket,
 				YourTurn:     (reader != "" && g.MintedBy == reader && g.lensDue) || (reader == blueRespondSeat && g.blueDue),
 				RegradesOwed: []OwedRegradeJSON{},
-				CheckKind:    g.CheckKind, AwaitingComputation: g.AwaitingComputation,
+				CheckKind:    g.CheckKind, AwaitingEvidence: g.AwaitingEvidence, AnswerKind: AnswerKindOf(g.CheckKind),
 				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
 				FoundBy:  strs(g.FoundBy),
 				Material: g.Material,

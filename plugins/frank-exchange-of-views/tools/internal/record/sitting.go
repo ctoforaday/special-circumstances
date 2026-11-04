@@ -31,7 +31,7 @@ import (
 // # Only duties that are enforced or recorded somewhere else
 //
 // Nothing here invents an obligation. Each one is refused at a write path (open material gaps and
-// unruled motions block `verdict`; a computation gap cannot be closed on prose), is a stated
+// unruled motions block `verdict`; a `source` or `computation` gap cannot be closed on prose), is a stated
 // record requirement (blue-respond's position, the bench's terminal outcome), or is enforced by
 // dispatch (a seat whose sitting has not opened since the dispatch named it — no hook bracket and
 // no register — is readied again; a chair that has not registered for its sitting is refused
@@ -105,7 +105,7 @@ type SittingJSON struct {
 }
 
 // SittingOf computes what the given seat still owes on this record — the events carry every
-// act, and the gap rows carry the view's answers (openness, the computation debt) so no fold decides
+// act, and the gap rows carry the view's answers (openness, the evidence debt) so no fold decides
 // them a second time (plans/board-as-views.md wave 1c). ids are the events' row ids, aligned with
 // evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
 // and the chair's list states that condition from the same fold the gate refuses from.
@@ -270,12 +270,13 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 
 	switch role {
 	case "blue":
-		// A computation demand prose cannot answer. The lens that minted it is REFUSED if it
-		// tries to close one unproved, so an unanswered demand does not settle — it carries into
-		// the next epoch.
+		// A live-answer demand prose cannot answer (recordpb.DemandClause): a `source` gap owes a
+		// citation, a `computation` gap a computation, placed as its answer. The lens that minted it
+		// is REFUSED if it tries to close one unanswered, so an unanswered demand does not settle —
+		// it carries into the next epoch.
 		//
 		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING IS ENGAGED ON THE GAP, and until a recorded
-		// act answers it there (gblock, 2026-10-24): a computation naming it, which ends the debt; a motion
+		// act answers it there (gblock, 2026-10-24): an anchor placed as its answer, which ends the debt; a motion
 		// blue files on the gap, which puts the demand before its ruler; or a retire that takes the
 		// gap's sentence out. Prose does not: an edit arguing the demand is wrong leaves it owed.
 		var engaged []string
@@ -284,18 +285,19 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 		moved, retired := answeredByActThisSitting(evs, win, seatID)
 		for _, g := range gaps {
-			if !g.AwaitingComputation {
+			if !g.AwaitingEvidence {
 				continue
 			}
 			id := g.ID
-			const what = " was minted --check-kind computation and no computation answers it; prose cannot close it"
+			row, _ := recordsql.EvidenceTableOf(AnswerKindOf(g.CheckKind))
+			what := " was minted --check-kind " + g.CheckKind + " and is owed a " + row.Noun + " placed as its answer; prose cannot close it: " + recordpb.DemandClause
 			switch {
 			case !slices.Contains(engaged, id):
 				may("gap " + id + what + " — this sitting is not engaged on it")
 			case moved[id]:
-				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until a computation names it")
+				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until the demand is met")
 			case retired && g.LocationState == LocationGone:
-				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until a computation names it")
+				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until the demand is met")
 			default:
 				add("gap " + id + what)
 			}
@@ -729,8 +731,8 @@ func logsThisSitting(evs []*Event, win WindowIndex, seatID string) (seatEntries,
 	return seatEntries, toolRefusals
 }
 
-// gapsAwaitingComputationOn is gone: the gap rows carry awaiting_computation off the view, the same join
-// the close gate reads, so the sitting and the gate cannot disagree about what is owed.
+// The gap rows carry awaiting_evidence off the view, the column the close gate reads, so the sitting
+// and the gate cannot disagree about what is owed.
 
 // sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing of a type
 // recordsql.NotActs does not list, the definition seat_metrics counts acts by.

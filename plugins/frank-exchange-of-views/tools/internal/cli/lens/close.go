@@ -62,7 +62,7 @@ func newClose() *cobra.Command {
 		// because the check could not be asked is a closure the tool vouched for on nothing.
 		if err := requireComputationAnswered(seat.Str(cmd, flags.ID),
 			func(id string) (bool, error) { return computationGapKind(run, id) },
-			func(id string) (bool, error) { return record.ComputationAnswers(run, id) }); err != nil {
+			func(id string) (bool, error) { return record.EvidenceAnswers(run, id) }); err != nil {
 			return nil, err
 		}
 		if _, err := record.Append(s.Identity(), p); err != nil {

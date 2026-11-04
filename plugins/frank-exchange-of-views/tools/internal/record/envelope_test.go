@@ -197,7 +197,7 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 	})
 	t.Run("a computation answering it admits it", func(t *testing.T) {
 		run := computation(t, "G1", func(b *stage) {
-			b.add(blueSeatID, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), Answers: proto.String("G1"), BundleSha: proto.String("sha")})
+			b.add(blueSeatID, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-0000e001"), Answers: proto.String("G1"), BundleSha: proto.String("sha")})
 		})
 		if r := refusalOf(t, run, blueSeatID); r != "" {
 			t.Errorf("proved, blue's envelope is refused: %q", r)
