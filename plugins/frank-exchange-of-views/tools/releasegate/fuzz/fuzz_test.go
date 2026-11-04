@@ -4389,6 +4389,7 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	// it, as a seat does. A refused close left for a later sitting stays open when this sitting is the
 	// lens's last, which the terminal-fate oracle reads as work done and never finished — and whether a
 	// later sitting comes is the interleaving's call, so the sweep goes red on a draw, not a defect.
+	anchor := ""
 	if r.coin(40) {
 		var held []string
 		for _, g := range append(r.openGaps(), r.closedGapIDs()...) {
@@ -4406,10 +4407,20 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		case r.coin(15):
 			r.refuse(feov.Internal, append(args, "--anchor", id)...)
 		case len(held) > 0:
-			if r.admitClose(id, append(args, "--anchor", held[r.rng.Intn(len(held))])) {
-				return
-			}
+			anchor = held[r.rng.Intn(len(held))]
 		}
+	}
+	r.closeVerifiedWith(id, args, anchor)
+}
+
+// closeVerifiedWith issues the close of gap id that the drive expects admitted, naming anchor — another
+// gap the record holds — as what it was verified with where anchor is set. ONE CLOSE, ONE TALLY: a
+// close refused over a sibling's check landed in the window (admitClose) is settled by that refusal,
+// since the same close without the anchor is refused over the same check and would tally it twice; any
+// other refusal is the drive's failure, which admitClose notes.
+func (r *runner) closeVerifiedWith(id string, args []string, anchor string) {
+	if anchor != "" {
+		args = append(args, "--anchor", anchor)
 	}
 	r.admitClose(id, args)
 }

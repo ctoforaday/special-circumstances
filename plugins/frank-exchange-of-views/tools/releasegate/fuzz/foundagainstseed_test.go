@@ -592,55 +592,69 @@ func TestTheFoundAgainstChainSitsAgainBeforeBlue(t *testing.T) {
 // and 6 of 2ecae7a9b's sweep): lens L's gap G stands on a cited sentence; L's close of G reads no
 // standing check on it, and before the close lands the citation owner's refuting reading of that
 // sentence is held by the one-gap rule and carried by G. The record refuses the close naming the
-// reading; the drive tallies it as a close refused over a standing found-against check, not as an
-// admitted act refused.
+// reading; the drive tallies it ONCE as a close refused over a standing found-against check, not as an
+// admitted act refused — with or without another gap named as what the close was verified with.
 func TestACloseASiblingsReadingRefusesInTheWindowIsTallied(t *testing.T) {
-	r := stagedRunner(t)
-	if err := r.stagePart(lanePartText("blue-lane-2")); err != nil {
-		t.Fatal(err)
-	}
-	const blue, lens = "blue-respond", "red-lens-logic"
-	r.sit("blue", blue)
-	cite := r.citeAs(t, blue, "The cost is rising over time", "/window")
-	r.sit("lens", lens)
-	const class = "claim_contradicts_source"
-	out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", "rising over time", "--class", class,
-		"--problem", "fuzz: the sentence overstates the trend", "--check-kind", "document", "--check", "acc",
-		"--fix", dirIgnore, "--severity", "high", "--impact", "high", "--likelihood", "high", "--reason", "fuzz reason")
-	var env struct {
-		Result struct {
-			GapID string `json:"gap_id"`
-		} `json:"result"`
-	}
-	if !ok || json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.GapID == "" {
-		t.Fatalf("L's mint: %s (%s)", out, r.actErr)
-	}
-	g := env.Result.GapID
-	r.noteMint(lens, g)
-	if _, ok := r.standingFailedCheckOf(g); ok {
-		t.Fatalf("gap %s carries a standing check before the reading", g)
-	}
-	r.betweenCloseReadAndAct = func(id string) {
-		r.sit("lens", citationOwner)
-		out, ok := r.do("verify", citationOwner).set("--anchor", cite).set("--as", "refutes").set("--confidence", "high").
-			set("--reason", "fuzz: the source says the cost fell").bare("--json").
-			set("--class", class).set("--problem", "fuzz: the source says the cost fell").
-			set("--check-kind", "document").set("--check", "the sentence says what the source says").
-			set("--severity", "high").set("--likelihood", "high").set("--impact", "high").admit()
-		res, parsed := readingResultOf(out)
-		if !ok || !parsed || res.Gap == nil || res.Gap.ID != id || res.Gap.Minted {
-			t.Fatalf("the owner's reading was not held by %s: %s (%s)", id, out, r.actErr)
-		}
-	}
-	if r.admitClose(g, []string{"close", "--seat-id", lens, "--id", g, "--as", "repaired", "--reason", "fuzz close as repaired",
-		"--verified-by", lens, "--verified-with", "fuzz", "--verified-against", "rec"}) {
-		t.Fatalf("the close of %s was admitted over the owner's reading it carries", g)
-	}
-	if r.actErr != "" {
-		t.Fatalf("the refusal was read as the drive's failure: %s", r.actErr)
-	}
-	if r.foundAgainstClosesRefused != 1 {
-		t.Errorf("found-against closes refused = %d, want 1", r.foundAgainstClosesRefused)
+	for _, anchored := range []bool{false, true} {
+		t.Run(map[bool]string{false: "plain", true: "verified with another gap"}[anchored], func(t *testing.T) {
+			r := stagedRunner(t)
+			if err := r.stagePart(lanePartText("blue-lane-2")); err != nil {
+				t.Fatal(err)
+			}
+			const blue, lens = "blue-respond", "red-lens-logic"
+			r.sit("blue", blue)
+			cite := r.citeAs(t, blue, "The cost is rising over time", "/window")
+			r.sit("lens", lens)
+			const class = "claim_contradicts_source"
+			mint := func(quote, class string) string {
+				t.Helper()
+				out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", quote, "--class", class,
+					"--problem", "fuzz: the sentence overstates the trend", "--check-kind", "document", "--check", "acc",
+					"--fix", dirIgnore, "--severity", "high", "--impact", "high", "--likelihood", "high", "--reason", "fuzz reason")
+				var env struct {
+					Result struct {
+						GapID string `json:"gap_id"`
+					} `json:"result"`
+				}
+				if !ok || json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.GapID == "" {
+					t.Fatalf("L's mint: %s (%s)", out, r.actErr)
+				}
+				r.noteMint(lens, env.Result.GapID)
+				return env.Result.GapID
+			}
+			g := mint("rising over time", class)
+			anchor := ""
+			if anchored {
+				anchor = mint("The cost is", "spec_underspecification")
+			}
+			if _, ok := r.standingFailedCheckOf(g); ok {
+				t.Fatalf("gap %s carries a standing check before the reading", g)
+			}
+			r.betweenCloseReadAndAct = func(id string) {
+				r.sit("lens", citationOwner)
+				out, ok := r.do("verify", citationOwner).set("--anchor", cite).set("--as", "refutes").set("--confidence", "high").
+					set("--reason", "fuzz: the source says the cost fell").bare("--json").
+					set("--class", class).set("--problem", "fuzz: the source says the cost fell").
+					set("--check-kind", "document").set("--check", "the sentence says what the source says").
+					set("--severity", "high").set("--likelihood", "high").set("--impact", "high").admit()
+				res, parsed := readingResultOf(out)
+				if !ok || !parsed || res.Gap == nil || res.Gap.ID != id || res.Gap.Minted {
+					t.Fatalf("the owner's reading was not held by %s: %s (%s)", id, out, r.actErr)
+				}
+				r.betweenCloseReadAndAct = nil
+			}
+			r.closeVerifiedWith(g, []string{"close", "--seat-id", lens, "--id", g, "--as", "repaired", "--reason", "fuzz close as repaired",
+				"--verified-by", lens, "--verified-with", "fuzz", "--verified-against", "rec"}, anchor)
+			if !slices.Contains(r.openGaps(), g) {
+				t.Fatalf("the close of %s was admitted over the owner's reading it carries", g)
+			}
+			if r.actErr != "" {
+				t.Fatalf("the refusal was read as the drive's failure: %s", r.actErr)
+			}
+			if r.foundAgainstClosesRefused != 1 {
+				t.Errorf("found-against closes refused = %d, want 1: one close, one refusal", r.foundAgainstClosesRefused)
+			}
+		})
 	}
 }
 

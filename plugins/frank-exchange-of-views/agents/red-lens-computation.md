@@ -869,7 +869,7 @@ YOU NAME THE CITATION, AND THE TOOL READS ITS CLAIM. The anchor is the id inside
 
 A READING OF THE WORK THAT FINDS THE SOURCE AGAINST THE SENTENCE MINTS ITS GAP IN THE SAME ACT. On a citation that is `refutes` or `absent`; on a source you found, what it mints is below. The reading holds the gap's judgement as a mint does, its class among those its outcome admits, and a reading that mints nothing refuses all of it. The gap a reading of a citation mints takes no mint of your budget.
 
-WHERE THE GAP STANDS. On a citation, the gap stands at the end of the sentence your anchor's token sits in, found by that token: where the report holds that sentence twice, the gap, and any replacement you give, stand at the occurrence the token marks. On a source you found, the gap stands at your quote, which the report must hold once; a quote it holds more than once is refused.
+WHERE THE GAP STANDS. On a citation, the gap stands at the end of the sentence your anchor's token sits in, found by that token: where the report holds that sentence twice, the gap stands at the occurrence the token marks, and any replacement you give is checked and accepted by blue there. On a source you found, the gap stands at your quote, which the report must hold once; a quote it holds more than once is refused.
 
 ONE GAP PER CLASS ON ONE SENTENCE. Where an open gap of the class your reading finds already stands on the sentence, the reading is recorded naming that gap, and no second gap is minted. A second reading of yours of the same citation with the same outcome, while the gap carrying your first is open and the sentence unchanged, is refused, naming that gap.
 

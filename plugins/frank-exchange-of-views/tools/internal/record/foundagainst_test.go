@@ -213,6 +213,22 @@ func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 	carried("G-4")
 	refused("G-2")
 
+	// THE CARRIERS ARE THE TREE AND NOTHING BESIDE IT: a gap off the tree is no carrier, so its close
+	// is admitted while the check stands, and the set is the same after it.
+	tree := func() {
+		t.Helper()
+		c := slices.Clone(foundAgainstOf(t, run).Carriers())
+		slices.Sort(c)
+		if want := []string{"G-1", "G-2", "G-3", "G-4"}; !slices.Equal(c, want) {
+			t.Errorf("the check's Carriers = %v, want exactly the carrier tree %v", c, want)
+		}
+	}
+	tree()
+	mustAppend(t, lens, budgetMint("G-5"))
+	tree()
+	mustAppend(t, lens, closeOf("G-5", recordpb.Disposition_DISPOSITION_REPAIRED))
+	tree()
+
 	// THE BENCH'S CLOSING RULING WRITES NO CLOSE: G-3, ruled, is closed in the gap view, and the open
 	// gap minted last — G-2 — names the check, which still stands.
 	t.Run("a carrier the bench ruled closed", func(t *testing.T) {
