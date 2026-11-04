@@ -8,16 +8,23 @@
 #              minext (as min, --minimal_build extended)
 #              reduced (full runtime, .onnx loading, ops reduced by config without type reduction; exceptions on)
 #              full (no reduction at all; for the size baseline)
-# Env: ORT_OPS_CONFIG (required for min/minext/reduced), JOBS (default 8), PYTHON (default python3), ZIG, CMAKE_DIR,
+# Env: ORT_OPS_CONFIG (required for min/minext/reduced), JOBS (default 8), PYTHON (default: a venv under <work> with flatbuffers), ZIG, CMAKE_DIR,
 #      ORT_SRC (default <work>/src/onnxruntime), ORT_TAG (default v1.31.1).
 set -euo pipefail
 TARGET=$1; WORK=$(mkdir -p "$2" && cd "$2" && pwd); TC=$3; VAR=${4:-min}
-J=${JOBS:-8}; PY=${PYTHON:-python3}; TAG=${ORT_TAG:-v1.31.1}; SRC=${ORT_SRC:-$WORK/src/onnxruntime}
+J=${JOBS:-8}; PY=${PYTHON:-}; TAG=${ORT_TAG:-v1.31.1}; SRC=${ORT_SRC:-$WORK/src/onnxruntime}
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 NAME=$TARGET-$TC-$VAR; BD=$WORK/$NAME; OUT=$BD/out; mkdir -p "$BD"
 [ -n "${CMAKE_DIR:-}" ] && export PATH=$CMAKE_DIR:$PATH
 cmake --version | head -1
 
+# build.py's reduced-ops path imports the flatbuffers Python module; without it parse_config is missing.
+if [ -z "$PY" ]; then
+  HP=python3; command -v python3 >/dev/null 2>&1 && python3 -c 1 >/dev/null 2>&1 || HP=python
+  if [ ! -d "$WORK/pyenv" ]; then "$HP" -m venv "$WORK/pyenv"; fi
+  PY=$WORK/pyenv/bin/python; [ -x "$PY" ] || PY=$WORK/pyenv/Scripts/python.exe
+  "$PY" -m pip install -q flatbuffers
+fi
 if [ ! -d "$SRC/.git" ]; then
   git clone -q --depth 1 --branch "$TAG" https://github.com/microsoft/onnxruntime.git "$SRC"
 fi

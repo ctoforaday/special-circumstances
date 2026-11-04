@@ -173,8 +173,8 @@ jobs:
           (nproc || sysctl -n hw.ncpu) 2>/dev/null
       - name: build ORT (native compiler)
         run: |
-          start=$(date +%s); PY=python3; command -v python3 >/dev/null && python3 -c 1 2>/dev/null || PY=python
-          PYTHON=$PY ORT_OPS_CONFIG=$PWD/bench/ortstatic/ops.config bash bench/ortstatic/build-ort.sh ${{ matrix.target }} "$RUNNER_TEMP/w" native ${{ matrix.variant }}
+          start=$(date +%s)
+          ORT_OPS_CONFIG=$PWD/bench/ortstatic/ops.config bash bench/ortstatic/build-ort.sh ${{ matrix.target }} "$RUNNER_TEMP/w" native ${{ matrix.variant }}
           echo "ORT build seconds: $(( $(date +%s) - start ))"
       - name: build probe
         if: always()
