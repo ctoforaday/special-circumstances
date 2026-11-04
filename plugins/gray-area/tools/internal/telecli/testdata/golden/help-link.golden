@@ -1,0 +1,27 @@
+Records the language server hosting the Antigravity conversation whose shell runs
+this, so telepathy send can deliver to it live and wake it when idle. Run it from an
+Antigravity agent's own shell: the server's address and token reach nothing else —
+not hooks, not MCP servers — so this is the one place they can be recorded.
+
+The record lives in $XDG_RUNTIME_DIR/gray-area/antigravity-servers (directory 0700,
+record 0600, gone at logout), keyed by conversation, because a server that does not
+host a conversation takes it over when sent a message for it. A link lasts until the
+server restarts; linking again with the same server writes nothing. Every other
+telepathy verb run from an Antigravity shell links as a side effect.
+
+A Claude Code session needs no link: its inbox socket is advertised for it.
+
+WHAT IT CANNOT TELL YOU. That the server will still be there when a message is sent:
+a restart since the link makes telepathy send fall back to the mailbox, and it says
+so.
+
+Usage:
+  telepathy link [flags]
+
+Flags:
+  -h, --help   help for link
+
+Global Flags:
+      --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "~/.claude/sessions")
+      --store string      the catalogue database the hooks write and every read verb queries (default "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db")

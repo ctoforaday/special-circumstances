@@ -33,7 +33,22 @@ telepathy touched <path>         which sessions acted on a path, and when
 telepathy find <term>            ripgrep across every local transcript, joined to who
 telepathy sql '<SELECT …>'       anything else
 telepathy backfill               read the existing corpus into the store (explicit, safe to repeat)
+telepathy send <id> <message>    deliver a message to a Claude Code or Antigravity session ("-" reads stdin)
+telepathy link                   from an Antigravity shell: make this conversation wakeable by send
 ```
+
+`send` is the one verb that acts rather than reads, and the only way a message crosses harnesses.
+
+- BEFORE messaging another Claude Code session from a Claude Code session, YOU MUST use
+  `SendMessage`, which carries a reply address and the sender's identity. `send` is for when either
+  side is Antigravity.
+- AFTER a `send`, YOU MUST read the route it printed. `antigravity-mailbox` means QUEUED: the
+  conversation reads it at its next turn and nothing wakes it, so do not wait on a reply.
+  `claude-socket` means it reached the session's inbox, where a session that bypasses permission
+  prompts holds it for its human. No route says the message was read.
+- An Antigravity conversation becomes reachable live by running `telepathy link` (or any other
+  verb) from its own shell; the server's token reaches nothing else. Running it at the start of
+  coordinated work is what makes you wakeable.
 
 `find` answers in one query: one row per session and agent, **newest first**, with the hit count,
 the time of the most recent hit, the channel it landed in, and the text around it. `--in C` keeps
@@ -154,32 +169,14 @@ telepathy sql "SELECT session_id, bridge_session_id, cwd, project_dir FROM sessi
 
 ### 2. Messaging a peer session
 
-- **Claude $\to$ Antigravity**:
-  Relay via a one-shot Antigravity CLI call using the native `send_message` tool:
-  ```bash
-  agy -p "Call send_message with recipient '<conv_id>' and message '<message>'." \
-      --model gemini-3.8-flash-low \
-      --dangerously-skip-permissions
-  ```
-  The one-shot invokes `send_message`, delivering the message directly into the recipient Antigravity agent's reactive message queue.
-
-- **Antigravity $\to$ Claude**:
-  Inject directly into the live Claude session's inbox socket. Find the target's `messagingSocketPath` in `~/.claude/sessions/<pid>.json`, and send one newline-terminated JSON payload:
-  ```bash
-  python3 -c '
-  import socket, json, sys
-  sock, msg = sys.argv[1], sys.argv[2]
-  s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-  s.connect(sock)
-  s.sendall((json.dumps({"type": "user", "message": {"role": "user", "content": msg}}) + "\n").encode())
-  s.close()
-  ' "<messagingSocketPath>" "From Antigravity session <conv_id>: <message>"
-  ```
-  The message arrives directly mid-turn in the live Claude session. Because the inbox socket provides no return address to the receiver, always include your own conversation ID in the message body.
-  *(Note: do NOT use `claude -p` in the worktree, which spawns a separate detached session rather than reaching the live agent; do NOT write directly to the worktree's `CHECKPOINT.md`, which is read only on restart/compaction and would overwrite the session's active state).*
+Use `telepathy send <session-id> <message>` in both directions. It finds the session by id or
+prefix, picks the route — a Claude Code session's inbox socket, the language server hosting an
+Antigravity conversation, or that conversation's mailbox — prefixes your own session id so the
+recipient can reply, and prints which route carried it (see `## The verbs` above for what each
+promises).
 
 ### 3. Model & project hygiene rules
-- **Cheapest model only**: Always specify `--model gemini-3.8-flash-low` for `agy` (prevents quota exhaustion on pro models) and `--model haiku` for `claude`.
+- **Cheapest model only**: when you start an `agy` or `claude` process for any other reason, specify `--model gemini-3.8-flash-low` for `agy` (prevents quota exhaustion on pro models) and `--model haiku` for `claude`.
 - **Zero project-list pollution**: Never pass `--new-project` or `--remote-agent` in `agy`, and never pass `--cloud` in `claude`.
 
 ## The rule this exists to serve

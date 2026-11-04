@@ -54,7 +54,15 @@ telepathy session <id>        one session's calls and errors, by tool
 telepathy find <term>         search every local transcript: who, when, where, and the text
 telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip / v_transcript
 telepathy backfill            read the existing corpus in; safe to repeat
+telepathy send <id> <msg>     deliver a message to a Claude Code or Antigravity session
+telepathy link                from an Antigravity shell: make this conversation wakeable by send
 ```
+
+`send` reaches a Claude Code session through its inbox socket, and an Antigravity conversation
+through the language server hosting it — which wakes it — or, failing that, its on-disk mailbox,
+read at its next turn. The server's token exists only in an Antigravity agent's shell, so
+`telepathy link` (and any other verb) run from one records that conversation's server address and token in
+`$XDG_RUNTIME_DIR/gray-area/antigravity-servers` (0700, each record 0600, gone at logout).
 
 Every verb takes `--help`, and the help is where each one states what it *cannot* tell you.
 `--store`, `--projects` and `--sessions` point the tool at somewhere other than this box's own
