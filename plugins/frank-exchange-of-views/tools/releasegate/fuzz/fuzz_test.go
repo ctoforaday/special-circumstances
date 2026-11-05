@@ -4325,6 +4325,9 @@ func (r *runner) openGaps() []string {
 // here is the closer's own, against its own budget. The chair's `carry` lives in carryPrior.
 func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	_ = chairID // the sitting seat; the closer is the minter, looked up below
+	if !r.openOnRecord(id) {
+		return
+	}
 	r.heldByCheck.remove(id)
 	closer := r.minterOf(id)
 	// A DOCKETED GAP IS THE BENCH'S UNTIL IT RULES: a drive that reaches for its close is refused, and
@@ -4502,6 +4505,22 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		}
 	}
 	r.closeVerifiedWith(id, args, anchor)
+}
+
+// openOnRecord reports whether the record reads gap id open NOW — the one place the drive asks before it
+// acts on a gap it chose from a list read earlier (the plan's, a sitting's, its own). A mint superseding
+// an open gap closes it in that act (ruled by gblock 2026-11-04), so a gap the drive chose open can be
+// closed by the time it acts: a later mint of the same sitting, the successor a regression close mints
+// among them, superseded it, and the record refuses every act on it naming the successor. A read that
+// fails is reported and answers false, so nothing is aimed at a gap the drive cannot see.
+func (r *runner) openOnRecord(id string) bool {
+	fam, err := record.FamilyOf(r.run())
+	if err != nil {
+		r.noteActErr("the record could not be read to tell whether gap " + id + " is still open: " + err.Error())
+		return false
+	}
+	g := fam.Gap(id)
+	return g != nil && g.Open
 }
 
 // closeVerifiedWith issues the close of gap id that the drive expects admitted, naming anchor — another
@@ -4959,7 +4978,15 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.acceptRepeated(seatID)
 		r.cutLeavingAnchorOut(seatID)
 		r.citeForBareMint(seatID)
-		r.maybe(45, func() { inquiry("blue") })
+		// THE FORCED FATE-TURN RUN NEEDS AN INQUIRY BEFORE ITS LENS CAN MINT ABOUT THE SECTION THAT
+		// PRINTS ONE (mintAboutFateSection waits for it): blue proposes one at its first sitting there
+		// rather than on the draw, which a trajectory can miss at every sitting before the last lens's.
+		// Every other run draws exactly as before.
+		if r.fateTurnNeedsInquiry() {
+			inquiry("blue")
+		} else {
+			r.maybe(45, func() { inquiry("blue") })
+		}
 		// NO RANDOM FATE HERE. settleOpenInquiries owns every later fate: one decision per open
 		// inquiry per sitting, which is the blocking item blue's work list carries for it.
 		// THE CITATION AXIS (#256), driven end to end through the real binary: `blue cite` fetches
@@ -5557,19 +5584,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		locked := r.lensMovesBenchAxis(seatID)
 		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
 		engaged := r.engaged(seatID)
-		// THE PLAN NAMED ITS GAPS OPEN, AND THE RECORD SAYS WHICH STILL ARE: a mint of this sitting's
-		// that superseded one closed it (ruled by gblock 2026-11-04), and its successor holds its
-		// purpose, so no act of the lens's lands on it.
-		openNow := map[string]bool{}
-		if bj, err := record.BoardJSONOfRun(r.runHandle); err != nil {
-			r.noteActErr("the board could not be read to tell which engaged gaps are still open: " + err.Error())
-		} else {
-			for _, g := range bj.Open {
-				openNow[g.ID] = true
-			}
-		}
 		for _, id := range engaged {
-			if !openNow[id] {
+			// THE PLAN NAMED ITS GAPS OPEN, AND THE RECORD SAYS WHICH STILL ARE, read at each act: a
+			// mint of this sitting's — the successor a regression close mints among them — may have
+			// superseded one since (openOnRecord).
+			if !r.openOnRecord(id) {
 				continue
 			}
 			d := r.scenarioOf(id)
