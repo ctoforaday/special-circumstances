@@ -40,15 +40,15 @@ func TestTheRecordRefusesAComputationsUnadmittedShape(t *testing.T) {
 
 func TestTheRecordRefusesAReproducesUnadmittedShape(t *testing.T) {
 	ran := func(rerun recordpb.Rerun) *recordpb.Reproduce {
-		return &recordpb.Reproduce{Rerun: rerun.Enum(), Ran: proto.Bool(true)}
+		return &recordpb.Reproduce{Rerun: rerun.Enum(), Ran: proto.Bool(true), RerunSha: proto.String(rerunOf("s1"))}
 	}
 	reproduced, differs := recordpb.Rerun_RERUN_REPRODUCED, recordpb.Rerun_RERUN_DIFFERS
 	for name, c := range map[string]struct {
 		body *recordpb.Reproduce
 		ok   bool
 	}{
-		// The shape migrate writes: a reproduce that ran, with no raw re-run on the record.
-		"a ran reproduce with neither rerun_exit nor rerun_sha": {ran(reproduced), true},
+		// A reproduce names its execution: the live write's act judgement (requireNamedExecution).
+		"a ran reproduce with neither rerun_exit nor rerun_sha": {func() *recordpb.Reproduce { r := ran(reproduced); r.RerunSha = nil; return r }(), false},
 		"reproduced with drift":                                 {func() *recordpb.Reproduce { r := ran(reproduced); r.Drift = proto.String("x"); return r }(), false},
 		"differs with drift":                                    {func() *recordpb.Reproduce { r := ran(differs); r.Drift = proto.String("x"); return r }(), true},
 		"differs without drift":                                 {ran(differs), false},
@@ -57,7 +57,11 @@ func TestTheRecordRefusesAReproducesUnadmittedShape(t *testing.T) {
 			r.RerunExit, r.RerunSha = proto.Int32(0), proto.String("r1")
 			return r
 		}(), true},
-		"rerun_exit without rerun_sha": {func() *recordpb.Reproduce { r := ran(reproduced); r.RerunExit = proto.Int32(0); return r }(), false},
+		"rerun_exit without rerun_sha": {func() *recordpb.Reproduce {
+			r := ran(reproduced)
+			r.RerunExit, r.RerunSha = proto.Int32(0), nil
+			return r
+		}(), false},
 		"rerun_exit without ran": {func() *recordpb.Reproduce {
 			r := ran(reproduced)
 			r.Ran, r.RerunExit, r.RerunSha = proto.Bool(false), proto.Int32(0), proto.String("r1")
@@ -82,12 +86,12 @@ func TestTheRecordRefusesAReproducesUnadmittedShape(t *testing.T) {
 	}
 }
 
-// AN ACT THAT RAN NOTHING STATES THE STANDING RE-RUN'S COMPARISON, and is refused where it states
-// another or where nothing ever ran the bundle.
+// AN ACT THAT RAN NOTHING NAMES THE STANDING RE-RUN, and is refused where it names another or where
+// nothing ever ran the bundle.
 func TestAReproduceThatRanNothingStandsOnTheBundlesReRun(t *testing.T) {
 	notRan := func(rerun recordpb.Rerun) *recordpb.Reproduce {
 		r := &recordpb.Reproduce{ComputationId: proto.String("K-1"), BundleSha: proto.String("s1"), Rerun: rerun.Enum(), Ran: proto.Bool(false),
-			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String("read")}
+			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String("read"), RerunSha: proto.String(rerunOf("s1"))}
 		if rerun == recordpb.Rerun_RERUN_DIFFERS {
 			r.Drift = proto.String("x")
 		}
@@ -98,10 +102,29 @@ func TestAReproduceThatRanNothingStandsOnTheBundlesReRun(t *testing.T) {
 		t.Error("a reproduce that ran nothing was recorded on a bundle nothing ever ran")
 	}
 	stood := reopenedBoard(t).computation("K-1", "s1").reproduce(evLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).seed()
-	if _, err := Append(Identity{Run: stood, SeatID: evLens}, notRan(recordpb.Rerun_RERUN_DIFFERS)); err == nil {
-		t.Error("a reproduce that ran nothing was recorded stating a comparison other than the standing re-run's")
+	stale := notRan(recordpb.Rerun_RERUN_REPRODUCED)
+	stale.RerunSha = proto.String("r-elsewhere")
+	if _, err := Append(Identity{Run: stood, SeatID: evLens}, stale); err == nil {
+		t.Error("a reproduce that ran nothing was recorded naming a re-run other than the standing one")
 	}
 	if _, err := Append(Identity{Run: stood, SeatID: evLens}, notRan(recordpb.Rerun_RERUN_REPRODUCED)); err != nil {
 		t.Errorf("a reproduce that ran nothing and states the standing re-run's comparison was refused: %v", err)
+	}
+}
+
+// AN ARCHIVED REPRODUCE NAMES NO EXECUTION: the record it came from kept no raw re-run. The replay
+// writes one, ran or not, as the archive holds it; the live write refuses it (requireNamedExecution).
+func TestTheReplayWritesAReproduceThatNamesNoExecution(t *testing.T) {
+	for _, ran := range []bool{true, false} {
+		b := reopenedBoard(t).computation("K-1", "s1")
+		r := &recordpb.Reproduce{ComputationId: proto.String("K-1"), BundleSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(ran),
+			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String("read")}
+		run := b.seed()
+		if err := wouldReplay(t, run, evLens, recordpb.EventType_EVENT_TYPE_REPRODUCE, r); err != nil {
+			t.Errorf("ran=%v: the replay refused an archived reproduce that names no execution: %v", ran, err)
+		}
+		if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPRODUCE, r); err == nil {
+			t.Errorf("ran=%v: the live write admitted a reproduce that names no execution", ran)
+		}
 	}
 }

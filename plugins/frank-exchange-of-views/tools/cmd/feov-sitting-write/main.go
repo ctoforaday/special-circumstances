@@ -15,8 +15,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 func main() {

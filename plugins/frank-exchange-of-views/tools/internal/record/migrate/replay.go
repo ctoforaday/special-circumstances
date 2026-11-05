@@ -58,10 +58,10 @@ const preFieldFillWhy = "the source predates class_material; the gap takes the m
 // today records for the stamp the live rule gives it. %s is the archived stamp.
 const restampWhy = "the source stamped %s; the tool stamps a mint's class_material from its class's material default, and the gap takes that default"
 
-// Replay re-drives an old record's events, in order, through the current write path into
-// dst. Each act is validated by the same code every seat verb runs, and each event's stamp
-// is the ORIGINAL stamp: record.Now is pinned per event, which is safe exactly because the
-// migrator is its own process and nothing else writes dst.
+// Replay re-drives an old record's events, in order, through the replay writer (record.Replay) into
+// dst. Each act is held to the shape every writer is held to, and to none of the live write's act
+// judgements: an archived act is what a seat did. Each event's stamp is the ORIGINAL stamp, handed
+// to the writer with the act.
 //
 // Register events go through Append like everything else, NOT through RegisterSeat — a
 // deliberate deviation from the plan's first draft, with the reason on the record:
@@ -71,14 +71,10 @@ const restampWhy = "the source stamped %s; the tool stamps a mint's class_materi
 // only honest answer. Dispatch numbering survives because it derives from the key ordinal,
 // which Append's own path re-derives.
 //
-// The whole replay is one batch (record.Batch): every act is written in one transaction, each inside
-// a savepoint, and committed once at the end.
+// The whole replay is one transaction (record.Replay): every act is written inside a savepoint of
+// it, and committed once at the end.
 func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, error) {
-	was := record.Now
-	defer func() { record.Now = was }()
-	record.Migrating = true
-	defer func() { record.Migrating = false }()
-	batch, err := record.BeginBatch(dst)
+	batch, err := record.BeginReplay(dst)
 	if err != nil {
 		return nil, err
 	}
@@ -93,10 +89,9 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 	return res, nil
 }
 
-// replay writes src's events through batch, which its caller began on dst, holds and commits, with
-// record.Migrating set; it pins record.Now per event and restores it on return, so each pass — the
-// reorder trial and the replay as written after it — starts from the clock its caller had. With
-// inOrder set, each part of the report is written in the order its text ships in (order.go).
+// replay writes src's events through batch, the replay writer its caller began on dst, holds and
+// commits, each act stamped with its source event's time. With inOrder set, each part of the report
+// is written in the order its text ships in (order.go).
 //
 // dst IS AN ADDRESS, NEVER A HANDLE. While the batch is open, the batch's transaction holds the
 // record's one connection, and anything that takes dst and opens the record waits on it forever. So
@@ -104,11 +99,9 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 // destination goes through batch.Querier().
 //
 // An act the write refuses is a Refusal, and the replay goes on. A failure of the batch itself
-// (record.ErrBatchFailed) is asked of the batch once, at the end — whichever append it landed on —
+// (record.ErrReplayFailed) is asked of the batch once, at the end — whichever append it landed on —
 // and returned: nothing the batch wrote can be kept.
-func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt Options, inOrder bool) (*Result, error) {
-	was := record.Now
-	defer func() { record.Now = was }()
+func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt Options, inOrder bool) (*Result, error) {
 	evs, err := src.Events()
 	if err != nil {
 		return nil, err
@@ -149,14 +142,16 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	// event, and the live write path checks every register and dispatch against one. Its cast is
 	// the seats that registered, translated — a fact the record already holds, restated as the
 	// list the current schema reads it from.
+	//
+	// Under the archive's own clock: the cast precedes the first event and is stamped with its time,
+	// so ORDER BY id and the timestamps tell one story.
+	castAt := record.Now()
 	if len(evs) > 0 {
-		// Under the archive's own clock: the cast precedes the first event and is stamped with its
-		// time, so ORDER BY id and the timestamps tell one story.
 		if ts, err := record.ParseStamp(evs[0].TS); err == nil {
-			record.Now = func() time.Time { return ts }
+			castAt = ts
 		}
 	}
-	if wrote, err := writeSynthesizedCast(evs, rm, batch, dst); err != nil {
+	if wrote, err := writeSynthesizedCast(evs, rm, batch, dst, castAt); err != nil {
 		return nil, err
 	} else if wrote {
 		res.Out["cast"]++
@@ -322,7 +317,6 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				Err: fmt.Sprintf("unparseable ts %q: %v", old.TS, err)})
 			continue
 		}
-		record.Now = func() time.Time { return ts }
 		id := record.Identity{Run: dst, SeatID: seatID}
 		// refused words a refusal of an act written for a chain as the chain's.
 		refused := func(err error) string {
@@ -519,7 +513,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 					return nil, err
 				}
 				if a != nil {
-					if _, err := batch.Append(record.Identity{Run: dst, SeatID: record.HarnessSeat}, a); err != nil {
+					if _, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, a, ts); err != nil {
 						res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: "admitting the sitting this close ends: " + err.Error()})
 						continue
 					}
@@ -565,7 +559,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if seat, ok := opinionFiler(src, body); ok {
 				filer = record.Identity{Run: dst, SeatID: seat}
 			}
-			ev, err := batch.Append(filer, body)
+			ev, err := batch.Write(filer, body, ts)
 			if err != nil {
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
@@ -609,7 +603,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			}
 			if anchorAfter != nil {
 				// The act landed whether or not its Anchor does, so what follows still pairs with it.
-				if _, err := batch.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); err != nil {
+				if _, err := batch.Write(record.Identity{Run: dst, SeatID: seatID}, anchorAfter, ts); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				} else {
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
@@ -706,8 +700,8 @@ func sortedKeys[V any](m map[string]V) []string {
 // write path refuses — so migrating any roundless-era record exited non-zero on a refusal of
 // its own membership.
 //
-// The cast is written through batch, under dst as its Identity's run.
-func writeSynthesizedCast(evs []OldEvent, rm *remap, batch *record.Batch, dst record.Run) (bool, error) {
+// The cast is written through batch, under dst as its Identity's run, stamped at.
+func writeSynthesizedCast(evs []OldEvent, rm *remap, batch *record.Replay, dst record.Run, at time.Time) (bool, error) {
 	for _, old := range evs {
 		if old.Word == "cast" {
 			return false, nil
@@ -733,7 +727,7 @@ func writeSynthesizedCast(evs []OldEvent, rm *remap, batch *record.Batch, dst re
 		return false, nil // nothing registered: nothing to admit, and nothing will register
 	}
 	sort.Strings(cast)
-	_, err := batch.Append(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast})
+	_, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast}, at)
 	return err == nil, err
 }
 
@@ -913,11 +907,11 @@ func truthy(v any) bool {
 	return false
 }
 
-// writeReadingAct writes a reading's act whole (record.Batch.AppendBodies), each member under its own
+// writeReadingAct writes a reading's act whole (record.Replay.WriteBodies), each member under its own
 // stamp, and returns what each member wrote, in order. Its members must be the act's Mint, Anchor
 // and reading, adjacent in the stream in that order, of one seat — the act wrote them in one
 // transaction, so none of these arises from a record the write made — and a refusal names the act.
-func writeReadingAct(batch *record.Batch, id record.Identity, act *readingActMembers, members []heldMember, pos map[int64]int) ([]record.WrittenBody, error) {
+func writeReadingAct(batch *record.Replay, id record.Identity, act *readingActMembers, members []heldMember, pos map[int64]int) ([]record.WrittenBody, error) {
 	refuse := func(why string, args ...any) error {
 		return fmt.Errorf("the reading act of %s — source events %d, %d and %d — is one act, and %s", act.gap, act.mint, act.anchor, act.verify, fmt.Sprintf(why, args...))
 	}
@@ -937,7 +931,7 @@ func writeReadingAct(batch *record.Batch, id record.Identity, act *readingActMem
 	for i, m := range members {
 		bodies[i] = record.StampedBody{Body: m.body, At: m.at}
 	}
-	written, err := batch.AppendBodies(id, bodies)
+	written, err := batch.WriteBodies(id, bodies)
 	if err != nil {
 		return nil, refuse("the write refuses it: %v", err)
 	}

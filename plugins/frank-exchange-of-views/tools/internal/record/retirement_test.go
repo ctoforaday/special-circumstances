@@ -445,12 +445,12 @@ func TestSpotCheckAreasValidatedAgainstCast(t *testing.T) {
 	}
 }
 
-func TestMigratingSkipsStaleAreaGate(t *testing.T) {
+// THE REPLAY WRITES AN ARCHIVED PASS over an uncovered stale area: the PASS gate is the live write's
+// act judgement.
+func TestTheReplaySkipsTheStaleAreaGate(t *testing.T) {
 	b, _ := retiredBehindHead(t)
 	run := b.register("red-chair").seed()
-	Migrating = true
-	defer func() { Migrating = false }()
-	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, passGate); err != nil {
+	if _, err := replayed(t, Identity{Run: run, SeatID: "red-chair"}, passGate); err != nil {
 		t.Fatalf("an archived PASS over an uncovered stale area must replay: %v", err)
 	}
 }

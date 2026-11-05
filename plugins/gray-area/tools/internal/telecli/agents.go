@@ -69,7 +69,7 @@ permission mode, and the commands that bring it back in that mode. The boot is
 			if lostOnly && !measured {
 				return errBootUnmeasured
 			}
-			rows, err := catalogue.Agents(cmd.Context(), db, env.SessionsDir)
+			rows, err := catalogue.Agents(cmd.Context(), db, env.SessionsDir, env.BrainDirs)
 			if err != nil {
 				return err
 			}

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/filechangedrearm"
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/gcpolicy"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 func main() {

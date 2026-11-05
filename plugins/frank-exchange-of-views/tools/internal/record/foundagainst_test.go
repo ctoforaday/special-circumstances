@@ -369,9 +369,7 @@ func TestAReadingsCarrierFieldsAreRefusableAtTheWrite(t *testing.T) {
 			t.Errorf("%s: %v, want it refused saying %q", c.name, err, c.refuse)
 		}
 	}
-	Migrating = true
-	err := validateRun(run, outsideLens, recordpb.EventType_EVENT_TYPE_VERIFY, with(refutes, none, nil, nil))
-	Migrating = false
+	err := wouldReplay(t, run, outsideLens, recordpb.EventType_EVENT_TYPE_VERIFY, with(refutes, none, nil, nil))
 	if err != nil {
 		t.Errorf("an archived refuting reading naming no gap: %v, want it carried as written", err)
 	}

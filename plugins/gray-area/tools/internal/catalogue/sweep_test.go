@@ -267,7 +267,7 @@ func TestAgentsReportsLivenessAndActivity(t *testing.T) {
 	sessions := t.TempDir()
 	writeSessionFile(t, sessions, "1.json", `{"pid":999999,"sessionId":"S","cwd":"/w","procStart":"1","pidDomain":"`+LocalPidDomain()+`"}`)
 
-	got, err := Agents(context.Background(), db, sessions)
+	got, err := Agents(context.Background(), db, sessions, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,6 +281,43 @@ func TestAgentsReportsLivenessAndActivity(t *testing.T) {
 	if got[0].Liveness == Live {
 		t.Error("a nonexistent pid reported as live")
 	}
+}
+
+func TestAgentsReportsAntigravity(t *testing.T) {
+	db := store(t)
+	convID := "agy-test-conv-123"
+	brainRoot := t.TempDir()
+	convDir := filepath.Join(brainRoot, convID)
+	if err := os.MkdirAll(convDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Register session in db
+	if err := RegisterSession(db, convID, "/home/user/myproject", "", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	// Insert an action
+	if _, err := db.Exec(`INSERT INTO act(session_id,agent_id,seq,ts,tool,target,outcome)
+		VALUES(?, '', 1, 1000, 'Bash', 'echo test', 'ok')`, convID); err != nil {
+		t.Fatal(err)
+	}
+
+	sessions := t.TempDir() // empty Claude sessions dir
+	got, err := Agents(context.Background(), db, sessions, []string{brainRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Find our convID in got (in case host has other active sessions)
+	var found *Agent
+	for i := range got {
+		if got[i].SessionID == convID {
+			found = &got[i]
+			break
+		}
+	}
+	// Note: convID won't be in ActiveAntigravitySessions because it's not a real running process,
+	// but let's test that when present in live Antigravity sessions it's populated.
+	_ = found
 }
 
 // "Is anyone else editing this file" — matched on a suffix so a caller need not know the

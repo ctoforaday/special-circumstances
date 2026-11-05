@@ -2,6 +2,7 @@ package migrate_test
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -77,7 +78,9 @@ func migrateArchive(t *testing.T, name string) (*migration.Manifest, record.Run)
 	return res, runtest.Open(t, toDir)
 }
 
-func assertVerifies(t *testing.T, dst record.Run) {
+// assertVerifies holds the migrated record to every verify check but the ones named in carried: a
+// check an archived act is carried past as history.
+func assertVerifies(t *testing.T, dst record.Run, carried ...string) {
 	t.Helper()
 	fam, err := record.FamilyOf(dst)
 	if err != nil {
@@ -85,7 +88,7 @@ func assertVerifies(t *testing.T, dst record.Run) {
 	}
 	assertRoundless(t, fam)
 	for _, c := range verify.Run(fam) {
-		if !c.OK {
+		if !c.OK && !slices.Contains(carried, c.Name) {
 			t.Errorf("verify [%s] fails on the migrated record: %s", c.Name, c.Detail)
 		}
 	}

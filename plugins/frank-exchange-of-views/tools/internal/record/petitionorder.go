@@ -15,9 +15,9 @@ import (
 // is the ruling's now: a grant states its relief and whom it binds, a denial orders nothing, and every
 // seat's work list carries each grant's relief from the record (WorkJSON.Relief).
 //
-// AN ARCHIVED GRANT STATES NO RELIEF: the one on record (quadratic-formula M5) put its order in the
-// opinion. Migration replays it as the bench recorded it, so the grant's requirement is off under
-// Migrating, and the migrated run's work lists carry no relief for it.
+// THAT A GRANT STATES ITS ORDER IS THE BENCH'S ACT AT THE WRITE (requirePetitionRelief, judgeAct). An
+// archived grant may state none: the one on record (quadratic-formula M5) put its order in the
+// opinion, and the migrated run's work lists carry no relief for it.
 
 // requirePetitionOrder refuses a petition ruling whose order does not match its word, and an order on
 // any other subject's ruling.
@@ -31,10 +31,20 @@ func requirePetitionOrder(r *recordpb.MotionRule) error {
 		return nil
 	case p.Petition == recordpb.PetitionRuling_PETITION_RULING_DENIED && ordered:
 		return fmt.Errorf("--as denied orders nothing, so it takes neither --relief nor --binds: a denial leaves the seats where they were, and an order beside it would bind them to what you refused")
-	case p.Petition == recordpb.PetitionRuling_PETITION_RULING_GRANTED && !Migrating &&
-		(strings.TrimSpace(r.GetRelief()) == "" || r.GetBinds() == recordpb.RulingBinds_RULING_BINDS_UNSPECIFIED):
-		return fmt.Errorf("--as granted requires --relief and --binds: --relief is the order the seats it binds must follow, written as an instruction they can act on without reading your opinion, and --binds names whom it binds (%s). Every seat's work list carries it from the ruling, so a grant without them orders nothing",
-			strings.Join(Names(MotionFields["petition"]["binds"]), " | "))
 	}
 	return nil
+}
+
+// requirePetitionRelief refuses a grant that states no order: --as granted requires --relief and
+// --binds.
+func requirePetitionRelief(r *recordpb.MotionRule) error {
+	p, petition := r.GetRuling().(*recordpb.MotionRule_Petition)
+	if !petition || p.Petition != recordpb.PetitionRuling_PETITION_RULING_GRANTED {
+		return nil
+	}
+	if strings.TrimSpace(r.GetRelief()) != "" && r.GetBinds() != recordpb.RulingBinds_RULING_BINDS_UNSPECIFIED {
+		return nil
+	}
+	return fmt.Errorf("--as granted requires --relief and --binds: --relief is the order the seats it binds must follow, written as an instruction they can act on without reading your opinion, and --binds names whom it binds (%s). Every seat's work list carries it from the ruling, so a grant without them orders nothing",
+		strings.Join(Names(MotionFields["petition"]["binds"]), " | "))
 }

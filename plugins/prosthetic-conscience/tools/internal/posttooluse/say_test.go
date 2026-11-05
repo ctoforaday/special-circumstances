@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // fireFully is fire() with stdout kept: the message for the human travels there, where fire's

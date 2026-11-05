@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // Named is the common case: a binary that knows its own name at compile time.

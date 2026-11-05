@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
 )
 
 // state reads the GC percent and memory limit without changing either.
@@ -83,7 +81,7 @@ func TestAnEmptyVariableIsNotAnOperatorSetting(t *testing.T) {
 // first statement of each one's main to be its own module's gcpolicy.Short() or gcpolicy.Long().
 // First, because anything main does before it runs under the other policy.
 func TestEveryShippedMainStatesItsGCClass(t *testing.T) {
-	root, err := gitx.Root()
+	root, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,15 +91,7 @@ func TestEveryShippedMainStatesItsGCClass(t *testing.T) {
 	}
 	var mains int
 	for _, gomod := range mods {
-		data, err := os.ReadFile(gomod)
-		if err != nil {
-			t.Fatal(err)
-		}
-		modPath := modulePath(data)
-		if modPath == "" {
-			t.Fatalf("%s names no module", gomod)
-		}
-		want := modPath + "/internal/gcpolicy"
+		want := "github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 		cmds, err := filepath.Glob(filepath.Join(filepath.Dir(gomod), "cmd", "*"))
 		if err != nil {
 			t.Fatal(err)
@@ -131,16 +121,6 @@ func TestEveryShippedMainStatesItsGCClass(t *testing.T) {
 	if len(mods) < 3 || mains < 20 {
 		t.Fatalf("found %d plugin modules and %d mains — the tree walk is not seeing the shipped binaries", len(mods), mains)
 	}
-}
-
-// modulePath reads the module directive from a go.mod.
-func modulePath(gomod []byte) string {
-	for _, line := range strings.Split(string(gomod), "\n") {
-		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "module "); ok {
-			return strings.Trim(strings.TrimSpace(rest), `"`)
-		}
-	}
-	return ""
 }
 
 func findMain(t *testing.T, dir string) (*ast.FuncDecl, *ast.File) {

@@ -3,7 +3,10 @@ package catalogue
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -18,24 +21,91 @@ type Agent struct {
 }
 
 // Agents answers the switchboard's first two questions from the store plus the client's own
-// session files. Liveness comes from the files (it cannot be derived from a transcript); identity
-// and activity come from the store.
-func Agents(ctx context.Context, db *sql.DB, sessionDir string) ([]Agent, error) {
+// session files and active Antigravity conversations. Liveness comes from the files and processes;
+// identity and activity come from the store.
+func Agents(ctx context.Context, db *sql.DB, sessionDir string, brainDirs []string) ([]Agent, error) {
 	files, err := ReadSessionFiles(sessionDir)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	domain := LocalPidDomain()
 	out := make([]Agent, 0, len(files))
+	seen := map[string]bool{}
 	for _, sf := range files {
+		seen[sf.SessionID] = true
 		a := Agent{SessionID: sf.SessionID, CWD: sf.CWD, Liveness: Of(sf, domain, ProcStart)}
-		db.QueryRowContext(ctx, `SELECT count(*) FROM v_action WHERE session_id = ?`, sf.SessionID).Scan(&a.Acts)
-		db.QueryRowContext(ctx,
-			`SELECT tool, ts FROM v_action WHERE session_id = ? ORDER BY ts DESC, seq DESC LIMIT 1`,
-			sf.SessionID).Scan(&a.LastTool, &a.LastAt)
+		if db != nil {
+			db.QueryRowContext(ctx, `SELECT count(*) FROM v_action WHERE session_id = ?`, sf.SessionID).Scan(&a.Acts)
+			db.QueryRowContext(ctx,
+				`SELECT tool, ts FROM v_action WHERE session_id = ? ORDER BY ts DESC, seq DESC LIMIT 1`,
+				sf.SessionID).Scan(&a.LastTool, &a.LastAt)
+		}
 		out = append(out, a)
 	}
+
+	if len(brainDirs) > 0 {
+		agyLive := ActiveAntigravitySessions()
+		for convID := range agyLive {
+			if seen[convID] {
+				continue
+			}
+			inBrain := false
+			for _, bDir := range brainDirs {
+				if fi, err := os.Stat(filepath.Join(bDir, convID)); err == nil && fi.IsDir() {
+					inBrain = true
+					break
+				}
+			}
+			if !inBrain {
+				continue
+			}
+			seen[convID] = true
+			cwd := ""
+			if db != nil {
+				_ = db.QueryRowContext(ctx, `SELECT coalesce(nullif(cwd, ''), project_dir) FROM v_session WHERE session_id = ?`, convID).Scan(&cwd)
+			}
+			if cwd == "" {
+				cwd = deriveAntigravityCWD(convID, brainDirs)
+			}
+			a := Agent{
+				SessionID: convID,
+				CWD:       cwd,
+				Liveness:  Live,
+			}
+			if db != nil {
+				db.QueryRowContext(ctx, `SELECT count(*) FROM v_action WHERE session_id = ?`, convID).Scan(&a.Acts)
+				db.QueryRowContext(ctx,
+					`SELECT tool, ts FROM v_action WHERE session_id = ? ORDER BY ts DESC, seq DESC LIMIT 1`,
+					convID).Scan(&a.LastTool, &a.LastAt)
+			}
+			out = append(out, a)
+		}
+	}
 	return out, nil
+}
+
+func deriveAntigravityCWD(convID string, brainDirs []string) string {
+	home, err := os.UserHomeDir()
+	if err == nil {
+		cachePath := filepath.Join(home, ".gemini", "antigravity-cli", "cache", "last_conversations.json")
+		if b, err := os.ReadFile(cachePath); err == nil {
+			var m map[string]string
+			if json.Unmarshal(b, &m) == nil {
+				for ws, id := range m {
+					if id == convID {
+						return ws
+					}
+				}
+			}
+		}
+	}
+	for _, bDir := range brainDirs {
+		candidate := filepath.Join(bDir, convID)
+		if fi, err := os.Stat(candidate); err == nil && fi.IsDir() {
+			return candidate
+		}
+	}
+	return ""
 }
 
 // Touch is one session's contact with a path.
