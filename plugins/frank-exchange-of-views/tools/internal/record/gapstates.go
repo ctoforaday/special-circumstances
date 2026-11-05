@@ -18,13 +18,11 @@ type familyReads struct {
 
 // familyGapRow is one row of the `gap` view as the family scans it.
 type familyGapRow struct {
-	id                     string
-	epoch                  int
-	open, material         bool
-	sev, lik, imp, cx      sql.NullString
-	closeEvent, benchEvent sql.NullInt64
-	closedByBench          bool
-	benchClosedLast        bool
+	id                string
+	epoch             int
+	open, material    bool
+	sev, lik, imp, cx sql.NullString
+	closure           gapClosure
 }
 
 // familyReadsAt reads the family's answers off q, the read transaction both come off: the whole
@@ -45,7 +43,7 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 	}
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "material",
-	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
+	    ` + gapClosureColumns + `
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return r, fmt.Errorf("asking the record for its gap states: %w", err)
@@ -53,8 +51,7 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var g familyGapRow
-		if err := rows.Scan(&g.id, &g.epoch, &g.open, &g.sev, &g.lik, &g.imp, &g.cx, &g.material,
-			&g.closeEvent, &g.benchEvent, &g.closedByBench, &g.benchClosedLast); err != nil {
+		if err := rows.Scan(append([]any{&g.id, &g.epoch, &g.open, &g.sev, &g.lik, &g.imp, &g.cx, &g.material}, g.closure.dest()...)...); err != nil {
 			return r, err
 		}
 		r.gaps = append(r.gaps, g)
@@ -95,13 +92,13 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 			ComplexityCost: gradeOrZero(row.cx),
 			Material:       row.material,
 		}
-		c, err := closeStateOf(row.id, row.closeEvent, row.benchEvent, row.closedByBench, row.benchClosedLast, byID, win)
+		c, err := closeStateOf(row.id, row.closure, byID, win)
 		if err != nil {
 			return nil, err
 		}
 		if c != nil {
 			g.HasClosed, g.ClosedEpoch, g.ClosedByBench, g.BenchClosedLast = true, c.closedEpoch, c.closedByBench, c.benchClosedLast
-			g.Closure, g.BenchClosure = c.lastClose, c.lastBenchClosure
+			g.Closure, g.BenchClosure, g.SupersededBy = c.lastClose, c.lastBenchClosure, c.supersededBy
 		}
 		out = append(out, g)
 	}
@@ -199,7 +196,8 @@ func NewFamily(gaps []*Gap, m Merged) Family {
 }
 
 // gapFamilyActs narrows the whole stream to the acts the gap family reads — the mints and regrades
-// it folds, and the closes and docket rulings the gap view names and it looks up — in record order.
+// it folds, and the closes, docket rulings and superseding mints the gap view names and it looks up —
+// in record order.
 func gapFamilyActs(evs []*Event) []*Event {
 	var out []*Event
 	for _, e := range evs {

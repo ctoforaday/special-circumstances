@@ -35,7 +35,7 @@ func mintRow(t *testing.T, db *sql.DB, ord int32, id string, kind recordpb.Check
 func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 	db := store(t)
 	mintRow(t, db, 0, "G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
-	mintRow(t, db, 1, "G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "G1")
+	mintRow(t, db, 1, "G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
 	mintRow(t, db, 2, "G3", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
 	// Two regrades on G1: impact moves twice (the LATEST wins), likelihood never touched (the
 	// mint's stands). Insert stamps each with its result grades (stampRegradeResult), which the view
@@ -55,14 +55,15 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 		curImpact, curLik             sql.NullString
 		computationAnswered, awaiting bool
 		supersededBy                  sql.NullString
-		stranded                      bool
+		supersedeEvent                sql.NullInt64
+		open                          bool
 	}
 	read := func(id string) row {
 		t.Helper()
 		var r row
 		if err := db.QueryRow(`SELECT "current_impact", "current_likelihood", "computation_answered",
-		    "awaiting_computation", "superseded_by", "stranded" FROM "gap" WHERE "gap_id" = ?`, id).
-			Scan(&r.curImpact, &r.curLik, &r.computationAnswered, &r.awaiting, &r.supersededBy, &r.stranded); err != nil {
+		    "awaiting_computation", "superseded_by", "supersede_event", "open" FROM "gap" WHERE "gap_id" = ?`, id).
+			Scan(&r.curImpact, &r.curLik, &r.computationAnswered, &r.awaiting, &r.supersededBy, &r.supersedeEvent, &r.open); err != nil {
 			t.Fatal(err)
 		}
 		return r
@@ -78,8 +79,8 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 	if r1.computationAnswered || !r1.awaiting {
 		t.Errorf("G1 = (computation_answered=%v, awaiting=%v): an open computation gap with no computation is the debt", r1.computationAnswered, r1.awaiting)
 	}
-	if r1.supersededBy.String != "G2" || !r1.stranded {
-		t.Errorf("G1 = (superseded_by=%q, stranded=%v): an open superseded ancestor is a broken promise", r1.supersededBy.String, r1.stranded)
+	if r1.supersededBy.Valid || r1.supersedeEvent.Valid || !r1.open {
+		t.Errorf("G1 = (superseded_by=%v, supersede_event=%v, open=%v): no mint names it yet", r1.supersededBy, r1.supersedeEvent, r1.open)
 	}
 	r3 := read("G3")
 	if !r3.computationAnswered || r3.awaiting {
@@ -89,14 +90,19 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 		t.Error("a document-check gap can never be awaiting computation")
 	}
 
-	// Closing the stranded ancestor keeps the lineage and drops the accusation.
-	if _, err := Insert(db, event(t, 6, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
-		Prose: proto.String("closed")})); err != nil {
-		t.Fatal(err)
+	// A mint superseding the open G1 closes it in that act: the view names the successor and the
+	// closing event, and a closed gap owes nothing.
+	mintRow(t, db, 6, "G4", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "G1")
+	r1 = read("G1")
+	if r1.supersededBy.String != "G4" || !r1.supersedeEvent.Valid || r1.open || r1.awaiting {
+		t.Errorf("after G4's mint: G1 = (superseded_by=%q, supersede_event=%v, open=%v, awaiting=%v), want closed by G4's mint, owing nothing",
+			r1.supersededBy.String, r1.supersedeEvent, r1.open, r1.awaiting)
 	}
-	if r := read("G1"); r.stranded || r.awaiting {
-		t.Errorf("after close: (stranded=%v, awaiting=%v) — a closed gap owes nothing", r.stranded, r.awaiting)
+	// A mint naming a gap already closed is lineage and closes nothing anew: G1's closing event stays G4's.
+	at := r1.supersedeEvent.Int64
+	mintRow(t, db, 7, "G5", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "G1")
+	if r := read("G1"); r.supersedeEvent.Int64 != at || r.supersededBy.String != "G4" {
+		t.Errorf("after G5's mint: G1 = (superseded_by=%q, supersede_event=%v), want G4's mint at %d to stand", r.supersededBy.String, r.supersedeEvent, at)
 	}
 }
 

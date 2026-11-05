@@ -1100,6 +1100,42 @@
       ],
       "bans": [],
       "collisions": []
+    },
+    {
+      "term": "superseded",
+      "definition": "A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor, so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "bench",
+        "operator"
+      ],
+      "bans": [
+        {
+          "variant": "stranded gap",
+          "kind": "GATED",
+          "pattern": "stranded (superseded )?(gaps?|ancestors?)"
+        }
+      ],
+      "collisions": [
+        {
+          "word": "superseded (a closed gap)",
+          "resolution": "a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, so only the mint that names the gap while it is open supersedes it"
+        },
+        {
+          "word": "`--superseded-by` (close)",
+          "resolution": "names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed"
+        },
+        {
+          "word": "superseded_by (retire)",
+          "resolution": "a retired claim's replacement in the report; not a gap"
+        },
+        {
+          "word": "superseded (an inquiry's record or a bench statement)",
+          "resolution": "a later record of the same thing standing in its place; not a gap's fate"
+        }
+      ]
     }
   ]
 }

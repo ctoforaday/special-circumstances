@@ -195,15 +195,15 @@ func TestTheRefusalStatesTheArithmetic(t *testing.T) {
 	for _, want := range []string{"red-lens-evidence holds 2 gap(s) open and its mint budget admits no more", "caps the gaps a lens holds open at once",
 		"the evidence lens's is the larger of the run's floor", "and its rate, 3 mints for every 2 of the citations on the record",
 		"max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2", "mintBudget in inputs/run-config.json", "grows as the report does",
-		"A gap of yours that closes, by your close or by the bench's ruling, frees one",
+		"A gap of yours that closes, by your close, by a mint of yours superseding it or by the bench's ruling, frees one, and a mint superseding an open gap of yours that takes one takes none",
 		"Record what you found as a finding now, and mint it when a gap of yours has closed, naming that finding in --found-by",
 		"verify, record findings, and regrade or close the gaps you minted"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal lost %q:\n%v", want, err)
 		}
 	}
-	if _, err := Append(id, budgetMint("G4", "G1")); err == nil || !strings.Contains(err.Error(), "budget") {
-		t.Errorf("a superseding mint landed at the cap with the gap it replaces still open: %v", err)
+	if _, err := Append(id, budgetMint("G4", "G1")); err != nil {
+		t.Errorf("a mint superseding an open gap of the lens's own was refused at the cap, which it leaves where it was: %v", err)
 	}
 }
 
@@ -288,21 +288,18 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 		refused(t, id, budgetMint("G4"))
 	})
 
-	// SUPERSEDING CLOSES NOTHING. The successor is a new open gap and the gap it replaces stays
-	// open — stranded, on the view — until its lens closes it, so each holds a mint until then.
+	// A MINT SUPERSEDING AN OPEN GAP OF THE LENS'S OWN CLOSES IT, so it takes no mint: the lens holds
+	// as many open after it as before. One naming only a gap already closed is a new open gap.
 	t.Run("a superseding mint", func(t *testing.T) {
 		id := atCap(t)
-		refused(t, id, budgetMint("G4", "G1"))
-		mustAppend(t, id, repairClose("G3"))
 		if _, err := Append(id, budgetMint("G4", "G1")); err != nil {
-			t.Fatalf("a superseding mint was refused under the cap: %v", err)
+			t.Fatalf("a mint superseding the lens's own open G1 was refused at the cap: %v", err)
 		}
+		refused(t, id, budgetMint("G5", "G1"))
 		refused(t, id, budgetMint("G5"))
-		c := repairClose("G1")
-		c.Successor = proto.String("G4")
-		mustAppend(t, id, c)
+		mustAppend(t, id, repairClose("G4"))
 		if _, err := Append(id, budgetMint("G5")); err != nil {
-			t.Fatalf("closing the superseded gap, naming its successor, did not free its mint: %v", err)
+			t.Fatalf("closing the successor did not free its mint: %v", err)
 		}
 	})
 
@@ -373,7 +370,7 @@ func TestTheWorkListStatesTheMintsLeft(t *testing.T) {
 	t.Run("measured", func(t *testing.T) {
 		id := budgetRun(t, 1, 1, 0, "red-lens-evidence")
 		for minted, sentence := range []string{
-			"you hold 0 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so 2 mint(s) are left to you; every open gap you minted takes one, a superseding mint too, a gap of yours that closes frees one",
+			"you hold 0 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so 2 mint(s) are left to you; every open gap you minted takes one, a gap of yours that closes frees one, a mint superseding an open gap of yours that takes one closes it and takes none",
 			"you hold 1 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so 1 mint(s) are left to you; every open gap you minted takes one",
 			"you hold 2 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so NO mint is left to you; what you find now goes in a finding, and when a gap of yours closes it frees a mint and the finding is minted then",
 		} {

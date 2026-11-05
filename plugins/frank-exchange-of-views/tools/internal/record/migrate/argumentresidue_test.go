@@ -19,7 +19,10 @@ import (
 //
 // THE DUTIES ARE THE ONES THE RECORD SAID BEFORE THE DROP. A dropped closing is the chair's, or
 // blue's on a gap no unruled docket motion stood on, and a dropped position is no chair's, so none of
-// them discharged a duty: a tally that moves here means the drop took an argument a duty read.
+// them discharged a duty: a tally that moves here means the drop took an argument a duty read. The
+// one exception is a docket on a gap a successor's mint had closed (epoch 62): m29's two and m30's
+// one are left out as acts on a closed gap, so no closing is owed on them, and their closings are
+// written as none with them.
 var argumentResidue = map[string]struct {
 	closings, positions int
 	duties, sittings    string
@@ -50,9 +53,9 @@ var argumentResidue = map[string]struct {
 	"2026-10-17_is-91-prime-m26":            {0, 3, "", "not_owed=8"},
 	"2026-10-17_is-91-prime-m27":            {0, 5, "", "not_owed=10"},
 	"2026-10-18_is-91-prime-m28":            {1, 8, "blue:filed=2,lens:not_owed=2", "not_owed=12"},
-	"2026-10-18_is-91-prime-m29":            {4, 6, "blue:filed=3,blue:not_owed=1,lens:missing=2,lens:not_owed=2", "not_owed=9"},
+	"2026-10-18_is-91-prime-m29":            {6, 6, "blue:filed=1,blue:not_owed=1,lens:not_owed=2", "not_owed=9"},
 	"2026-10-18_is-91-prime-n1":             {0, 0, "", "not_owed=2"},
-	"2026-10-19_is-91-prime-m30":            {1, 3, "blue:filed=1,lens:not_owed=1", "not_owed=7"},
+	"2026-10-19_is-91-prime-m30":            {2, 3, "", "not_owed=7"},
 	"2026-10-24_is-91-prime-m32":            {0, 0, "blue:filed=1,lens:filed=1", "filed=1,not_owed=6"},
 	"2026-10-24_is-91-prime-1565":           {0, 0, "blue:filed=3,blue:not_owed=2,lens:filed=5", "not_owed=12"},
 	"2026-10-27_is-91-prime-m35":            {0, 0, "blue:filed=8,lens:filed=7,lens:not_owed=1", "not_owed=6"},

@@ -96,14 +96,21 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 // fate that moves an inquiry changes both. A gap's section is its mint's reference, compared by the
 // key every reader of headings uses (reportheading.HeadingKey).
 //
+// A SUPERSEDED GAP IS NO FATE'S TO ACT ON (ruled by gblock 2026-11-04: a mint superseding an open
+// gap closes it, its purpose passing to the successor). A fate after that mint acts on nothing of the
+// ancestor's, and reaches the successor only by the successor's own anchor: a successor minted about
+// the same inquiry or section is a gap about it like any other, and one minted about something else
+// is not, since its mint, not its ancestor's, says what it is about.
+//
 // fateActsOf is the gaps each of blue's changed fates is an act on: the gaps minted before it about
-// its inquiry or about a section that prints it.
+// its inquiry or about a section that prints it, less those a superseding mint closed before it.
 func fateActsOf(evs []*Event) map[*Event][]string {
 	out := map[*Event][]string{}
+	superseded := supersessionsOf(evs)
 	anchoredOn := map[string][]string{}   // an inquiry → the gaps minted about it
 	aboutSection := map[string][]string{} // a section's heading key → the gaps minted about it
 	prior := map[string]*recordpb.Inquiry{}
-	for _, e := range evs {
+	for i, e := range evs {
 		switch b := mustBody(e).(type) {
 		case *recordpb.Mint:
 			switch b.GetAboutKind() {
@@ -124,6 +131,10 @@ func fateActsOf(evs []*Event) map[*Event][]string {
 			for _, st := range []recordpb.InquiryStatus{was.GetStatus(), b.GetStatus()} {
 				on = append(on, aboutSection[reportheading.HeadingKey(reportheading.InquirySectionOf(recordpb.Word(st)))]...)
 			}
+			on = slices.DeleteFunc(on, func(g string) bool {
+				at, ok := superseded[g]
+				return ok && at < i
+			})
 			slices.Sort(on)
 			out[e] = slices.Compact(on)
 		}

@@ -1027,7 +1027,7 @@ func boardSection(fam record.Family) string {
 			if cc == "" {
 				cc = "closed (no recorded class)"
 			}
-			succ := g.Closure.GetSuccessor()
+			succ := g.Successor()
 			if succ == "" {
 				succ = "-"
 			}

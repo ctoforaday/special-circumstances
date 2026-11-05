@@ -94,7 +94,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	for _, c := range [][]string{
 		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "remanded",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", "the ruling"},
-		{"close", "--seat-id", lensSeat, "--id", first, "--as", "repaired",
+		{"close", "--seat-id", lensSeat, "--id", first, "--as", "repaired_with_regression",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {
 		// cmdPath lifts the verb PATH out — a subject tree is three words deep where a bare
@@ -178,54 +178,35 @@ func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 	}
 }
 
-// SUPERSEDING IS A PROMISE TO REPLACE, and the promise is due at the seat's terminal act.
-//
-// INVESTIGATED, NOT ASSUMED. 9 mints in the 2026-07-18 run superseded an open gap, and the
-// frequency first read as proof it was intended. Tracing each one splits them:
-//
-//	7 are STRUCTURALLY REQUIRED — the protocol mints the successor, then closes the
-//	  ancestor naming it, so the ancestor MUST still be open at mint time.
-//	2 are a DEFECT — G3 superseded G1 and G2 and closed neither, so all three
-//	  finished open. The run reported 9 open gaps; 7 were distinct.
-//
-// So the rule is not about mint-time state, which would refuse all 9. It is a completion
-// duty, and this test holds both halves: the 7 stay legal, the 2 are caught.
-func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
+// A SUCCESSOR'S MINT CLOSES ITS OPEN ANCESTOR (ruled by gblock 2026-11-04), through the verbs. The
+// 2026-07-18 run held nine mints superseding an open gap: seven closed the ancestor afterwards naming
+// the successor, and two (G3 over G1 and G2) closed neither, so the board read nine open gaps for
+// seven defects. The mint now closes the ancestor in the same act: the ancestor's close is refused
+// naming the successor, and with the successor closed the verdict goes through.
+func TestASuccessorsMintClosesItsAncestor(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := castRun(t)
 	castSeats(t, runDir)
 	ancestor := mintGap(t, runDir, "the-ancestor", "risk_coverage_omission")
 
-	// THE LEGAL 7: mint a successor while the ancestor is still open.
 	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "the-successor", "--class", "risk_coverage_omission",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
 		"--supersedes", ancestor)
 	if err != nil {
-		t.Fatalf("superseding an OPEN gap is what 7 of 9 real mints did, and the protocol requires it: %v", err)
+		t.Fatalf("superseding an OPEN gap of the lens's own was refused: %v", err)
 	}
 	successor := gapID(out)
 
-	// THE DEFECT: finish without closing the ancestor.
-	_, err = run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
-	if err == nil {
-		t.Fatal("the seat finished with a superseded gap still open — the same defect counted twice, which is how a board reported 9 open gaps for 7 distinct ones")
-	}
-	for _, want := range []string{ancestor, successor} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("the refusal must name the stranded ancestor AND what claimed to replace it, got: %v", err)
-		}
+	_, err = run(t, "close", "--run", runDir, "--seat-id", lensSeat,
+		"--id", ancestor, "--as", "repaired",
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
+		"--reason", "replaced by its successor")
+	if err == nil || !strings.Contains(err.Error(), ancestor+", which closed when "+successor+" was minted superseding it") {
+		t.Fatalf("the close of the superseded ancestor = %v, want it refused naming %s", err, successor)
 	}
 
-	// KEEPING THE PROMISE clears it.
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
-		"--id", ancestor, "--as", "repaired", "--superseded-by", successor,
-		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
-		"--reason", "replaced by its successor"); err != nil {
-		t.Fatal(err)
-	}
-	// The successor is now the live gap; PASS still requires it closed (the all-gaps guard).
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", successor, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./y",
@@ -233,7 +214,7 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS"); err != nil {
-		t.Errorf("with the ancestor and successor both closed the verdict must go through: %v", err)
+		t.Errorf("with the successor closed and the ancestor closed by its mint, the verdict must go through: %v", err)
 	}
 }
 

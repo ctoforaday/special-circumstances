@@ -14,7 +14,8 @@ import (
 // `direction` and a closing ruling's in `reopens_on`, so the count of each on the migrated record is
 // the count of the source's rulings of that fate that stated one, and no remand keeps a reopen
 // condition. An archived opinion that stated neither migrates with a stated miss in the field its
-// fate owns, and is counted there.
+// fate owns, and is counted there. A ruling migrate leaves out with its docket, an act on a gap a
+// successor's mint had closed (epoch 62), is the residue supersededRulings states.
 func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 	remands := 0
 	for _, name := range archivedRuns(t) {
@@ -23,7 +24,7 @@ func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			wantRemand, wantReopens := 0, 0
+			wantRemand, wantReopens := 0, -supersededRulings[name]
 			for _, old := range evs {
 				f := old.Fields
 				if old.Word == "motion_rule" {
@@ -84,4 +85,11 @@ func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 	if remands == 0 {
 		t.Fatal("no archived run holds a remand, so no direction was carried")
 	}
+}
+
+// supersededRulings is, per archived run, the closing rulings with a reopen condition migrate leaves
+// out with their docket motions, each on a gap a successor's mint had closed (actOnSupersededGap).
+var supersededRulings = map[string]int{
+	"2026-10-18_is-91-prime-m29.tar.gz": 1,
+	"2026-10-19_is-91-prime-m30.tar.gz": 1,
 }

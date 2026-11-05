@@ -52,8 +52,8 @@ func (b *stage) mint(evLens, gap, severity string) *stage {
 		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 }
 
-// mintSuperseding mints gap as the successor of ancestor — lineage the record keeps and the PASS
-// gate reads: an open ancestor is a stranded gap.
+// mintSuperseding mints gap as the successor of ancestor — lineage the record keeps: a mint
+// superseding an open gap closes it.
 func (b *stage) mintSuperseding(evLens, gap, severity, ancestor string) *stage {
 	sev, _ := GradeOf(severity)
 	return b.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
@@ -307,11 +307,10 @@ func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 	}
 }
 
-// A STRANDED ANCESTOR READIES ITS MINTER WHATEVER ITS GRADE. The PASS gate refuses a verdict while
-// a superseded gap is open, so an ancestor that was not material and readied nobody left the plan saying
-// "pass permitted" and the gate saying no — the run ended UNVERIFIED with nobody ready (found by
-// the release sweep). Held as material: its minter and blue are engaged on it.
-func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
+// A SUPERSEDED ANCESTOR IS CLOSED, AND READIES NOBODY (ruled by gblock 2026-11-04). The successor's
+// mint closed it, so no seat is engaged on it, the plan gives it no reason, and the successor — a
+// trifle — holds no PASS.
+func TestASupersededAncestorReadiesNobody(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
 											register("red-chair").sit(2, evLens).
 											mint(evLens, "G1", "low").mintSuperseding(evLens, "G2", "low", "G1").
@@ -324,18 +323,17 @@ func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
 	for _, p := range plan.Parties {
 		engaged[p.SeatID] = p.GapIDs
 	}
-	if got := engaged[evLens]; len(got) != 1 || got[0] != "G1" {
-		t.Errorf("the minter is engaged on %v, want G1 alone — the stranded ancestor, not the trifle that supersedes it", got)
+	for seat, gaps := range engaged {
+		if slices.Contains(gaps, "G1") {
+			t.Errorf("%s is engaged on G1, which G2's mint closed", seat)
+		}
 	}
-	if got := engaged["blue-respond"]; len(got) != 1 || got[0] != "G1" {
-		t.Errorf("blue is engaged on %v, want G1 — the exchange must count toward impasse or the ancestor can never reach the bench", got)
-	}
-	if plan.PassPermitted {
-		t.Error("PASS is not permitted over a stranded ancestor")
+	if !plan.PassPermitted {
+		t.Errorf("PASS is not permitted, held by %+v: the ancestor is closed and its successor is a trifle", plan.Blockers)
 	}
 	why := strings.Join(plan.Why, "\n")
-	if !strings.Contains(why, "G1: open and superseded by G2") || !strings.Contains(why, "G2: open and not material (graded low)") {
-		t.Errorf("the plan must say the ancestor is held as material and the successor readies nobody:\n%s", why)
+	if strings.Contains(why, "G1") || !strings.Contains(why, "G2: open and not material (graded low)") {
+		t.Errorf("the plan must name no reason on the closed ancestor, and the successor as readying nobody:\n%s", why)
 	}
 }
 
@@ -486,8 +484,9 @@ func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 	}
 }
 
-// A lens's mint budget is the record's count of its open gaps against the run's term, a
-// superseding mint's included; the chair is not a lens and is not bounded here.
+// A lens's mint budget is the record's count of its open gaps against the run's term; a mint
+// superseding an open gap of the lens's own closes it and takes none, and one naming only a closed
+// gap takes one like any other. The chair is not a lens and is not bounded here.
 func TestAMintPastTheBudgetIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeRunConfig(t, runDir, `{"mintBudget":1}`)
@@ -507,8 +506,11 @@ func TestAMintPastTheBudgetIsRefused(t *testing.T) {
 	if _, err := Append(lensID, mint("G2")); err == nil || !strings.Contains(err.Error(), "budget") {
 		t.Fatalf("the second mint past a budget of 1 landed: %v", err)
 	}
-	if _, err := Append(lensID, mint("G3", "G1")); err == nil || !strings.Contains(err.Error(), "budget") {
-		t.Fatalf("a superseding mint landed at the cap with the gap it replaces still open: %v", err)
+	if _, err := Append(lensID, mint("G3", "G1")); err != nil {
+		t.Fatalf("a mint superseding the lens's own open gap was refused at the cap, which it leaves where it was: %v", err)
+	}
+	if _, err := Append(lensID, mint("G5", "G1")); err == nil || !strings.Contains(err.Error(), "budget") {
+		t.Fatalf("a mint naming only a closed gap landed past the cap: %v", err)
 	}
 	// Another lens has its own budget.
 	other := Identity{Run: run, SeatID: "red-lens-logic"}

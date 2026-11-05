@@ -206,11 +206,11 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 		out = append(out, gapNews{gap: o.GapID, at: o.ruled, item: "the accepted grade motion on " + o.GapID})
 	}
 	// A RULED DOCKET MOTION ON AN OPEN GAP IS A REMAND: every other disposition closes the gap. Only a
-	// gap that is material or stranded carries one back into the debate (routeOf); the bench's ruling
-	// on any other leaves it where it was, readying nobody.
+	// gap that is material carries one back into the debate (routeOf); the bench's ruling on any
+	// other leaves it where it was, readying nobody.
 	held := map[string]bool{}
 	for _, g := range gaps {
-		held[g.id] = g.material || g.supersededBy != ""
+		held[g.id] = g.material
 	}
 	for _, m := range motions {
 		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {

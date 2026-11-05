@@ -406,6 +406,29 @@ test('EPOCH LIMIT: a relayed plan that says the limit is reached dispatches nobo
   assert.equal(labelsOf(world, 'blue-respond').length, 3)
 })
 
+// BLUE IS HELD OUT OF THE LAST EPOCH THAT DISPATCHES A LENS: the record's plan there names the lenses
+// and not blue, and where blue was the only party it states the limit reached a sitting early.
+test('EPOCH LIMIT: the epoch before the last dispatches the lenses its plan names and no blue', async () => {
+  const held = "blue-respond: not dispatched — epoch 3 is the last that dispatches a lens under the run's epoch limit of 4, so no lens would audit an act of blue's in it"
+  const chair = [...[11, 12].map((head) => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')], { head, max_epochs: 4 }) })),
+    chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001')], { head: 13, max_epochs: 4, epoch: 3, why: [held] }) }),
+    chairEnv({ plan: limitPlan({ epoch: 4, final_sitting: true }) }), passChair()]
+  const world = makeWorld(makeResponder({ chair }))
+  const out = await world.run(script, ARGS)
+  assert.deepEqual([out.verdict, out.epochs], ['CEILING', 4])
+  assert.equal(labelsOf(world, 'red-lens-evidence').length, 3, 'the lens sat in each epoch that dispatches one')
+  assert.equal(labelsOf(world, 'blue-respond').length, 2, 'blue sat in the first two epochs, and not in the third')
+
+  const alone = [...[11, 12].map((head) => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')], { head, max_epochs: 4 }) })),
+    chairEnv({ plan: plan([], { head: 13, max_epochs: 4, epoch: 3, ceiling: true, epoch_limit_reached: true, blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }],
+      why: [held, 'epoch limit 4 reached — blue is the only party the board readies, and it is held out of epoch 3, so nobody is dispatched'] }) }), passChair()]
+  const early = makeWorld(makeResponder({ chair: alone }))
+  const out2 = await early.run(script, ARGS)
+  assert.deepEqual([out2.verdict, out2.epochs, out2.termination.epoch_limit_reached, out2.termination.ceiling], ['CEILING', 3, true, true])
+  assert.equal(labelsOf(early, 'blue-respond').length, 2)
+  assert.ok(early.logs.some((m) => /epoch 3: the epoch limit \(4\) is reached/.test(m)))
+})
+
 test('a chair that records PASS ends the debate even if it relayed parties; a FAIL with parties continues', async () => {
   const passing = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence')]), verdict: 'PASS' })] }))
   const out = await passing.run(script, ARGS)
@@ -430,7 +453,7 @@ test('the terminal bench sitting fires only when the last plan holds a blocker t
   await chairOnly.run(script, ARGS)
   assert.ok(!labelsOf(chairOnly, 'judge · terminal').length, 'a chair-owned blocker convened the terminal bench')
   // Only a MOTION the bench owns convenes it: the sitting is told to rule motions.
-  const notAMotion = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('G-00000001', 'judge', 'stranded_gap')] }) })] }))
+  const notAMotion = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('G-00000001', 'judge', 'material_gap')] }) })] }))
   await notAMotion.run(script, ARGS)
   assert.ok(!labelsOf(notAMotion, 'judge · terminal').length, 'a bench-owned blocker that is not a motion convened the terminal bench')
 })

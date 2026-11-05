@@ -498,7 +498,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// prosthetic-conscience's sc-checkpoint-seal: the wiring already knows which
 	// event it registered for, and inferring it from which fields happen to be
 	// present is a guess that goes wrong silently when the payload shape moves.
-	event := fs.String("event", "SubagentStop", "SubagentStop | SessionStart | Stop | SessionEnd — which hook registered this call")
+	event := fs.String("event", "SubagentStop", "SubagentStop | SessionStart | PreInvocation | Stop | SessionEnd — which hook registered this call")
 	if err := fs.Parse(args); err != nil {
 		return 0 // a bad flag is never worth costing a subagent its turn
 	}
@@ -508,6 +508,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	req := hookcore.Read(*event, stdin)
+	// PREINVOCATION ONLY ASKS FOR A LINK. Antigravity fires it before every model step, so it does
+	// none of SessionStart's work, which its own SessionStart event carries once per conversation.
+	// It exists because SessionStart does not fire when a conversation resumes on a new server
+	// (observed, agy 1.5.0), which is exactly when a link goes stale.
+	if *event == "PreInvocation" {
+		return hookcore.Respond(req, hookcore.Response{
+			AdditionalContext: linkRequest(req, os.Getenv("XDG_RUNTIME_DIR"), findTelepathy(), answers),
+		}, stdout, stderr, nil)
+	}
 	var in hookInput
 	_ = json.Unmarshal(req.Raw, &in)
 	if in.CWD == "" {

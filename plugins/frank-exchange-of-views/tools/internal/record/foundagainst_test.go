@@ -97,8 +97,14 @@ func TestTheLensCloseOfAReadingsGapIsRefusedWhileTheCitationStandsFoundAgainst(t
 	}
 	run := foundAgainstBoard(t).seed()
 	lens := Identity{Run: run, SeatID: evLens}
+	// A regression close names the gap holding the regression; that gap carries nothing of G-1's.
+	mustAppend(t, lens, budgetMint("G-9"))
 	for _, word := range closing {
-		_, err := Append(lens, closeOf("G-1", word))
+		c := closeOf("G-1", word)
+		if word == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION {
+			c.Successor = proto.String("G-9")
+		}
+		_, err := Append(lens, c)
 		mustRefuse(t, err, "gap G-1 carries citation C-1", "Nothing is recorded", "another lens's backing reading is a disagreement and clears nothing")
 	}
 	mustAppend(t, Identity{Run: run, SeatID: outsideLens}, &recordpb.Verify{Anchor: proto.String("C-1"), Claim: proto.String("the claim C-1 backs"),
@@ -166,16 +172,20 @@ func TestABenchRulingClosesAFoundAgainstGapAndThePassStaysHeld(t *testing.T) {
 
 // A SUPERSEDED READING'S GAP HANDS THE CHECK TO ITS SUCCESSOR. The check's carriers are the gap its
 // reading names and every gap on that gap's successor tree; the one that names it is the OPEN one
-// minted last, read from the gap view. The close of every carrier is refused while the check stands,
+// minted last, read from the gap view. A successor minted superseding an open carrier closes it in
+// that act (ruled by gblock 2026-11-04), and is the only hand-off a close of a carrier can make. The close of every carrier is refused while the check stands,
 // each carrier is among the blocker's Carriers — an open ancestor beside the gap that names it too —
 // and so is the reader's repeat of its reading.
 func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 	run := foundAgainstBoard(t).seed()
 	lens := Identity{Run: run, SeatID: evLens}
-	mustAppend(t, lens, budgetMint("G-2"))
+	mustAppend(t, lens, budgetMint("G-3"))
 	handed := closeOf("G-1", recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION)
-	handed.Successor = proto.String("G-2")
-	mustAppend(t, lens, handed)
+	handed.Successor = proto.String("G-3")
+	_, err := Append(lens, handed)
+	mustRefuse(t, err, "gap G-1 carries citation C-1")
+	mustAppend(t, lens, repairClose("G-3"))
+	mustAppend(t, lens, budgetMint("G-2", "G-1"))
 
 	carried := func(want string) {
 		t.Helper()
@@ -202,16 +212,14 @@ func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 	carried("G-2")
 	refused("G-2")
 
-	// A BRANCH: G-3 supersedes G-1 by its mint, beside G-2 by G-1's close. The open one minted last names it.
-	mustAppend(t, lens, budgetMint("G-3", "G-1"))
-	carried("G-3")
-	refused("G-2", "G-3")
-	mustAppend(t, lens, budgetMint("G-4"))
-	handed = closeOf("G-3", recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION)
-	handed.Successor = proto.String("G-4")
-	mustAppend(t, lens, handed)
+	// A BRANCH: G-6 names the closed G-1 as lineage, beside G-2, which closed it. The open one
+	// minted last names it.
+	mustAppend(t, lens, budgetMint("G-6", "G-1"))
+	carried("G-6")
+	refused("G-2", "G-6")
+	mustAppend(t, lens, budgetMint("G-4", "G-6"))
 	carried("G-4")
-	refused("G-2")
+	refused("G-2", "G-4")
 
 	// THE CARRIERS ARE THE TREE AND NOTHING BESIDE IT: a gap off the tree is no carrier, so its close
 	// is admitted while the check stands, and the set is the same after it.
@@ -219,7 +227,7 @@ func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 		t.Helper()
 		c := slices.Clone(foundAgainstOf(t, run).Carriers())
 		slices.Sort(c)
-		if want := []string{"G-1", "G-2", "G-3", "G-4"}; !slices.Equal(c, want) {
+		if want := []string{"G-1", "G-2", "G-4", "G-6"}; !slices.Equal(c, want) {
 			t.Errorf("the check's Carriers = %v, want exactly the carrier tree %v", c, want)
 		}
 	}

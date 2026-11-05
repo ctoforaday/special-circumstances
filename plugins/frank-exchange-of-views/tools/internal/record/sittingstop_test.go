@@ -80,14 +80,14 @@ func (c boardRun) play(t *testing.T) boardEnd {
 	return boardEnd{}
 }
 
-// THE EPOCH LIMIT LANDING ON THE IMPASSE EPOCH (#1002). Two stalled exchanges put G1 at impasse
+// THE EPOCH LIMIT ONE EPOCH PAST THE IMPASSE EPOCH (#1002). Two stalled exchanges put G1 at impasse
 // under K=2, and the record holds both by the end of epoch 3: every party that sat has returned.
-// The chair sitting that opens epoch 4 is the run's last under an epoch limit of 4, and it must
-// docket G1 for the bench — the docket stands at the limit, and the terminal bench rules it. A fold
-// that closed a sitting only when the seat sat again saw one exchange at that moment, ended the run
-// at CEILING, and left the material gap unruled.
+// The chair sitting that opens epoch 4 is the last that dispatches a lens under an epoch limit of 5,
+// and it must docket G1 for the bench. A fold that closed a sitting only when the seat sat again saw
+// one exchange at that moment, and left the material gap unruled. Under a limit of 4 the second
+// exchange never happens: epoch 3 holds blue out (blueHeldOut).
 func TestAnEpochLimitOnTheImpasseEpochStillDocketsTheGap(t *testing.T) {
-	end := boardRun{stops: true, maxEpochs: 4}.play(t)
+	end := boardRun{stops: true, maxEpochs: 5}.play(t)
 	if end.epoch != 4 || len(end.docket) != 1 || end.docket[0] != "G1" {
 		t.Fatalf("the board ended at epoch %d with docket %v (ceiling %v); want G1 docketed at epoch 4, the epoch its second stalled exchange ended",
 			end.epoch, end.docket, end.ceiling)
