@@ -787,7 +787,13 @@ type runner struct {
 	// foundAgainstCite is blue's citation the chain prefers to read (citeForFoundAgainst), foundAgainstCiteTried
 	// whether blue's one try at it ran, and foundAgainstAnchor the citation the owner's reading has found
 	// against, awaiting its re-read.
-	forceFoundAgainst                             bool
+	forceFoundAgainst bool
+	// forceFateTurn drives fateTurnSeed's run through a fate turn (fateturnseed_test.go): fateTurnGap is
+	// the lens's gap about the composed section, fateTurnInquiry the inquiry whose fate it prints,
+	// fateTurnChanged whether blue has changed that fate answering it, and fateTurnStage the last step
+	// the chain reached, which the run's error names when no fate turn was counted.
+	forceFateTurn, fateTurnChanged                bool
+	fateTurnGap, fateTurnInquiry, fateTurnStage   string
 	foundAgainstChained, foundAgainstRepeatedRead bool
 	foundAgainstStage                             string
 	foundAgainstCite, foundAgainstAnchor          string
@@ -5348,6 +5354,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.docketLockedGap(seatID)
 		}
 		r.extras("blue", seatID, open)
+		// THE FORCED FATE TURN'S ANSWER comes before the sitting's other fates, so it is a fate of its own.
+		r.changeFateForTurn(seatID)
 		// EVERY OPEN INQUIRY GETS A FATE THIS SITTING: each is a blocking item on blue's work list.
 		r.settleOpenInquiries(seatID)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
@@ -5580,6 +5588,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 			}
 		}
+		r.mintAboutFateSection(seatID)
 		r.mintHeldTrifle(seatID)
 		r.closeNamedOnTurn(seatID, engaged)
 		fresh := r.rng.Intn(3)
@@ -6568,6 +6577,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
 	r.forceFoundAgainst = seed == foundAgainstSeed
+	r.forceFateTurn = seed == fateTurnSeed
 	r.forceLeftOut = seed == leftOutSeed
 	r.forceMintBare = seed == mintBareSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
@@ -7409,6 +7419,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = fmt.Sprintf("forced unsound computation: no plan readied %s or blue for an unsound computation; the chain reached %s", computationOwner, stage)
 	}
 	if msg := r.foundAgainstForcedErr(); msg != "" && res.err == "" {
+		res.err = msg
+	}
+	if msg := r.fateTurnForcedErr(); msg != "" && res.err == "" {
 		res.err = msg
 	}
 	if r.forceAbsentSpan && r.spansRefused == 0 && res.err == "" {
