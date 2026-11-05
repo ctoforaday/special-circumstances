@@ -67,7 +67,7 @@ func StartSuite(cfg SuiteConfig) (*Suite, error) {
 		return nil, err
 	}
 	if cfg.Route == nil {
-		return nil, errors.New("planguard: SuiteConfig.Route is nil — nothing would route the suite's records through the guard")
+		return nil, errors.New("SuiteConfig.Route is nil: nothing would route the suite's records through the query-plan guard")
 	}
 	return &Suite{rec: rec, restore: cfg.Route(name), dirs: cfg.Dirs, excluded: cfg.Excluded, golden: "testdata"}, nil
 }
