@@ -36,16 +36,19 @@ import "strings"
 //     the question this guard asks.
 //
 // What is left is the signature of a dropped index: a statement that CONSTRAINS a growing table
-// and still walks all of it. The findings it reports today are in internal/record/testdata/
-// shapes.golden, kind constrained-scan, and a fix removes its line.
+// and still walks all of it. On a table the statement reads itself it is refused, never baselined
+// (Shape.Refused, Suite): the index lands with the statement. Inside a view it is the view's cost,
+// and internal/record/testdata/shapes.golden holds it until the view is made cheaper.
 //
 // # The limit, stated rather than papered over
 //
 // The constraint test is read off the statement text, so a multi-table statement that constrains
 // one table while legitimately scanning another would be reported. That is a LOUD false positive:
-// someone reads it, and either finds a real defect or learns the rule needs sharpening. There is
-// deliberately NO allowlist to silence one — an allowlist is the hand-kept list this package
-// exists to avoid. Two have been sharpened away, each read off the plan and the statement:
+// someone reads it, and either finds a real defect or learns the rule needs sharpening. A false
+// positive is fixed in the rule, never allowed: the suite's Unindexed table is for a REAL walk no
+// index can serve, each entry with its reason, and a hand-kept list of rule misfires there is the
+// list this package exists to avoid. Two have been sharpened away, each read off the plan and the
+// statement:
 //
 //   - A join with no WHERE narrows its INNER loops, never its outer one: the full replay
 //     `FROM "events" e LEFT JOIN "events" s ON …` walks every event because it is asked for every

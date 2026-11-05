@@ -24,6 +24,12 @@ import (
 type Scope struct {
 	binds  map[string]map[string]bool // alias or name -> what the FROM items bound it to
 	minMax map[string][]minMaxRead    // alias or name -> each min()/max() SELECT that reads it
+	// origin is where each binding was read: "" for the statement's own text, else the name of
+	// the view whose definition holds it. A finding on a word the statement binds itself is the
+	// statement's; one bound only inside a view is that view's cost (Where).
+	origin map[string]map[string]bool
+	// cur is the origin of the text being read.
+	cur string
 }
 
 // minMaxRead is one SELECT whose list aggregates a FROM item with min() or max(): the table the
@@ -45,13 +51,15 @@ func NewScope(stmt string, views []View) *Scope {
 	for _, v := range views {
 		defs[strings.ToLower(v.Name)] = v.SQL
 	}
-	s := &Scope{binds: map[string]map[string]bool{}, minMax: map[string][]minMaxRead{}}
+	s := &Scope{binds: map[string]map[string]bool{}, minMax: map[string][]minMaxRead{}, origin: map[string]map[string]bool{}}
+	type text struct{ origin, sql string }
 	seen := map[string]bool{}
-	queue := []string{stmt}
+	queue := []text{{"", stmt}}
 	for len(queue) > 0 {
-		text := queue[0]
+		next := queue[0]
 		queue = queue[1:]
-		toks := tokenize(text)
+		toks := tokenize(next.sql)
+		s.cur = next.origin
 		s.bind(toks)
 		s.readMinMax(toks)
 		for _, t := range toks {
@@ -61,11 +69,26 @@ func NewScope(stmt string, views []View) *Scope {
 			name := strings.ToLower(t.text)
 			if def, ok := defs[name]; ok && !seen[name] {
 				seen[name] = true
-				queue = append(queue, def)
+				queue = append(queue, text{name, def})
 			}
 		}
 	}
 	return s
+}
+
+// Own reports whether the statement's own text binds the word, rather than only a view it reads.
+func (s *Scope) Own(word string) bool { return s.origin[strings.ToLower(word)][""] }
+
+// Views is every view whose definition binds the word, sorted.
+func (s *Scope) Views(word string) []string {
+	var out []string
+	for o := range s.origin[strings.ToLower(word)] {
+		if o != "" {
+			out = append(out, o)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // Targets is what the plan's word may stand for, sorted. A word bound nowhere stands for itself.
@@ -311,6 +334,12 @@ func (s *Scope) item(toks []token, i int) (int, bool) {
 			s.binds[key] = map[string]bool{}
 		}
 		s.binds[key][target] = true
+		if s.origin != nil {
+			if s.origin[key] == nil {
+				s.origin[key] = map[string]bool{}
+			}
+			s.origin[key][s.cur] = true
+		}
 	}
 	return i, true
 }

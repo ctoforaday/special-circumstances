@@ -232,3 +232,42 @@ func TestWritesArePlannedAndALiteralInsertReadsNothing(t *testing.T) {
 		t.Errorf("a literal insert planned as %q, want no plan rows", insert.Plan.Render())
 	}
 }
+
+// WHOSE COST A FINDING IS decides whether a baseline may hold it. The statement's own walk of a
+// growing table is refused; a walk inside a view it reads is the view's, even where the statement
+// gives the same alias to the same table.
+func TestAFindingIsTheStatementsOnlyWhereTheStatementRunsTheLoop(t *testing.T) {
+	views := []planguard.View{{Name: "rv", SQL: `CREATE VIEW rv AS SELECT p."event_id" FROM "report_part" p WHERE p."text" <> ''`}}
+	an, err := planguard.NewAnalyzer(views)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, stmt string
+		rows       []planguard.PlanRow
+		where      string
+	}{
+		{"the statement's own walk", `SELECT 1 FROM "mint" WHERE "problem" = ?`,
+			[]planguard.PlanRow{{ID: 2, Detail: "SCAN mint"}}, planguard.OnTable},
+		{"a walk inside a view computed as a subplan, under the statement's own alias",
+			`SELECT 1 FROM "report_part" p WHERE p."event_id" = ? AND EXISTS (SELECT 1 FROM rv WHERE "event_id" > ?)`,
+			[]planguard.PlanRow{{ID: 2, Detail: "SEARCH p USING INTEGER PRIMARY KEY (rowid=?)"}, {ID: 3, Detail: "CO-ROUTINE rv"},
+				{ID: 4, Parent: 3, Detail: "SCAN p"}, {ID: 5, Detail: "SCAN rv"}}, "via rv"},
+		{"a walk inside a view SQLite flattened", `SELECT 1 FROM rv WHERE "event_id" = ?`,
+			[]planguard.PlanRow{{ID: 2, Detail: "SCAN p"}}, "via rv"},
+	} {
+		p, err := planguard.BuildPlan(tc.rows)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []planguard.Shape
+		for _, s := range an.Shapes(tc.stmt, p) {
+			if s.Kind == planguard.ConstrainedScan {
+				got = append(got, s)
+			}
+		}
+		if len(got) != 1 || got[0].Where != tc.where || got[0].Refused() != (tc.where == planguard.OnTable) {
+			t.Errorf("%s: constrained scans = %+v, want one %q", tc.name, got, tc.where)
+		}
+	}
+}
