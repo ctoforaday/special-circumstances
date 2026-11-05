@@ -344,7 +344,7 @@ func ledgerMD(in Input) []byte {
 		if cc == "" {
 			cc = "repaired"
 		}
-		succ := g.Closure.GetSuccessor()
+		succ := g.Successor()
 		if succ == "" {
 			succ = "-"
 		}
@@ -382,7 +382,7 @@ func archiveMD(in Input) []byte {
 			anchor = "CARRIED from " + undefStr(carriedFrom)
 		}
 		successor := ""
-		if s := g.Closure.GetSuccessor(); s != "" {
+		if s := g.Successor(); s != "" {
 			successor = "\nsuccessor: " + s
 		}
 		archiveParts = append(archiveParts, fmt.Sprintf("## %s — %s\n%s\nverification anchor: %s%s\n",

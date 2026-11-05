@@ -10,7 +10,8 @@ import (
 // A CLOSURE THAT NAMED ITS OWN GAP AS AN ANCHOR MIGRATES WITHOUT IT. m30 recorded three: G-97b44713
 // named itself and its successor, G-968365ad itself and two proofs, G-dc877265 itself and the
 // citation it re-read. The write now refuses a gap as its own anchor; migrate carries each closure
-// with the gap's id taken out of its anchors and every other anchor kept, in order.
+// with the gap's id taken out of its anchors and every other anchor kept, in order. G-97b44713's is
+// left out: its successor's mint closed it (TestAGapSupersededWhileOpenIsClosedByItsSuccessorsMint).
 func TestASelfAnchoredClosureMigratesWithoutItsOwnGap(t *testing.T) {
 	res, run := migrateArchive(t, "2026-10-19_is-91-prime-m30.tar.gz")
 	if len(res.Refusals) != 0 {
@@ -21,7 +22,6 @@ func TestASelfAnchoredClosureMigratesWithoutItsOwnGap(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string][]string{
-		"G-97b44713": {"G-968365ad"},
 		"G-968365ad": {"K-24a6af66", "K-7de24bab"},
 		"G-dc877265": {"C-4f4b8cfa"},
 	}

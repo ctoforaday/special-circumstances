@@ -225,9 +225,10 @@ func countInReport(count func(string) int) func(recordsql.Querier, func() (strin
 }
 
 // requireMintWithinBudget is the run-level bound that is not a clock: each cast lens may hold at
-// most its budget (above) of gaps open at once. A SUPERSEDING mint is a new open gap and takes a
-// mint like any other; the gap it replaces holds its own until it closes, which superseding does
-// not do — its lens closes it naming the successor. A lens at its budget still sits while the
+// most its budget (above) of gaps open at once. A mint superseding an open gap of the lens's own
+// closes that gap in the same act (supersession.go), so the lens holds no more open than before and
+// it takes no mint; a mint superseding only closed gaps is a new open gap like any other. A lens at
+// its budget still sits while the
 // record readies it: it verifies, records findings, regrades and closes its own gaps, and each
 // close frees a mint; it does not retire while it holds them (lensOwesOf). The
 // count is the record's own — the gap view's open gaps this seat minted — not a counter
@@ -266,6 +267,13 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 	if ownsInquiryGap(seatID, m.GetAboutKind()) {
 		return nil
 	}
+	answering, err := ownAnswersAt(w.q, nil, seatID)
+	if err != nil {
+		return feov.Wrap(feov.Conflict, err, "the board could not be read, so the gaps %s holds open cannot be counted against its mint budget: %v", seatID, err)
+	}
+	if own, err := supersedesOwnOpen(w.q, seatID, m, answering); err != nil || own {
+		return err
+	}
 	st, err := lensMintStanding(w.q, w.report, nil, w.files.params, seatID, area)
 	if err != nil {
 		return err
@@ -288,7 +296,7 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 		"%s holds %d gap(s) open and its mint budget admits no more. The budget caps the gaps a lens holds open at once: "+
 			"the %s lens's is the larger of the run's floor (mintBudget in inputs/run-config.json) and its rate, %s: %s, "+
 			"and it grows as the report does. Every open gap you minted takes one mint of it, a trifle as much as a material defect. "+
-			"A gap of yours that closes, by your close or by the bench's ruling, frees one. %s",
+			"A gap of yours that closes, by your close, by a mint of yours superseding it or by the bench's ruling, frees one, and a mint superseding an open gap of yours that takes one takes none. %s",
 		seatID, n, area, b.Rate(), b.Arithmetic(), mintRefusedNext)
 }
 
@@ -407,9 +415,9 @@ func (s mintStanding) Left() (left int, measured bool) {
 // mint is admitted without it.
 //
 // OPEN IS THE GAP VIEW'S "open" (recordsql/views.go), the column the board, the PASS gate and the
-// dispatch plan read: no closing act of either arm is on the gap. So a gap its lens closed, on
-// any disposition, or the bench disposed of, holds no mint; a non-material gap holds one, because it is open; and a SUPERSEDED gap holds one until its
-// lens closes it — superseding closes nothing, and the view calls such a gap stranded.
+// dispatch plan read: no closing act of any arm is on the gap. So a gap its lens closed, on any
+// disposition or by superseding it, or the bench disposed of, holds no mint; a non-material gap
+// holds one, because it is open.
 //
 // q is the mint's writing transaction, or the work list's read transaction (workReadsAt); report is
 // the report it holds (lensBudgetOver) and held the stream it holds (ownAnswersAt) — the work list
@@ -559,7 +567,7 @@ func mintBudgetOf(read *budgetRead) (*MintBudgetJSON, string) {
 		return j, fmt.Sprintf("you hold %d gap(s) open and your mint budget above the run's floor of %d is NOT MEASURED — %s, which cannot be read: %v — so %s under the floor, and a mint past it waits on that measure or on a gap you minted closing; what you find until then goes in a finding, and the finding is minted then. %s",
 			st.Open, b.Floor, b.Rate(), st.MeasureErr, leftWords, mintAnswerOutsideBudget)
 	}
-	tail := "every open gap you minted takes one, a superseding mint too, a gap of yours that closes frees one, and the budget grows as the report does"
+	tail := "every open gap you minted takes one, a gap of yours that closes frees one, a mint superseding an open gap of yours that takes one closes it and takes none, and the budget grows as the report does"
 	if left == 0 {
 		tail = "what you find now goes in a finding, and when a gap of yours closes it frees a mint and the finding is minted then; the budget grows as the report does"
 	}

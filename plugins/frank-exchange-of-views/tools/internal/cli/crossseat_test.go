@@ -232,18 +232,27 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 	}
 }
 
-// A closure with a SUCCESSOR: the check passes here, but the residue moves to a named
-// gap. Losing the successor turns a partial repair into a clean one on the board.
+// A closure with a SUCCESSOR: the repair caused a regression, which moves to a named gap. Losing
+// the successor turns a regression into a clean repair on the board. The successor is named only
+// with repaired_with_regression: a gap whose purpose passes to another is closed by minting that
+// one with --supersedes.
 func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 	runDir := seatRun(t)
 	first := mintGap(t, runDir, "partial-repair", "policy_without_mechanism")
 	next := mintGap(t, runDir, "the-residue", "policy_without_mechanism")
 
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
-		"--id", first, "--as", "repaired",
-		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
-		"--superseded-by", next,
-		"--reason", "the named site is repaired; the same class survives at the sibling site"); err != nil {
+	closeAs := func(as string) error {
+		_, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
+			"--id", first, "--as", as,
+			"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
+			"--superseded-by", next,
+			"--reason", "the named site is repaired; the repair broke the sibling site")
+		return err
+	}
+	if err := closeAs("repaired"); err == nil || !strings.Contains(err.Error(), "only with --as repaired_with_regression") {
+		t.Errorf("--superseded-by on a repaired close = %v, want it refused", err)
+	}
+	if err := closeAs("repaired_with_regression"); err != nil {
 		t.Fatalf("close with successor: %v", err)
 	}
 

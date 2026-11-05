@@ -81,7 +81,7 @@ func TestChairWorkListOverOpenNeverClassGap(t *testing.T) {
 }
 
 // `complete` IS THE GATE'S ANSWER. For each class default either side of the floor, and for a
-// stranded ancestor, the sitting is complete exactly when the PASS appends, and each open row's
+// superseded ancestor, the sitting is complete exactly when the PASS appends, and each open row's
 // `material` is the view's.
 func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 	for _, c := range []struct {
@@ -98,10 +98,10 @@ func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 		{"by_grade-medium", func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 		}, true, false},
-		{"stranded by_grade-low ancestor", func(b *stage) {
-			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+		{"superseded by_grade-medium ancestor", func(b *stage) {
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 			b.add(outsideLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low", "G1"))
-		}, false, false},
+		}, false, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := chairBoard(t, true)
@@ -121,16 +121,10 @@ func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 					t.Errorf("open[G1].material=%v, want %v", g.Material, c.wantMaterial)
 				}
 			}
-			if strings.HasPrefix(c.name, "stranded") {
-				it, ok := itemNaming(s, "gap G1 is open and superseded by G2")
-				if !ok || !it.Blocks {
-					t.Errorf("the stranded ancestor must block: %v", s.Open)
-				}
-				if _, listed := itemNaming(s, "gap G1 is open and not material"); listed {
-					t.Errorf("a stranded ancestor was listed as not holding PASS: %v", s.Open)
-				}
-				if _, offered := itemNaming(s, "gap G1 is open and you have not closed it"); !offered {
-					t.Errorf("the docket offer is missing on the stranded ancestor: %v", s.Open)
+			// THE SUCCESSOR'S MINT CLOSED THE MATERIAL ANCESTOR: no row of the list names it.
+			if strings.HasPrefix(c.name, "superseded") {
+				if it, listed := itemNaming(s, "gap G1 "); listed {
+					t.Errorf("the superseded ancestor is still on the chair's list: %q", it.What)
 				}
 			}
 		})
@@ -138,14 +132,13 @@ func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 }
 
 // THE DOCKET OFFER STANDS ONLY ON A GAP THAT HOLDS PASS: docketing one that does not would create
-// the block the gap itself does not. A stranded gap is held as material, so it keeps the offer.
+// the block the gap itself does not.
 func TestChairDocketAffordanceOnlyOnMaterialGaps(t *testing.T) {
 	gaps := []WorkGapState{
 		{ID: "NEVER", Open: true, ClassMaterial: "never"},
 		{ID: "LOW", Open: true, ClassMaterial: "by_grade", Severity: "low"},
 		{ID: "MAT", Open: true, Material: true},
 		{ID: "CARRIED", Open: true, Material: true, Remanded: true},
-		{ID: "STRANDED", Open: true, Stranded: true, SupersededBy: "MAT"},
 	}
 	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false)
 	// THE OFFER IS THE VERB, NOT THE GAP'S NAME. A remanded gap is named by a row that says the
@@ -174,7 +167,7 @@ func TestChairDocketAffordanceOnlyOnMaterialGaps(t *testing.T) {
 	if !anyItem("CARRIED", "BENCH REMANDED") {
 		t.Errorf("a carried gap gets the remanded row in place of the offer, got %q", items("CARRIED"))
 	}
-	for id, want := range map[string]bool{"NEVER": false, "LOW": false, "MAT": true, "CARRIED": false, "STRANDED": true} {
+	for id, want := range map[string]bool{"NEVER": false, "LOW": false, "MAT": true, "CARRIED": false} {
 		if offered(id) != want {
 			t.Errorf("%s: docket offer present=%v, want %v (%v)", id, offered(id), want, hows(open))
 		}

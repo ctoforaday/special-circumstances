@@ -103,6 +103,20 @@ func (r *runner) changeFateForTurn(seatID string) {
 	}
 }
 
+// fateTurnNeedsInquiry reports whether the forced run's chain waits on an inquiry: forced, its gap not
+// yet minted, and no inquiry on the record. A read that fails is no inquiry, and the chain's own stage
+// then names the lens that sat without one.
+func (r *runner) fateTurnNeedsInquiry() bool {
+	r.mu.Lock()
+	due := r.forceFateTurn && r.fateTurnGap == ""
+	r.mu.Unlock()
+	if !due {
+		return false
+	}
+	js, ok := r.inquiryJudgements()
+	return !ok || len(js) == 0
+}
+
 func (r *runner) reachedFateTurnStage(s string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -137,6 +151,9 @@ func TestTheFateTurnSeedReachesAFateTurn(t *testing.T) {
 		t.Fatalf("a forced run nothing has driven reads %q", msg)
 	}
 	r.sit("blue", blue)
+	if !r.fateTurnNeedsInquiry() {
+		t.Fatal("a forced run with no inquiry on the record does not have blue propose one")
+	}
 	out, ok := r.do("inquiry propose", blue).set("--question", "fuzz: does it settle").set("--hypothesis", "fuzz: it settles").admit()
 	id := inquiryIDOf(out)
 	if !ok || id == "" {
@@ -144,6 +161,9 @@ func TestTheFateTurnSeedReachesAFateTurn(t *testing.T) {
 	}
 	if _, ok := r.do("inquiry record", blue).set("--id", id).set("--as", "confirmed").set("--reason", "fuzz: what the approach found").admit(); !ok {
 		t.Fatalf("record: %s", r.actErr)
+	}
+	if r.fateTurnNeedsInquiry() {
+		t.Fatal("the forced run still waits on an inquiry with one on the record")
 	}
 	plan := func() map[string]any {
 		t.Helper()

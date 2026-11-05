@@ -209,7 +209,7 @@ func newMint() *cobra.Command {
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote")
 	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
-	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
+	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; an open one closes in this act, its purpose passing to this gap")
 	c.Flags().Var(foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it

@@ -453,7 +453,7 @@ test('the terminal bench sitting fires only when the last plan holds a blocker t
   await chairOnly.run(script, ARGS)
   assert.ok(!labelsOf(chairOnly, 'judge · terminal').length, 'a chair-owned blocker convened the terminal bench')
   // Only a MOTION the bench owns convenes it: the sitting is told to rule motions.
-  const notAMotion = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('G-00000001', 'judge', 'stranded_gap')] }) })] }))
+  const notAMotion = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('G-00000001', 'judge', 'material_gap')] }) })] }))
   await notAMotion.run(script, ARGS)
   assert.ok(!labelsOf(notAMotion, 'judge · terminal').length, 'a bench-owned blocker that is not a motion convened the terminal bench')
 })

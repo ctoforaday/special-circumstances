@@ -166,7 +166,7 @@ const remandedClosedGapSQL = `SELECT md."gap_id", e."id", e."seat_id"
   FROM "motion" mo
   JOIN "motion_docket" md ON md."event_id" = mo."event_id"
   JOIN "gap" g ON g."gap_id" = md."gap_id"
-  JOIN "events" e ON e."id" = max(COALESCE(g."close_event", 0), COALESCE(g."bench_close_event", 0))
+  JOIN "events" e ON e."id" = max(COALESCE(g."close_event", 0), COALESCE(g."bench_close_event", 0), COALESCE(g."supersede_event", 0))
   WHERE mo."motion_id" = ? AND NOT g."open"`
 
 // requireRemandOfOpenGap refuses a remand of a docket motion whose gap is closed (gblock,
@@ -298,7 +298,7 @@ func remandStageOf(x *GapExchanges) remandStage {
 type gapRoute int
 
 const (
-	routeNobody        gapRoute = iota // not material and not stranded, nothing docketed, no remand's exchange owed: readies nobody
+	routeNobody        gapRoute = iota // not material, nothing docketed, no remand's exchange owed: readies nobody
 	routeBench                         // a docket motion on it stands unruled: the bench's
 	routeGradeMovement                 // its grade movement, with the open gaps', is past the threshold: docketed for the bench
 	routeDebate                        // below its limits: blue, and its minting lens when its turn has come (lensTurnOn)
@@ -325,8 +325,8 @@ func stageOnRoute(route gapRoute, counted remandStage) remandStage {
 	return notRemanded
 }
 
-// routeOf is the route for an open gap: material is the class's answer, stranded whether a successor
-// names it, unruledDocket whether a docket motion on it stands unruled, moved whether its grade
+// routeOf is the route for an open gap: material is the class's answer, unruledDocket whether a
+// docket motion on it stands unruled, moved whether its grade
 // movement is docketed (gradeMovement.docketed) — whatever its materiality, because a gap regraded
 // below medium is the movement the bench rules on — and x its exchanges.
 //
@@ -337,7 +337,7 @@ func stageOnRoute(route gapRoute, counted remandStage) remandStage {
 //
 // THE LENS GOES FIRST (lensGoesFirst, ruled by gblock 2026-10-31), and it outranks both routes to a
 // docket: no docket is filed on a gap whose lens has an audit still to come.
-func routeOf(material, stranded, unruledDocket, moved bool, x *GapExchanges) gapRoute {
+func routeOf(material, unruledDocket, moved bool, x *GapExchanges) gapRoute {
 	switch {
 	case unruledDocket:
 		return routeBench
@@ -345,7 +345,7 @@ func routeOf(material, stranded, unruledDocket, moved bool, x *GapExchanges) gap
 		return routeLensFirst
 	case moved:
 		return routeGradeMovement
-	case !material && !stranded:
+	case !material:
 		if x.latestRemandOwed {
 			return routeRemandOwed
 		}
@@ -367,19 +367,18 @@ func routeOf(material, stranded, unruledDocket, moved bool, x *GapExchanges) gap
 // engages (foldPlan), what each row says of its reader's turn (WorkGapJSON.YourTurn), and what the
 // lens's re-audit items read (blueAnswers), so no list offers a turn the dispatch does not give.
 //
-//   - in the debate, blue always, and the lens when its turn has come. A stranded gap's lens is
-//     readied whatever blue did: what it owes there is the close its successor promised;
+//   - in the debate, blue always, and the lens when its turn has come;
 //   - with the lens first, the lens alone;
 //   - on a remand's exchange, the lens when its turn has come, and blue until it has acted and the lens
 //     has its answer to audit.
-func partiesOnRoute(route gapRoute, stranded bool, x *GapExchanges) (lens, blue bool) {
+func partiesOnRoute(route gapRoute, x *GapExchanges) (lens, blue bool) {
 	switch route {
 	case routeDebate:
-		return x.lensTurn || stranded, true
+		return x.lensTurn, true
 	case routeLensFirst:
 		return true, false
 	case routeRemandOwed:
-		return x.lensTurn || stranded, !(x.lensTurn && x.answeredRemand)
+		return x.lensTurn, !(x.lensTurn && x.answeredRemand)
 	}
 	return false, false
 }

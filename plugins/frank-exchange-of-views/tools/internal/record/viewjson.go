@@ -164,6 +164,10 @@ type GapJSON struct {
 	MintedBy   string   `json:"minted_by"`
 	FoundBy    []string `json:"found_by"`
 	Supersedes []string `json:"supersedes"`
+	// SupersededBy is the successor whose mint closed this gap by naming it in its `supersedes`, ""
+	// where no supersession closed it. A gap it closed has no closing body: its `closure` is null,
+	// and this field is how it closed.
+	SupersededBy string `json:"superseded_by"`
 	// Material, Remanded and DocketDirection are the gap view's columns the work list's row reads,
 	// read off the same columns: universe-m29's chair and bench asked the board for them eight
 	// times and jq returned null. Material is the class's answer (else graded medium or above)
@@ -360,6 +364,7 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) { return boardView.of(run) }
 // every gap's scalars come off the same snapshot (boardJSONOfRecord).
 var boardView = declareNarrowedView("board", boardJSONOfRecord,
 	recordpb.EventType_EVENT_TYPE_CLOSE,
+	recordpb.EventType_EVENT_TYPE_MINT, // a successor's mint is the closing act of the gap it superseded
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 	recordpb.EventType_EVENT_TYPE_REGRADE,
 	recordpb.EventType_EVENT_TYPE_FINDING,
@@ -414,7 +419,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
 	    "acceptance_check", "check_kind", "awaiting_computation", "fix_basis", "fix_new", "minted_by", "minted_event",
-	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last",
+	    ` + gapClosureColumns + `,
 	    "material", "remanded", "docket_direction"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
@@ -428,13 +433,13 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		var open, awaiting bool
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew, mintedBy sql.NullString
 		var mintedEvent int64
-		var closeEvent, benchEvent sql.NullInt64
-		var closedByBench, benchClosedLast, material, remanded bool
+		var cl gapClosure
+		var material, remanded bool
 		var direction sql.NullString
-		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
-			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedBy, &mintedEvent,
-			&closeEvent, &benchEvent, &closedByBench, &benchClosedLast,
-			&material, &remanded, &direction); err != nil {
+		dest := []any{&id, &round, &open, &sev, &lik, &imp, &cx,
+			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedBy, &mintedEvent}
+		dest = append(append(dest, cl.dest()...), &material, &remanded, &direction)
+		if err := rows.Scan(dest...); err != nil {
 			return out, err
 		}
 		gj := GapJSON{
@@ -467,12 +472,12 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		for _, l := range foundBy[mintedEvent] {
 			minted[l] = true
 		}
-		c, err := closeStateOf(id, closeEvent, benchEvent, closedByBench, benchClosedLast, byID, win)
+		c, err := closeStateOf(id, cl, byID, win)
 		if err != nil {
 			out.Anomalies = append(out.Anomalies, fmt.Sprintf("%v — the closure was DROPPED from this projection, not rendered empty", err))
 		}
 		if c != nil {
-			gj.ClosedEpoch, gj.ClosedByBench = c.closedEpoch, c.closedByBench
+			gj.ClosedEpoch, gj.ClosedByBench, gj.SupersededBy = c.closedEpoch, c.closedByBench, c.supersededBy
 			// BOTH CLOSING BODIES REACH THE FIELD, red's preferred, from the pair the view names.
 			body := proto.Message(c.lastClose)
 			if c.lastClose == nil {
@@ -539,14 +544,30 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 type closeState struct {
 	lastClose        *recordpb.Close        // the body `close_event` names: the last standing red close
 	lastBenchClosure *recordpb.DocketRuling // the body `bench_close_event` names: the last standing CLOSING docket ruling
-	closedEpoch      int                    // the epoch of the later of the two
+	supersededBy     string                 // `superseded_by`: the successor whose mint `supersede_event` names closed the gap
+	closedEpoch      int                    // the epoch of the latest closing act
 	closedByBench    bool                   // `closed_by_bench`: whether the act that ended the gap was the bench's
-	benchClosedLast  bool                   // `bench_closed_last`: whether the later of the two was the bench's
+	benchClosedLast  bool                   // `bench_closed_last`: whether the latest closing act was the bench's
 }
 
-// reason is the last closer's word — Gap.ClosureReason, asked of the same pair.
+// reason is the last closer's word — Gap.ClosureReason, asked of the same acts.
 func (c *closeState) reason() string {
-	return (&Gap{Closure: c.lastClose, BenchClosure: c.lastBenchClosure, ClosedByBench: c.closedByBench, BenchClosedLast: c.benchClosedLast}).ClosureReason()
+	return (&Gap{Closure: c.lastClose, BenchClosure: c.lastBenchClosure, SupersededBy: c.supersededBy, ClosedByBench: c.closedByBench, BenchClosedLast: c.benchClosedLast}).ClosureReason()
+}
+
+// gapClosure is the gap view's closing columns for one gap, as a reader scans them.
+type gapClosure struct {
+	closeEvent, benchEvent, supersedeEvent sql.NullInt64
+	supersededBy                           sql.NullString
+	closedByBench, benchClosedLast         bool
+}
+
+// gapClosureColumns is the gap view's closing columns in the order gapClosure.dest scans them.
+const gapClosureColumns = `"close_event", "bench_close_event", "supersede_event", "superseded_by", "closed_by_bench", "bench_closed_last"`
+
+// dest is where a row's gapClosureColumns scan to.
+func (c *gapClosure) dest() []any {
+	return []any{&c.closeEvent, &c.benchEvent, &c.supersedeEvent, &c.supersededBy, &c.closedByBench, &c.benchClosedLast}
 }
 
 // eventsByID indexes evs by events.id, the key the gap view names a closing act by.
@@ -564,36 +585,45 @@ func eventsByID(evs []*Event, win WindowIndex) map[int64]*Event {
 // THE MISS IS LOUD. The view decides which act closed the gap and names it by id; an id the read
 // did not load, or one whose body is not the arm's, is an error naming the gap and the event, never
 // "not closed" — a closed gap with no closure reads exactly like a gap with nothing to say there.
-func closeStateOf(gapID string, closeEvent, benchEvent sql.NullInt64, closedByBench, benchClosedLast bool, byID map[int64]*Event, win WindowIndex) (*closeState, error) {
-	if !closeEvent.Valid && !benchEvent.Valid {
+func closeStateOf(gapID string, cl gapClosure, byID map[int64]*Event, win WindowIndex) (*closeState, error) {
+	if !cl.closeEvent.Valid && !cl.benchEvent.Valid && !cl.supersedeEvent.Valid {
 		return nil, nil
 	}
-	c := &closeState{closedByBench: closedByBench, benchClosedLast: benchClosedLast}
+	c := &closeState{closedByBench: cl.closedByBench, benchClosedLast: cl.benchClosedLast}
 	miss := func(column string, id int64) error {
 		return fmt.Errorf("gap %s: the gap view names event %d as its %s, and the events this read loaded hold no such act", gapID, id, column)
 	}
 	var last *Event
-	if closeEvent.Valid {
-		e := byID[closeEvent.Int64]
+	var lastAt int64
+	if cl.closeEvent.Valid {
+		e := byID[cl.closeEvent.Int64]
 		body, ok := recordpb.BodyAs[*recordpb.Close](e)
 		if e == nil || !ok {
-			return nil, miss("close_event", closeEvent.Int64)
+			return nil, miss("close_event", cl.closeEvent.Int64)
 		}
-		c.lastClose, last = body, e
+		c.lastClose, last, lastAt = body, e, cl.closeEvent.Int64
 	}
-	if benchEvent.Valid {
-		e := byID[benchEvent.Int64]
-		rule, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-		if e == nil || !ok || rule.GetDocket() == nil {
-			return nil, miss("bench_close_event", benchEvent.Int64)
+	if cl.supersedeEvent.Valid {
+		e := byID[cl.supersedeEvent.Int64]
+		m, ok := recordpb.BodyAs[*recordpb.Mint](e)
+		if e == nil || !ok || m.GetGapId() != cl.supersededBy.String || !slices.Contains(m.GetSupersedes(), gapID) {
+			return nil, miss("supersede_event", cl.supersedeEvent.Int64)
 		}
-		c.lastBenchClosure = rule.GetDocket()
-		if benchClosedLast {
+		c.supersededBy = m.GetGapId()
+		if last == nil || cl.supersedeEvent.Int64 > lastAt {
 			last = e
 		}
 	}
-	if last == nil {
-		return nil, fmt.Errorf("gap %s: the gap view names no red close and says the bench did not close it", gapID)
+	if cl.benchEvent.Valid {
+		e := byID[cl.benchEvent.Int64]
+		rule, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+		if e == nil || !ok || rule.GetDocket() == nil {
+			return nil, miss("bench_close_event", cl.benchEvent.Int64)
+		}
+		c.lastBenchClosure = rule.GetDocket()
+		if cl.benchClosedLast || last == nil {
+			last = e
+		}
 	}
 	c.closedEpoch = win.Of(last).Epoch
 	return c, nil
@@ -1017,15 +1047,12 @@ type WorkGapState struct {
 	closedEpoch                      int // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
 	FoundBy, Supersedes              []string
-	// Material, ClassMaterial, Stranded and SupersededBy are the view's columns the PASS gate
-	// reads, so the chair's work list states the gate from the same facts the gate refuses on:
-	// an open material gap holds PASS, and an open gap somebody superseded holds every verdict
-	// (passBlockersOf). Material is the class's answer
-	// whether or not the gap is open; a reader of the gate asks Open first.
+	// Material and ClassMaterial are the view's columns the PASS gate reads, so the chair's work
+	// list states the gate from the same facts the gate refuses on: an open material gap holds PASS
+	// (passBlockersOf). Material is the class's answer whether or not the gap is open; a reader of
+	// the gate asks Open first.
 	Material      bool
 	ClassMaterial string
-	Stranded      bool
-	SupersededBy  string
 }
 
 // workReads is every answer the work list takes off the record, read on one snapshot (workReadsAt)
@@ -1072,8 +1099,8 @@ func (p *reportRender) get() (string, error) {
 // the gap — the key the list tables are read by.
 type workGapRow struct {
 	WorkGapState
-	mintedEvent            int64
-	closeEvent, benchEvent sql.NullInt64
+	mintedEvent int64
+	closure     gapClosure
 }
 
 // workReadsAt reads the work list's answers off q, the read transaction every one of them comes off,
@@ -1110,9 +1137,9 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_computation", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
-	    "material", "class_material", "stranded", "superseded_by",
+	    "material", "class_material",
 	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL,
-	    "fix_basis", "fix_new", "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
+	    "fix_basis", "fix_new", ` + gapClosureColumns + `
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return r, fmt.Errorf("asking the record for its work list: %w", err)
@@ -1120,30 +1147,32 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var g WorkGapState
-		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, remandSettled, classMaterial, supersededBy sql.NullString
+		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, remandSettled, classMaterial sql.NullString
 		var requiredFix, acceptanceCheck, mintedBy, fixBasis, fixNew sql.NullString
 		var mintedEvent int64
-		var closeEvent, benchEvent sql.NullInt64
+		var cl gapClosure
 		// THE SCAN ORDER IS THE SELECT'S ORDER, and both sides of this merge added a column:
 		// remanded/docket_direction here, about_kind/about_ref on main. A scan that kept
 		// one side's order would still COMPILE and would silently read each value into the wrong
 		// field — every gap's problem text landing in about_ref and so on.
-		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingComputation, &g.Remanded, &reopensOn, &remandSettled,
+		dest := []any{&g.ID, &g.Open, &g.AwaitingComputation, &g.Remanded, &reopensOn, &remandSettled,
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
-			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
+			&g.Material, &classMaterial,
 			&requiredFix, &acceptanceCheck, &mintedBy, &g.unruledDocket,
-			&fixBasis, &fixNew, &closeEvent, &benchEvent, &g.ClosedByBench, &g.benchClosedLast); err != nil {
+			&fixBasis, &fixNew}
+		if err := rows.Scan(append(dest, cl.dest()...)...); err != nil {
 			return r, err
 		}
-		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
+		g.ClosedByBench, g.benchClosedLast = cl.closedByBench, cl.benchClosedLast
+		g.ClassMaterial = classMaterial.String
 		g.DocketDirection, g.DocketSettled = reopensOn.String, remandSettled.String
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
 		g.RequiredFix, g.AcceptanceCheck, g.MintedBy = requiredFix.String, acceptanceCheck.String, mintedBy.String
 		g.FixBasis, g.FixNew = fixBasis.String, fixNew.String
-		r.gaps = append(r.gaps, workGapRow{WorkGapState: g, mintedEvent: mintedEvent, closeEvent: closeEvent, benchEvent: benchEvent})
+		r.gaps = append(r.gaps, workGapRow{WorkGapState: g, mintedEvent: mintedEvent, closure: cl})
 	}
 	if err := rows.Err(); err != nil {
 		return r, err
@@ -1169,7 +1198,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		g.Edits = r.edits[g.ID]
 		locateGap(located, &g)
 		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
-		c, err := closeStateOf(g.ID, row.closeEvent, row.benchEvent, g.ClosedByBench, g.benchClosedLast, byID, r.win)
+		c, err := closeStateOf(g.ID, row.closure, byID, r.win)
 		if err != nil {
 			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
 		}
@@ -1201,9 +1230,9 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		if x == nil {
 			x = &GapExchanges{GapID: g.ID}
 		}
-		g.route = routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
+		g.route = routeOf(g.Material, g.unruledDocket, moved.docketed(g.ID), x)
 		g.remand = stageOnRoute(g.route, x.Remand)
-		g.lensDue, g.blueDue = partiesOnRoute(g.route, g.Stranded, x)
+		g.lensDue, g.blueDue = partiesOnRoute(g.route, x)
 		g.lensTurn, g.lensRead = x.lensTurn, x.lensRead
 		g.latestRemandOwed, g.remandRuled = x.latestRemandOwed, x.latestRemand
 		g.remandLimit, _ = remandPastLimit(x, r.remands[g.ID], r.win.LatestSittingOf(benchSeat))

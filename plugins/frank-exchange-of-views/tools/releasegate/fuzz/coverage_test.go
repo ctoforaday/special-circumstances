@@ -202,8 +202,9 @@ func (r *runner) closedInARoundBefore(round int) []string {
 		if round > 0 && g.ClosedEpoch >= round {
 			continue
 		}
-		// A CARRY RESTATES A LENS'S `close`, and a gap the bench closed by ruling its docket motion
-		// holds none: the record refuses to carry it, so it is not offered.
+		// A CARRY RESTATES A LENS'S `close`, and a gap the bench closed by ruling its docket motion,
+		// or a successor's mint closed by superseding it, holds none: the record refuses to carry it,
+		// so it is not offered.
 		if round > 0 && g.Closure == nil {
 			continue
 		}

@@ -200,8 +200,18 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 		mustRefuse(t, err, "gap G1's severity is high, which the bench set at event", "a grade motion on it asks the chair for a grade no lens may then file")
 		mustAppend(t, blue, gradeMotionOn("M8", "G1", impact, low))
 	})
+	// A SUCCESSOR CLOSES ITS ANCESTOR, so it waits on the docket: the bench disposes of a docketed
+	// gap. Its remand leaves the gap open, and the bench's axis stands.
+	t.Run("a successor is refused while the docket stands", func(t *testing.T) {
+		s := benchSetSeverity(t)
+		m := corrMint("G2")
+		m.Supersedes, m.Severity = []string{"G1"}, high.Enum()
+		_, err := Append(sit(t, s.run, evLens), m)
+		mustRefuse(t, err, "--supersedes names G1, which is docketed for the bench: motion M1 stands unruled on it")
+	})
 	t.Run("a successor carries the bench's grade", func(t *testing.T) {
 		s := benchSetSeverity(t)
+		s.rule("M1", recordpb.Disposition_DISPOSITION_REMANDED)
 		lens := sit(t, s.run, evLens)
 		successor := func(g recordpb.Grade) *recordpb.Mint {
 			m := corrMint("G2")
@@ -246,6 +256,7 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 	t.Run("a successor of a released axis is minted at any grade", func(t *testing.T) {
 		s := benchSetSeverity(t)
 		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, certn))
+		s.rule("M1", recordpb.Disposition_DISPOSITION_REMANDED)
 		m := corrMint("G2")
 		m.Supersedes, m.Severity = []string{"G1"}, medium.Enum()
 		mustAppend(t, sit(t, s.run, evLens), m)
