@@ -401,3 +401,16 @@ func gradeAt(q recordsql.Querier, gapID, col string) (word string, found bool, e
 		fmt.Sprintf(`SELECT %q FROM "gap" WHERE "gap_id" = ?`, "current_"+col), gapID)
 	return v.String, found, err
 }
+
+// latestSittingAt is recordsql.LatestSitting asked of q: the opening of seatID's latest sitting and
+// its rank. A db that is no record (noRecord) holds no sitting.
+func latestSittingAt(q recordsql.Querier, seatID string) (open sql.NullInt64, rank int64, err error) {
+	if noRecord(q) {
+		return sql.NullInt64{}, 0, nil
+	}
+	open, rank, err = recordsql.LatestSitting(q, seatID)
+	if err != nil {
+		return sql.NullInt64{}, 0, fmt.Errorf("asking the record which sitting %s is in: %w", seatID, err)
+	}
+	return open, rank, nil
+}

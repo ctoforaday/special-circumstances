@@ -93,7 +93,11 @@ func TestTheSQLAndGoReadingsOfWhatOpensASittingAgree(t *testing.T) {
 		// The standing position is the one filed in the seat's CURRENT sitting — the sitting the
 		// forged register opened, not the one before it.
 		var stands string
-		if err := db.QueryRow(oncePerSittingSQL, "blue-respond", "position").Scan(&stands); err != nil {
+		sitting, _, err := recordsql.LatestSitting(db, "blue-respond")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := db.QueryRow(oncePerSittingSQL, "blue-respond", "position", sitting).Scan(&stands); err != nil {
 			t.Fatal(err)
 		}
 		if stands != after.GetKey() {

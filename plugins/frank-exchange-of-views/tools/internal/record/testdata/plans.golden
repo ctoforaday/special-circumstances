@@ -401,7 +401,7 @@
   SCAN seat_turn_span
 
 == view sittings
-  SCAN e
+  SCAN e USING INDEX events_opening
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
 == stmt 808d40416d9e
@@ -2695,12 +2695,9 @@
 -- SELECT 1 FROM "report_part" LIMIT 1
   SCAN report_part
 
-== stmt ad589659e5ce
--- SELECT 1 FROM "report_read" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = ?1 AND r."head" = ?2 AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1) LIMIT 1
+== stmt 065b75c3960b
+-- SELECT 1 FROM "report_read" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = ?1 AND r."head" = ?2 AND e."sitting_id" IS ?3 LIMIT 1
   SEARCH e USING INDEX events_sitting (sitting_id=?)
-  SCALAR SUBQUERY
-    SEARCH e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt c66296bede2b
@@ -3115,15 +3112,6 @@
   SEARCH cp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
   SEARCH um USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
-== stmt 49f88c01ca9a
--- SELECT COALESCE((SELECT "sitting" FROM "events" WHERE "id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)), 0)
-  SCAN CONSTANT ROW
-  SCALAR SUBQUERY
-    SEARCH events USING INTEGER PRIMARY KEY (rowid=?)
-    SCALAR SUBQUERY
-      SEARCH e
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-
 == stmt 218c39de6b34
 -- SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'report_part')
   SEARCH events USING COVERING INDEX events_type (type=?)
@@ -3222,12 +3210,9 @@
 -- SELECT COALESCE(max("id"), 0) FROM "events"
   SEARCH events
 
-== stmt 01bc1ec8262a
--- SELECT COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = ? AND e."sitting_id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?) ORDER BY e."id" DESC LIMIT 1
+== stmt 499cddc9b975
+-- SELECT COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = ? AND e."sitting_id" = ? ORDER BY e."id" DESC LIMIT 1
   SEARCH e USING INDEX events_sitting (sitting_id=?)
-  SCALAR SUBQUERY
-    SEARCH e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 5c99c3b8890b
@@ -3384,20 +3369,14 @@
   SCAN c
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 5e5a08da6f7b
--- SELECT e."id" FROM "events" e JOIN "closing" c ON c."event_id" = e."id" WHERE e."seat_id" = ?1 AND c."gap_id" = ?2 AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1) ORDER BY e."id" LIMIT 1
+== stmt 27b990cf157e
+-- SELECT e."id" FROM "events" e JOIN "closing" c ON c."event_id" = e."id" WHERE e."seat_id" = ?1 AND c."gap_id" = ?2 AND e."sitting_id" IS ?3 ORDER BY e."id" LIMIT 1
   SEARCH e USING INDEX events_sitting (sitting_id=?)
-  SCALAR SUBQUERY
-    SEARCH e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH c USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 56400bf63935
--- SELECT e."id", COALESCE(v."claim", ''), COALESCE(v."outcome", ''), COALESCE(v."carried_by", '') FROM "verify" v JOIN "events" e ON e."id" = v."event_id" WHERE e."seat_id" = ?1 AND COALESCE(v."anchor", '') = '' AND COALESCE(v."url", '') = ?2 AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1) ORDER BY e."id"
+== stmt ff3f532ecb85
+-- SELECT e."id", COALESCE(v."claim", ''), COALESCE(v."outcome", ''), COALESCE(v."carried_by", '') FROM "verify" v JOIN "events" e ON e."id" = v."event_id" WHERE e."seat_id" = ?1 AND COALESCE(v."anchor", '') = '' AND COALESCE(v."url", '') = ?2 AND e."sitting_id" IS ?3 ORDER BY e."id"
   SEARCH e USING INDEX events_sitting (sitting_id=?)
-  SCALAR SUBQUERY
-    SEARCH e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH v USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 4c80a9aa84ab
@@ -3461,15 +3440,12 @@
 -- SELECT e."id", e."sitting" FROM "events" e WHERE e."id" = ( SELECT max(e2."id") FROM "events" e2 JOIN "sitting_open" o ON o."event_id" = e2."id" WHERE o."agent_id" = ? AND o."seat_id" = ? AND e2."sitting_id" = e2."id")
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   SCALAR SUBQUERY
-    SEARCH o
+    SEARCH o USING INDEX sitting_open_seat (seat_id=?)
     SEARCH e2 USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 901faa96af80
--- SELECT e."key" FROM "events" e WHERE e."seat_id" = ?1 AND e."type" = ?2 AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1) ORDER BY e."id" LIMIT 1
+== stmt 143809d795b6
+-- SELECT e."key" FROM "events" e WHERE e."seat_id" = ?1 AND e."type" = ?2 AND e."sitting_id" IS ?3 ORDER BY e."id" LIMIT 1
   SEARCH e USING INDEX events_sitting (sitting_id=?)
-  SCALAR SUBQUERY
-    SEARCH e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
 == stmt c85ecc9b4718
 -- SELECT e."seat_id" FROM "register" r JOIN "events" e ON e."id" = r."event_id" WHERE r."agent_id" = ? ORDER BY r."event_id" DESC LIMIT 1
@@ -3730,12 +3706,16 @@
     SEARCH r USING COVERING INDEX motion_rule_motion (motion_id=?)
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt 3d352b108dd8
--- SELECT o."id", o."sitting" FROM "events" o WHERE o."id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)
+== stmt 9ee27c8b0127
+-- SELECT o."id", o."sitting" FROM "events" o WHERE o."id" = max( COALESCE((SELECT max(e."id") FROM "events" e WHERE e."seat_id" = ?1 AND e."sitting_id" = e."id" AND NOT EXISTS (SELECT 1 FROM "sitting_open" b WHERE b."event_id" = e."id" AND b."seat_id" <> '')), 0), COALESCE((SELECT b."event_id" FROM "sitting_open" b JOIN "events" e ON e."id" = b."event_id" WHERE b."seat_id" = ?1 AND e."sitting_id" = e."id" ORDER BY b."event_id" DESC LIMIT 1), 0))
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?)
   SCALAR SUBQUERY
-    SEARCH e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    SEARCH e USING INDEX events_opening (seat_id=?)
+    CORRELATED SCALAR SUBQUERY
+      SEARCH b USING INTEGER PRIMARY KEY (rowid=?)
+  SCALAR SUBQUERY
+    SEARCH b USING COVERING INDEX sitting_open_seat (seat_id=?)
+    SEARCH e USING COVERING INDEX events_sitting (sitting_id=? AND rowid=?)
 
 == stmt 433d9661d97b
 -- SELECT o."verdict" FROM "outcome" o ORDER BY o."event_id" DESC LIMIT 1

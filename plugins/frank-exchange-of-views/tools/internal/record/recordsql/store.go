@@ -802,17 +802,6 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (place, error) {
 		Scan(&p.id, &p.epoch); err != nil {
 		return place{}, fmt.Errorf("minting the event's id: %w", err)
 	}
-	// latest is the opening of seat's latest sitting and its rank, or none.
-	latest := func(seat string) (sql.NullInt64, int64, error) {
-		var open sql.NullInt64
-		var rank int64
-		err := tx.QueryRow(`SELECT o."id", o."sitting" FROM "events" o
-		  WHERE o."id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)`, seat).Scan(&open, &rank)
-		if errors.Is(err, sql.ErrNoRows) {
-			return sql.NullInt64{}, 0, nil
-		}
-		return open, rank, err
-	}
 	if seat, opens := recordpb.SeatOpeningSitting(ev); opens {
 		// A REGISTER UNDER AN AGENT THE HARNESS ALREADY BRACKETED JOINS THAT SITTING RATHER THAN
 		// OPENING A SECOND ONE. Both events are openings on their own terms — either can be the only
@@ -833,7 +822,7 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (place, error) {
 				return p, nil
 			}
 		}
-		_, rank, err := latest(seat)
+		_, rank, err := LatestSitting(tx, seat)
 		if err != nil {
 			return place{}, fmt.Errorf("asking how many sittings %s has had: %w", seat, err)
 		}
@@ -843,7 +832,7 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (place, error) {
 		}
 		return p, nil
 	}
-	open, rank, err := latest(ev.GetSeatId())
+	open, rank, err := LatestSitting(tx, ev.GetSeatId())
 	if err != nil {
 		return place{}, fmt.Errorf("asking which sitting of %s this act joins: %w", ev.GetSeatId(), err)
 	}
@@ -851,6 +840,46 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (place, error) {
 		p.sittingID, p.sitting = open.Int64, rank
 	}
 	return p, nil
+}
+
+// latestSittingSQL is the opening of a seat's latest sitting and that sitting's rank, or no row.
+//
+// IT IS THE `sittings` VIEW'S RULE, SPLIT INTO ITS TWO CASES SO EACH IS AN INDEXED LOOKUP. An
+// opening is a row whose sitting_id is its own id, and the view says whose sitting it opened:
+// the seat its bracket's body names where it has one, else the seat on its envelope. So the seat's
+// latest opening is the later of its latest opening under its own envelope that no seat-naming
+// bracket claims (events_opening, a partial index holding the openings and none of the acts), and
+// its latest seat-naming bracket that opened rather than joined (sitting_open_seat, walked from
+// the newest). Each reaches its row directly. A max over the view itself cannot be searched by
+// seat — the seat is a COALESCE across the join — so it walked the events back from the end until
+// it met the seat's newest opening: about 33 ms at 100× a run's events for a seat that last sat
+// early.
+//
+// The hook's own seat names no sitting, so its first half walks every bracket opening (each is
+// under the hook's envelope and claimed by the seat it names) and finds none: a cost in the run's
+// sittings, not its events.
+//
+// It answers what max("id") FROM "sittings" WHERE "seat_id" = ? answers, and
+// TestTheLatestSittingIsTheViewsOnEveryArchivedRun holds it to that on every archived run.
+const latestSittingSQL = `SELECT o."id", o."sitting" FROM "events" o WHERE o."id" = max(
+  COALESCE((SELECT max(e."id") FROM "events" e
+             WHERE e."seat_id" = ?1 AND e."sitting_id" = e."id"
+               AND NOT EXISTS (SELECT 1 FROM "sitting_open" b WHERE b."event_id" = e."id" AND b."seat_id" <> '')), 0),
+  COALESCE((SELECT b."event_id" FROM "sitting_open" b JOIN "events" e ON e."id" = b."event_id"
+             WHERE b."seat_id" = ?1 AND e."sitting_id" = e."id"
+             ORDER BY b."event_id" DESC LIMIT 1), 0))`
+
+// LatestSitting is the opening of seat's latest sitting and that sitting's rank among the seat's
+// sittings (events.sitting); an invalid open and rank 0 for a seat that has opened none. Every
+// reader that asks for "this sitting" of a seat asks it here, and passes open on as the sitting_id
+// it compares: an invalid open is SQL NULL, so `IS` matches the rows in no sitting and `=` matches
+// nothing, as the subquery it replaces did.
+func LatestSitting(q queryRower, seat string) (open sql.NullInt64, rank int64, err error) {
+	err = q.QueryRow(latestSittingSQL, seat).Scan(&open, &rank)
+	if errors.Is(err, sql.ErrNoRows) {
+		return sql.NullInt64{}, 0, nil
+	}
+	return open, rank, err
 }
 
 // InsertTx writes one event inside a transaction the CALLER owns.
