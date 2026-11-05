@@ -1,8 +1,13 @@
 {
   "gray-area-hooks": {
-    "PreInvocation": [
+    "SessionStart": [
       {
         "command": "R=\"${PWD}\"; B=\"$R/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionStart; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook SessionStart; fi"
+      }
+    ],
+    "PreInvocation": [
+      {
+        "command": "R=\"${PWD}\"; B=\"$R/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event PreInvocation; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PreInvocation; fi"
       }
     ],
     "PostInvocation": [

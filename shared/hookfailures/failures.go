@@ -263,15 +263,11 @@ const StageEnsure Stage = "ensure"
 // implementation of the check, the fetch and the throttle on what it says.
 //
 // Outside a plugin hook — no CLAUDE_PLUGIN_ROOT — there is nothing to ensure and it returns nothing.
+// Whether the root is a development checkout, which is never healed, is fetch-bin.sh's question too:
+// it refuses there and says nothing on stdout, so Ensure returns nothing.
 func Ensure(event string) (string, error) {
 	root := os.Getenv("CLAUDE_PLUGIN_ROOT")
 	if root == "" {
-		return "", nil
-	}
-	if _, err := os.Stat(filepath.Join(root, "tools", "go.mod")); err == nil {
-		return "", nil
-	}
-	if _, err := os.Stat(filepath.Join(root, "..", "..", ".claude-plugin", "marketplace.json")); err == nil {
 		return "", nil
 	}
 	script := filepath.Join(root, "hooks", "fetch-bin.sh")
