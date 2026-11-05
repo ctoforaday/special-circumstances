@@ -34,6 +34,12 @@ type fetchFixture struct {
 // SHA256SUMS; omit leaves an asset out of SHA256SUMS.
 func newFetchFixture(t *testing.T, bins []string, corrupt, omit map[string]bool) fetchFixture {
 	t.Helper()
+	return newFetchFixtureAt(t, t.TempDir(), bins, corrupt, omit)
+}
+
+// newFetchFixtureAt builds the plugin root at root, for the tests where where it sits is the point.
+func newFetchFixtureAt(t *testing.T, root string, bins []string, corrupt, omit map[string]bool) fetchFixture {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("fetch-bin.sh runs under Git Bash on Windows; the fetch-bin-platforms CI job drives it there")
 	}
@@ -45,7 +51,6 @@ func newFetchFixture(t *testing.T, bins []string, corrupt, omit map[string]bool)
 	if err != nil {
 		t.Fatalf("the generated hooks/fetch-bin.sh is missing — run `go -C scripts run ./fetchbingen`: %v", err)
 	}
-	root := t.TempDir()
 	// author.name comes first and deeper: the script must read the top-level name, not this one.
 	mustWrite(t, filepath.Join(root, ".claude-plugin", "plugin.json"),
 		"{\n  \"author\": {\n    \"name\": \"not-the-plugin\"\n  },\n  \"name\": \"fixture\",\n  \"version\": \""+fixtureVersion+"\"\n}\n")
@@ -644,4 +649,60 @@ func TestFixDoesNotStampAPartialInstall(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".fetch", "installed")); err == nil {
 		t.Fatal("beta is still missing, yet the install was stamped as this version")
 	}
+}
+
+// WHERE A ROOT SITS DECIDES WHETHER IT IS HEALED, AND tools/go.mod DOES NOT. Every installed plugin
+// carries tools/go.mod, so a refusal keyed on it stopped every installed plugin from ever fetching
+// its binaries. A development checkout — plugins/<name>/ under a root holding the marketplace
+// manifest and scripts/ — is the one place a fetch must not land.
+func TestEnsureHealsWhereverThePluginIsInstalledButNeverInACheckout(t *testing.T) {
+	layout := func(t *testing.T, marketplace, scripts bool, rel ...string) fetchFixture {
+		t.Helper()
+		base := t.TempDir()
+		if marketplace {
+			mustWrite(t, filepath.Join(base, ".claude-plugin", "marketplace.json"), "{}\n")
+		}
+		if scripts {
+			mustWrite(t, filepath.Join(base, "scripts", "go.mod"), "module scripts\n")
+		}
+		f := newFetchFixtureAt(t, filepath.Join(append([]string{base}, rel...)...), []string{"alpha"}, nil, nil)
+		mustWrite(t, filepath.Join(f.root, "tools", "go.mod"), "module tools\n")
+		return f
+	}
+	heals := func(t *testing.T, f fetchFixture) {
+		t.Helper()
+		f.stamp(t, "fixture--v0.0.1")
+		f.hookMode(t, "ensure", "SessionStart")
+		f.waitStamp(t, "fixture--v"+fixtureVersion)
+		if !f.installed("alpha") {
+			t.Fatal("the fetch stamped the release but did not install its binary")
+		}
+		out, errOut, code := f.run(t, "", "ensure", "SessionStart")
+		if code != 0 || strings.TrimSpace(out) != "" || errOut != "" {
+			t.Fatalf("a stamped, installed root must say nothing: exit %d, stdout %q, stderr %q", code, out, errOut)
+		}
+	}
+
+	t.Run("installed cache root", func(t *testing.T) {
+		// ~/.claude/plugins/cache/<marketplace>/<name>/<version>/: ../../ holds plugin directories.
+		heals(t, layout(t, false, false, "fixture", fixtureVersion))
+	})
+	t.Run("universe staged marketplace", func(t *testing.T) {
+		// $WORKDIR.marketplace/plugins/<name>/: the manifest, but no scripts/ — a plugin root a
+		// session loads in place, healed like any other.
+		heals(t, layout(t, true, false, "plugins", "fixture"))
+	})
+	t.Run("development checkout", func(t *testing.T) {
+		f := layout(t, true, true, "plugins", "fixture")
+		out, errOut, code := f.run(t, "", "ensure", "SessionStart")
+		if code != 0 || strings.TrimSpace(out) != "" || !strings.Contains(errOut, "refusing to fetch") {
+			t.Fatalf("a checkout must be refused, quietly on stdout: exit %d, stdout %q, stderr %q", code, out, errOut)
+		}
+		if _, err := os.Stat(f.state("log")); err == nil {
+			t.Fatal("a checkout started a fetch")
+		}
+		if got := f.binEntries(t); len(got) != 1 || got[0] != ".gitkeep" {
+			t.Fatalf("a checkout's bin/ gained %v", got)
+		}
+	})
 }
