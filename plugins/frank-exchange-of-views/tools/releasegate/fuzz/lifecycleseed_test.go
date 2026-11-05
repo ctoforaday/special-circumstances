@@ -722,35 +722,31 @@ func (r *runner) lifecycleCitedRetire(blue, claim, next string) string {
 }
 
 // screenUnsoundComputationName is the bundle of the computation limitSeed's run ends on, judged unsound
-// (computeToScreen).
+// (screenAtLimit).
 const screenUnsoundComputationName = "fuzz-screen-unsound.js"
 
-// computeToScreen and judgeToScreen are limitSeed's half of the assembly screen arm. blue-respond's
-// first sitting computes the fuzz sentence, after the lenses' first sittings; at the chair's sitting whose
-// plan reaches the epoch limit, which dispatches nobody, the computation owner judges it unsound. No seat
-// sits after, so the run ends with it live, and the screen at the run's end must FAIL naming it
-// (screenUnsound). Neither draws from the run's RNG.
-func (r *runner) computeToScreen(seatID string) {
+// screenAtLimit is limitSeed's half of the assembly screen arm, driven at the chair's sitting whose plan
+// reaches the epoch limit, which dispatches nobody: blue-respond, in a sitting of its own, computes the
+// fuzz sentence, and the computation owner, in its own, judges it unsound. No seat sits after, so the run
+// ends with it live, and the screen at the run's end must FAIL naming it (screenUnsound). The limit plan
+// is the one point the forced run is sure to reach; blue-respond is not sure to be dispatched before it,
+// since which seats the epochs ready turns on the run's draws and the seats' interleaving. Draws nothing.
+func (r *runner) screenAtLimit(plan map[string]any) {
 	r.mu.Lock()
-	due := r.forceScreenUnsound && seatID == "blue-respond" && r.screenUnsoundComputation == ""
+	due := r.forceScreenUnsound && r.screenUnsoundComputation == ""
 	r.mu.Unlock()
-	if !due {
+	if limit, _ := plan["epoch_limit_reached"].(bool); !limit || !due {
 		return
 	}
-	k := r.lifecycleCompute(seatID, "§ fuzz sentence", screenUnsoundComputationName, "", "")
+	const blue = "blue-respond"
+	k := ""
+	if r.openSitting(blue) {
+		k = r.lifecycleCompute(blue, "§ fuzz sentence", screenUnsoundComputationName, "", "")
+	}
 	r.mu.Lock()
 	r.screenUnsoundComputation = cmp.Or(k, "refused")
 	r.mu.Unlock()
-}
-
-func (r *runner) judgeToScreen(plan map[string]any) {
-	r.mu.Lock()
-	k := r.screenUnsoundComputation
-	r.mu.Unlock()
-	if limit, _ := plan["epoch_limit_reached"].(bool); !limit || !r.forceScreenUnsound || !strings.HasPrefix(k, anchorPrefix["computation"]) {
-		return
-	}
-	if r.openSitting(computationOwner) {
+	if k != "" && r.openSitting(computationOwner) {
 		r.lifecycleJudge(computationOwner, k, "unsound")
 	}
 }
@@ -783,9 +779,16 @@ func (r *runner) screenUnsound() (screened int, msg string) {
 	return 1, ""
 }
 
-// stagedLifecycleRunner is a staged run whose report holds the lanes' parts, framed by the synthesis,
-// with blue-respond sitting.
+// stagedLifecycleRunner is stagedSynthesizedRunner with blue-respond sitting.
 func stagedLifecycleRunner(t *testing.T) *runner {
+	t.Helper()
+	r := stagedSynthesizedRunner(t)
+	r.register("blue", "blue-respond")
+	return r
+}
+
+// stagedSynthesizedRunner is a staged run whose report holds the lanes' parts, framed by the synthesis.
+func stagedSynthesizedRunner(t *testing.T) *runner {
 	t.Helper()
 	r := stagedRunner(t)
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
@@ -795,7 +798,6 @@ func stagedLifecycleRunner(t *testing.T) *runner {
 	if r.actErr != "" {
 		t.Fatalf("the synthesis: %s", r.actErr)
 	}
-	r.register("blue", "blue-respond")
 	return r
 }
 
@@ -890,18 +892,15 @@ func TestAReachingRetireGivesTheLensItsTurn(t *testing.T) {
 	})
 }
 
-// THE LIMIT SEED ENDS ON A SCREENED UNSOUND COMPUTATION: blue computes the fuzz sentence, the computation
-// owner judges it unsound at the plan that reaches the epoch limit, and the assembly screen at the run's
-// end FAILS naming it. A plan short of the limit judges nothing, and a run with no live unsound
-// computation is screened for none.
+// THE LIMIT SEED ENDS ON A SCREENED UNSOUND COMPUTATION: at the plan that reaches the epoch limit, blue
+// computes the fuzz sentence and the computation owner judges it unsound, and the assembly screen at the
+// run's end FAILS naming it. Blue-respond has never sat: the drive owes nothing to a dispatch of blue
+// before the limit, which the forced run is not sure to reach. A plan short of the limit drives nothing,
+// and a run with no live unsound computation is screened for none.
 func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 	stage := func(t *testing.T) *runner {
-		r := stagedLifecycleRunner(t)
+		r := stagedSynthesizedRunner(t)
 		r.forceScreenUnsound = true
-		r.envelopeFor("blue-respond", "")
-		if !strings.HasPrefix(r.screenUnsoundComputation, "K-") || r.actErr != "" {
-			t.Fatalf("blue's computation of the fuzz sentence: %q (%s)", r.screenUnsoundComputation, r.actErr)
-		}
 		return r
 	}
 	screen := func(t *testing.T, r *runner) (int, string) {
@@ -912,16 +911,29 @@ func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 	}
 	t.Run("at the limit", func(t *testing.T) {
 		r := stage(t)
-		r.judgeToScreen(map[string]any{"epoch_limit_reached": true})
+		r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+		if !strings.HasPrefix(r.screenUnsoundComputation, anchorPrefix["computation"]) || r.actErr != "" {
+			t.Fatalf("blue's computation of the fuzz sentence at the limit: %q (%s)", r.screenUnsoundComputation, r.actErr)
+		}
 		if n, msg := screen(t, r); n != 1 || msg != "" {
 			t.Errorf("the screen of a run ending on unsound %s counted %d (%s), want 1", r.screenUnsoundComputation, n, msg)
 		}
 	})
 	t.Run("short of the limit", func(t *testing.T) {
 		r := stage(t)
-		r.judgeToScreen(map[string]any{"epoch_limit_reached": false})
+		r.screenAtLimit(map[string]any{"epoch_limit_reached": false})
+		if r.screenUnsoundComputation != "" {
+			t.Errorf("a plan short of the limit drove the arm: %q", r.screenUnsoundComputation)
+		}
 		if n, msg := screen(t, r); n != 0 || msg != "" {
 			t.Errorf("the screen of a run with no unsound computation counted %d (%s), want 0", n, msg)
+		}
+	})
+	t.Run("not forced", func(t *testing.T) {
+		r := stagedSynthesizedRunner(t)
+		r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+		if r.screenUnsoundComputation != "" {
+			t.Errorf("a run not forced drove the arm: %q", r.screenUnsoundComputation)
 		}
 	})
 }

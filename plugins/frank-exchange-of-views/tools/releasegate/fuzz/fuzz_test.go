@@ -807,8 +807,8 @@ type runner struct {
 	lifecycleStage, lifecycleLeftOpen string
 	// lifecycle is the anchor lifecycle's counts (lifecycleCounts).
 	lifecycle lifecycleCounts
-	// forceScreenUnsound drives computeToScreen and judgeToScreen on limitSeed's run;
-	// screenUnsoundComputation is the computation it judges, "refused" where blue's compute was.
+	// forceScreenUnsound drives screenAtLimit on limitSeed's run; screenUnsoundComputation is the
+	// computation it judges, "refused" where blue's compute was, and "" until the limit plan.
 	forceScreenUnsound       bool
 	screenUnsoundComputation string
 	// provedExpectedError fires the --expect-error drive once per run. A computation whose FAILURE is
@@ -5069,7 +5069,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.cutBaringEvidence(seatID)
 		r.citeForBareMint(seatID)
 		r.forcedLifecycle(seatID)
-		r.computeToScreen(seatID)
 		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM FATE HERE. settleOpenInquiries owns every later fate: one decision per open
 		// inquiry per sitting, which is the blocking item blue's work list carries for it.
@@ -5333,7 +5332,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.tallyOwed(plan)
 		r.tallyTrifleRoutes(plan)
 		r.tallyLensTurns(plan)
-		r.judgeToScreen(plan)
+		r.screenAtLimit(plan)
 		r.mu.Lock()
 		r.blueSatSincePlan = false
 		r.mu.Unlock()
@@ -7498,7 +7497,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.mu.Lock()
 	r.lifecycle.screenedUnsound += screened
 	if r.forceScreenUnsound && r.lifecycle.screenedUnsound == 0 && res.err == "" {
-		res.err = fmt.Sprintf("forced assembly screen: seed %d's run did not end with a live unsound computation the screen failed (computed: %q)", limitSeed, r.screenUnsoundComputation)
+		res.err = fmt.Sprintf("forced assembly screen: seed %d's run did not end with a live unsound computation the screen failed (computed at the limit plan: %q, \"\" where no plan reached it)", limitSeed, r.screenUnsoundComputation)
 	}
 	res.ownerOffered += r.offeredToOwner["computation"]
 	res.citationsOffered += r.offeredToOwner["citation"]
