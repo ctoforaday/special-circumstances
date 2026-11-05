@@ -5,7 +5,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -20,9 +19,9 @@ import (
 // closures anchored `report text at line 103` and `report text at line 62` were reported as
 // claimed acts with no matching tool call — under an audit whose own message says "This rules on
 // whether the RECORD IS HONEST". Neither target has a fragment longer than six characters
-// (`report` is exactly six), so mostDistinctive returned "" and the closures were filed as
-// findings. The third sampled closure reconciled only because its target happened to contain the
-// ten-letter word `projection`. Honesty was decided by word length.
+// (`report` is exactly six), so the prose needle was "" and the closures were filed as findings.
+// The third sampled closure reconciled only because its target happened to contain the ten-letter
+// word `projection`. Honesty was decided by word length; the audit now joins on anchor ids alone.
 //
 // AttestationAudit had no test of any kind, which is how it shipped.
 
@@ -135,8 +134,7 @@ func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 	if got.Verdict != "PASS" {
 		t.Errorf("a closure citing an id the sitting read must reconcile.\ngot %s: %s", got.Verdict, got.Detail)
 	}
-	// RECONCILED, NOT UNMEASURED: an id the reader does not recognise falls through to the prose path,
-	// finds no fragment, and reports the same PASS with 0/1 behind it.
+	// RECONCILED, NOT UNMEASURED: an unmeasured closure reports the same PASS with 0/1 behind it.
 	if !strings.HasPrefix(got.Detail, "1/1 anchored closure(s) sampled and reconciled") || strings.Contains(got.Detail, "NOT BE MEASURED") {
 		t.Errorf("the closure must reconcile BY ITS ID, not go unmeasured:\n%s", got.Detail)
 	}
@@ -246,62 +244,37 @@ func TestAnUnmeasurableAnchorIsReportedAsNotMeasuredRatherThanAsDishonesty(t *te
 	}
 }
 
-// The prose path still works where prose is actually distinctive — and, like an id, the fragment
-// must come from a call that is not the close, whose --verified-against carries it verbatim.
-func TestADistinctiveProseTargetStillReconciles(t *testing.T) {
-	run := attestRun(t, "show evidence", "evidence projection and report text")
-	closeIt := closing(`feov-record close --id ` + attestGap + ` --verified-against "evidence projection and report text"`)
-	trs := []record.Transcript{transcriptOf(t, closerAgent, read(`feov-record red-chair show evidence --projection full`, "x"), closeIt)}
-	if got := AttestationAudit(runtest.Open(t, run), trs, 3); got.Verdict != "PASS" {
-		t.Errorf("distinctive prose must still reconcile; got %s: %s", got.Verdict, got.Detail)
-	}
-	only := []record.Transcript{transcriptOf(t, closerAgent, closeIt)}
-	if got := AttestationAudit(runtest.Open(t, run), only, 3); got.Verdict != "FAIL" {
-		t.Errorf("prose only the close carries must be a finding; got %s: %s", got.Verdict, got.Detail)
-	}
-}
-
-// The six-character floor is deliberate and this pins WHY: admitting `report` would make the
-// needle match every `show report` call in a run, turning a false FAIL into a false PASS.
-func TestTheProseFloorStillRefusesAWordThatWouldMatchEverything(t *testing.T) {
-	if got := mostDistinctive("report text at line 103"); got != "" {
-		t.Errorf("mostDistinctive(%q) = %q — a needle this common reconciles anything", "report text at line 103", got)
-	}
-	if got := mostDistinctive("evidence projection and report text"); got != "projection" {
-		t.Errorf("longest fragment over six chars: want projection, got %q", got)
-	}
-}
-
-func TestNeedlesForPrefersTheRecordsOwnIdentifiers(t *testing.T) {
-	ns, byID := needlesFor(Claim{Tool: "show evidence", Target: "evidence projection", Anchors: []string{"C-5058e9f8"}})
-	if !byID || len(ns) != 1 || ns[0] != "C-5058e9f8" {
-		t.Errorf("a named anchor must win over prose in the target; got %v byID=%v", ns, byID)
-	}
-	// EVERY NAMED ANCHOR IS A NEEDLE.
-	want := []string{"F-0dd40334", "G-5e10a3c2"}
-	if ns, byID := needlesFor(Claim{Tool: "show report", Target: "evidence projection", Anchors: want}); !byID || !slices.Equal(ns, want) {
-		t.Errorf("needlesFor = %v byID=%v, want %v by id", ns, byID, want)
-	}
-	// THE TOOL'S WORDS ARE NOT READ FOR AN ID. The anchors are a field the write checked; an id typed
-	// into --verified-with is prose, and the target's prose is what is left to join on.
-	ns, byID = needlesFor(Claim{Tool: "show report --anchor F-0dd40334", Target: "evidence projection"})
-	if byID || !slices.Equal(ns, []string{"projection"}) {
-		t.Errorf("with no anchor named, fall back to prose; got %v byID=%v", ns, byID)
-	}
-	if ns, _ := needlesFor(Claim{Tool: "show report", Target: "report text at line 103"}); len(ns) != 0 {
-		t.Errorf("nothing to join on must be empty, not a guess; got %v", ns)
+// A CLOSURE THAT NAMES NO ANCHOR IS NOT MEASURED, whatever its prose holds. m39's G-c41c68ef named
+// no anchor id; the audit cut "(scratch" from its target, found it in no call, and FAILed a voice
+// sitting that served and read the report. A long word that a call does carry is no better: it
+// would reconcile on word length, not on an act. Neither is read; both are counted not measured.
+func TestAClosureNamingNoAnchorIsNotMeasuredWhateverItsProse(t *testing.T) {
+	target := "the report as served (scratch copy of show report, 76 lines)"
+	run := attestRun(t, "show report", target)
+	closeIt := closing(`feov-record close --id ` + attestGap + ` --verified-against "` + target + `"`)
+	for name, reads := range map[string]call{
+		"no call carries the prose":  read(`feov-record red-chair show report`, "the report"),
+		"a call carries a long word": read(`feov-record red-chair show report --match scratch`, "(scratch copy of show report, 76 lines)"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := AttestationAudit(runtest.Open(t, run), []record.Transcript{transcriptOf(t, closerAgent, reads, closeIt)}, 3)
+			if got.Verdict != "PASS" || !strings.HasPrefix(got.Detail, "0/1 anchored closure(s)") ||
+				!strings.Contains(got.Detail, "NOT BE MEASURED") || !strings.Contains(got.Detail, "names no anchor id") {
+				t.Errorf("a closure with no anchor id must be counted not measured, neither reconciled nor accused; got %s: %s", got.Verdict, got.Detail)
+			}
+		})
 	}
 }
 
 // THE AUDIT READS THE CLOSURE'S ANCHORS FROM THE RECORD. An id in --verified-with's words alone is no
-// anchor named, so a closure whose target has no distinctive fragment is not measured — rather than
-// reconciled, or accused, on an id read out of prose.
+// anchor named, so the closure is not measured — rather than reconciled, or accused, on an id read
+// out of prose.
 func TestAnIDInTheToolsWordsAloneIsNoAnchor(t *testing.T) {
 	run := attestRun(t, "show report --anchor "+attestOther, "report text at line 103")
 	trs := []record.Transcript{transcriptOf(t, closerAgent, read(`feov-record red-chair show report --anchor `+attestOther, "x"), closing(closeCommand()))}
 	got := AttestationAudit(runtest.Open(t, run), trs, 3)
 	if got.Verdict == "FAIL" || !strings.Contains(got.Detail, "NOT BE MEASURED") {
-		t.Errorf("a closure naming no anchor and no distinctive target must be counted not measured; got %s: %s", got.Verdict, got.Detail)
+		t.Errorf("a closure naming no anchor must be counted not measured; got %s: %s", got.Verdict, got.Detail)
 	}
 }
 
