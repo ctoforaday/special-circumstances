@@ -564,6 +564,10 @@ type runner struct {
 	// unclassifiedRefused the ones the record refused for carrying no --reason. The sweep gates
 	// both at zero.
 	unclassifiedMinted, unclassifiedRefused int
+	// supersedeDemandCarried counts the successors minted over an open gap that awaited a live answer,
+	// carrying its check kind, and supersedeDemandRefused the successors at another check kind the
+	// record refused naming the demand (supersede_test.go). The sweep gates both at zero.
+	supersedeDemandCarried, supersedeDemandRefused int
 	// repeatErr is the first repeated act the tool admitted, or refused without naming the act
 	// that answers the first. It fails the run: an act stands as filed, and the refusal of a
 	// second is where a seat learns what answers a wrong one.
@@ -3927,8 +3931,16 @@ func (r *runner) mintWith(seatID, class string) string {
 	// a gap's minter supersedes it while it is open, and not while a docket motion stands on it: the
 	// ancestor is drawn from the seat's own open gaps no docket holds, and none a close of the seat's
 	// is being driven on (closingNow), whose close the supersession would refuse.
+	//
+	// A GAP THAT AWAITS A LIVE ANSWER PASSES ITS DEMAND TO ITS SUCCESSOR (ruled by gblock 2026-11-05): it
+	// is drawn only where this mint carries its check kind, and a successor at another is driven to its
+	// refusal.
 	ancestor := ""
-	if open := r.supersedable(seatID); len(open) > 0 && r.coin(30) {
+	open, owing, carries := r.supersedable(seatID, kind)
+	if len(owing) > 0 && r.coin(20) {
+		r.refuseDroppedDemand(seatID, owing[r.rng.Intn(len(owing))], kind)
+	}
+	if len(open) > 0 && r.coin(30) {
 		ancestor = open[r.rng.Intn(len(open))]
 		args = append(args, "--supersedes", ancestor)
 	}
@@ -4012,7 +4024,7 @@ func (r *runner) mintWith(seatID, class string) string {
 		landed = true
 		r.noteMint(seatID, env.Result.GapID)
 		r.inheritBenchGrades(env.Result.GapID, ancestor)
-		r.supersessionClosed(ancestor, env.Result.GapID)
+		r.supersessionClosed(ancestor, env.Result.GapID, carries[ancestor])
 		r.checkOneGap(env.Result.GapID, args)
 		if unclassified {
 			r.mu.Lock()
@@ -6238,6 +6250,8 @@ type outcome struct {
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
 	// refused for want of a reason (runner.unclassifiedMinted, runner.unclassifiedRefused).
 	unclassifiedMinted, unclassifiedRefused int
+	// supersedeDemandCarried and supersedeDemandRefused are the runner's.
+	supersedeDemandCarried, supersedeDemandRefused int
 	// rulerFilingsRefused is the filings the tool refused the seat that rules their subject
 	// (runner.rulerFilingsRefused).
 	rulerFilingsRefused int
@@ -7657,6 +7671,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
+	res.supersedeDemandCarried, res.supersedeDemandRefused = r.supersedeDemandCarried, r.supersedeDemandRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused

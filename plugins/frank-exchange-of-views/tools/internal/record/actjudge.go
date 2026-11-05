@@ -17,7 +17,7 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a docket motion on
+// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
 // that names no kind, a reading that names no gap to carry it, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
@@ -50,6 +50,12 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 			return err
 		}
 		if err := requireSupersededOffDocket(q, b); err != nil {
+			return err
+		}
+		// THE DEMAND MOVES TO THE SUCCESSOR, asked of the record the mint lands on: a retire of the
+		// ancestor's only answer can commit between the verb's read and this write. An archived
+		// supersede replays as it was recorded.
+		if err := requireSuccessorCarriesDemand(q, b); err != nil {
 			return err
 		}
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {

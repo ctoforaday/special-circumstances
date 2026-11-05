@@ -179,12 +179,13 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
     lens's backing reading is a disagreement and clears nothing.
 
   In every state the seat's close of the gap that carries the check is refused while the check
-  stands, unless it names a successor with `--superseded-by`; a closing ruling of the bench closes
+  stands; a closing ruling of the bench closes
   the gap, and the check still holds the PASS. Whatever cleared the check, a gap whose check kind is
   `source` or `computation` closes — under every disposition, a close naming a successor included —
   only on a live answer of its kind placed as its answer, once the anchor it is about or whose
   reading it carries is retired, or once the seat whose check it carries checks that anchor again
-  after the mint and the check holds.
+  after the mint and the check holds. A lens's mint superseding such a gap while nothing answers it
+  carries the same check kind, and the demand moves to the successor.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it

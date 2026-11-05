@@ -143,3 +143,60 @@ func DemandRefusal(gapID string, d EvidenceDemand) error {
 		"A demand you no longer hold is not closed: file `motion docket file` on the gap, and the bench's closing ruling, which is not held to the demand, disposes of it; a regrade keeps it open",
 		gapID, d.CheckKind, recordpb.DemandClause, strings.Join(ways, "; or "))
 }
+
+// THE DEMAND MOVES TO THE SUCCESSOR (ruled by gblock 2026-11-05). A mint superseding an open gap
+// closes it in the same act (supersession.go), and that closing goes through neither the close verb
+// nor judgeAct's Close case, so a `source` or `computation` gap whose demand nothing meets would close
+// unanswered by being superseded. The successor carries the ancestor's check kind instead, and with it
+// the demand, which it cannot close without its own live answer. An ancestor whose demand is met, whose
+// check kind owes none, or that is already closed (the supersede is lineage only) is unaffected.
+
+// SuccessorCarriesDemand is requireSuccessorCarriesDemand asked of run before the mint's write, so the
+// verb refuses before the record's placement and shape checks; judgeAct asks it again in the write's
+// transaction, where the answer holds. A read error is returned, never folded into "no demand".
+func SuccessorCarriesDemand(run Run, m *recordpb.Mint) error {
+	if len(m.GetSupersedes()) == 0 {
+		return nil
+	}
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return err
+	}
+	return requireSuccessorCarriesDemand(db, m)
+}
+
+// requireSuccessorCarriesDemand refuses a mint naming in `supersedes` an open gap that awaits a live
+// answer (the gap view's awaiting_evidence: open, its check kind one EvidenceTables answers, and its
+// demand unmet) unless the mint carries that gap's check kind. Replay never asks it, so an archived
+// supersede replays as it was recorded.
+func requireSuccessorCarriesDemand(q recordsql.Querier, m *recordpb.Mint) error {
+	kind := recordpb.Word(m.GetCheckKind())
+	for _, anc := range m.GetSupersedes() {
+		var awaiting bool
+		if _, err := queryRowAt(q, []any{&awaiting}, `SELECT COALESCE("awaiting_evidence", 0) FROM "gap" WHERE "gap_id" = ?`, anc); err != nil || !awaiting {
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		d, err := evidenceDemandAt(q, anc)
+		if err != nil {
+			return err
+		}
+		if d.CheckKind != kind {
+			return SuccessorDemandRefusal(anc, d, kind)
+		}
+	}
+	return nil
+}
+
+// SuccessorDemandRefusal is the mint's refusal of a successor minted --check-kind kind over open gap
+// gapID, whose demand d nothing meets: the demand passes to the successor, so the successor carries
+// the ancestor's check kind; the remedies are that kind, the demand met on the ancestor first, or the
+// bench.
+func SuccessorDemandRefusal(gapID string, d EvidenceDemand, kind string) error {
+	return feov.Errorf(feov.Conflict, "--supersedes names %s, an open gap minted --check-kind %s that nothing answers yet, and a mint superseding an open gap closes it: its live-answer demand passes to the successor, which carries the same check kind, and this mint is --check-kind %s. Nothing was recorded. "+
+		"The demand: %s. Mint the successor --check-kind %s, and it owes the %s the ancestor owed; or meet the demand on %s first — blue's `%s --answers %s`, a %s placed as its answer, is one way, and its close refusal names the rest — and supersede it then; "+
+		"or, for a demand you no longer hold, file `motion docket file` on %s, and the bench's closing ruling, which is not held to the demand, disposes of it",
+		gapID, d.CheckKind, kind, recordpb.DemandClause, d.CheckKind, d.AnswerNoun, gapID, d.AnswerVerb, gapID, d.AnswerNoun, gapID)
+}

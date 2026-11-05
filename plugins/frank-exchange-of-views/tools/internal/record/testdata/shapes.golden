@@ -5,6 +5,20 @@
 # by hand. The record suite's TestMain fails on a finding not listed here and on a line here that
 # no longer occurs, so a fix removes its line and nothing adds one unread.
 stmt 0ec2182bfcb8 | constrained-scan | cast [min/max] | x1
+stmt 13db0410bdae | automatic-index | answers_retired (gap_id=?) | x1
+stmt 13db0410bdae | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt 13db0410bdae | automatic-index | evidence (anchor_id=?) | x3
+stmt 13db0410bdae | automatic-index | evidence_met (gap_id=?) | x1
+stmt 13db0410bdae | automatic-index | latest_check (anchor=? | x1
+stmt 13db0410bdae | automatic-index | latest_remand (gap_id=?) | x1
+stmt 13db0410bdae | automatic-index | superseded (gap_id=?) | x1
+stmt 13db0410bdae | automatic-index | unruled_docket (gap_id=?) | x1
+stmt 13db0410bdae | constrained-scan | c(close|closure) | x2
+stmt 13db0410bdae | constrained-scan | mint | x3
+stmt 13db0410bdae | constrained-scan | motion_rule_docket | x2
+stmt 13db0410bdae | constrained-scan | motion_rule_position | x1
+stmt 13db0410bdae | constrained-scan | s(mint_supersedes|stretch) | x1
+stmt 13db0410bdae | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt 17a02e4044b0 | constrained-scan | register [min/max] | x1
 stmt 17a02e4044b0 | constrained-scan | register | x1
 stmt 17a02e4044b0 | constrained-scan | sitting_open [min/max] | x1

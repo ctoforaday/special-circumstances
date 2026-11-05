@@ -4348,6 +4348,156 @@
         UNION ALL
           SCAN x
 
+== stmt 13db0410bdae
+-- SELECT COALESCE("awaiting_evidence", 0) FROM "gap" WHERE "gap_id" = ?
+  MATERIALIZE gap_grade
+    CO-ROUTINE graded
+      CO-ROUTINE (subquery)
+        MERGE (UNION ALL)
+          LEFT
+            SCAN m
+          RIGHT
+            SCAN m
+            SEARCH a USING INDEX regrade_gap (gap_id=?)
+      SCAN (subquery)
+    SCAN g
+    SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+    SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+    SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+  MATERIALIZE closure
+    CO-ROUTINE closure_act
+      COMPOUND QUERY
+        LEFT-MOST SUBQUERY
+          SCAN c
+        UNION ALL
+          SCAN rd
+          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+        UNION ALL
+          SCAN s
+          CORRELATED SCALAR SUBQUERY
+            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+          CORRELATED SCALAR SUBQUERY
+            SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
+            SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+            SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=? AND rowid<?)
+            SEARCH rd USING INTEGER PRIMARY KEY (rowid=?)
+            SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+          USE TEMP B-TREE FOR GROUP BY
+    SCAN ca
+    SEARCH cl USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    USE TEMP B-TREE FOR GROUP BY
+  MATERIALIZE latest_remand
+    CO-ROUTINE (subquery)
+      CO-ROUTINE (subquery)
+        CO-ROUTINE remand
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              SCAN rd
+              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+            UNION ALL
+              SCAN rp
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
+        SCAN remand
+        USE TEMP B-TREE FOR ORDER BY
+      SCAN (subquery)
+    SCAN (subquery)
+  MATERIALIZE unruled_docket
+    SCAN md USING COVERING INDEX motion_docket_gap
+    SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+    CORRELATED SCALAR SUBQUERY
+      SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+  MATERIALIZE superseded
+    SCAN c
+    SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
+  MATERIALIZE evidence_met
+    MERGE (UNION)
+      LEFT
+        MERGE (UNION)
+          LEFT
+            MATERIALIZE evidence
+              COMPOUND QUERY
+                LEFT-MOST SUBQUERY
+                  SCAN x
+                  CORRELATED SCALAR SUBQUERY
+                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                UNION ALL
+                  SCAN x
+                  CORRELATED SCALAR SUBQUERY
+                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+            SCAN ea
+            SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+            USE TEMP B-TREE FOR ORDER BY
+          RIGHT
+            SCAN m USING INDEX sqlite_autoindex_mint_1
+            BLOOM FILTER ON ea (anchor_id=?)
+            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+      RIGHT
+        MERGE (UNION)
+          LEFT
+            SEARCH v USING INDEX verify_carried_by (carried_by>?)
+            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+            BLOOM FILTER ON ea (anchor_id=?)
+            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+          RIGHT
+            MATERIALIZE own_check
+              COMPOUND QUERY
+                LEFT-MOST SUBQUERY
+                  SCAN m
+                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                UNION ALL
+                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+            MATERIALIZE latest_check
+              CO-ROUTINE (subquery)
+                COMPOUND QUERY
+                  LEFT-MOST SUBQUERY
+                    CO-ROUTINE (subquery)
+                      SCAN x
+                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                      USE TEMP B-TREE FOR ORDER BY
+                    SCAN (subquery)
+                  UNION ALL
+                    CO-ROUTINE (subquery)
+                      SCAN x
+                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                      USE TEMP B-TREE FOR ORDER BY
+                    SCAN (subquery)
+              SCAN (subquery)
+            SCAN oc
+            BLOOM FILTER ON lc (anchor=? AND seat=?)
+            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+            BLOOM FILTER ON ea (anchor_id=?)
+            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+            USE TEMP B-TREE FOR ORDER BY
+  MATERIALIZE answers_retired
+    SCAN evidence
+    USE TEMP B-TREE FOR GROUP BY
+  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SCAN gg LEFT-JOIN
+  BLOOM FILTER ON c (gap_id=?)
+  SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON lr (gap_id=?)
+  SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON ud (gap_id=?)
+  SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON sp (gap_id=?)
+  SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON em (gap_id=?)
+  SEARCH em USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON ar (gap_id=?)
+  SEARCH ar USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+
 == stmt e232412c2186
 -- SELECT COALESCE("class", ''), "open" FROM "gap" WHERE "gap_id" = ?
   MATERIALIZE gap_grade

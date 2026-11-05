@@ -1103,7 +1103,7 @@
     },
     {
       "term": "superseded",
-      "definition": "A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor, so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.",
+      "definition": "A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor — and, for a `source` or `computation` gap that nothing answers yet, its live-answer demand, the successor carrying the same check kind — so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.",
       "seats": [
         "lens",
         "chair",
