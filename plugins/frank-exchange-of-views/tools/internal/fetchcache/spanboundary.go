@@ -20,6 +20,7 @@ const SpanBoundary = "a span starts and ends at a boundary; a clause mark is a c
 	"It ENDS at the end of the text (or of an OCR page), or before a blank line, a markup tag or a list marker; with a clause mark or a closing bracket or quote; just before a clause mark, a closing bracket or quote, or a spaced opening bracket ( or [; " +
 	"or on or just before a sentence end: . ! ? or … (closers and reference marks allowed), then whitespace and a character that is not a lowercase letter. " +
 	"In «" + spanExample + "» the spans «" + spanExampleWhole + "» and «" + spanExampleClause + "» are accepted; «" + spanExampleCutStart + "» is refused (it starts mid-clause), as is «" + spanExampleCutEnd + "» (it ends mid-clause). " +
+	"In a source whose text holds no sentence end (a data file of rows), a line break is a boundary as well: a span may start where a line starts and end where it ends, so one row is quoted whole. " +
 	"The tool never widens a span: quote more"
 
 // The worked example SpanBoundary shows, each span admitted or refused as it says
@@ -56,14 +57,63 @@ const (
 // sentence carried on after a formula, which has no marker. Only a marker opening a line is one:
 // "2 * 3" is a product.
 //
+// A LINE IS A UNIT IN A SOURCE THAT ENDS NO SENTENCE (ruled by gblock 2026-11-05). A data file
+// of rows — m39's OEIS b-file, "66 91" on its own line among 17,737 others — holds no sentence
+// end, so under the prose rule no row starts or ends a unit and none could be cited: three seats
+// asked for the act and two required fixes depended on it. Whether a source is read this way is
+// decided once per source, from this scanner's own reading of its text (holdsSentenceEnd over
+// every text of it), never per span: a span-by-span test would let a table inside a prose page
+// cut its sentences at their layout. Every prose boundary still holds in such a source; the line
+// break is added to them.
+//
 // THE START OF A TEXT IS A START WHATEVER ITS CASE. An OCR page that opens mid-sentence continues
 // the page before, and a span may not run across pages (ErrSpanStraddles): refusing the page's
 // opening words would leave the part of that sentence on it unquotable.
 
+// unitEdges is how a source's text divides into the units a span starts and ends at.
+type unitEdges int
+
+const (
+	// sentenceEdges is prose: sentences and their clauses.
+	sentenceEdges unitEdges = iota
+	// lineEdges is a source whose text holds no sentence end: a line break is a boundary as well.
+	lineEdges
+)
+
+// unit is the word a refusal names the source's unit by.
+func (u unitEdges) unit() string {
+	if u == lineEdges {
+		return "line"
+	}
+	return "sentence"
+}
+
+// edgesOf is how a source's texts divide into units: by line when none of them holds a sentence
+// end, by sentence otherwise. It is one answer for the whole source.
+func edgesOf(texts []spanText) unitEdges {
+	for _, t := range texts {
+		if holdsSentenceEnd(t.text) {
+			return sentenceEdges
+		}
+	}
+	return lineEdges
+}
+
+// holdsSentenceEnd reports whether text holds a sentence end as sentenceEndsAt reads one by its
+// punctuation: a terminator run, its closers and reference marks, then whitespace or the text's end.
+func holdsSentenceEnd(text string) bool {
+	for z, r := range text {
+		if unicode.IsSpace(r) && terminatorBefore(text, z) {
+			return true
+		}
+	}
+	return terminatorBefore(text, len(text))
+}
+
 // spanStartsAtBoundary reports whether a span whose first byte is text[start] starts a sentence
 // or a clause of text, under SpanBoundary.
-func spanStartsAtBoundary(text string, start int) bool {
-	if opensUnit(text, start) {
+func spanStartsAtBoundary(text string, start int, edges unitEdges) bool {
+	if opensUnit(text, start) || (edges == lineEdges && opensLine(text, start)) {
 		return true
 	}
 	j, blank := prevNonSpace(text, start)
@@ -78,28 +128,28 @@ func spanStartsAtBoundary(text string, start int) bool {
 
 // spanAtBoundaries refuses a span at [start, end) that does not start or does not end at a
 // boundary, showing the source's sentence it sits in and SpanBoundary.
-func spanAtBoundaries(text string, start, end int) error {
-	from, to := spanStartsAtBoundary(text, start), spanEndsAtBoundary(text, end)
+func spanAtBoundaries(text string, start, end int, edges unitEdges) error {
+	from, to := spanStartsAtBoundary(text, start, edges), spanEndsAtBoundary(text, end, edges)
 	var cut, quote string
 	switch {
 	case from && to:
 		return nil
 	case !from && !to:
-		cut, quote = "starts and ends inside one", "that sentence, or a clause of it, whole"
+		cut, quote = "starts and ends inside one", "that %[1]s, or a clause of it, whole"
 	case !from:
-		cut, quote = "starts inside one", "from that sentence's start or from a clause boundary inside it"
+		cut, quote = "starts inside one", "from that %[1]s's start or from a clause boundary inside it"
 	default:
-		cut, quote = "ends inside one", "to that sentence's end or to a clause boundary inside it"
+		cut, quote = "ends inside one", "to that %[1]s's end or to a clause boundary inside it"
 	}
-	return fmt.Errorf("%w — it %s: the source's sentence it sits in reads «%s»; quote %s (%s)",
-		ErrSpanMidClause, cut, sentenceAround(text, start, end), quote, SpanBoundary)
+	return fmt.Errorf("%w — it %s: the source's %s it sits in reads «%s»; quote %s (%s)",
+		ErrSpanMidClause, cut, edges.unit(), sentenceAround(text, start, end, edges), fmt.Sprintf(quote, edges.unit()), SpanBoundary)
 }
 
 // spanEndsAtBoundary reports whether a span whose last byte is text[end-1] ends a sentence or a
 // clause of text, under SpanBoundary.
-func spanEndsAtBoundary(text string, end int) bool {
+func spanEndsAtBoundary(text string, end int, edges unitEdges) bool {
 	k, blank := nextNonSpace(text, end)
-	if k < 0 || blank || opensTag(text, k) || listMarkerStarts(text, k) {
+	if k < 0 || blank || opensTag(text, k) || listMarkerStarts(text, k) || (edges == lineEdges && closesLine(text, end)) {
 		return true
 	}
 	lastAt := end - utf8.RuneLen(runeBefore(text, end))
@@ -249,8 +299,8 @@ func opensTag(text string, k int) bool {
 
 // sentenceAround is the source's sentence a span at [start, end) sits in, its whitespace folded
 // to single spaces, an ellipsis marking where sentenceBounds stopped looking.
-func sentenceAround(text string, start, end int) string {
-	a, z, cutA, cutZ := sentenceBounds(text, start, end)
+func sentenceAround(text string, start, end int, edges unitEdges) string {
+	a, z, cutA, cutZ := sentenceBounds(text, start, end, edges)
 	s := strings.Join(strings.Fields(text[a:z]), " ")
 	if cutA {
 		s = "…" + s
@@ -265,14 +315,14 @@ func sentenceAround(text string, start, end int) string {
 // from the nearest sentence start at or before start to the first sentence end at or after end,
 // each looked for no further than spanReach bytes away. cutA and cutZ say the search stopped
 // there rather than at the sentence's edge.
-func sentenceBounds(text string, start, end int) (a, z int, cutA, cutZ bool) {
+func sentenceBounds(text string, start, end int, edges unitEdges) (a, z int, cutA, cutZ bool) {
 	a = start
 	for a > 0 {
 		if start-a > spanReach {
 			cutA = true
 			break
 		}
-		if !unicode.IsSpace(runeAt(text, a)) && sentenceStarts(text, a) {
+		if !unicode.IsSpace(runeAt(text, a)) && sentenceStarts(text, a, edges) {
 			break
 		}
 		_, n := utf8.DecodeLastRuneInString(text[:a])
@@ -284,7 +334,7 @@ func sentenceBounds(text string, start, end int) (a, z int, cutA, cutZ bool) {
 			cutZ = true
 			break
 		}
-		if sentenceEndsAt(text, z) {
+		if sentenceEndsAt(text, z, edges) {
 			break
 		}
 		_, n := utf8.DecodeRuneInString(text[z:])
@@ -298,17 +348,18 @@ func sentenceBounds(text string, start, end int) (a, z int, cutA, cutZ bool) {
 const spanReach = 2 * SpanWindow
 
 // sentenceStarts reports whether a sentence starts at the non-space character text[i].
-func sentenceStarts(text string, i int) bool {
+func sentenceStarts(text string, i int, edges unitEdges) bool {
 	j, blank := prevNonSpace(text, i)
-	if j >= 0 && listMarkerEnds(text, j, i) {
+	if (j >= 0 && listMarkerEnds(text, j, i)) || (edges == lineEdges && opensLine(text, i)) {
 		return true
 	}
 	return (j < 0 || blank || terminatorEnds(text, j, i) || closesTag(text, j)) && notLower(text, i)
 }
 
 // sentenceEndsAt reports whether a sentence ends just before text[z]: a terminator run and its
-// closers end there and whitespace or the text's end follows, or a blank line does.
-func sentenceEndsAt(text string, z int) bool {
+// closers end there and whitespace or the text's end follows, or a blank line does, or — by line —
+// the line does.
+func sentenceEndsAt(text string, z int, edges unitEdges) bool {
 	if z >= len(text) {
 		return true
 	}
@@ -318,6 +369,12 @@ func sentenceEndsAt(text string, z int) bool {
 	if k, blank := nextNonSpace(text, z); blank || (k >= 0 && listMarkerStarts(text, k)) {
 		return true
 	}
+	return (edges == lineEdges && closesLine(text, z)) || terminatorBefore(text, z)
+}
+
+// terminatorBefore reports whether a terminator run, its closers and any reference marks end
+// just before text[z], which is whitespace or the text's end.
+func terminatorBefore(text string, z int) bool {
 	return z > 0 && !unicode.IsSpace(runeBefore(text, z)) && closesTerminatorRun(text, beforeReferences(text, z-utf8.RuneLen(runeBefore(text, z))))
 }
 
@@ -422,6 +479,21 @@ func opensLine(text string, k int) bool {
 		switch text[k-1] {
 		case ' ', '\t':
 			k--
+		case '\n':
+			return true
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// closesLine reports whether only spaces, tabs and a carriage return stand between k and the
+// line's end or the text's.
+func closesLine(text string, k int) bool {
+	for ; k < len(text); k++ {
+		switch text[k] {
+		case ' ', '\t', '\r':
 		case '\n':
 			return true
 		default:

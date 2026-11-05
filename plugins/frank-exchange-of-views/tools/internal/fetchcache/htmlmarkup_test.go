@@ -173,7 +173,7 @@ func TestOnlyAMarkerOpeningALineIsOne(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			start := strings.Index(tc.text, tc.span)
-			got := spanAtBoundaries(tc.text, start, start+len(tc.span))
+			got := spanAtBoundaries(tc.text, start, start+len(tc.span), sentenceEdges)
 			if (got == nil) != tc.ok {
 				t.Errorf("%q in %q: %v, want accepted=%v", tc.span, tc.text, got, tc.ok)
 			}

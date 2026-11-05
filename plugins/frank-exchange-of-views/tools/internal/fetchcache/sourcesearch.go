@@ -102,7 +102,7 @@ func SearchSource(run record.Run, e Entry, match, quote string) (SourceSearch, e
 
 // sourceHit is the hit at [start, end) of t, with the sentence it sits in and whether cite takes it.
 func sourceHit(texts []spanText, t spanText, start, end int) SourceHit {
-	a, z, cutA, cutZ := sentenceBounds(t.text, start, end)
+	a, z, cutA, cutZ := sentenceBounds(t.text, start, end, t.edges)
 	// The bounds stop at the text's own edges, which can be whitespace; the sentence is its words.
 	for a < z && unicode.IsSpace(runeAt(t.text, a)) {
 		a += utf8.RuneLen(runeAt(t.text, a))
@@ -111,9 +111,13 @@ func sourceHit(texts []spanText, t spanText, start, end int) SourceHit {
 		z -= utf8.RuneLen(runeBefore(t.text, z))
 	}
 	h := SourceHit{Page: t.page, Start: start, End: end, TextSha: t.sha, Matched: t.text[start:end],
-		Sentence: sentenceAround(t.text, start, end), SentenceStart: a, SentenceEnd: z}
-	if cutA || cutZ {
-		h.NotCiteable = fmt.Sprintf("the source marks no sentence edge within %d bytes of the match", spanReach)
+		Sentence: sentenceAround(t.text, start, end, t.edges), SentenceStart: a, SentenceEnd: z}
+	switch {
+	case (cutA || cutZ) && t.edges == lineEdges:
+		h.NotCiteable = fmt.Sprintf("the source marks no line edge within %d bytes of the match", spanReach)
+		return h
+	case cutA || cutZ:
+		h.NotCiteable = fmt.Sprintf("the source marks no sentence edge within %d bytes of the match, and its line breaks are no boundary: it ends sentences elsewhere", spanReach)
 		return h
 	}
 	sentence := strings.Join(strings.Fields(t.text[a:z]), " ")

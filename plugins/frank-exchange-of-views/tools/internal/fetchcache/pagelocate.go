@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -112,6 +113,8 @@ type spanText struct {
 	page int // 0 for embedded text
 	text string
 	sha  string
+	// edges is how the source divides into units — the same for every text of one source.
+	edges unitEdges
 }
 
 // LocateSourceSpan finds span in the cached source's text, once.
@@ -130,7 +133,9 @@ type spanText struct {
 // A fragment cut from inside a clause can drop its subject and read the other way — "when n is
 // composite is known as a Fermat liar" from "Any a such that … when n is composite is known as a
 // Fermat liar" — or stop before what the clause says of it, and a lens judges the span, so the
-// refusal shows the sentence it sits in. The tool never widens the span: blue quotes more.
+// refusal shows the sentence it sits in. In a source whose text ends no sentence, a line is a unit
+// too (unitEdges), so a row of a data file is cited whole. The tool never widens the span: blue
+// quotes more.
 func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error) {
 	if strings.TrimSpace(span) == "" {
 		return SpanLocation{}, fmt.Errorf("%w: the span is empty", ErrSpanAbsent)
@@ -207,12 +212,18 @@ func sourceTexts(run record.Run, e Entry) ([]spanText, recordpb.SourceTextOrigin
 	default:
 		return nil, 0, ReadingRecord{}, fmt.Errorf("%w: %s", ErrNoText, recordpb.Word(origin))
 	}
+	edges := edgesOf(texts)
+	for i := range texts {
+		texts[i].edges = edges
+	}
 	return texts, origin, rec, nil
 }
 
 // locateOnce finds span once in texts under each hyphen reading in turn, the first that finds it
-// deciding: found is false when no reading finds it anywhere, and a span found more than once, or
-// found once and cutting into a clause, is refused.
+// deciding: found is false when no reading finds it anywhere. A place counts only where the span
+// starts and ends at a boundary — "66 91" inside m39's row "10466 9185" is not that row quoted, and
+// counting it left no short row of a data file citeable. A span placed at a boundary more than once
+// is refused as repeated, and one placed at none as cutting into a clause.
 func locateOnce(texts []spanText, span string) (spanHit, bool, error) {
 	for _, mode := range []hyphenMode{hyphenAsIs, hyphenJoined, hyphenKept} {
 		want := fold(span, mode).s
@@ -228,16 +239,28 @@ func locateOnce(texts []spanText, span string) (spanHit, bool, error) {
 				from += i + 1
 			}
 		}
-		switch {
-		case len(hits) > 1:
-			return spanHit{}, false, fmt.Errorf("%w: the source's text holds it %d times%s; quote enough of the sentence that it is found once",
-				ErrSpanRepeated, len(hits), pagesOf(hits))
-		case len(hits) == 1:
-			h := hits[0]
-			if err := spanAtBoundaries(h.t.text, h.start, h.end); err != nil {
-				return spanHit{}, false, err
+		if len(hits) == 0 {
+			continue
+		}
+		var placed []spanHit
+		var cut error
+		for _, h := range hits {
+			if err := spanAtBoundaries(h.t.text, h.start, h.end, h.t.edges); err != nil {
+				cut = cmp.Or(cut, err)
+				continue
 			}
-			return h, true, nil
+			placed = append(placed, h)
+		}
+		switch {
+		case len(placed) > 1:
+			return spanHit{}, false, fmt.Errorf("%w: the source's text holds it %d times%s; quote enough of the sentence that it is found once",
+				ErrSpanRepeated, len(placed), pagesOf(placed))
+		case len(placed) == 1:
+			return placed[0], true, nil
+		case len(hits) > 1:
+			return spanHit{}, false, fmt.Errorf("the source's text holds it %d times%s and each cuts into a unit; the first: %w", len(hits), pagesOf(hits), cut)
+		default:
+			return spanHit{}, false, cut
 		}
 	}
 	return spanHit{}, false, nil
