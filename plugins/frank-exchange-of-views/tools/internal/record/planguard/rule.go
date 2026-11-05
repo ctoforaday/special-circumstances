@@ -36,8 +36,8 @@ import "strings"
 //     the question this guard asks.
 //
 // What is left is the signature of a dropped index: a statement that CONSTRAINS a growing table
-// and still walks all of it. The findings it reports today are in testdata/shapes.golden, kind
-// constrained-scan, and a fix removes its line.
+// and still walks all of it. The findings it reports today are in internal/record/testdata/
+// shapes.golden, kind constrained-scan, and a fix removes its line.
 //
 // # The limit, stated rather than papered over
 //
@@ -54,9 +54,9 @@ import "strings"
 // index that only ever served an UNCONSTRAINED read is invisible here. `SELECT DISTINCT "type"
 // FROM "events"` walks events_type as a covering index today; delete that index
 // and the plan becomes a bare `SCAN events`, with no WHERE to make it a defect, and this stays
-// green while the query got slower. That change is caught by testdata/plans.golden, which
-// records every planned statement's whole plan; the per-row and repeated-work shapes are read off
-// the plan tree by Analyzer.Shapes against a committed baseline (TestPlanShapesMatchTheBaseline).
+// green while the query got slower. That change is caught by internal/record/testdata/
+// plans.golden, which records every planned statement's whole plan; the per-row and repeated-work
+// shapes are read off the plan tree by Analyzer.Shapes against a committed baseline (Suite).
 // This rule stays what it is: the missing-index signature on a constrained statement.
 
 // constrains reports whether the statement narrows what it reads. A WHERE clause or a join

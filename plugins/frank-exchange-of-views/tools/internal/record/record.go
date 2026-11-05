@@ -531,10 +531,8 @@ func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Mes
 	// sat is on sitting 0. Counting registers here left a seat woken with nothing to do (#1089) on
 	// sitting 0 for every sitting it ever had, so a singleton act in its second sitting keyed
 	// identically to its first and was refused as a duplicate.
-	var sitting int
-	if err := tx.QueryRow(`SELECT COALESCE((SELECT "sitting" FROM "events"
-	    WHERE "id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)), 0)`,
-		seatID).Scan(&sitting); err != nil {
+	_, sitting, err := recordsql.LatestSitting(tx, seatID)
+	if err != nil {
 		return "", fmt.Errorf("counting %s's sittings for its key: %w", seatID, err)
 	}
 	if singleton[typ] {
@@ -1821,7 +1819,7 @@ func requireNoStandingDocket(q recordsql.Querier, gapID string) error {
 // (the sitting reading oncePerSittingSQL's).
 const closingThisSittingSQL = `SELECT e."id" FROM "events" e JOIN "closing" c ON c."event_id" = e."id"
      WHERE e."seat_id" = ?1 AND c."gap_id" = ?2
-       AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
+       AND e."sitting_id" IS ?3
      ORDER BY e."id" LIMIT 1`
 
 // requireNoClosingThisSitting refuses a docket motion on a gap whose closing its filer has already
@@ -1833,8 +1831,12 @@ func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) erro
 	if gapID == "" {
 		return nil
 	}
+	sitting, _, err := latestSittingAt(q, seatID)
+	if err != nil {
+		return err
+	}
 	var closing int64
-	found, err := queryRowAt(q, []any{&closing}, closingThisSittingSQL, seatID, gapID)
+	found, err := queryRowAt(q, []any{&closing}, closingThisSittingSQL, seatID, gapID, sitting)
 	if err != nil || !found {
 		return err
 	}
