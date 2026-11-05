@@ -121,6 +121,8 @@ type sittingReads struct {
 	// mintsLeft: a lens's mints left (mintBudgetOf), for the clause on an item whose answer is a mint
 	// (answersRetiredItems); nil where the budget was not read or not measured.
 	mintsLeft *int
+	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
+	blueOut bool
 }
 
 // unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
@@ -364,7 +366,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 		gapItem := map[string]Blocker{}
 		for _, b := range blockers {
-			if b.Kind == BlockerStrandedGap || b.Kind == BlockerMaterialGap || b.Kind == BlockerRemandOwed {
+			if b.Kind == BlockerMaterialGap || b.Kind == BlockerRemandOwed {
 				gapItem[b.Subject] = b
 			}
 		}
@@ -381,7 +383,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				notMaterialBecause(g.ClassMaterial, grade) + ") — it does not hold PASS; your PASS lists it by class with why it changes no reader decision"})
 		}
 		for _, b := range blockers {
-			if b.Kind != BlockerStrandedGap && b.Kind != BlockerMaterialGap && b.Kind != BlockerRemandOwed {
+			if b.Kind != BlockerMaterialGap && b.Kind != BlockerRemandOwed {
 				hold(b)
 			}
 		}
@@ -505,7 +507,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
-	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID)...)
+	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID, reads.blueOut)...)
 
 	// AN EMPTY LIST MUST SAY IT IS EMPTY. `complete: true, open: []` is the answer a seat with
 	// nothing to do gets, and it is indistinguishable from a command that failed to find anything —
@@ -653,10 +655,9 @@ func engagedOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string
 	for _, o := range successorsOwedOnTheWorkList(live, win, open) {
 		e.SuccessorsOwed = append(e.SuccessorsOwed, o.GapID)
 	}
-	for _, ev := range s.FoundClosed {
-		c, _ := recordpb.BodyAs[*recordpb.Close](ev)
-		f := FoundClosedJSON{ID: c.GetGapId(), ClosedBySeat: ev.GetSeatId(), Fate: recordpb.Word(c.GetClosureClass()), Successors: []string{}}
-		for _, g := range succ[c.GetGapId()] {
+	for _, fc := range s.FoundClosed {
+		f := FoundClosedJSON{ID: fc.GapID, ClosedBySeat: fc.Act.GetSeatId(), Fate: fc.Fate(), Successors: []string{}}
+		for _, g := range succ[fc.GapID] {
 			if open(g) {
 				f.Successors = append(f.Successors, g)
 			}

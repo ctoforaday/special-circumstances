@@ -23,7 +23,7 @@ import (
 
 // escalateTrifle files blue's docket motion on an open gap that is not material, so the bench's
 // remand of such a gap is a path the drive takes. One with a remand already on it, a docket motion
-// standing on it, a successor naming it, or a closing of blue's this sitting is skipped.
+// standing on it, or a closing of blue's this sitting is skipped.
 func (r *runner) escalateTrifle(seatID string) {
 	if !r.coin(25) {
 		return
@@ -33,17 +33,9 @@ func (r *runner) escalateTrifle(seatID string) {
 		r.noteActErr("blue's work list could not be read to escalate a gap that is not material: " + err.Error())
 		return
 	}
-	stranded := map[string]bool{}
-	if bs, err := record.PassBlockers(r.run()); err == nil {
-		for _, b := range bs {
-			if b.Kind == record.BlockerStrandedGap {
-				stranded[b.Subject] = true
-			}
-		}
-	}
 	var trifles []string
 	for _, g := range w.Open {
-		if g.Material || g.Remanded || g.RemandStage != "" || stranded[g.ID] || r.closedThisSitting(seatID, g.ID) || len(r.unruledDocketMotions(g.ID)) > 0 {
+		if g.Material || g.Remanded || g.RemandStage != "" || r.closedThisSitting(seatID, g.ID) || len(r.unruledDocketMotions(g.ID)) > 0 {
 			continue
 		}
 		trifles = append(trifles, g.ID)
@@ -76,7 +68,28 @@ func (r *runner) docketClosedGap(seatID string) {
 			named[m.GapID] = true
 		}
 	}
+	// A GAP A SUCCESSOR'S MINT CLOSED IS NO CLOSE TO PUT BEFORE THE BENCH: the record holds no close
+	// of it, and refuses its docket, naming the successor (ruled by gblock 2026-11-04). The gap's
+	// state is the record's: the family's SupersededBy.
+	fam, err := record.FamilyOf(r.run())
+	if err != nil {
+		r.noteActErr("the record could not be read to tell a lens's close from a supersession: " + err.Error())
+		return
+	}
+	superseded := map[string]string{}
+	for _, g := range fam.Gaps {
+		if g != nil && g.SupersededBy != "" {
+			superseded[g.ID] = g.SupersededBy
+		}
+	}
 	for _, id := range r.closedGapIDs() {
+		if succ := superseded[id]; succ != "" {
+			if !named[id] && r.coin(20) {
+				r.refuse(feov.Conflict, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
+					"--reason", "fuzz: "+id+" closed when "+succ+" superseded it, and blue dockets it all the same")
+			}
+			continue
+		}
 		if !named[id] && !r.closedThisSitting(seatID, id) {
 			r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
 				"--reason", "fuzz: "+id+" closed, and blue puts the close before the bench")
@@ -218,7 +231,7 @@ func (r *runner) remandOfClosedRefused(seatID, gapID string) {
 }
 
 // remandRouted holds the gate's list to a remand the bench just ruled on open gap gapID: a gap that
-// is not material — no material_gap or stranded_gap holds it — holds a remand_owed blocker until its
+// is not material — no material_gap holds it — holds a remand_owed blocker until its
 // exchange has begun, and the drive remembers it, so the chair's next plan is held to readying it.
 func (r *runner) remandRouted(gapID string) {
 	bs, err := record.PassBlockers(r.run())
@@ -232,7 +245,7 @@ func (r *runner) remandRouted(gapID string) {
 			continue
 		}
 		switch b.Kind {
-		case record.BlockerMaterialGap, record.BlockerStrandedGap:
+		case record.BlockerMaterialGap:
 			material = true
 		case record.BlockerRemandOwed:
 			owed = true
@@ -302,8 +315,17 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 			engagedOn[id][fmt.Sprint(m["seat_id"])] = true
 		}
 	}
+	// A PLAN THAT HOLDS BLUE OUT (holdsBlueOut) lists no remand whose exchange waits on blue: blue sits
+	// neither there nor at the final sitting, so that exchange cannot be had, and an entry is a remand a
+	// party of this plan is engaged on — its lens, once blue has acted. The check below holds it to
+	// that: an entry engaging nobody fails, and so does blue engaged where the plan holds it out.
+	blueOut := holdsBlueOut(plan)
 	for _, o := range owed {
 		if !pending[o.GapID] {
+			continue
+		}
+		if blueOut && engagedOn[o.GapID]["blue-respond"] {
+			r.noteActErr(fmt.Sprintf("the plan holds blue out of epoch %v and engages it on gap %s's remand: parties %v", plan["epoch"], o.GapID, parties))
 			continue
 		}
 		if !engagedOn[o.GapID]["blue-respond"] {
@@ -494,7 +516,7 @@ func (r *runner) remandHeldBeforeRegister() {
 		r.noteActErr("the record's carrying readings could not be read before blue registered")
 		return
 	}
-	acts, _, _ := actsOnGaps(b.Events, carried)
+	acts, _ := actsOnGaps(b.Events, carried)
 	ruled := remandRulings(b.Events)
 	dispatched := -1 // blue's latest dispatch row, a stream position
 	for i, e := range b.Events {

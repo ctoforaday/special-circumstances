@@ -5,22 +5,6 @@
 # by hand. The record suite's TestMain fails on a finding not listed here and on a line here that
 # no longer occurs, so a fix removes its line and nothing adds one unread.
 stmt 0ec2182bfcb8 | constrained-scan | cast [min/max] | x1
-stmt 1291e6a53b2a | automatic-index | answers_retired (gap_id=?) | x1
-stmt 1291e6a53b2a | automatic-index | c(close|closure) (gap_id=?) | x1
-stmt 1291e6a53b2a | automatic-index | evidence (anchor_id=?) | x3
-stmt 1291e6a53b2a | automatic-index | evidence_met (gap_id=?) | x1
-stmt 1291e6a53b2a | automatic-index | gap_grade (minted_event=?) | x1
-stmt 1291e6a53b2a | automatic-index | latest_check (anchor=? | x1
-stmt 1291e6a53b2a | automatic-index | latest_remand (gap_id=?) | x1
-stmt 1291e6a53b2a | automatic-index | superseded (gap_id=?) | x1
-stmt 1291e6a53b2a | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 1291e6a53b2a | constrained-scan | c(close|closure) | x1
-stmt 1291e6a53b2a | constrained-scan | mint | x4
-stmt 1291e6a53b2a | constrained-scan | mint_supersedes | x1
-stmt 1291e6a53b2a | constrained-scan | motion_rule_docket | x2
-stmt 1291e6a53b2a | constrained-scan | motion_rule_position | x1
-stmt 1291e6a53b2a | constrained-scan | s(mint_supersedes|stretch) | x1
-stmt 1291e6a53b2a | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt 17a02e4044b0 | constrained-scan | register [min/max] | x1
 stmt 17a02e4044b0 | constrained-scan | register | x1
 stmt 17a02e4044b0 | constrained-scan | sitting_open [min/max] | x1
@@ -36,14 +20,22 @@ stmt 2da1ab83b42d | automatic-index | latest_check (anchor=? | x1
 stmt 2da1ab83b42d | automatic-index | latest_remand (gap_id=?) | x1
 stmt 2da1ab83b42d | automatic-index | superseded (gap_id=?) | x1
 stmt 2da1ab83b42d | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 2da1ab83b42d | constrained-scan | c(close|closure) | x1
+stmt 2da1ab83b42d | constrained-scan | c(close|closure) | x2
 stmt 2da1ab83b42d | constrained-scan | mint | x3
-stmt 2da1ab83b42d | constrained-scan | mint_supersedes | x1
 stmt 2da1ab83b42d | constrained-scan | motion_rule_docket | x2
 stmt 2da1ab83b42d | constrained-scan | motion_rule_position | x1
 stmt 2da1ab83b42d | constrained-scan | s(mint_supersedes|stretch) | x1
 stmt 2da1ab83b42d | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt 2f2945775566 | constrained-scan | finding | x1
+stmt 3230a8fd0efc | automatic-index | answers_retired (gap_id=?) | x1
+stmt 3230a8fd0efc | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt 3230a8fd0efc | automatic-index | evidence (anchor_id=?) | x3
+stmt 3230a8fd0efc | automatic-index | evidence_met (gap_id=?) | x1
+stmt 3230a8fd0efc | automatic-index | gap_grade (minted_event=?) | x1
+stmt 3230a8fd0efc | automatic-index | latest_check (anchor=? | x1
+stmt 3230a8fd0efc | automatic-index | latest_remand (gap_id=?) | x1
+stmt 3230a8fd0efc | automatic-index | superseded (gap_id=?) | x1
+stmt 3230a8fd0efc | automatic-index | unruled_docket (gap_id=?) | x1
 stmt 33a3c31ecc0d | automatic-index | answers_retired (gap_id=?) | x1
 stmt 33a3c31ecc0d | automatic-index | c(close|closure) (gap_id=?) | x1
 stmt 33a3c31ecc0d | automatic-index | evidence (anchor_id=?) | x3
@@ -52,42 +44,42 @@ stmt 33a3c31ecc0d | automatic-index | latest_check (anchor=? | x1
 stmt 33a3c31ecc0d | automatic-index | latest_remand (gap_id=?) | x1
 stmt 33a3c31ecc0d | automatic-index | superseded (gap_id=?) | x1
 stmt 33a3c31ecc0d | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 33a3c31ecc0d | constrained-scan | c(close|closure) | x1
+stmt 33a3c31ecc0d | constrained-scan | c(close|closure) | x2
 stmt 33a3c31ecc0d | constrained-scan | mint | x3
-stmt 33a3c31ecc0d | constrained-scan | mint_supersedes | x1
 stmt 33a3c31ecc0d | constrained-scan | motion_rule_docket | x2
 stmt 33a3c31ecc0d | constrained-scan | motion_rule_position | x1
 stmt 33a3c31ecc0d | constrained-scan | s(mint_supersedes|stretch) | x1
 stmt 33a3c31ecc0d | constrained-scan | x(cite|computation|reproduce|verify) | x4
-stmt 3508c983a1c8 | automatic-index | answers_retired (gap_id=?) | x1
-stmt 3508c983a1c8 | automatic-index | c(close|closure) (gap_id=?) | x1
-stmt 3508c983a1c8 | automatic-index | evidence (anchor_id=?) | x3
-stmt 3508c983a1c8 | automatic-index | evidence_met (gap_id=?) | x1
-stmt 3508c983a1c8 | automatic-index | gap_grade (minted_event=?) | x1
-stmt 3508c983a1c8 | automatic-index | latest_check (anchor=? | x1
-stmt 3508c983a1c8 | automatic-index | latest_remand (gap_id=?) | x1
-stmt 3508c983a1c8 | automatic-index | superseded (gap_id=?) | x1
-stmt 3508c983a1c8 | automatic-index | unruled_docket (gap_id=?) | x1
 stmt 3df95c2f61ec | constrained-scan | mint | x1
+stmt 4034a172bb4d | automatic-index | answers_retired (gap_id=?) | x1
+stmt 4034a172bb4d | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt 4034a172bb4d | automatic-index | evidence (anchor_id=?) | x3
+stmt 4034a172bb4d | automatic-index | evidence_met (gap_id=?) | x1
+stmt 4034a172bb4d | automatic-index | latest_check (anchor=? | x1
+stmt 4034a172bb4d | automatic-index | latest_remand (gap_id=?) | x1
+stmt 4034a172bb4d | automatic-index | superseded (gap_id=?) | x1
+stmt 4034a172bb4d | automatic-index | unruled_docket (gap_id=?) | x1
+stmt 4034a172bb4d | constrained-scan | c(close|closure) | x2
+stmt 4034a172bb4d | constrained-scan | mint | x3
+stmt 4034a172bb4d | constrained-scan | motion_rule_docket | x2
+stmt 4034a172bb4d | constrained-scan | motion_rule_position | x1
+stmt 4034a172bb4d | constrained-scan | s(mint_supersedes|stretch) | x1
+stmt 4034a172bb4d | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt 458afa9f844d | constrained-scan | reproduce | x1
-stmt 4770e2cd76cb | automatic-index | answers_retired (gap_id=?) | x1
-stmt 4770e2cd76cb | automatic-index | c(close|closure) (gap_id=?) | x1
-stmt 4770e2cd76cb | automatic-index | evidence (anchor_id=?) | x3
-stmt 4770e2cd76cb | automatic-index | evidence_met (gap_id=?) | x1
-stmt 4770e2cd76cb | automatic-index | gap_grade (minted_event=?) | x1
-stmt 4770e2cd76cb | automatic-index | latest_check (anchor=? | x1
-stmt 4770e2cd76cb | automatic-index | latest_remand (gap_id=?) | x1
-stmt 4770e2cd76cb | automatic-index | superseded (gap_id=?) | x1
-stmt 4770e2cd76cb | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 4babf560716b | automatic-index | answers_retired (gap_id=?) | x1
-stmt 4babf560716b | automatic-index | c(close|closure) (gap_id=?) | x1
-stmt 4babf560716b | automatic-index | evidence (anchor_id=?) | x3
-stmt 4babf560716b | automatic-index | evidence_met (gap_id=?) | x1
-stmt 4babf560716b | automatic-index | gap_grade (minted_event=?) | x1
-stmt 4babf560716b | automatic-index | latest_check (anchor=? | x1
-stmt 4babf560716b | automatic-index | latest_remand (gap_id=?) | x1
-stmt 4babf560716b | automatic-index | superseded (gap_id=?) | x1
-stmt 4babf560716b | automatic-index | unruled_docket (gap_id=?) | x1
+stmt 48fe230e326a | automatic-index | answers_retired (gap_id=?) | x1
+stmt 48fe230e326a | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt 48fe230e326a | automatic-index | evidence (anchor_id=?) | x3
+stmt 48fe230e326a | automatic-index | evidence_met (gap_id=?) | x1
+stmt 48fe230e326a | automatic-index | latest_check (anchor=? | x1
+stmt 48fe230e326a | automatic-index | latest_remand (gap_id=?) | x1
+stmt 48fe230e326a | automatic-index | superseded (gap_id=?) | x1
+stmt 48fe230e326a | automatic-index | unruled_docket (gap_id=?) | x1
+stmt 48fe230e326a | constrained-scan | c(close|closure) | x2
+stmt 48fe230e326a | constrained-scan | mint | x3
+stmt 48fe230e326a | constrained-scan | motion_rule_docket | x2
+stmt 48fe230e326a | constrained-scan | motion_rule_position | x1
+stmt 48fe230e326a | constrained-scan | s(mint_supersedes|stretch) | x1
+stmt 48fe230e326a | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt 4e1d7b4a9741 | constrained-scan | events | x1
 stmt 4ebc058246d8 | automatic-index | answers_retired (gap_id=?) | x1
 stmt 4ebc058246d8 | automatic-index | c(close|closure) (gap_id=?) | x1
@@ -98,9 +90,8 @@ stmt 4ebc058246d8 | automatic-index | latest_check (anchor=? | x1
 stmt 4ebc058246d8 | automatic-index | latest_remand (gap_id=?) | x1
 stmt 4ebc058246d8 | automatic-index | superseded (gap_id=?) | x1
 stmt 4ebc058246d8 | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 4ebc058246d8 | constrained-scan | c(close|closure) | x1
+stmt 4ebc058246d8 | constrained-scan | c(close|closure) | x2
 stmt 4ebc058246d8 | constrained-scan | mint | x3
-stmt 4ebc058246d8 | constrained-scan | mint_supersedes | x1
 stmt 4ebc058246d8 | constrained-scan | motion_rule_docket | x2
 stmt 4ebc058246d8 | constrained-scan | motion_rule_position | x1
 stmt 4ebc058246d8 | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -113,9 +104,8 @@ stmt 5092371cdcdd | automatic-index | latest_check (anchor=? | x1
 stmt 5092371cdcdd | automatic-index | latest_remand (gap_id=?) | x1
 stmt 5092371cdcdd | automatic-index | superseded (gap_id=?) | x1
 stmt 5092371cdcdd | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 5092371cdcdd | constrained-scan | c(close|closure) | x1
+stmt 5092371cdcdd | constrained-scan | c(close|closure) | x2
 stmt 5092371cdcdd | constrained-scan | mint | x3
-stmt 5092371cdcdd | constrained-scan | mint_supersedes | x1
 stmt 5092371cdcdd | constrained-scan | motion_rule_docket | x2
 stmt 5092371cdcdd | constrained-scan | motion_rule_position | x1
 stmt 5092371cdcdd | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -147,10 +137,25 @@ stmt 63e7fe8cf2f7 | constrained-scan | c(close|closed) | x1
 stmt 63e7fe8cf2f7 | constrained-scan | events [min/max] | x3
 stmt 63e7fe8cf2f7 | constrained-scan | mint | x2
 stmt 63e7fe8cf2f7 | constrained-scan | motion_rule_docket | x1
+stmt 63e7fe8cf2f7 | constrained-scan | s(mint_supersedes|stretch) | x1
 stmt 668d1beb0b81 | constrained-scan | mint | x1
 stmt 68044d32f65b | automatic-index | x (event_id=?) | x1
 stmt 68044d32f65b | constrained-scan | blue_edit | x1
 stmt 68044d32f65b | constrained-scan | r(blue_edit_reopened|retire) | x1
+stmt 7a670fb0bc25 | automatic-index | answers_retired (gap_id=?) | x1
+stmt 7a670fb0bc25 | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt 7a670fb0bc25 | automatic-index | evidence (anchor_id=?) | x3
+stmt 7a670fb0bc25 | automatic-index | evidence_met (gap_id=?) | x1
+stmt 7a670fb0bc25 | automatic-index | latest_check (anchor=? | x1
+stmt 7a670fb0bc25 | automatic-index | latest_remand (gap_id=?) | x1
+stmt 7a670fb0bc25 | automatic-index | superseded (gap_id=?) | x1
+stmt 7a670fb0bc25 | automatic-index | unruled_docket (gap_id=?) | x1
+stmt 7a670fb0bc25 | constrained-scan | c(close|closure) | x2
+stmt 7a670fb0bc25 | constrained-scan | mint | x3
+stmt 7a670fb0bc25 | constrained-scan | motion_rule_docket | x2
+stmt 7a670fb0bc25 | constrained-scan | motion_rule_position | x1
+stmt 7a670fb0bc25 | constrained-scan | s(mint_supersedes|stretch) | x1
+stmt 7a670fb0bc25 | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt 82cc4d12574a | automatic-index | answers_retired (gap_id=?) | x1
 stmt 82cc4d12574a | automatic-index | c(close|closure) (gap_id=?) | x1
 stmt 82cc4d12574a | automatic-index | evidence (anchor_id=?) | x3
@@ -160,9 +165,8 @@ stmt 82cc4d12574a | automatic-index | latest_check (anchor=? | x1
 stmt 82cc4d12574a | automatic-index | latest_remand (gap_id=?) | x1
 stmt 82cc4d12574a | automatic-index | superseded (gap_id=?) | x1
 stmt 82cc4d12574a | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 82cc4d12574a | constrained-scan | c(close|closure) | x1
+stmt 82cc4d12574a | constrained-scan | c(close|closure) | x2
 stmt 82cc4d12574a | constrained-scan | mint | x3
-stmt 82cc4d12574a | constrained-scan | mint_supersedes | x1
 stmt 82cc4d12574a | constrained-scan | motion_rule_docket | x2
 stmt 82cc4d12574a | constrained-scan | motion_rule_position | x1
 stmt 82cc4d12574a | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -179,9 +183,8 @@ stmt 95300ff5b28a | automatic-index | latest_check (anchor=? | x1
 stmt 95300ff5b28a | automatic-index | latest_remand (gap_id=?) | x1
 stmt 95300ff5b28a | automatic-index | superseded (gap_id=?) | x1
 stmt 95300ff5b28a | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 95300ff5b28a | constrained-scan | c(close|closure) | x1
+stmt 95300ff5b28a | constrained-scan | c(close|closure) | x2
 stmt 95300ff5b28a | constrained-scan | mint | x3
-stmt 95300ff5b28a | constrained-scan | mint_supersedes | x1
 stmt 95300ff5b28a | constrained-scan | motion_rule_docket | x2
 stmt 95300ff5b28a | constrained-scan | motion_rule_position | x1
 stmt 95300ff5b28a | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -196,9 +199,8 @@ stmt a2cf5c4411fe | automatic-index | latest_check (anchor=? | x1
 stmt a2cf5c4411fe | automatic-index | latest_remand (gap_id=?) | x1
 stmt a2cf5c4411fe | automatic-index | superseded (gap_id=?) | x1
 stmt a2cf5c4411fe | automatic-index | unruled_docket (gap_id=?) | x1
-stmt a2cf5c4411fe | constrained-scan | c(close|closure) | x1
+stmt a2cf5c4411fe | constrained-scan | c(close|closure) | x2
 stmt a2cf5c4411fe | constrained-scan | mint | x3
-stmt a2cf5c4411fe | constrained-scan | mint_supersedes | x1
 stmt a2cf5c4411fe | constrained-scan | motion_rule_docket | x2
 stmt a2cf5c4411fe | constrained-scan | motion_rule_position | x1
 stmt a2cf5c4411fe | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -211,9 +213,8 @@ stmt a5704baaf93c | automatic-index | latest_check (anchor=? | x1
 stmt a5704baaf93c | automatic-index | latest_remand (gap_id=?) | x1
 stmt a5704baaf93c | automatic-index | superseded (gap_id=?) | x1
 stmt a5704baaf93c | automatic-index | unruled_docket (gap_id=?) | x1
-stmt a5704baaf93c | constrained-scan | c(close|closure) | x1
+stmt a5704baaf93c | constrained-scan | c(close|closure) | x2
 stmt a5704baaf93c | constrained-scan | mint | x3
-stmt a5704baaf93c | constrained-scan | mint_supersedes | x1
 stmt a5704baaf93c | constrained-scan | motion_rule_docket | x2
 stmt a5704baaf93c | constrained-scan | motion_rule_position | x1
 stmt a5704baaf93c | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -227,9 +228,8 @@ stmt a9ee89157651 | automatic-index | latest_check (anchor=? | x1
 stmt a9ee89157651 | automatic-index | latest_remand (gap_id=?) | x1
 stmt a9ee89157651 | automatic-index | superseded (gap_id=?) | x1
 stmt a9ee89157651 | automatic-index | unruled_docket (gap_id=?) | x1
-stmt a9ee89157651 | constrained-scan | c(close|closure) | x1
+stmt a9ee89157651 | constrained-scan | c(close|closure) | x2
 stmt a9ee89157651 | constrained-scan | mint | x3
-stmt a9ee89157651 | constrained-scan | mint_supersedes | x1
 stmt a9ee89157651 | constrained-scan | motion_rule_docket | x2
 stmt a9ee89157651 | constrained-scan | motion_rule_position | x1
 stmt a9ee89157651 | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -252,9 +252,8 @@ stmt b3cbd1fb249f | automatic-index | latest_check (anchor=? | x1
 stmt b3cbd1fb249f | automatic-index | latest_remand (gap_id=?) | x1
 stmt b3cbd1fb249f | automatic-index | superseded (gap_id=?) | x1
 stmt b3cbd1fb249f | automatic-index | unruled_docket (gap_id=?) | x1
-stmt b3cbd1fb249f | constrained-scan | c(close|closure) | x1
+stmt b3cbd1fb249f | constrained-scan | c(close|closure) | x2
 stmt b3cbd1fb249f | constrained-scan | mint | x3
-stmt b3cbd1fb249f | constrained-scan | mint_supersedes | x1
 stmt b3cbd1fb249f | constrained-scan | motion_rule_docket | x2
 stmt b3cbd1fb249f | constrained-scan | motion_rule_position | x1
 stmt b3cbd1fb249f | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -269,30 +268,14 @@ stmt b86463934924 | automatic-index | latest_check (anchor=? | x1
 stmt b86463934924 | automatic-index | latest_remand (gap_id=?) | x1
 stmt b86463934924 | automatic-index | superseded (gap_id=?) | x1
 stmt b86463934924 | automatic-index | unruled_docket (gap_id=?) | x1
-stmt b86463934924 | constrained-scan | c(close|closure) | x1
+stmt b86463934924 | constrained-scan | c(close|closure) | x2
 stmt b86463934924 | constrained-scan | events | x1
 stmt b86463934924 | constrained-scan | mint | x3
-stmt b86463934924 | constrained-scan | mint_supersedes | x1
 stmt b86463934924 | constrained-scan | motion_rule_docket | x2
 stmt b86463934924 | constrained-scan | motion_rule_position | x1
 stmt b86463934924 | constrained-scan | s(mint_supersedes|stretch) | x1
 stmt b86463934924 | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt b98c1970a400 | constrained-scan | events [min/max] | x1
-stmt b9e1f967f46b | automatic-index | answers_retired (gap_id=?) | x1
-stmt b9e1f967f46b | automatic-index | c(close|closure) (gap_id=?) | x1
-stmt b9e1f967f46b | automatic-index | evidence (anchor_id=?) | x3
-stmt b9e1f967f46b | automatic-index | evidence_met (gap_id=?) | x1
-stmt b9e1f967f46b | automatic-index | latest_check (anchor=? | x1
-stmt b9e1f967f46b | automatic-index | latest_remand (gap_id=?) | x1
-stmt b9e1f967f46b | automatic-index | superseded (gap_id=?) | x1
-stmt b9e1f967f46b | automatic-index | unruled_docket (gap_id=?) | x1
-stmt b9e1f967f46b | constrained-scan | c(close|closure) | x1
-stmt b9e1f967f46b | constrained-scan | mint | x3
-stmt b9e1f967f46b | constrained-scan | mint_supersedes | x1
-stmt b9e1f967f46b | constrained-scan | motion_rule_docket | x2
-stmt b9e1f967f46b | constrained-scan | motion_rule_position | x1
-stmt b9e1f967f46b | constrained-scan | s(mint_supersedes|stretch) | x1
-stmt b9e1f967f46b | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt ba2e62bd0528 | automatic-index | answers_retired (gap_id=?) | x1
 stmt ba2e62bd0528 | automatic-index | c(close|closure) (gap_id=?) | x1
 stmt ba2e62bd0528 | automatic-index | evidence (anchor_id=?) | x3
@@ -301,24 +284,14 @@ stmt ba2e62bd0528 | automatic-index | latest_check (anchor=? | x1
 stmt ba2e62bd0528 | automatic-index | latest_remand (gap_id=?) | x1
 stmt ba2e62bd0528 | automatic-index | superseded (gap_id=?) | x1
 stmt ba2e62bd0528 | automatic-index | unruled_docket (gap_id=?) | x1
-stmt ba2e62bd0528 | constrained-scan | c(close|closure) | x1
+stmt ba2e62bd0528 | constrained-scan | c(close|closure) | x2
 stmt ba2e62bd0528 | constrained-scan | mint | x3
-stmt ba2e62bd0528 | constrained-scan | mint_supersedes | x1
 stmt ba2e62bd0528 | constrained-scan | motion_rule_docket | x2
 stmt ba2e62bd0528 | constrained-scan | motion_rule_position | x1
 stmt ba2e62bd0528 | constrained-scan | s(mint_supersedes|stretch) | x1
 stmt ba2e62bd0528 | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt c30a01ded0b2 | constrained-scan | computation | x1
 stmt c4eaa3f0f946 | constrained-scan | x(cite|computation) | x2
-stmt c586d15901a4 | automatic-index | answers_retired (gap_id=?) | x1
-stmt c586d15901a4 | automatic-index | c(close|closure) (gap_id=?) | x1
-stmt c586d15901a4 | automatic-index | evidence (anchor_id=?) | x3
-stmt c586d15901a4 | automatic-index | evidence_met (gap_id=?) | x1
-stmt c586d15901a4 | automatic-index | gap_grade (minted_event=?) | x1
-stmt c586d15901a4 | automatic-index | latest_check (anchor=? | x1
-stmt c586d15901a4 | automatic-index | latest_remand (gap_id=?) | x1
-stmt c586d15901a4 | automatic-index | superseded (gap_id=?) | x1
-stmt c586d15901a4 | automatic-index | unruled_docket (gap_id=?) | x1
 stmt c80eb1aa2f4b | automatic-index | answers_retired (gap_id=?) | x1
 stmt c80eb1aa2f4b | automatic-index | c(close|closure) (gap_id=?) | x1
 stmt c80eb1aa2f4b | automatic-index | evidence (anchor_id=?) | x3
@@ -328,19 +301,42 @@ stmt c80eb1aa2f4b | automatic-index | latest_check (anchor=? | x1
 stmt c80eb1aa2f4b | automatic-index | latest_remand (gap_id=?) | x1
 stmt c80eb1aa2f4b | automatic-index | superseded (gap_id=?) | x1
 stmt c80eb1aa2f4b | automatic-index | unruled_docket (gap_id=?) | x1
-stmt c80eb1aa2f4b | constrained-scan | c(close|closure) | x1
+stmt c80eb1aa2f4b | constrained-scan | c(close|closure) | x2
 stmt c80eb1aa2f4b | constrained-scan | events | x1
 stmt c80eb1aa2f4b | constrained-scan | mint | x3
-stmt c80eb1aa2f4b | constrained-scan | mint_supersedes | x1
 stmt c80eb1aa2f4b | constrained-scan | motion_rule_docket | x2
 stmt c80eb1aa2f4b | constrained-scan | motion_rule_position | x1
 stmt c80eb1aa2f4b | constrained-scan | s(mint_supersedes|stretch) | x1
 stmt c80eb1aa2f4b | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt c83f0ae13cb3 | constrained-scan | mint | x1
 stmt c85ecc9b4718 | constrained-scan | register | x1
+stmt c8cc0dd5e50a | automatic-index | answers_retired (gap_id=?) | x1
+stmt c8cc0dd5e50a | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt c8cc0dd5e50a | automatic-index | evidence (anchor_id=?) | x3
+stmt c8cc0dd5e50a | automatic-index | evidence_met (gap_id=?) | x1
+stmt c8cc0dd5e50a | automatic-index | gap_grade (minted_event=?) | x1
+stmt c8cc0dd5e50a | automatic-index | latest_check (anchor=? | x1
+stmt c8cc0dd5e50a | automatic-index | latest_remand (gap_id=?) | x1
+stmt c8cc0dd5e50a | automatic-index | superseded (gap_id=?) | x1
+stmt c8cc0dd5e50a | automatic-index | unruled_docket (gap_id=?) | x1
 stmt ce992acb9962 | constrained-scan | x(cite|computation) | x2
 stmt cf74b4473d65 | constrained-scan | events | x1
 stmt d196121f7f29 | constrained-scan | cast [min/max] | x1
+stmt d1e7bd5ef2f7 | automatic-index | answers_retired (gap_id=?) | x1
+stmt d1e7bd5ef2f7 | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt d1e7bd5ef2f7 | automatic-index | evidence (anchor_id=?) | x3
+stmt d1e7bd5ef2f7 | automatic-index | evidence_met (gap_id=?) | x1
+stmt d1e7bd5ef2f7 | automatic-index | gap_grade (minted_event=?) | x1
+stmt d1e7bd5ef2f7 | automatic-index | latest_check (anchor=? | x1
+stmt d1e7bd5ef2f7 | automatic-index | latest_remand (gap_id=?) | x1
+stmt d1e7bd5ef2f7 | automatic-index | superseded (gap_id=?) | x1
+stmt d1e7bd5ef2f7 | automatic-index | unruled_docket (gap_id=?) | x1
+stmt d1e7bd5ef2f7 | constrained-scan | c(close|closure) | x2
+stmt d1e7bd5ef2f7 | constrained-scan | mint | x4
+stmt d1e7bd5ef2f7 | constrained-scan | motion_rule_docket | x2
+stmt d1e7bd5ef2f7 | constrained-scan | motion_rule_position | x1
+stmt d1e7bd5ef2f7 | constrained-scan | s(mint_supersedes|stretch) | x1
+stmt d1e7bd5ef2f7 | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt d8f359712b4d | automatic-index | answers_retired (gap_id=?) | x1
 stmt d8f359712b4d | automatic-index | c(close|closure) (gap_id=?) | x1
 stmt d8f359712b4d | automatic-index | evidence (anchor_id=?) | x3
@@ -350,9 +346,8 @@ stmt d8f359712b4d | automatic-index | latest_check (anchor=? | x1
 stmt d8f359712b4d | automatic-index | latest_remand (gap_id=?) | x1
 stmt d8f359712b4d | automatic-index | superseded (gap_id=?) | x1
 stmt d8f359712b4d | automatic-index | unruled_docket (gap_id=?) | x1
-stmt d8f359712b4d | constrained-scan | c(close|closure) | x1
+stmt d8f359712b4d | constrained-scan | c(close|closure) | x2
 stmt d8f359712b4d | constrained-scan | mint | x3
-stmt d8f359712b4d | constrained-scan | mint_supersedes | x1
 stmt d8f359712b4d | constrained-scan | motion_rule_docket | x2
 stmt d8f359712b4d | constrained-scan | motion_rule_position | x1
 stmt d8f359712b4d | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -365,9 +360,8 @@ stmt d9743db704d9 | automatic-index | latest_check (anchor=? | x1
 stmt d9743db704d9 | automatic-index | latest_remand (gap_id=?) | x1
 stmt d9743db704d9 | automatic-index | superseded (gap_id=?) | x1
 stmt d9743db704d9 | automatic-index | unruled_docket (gap_id=?) | x1
-stmt d9743db704d9 | constrained-scan | c(close|closure) | x1
+stmt d9743db704d9 | constrained-scan | c(close|closure) | x2
 stmt d9743db704d9 | constrained-scan | mint | x3
-stmt d9743db704d9 | constrained-scan | mint_supersedes | x1
 stmt d9743db704d9 | constrained-scan | motion_rule_docket | x2
 stmt d9743db704d9 | constrained-scan | motion_rule_position | x1
 stmt d9743db704d9 | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -381,9 +375,8 @@ stmt e232412c2186 | automatic-index | latest_check (anchor=? | x1
 stmt e232412c2186 | automatic-index | latest_remand (gap_id=?) | x1
 stmt e232412c2186 | automatic-index | superseded (gap_id=?) | x1
 stmt e232412c2186 | automatic-index | unruled_docket (gap_id=?) | x1
-stmt e232412c2186 | constrained-scan | c(close|closure) | x1
+stmt e232412c2186 | constrained-scan | c(close|closure) | x2
 stmt e232412c2186 | constrained-scan | mint | x3
-stmt e232412c2186 | constrained-scan | mint_supersedes | x1
 stmt e232412c2186 | constrained-scan | motion_rule_docket | x2
 stmt e232412c2186 | constrained-scan | motion_rule_position | x1
 stmt e232412c2186 | constrained-scan | s(mint_supersedes|stretch) | x1
@@ -397,15 +390,23 @@ stmt e418d8bdc023 | automatic-index | latest_check (anchor=? | x1
 stmt e418d8bdc023 | automatic-index | latest_remand (gap_id=?) | x1
 stmt e418d8bdc023 | automatic-index | superseded (gap_id=?) | x1
 stmt e418d8bdc023 | automatic-index | unruled_docket (gap_id=?) | x1
-stmt e418d8bdc023 | constrained-scan | c(close|closure) | x1
+stmt e418d8bdc023 | constrained-scan | c(close|closure) | x2
 stmt e418d8bdc023 | constrained-scan | events | x1
 stmt e418d8bdc023 | constrained-scan | mint | x3
-stmt e418d8bdc023 | constrained-scan | mint_supersedes | x1
 stmt e418d8bdc023 | constrained-scan | motion_rule_docket | x2
 stmt e418d8bdc023 | constrained-scan | motion_rule_position | x1
 stmt e418d8bdc023 | constrained-scan | s(mint_supersedes|stretch) | x1
 stmt e418d8bdc023 | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt e5a94815fabd | constrained-scan | blue_edit | x1
+stmt ed01111b482f | automatic-index | answers_retired (gap_id=?) | x1
+stmt ed01111b482f | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt ed01111b482f | automatic-index | evidence (anchor_id=?) | x3
+stmt ed01111b482f | automatic-index | evidence_met (gap_id=?) | x1
+stmt ed01111b482f | automatic-index | gap_grade (minted_event=?) | x1
+stmt ed01111b482f | automatic-index | latest_check (anchor=? | x1
+stmt ed01111b482f | automatic-index | latest_remand (gap_id=?) | x1
+stmt ed01111b482f | automatic-index | superseded (gap_id=?) | x1
+stmt ed01111b482f | automatic-index | unruled_docket (gap_id=?) | x1
 stmt f2743f0cdeaa | automatic-index | answers_retired (gap_id=?) | x1
 stmt f2743f0cdeaa | automatic-index | c(close|closure) (gap_id=?) | x1
 stmt f2743f0cdeaa | automatic-index | evidence (anchor_id=?) | x3
@@ -415,7 +416,30 @@ stmt f2743f0cdeaa | automatic-index | latest_check (anchor=? | x1
 stmt f2743f0cdeaa | automatic-index | latest_remand (gap_id=?) | x1
 stmt f2743f0cdeaa | automatic-index | superseded (gap_id=?) | x1
 stmt f2743f0cdeaa | automatic-index | unruled_docket (gap_id=?) | x1
+stmt f392fa27b5f3 | automatic-index | answers_retired (gap_id=?) | x1
+stmt f392fa27b5f3 | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt f392fa27b5f3 | automatic-index | evidence (anchor_id=?) | x3
+stmt f392fa27b5f3 | automatic-index | evidence_met (gap_id=?) | x1
+stmt f392fa27b5f3 | automatic-index | latest_check (anchor=? | x1
+stmt f392fa27b5f3 | automatic-index | latest_remand (gap_id=?) | x1
+stmt f392fa27b5f3 | automatic-index | superseded (gap_id=?) | x1
+stmt f392fa27b5f3 | automatic-index | unruled_docket (gap_id=?) | x1
+stmt f392fa27b5f3 | constrained-scan | c(close|closure) | x2
+stmt f392fa27b5f3 | constrained-scan | mint | x3
+stmt f392fa27b5f3 | constrained-scan | motion_rule_docket | x2
+stmt f392fa27b5f3 | constrained-scan | motion_rule_position | x1
+stmt f392fa27b5f3 | constrained-scan | s(mint_supersedes|stretch) | x1
+stmt f392fa27b5f3 | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt f82df4d27e93 | constrained-scan | events [min/max] | x2
+stmt fdb2f48a3424 | automatic-index | answers_retired (gap_id=?) | x1
+stmt fdb2f48a3424 | automatic-index | c(close|closure) (gap_id=?) | x1
+stmt fdb2f48a3424 | automatic-index | evidence (anchor_id=?) | x3
+stmt fdb2f48a3424 | automatic-index | evidence_met (gap_id=?) | x1
+stmt fdb2f48a3424 | automatic-index | gap_grade (minted_event=?) | x1
+stmt fdb2f48a3424 | automatic-index | latest_check (anchor=? | x1
+stmt fdb2f48a3424 | automatic-index | latest_remand (gap_id=?) | x1
+stmt fdb2f48a3424 | automatic-index | superseded (gap_id=?) | x1
+stmt fdb2f48a3424 | automatic-index | unruled_docket (gap_id=?) | x1
 view agent_binding | correlated-scan | register [min/max] | x1
 view agent_binding | correlated-scan | register | x1
 view agent_binding | correlated-scan | sitting_open [min/max] | x1

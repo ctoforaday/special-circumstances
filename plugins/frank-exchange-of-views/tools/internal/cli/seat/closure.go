@@ -21,7 +21,7 @@ func ClosureFlags(c *cobra.Command) {
 	Require(c, flags.ID)
 	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended — the same words the bench's dispositions use"))
 	Require(c, flags.As)
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.SupersededBy, "the gap id carrying the unresolved remainder forward")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.SupersededBy, "the gap id carrying the regression forward; only with --as repaired_with_regression")
 }
 
 // ClosurePayload reads the closure a verb carries. Its disposition is the seat's to state: the tool

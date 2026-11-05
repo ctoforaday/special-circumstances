@@ -29,7 +29,6 @@ import (
 type BlockerKind string
 
 const (
-	BlockerStrandedGap      BlockerKind = "stranded_gap"
 	BlockerMaterialGap      BlockerKind = "material_gap"
 	BlockerRemandOwed       BlockerKind = "remand_owed"
 	BlockerUnchecked        BlockerKind = "unchecked"
@@ -55,9 +54,8 @@ type Blocker struct {
 	// ready lens, the motion's gavel-holder, the chair for its own reads — and "" where no seat on
 	// the record can.
 	Owner string
-	// Detail is what the wording needs beyond the subject: a stranded gap's successor, a motion's
-	// subject and gavel, a stale area's pin, an unchecked or failed-check computation's sha256 (""
-	// for a citation).
+	// Detail is what the wording needs beyond the subject: a motion's subject and gavel, a stale
+	// area's pin, an unchecked or failed-check computation's sha256 ("" for a citation).
 	Detail string
 	// state is a failed check's state (CheckState); "" for every other kind.
 	state CheckState
@@ -122,17 +120,12 @@ func (b Blocker) owed() bool {
 	return b.Kind == BlockerFailedCheck && b.state != CheckFoundAgainst && b.answeredBy == ""
 }
 
-// Every reports whether the blocker holds every verdict, not only a PASS.
-func (b Blocker) Every() bool { return kindOf(b.Kind).every }
-
 // ChairOwned reports whether the chair clears it in its own sitting.
 func (b Blocker) ChairOwned() bool { return b.Owner == chairSeat }
 
 // blockerKind is one row of the table every surface words a blocker from.
 type blockerKind struct {
 	kind BlockerKind
-	// every: it holds every verdict, not only a PASS.
-	every bool
 	// gloss is the help page's phrase for the kind.
 	gloss string
 	// item is the chair's work-list sentence for one blocker.
@@ -351,21 +344,6 @@ func subjects(bs []Blocker) []string {
 
 // blockerKinds is the table, in the order the work list and the refusal state them.
 var blockerKinds = []blockerKind{
-	{
-		kind: BlockerStrandedGap, every: true,
-		gloss: "a superseded gap still open (this holds a FAIL too)",
-		item: func(b Blocker) string {
-			return fmt.Sprintf("gap %s is open and superseded by %s — every verdict is refused while it is; %s closes it naming its successor", b.Subject, b.Detail, ownerPhrase(b, "minter", "the lens that minted it"))
-		},
-		refusal: func(bs []Blocker) string {
-			var named []string
-			for _, b := range bs {
-				named = append(named, fmt.Sprintf("%s (superseded by %s)", b.Subject, b.Detail))
-			}
-			return fmt.Sprintf("%d superseded gap(s) are still OPEN: %s. Superseding is a promise to replace, and an ancestor left open is the same defect counted twice: the run then reports more open gaps than it has distinct ones. The lens that minted each closes it with the lens's `close --superseded-by` naming its replacement, or if it is genuinely still live, it was not superseded",
-				len(bs), strings.Join(named, ", "))
-		},
-	},
 	{
 		kind:  BlockerMaterialGap,
 		gloss: "an open material gap (material by its class, else graded medium or above)",
@@ -645,8 +623,8 @@ func PassBlockerGlosses() []string {
 // blockerGap is an open gap as the list reads it: the gap view's columns, off whichever reader
 // the caller already holds (the work path's states, the plan's open gaps).
 type blockerGap struct {
-	id, mintedBy, supersededBy string
-	material                   bool
+	id, mintedBy string
+	material     bool
 	// latestRemandOwed is the gap's latest remand with no exchange since its ruling in which blue
 	// acted on the gap (latestRemandOwed).
 	latestRemandOwed bool
@@ -669,11 +647,7 @@ func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
 		if !g.Open {
 			continue
 		}
-		sup := ""
-		if g.Stranded {
-			sup = g.SupersededBy
-		}
-		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, supersededBy: sup, material: g.Material, latestRemandOwed: g.latestRemandOwed,
+		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, material: g.Material, latestRemandOwed: g.latestRemandOwed,
 			inquiry: inquiryAbout(g.AboutKind, g.AboutRef)})
 	}
 	return out
@@ -685,7 +659,7 @@ func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
 func blockerGapsOfOpen(gaps []openGap, owed map[string]bool) []blockerGap {
 	out := make([]blockerGap, 0, len(gaps))
 	for _, g := range gaps {
-		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, supersededBy: g.supersededBy, material: g.material, latestRemandOwed: owed[g.id], inquiry: g.inquiry})
+		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, material: g.material, latestRemandOwed: owed[g.id], inquiry: g.inquiry})
 	}
 	return out
 }
@@ -698,17 +672,12 @@ func blockerGapsOfOpen(gaps []openGap, owed map[string]bool) []blockerGap {
 func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, fresh map[string]bool) []Blocker {
 	var out []Blocker
 	for _, g := range gaps {
-		if g.supersededBy != "" {
-			out = append(out, Blocker{Kind: BlockerStrandedGap, Subject: g.id, Owner: g.mintedBy, Detail: g.supersededBy})
-		}
-	}
-	for _, g := range gaps {
-		if g.supersededBy == "" && g.material {
+		if g.material {
 			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
 	for _, g := range gaps {
-		if g.supersededBy == "" && !g.material && g.latestRemandOwed {
+		if !g.material && g.latestRemandOwed {
 			out = append(out, Blocker{Kind: BlockerRemandOwed, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
@@ -846,23 +815,16 @@ func passBlockersOfReads(r planReads) []Blocker {
 	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh)
 }
 
-// requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict over the
-// kinds that hold every verdict. A FAIL is then held to the convergence rule, which stands only while
-// nothing another seat must act on holds the PASS — so its "or issue `--as PASS`" is true apart from
-// the chair's own items.
+// requireNoBlockers is the verdict gate. A PASS is refused over every blocker. A FAIL is then held to
+// the convergence rule, which stands only while nothing another seat must act on holds the PASS — so
+// its "or issue `--as PASS`" is true apart from the chair's own items.
 //
 // AN ACT JUDGEMENT (judgeAct; gblock, 2026-10-24): an archived verdict is carried as history. The
 // archived b7 and b9 runs' PASSes stand over gaps their classes now make material, and the replay
 // writes them as the chair issued them.
 func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker) error {
-	var holding []Blocker
-	for _, b := range blockers {
-		if b.Every() || verdict == recordpb.Verdict_VERDICT_PASS {
-			holding = append(holding, b)
-		}
-	}
-	if len(holding) > 0 {
-		return blockerRefusal(holding)
+	if verdict == recordpb.Verdict_VERDICT_PASS && len(blockers) > 0 {
+		return blockerRefusal(blockers)
 	}
 	if verdict == recordpb.Verdict_VERDICT_FAIL {
 		return requireFailIsNotConvergent(w, blockers)
@@ -913,14 +875,7 @@ func requireBenchMotionsRuled(q recordsql.Querier) error {
 // kind's paragraph once. It is a Conflict: the verdict contradicts the board, and a caller reading
 // the refusal envelope tells it from a tool failure by the code, not the sentence.
 func blockerRefusal(holding []Blocker) error {
-	every := true
-	for _, b := range holding {
-		every = every && b.Every()
-	}
 	head := "PASS refused — "
-	if every {
-		head = "a verdict is refused — "
-	}
 	var paras []string
 	for _, r := range blockerKinds {
 		var of []Blocker

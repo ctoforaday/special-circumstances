@@ -48,7 +48,10 @@ import (
 // (whether you disagree, whether the claim should go) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
-func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatID string) []Item {
+//
+// blueOut is the run in the epoch that holds blue out (blueHeldOut, under the run's terms): the
+// chair's row for a remanded gap says what the dispatch can still do there.
+func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatID string, blueOut bool) []Item {
 	out := []Item{}
 	// Blocks is FALSE on every one of these: an affordance is open work, not owed work,
 	// and that distinction is the whole content of the rule this file used to split a list
@@ -134,8 +137,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			// rules it, so docketing a gap that is not material would create the block the gap
 			// itself does not — the one the chair's by-class listing exists to avoid. The verb is
 			// not refused (a party may still docket such a gap); the list just does not offer it.
-			// A stranded gap is held as material, so the offer stays on it.
-			if !g.Open || pending[g.ID] || !(g.Material || g.Stranded) {
+			if !g.Open || pending[g.ID] || !g.Material {
 				continue
 			}
 			// ONE ROW PER GAP, BETTER WORDS WHEN THE BOARD KNOWS MORE (#759).
@@ -152,7 +154,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			// than this file's paraphrase of them. What happens next is the dispatch's, and the row
 			// says it by the plan's own predicate (routeOf).
 			if g.Remanded {
-				add(remandedGapForChair(g))
+				add(remandedGapForChair(g, blueOut))
 				continue
 			}
 			add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
@@ -533,9 +535,16 @@ func remandItem(g WorkGapState, blue bool) string {
 }
 
 // remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
-// the plan's own predicate (routeOf).
-func remandedGapForChair(g WorkGapState) string {
+// the plan's own predicate (routeOf). In the epoch that holds blue out (blueOut), an exchange still
+// waiting on blue's act cannot be had before the run ends, and the plan lists it as owed work nowhere.
+func remandedGapForChair(g WorkGapState, blueOut bool) string {
 	const head = "gap "
+	switch {
+	case g.route == routeRemandOwed && blueOut && g.lensDue:
+		return head + g.ID + " is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its minting lens to audit that answer, which ends the one more exchange; " + blueHeldOutClause + ": " + g.DocketDirection
+	case g.route == routeRemandOwed && blueOut:
+		return head + g.ID + " is open because the BENCH REMANDED it — its one more exchange begins with blue's act, and " + blueHeldOutClause + ", so that exchange cannot be had before the run ends; the gap stays open and holds the PASS: " + g.DocketDirection
+	}
 	switch g.route {
 	case routeRemandOwed:
 		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies blue for one more exchange on the research direction the ruling states, and its minting lens once blue has acted: " + g.DocketDirection

@@ -58,6 +58,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [reopened](#reopened) | lens, chair, blue, lane, operator |
 | [unchecked](#unchecked) | lens, chair, blue, lane, operator |
 | [failed check](#failed-check) | lens, chair, blue, lane, bench, operator |
+| [superseded](#superseded) | lens, chair, blue, bench, operator |
 
 ## the report
 
@@ -631,3 +632,22 @@ A citation or computation is unchecked when no check of the sentence the report 
 A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, every reading of the citation since its sentence last changed read nothing of the cited work, or a lens's standing reading found the cited source against the sentence and, in the same act, minted the gap that carries it or named the open gap that already does — which holds the PASS and is cleared by no bench ruling; an unread or unsound check obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation or a found-against citation by the checking lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about or whose reading it carries and the later check of that anchor by the seat whose check the gap carries that holds.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
+
+## superseded
+
+A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor, so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.
+
+**Delivered to:** lens, chair, blue, bench, operator
+
+**Not:**
+
+| variant | kind | pattern | masks | allowed in |
+|---|---|---|---|---|
+| stranded gap | GATED | `stranded (superseded )?(gaps?\|ancestors?)` |  |  |
+
+**Collisions:**
+
+- **superseded (a closed gap)** — a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, so only the mint that names the gap while it is open supersedes it
+- **`--superseded-by` (close)** — names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed
+- **superseded_by (retire)** — a retired claim's replacement in the report; not a gap
+- **superseded (an inquiry's record or a bench statement)** — a later record of the same thing standing in its place; not a gap's fate

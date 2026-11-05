@@ -117,7 +117,7 @@ func TestABenchRulingDoesNotClearAnUnreadCitation(t *testing.T) {
 }
 
 // THE CLOSE OF THE GAP THAT CARRIES A FAILED CHECK IS REFUSED WHILE THE CHECK STANDS (requireFailedCheckAnswered),
-// whatever its class; one that names a live successor hands the defect on and is recorded; and once
+// whatever its class; a successor minted superseding it hands the defect on and closes it; and once
 // blue retires the citation, it closes.
 func TestTheGapAboutAFailedCheckClosesOnlyOnceTheCheckIsAnswered(t *testing.T) {
 	closeAs := func(gap string, word recordpb.Disposition) *recordpb.Close {
@@ -131,10 +131,16 @@ func TestTheGapAboutAFailedCheckClosesOnlyOnceTheCheckIsAnswered(t *testing.T) {
 		_, err := Append(lens, closeAs("G-1", word))
 		mustRefuse(t, err, "gap G-1 carries citation C-1", "Nothing is recorded", "retires the citation")
 	}
-	mustAppend(t, lens, budgetMint("G-2"))
+	mustAppend(t, lens, budgetMint("G-3"))
 	handed := closeAs("G-1", recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION)
-	handed.Successor = proto.String("G-2")
-	mustAppend(t, lens, handed)
+	handed.Successor = proto.String("G-3")
+	_, err := Append(lens, handed)
+	mustRefuse(t, err, "gap G-1 carries citation C-1")
+	// A successor minted superseding G-1 carries the defect on, and closes G-1 in that act.
+	mustAppend(t, lens, budgetMint("G-2", "G-1"))
+	if err := requireNotSuperseded(recordOf(t, run), "G-1", "--id"); err == nil {
+		t.Errorf("G-1 is open after G-2 was minted superseding it")
+	}
 
 	// Blue retires the citation and keeps its sentence (the verb's guard is cli/blue's; the record
 	// layer is under test here).

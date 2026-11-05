@@ -51,8 +51,7 @@ func TestAPlanThatReadiesNobodyPrintsItsListsAsLists(t *testing.T) {
 	}
 }
 
-// passItems is the chair's blocking items that name a gap refusing PASS: a material gap refuses
-// PASS, a stranded one every verdict.
+// passItems is the chair's blocking items that name a gap refusing PASS: a material open gap.
 func passItems(s SittingJSON) []string {
 	var out []string
 	for _, it := range s.Open {
@@ -76,13 +75,14 @@ func TestTheChairsPassItemsAreTheGatesGaps(t *testing.T) {
 		t.Fatalf("PASS items = %q, want one naming G2 as material and none for the low G1", items)
 	}
 
-	// A superseded ancestor holds the gate whatever its grade, and the list says so.
+	// A superseded ancestor is closed, whatever its grade: its successor's mint closed it, and the
+	// list names neither it nor the low successor.
 	s := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").sit(2, evLens).
-		mint(evLens, "G1", "low").mintSuperseding(evLens, "G3", "low", "G1").
+		mint(evLens, "G1", "medium").mintSuperseding(evLens, "G3", "low", "G1").
 		register("red-chair")
 	items = passItems(sittingOfRunT(t, s.seed(), "chair", "red-chair"))
-	if len(items) != 1 || !strings.Contains(items[0], "gap G1 is open and superseded") {
-		t.Fatalf("PASS items = %q, want one naming the superseded G1 and none for the low G3", items)
+	if len(items) != 0 {
+		t.Fatalf("PASS items = %q, want none: the material G1 closed at G3's mint, and G3 is low", items)
 	}
 }

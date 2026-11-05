@@ -251,7 +251,7 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 			"A COMPUTATION THE REPORT HOLDS NO SENTENCE FOR IS REFUSED, and nothing is recorded",
 		}},
 		{"close --help", page(lensSeat, "close"), []string{
-			"under every disposition — `moot`, `not_a_defect` and a close that hands the defect to a successor included",
+			"under every disposition — `moot`, `not_a_defect` and `repaired_with_regression` included",
 			"a `source` gap's fix that rewords the sentence leaves it unanswered until blue cites on the reworded sentence as that gap's answer",
 			"A demand you no longer hold is not closed: `motion docket file` on the gap puts it before the bench, whose closing ruling is not held to it.",
 		}},

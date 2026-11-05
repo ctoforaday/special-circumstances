@@ -6,6 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // THE WRITE PATH ASKS TWO KINDS OF QUESTION OF AN ACT, and only the live write asks both.
@@ -16,7 +17,7 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a docket motion on
+// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
 // that names no kind, a reading that names no gap to carry it, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
@@ -48,6 +49,9 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if err := requireOneGapPerClassAndSubject(w, b); err != nil {
 			return err
 		}
+		if err := requireSupersededOffDocket(q, b); err != nil {
+			return err
+		}
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}
@@ -69,7 +73,16 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 			// go false — a retire of the gap's only answer — so the verb's read before the write is
 			// not the answer that holds. A carry restates a closure and closes no open gap, and the
 			// replay never asks: every archived close replays as it was admitted.
-			return requireDemandMet(q, b.GetGapId())
+			if err := requireDemandMet(q, b.GetGapId()); err != nil {
+				return err
+			}
+		}
+		// A CLOSE OVER A FAILED CHECK STILL STANDING says the defect left the report when it did not;
+		// an archived close is what a seat did under the checks of its day.
+		return requireFailedCheckAnswered(q, b)
+	case *recordpb.Dispatch:
+		if r := seatclass.RoleOfSeat(seatID); r == "blue" || r == seatclass.Lane.Role {
+			return requireEngageNamesEveryOwed(q, b)
 		}
 	case *recordpb.Motion:
 		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {

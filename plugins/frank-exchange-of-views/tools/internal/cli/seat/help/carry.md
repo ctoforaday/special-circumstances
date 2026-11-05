@@ -7,3 +7,5 @@ restate an earlier sitting's closure, when the work is done and you are not re-a
 It makes no fresh claim, so it needs no verification triple — you are RESTATING a closure the record already holds, not attesting one.
 
 Closing on verification done THIS sitting is the originating lens's `close`, not this verb, and that close asks the gap's live-answer demand: {{.DemandClause}}. A carry of a gap no `close` has closed is refused. Closing a gap again after a carry restated it double-counts the closure history.
+
+A gap a successor superseded closed at the successor's mint, and the record holds no close of it to restate: a carry of it is refused, naming the successor.

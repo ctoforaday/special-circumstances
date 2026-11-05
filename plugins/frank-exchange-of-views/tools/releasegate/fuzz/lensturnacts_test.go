@@ -29,7 +29,7 @@ func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"K-1"}}),
 		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"C-2"}}),
 	}
-	acts, _, _ := actsOnGaps(evs, map[string][]string{"C-2": {"G3"}})
+	acts, _ := actsOnGaps(evs, map[string][]string{"C-2": {"G3"}})
 	for _, w := range []struct {
 		name, gap, seat string
 		at              int
