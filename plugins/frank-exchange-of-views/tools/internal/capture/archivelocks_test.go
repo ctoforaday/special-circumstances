@@ -16,7 +16,7 @@ import (
 
 // ARCHIVING READS THE RECORD'S BYTES WITHOUT TAKING THE PROCESS'S LOCKS WITH THEM.
 //
-// Capture keeps reading the record after it archives it — the seat-turn ingest, the audits. A read
+// The same process may read the record again after archiving it. A read
 // of a record file while this process's connection is open closes a descriptor on it and with it
 // every POSIX lock the process holds on that file; the connection keeps answering and never
 // re-takes a lock it believes it holds. The -shm locks are POSIX on every platform, so the
