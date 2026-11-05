@@ -592,16 +592,6 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 	if quote == "" {
 		return
 	}
-	read := func(url string) (*cmd, string, string, []string) {
-		wantCopy, wantCopyURL := r.seedCopy(url)
-		c := axes(outcome, r.do("verify", seatID)).set("--url", url).set("--title", sourceTitle).set("--quote", quote).bare("--json")
-		classes, _ := r.readingClasses(url, outcome, false)
-		if len(classes) > 0 {
-			gap, _ := r.readingGapArgs(classes)
-			c.args = append(c.args, gap...)
-		}
-		return c, wantCopy, wantCopyURL, classes
-	}
 	url := fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, foundSources.Add(1))
 	// THE COPY THAT IS NOT THE WORK, read as a source the lens found: it reads nothing, mints no gap,
 	// and places nothing among the report's sources.
@@ -612,7 +602,7 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 		r.readNotTheWorkFound(seatID, quote, outcome, axes)
 		return
 	}
-	c, wantCopy, wantCopyURL, classes := read(url)
+	c, wantCopy, wantCopyURL, classes := r.foundSourceReading(seatID, outcome, quote, url, axes)
 	backing := len(classes) > 0 && outcome != "refutes"
 	class := argOf(c.args, "--class")
 	left, measured := r.mintsLeft(seatID)
@@ -696,18 +686,79 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 	// ANOTHER SOURCE FOR THE SAME SENTENCE IS RECORDED, and where the first reading's gap still stands
 	// with the second's class, it names that gap and mints none.
 	if g := first.GetCarriedBy(); g != "" && r.coin(20) && slices.Contains(r.openGaps(), g) {
-		url2 := fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, foundSources.Add(1))
-		c2, want2, want2URL, _ := read(url2)
-		setArg(c2.args, "--class", argOf(c.args, "--class"))
-		out2, ok := c2.admit()
-		if !ok {
+		r.readAnotherSource(seatID, outcome, quote, argOf(c.args, "--class"), g, axes)
+	}
+}
+
+// foundSourceReading is seatID's `verify --url` of url for the sentence quote with outcome, with the
+// gap flags where the copy the cache holds for url makes the reading mint, and the copy the act
+// should name.
+func (r *runner) foundSourceReading(seatID, outcome, quote, url string, axes func(string, *cmd) *cmd) (c *cmd, wantCopy, wantCopyURL string, classes []string) {
+	wantCopy, wantCopyURL = r.seedCopy(url)
+	c = axes(outcome, r.do("verify", seatID)).set("--url", url).set("--title", sourceTitle).set("--quote", quote).bare("--json")
+	classes, _ = r.readingClasses(url, outcome, false)
+	if len(classes) > 0 {
+		gap, _ := r.readingGapArgs(classes)
+		c.args = append(c.args, gap...)
+	}
+	return c, wantCopy, wantCopyURL, classes
+}
+
+// readAnotherSource is seatID's reading of a second source it found for quote, with class, after
+// its first reading's gap g was read open: the reading names g and mints none.
+//
+// THE LENSES SIT CONCURRENTLY. g is read open before the act, and another seat may close it in
+// between — g is a sibling's where the first reading was held by it. The reading then mints a gap of
+// its own, and at the lens's cap the record refuses it for budget. That refusal is admissible only
+// where, read after it, no gap of class stands on the sentence and the lens's budget reads none
+// left, with nothing recorded; a refusal of a reading g still holds fails the run. A backing
+// reading is refused naming the anchor a cite landing in between placed on the sentence, as the first
+// reading is.
+func (r *runner) readAnotherSource(seatID, outcome, quote, class, g string, axes func(string, *cmd) *cmd) {
+	url := fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, foundSources.Add(1))
+	c, wantCopy, wantCopyURL, _ := r.foundSourceReading(seatID, outcome, quote, url, axes)
+	setArg(c.args, "--class", class)
+	if r.betweenSecondSourceReadAndAct != nil {
+		r.betweenSecondSourceReadAndAct(g)
+	}
+	out, err := c.result()
+	if err != nil {
+		left, measured := r.mintsLeft(seatID)
+		env, isEnv := refusalEnvelopeIn(out)
+		switch {
+		case outcome != "refutes" && isEnv && env.Code == string(feov.Validation) && strings.Contains(env.Error, "this sentence is marked by"):
+			// A CITE LANDING IN BETWEEN MARKS THE SENTENCE, as for the first reading: the refusal is the
+			// record's call on the report the reading would have landed on, read again here.
+			if now, rerr := record.RenderRun(r.run()); rerr == nil {
+				if m, _ := sentenceMarked(now, quote); m {
+					r.mu.Lock()
+					r.markedSentenceRefused++
+					r.mu.Unlock()
+					return
+				}
+			}
+		case !strings.Contains(out, "its mint budget admits no more"):
+		case r.heldOn(class, quote):
+			r.noteActErr(fmt.Sprintf("%s's second source for one sentence was refused for budget while a gap of class %s stands on it: %s", seatID, class, firstLine(out)))
+			return
+		case !measured || left != 0:
+			r.noteActErr(fmt.Sprintf("%s's second source for one sentence was refused for budget, and its work list reads %d mint(s) left (measured %v): %s", seatID, left, measured, firstLine(out)))
+			return
+		default:
+			if _, _, recorded := r.storedReading(seatID, "", url, quote); recorded {
+				r.noteActErr(seatID + "'s second found-source reading refused for budget was recorded: " + url)
+				return
+			}
+			noteEither(c.args, "a second found-source reading whose holding gap closed in between, at the cap", false)
 			return
 		}
-		r.noteCopy("verify --url", out2, want2, want2URL)
-		second := r.checkReading(seatID, out2, c2.args)
-		if second != nil && second.GetCarriedBy() != g && slices.Contains(r.openGaps(), g) {
-			r.noteActErr(fmt.Sprintf("%s's second source for one sentence was carried by %s, while %s, which carries the first, stands open", seatID, second.GetCarriedBy(), g))
-		}
+		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+		return
+	}
+	r.noteCopy("verify --url", out, wantCopy, wantCopyURL)
+	second := r.checkReading(seatID, out, c.args)
+	if second != nil && second.GetCarriedBy() != g && slices.Contains(r.openGaps(), g) {
+		r.noteActErr(fmt.Sprintf("%s's second source for one sentence was carried by %s, while %s, which carries the first, stands open", seatID, second.GetCarriedBy(), g))
 	}
 }
 

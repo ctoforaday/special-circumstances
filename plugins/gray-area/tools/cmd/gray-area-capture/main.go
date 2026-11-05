@@ -57,10 +57,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 	"sort"
 )
 
@@ -175,6 +175,7 @@ type hookInput struct {
 	PermissionMode string `json:"permission_mode"`
 	PromptID       string `json:"prompt_id"`
 	StopHookActive bool   `json:"stop_hook_active"`
+	Engine         string `json:"engine"`
 }
 
 // manifestRow is one seat's entry. Field names are snake_case to match the
@@ -529,6 +530,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 	if !in.StopHookActive && req.StopHookActive {
 		in.StopHookActive = req.StopHookActive
+	}
+	if in.Engine == "" {
+		in.Engine = string(req.Engine)
 	}
 	if projectDir == "" {
 		projectDir = req.ProjectDir

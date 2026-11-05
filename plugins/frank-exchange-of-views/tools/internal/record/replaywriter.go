@@ -98,7 +98,7 @@ func (b *Replay) Write(id Identity, body proto.Message, at time.Time) (*Event, e
 		return nil, err
 	}
 	ts := at.UTC().Format(stampLayout)
-	ev, err := appendAct(id, body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil, nil,
+	ev, err := appendAct(id, body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil,
 		writeMode{stamp: func() string { return ts }}, nil)
 	if err != nil {
 		if ferr := b.savepoint("ROLLBACK TO " + actSavepoint); ferr != nil {
@@ -165,7 +165,7 @@ func (b *Replay) WriteBodies(id Identity, bodies []StampedBody) ([]WrittenBody, 
 	var out []WrittenBody
 	for _, sb := range bodies {
 		ts := sb.At.UTC().Format(stampLayout)
-		ev, err := appendAct(id, sb.Body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil, nil,
+		ev, err := appendAct(id, sb.Body, func() (*recordsql.Tx, error) { return b.tx, nil }, nil,
 			writeMode{stamp: func() string { return ts }}, act)
 		if err == nil {
 			var n int64

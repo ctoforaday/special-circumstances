@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // NEITHER SITTING EVENT DISPLAYS ANYTHING TO A HUMAN, so every failure below goes to the record and

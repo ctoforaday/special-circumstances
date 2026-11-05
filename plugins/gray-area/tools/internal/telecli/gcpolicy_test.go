@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 // telepathy's main turns the GC off; backfill reads every transcript on the box and must turn it

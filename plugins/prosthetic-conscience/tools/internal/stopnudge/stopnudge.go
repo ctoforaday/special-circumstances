@@ -25,7 +25,7 @@ package stopnudge
 import (
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 	"path/filepath"
 	"slices"
 	"time"

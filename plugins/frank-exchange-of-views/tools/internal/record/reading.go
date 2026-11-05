@@ -218,11 +218,15 @@ func requireNotARetriedReading(q recordsql.Querier, seatID string, v *recordpb.V
 	if v.GetAnchor() != "" || noRecord(q) {
 		return nil
 	}
+	sitting, _, err := latestSittingAt(q, seatID)
+	if err != nil {
+		return feov.Wrap(feov.Conflict, err, "the record's sittings could not be read, so whether %s already read %s for this sentence this sitting cannot be told: %v", seatID, v.GetUrl(), err)
+	}
 	rows, err := q.Query(`SELECT e."id", COALESCE(v."claim", ''), COALESCE(v."outcome", ''), COALESCE(v."carried_by", '')
 	     FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
 	    WHERE e."seat_id" = ?1 AND COALESCE(v."anchor", '') = '' AND COALESCE(v."url", '') = ?2
-	      AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
-	    ORDER BY e."id"`, seatID, v.GetUrl())
+	      AND e."sitting_id" IS ?3
+	    ORDER BY e."id"`, seatID, v.GetUrl(), sitting)
 	if err != nil {
 		return feov.Wrap(feov.Conflict, err, "the record's readings could not be read, so whether %s already read %s for this sentence this sitting cannot be told: %v", seatID, v.GetUrl(), err)
 	}

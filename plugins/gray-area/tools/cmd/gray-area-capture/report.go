@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // The stages this hook can fail at. Each is declared where it can fail — the record's key space is

@@ -206,3 +206,47 @@ func TestBuildPlanRefusesAnOrphanAndAnEmptyPlan(t *testing.T) {
 		t.Error("an empty plan was accepted")
 	}
 }
+
+// A MIN/MAX OVER A VIEW IS JUDGED BY WHAT THE VIEW COSTS, NOT BY THE ONE ROW IT RETURNS.
+//
+// `events` is named here because constrained-scan is about the record's growing tables and reads
+// that set from the real schema. Three forms of `max(id)` over a view, under a constraint:
+//
+//   - a view SQLite flattens into its table is the bare "SEARCH e" min/max loop over `events`,
+//     which walks back from the end until a row matches — the sittings shape;
+//   - a view SQLite co-routines, built from a covering-index walk, shows "SEARCH v" over the
+//     subplan and no heap scan at all: every row of the walk is produced, and none of it is a
+//     scan heapScan counts, so only the min/max loop over the subplan can carry the finding;
+//   - a co-routined view over a bounded vocabulary, or of rowid lookups, is not a finding: the
+//     exemption is what the subplan reads, not the shape.
+func TestAMinMaxOverAViewIsJudgedByTheView(t *testing.T) {
+	const events = `
+CREATE TABLE events(id INTEGER PRIMARY KEY, type TEXT, seat TEXT, sitting INT);
+CREATE INDEX events_type ON events(type);
+CREATE VIEW flat AS SELECT e.id AS id, e.seat AS seat FROM events e WHERE e.sitting = e.id;
+CREATE VIEW per_type AS SELECT type, max(id) AS id FROM events GROUP BY type;
+CREATE VIEW per_label AS SELECT label, max(value) AS id FROM enum_tiny GROUP BY label;
+CREATE VIEW two AS SELECT id FROM events WHERE id = 5 UNION ALL SELECT id FROM events WHERE id = 6;
+`
+	for _, tc := range []struct {
+		name, query, want string
+	}{
+		{"a flattened view walks its table", `SELECT o.id FROM events o WHERE o.id = (SELECT max(id) FROM flat WHERE seat = 'x')`, "events [min/max]"},
+		{"a co-routined view built from an index walk", `SELECT o.id FROM events o WHERE o.id = (SELECT max(id) FROM per_type)`, "per_type [min/max]"},
+		{"a co-routined view over a vocabulary", `SELECT a.id FROM a WHERE a.v = (SELECT max(id) FROM per_label)`, ""},
+		{"a co-routined view of rowid lookups", `SELECT a.id FROM a WHERE a.v = (SELECT max(id) FROM two)`, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, plan := shapesOf(t, events, tc.query)
+			if tc.want == "" {
+				if hasKind(got, planguard.ConstrainedScan) {
+					t.Errorf("reported as %s\n  sql:  %s\n  plan:\n%s  found: %v", planguard.ConstrainedScan, tc.query, plan, got)
+				}
+				return
+			}
+			if !has(got, planguard.ConstrainedScan, tc.want) {
+				t.Errorf("not reported as %s %q\n  sql:  %s\n  plan:\n%s  found: %v", planguard.ConstrainedScan, tc.want, tc.query, plan, got)
+			}
+		})
+	}
+}

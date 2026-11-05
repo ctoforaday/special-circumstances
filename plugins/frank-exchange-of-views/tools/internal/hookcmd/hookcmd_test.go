@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // THE DENY IS A DOCUMENT CLAUDE CODE READS, and its reason is what the seat sees. A deny with the

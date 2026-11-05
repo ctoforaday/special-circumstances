@@ -46,8 +46,8 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -531,10 +531,8 @@ func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Mes
 	// sat is on sitting 0. Counting registers here left a seat woken with nothing to do (#1089) on
 	// sitting 0 for every sitting it ever had, so a singleton act in its second sitting keyed
 	// identically to its first and was refused as a duplicate.
-	var sitting int
-	if err := tx.QueryRow(`SELECT COALESCE((SELECT "sitting" FROM "events"
-	    WHERE "id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)), 0)`,
-		seatID).Scan(&sitting); err != nil {
+	_, sitting, err := recordsql.LatestSitting(tx, seatID)
+	if err != nil {
 		return "", fmt.Errorf("counting %s's sittings for its key: %w", seatID, err)
 	}
 	if singleton[typ] {
@@ -664,11 +662,6 @@ func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards .
 
 // appendOwn writes bodies, in order, in one transaction of its own, the guards asked with the first:
 // each body is one appendAct over the same transaction. It returns the first body's event.
-//
-// A WRITE THAT READS THE REPORT RENDERS IT BEFORE IT TAKES THE LOCK, once its checks before the
-// transaction have passed (landingReport): its guards declared it (CheckOnReport), or its validation
-// reads it (validationReadsReport). Under the lock the render is reused where the report has not
-// moved, so the lock is held for one query rather than a render.
 func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
 	evs, err := appendBodies(id, bodies, guards, nil)
 	if len(evs) == 0 {
@@ -689,11 +682,6 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *read
 			_ = tx.Rollback()
 		}
 	}()
-	rendering := &landingReport{}
-	readsReport := guardsReadReport(guards)
-	for _, body := range bodies {
-		readsReport = readsReport || validationReadsReport(id.SeatID, body)
-	}
 	begin := func() (*recordsql.Tx, error) {
 		if tx != nil {
 			return tx, nil
@@ -701,9 +689,6 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *read
 		db, err := openRun(id.Run)
 		if err != nil {
 			return nil, err
-		}
-		if readsReport {
-			*rendering = *renderBefore(id.Run)
 		}
 		WriteBegins()
 		tx, err = recordsql.BeginWrite(db)
@@ -715,12 +700,12 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *read
 		if i > 0 {
 			g = nil
 		}
-		ev, err := appendAct(id, body, begin, g, rendering, liveWrite, act)
+		ev, err := appendAct(id, body, begin, g, liveWrite, act)
 		if err != nil && i == 0 && act != nil && act.held != "" {
 			// THE READING'S SENTENCE IS HELD: its Mint was refused by the one-gap rule inside this
 			// transaction, nothing of it written, and the reading lands alone carrying the held gap.
 			act.verify.CarriedBy, act.verify.CarrierMinted = proto.String(act.held), proto.Bool(false)
-			ev, err = appendAct(id, act.verify, begin, nil, rendering, liveWrite, act)
+			ev, err = appendAct(id, act.verify, begin, nil, liveWrite, act)
 			if err != nil {
 				return []*Event{ev}, err
 			}
@@ -753,11 +738,10 @@ var liveWrite = writeMode{stamp: stamp, judge: true}
 // caller to undo what the act wrote.
 //
 // begin is called only once the checks before it have passed, so a refused act opens nothing, and
-// a write that names no run is refused by name before any handle is asked for. rendering is the
-// write's report (landingReport), nil on a Replay's act.
+// a write that names no run is refused by name before any handle is asked for.
 //
 // act is the reading's act this body is a member of (readingAct), nil for every other write.
-func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, rendering *landingReport, mode writeMode, act *readingAct) (*Event, error) {
+func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, mode writeMode, act *readingAct) (*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -787,7 +771,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, err
 	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
 		return ev, err
 	}
-	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering, act: act}, guards, false); err != nil {
+	if err := guardsAt(writeView{q: tx, files: files, act: act}, guards, false); err != nil {
 		return ev, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
@@ -795,7 +779,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, err
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
 	if err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
-		w := writeView{q: tx, files: files, rendering: rendering, act: act}
+		w := writeView{q: tx, files: files, act: act}
 		if err := validate(w, seatID, typ, body); err != nil {
 			return err
 		}
@@ -1835,7 +1819,7 @@ func requireNoStandingDocket(q recordsql.Querier, gapID string) error {
 // (the sitting reading oncePerSittingSQL's).
 const closingThisSittingSQL = `SELECT e."id" FROM "events" e JOIN "closing" c ON c."event_id" = e."id"
      WHERE e."seat_id" = ?1 AND c."gap_id" = ?2
-       AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
+       AND e."sitting_id" IS ?3
      ORDER BY e."id" LIMIT 1`
 
 // requireNoClosingThisSitting refuses a docket motion on a gap whose closing its filer has already
@@ -1847,8 +1831,12 @@ func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) erro
 	if gapID == "" {
 		return nil
 	}
+	sitting, _, err := latestSittingAt(q, seatID)
+	if err != nil {
+		return err
+	}
 	var closing int64
-	found, err := queryRowAt(q, []any{&closing}, closingThisSittingSQL, seatID, gapID)
+	found, err := queryRowAt(q, []any{&closing}, closingThisSittingSQL, seatID, gapID, sitting)
 	if err != nil || !found {
 		return err
 	}

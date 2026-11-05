@@ -23,9 +23,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // Env is everything the command tree reads from OUTSIDE its arguments — the two client
