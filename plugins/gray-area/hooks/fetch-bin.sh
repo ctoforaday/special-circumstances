@@ -22,8 +22,13 @@
 ROOT=${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}}
 SELF=$0
 
-# Refuse to download or heal inside a source tree or checkout holding tools/go.mod
-if [ -f "$ROOT/tools/go.mod" ] || { [ -f "$ROOT/../../.claude-plugin/marketplace.json" ] && [ -d "$ROOT/../../scripts" ]; }; then
+# A DEVELOPMENT CHECKOUT IS NEVER HEALED: its bin/ holds what `go build` made from the tree, and a
+# release fetched over it would run hooks the tree does not contain. A checkout is plugins/<name>/
+# under a repository root holding both the marketplace manifest and scripts/. tools/go.mod marks
+# nothing: every installed plugin carries it. An installed root's ../../ is the marketplace's cache
+# directory, and a universe's staged marketplace has the manifest but no scripts/, so neither is a
+# checkout here.
+if [ -f "$ROOT/../../.claude-plugin/marketplace.json" ] && [ -d "$ROOT/../../scripts" ]; then
 	printf 'fetch-bin.sh: refusing to fetch release binaries into source tree (%s)\n' "$ROOT" >&2
 	exit 0
 fi

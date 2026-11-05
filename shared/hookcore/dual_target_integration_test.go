@@ -134,9 +134,22 @@ func stageMockPlugin(t *testing.T, repoRoot, pluginName, binName, binPath string
 		_ = os.WriteFile(filepath.Join(destBinDir, binName), binData, 0755)
 	}
 
-	// Prevent self-healing / background fetchers from ever running inside mockRoot
-	_ = os.MkdirAll(filepath.Join(mockRoot, "tools"), 0755)
-	_ = os.WriteFile(filepath.Join(mockRoot, "tools", "go.mod"), []byte("module mock\n"), 0644)
+	// Stamp mockRoot as its own release, installed, so the version check finds nothing to heal and
+	// no background fetch ever runs inside it — the state a current install is in.
+	var manifest struct{ Name, Version string }
+	pj, err := os.ReadFile(filepath.Join(mockRoot, ".claude-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatalf("read mockRoot plugin.json: %v", err)
+	}
+	if err := json.Unmarshal(pj, &manifest); err != nil || manifest.Name == "" || manifest.Version == "" {
+		t.Fatalf("mockRoot plugin.json names no release (%v): %s", err, pj)
+	}
+	if err := os.MkdirAll(filepath.Join(mockRoot, ".fetch"), 0755); err != nil {
+		t.Fatalf("mkdir mockRoot/.fetch: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(mockRoot, ".fetch", "installed"), []byte(manifest.Name+"--v"+manifest.Version+"\n"), 0644); err != nil {
+		t.Fatalf("stamp mockRoot: %v", err)
+	}
 
 	return mockRoot
 }

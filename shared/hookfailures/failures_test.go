@@ -454,6 +454,16 @@ func TestEnsureReturnsTheVersionChecksMessage(t *testing.T) {
 	if got, err := Ensure("SessionStart"); err != nil || got != "installing v2" {
 		t.Errorf("a stale install's message did not come back: %q %v", got, err)
 	}
+	// Every installed plugin carries tools/go.mod; it marks no checkout, and the check still runs.
+	if err := os.MkdirAll(filepath.Join(root, "tools"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "tools", "go.mod"), []byte("module tools\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := Ensure("SessionStart"); err != nil || got != "installing v2" {
+		t.Errorf("an installed root holding tools/go.mod skipped its version check: %q %v", got, err)
+	}
 	write(`exit 0`)
 	if got, err := Ensure("SessionStart"); err != nil || got != "" {
 		t.Errorf("an up-to-date install said something: %q %v", got, err)
