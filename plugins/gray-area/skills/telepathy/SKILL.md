@@ -47,8 +47,8 @@ telepathy link                   from an Antigravity shell: make this conversati
   `claude-socket` means it reached the session's inbox, where a session that bypasses permission
   prompts holds it for its human. No route says the message was read.
 - An Antigravity conversation becomes reachable live by running `telepathy link` (or any other
-  verb) from its own shell; the server's token reaches nothing else. Running it at the start of
-  coordinated work is what makes you wakeable.
+  verb) from its own shell; the server's token reaches nothing else. When Gray Area's hook asks you
+  to run it, run it: that one command is what lets other agents wake you.
 
 `find` answers in one query: one row per session and agent, **newest first**, with the hit count,
 the time of the most recent hit, the channel it landed in, and the text around it. `--in C` keeps

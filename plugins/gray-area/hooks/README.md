@@ -27,6 +27,22 @@ and is gone by SessionEnd, and transcripts do not reliably carry the id, so this
 can be captured — and it is what `telepathy agents --lost` offers as the reattach after a restart.
 The session counts itself live for that closure pass, so it is never closed by its own start.
 
+## PreInvocation (Antigravity)
+
+Antigravity's `SessionStart` runs the SessionStart work above once, when a conversation is created.
+`PreInvocation` fires before every model step and does one thing only: on a turn's first step it
+asks an unlinked conversation to run `telepathy link`, so `telepathy send` can wake it. It cannot
+ride on `SessionStart`, because `SessionStart` does not fire when a conversation resumes on a new
+language server (observed, agy 1.5.0), and that is exactly when a link goes stale.
+
+The ask is one ephemeral message naming the telepathy binary beside the hook. It is sent only when
+there is no record for this conversation, or the recorded server no longer accepts a connection; a
+stale link is named as stale, because a conversation whose history already shows `linked` ignored
+a plain request. A hook cannot record the link itself: the server's token reaches an agent's shell
+commands and nothing else, and a hook can inject messages but never a tool call. Under a permission
+policy that prompts for shell commands, the ask costs the human one approval per conversation per
+server launch.
+
 ## Stop and SessionEnd
 
 Stop and SessionEnd feed the CATALOGUE and write no manifest row: Stop is the turn boundary, where a

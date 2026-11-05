@@ -22,7 +22,8 @@ The record lives in $XDG_RUNTIME_DIR/gray-area/antigravity-servers (directory 07
 record 0600, gone at logout), keyed by conversation, because a server that does not
 host a conversation takes it over when sent a message for it. A link lasts until the
 server restarts; linking again with the same server writes nothing. Every other
-telepathy verb run from an Antigravity shell links as a side effect.
+telepathy verb run from an Antigravity shell links as a side effect, and Gray Area's
+Antigravity hook asks for a link on the first step of any turn while there is none.
 
 A Claude Code session needs no link: its inbox socket is advertised for it.
 
