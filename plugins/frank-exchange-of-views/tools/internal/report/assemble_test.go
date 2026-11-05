@@ -1,16 +1,18 @@
 package report
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
-	"google.golang.org/protobuf/proto"
 	"os"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -470,7 +472,7 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 		if len(strings.Fields(s.From)) < 3 || len(strings.Fields(s.Path)) < 4 || !strings.HasSuffix(s.Path, ".") {
 			t.Errorf("row %q: from %q, path %q — each row says what the section is composed from and, in whole sentences, how content reaches it", s.Heading, s.From, s.Path)
 		}
-		if key := normalizeHeading(s.Heading); seen[key] {
+		if key := reportheading.HeadingKey(s.Heading); seen[key] {
 			t.Errorf("two rows read as the heading %q", s.Heading)
 		} else {
 			seen[key] = true

@@ -123,7 +123,7 @@ func TestBlueAnsweredReadsAGoneGapAsMoved(t *testing.T) {
 	}
 	var said bool
 	for _, it := range w.Sitting.Open {
-		if strings.Contains(it.What, "NO edit or computation answers it") {
+		if strings.Contains(it.What, "NO edit, computation or changed fate answers it") {
 			t.Errorf("a gap whose sentence blue cut was reported as unanswered: %q", it.What)
 		}
 		said = said || strings.Contains(it.What, "gap "+id+" is open and its anchor is no longer in the report — judge whether the report as it stands")

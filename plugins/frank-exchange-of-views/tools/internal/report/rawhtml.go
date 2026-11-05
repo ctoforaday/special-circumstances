@@ -67,6 +67,7 @@ import (
 	"github.com/yuin/goldmark/util"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 )
 
 // codeReader is the reading ship takes of where a shipped .md's code is: pageReader's grammar with no
@@ -328,7 +329,7 @@ func escapeAt(src []byte, at []int) ([]byte, []int) {
 	last := 0
 	for k, i := range at {
 		cut := i
-		if escapedAt(src, i) {
+		if reportheading.EscapedAt(src, i) {
 			cut--
 		}
 		out = append(out, src[last:cut]...)

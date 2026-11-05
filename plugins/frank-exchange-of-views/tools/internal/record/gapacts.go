@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -20,12 +21,13 @@ import (
 //
 //   - the minting lens: a regrade (one that keeps the grade included), a close, a closing, a finding
 //     about the gap, a mint superseding it, a judgement of a computation that answers it;
-//   - blue: an edit answering it, a computation answering it, a fate on the inquiry it is anchored on, a
-//     closing;
+//   - blue: an edit answering it, a computation answering it, a changed fate (fateActsOf) on the
+//     inquiry it is anchored on or that the section it is anchored on prints, a closing;
 //   - either: a docket or grade motion on it.
 //
 // Each is validated at its write against the gap the record holds, so a gap named here is one the
-// seat named, never one recovered from prose.
+// seat named, never one recovered from prose. A changed fate's gaps are read off the mints' anchors
+// and the section that prints the fate (reportheading), the one assembly composes it under.
 type gapAct struct {
 	seat string
 	at   int64 // the act's events.id
@@ -35,14 +37,11 @@ type gapAct struct {
 func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 	out := map[string][]gapAct{}
 	computationGap := map[string]string{} // a computation's anchor → the gap it answers
-	anchoredOn := map[string][]string{}   // an inquiry → the gaps minted about it
+	fates := fateActsOf(evs)
 	for i, e := range evs {
 		var on []string
 		switch b := mustBody(e).(type) {
 		case *recordpb.Mint:
-			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {
-				anchoredOn[b.GetAboutRef()] = append(anchoredOn[b.GetAboutRef()], b.GetGapId())
-			}
 			on = b.GetSupersedes()
 		case *recordpb.Regrade:
 			on = []string{b.GetGapId()}
@@ -64,7 +63,7 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 		case *recordpb.Reproduce:
 			on = []string{computationGap[b.GetComputationId()]}
 		case *recordpb.Inquiry:
-			on = anchoredOn[b.GetInquiryId()]
+			on = fates[e]
 		case *recordpb.Motion:
 			on = []string{b.GetDocket().GetGapId(), b.GetGrade().GetGapId()}
 		}
@@ -72,6 +71,61 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 			if g != "" {
 				out[g] = append(out[g], gapAct{seat: e.GetSeatId(), at: ids[i]})
 			}
+		}
+	}
+	return out
+}
+
+// A FATE BLUE CHANGED IS BLUE'S ACT ON THE GAPS ABOUT WHAT IT CHANGED (ruled by gblock 2026-11-05):
+// each gap anchored on the inquiry, and each gap anchored on a section the tool composes that prints
+// the inquiry — exactly as an edit is on the gap it answers: the minting lens's turn comes with it, and
+// the exchange counts it as movement. The tool composes the report's inquiry sections from fates, so
+// recording a fate again is the only act that changes them: on universe-m38 the adversary's
+// G-ca807516, about the section "Research areas", was answered twice by blue recording eight fates
+// again with new reasons and methods; its lens was never readied, and the bench ruled it with no
+// closings. The same rule read blue's two narrowed reasons on Q-b62beca0 as two stalls of G-845422d8,
+// the gap anchored on that inquiry. A fate changes nothing a gap about other text is about, so it is
+// no act there: a reworded `underway` readies no unrelated lens, and discharges no remand.
+//
+// CHANGED IS AGAINST THE INQUIRY'S PREVIOUS RECORD: its status, its reason or its method differs. The
+// write admits a record that repeats all three, and it answers nothing; a proposal has no record
+// before it and is no fate.
+//
+// THE SECTIONS ARE ASSEMBLY'S: the one the previous record printed the inquiry under and the one this
+// record prints it under (reportheading.InquirySectionOf, the table the report is laid out from) — a
+// fate that moves an inquiry changes both. A gap's section is its mint's reference, compared by the
+// key every reader of headings uses (reportheading.HeadingKey).
+//
+// fateActsOf is the gaps each of blue's changed fates is an act on: the gaps minted before it about
+// its inquiry or about a section that prints it.
+func fateActsOf(evs []*Event) map[*Event][]string {
+	out := map[*Event][]string{}
+	anchoredOn := map[string][]string{}   // an inquiry → the gaps minted about it
+	aboutSection := map[string][]string{} // a section's heading key → the gaps minted about it
+	prior := map[string]*recordpb.Inquiry{}
+	for _, e := range evs {
+		switch b := mustBody(e).(type) {
+		case *recordpb.Mint:
+			switch b.GetAboutKind() {
+			case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
+				anchoredOn[b.GetAboutRef()] = append(anchoredOn[b.GetAboutRef()], b.GetGapId())
+			case recordpb.AboutKind_ABOUT_KIND_SECTION:
+				k := reportheading.HeadingKey(b.GetAboutRef())
+				aboutSection[k] = append(aboutSection[k], b.GetGapId())
+			}
+		case *recordpb.Inquiry:
+			was := prior[b.GetInquiryId()]
+			prior[b.GetInquiryId()] = b
+			if was == nil || seatclass.RoleOfSeat(e.GetSeatId()) != "blue" ||
+				(was.GetStatus() == b.GetStatus() && was.GetReason() == b.GetReason() && was.GetMethod() == b.GetMethod()) {
+				continue
+			}
+			on := slices.Clone(anchoredOn[b.GetInquiryId()])
+			for _, st := range []recordpb.InquiryStatus{was.GetStatus(), b.GetStatus()} {
+				on = append(on, aboutSection[reportheading.HeadingKey(reportheading.InquirySectionOf(recordpb.Word(st)))]...)
+			}
+			slices.Sort(on)
+			out[e] = slices.Compact(on)
 		}
 	}
 	return out

@@ -34,8 +34,13 @@ cannot point at, either go and produce it or delete the sentence.
   the research direction the ruling states, and it begins only with YOUR act on the gap — a sitting
   of yours that does not touch the gap spends none of it, and its minting lens audits your answer
   only after you have acted: while that exchange is
-  owed, YOU MUST record an act on the gap — an edit or a computation that answers the direction, a fate on
-  the inquiry it is anchored on, or a motion on it — and your envelope is refused until you have.
+  owed, YOU MUST record an act on the gap — an edit or a computation that answers the direction, a
+  changed fate on the inquiry it is about or one the section it is about prints, or a motion on it —
+  and your envelope is refused until you have.
+- **A gap about an inquiry section is answered by the fates.** The tool composes the report's inquiry
+  sections from fates, so a gap about one of them, or about an inquiry, is answered by recording a fate
+  whose status, reason or method you change; that gap's lens audits it as it audits an edit. A fate is
+  no answer to a gap about text you write: answer that with an edit.
 - **Disagreement is part of the exchange, not a failure of it.** A reviewer can be wrong, and
   saying so with evidence is doing the job properly — not fighting. Argue the substance; concede
   the part that is right before you explain the part you think is not.

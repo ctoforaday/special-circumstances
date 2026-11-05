@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 )
 
 // THE ASSEMBLED LAYOUT: what the shipped set looks like, asked of the assembler.
@@ -149,7 +150,7 @@ func opens(doc ParsedText, s Section) int {
 			if found < 0 && strings.HasPrefix(t, s.Line) {
 				found = i
 			}
-		} else if key, ok := headingKey(l); ok && key == normalizeHeading(s.Heading) {
+		} else if key, ok := headingKey(l); ok && key == reportheading.HeadingKey(s.Heading) {
 			found = i
 		}
 	}
