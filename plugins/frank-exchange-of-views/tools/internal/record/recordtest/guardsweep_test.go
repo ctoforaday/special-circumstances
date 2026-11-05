@@ -32,9 +32,10 @@ import (
 // guardCalls are the ways a package may declare the post-suite check. A package with its own
 // TestMain passes it to testbuild.Main as a hook rather than giving up the TestMain it has;
 // recordsql declares OrphanedHandles itself, because recordtest imports it and cannot be imported
-// back.
+// back. recordtest.MainThen is Main with a post-suite step, and runs the same check after it.
 var guardCalls = []string{
 	"recordtest.Main",
+	"recordtest.MainThen",
 	"recordtest.CheckOrphanedHandles",
 	"OrphanedHandles",
 }

@@ -391,8 +391,9 @@ func CloseAll() error {
 // driverNameOverride is empty in every build and every process EXCEPT the query-plan guard,
 // which registers a driver that runs EXPLAIN QUERY PLAN over each statement before executing it
 // (internal/record/planguard). The guard cannot ask its question any other way: the record's
-// reads are 59 inline statements across seventeen files, so there is nothing to enumerate and
-// the plan has to be intercepted where the statement is issued.
+// statements are inline texts across dozens of files, several of them built at run time, so the
+// plan has to be intercepted where the statement is issued. (planguard.SourceStatements holds the
+// source to the plans: every statement text it spells must have been planned.)
 //
 // A VARIABLE AND NOT A BUILD TAG, because the guard drives the SAME code production runs — a
 // tagged build would guard a different program from the one that ships.
