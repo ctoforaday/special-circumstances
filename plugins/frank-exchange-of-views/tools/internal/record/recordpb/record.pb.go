@@ -444,11 +444,15 @@ func (CheckKind) EnumDescriptor() ([]byte, []int) {
 }
 
 // ClassMaterial is where a gap's materiality starts: from its class. A claim, figure or citation
-// defect changes what a reader concludes whatever it is graded, so its class is `always`; a
-// template-shape defect changes no conclusion, so its class is `never`; every other class goes
-// by the gap's current severity, medium and above. The class's `material_default` carries it, and
-// the write path stamps it onto every Mint, so every reader of "is this gap material" reads the
-// same field.
+// defect changes what a reader concludes whatever it is graded, so its class is `always`; so is
+// report prose addressed to the run instead of the subject's reader (gblock, 2026-11-05: the report
+// is subject prose only, #880 and m30), which changes no figure and still ships a sentence no reader
+// of the subject should be handed; a template-shape defect changes no conclusion, so its class is
+// `never`; every other class goes by the gap's current severity, medium and above. The class's
+// `material_default` carries it, and the write path stamps it onto every Mint, so every reader of
+// "is this gap material" reads the same field. NO RULING MOVES IT: the bench may find that a defect
+// is not there, never that a defect of an `always` class is immaterial (record.requirePositionHearing
+// refuses that overrule; m39's bench declared narration "not material" and the run shipped it).
 type ClassMaterial int32
 
 const (
@@ -7267,7 +7271,12 @@ type Position struct {
 	Text  *string                `protobuf:"bytes,1,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	// THE ID A BENCH RULING JOINS ON (gblock, 2026-10-30): a position at a sitting that withheld a PASS
 	// its plan permitted is heard by the bench, which rules it on this id. The tool assigns it.
-	PositionId    *string `protobuf:"bytes,2,opt,name=position_id,json=positionId,proto3,oneof" json:"position_id,omitempty"`
+	PositionId *string `protobuf:"bytes,2,opt,name=position_id,json=positionId,proto3,oneof" json:"position_id,omitempty"`
+	// class is the KIND of the defect a position argues, from the closed GapClass set, where it argues
+	// one. Its value's material_default binds the bench's hearing: a position whose class is `always`
+	// material is not overruled (record.requirePositionHearing). m39's chair named "the voice class"
+	// in prose, and the bench overruled it as "not material" — a ruling the class had already decided.
+	Class         *GapClass `protobuf:"varint,3,opt,name=class,proto3,enum=feov.record.v1.GapClass,oneof" json:"class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7314,6 +7323,13 @@ func (x *Position) GetPositionId() string {
 		return *x.PositionId
 	}
 	return ""
+}
+
+func (x *Position) GetClass() GapClass {
+	if x != nil && x.Class != nil {
+		return *x.Class
+	}
+	return GapClass_GAP_CLASS_UNSPECIFIED
 }
 
 // Halt is the safety boundary, and it reaches the human as the words the bench chose, relayed
@@ -8403,13 +8419,15 @@ const file_record_proto_rawDesc = "" +
 	"\x06_proseB\x0e\n" +
 	"\f_verdict_whyB\x10\n" +
 	"\x0e_verdict_basisJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\n" +
-	"deadlockedR\texhaustedR\x05ended\"\xfb\x01\n" +
+	"deadlockedR\texhaustedR\x05ended\"\xba\x02\n" +
 	"\bPosition\x12)\n" +
 	"\x04text\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\x04text\x88\x01\x01\x12\xaa\x01\n" +
 	"\vposition_id\x18\x02 \x01(\tB\x83\x01\x82\xb5\x18\x7f\b\x01\x1aythe id the bench's ruling on a withheld PASS joins on — the tool assigns it, and a position without one cannot be heard(\x01H\x01R\n" +
-	"positionId\x88\x01\x01B\a\n" +
+	"positionId\x88\x01\x01\x123\n" +
+	"\x05class\x18\x03 \x01(\x0e2\x18.feov.record.v1.GapClassH\x02R\x05class\x88\x01\x01B\a\n" +
 	"\x05_textB\x0e\n" +
-	"\f_position_id\"\xad\x01\n" +
+	"\f_position_idB\b\n" +
+	"\x06_class\"\xad\x01\n" +
 	"\x04Halt\x12\x98\x01\n" +
 	"\aopinion\x18\x01 \x01(\tBy\x82\xb5\x18q\b\x01\x12\x06reason\x1aethe written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause\xc0\xb5\x18\x01H\x00R\aopinion\x88\x01\x01B\n" +
 	"\n" +
@@ -8488,10 +8506,10 @@ const file_record_proto_rawDesc = "" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
 	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xf0\x02\n" +
 	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xd3\x02\x8a\xb5\x18\xce\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a computation answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\x89\x01\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xba\x03\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xf6\x03\n" +
 	"\rClassMaterial\x12\x1e\n" +
-	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\x91\x01\n" +
-	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1av\x8a\xb5\x18revery gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on\x12\x85\x01\n" +
+	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\xcd\x01\n" +
+	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1a\xb1\x01\x8a\xb5\x18\xac\x01every gap of this class is material, whatever its grade or the reader decision it is judged to change — the class decides it, and no ruling or holding makes it immaterial\x12\x85\x01\n" +
 	"\x14CLASS_MATERIAL_NEVER\x10\x02\x1ak\x8a\xb5\x18gno gap of this class is material, whatever its grade — it stays on the board and never holds the gate\x12m\n" +
 	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\xf1[\n" +
 	"\bGapClass\x12\x19\n" +
@@ -8501,7 +8519,7 @@ const file_record_proto_rawDesc = "" +
 	"!GAP_CLASS_READER_CHANNEL_MISMATCH\x10\x03\x1a\xa6\x02\x8a\xb5\x18\xb0\x01a fact the reader needs is held — in the record or elsewhere in the report — but not where the reader who needs it reads, so a reader acting on that section acts without itص\x18\x03\xe2\xb5\x18\x1cclaim_contradicts_own_record\xea\xb5\x18Ido the two places disagree, or does one simply lack what the other holds?\x12\x80\x03\n" +
 	"'GAP_CLASS_INCOMPLETE_REPAIR_PROPAGATION\x10\x04\x1a\xd2\x02\x8a\xb5\x18\x98\x01a repair fixed a defect at some of its sites and left it standing at others — a sibling sentence, row or section still carries what the repair removedص\x18\x01\xe2\xb5\x18\x1bcross_section_contradiction\xea\xb5\x18\x8d\x01does the disagreement exist because a repair reached only part of one defect's sites, or do two passages disagree with no repair behind them?\x12\xb8\x02\n" +
 	" GAP_CLASS_MISSING_ROOT_INVARIANT\x10\x05\x1a\x91\x02\x8a\xb5\x18\x84\x01one fact is restated in several places with nothing tying the copies to a single source, so they have drifted or can drift unnoticedص\x18\x03\xe2\xb5\x18\x1dincomplete_repair_propagation\xea\xb5\x18_is the defect that no single source governs the copies, or that one repair missed some of them?\x12\x90\x03\n" +
-	"\x16GAP_CLASS_REPORT_VOICE\x10\x06\x1a\xf3\x02\x8a\xb5\x18\xc5\x01report prose speaks about the run that made it rather than the subject — process voice, a claim wearing the seat that produced it, the report's own draft history, or the machinery that checked itص\x18\x03\xe2\xb5\x18\x1cclaim_contradicts_own_record\xea\xb5\x18\x80\x01does the fix correct a FACT the report gets wrong, or the AUDIENCE the sentence is written for, whether or not the fact is true?\x12\xea\x03\n" +
+	"\x16GAP_CLASS_REPORT_VOICE\x10\x06\x1a\xf3\x02\x8a\xb5\x18\xc5\x01report prose speaks about the run that made it rather than the subject — process voice, a claim wearing the seat that produced it, the report's own draft history, or the machinery that checked itص\x18\x01\xe2\xb5\x18\x1cclaim_contradicts_own_record\xea\xb5\x18\x80\x01does the fix correct a FACT the report gets wrong, or the AUDIENCE the sentence is written for, whether or not the fact is true?\x12\xea\x03\n" +
 	"!GAP_CLASS_STRUCTURE_NONCOMPLIANCE\x10\a\x1a\xc2\x03\x8a\xb5\x18\x97\x02the report's structure does not carry its argument: material a reader has to take in order is present only as unordered prose, or a part of the answer has no place in it. The report's sections are its author's to name and order, and a heading the report does not have is not thisص\x18\x02\xe2\xb5\x18\x16risk_coverage_omission\xea\xb5\x18\x83\x01is it a risk the report does not grade, or material the report holds with no order a reader can follow it by, whatever its subject?\x12\xc8\x02\n" +
 	"\x19GAP_CLASS_FALSE_UNIVERSAL\x10\b\x1a\xa8\x02\x8a\xb5\x18\x86\x01a claim stated universally — every, none, always, the only — that a case the evidence reaches, or one it never tested, contradictsص\x18\x01\xe2\xb5\x18\x1bexhaustive_sweep_omits_case\xea\xb5\x18vis it a rule about the subject stated too broadly, or a list or search presented as complete that leaves a member out?\x12\x9e\x02\n" +
 	"%GAP_CLASS_EXHAUSTIVE_SWEEP_OMITS_CASE\x10\t\x1a\xf2\x01\x8a\xb5\x18]a list, survey, search or sweep the report presents as complete omits a member it should holdص\x18\x01\xe2\xb5\x18\x0ffalse_universal\xea\xb5\x18vis it a rule about the subject stated too broadly, or a list or search presented as complete that leaves a member out?\x12\xbc\x02\n" +
@@ -8590,11 +8608,11 @@ const file_record_proto_rawDesc = "" +
 	"\x0ePetitionRuling\x12\x1f\n" +
 	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12\x8f\x01\n" +
 	"\x17PETITION_RULING_GRANTED\x10\x01\x1ar\x8a\xb5\x18nthe objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow\x12\xaf\x01\n" +
-	"\x16PETITION_RULING_DENIED\x10\x02\x1a\x92\x01\x8a\xb5\x18\x8d\x01the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest*\x98\x05\n" +
+	"\x16PETITION_RULING_DENIED\x10\x02\x1a\x92\x01\x8a\xb5\x18\x8d\x01the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest*\xbe\x06\n" +
 	"\x0ePositionRuling\x12\x1f\n" +
-	"\x1bPOSITION_RULING_UNSPECIFIED\x10\x00\x12\x8a\x03\n" +
-	"\x16POSITION_RULING_UPHELD\x10\x01\x1a\xed\x02\x8a\xb5\x18\xe8\x02the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work\x12\xd7\x01\n" +
-	"\x19POSITION_RULING_OVERRULED\x10\x02\x1a\xb7\x01\x8a\xb5\x18\xb2\x01the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work*\xb5\x06\n" +
+	"\x1bPOSITION_RULING_UNSPECIFIED\x10\x00\x12\xae\x03\n" +
+	"\x16POSITION_RULING_UPHELD\x10\x01\x1a\x91\x03\x8a\xb5\x18\x8c\x03the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work\x12\xd9\x02\n" +
+	"\x19POSITION_RULING_OVERRULED\x10\x02\x1a\xb9\x02\x8a\xb5\x18\xb4\x02the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld*\xb5\x06\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
 	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\xac\x02\n" +
@@ -8887,30 +8905,31 @@ var file_record_proto_depIdxs = []int32{
 	29,  // 95: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
 	2,   // 96: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
 	3,   // 97: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	81,  // 98: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	81,  // 99: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	82,  // 100: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	82,  // 101: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	82,  // 102: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	82,  // 103: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	82,  // 104: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	82,  // 105: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	82,  // 106: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
-	82,  // 107: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
-	82,  // 108: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	82,  // 109: feov.record.v1.gap_classes:extendee -> google.protobuf.EnumValueOptions
-	82,  // 110: feov.record.v1.found_source_gap_classes:extendee -> google.protobuf.EnumValueOptions
-	83,  // 111: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	31,  // 112: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	5,   // 113: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	6,   // 114: feov.record.v1.gap_classes:type_name -> feov.record.v1.GapClass
-	6,   // 115: feov.record.v1.found_source_gap_classes:type_name -> feov.record.v1.GapClass
-	30,  // 116: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	117, // [117:117] is the sub-list for method output_type
-	117, // [117:117] is the sub-list for method input_type
-	112, // [112:117] is the sub-list for extension type_name
-	98,  // [98:112] is the sub-list for extension extendee
-	0,   // [0:98] is the sub-list for field type_name
+	6,   // 98: feov.record.v1.Position.class:type_name -> feov.record.v1.GapClass
+	81,  // 99: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	81,  // 100: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	82,  // 101: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	82,  // 102: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	82,  // 103: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	82,  // 104: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	82,  // 105: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	82,  // 106: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	82,  // 107: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
+	82,  // 108: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
+	82,  // 109: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
+	82,  // 110: feov.record.v1.gap_classes:extendee -> google.protobuf.EnumValueOptions
+	82,  // 111: feov.record.v1.found_source_gap_classes:extendee -> google.protobuf.EnumValueOptions
+	83,  // 112: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	31,  // 113: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	5,   // 114: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	6,   // 115: feov.record.v1.gap_classes:type_name -> feov.record.v1.GapClass
+	6,   // 116: feov.record.v1.found_source_gap_classes:type_name -> feov.record.v1.GapClass
+	30,  // 117: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	118, // [118:118] is the sub-list for method output_type
+	118, // [118:118] is the sub-list for method input_type
+	113, // [113:118] is the sub-list for extension type_name
+	99,  // [99:113] is the sub-list for extension extendee
+	0,   // [0:99] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }

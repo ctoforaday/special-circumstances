@@ -148,6 +148,22 @@ func neverMaterialClass() string {
 	return ""
 }
 
+// positionClasses is every gap class word a position may name, read off the enum.
+func positionClasses() []string {
+	vals := recordpb.GapClass(0).Descriptor().Values()
+	var out []string
+	for i := 1; i < vals.Len(); i++ {
+		out = append(out, recordpb.Word(recordpb.GapClass(vals.Get(i).Number())))
+	}
+	return out
+}
+
+// alwaysMaterial is whether class's material default is `always`; false for "" or an unknown word.
+func alwaysMaterial(class string) bool {
+	c, ok := record.GapClassOf(class)
+	return ok && recordpb.MaterialDefault(c) == recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS
+}
+
 // rulePositions rules every position the bench hears, at the sitting of the given occasion. A run
 // forced to a position rules it the way it is forced; any other forced run's bench overrules, and a
 // drawn run's rules on a coin. Upheld names open gaps the tool accepts, or a cast lens.
@@ -170,6 +186,15 @@ func (r *runner) rulePositions(seatID, occasion string) {
 		case len(open) > 0 && r.coin(50):
 			form = "gaps"
 		default:
+			form = "lens"
+		}
+		// A POSITION WHOSE CLASS IS ALWAYS MATERIAL IS NOT OVERRULED (gblock, 2026-11-05): the overrule
+		// is refused, and the bench upholds it naming a lens of the cast, retired or not.
+		r.mu.Lock()
+		class := r.positionClass[id]
+		r.mu.Unlock()
+		if form == "overruled" && alwaysMaterial(class) {
+			r.positionRulingRefused(seatID, id, "overruled over a position of always-material class "+class, "--as", "overruled", "--reason", opinion)
 			form = "lens"
 		}
 		if form == "overruled" {

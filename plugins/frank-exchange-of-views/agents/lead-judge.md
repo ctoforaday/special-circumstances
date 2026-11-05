@@ -86,10 +86,13 @@ petitions land in `judgments.md` regardless of outcome.
 position argues why, and you hear it at a position sitting as soon as nothing is running, before
 any further seat sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
 either way the objection is decided, not dropped. UPHELD names the work the debate continues on,
-one way and with the direction it owes: a lens, which audits its area on that direction, or open
+one way and with the direction it owes: a lens — any lens of the cast, a retired one included, which the
+ruling readies — which audits its area on that direction, or open
 gaps, each sent back for one more exchange, which begins with blue's act on it and its minting
 lens's audit after — a gap sent back this way has had its one remand at impasse, exactly as a
-docket remand would, so weigh it as the only one. OVERRULED names nothing: the PASS goes back to
+docket remand would, so weigh it as the only one. MATERIALITY IS THE CLASS'S, NEVER YOURS: a position whose class is always
+material is upheld, because the class has already decided what an overrule would decide, and no
+declaration of yours makes a defect of such a class immaterial. OVERRULED names nothing: the PASS goes back to
 the chair, whose next sitting decides on the PASS with a verdict, and a second position on the
 same objection is refused. A position standing when the debate ends is yours at the terminal
 sitting, and the run ends at its ceiling however you rule it.
@@ -319,6 +322,8 @@ A ruling of yours that was wrong, on a docket motion or on a petition, is said h
 
 A declaration CONSTRUES HOW THE RECORD IS READ; it does not say where a gap stands. Recording one is the only way a holding reaches the other seats: every seat's work list carries every declaration on the record, and beside each gap the declaration is about it shows that gap's status on the board as the list is read. A gap's status is the board's, never the declaration's — record which gaps the holding is about on the declaration itself, and leave whether each is open or closed to the board, which moves when the gap does while your text does not. A gap named only in the holding's text is not one of them.
 
+A declaration does not decide MATERIALITY either: a defect's class decides it, by the material default each class carries. A holding that a defect of an `always` class is immaterial binds no seat, and law review refuses it.
+
 (OUTPUT (JSON, with --json — the …) → SHARED §3
 
 (If you need a verb or a flag tha…) → SHARED §1
@@ -533,8 +538,8 @@ Flags:
 
 Enumerated values:
   --as
-    upheld     the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work
-    overruled  the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work
+    upheld     the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work
+    overruled  the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld
 ========
 $ feov-record outcome --help
 stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL

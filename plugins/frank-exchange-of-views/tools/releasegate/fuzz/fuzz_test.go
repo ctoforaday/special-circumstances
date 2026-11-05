@@ -709,6 +709,9 @@ type runner struct {
 	positionsHeard   []string
 	positionRuledAt  map[string]string
 	overruledPending string
+	// positionClass is the class a heard position named, by position; one that is always material
+	// is upheld, never overruled (rulePositions).
+	positionClass map[string]string
 	// positionFiled says the chair sitting in progress filed a position the bench hears, so the
 	// plan it relays is the one it asks for after it (chairEnvelope).
 	positionFiled bool
@@ -1465,16 +1468,31 @@ func (r *runner) chairPosition(seatID string, owed bool) {
 	if !owed && !r.coin(30) {
 		return
 	}
-	out, err := r.exec("--json", "position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
+	// A DRAWN RUN'S WITHHOLDING NAMES THE DEFECT'S CLASS on a coin, which binds the bench's hearing
+	// (gblock, 2026-11-05): a forced run's ruling is the seed's, so its chair names none.
+	args := []string{"--json", "position", "--seat-id", seatID, "--reason", "narrative from " + seatID}
+	class := ""
+	if owed && r.forcePosition == "" && !r.forcedVerdict() && r.coin(40) {
+		class = pick(r.rng, positionClasses())
+		args = append(args, "--class", class)
+	}
+	out, err := r.exec(args...)
 	if err != nil {
 		return
 	}
 	if owed {
 		// THE BENCH HEARS IT (gblock, 2026-10-30): the plan the chair asks for next convenes it.
+		id := positionIDOf(out)
 		r.mu.Lock()
 		r.positionsWithheld++
-		r.positionsHeard = append(r.positionsHeard, positionIDOf(out))
+		r.positionsHeard = append(r.positionsHeard, id)
 		r.positionFiled = true
+		if class != "" {
+			if r.positionClass == nil {
+				r.positionClass = map[string]string{}
+			}
+			r.positionClass[id] = class
+		}
 		r.mu.Unlock()
 	}
 	// A SEAT THAT GOT ITS POSITION WRONG TYPES IT AGAIN. The sitting holds one, so the second is

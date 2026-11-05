@@ -2,6 +2,7 @@ package migrate_test
 
 import (
 	"database/sql"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -246,11 +247,13 @@ func classWords() map[string]bool {
 // THE GAP CLASS MIGRATES ONTO THE ENUM, on the two eras that coined classes, each driven as the
 // shipped path runs — Migrate on the extracted archive, its channels and all. m28 (current epoch,
 // two class_new events, two invalid-inference mints, every mint stamped): every class a GapClass
-// word, nothing refused, one slug through an authored row, and every stamp the source's but one.
-// THE RESIDUE, accepted (gblock, 2026-10-23): the tool stamps a mint's class_material, so migrate
-// takes the archived stamp off and the write stamps the class's default; G-79f965fd was minted
-// `by_grade` under its coined class, which translates to verification_scope_blindspot, whose default
-// is `always`, and a stated fill names it. The sleeper
+// word, nothing refused, one slug through an authored row, and every stamp the source's but those the
+// class's default has since moved. THE RESIDUE, accepted (gblock, 2026-10-23): the tool stamps a
+// mint's class_material, so migrate takes the archived stamp off and the write stamps the class's
+// default; G-79f965fd was minted `by_grade` under its coined class, which translates to
+// verification_scope_blindspot, whose default is `always`, and every report_voice mint was stamped
+// `by_grade`, the class's default until gblock ruled narration always material (2026-11-05). A stated
+// fill names each. The sleeper
 // run (jsonl era, coinings carried on the mint, no class_material): a coined
 // citation-support-mismatch lands on citation_figure_misattribution stamped `always` and the three
 // guardrail-scope-overclaim mints on partial_control_coverage `by_grade`, each with a stated fill,
@@ -301,25 +304,40 @@ func TestTheGapClassMigratesOntoTheEnum(t *testing.T) {
 		if len(got) != len(src) || len(src) == 0 {
 			t.Fatalf("%d mint(s) migrated of the source's %d", len(got), len(src))
 		}
-		const restamped = "G-79f965fd"
+		const coined = "G-79f965fd"
+		restamped := map[string]bool{coined: true}
+		for id, m := range got {
+			if m[0] == "report_voice" {
+				restamped[id] = true
+			}
+		}
+		if len(restamped) < 2 {
+			t.Fatalf("fixture: m28 holds no report_voice mint; the residue this test pins is a voice stamp moved to always")
+		}
 		for id, s := range src {
 			want := s[1]
-			if id == restamped {
+			if restamped[id] {
 				want = "always"
+				if s[1] != "by_grade" {
+					t.Fatalf("fixture: the source stamps %s %q; the residue this test pins is a by_grade stamp", id, s[1])
+				}
 			}
 			if got[id][1] != want {
 				t.Errorf("mint %s migrated stamped %q, want %q; the source stamped %q", id, got[id][1], want, s[1])
 			}
 		}
-		if src[restamped][1] != "by_grade" {
-			t.Fatalf("fixture: the source stamps %s %q; the residue this test pins is a by_grade stamp", restamped, src[restamped][1])
-		}
 		if want := []migration.ClassTranslation{{From: "audited-artifact-sibling-halo", To: "verification_scope_blindspot", Mints: 1}}; !slices.Equal(res.ClassTranslations, want) {
 			t.Errorf("class_translations = %+v, want %+v", res.ClassTranslations, want)
 		}
-		if len(res.StatedFills) != 1 || res.StatedFills[0].Where != "mint "+restamped || res.StatedFills[0].Value != "always" ||
-			!strings.Contains(res.StatedFills[0].Why, "the source stamped by_grade") {
-			t.Errorf("want one stated fill, naming %s's stamp moved from by_grade to always; got %+v", restamped, res.StatedFills)
+		filled := map[string]bool{}
+		for _, f := range res.StatedFills {
+			if f.Value != "always" || !strings.Contains(f.Why, "the source stamped by_grade") {
+				t.Errorf("stated fill %+v: want a by_grade stamp moved to always", f)
+			}
+			filled[strings.TrimPrefix(f.Where, "mint ")] = true
+		}
+		if len(res.StatedFills) != len(restamped) || !maps.Equal(filled, restamped) {
+			t.Errorf("want one stated fill per restamped mint %v; got %+v", restamped, res.StatedFills)
 		}
 	})
 	t.Run("sleeper", func(t *testing.T) {
