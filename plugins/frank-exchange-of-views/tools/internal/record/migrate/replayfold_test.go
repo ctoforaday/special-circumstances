@@ -7,10 +7,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// THE REPORT'S REPLAY IS A FOLD. A write folds the ops another write added onto the render it made
-// before taking the lock, and reads that as the report it lands on (the record's reportRenderer), so
-// replaying ops[k:] over what ops[:k] replayed to must give the whole replay's bytes, at every k. Asked
-// of archived runs, whose ops are real edits, placements and retires rather than a fixture's.
+// THE REPORT'S REPLAY IS A FOLD. Every read of the report folds the ops after a report checkpoint onto
+// the checkpoint's text, and every checkpoint is the ops since the one before folded onto its text
+// (the record's reportRenderer), so replaying ops[k:] over what ops[:k] replayed to must give the
+// whole replay's bytes, at every k. Asked of archived runs, whose ops are real edits, placements
+// and retires rather than a fixture's.
 func TestTheReportReplayIsAFold(t *testing.T) {
 	for _, name := range []string{"2026-10-12_is-91-prime-wave-b.tar.gz", "2026-10-13_is-91-prime-m23.tar.gz", "2026-09-11_is-91-prime-b9.tar.gz"} {
 		t.Run(name, func(t *testing.T) {

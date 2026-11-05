@@ -65,13 +65,14 @@ func (a *Analyzer) Shapes(stmt string, p Plan) []Shape {
 	add := func(k ShapeKind, name string) { counts[[2]string{string(k), name}]++ }
 	subplans := map[string]int{}
 	constrained := constrains(stmt)
+	built := subplanNodes(p)
 
 	p.Walk(func(n *PlanNode, _ int) {
 		f := strings.Fields(n.Detail)
 		if len(f) < 2 {
 			return
 		}
-		if constrained && heapScan(f) && a.grows(scope.Targets(f[1])) {
+		if constrained && heapScan(f) && (a.grows(scope.Targets(f[1])) || minMaxOverSubplan(f, built, a, scope)) {
 			add(ConstrainedScan, scanName(f, scope))
 		}
 		switch {
@@ -122,6 +123,60 @@ func (a *Analyzer) bounded(targets []string) bool {
 func (a *Analyzer) grows(targets []string) bool {
 	for _, t := range targets {
 		if a.growth[t] {
+			return true
+		}
+	}
+	return false
+}
+
+// subplanNodes is every named CTE or view the plan materializes or co-routines, by the name SQLite
+// gives it.
+func subplanNodes(p Plan) map[string][]*PlanNode {
+	out := map[string][]*PlanNode{}
+	p.Walk(func(n *PlanNode, _ int) {
+		f := strings.Fields(n.Detail)
+		if len(f) >= 2 && (f[0] == "MATERIALIZE" || f[0] == "CO-ROUTINE") && !strings.HasPrefix(f[1], "(") {
+			out[f[1]] = append(out[f[1]], n)
+		}
+	})
+	return out
+}
+
+// minMaxOverSubplan reads a min()/max() loop over a CTE or view SQLite computes as a subplan:
+// "SEARCH v" beside "CO-ROUTINE v" or "MATERIALIZE v". A subplan's output has no index, so the loop
+// cannot stop early — every row the subplan yields is produced and compared, and when the subplan
+// reads a growing table that is a cost that rises with the run. The subplan's own loops do not
+// always show it: built from index walks ("SCAN events USING COVERING INDEX events_type"), which
+// heapScan rightly does not count, the whole walk sits under a min/max that reads as one row. A
+// SCAN of a subplan is not judged here: a filter pushed into the subplan can make that loop cheap
+// (a count over a view whose arms are rowid lookups), and its cost is read where the subplan runs.
+func minMaxOverSubplan(f []string, built map[string][]*PlanNode, a *Analyzer, scope *Scope) bool {
+	if f[0] != "SEARCH" {
+		return false
+	}
+	return a.subplanGrows(f[1], built, scope, map[string]bool{})
+}
+
+// subplanGrows reports whether any loop inside the named subplan reads a growing table, directly
+// or through another subplan.
+func (a *Analyzer) subplanGrows(name string, built map[string][]*PlanNode, scope *Scope, seen map[string]bool) bool {
+	if seen[name] {
+		return false
+	}
+	seen[name] = true
+	for _, root := range built[name] {
+		found := false
+		Plan{Roots: root.Children}.Walk(func(n *PlanNode, _ int) {
+			f := strings.Fields(n.Detail)
+			if found || len(f) < 2 || (f[0] != "SCAN" && f[0] != "SEARCH") || strings.HasPrefix(f[1], "(") {
+				return
+			}
+			if strings.Contains(n.Detail, "(rowid=?)") {
+				return // one row by its key, whatever the table's size
+			}
+			found = a.grows(scope.Targets(f[1])) || a.subplanGrows(f[1], built, scope, seen)
+		})
+		if found {
 			return true
 		}
 	}

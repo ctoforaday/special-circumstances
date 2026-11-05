@@ -620,6 +620,11 @@ type runner struct {
 	// and before its close is issued: a deterministic test lands there the sibling's reading that a
 	// sweep's concurrent lenses land at will. nil in the sweep.
 	betweenCloseReadAndAct func(gapID string)
+	// betweenSecondSourceReadAndAct is called after readFoundSource read that gapID, which carries a
+	// lens's first reading of a sentence, stands open and before its second source's reading is issued:
+	// a deterministic test lands there the close a sweep's concurrent seats land at will. nil in the
+	// sweep.
+	betweenSecondSourceReadAndAct func(gapID string)
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -8226,7 +8231,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed || positionFormOf(seed) != "")
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.closedRemandsRefused, o.trifleRemandsRouted, firstLine(o.err))
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.closedRemandsRefused, o.trifleRemandsRouted, runstatErr(o.err))
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -9488,6 +9493,18 @@ func declarationsAgreeWithBoard(run record.Run, declared int) string {
 		}
 	}
 	return ""
+}
+
+// runstatErr is a failed run's error as the RUNSTAT line carries it: its first line, and where the
+// error holds a refused act's envelope — exec puts the act's output after the exit status, on the
+// lines below — the envelope's code and error, so the job log, which keeps RUNSTAT and drops the
+// lines below it, names why the act was refused and not only its exit status.
+func runstatErr(err string) string {
+	line := firstLine(err)
+	if env, ok := refusalEnvelopeIn(err); ok {
+		line += " — refused (" + env.Code + "): " + env.Error
+	}
+	return line
 }
 
 // sumSittings and maxSittings are the RUNSTAT line's lens-sitting cost: the run's total, and the

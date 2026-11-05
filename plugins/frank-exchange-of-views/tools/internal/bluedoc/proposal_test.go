@@ -3,6 +3,9 @@ package bluedoc
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // THE LINE BETWEEN AN AUDIT AND AUTHORSHIP. A substantive addition is blue's to write.
@@ -35,5 +38,24 @@ func TestProposalGrowthBoundIsExactlyWhereItSays(t *testing.T) {
 func TestRefuseAuthoringAllowsAnyShrink(t *testing.T) {
 	if err := RefuseAuthoring("Five independent verification approaches agree that 7 is prime", "7 is prime"); err != nil {
 		t.Fatalf("a large DELETION was refused: %v", err)
+	}
+}
+
+// A replacement keeps the tokens of the span it replaces; they are not words it adds. Measured with
+// them, a 70-character rewording of a sentence five citations back reads as 180 and is refused.
+func TestRefuseAuthoringCountsWordsNotTokens(t *testing.T) {
+	const words = "Costs rose sharply in the first quarter."
+	marked := "Costs rose sharply in the first quarter"
+	for _, id := range []string{"C-0000000a", "C-0000000b", "C-0000000c", "C-0000000d", "C-0000000e"} {
+		marked += anchor.Token(id)
+	}
+	marked += "."
+	reworded := "Read again, with the measured figures for every month of the quarter, " + marked
+	if err := RefuseAuthoring(words, reworded); err != nil {
+		t.Errorf("a %d-character rewording carrying its sentence's five tokens was refused: %v",
+			utf8.RuneCountInString(reworded)-utf8.RuneCountInString(marked), err)
+	}
+	if err := RefuseAuthoring(marked, words+strings.Repeat("x", MaxProposalGrowth+1)); err == nil {
+		t.Error("a proposal past the bound in words was accepted because its old span carried tokens")
 	}
 }

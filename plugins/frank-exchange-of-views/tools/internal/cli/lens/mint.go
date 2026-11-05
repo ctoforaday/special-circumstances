@@ -88,7 +88,7 @@ func newMint() *cobra.Command {
 		// THE CONCRETE PROPOSAL is verified against the report the mint lands on (gapFlags.fill says
 		// why fix_basis is derived, not claimed).
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-			guards = append(guards, record.CheckOnReport(func(l *record.Landing) error {
+			guards = append(guards, record.Check(func(l *record.Landing) error {
 				report, err := l.Report()
 				if err != nil {
 					return err
@@ -260,7 +260,7 @@ func (g *gapFlags) register(c *cobra.Command, subject gapSubject) {
 	enumhelp.Flag(c, flags.Class, subject.class, subject.classUsage)
 	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
-	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text %s should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", subject.span, bluedoc.MaxProposalGrowth))
+	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text %s should become. A replacement more than %d characters longer than the span, counting words and not the anchor tokens it keeps, is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", subject.span, bluedoc.MaxProposalGrowth))
 	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition")
 	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check"))
 	c.Flags().Var(&g.severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))

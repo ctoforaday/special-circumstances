@@ -43,7 +43,7 @@ func ServeReport(id Identity) (text string, head int64, err error) {
 		return ReportAtHead(id.Run)
 	}
 	body := &recordpb.ReportRead{}
-	_, err = Append(id, body, CheckOnReport(func(l *Landing) error {
+	_, err = Append(id, body, Check(func(l *Landing) error {
 		if text, err = l.Report(); err != nil {
 			return err
 		}
@@ -76,10 +76,13 @@ func ServeReport(id Identity) (text string, head int64, err error) {
 
 // servedThisSittingAt is whether seatID's current sitting already holds a read at head.
 func servedThisSittingAt(q recordsql.Querier, seatID string, head int64) (bool, error) {
+	sitting, _, err := latestSittingAt(q, seatID)
+	if err != nil {
+		return false, err
+	}
 	var one int
-	err := q.QueryRow(`SELECT 1 FROM "report_read" r JOIN "events" e ON e."id" = r."event_id"
-	  WHERE e."seat_id" = ?1 AND r."head" = ?2
-	    AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1) LIMIT 1`, seatID, head).Scan(&one)
+	err = q.QueryRow(`SELECT 1 FROM "report_read" r JOIN "events" e ON e."id" = r."event_id"
+	  WHERE e."seat_id" = ?1 AND r."head" = ?2 AND e."sitting_id" IS ?3 LIMIT 1`, seatID, head, sitting).Scan(&one)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return false, nil

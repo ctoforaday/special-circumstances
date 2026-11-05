@@ -1387,7 +1387,7 @@ func Location(cmd *cobra.Command) string {
 // edit that commits in between can take the quote out, and an Anchor at a location replay cannot place
 // fails every render of the report from then on (#1252).
 func Places(id, loc string, refuse func(error) error) record.Guard {
-	return record.CheckOnReport(places(id, loc, refuse))
+	return record.Check(places(id, loc, refuse))
 }
 
 // PlacesToSentenceOf is Places for an anchor placed by identity: it refuses, in refuse's words, where
@@ -1395,7 +1395,7 @@ func Places(id, loc string, refuse func(error) error) record.Guard {
 // sits in, on the report the write lands on — so a retire of that citation committing in between
 // refuses the act, nothing recorded. It never searches text: of's token is unique by construction.
 func PlacesToSentenceOf(id, of string, refuse func(error) error) record.Guard {
-	return record.CheckOnReport(func(l *record.Landing) error {
+	return record.Check(func(l *record.Landing) error {
 		current, err := l.Report()
 		if err != nil {
 			return err

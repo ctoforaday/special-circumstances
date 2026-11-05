@@ -143,7 +143,7 @@ func newRetire() *cobra.Command {
 			return nil
 		}
 
-		if _, err := record.Append(s.Identity(), body, record.CheckOnReport(func(l *record.Landing) error { return guard(l) })); err != nil {
+		if _, err := record.Append(s.Identity(), body, record.Check(func(l *record.Landing) error { return guard(l) })); err != nil {
 			return nil, err
 		}
 		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Stayed: stayed}, nil
@@ -206,7 +206,7 @@ func retireCitation(s seat.Context, body *recordpb.Retire, named []string) (seat
 		body.ClaimKept = proto.Bool(true)
 		return nil
 	}
-	if _, err := record.Append(s.Identity(), body, record.CheckOnReport(guard)); err != nil {
+	if _, err := record.Append(s.Identity(), body, record.Check(guard)); err != nil {
 		return nil, err
 	}
 	return retireResult{Claim: body.GetClaim(), Anchors: body.Anchors, ClaimKept: true, Answers: body.GetAnswers()}, nil

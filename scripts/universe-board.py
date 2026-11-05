@@ -108,19 +108,28 @@ def main() -> int:
         print(f"  hook-written sitting spans: {spans}"
               + ("   <- subagents are dispatching" if spans else "   <- none yet"))
 
-    for label, table in (("minted", "mint"), ("closed", "close"), ("retired", "retire"),
-                         ("positions", "position"), ("closings", "closing"), ("log", "log")):
+    # WHETHER A GAP IS CLOSED IS THE RECORD'S `gap` VIEW, not the `close` table: a lens closes a gap
+    # through `close`, the bench through a docket ruling, and the view is the one definition of both.
+    # Read off `close` alone, a bench-closed gap printed OPEN (universe-m38, G-ca807516).
+    n = count(c, "mint")
+    if n:
+        print(f"  {'minted':<10} {n}")
+    try:
+        closed = list(c.execute('SELECT "closed_gaps" FROM "board_counts"'))[0][0]
+        if closed:
+            print(f"  {'closed':<10} {closed}")
+    except sqlite3.Error as e:
+        print(f"  !! closed gaps NOT READ — the record's board_counts view did not answer: {e}")
+    for label, table in (("retired", "retire"), ("positions", "position"), ("closings", "closing"), ("log", "log")):
         n = count(c, table)
         if n:
             print(f"  {label:<10} {n}")
 
     try:
-        gaps = list(c.execute('SELECT "gap_id", "class" FROM "mint" ORDER BY "event_id"'))
-        closed = {r[0] for r in c.execute('SELECT "gap_id" FROM "close"')}
-        for g, cls in gaps:
-            print(f"    {g:<5} {cls:<34} {'closed' if g in closed else 'OPEN'}")
-    except sqlite3.Error:
-        pass
+        for g, cls, is_open in c.execute('SELECT "gap_id", "class", "open" FROM "gap" ORDER BY "minted_seq"'):
+            print(f"    {g:<5} {cls:<34} {'OPEN' if is_open else 'closed'}")
+    except sqlite3.Error as e:
+        print(f"  !! gap states NOT READ — the record's gap view did not answer: {e}")
 
     ended = False
     for table, label in (("gate", "chair verdict"), ("outcome", "run outcome")):
