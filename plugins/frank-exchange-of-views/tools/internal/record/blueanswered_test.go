@@ -154,10 +154,10 @@ func blueEditOf(t *testing.T, answers, old, new string) *Event {
 
 // A GAP ANCHORED ON AN INQUIRY IS ANSWERED BY A FATE ON THAT INQUIRY, AND A GAP ANCHORED ON A SECTION
 // THE TOOL COMPOSES BY A FATE THAT SECTION PRINTS (ruled by gblock 2026-11-05). No edit can answer
-// either, so the list names the act that does: a fate blue records, while engaged on the gap, that
-// changes its inquiry's previous record. A fate on another inquiry, a fate on a gap about text blue
-// writes, and a record repeating the previous one answer nothing, and a sitting that changed no fate is
-// reported as missing the inquiry record — never as missing an edit.
+// either, so the list names the act that does: a changed fate blue records that is an act on the gap
+// (fateActsOf), changing its inquiry's previous record. A fate on another inquiry, a fate on a gap about
+// text blue writes, and a record repeating the previous one answer nothing, and a sitting that changed
+// no fate is reported as missing the inquiry record — never as missing an edit.
 func TestAGapAnchoredOnAnInquiryIsAnsweredByItsFate(t *testing.T) {
 	const lens = "red-lens-dark-side"
 	gaps := []WorkGapState{{ID: "G1", Open: true, lensDue: true}}

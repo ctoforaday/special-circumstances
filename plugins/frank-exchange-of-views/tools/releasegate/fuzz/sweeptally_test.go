@@ -1205,7 +1205,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// A FATE BLUE CHANGED IS ITS ACT ON A GAP ABOUT A SECTION THAT PRINTS IT (ruled by gblock
 		// 2026-11-05): lenses mint about the inquiry sections and blue settles open inquiries in its
 		// sittings, so some lens's turn on a gap about a section came with a changed fate.
-		t.Logf("fate turns: %d of those lens engagement(s) on a gap about a section came with a fate blue changed", f.fateTurns)
+		t.Logf("fate turns: %d lens engagement(s) on a gap about a section, with blue or alone, came with a fate blue changed", f.fateTurns)
 		if f.fateTurns == 0 {
 			t.Errorf("no lens turn across %d runs on a gap about a section came with a fate blue changed — the rule that a changed fate is blue's act on a gap about a section that prints it is unexercised (false green)", f.completed)
 		}

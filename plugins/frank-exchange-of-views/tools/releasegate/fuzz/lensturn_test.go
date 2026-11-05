@@ -317,7 +317,16 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 				return
 			}
 		}
-		if !seats["blue-respond"] || lens == "" {
+		if lens == "" {
+			continue
+		}
+		// A LENS ALONE ON A GAP whose turn a fate blue changed brought is the same rule measured: the
+		// epoch blue is held out of (#1744) re-audits blue's fate with the lens alone, and a tally read
+		// only where blue is engaged too never sees it. Its turn has come, or the loop above failed the run.
+		if !seats["blue-respond"] {
+			if seats[lens] && byFate(lens, gap) {
+				fates++
+			}
 			continue
 		}
 		switch came := turnCame(lens, gap); {

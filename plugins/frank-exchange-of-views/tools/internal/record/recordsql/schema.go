@@ -115,6 +115,10 @@ CREATE INDEX "events_sitting" ON "events" ("sitting_id");
 -- The rows that opened a sitting, by the seat on their envelope: one half of a seat's latest
 -- sitting (recordsql.LatestSitting). Partial, so it holds the openings and none of the acts.
 CREATE INDEX "events_opening" ON "events" ("seat_id") WHERE "sitting_id" = "id";
+-- A seat's own acts of one type, where the type's body table holds nothing to narrow by: the
+-- report parts a seat filed (ReportAtPart, partStandingAt) and the verifies a seat carried
+-- (ownAnswersAt), and a seat's mints about one kind (gapsMintedAbout).
+CREATE INDEX "events_seat" ON "events" ("seat_id");
 
 CREATE TRIGGER "events_are_append_only_update" BEFORE UPDATE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be edited after it is written');
@@ -244,6 +248,32 @@ CREATE INDEX "computation_answers" ON "computation" ("answers");
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
 CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");
+-- An agent's latest bracket, which its admission and its close are each held to (OneAdmissionASitting,
+-- OneCloseASitting), and which sittingOf reads on every write.
+CREATE INDEX "sitting_open_agent" ON "sitting_open" ("agent_id");
+-- An agent's registrations: the seat it registered as (RegisteredSeatOfAgent) and the sitting it
+-- holds (registeredSitting).
+CREATE INDEX "register_agent" ON "register" ("agent_id");
+-- A seat's keyed retry of an act, found by the key it sent (ExistingBlueEditByKey, FindingByKey,
+-- ExistingMintByKey, ExistingCiteByKey, ExistingComputationByKey, ExistingProposalByText).
+CREATE INDEX "blue_edit_key" ON "blue_edit" ("edit_key");
+CREATE INDEX "finding_key" ON "finding" ("finding_key");
+CREATE INDEX "mint_key" ON "mint" ("mint_key");
+CREATE INDEX "cite_key" ON "cite" ("cite_key");
+CREATE INDEX "computation_key" ON "computation" ("key");
+CREATE INDEX "inquiry_question" ON "inquiry" ("question");
+-- The anchors an act names, each checked to exist: a citation by its label and a computation by
+-- its id (requireAboutAnchor, requireComputationAnchor, requireNewGrounds), an inquiry by its id
+-- (requireInquiry, requireInquiryRef, requireClosureAnchors).
+CREATE INDEX "cite_label" ON "cite" ("label");
+CREATE INDEX "computation_id" ON "computation" ("computation_id");
+CREATE INDEX "inquiry_id" ON "inquiry" ("inquiry_id");
+-- A computation bundle's latest execution (requireNamedExecution).
+CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
+-- The retirement that retired an anchor (AnchorRetiredAt).
+CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value");
+-- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
+CREATE INDEX "close_gap" ON "close" ("gap_id");
 `
 
 func Schema() (string, error) {

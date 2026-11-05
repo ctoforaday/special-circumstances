@@ -28,20 +28,69 @@ const (
 )
 
 // Shape is one finding in one plan. Count is how many plan nodes show it, so a fix that removes
-// one of three appearances changes the finding rather than leaving it as it was.
+// one of three appearances changes the finding rather than leaving it as it was. Where is whose
+// cost it is (OnTable, or "via" the views or CTEs that hold it).
 type Shape struct {
 	Kind  ShapeKind
 	Name  string
 	Count int
+	Where string
 }
 
-func (s Shape) String() string { return fmt.Sprintf("%s | %s | x%d", s.Kind, s.Name, s.Count) }
+// OnTable is the Where of a finding on a growing table the statement reads itself: the statement's
+// own loop, which the statement or the schema can fix. Any other finding is reached through a view
+// or a CTE, and is that view's or CTE's cost.
+const OnTable = "table"
+
+func (s Shape) String() string {
+	return fmt.Sprintf("%s | %s | x%d | %s", s.Kind, s.Name, s.Count, s.Where)
+}
+
+// Refused reports whether the finding is a missing index: a scan or an automatic index on a
+// growing table the statement reads itself. No baseline holds one (Suite); the index lands with
+// the statement, or the statement is rewritten to read one it has.
+func (s Shape) Refused() bool {
+	switch s.Kind {
+	case ConstrainedScan, AutomaticIndex, CorrelatedScan:
+		return s.Where == OnTable
+	}
+	return false
+}
+
+// where is whose cost a finding on the plan's word, at node n, is.
+//
+// A loop SQLite runs inside a view it computes as a subplan ("CO-ROUTINE v", "MATERIALIZE v") is
+// that view's, whatever the word: a statement and the view it reads may both alias a table `p`,
+// and the plan tree, not the alias, says whose loop it is. A view SQLite flattens into the
+// statement leaves no such node, and the word's binding decides: a word the statement binds
+// itself to a growing table is the statement's own loop; a word only a view binds is that view's;
+// a word the statement binds to a view or a CTE is the cost of what it binds. A word bound
+// nowhere stands for itself, and a growing table's name standing for itself is the statement's.
+func (a *Analyzer) where(word string, scope *Scope, n *PlanNode) string {
+	if v := a.enclosingView(n); v != "" {
+		return "via " + v
+	}
+	switch {
+	case scope.Own(word) && a.grows(scope.Targets(word)):
+		return OnTable
+	case scope.Own(word):
+		return "via " + scope.Name(word)
+	}
+	if views := scope.Views(word); len(views) > 0 {
+		return "via " + strings.Join(views, ",")
+	}
+	if a.grows(scope.Targets(word)) {
+		return OnTable
+	}
+	return "via " + scope.Name(word)
+}
 
 // Analyzer reads shapes out of plans of statements against one schema.
 type Analyzer struct {
 	views  []View
-	prefix string          // the enum vocabularies' table-name prefix, read from the generator
-	growth map[string]bool // the schema's growing tables (GrowthTables)
+	prefix string            // the enum vocabularies' table-name prefix, read from the generator
+	growth map[string]bool   // the schema's growing tables (GrowthTables)
+	rowid  map[string]string // each table's INTEGER PRIMARY KEY column (RowidColumns)
 }
 
 // NewAnalyzer returns an analyzer over the database's views.
@@ -54,15 +103,35 @@ func NewAnalyzer(views []View) (*Analyzer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Analyzer{views: views, prefix: prefix, growth: growth}, nil
+	rowid, err := RowidColumns()
+	if err != nil {
+		return nil, err
+	}
+	return &Analyzer{views: views, prefix: prefix, growth: growth, rowid: rowid}, nil
+}
+
+// oneRow reports whether a bare "SEARCH t" is a min()/max() that reads one row: every min/max
+// SELECT the word names reads its table alone, unfiltered, over the table's rowid (rule.go).
+func (a *Analyzer) oneRow(f []string, scope *Scope) bool {
+	if f[0] != "SEARCH" {
+		return false
+	}
+	return scope.oneRowMinMax(f[1], func(table, col string) bool {
+		switch strings.ToLower(col) {
+		case "rowid", "_rowid_", "oid":
+			return true
+		}
+		pk, ok := a.rowid[table]
+		return ok && strings.EqualFold(pk, col)
+	})
 }
 
 // Shapes is every finding in p, sorted by kind and name. stmt is the SQL p is the plan of; its
 // text, and the views it names, are where the plan's aliases are bound (see Scope).
 func (a *Analyzer) Shapes(stmt string, p Plan) []Shape {
 	scope := NewScope(stmt, a.views)
-	counts := map[[2]string]int{}
-	add := func(k ShapeKind, name string) { counts[[2]string{string(k), name}]++ }
+	counts := map[[3]string]int{}
+	add := func(k ShapeKind, name, where string) { counts[[3]string{string(k), name, where}]++ }
 	subplans := map[string]int{}
 	constrained := constrains(stmt)
 	built := subplanNodes(p)
@@ -72,8 +141,11 @@ func (a *Analyzer) Shapes(stmt string, p Plan) []Shape {
 		if len(f) < 2 {
 			return
 		}
-		if constrained && heapScan(f) && (a.grows(scope.Targets(f[1])) || minMaxOverSubplan(f, built, a, scope)) {
-			add(ConstrainedScan, scanName(f, scope))
+		if heapScan(f) && a.oneRow(f, scope) {
+			return
+		}
+		if constrained.counts(n, p) && heapScan(f) && (a.grows(scope.Targets(f[1])) || minMaxOverSubplan(f, built, a, scope)) {
+			add(ConstrainedScan, scanName(f, scope), a.where(f[1], scope, n))
 		}
 		switch {
 		case (f[0] == "MATERIALIZE" || f[0] == "CO-ROUTINE") && !strings.HasPrefix(f[1], "("):
@@ -81,28 +153,31 @@ func (a *Analyzer) Shapes(stmt string, p Plan) []Shape {
 			// where it has one, not by its alias, so the word needs no resolving.
 			subplans[f[1]]++
 		case automaticIndex(f):
-			add(AutomaticIndex, scope.Name(f[1])+" "+constraintOf(f))
+			add(AutomaticIndex, scope.Name(f[1])+" "+constraintOf(f), a.where(f[1], scope, n))
 		case heapScan(f) && perRow(n) && !a.bounded(scope.Targets(f[1])):
-			add(CorrelatedScan, scanName(f, scope))
+			add(CorrelatedScan, scanName(f, scope), a.where(f[1], scope, n))
 		case f[0] == "USE" && len(f) >= 3 && f[1] == "TEMP" && f[2] == "B-TREE" && perRow(n):
-			add(CorrelatedSort, sortName(f, n, scope))
+			add(CorrelatedSort, sortName(f, n, scope), a.sortWhere(n, scope))
 		}
 	})
 	for name, c := range subplans {
 		if c > 1 {
-			counts[[2]string{string(RepeatedSubplan), name}] = c
+			counts[[3]string{string(RepeatedSubplan), name, a.where(name, scope, nil)}] = c
 		}
 	}
 
 	out := make([]Shape, 0, len(counts))
 	for k, c := range counts {
-		out = append(out, Shape{Kind: ShapeKind(k[0]), Name: k[1], Count: c})
+		out = append(out, Shape{Kind: ShapeKind(k[0]), Name: k[1], Count: c, Where: k[2]})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Kind != out[j].Kind {
 			return out[i].Kind < out[j].Kind
 		}
-		return out[i].Name < out[j].Name
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].Where < out[j].Where
 	})
 	return out
 }
@@ -273,6 +348,36 @@ func sortName(f []string, n *PlanNode, scope *Scope) string {
 		return purpose
 	}
 	return purpose + " over " + strings.Join(over, ",")
+}
+
+// enclosingView is the nearest view the plan computes n inside, or "".
+func (a *Analyzer) enclosingView(n *PlanNode) string {
+	for up := n; up != nil; up = up.parent {
+		f := strings.Fields(up.Detail)
+		if up == n || len(f) < 2 || (f[0] != "MATERIALIZE" && f[0] != "CO-ROUTINE") {
+			continue
+		}
+		for _, v := range a.views {
+			if strings.EqualFold(v.Name, f[1]) {
+				return strings.ToLower(v.Name)
+			}
+		}
+	}
+	return ""
+}
+
+// sortWhere is whose cost a per-row sort is: that of the first loop beside it, or of the statement
+// when it sorts no loop of its own.
+func (a *Analyzer) sortWhere(n *PlanNode, scope *Scope) string {
+	if n.parent != nil {
+		for _, sib := range n.parent.Children {
+			sf := strings.Fields(sib.Detail)
+			if len(sf) >= 2 && (sf[0] == "SCAN" || sf[0] == "SEARCH") && !strings.HasPrefix(sf[1], "(") {
+				return a.where(sf[1], scope, sib)
+			}
+		}
+	}
+	return OnTable
 }
 
 func first(detail string) string {
