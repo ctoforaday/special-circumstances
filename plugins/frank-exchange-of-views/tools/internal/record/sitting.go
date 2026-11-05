@@ -118,6 +118,8 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 type sittingReads struct {
 	// unverifiable: why no verify can reach a citation (unverifiableIn).
 	unverifiable unverifiableFunc
+	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
+	blueOut bool
 }
 
 // unverifiableFunc says why a citation's sentence cannot be verified from the report as it renders
@@ -494,7 +496,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
-	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID)...)
+	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID, reads.blueOut)...)
 
 	// AN EMPTY LIST MUST SAY IT IS EMPTY. `complete: true, open: []` is the answer a seat with
 	// nothing to do gets, and it is indistinguishable from a command that failed to find anything —

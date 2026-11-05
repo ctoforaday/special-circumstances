@@ -72,7 +72,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			dispatchBlue(t, "G2", "G3"), registers(t, "blue-respond"),
 			recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G2")}),
 		})
-		got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "blue", "blue-respond")
+		got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "blue", "blue-respond", false)
 		if !mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
 			t.Fatalf("an edit answering G2 with no manifest row afforded nothing: %v", hows(got))
 		}
@@ -82,7 +82,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 		}
 		// And it stops once the receipt exists, or the line is a nag rather than a fact.
 		b = loadedFamilyT(t, nil, append(b.Events, recordtest.Event(t, "blue-respond", &recordpb.ManifestRow{GapId: proto.String("G2")})))
-		if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "blue", "blue-respond"); mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
+		if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "blue", "blue-respond", false); mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
 			t.Errorf("the manifest affordance survived its own discharge: %v", hows(got))
 		}
 	})
@@ -506,7 +506,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 			}),
 			file("M2", "G-pending"),
 		})
-	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair")
+	open := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "chair", "red-chair", false)
 
 	for _, want := range []string{"G-carried", "G-fresh"} {
 		if !mentions(open, "gap "+want+" is open") {
@@ -538,7 +538,7 @@ func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 			DocketDirection: "blue reporting what the stated direction found"},
 		{ID: "FRESH", Open: true, Material: true},
 	}
-	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair")
+	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false)
 
 	find := func(id string) string {
 		t.Helper()

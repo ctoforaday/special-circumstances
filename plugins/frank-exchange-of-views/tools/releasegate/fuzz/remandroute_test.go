@@ -304,8 +304,17 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 			engagedOn[id][fmt.Sprint(m["seat_id"])] = true
 		}
 	}
+	// A PLAN THAT HOLDS BLUE OUT (holdsBlueOut) lists no remand whose exchange waits on blue: blue sits
+	// neither there nor at the final sitting, so that exchange cannot be had, and an entry is a remand a
+	// party of this plan is engaged on — its lens, once blue has acted. The check below holds it to
+	// that: an entry engaging nobody fails, and so does blue engaged where the plan holds it out.
+	blueOut := holdsBlueOut(plan)
 	for _, o := range owed {
 		if !pending[o.GapID] {
+			continue
+		}
+		if blueOut && engagedOn[o.GapID]["blue-respond"] {
+			r.noteActErr(fmt.Sprintf("the plan holds blue out of epoch %v and engages it on gap %s's remand: parties %v", plan["epoch"], o.GapID, parties))
 			continue
 		}
 		if !engagedOn[o.GapID]["blue-respond"] {
