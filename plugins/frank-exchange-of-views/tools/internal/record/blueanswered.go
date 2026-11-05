@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -23,7 +22,12 @@ import (
 // it" after blue had recorded the fate, and the lens had to read the inquiries to learn otherwise.
 // And A GAP ANCHORED ON A SECTION THE TOOL COMPOSES FROM FATES IS ANSWERED BY A FATE THAT SECTION
 // PRINTS (ruled by gblock 2026-11-05, fateActsOf): recording the fate again is the only act that
-// changes the section. Either way the fate must change its inquiry's previous record.
+// changes the section. Either way the fate must change its inquiry's previous record, and it answers
+// whatever gaps blue's sitting was engaged on (ruled by gblock 2026-11-05): a changed fate is blue's
+// act on every gap about what it changes, so the lens's turn and this list read the one predicate,
+// fateActsOf. On universe-m39 they read two: the fates blue recorded on Q-fbb839ee while engaged on
+// G-a53fd56a gave G-385fe4f4's lens its turn, and its list then spoke of an edit `edited_since` did
+// not hold.
 //
 // A GAP WHOSE ANCHOR LEFT THE REPORT IS NOT UNANSWERED. Blue cutting the sentence is an act on it
 // whether or not the edit named the gap, so a `gone` gap blue was engaged on is put to its lens to
@@ -102,7 +106,7 @@ type blueAnswer struct {
 	editedAt    int64  // the latest change to the report answering it: an edit, old != new, or a citation retire
 	computedAt  int64  // the latest computation answering it
 	computation string // that computation's id
-	fateAt      int64  // the latest fate blue changed, while engaged on it, that is an act on it (fateActsOf)
+	fateAt      int64  // the latest fate blue changed that is an act on it (fateActsOf), whatever its sitting was engaged on
 	fate        string // that fate
 	fateOn      string // the inquiry that fate is on
 	inquiry     string // the inquiry it is anchored on; "" for a gap anchored on report text
@@ -160,10 +164,12 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 		}
 		for _, e := range s.Acts {
 			if in, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
-				for _, g := range s.Engaged {
-					if slices.Contains(fateGaps[e], g) && open[g] && after(g, e) {
+				// THE GAPS THE FATE IS AN ACT ON, AND NO OTHER LIST (ruled by gblock 2026-11-05): the
+				// lens's turn reads fateActsOf whatever blue's sitting was engaged on, so this does too.
+				for _, g := range fateGaps[e] {
+					if open[g] && after(g, e) {
 						a := out[g]
-						a.fate, a.fateOn, a.fateAt = recordpb.Word(in.GetStatus()), in.GetInquiryId(), win.Of(e).ID
+						a.fate, a.fateOn, a.fateAt, a.inquiry = recordpb.Word(in.GetStatus()), in.GetInquiryId(), win.Of(e).ID, inquiryOf[g]
 						out[g] = a
 						at(g, e)
 					}

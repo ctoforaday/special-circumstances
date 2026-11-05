@@ -8,14 +8,14 @@
       LEFT-MOST SUBQUERY
         SCAN r
         CORRELATED SCALAR SUBQUERY
-          SEARCH r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
         SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
       UNION ALL
         SCAN o
         CORRELATED SCALAR SUBQUERY
-          SCAN r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
         CORRELATED SCALAR SUBQUERY
-          SEARCH o2
+          SEARCH o2 USING COVERING INDEX sitting_open_agent (agent_id=?)
   SCAN agent_binding
 
 == view board_counts
@@ -38,7 +38,7 @@
       CO-ROUTINE closure_act
         COMPOUND QUERY
           LEFT-MOST SUBQUERY
-            SCAN c
+            SCAN c USING COVERING INDEX close_gap
           UNION ALL
             SCAN rd
             SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -48,7 +48,7 @@
           UNION ALL
             SCAN s
             CORRELATED SCALAR SUBQUERY
-              SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+              SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
             CORRELATED SCALAR SUBQUERY
               SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
               SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -123,7 +123,7 @@
   CO-ROUTINE closure_act
     COMPOUND QUERY
       LEFT-MOST SUBQUERY
-        SCAN c
+        SCAN c USING COVERING INDEX close_gap
       UNION ALL
         SCAN rd
         SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -133,7 +133,7 @@
       UNION ALL
         SCAN s
         CORRELATED SCALAR SUBQUERY
-          SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+          SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
         CORRELATED SCALAR SUBQUERY
           SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
           SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -187,7 +187,7 @@
               CO-ROUTINE closure_act
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    SCAN c
+                    SCAN c USING COVERING INDEX close_gap
                   UNION ALL
                     SCAN rd
                     SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -197,7 +197,7 @@
                   UNION ALL
                     SCAN s
                     CORRELATED SCALAR SUBQUERY
-                      SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+                      SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
                     CORRELATED SCALAR SUBQUERY
                       SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
                       SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -236,7 +236,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -246,7 +246,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -324,14 +324,13 @@
 
 == view inquiry_state
   CO-ROUTINE p
-    SCAN a0
-    USE TEMP B-TREE FOR GROUP BY
+    SCAN a0 USING INDEX inquiry_id
   SCAN p
   SEARCH fp USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH pe USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH ls USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH x
+    SEARCH x USING COVERING INDEX inquiry_id (inquiry_id=?)
   SEARCH lse USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH ce USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
@@ -387,21 +386,21 @@
           LEFT-MOST SUBQUERY
             SCAN r
             CORRELATED SCALAR SUBQUERY
-              SEARCH r2
+              SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
             SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
           UNION ALL
             SCAN o
             CORRELATED SCALAR SUBQUERY
-              SCAN r2
+              SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
             CORRELATED SCALAR SUBQUERY
-              SEARCH o2
+              SEARCH o2 USING COVERING INDEX sitting_open_agent (agent_id=?)
       SCAN b
       SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
     SCAN t USING INDEX seat_turn_agent
     BLOOM FILTER ON s (agent_id=?)
     SEARCH s USING AUTOMATIC COVERING INDEX (agent_id=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
-      SCAN ew
+      SEARCH ew USING INDEX events_seat (seat_id=?)
   SCAN seat_metrics
 
 == view seat_of_agent
@@ -410,14 +409,14 @@
       LEFT-MOST SUBQUERY
         SCAN r
         CORRELATED SCALAR SUBQUERY
-          SEARCH r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
         SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
       UNION ALL
         SCAN o
         CORRELATED SCALAR SUBQUERY
-          SCAN r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
         CORRELATED SCALAR SUBQUERY
-          SEARCH o2
+          SEARCH o2 USING COVERING INDEX sitting_open_agent (agent_id=?)
   SCAN b
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
@@ -1242,6 +1241,10 @@
   SCAN seat_time_decomposition
   USE TEMP B-TREE FOR ORDER BY
 
+== stmt 386256b2ad3d
+-- SELECT "agent_id", "model", min("turn_idx") FROM "seat_turn" WHERE "model" <> '' GROUP BY "agent_id"
+  SCAN seat_turn USING INDEX seat_turn_agent
+
 == stmt 59afce1d59e0
 -- SELECT "agent_id", "seat_id", "registered_epoch", "sitting", COALESCE("occasion", '') FROM "seat_of_agent"
   CO-ROUTINE agent_binding
@@ -1249,14 +1252,14 @@
       LEFT-MOST SUBQUERY
         SCAN r
         CORRELATED SCALAR SUBQUERY
-          SEARCH r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
         SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
       UNION ALL
         SCAN o
         CORRELATED SCALAR SUBQUERY
-          SCAN r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
         CORRELATED SCALAR SUBQUERY
-          SEARCH o2
+          SEARCH o2 USING COVERING INDEX sitting_open_agent (agent_id=?)
   SCAN b
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
@@ -1278,27 +1281,27 @@
           LEFT-MOST SUBQUERY
             SCAN r
             CORRELATED SCALAR SUBQUERY
-              SEARCH r2
+              SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
             SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
           UNION ALL
             SCAN o
             CORRELATED SCALAR SUBQUERY
-              SCAN r2
+              SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
             CORRELATED SCALAR SUBQUERY
-              SEARCH o2
+              SEARCH o2 USING COVERING INDEX sitting_open_agent (agent_id=?)
       SCAN b
       SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
     SCAN t USING INDEX seat_turn_agent
     BLOOM FILTER ON s (agent_id=?)
     SEARCH s USING AUTOMATIC COVERING INDEX (agent_id=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
-      SCAN ew
+      SEARCH ew USING INDEX events_seat (seat_id=?)
   SCAN seat_metrics
   USE TEMP B-TREE FOR ORDER BY
 
 == stmt 8dba93e02a86
 -- SELECT "bundle_sha" FROM "computation" WHERE "computation_id" = ? ORDER BY "event_id" LIMIT 1
-  SCAN computation
+  SEARCH computation USING INDEX computation_id (computation_id=?)
 
 == stmt 59a3e1e11433
 -- SELECT "class" FROM "position" WHERE "position_id" = ?
@@ -1324,7 +1327,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -1334,7 +1337,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -1409,7 +1412,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -1419,7 +1422,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -1494,7 +1497,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -1504,7 +1507,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -1623,7 +1626,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -1633,7 +1636,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -1712,7 +1715,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -1722,7 +1725,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -1798,7 +1801,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -1808,7 +1811,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -1849,7 +1852,7 @@
     SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
   MATERIALIZE computed
     SEARCH computation USING COVERING INDEX computation_answers (answers>?)
-  SCAN e
+  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   BLOOM FILTER ON gg (minted_event=?)
   SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
@@ -1888,7 +1891,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -1898,7 +1901,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -1993,7 +1996,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2003,7 +2006,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2079,7 +2082,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2089,7 +2092,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2165,7 +2168,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2175,7 +2178,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2251,7 +2254,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2261,7 +2264,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2337,7 +2340,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2347,7 +2350,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2456,7 +2459,7 @@
               CO-ROUTINE closure_act
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    SCAN c
+                    SCAN c USING COVERING INDEX close_gap
                   UNION ALL
                     SCAN rd
                     SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2466,7 +2469,7 @@
                   UNION ALL
                     SCAN s
                     CORRELATED SCALAR SUBQUERY
-                      SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+                      SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
                     CORRELATED SCALAR SUBQUERY
                       SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
                       SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2512,7 +2515,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2522,7 +2525,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2597,7 +2600,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2607,7 +2610,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2683,7 +2686,7 @@
       CO-ROUTINE closure_act
         COMPOUND QUERY
           LEFT-MOST SUBQUERY
-            SCAN c
+            SCAN c USING COVERING INDEX close_gap
           UNION ALL
             SCAN rd
             SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2693,7 +2696,7 @@
           UNION ALL
             SCAN s
             CORRELATED SCALAR SUBQUERY
-              SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+              SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
             CORRELATED SCALAR SUBQUERY
               SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
               SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -2759,7 +2762,7 @@
 
 == stmt 458afa9f844d
 -- SELECT "rerun_sha", "rerun" FROM "reproduce" WHERE "bundle_sha" = ? AND "ran" = 1 AND "rerun_sha" IS NOT NULL ORDER BY "event_id" DESC LIMIT 1
-  SCAN reproduce
+  SEARCH reproduce USING INDEX reproduce_bundle (bundle_sha=?)
 
 == stmt c9e79c289290
 -- SELECT "result_severity", "result_likelihood", "result_impact", "result_complexity_cost" FROM "regrade" WHERE "gap_id" = ? ORDER BY "event_id" DESC LIMIT 1
@@ -2772,15 +2775,15 @@
       LEFT-MOST SUBQUERY
         SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
         CORRELATED SCALAR SUBQUERY
-          SEARCH r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
         SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
         REUSE SUBQUERY
       UNION ALL
         SEARCH o USING INTEGER PRIMARY KEY (rowid=?)
         CORRELATED SCALAR SUBQUERY
-          SEARCH o2
+          SEARCH o2 USING COVERING INDEX sitting_open_agent (agent_id=?)
         CORRELATED SCALAR SUBQUERY
-          SCAN r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
   SCAN agent_binding
 
 == stmt 17a02e4044b0
@@ -2790,15 +2793,15 @@
       LEFT-MOST SUBQUERY
         SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
         CORRELATED SCALAR SUBQUERY
-          SEARCH r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
         SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
         REUSE SUBQUERY
       UNION ALL
         SEARCH o USING INTEGER PRIMARY KEY (rowid=?)
         CORRELATED SCALAR SUBQUERY
-          SEARCH o2
+          SEARCH o2 USING COVERING INDEX sitting_open_agent (agent_id=?)
         CORRELATED SCALAR SUBQUERY
-          SCAN r2
+          SEARCH r2 USING COVERING INDEX register_agent (agent_id=?)
   SCAN b
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
@@ -2848,7 +2851,7 @@
   SCALAR SUBQUERY
     SCAN verify
   SCALAR SUBQUERY
-    SCAN cite
+    SCAN cite USING COVERING INDEX cite_label
 
 == stmt 920decc96cbf
 -- SELECT 1 FROM "computation" WHERE "answers" = ? LIMIT 1
@@ -2858,9 +2861,9 @@
 -- SELECT 1 FROM "computation" WHERE "computation_id" = ? UNION ALL SELECT 1 FROM "cite" WHERE "label" = ? LIMIT 1
   COMPOUND QUERY
     LEFT-MOST SUBQUERY
-      SCAN computation
+      SEARCH computation USING COVERING INDEX computation_id (computation_id=?)
     UNION ALL
-      SCAN cite
+      SEARCH cite USING COVERING INDEX cite_label (label=?)
 
 == stmt eb9baf832d41
 -- SELECT 1 FROM "finding" WHERE "id" = ? LIMIT 1
@@ -2876,12 +2879,12 @@
 
 == stmt b6b9d9b0aee9
 -- SELECT 1 FROM "inquiry" WHERE "inquiry_id" = ? LIMIT 1
-  SCAN inquiry
+  SEARCH inquiry USING COVERING INDEX inquiry_id (inquiry_id=?)
 
 == stmt 86836e39ecb4
 -- SELECT 1 FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."about_kind" = ? AND e."seat_id" = ? LIMIT 1
-  SCAN m
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
+  SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 69e158862e4b
 -- SELECT 1 FROM "report_part" LIMIT 1
@@ -2900,9 +2903,9 @@
     UNION ALL
       SEARCH mint USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
     UNION ALL
-      SCAN cite
+      SEARCH cite USING COVERING INDEX cite_label (label=?)
     UNION ALL
-      SCAN computation
+      SEARCH computation USING COVERING INDEX computation_id (computation_id=?)
 
 == stmt 9b77eab077c1
 -- SELECT COALESCE("check_kind", '') FROM "mint" WHERE "gap_id" = ?
@@ -2928,7 +2931,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -2938,7 +2941,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -3013,7 +3016,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -3023,7 +3026,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -3098,7 +3101,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -3108,7 +3111,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -3183,7 +3186,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -3193,7 +3196,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -3268,7 +3271,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -3278,7 +3281,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -3353,7 +3356,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -3363,7 +3366,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -3439,7 +3442,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -3449,7 +3452,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -3529,7 +3532,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -3539,7 +3542,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -3622,7 +3625,7 @@
 -- SELECT EXISTS (SELECT 1 FROM "report_part" p JOIN "events" e ON e."id" = p."event_id" WHERE e."seat_id" = ?), EXISTS (SELECT 1 FROM "report_op" WHERE "kind" != 'append')
   SCAN CONSTANT ROW
   SCALAR SUBQUERY
-    SCAN e
+    SEARCH e USING COVERING INDEX events_seat (seat_id=?)
     SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
   SCALAR SUBQUERY
     CO-ROUTINE report_op
@@ -3647,12 +3650,12 @@
 -- SELECT a."event_id" FROM "envelope_admitted" a WHERE a."agent_id" = ? AND a."event_id" > COALESCE((SELECT MAX(o."event_id") FROM "sitting_open" o WHERE o."agent_id" = ?), 0) LIMIT 1
   SEARCH a USING INTEGER PRIMARY KEY (rowid>?)
   SCALAR SUBQUERY
-    SEARCH o
+    SEARCH o USING COVERING INDEX sitting_open_agent (agent_id=?)
 
 == stmt dcf620199a2e
 -- SELECT a."inquiry_id" FROM "inquiry" a JOIN "events" e ON e."id" = a."event_id" WHERE e."seat_id" = ? AND a."question" = ? AND COALESCE(a."hypothesis", '') = ? AND a."status" = 'proposed' ORDER BY a."event_id" LIMIT 1
-  SCAN a
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH a USING INDEX inquiry_question (question=?)
+  SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
 == stmt ee434ba98b2b
 -- SELECT a."ruling", a."ruled_by" FROM "motion_answers" a WHERE a."motion_id" = ?
@@ -3667,8 +3670,8 @@
 
 == stmt 26cf55c79a30
 -- SELECT b."event_id" FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id" WHERE e."seat_id" = ? AND b."edit_key" = ? ORDER BY b."event_id" LIMIT 1
-  SCAN b
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH b USING COVERING INDEX blue_edit_key (edit_key=?)
+  SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
 == stmt afa3d2ec318a
 -- SELECT c."at", (SELECT count(*) FROM "report_op" WHERE "event_id" > c."at") FROM (SELECT coalesce(max("event_id"), 0) AS "at" FROM "report_checkpoint") c
@@ -3694,20 +3697,20 @@
 -- SELECT c."event_id", COALESCE(c."agent_transcript_path", '') FROM "sitting_close" c WHERE c."agent_id" = ? AND c."event_id" > COALESCE((SELECT MAX(o."event_id") FROM "sitting_open" o WHERE o."agent_id" = ?), 0) ORDER BY c."event_id" LIMIT 1
   SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
   SCALAR SUBQUERY
-    SEARCH o
+    SEARCH o USING COVERING INDEX sitting_open_agent (agent_id=?)
 
 == stmt a135479dec78
 -- SELECT c."label" FROM "cite" c JOIN "events" e ON e."id" = c."event_id" WHERE e."seat_id" = ? AND c."cite_key" = ? ORDER BY c."event_id" LIMIT 1
-  SCAN c
+  SEARCH c USING INDEX cite_key (cite_key=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 1b5791e9ddf5
 -- SELECT count(*) FROM "cite"
-  SCAN cite
+  SCAN cite USING COVERING INDEX cite_label
 
 == stmt f44bdf556857
 -- SELECT count(*) FROM "computation"
-  SCAN computation USING COVERING INDEX computation_answers
+  SCAN computation USING COVERING INDEX computation_id
 
 == stmt e950b6a73744
 -- SELECT count(*) FROM "events"
@@ -3715,7 +3718,7 @@
 
 == stmt aba9f7680fe4
 -- SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = ?
-  SEARCH events USING INDEX events_type (type=?)
+  SEARCH events USING INDEX events_seat (seat_id=?)
 
 == stmt c35ee8ac7f39
 -- SELECT count(*) FROM "report_op" WHERE "event_id" = ?
@@ -3759,13 +3762,13 @@
     RIGHT
       MERGE (UNION ALL)
         LEFT
-          SCAN computation
+          SEARCH computation USING INDEX computation_id (computation_id=?)
         RIGHT
-          SCAN cite
+          SEARCH cite USING INDEX cite_label (label=?)
 
 == stmt a8a6c806e2ea
 -- SELECT e."epoch" FROM "close" c JOIN "events" e ON e."id" = c."event_id" WHERE c."gap_id" = ? ORDER BY c."event_id"
-  SCAN c
+  SEARCH c USING COVERING INDEX close_gap (gap_id=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 27b990cf157e
@@ -3839,7 +3842,7 @@
 -- SELECT e."id", e."sitting" FROM "events" e WHERE e."id" = ( SELECT max(e2."id") FROM "events" e2 JOIN "sitting_open" o ON o."event_id" = e2."id" WHERE o."agent_id" = ? AND o."seat_id" = ? AND e2."sitting_id" = e2."id")
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   SCALAR SUBQUERY
-    SEARCH o USING INDEX sitting_open_seat (seat_id=?)
+    SEARCH o USING INDEX sitting_open_agent (agent_id=?)
     SEARCH e2 USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 143809d795b6
@@ -3848,20 +3851,20 @@
 
 == stmt c85ecc9b4718
 -- SELECT e."seat_id" FROM "register" r JOIN "events" e ON e."id" = r."event_id" WHERE r."agent_id" = ? ORDER BY r."event_id" DESC LIMIT 1
-  SCAN r
+  SEARCH r USING COVERING INDEX register_agent (agent_id=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt ae78309e999a
--- SELECT e."sitting_id", e."id", COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id" WHERE r."agent_id" = ? AND e."seat_id" = ? AND NOT EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = r."agent_id" AND c."event_id" > e."id") ORDER BY e."id" DESC LIMIT 1
-  SCAN e
+== stmt 45525e16ff59
+-- SELECT e."sitting_id", e."id", COALESCE(r."occasion", '') FROM "register" r CROSS JOIN "events" e ON e."id" = r."event_id" WHERE r."agent_id" = ? AND e."seat_id" = ? AND NOT EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = r."agent_id" AND c."event_id" > e."id") ORDER BY r."event_id" DESC LIMIT 1
+  SEARCH r USING INDEX register_agent (agent_id=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
-  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 2f2945775566
 -- SELECT f."event_id" FROM "finding" f JOIN "events" e ON e."id" = f."event_id" WHERE e."seat_id" = ? AND f."finding_key" = ? ORDER BY f."event_id" LIMIT 1
-  SCAN f
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH f USING COVERING INDEX finding_key (finding_key=?)
+  SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
 == stmt d1e7bd5ef2f7
 -- SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''), g."material", COALESCE(g."class_material", ''), COALESCE(g."unruled_docket_filed", 0), COALESCE(g."unruled_docket_motion", ''), COALESCE(g."docket_direction", ''), COALESCE(g."about_kind", ''), COALESCE(g."about_ref", '') FROM "gap" g WHERE g."open" ORDER BY g."minted_event"
@@ -3883,7 +3886,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -3893,7 +3896,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -4008,13 +4011,13 @@
 
 == stmt 668d1beb0b81
 -- SELECT m."event_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ? AND m."mint_key" = ? ORDER BY m."event_id" LIMIT 1
-  SCAN m
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH m USING COVERING INDEX mint_key (mint_key=?)
+  SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
 == stmt 3df95c2f61ec
 -- SELECT m."gap_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."about_kind" = ? AND e."seat_id" = ?
-  SCAN m
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
+  SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 59e4c6c67072
 -- SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE mo."motion_id" = ?
@@ -4041,7 +4044,7 @@
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SCAN c
+          SCAN c USING COVERING INDEX close_gap
         UNION ALL
           SCAN rd
           SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
@@ -4051,7 +4054,7 @@
         UNION ALL
           SCAN s
           CORRELATED SCALAR SUBQUERY
-            SEARCH c USING INTEGER PRIMARY KEY (rowid<?)
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
           CORRELATED SCALAR SUBQUERY
             SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
             SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
@@ -4134,12 +4137,12 @@
 
 == stmt c30a01ded0b2
 -- SELECT p."computation_id" FROM "computation" p JOIN "events" e ON e."id" = p."event_id" WHERE e."seat_id" = ? AND p."key" = ? ORDER BY p."event_id" LIMIT 1
-  SCAN p
+  SEARCH p USING INDEX computation_key (key=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 9e291985a4c6
 -- SELECT p."event_id" FROM "report_part" p JOIN "events" e ON e."id" = p."event_id" WHERE e."seat_id" = ? ORDER BY p."event_id" LIMIT 1
-  SCAN e
+  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
   SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
@@ -4153,7 +4156,7 @@
 
 == stmt ee56ea073aea
 -- SELECT r."event_id", r."claim", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id" WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1
-  SCAN ra
+  SEARCH ra USING INDEX retire_anchors_value (value=?)
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
@@ -4171,12 +4174,6 @@
   BLOOM FILTER ON x (event_id=?)
   SEARCH x USING AUTOMATIC COVERING INDEX (event_id=?)
   USE TEMP B-TREE FOR ORDER BY
-
-== stmt 5d7059b68cf1
--- SELECT t."agent_id", t."model" FROM "seat_turn" t WHERE t."model" <> '' AND t."turn_idx" = (SELECT min(u."turn_idx") FROM "seat_turn" u WHERE u."agent_id" = t."agent_id" AND u."model" <> '')
-  SCAN t
-  CORRELATED SCALAR SUBQUERY
-    SEARCH u USING INDEX sqlite_autoindex_seat_turn_1 (agent_id=?)
 
 == stmt 3f497e535846
 -- SELECT t."event_id", t."agent_id" FROM "envelope_admitted" t WHERE t."event_id" > ?
@@ -4344,7 +4341,7 @@
 
 == stmt cf74b4473d65
 -- SELECT v."carried_by" FROM "verify" v JOIN "events" e ON e."id" = v."event_id" WHERE e."seat_id" = ? AND v."carrier_minted" AND COALESCE(v."carried_by", '') <> '' AND COALESCE(v."anchor", '') <> ''
-  SCAN e
+  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
   SEARCH v USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 0ec2182bfcb8

@@ -271,7 +271,7 @@ is already proven elsewhere (the failed check, §III.3).
 | 2. Duplicate | The reading is kept and the one-gap rule refuses the *mint*; `Verify.carried_by` names the standing gap | **F3** RULED |
 | 3. Backing re-check | Found-against is a third **failed-check** state beside unread/unsound. It holds the PASS until its reader's own later reading backs the sentence, blue edits the sentence, or blue retires the citation; another lens's backing reading clears nothing. The lens's close of its gap is refused while it stands (`requireFailedCheckAnswered`); a closing docket ruling closes the gap and the check still holds the PASS. Once it clears, the minting lens closes the gap with its ordinary close (on main; #1657 Part 1a′, landing after this plan, adds its `source` demand on top, §III.16). No new answer kind | **F4**, **F8** RULED |
 | A found-source reading's `absent` | Records the reading; mints no gap (F5, carried to `verify --url`) <!-- CHANGED F13 --> | **F5** RULED |
-| Archived corroboration readings | An archived negative corroboration has no anchor, so after the change it holds no failed check and no PASS: the loss is accepted and stated per archive (§III.9). An archived BACKING corroboration's label, footnote and red-placed citation anchor are translated away: the reading comes forward as a reading of the source it found (§III.9 item 7) <!-- CHANGED F13 --> | **GAP 2** RULED; F13 |
+| Archived corroboration readings | An archived negative corroboration has no anchor, so after the change it holds no failed check and no PASS: the loss is accepted and stated per archive (§III.9). An archived BACKING corroboration's label, footnote and red-placed citation anchor are translated away: the reading comes forward as a reading of the source it found, and a computation whose `cites` named the label cites nothing, uncounted by the manifest (§III.9 item 7) <!-- CHANGED F13 --> | **GAP 2** RULED; F13 |
 | Mint budget | A gap a reading of a CITATION mints (`verify --anchor`) is outside the mint budget: it takes no mint and does not count while open; a gap a reading of a source the lens FOUND mints (`verify --url`, either class) takes a mint and counts while open, as a plain mint does; the "answers its own raise" exemption is deleted <!-- CHANGED F13b --> | **F6** RULED; amended F13b (gblock 2026-11-03) |
 | 4. Delete | Everything in the census (§III.12) | — |
 | 5. migrate | One translation, §III.9 | — |
@@ -1928,6 +1928,14 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
      the SOURCE stream that collects the dropped-label set — never through the batch's querier, because the
      migrated labelled Verify has no `label` column to be found by (§III.1 reserves it). A Verify naming a
      label the map lacks is a refusal naming it (the loud miss);
+   - a Computation whose `cites` (one id, not a list) is a dropped label comes forward with `cites`
+     empty: the method's source is the label's, which no citation of the migrated record carries, and
+     `cites` is optional, so the computation keeps its meaning. It is never re-pointed at another
+     citation of the same url — that is a link the record never held. The manifest does not count it.
+     Without this the write refuses the computation (`--cites=… names no citation on the record`) and
+     every reproduce, mint, dispatch, plan, close and edit that names it with it, until a later edit
+     quotes text a refused one never wrote and the report does not render (a fuzz-generated epoch-54
+     record: 7 computations, 90 refusals). Tested by `TestAComputationCitingADroppedLabelCitesNothing`;
    - the labelled Verify itself comes forward unanchored — `url`, `title`, `claim` (token removed),
      outcome, confidence, bridge, text, copy fields — carrying no `carried_by`: migrate mints no gap for
      it (its grades would be fabricated, as GAP 2 rules for a refutation), so the 15 readings and the 3
@@ -2012,8 +2020,9 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
   553, the dark-side's `refutes` of `C-4e4c92af`, the contradiction that outlived the edit (the bullet
   above) — and keeps its 12 `unchecked`, 3 `lens_ready` and `inquiry_review`. Prose that
   names a label is archived text and stays as written. No archived computation's `cites` names any of
-  the 15 (measured by the #1657 session: none of the 39 archived `cites`), so the drop leaves no
-  dangling `--cites`. <!-- CHANGED F13 -->
+  the 15 (measured by the #1657 session: none of the 39 archived `cites`); a computation of any other
+  record whose `cites` is a dropped label comes forward citing nothing (item 7), a loss the manifest
+  does not count. <!-- CHANGED F13 -->
 
 Tests [NEW / REWRITE], each driven through `migrate.Migrate` on the real archive, as `feov-migrate`
 runs it:
