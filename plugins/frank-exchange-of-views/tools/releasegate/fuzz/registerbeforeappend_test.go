@@ -58,7 +58,7 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 		lens := fuzzLensSeats[i%len(fuzzLensSeats)]
 		r.register("lens", lens)
 		id := r.mint(lens)
-		if kind, _ := r.demandKindOf(id); id != "" && kind == "computation" {
+		if d, _ := r.demandOf(id); id != "" && d.AnswerKind == "computation" {
 			gapID = id
 		}
 	}

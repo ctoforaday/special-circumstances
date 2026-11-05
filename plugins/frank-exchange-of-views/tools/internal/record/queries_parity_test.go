@@ -151,7 +151,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Error("ProposalAppliedVerbatim matched an edit to a gap that prescribed no text — there is no proposal to apply")
 	}
 	if !evidenceAnswers(t, run, "G3") || evidenceAnswers(t, run, "G1") || evidenceAnswers(t, run, "") {
-		t.Error("EvidenceAnswers disagrees with the gap view's live-answer demand")
+		t.Error("EvidenceDemandOf disagrees with the gap view's live-answer demand")
 	}
 
 	// The gaps the work list marks as awaiting evidence: G1 is the open computation gap with no computation; G3's computation discharges
@@ -160,11 +160,11 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("the work list's awaiting-evidence gaps = %v, want [G1]", got)
 	}
 
-	if kind, err := MintCheckKind(run, "G2"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_DOCUMENT {
-		t.Errorf("MintCheckKind(G2) = (%v, %v)", kind, err)
+	if d, err := EvidenceDemandOf(run, "G2"); err != nil || d.CheckKind != recordpb.Word(recordpb.CheckKind_CHECK_KIND_DOCUMENT) || d.Unmet() {
+		t.Errorf("EvidenceDemandOf(G2) = (%+v, %v), want a document check owing nothing", d, err)
 	}
-	if kind, err := MintCheckKind(run, "G4"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
-		t.Errorf("MintCheckKind on an unknown gap = (%v, %v), want the unspecified zero", kind, err)
+	if d, err := EvidenceDemandOf(run, "G4"); err != nil || d.CheckKind != "" || d.Unmet() {
+		t.Errorf("EvidenceDemandOf on an unknown gap = (%+v, %v), want the zero demand", d, err)
 	}
 
 	// The bench records the outcome; RecordedOutcome is that act and TerminalVerdict serves it.
@@ -207,17 +207,18 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if got := awaitingEvidenceT(t, run); got != nil {
 		t.Errorf("the work list's awaiting-evidence gaps = %v", got)
 	}
-	if kind, err := MintCheckKind(run, "G1"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
-		t.Errorf("MintCheckKind = (%v, %v)", kind, err)
+	if d, err := EvidenceDemandOf(run, "G1"); err != nil || d.CheckKind != "" || d.Unmet() {
+		t.Errorf("EvidenceDemandOf = (%+v, %v), want the zero demand", d, err)
 	}
 }
 
-// evidenceAnswers is EvidenceAnswers with its read error failing the test rather than reading as false.
+// evidenceAnswers is EvidenceDemandOf's answered, with its read error failing the test rather than
+// reading as false.
 func evidenceAnswers(t *testing.T, run Run, gapID string) bool {
 	t.Helper()
-	ok, err := EvidenceAnswers(run, gapID)
+	d, err := EvidenceDemandOf(run, gapID)
 	if err != nil {
-		t.Fatalf("EvidenceAnswers(%q): %v", gapID, err)
+		t.Fatalf("EvidenceDemandOf(%q): %v", gapID, err)
 	}
-	return ok
+	return d.Answered
 }

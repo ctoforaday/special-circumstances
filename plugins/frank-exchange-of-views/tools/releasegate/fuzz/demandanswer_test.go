@@ -30,8 +30,8 @@ func demandBoard(t *testing.T) (*runner, map[string]string) {
 		lens := fuzzLensSeats[i%len(fuzzLensSeats)]
 		r.register("lens", lens)
 		id := r.mint(lens)
-		if kind, _ := r.demandKindOf(id); id != "" && kind != "" && kinds[kind] == "" {
-			kinds[kind] = id
+		if d, _ := r.demandOf(id); id != "" && d.AnswerKind != "" && kinds[d.AnswerKind] == "" {
+			kinds[d.AnswerKind] = id
 		}
 	}
 	if len(kinds) < 2 || r.actErr != "" {
@@ -50,8 +50,8 @@ func TestTheDriveAnswersEachDemandBeforeItCloses(t *testing.T) {
 		if r.actErr != "" {
 			t.Fatalf("closeGap of %s gap %s: %s", kind, g, r.actErr)
 		}
-		answered, err := record.EvidenceAnswers(r.run(), g)
-		if err != nil || !answered {
+		d, err := record.EvidenceDemandOf(r.run(), g)
+		if err != nil || d.Unmet() {
 			t.Errorf("closeGap left %s gap %s's demand unmet (%v)", kind, g, err)
 		}
 		for _, open := range r.openGaps() {
@@ -79,7 +79,7 @@ func TestBlueDischargesTheDemandOfEachEngagedGap(t *testing.T) {
 	r.register("blue", "blue-respond")
 	r.dischargeOwed("blue-respond")
 	for kind, g := range kinds {
-		if answered, err := record.EvidenceAnswers(r.run(), g); err != nil || !answered {
+		if d, err := record.EvidenceDemandOf(r.run(), g); err != nil || d.Unmet() {
 			t.Errorf("blue's sitting left %s gap %s's demand unmet (%v; %s)", kind, g, err, r.actErr)
 		}
 	}

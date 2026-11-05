@@ -121,23 +121,6 @@ func recordedOutcomeAt(q recordsql.Querier) (string, error) {
 	return v, nil
 }
 
-// MintCheckKind is the check_kind a gap was minted with. A gap not on the record answers
-// UNSPECIFIED — the caller that must distinguish "no such gap" already ran requireGap.
-func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
-	var word string
-	found, err := queryRow(run, []any{&word},
-		`SELECT COALESCE("check_kind", '') FROM "mint" WHERE "gap_id" = ?`, gapID)
-	if err != nil || !found || word == "" {
-		return recordpb.CheckKind_CHECK_KIND_UNSPECIFIED, err
-	}
-	vd, ok := recordpb.BySpelling(recordpb.CheckKind(0).Descriptor(), word)
-	if !ok {
-		return recordpb.CheckKind_CHECK_KIND_UNSPECIFIED,
-			fmt.Errorf("gap %s was minted with check_kind %q, which this binary's schema does not declare", gapID, word)
-	}
-	return recordpb.CheckKind(vd.Number()), nil
-}
-
 // EventsOf reads back only the named event families, in record order — the read for a
 // projection that renders one kind of act (findings, the log, the debate prose) and has no
 // business hauling the whole record through the loader to get it — with each event's stored window

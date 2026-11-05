@@ -105,12 +105,8 @@ func (r *runner) closeDocketed(seatID string) {
 func (r *runner) closeDocketedRefused(seatID, gapID string) {
 	// A GAP WHOSE LIVE-ANSWER DEMAND NOTHING MEETS refuses first, as a close of it does whatever the
 	// docket says: the verb's guard runs before the write.
-	if kind, ok := r.demandKindOf(gapID); !ok {
+	if d, ok := r.demandOf(gapID); !ok || d.Unmet() {
 		return
-	} else if kind != "" {
-		if answered, err := record.EvidenceAnswers(r.run(), gapID); err != nil || !answered {
-			return
-		}
 	}
 	motions := r.unruledDocketMotions(gapID)
 	args := []string{"close", "--seat-id", seatID, "--id", gapID, "--as", "repaired", "--reason", "fuzz: a close of a docketed gap",

@@ -181,7 +181,7 @@ func TestTheSourceDemandSeedDrivesBothRefusals(t *testing.T) {
 		closed := r.closedGapIDs()
 		answered := 0
 		for _, g := range closed {
-			if ok, err := record.EvidenceAnswers(r.run(), g); err == nil && ok {
+			if d, err := record.EvidenceDemandOf(r.run(), g); err == nil && d.Answered {
 				answered++
 			}
 		}

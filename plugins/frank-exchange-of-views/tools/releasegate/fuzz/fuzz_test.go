@@ -4413,7 +4413,7 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	if !r.answerEvidenceDemand(id, "fuzz-answer-"+id+".js") {
 		return
 	}
-	if kind, _ := r.demandKindOf(id); kind == "computation" {
+	if d, _ := r.demandOf(id); d.AnswerKind == "computation" {
 		// A COMPUTATION WHOSE FAILURE IS THE RESULT, once per run. `compute` refuses a script that exits
 		// non-zero — correctly, because a broken computation usually means a broken script — UNLESS the
 		// seat says the failure is the finding, which is what --expect-error asserts. That is a
@@ -4661,40 +4661,34 @@ func (r *runner) demandCloseRefused(closer, id string) {
 	}
 }
 
-// demandKindOf is the evidence-anchor kind gap id's live-answer demand owes, read off its mint
-// (record.AnswerKindOf): "citation" for a `source` gap, "computation" for a `computation` gap, "" for a
-// gap no demand is asked of. ok is false where the mint could not be read, which is noted as the run's.
-func (r *runner) demandKindOf(id string) (kind string, ok bool) {
-	ck, err := record.MintCheckKind(r.run(), id)
+// demandOf is gap id's live-answer demand as the close verb and its write ask it (record.EvidenceDemandOf):
+// the anchor kind owed — "citation" for a `source` gap, "computation" for a `computation` gap, "" for a
+// gap no demand is asked of — and whether it is met. ok is false where the record could not be read,
+// which is noted as the run's.
+func (r *runner) demandOf(id string) (d record.EvidenceDemand, ok bool) {
+	d, err := record.EvidenceDemandOf(r.run(), id)
 	if err != nil {
-		r.noteActErr("the check kind gap " + id + " was minted with could not be read: " + err.Error())
-		return "", false
+		r.noteActErr("gap " + id + "'s live-answer demand could not be read: " + err.Error())
+		return d, false
 	}
-	return record.AnswerKindOf(recordpb.Word(ck)), true
+	return d, true
 }
 
 // answerEvidenceDemand has blue answer gap id's live-answer demand where the record holds id minted
 // --check-kind source or computation and nothing meets the demand yet — whichever act minted it, since a
 // reading the one-gap rule holds is carried by another lens's gap — so a close of id meets the guards
-// after requireEvidenceAnswered: a citation placed as its answer on a `source` gap, a computation on a
+// after the demand: a citation placed as its answer on a `source` gap, a computation on a
 // `computation` gap. name is the bundle's file. ok is false where a read or the act failed, which is
 // noted as the run's.
 func (r *runner) answerEvidenceDemand(id, name string) bool {
-	kind, ok := r.demandKindOf(id)
+	d, ok := r.demandOf(id)
 	if !ok {
 		return false
 	}
-	if kind == "" {
+	if !d.Unmet() {
 		return true
 	}
-	answered, err := record.EvidenceAnswers(r.run(), id)
-	if err != nil {
-		r.noteActErr("whether gap " + id + "'s live-answer demand is met could not be read: " + err.Error())
-		return false
-	}
-	if answered {
-		return true
-	}
+	kind := d.AnswerKind
 	// A SEAT REGISTERS BEFORE IT APPENDS (#664): a close driven from the chair's branch in round 1 can
 	// come before blue-respond ever registered. register() is idempotent and waits for the register.
 	r.register("blue", "blue-respond")

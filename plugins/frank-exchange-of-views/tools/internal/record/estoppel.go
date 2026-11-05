@@ -283,25 +283,6 @@ func EstoppelRejectionsOf(evs []*Event) int {
 // Where a lowercase spelling is genuinely needed for a projection it is `recordpb.Spelling`, never
 // a literal.
 
-// EvidenceAnswers reports whether the gap's live-answer demand is met: the gap view's
-// evidence_answered (recordpb.DemandClause) — a live evidence anchor of its check kind placed as its
-// answer, the anchor it is about or whose reading it carries retired, or its own check of that
-// anchor made again since the mint and holding.
-//
-// The answer is a FIELD checked against the board at write time (Cite.answers,
-// Computation.answers), never a gap id mentioned in prose — the convention blue_edit's --answers
-// replaced after it measured 73% reliable, which is reliable enough to look like a key and not
-// reliable enough to be one.
-//
-// A read error is returned, never folded into false: "not answered" and "could not look" are two
-// answers, and the caller refuses on the second naming it.
-func EvidenceAnswers(run Run, gapID string) (bool, error) {
-	if gapID == "" {
-		return false, nil
-	}
-	return recordHas(run, `SELECT 1 FROM "gap" WHERE "gap_id" = ? AND "evidence_answered" LIMIT 1`, gapID)
-}
-
 // RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the
 // same footing as fix_basis, a computation's basis and verdict_basis.
 //
