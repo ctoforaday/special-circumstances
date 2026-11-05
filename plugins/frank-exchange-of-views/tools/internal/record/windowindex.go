@@ -93,8 +93,10 @@ type reaching struct {
 // too. A gap closed before the retire is not reached — a closure is history.
 //
 // The reading-to-gap link is read through the carrying_reading view, its one statement. The three
-// reads are scans joined here rather than one statement: none of the columns they meet on is
-// indexed, and a join in SQL would build an automatic index on every load of the record.
+// reads are scans joined here rather than one statement: a retire's anchor meets a gap on the gap's
+// side by mint.about_ref and verify.anchor, and neither is indexed (retire_anchors_value and
+// verify_carried_by index the other sides), so a join in SQL would build an automatic index on every
+// load. A record with no retire reads the first, empty, and stops.
 const (
 	retiredAnchorsSQL = `SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"`
 	reachedGapsSQL    = `SELECT "gap_id", "about_ref", "event_id", 0 FROM "mint" WHERE "about_kind" = 'anchor'
