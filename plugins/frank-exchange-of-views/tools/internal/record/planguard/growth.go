@@ -31,10 +31,12 @@
 package planguard
 
 import (
+	"database/sql"
 	"fmt"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -123,4 +125,57 @@ func GrowthTableNames() ([]string, error) {
 	}
 	sort.Strings(names)
 	return names, nil
+}
+
+// RowidColumns is each table's INTEGER PRIMARY KEY column — the column that IS the rowid, so a
+// min() or max() of it reads one row. It is SQLite's own answer for the record's DDL, built in
+// memory once: whether a column aliases the rowid is a rule of SQLite's (a lone INTEGER PRIMARY
+// KEY on a rowid table), and asking it is cheaper than restating the rule.
+func RowidColumns() (map[string]string, error) {
+	rowidOnce.Do(func() { rowidCols, rowidErr = readRowidColumns() })
+	return rowidCols, rowidErr
+}
+
+var (
+	rowidOnce sync.Once
+	rowidCols map[string]string
+	rowidErr  error
+)
+
+func readRowidColumns() (map[string]string, error) {
+	ddl, err := recordsql.Schema()
+	if err != nil {
+		return nil, fmt.Errorf("reading the rowid columns: %w", err)
+	}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		return nil, fmt.Errorf("reading the rowid columns: %w", err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1) // one :memory: database, not one per connection
+	if _, err := db.Exec(ddl); err != nil {
+		return nil, fmt.Errorf("reading the rowid columns: building the schema: %w", err)
+	}
+	rows, err := db.Query(`SELECT t."name", c."name" FROM pragma_table_list t, pragma_table_info(t."name") c
+	  WHERE t."schema" = 'main' AND t."type" = 'table' AND NOT t."wr" AND c."pk" = 1 AND upper(c."type") = 'INTEGER'
+	    AND (SELECT count(*) FROM pragma_table_info(t."name") k WHERE k."pk" > 0) = 1`)
+	if err != nil {
+		return nil, fmt.Errorf("reading the rowid columns: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var table, col string
+		if err := rows.Scan(&table, &col); err != nil {
+			return nil, fmt.Errorf("reading the rowid columns: %w", err)
+		}
+		out[strings.ToLower(table)] = col
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading the rowid columns: %w", err)
+	}
+	if out[EventsTable] != "id" {
+		return nil, fmt.Errorf("the schema's %q table has rowid column %q, not \"id\" — the reading asked SQLite something other than the record's DDL", EventsTable, out[EventsTable])
+	}
+	return out, nil
 }

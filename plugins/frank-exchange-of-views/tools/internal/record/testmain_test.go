@@ -20,9 +20,10 @@ import (
 // and testdata/shapes.golden (planguard.Suite).
 func TestMain(m *testing.M) {
 	suite, err := planguard.StartSuite(planguard.SuiteConfig{
-		Dirs:     []string{".", "recordsql"},
-		Excluded: censusExcluded,
-		Route:    recordsql.UseDriver,
+		Dirs:      []string{".", "recordsql"},
+		Excluded:  censusExcluded,
+		Unindexed: unindexed,
+		Route:     recordsql.UseDriver,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "planguard:", err)
@@ -42,3 +43,9 @@ var censusExcluded = map[string]string{
 	`SELECT x." … " AS "anchor_id", ' … ' AS "kind", ' … ' AS "check_kind", x."answers" AS "answers", x."event_id" AS "placed_event" FROM " … " x WHERE x." … " IS NOT NULL`:                                                                                                            "an arm of the evidence_anchor view's body, planned as that view",
 	`SELECT x." … " AS "anchor", ce."seat_id" AS "seat", ' … ' AS "check_kind", x."event_id" AS "event_id", ( … ) AS "holds", row_number() OVER (PARTITION BY x." … ", ce."seat_id" ORDER BY x."event_id" DESC) AS "n" FROM " … " x JOIN "events" ce ON ce."id" = x."event_id" WHERE …`: "an arm of the gap view's latest_check, planned as that view",
 }
+
+// unindexed is each walk of a growing table that no index can serve, keyed by its shapes.golden
+// line, with the reason the index cannot exist. A statement's own walk of a growing table is a
+// missing index, and planguard refuses it: the index lands with the statement. An entry here is
+// the exception argued in review; one whose finding is gone fails the suite.
+var unindexed = map[string]string{}

@@ -599,8 +599,9 @@ type runner struct {
 	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their minting
 	// lens, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
 	lensTurns, lensWaits int
-	// fateTurns counts, of lensTurns, those on a gap about a report section whose turn a fate blue
-	// changed helped bring (ruled by gblock 2026-11-05). The sweep gates it at zero.
+	// fateTurns counts the lens engagements on a gap about a report section whose turn a fate blue
+	// changed helped bring (ruled by gblock 2026-11-05): those of lensTurns, and those that engage the
+	// lens alone. The sweep gates it at zero.
 	fateTurns int
 	// lensAlone counts the gaps a plan engaged their minting lens on and not blue (the last audit before
 	// the limits); docketsAfterAudit the plan's dockets on a gap whose lens had sat on it since its
