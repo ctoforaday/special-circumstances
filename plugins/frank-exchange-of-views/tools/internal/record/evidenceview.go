@@ -431,13 +431,15 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	ledger := anchorChecksOf(evs, win)
 	reruns, acts := bundleRerunsOf(evs), actVerdictsOf(evs)
 	bases := bundleBasesOf(evs)
-	// THE RETIRE THAT HOLDS EACH RETIRED ANCHOR OUT is its latest: an edit carrying the anchor to
-	// other prose reopens it, and a later retire takes it out again.
+	// THE RETIRE THAT HOLDS EACH RETIRED ANCHOR OUT is its first (anchorChecksOf): nothing brings a
+	// retired anchor back.
 	retiredBy := map[string]EvidenceRetiredJSON{}
 	for _, e := range evs {
 		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
 			for _, a := range r.GetAnchors() {
-				retiredBy[a] = EvidenceRetiredJSON{Event: win.Of(e).ID, Reason: r.GetReason()}
+				if _, first := retiredBy[a]; !first {
+					retiredBy[a] = EvidenceRetiredJSON{Event: win.Of(e).ID, Reason: r.GetReason()}
+				}
 			}
 		}
 	}
