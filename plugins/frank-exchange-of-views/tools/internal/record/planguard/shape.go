@@ -40,8 +40,9 @@ func (s Shape) String() string { return fmt.Sprintf("%s | %s | x%d", s.Kind, s.N
 // Analyzer reads shapes out of plans of statements against one schema.
 type Analyzer struct {
 	views  []View
-	prefix string          // the enum vocabularies' table-name prefix, read from the generator
-	growth map[string]bool // the schema's growing tables (GrowthTables)
+	prefix string            // the enum vocabularies' table-name prefix, read from the generator
+	growth map[string]bool   // the schema's growing tables (GrowthTables)
+	rowid  map[string]string // each table's INTEGER PRIMARY KEY column (RowidColumns)
 }
 
 // NewAnalyzer returns an analyzer over the database's views.
@@ -54,7 +55,27 @@ func NewAnalyzer(views []View) (*Analyzer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Analyzer{views: views, prefix: prefix, growth: growth}, nil
+	rowid, err := RowidColumns()
+	if err != nil {
+		return nil, err
+	}
+	return &Analyzer{views: views, prefix: prefix, growth: growth, rowid: rowid}, nil
+}
+
+// oneRow reports whether a bare "SEARCH t" is a min()/max() that reads one row: every min/max
+// SELECT the word names reads its table alone, unfiltered, over the table's rowid (rule.go).
+func (a *Analyzer) oneRow(f []string, scope *Scope) bool {
+	if f[0] != "SEARCH" {
+		return false
+	}
+	return scope.oneRowMinMax(f[1], func(table, col string) bool {
+		switch strings.ToLower(col) {
+		case "rowid", "_rowid_", "oid":
+			return true
+		}
+		pk, ok := a.rowid[table]
+		return ok && strings.EqualFold(pk, col)
+	})
 }
 
 // Shapes is every finding in p, sorted by kind and name. stmt is the SQL p is the plan of; its
@@ -72,7 +93,10 @@ func (a *Analyzer) Shapes(stmt string, p Plan) []Shape {
 		if len(f) < 2 {
 			return
 		}
-		if constrained && heapScan(f) && (a.grows(scope.Targets(f[1])) || minMaxOverSubplan(f, built, a, scope)) {
+		if heapScan(f) && a.oneRow(f, scope) {
+			return
+		}
+		if constrained.counts(n, p) && heapScan(f) && (a.grows(scope.Targets(f[1])) || minMaxOverSubplan(f, built, a, scope)) {
 			add(ConstrainedScan, scanName(f, scope))
 		}
 		switch {

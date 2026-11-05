@@ -340,11 +340,14 @@ func registeredSitting(tx *sql.Tx, agentID, seatID string) (h heldRegister, foun
 	if agentID == "" {
 		return h, false, nil
 	}
+	// CROSS JOIN fixes the loop order: an agent's registers (register_agent) are a handful, the
+	// seat's events (events_seat) are every act it has made, and SQLite has no statistics to tell
+	// the two apart.
 	err = tx.QueryRow(
-		`SELECT e."sitting_id", e."id", COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
+		`SELECT e."sitting_id", e."id", COALESCE(r."occasion", '') FROM "register" r CROSS JOIN "events" e ON e."id" = r."event_id"
 		  WHERE r."agent_id" = ? AND e."seat_id" = ?
 		    AND NOT EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = r."agent_id" AND c."event_id" > e."id")
-		  ORDER BY e."id" DESC LIMIT 1`,
+		  ORDER BY r."event_id" DESC LIMIT 1`,
 		agentID, seatID).Scan(&h.sitting, &h.event, &h.occasion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return h, false, nil

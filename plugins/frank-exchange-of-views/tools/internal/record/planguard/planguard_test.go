@@ -84,14 +84,42 @@ func TestConstrainedScanSeparatesMissingIndexesFromDesignCosts(t *testing.T) {
 		{"filtered scan of an enum vocabulary", `SELECT "value" FROM "enum_grade" WHERE "value" > ?`, "SCAN enum_grade", false},
 
 		{"filtered scan is the defect", `SELECT "gap_id" FROM "mint" WHERE "gap_id" = ?`, "SCAN mint", true},
-		{"joined scan is the defect", `SELECT * FROM "close" JOIN "events" ON "events"."id" = "close"."event_id"`, "SCAN close", true},
+		{"the outer loop of an unfiltered join reads what it was asked for", `SELECT * FROM "close" JOIN "events" ON "events"."id" = "close"."event_id"`, "SCAN close", false},
 		{"an aliased scan is judged as its table", `SELECT m."gap_id" FROM "mint" m WHERE m."problem" = ?`, "SCAN m", true},
 		{"a bare SEARCH may walk the whole table", `SELECT max(m."event_id") FROM "mint" m WHERE m."problem" = ?`, "SEARCH m", true},
+		{"an unfiltered max of the rowid reads one row", `SELECT "sitting_id" FROM "events" WHERE "id" = (SELECT max("id") FROM "events")`, "SEARCH events", false},
+		{"so does a wrapped one", `SELECT c."at" FROM (SELECT coalesce(max("event_id"), 0) AS "at" FROM "report_checkpoint") c WHERE c."at" > ?`, "SEARCH report_checkpoint", false},
+		{"an unfiltered max of another column walks", `SELECT 1 FROM "mint" WHERE "problem" = (SELECT max("problem") FROM "mint")`, "SEARCH mint", true},
+		{"a max of the rowid beside a filtered one may walk", `SELECT (SELECT max("id") FROM "events"), (SELECT max("id") FROM "events" WHERE "seat_id" = ?)`, "SEARCH events", true},
+		{"a max of the rowid beside another column walks", `SELECT 1 WHERE ? = (SELECT max("id") + length("seat_id") FROM "events")`, "SEARCH events", true},
 	} {
 		got := constrainedOf(t, tc.stmt, tc.detail)
 		if (len(got) > 0) != tc.defect {
 			t.Errorf("%s: reported=%v, want %v\n  sql:  %s\n  plan: %s", tc.name, got, tc.defect, tc.stmt, tc.detail)
 		}
+	}
+}
+
+// A JOIN WITH NO WHERE NARROWS ITS INNER LOOPS. The outer loop is the whole of what was asked for;
+// a scan joined to it walks the table once per outer row, and that is the missing index.
+func TestAnUnfilteredJoinCountsItsInnerScanAndNotItsOuter(t *testing.T) {
+	an, err := planguard.NewAnalyzer(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt := `SELECT * FROM "events" e JOIN "close" c ON c."gap_id" = e."key"`
+	p, err := planguard.BuildPlan([]planguard.PlanRow{{ID: 2, Detail: "SCAN e"}, {ID: 3, Detail: "SCAN c"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, s := range an.Shapes(stmt, p) {
+		if s.Kind == planguard.ConstrainedScan {
+			got = append(got, s.Name)
+		}
+	}
+	if len(got) != 1 || got[0] != "close" {
+		t.Errorf("constrained scans = %v, want only the inner loop [close]", got)
 	}
 }
 

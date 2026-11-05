@@ -22,7 +22,17 @@ import (
 // unhelpful name is read and fixed; a finding dropped because its name was not understood is a
 // clean board that is not clean.
 type Scope struct {
-	binds map[string]map[string]bool // alias or name -> what the FROM items bound it to
+	binds  map[string]map[string]bool // alias or name -> what the FROM items bound it to
+	minMax map[string][]minMaxRead    // alias or name -> each min()/max() SELECT that reads it
+}
+
+// minMaxRead is one SELECT whose list aggregates a FROM item with min() or max(): the table the
+// item names and the columns the aggregates read. lone is whether it can read one row — the item
+// is the SELECT's only one, nothing filters it, and the list reads nothing but those aggregates.
+type minMaxRead struct {
+	table string
+	cols  []string
+	lone  bool
 }
 
 // subqueryTarget is what an alias over a parenthesised FROM item is bound to. It names no table,
@@ -35,7 +45,7 @@ func NewScope(stmt string, views []View) *Scope {
 	for _, v := range views {
 		defs[strings.ToLower(v.Name)] = v.SQL
 	}
-	s := &Scope{binds: map[string]map[string]bool{}}
+	s := &Scope{binds: map[string]map[string]bool{}, minMax: map[string][]minMaxRead{}}
 	seen := map[string]bool{}
 	queue := []string{stmt}
 	for len(queue) > 0 {
@@ -43,6 +53,7 @@ func NewScope(stmt string, views []View) *Scope {
 		queue = queue[1:]
 		toks := tokenize(text)
 		s.bind(toks)
+		s.readMinMax(toks)
 		for _, t := range toks {
 			if t.kind != tokIdent && t.kind != tokWord {
 				continue
@@ -88,6 +99,127 @@ func (s *Scope) Name(word string) string {
 		return named[0]
 	}
 	return word + "(" + strings.Join(named, "|") + ")"
+}
+
+// oneRowMinMax reports whether every min()/max() SELECT that reads the word is a lone one over a
+// column isRowid accepts for its table — so a bare "SEARCH word" in the plan reads one row. A word
+// no such SELECT reads is not one.
+func (s *Scope) oneRowMinMax(word string, isRowid func(table, col string) bool) bool {
+	reads := s.minMax[strings.ToLower(word)]
+	if len(reads) == 0 {
+		return false
+	}
+	for _, r := range reads {
+		if !r.lone {
+			return false
+		}
+		for _, c := range r.cols {
+			if !isRowid(r.table, c) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// readMinMax records every SELECT in toks whose list holds a min() or max() call.
+func (s *Scope) readMinMax(toks []token) {
+	for i, t := range toks {
+		if t.kind != tokWord || !strings.EqualFold(t.text, "SELECT") {
+			continue
+		}
+		from, cols, onlyAgg := selectList(toks, i+1)
+		if from < 0 || len(cols) == 0 {
+			continue
+		}
+		key, table, next, ok := s.peekItem(toks, from+1)
+		if !ok {
+			continue
+		}
+		lone := onlyAgg && (next >= len(toks) || toks[next].is(")") || toks[next].is(";"))
+		s.minMax[key] = append(s.minMax[key], minMaxRead{table: table, cols: cols, lone: lone})
+	}
+}
+
+// selectList reads a SELECT's list from toks[i] to its FROM at the same depth. It returns the
+// FROM's index (-1 when there is none), the column each min() or max() call reads, and whether
+// the list reads nothing else: every other word in it is a function's name, a keyword the list may
+// hold, or the alias after AS. An aggregate over an expression rather than one column reads a
+// column it does not name here, so it makes the list not only aggregates.
+func selectList(toks []token, i int) (from int, cols []string, onlyAgg bool) {
+	onlyAgg = true
+	depth := 0
+	for j := i; j < len(toks); j++ {
+		t := toks[j]
+		switch {
+		case t.is("("):
+			depth++
+			continue
+		case t.is(")"):
+			if depth == 0 {
+				return -1, nil, false
+			}
+			depth--
+			continue
+		}
+		if t.kind == tokWord && depth == 0 && strings.EqualFold(t.text, "FROM") {
+			return j, cols, onlyAgg
+		}
+		if t.kind != tokWord && t.kind != tokIdent {
+			continue
+		}
+		up := strings.ToUpper(t.text)
+		switch {
+		case t.kind == tokWord && (up == "MIN" || up == "MAX") && j+1 < len(toks) && toks[j+1].is("("):
+			col, end := aggregateColumn(toks, j+1)
+			if col == "" {
+				onlyAgg = false
+			} else {
+				cols = append(cols, col)
+			}
+			j = end - 1
+		case t.kind == tokWord && j+1 < len(toks) && toks[j+1].is("("):
+			// a function's name: its arguments are read as the walk goes on
+		case t.kind == tokWord && (up == "AS" || up == "DISTINCT" || up == "ALL" || up == "NULL"):
+			if up == "AS" {
+				j++ // the alias names the result, not a column read
+			}
+		default:
+			onlyAgg = false
+		}
+	}
+	return -1, nil, false
+}
+
+// aggregateColumn reads the one column of a min()/max() call whose "(" is at toks[i]: `(col)` or
+// `(qualifier.col)`. It returns "" for any other argument, and the index after the call.
+func aggregateColumn(toks []token, i int) (string, int) {
+	end := skipGroup(toks, i)
+	inner := toks[i+1 : end-1]
+	isName := func(t token) bool { return t.kind == tokIdent || t.kind == tokWord }
+	switch {
+	case len(inner) == 1 && isName(inner[0]):
+		return inner[0].text, end
+	case len(inner) == 3 && isName(inner[0]) && inner[1].is(".") && isName(inner[2]):
+		return inner[2].text, end
+	}
+	return "", end
+}
+
+// peekItem reads the FROM item at toks[i] without binding it: the word the plan will name it by,
+// the table it names, and the index after it. A parenthesised item names no table.
+func (s *Scope) peekItem(toks []token, i int) (key, table string, next int, ok bool) {
+	probe := &Scope{binds: map[string]map[string]bool{}}
+	next, ok = probe.item(toks, i)
+	if !ok || len(probe.binds) != 1 {
+		return "", "", next, false
+	}
+	for k, set := range probe.binds {
+		for t := range set {
+			return k, t, next, true
+		}
+	}
+	return "", "", next, false
 }
 
 // bind records every FROM and JOIN item's binding in toks.
