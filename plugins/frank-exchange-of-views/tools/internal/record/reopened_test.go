@@ -58,7 +58,10 @@ func (b *stage) computation(id, sha string) *stage {
 }
 
 func (b *stage) reproduce(seat, anchor, sha string, rerun recordpb.Rerun, s recordpb.Soundness) *stage {
-	r := &recordpb.Reproduce{ComputationId: proto.String(anchor), BundleSha: proto.String(sha), Ran: proto.Bool(rerun != notRun), Soundness: s.Enum(), Note: proto.String("read")}
+	// The execution is named as the verb names it: one per bundle in these boards, so the act that
+	// ran it and every act standing on it name the same re-run.
+	r := &recordpb.Reproduce{ComputationId: proto.String(anchor), BundleSha: proto.String(sha), Ran: proto.Bool(rerun != notRun), Soundness: s.Enum(), Note: proto.String("read"),
+		RerunSha: proto.String(rerunOf(sha))}
 	if rerun == notRun {
 		rerun = b.standingRerun(sha)
 	}
@@ -650,3 +653,6 @@ func TestABlankReopenedIDIsNoRow(t *testing.T) {
 		t.Errorf("rows = %+v, want exactly C-1", got)
 	}
 }
+
+// rerunOf is the rerun_sha a test board's execution of bundle sha carries.
+func rerunOf(sha string) string { return "r-" + sha }

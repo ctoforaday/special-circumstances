@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // These tests drive hooks/fetch-bin.sh the way a guard does — `sh fetch-bin.sh hook <Event>` with

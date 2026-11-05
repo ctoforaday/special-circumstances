@@ -37,10 +37,8 @@ func TestARemandOfAClosedGapIsRefusedNamingTheClose(t *testing.T) {
 	if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, docketRuling("M1", recordpb.Disposition_DISPOSITION_MOOT)); err != nil {
 		t.Errorf("a disposition that closes is refused on the closed gap's motion: %v", err)
 	}
-	Migrating = true
-	defer func() { Migrating = false }()
-	if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("M1", remandDirection)); err != nil {
-		t.Errorf("a migration refuses the archived remand of a closed gap: %v", err)
+	if err := wouldReplay(t, run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("M1", remandDirection)); err == nil {
+		t.Error("the replay admitted the remand of a closed gap; no archive holds one, and the write refuses it whoever replays it")
 	}
 }
 

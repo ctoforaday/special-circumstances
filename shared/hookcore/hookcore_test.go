@@ -269,6 +269,17 @@ func TestReadAntigravityPayloads(t *testing.T) {
 	if reqSub.AgentTranscriptPath != "/path/to/sub/transcript.jsonl" {
 		t.Errorf("reqSub.AgentTranscriptPath = %q, want /path/to/sub/transcript.jsonl", reqSub.AgentTranscriptPath)
 	}
+
+	// 5. ArtifactDirPath derives TranscriptPath
+	inputArtifact := `{
+		"conversationId": "agy-conv-9",
+		"artifactDirectoryPath": "/tmp/brain/agy-conv-9"
+	}`
+	reqArtifact := Read("SessionStart", strings.NewReader(inputArtifact))
+	wantTranscript := filepath.Join("/tmp/brain/agy-conv-9", ".system_generated", "logs", "transcript.jsonl")
+	if reqArtifact.TranscriptPath != wantTranscript {
+		t.Errorf("reqArtifact.TranscriptPath = %q, want %q", reqArtifact.TranscriptPath, wantTranscript)
+	}
 }
 
 func TestRespondClaudePreToolUse(t *testing.T) {

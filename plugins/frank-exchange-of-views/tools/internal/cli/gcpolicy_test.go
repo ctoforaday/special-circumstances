@@ -5,7 +5,7 @@ import (
 	"runtime/debug"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 // feov-record's main turns the GC off; dashboard --watch and --serve run until the run ends and must

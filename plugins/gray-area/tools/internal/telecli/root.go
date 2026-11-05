@@ -23,8 +23,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/peer"
+	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
 // Env is everything the command tree reads from OUTSIDE its arguments — the two client
@@ -45,11 +46,16 @@ type Env struct {
 	// its platform. A NIL Boot reads as "not measurable", never a panic, and it is called only after
 	// the store opened, so an Env built without it keeps every verb's behaviour.
 	Boot func() (int64, bool)
+	// RuntimeDir is $XDG_RUNTIME_DIR, where Antigravity server records live; empty means none
+	// are kept. Getenv reads the calling process's environment. Both are injected so a test can
+	// stand in an Antigravity shell without being one.
+	RuntimeDir string
+	Getenv     func(string) string
 }
 
 // Defaults resolves the environment a real invocation runs in.
 func Defaults() Env {
-	e := Env{Now: time.Now, Boot: catalogue.BootTime}
+	e := Env{Now: time.Now, Boot: catalogue.BootTime, RuntimeDir: os.Getenv("XDG_RUNTIME_DIR"), Getenv: os.Getenv}
 	if dir, err := catalogue.DefaultDir(); err == nil {
 		e.Store = filepath.Join(dir, "catalogue.db")
 	}
@@ -109,6 +115,7 @@ func NewRoot(env Env) *cobra.Command {
 		Long:  longDescription,
 		Example: `  telepathy agents
   telepathy agents --lost
+  telepathy send 8a3d5199 "your branch conflicts with mine"
   telepathy touched internal/catalogue/schema.go
   telepathy sql "SELECT tool, count(*) n FROM v_action GROUP BY 1 ORDER BY 2 DESC"`,
 		Version: buildid.Line("telepathy"),
@@ -116,6 +123,19 @@ func NewRoot(env Env) *cobra.Command {
 		// dump the full usage block over the answer.
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		// AN ANTIGRAVITY SHELL IS THE ONLY PLACE ITS SERVER'S TOKEN EXISTS, so every verb run from
+		// one records that conversation's server for telepathy send (peer.Register says why).
+		// A failure to record costs the caller nothing but a line: the verb still runs.
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+			// link records the server itself and reports what it found; recording first here would
+			// make it report every link as already made.
+			if env.Getenv == nil || cmd.Name() == "link" {
+				return
+			}
+			if _, _, err := peer.Register(env.RuntimeDir, env.Getenv, env.Now()); err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "telepathy: this conversation's server was not recorded, so telepathy send cannot wake it: %v\n", err)
+			}
+		},
 	}
 	root.SetVersionTemplate("{{.Version}}\n")
 
@@ -152,6 +172,8 @@ func NewRoot(env Env) *cobra.Command {
 		newFindCmd(&env),
 		newSQLCmd(&env),
 		newBackfillCmd(&env),
+		newSendCmd(&env),
+		newLinkCmd(&env),
 	)
 	return root
 }

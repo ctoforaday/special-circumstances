@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // THE GUARD NEVER BLOCKS, so its warning is the entire mechanism — and it used to go to stderr at

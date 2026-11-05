@@ -710,8 +710,11 @@ type runner struct {
 	forcePetitionSeat, lastParty string
 	petitionForced               bool
 	hearingsAfter                map[string]int
-	// positionNamedGaps is each gap a bench's upholding of a position named, in ruling order.
+	// positionNamedGaps is each gap a bench's upholding of a position named, in ruling order;
+	// positionNamedAt is, by gap, the occasion and the chair sitting of that ruling, which the
+	// forced-position oracle's failure names.
 	positionNamedGaps                                []string
+	positionNamedAt                                  map[string]string
 	positionForced, heldTrifle                       bool
 	positionsUpheldLens, positionsUpheldGaps         int
 	positionsOverruled                               int
@@ -4737,6 +4740,47 @@ func nextInquiryStatus() string {
 	return inquiryStatus[int(inquiryTick.Add(1)-1)%len(inquiryStatus)]
 }
 
+// firstInquiryFate is the fate a proposal records first: the round-robin's, except in a run forced to
+// a verdict, which records a fate that settles it. An open inquiry readies blue-respond on every plan
+// (record.BlockerOpenInquiry), and blue's sitting moves the head and readies the lenses again, so an
+// inquiry left open is a further march the forced run's bound (findsFresh) does not count. It also
+// takes no turn of the round-robin, whose count is shared by every run of the sweep: a forced run
+// whose fate turned on how far the concurrent runs had counted would end on their schedule.
+func (r *runner) firstInquiryFate() string {
+	if r.forcedVerdict() {
+		return pick(r.rng, settlingFates)
+	}
+	return nextInquiryStatus()
+}
+
+// citationReading is a lens's reading of a citation's source, from the outcome drawn for it. A reading
+// that owes a mint is not drawn where the bound forbids one: a reading that finds against (`refutes`,
+// `absent`) mints a gap, so a lens that draws no fresh mint (fresh) reads the source as backing
+// instead; an `unreachable` one is a failed check, whose gap the reader owes outside its budget
+// (answerFailed) and which readies blue to remedy it, so a run forced to a verdict never draws it,
+// as it never judges a computation unsound (judgement). Left drawn, one unreachable reading in a
+// forced-UNVERIFIED run started the failed check's march at a later sitting, blue's remedy moved the
+// head, and the run reached its epoch limit and ended CEILING.
+func (r *runner) citationReading(outcome string, fresh bool) string {
+	switch {
+	case (outcome == "refutes" || outcome == "absent") && !fresh:
+		return "supports"
+	case outcome == "unreachable" && r.forcedVerdict():
+		return "supports"
+	}
+	return outcome
+}
+
+// owedCitationReading is the result of a lens's owed check of a citation's sentence as it now stands:
+// supporting, and one time in ten unreachable — never in a run forced to a verdict (citationReading
+// says why).
+func (r *runner) owedCitationReading() string {
+	if !r.forcedVerdict() && r.coin(10) {
+		return "unreachable"
+	}
+	return "supports"
+}
+
 var obsKind = []string{"reason", "checked-held"}
 
 // disputeDims is the full grade-dimension domain — the fuzz must contest each, not only impact.
@@ -4795,8 +4839,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// THE FIRST FATE IS THE ROUND-ROBIN'S, so every fate is driven by construction: one left
 		// open is settled by settleOpenInquiries at a later sitting of blue's, and one settled
-		// here is the logic lens's to check (checkInquiries).
-		line, st := "fuzz inquiry "+seatID, nextInquiryStatus()
+		// here is the logic lens's to check (checkInquiries). A forced run settles it here
+		// (firstInquiryFate).
+		line, st := "fuzz inquiry "+seatID, r.firstInquiryFate()
 		// PROPOSE AND RECORD ARE TWO VERBS. A proposal is born `proposed` — the tool supplies it,
 		// so there is no status to pass — and any other fate is reached by RECORDING it on the
 		// inquiry proposed, which is the fate the logic lens checks and the oracle reads.
@@ -5602,8 +5647,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					// A FAILED CHECK ONE TIME IN TEN. Each starts a chain — the reader's gap, blue's
 					// remedy, a fresh check — and drawn at even odds over every owed anchor the chains
 					// outran the sweep's time limit; the archive holds two unreachable readings in 31
-					// runs. The forced-VERIFIED run reads every one, and neither forced run judges a
-					// computation unsound (judgement).
+					// runs. A run forced to a verdict reads every one, and judges no computation
+					// unsound (owedCitationReading, judgement).
 					for _, it := range owed {
 						// A FORCED CHAIN'S COMPUTATION IS ITS OWN DRIVE'S: judgeToReopen and judgeUnsound judge
 						// it below, and dischargeOwed clears any they leave before the envelope.
@@ -5624,10 +5669,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 							// THE COPY THAT IS NOT THE WORK IS READ AND READS NOTHING (readNotTheWork).
 							r.readNotTheWork(seatID, it.Anchor)
 						} else {
-							as := "supports"
-							if !r.forceVerified && r.coin(10) {
-								as = "unreachable"
-							}
+							as := r.owedCitationReading()
 							r.do("verify", seatID).set("--anchor", it.Anchor).
 								set("--as", as).set("--confidence", pick(r.rng, verifyConfidence)).
 								set("--reason", "fuzz: read the sentence as it now stands against its source").admit()
@@ -5702,10 +5744,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						on(60, "--access-date", "2026-07-24")
 				}
 				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
-					if (outcome == "refutes" || outcome == "absent") && !fresh {
-						outcome = "supports"
-					}
-					r.readCitation(seatID, anchor, outcome, kindless, axes)
+					r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, axes)
 				} else {
 					if outcome != "absent" && outcome != "unreachable" && !fresh {
 						outcome, kindless = "absent", false

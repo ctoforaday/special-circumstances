@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 func newBackfillCmd(env *Env) *cobra.Command {

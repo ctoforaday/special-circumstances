@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // hooks.json's PreToolUse matcher decides which calls reach this binary; each unit's Applies
