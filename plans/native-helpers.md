@@ -1,14 +1,13 @@
 # Native code leaves `feov-record`: the `feov-ocr` and `feov-embed` helpers
 
-> STATUS: proposed 2026-11-04, not started. F1–F10 ruled by gblock 2026-11-04, F11–F12 on 2026-11-05 (§I.4). Revised for
-> audit rounds 1 and 2 (`~/.claude/scratch/vecplan/audit/round1/`, `round2/`); next is audit round 3. Line numbers are
-> against `origin/main` at `68a735d51` unless a census group says otherwise.
+> STATUS: proposed 2026-11-04, not started. F1–F10 ruled by gblock 2026-11-04, F11–F14 on 2026-11-05 (§I.4). Revised for
+> audit rounds 1–3 (`~/.claude/scratch/vecplan/audit/round1/`, `round2/`, `round3/`); next is audit round 4. Line
+> numbers are against `origin/main` at `cd527c7e8` unless a census group says otherwise.
 > Ownership (gblock, 2026-11-04, "You'll handle vector here but hand ocr to the agent working on ocr"; F4): the OCR
 > session builds Part 1 (helper mechanics) inside Part 2 (`feov-ocr`); the vector-search session builds Part 3
 > (`feov-embed`) on top of Part 1 once it lands.
-> Precondition (§II.4, §IV R11): F1 needs `fetch-bin.sh` to fetch in an installed plugin. On `origin/main` at
-> `68a735d51` it refuses whenever `$ROOT/tools/go.mod` exists (`scripts/fetchbingen/fetch-bin.sh:24-28`, PR #1724),
-> which every installed plugin has. That guard is not this plan's change; Part 1's `fetch-bin.sh` work waits for it.
+> F1's precondition is met: `b618e48ac` (#1752) narrowed `fetch-bin.sh`'s guard to refuse only a development checkout
+> (`scripts/fetchbingen/fetch-bin.sh:24-33`), so an installed plugin fetches (§II.4).
 
 ## I. Summary & Goals
 
@@ -49,8 +48,9 @@ load the official DLL on Windows.
 **What it costs:**
 - A frame protocol, with a Go client and a C++ codec.
 - A second asset list in `fetch-bin.sh` and `sc-doctor`, beside `tools/cmd`.
-- Four CI jobs (`native-scope`, `native-build`, `native-run`, `native-fuzz`), a release job that waits on them for a FEOV
-  tag, and a helper build on every event that runs the engine tests (F11).
+- Four CI jobs (`native-scope`, `native-build`, `native-run`, `native-fuzz`); a helper build on every event that runs the
+  engine tests (F11); a release job that waits on every tag for the test targets' helper builds, and on a FEOV tag for
+  every native job.
 - Re-pinned OCR goldens, and a rewritten `docs/c-stack.md`.
 
 The value case holds only if the protocol stays small and the OCR goldens come through unchanged. §V checks both.
@@ -89,11 +89,11 @@ The measurements behind it are on #1171 (comment 6621511526), in `~/.claude/scra
 
 ### 4. Rulings
 
-Rulings are gblock's, 2026-11-04 (F1–F10) and 2026-11-05 (F11–F12), picked from options the agent wrote; the option
+Rulings are gblock's, 2026-11-04 (F1–F10) and 2026-11-05 (F11–F14), picked from options the agent wrote; the option
 wording is the agent's, not a quote.
 
 - **F1, provisioning: `fetch-bin.sh`, eagerly.** The helpers and the model are fetched with the hook binaries, by the
-  same all-or-none install (`scripts/fetchbingen/fetch-bin.sh:252-286`). A first hook start therefore
+  same all-or-none install (`scripts/fetchbingen/fetch-bin.sh:251-292`). A first hook start therefore
   waits on them too: the model alone is 33,844,232 bytes. This keeps the 2026-10-31 choice of shipping the model as a
   release asset through `fetch-bin.sh`. The recommended alternative, a fetch by `feov-record` on first use, was not
   taken.
@@ -123,7 +123,7 @@ wording is the agent's, not a quote.
   release without breaking the idempotent re-run (`hooks.yml:1860-1870`). One release holds only the two exports. It is
   created by hand with `gh release create --latest=false`, so it never shows as the repository's latest, and it is never
   re-tagged. Its tag does not match the workflow's `*--v*` trigger. Each export's sha256 and URL are pinned in
-  `PINS.txt`, and the release job downloads them from there.
+  `feov-embed`'s `PINS.txt` (§1.1), and the release job downloads them from there.
 - **F11, helper builds per event: build or restore on every event that runs the engine tests.** That covers pull
   requests, pushes, the nightly and dispatch, from a cache seeded on main and rebuilt on a miss (§III.1.5). Every pull
   request keeps today's real-engine coverage.
@@ -132,6 +132,7 @@ wording is the agent's, not a quote.
 - **F13, the helper cache on a push to main: restored (gblock, 2026-11-05).** A main push builds only the test targets
   (linux-amd64, windows-amd64), and it restores main's helper cache instead of rebuilding them. A tag still reads no
   cache (F2). This departs from `.github/actions/go-cache`'s push rule for this one artifact, and the cache step says so.
+  `releaseassets -scope` decides it from the ref, not the event (§III.1.5).
 - **F14, unbounded page area: accepted as residue (gblock, 2026-11-05).** A page far larger than the corpus's largest
   fails alone and loudly as `helper-deadline`; the rest of the document reads (§III Part 2).
 
@@ -139,7 +140,7 @@ Decisions the lead took on the round-1 design gaps, reversible and disclosed to 
 
 - **L1 (gap 2).** The helper's handshake reports its source digest. `feov-record` accepts a helper only if that digest
   equals its own compiled-in digest, on every build path, release or dev. The digest is a committed generated constant
-  with a test that recomputes it from `native/` and `PINS.txt` (the `TestIdentityMatchesPins` pattern; FEOV's tools
+  with a test that recomputes it from its inputs under `native/` (§1.4; the `TestIdentityMatchesPins` pattern; FEOV's tools
   module cannot `go:embed` files outside `tools/`). `Identity()` uses the compiled digest and never spawns. Release
   asset sha256 stays `fetch-bin.sh`'s `SHA256SUMS` check; there are no `-X` hashes.
 - **L2 (gap 8).** The model ships per arch, `gte-small.int8.amd64.ort` and `gte-small.int8.arm.ort`, each measured.
@@ -151,7 +152,6 @@ Decisions the lead took on the round-1 design gaps, reversible and disclosed to 
 - GPU execution providers.
 - Changing how OCR reads a page. Part 2 is a move, and S3 is its proof.
 - Retiring PDFium. It is WebAssembly under wazero, pure Go, and outside the C stack (census J).
-- Narrowing `fetch-bin.sh`'s source-tree guard (PR #1724). It is a precondition, owned elsewhere.
 
 ## II. Technical Context
 
@@ -159,7 +159,7 @@ Decisions the lead took on the round-1 design gaps, reversible and disclosed to 
 
 - **The libraries are C++, and the existing code is too.** Their APIs are called directly, with no binding crate in
   between. `internal/tessocr/shim.cpp` is most of `feov-ocr` already.
-- **No new shipped toolchain.** Linux and macOS use the pinned `zig c++` (`third_party/pins/PINS.txt`). Windows
+- **No new shipped toolchain.** Linux and macOS use the pinned `zig c++` (`native/PINS.txt`, §1.1). Windows
   `feov-embed` uses MSVC on a Windows runner, which is how ONNX Runtime builds there. Windows `feov-ocr` stays on zig and
   MinGW, as it is today. The fuzz build uses the runner's clang, which ships nothing (§III.1.5 `native-fuzz`).
 - **Rust's safety would protect the wrong layer.** The untrusted input is pixels from fetched documents, which are
@@ -205,13 +205,14 @@ export.
   no epoch bump and no `feov-migrate` translation (census J, L). Old runs keep their old identity strings, and nothing
   compares a stored `ocr_engine` with the current identity.
 - **The release fuzz never exercised OCR.** `release-fuzz-build` is a plain build (census F), so it is unchanged.
-- **Precondition: `fetch-bin.sh` must fetch in an installed plugin.** On `68a735d51` its guard
-  (`scripts/fetchbingen/fetch-bin.sh:24-28`, plugin copies `:25-29`) exits 0 whenever `$ROOT/tools/go.mod` exists, so it
-  never fetches for a consumer and F1 cannot work. The `fetch-bin-platforms` fixture (`hooks.yml:1182`) has no
-  `tools/go.mod`, so CI does not see it. Part 1's `fetch-bin.sh` and `sc-doctor` work starts once that guard is
-  narrowed; the auditor reported it to gblock.
+- **`fetch-bin.sh` fetches in an installed plugin.** Since `b618e48ac` its guard
+  (`scripts/fetchbingen/fetch-bin.sh:24-33`, plugin copies `:25-34`) refuses only a development checkout: a root whose
+  `../../` holds both the marketplace manifest and `scripts/`. It does not refuse a universe root: a staged marketplace
+  has the manifest but no `scripts/`, and main's `TestEnsureHealsWhereverThePluginIsInstalledButNeverInACheckout`
+  (`fetchbin_contract_test.go:658`, subtest "universe staged marketplace") asserts it heals. A universe therefore needs
+  its own marker (§III.1.4).
 - **Runner images.** `windows-latest` moves its MSVC toolset with image updates. The Windows builders pin the image
-  label (`windows-2025`, `windows-11-arm`; Part 0 ran on `windows-latest` and `windows-11-arm`) and select the MSVC toolset from `PINS.txt` with
+  label (`windows-2025`, `windows-11-arm`; Part 0 ran on `windows-latest` and `windows-11-arm`) and select the MSVC toolset from `feov-embed`'s `PINS.txt` with
   `vcvarsall -vcvars_ver=<pin>`, failing when the image no longer carries it. An image update therefore fails at the
   build, loudly, never as an idempotent re-run's "artifacts DIFFER".
 
@@ -247,16 +248,19 @@ ONNX Runtime 1.31.1 reduced, built with MSVC 14.51 and `--enable_msvc_static_run
 plugins/frank-exchange-of-views/native/          [NEW] helper sources, outside tools/cmd (census G: every enumerator treats tools/cmd as a shipped Go binary)
   frame/frame.h, frame.cpp                       [NEW] C++ codec for the frame protocol, and the startup that claims the frame descriptor (§1.2)
   frame/fuzz_frame.cpp                           [NEW] libFuzzer target for the decoder
+  PINS.txt                                       [NEW, moved] the build toolchain's pins (zig, cmake), from third_party/pins/PINS.txt
   feov-ocr/ASSETS   (Part 2)                     [NEW] empty: the file marks the directory as a helper
+  feov-ocr/PINS.txt (Part 2)                     [NEW, moved] zlib, libpng, leptonica, tesseract, libjpeg-turbo, libtiff, eng.traineddata
   feov-ocr/…        (Part 2)                     [NEW] shim.cpp, shim.h, main.cpp, the libc self-test
   feov-embed/ASSETS (Part 3)                     [NEW] names the per-arch model export (§1.4)
+  feov-embed/PINS.txt (Part 3)                   [NEW] ONNX Runtime, the MSVC toolset, the two model exports
   feov-embed/…      (Part 3)                     [NEW] main.cpp, ops.config
-  build.sh                                       [NEW] build one helper for one target; absorbs build-cstack.sh's build mode
+  build.sh                                       [NEW] build one helper for one target from native/PINS.txt and the helper's own; absorbs build-cstack.sh's build mode
 plugins/frank-exchange-of-views/tools/internal/nativehelper/   [NEW] Go: locate, handshake, spawn, frame client, deadline, Require for tests
 plugins/frank-exchange-of-views/tools/internal/nativehelper/digest_gen.go   [NEW, GENERATED] each helper's source digest and per-arch ASSETS sha256
 plugins/frank-exchange-of-views/tools/internal/nativehelper/testdata/fakehelper/   [NEW] a Go helper on the Go codec; each test builds it with the digest, protocol version and misbehaviour it needs (no zig in the feov-record job)
 plugins/frank-exchange-of-views/tools/devcmd/nativedigest/     [NEW] writes digest_gen.go; `-print <helper>` for build.sh and CI; `-check`
-plugins/frank-exchange-of-views/tools/third_party/pins/        [MODIFY] PINS.txt gains ONNX Runtime, the MSVC toolset and (Part 3) the two model exports; build-cstack.sh is deleted into native/build.sh; staticproof leaves for scripts/
+plugins/frank-exchange-of-views/tools/third_party/pins/        [DELETED] PINS.txt splits into native/ (above); build-cstack.sh is deleted into native/build.sh; staticproof leaves for scripts/
 scripts/internal/staticproof/, scripts/staticproof/            [NEW, moved] the staticness check as a package with per-artifact allowlists, and its command
 scripts/releaseassets/                                         [NEW] the release job's asset check and the native jobs' matrix (§1.5)
 ```
@@ -322,7 +326,7 @@ Each case is a distinct error:
 - `helper-absent`: no executable at the looked-up path (§1.4), with the path named;
 - `helper-digest-mismatch`: the handshake's digest differs from the compiled-in one, both named, or `feov-embed`'s model
   sha256 differs from the pin for this arch. The per-arch model pins are compiled in like the digest: `nativedigest`
-  reads each `ASSETS` file's per-arch sha256 from `PINS.txt` into `digest_gen.go`, and `feov-record` picks the one for
+  reads each `ASSETS` file's per-arch sha256 from its helper's `PINS.txt` into `digest_gen.go`, and `feov-record` picks the one for
   `runtime.GOARCH`;
 - `helper-crashed`, with the exit status and the captured stderr;
 - `helper-deadline`, with the op and the elapsed time;
@@ -336,8 +340,8 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
 
 #### 1.4 Provisioning and identity (F1, F2, F8, L1, L2)
 
-- **`fetch-bin.sh` learns a second list** (precondition §II.4). Today it enumerates `tools/cmd/*` (`fetch-bin.sh:143-154`
-  in `up_to_date`, `:246-262` in `fetch`). It also enumerates the helpers (§1.1 predicate), which are present in the
+- **`fetch-bin.sh` learns a second list.** Today it enumerates `tools/cmd/*` (`fetch-bin.sh:154` in `up_to_date`,
+  `:259` in `fetch`). It also enumerates the helpers (§1.1 predicate), which are present in the
   plugin cache because the whole plugin directory installs.
   - It globs `native/*/ASSETS` and keeps a match only if `[ -f ]` holds. An unmatched sh glob yields the pattern itself,
     so without the test a plugin with no `native/` (gray-area, prosthetic-conscience) would list a helper named `*`.
@@ -352,12 +356,16 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
 - **`fetch-bin.sh` and `sc-doctor` never fetch into a source-built root.** `universe.sh build` writes
   `.fetch/source-built` into every root it populates. `fetch-bin.sh`'s `hook`, `ensure` and `fetch`, and `sc-doctor
   -fix`'s fetch, exit before any network access when it is present, and `ensure` and `-fix` say so in one line naming
-  `universe.sh build --native`. If the narrowed #1724 guard already refuses a universe root, Part 1 uses that field and
-  adds no marker: one concept, one mechanism.
+  `universe.sh build --native`. The checkout guard (§II.4) heals a universe root by design, so the marker is the only
+  thing that stops it.
 - **Source digest (F8, L1).** For each helper, `devcmd/nativedigest` hashes, in a fixed order with CRLF folded to LF
-  (as `cstackPin` does today): `native/<helper>/**`, `native/frame/**`, `native/build.sh` and `PINS.txt`. It writes
-  every helper's digest, and each `ASSETS` file's per-arch sha256 (§1.3), into `internal/nativehelper/digest_gen.go`;
+  (as `cstackPin` does today), that helper's inputs and no other's: `native/<helper>/**` (its sources and its own
+  `PINS.txt`), `native/frame/**`, `native/build.sh` and `native/PINS.txt` (the toolchain). It writes every helper's
+  digest, and each `ASSETS` file's per-arch sha256 (§1.3), into `internal/nativehelper/digest_gen.go`;
   `TestNativeDigestMatchesSources` recomputes both and fails on drift, with the value to write.
+  - So an ONNX Runtime, MSVC or model pin bump moves `feov-embed`'s digest only. `feov-ocr@` in `Identity()`, line 1 of
+    the 13 corpus goldens, and every cached reading's engine string stay as they were. A change to `native/frame/**`,
+    `native/build.sh` or the toolchain pins moves both digests, and re-reads every cached page once.
   - `native/build.sh` runs `nativedigest -check`, then `nativedigest -print <helper>`, and compiles the result into the
     helper (`-DFEOV_HELPER_DIGEST=…`). A helper built from a tree whose committed constant is stale does not build.
   - The digest covers the sources, so it does not depend on the build host; the build host's `__FILE__` paths no longer
@@ -407,22 +415,27 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     new helper joins every job by existing.
   - `releaseassets -scope` decides, for one event, which `native-build` legs run and whether `native-run` runs. Its
     inputs are the event name, the ref and, on a pull request, the merge commit's changed files. It prints the needed
-    legs as the `native-build` matrix, plus `full`, and refuses an empty matrix.
+    legs as the `native-build` matrix, `full`, and `cache` (`none`, `restore` or `save`), and refuses an empty matrix.
+    - **`cache` is decided from the ref first.** Any `refs/tags/*` ref is `none`, whatever the event: the release job's
+      `if:` reads only the ref, so a dispatch on a tag publishes like a tag push. `schedule`, and `workflow_dispatch` on
+      `refs/heads/main`, are `save`. Every other event is `restore`.
     - The **test targets** are derived from `hooks.yml`: the target of every `native-<helper>-<target>` artifact that a
       job other than `native-run` and `release` downloads. Today that is `linux-amd64` (`ocr-corpus` and `feov-record`'s
       Linux leg) and `windows-amd64` (its Windows leg). A new consumer joins by being written.
     - The **native set** of paths is `nativedigest`'s own input list, `devcmd/nativedigest/**`, `internal/nativehelper/**`,
       the directory of every package that imports `internal/nativehelper` (from `go list`, so `internal/tessocr` and Part
-      3's embed client join by importing it), `scripts/releaseassets/**`, `scripts/internal/staticproof/**` and `hooks.yml`.
+      3's embed client join by importing it), `internal/fetchcache/pagerender.go` (it holds `MaxRenderDPI`, the bound on
+      every `feov-ocr` request, §1.2), `scripts/releaseassets/**`, `scripts/internal/staticproof/**` and `hooks.yml`.
 
-    | Event (every one in `hooks.yml`'s `on:`) | `native-build` legs | Helper cache | `native-run` / `native-fuzz` |
+    | Event and ref (every event in `hooks.yml`'s `on:`) | `native-build` legs | `cache` | `native-run` / `native-fuzz` |
     |---|---|---|---|
-    | pull request touching the native set | every helper × target | restore main's | run / run |
-    | any other pull request | the test targets | restore main's | skip / skip |
-    | push to main | the test targets | restore main's (F13) | skip / skip |
-    | push of a FEOV tag | every helper × target | none (F2) | run / skip |
-    | push of another plugin's tag | the test targets | none | skip / skip |
-    | `schedule`, `workflow_dispatch` on main | every helper × target | restore; save on a miss | run / run |
+    | pull request touching the native set | every helper × target | `restore` | run / run |
+    | any other pull request | the test targets | `restore` | skip / skip |
+    | push to `refs/heads/main` | the test targets | `restore` (F13) | skip / skip |
+    | push or dispatch on a FEOV tag | every helper × target | `none` (F2) | run / skip |
+    | push or dispatch on another plugin's tag | the test targets | `none` | skip / skip |
+    | `schedule`, `workflow_dispatch` on `refs/heads/main` | every helper × target | `save` | run / run |
+    | `workflow_dispatch` on another branch | every helper × target | `restore` | run / run |
 
 - **`native-scope`** (`ubuntu-24.04`) has no `if:` and runs on every event, following the repository's "THE JOB ALWAYS
   RUNS AND DECIDES FOR ITSELF" (`hooks.yml:740-745`). It checks out with `fetch-depth: 2`, refuses a pull request whose
@@ -430,13 +443,19 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
   prints the decision, and outputs the matrix and `full`.
 - **`native-build`** (needs `native-scope`, matrix from its output, no `if:`) builds or restores one helper for one target
   with `native/build.sh` and uploads it as `native-<helper>-<target>`. A `feov-embed` leg also downloads its arch's model
-  export from the `PINS.txt` URL, checks its sha256, and adds it to the artifact under its installed name.
-  - **The cache follows `.github/actions/go-cache`'s rule** (`action.yml:8-13`) with one departure (F13). It is restored on
-    every event but a tag push, which touches no cache (F2); a push to main restores main's entries. Only the nightly or a
-    dispatch on `refs/heads/main` saves it. That is how a main-seeded entry reaches pull requests: a pull request
-    restores entries saved on its base branch and saves none, because an entry saved on its merge ref is readable by no
-    other pull request. A pull request whose digest main has not built yet rebuilds on the miss. That happens on a
-    native change, or before the next nightly after one merges, and a dispatch on main seeds the entry without waiting.
+  export from the URL in `feov-embed`'s `PINS.txt`, checks its sha256, and adds it to the artifact under its installed name.
+  - **The cache follows `.github/actions/go-cache`'s rule** (`action.yml:8-13`) with one departure (F13), and its steps
+    read `native-scope`'s `cache` output, never `github.event_name` or `github.ref`. The restore is
+    `actions/cache/restore` with `if: needs.native-scope.outputs.cache != 'none'`; the save is `actions/cache/save` with
+    `if: needs.native-scope.outputs.cache == 'save' && steps.helper-cache.outputs.cache-hit != 'true'`. The combined
+    `actions/cache` is not used: its post step saves on whatever event ran it. A tag ref therefore touches no cache (F2),
+    a push to main restores main's entries, and only the nightly or a dispatch on main saves. Both steps carry
+    `# zizmor: ignore[cache-poisoning]`, as `go-cache`'s do, so zizmor cannot catch a wrong condition here;
+    `TestTheHelperCacheStepsObeyTheScope` does (§V.8).
+  - That is how a main-seeded entry reaches pull requests: a pull request restores entries saved on its base branch and
+    saves none, because an entry saved on its merge ref is readable by no other pull request. A pull request whose
+    digest main has not built yet rebuilds on the miss. That happens on a native change, or before the next nightly
+    after one merges, and a dispatch on main seeds the entry without waiting.
   - The key is `native-<helper>-<target>-<builder runner>-<$ImageVersion>-<digest>`, the digest from
     `nativedigest -print`. A change to `shim.cpp`, `frame.cpp`, `build.sh` or a pin misses, and so does a builder image
     update.
@@ -449,12 +468,17 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
 - **`native-run`** (matrix from `-matrix`, one leg per target on that target's own runner; needs `native-scope` and
   `native-build`) runs on every event. Each leg's first step reads `full`; when it is false the rest skip and the leg
   says so, as the `release-fuzz` parts do (`hooks.yml:866-894`). Otherwise it downloads that target's artifacts and
-  runs FEOV's `go test` with `CGO_ENABLED=0`, as every published Go asset is built, for the packages that call
-  `nativehelper.Require`, with `NATIVE_HELPER_DIR` pointing at them. It fails on any of:
+  runs FEOV's `go test -v` with `CGO_ENABLED=0`, as every published Go asset is built, for the packages that call
+  `nativehelper.Require`, with `NATIVE_HELPER_DIR` pointing at them, `FEOV_OCR_CORPUS=1` and `FEOV_NATIVE_MEASURE=1`.
+  The checks below that measure time or fidelity (the deadline, S5, S6) skip unless `FEOV_NATIVE_MEASURE=1`, so they run
+  on `native-run`'s dedicated runners and never in the `feov-record` legs, where parallel packages share the CPUs. The
+  job's `env` names, once, `NATIVE_RUN_MUST_PASS`: every top-level test the leg exists to run. After the tests, the leg
+  fails unless each name in it reports `--- PASS`, and refuses an empty list, so a skip from a missing helper or
+  variable is red. It fails on any of:
   - the handshake digest or model sha256 differing from the compiled constants;
   - `selftest-stdout`: the frame not byte-identical, or the stdout writes absent from the request's captured stderr;
   - helper exit on stdin EOF taking more than 2 s;
-  - `selftest-traineddata` differing from `PINS.txt`; `selftest-libc` failing (Linux targets);
+  - `selftest-traineddata` differing from `feov-ocr`'s `PINS.txt`; `selftest-libc` failing (Linux targets);
   - the 13 corpus pages: on linux-amd64, any golden byte after line 1 differing (S3); on the other five, the same
     comparison, and a difference fails the job (R9);
   - any op's largest client request (§1.2, Deadline) taking over 30 s, a quarter of the deadline;
@@ -464,9 +488,13 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     container, which has neither Go nor Visual Studio. On the host the leg builds each `Require` package's test binary
     (`go test -c`, `CGO_ENABLED=0`) and `./cmd/...` into the directory `FEOV_TESTBUILD_PREBUILT` names
     (`internal/testbuild/testbuild.go:280`), so `testbuild` builds nothing inside. The container mounts those, the
-    helpers and the checkout, and runs each test binary from its package directory, as the `release-fuzz` parts run
-    theirs (`hooks.yml:829-832`). windows-arm64 has no clean-image mechanism the agent knows of; Part 3 checks for an
-    arm64 servercore image first, and states the residue if there is none.
+    helpers and the checkout, and runs each test binary with `-test.v` from its package directory, as the
+    `release-fuzz` parts run theirs (`hooks.yml:829-832`). `docker run` passes no runner variable into the container,
+    so it sets every one the binaries read, explicitly: `-e GITHUB_ACTIONS=true`, `-e NATIVE_HELPER_DIR`,
+    `-e FEOV_TESTBUILD_PREBUILT` (both as container paths), `-e FEOV_OCR_CORPUS=1` and `-e FEOV_NATIVE_MEASURE=1`. The
+    host then holds the container's output to the same `NATIVE_RUN_MUST_PASS` list. windows-arm64 has no clean-image
+    mechanism the agent knows of; Part 3 checks for an arm64 servercore image first, and states the residue if there is
+    none.
 - **`native-fuzz`** (`ubuntu-24.04`, needs `native-scope`, no `if:`) runs its steps when the table says so. It installs
   `libclang-rt-18-dev`, which the image's `clang-18 -fsanitize=fuzzer` needs for libFuzzer, then builds
   `native/frame/fuzz_frame.cpp` with `frame.cpp` under `-fsanitize=fuzzer,address,undefined` and runs it for 10
@@ -483,26 +511,40 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     (`:1792`) stay in this job, so `sc-doctor`'s contract test still reads them.
   - For a FEOV tag it downloads every `native-build` artifact into `$DIST`, renaming each model export to its release
     asset name from `ASSETS` and keeping one copy per name. The legs that fetched the exports checked them against
-    `PINS.txt` (F10).
+    `feov-embed`'s `PINS.txt` (F10).
   - It runs `releaseassets -check` on `$DIST`, then `sha256sum * > SHA256SUMS` (`:1825`), then publishes. A dynamic
     linux/amd64 Go binary, a missing helper or a helper beyond its allowlist fails here, before any byte is published.
 - **`sc-doctor`'s release contract test** (`doctor/release_contract_test.go:64-74, 82, 110-114`) matches `for pair in` in
   the whole file and `-o` after `\n  release:\n`. It is narrowed to search for both inside the release job's span only,
   so no other job's line can stand in for the release's (the native jobs use matrices, not loops, but nothing should
   depend on that). It also asserts that the release job runs `releaseassets -check` before `sha256sum`.
-- **CI jobs that run FEOV tests over a `Require` package** (sweep: `grep -rln "nativehelper.Require" $F` for the
-  packages, then every `go test` over them in `.github/workflows/`, crossed with every event in `on:`):
-  - `ocr-corpus` (`hooks.yml:275-328`) and the `feov-record` Linux and Windows legs (`:387-`) run on every event. They
-    need `native-build`, keep no job-level `if:`, download `native-*-<their target>` into one directory and set
-    `NATIVE_HELPER_DIR` to it. Plain `go test` links in seconds, so `ocr-corpus`'s C-stack steps (`:301-313`), the
-    `feov-record` job's C-stack steps and comment (`:532-561`), its separate OCR step (`:570-616`), its tag-derived test list (`:588-590`) and its `PASS|SKIP` grep
+- **CI sites that execute a `Require` package's tests** (sweep: `grep -rln "nativehelper.Require" $F` for the
+  packages, then every `go test` over them and every run of their test binaries in `.github/workflows/`, crossed with
+  every event in `on:` and with every variable `Require` and those suites read). The variables are `GITHUB_ACTIONS` and
+  `NATIVE_HELPER_DIR` (`Require`), `FEOV_OCR_CORPUS` (`TestCorpusGoldens`), `FEOV_NATIVE_MEASURE` (the deadline, S5, S6)
+  and `FEOV_TESTBUILD_PREBUILT` (`testbuild`). `TESSOCR_CORPUS_DIR` and `FEOV_OCR_E2E` name data outside the repository,
+  are set by no CI site, and their tests stay by-hand checks.
+
+  | Site | `GITHUB_ACTIONS` | `NATIVE_HELPER_DIR` | `FEOV_OCR_CORPUS` | `FEOV_NATIVE_MEASURE` | A missing one fails by |
+  |---|---|---|---|---|---|
+  | `ocr-corpus` (`hooks.yml:275-328`) | runner | job | `1` (`:318`) | unset | `Require`; `--- PASS: TestCorpusGoldens` (`:328`) |
+  | `feov-record` Linux and Windows legs (`:387-`) | runner | job | unset | unset | `Require` |
+  | `native-run`, each host leg | runner | job | `1` | `1` | `Require`; `NATIVE_RUN_MUST_PASS` |
+  | `native-run` windows-amd64 servercore container | `-e` | `-e` | `-e` | `-e` | `NATIVE_RUN_MUST_PASS` |
+  | `race-nightly.yml:80` | runner | `none` | unset | unset | — (skips loudly by design; the C++ is not raced, §1.7) |
+
+  The `go test` runs of `releasegate/fuzz` (`hooks.yml:711`, `:1755`, the `release-fuzz` parts) and the `golden` job
+  (which subsumes FEOV's module, `:1487`) execute no `Require` package.
+  - `ocr-corpus` and the `feov-record` legs run on every event. They need `native-build`, keep no job-level `if:`,
+    download `native-*-<their target>` into one directory and set `NATIVE_HELPER_DIR` to it. Plain `go test` links in
+    seconds, so `ocr-corpus`'s C-stack steps (`:301-313`), the `feov-record` job's C-stack steps and comment
+    (`:532-561`), its separate OCR step (`:570-616`), its tag-derived test list (`:588-590`) and its `PASS|SKIP` grep
     (`:612-616`) are deleted: the engine tests run in the default leg (`:657`).
-  - `native-run` sets it per target.
-  - `race-nightly.yml:80` races the shipped graph with `NATIVE_HELPER_DIR=none`; the C++ is not raced (§1.7).
-  - **In CI, `Require` never skips for want of a helper.** With `GITHUB_ACTIONS` set (by the runner, so it cannot be
-    mistyped) and `NATIVE_HELPER_DIR` unset, `Require` fails the test. `none` is the only way to run without a helper,
-    and it skips loudly. A typo in either the variable or its value therefore fails the job. Outside CI an unset
-    variable skips loudly, as `go -C scripts run ./check` does.
+  - **In CI, `Require` never skips for want of a helper.** With `GITHUB_ACTIONS` set and `NATIVE_HELPER_DIR` unset,
+    `Require` fails the test. `none` is the only way to run without a helper, and it skips loudly. A typo in either the
+    variable or its value therefore fails the job. Outside CI an unset variable skips loudly, as
+    `go -C scripts run ./check` does. The container inherits nothing, so there the `-e` flags and the
+    `NATIVE_RUN_MUST_PASS` check carry the rule.
 - **`staticproof`** moves to `scripts/internal/staticproof` with a `scripts/staticproof` command, because every
   plugin's release now runs it. It takes the allowlist per artifact: Go assets and `feov-ocr` keep today's lists;
   `feov-embed`'s Windows list adds `advapi32.dll` (event tracing), `dbghelp.dll` (stack traces) and
@@ -512,8 +554,8 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
 #### 1.6 Enumerators (census G)
 
 - **`fetch-bin.sh` and `fetchbingen`** change as in §1.4. Their contract tests change with them:
-  `doctor/fetchbin_contract_test.go` (`TestFetchBinInstallsEveryMissingBinaryFromThePinnedRelease` `:255`,
-  `TestFetchBinInstallsNothingWhenOneDigestIsWrong` `:271`, `TestFetchBinNamesAnAssetTheReleaseDoesNotCarry` `:284`)
+  `doctor/fetchbin_contract_test.go` (`TestFetchBinInstallsEveryMissingBinaryFromThePinnedRelease` `:260`,
+  `TestFetchBinInstallsNothingWhenOneDigestIsWrong` `:276`, `TestFetchBinNamesAnAssetTheReleaseDoesNotCarry` `:289`)
   gain a helper and an `ASSETS` line, and the `fetch-bin-platforms` job's fixture plugin (`hooks.yml:1159-1216`, `:1182`)
   gains `native/fake-helper/ASSETS`, its assets, and a `.fetch/source-built` root.
 - **`sc-doctor`** enumerates the helpers and their `ASSETS` the same way (`binariesOf`, `main.go:73-91`), reports each as
@@ -536,21 +578,22 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     raced, and the text says so.
   - The `ocr-corpus` skip text (`:323-325`) names `feov-ocr`, `NATIVE_HELPER_DIR` and `native/build.sh`, says "every
     golden" rather than a count (it says "all eight" over 13 today), and states the re-arm set: `internal/tessocr/**`,
-    `native/feov-ocr/**`, `native/frame/**`, `native/build.sh` and `PINS.txt`, the inputs of `Identity()`.
+    `native/feov-ocr/**` (its own `PINS.txt` included), `native/frame/**`, `native/build.sh` and `native/PINS.txt`, the
+    inputs of `Identity()`.
 - **Docs:**
   - `docs/c-stack.md` is rewritten around the helpers: zig for Linux, macOS and Windows `feov-ocr`; MSVC for Windows
     `feov-embed`. The MSVC runner is the decision the current doc says a native-only toolchain would need.
-  - `docs/local-development.md:302-305` is rewritten, and its universe section documents `build --native` and
+  - `docs/local-development.md:326-329` is rewritten, and its universe section documents `build --native` and
     `.fetch/source-built`.
   - `docs/setup-script.md:73` says "nothing needs provisioning", which becomes false.
-  - `AGENTS.md`, "AFTER `universe.sh build`, YOU MUST prove the universe carries your change" (`:91`), gains: for a
+  - `AGENTS.md`, "AFTER `universe.sh build`, YOU MUST prove the universe carries your change" (`:92`), gains: for a
     native change, build with `--native` and `cmp` each staged helper against `native/build.sh`'s output (R5).
 
 ### Part 2: `feov-ocr` (owner: the OCR session)
 
 **The move, file by file (census B, C):**
 - `shim.cpp` and `shim.h` move to `native/feov-ocr/`, with a main loop over the frame codec.
-- `eng.traineddata` (4 MB) is embedded in the helper. Its pin stays in `PINS.txt`; `TestEmbeddedTraineddataPin` becomes
+- `eng.traineddata` (4 MB) is embedded in the helper. Its pin moves to `native/feov-ocr/PINS.txt`; `TestEmbeddedTraineddataPin` becomes
   a Go test in `internal/tessocr` that calls `selftest-traineddata` through `Require`, so it reads the bytes the shipped
   helper carries, on every target in `native-run`.
 - `engine_cgo.go` and `engine_stub.go` are deleted. A pure-Go client implements the same exported functions over
@@ -569,15 +612,15 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
   `cli/enginestub_test.go:14-34`) become "no helper refuses loudly" tests, asserting `helper-absent` and its sentence.
   `cli/fetchocr_test.go:121,126` pins the stub's error text in an assertion and is rewritten with it.
 
-**Agent-facing text and comments (census H, re-run at `68a735d51`, 191 lines in
+**Agent-facing text and comments (census H, re-run at `68a735d51` and unchanged at `cd527c7e8`, 191 lines in
 `~/.claude/scratch/vecplan/census/H-r3-68a735d51.txt`, each read for its meaning):**
 - `cli/fetch.go:62` says "compiled into this binary". The fix is made there and regenerated with `agentgen`, which
-  updates 10 agent definitions; the difftest manual golden renders it three times (`:960, :1538, :2100`).
-- `cli/ocr.go:244` help (golden `:2142`), `cli/ocr.go:66-70, :226`, `cli/fetch.go:41, :177`, `pageread.go:17, :36, :40,
+  updates 10 agent definitions; the difftest manual golden renders it three times (`:962, :1542, :2107`).
+- `cli/ocr.go:244` help (golden `:2149`), `cli/ocr.go:66-70, :226`, `cli/fetch.go:41, :177`, `pageread.go:17, :36, :40,
   :56, :85-95`, `seatprobe/build.go:368`, `seatprobe/scanned.go:29`, `seatprobe/separatedbuild_test.go:93-94`,
   `cli/ocr_test.go:179`, `tessocr/tessocr.go:1-17, :32-46, :92, :107-111`, `tessocr/page.go:7, :190`,
   `goldens_cgo_test.go:32`, `fetchcache/corpus_cgo_test.go:44`, `testdata/corpus/README.md:31, :49-50`,
-  `testdata/gen/main.go:13`, `testdata/gen/pages.go:15`, `testbuild/testbuild.go:352`, `PINS.txt:1-14`, and
+  `testdata/gen/main.go:13`, `testdata/gen/pages.go:15`, `testbuild/testbuild.go:352`, the moved `PINS.txt`'s header (`:1-14`), and
   `hooks.yml:285, :532-549`, `race-nightly.yml:27` are rewritten to name the helper. Every changed golden line is read.
 - Same words, other sense, unchanged: `record/cast.go:43`, `report/site.go:119`, `seatprobe/surfacecoverage_test.go:157`,
   `setup/run_test.go:115`, `cli/cli_test.go:134`, `difftest/golden_test.go:88`, `integration/surface/hookgraph_test.go:74`.
@@ -595,7 +638,7 @@ and the Release minimal build: 6,057,720 bytes added on linux-amd64, at full spe
 requests of at most `embedBatch` texts of at most 512 ids each (§1.2, Deadline). It loads `bin/gte-small.int8.ort`, the export for
 its arch (L2), and refuses at handshake when the file's sha256 is not that arch's pin.
 
-**The model:** the two exports S5 and S6 were measured with are pinned by sha256 and URL in `PINS.txt`; where they are
+**The model:** the two exports S5 and S6 were measured with are pinned by sha256 and URL in `native/feov-embed/PINS.txt`; where they are
 hosted is F10. `native-run` measures S5 on each target with the export that target publishes.
 
 **The plan:** `plans/vector-search.md` is revised in its own PR on this one. Its llama.cpp and `internal/vecembed`
@@ -607,7 +650,10 @@ sections (`:8, :61, :69-120, :329-332, :458-506`) give way to ONNX Runtime 8-bit
 ### Consumer census
 
 Groups A–F and I–K are the run against `origin/main` at `7b973ec4e`, 2026-11-04. Groups G and H, and every line number
-cited in §I–§V, are re-derived against `origin/main` at `68a735d51`. Each group's command re-enumerates it;
+cited in §I–§V, are re-derived against `origin/main` at `68a735d51` and re-checked at `cd527c7e8`: of the cited files only
+`fetch-bin.sh`, `fetchbin_contract_test.go`, `AGENTS.md`, `docs/local-development.md` and the difftest manual golden
+moved, and their citations are updated. Census H is unchanged at `cd527c7e8` (`audit/round3/H.now`). Each group's
+command re-enumerates it;
 Appendix A has every line.
 
 | Group | What | Count | Enumerate |
@@ -640,14 +686,14 @@ Appendix A has every line.
 | R8 | Part 2 and Part 3 drift apart in protocol use | M × M | One `nativehelper` package and one `frame.h`, both landed in Part 1 before either helper |
 | R9 | `feov-ocr` reads a corpus page differently on another target (SIMD paths in tesseract's LSTM) | M × M | `native-run` compares every target with the goldens. A target that differs blocks the Part 2 PR; per-target goldens, or a weaker bar for that target, go to gblock with the diff. Today such a difference ships unseen |
 | R10 | The 120 s deadline fires on a legitimate request on a slow target | L × M | The client bounds every request's size, and `native-run` sends each op's largest request on every target with a 4× margin (§III.1.2, §V.4). A page far larger than the corpus's largest can still overrun, loudly and for that page only |
-| R11 | Part 1 lands before #1724's guard is narrowed, so consumers never fetch a helper | M × H | Stated precondition (§II.4); Part 1's `fetch-bin.sh` PR does not merge until a test fixture with `tools/go.mod` fetches |
-| R12 | The one-time model release is deleted or re-tagged | L × H | Its tag matches no workflow trigger; each export's sha256 is in `PINS.txt`, so a changed byte fails the release job's download loudly |
+| R11 | `fetch-bin.sh`'s checkout guard comes to refuse an installed or universe root, so consumers never fetch a helper, or the marker becomes the only thing holding a universe that the guard also holds | L × H | Main's `TestEnsureHealsWhereverThePluginIsInstalledButNeverInACheckout`; the first half of `TestFetchBinNeverFetchesIntoASourceBuiltRoot` (§V.7) |
+| R12 | The one-time model release is deleted or re-tagged | L × H | Its tag matches no workflow trigger; each export's sha256 is in `feov-embed`'s `PINS.txt`, so a changed byte fails the release job's download loudly |
 
 ## V. Verification Plan (the checklist)
 
 Each item names what re-arms it. Tests that need a helper run through `nativehelper.Require` with `NATIVE_HELPER_DIR`,
 the lookup the shipped binary uses. Tests that need a misbehaving helper, or one with another digest, build the Go fake
-helper (§1.1). Gap numbers are round 1's unless marked r2.
+helper (§1.1). Gap numbers are round 1's unless marked r2 or r3.
 
 1. **`go -C scripts run ./check`** after `unset $(env | grep -o '^FEOV_[A-Z_]*')`: every local gate at `-count=1`. Read
    the fail count, not the exit code. Re-armed by any change.
@@ -692,13 +738,18 @@ helper (§1.1). Gap numbers are round 1's unless marked r2.
      - each `feov-ocr` op gets the largest corpus page at 600 DPI whole, with `rot_band` given the whole-page rectangle;
      - `embed` gets `embedBatch` texts of 512 ids.
      It walks the op table and fails on an op with no largest-request case, so a new op cannot pass by being absent. The
-     self-test ops are excluded by name. The darwin-amd64 leg, the slowest measured target, is where `embedBatch` meets
+     self-test ops are excluded by name. It skips unless `FEOV_NATIVE_MEASURE=1`, and is in `NATIVE_RUN_MUST_PASS`, so
+     it runs only, and always, on `native-run`. The darwin-amd64 leg, the slowest measured target, is where `embedBatch` meets
      the bound.
    - `TestEmbedSplitsAtTheBatch` (Part 3), with a fake helper recording each request: 1,000 texts go out as
      ⌈1000/`embedBatch`⌉ requests, none over `embedBatch` texts or 512 ids. Deletion check: remove the split and it fails.
-5. **Identity and lookup (gap 2, S8).** Re-armed by `native/**`, `PINS.txt`, `digest_gen.go`, `internal/nativehelper/**`.
+5. **Identity and lookup (gap 2, S8).** Re-armed by `native/**`, `digest_gen.go`, `internal/nativehelper/**`.
    - `TestNativeDigestMatchesSources`: deletion check, change one comment in `native/frame/frame.cpp` and it fails. It
-     also recomputes the per-arch model pins from `PINS.txt`.
+     also recomputes the per-arch model pins from `feov-embed`'s `PINS.txt`.
+   - `TestADigestCoversOnlyItsHelpersInputs` (r3 note): in a copy of `native/`, a changed line in
+     `native/feov-embed/PINS.txt` moves `feov-embed`'s digest and leaves `feov-ocr`'s; a changed line in
+     `native/PINS.txt` or `native/frame/frame.cpp` moves both. Deletion check: hash all of `native/` for every helper and
+     the first case fails.
    - The CRLF fold, on a real CRLF checkout. `.gitattributes` pins no `.cpp`, `.h` or `.txt`, so a Windows checkout of
      `native/` is CRLF. `TestNativeDigestMatchesSources` runs in `feov-record`'s Windows leg, and `native/build.sh`'s
      `nativedigest -check` runs on the MSVC builder. Without the fold, both fail. `TestNativeDigestFoldsCRLF` is the
@@ -712,12 +763,17 @@ helper (§1.1). Gap numbers are round 1's unless marked r2.
      the compiled string and starts nothing; with `none` it returns the same string.
    - `TestReleaseLayoutFindsItsHelper`: a built `feov-record` in a temp `bin/` beside a matching helper, override unset,
      reads a page.
-6. **Release graph and reproducibility (gaps 5, 7, R2; F12).** Re-armed by `hooks.yml`, `native/**`, `PINS.txt`.
-   - actionlint through CI's `qlty` (a local `qlty` does not run it).
-   - On the Part 1 PR: run `native-build` once restoring from cache and once uncached on the same commit, and compare
-     every artifact's sha256 (zig and MSVC both). A cached artifact that an image update has made stale shows here, as
-     well as at a tag's uncached build.
-   - On the Part 1 PR: a commit touching only `native/frame/frame.cpp` shows a `native-build` cache miss in its log.
+6. **Release graph and reproducibility (gaps 5, 7, R2; F12).** Re-armed by `hooks.yml`, `native/**`.
+   - actionlint through CI's `qlty` (a local `qlty` does not run it). It reads every runner label, `macos-15-intel` and
+     `windows-11-arm` included. An unknown-label finding is fixed by raising the actionlint version `qlty` runs, never
+     by declaring the label self-hosted, which would also pass a typo.
+   - On the Part 1 PR, main holds no helper entry and a pull request saves none, so every leg builds: re-run
+     `native-build` on the same commit and compare every artifact's sha256 across the two uncached runs (zig and MSVC
+     both).
+   - After Part 1 merges, a dispatch on main seeds the entries. The next pull request's `native-build` log shows a hit on
+     main's key, and its artifacts' sha256 equal the uncached ones above for the same digest: a cached artifact that an
+     image update has made stale shows here, as well as at a tag's uncached build. A later commit touching only
+     `native/frame/frame.cpp` shows a miss.
    - The first FEOV release after Part 2: its `release` job started after every `native-run` leg passed; a re-run of the
      same tag reports "SHA256SUMS match".
    - The next gray-area or prosthetic-conscience release after Part 1: `native-scope` chose only the test targets,
@@ -727,16 +783,17 @@ helper (§1.1). Gap numbers are round 1's unless marked r2.
      it happens.
 7. **Universe and provisioning (gap 3, S9).** Re-armed by `scripts/fetchbingen/fetch-bin.sh`, `doctor/**`,
    `scripts/universe.sh`.
-   - `TestFetchBinNeverFetchesIntoASourceBuiltRoot` in `doctor/fetchbin_contract_test.go`: a root with no
-     `tools/go.mod`, a helper missing and a `file://` release holding it. First, without `.fetch/source-built`, `fetch`
-     installs the helper. That proves nothing else stops it, #1724's guard included. Then, with the marker, `hook`,
+   - `TestFetchBinNeverFetchesIntoASourceBuiltRoot` in `doctor/fetchbin_contract_test.go`: a universe root as
+     `universe.sh` stages it (`plugins/<name>/` under a directory holding the marketplace manifest and no `scripts/`,
+     with `tools/go.mod`), a helper missing and a `file://` release holding it. First, without `.fetch/source-built`,
+     `fetch` installs the helper. That proves the checkout guard does not stop it. Then, with the marker, `hook`,
      `ensure` and `fetch` each leave `bin/` and `.fetch/installed` unchanged. Deletion check: remove the marker test
      from `fetch-bin.sh` and the second half fails.
    - `TestFixDoesNotFetchIntoASourceBuiltRoot`, through `fixWith`.
    - `TestStampWaitsForEveryHelper`: `stampInstalled` writes no stamp while one helper or `ASSETS` file is missing.
    - `TestFetchBinPicksTheExportForItsArch`: an `ASSETS` line with `amd64=` and `arm64=` fields installs the right one;
      a line without the host arch fails naming it.
-   - `TestEnsureIsSilentWhenTheInstalledTagMatches` (`fetchbin_contract_test.go:537`) keeps its fixture plugin
+   - `TestEnsureIsSilentWhenTheInstalledTagMatches` (`fetchbin_contract_test.go:542`) keeps its fixture plugin
      helper-less, so the unmatched `native/*/ASSETS` glob is exercised. Deletion check: drop the `[ -f ]` test and it
      fails.
    - `fetch-bin-platforms` (Linux, macOS, Windows) runs the fixture plugin with a fake helper, an `ASSETS` line and a
@@ -745,26 +802,43 @@ helper (§1.1). Gap numbers are round 1's unless marked r2.
      is unchanged.
    - `scripts/universe.sh build --native`, then `cmp` each staged helper against `native/build.sh`'s output, and
      `feov-record setup` in the universe prints `feov-ocr: available`.
-8. **Test gating in CI, and a helper on every event (gap 4; r2 gap 1).** Re-armed by
+8. **Test gating in CI, the helper cache, and a helper on every event (gap 4; r2 gap 1; r3 gaps 1, 2).** Re-armed by
    `internal/nativehelper/require.go`, `scripts/releaseassets/**`, `.github/workflows/*.yml`.
    - `TestRequireFailsInCIWithoutAHelper`: re-runs the test binary with `GITHUB_ACTIONS=true` and `NATIVE_HELPER_DIR`
      unset and asserts a failure, not a skip; with `none`, a skip; with a mistyped value, a failure.
    - `TestScopeBuildsEveryConsumersTarget` in `scripts/releaseassets`: drives `-scope` over the repository's own
-     `hooks.yml` for every event its `on:` lists, read from the file. Pushes are split into main, a FEOV tag and another
-     plugin's tag, and pull requests into those with and without a native-set change. For each, every target that a job
-     needing `native-build` downloads must be in the matrix, and the matrix must not be empty. Deletion checks: replace
-     the test-target derivation with the fixed list `linux-amd64`, `windows-amd64`, then run a fixture copy whose
-     `feov-record` Windows leg downloads `windows-arm64`, and the no-native-change pull request case fails. Add an event
-     to the fixture's `on:` that the table lacks, and it fails.
+     `hooks.yml` for every event its `on:` lists, read from the file, at every ref the scope table names: a pull request
+     with and without a native-set change; a push to main, a FEOV tag and another plugin's tag; `schedule`; a dispatch
+     on main, on another branch, on a FEOV tag and on another plugin's tag. For each, every target that a job needing
+     `native-build` downloads must be in the matrix, the matrix must not be empty, and `cache` must equal the table:
+     `none` on every `refs/tags/*` ref, `save` only for `schedule` and a dispatch on `refs/heads/main`, `restore`
+     otherwise. Deletion checks:
+     - replace the test-target derivation with the fixed list `linux-amd64`, `windows-amd64`, then run a fixture copy
+       whose `feov-record` Windows leg downloads `windows-arm64`, and the no-native-change pull request case fails;
+     - add an event to the fixture's `on:` that the table lacks, and it fails;
+     - decide `cache` from `event_name == 'push'` instead of the ref, today's `go-cache` guard, and the dispatch-on-a-tag
+       cases fail; drop the `refs/heads/main` test from `save`, and the dispatch-on-another-branch case fails.
+   - `TestTheHelperCacheStepsObeyTheScope` in `scripts/releaseassets` (r3 gap 1): every step in `hooks.yml` that uses
+     `actions/cache`, `actions/cache/restore` or `actions/cache/save` is either `native-build`'s restore, with `if:`
+     exactly `needs.native-scope.outputs.cache != 'none'`, or its save, with `if:` exactly
+     `needs.native-scope.outputs.cache == 'save' && steps.helper-cache.outputs.cache-hit != 'true'`. Every other job
+     caches through `.github/actions/go-cache`. Deletion checks, each a fixture copy that must fail: the restore's `if:`
+     as `github.event_name != 'push'`; the restore with no `if:`; the save written as the combined `actions/cache`.
    - `TestNoNativeJobSkipsAtTheJobLevel`: in `hooks.yml`, `native-scope`, `native-build`, `native-run`, `native-fuzz`
      and every job that needs `native-build` other than `release` have no job-level `if:`. Deletion check: a fixture
      with `if: github.event_name == 'pull_request'` on `native-build` fails it.
+   - `NATIVE_RUN_MUST_PASS` (r3 gap 2), on the Part 1 PR, driven as shipped: two throwaway commits, each reverted
+     before merge. One drops the container's `-e GITHUB_ACTIONS=true` and `-e NATIVE_HELPER_DIR`; the windows-amd64
+     leg goes red naming the tests missing from `--- PASS`. One drops `native-run`'s `FEOV_OCR_CORPUS`; every leg goes
+     red on `TestCorpusGoldens`. Read both reds, then the green after each revert.
    - The shipped path, read on the first run of each event after Part 1 merges: a pull request, a push to main, the
-     nightly, and a dispatch on main. For each, read `native-scope`'s decision line and `native-build`'s legs, and the
-     engine tests' `--- PASS` lines in `ocr-corpus` and both `feov-record` legs. On a pull request after a nightly,
-     `native-build` reports a cache hit on main's entry.
-   - The census of F (jobs running `go test` over a `Require` package) is re-run on the Part 1 PR's final head; each job
-     sets `NATIVE_HELPER_DIR`, and the PR's first CI run is the proof, since a job that does not is red.
+     nightly, and a dispatch on main. For each, read `native-scope`'s decision line (legs, `full`, `cache`) and
+     `native-build`'s legs, and the engine tests' `--- PASS` lines in `ocr-corpus` and both `feov-record` legs. On a
+     pull request and a push to main after a nightly, `native-build` reports a cache hit on main's entry. On the first
+     FEOV tag after Part 2, `native-scope` reads `cache: none` and every `native-build` leg shows its restore and save
+     steps skipped and a build from source.
+   - The CI-site census (§III.1.5, the table under "CI sites that execute a `Require` package's tests") is re-run on the
+     Part 1 PR's final head, every site against every variable.
 9. **`setup` preflight (gap 11, F9).** Re-armed by `internal/setup/**`, `internal/nativehelper/**`.
    - `TestSetupProceedsAndNamesAMissingHelper`: `testbuild.Binary` `feov-record` in a temp `bin/` with no helpers; `setup`
      creates the run and prints `feov-ocr: helper-absent` and `feov-embed: helper-absent`.
@@ -779,7 +853,9 @@ helper (§1.1). Gap numbers are round 1's unless marked r2.
     - The interleaved in-process and helper timing table is posted to the PR.
 11. **Real-data check, embedding (S5, S6, gap 8).** Re-armed by `native/feov-embed/**`, the model pins.
     - `native-run` per target: the handshake's model sha256 equals the pin for that arch
-      (`TestEmbedLoadsTheExportForItsArch`); fidelity against `ref_gte.npy` on the 300-text set; one-thread speed.
+      (`TestEmbedLoadsTheExportForItsArch`); fidelity against `ref_gte.npy` on the 300-text set
+      (`TestEmbedFidelityMeetsS5`); one-thread speed (`TestEmbedSpeedMeetsS6`). Both skip unless
+      `FEOV_NATIVE_MEASURE=1` and are in `NATIVE_RUN_MUST_PASS`, so the `feov-record` legs never run them on shared CPUs.
     - The replay set and BEIR hybrid scores reproduce `ortq/RESULT.md` through the helper.
     - The windows-amd64 servercore leg runs the fidelity set with no Visual Studio and no Go present. Its first run
       proves the host-built test binaries and `FEOV_TESTBUILD_PREBUILT` carry everything the container runs.
@@ -793,7 +869,7 @@ helper (§1.1). Gap numbers are round 1's unless marked r2.
 ## Appendix A: Census detail
 
 Copied from `~/.claude/scratch/vecplan/census/CENSUS.md`, the run against `7b973ec4e`. Groups G and H are re-run against
-`68a735d51` (marked), and the line numbers of every group are re-checked there; the full H listing is
+`68a735d51` (marked), and the line numbers of every group are re-checked at `cd527c7e8`; the full H listing is
 `~/.claude/scratch/vecplan/census/H-r3-68a735d51.txt`.
 
 ### A. The engine boundary: Go <-> C today (protocol sizing) — 1 group, the contract itself
@@ -881,7 +957,7 @@ Enumerate: `ls $F/third_party/pins; grep -rn "build-cstack\|staticproof\|PINS.tx
 - `$F/third_party/pins/build-cstack.sh:2-12` builds the static tesseract+leptonica prefix per target; `env` mode `:79-123` prints CGO_* + CSTACK_EXTLDFLAGS for a GO cgo link (comments name `go build -tags tessocr`, Go's darwin -lresolv/CoreFoundation/Security tbd stubs) — DELETED into `native/build.sh` (zig c++ links feov-ocr itself); `env`'s cgo contract goes, and the darwin stubs are re-derived for a C++-only link.
 - `build-cstack.sh check <binary>` `:53-54` -> `go run staticproof` — becomes `go -C scripts run ./staticproof -artifact <name> <binary>`, aimed at helpers and every Go asset.
 - `$F/third_party/pins/staticproof/main.go:4,109-124` PE allowlist {kernel32, ntdll, api-ms-win-crt-*}, Mach-O {libSystem.B, libresolv.9, CoreFoundation, Security} — MOVES to `scripts/internal/staticproof`; allowlist per artifact (§III.1.5).
-- `$F/third_party/pins/PINS.txt:1-14,26-28` pins; comment "go:embed'ed at internal/tessocr/eng.traineddata; TestEmbeddedTraineddataPin" — the traineddata pin stays and its comment names the helper; ONNX Runtime, the MSVC toolset (`-vcvars_ver`) and the two model exports join.
+- `$F/third_party/pins/PINS.txt:1-14,26-28` pins; comment "go:embed'ed at internal/tessocr/eng.traineddata; TestEmbeddedTraineddataPin" — SPLITS (§III.1.1): zig and cmake into `native/PINS.txt`, the C stack and traineddata into `native/feov-ocr/PINS.txt` (the comment names the helper); ONNX Runtime, the MSVC toolset (`-vcvars_ver`) and the two model exports go to `native/feov-embed/PINS.txt`.
 - `.github/actions/go-cache` — no C-stack reference (checked) — unchanged.
 
 ---------------------------------------------------------------------------------------------------
@@ -903,19 +979,19 @@ Enumerate: `grep -n "^  [a-z0-9_-]*:$\|tessocr\|cstack\|linkmode\|for cmd in\|fo
 - `nightly-alarm.yml`, `labels.yml` — no C-stack reference (checked) — unchanged.
 
 ---------------------------------------------------------------------------------------------------
-### G. Binary enumeration / provisioning (tools/cmd as the list of shipped binaries) — 9 enumerators [re-run at `68a735d51`]
+### G. Binary enumeration / provisioning (tools/cmd as the list of shipped binaries) — 9 enumerators [re-run at `cd527c7e8`]
 
 Enumerate: `grep -rn 'tools/cmd' scripts plugins/*/hooks plugins/prosthetic-conscience/tools/internal/doctor .github --include=* | grep -v _test`
 
 All of these treat "shipped binary" == "directory under plugins/<p>/tools/cmd/, built by `go build ./cmd/<name>`". A C++ helper fits none of them.
 
-- `scripts/fetchbingen/fetch-bin.sh:24-28` source-tree guard: exits 0 when `$ROOT/tools/go.mod` exists (PR #1724) — every installed plugin has one, so on `68a735d51` nothing is ever fetched for a consumer — PRECONDITION (§II.4), not this plan's change.
-- `scripts/fetchbingen/fetch-bin.sh:143-154` up_to_date: every tools/cmd/<n> has bin/<n>[.exe] and .fetch/installed == tag; `:246-262` missing list from tools/cmd; `:267-285` downloads SHA256SUMS, asset `${n}_${os}_${arch}${ext}`, verifies EVERY asset before installing ANY (all or none); `:286` stamps .fetch/installed — CHANGES: helpers and `ASSETS` join both lists (F1); `.fetch/source-built` refusal (§III.1.4).
+- `scripts/fetchbingen/fetch-bin.sh:24-33` checkout guard: since `b618e48ac` exits 0 only when `$ROOT/../../` holds both the marketplace manifest and `scripts/` — an installed plugin and a universe's staged marketplace both fetch (§II.4) — unchanged; `.fetch/source-built` is what stops a universe (§III.1.4).
+- `scripts/fetchbingen/fetch-bin.sh:148-159` up_to_date: every tools/cmd/<n> has bin/<n>[.exe] and .fetch/installed == tag; `:251-265` missing list from tools/cmd; `:271-289` downloads SHA256SUMS, asset `${n}_${os}_${arch}${ext}`, verifies EVERY asset before installing ANY (all or none); `:291` stamps .fetch/installed — CHANGES: helpers and `ASSETS` join both lists (F1); `.fetch/source-built` refusal (§III.1.4).
 - `plugins/{frank-exchange-of-views,gray-area,prosthetic-conscience}/hooks/fetch-bin.sh` (the same lines +1) — GENERATED copies of the above (`go -C scripts run ./fetchbingen`, gate "Every plugin's fetch-bin.sh matches the one authored copy", hooks.yml:1586).
 - `scripts/fetchbingen/main.go:120-138` targets(): plugins with tools/cmd — unchanged.
 - `plugins/prosthetic-conscience/tools/internal/doctor/main.go:60` AssetName `<name>_<goos>_<goarch>[.exe]`; `:73-91` binariesOf ReadDir(tools/cmd); `:102` siblingBinaries walks every installed SC plugin's tools/cmd; `:490` fetchRelease via `gh release download --pattern <asset> --pattern SHA256SUMS`; `:533-538` buildFromSource `go build -C tools ./cmd/<name>` fallback; `:550-570` stampInstalled; `:580-608` fixWith — CHANGES: binariesOf lists helpers and `ASSETS`; helpers are fetch-only; the source-built refusal.
 - `plugins/prosthetic-conscience/tools/internal/doctor/release_contract_test.go:64-74` `rePairs`/`reOutput`; `:82` rePairs over the WHOLE file; `:110-114` reOutput after `\n  release:\n`; `:241` TestSHA256SUMSCoversEveryContractedName — CHANGES: both searches narrowed to the release job's span; asserts `releaseassets -check` precedes `sha256sum`.
-- `plugins/prosthetic-conscience/tools/internal/doctor/fetchbin_contract_test.go:255,271,284` — contract tests over fetch-bin.sh — gain a helper, an `ASSETS` line and the source-built case.
+- `plugins/prosthetic-conscience/tools/internal/doctor/fetchbin_contract_test.go:260,276,289` — contract tests over fetch-bin.sh — gain a helper, an `ASSETS` line and the source-built case.
 - `scripts/pluginparity/main.go:121-143` counts tools/cmd dirs vs docs/setup-script.md ("22 at the time of writing", setup-script.md:148); `:147-172` requirements.json `_hook_binaries` vs tools/cmd (PC requirements.json:65, gray-area :28; FEOV declares none); `:214-` shippedHarnessProblems ("Every directory under plugins/*/tools/cmd/ ships") — unchanged; helpers stay out of tools/cmd, and `releaseassets` generates and checks the helper set.
 - `scripts/bootstrap-plugins.sh:85-97` cold bootstrap: `go build ./cmd/<name>` for every cmd in every cached plugin, no stamp written — unchanged for Go; helpers never built here; the next `ensure` installs the tag's set.
 - `scripts/universe.sh:437-453` builds every cmd from the CHECKOUT with plain go build into cache, `:459-481` mirrors into the staged marketplace, `:482-496` stamps .fetch/installed, `:498-` asserts `ensure` does nothing — CHANGES: `build` writes `.fetch/source-built`; `build --native` builds and stages helpers; the assertion also runs `fetch` (F5, §III.1.6).
@@ -925,19 +1001,19 @@ All of these treat "shipped binary" == "directory under plugins/<p>/tools/cmd/, 
 - `$F/internal/setup/run.go:214-232` setup preflight locates feov-record beside itself and checks its schema epoch — CHANGES: also handshakes each helper and prints its state; never refuses for it (F9).
 
 ---------------------------------------------------------------------------------------------------
-### H. Text naming the in-process engine — 191 lines [re-run at `68a735d51`]
+### H. Text naming the in-process engine — 191 lines [re-run at `68a735d51`, unchanged at `cd527c7e8`]
 
 Enumerate: `grep -rn "statically linked\|compiled into\|C stack\|tags tessocr\|build-cstack\|compiled in\b\|ErrNotCompiledIn\|EngineCompiledIn\|IN THE BINARY\|linkmode external" plugins/frank-exchange-of-views docs AGENTS.md scripts .github` (case-insensitive; full listing `~/.claude/scratch/vecplan/census/H-r3-68a735d51.txt`). The disposition of every line is in Part 2's "Agent-facing text and comments"; the seat-facing and generated subset:
 
 - `$F/internal/cli/fetch.go:62` SOURCE of "read by the LOCAL OCR ENGINE compiled into this binary" — rewrite; regenerate with `go -C scripts run ./agentgen`.
 - `plugins/frank-exchange-of-views/agents/{blue-researcher, blue-synthesizer, blue-lane, red-lens-voice, red-lens-logic, red-lens-architecture, red-lens-adversary, red-lens-computation, red-lens-evidence, red-lens-dark-side}.md` — 10 GENERATED copies (agentgen -check) — regenerate, never hand-edit.
-- `$F/internal/difftest/testdata/manual_runs_every_help_page_live.golden:960,1538,2100` (the fetch help, three renderings) and `:2142` (`ocr read`) — regenerate (UPDATE_GOLDENS=1), read each changed line.
+- `$F/internal/difftest/testdata/manual_runs_every_help_page_live.golden:962,1542,2107` (the fetch help, three renderings) and `:2149` (`ocr read`) — regenerate (UPDATE_GOLDENS=1), read each changed line.
 - `$F/internal/cli/ocr.go:244` `ocr read` Long help — rewrite (operator tree, not a seat verb; still in manual golden).
 - `$F/internal/fetchcache/pageread.go:92-93` error a seat reads in ocr_reason: "not compiled into this binary … build with -tags tessocr" — rewrite (seat-facing via fetch summary).
 - `$F/internal/cli/fetchocr_test.go:121,126` — a stub error text pinned in an assertion — rewrite with the error.
 - `$F/internal/seatprobe/build.go:368`, `scanned.go:29` — probe-harness error text — rewrite.
 - `$F/internal/cli/fetchsummary.go:91,414` `ocr_engine_absent` field + `ocr_reason` — field name stays meaningful ("engine absent"), meaning widens.
-- Not matched by the grep, same concept: `AGENTS.md:91` (universe rule) and `docs/local-development.md`'s universe section — extended for `--native` (§III.1.7).
+- Not matched by the grep, same concept: `AGENTS.md:92` (universe rule) and `docs/local-development.md`'s universe section — extended for `--native` (§III.1.7).
 - Other sense, unchanged: `record/cast.go:43`, `report/site.go:119`, `seatprobe/surfacecoverage_test.go:157`, `setup/run_test.go:115`, `cli/cli_test.go:134`, `difftest/golden_test.go:88`, `integration/surface/hookgraph_test.go:74`.
 
 ---------------------------------------------------------------------------------------------------
@@ -974,9 +1050,9 @@ Enumerate: `grep -rln "tessocr\|build-cstack\|linkmode external\|compiled into t
 
 Docs (live, must be rewritten):
 - `docs/c-stack.md:1-46` whole doc: "feov-record links a static C/C++ stack… behind the tessocr build tag… Go build links with -linkmode external, zig as external linker, for every command"; "Adding a C or C++ library… If it builds only with a platform's native toolchain, the release job needs that platform's runner, and that is a decision" — rewrite: stack builds helpers; MSVC windows runner for feov-embed IS that decision.
-- `docs/local-development.md:302-305` "A plain build has no OCR engine. Without -tags tessocr…" — rewrite (plain build has the client; OCR needs a helper); its universe section gains `build --native` and `.fetch/source-built`.
+- `docs/local-development.md:326-329` "A plain build has no OCR engine. Without -tags tessocr…" — rewrite (plain build has the client; OCR needs a helper); its universe section gains `build --native` and `.fetch/source-built`.
 - `docs/setup-script.md:73` "reads a scan with the OCR engine compiled into the binary, so nothing needs provisioning" — FALSE after; helpers are provisioned with the hook binaries; `:148` "22 hook binaries" count — unchanged, helpers stay out of tools/cmd.
-- `AGENTS.md:91` "AFTER `universe.sh build`, YOU MUST prove the universe carries your change" — extended for `--native` (R5).
+- `AGENTS.md:92` "AFTER `universe.sh build`, YOU MUST prove the universe carries your change" — extended for `--native` (R5).
 Plans:
 - `plans/vector-search.md` — LIVE ("approved 2026-11-03, not started", plans/README.md:22): designs llama.cpp statically linked INTO feov-record via build-cstack.sh/-tags tessocr, internal/vecembed cgo shim, GGUF model beside feov-record provisioned by fetch-bin.sh + sc-doctor (:8,:61,:71,:88-96,:114,:329-332,:458-506) — SUPERSEDED in its native half by this design; revised in its own PR (Part 3), which also rewrites its plans/README.md row.
 - `plans/local-ocr.md` — header still "under review" but SHIPPED (code cites it: tessocr.go, page.go, lattice.go, pageread.go, pagerender.go, ocr.go, hooks.yml x2, receipts_test.go, fuzz_test.go, promptsize_test.go) — historical record; do not rewrite; code comments citing "Wave 1" for the tag split need rewording where they describe the build.
