@@ -195,6 +195,42 @@ func TestAClosedGapWhoseAnswersAreRetiredIsItsLenssNews(t *testing.T) {
 	})
 }
 
+// A DOCKETED GAP'S ANSWERS-RETIRED ITEM IS OFF ITS LENS'S LIST UNTIL THE BENCH RULES (ruled by gblock
+// 2026-10-31, the docket hold; release fuzz seed 27): a docket motion standing unruled on the closed
+// gap holds the item off, as it holds every other item on the gap. A remand leaves the gap closed and
+// the item listed again; a closing ruling is a later closing act, which clears it.
+func TestADocketedGapsAnswersRetiredItemWaitsOnTheBench(t *testing.T) {
+	const item = "the answers to gap G1, which you closed, have all been retired"
+	docketed := func(t *testing.T) *stage {
+		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-mints").served(evLens, 2).mint(evLens, "G1", "high").stop("lens-mints")
+		st.add("blue-respond", &recordpb.Computation{Argv: []string{"python3", "s.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-1"),
+			BundleSha: proto.String("sha-K-1"), Answers: proto.String("G1")})
+		st.register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-closes").closeGap(evLens, "G1").stop("lens-closes").retire("K-1")
+		if !listsItem(sittingOfRunT(t, st.seed(), "lens", evLens), item) {
+			t.Fatal("the item is not listed before the docket motion")
+		}
+		return st.more().register("red-chair").docketMotion("red-chair", "M1", "G1")
+	}
+	t.Run("unruled: held off", func(t *testing.T) {
+		if s := sittingOfRunT(t, docketed(t).seed(), "lens", evLens); listsItem(s, item) {
+			t.Errorf("the item is listed with docket motion M1 standing unruled on G1: %+v", s.Open)
+		}
+	})
+	t.Run("remanded: listed again", func(t *testing.T) {
+		run := docketed(t).dispatch(2, "judge", "G1").register("judge").add("judge", docketRuling("M1", recordpb.Disposition_DISPOSITION_REMANDED)).seed()
+		if !listsItem(sittingOfRunT(t, run, "lens", evLens), item) {
+			t.Error("the item is not listed once the bench has ruled M1 and the gap stays closed")
+		}
+	})
+	t.Run("closed by the bench: cleared", func(t *testing.T) {
+		run := docketed(t).dispatch(2, "judge", "G1").register("judge").add("judge", docketRuling("M1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)).seed()
+		if s := sittingOfRunT(t, run, "lens", evLens); listsItem(s, "have all been retired") {
+			t.Errorf("a closing ruling after the retire left the item listed: %+v", s.Open)
+		}
+	})
+}
+
 // A CITATION PLACED AS ITS ANSWER BEGINS A REMAND'S EXCHANGE (V1a′.4, Gap 6's case): a remanded gap,
 // and a blue sitting whose only act on it is a citation placed --answers it. Blue has acted, so the
 // plan engages the lens alone on the gap, and blue's remand item stays listed without blocking.

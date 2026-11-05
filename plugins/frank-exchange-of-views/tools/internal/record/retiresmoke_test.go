@@ -182,9 +182,13 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 			t.Errorf("through %d G-221322e1's answers_retired_event = %v, want %v from the retire %d until the bench's closing %d", n, c.retired, want, r1, b221)
 		}
 	}
-	for n, want := range map[int]bool{r1 + 1: true, s1Register: true, s1Closed: false, b221 - 1: false} {
-		if got := lists(n, "lens", lens, retiredItem("G-221322e1")); got != want {
-			t.Errorf("through %d the lens's list holds G-221322e1's answers-retired item: %v, want %v", n, got, want)
+	// THE ITEM WAITS ON THE BENCH: the chair docketed G-221322e1 before its lens closed it, and that
+	// motion stands unruled from before the retire until the bench's closing ruling, which is a later
+	// closing act. A docketed gap is off its lens's list, so this gap's item is never listed; the
+	// listed arm is G-a0c6ca1e's, below.
+	for _, n := range []int{r1 + 1, s1Register, s1Closed, b221 - 1, b221} {
+		if lists(n, "lens", lens, retiredItem("G-221322e1")) {
+			t.Errorf("through %d the lens's list holds G-221322e1's answers-retired item, with a docket motion standing unruled on it", n)
 		}
 	}
 
@@ -208,11 +212,11 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 		}
 	}
 
-	// NEITHER ITEM HOLDS PASS, on any prefix that lists it.
+	// THE ITEM HOLDS NO PASS, on the prefix that lists it.
 	for _, c := range []struct {
 		n   int
 		gap string
-	}{{r1 + 1, "G-221322e1"}, {s1Register, "G-221322e1"}, {s2Register, "G-a0c6ca1e"}} {
+	}{{s2Register, "G-a0c6ca1e"}} {
 		blockers, err := PassBlockers(prefix(c.n))
 		if err != nil {
 			t.Fatal(err)

@@ -128,7 +128,7 @@ type sittingReads struct {
 // nil reads every anchor as checkable.
 type unverifiableFunc func(anchor string) string
 
-// undocketed is gaps without the open ones a docket motion stands unruled on.
+// undocketed is gaps without the ones a docket motion stands unruled on, open or closed.
 func undocketed(gaps []WorkGapState) []WorkGapState {
 	out := make([]WorkGapState, 0, len(gaps))
 	for _, g := range gaps {
@@ -414,8 +414,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
 		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS ARE ALL RETIRED (ruling Closures are history): news,
-		// never a blocker — the closure stands, and the item says what a mint in answer would be.
-		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, all, seatID, reads.mintsLeft)...)
+		// never a blocker — the closure stands, and the item says what a mint in answer would be. It
+		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
+		// until the bench rules, as every other item on a docketed gap is held.
+		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID, reads.mintsLeft)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
 			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the
