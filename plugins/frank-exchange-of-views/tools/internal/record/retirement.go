@@ -199,7 +199,9 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 	answers := blueAnswersOf(evs, win, open, motions)
 	for _, g := range gaps {
 		a := answers[g.id]
-		if a.answered() {
+		// ONE EVENT, ONE ITEM: a retire that answers the gap it also reaches is named once, as the
+		// reaching retire below, which says what it reached the gap through.
+		if a.answered() && a.at != a.metAt {
 			out = append(out, gapNews{gap: g.id, at: a.at, item: "blue's answer to " + g.id})
 		}
 		// A REACHING RETIRE IS NEWS OF ITS OWN: blue's sitting need not have been engaged on the gap,

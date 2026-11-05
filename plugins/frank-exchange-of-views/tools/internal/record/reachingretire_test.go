@@ -274,3 +274,23 @@ func TestTheBackingListsBothCheckVerbs(t *testing.T) {
 		}
 	}
 }
+
+// ONE EVENT, ONE ITEM. `retire --anchor K-x --answers G1`, where G1 is about K-x, is blue's answer to
+// G1 and a reaching retire of it at once: the lens owes it once, as the retire it is.
+func TestARetireAnsweringTheGapItReachesIsOneItem(t *testing.T) {
+	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().
+		register("red-chair").dispatch(2, evLens).registerAs(evLens, "lens-mints").served(evLens, 2).
+		computation("K-x", "s1").mintAbout(evLens, "G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION, "K-x").stop("lens-mints").register("red-chair").
+		dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-retires").
+		add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim K-x backs"), Reason: proto.String("it does not hold"), Anchors: []string{"K-x"},
+			ClaimKept: proto.Bool(true), Answers: proto.String("G1")}).
+		stop("blue-retires").register("red-chair")
+	fam, err := MergedEvents(st.seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	owes := lensOwesOf(fam.Events, fam.At.IDs(fam.Events), fam.At, []blockerGap{{id: "G1", mintedBy: evLens}}, nil)
+	if want := []string{"blue's retire of K-x, which G1 is about"}; !slices.Equal(owes[evLens], want) {
+		t.Errorf("the lens owes %q for one retire, want %q", owes[evLens], want)
+	}
+}
