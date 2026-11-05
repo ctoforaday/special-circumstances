@@ -88,7 +88,7 @@ func newMint() *cobra.Command {
 		// THE CONCRETE PROPOSAL is verified against the report the mint lands on (gapFlags.fill says
 		// why fix_basis is derived, not claimed).
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-			guards = append(guards, record.CheckOnReport(func(l *record.Landing) error {
+			guards = append(guards, record.Check(func(l *record.Landing) error {
 				report, err := l.Report()
 				if err != nil {
 					return err
