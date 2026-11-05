@@ -205,6 +205,10 @@ func (r *runner) rulePositions(seatID, occasion string) {
 					named = true
 					r.mu.Lock()
 					r.positionNamedGaps = append(r.positionNamedGaps, g)
+					if r.positionNamedAt == nil {
+						r.positionNamedAt = map[string]string{}
+					}
+					r.positionNamedAt[g] = fmt.Sprintf("the %s sitting, in chair sitting %d", occasion, r.chairRegisters)
 					r.mu.Unlock()
 					r.remandRouted(g)
 					break
@@ -330,10 +334,52 @@ func (r *runner) forcedPositionOracle() string {
 	open := r.openGaps()
 	for _, g := range named {
 		if slices.Contains(open, g) {
-			return fmt.Sprintf("forced-position oracle: the bench upheld the withheld PASS's position naming gap %s, and the gap is still open at the run's end — the remand's exchange never closed it", g)
+			return fmt.Sprintf("forced-position oracle: the bench upheld the withheld PASS's position naming gap %s, and the gap is still open at the run's end — the remand's exchange never closed it%s", g, r.namedGapEvidence(g))
 		}
 	}
 	return ""
+}
+
+// namedGapEvidence is what the forced-position oracle's failure carries about a named gap left open,
+// because the run directory does not outlive the CI job: when the ruling was made against the run's
+// limit, the gap's minter and scenario and whether the drive had blue's answer to close on, the last
+// plan's word on the gap, and the gap's change log. It tells a remand cut off by the epoch limit from
+// one whose exchange stalled.
+func (r *runner) namedGapEvidence(g string) string {
+	r.mu.Lock()
+	at := r.positionNamedAt[g]
+	sittings := r.chairRegisters
+	r.mu.Unlock()
+	limit := record.DefaultParams.MaxEpochs
+	if r.maxEpochs > 0 {
+		limit = r.maxEpochs
+	}
+	minter := r.minterOf(g)
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n  ruled at %s; the chair sat %d times, the run's epoch limit is %d", at, sittings, limit)
+	fmt.Fprintf(&b, "\n  minted by %s, scenario %q; blue's answer presented: %t; closable by the drive: %t", minter, r.scenarioOf(g), r.presented.has(g), r.closableNow(g))
+	if r.planThisSitting != nil {
+		var parties []string
+		ps, _ := r.planThisSitting["parties"].([]any)
+		for _, p := range ps {
+			if m, _ := p.(map[string]any); m != nil {
+				parties = append(parties, fmt.Sprintf("%v%v", m["seat_id"], m["gap_ids"]))
+			}
+		}
+		fmt.Fprintf(&b, "\n  the last plan: epoch %v, parties %v", r.planThisSitting["epoch"], parties)
+		whys, _ := r.planThisSitting["why"].([]any)
+		for _, w := range whys {
+			if s := fmt.Sprint(w); strings.Contains(s, g) {
+				fmt.Fprintf(&b, "\n    why: %s", s)
+			}
+		}
+	}
+	if out, err := r.exec("show", "changes", "--seat-id", minter, "--id", g); err == nil {
+		fmt.Fprintf(&b, "\n  its change log:\n%s", truncate(out))
+	} else {
+		fmt.Fprintf(&b, "\n  its change log could not be read: %v", err)
+	}
+	return b.String()
 }
 
 // THE DRIVE'S BENCH RULES THE POSITION IT HEARS, and the oracle holds it to the route. Pinned outside
@@ -445,6 +491,10 @@ func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 			switch m := r.forcedPositionOracle(); {
 			case form == "gaps" && (len(r.positionNamedGaps) != 1 || !strings.Contains(m, r.positionNamedGaps[0])):
 				t.Errorf("the oracle passed a named gap left open: named %v, %q", r.positionNamedGaps, m)
+			// AND ITS FAILURE CARRIES THE EVIDENCE that tells a remand the limit cut off from one that
+			// stalled: when the ruling was made, and the gap's change log.
+			case form == "gaps" && (!strings.Contains(m, "ruled at the terminal sitting, in chair sitting") || !strings.Contains(m, "its change log:")):
+				t.Errorf("the oracle's failure carries no evidence of the named gap's route: %q", m)
 			case form != "gaps" && m != "":
 				t.Errorf("the oracle fired over a %s ruling: %s", form, m)
 			}
