@@ -248,3 +248,33 @@ func TestEverySourceThatReadiesBlueIsHeldOut(t *testing.T) {
 		})
 	}
 }
+
+// A REMAND WHOSE EXCHANGE WAITS ON BLUE IS NOT OWED WORK IN THE EPOCH THAT HOLDS BLUE OUT. The release
+// sweep on #1744 (seeds 9, 13, 17, 18, 20, 21, 24, 31, 36, 39): the plan named the remand on
+// remand_owed and engaged nobody on its gap. Blue sits neither there nor at the final sitting, so the
+// exchange cannot be had before the run ends: the plan does not list it, its line says so, and the gap
+// still holds the PASS.
+func TestARemandWaitingOnBlueIsNotOwedInTheHeldOutEpoch(t *testing.T) {
+	b := remandedAtImpasse(t).register("red-chair")
+	run := b.seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.RemandOwed) != 1 || !slices.Contains(gapsOf(plan, blueRespondSeat), "G1") {
+		t.Fatalf("setup: with no limit the remand is owed and readies blue: remand_owed %+v, parties %+v", plan.RemandOwed, plan.Parties)
+	}
+	writeRunConfig(t, b.runDir, fmt.Sprintf(`{"maxEpochs":%d}`, plan.Epoch+1))
+	if plan, err = PlanDispatch(run); err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.RemandOwed) != 0 {
+		t.Errorf("epoch %d of %d lists the remand as owed while nobody can have its exchange: %+v, parties %+v", plan.Epoch, plan.MaxEpochs, plan.RemandOwed, plan.Parties)
+	}
+	if line := lineOf(plan, "G1: at impasse"); !strings.Contains(line, "so that exchange cannot be had before the run ends") {
+		t.Errorf("G1's line is %q, want the exchange named as one that cannot be had", line)
+	}
+	if plan.PassPermitted {
+		t.Errorf("the remanded gap no longer holds the PASS: %+v", plan.Blockers)
+	}
+}

@@ -525,7 +525,7 @@ func foldPlan(params Params, r planReads) Plan {
 			case lens:
 				ready = "blue has acted, and its minting lens is ready to audit that answer, which ends the one more exchange the remand grants"
 			case heldOut:
-				ready = "the one more exchange the remand grants begins with blue's act, and " + blueHeldOutClause
+				ready = "the one more exchange the remand grants begins with blue's act, and " + blueHeldOutClause + ", so that exchange cannot be had before the run ends"
 			}
 			if !g.material && !stranded {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s), and remanded by the bench, whose remand outranks materiality — %s, "+RemandDirectionPrefix+"%s",
@@ -701,6 +701,17 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 		}
 	}
+	// A REMAND IS OWED WORK ONLY WHERE THIS PLAN READIES A PARTY FOR ITS EXCHANGE. In the epoch that
+	// holds blue out, a remand whose exchange still waits on blue's act can no longer be had before the
+	// run ends — blue sits neither there nor at the final sitting — and at the final sitting nobody sits:
+	// such a remand is not on remand_owed, and its line says why. The gap stays open and holds the PASS.
+	owedNow := []RemandOwed{}
+	for _, o := range plan.RemandOwed {
+		if seen[o.GapID] {
+			owedNow = append(owedNow, o)
+		}
+	}
+	plan.RemandOwed = owedNow
 	return plan
 }
 
