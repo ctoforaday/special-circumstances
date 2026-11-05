@@ -579,10 +579,6 @@ feov-record: mint: the quote ends in a section heading, and an anchor sits on pr
 exit 2
 feov-record: finding: the quote occurs more than once in the report (it stands 2 times — 1. under the heading "H", paragraph 3, in the sentence "Costs rose"; 2. under the heading "H", paragraph 4, in the sentence "Costs rose"), and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored
 
-── a retry whose stored location the report no longer holds
-exit 2
-feov-record: finding: the finding this call repeats is on the record without its anchor, and the location it stored, "A sentence the report held.", does not place: the report no longer holds it where an anchor can stand. A call under --key "F-owed" repeats that act, its --quote included, so it cannot move the anchor. The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote, under a --key other than "F-owed"
-
 ── a retry quoting other text
 exit 2
 feov-record: finding: --key "F-owed" already names finding FINDING002 on this run, stated with --quote "A sentence the report held."; this repeat states --quote "somewhere" — a key is one finding's name, not a slot to reuse. This is not a retry: recording nothing here would leave you with another finding than the one you stated. Give this finding its own --key
@@ -667,7 +663,7 @@ feov-record: closing: GAP001 is not before the bench: no docket motion on it sta
 ── blue puts GAP001 before the bench, so its closing argues a docketing
 exit 2
 feov-record: motion docket file: GAP001 changed after your sitting opened, and this act reads it as it stood then:
-  event 50, red-lens-evidence: regraded GAP001
+  event 49, red-lens-evidence: regraded GAP001
 
 Read GAP001 as it now stands and decide whether the act still holds. If it does, record it again: this refusal is where your next act on GAP001 reads from, so the same act is not refused for these changes twice
 

@@ -3,8 +3,8 @@ package hookcmd
 import (
 	"io"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // Post is the PostToolUse entry point: a seat's call returning its envelope that SUCCEEDED is

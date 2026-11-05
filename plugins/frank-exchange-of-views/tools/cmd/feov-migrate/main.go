@@ -6,8 +6,8 @@ package main
 import (
 	"os"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/migratecli"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 // Long: a migration replays the whole record and allocates in proportion to it, so it keeps the GC.

@@ -287,9 +287,8 @@ const NoPart = "no part of the report is recorded yet — there is nothing to re
 // Replay folds the ordered mutations onto text. parted says whether text holds a part: a fold from
 // the empty text starts with none, and a mutation other than a part's, or the end of the fold, before
 // any part is NoPart. Each mutation reads only the running text, so replaying ops[k:] over what
-// ops[:k] left is replaying ops whole: the write path relies on it to fold another write's ops onto a
-// render it made before its lock, and every reader replays only the ops after the report checkpoint it
-// starts from.
+// ops[:k] left is replaying ops whole: every reader replays only the ops after the report checkpoint it
+// starts from, and every checkpoint is the ops since the one before replayed over its text.
 func Replay(text string, parted bool, ops []ReportOp) (string, error) {
 	for _, op := range ops {
 		mut, err := mutationOf(op)

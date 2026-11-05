@@ -255,10 +255,9 @@ func SeatsThatSat(run Run) ([]string, error) {
 // IT IS A LEFT FOLD OF THE OPS FROM THE EMPTY TEXT: replaying B over the text A replayed to is
 // replaying A then B from empty. `parted` says whether the text it starts from holds a part, which
 // every checkpoint and every render that succeeded does; a fold from the empty text starts with none.
-// Three things rest on it: every read starts from the report checkpoint at or below the event it
-// reads at and folds only the ops after it (recordsql.ReportSourceAt); the insert that lands a
-// checkpoint folds the ops since the one before (recordsql.stampReportCheckpoint); and the write path
-// folds the ops another write added onto a render it made before its lock (landingReport.fold).
+// Two things rest on it: every read starts from the report checkpoint at or below the event it
+// reads at and folds only the ops after it (recordsql.ReportSourceAt), and the insert that lands a
+// checkpoint folds the ops since the one before (recordsql.stampReportCheckpoint).
 // TestTheReportReplayIsAFold (internal/record/migrate) holds the renderer to it on archived runs.
 var reportRenderer = reportproj.Replay
 
@@ -294,7 +293,7 @@ func ReportProjection(run Run) (ops []reportproj.ReportOp, err error) {
 }
 
 // RenderAt is the report as q holds it: the newest report checkpoint and the ops after it, read from
-// q and folded. q is the run's handle, a read transaction, or a migration's batch (Batch.Querier),
+// q and folded. q is the run's handle, a read transaction, or a migration's replay (Replay.Querier),
 // whose own writes the render then includes. It is the ONE render over a querier; RenderRun asks it
 // of the run's handle.
 func RenderAt(q recordsql.Querier) (string, error) {

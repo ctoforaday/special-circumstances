@@ -193,13 +193,13 @@ func TestEverySittingsPlanIsRelayedAndEveryRelayIsOfAStoredPlan(t *testing.T) {
 	}
 }
 
-// NO JOURNAL, OR NO STORED PLAN: nothing was compared, and the detail says so of whichever is absent.
+// NO JOURNAL: nothing was compared, and the detail says so. A RELAY OF A PLAN THE RECORD NEVER
+// STORED departs, on a record that stored none as on one that stored others.
 func TestARelayWithNothingToCompareSaysSo(t *testing.T) {
 	run, plans := storedRun(t, 1, false)
 	if a := DispatchParityAudit(run, nil, false); !strings.Contains(a.Detail, "no workflow journal, so the relayed plans were NOT compared with the plans the record stored") {
 		t.Fatalf("no journal = %s: %s", a.Verdict, a.Detail)
 	}
-	// A record from before the record stored its plans: the rows alone.
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "harness", "c", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
@@ -207,9 +207,9 @@ func TestARelayWithNothingToCompareSaysSo(t *testing.T) {
 		recordtest.At(t, "red-chair", "r1", &recordpb.Register{}),
 		recordtest.At(t, "red-chair", "d1", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence")}),
 		recordtest.At(t, "red-lens-evidence", "r2", &recordpb.Register{}))
-	old := runtest.Open(t, dir)
-	if a := DispatchParityAudit(old, journalOf(t, relayed(t, plans[0])), true); !strings.Contains(a.Detail, "the record stores no plan, so the 1 relayed plan(s) were NOT compared") {
-		t.Fatalf("no stored plan = %s: %s", a.Verdict, a.Detail)
+	none := runtest.Open(t, dir)
+	if a := DispatchParityAudit(none, journalOf(t, relayed(t, plans[0])), true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "and the record stored none there") {
+		t.Fatalf("a relay on a record that stored no plan = %s: %s", a.Verdict, a.Detail)
 	}
 }
 

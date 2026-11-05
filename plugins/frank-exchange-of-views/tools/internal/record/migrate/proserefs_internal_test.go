@@ -23,9 +23,7 @@ func TestOnlyHeldProseIDsBecomeFields(t *testing.T) {
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:  recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
-	record.Migrating = true
-	defer func() { record.Migrating = false }()
-	b, err := record.BeginBatch(runtest.Open(t, dir))
+	b, err := record.BeginReplay(runtest.Open(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}

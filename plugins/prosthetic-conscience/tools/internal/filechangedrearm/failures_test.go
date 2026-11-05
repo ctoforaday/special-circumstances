@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // FILECHANGED DISPLAYS NOTHING. Every message this hook had — including the one its own comment

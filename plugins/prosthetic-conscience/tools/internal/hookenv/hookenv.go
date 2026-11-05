@@ -23,8 +23,8 @@
 package hookenv
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // ProjectDir returns the project root, preferring the environment and falling back to the

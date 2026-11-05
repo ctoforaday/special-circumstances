@@ -20,22 +20,24 @@ import (
 // IT HOLDS NO Run, AND THAT IS THE POINT. The run's handle is one connection, and the transaction
 // holds it: a read through the handle from inside — anything that takes a Run and opens the record —
 // waits on that transaction forever. With no Run in reach, such a read does not compile. The same
-// holds for the whole of a migration's batch (batch.go), which keeps its transaction open between
-// acts: its caller reads through Batch.Querier, never through the run.
+// holds for the whole of a migration's replay (replaywriter.go), which keeps its transaction open
+// between acts: its caller reads through Replay.Querier, never through the run.
 type writeView struct {
 	// q is the writing transaction. Every question validation asks of the record goes to it.
 	q recordsql.Querier
 	// files is the run's files the checks read: setup's terms.
 	files runFiles
-	// rendering is the write's report, rendered before the lock (landingReport); nil on a batch's
-	// write, which renders under its own transaction.
-	rendering *landingReport
 	// act is the reading's act the body being validated is a member of (readingAct): the Mint, the
 	// Anchor and the Verify a reading that finds against its sentence writes in one transaction. Its
 	// Mint's rules read the act's other bodies, which are not on the record yet. nil for every other
 	// write.
 	act *readingAct
 }
+
+// report is the report this write lands on, rendered in the writing transaction (RenderAt): the
+// newest report checkpoint and the ops after it, fewer than the checkpoints' spacing
+// (recordsql.ReportSourceAt), so the lock is held for a checkpoint read and a short replay.
+func (w writeView) report() (string, error) { return RenderAt(w.q) }
 
 // runFiles is the file the write path reads besides the record: inputs/run-config.json (the run's
 // terms). It is not a record a seat writes, so it cannot move under a write; it is read from the
@@ -53,7 +55,7 @@ func (f runFiles) params() (Params, error) { return paramsIn(f.dir) }
 // convergenceFraction is the run's convergence fraction (convergenceFractionIn).
 func (f runFiles) convergenceFraction() (float64, error) { return convergenceFractionIn(f.dir) }
 
-// WouldRefuse is the write path's validation as Append runs it — inside a write transaction on
+// WouldRefuse is the write path's validation as Append runs it, the act judgements included — inside a write transaction on
 // run's record, asked of that transaction — and rolled back: what the write would refuse, without
 // writing. A run that has recorded nothing is validated as no record, and no record is created.
 //
@@ -65,12 +67,12 @@ func WouldRefuse(run Run, seatID string, typ recordpb.EventType, body proto.Mess
 		return err
 	}
 	if db == nil {
-		return validate(writeView{q: db, files: filesOf(run)}, seatID, typ, body)
+		return validateAct(writeView{q: db, files: filesOf(run)}, seatID, typ, body)
 	}
 	tx, err := recordsql.BeginWrite(db)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	return validate(writeView{q: tx, files: filesOf(run)}, seatID, typ, body)
+	return validateAct(writeView{q: tx, files: filesOf(run)}, seatID, typ, body)
 }

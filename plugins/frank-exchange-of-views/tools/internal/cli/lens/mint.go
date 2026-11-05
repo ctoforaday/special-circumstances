@@ -88,7 +88,7 @@ func newMint() *cobra.Command {
 		// THE CONCRETE PROPOSAL is verified against the report the mint lands on (gapFlags.fill says
 		// why fix_basis is derived, not claimed).
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-			guards = append(guards, record.CheckOnReport(func(l *record.Landing) error {
+			guards = append(guards, record.Check(func(l *record.Landing) error {
 				report, err := l.Report()
 				if err != nil {
 					return err
@@ -111,11 +111,6 @@ func newMint() *cobra.Command {
 				retry.FixNew = proto.String(fixNew)
 			}
 			if err := seat.RepeatsKeyed(seat.Str(cmd, flags.Key), "gap", prior.GetGapId(), prior, retry, mintAsserted...); err != nil {
-				return nil, err
-			}
-			// A mint on the record without its anchor — one migrate brought forward from an archive
-			// whose run crashed between the two — is finished by the retry, at the location it stored.
-			if err := seat.PlaceOwed(s, prior.GetGapId(), seat.Str(cmd, flags.Key)); err != nil {
 				return nil, err
 			}
 			return mintResult{GapID: prior.GetGapId(), Check: prior.GetAcceptanceCheck(), Idempotent: true}, nil
