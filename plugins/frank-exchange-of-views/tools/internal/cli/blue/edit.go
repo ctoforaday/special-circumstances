@@ -126,7 +126,7 @@ func newEdit() *cobra.Command {
 			report, old, applied string
 			exact                bool
 		}
-		_, err = record.Append(s.Identity(), body, record.CheckOnReport(func(l *record.Landing) error {
+		_, err = record.Append(s.Identity(), body, record.Check(func(l *record.Landing) error {
 			peek, err := l.Report()
 			if err != nil {
 				return err

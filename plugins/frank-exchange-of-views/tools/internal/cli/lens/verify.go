@@ -468,7 +468,7 @@ func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *r
 			}
 		}
 		if n := fixNew(); n != "" {
-			guards = append(guards, record.CheckOnReport(func(l *record.Landing) error {
+			guards = append(guards, record.Check(func(l *record.Landing) error {
 				report, err := l.Report()
 				if err != nil {
 					return err
@@ -598,7 +598,7 @@ func markedSentenceOf(run record.Run, quote string) error {
 // uncitedSentence is the marked-sentence guard asked of the report the reading lands on, where it is
 // authoritative under the write lock: a citation placed on the sentence in between refuses the act.
 func uncitedSentence(quote string) record.Guard {
-	return record.CheckOnReport(func(l *record.Landing) error {
+	return record.Check(func(l *record.Landing) error {
 		report, err := l.Report()
 		if err != nil {
 			return err
