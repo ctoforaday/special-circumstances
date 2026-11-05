@@ -168,7 +168,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	// prints (view.InquiryBody), whole, with each superseded record of an inquiry's path under it and
 	// each value's paragraphs kept inside its item (inItem) — not a section of the table and not a
 	// second account.
-	inq := view.InquiryBody(evs, fam.At, true, inItem)
+	inq := view.InquiryBody(evs, fam.At, inItem)
 	inq = rd.escapeNotesRead(rd.stripTokensCode(inq, true))
 
 	docs := []Doc{
