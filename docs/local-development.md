@@ -265,6 +265,30 @@ minutes; a haiku smoke of the same topic reached four epochs, minted and audited
   is the only part that outlives it — records and computations only, gzipped; the fetched-source cache is
   re-fetchable and about 100× larger.
 
+## Live harness tests (`HOOKCORE_LIVE=1`)
+
+The gates never start a real client. These tests do, so they are the only check that the hook
+contract still holds against the Claude Code and Antigravity versions on this box. CI has no
+credentials for either, so it skips them; a run here is the check.
+
+| Test | Module | What it holds |
+|---|---|---|
+| `TestLiveAntigravityEventContract` | `shared/hookcore` | agy's SessionStart fires once per new conversation and not on resume; PreInvocation fires every model step, `invocationNum` from 0 each turn; an injected ephemeral message is acted on; hooks never receive the language server's address or token, the agent's shell does |
+| `TestLiveAntigravityLinkAndSend` | `plugins/gray-area/tools` (`./cmd/telepathy`) | gray-area's hooks and binaries, built from the checkout, link a new conversation, relink it on a new server, wake it through that server, and queue to its mailbox once the server is gone |
+| `TestLiveAntigravityContract`, `TestLiveClaudeContract`, `TestLiveShipped*` | `shared/hookcore` | the PreToolUse block and rewrite and the shipped plugins under each client |
+
+```sh
+unset $(env | grep -o '^FEOV_[A-Z_]*')
+HOOKCORE_LIVE=1 go -C shared/hookcore test -count=1 -run 'TestLiveAntigravity' .
+HOOKCORE_LIVE=1 go -C plugins/gray-area/tools test -count=1 -run TestLiveAntigravityLinkAndSend ./cmd/telepathy
+```
+
+Each agy test runs in a throwaway home holding a copy of your agy credentials, on
+`gemini-3.8-flash-low`, a few turns at a time. Run them after a change to hookcore's Antigravity
+paths, to a plugin's root `hooks.json`, or to `telepathy send`/`link`, and after an agy upgrade. A
+model-driven assertion can miss on one run, so a single red is a reason to read the test's log
+before it is a verdict.
+
 ## Environment that will bite you
 
 **Clear the seat identity before anything.** A shell that has touched a run has `FEOV_RUN` set, and

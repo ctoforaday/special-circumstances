@@ -1,0 +1,10 @@
+{
+  "artifactDirectoryPath": "/home/user/.gemini/antigravity-cli/brain/e20825cc-117c-4f31-bcce-64667ba0b8cd",
+  "conversationId": "e20825cc-117c-4f31-bcce-64667ba0b8cd",
+  "lastUserInput": "Reply OK and stop.",
+  "modelName": "gemini-3.8-flash-low",
+  "transcriptPath": "/home/user/.gemini/antigravity-cli/brain/e20825cc-117c-4f31-bcce-64667ba0b8cd/.system_generated/logs/transcript_full.jsonl",
+  "workspacePaths": [
+    "/home/user/.claude/scratch/telepathy-send/fixture-ws"
+  ]
+}
