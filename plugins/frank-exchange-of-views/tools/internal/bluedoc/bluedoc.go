@@ -282,8 +282,15 @@ const MaxProposalGrowth = 120
 // RefuseAuthoring refuses a CONCRETE proposed fix that grows its span past MaxProposalGrowth: what red
 // is entitled to propose. Whether blue could apply it is the accept's own judgement (blue.PlanAccept),
 // which `lens mint` asks as well.
+//
+// THE GROWTH IS MEASURED IN WORDS, NOT TOKENS. A replacement carries the anchors of the span it
+// replaces, as the accept requires, while old is the gap's location — a claim, which holds none — so
+// counting tokens charges a rewording of a sentence five citations back with 110 characters it never
+// wrote. The bound's sample was blue's edits, whose old and new carried the same tokens; both sides
+// are stripped here so the count is that one. A token a replacement introduces is the accept's
+// refusal (ErrAnchorIntroduced), never a way past this one.
 func RefuseAuthoring(old, new string) error {
-	if grew := utf8.RuneCountInString(new) - utf8.RuneCountInString(old); grew > MaxProposalGrowth {
+	if grew := utf8.RuneCountInString(claimcount.StripAnchors(new)) - utf8.RuneCountInString(claimcount.StripAnchors(old)); grew > MaxProposalGrowth {
 		return fmt.Errorf("a concrete proposal may add at most %d characters to the span it replaces, and this adds %d — that size is a substantive ADDITION, which is blue's to author. State it as prose in --fix instead: red says what is wrong and what must be true, blue writes the report", MaxProposalGrowth, grew)
 	}
 	return nil
