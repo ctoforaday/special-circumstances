@@ -1,6 +1,7 @@
 package record
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -95,5 +96,40 @@ func TestASupersessionIsTheMintersAndWaitsOnTheBench(t *testing.T) {
 	closed := mintedOn(t).add(evLens, repairClose("G1")).register("red-chair").seed()
 	if err := validateRun(closed, logic, recordpb.EventType_EVENT_TYPE_MINT, successorMint("G2", "G1")); err != nil && strings.Contains(err.Error(), "--supersedes") {
 		t.Errorf("another lens naming the closed G1 as an ancestor = %v, want lineage admitted", err)
+	}
+}
+
+// A CHANGED FATE ACTS ON NO SUPERSEDED GAP (fateActsOf; ruled by gblock 2026-11-04 and 2026-11-05). G1
+// is about the section "Research areas", which prints Q-1. Once a mint superseding it closes it, a
+// fate blue changes on Q-1 is no act on G1: the successor holds its purpose, and the fate reaches the
+// successor only by the successor's own anchor — G2, minted about the same section, is acted on; G3,
+// minted about the findings, is not. A fate before the supersession acts on G1 as on any gap about
+// its section.
+func TestAChangedFateActsOnNoSupersededGap(t *testing.T) {
+	about := func(gap, section string, supersedes ...string) *recordpb.Mint {
+		m := budgetMint(gap, supersedes...)
+		m.AboutRef = proto.String(section)
+		return m
+	}
+	st := mintedAbout(t, "Research areas")
+	st.add("blue-respond", fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "before"))
+	st.add(evLens, about("G2", "Research areas", "G1")).add(evLens, about("G3", "Findings"))
+	st.add("blue-respond", fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED, "after"))
+	fam, err := FamilyOf(st.seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := fam.Gap("G1"); g == nil || g.Open || g.SupersededBy != "G2" {
+		t.Fatalf("fixture: G1 = %+v, want closed by G2's mint", g)
+	}
+	fates := fateActsOf(fam.Events)
+	var got [][]string
+	for _, e := range fam.Events {
+		if b, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok && (b.GetReason() == "before" || b.GetReason() == "after") {
+			got = append(got, fates[e])
+		}
+	}
+	if len(got) != 2 || !slices.Equal(got[0], []string{"G1"}) || !slices.Equal(got[1], []string{"G2"}) {
+		t.Errorf("the gaps each changed fate acts on = %v, want [[G1] [G2]]: G1 before its successor's mint, its successor about the same section after it, and never G3", got)
 	}
 }

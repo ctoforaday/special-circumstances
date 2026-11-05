@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -35,7 +36,7 @@ import (
 // noteOpen is what opens a footnote reference or definition, and noteEscape is that with the
 // backslash that makes it text.
 const (
-	noteOpen   = "[^"
+	noteOpen   = reportheading.NoteOpen
 	noteEscape = `\` + noteOpen
 )
 
@@ -106,7 +107,7 @@ func shippedCode(src []byte, parse func([]byte) ast.Node) [][2]int {
 		case c == '\r':
 			read, back = append(read, '\n'), append(back, i)
 		case c == '<':
-			if escapedAt(src, i) {
+			if reportheading.EscapedAt(src, i) {
 				read, back = read[:len(read)-1], back[:len(back)-1]
 			}
 			for k := range len(ltEntity) {
@@ -165,23 +166,12 @@ func escapeNoteOpens(s string) string {
 			return b.String()
 		}
 		b.WriteString(s[:i])
-		if !escapedAt(s, i) {
+		if !reportheading.EscapedAt(s, i) {
 			b.WriteByte('\\')
 		}
 		b.WriteString(noteOpen)
 		s = s[i+len(noteOpen):]
 	}
-}
-
-// escapedAt reports whether the byte at i of s is escaped, and so is text: an odd run of backslashes
-// stands before it. It is the one reading of the escape, for a `[^` (escapeNoteOpens, noteRefsIn)
-// and for a `<` (ship).
-func escapedAt[T ~string | ~[]byte](s T, i int) bool {
-	n := 0
-	for j := i - 1; j >= 0 && s[j] == '\\'; j-- {
-		n++
-	}
-	return n%2 == 1
 }
 
 // codeIn is every stretch of src the tree reads as code, in order: a fence's info string, a code

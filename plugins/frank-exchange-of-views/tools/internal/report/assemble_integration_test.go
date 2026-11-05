@@ -1,12 +1,14 @@
 package report
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -276,9 +278,9 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// inquiries.md is not read: it is `show inquiries`' rendering, under headings that carry a count.
 	rows := map[string]bool{}
 	for _, s := range layout {
-		rows[s.File+"\x00"+normalizeHeading(s.Heading)] = true
+		rows[s.File+"\x00"+reportheading.HeadingKey(s.Heading)] = true
 		for _, h := range s.first {
-			rows[s.File+"\x00"+normalizeHeading(h)] = true
+			rows[s.File+"\x00"+reportheading.HeadingKey(h)] = true
 		}
 	}
 	shipped := map[string]bool{}
@@ -305,7 +307,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		if s.File == FileEvidence || s.File == FileChangelog || s.Heading == "Bibliography" || s.Line != "" || s.embeds {
 			continue
 		}
-		if !shipped[s.File+"\x00"+normalizeHeading(s.Heading)] {
+		if !shipped[s.File+"\x00"+reportheading.HeadingKey(s.Heading)] {
 			t.Errorf("the fixture does not compose %q into %s, so the check above did not read it", s.Heading, s.File)
 		}
 	}
@@ -319,10 +321,10 @@ func TestAssembleEndToEnd(t *testing.T) {
 	for _, s := range layout {
 		if s.File == FileReport && s.Line == "" && s.Heading != "Bibliography" {
 			for _, h := range s.first {
-				wantOrder = append(wantOrder, normalizeHeading(h))
+				wantOrder = append(wantOrder, reportheading.HeadingKey(h))
 			}
 			if !s.embeds {
-				wantOrder = append(wantOrder, normalizeHeading(s.Heading))
+				wantOrder = append(wantOrder, reportheading.HeadingKey(s.Heading))
 			}
 		}
 	}

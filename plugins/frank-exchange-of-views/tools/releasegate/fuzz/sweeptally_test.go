@@ -180,6 +180,7 @@ type runTally struct {
 	RemandHolds                     int                       `json:"remand_holds"`
 	RemandReleases                  int                       `json:"remand_releases"`
 	LensTurns                       int                       `json:"lens_turns"`
+	FateTurns                       int                       `json:"fate_turns"`
 	LensWaits                       int                       `json:"lens_waits"`
 	LensAlone                       int                       `json:"lens_alone"`
 	DocketsAfterAudit               int                       `json:"dockets_after_audit"`
@@ -248,7 +249,7 @@ func tallyOf(o outcome) runTally {
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
-		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, LensWaits: o.lensWaits,
+		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, FateTurns: o.fateTurns, LensWaits: o.lensWaits,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
@@ -607,7 +608,7 @@ type sweepFold struct {
 	closedRemandsRefused, trifleRemandsRouted       int
 	blueRemandActs, pastLimitRemandsRefused         int
 	remandHolds, remandReleases                     int
-	lensTurns, lensWaits                            int
+	lensTurns, lensWaits, fateTurns                 int
 	lensAlone, docketsAfterAudit                    int
 	docketedClosesRefused, docketedOffList          int
 	benchRegrades, lockRefused, lockLifted          int
@@ -804,6 +805,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.remandHolds += r.RemandHolds
 		f.remandReleases += r.RemandReleases
 		f.lensTurns += r.LensTurns
+		f.fateTurns += r.FateTurns
 		f.lensWaits += r.LensWaits
 		f.lensAlone += r.LensAlone
 		f.docketsAfterAudit += r.DocketsAfterAudit
@@ -1199,6 +1201,13 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("lens turns: %d lens engagement(s) after blue's act; %d gap(s) dispatched to blue while their minting lens waited", f.lensTurns, f.lensWaits)
 		if f.lensTurns == 0 || f.lensWaits == 0 {
 			t.Errorf("fuzz drove %d lens engagement(s) after blue's act and %d wait(s) across %d runs — the lens-turn rule is unexercised on one side (false green)", f.lensTurns, f.lensWaits, f.completed)
+		}
+		// A FATE BLUE CHANGED IS ITS ACT ON A GAP ABOUT A SECTION THAT PRINTS IT (ruled by gblock
+		// 2026-11-05): lenses mint about the inquiry sections and blue settles open inquiries in its
+		// sittings, so some lens's turn on a gap about a section came with a changed fate.
+		t.Logf("fate turns: %d of those lens engagement(s) on a gap about a section came with a fate blue changed", f.fateTurns)
+		if f.fateTurns == 0 {
+			t.Errorf("no lens turn across %d runs on a gap about a section came with a fate blue changed — the rule that a changed fate is blue's act on a gap about a section that prints it is unexercised (false green)", f.completed)
 		}
 		// THE LENS GOES FIRST AND THE DOCKET AFTER (ruled by gblock 2026-10-31): a plan readied a lens alone
 		// for the audit that reaches the limits, a docket followed a lens's sitting, a docketed gap's close
