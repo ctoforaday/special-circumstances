@@ -638,7 +638,21 @@ Run in the worktree, after `unset $(env | grep -o '^FEOV_[A-Z_]*')`. Each check 
 | K5 | #1739 and Part 2 race for the epoch and the view | §III.8; the second rebases; CLAUDE.md's rebase-and-regenerate rule |
 | K6 | A class's prerequisite set changes later and archived gaps "violate" it | the replay does not judge (F4); a live mint is judged by the declaration of its day |
 
-## Forks — OPEN, none decided (each: options, cost, recommendation)
+## Forks — RULED by gblock 2026-11-05 (options picked; the option wording is the lead agent's)
+
+| Fork | Ruling |
+|---|---|
+| F1 class 23 | (a) conditional: `REPRODUCE_DIFFERS` where the subject is a computation's; every other 23 mint stays plain and `mint --help` says so; a recount act is a follow-up issue |
+| F2 class 27 | (a) stamp the read copy's hash on `Verify`, Part 3 (epoch E+1); 27 is conditional on a citation subject; computation drift stays plain |
+| F3 / F7 | (a) one field `Mint.rests_on` (events.id), `--rests-on <event>`; a named reading supplies the subject; `--quote`/`--about` beside it refused |
+| F4 | (a) ALL prerequisites, 31 included, in the live act judgement only; replay judges none. gblock asked that both kinds sit in ONE place; the shape check for all refuses the 46 archived mints |
+| F5 | (b) delete `gap_classes` and `found_source_gap_classes`; add a `finds_against` bool option on SourceOutcome |
+| F6 | (a) the backing reading records; 29 is a plain mint that MAY name its own reading; `refuseMarked` stays |
+| F8 | (a) never owed |
+| Part 0 | commit the Eiffel smoke archive to `run-archive/` (records and proofs only), its own PR |
+
+The options as drafted follow, kept for the reasons.
+
 
 **F1 — class 23, a recount of a figure printed in a source (ruled open in issue comment 3).** No act
 records a recount of a figure a source prints; `compute` is blue's (`cli/blue/compute.go`) and a lens's
