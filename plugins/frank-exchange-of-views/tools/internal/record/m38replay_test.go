@@ -264,9 +264,18 @@ func TestARemandWaitingOnBlueIsNotOwedInTheHeldOutEpoch(t *testing.T) {
 	if len(plan.RemandOwed) != 1 || !slices.Contains(gapsOf(plan, blueRespondSeat), "G1") {
 		t.Fatalf("setup: with no limit the remand is owed and readies blue: remand_owed %+v, parties %+v", plan.RemandOwed, plan.Parties)
 	}
+	const readies = "G1 is open because the BENCH REMANDED it — the dispatch readies blue for one more exchange"
+	const cannot = "G1 is open because the BENCH REMANDED it — its one more exchange begins with blue's act, and " + blueHeldOutClause + ", so that exchange cannot be had before the run ends"
+	if !workMentions(t, run, "chair", "red-chair", readies) || workMentions(t, run, "chair", "red-chair", cannot) {
+		t.Fatalf("setup: with no limit the chair's row says the dispatch readies blue")
+	}
 	writeRunConfig(t, b.runDir, fmt.Sprintf(`{"maxEpochs":%d}`, plan.Epoch+1))
 	if plan, err = PlanDispatch(run); err != nil {
 		t.Fatal(err)
+	}
+	// THE CHAIR'S ROW SAYS WHAT THE PLAN SAYS: no exchange can be had, and the dispatch readies nobody for it.
+	if !workMentions(t, run, "chair", "red-chair", cannot) || workMentions(t, run, "chair", "red-chair", readies) {
+		t.Errorf("the chair's row for G1 in the held-out epoch does not say the exchange cannot be had")
 	}
 	if len(plan.RemandOwed) != 0 {
 		t.Errorf("epoch %d of %d lists the remand as owed while nobody can have its exchange: %+v, parties %+v", plan.Epoch, plan.MaxEpochs, plan.RemandOwed, plan.Parties)
@@ -276,5 +285,28 @@ func TestARemandWaitingOnBlueIsNotOwedInTheHeldOutEpoch(t *testing.T) {
 	}
 	if plan.PassPermitted {
 		t.Errorf("the remanded gap no longer holds the PASS: %+v", plan.Blockers)
+	}
+
+	// BLUE ANSWERED BEFORE THE HOLD: the lens's audit, which ends the exchange, is still owed work —
+	// on remand_owed, the lens engaged, and the chair told so.
+	a := remandedAtImpasse(t).register("red-chair").dispatch(2, "blue-respond", "G1").
+		registerAs("blue-respond", "blue-answers-remand").edit("G1", "old", "new").stop("blue-answers-remand").
+		register("red-chair")
+	answered := a.seed()
+	first, err := PlanDispatch(answered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRunConfig(t, a.runDir, fmt.Sprintf(`{"maxEpochs":%d}`, first.Epoch+1))
+	held, err := PlanDispatch(answered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !held.BlueHeldOut() || len(held.RemandOwed) != 1 || !slices.Contains(gapsOf(held, evLens), "G1") {
+		t.Errorf("blue answered the remand before the hold: the lens's audit is owed, remand_owed %+v, parties %+v", held.RemandOwed, held.Parties)
+	}
+	const audits = "G1 is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its minting lens to audit that answer, which ends the one more exchange; " + blueHeldOutClause
+	if !workMentions(t, answered, "chair", "red-chair", audits) {
+		t.Errorf("the chair's row for G1 does not say the lens's audit ends the exchange while blue is held out")
 	}
 }
