@@ -34,6 +34,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
 )
 
@@ -784,52 +785,6 @@ func truncateRunes(s string, n int) string {
 	return s[:n]
 }
 
-// THE LIFECYCLE OF A RESEARCH TOPIC, in the three descriptive areas a reader gets:
-//
-//	Research areas               the approaches the research RAN: `underway` (running), `confirmed`
-//	                             (ran, the hypothesis held) and `refuted` (ran, the hypothesis was
-//	                             refuted) — a refutation is an answer, and it stands beside the
-//	                             confirmations. AND `proposed`: an inquiry put forward and not yet
-//	                             resolved is research this run has taken on, and its row carries
-//	                             the undecided state so the heading does not have to lie about it.
-//	Future research directions   `deferred` — "worth taking, and not by THIS run". KEPT, not set
-//	                             aside. --reason says what a later run should pick it up FOR,
-//	                             and it reaches the report as a proposal a human selects.
-//	Alternatives considered      `declined` (weighed, never run) and `abandoned` (started, and no
-//	                             answer came).
-//
-// # Every fate has a section
-//
-// Taking the set-aside inquiries as the complement of `underway` would put `deferred` AND
-// `proposed` under "Alternatives considered" — wrong in a way no reader can detect, since only the
-// `[deferred]` tag on the row contradicts the heading above it. Narrowing the pair instead makes
-// them vanish from the report entirely, which is the failure the status enum's own Why warns about
-// ("it silently vanishes from the section that exists to show the roads not taken").
-//
-// # `proposed` is a research area
-//
-// Excluding `proposed` from every section would argue that a heading announces a fate and an
-// undecided inquiry has none; but the fuzz invariant `prose absent from report` holds, and a
-// seat's recorded reasoning must reach the reader. A fourth section is no answer either. Three is
-// the decision — an inquiry blue put forward IS an area this run is researching, and the PASS it
-// holds while open is what stops it sitting there undecided, rather than a heading that describes
-// the omission.
-//
-// setAside stays a COMPLEMENT so a status no predicate names cannot silently match nothing. The
-// fate `refuted` is NOT set aside: it is named in ran, with the other approaches that ran.
-//
-// The sentence a seat reads is written from these three predicates: InquirySections, in layout.go.
-func taken(status string) bool { return ran(status) || status == "proposed" }
-
-// ran is the fates of an approach that RAN: its reason is what it FOUND, where the reason of any
-// other is WHY it stands where it does.
-func ran(status string) bool {
-	return status == "underway" || status == "confirmed" || status == "refuted"
-}
-func deferred(status string) bool { return status == "deferred" }
-
-func setAside(status string) bool { return !taken(status) && !deferred(status) }
-
 // inquiries renders the inquiry LIFECYCLE under the given heading — replayed state, one row per
 // inquiry, not one row per event. Reading raw events would double-list every inquiry whose fate
 // changed: one underway at r0 and abandoned at r2 would render under both headings at once, as an
@@ -876,7 +831,7 @@ func inquiries(a *assembly, s Section) string {
 		// A PROPOSAL HOLDS NO REASON: until a fate is recorded there is nothing found to print.
 		if a.Reason != "" {
 			label := "Why"
-			if ran(a.Status) {
+			if reportheading.Ran(a.Status) {
 				label = "Found"
 			}
 			row += fmt.Sprintf(" **%s:** %s", label, inItem(a.Reason, "    "))

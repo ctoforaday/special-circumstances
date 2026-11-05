@@ -3,11 +3,13 @@ package fuzz
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -44,9 +46,11 @@ type gapActs map[string][]struct {
 // about, what a retire of the anchor reaches.
 func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs, minted map[string]int, superseded map[string]bool) {
 	acts, minted, superseded = gapActs{}, map[string]int{}, map[string]bool{}
-	answering := map[string]string{}  // evidence anchor → the gap it was placed as the answer to
-	about := map[string][]string{}    // anchor → the gaps minted about it
-	anchored := map[string][]string{} // inquiry id → the gaps minted about it
+	answering := map[string]string{}       // evidence anchor → the gap it was placed as the answer to
+	about := map[string][]string{}         // anchor → the gaps minted about it
+	anchored := map[string][]string{}      // inquiry id → the gaps minted about it
+	aboutSection := map[string][]string{}  // a section's heading key → the gaps minted about it
+	last := map[string]*recordpb.Inquiry{} // inquiry id → its previous record
 	add := func(seat string, at int, gaps ...string) {
 		for _, g := range gaps {
 			if g != "" {
@@ -66,10 +70,13 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 			for _, s := range m.GetSupersedes() {
 				superseded[s] = true
 			}
-			if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {
+			switch m.GetAboutKind() {
+			case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 				anchored[m.GetAboutRef()] = append(anchored[m.GetAboutRef()], m.GetGapId())
-			}
-			if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
+			case recordpb.AboutKind_ABOUT_KIND_SECTION:
+				k := reportheading.HeadingKey(m.GetAboutRef())
+				aboutSection[k] = append(aboutSection[k], m.GetGapId())
+			case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 				about[m.GetAboutRef()] = append(about[m.GetAboutRef()], m.GetGapId())
 			}
 			add(seat, i, m.GetSupersedes()...)
@@ -118,8 +125,19 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 		if b, ok := recordpb.BodyAs[*recordpb.Verify](e); ok {
 			add(seat, i, answering[b.GetAnchor()])
 		}
+		// A FATE BLUE CHANGED — status, reason or method against the inquiry's previous record — is an
+		// act on the gaps about what it changed (ruled by gblock 2026-11-05): those minted about the
+		// inquiry, and those minted about a section that prints it, before the change or after.
 		if b, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
-			add(seat, i, anchored[b.GetInquiryId()]...)
+			was := last[b.GetInquiryId()]
+			last[b.GetInquiryId()] = b
+			if was != nil && seatclass.RoleOfSeat(seat) == "blue" &&
+				(was.GetStatus() != b.GetStatus() || was.GetReason() != b.GetReason() || was.GetMethod() != b.GetMethod()) {
+				add(seat, i, anchored[b.GetInquiryId()]...)
+				for _, st := range []recordpb.InquiryStatus{was.GetStatus(), b.GetStatus()} {
+					add(seat, i, aboutSection[reportheading.HeadingKey(reportheading.InquirySectionOf(recordpb.Word(st)))]...)
+				}
+			}
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
 			add(seat, i, b.GetDocket().GetGapId(), b.GetGrade().GetGapId())
@@ -266,35 +284,43 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 	}
 	// turnCame is whether blue moved gap after lens's latest turn there, its mint and the gap's latest
 	// remand ruling.
-	turnCame := func(lens, gap string) bool {
+	blueSince := func(lens, gap string) []int {
 		last := max(minted[gap], remanded[gap])
 		for _, a := range turnActs[gap] {
 			if a.seat == lens {
 				last = max(last, a.at)
 			}
 		}
+		var out []int
 		for _, a := range turnActs[gap] {
 			if a.at > last && seatclass.RoleOfSeat(a.seat) == "blue" {
-				return true
+				out = append(out, a.at)
 			}
 		}
-		return false
+		return out
+	}
+	turnCame := func(lens, gap string) bool { return len(blueSince(lens, gap)) > 0 }
+	// byFate is whether a fate blue changed is among what gave the lens its turn on a gap about a section:
+	// the act the ruling of 2026-11-05 counts.
+	aboutSection := map[string]bool{}
+	for _, e := range b.Events {
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_SECTION {
+			aboutSection[m.GetGapId()] = true
+		}
+	}
+	byFate := func(lens, gap string) bool {
+		return aboutSection[gap] && slices.ContainsFunc(blueSince(lens, gap), func(i int) bool {
+			_, fate := recordpb.BodyAs[*recordpb.Inquiry](b.Events[i])
+			return fate
+		})
 	}
 	// reachedByRetire is whether blue's act on gap since lens's latest turn there is a REACHING retire: one
 	// taking out the anchor gap is about, or whose reading it carries, naming no gap.
 	reachedByRetire := func(lens, gap string) bool {
-		last := max(minted[gap], remanded[gap])
-		for _, a := range turnActs[gap] {
-			if a.seat == lens {
-				last = max(last, a.at)
-			}
-		}
-		for _, a := range turnActs[gap] {
-			if rt, ok := recordpb.BodyAs[*recordpb.Retire](b.Events[a.at]); ok && a.at > last && seatclass.RoleOfSeat(a.seat) == "blue" && rt.GetAnswers() != gap {
-				return true
-			}
-		}
-		return false
+		return slices.ContainsFunc(blueSince(lens, gap), func(i int) bool {
+			rt, ok := recordpb.BodyAs[*recordpb.Retire](b.Events[i])
+			return ok && rt.GetAnswers() != gap
+		})
 	}
 	// witness is what the oracle read on gap, and the plan's and the fold's readings beside it: a failure
 	// here is one reading of the record against another, and the sweep's log is all a red leaves behind.
@@ -331,7 +357,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 			engaged[id][fmt.Sprint(m["seat_id"])] = true
 		}
 	}
-	turns, waits, alone, reaching := 0, 0, 0, 0
+	turns, waits, alone, reaching, fates := 0, 0, 0, 0, 0
 	for gap, seats := range engaged {
 		lens := minter[gap]
 		if lens != "" && seats[lens] && !seats["blue-respond"] {
@@ -357,6 +383,9 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 			return
 		case came:
 			turns++
+			if byFate(lens, gap) {
+				fates++
+			}
 		default:
 			waits++
 		}
@@ -394,6 +423,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 	}
 	r.mu.Lock()
 	r.lensTurns += turns
+	r.fateTurns += fates
 	r.lensWaits += waits
 	r.lensAlone += alone
 	r.docketsAfterAudit += after

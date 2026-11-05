@@ -51,6 +51,11 @@ var ViewsDDL = `
 -- repeated five times: a register's sitting belongs to the seat on its envelope, and a harness
 -- bracket's belongs to the seat its BODY names — the configuration resolved once by the writer
 -- (#1149). Every reader that asks "which sittings has this seat had" joins here and gets both.
+--
+-- The one question it cannot answer by index is a seat's LATEST sitting: its seat is a COALESCE
+-- across the join, so a max over it by seat walks the events from the end. recordsql.LatestSitting
+-- asks that question, as this rule split at the COALESCE into two indexed lookups, and is held to
+-- this view on every archived run.
 CREATE VIEW "sittings" AS
 SELECT e."id"                                                AS "id",
        COALESCE(NULLIF(o."seat_id", ''), e."seat_id")         AS "seat_id",
@@ -399,20 +404,16 @@ WHERE v."carried_by" IS NOT NULL;
 -- retire that took it out (NULL while it stands). One arm per recordsql.EvidenceTables row,
 -- generated from the row, so a backing kind added to that table lands here with no SQL written.
 -- A retired anchor never comes back (an edit invents no anchor), so its retire is the first
--- retire naming it.
+-- retire naming it: one lookup per anchor on retire_anchors_value, never a grouped walk of every
+-- retire joined back.
 CREATE VIEW "evidence_anchor" AS
 WITH "placed" AS (
 ` + evidenceAnchorArmsSQL() + `
-),
-"retired" AS (
-  SELECT "value" AS "anchor_id", MIN("event_id") AS "retired_event"
-  FROM "retire_anchors"
-  GROUP BY "value"
 )
 SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "check_kind",
-       p."answers" AS "answers", p."placed_event" AS "placed_event", r."retired_event" AS "retired_event"
-FROM "placed" p
-LEFT JOIN "retired" r ON r."anchor_id" = p."anchor_id";
+       p."answers" AS "answers", p."placed_event" AS "placed_event",
+       (SELECT MIN(ra."event_id") FROM "retire_anchors" ra WHERE ra."value" = p."anchor_id") AS "retired_event"
+FROM "placed" p;
 
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
 -- row that stands now (until_seq IS NULL) — the one definition of the materiality rule, which

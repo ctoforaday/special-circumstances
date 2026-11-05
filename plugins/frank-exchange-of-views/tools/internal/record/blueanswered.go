@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -22,6 +23,9 @@ import (
 // with `--about-kind inquiry` names no report text, so no edit can be its answer: blue answers it by
 // recording a fate on the inquiry it names. Read by edits alone, such a gap read "NO edit answers
 // it" after blue had recorded the fate, and the lens had to read the inquiries to learn otherwise.
+// And A GAP ANCHORED ON A SECTION THE TOOL COMPOSES FROM FATES IS ANSWERED BY A FATE THAT SECTION
+// PRINTS (ruled by gblock 2026-11-05, fateActsOf): recording the fate again is the only act that
+// changes the section. Either way the fate must change its inquiry's previous record.
 //
 // A GAP WHOSE ANCHOR LEFT THE REPORT IS NOT UNANSWERED. Blue cutting the sentence is an act on it
 // whether or not the edit named the gap, so a `gone` gap blue was engaged on is put to its lens to
@@ -78,7 +82,11 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 		case a.placedAt > read[g]:
 			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a %s — blue placed %s as its answer; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.placedNoun(), a.placed))
 		case a.fateAt > read[g]:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, the inquiry the gap is anchored on; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, a.inquiry))
+			on := a.fateOn + ", which the section the gap is anchored on prints"
+			if a.fateOn == a.inquiry {
+				on = a.fateOn + ", the inquiry the gap is anchored on"
+			}
+			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, changing its fate, reason or method; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, on))
 		case a.pending:
 			out = append(out, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
 		case a.engaged && gone[g] && a.at > read[g]:
@@ -88,9 +96,9 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 			// sentence, and the row's `edited_since` lists it.
 			out = append(out, fmt.Sprintf("gap %s: an edit changed its sentence since you last acted on it, and no act of blue's answers it — `edited_since` lists the edit; re-audit the sentence as it stands against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g))
 		case a.engaged && a.inquiry != "":
-			out = append(out, fmt.Sprintf("gap %s is open and NO inquiry record answers it since you last acted on it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without recording a fate on %s", g, a.inquiry, a.inquiry))
+			out = append(out, fmt.Sprintf("gap %s is open and NO inquiry record answers it since you last acted on it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without changing a fate", g, a.inquiry))
 		case a.engaged:
-			out = append(out, fmt.Sprintf("gap %s is open and NO edit, citation or computation answers it since you last acted on it — blue has been engaged on it and its sitting closed without one", g))
+			out = append(out, fmt.Sprintf("gap %s is open and NO edit, citation, computation or changed fate answers it since you last acted on it — blue has been engaged on it and its sitting closed without one", g))
 		}
 		// A GAP BLUE HAS NEVER BEEN ENGAGED ON GETS NOTHING, and the silence is correct: it is
 		// waiting for a dispatch, which is the chair's business and not news about blue.
@@ -109,8 +117,9 @@ type blueAnswer struct {
 	// the gap through.
 	metAt   int64
 	met     reaching
-	fateAt  int64  // the latest fate blue recorded on the inquiry it is anchored on, while engaged on it
+	fateAt  int64  // the latest fate blue changed, while engaged on it, that is an act on it (fateActsOf)
 	fate    string // that fate
+	fateOn  string // the inquiry that fate is on
 	inquiry string // the inquiry it is anchored on; "" for a gap anchored on report text
 	pending bool   // a blue sitting engaged on it is open on the record
 	engaged bool   // a blue sitting was engaged on it
@@ -162,6 +171,7 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 		}
 	}
 	floor := remandFloorsOf(motions, open)
+	fateGaps := fateActsOf(evs)
 	after := func(g string, e *Event) bool { return win.Of(e).ID > floor[g] }
 	at := func(g string, e *Event) {
 		a := out[g]
@@ -189,9 +199,9 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 		for _, e := range s.Acts {
 			if in, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
 				for _, g := range s.Engaged {
-					if q, anchored := inquiryOf[g]; anchored && open[g] && q == in.GetInquiryId() && after(g, e) {
+					if slices.Contains(fateGaps[e], g) && open[g] && after(g, e) {
 						a := out[g]
-						a.fate, a.fateAt = recordpb.Word(in.GetStatus()), win.Of(e).ID
+						a.fate, a.fateOn, a.fateAt = recordpb.Word(in.GetStatus()), in.GetInquiryId(), win.Of(e).ID
 						out[g] = a
 						at(g, e)
 					}

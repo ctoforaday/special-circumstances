@@ -98,11 +98,15 @@ func closedAtTheOutcome(seatID string, typ recordpb.EventType, body proto.Messag
 // same question (RequireAssemblySitting): run.md on disk then says the assembly sitting assembled
 // the run (report.AssemblyWritten), which is what a stopped engine and capture read it for.
 func requireAssemblySitting(q recordsql.Querier, seatID string, act assemblyAct) error {
+	sitting, _, err := latestSittingAt(q, seatID)
+	if err != nil {
+		return err
+	}
 	var occasion string
 	found, err := queryRowAt(q, []any{&occasion},
 		`SELECT COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
-		  WHERE e."seat_id" = ? AND e."sitting_id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)
-		  ORDER BY e."id" DESC LIMIT 1`, seatID, seatID)
+		  WHERE e."seat_id" = ? AND e."sitting_id" = ?
+		  ORDER BY e."id" DESC LIMIT 1`, seatID, sitting)
 	if err != nil {
 		return err
 	}

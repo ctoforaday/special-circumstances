@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 )
 
 // THE REPORT SET'S SECTIONS ARE ONE TABLE, and everything that needs to know a section reads it.
@@ -148,11 +149,11 @@ var layout = []Section{
 		From:    "the open gaps on the board, one row for each: its problem, its grades and its required fix",
 		Path:    "No act of blue's adds a row. A lens's `mint` opens a gap and with it a row, and the lens's `close` takes the row out; blue's `edit` answering the gap is what the lens closes on. A risk the report itself argues for is prose in the section that makes the claim.",
 		compose: func(a *assembly, _ Section) string { return riskMatrix(a.bj) }},
-	// THREE DESCRIPTIVE AREAS, and every inquiry lands in exactly one. See taken, deferred and
-	// setAside in assemble.go for why three and why setAside is a complement.
-	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: taken, none: "No approach was put forward or pursued.", compose: inquiries},
-	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, none: "No approach was kept for later research.", compose: inquiries},
-	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: setAside, none: "No approach was weighed and set aside.", compose: inquiries},
+	// THREE DESCRIPTIVE AREAS, and every inquiry lands in exactly one: reportheading.InquirySections,
+	// in its order, says why three and which fates each holds.
+	inquiryLayoutRow(0, "No approach was put forward or pursued."),
+	inquiryLayoutRow(1, "No approach was kept for later research."),
+	inquiryLayoutRow(2, "No approach was weighed and set aside."),
 	{File: FileReport, Heading: "Open questions", Composer: Blue,
 		From:    "the section of this name in the report's text, which closes it",
 		Path:    blueTextPath + " The write holds it last in the text, and a report with no section of this name ships without one.",
@@ -295,6 +296,14 @@ var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assemb
 	"With --assembled --json each section that ships carries its `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`. " +
 	"The shipped .md differs from that text in three ways: every line ends in a `\\n`; every `<` outside code but a computation's anchor is written `&lt;`, which a markdown reader prints as `<` — so a `<url>` autolink or a `[text](<url>)` destination in the text ships as text, not a link, and a `<` straight after a bare URL prints on GitHub as `&lt;`, inside the link GitHub makes of the URL; and a `<` at the head of a line inside a code span that runs across lines is written `&lt;` too, which the span prints as `&lt;` — at such a `<` GitHub's reader can open an HTML block before it reads the span."
 
+// inquiryLayoutRow is the row of the k-th inquiry section (reportheading.InquirySections): its heading
+// and the fates it holds are the leaf's, which the record reads too, and none is what it says when no
+// inquiry has one of them.
+func inquiryLayoutRow(k int, none string) Section {
+	s := reportheading.InquirySections[k]
+	return Section{File: FileReport, Heading: s.Heading, Composer: Tool, fate: s.Holds, none: none, compose: inquiries}
+}
+
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }
 
@@ -334,25 +343,12 @@ var SubjectHeadingsNote = func() string {
 //
 // A line opens a section when report.html's reading of the text (pageReader, ParseText) opens an ATX
 // heading on it and, its surrounding whitespace trimmed, it starts with "## ". Two headings name the
-// same section when they agree after their anchors and the note references assembly weaves from them
-// are taken out, case is folded, runs of whitespace are single spaces and a trailing "(in full)" is
-// dropped.
+// same section when their keys agree (reportheading.HeadingKey).
 func headingKey(l mdLine) (string, bool) {
 	if !l.heading || !strings.HasPrefix(l.trimmed, "## ") {
 		return "", false
 	}
-	return normalizeHeading(strings.TrimPrefix(l.trimmed, "## ")), true
-}
-
-// normalizeHeading folds a heading to its comparison key. The note references are read as text
-// (noteRefsIn): a heading is read one line at a time, with no definition in reach to resolve them.
-func normalizeHeading(h string) string {
-	h = anchor.Replace(h, func(string, string) string { return "" })
-	for _, sp := range slices.Backward(noteRefsIn(h)) {
-		h = h[:sp[0]] + h[sp[1]:]
-	}
-	h = strings.ToLower(strings.Join(strings.Fields(h), " "))
-	return strings.TrimSpace(strings.TrimSuffix(h, " (in full)"))
+	return reportheading.HeadingKey(strings.TrimPrefix(l.trimmed, "## ")), true
 }
 
 // mdLine is one line of a text, as report.html's reading of the whole text has it.
@@ -505,7 +501,7 @@ func composedClaims(text ParsedText) (out []claim) {
 			if !row.refused() {
 				continue
 			}
-			if isHeading && key == normalizeHeading(row.Heading) ||
+			if isHeading && key == reportheading.HeadingKey(row.Heading) ||
 				preamble && row.Line != "" && strings.HasPrefix(strings.ToLower(t), strings.ToLower(row.Line)) {
 				out = append(out, claim{key: row.Heading, text: t, row: row})
 				break
@@ -654,7 +650,7 @@ func stands(text ParsedText) (out []stand, rows []Section, body int) {
 		case isHeading:
 			rank := body
 			for i, s := range rows {
-				if s.Line == "" && !s.embeds && normalizeHeading(s.Heading) == key {
+				if s.Line == "" && !s.embeds && reportheading.HeadingKey(s.Heading) == key {
 					rank = i
 				}
 			}
@@ -789,7 +785,7 @@ func part(blue ParsedText) (out blueText) {
 		ln, t, fenced := l.text, l.trimmed, l.code
 		if key, ok := headingKey(l); ok && !fenced {
 			for _, s := range layout {
-				if s.Composer == Blue && s.Line == "" && !s.embeds && key == normalizeHeading(s.Heading) {
+				if s.Composer == Blue && s.Line == "" && !s.embeds && key == reportheading.HeadingKey(s.Heading) {
 					closed = 1
 				}
 			}

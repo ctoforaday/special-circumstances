@@ -112,6 +112,9 @@ CREATE TABLE "events" (
 CREATE UNIQUE INDEX "events_key" ON "events" ("key") WHERE "key" IS NOT NULL;
 CREATE INDEX "events_type" ON "events" ("type");
 CREATE INDEX "events_sitting" ON "events" ("sitting_id");
+-- The rows that opened a sitting, by the seat on their envelope: one half of a seat's latest
+-- sitting (recordsql.LatestSitting). Partial, so it holds the openings and none of the acts.
+CREATE INDEX "events_opening" ON "events" ("seat_id") WHERE "sitting_id" = "id";
 
 CREATE TRIGGER "events_are_append_only_update" BEFORE UPDATE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be edited after it is written');
@@ -240,6 +243,14 @@ CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
 CREATE INDEX "cite_answers" ON "cite" ("answers");
+-- The retires naming an evidence anchor: its first is the retire the evidence_anchor view reads.
+CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
+-- The computations applying a citation as their method (Computation.cites): what a retire of that
+-- citation is refused over (record.requireCitationUncited).
+CREATE INDEX "computation_cites" ON "computation" ("cites");
+-- The harness brackets naming a seat: the other half of a seat's latest sitting
+-- (recordsql.LatestSitting).
+CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");
 `
 
 func Schema() (string, error) {

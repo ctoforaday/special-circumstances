@@ -19,12 +19,24 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 	mint := func(gap string, about recordpb.AboutKind, ref string, supersedes ...string) *recordpb.Mint {
 		return &recordpb.Mint{GapId: proto.String(gap), AboutKind: about.Enum(), AboutRef: proto.String(ref), Supersedes: supersedes}
 	}
+	proposal := func(q string) *recordpb.Inquiry {
+		return &recordpb.Inquiry{InquiryId: proto.String(q), Question: proto.String("q"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}
+	}
+	fate := func(q string, s recordpb.InquiryStatus, reason string) *recordpb.Inquiry {
+		return &recordpb.Inquiry{InquiryId: proto.String(q), SupersedesStatus: proto.String("1"), Status: s.Enum(), Reason: proto.String(reason)}
+	}
 	base := []struct {
 		seat string
 		body proto.Message
 	}{
+		{blue, proposal("I1")},
+		{blue, proposal("I2")},
 		{lens, mint("G1", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings")},
 		{lens, mint("G2", recordpb.AboutKind_ABOUT_KIND_INQUIRY, "I1")},
+		// Sections the tool composes from fates, named as a seat might type them: the key folds case
+		// and space, as it does for every reader of a heading.
+		{lens, mint("G4", recordpb.AboutKind_ABOUT_KIND_SECTION, "research  Areas")},
+		{lens, mint("G5", recordpb.AboutKind_ABOUT_KIND_SECTION, "Future research directions")},
 	}
 	rows := []struct {
 		name, seat, gap string
@@ -40,7 +52,10 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		{"a judgement of a computation answering it", lens, "G1", &recordpb.Reproduce{ComputationId: proto.String("P1")}},
 		{"a citation placed as its answer", blue, "G1", &recordpb.Cite{Label: proto.String("C-1"), Answers: proto.String("G1")}},
 		{"a reading of a citation answering it", lens, "G1", &recordpb.Verify{Anchor: proto.String("C-1")}},
-		{"a fate on the inquiry it is anchored on", blue, "G2", &recordpb.Inquiry{InquiryId: proto.String("I1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum()}},
+		{"a fate changed on the inquiry it is anchored on", blue, "G2", fate("I1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r")},
+		{"a fate changed that the section it is anchored on prints", blue, "G4", fate("I2", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "x")},
+		{"a fate moving its inquiry out of the section it is anchored on", blue, "G4", fate("I2", recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED, "d")},
+		{"a reason changed that the section it is anchored on prints", blue, "G5", fate("I2", recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED, "d, narrowed")},
 		{"a docket motion", blue, "G1", &recordpb.Motion{MotionId: proto.String("M1"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}},
 		{"a grade motion", blue, "G1", &recordpb.Motion{MotionId: proto.String("M2"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}}},
 	}
@@ -65,10 +80,24 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		// A READING NAMES ITS GAP IN carried_by AND MOVES NO TURN THERE: only its citation's answer does.
 		at(blue, &recordpb.Cite{Label: proto.String("C-2")}),
 		at(lens, &recordpb.Verify{Anchor: proto.String("C-2"), CarriedBy: proto.String("G1")}),
+		// A fate repeating its inquiry's previous record word for word.
+		at(blue, fate("I1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r")),
 	}
 	// No retire is here, so no whole index is needed: a reaching retire is read off the record's rows
 	// (TestAReachingRetireIsBluesActOnTheGap).
 	acts := gapActsOf(evs, ids, WindowIndex{})
+	// A FATE THAT MOVES ITS INQUIRY CHANGES BOTH SECTIONS: the one it leaves and the one it enters.
+	for i, r := range rows {
+		if r.name == "a fate moving its inquiry out of the section it is anchored on" && !slices.ContainsFunc(acts["G5"], func(a gapAct) bool { return a.at == places[i] }) {
+			t.Errorf("a fate moving I2 into Future research directions is not read as an act on G5: %+v", acts["G5"])
+		}
+	}
+	// A FATE IS NO ACT ON A GAP ABOUT TEXT IT DOES NOT CHANGE: G1 is about a section blue writes.
+	for _, a := range acts["G1"] {
+		if _, fate := recordpb.BodyAs[*recordpb.Inquiry](evs[a.at-1]); fate {
+			t.Errorf("a fate (event %d) is read as an act on G1, about a section no fate prints", a.at)
+		}
+	}
 	for i, r := range rows {
 		if !slices.ContainsFunc(acts[r.gap], func(a gapAct) bool { return a.at == places[i] && a.seat == r.seat }) {
 			t.Errorf("%s by %s is not read as an act on %s: %+v", r.name, r.seat, r.gap, acts[r.gap])

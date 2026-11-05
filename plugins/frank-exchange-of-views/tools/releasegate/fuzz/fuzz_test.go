@@ -33,15 +33,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"maps"
 	"math/rand"
 	"net/http"
@@ -60,6 +51,17 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -590,6 +592,9 @@ type runner struct {
 	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their minting
 	// lens, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
 	lensTurns, lensWaits int
+	// fateTurns counts, of lensTurns, those on a gap about a report section whose turn a fate blue
+	// changed helped bring (ruled by gblock 2026-11-05). The sweep gates it at zero.
+	fateTurns int
 	// lensAlone counts the gaps a plan engaged their minting lens on and not blue (the last audit before
 	// the limits); docketsAfterAudit the plan's dockets on a gap whose lens had sat on it since its
 	// floor; docketedClosesRefused the closes of a docketed gap refused naming the motion;
@@ -618,6 +623,11 @@ type runner struct {
 	// and before its close is issued: a deterministic test lands there the sibling's reading that a
 	// sweep's concurrent lenses land at will. nil in the sweep.
 	betweenCloseReadAndAct func(gapID string)
+	// betweenSecondSourceReadAndAct is called after readFoundSource read that gapID, which carries a
+	// lens's first reading of a sentence, stands open and before its second source's reading is issued:
+	// a deterministic test lands there the close a sweep's concurrent seats land at will. nil in the
+	// sweep.
+	betweenSecondSourceReadAndAct func(gapID string)
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -1542,6 +1552,12 @@ func (r *runner) aboutAnchor() (kind, ref string) {
 	case "gap":
 		return "gap", gaps[r.rng.Intn(len(gaps))]
 	default:
+		// A SECTION THE TOOL COMPOSES FROM FATES, once there are inquiries, half the time: a fate blue
+		// changes is its act on a gap about the section that prints it (ruled by gblock 2026-11-05),
+		// which the lens-turn oracle counts as a fate turn.
+		if len(inq) > 0 && r.coin(50) {
+			return "section", reportheading.InquirySections[r.rng.Intn(len(reportheading.InquirySections))].Heading
+		}
 		// The seeded report's own heading. Unchecked by the tool, so it stays honest even after
 		// blue's edits move the prose underneath it.
 		return "section", "§ fuzz"
@@ -6174,7 +6190,7 @@ type outcome struct {
 	closedRemandsRefused, trifleRemandsRouted int
 	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
 	// are runner's.
-	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits int
+	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits, fateTurns int
 	// lensAlone, docketsAfterAudit, docketedClosesRefused and docketedOffList are runner's.
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// hearingsAfter is runner's.
@@ -7585,6 +7601,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
 	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
+	res.fateTurns = r.fateTurns
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
@@ -8385,7 +8402,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed || positionFormOf(seed) != "")
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.closedRemandsRefused, o.trifleRemandsRouted, firstLine(o.err))
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.closedRemandsRefused, o.trifleRemandsRouted, runstatErr(o.err))
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -9647,6 +9664,18 @@ func declarationsAgreeWithBoard(run record.Run, declared int) string {
 		}
 	}
 	return ""
+}
+
+// runstatErr is a failed run's error as the RUNSTAT line carries it: its first line, and where the
+// error holds a refused act's envelope — exec puts the act's output after the exit status, on the
+// lines below — the envelope's code and error, so the job log, which keeps RUNSTAT and drops the
+// lines below it, names why the act was refused and not only its exit status.
+func runstatErr(err string) string {
+	line := firstLine(err)
+	if env, ok := refusalEnvelopeIn(err); ok {
+		line += " — refused (" + env.Code + "): " + env.Error
+	}
+	return line
 }
 
 // sumSittings and maxSittings are the RUNSTAT line's lens-sitting cost: the run's total, and the

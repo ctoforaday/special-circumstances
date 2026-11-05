@@ -125,13 +125,12 @@ func RegisteredSeatOfAgent(run Run, agentID string) (string, bool, error) {
 // that name it, less the registers that repair a sitting rather than open one: the rank stored on
 // its latest opening (events.sitting), 0 for a seat that never sat.
 func SittingsOf(run Run, seatID string) (int, error) {
-	var n int
-	if _, err := queryRow(run, []any{&n},
-		`SELECT COALESCE((SELECT "sitting" FROM "events"
-		   WHERE "id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)), 0)`, seatID); err != nil {
+	db, err := openRunForRead(run)
+	if err != nil {
 		return 0, err
 	}
-	return n, nil
+	_, n, err := latestSittingAt(db, seatID)
+	return int(n), err
 }
 
 // DiscardedForSeat IS NOT PORTED, and its absence is the honest answer rather than an omission.

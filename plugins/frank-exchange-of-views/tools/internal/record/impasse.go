@@ -23,9 +23,10 @@ import (
 //
 // Movement is a STATE change: the gap's grade changed, its anchored text changed (a blue edit
 // answering G with old != new, or an evidence-anchor retire answering it or taking out the anchor it
-// is about or whose reading it carries), blue placed a citation or computation as its answer or
-// recorded a change of fate on the inquiry it is anchored on (ruled by gblock 2026-10-31), its
-// lineage moved (a mint superseding G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
+// is about or whose reading it carries), blue placed a citation or computation as its answer (ruled
+// by gblock 2026-10-31) or changed a fate on the inquiry G is anchored on or that the section G is
+// anchored on prints (fateActsOf, ruled by gblock 2026-11-05), its lineage moved (a mint superseding
+// G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
 // grade or an edit that changed nothing are acts but not movement.
 //
 // THE COUNTS ARE A FLOOR AND UNRESOLVED IS THE REST OF THE ANSWER. Exchanges and Stalled state
@@ -262,13 +263,12 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 // lens sitting with no turn come, which only a stranded gap's lens or an archived dispatch has, ends
 // nothing.
 func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
-	minted := map[string]string{}     // gap -> the lens that minted it
-	mintedAt := map[string]int64{}    // gap -> the place of its mint
-	namedAt := map[string]int64{}     // gap -> the place of the first mint superseding it
-	grades := map[string][3]string{}  // gap -> current severity, likelihood, impact
-	movement := map[string][]int64{}  // gap -> ids of movement events
-	anchored := map[string][]string{} // inquiry -> the gaps minted about it
-	fates := map[string]recordpb.InquiryStatus{}
+	minted := map[string]string{}    // gap -> the lens that minted it
+	mintedAt := map[string]int64{}   // gap -> the place of its mint
+	namedAt := map[string]int64{}    // gap -> the place of the first mint superseding it
+	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
+	movement := map[string][]int64{} // gap -> ids of movement events
+	fates := fateActsOf(evs)
 	acts := gapActsOf(evs, ids, win)
 
 	for i, e := range evs {
@@ -280,9 +280,6 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				minted[g] = e.GetSeatId()
 				mintedAt[g] = id
 				grades[g] = [3]string{recordpb.Word(b.GetSeverity()), recordpb.Word(b.GetLikelihood()), recordpb.Word(b.GetImpact())}
-			}
-			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {
-				anchored[b.GetAboutRef()] = append(anchored[b.GetAboutRef()], g)
 			}
 			for _, s := range b.GetSupersedes() {
 				movement[s] = append(movement[s], id)
@@ -320,14 +317,12 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Inquiry:
-			// A FATE IS THE ANSWER TO A GAP ANCHORED ON THE INQUIRY, as an edit is to one anchored on
-			// text: no edit can answer it, and a fate restated moves nothing.
-			if seatclass.RoleOfSeat(e.GetSeatId()) == "blue" && b.GetStatus() != fates[b.GetInquiryId()] {
-				for _, g := range anchored[b.GetInquiryId()] {
-					movement[g] = append(movement[g], id)
-				}
+			// A FATE BLUE CHANGED MOVES THE GAPS ABOUT WHAT IT CHANGED (fateActsOf): those anchored on
+			// the inquiry, which no edit can answer, and those anchored on a section that prints it,
+			// which only a fate changes. A fate repeated moves nothing.
+			for _, g := range fates[e] {
+				movement[g] = append(movement[g], id)
 			}
-			fates[b.GetInquiryId()] = b.GetStatus()
 		case *recordpb.Retire:
 			// An evidence-anchor retire moves the report as an edit does: the anchor leaves its sentence. A
 			// REACHING RETIRE moves each gap it reaches as a named one does: it meets the gap's demand

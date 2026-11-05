@@ -311,9 +311,12 @@ func requireCitationUncited(q recordsql.Querier, taken []string) error {
 		if anchor.Kind(id) != "citation" {
 			continue
 		}
+		// Live is what the evidence_anchor view says: no retire names it. Asked by index on both
+		// sides (computation_cites, retire_anchors_value), never by materialising every anchor.
 		rows, err := q.Query(`SELECT DISTINCT c."computation_id" FROM "computation" c
-		  JOIN "evidence_anchor" e ON e."anchor_id" = c."computation_id" AND e."retired_event" IS NULL
-		  WHERE c."cites" = ? ORDER BY c."computation_id"`, id)
+		  WHERE c."cites" = ? AND c."computation_id" IS NOT NULL
+		    AND NOT EXISTS (SELECT 1 FROM "retire_anchors" ra WHERE ra."value" = c."computation_id")
+		  ORDER BY c."computation_id"`, id)
 		if err != nil {
 			return fmt.Errorf("asking the record which computations cite %s: %w", id, err)
 		}
