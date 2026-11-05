@@ -5,7 +5,9 @@ import "strings"
 // The constrained-scan shape (ConstrainedScan) is a statement that narrows what it reads and
 // still walks the whole of a growing table — the signature of a MISSING INDEX rather than a
 // design cost. The scan is read off the plan tree by heapScan, so "SCAN p" is judged as the table
-// `p` is bound to (Scope) and a bare "SEARCH t" with no index counts as the full scan it is.
+// `p` is bound to (Scope) and a bare "SEARCH t" with no index counts as the full scan it is. The
+// same min/max loop over a view or CTE SQLite computes as a subplan ("SEARCH v" beside
+// "CO-ROUTINE v") counts when the subplan reads a growing table (minMaxOverSubplan).
 //
 // # Why not every scan over a growing table
 //
