@@ -708,8 +708,11 @@ type runner struct {
 	forcePetitionSeat, lastParty string
 	petitionForced               bool
 	hearingsAfter                map[string]int
-	// positionNamedGaps is each gap a bench's upholding of a position named, in ruling order.
+	// positionNamedGaps is each gap a bench's upholding of a position named, in ruling order;
+	// positionNamedAt is, by gap, the occasion and the chair sitting of that ruling, which the
+	// forced-position oracle's failure names.
 	positionNamedGaps                                []string
+	positionNamedAt                                  map[string]string
 	positionForced, heldTrifle                       bool
 	positionsUpheldLens, positionsUpheldGaps         int
 	positionsOverruled                               int
