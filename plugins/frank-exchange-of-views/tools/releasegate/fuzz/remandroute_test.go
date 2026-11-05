@@ -68,7 +68,28 @@ func (r *runner) docketClosedGap(seatID string) {
 			named[m.GapID] = true
 		}
 	}
+	// A GAP A SUCCESSOR'S MINT CLOSED IS NO CLOSE TO PUT BEFORE THE BENCH: the record holds no close
+	// of it, and refuses its docket, naming the successor (ruled by gblock 2026-11-04). The gap's
+	// state is the record's: the family's SupersededBy.
+	fam, err := record.FamilyOf(r.run())
+	if err != nil {
+		r.noteActErr("the record could not be read to tell a lens's close from a supersession: " + err.Error())
+		return
+	}
+	superseded := map[string]string{}
+	for _, g := range fam.Gaps {
+		if g != nil && g.SupersededBy != "" {
+			superseded[g.ID] = g.SupersededBy
+		}
+	}
 	for _, id := range r.closedGapIDs() {
+		if succ := superseded[id]; succ != "" {
+			if !named[id] && r.coin(20) {
+				r.refuse(feov.Conflict, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
+					"--reason", "fuzz: "+id+" closed when "+succ+" superseded it, and blue dockets it all the same")
+			}
+			continue
+		}
 		if !named[id] && !r.closedThisSitting(seatID, id) {
 			r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
 				"--reason", "fuzz: "+id+" closed, and blue puts the close before the bench")

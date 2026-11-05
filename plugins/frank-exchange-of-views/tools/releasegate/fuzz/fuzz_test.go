@@ -5539,7 +5539,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		locked := r.lensMovesBenchAxis(seatID)
 		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
 		engaged := r.engaged(seatID)
+		// THE PLAN NAMED ITS GAPS OPEN, AND THE RECORD SAYS WHICH STILL ARE: a mint of this sitting's
+		// that superseded one closed it (ruled by gblock 2026-11-04), and its successor holds its
+		// purpose, so no act of the lens's lands on it.
+		openNow := map[string]bool{}
+		if bj, err := record.BoardJSONOfRun(r.runHandle); err != nil {
+			r.noteActErr("the board could not be read to tell which engaged gaps are still open: " + err.Error())
+		} else {
+			for _, g := range bj.Open {
+				openNow[g.ID] = true
+			}
+		}
 		for _, id := range engaged {
+			if !openNow[id] {
+				continue
+			}
 			d := r.scenarioOf(id)
 			if r.presented.has(id) {
 				r.evaluated.add(id)
