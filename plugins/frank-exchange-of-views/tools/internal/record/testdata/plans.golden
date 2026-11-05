@@ -404,10 +404,6 @@
   SCAN e USING INDEX events_opening
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
-== stmt 808d40416d9e
--- INSERT INTO "anchor" ("event_id", "id") VALUES (?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt f082d7ed827d
 -- INSERT INTO "anchor" ("event_id", "id", "location") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -454,10 +450,6 @@
 
 == stmt a280c64918f5
 -- INSERT INTO "blue_edit" ("event_id", "edit_key", "old", "new", "text") VALUES (?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 5d377cc02d8b
--- INSERT INTO "blue_edit" ("event_id", "old", "new") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt cbc039c4501a
@@ -2617,38 +2609,6 @@
 == stmt 4bdc1b26744d
 -- SELECT "text", "failure" FROM "report_checkpoint" WHERE "event_id" = ?
   SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid=?)
-
-== stmt ec4d3b871691
--- SELECT (SELECT count(*) FROM "report_op"), (SELECT coalesce(max("event_id"), 0) FROM "report_op")
-  SCAN CONSTANT ROW
-  SCALAR SUBQUERY
-    CO-ROUTINE report_op
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN p
-        UNION ALL
-          SCAN b
-        UNION ALL
-          SCAN a
-        UNION ALL
-          SCAN a
-        UNION ALL
-          SCAN ra
-    SCAN report_op
-  SCALAR SUBQUERY
-    CO-ROUTINE report_op
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN p
-        UNION ALL
-          SCAN b
-        UNION ALL
-          SCAN a
-        UNION ALL
-          SCAN a
-        UNION ALL
-          SCAN ra
-    SEARCH report_op
 
 == stmt 751199db797c
 -- SELECT (SELECT count(*) FROM "verify"), (SELECT count(*) FROM "cite")

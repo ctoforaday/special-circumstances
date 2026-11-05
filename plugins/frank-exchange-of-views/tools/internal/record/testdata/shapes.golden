@@ -303,7 +303,6 @@ stmt e5a94815fabd | constrained-scan | blue_edit | x1
 stmt e5a94815fabd | constrained-scan | retire_anchors | x1
 stmt e724a0181b91 | constrained-scan | cite | x1
 stmt e724a0181b91 | constrained-scan | computation | x1
-stmt ec4d3b871691 | repeated-subplan | report_op | x2
 stmt ee56ea073aea | constrained-scan | retire_anchors | x1
 stmt f2743f0cdeaa | automatic-index | c(close|closure) (gap_id=?) | x1
 stmt f2743f0cdeaa | automatic-index | computed (gap_id=?) | x1
