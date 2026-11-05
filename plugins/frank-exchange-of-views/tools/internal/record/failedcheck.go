@@ -264,10 +264,8 @@ func answersOwnFailedCheck(fs []failedCheck, seatID string, kind recordpb.AboutK
 // one of the same sentence would owe a second gap for the defect the open one holds — the release-gate
 // fuzz minted ~490 such gaps per 40 runs. A check that holds is never refused here: it clears the
 // blocker. Another lens's check is its own.
-//
-// Replay exempts it: an archived check is what a seat DID, recorded before this refusal existed.
 func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fails bool) error {
-	if Migrating || !fails {
+	if !fails {
 		return nil
 	}
 	fs, err := failedChecksAt(q, nil)
@@ -311,12 +309,12 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 // an earlier such reading of its own, the sentence unchanged, while a gap of that earlier reading's
 // carrier tree is open, is refused, naming the earlier reading's event and its gap. A reading with a
 // different outcome is not a repeat. Within one sitting requireNotARetriedReading answers a
-// found-source retry first. Replay exempts it.
+// found-source retry first.
 func requireNotARepeatReading(q recordsql.Querier, seatID string, v *recordpb.Verify) error {
 	if v.GetAnchor() != "" && !VerifyReads(v) {
 		return requireNotARepeatFailedCheck(q, seatID, v.GetAnchor(), true)
 	}
-	if Migrating || len(ReadingGapClasses(v)) == 0 {
+	if len(ReadingGapClasses(v)) == 0 {
 		return nil
 	}
 	evs, win, err := eventsAt(q)
@@ -388,10 +386,9 @@ func repeatReadingRefusal(evs []*Event, win WindowIndex, open map[string]bool, s
 // defect left the report when it did not. b6's G3 closed repaired over two dead anchors the report
 // still cited. A found-against check's carriers are every gap of its reading's carrier tree, so no
 // branch closes out from under it. A successor minted superseding the gap moves the defect rather
-// than ending it, and closes the gap in that act (supersession.go). Replay exempts it: an archived
-// close is what a seat DID.
+// than ending it, and closes the gap in that act (supersession.go).
 func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
-	if Migrating || b.CarriedFrom != nil {
+	if b.CarriedFrom != nil {
 		return nil
 	}
 	fs, err := failedChecksAt(q, nil)

@@ -87,7 +87,7 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	// lane's — written as none (epoch 38) — LESS the 5 inquiry reviews and the 5 rulings on an
 	// inquiry, whose duty the record no longer holds, written as none (epoch 58) — LESS the 7 closes
 	// of R1 gaps the R2 merge closed after minting their successors superseding them, which those
-	// mints had closed (epoch 60).
+	// mints had closed (epoch 62).
 	if outTotal != 804 || res.In["close"] != 10 || res.Out["close"] != 3 || res.In["inquiry_review"] != 5 || res.Out["inquiry_review"] != 0 || res.In["outcome"] != 2 || res.Out["outcome"] != 1 || res.In["closing"] != 19 || res.Out["closing"] != 0 || res.In["position"] != 15 || res.Out["position"] != 5 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
 		res.GapAnchors.Shapes["cite"] != 43 || len(res.GapAnchors.Shapes) != 1 {
 		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries - 10 revisions - 4 coinings - 1 superseded outcome + 43 anchors + 1 fanned reproduce - 19 closings - 10 positions - 5 inquiry reviews - 5 inquiry rulings - 7 closes of superseded gaps = 804 out; got %d (in %v, out %v), anchors added %v", outTotal, res.In, res.Out, res.GapAnchors.Shapes)

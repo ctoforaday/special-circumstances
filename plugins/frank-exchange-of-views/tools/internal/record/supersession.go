@@ -72,11 +72,8 @@ func supersededRefusal(flag, id, successor string) error {
 
 // requireSupersedable is the write path's check of a mint's `supersedes`, ancestor by ancestor: a
 // mint superseding an OPEN gap closes it, so it is held to what a close is held to. Only the gap's
-// minter closes it (requireOriginator's rule), and not while a docket motion on it stands unruled
-// (requireNoStandingDocket's): the bench disposes of a docketed gap. A closed ancestor is lineage
-// only, and any seat may name it.
-//
-// Replay exempts the docket: an archived lens that superseded a docketed gap superseded it.
+// minter closes it (requireOriginator's rule). A closed ancestor is lineage only, and any seat may
+// name it.
 func requireSupersedable(q recordsql.Querier, seatID string, m *recordpb.Mint) error {
 	for _, anc := range m.GetSupersedes() {
 		closed, err := gapState(q, anc)
@@ -96,11 +93,17 @@ func requireSupersedable(q recordsql.Querier, seatID string, m *recordpb.Mint) e
 					"If %s is your defect, file a finding about it; if yours is a different defect, mint it without --supersedes. Nothing was recorded",
 				anc, mintedBy, seatID, anc)
 		}
-		if Migrating {
-			continue
-		}
+	}
+	return nil
+}
+
+// requireSupersededOffDocket refuses a mint superseding an open gap a docket motion stands unruled
+// on, as a close of it is refused (requireNoStandingDocket): the bench disposes of a docketed gap. An
+// act judgement (judgeAct): an archived lens that superseded a docketed gap superseded it.
+func requireSupersededOffDocket(q recordsql.Querier, m *recordpb.Mint) error {
+	for _, anc := range m.GetSupersedes() {
 		var motion string
-		if _, err := queryRowAt(q, []any{&motion}, `SELECT COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, anc); err != nil {
+		if _, err := queryRowAt(q, []any{&motion}, `SELECT COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ? AND "open"`, anc); err != nil {
 			return err
 		}
 		if motion != "" {

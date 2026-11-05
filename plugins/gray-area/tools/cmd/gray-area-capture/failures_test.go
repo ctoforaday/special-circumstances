@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // WHAT THIS FILE TESTS, NOW THAT THE RECORD IS SHARED (scripts/internal/hookfailures): that THIS

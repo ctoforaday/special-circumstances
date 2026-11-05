@@ -92,30 +92,6 @@ func TestAFindingIsPlacedOnTheReportItsAnchorLandsOn(t *testing.T) {
 	}
 }
 
-// V6, ON A RETRY: THE ANCHOR A RECORDED ACT OWES IS PLACED ON THE REPORT IT LANDS ON. A finding on the
-// record without its anchor is retried under its --key; blue's edit takes the stored location out at
-// that moment, and an Anchor placed against the report before it cannot be replayed.
-func TestAnOwedAnchorIsPlacedOnTheReportItLandsOn(t *testing.T) {
-	runDir := raceRun(t)
-	id := record.NewID("finding")
-	recordtest.Seed(t, runDir, recordtest.At(t, lensSeat, lensSeat+":finding:"+id, &recordpb.Finding{
-		Id: proto.String(id), FindingKey: proto.String("F"), Location: proto.String(raceSentence), Text: proto.String("the rise is not sourced"),
-		Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}))
-	edit := blueEditBy(t, "blue-lane-1", "race:edit", raceSentence, "Costs rose only modestly in the first quarter")
-	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{edit}, func() error {
-		_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F", "--quote", raceSentence,
-			"--reason", "the rise is not sourced", "--severity", "low", "--likelihood", "low", "--impact", "low")
-		return err
-	})
-	md := renders(t, runDir)
-	if err == nil || !strings.Contains(err.Error(), "does not place") {
-		t.Fatalf("the retry placed an owed anchor at text an edit took out at that moment = %v\n%s", err, md)
-	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR); n != 0 {
-		t.Errorf("the refused retry recorded %d anchor(s)", n)
-	}
-}
-
 // V5: BLUE'S EDIT IS PLANNED ON THE REPORT IT LANDS ON. A lens's finding places its anchor inside the
 // span blue's edit replaces, at that moment; planned against the report before it, the edit's
 // replacement does not carry the anchor, and replaying the edit takes the finding's anchor out of the

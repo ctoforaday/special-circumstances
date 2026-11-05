@@ -4,7 +4,7 @@ move a grade on a gap that already exists, or keep it, with your reason
 
 ## detail
 
-The gap keeps its identity and its history rather than being closed and re-minted. A gap a successor superseded is closed, and a regrade of it is refused, naming the successor.
+The gap keeps its identity and its history rather than being closed and re-minted.
 
 A REGRADE THAT NAMES NO GRADE KEEPS THE GRADE, and so does one that names only the grades the gap already has. It is how you say, on the record, that a gap of yours still stands after you re-audited it — after blue answered it, or another seat argued about it — and its reason is what your acceptance check still fails. It moves nothing. Where the dispatch engaged you on the gap, your sitting ends the exchange on it, and one that moved nothing counts toward the gap's impasse; where it did not, no exchange is counted by it. Blue reads its reason on its work list beside the gap until it answers the gap again, and the bench reads it in the debate transcript.
 

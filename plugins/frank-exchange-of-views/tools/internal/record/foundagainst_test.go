@@ -97,8 +97,14 @@ func TestTheLensCloseOfAReadingsGapIsRefusedWhileTheCitationStandsFoundAgainst(t
 	}
 	run := foundAgainstBoard(t).seed()
 	lens := Identity{Run: run, SeatID: evLens}
+	// A regression close names the gap holding the regression; that gap carries nothing of G-1's.
+	mustAppend(t, lens, budgetMint("G-9"))
 	for _, word := range closing {
-		_, err := Append(lens, closeOf("G-1", word))
+		c := closeOf("G-1", word)
+		if word == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION {
+			c.Successor = proto.String("G-9")
+		}
+		_, err := Append(lens, c)
 		mustRefuse(t, err, "gap G-1 carries citation C-1", "Nothing is recorded", "another lens's backing reading is a disagreement and clears nothing")
 	}
 	mustAppend(t, Identity{Run: run, SeatID: outsideLens}, &recordpb.Verify{Anchor: proto.String("C-1"), Claim: proto.String("the claim C-1 backs"),
@@ -371,9 +377,7 @@ func TestAReadingsCarrierFieldsAreRefusableAtTheWrite(t *testing.T) {
 			t.Errorf("%s: %v, want it refused saying %q", c.name, err, c.refuse)
 		}
 	}
-	Migrating = true
-	err := validateRun(run, outsideLens, recordpb.EventType_EVENT_TYPE_VERIFY, with(refutes, none, nil, nil))
-	Migrating = false
+	err := wouldReplay(t, run, outsideLens, recordpb.EventType_EVENT_TYPE_VERIFY, with(refutes, none, nil, nil))
 	if err != nil {
 		t.Errorf("an archived refuting reading naming no gap: %v, want it carried as written", err)
 	}

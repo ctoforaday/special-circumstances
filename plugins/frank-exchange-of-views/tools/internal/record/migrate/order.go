@@ -42,14 +42,10 @@ const (
 // is committed, and not kept, it is rolled back and the record replayed as written in a fresh batch
 // on the same database. The schema, applied when the record was opened and before the first batch
 // began, stays; the rolled-back trial leaves no row, so the replay as written starts from the empty
-// record the trial did. A failure of the trial's batch (record.ErrBatchFailed) is the migration's
+// record the trial did. A failure of the trial's batch (record.ErrReplayFailed) is the migration's
 // failure, never a reason to replay as written.
 func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Result, error) {
-	was := record.Now
-	defer func() { record.Now = was }()
-	record.Migrating = true
-	defer func() { record.Migrating = false }()
-	batch, err := record.BeginBatch(dst)
+	batch, err := record.BeginReplay(dst)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +80,7 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 		}
 		// Begun into its own variable: the deferred rollback above reads batch, and a failed begin must
 		// leave it holding the trial's (already rolled back) batch, never nil.
-		next, err := record.BeginBatch(dst)
+		next, err := record.BeginReplay(dst)
 		if err != nil {
 			return nil, err
 		}

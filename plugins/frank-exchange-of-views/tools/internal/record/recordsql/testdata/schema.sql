@@ -72,6 +72,9 @@ CREATE TABLE "events" (
 CREATE UNIQUE INDEX "events_key" ON "events" ("key") WHERE "key" IS NOT NULL;
 CREATE INDEX "events_type" ON "events" ("type");
 CREATE INDEX "events_sitting" ON "events" ("sitting_id");
+-- The rows that opened a sitting, by the seat on their envelope: one half of a seat's latest
+-- sitting (recordsql.LatestSitting). Partial, so it holds the openings and none of the acts.
+CREATE INDEX "events_opening" ON "events" ("seat_id") WHERE "sitting_id" = "id";
 
 CREATE TRIGGER "events_are_append_only_update" BEFORE UPDATE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be edited after it is written');
@@ -455,13 +458,6 @@ CREATE TABLE "gate" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "verdict" TEXT,
   FOREIGN KEY ("verdict") REFERENCES "enum_verdict"("value")
-) STRICT;
-
-CREATE TABLE "gate_migration_admitted_gap_ids" (
-  "event_id" INTEGER NOT NULL REFERENCES "gate"("event_id"),
-  "ord"      INTEGER NOT NULL,
-  "value"    TEXT    NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
 CREATE TABLE "outcome" (
@@ -1005,6 +1001,9 @@ CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
 CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
 -- Whether a computation answers a gap, which the closing and estoppel checks ask per gap.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
+-- The harness brackets naming a seat: the other half of a seat's latest sitting
+-- (recordsql.LatestSitting).
+CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");
 
 -- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
 --
@@ -1016,6 +1015,11 @@ CREATE INDEX "computation_answers" ON "computation" ("answers");
 -- repeated five times: a register's sitting belongs to the seat on its envelope, and a harness
 -- bracket's belongs to the seat its BODY names — the configuration resolved once by the writer
 -- (#1149). Every reader that asks "which sittings has this seat had" joins here and gets both.
+--
+-- The one question it cannot answer by index is a seat's LATEST sitting: its seat is a COALESCE
+-- across the join, so a max over it by seat walks the events from the end. recordsql.LatestSitting
+-- asks that question, as this rule split at the COALESCE into two indexed lookups, and is held to
+-- this view on every archived run.
 CREATE VIEW "sittings" AS
 SELECT e."id"                                                AS "id",
        COALESCE(NULLIF(o."seat_id", ''), e."seat_id")         AS "seat_id",

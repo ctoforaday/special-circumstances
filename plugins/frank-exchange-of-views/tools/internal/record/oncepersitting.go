@@ -9,6 +9,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // THE ONCE-PER-SITTING DUTY AND THE IDEMPOTENCY KEY NOW READ THE SAME FACT, AND THAT IS THE FIX.
@@ -40,7 +41,7 @@ import (
 // It asks for the first such act rather than a count: one row is the whole answer.
 const oncePerSittingSQL = `SELECT e."key" FROM "events" e
      WHERE e."seat_id" = ?1 AND e."type" = ?2
-       AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
+       AND e."sitting_id" IS ?3
      ORDER BY e."id" LIMIT 1`
 
 // requireOncePerSitting refuses a second singleton act of this word attributed to the seat's current
@@ -57,8 +58,12 @@ func requireOncePerSitting(q interface {
 		return nil
 	}
 	word := recordpb.Word(typ)
+	sitting, _, err := recordsql.LatestSitting(q, seatID)
+	if err != nil {
+		return fmt.Errorf("asking which sitting %s is in: %w", seatID, err)
+	}
 	var stands string
-	switch err := q.QueryRow(oncePerSittingSQL, seatID, word).Scan(&stands); {
+	switch err := q.QueryRow(oncePerSittingSQL, seatID, word, sitting).Scan(&stands); {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil
 	case err != nil:

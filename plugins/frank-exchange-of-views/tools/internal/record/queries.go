@@ -255,10 +255,9 @@ func SeatsThatSat(run Run) ([]string, error) {
 // IT IS A LEFT FOLD OF THE OPS FROM THE EMPTY TEXT: replaying B over the text A replayed to is
 // replaying A then B from empty. `parted` says whether the text it starts from holds a part, which
 // every checkpoint and every render that succeeded does; a fold from the empty text starts with none.
-// Three things rest on it: every read starts from the report checkpoint at or below the event it
-// reads at and folds only the ops after it (recordsql.ReportSourceAt); the insert that lands a
-// checkpoint folds the ops since the one before (recordsql.stampReportCheckpoint); and the write path
-// folds the ops another write added onto a render it made before its lock (landingReport.fold).
+// Two things rest on it: every read starts from the report checkpoint at or below the event it
+// reads at and folds only the ops after it (recordsql.ReportSourceAt), and the insert that lands a
+// checkpoint folds the ops since the one before (recordsql.stampReportCheckpoint).
 // TestTheReportReplayIsAFold (internal/record/migrate) holds the renderer to it on archived runs.
 var reportRenderer = reportproj.Replay
 
@@ -294,7 +293,7 @@ func ReportProjection(run Run) (ops []reportproj.ReportOp, err error) {
 }
 
 // RenderAt is the report as q holds it: the newest report checkpoint and the ops after it, read from
-// q and folded. q is the run's handle, a read transaction, or a migration's batch (Batch.Querier),
+// q and folded. q is the run's handle, a read transaction, or a migration's replay (Replay.Querier),
 // whose own writes the render then includes. It is the ONE render over a querier; RenderRun asks it
 // of the run's handle.
 func RenderAt(q recordsql.Querier) (string, error) {
@@ -401,4 +400,17 @@ func gradeAt(q recordsql.Querier, gapID, col string) (word string, found bool, e
 	found, err = queryRowAt(q, []any{&v},
 		fmt.Sprintf(`SELECT %q FROM "gap" WHERE "gap_id" = ?`, "current_"+col), gapID)
 	return v.String, found, err
+}
+
+// latestSittingAt is recordsql.LatestSitting asked of q: the opening of seatID's latest sitting and
+// its rank. A db that is no record (noRecord) holds no sitting.
+func latestSittingAt(q recordsql.Querier, seatID string) (open sql.NullInt64, rank int64, err error) {
+	if noRecord(q) {
+		return sql.NullInt64{}, 0, nil
+	}
+	open, rank, err = recordsql.LatestSitting(q, seatID)
+	if err != nil {
+		return sql.NullInt64{}, 0, fmt.Errorf("asking the record which sitting %s is in: %w", seatID, err)
+	}
+	return open, rank, nil
 }

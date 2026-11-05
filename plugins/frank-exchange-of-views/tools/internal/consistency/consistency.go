@@ -528,10 +528,8 @@ func Check(run record.Run) ([]string, error) {
 	// never fire. What survives is report-INDEPENDENT: the finding↔anchor-event pair below.
 	//
 	// An act that stored a quote and its anchor event are written as a PAIR, in one transaction
-	// (record.AppendPlaced); one with no anchor event is a pair an archived run's crash split, which
-	// migrate brings forward as it stands and a retry under the act's key finishes. Report-independent,
-	// so it runs even when no report renders. On a migrated run it also names each gap whose quote
-	// never placed, which is true of that run.
+	// (record.AppendPlaced); one with no anchor event is a pair an archived run split, which migrate
+	// carries as it stands. Report-independent, so it runs even when no report renders.
 	//
 	// QUOTE-ANCHORED ACTS ONLY, and the set above is what enforces that: an about-anchored finding
 	// or gap legitimately has no anchor, and reporting each one was a violation on an honest record.

@@ -1865,23 +1865,6 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 	} else {
 		lines = append(lines, fmt.Sprintf("tarball: %d transcript(s)", len(transcripts)))
 	}
-	// THE RECORD ITSELF, to the one place that outlives the container. Reported either way: an
-	// archive that silently did not happen is a run whose evidence is gone the next time the
-	// container is reclaimed, and nothing would have said so.
-	if arc, aerr := ArchiveRecord(run, project); aerr != nil {
-		lines = append(lines, "record archive: FAILED — "+jsSlice(aerr.Error(), 200))
-	} else {
-		rel := arc
-		if r, rerr := filepath.Rel(project, arc); rerr == nil {
-			rel = r
-		}
-		if st, serr := os.Stat(arc); serr == nil {
-			lines = append(lines, fmt.Sprintf("record archive: %s (%d KB) — the raw record, which research/ does not keep", rel, st.Size()/1024))
-		} else {
-			lines = append(lines, "record archive: "+rel)
-		}
-	}
-
 	if line := reapOrphanMirrors(now); line != "" {
 		lines = append(lines, line)
 	}
@@ -1992,6 +1975,25 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 
 	markerLine, markerErr := closeRunLiveMarker(project, run.Dir())
 	lines = append(lines, markerLine)
+
+	// THE RECORD ITSELF, to the one place that outlives the container, after every act of capture
+	// that writes it: the seat-turn ingest above writes the record, and an archive taken before it
+	// keeps a record the run did not end with (universe-m38: 438 seat_turn rows archived against
+	// 491 live). Reported either way: an archive that silently did not happen is a run whose
+	// evidence is gone the next time the container is reclaimed, and nothing would have said so.
+	if arc, aerr := ArchiveRecord(run, project); aerr != nil {
+		lines = append(lines, "record archive: FAILED — "+jsSlice(aerr.Error(), 200))
+	} else {
+		rel := arc
+		if r, rerr := filepath.Rel(project, arc); rerr == nil {
+			rel = r
+		}
+		if st, serr := os.Stat(arc); serr == nil {
+			lines = append(lines, fmt.Sprintf("record archive: %s (%d KB) — the raw record, which research/ does not keep", rel, st.Size()/1024))
+		} else {
+			lines = append(lines, "record archive: "+rel)
+		}
+	}
 
 	var out []string
 	out = append(out,

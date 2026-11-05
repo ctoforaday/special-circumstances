@@ -241,7 +241,11 @@ func TmpRun(t *testing.T) string {
 // any way at all, not just the spellings a source sweep would have known to look for.
 //
 // It runs AFTER m.Run, which is the only point where every test's cleanup has fired.
-func Main(m *testing.M) {
+func Main(m *testing.M) { MainThen(m, nil) }
+
+// MainThen is Main with a post-suite step: after runs once every test's cleanup has fired, before
+// the orphaned-handle check, and returns the exit code the run ends with.
+func MainThen(m *testing.M, after func(code int) int) {
 	// Off the public internet, the same guard testbuild.Main installs — the two entry points
 	// between them cover every package in this module that shares a TestMain.
 	nonet.OnlyLoopback()
@@ -249,6 +253,9 @@ func Main(m *testing.M) {
 	// measured case. Both shared TestMains install it, because a package gets one or the other.
 	testbuild.ClearDispatch()
 	code := m.Run()
+	if after != nil {
+		code = after(code)
+	}
 	if err := CheckOrphanedHandles(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if code == 0 {

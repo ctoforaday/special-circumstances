@@ -51,6 +51,11 @@ var ViewsDDL = `
 -- repeated five times: a register's sitting belongs to the seat on its envelope, and a harness
 -- bracket's belongs to the seat its BODY names — the configuration resolved once by the writer
 -- (#1149). Every reader that asks "which sittings has this seat had" joins here and gets both.
+--
+-- The one question it cannot answer by index is a seat's LATEST sitting: its seat is a COALESCE
+-- across the join, so a max over it by seat walks the events from the end. recordsql.LatestSitting
+-- asks that question, as this rule split at the COALESCE into two indexed lookups, and is held to
+-- this view on every archived run.
 CREATE VIEW "sittings" AS
 SELECT e."id"                                                AS "id",
        COALESCE(NULLIF(o."seat_id", ''), e."seat_id")         AS "seat_id",

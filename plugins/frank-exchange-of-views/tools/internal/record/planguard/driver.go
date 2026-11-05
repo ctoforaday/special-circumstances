@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -23,12 +24,20 @@ type Recorder struct {
 	plans     []StatementPlan // each distinct statement's plan, in first-seen order
 	planErrs  []string        // statements whose plan could not be read; see PlanErrors
 	stmts     int64           // atomic: how many statements passed through, so zero findings can be told from zero work
+
+	// issuedBy, when set, decides whether a source file is one whose statements this recorder
+	// answers for; issued holds each statement text some such file has issued. See noteIssuer.
+	issuedBy func(file string) bool
+	issued   map[string]bool
 }
 
 // StatementPlan is one intercepted statement and the plan SQLite chose for it.
 type StatementPlan struct {
 	SQL  string
 	Plan Plan
+	// Issued is whether a file the recorder's issuedBy accepts issued this text (always false
+	// on a recorder without one).
+	Issued bool
 }
 
 // Plans is every distinct statement's plan, in first-seen order.
@@ -37,7 +46,54 @@ func (r *Recorder) Plans() []StatementPlan {
 	defer r.mu.Unlock()
 	out := make([]StatementPlan, len(r.plans))
 	copy(out, r.plans)
+	for i := range out {
+		out[i].Issued = r.issued[out[i].SQL]
+	}
 	return out
+}
+
+// AttributeTo makes the recorder note, for each statement text, whether a source file issuedBy
+// accepts has issued it. A suite's own assertions issue statements too; this is what tells the
+// record's statements from the test's.
+func (r *Recorder) AttributeTo(issuedBy func(file string) bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.issuedBy, r.issued = issuedBy, map[string]bool{}
+}
+
+// noteIssuer records whether the code that issued stmt is a file the recorder answers for.
+//
+// THE ISSUER IS THE FRAME THAT CALLED database/sql. Below it are the drivers — this guard and
+// the record's statement cache — and above it whatever asked; the first frame out of
+// database/sql is the code that wrote the statement or was handed it. It is asked on every
+// execution until one issuer qualifies, because a test may issue a text before the record does.
+func (r *Recorder) noteIssuer(stmt string) {
+	r.mu.Lock()
+	ask := r.issuedBy
+	done := ask == nil || r.issued[stmt]
+	r.mu.Unlock()
+	if done {
+		return
+	}
+	var pcs [64]uintptr
+	frames := runtime.CallersFrames(pcs[:runtime.Callers(2, pcs[:])])
+	inSQL := false
+	for {
+		f, more := frames.Next()
+		if strings.HasPrefix(f.Function, "database/sql.") {
+			inSQL = true
+		} else if inSQL {
+			if ask(f.File) {
+				r.mu.Lock()
+				r.issued[stmt] = true
+				r.mu.Unlock()
+			}
+			return
+		}
+		if !more {
+			return
+		}
+	}
 }
 
 // PlanErrors is every statement the guard tried to plan and could not, with the reason. A
@@ -50,7 +106,11 @@ func (r *Recorder) PlanErrors() []string {
 }
 
 func (r *Recorder) keepPlan(stmt string, rows []PlanRow) {
-	p, err := BuildPlan(rows)
+	var p Plan
+	var err error
+	if len(rows) > 0 || !readsNothing(stmt) {
+		p, err = BuildPlan(rows)
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if err != nil {
@@ -164,14 +224,23 @@ func (c *guardConn) QueryContext(ctx context.Context, query string, args []drive
 		return nil, driver.ErrSkip
 	}
 	c.rec.countStatement()
+	c.rec.noteIssuer(query)
 	c.explain(ctx, q, query, args)
 	return q.QueryContext(ctx, query, args)
 }
 
+// ExecContext explains the statement, then runs it: the record's WRITES are planned as its reads
+// are. A write carries its own reads — an INSERT … SELECT, an UPDATE's WHERE — and the
+// transaction that holds a write lock is where a slow plan costs every other writer.
 func (c *guardConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	e, ok := c.Conn.(driver.ExecerContext)
 	if !ok {
 		return nil, driver.ErrSkip
+	}
+	c.rec.countStatement()
+	c.rec.noteIssuer(query)
+	if q, ok := c.Conn.(driver.QueryerContext); ok {
+		c.explain(ctx, q, query, args)
 	}
 	return e.ExecContext(ctx, query, args)
 }
@@ -185,7 +254,7 @@ func (c *guardConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.
 }
 
 // PrepareContext prepares the statement, and hands back one that explains and counts each time
-// it is queried.
+// it is queried or executed.
 //
 // THE RECORD'S READS ARRIVE HERE AS WELL AS AT QueryContext: recordsql keeps its reads prepared on
 // the connection (recordsql/stmtcache.go), so a read is prepared once and then queried through
@@ -203,8 +272,8 @@ func (c *guardConn) PrepareContext(ctx context.Context, query string) (driver.St
 	return &guardStmt{Stmt: st, conn: c, query: query}, nil
 }
 
-// guardStmt is a prepared statement the guard explains and counts on each query, as it does a
-// query on the connection.
+// guardStmt is a prepared statement the guard explains and counts on each query and each exec, as
+// it does a statement on the connection.
 type guardStmt struct {
 	driver.Stmt
 	conn  *guardConn
@@ -217,6 +286,7 @@ func (s *guardStmt) QueryContext(ctx context.Context, args []driver.NamedValue) 
 		return nil, driver.ErrSkip
 	}
 	s.conn.rec.countStatement()
+	s.conn.rec.noteIssuer(s.query)
 	if cq, ok := s.conn.Conn.(driver.QueryerContext); ok {
 		s.conn.explain(ctx, cq, s.query, args)
 	}
@@ -227,6 +297,11 @@ func (s *guardStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (
 	e, ok := s.Stmt.(driver.StmtExecContext)
 	if !ok {
 		return nil, driver.ErrSkip
+	}
+	s.conn.rec.countStatement()
+	s.conn.rec.noteIssuer(s.query)
+	if cq, ok := s.conn.Conn.(driver.QueryerContext); ok {
+		s.conn.explain(ctx, cq, s.query, args)
 	}
 	return e.ExecContext(ctx, args)
 }
@@ -291,6 +366,23 @@ func asString(v driver.Value) string {
 		return string(s)
 	}
 	return ""
+}
+
+// readsNothing is whether stmt is an insert of literal rows, whose plan SQLite reports as no rows
+// at all: there is no table to search, so an empty plan is the whole answer and not a failed read.
+// An INSERT … SELECT reads, and is planned like any other read.
+func readsNothing(stmt string) bool {
+	head := strings.ToUpper(strings.TrimLeft(stmt, " \t\r\n"))
+	if !strings.HasPrefix(head, "INSERT") && !strings.HasPrefix(head, "REPLACE") {
+		return false
+	}
+	toks := strings.Fields(strings.NewReplacer("(", " ( ", ")", " ) ", ",", " , ").Replace(head))
+	for _, t := range toks {
+		if t == "SELECT" {
+			return false
+		}
+	}
+	return true
 }
 
 // isExplainable keeps the guard away from the statements SQLite will not plan — the transaction

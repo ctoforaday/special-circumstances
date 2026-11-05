@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -52,9 +50,6 @@ type mintMeasure struct {
 	name string // what the refusal calls the unit, plural: "citations on the record"
 	// count counts the units off the record q holds, and off its report, which report renders.
 	count func(q recordsql.Querier, report func() (string, error)) (int, error)
-	// readsReport is whether count reads the report: a mint measured by it renders the report before
-	// its write takes the lock (validationReadsReport).
-	readsReport bool
 }
 
 var (
@@ -62,15 +57,15 @@ var (
 	// row is one citation (its event key is the citation label), and a retired source was still
 	// one the evidence lens had to verify. Counted from the record, not the rendered report, so the
 	// evidence budget never depends on the renderer and cannot shrink under a lens mid-run.
-	measureCitations = mintMeasure{"citations on the record", countRows(`SELECT count(*) FROM "cite"`), false}
+	measureCitations = mintMeasure{"citations on the record", countRows(`SELECT count(*) FROM "cite"`)}
 	// Computations: blue's `computation` rows — every computation recorded on the run. A reproduce is red's
 	// act on a computation and lives in its own table.
-	measureComputations = mintMeasure{"computations on the record", countRows(`SELECT count(*) FROM "computation"`), false}
+	measureComputations = mintMeasure{"computations on the record", countRows(`SELECT count(*) FROM "computation"`)}
 	// Claims: claimcount.Count on the CURRENT report — citation anchors attached to prose.
-	measureClaims = mintMeasure{"claims in the current report", countInReport(claimcount.Count), true}
+	measureClaims = mintMeasure{"claims in the current report", countInReport(claimcount.Count)}
 	// Paragraphs: claimcount.Paragraphs on the CURRENT report — blank-line-separated blocks that
 	// carry prose; headings, anchor-only lines, footnote definitions and fenced code do not.
-	measureParagraphs = mintMeasure{"prose paragraphs in the current report", countInReport(claimcount.Paragraphs), true}
+	measureParagraphs = mintMeasure{"prose paragraphs in the current report", countInReport(claimcount.Paragraphs)}
 )
 
 // mintScale is one area's row: its unit, and the rate — `mints` mints for every `per` units. Two
@@ -211,27 +206,6 @@ func renderFrom(q recordsql.Querier) func() (string, error) {
 	return func() (string, error) { return RenderAt(q) }
 }
 
-// validationReadsReport is whether the write path's validation of body, written by seatID, reads
-// the report: a mint with a quote, whose sentence the one-gap rule reads
-// (requireOneGapPerClassAndSubject), or a mint by a lens whose budget is measured on it
-// (requireMintWithinBudget). The
-// write renders the report before it takes the lock (appendOwn); a mint whose seat validation turns
-// away before the measure renders for nothing.
-func validationReadsReport(seatID string, body proto.Message) bool {
-	if v, ok := body.(*recordpb.Verify); ok {
-		return v.GetCarriedBy() != "" && !v.GetCarrierMinted() // requireStandingCarrier reads its sentence
-	}
-	m, ok := body.(*recordpb.Mint)
-	if !ok {
-		return false
-	}
-	if strings.TrimSpace(m.GetLocation()) != "" {
-		return true
-	}
-	s, ok := mintScales[AreaOf(seatID)]
-	return ok && s.measure.readsReport
-}
-
 func countRows(query string) func(recordsql.Querier, func() (string, error)) (int, error) {
 	return func(q recordsql.Querier, _ func() (string, error)) (int, error) {
 		var n int
@@ -267,28 +241,14 @@ func countInReport(count func(string) int) func(recordsql.Querier, func() (strin
 // THE STANDING IS lensMintStanding'S, the reading the work list states (WorkOfSeat), so the count a
 // lens is shown and the count it is refused on are one read by one function.
 func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error {
-	// THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER. A seat of another
-	// role is not a lens spending a budget; an id with no role is no seat at all, and is refused by
-	// name rather than by an area cut off its spelling — `red-lens-banana` is not the `banana` lens.
-	// requireDispatchableSeat refuses such an id at `register`; a write that reaches here under one
-	// is refused here.
-	role := seatclass.RoleOfSeat(seatID)
-	if role != "" && role != "lens" {
-		return nil
-	}
-	area := AreaOf(seatID)
-	if area == "" {
-		return feov.Errorf(feov.Validation,
-			"%q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
-			seatID)
-	}
-	if _, err := mintScaleOf(area); err != nil {
-		return feov.Errorf(feov.Validation, "%s: %v", seatID, err)
+	area, lens, err := mintAreaOf(seatID)
+	if err != nil || !lens {
+		return err
 	}
 	// THE STANDING IS READ IN THE MINT'S OWN TRANSACTION. Read before it, two mints from one lens —
 	// parallel calls in one sitting — both find the last slot free and both land, and the lens holds
 	// one gap more than its budget admits. The report it is measured on is the write's landing
-	// report, rendered before the lock where nothing has moved it since.
+	// report, rendered in the same transaction, and only where the measure reads it.
 	// A CITATION READING'S GAP, AND AN ANSWER TO A FAILED CHECK OF ITS OWN, ARE ADMITTED AT ANY
 	// STANDING, before the standing is read: they take no mint, so neither the count nor the measure
 	// decides them. The reading's is read off the act, whose Verify is not on the record yet; a
@@ -617,4 +577,29 @@ func mintBudgetOf(read *budgetRead) (*MintBudgetJSON, string) {
 	}
 	return j, fmt.Sprintf("you hold %d gap(s) open of a mint budget of %d%s — %s — so %s; %s. %s",
 		st.Open, b.Budget, answering, b.Arithmetic(), leftWords, tail, mintAnswerOutsideBudget)
+}
+
+// mintAreaOf is the lens area a mint by seatID spends a budget in, and whether seatID is a lens at
+// all; every writer asks it (validate), and the live write's budget reads the area it names.
+//
+// THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER. A seat of another role
+// is not a lens spending a budget; an id with no role is no seat at all, and is refused by name
+// rather than by an area cut off its spelling — `red-lens-banana` is not the `banana` lens.
+// requireDispatchableSeat refuses such an id at `register`; a write that reaches here under one is
+// refused here.
+func mintAreaOf(seatID string) (area string, lens bool, err error) {
+	role := seatclass.RoleOfSeat(seatID)
+	if role != "" && role != "lens" {
+		return "", false, nil
+	}
+	area = AreaOf(seatID)
+	if area == "" {
+		return "", false, feov.Errorf(feov.Validation,
+			"%q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
+			seatID)
+	}
+	if _, err := mintScaleOf(area); err != nil {
+		return "", false, feov.Errorf(feov.Validation, "%s: %v", seatID, err)
+	}
+	return area, true, nil
 }

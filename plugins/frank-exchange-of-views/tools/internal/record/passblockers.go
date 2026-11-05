@@ -816,16 +816,14 @@ func passBlockersOfReads(r planReads) []Blocker {
 }
 
 // requireNoBlockers is the verdict gate. A PASS is refused over every blocker. A FAIL is then held to
-// the convergence rule, which stands only while nothing another seat must act on holds
-// the PASS — so its "or issue `--as PASS`" is true apart from the chair's own items.
+// the convergence rule, which stands only while nothing another seat must act on holds the PASS — so
+// its "or issue `--as PASS`" is true apart from the chair's own items.
 //
-// NOT UNDER A MIGRATION (gblock, 2026-09-11). Migrate translates history;
-// it does not re-judge an archived PASS under a rule that did not exist when the PASS was issued.
-// The archived b7 and b9 runs' PASSes stand over gaps their classes now make material, and
-// refusing them would drop a real event and call the loss a translation. The exemption is not
-// silent: stampMigrationAdmission records those gaps on the PASS, and verify reads them there.
+// AN ACT JUDGEMENT (judgeAct; gblock, 2026-10-24): an archived verdict is carried as history. The
+// archived b7 and b9 runs' PASSes stand over gaps their classes now make material, and the replay
+// writes them as the chair issued them.
 func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker) error {
-	if verdict == recordpb.Verdict_VERDICT_PASS && !Migrating && len(blockers) > 0 {
+	if verdict == recordpb.Verdict_VERDICT_PASS && len(blockers) > 0 {
 		return blockerRefusal(blockers)
 	}
 	if verdict == recordpb.Verdict_VERDICT_FAIL {
@@ -844,6 +842,10 @@ func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker
 //
 // A HALT IS EXEMPT. It is the bench's own decision to end the run, taken with the record in view;
 // refusing it would force rulings after the bench has already stopped the run.
+//
+// AN ACT JUDGEMENT (judgeAct): an archived run's positions were argued to a bench that was never
+// convened for them, and its outcome is what the run did. The migrated record holds the position
+// unruled.
 func requireBenchMotionsRuled(q recordsql.Querier) error {
 	halted, err := recordHasAt(q, `SELECT 1 FROM "halt" LIMIT 1`)
 	if err != nil || halted {
@@ -856,13 +858,6 @@ func requireBenchMotionsRuled(q recordsql.Querier) error {
 	var named []string
 	for _, b := range blockers {
 		if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
-			continue
-		}
-		// NOT UNDER A MIGRATION for a withheld PASS's position (gblock, 2026-10-30, the ruling that
-		// made one a motion). An archived run's positions were argued to a bench that was never
-		// convened for them, and its outcome is what the run did; migrate translates that history
-		// and does not re-judge it under the rule. The migrated record holds the position unruled.
-		if Migrating && b.motionSubject == positionSubject {
 			continue
 		}
 		named = append(named, b.Subject+" ("+b.Detail+")")

@@ -8,7 +8,7 @@ import (
 // write's transaction, before the write path's validation. It refuses by returning an error, which
 // rolls the transaction back with nothing written, and it may fill fields of the body the verb is
 // writing from what it reads there — a fact derived from the record is derived from the record the
-// event joins. Check makes one; CheckOnReport makes one that reads the report.
+// event joins. Check makes one; CheckLast makes one asked after the validation.
 //
 // A VERB'S CHECK MADE BEFORE Append IS A CHECK OF A RECORD ANOTHER SEAT CAN MOVE (#1252). Seats write
 // in parallel: an edit validated against the report as it stood, then appended after another seat's
@@ -17,21 +17,12 @@ import (
 // the event lands on.
 type Guard struct {
 	ask func(*Landing) error
-	// readsReport is the guard's declaration that it reads Landing.Report: the write renders the report
-	// before it takes the lock (landingReport), and the guard is handed that render wherever no other
-	// write has moved the report since.
-	readsReport bool
 	// last is the guard's declaration that it is asked AFTER the write path's validation (CheckLast).
 	last bool
 }
 
-// Check is a guard that does not read the report.
+// Check is a guard asked before the write path's validation.
 func Check(ask func(*Landing) error) Guard { return Guard{ask: ask} }
-
-// CheckOnReport is a guard that reads the report (Landing.Report). The declaration is what keeps the
-// render out of the lock: a write whose guards declared none, asked for the report, is refused as an
-// internal error rather than rendering it under the lock.
-func CheckOnReport(ask func(*Landing) error) Guard { return Guard{ask: ask, readsReport: true} }
 
 // CheckLast is a guard asked after the write path's own validation rather than before it: one whose
 // refusal tells the seat to record the act again, which is false of an act the write path refuses for
@@ -70,19 +61,8 @@ func guardsAt(w writeView, guards []Guard, last bool) error {
 	return nil
 }
 
-// guardsReadReport is whether any of guards declared that it reads the report.
-func guardsReadReport(guards []Guard) bool {
-	for _, g := range guards {
-		if g.readsReport {
-			return true
-		}
-	}
-	return false
-}
-
-// Report is the report as the record the write lands on renders it: the render made before the lock
-// where no write has moved the report since, else a render under it (landingReport). A guard asks it
-// only when it was made by CheckOnReport.
+// Report is the report as the record the write lands on renders it, read in the writing transaction
+// (RenderAt).
 func (l *Landing) Report() (string, error) { return l.w.report() }
 
 // Family is FamilyOf asked of the landing record.
@@ -112,9 +92,6 @@ func (l *Landing) ProposalAppliedVerbatim(gapID, report, old, new string) (bool,
 
 // EditSpans is every recorded edit's (old, new) on the landing record, in record order.
 func (l *Landing) EditSpans() ([]EditSpan, error) { return editSpansAt(l.w.q) }
-
-// UnplacedLocation is record.UnplacedLocation asked of the landing record.
-func (l *Landing) UnplacedLocation(id string) (string, error) { return unplacedLocationAt(l.w.q, id) }
 
 // PartStanding is record.PartStanding asked of the landing record.
 func (l *Landing) PartStanding(seat string) (recorded, changed bool, err error) {

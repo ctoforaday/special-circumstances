@@ -18,8 +18,8 @@ package main
 import (
 	"os"
 
-	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/telecli"
+	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
 
 func main() {

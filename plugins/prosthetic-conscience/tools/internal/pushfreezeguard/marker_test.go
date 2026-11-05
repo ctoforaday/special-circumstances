@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // A MARKER THAT IS NOT JSON AT ALL made runlive.Read return the zero State, so this guard saw no live

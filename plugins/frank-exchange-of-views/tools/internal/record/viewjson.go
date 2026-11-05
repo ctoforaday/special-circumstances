@@ -818,9 +818,8 @@ type WorkGapJSON struct {
 	// IT IS NEVER OMITTED. An empty list on a `marked` gap is the answer "blue has not changed this
 	// sentence", the commonest state a lens dispatched to verify a repair finds. An edit that cuts
 	// the sentence down to the bare anchor is not listed, because there is no sentence left to
-	// re-read; the gap reads `gone`: the gap's anchor is not in the report — blue cut its sentence,
-	// or, in a migrated run, its quote never placed; that is not silence — judge the report as it
-	// stands. `changes` names the edit that cut it.
+	// re-read; the gap reads `gone`: the gap's anchor is not in the report — blue cut its sentence;
+	// that is not silence — judge the report as it stands. `changes` names the edit that cut it.
 	EditedSince []GapEdit `json:"edited_since"`
 	// ProblemSynopsis is the first synopsisLimit runes, kept because a chair scanning many open
 	// gaps reads it as a list. Problem is the WHOLE statement, because the originator re-auditing
@@ -2080,7 +2079,7 @@ const (
 
 // GoneTeaching is what a `gone` gap asks of its reader, word for word wherever it is taught: it names
 // both causes and asserts neither.
-const GoneTeaching = "the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands"
+const GoneTeaching = "the gap's anchor is not in the report — blue cut its sentence; that is not silence — judge the report as it stands"
 
 // LocationStates names each location state and what it asks of a reader; the work and board help
 // pages render it.

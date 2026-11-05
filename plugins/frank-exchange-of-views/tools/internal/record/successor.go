@@ -201,21 +201,44 @@ func requireEngage(q recordsql.Querier, writer string, b *recordpb.Dispatch) err
 		}
 		seen[g] = true
 	}
-	// Off under Migrating: an archived blue engaged the successors its sitting owed under the rule of
-	// its day, when a mint superseding a gap left the gap open and blue found it closed only at its
-	// lens's close.
-	var missing []string
+	if len(problems) > 0 {
+		return feov.Errorf(feov.Validation, "%s. This sitting owes exactly %s — your work list's engaged.successors_owed",
+			strings.Join(problems, "; "), strings.Join(want, ","))
+	}
+	return nil
+}
+
+// requireEngageNamesEveryOwed refuses an engagement that leaves out a successor its sitting owes:
+// one `engage` names the whole set (requireEngage holds each name to it). An act judgement (judgeAct):
+// an archived blue engaged the successors its sitting owed under the rule of its day, when a mint
+// superseding a gap left that gap open and blue found it closed only at its lens's close.
+func requireEngageNamesEveryOwed(q recordsql.Querier, b *recordpb.Dispatch) error {
+	evs, win, err := eventsAt(q)
+	if err != nil {
+		return err
+	}
+	var openErr error
+	open := func(id string) bool {
+		closed, err := gapState(q, id)
+		if err != nil && openErr == nil {
+			openErr = err
+		}
+		return !closed
+	}
+	owed, _ := successorsOwed(evs, win, open)
+	if openErr != nil {
+		return openErr
+	}
+	var missing, want []string
 	for _, o := range owed {
-		if !seen[o.GapID] && !Migrating {
+		want = append(want, o.GapID)
+		if !slices.Contains(b.GetGapIds(), o.GapID) {
 			missing = append(missing, fmt.Sprintf("%s (successor of %s)", o.GapID, o.Of))
 		}
 	}
 	if len(missing) > 0 {
-		problems = append(problems, "it leaves out "+strings.Join(missing, ", ")+" — one `engage` names every successor the sitting owes")
-	}
-	if len(problems) > 0 {
-		return feov.Errorf(feov.Validation, "%s. This sitting owes exactly %s — your work list's engaged.successors_owed",
-			strings.Join(problems, "; "), strings.Join(want, ","))
+		return feov.Errorf(feov.Validation, "it leaves out %s — one `engage` names every successor the sitting owes. This sitting owes exactly %s — your work list's engaged.successors_owed",
+			strings.Join(missing, ", "), strings.Join(want, ","))
 	}
 	return nil
 }

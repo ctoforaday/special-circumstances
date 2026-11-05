@@ -20,7 +20,7 @@ import (
 // THE DUTIES ARE THE ONES THE RECORD SAID BEFORE THE DROP. A dropped closing is the chair's, or
 // blue's on a gap no unruled docket motion stood on, and a dropped position is no chair's, so none of
 // them discharged a duty: a tally that moves here means the drop took an argument a duty read. The
-// one exception is a docket on a gap a successor's mint had closed (epoch 60): m29's two and m30's
+// one exception is a docket on a gap a successor's mint had closed (epoch 62): m29's two and m30's
 // one are left out as acts on a closed gap, so no closing is owed on them, and their closings are
 // written as none with them.
 var argumentResidue = map[string]struct {

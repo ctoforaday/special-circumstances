@@ -40,11 +40,6 @@ type Check struct {
 	NA         bool     `json:"na"`
 	Detail     string   `json:"detail"`
 	Violations []string `json:"violations"`
-	// Admitted names the gaps a check does not count as violations because the record says a
-	// migration admitted them — today only `pass-closes-all-gaps`, over the open material gaps a
-	// migrated PASS carries. A separate field, not a detail string, so a renderer lists them
-	// beside the violations and a reader of the JSON can tell an admitted PASS from a clean one.
-	Admitted []string `json:"admitted_by_migration"`
 }
 
 func ok(name, detail string) Check { return Check{Name: name, OK: true, Detail: detail} }
@@ -277,7 +272,7 @@ const (
 
 // passClosesAllGaps: the #67 gate, verified after the fact. A PASS verdict with an open MATERIAL
 // gap is a contradiction — the record says the run resolved what mattered, and it did not. A gap
-// its class never makes material leaves the PASS sound, and migration may admit a PASS it recorded.
+// its class never makes material leaves the PASS sound.
 func passClosesAllGaps(f record.Family) Check {
 	var gate *recordpb.Gate
 	for _, e := range f.Events {
@@ -297,36 +292,17 @@ func passClosesAllGaps(f record.Family) Check {
 	// MATERIAL gaps hold the gate, by the one definition the family carries (Gap.Material: its
 	// class, else a current severity of medium or above). A PASS over an open gap that is not
 	// material is legal; the gap stays open on the board. A PASS over an open MATERIAL gap is the
-	// #67 violation — unless the PASS itself records that a migration admitted it over that gap
-	// (Gate.migration_admitted_gap_ids, stamped only under Migrating; a live write carrying it is
-	// refused). The field is the only thing that tells the two apart, so the admitted gaps are
-	// reported by name and never folded into a clean "ok".
-	admitted := map[string]bool{}
-	for _, id := range gate.GetMigrationAdmittedGapIds() {
-		admitted[id] = true
-	}
-	var open, admittedOpen []string
+	// #67 violation.
+	var open []string
 	for _, g := range f.Gaps {
 		if g == nil || !g.Open || !g.Material {
 			continue
 		}
-		if admitted[g.ID] {
-			admittedOpen = append(admittedOpen, g.ID)
-		} else {
-			open = append(open, g.ID)
-		}
+		open = append(open, g.ID)
 	}
-	c := result("pass-closes-all-gaps",
+	return result("pass-closes-all-gaps",
 		"PASS and no material gap left open",
 		"the verdict is PASS but material gaps are still open — the PASS gate was violated", open)
-	if len(admittedOpen) > 0 {
-		sort.Strings(admittedOpen)
-		c.Admitted = admittedOpen
-		if c.OK {
-			c.Detail = "PASS admitted by migration over material gaps open when the archived PASS was issued, and no other material gap left open"
-		}
-	}
-	return c
 }
 
 // registerBeforeAppend: the FIRST event a seat writes must be its register — an event from a seat

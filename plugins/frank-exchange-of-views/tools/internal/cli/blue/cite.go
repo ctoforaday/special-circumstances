@@ -72,8 +72,7 @@ func newCite() *cobra.Command {
 		}
 
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
-		// second fetch AND no second anchor (BEFORE any effect). A cite on the record without its
-		// anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by the retry, at the location it stored.
+		// second fetch AND no second anchor (BEFORE any effect).
 		key := seat.Str(cmd, flags.Key)
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
@@ -83,9 +82,6 @@ func newCite() *cobra.Command {
 			// second citation reusing the name.
 			retry := citeRetry(cmd, why)
 			if err := seat.RepeatsKeyed(key, "citation", prior.GetLabel(), prior, retry, citeAsserted...); err != nil {
-				return nil, err
-			}
-			if err := seat.PlaceOwed(s, prior.GetLabel(), key); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: prior.GetLabel(), URL: prior.GetUrl(), Sha256: prior.GetSha256(), Pages: prior.GetPages(), Origin: recordpb.Word(prior.GetSourceTextOrigin()),

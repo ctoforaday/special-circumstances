@@ -7,62 +7,12 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/planguard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
-
-// statementFloor is the number of statements the sweep below is known to produce. It exists so
-// COVERAGE CANNOT COLLAPSE IN SILENCE: if a refactor stops routing reads through the guarded
-// driver, or the sweep stops reaching the read paths, the findings list goes empty and every
-// assertion here passes while measuring nothing. A floor turns that into a failure.
-//
-// It is a floor and not an equality: adding a read path SHOULD raise the count, and a test that
-// had to be edited every time someone added a query would be edited without being read.
-const statementFloor = 30
-
-// seedAndSweep opens a guarded run, drives the record's read paths through it, and returns the
-// recorder and the path of the record it swept.
-func seedAndSweep(t *testing.T) (*planguard.Recorder, string) {
-	t.Helper()
-	rec := planguard.NewRecorder()
-	name, err := planguard.Install(rec)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer recordsql.UseDriver(name)()
-
-	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
-		GapId: proto.String("G1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
-		AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
-		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-	}))
-	run := runtest.Open(t, dir)
-
-	// The read surface, driven through the guarded driver. Every entry point added here widens
-	// what the guard can see; none of them is asserted on individually.
-	_, _ = record.FamilyOf(run)
-	_, _, _ = record.BoardCounts(run)
-	_, _ = record.CitationLabels(run)
-	_, _ = record.CitedSources(run)
-	_, _ = record.RecordedComputations(run)
-	_, _ = record.MergedEvents(run)
-	_, _ = record.BoardJSONBytes(run)
-	_, _ = record.MotionsJSONBytes(run)
-	_, _ = record.EvidenceJSONBytes(run)
-	_, _ = record.Epochs(run)
-	_, _ = record.SeatsThatSat(run)
-	_, _ = record.TerminalVerdict(run)
-	_, _ = record.RecordedOutcome(run)
-	return rec, filepath.Join(run.Records(), "record.db")
-}
 
 // THE GROWTH SET IS DERIVED, AND MUST STAY BIG ENOUGH TO MEAN SOMETHING. A derivation that
 // silently returned two tables would guard almost nothing while reading as a guard.
@@ -221,5 +171,36 @@ func TestAFilteredQueryWithoutAnIndexIsCaughtAndAnIndexedOneIsNot(t *testing.T) 
 	if found(indexed) {
 		t.Errorf("filtering `mint` on its INTEGER PRIMARY KEY was reported as a defect — the "+
 			"guard cries wolf on a point lookup.\n  reported: %v", reported)
+	}
+}
+
+// THE WRITES ARE PLANNED AS THE READS ARE, and an insert of literal rows is a plan of no rows, not
+// a failed read. Seeding a record writes through the guarded driver's Exec path, inside the
+// transaction that holds the connection: the insert must be planned there, and must not land in
+// PlanErrors, where it would read as a statement whose findings are unknown.
+func TestWritesArePlannedAndALiteralInsertReadsNothing(t *testing.T) {
+	rec := planguard.NewRecorder()
+	name, err := planguard.Install(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer recordsql.UseDriver(name)()
+	dir := recordtest.TmpRun(t)
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "red-chair:register:1", &recordpb.Register{}))
+
+	if errs := rec.PlanErrors(); len(errs) > 0 {
+		t.Fatalf("the seed's statements could not be planned:\n%s", strings.Join(errs, "\n"))
+	}
+	var insert *planguard.StatementPlan
+	for _, sp := range rec.Plans() {
+		if strings.HasPrefix(sp.SQL, "INSERT INTO events ") {
+			insert = &sp
+		}
+	}
+	if insert == nil {
+		t.Fatal("the event's INSERT was not planned — the guard does not see writes")
+	}
+	if len(insert.Plan.Roots) != 0 {
+		t.Errorf("a literal insert planned as %q, want no plan rows", insert.Plan.Render())
 	}
 }
