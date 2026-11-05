@@ -35,10 +35,10 @@ func TestTheSittingThatOpensTheLastEpochDispatchesNobodyAndTheRunEndsCeiling(t *
 		t.Errorf("derived (%q, %q, %v, %v), want CEILING naming the epoch limit", got, why, ok, err)
 	}
 
-	// Under the limit the board's parties are dispatched as ever.
-	writeRunConfig(t, b.runDir, `{"maxEpochs":3}`)
+	// Under the limit, short of the epoch before the last, the board's parties are dispatched as ever.
+	writeRunConfig(t, b.runDir, `{"maxEpochs":4}`)
 	if plan, _ := PlanDispatch(run); plan.EpochLimitReached || plan.Ceiling || len(plan.Parties) != 1 {
-		t.Errorf("plan at epoch 2 of 3 = %+v, want blue on G1", plan)
+		t.Errorf("plan at epoch 2 of 4 = %+v, want blue on G1", plan)
 	}
 	// A run whose config states no limit is held to none.
 	writeRunConfig(t, b.runDir, `{"k":2}`)

@@ -1492,7 +1492,11 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if role == "lens" || role == "blue" {
 		w.keepClosingsOf(evs, win, gaps, seatID)
 	}
-	reads := sittingReads{unverifiable: unverifiableIn(r)}
+	params, err := RunParams(run)
+	if err != nil {
+		return WorkJSON{}, err
+	}
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs))}
 	var budget *MintBudgetJSON
 	var budgetLine string
 	if role == "lens" {

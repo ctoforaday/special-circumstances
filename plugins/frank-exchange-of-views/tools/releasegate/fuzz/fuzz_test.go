@@ -790,7 +790,13 @@ type runner struct {
 	// foundAgainstCite is blue's citation the chain prefers to read (citeForFoundAgainst), foundAgainstCiteTried
 	// whether blue's one try at it ran, and foundAgainstAnchor the citation the owner's reading has found
 	// against, awaiting its re-read.
-	forceFoundAgainst                             bool
+	forceFoundAgainst bool
+	// forceFateTurn drives fateTurnSeed's run through a fate turn (fateturnseed_test.go): fateTurnGap is
+	// the lens's gap about the composed section, fateTurnInquiry the inquiry whose fate it prints,
+	// fateTurnChanged whether blue has changed that fate answering it, and fateTurnStage the last step
+	// the chain reached, which the run's error names when no fate turn was counted.
+	forceFateTurn, fateTurnChanged                bool
+	fateTurnGap, fateTurnInquiry, fateTurnStage   string
 	foundAgainstChained, foundAgainstRepeatedRead bool
 	foundAgainstStage                             string
 	foundAgainstCite, foundAgainstAnchor          string
@@ -1911,6 +1917,14 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
 	// exists to catch.
 	return plan
+}
+
+// holdsBlueOut is whether plan was asked in the epoch that holds blue out — the last that dispatches a
+// lens — read off the plan's own max_epochs and epoch by the record's one definition (Plan.BlueHeldOut).
+func holdsBlueOut(plan map[string]any) bool {
+	maxEpochs, _ := plan["max_epochs"].(float64)
+	epoch, _ := plan["epoch"].(float64)
+	return record.Plan{MaxEpochs: int(maxEpochs), Epoch: int(epoch)}.BlueHeldOut()
 }
 
 // auditRead is a lens sitting's read of the report. THE AUDIT IS SERVED THE WHOLE REPORT, and that
@@ -3161,7 +3175,8 @@ func readiedForReopened(plan map[string]any) (held, readied bool) {
 
 // tallyUnsound counts the plan's failed-check blockers and whether it readied their lens or blue for
 // each (record dispatch Source 4): blue is readied for every one, unless the plan says blue has sat
-// since its cause, or the plan is at the epoch limit, which dispatches nobody. Called with r.mu held.
+// since its cause, the plan is at the epoch limit, which dispatches nobody, or the plan holds blue out
+// of the last epoch that dispatches a lens (holdsBlueOut). Called with r.mu held.
 func (r *runner) tallyUnsound(plan map[string]any, party map[any]bool) {
 	whys, _ := plan["why"].([]any)
 	satSince := func(seat, anchor string) bool {
@@ -3173,6 +3188,7 @@ func (r *runner) tallyUnsound(plan map[string]any, party map[any]bool) {
 		return false
 	}
 	limit, _ := plan["epoch_limit_reached"].(bool)
+	blueOut := holdsBlueOut(plan)
 	held, readied := false, true
 	bs, _ := plan["blockers"].([]any)
 	for _, b := range bs {
@@ -3184,7 +3200,7 @@ func (r *runner) tallyUnsound(plan map[string]any, party map[any]bool) {
 		owner, anchor := fmt.Sprint(m["owner"]), fmt.Sprint(m["subject"])
 		ok := party[owner] || party["blue-respond"]
 		readied = readied && ok
-		if !ok && !limit && !satSince("blue-respond", anchor) && r.unsoundReadyErr == "" {
+		if !ok && !limit && !blueOut && !satSince("blue-respond", anchor) && r.unsoundReadyErr == "" {
 			r.unsoundReadyErr = fmt.Sprintf("a plan holds %s on a failed check by %s and readies neither it nor blue, with no reason saying either sat since: why %v", anchor, owner, whys)
 		}
 	}
@@ -5348,6 +5364,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.docketLockedGap(seatID)
 		}
 		r.extras("blue", seatID, open)
+		// THE FORCED FATE TURN'S ANSWER comes before the sitting's other fates, so it is a fate of its own.
+		r.changeFateForTurn(seatID)
 		// EVERY OPEN INQUIRY GETS A FATE THIS SITTING: each is a blocking item on blue's work list.
 		r.settleOpenInquiries(seatID)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
@@ -5594,6 +5612,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 			}
 		}
+		r.mintAboutFateSection(seatID)
 		r.mintHeldTrifle(seatID)
 		r.closeNamedOnTurn(seatID, engaged)
 		fresh := r.rng.Intn(3)
@@ -6445,9 +6464,10 @@ const estoppelSeed = 2
 const verifiedSeed = 3
 
 // limitSeed is the one seed whose run is FORCED to the epoch-limit exit: its config states a limit
-// of forcedEpochLimit where every other run states setup's default. At the chair's second sitting
-// every lens has sat once and none has retired, so the plan readies them, the limit dispatches
-// nobody, and the run ends CEILING by its term — on every sweep, not on a draw.
+// of forcedEpochLimit where every other run states setup's default. Its first epoch is the last that
+// dispatches a lens, so it holds blue out, and what readied blue there — an inquiry the synthesis left
+// open, a gap the lenses minted — still readies it at the chair's second sitting, where the limit
+// dispatches nobody and the run ends CEILING by its term — on every sweep, not on a draw.
 //
 // MEASURED under setup's default of 12: 5, 9, 3, 6, 1 and 2 runs in 40 ended at the limit across
 // six sweeps, so a floor on the drawn runs alone finds none about once in fifty. Those drawn exits
@@ -6581,6 +6601,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
 	r.forceFoundAgainst = seed == foundAgainstSeed
+	r.forceFateTurn = seed == fateTurnSeed
 	r.forceLeftOut = seed == leftOutSeed
 	r.forceMintBare = seed == mintBareSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
@@ -7422,6 +7443,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = fmt.Sprintf("forced unsound computation: no plan readied %s or blue for an unsound computation; the chain reached %s", computationOwner, stage)
 	}
 	if msg := r.foundAgainstForcedErr(); msg != "" && res.err == "" {
+		res.err = msg
+	}
+	if msg := r.fateTurnForcedErr(); msg != "" && res.err == "" {
 		res.err = msg
 	}
 	if r.forceAbsentSpan && r.spansRefused == 0 && res.err == "" {
