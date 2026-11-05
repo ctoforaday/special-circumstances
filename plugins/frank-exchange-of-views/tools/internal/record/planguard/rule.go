@@ -36,19 +36,28 @@ import "strings"
 //     the question this guard asks.
 //
 // What is left is the signature of a dropped index: a statement that CONSTRAINS a growing table
-// and still walks all of it. The findings it reports today are in internal/record/testdata/
-// shapes.golden, kind constrained-scan, and a fix removes its line.
+// and still walks all of it. On a table the statement reads itself it is refused, never baselined
+// (Shape.Refused, Suite): the index lands with the statement. Inside a view it is the view's cost,
+// and internal/record/testdata/shapes.golden holds it until the view is made cheaper.
 //
 // # The limit, stated rather than papered over
 //
 // The constraint test is read off the statement text, so a multi-table statement that constrains
 // one table while legitimately scanning another would be reported. That is a LOUD false positive:
-// someone reads it, and either finds a real defect or learns the rule needs sharpening. There is
-// deliberately NO allowlist to silence one — an allowlist is the hand-kept list this package
-// exists to avoid. A false positive sits in the generated baseline, visible, until the rule is
-// sharpened or the statement is rewritten. `SELECT MIN("id") FROM "events"` inside a statement
-// with a WHERE is one: its "SEARCH events" reads one row, and the rule cannot tell it from a walk
-// (heapScan says why).
+// someone reads it, and either finds a real defect or learns the rule needs sharpening. A false
+// positive is fixed in the rule, never allowed: the suite's Unindexed table is for a REAL walk no
+// index can serve, each entry with its reason, and a hand-kept list of rule misfires there is the
+// list this package exists to avoid. Two have been sharpened away, each read off the plan and the
+// statement:
+//
+//   - A join with no WHERE narrows its INNER loops, never its outer one: the full replay
+//     `FROM "events" e LEFT JOIN "events" s ON …` walks every event because it is asked for every
+//     event. Without a WHERE, the first loop of a join is not counted (constraint.counts).
+//   - `SELECT MAX("id") FROM "events"` reads one row: the min/max optimization stops at the end of
+//     the rowid. SQLite prints the same bare "SEARCH events" for it as for a max over an
+//     unindexed column or a max filtered by one, which walk, so the plan alone cannot tell them
+//     apart; the statement can. A min()/max() of the table's INTEGER PRIMARY KEY, in a SELECT that
+//     reads that one table with no WHERE, is not counted (Scope.oneRowMinMax).
 //
 // There is a SECOND limit, and it is the one worth knowing before trusting this: dropping an
 // index that only ever served an UNCONSTRAINED read is invisible here. `SELECT DISTINCT "type"
@@ -59,21 +68,41 @@ import "strings"
 // shapes are read off the plan tree by Analyzer.Shapes against a committed baseline (Suite).
 // This rule stays what it is: the missing-index signature on a constrained statement.
 
-// constrains reports whether the statement narrows what it reads. A WHERE clause or a join
-// predicate means the author asked for a subset — and a subset that still costs a full walk is
-// what a missing index looks like.
+// constraint is how a statement narrows what it reads: a WHERE clause, a join predicate, or both.
+type constraint struct{ where, join bool }
+
+// constrains reads the statement's constraint. A WHERE clause or a join predicate means the author
+// asked for a subset — and a subset that still costs a full walk is what a missing index looks
+// like.
 //
 // Word-boundary matched on the uppercased text: "WHERE" inside a quoted string or a column named
 // `wherefore` must not make an unconstrained bulk read look constrained, because that direction
 // manufactures a defect out of a correct query.
-func constrains(statement string) bool {
+func constrains(statement string) constraint {
 	up := strings.ToUpper(statement)
-	for _, kw := range []string{"WHERE", "JOIN"} {
-		if containsWord(up, kw) {
-			return true
+	return constraint{where: containsWord(up, "WHERE"), join: containsWord(up, "JOIN")}
+}
+
+// counts reports whether a heap scan at node n is a constrained one. Under a WHERE every scan is.
+// Under a join alone, the outer loop — the first loop among its siblings — walks what the
+// statement asked for whole, and only the loops joined to it are narrowed.
+func (c constraint) counts(n *PlanNode, p Plan) bool {
+	switch {
+	case c.where:
+		return true
+	case !c.join:
+		return false
+	}
+	siblings := p.Roots
+	if n.parent != nil {
+		siblings = n.parent.Children
+	}
+	for _, sib := range siblings {
+		if f := first(sib.Detail); f == "SCAN" || f == "SEARCH" {
+			return sib != n
 		}
 	}
-	return false
+	return true
 }
 
 func containsWord(haystack, word string) bool {

@@ -20,9 +20,10 @@ import (
 // and testdata/shapes.golden (planguard.Suite).
 func TestMain(m *testing.M) {
 	suite, err := planguard.StartSuite(planguard.SuiteConfig{
-		Dirs:     []string{".", "recordsql"},
-		Excluded: censusExcluded,
-		Route:    recordsql.UseDriver,
+		Dirs:      []string{".", "recordsql"},
+		Excluded:  censusExcluded,
+		Unindexed: unindexed,
+		Route:     recordsql.UseDriver,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "planguard:", err)
@@ -38,3 +39,9 @@ var censusExcluded = map[string]string{
 	// rows reads no table, so there is no plan to take.
 	`INSERT INTO %q (%s) VALUES (%s);`: "a line of the schema script, not a statement of its own",
 }
+
+// unindexed is each walk of a growing table that no index can serve, keyed by its shapes.golden
+// line, with the reason the index cannot exist. A statement's own walk of a growing table is a
+// missing index, and planguard refuses it: the index lands with the statement. An entry here is
+// the exception argued in review; one whose finding is gone fails the suite.
+var unindexed = map[string]string{}
