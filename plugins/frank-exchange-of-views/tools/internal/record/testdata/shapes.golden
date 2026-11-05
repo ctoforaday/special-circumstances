@@ -218,21 +218,6 @@ stmt a5704baaf93c | constrained-scan | motion_rule_docket | x2
 stmt a5704baaf93c | constrained-scan | motion_rule_position | x1
 stmt a5704baaf93c | constrained-scan | s(mint_supersedes|stretch) | x1
 stmt a5704baaf93c | constrained-scan | x(cite|computation|reproduce|verify) | x4
-stmt a892e065d810 | automatic-index | answers_retired (gap_id=?) | x1
-stmt a892e065d810 | automatic-index | c(close|closure) (gap_id=?) | x1
-stmt a892e065d810 | automatic-index | evidence (anchor_id=?) | x3
-stmt a892e065d810 | automatic-index | evidence_met (gap_id=?) | x1
-stmt a892e065d810 | automatic-index | latest_check (anchor=? | x1
-stmt a892e065d810 | automatic-index | latest_remand (gap_id=?) | x1
-stmt a892e065d810 | automatic-index | superseded (gap_id=?) | x1
-stmt a892e065d810 | automatic-index | unruled_docket (gap_id=?) | x1
-stmt a892e065d810 | constrained-scan | c(close|closure) | x1
-stmt a892e065d810 | constrained-scan | mint | x3
-stmt a892e065d810 | constrained-scan | mint_supersedes | x1
-stmt a892e065d810 | constrained-scan | motion_rule_docket | x2
-stmt a892e065d810 | constrained-scan | motion_rule_position | x1
-stmt a892e065d810 | constrained-scan | s(mint_supersedes|stretch) | x1
-stmt a892e065d810 | constrained-scan | x(cite|computation|reproduce|verify) | x4
 stmt a8a6c806e2ea | constrained-scan | close | x1
 stmt a9ee89157651 | automatic-index | answers_retired (gap_id=?) | x1
 stmt a9ee89157651 | automatic-index | c(close|closure) (gap_id=?) | x1
