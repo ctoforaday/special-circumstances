@@ -16,7 +16,7 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a close of a docketed gap, a docket motion on
+// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a close of a docketed gap, a close whose live-answer demand nothing meets, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
 // that names no kind, a reading that names no gap to carry it, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
@@ -49,7 +49,14 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		return refuseMintReportVoice(b)
 	case *recordpb.Close:
 		if b.CarriedFrom == nil {
-			return requireNoStandingDocket(q, b.GetGapId())
+			if err := requireNoStandingDocket(q, b.GetGapId()); err != nil {
+				return err
+			}
+			// THE LIVE-ANSWER DEMAND, ASKED OF THE RECORD THE CLOSE LANDS ON. evidence_answered can
+			// go false — a retire of the gap's only answer — so the verb's read before the write is
+			// not the answer that holds. A carry restates a closure and closes no open gap, and the
+			// replay never asks: every archived close replays as it was admitted.
+			return requireDemandMet(q, b.GetGapId())
 		}
 	case *recordpb.Motion:
 		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {

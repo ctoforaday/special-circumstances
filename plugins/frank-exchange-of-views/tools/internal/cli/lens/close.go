@@ -1,8 +1,6 @@
 package lens
 
 import (
-	"fmt"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -59,9 +57,11 @@ func newClose() *cobra.Command {
 		// disposition, a close to a successor included, and before the record's failed-check refusal,
 		// so a close the demand admits can still be refused by a check that stands.
 		//
-		// IT IS ASKED HERE, IN THE VERB, AND NOT IN record.validate: replay writes through the record
-		// and never passes this verb, so every archived close replays as it was admitted, and `carry`
-		// restates a closure the record already holds, which no open gap has.
+		// IT IS ASKED HERE FIRST, SO IT REFUSES BEFORE THE RECORD'S SHAPE CHECKS, AND AGAIN IN THE
+		// WRITE'S TRANSACTION (record.judgeAct), WHERE THE ANSWER HOLDS: a retire of the gap's only
+		// answer can land between this read and the write. Neither is in record.validate: replay
+		// never asks the act judgements, so every archived close replays as it was admitted, and
+		// `carry` restates a closure the record already holds, which no open gap has.
 		//
 		// AN UNREADABLE RECORD REFUSES THE CLOSURE (gblock, 2026-10-23). A closure admitted
 		// because the check could not be asked is a closure the tool vouched for on nothing.
@@ -117,54 +117,10 @@ func requireEvidenceAnswered(gapID string, demandOf func(string) (record.Evidenc
 	if err != nil {
 		return unreadableRefusal("the live-answer demand on "+gapID, err)
 	}
-	if d.AnswerKind == "" || d.Answered {
+	if !d.Unmet() {
 		return nil
 	}
-	return feov.Errorf(feov.Conflict, "%s", demandRefusal(gapID, d))
-}
-
-// demandRefusal is the close's refusal of gap gapID, whose demand d nothing meets: the demand in its
-// one text, then what meets it on this gap — blue's anchor placed as its answer, a retire of each
-// evidence anchor the gap reaches, and the check again by the seat whose check the gap carries — and
-// the bench, for a demand the lens no longer holds.
-func demandRefusal(gapID string, d record.EvidenceDemand) string {
-	ways := []string{fmt.Sprintf("blue's `%s --answers %s`, a %s placed on the sentence as its answer (after a reword, on the reworded sentence)", d.AnswerVerb, gapID, d.AnswerNoun)}
-	var retire []string
-	if d.About != "" {
-		retire = append(retire, fmt.Sprintf("blue's `retire --anchor %s`, the %s it is about", d.About, anchor.Kind(d.About)))
-	}
-	for _, r := range d.Readings {
-		retire = append(retire, fmt.Sprintf("blue's `retire --anchor %s`, the citation whose reading by %s it carries", r.Anchor, r.Seat))
-	}
-	if len(retire) > 0 {
-		ways = append(ways, strings.Join(retire, ", or "))
-	}
-	// THE CHECK AGAIN, BY ITS OWN SEAT, SINCE THE MINT, of an anchor of the demanded kind: a reading
-	// that backs under `source`, a `sound` judgement under `computation`. Another seat's check meets
-	// nothing.
-	again := func(id, seat string) string {
-		if anchor.Kind(id) != d.AnswerKind {
-			return ""
-		}
-		if d.AnswerKind == "computation" {
-			return fmt.Sprintf("a `sound` judgement of %s by %s, made since the gap was minted", id, seat)
-		}
-		return fmt.Sprintf("a reading of %s by %s, made since the gap was minted, that reads the work and backs the sentence", id, seat)
-	}
-	if d.About != "" {
-		if a := again(d.About, d.MintedBy); a != "" {
-			ways = append(ways, a)
-		}
-	}
-	for _, r := range d.Readings {
-		if a := again(r.Anchor, r.Seat); a != "" {
-			ways = append(ways, a)
-		}
-	}
-	return fmt.Sprintf("gap %s was minted --check-kind %s, and nothing meets its live-answer demand, so this close is refused under every disposition — `moot`, `not_a_defect` and a close to a successor included. Nothing is recorded. "+
-		"The demand: %s. What meets it on this gap: %s; another seat's check meets nothing. "+
-		"A demand you no longer hold is not closed: file `motion docket file` on the gap, and the bench's closing ruling, which is not held to the demand, disposes of it; a regrade keeps it open",
-		gapID, d.CheckKind, recordpb.DemandClause, strings.Join(ways, "; or "))
+	return record.DemandRefusal(gapID, d)
 }
 
 // unreadableRefusal is the refusal a guard returns when the record it asks cannot be read: the

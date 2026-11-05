@@ -1,9 +1,12 @@
 package record
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 )
@@ -190,14 +193,38 @@ func TestAwaitingEvidenceTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 		}
 	}
 
-	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{
+	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on. The live
+	// write refuses this close (its demand is unmet, judgeAct); an archived one, admitted under the
+	// rules of its day, is written as the replay writes it — committed beside the write path.
+	closeG2 := &recordpb.Close{
 		GapId:        proto.String("G2"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("x"),
 		Prose:        proto.String("the computation ran and the check holds"),
-	}); err != nil {
+	}
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, closeG2); err == nil || !strings.Contains(err.Error(), "nothing meets its live-answer demand") {
+		t.Fatalf("the live close of unanswered G2 = %v, want refused by its demand", err)
+	}
+	db, err := recordsql.OpenSeparate(filepath.Join(runDir, "records", "record.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := &recordpb.Event{SeatId: proto.String("red-chair"), Ts: proto.String(Stamp()), Key: proto.String("archived:close")}
+	typ, err := recordpb.SetBody(ev, closeG2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev.Type = &typ
+	if _, err := recordsql.InsertTx(tx, ev); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
 	if owed := awaitingEvidenceT(t, mustRun(t, runDir)); len(owed) != 1 || owed[0] != "G4" {

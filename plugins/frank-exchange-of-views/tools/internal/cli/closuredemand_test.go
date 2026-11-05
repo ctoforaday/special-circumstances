@@ -4,9 +4,12 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
@@ -366,5 +369,26 @@ func TestTheDemandReachesOnlyEvidenceAnchors(t *testing.T) {
 	}
 	if d.AnswerKind != "citation" || d.AnswerVerb != "cite" || d.About != "" || len(d.Readings) != 0 || d.MintedBy != lensSeat {
 		t.Errorf("the demand of section gap %s = %+v, want a citation owed, minted by %s, reaching no anchor", g, d, lensSeat)
+	}
+}
+
+// THE DEMAND IS ASKED IN THE WRITE. A retire of the gap's only answer commits on another seat's
+// connection at the instant the close opens its write: the verb's read saw the demand met, and the
+// write still refuses the close, because evidence_answered reads false on the record it lands on.
+func TestARetireOfTheOnlyAnswerRacingTheCloseRefusesIt(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1")
+	g := demandGap(t, runDir, "G", "source")
+	c := placeAnswer(t, runDir, "citation", "The sky is blue.", "https://sky/1", g)
+	if _, answered, _ := gapRow(t, runDir, g); !answered {
+		t.Fatalf("the citation placed as %s's answer does not answer it", g)
+	}
+	retired := recordtest.At(t, "blue-lane-1", "race:retire", &recordpb.Retire{Claim: proto.String("The sky is blue."), Reason: proto.String("unreadable"),
+		Anchors: []string{c}, ClaimKept: proto.Bool(true), RemovalBasis: proto.String(record.RemovalAsserted)})
+	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{retired}, func() error {
+		return lensClose(t, runDir, lensSeat, g, "repaired")
+	})
+	wantDemandRefusal(t, err, g, "source")
+	if open, _, _ := gapRow(t, runDir, g); !open {
+		t.Errorf("the refused close closed %s", g)
 	}
 }
