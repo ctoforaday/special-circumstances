@@ -495,23 +495,33 @@ func AssemblyScreen(run record.Run) Audit {
 			Detail: fmt.Sprintf("%d evidence anchor(s) a check finds AGAINST the sentence the report carries are still in the assembled report: %s. A refuted or absent source in the bibliography, or a computation judged unsound in a footnote, points a reader at evidence the audit rejected",
 				len(carried), strings.Join(carried, ", "))}
 	}
-	// EVER FOUND AGAINST is this audit's own count, read off the verification rows: sources_refuted
-	// is the standing set, which a PASS here has just shown empty.
-	ever := 0
-	sources := slices.Clone(ev.Sources)
+	// EVER FOUND AGAINST is this audit's own count, per kind, read off each anchor's checks, retired
+	// anchors included: a citation a reading ever found against (refutes|absent), a computation a
+	// judgement ever called unsound. The standing set is what a PASS here has just shown empty.
+	unsound := recordpb.Word(recordpb.Soundness_SOUNDNESS_UNSOUND)
+	sources, comps := slices.Clone(ev.Sources), slices.Clone(ev.Computations)
 	for _, r := range ev.Retired {
 		if r.Source != nil {
 			sources = append(sources, *r.Source)
 		}
+		if r.Computation != nil {
+			comps = append(comps, *r.Computation)
+		}
 	}
+	foundAgainst, judgedUnsound := 0, 0
 	for _, s := range sources {
 		if slices.ContainsFunc(s.Verified, record.EvidenceVerificationJSON.FindsAgainst) {
-			ever++
+			foundAgainst++
+		}
+	}
+	for _, c := range comps {
+		if slices.ContainsFunc(c.Checks, func(j record.EvidenceReproductionJSON) bool { return j.Soundness == unsound }) {
+			judgedUnsound++
 		}
 	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d citation(s) and %d computation(s), none with a standing check against the sentence it backs (refutes|absent, unsound); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
-			citations, computations, ever, ev.Counts.SourcesUnverified)}
+		Detail: fmt.Sprintf("%d citation(s) and %d computation(s), none with a standing check against the sentence it backs (refutes|absent, unsound); %d citation(s) ever found against by red and %d computation(s) ever judged unsound, each since re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
+			citations, computations, foundAgainst, judgedUnsound, ev.Counts.SourcesUnverified)}
 }
 
 // ---- AUDIT 6: record parity ----

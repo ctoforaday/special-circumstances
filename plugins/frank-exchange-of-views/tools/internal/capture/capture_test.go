@@ -216,7 +216,7 @@ func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
 	}
 	// The PASS must still SAY what it screened. "PASS" over an empty comparison is the shape
 	// this check spent two releases in.
-	if !strings.Contains(got.Detail, "1 ever found against") {
+	if !strings.Contains(got.Detail, "1 citation(s) ever found against by red and 0 computation(s) ever judged unsound") {
 		t.Errorf("the PASS does not state what it compared: %s", got.Detail)
 	}
 }
@@ -1608,7 +1608,8 @@ func TestAssemblyScreenFailsOnALiveUnsoundComputation(t *testing.T) {
 	}
 	recordtest.Seed(t, dir, recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: proto.String("A computed claim."),
 		Reason: proto.String("the program prints its answer"), Anchors: []string{k}}))
-	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "PASS" || !strings.Contains(got.Detail, "0 citation(s) and 1 computation(s)") {
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "PASS" || !strings.Contains(got.Detail, "0 citation(s) and 1 computation(s)") ||
+		!strings.Contains(got.Detail, "0 citation(s) ever found against by red and 1 computation(s) ever judged unsound") {
 		t.Errorf("the unsound computation retired: want a PASS that says it screened one computation, got %s (%s)", got.Verdict, got.Detail)
 	}
 }
