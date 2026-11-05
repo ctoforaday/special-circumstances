@@ -42,7 +42,7 @@ import (
 // kinds' `(means)` render it through `{{.DemandClause}}`. It lives here because the `(means)` that
 // render it are read here, and recordpb imports no record package, while record and the command
 // packages import recordpb.
-const DemandClause = "a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it"
+const DemandClause = "a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it"
 
 // EnumValueDoc returns the prose for one enum value: its `(means)`, or the terms registry's
 // definition of the entry its `(defined_term)` names.
