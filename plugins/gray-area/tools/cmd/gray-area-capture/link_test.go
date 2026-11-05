@@ -35,7 +35,9 @@ func TestLinkRequestAsksOnlyWhenItWouldHelp(t *testing.T) {
 	recordServer(t, linked, "localhost:1")
 	recordServer(t, stale, "localhost:2")
 	claude := hookcore.Read("PreInvocation", strings.NewReader(`{"session_id":"s","hook_event_name":"UserPromptSubmit"}`))
-	agy := func(n int) hookcore.Request { return hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(n)))) }
+	agy := func(n int) hookcore.Request {
+		return hookcore.Read("PreInvocation", strings.NewReader(string(agyPreInvocation(n))))
+	}
 
 	for _, c := range []struct {
 		name       string
