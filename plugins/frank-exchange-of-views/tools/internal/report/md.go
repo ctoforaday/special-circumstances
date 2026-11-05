@@ -43,6 +43,7 @@ import (
 	"github.com/yuin/goldmark/util"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 )
 
 var (
@@ -422,7 +423,7 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 			return
 		}
 		last := 0
-		for _, sp := range noteRefsIn(s) {
+		for _, sp := range reportheading.NoteRefsIn(s) {
 			r.text(b, string(textValue([]byte(s[last:sp[0]]))), link)
 			b.WriteString(r.ref(s[sp[0]+len(noteOpen) : sp[1]-1]))
 			last = sp[1]
