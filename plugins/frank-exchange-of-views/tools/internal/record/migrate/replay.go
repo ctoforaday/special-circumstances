@@ -463,6 +463,13 @@ func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt 
 				}
 				v.Anchor, v.Url, v.Title = nil, proto.String(ls.url), proto.String(ls.title)
 			}
+			// A COMPUTATION WHOSE METHOD CITED A DROPPED LABEL CITES NOTHING: the citation it named is
+			// written as no event, and a cites naming it is refused at the write, taking the
+			// computation and every act on it down in a cascade. The method's source is the label's,
+			// which no citation of the migrated record carries.
+			if c, ok := body.(*recordpb.Computation); ok && rm.dropped[c.GetCites()] {
+				c.Cites = nil
+			}
 			// A MINT'S class_material IS THE TOOL'S STAMP, and the write refuses a mint that arrives
 			// with one. The archived stamp is taken off and the live rule stamps the translated class's
 			// material default at the write. A fill is stated where the migrated stamp is not the

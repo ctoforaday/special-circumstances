@@ -98,6 +98,15 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 	}
 	text, err := record.RenderRun(dst)
 	if err != nil {
+		// A REFUSED ACT IS WRITTEN AS NO EVENT, so a later act quoting the text it wrote, or acting on
+		// what it minted, finds nothing: the render's failure is then the cascade's last link, and
+		// the refusals are its first. They are named here, because this error discards the build
+		// and the manifest that carries them with it.
+		if n := len(res.Refusals); n > 0 {
+			first := res.Refusals[0]
+			return nil, fmt.Errorf("the migrated record's report does not render, and %d event(s) were refused before it — a refused act writes nothing a later act can quote or name, so begin with the first refusal, source event %d (%s): %s. The render: %w",
+				n, first.OldID, first.Word, first.Err, err)
+		}
 		return nil, fmt.Errorf("the migrated record's report does not render: %w", err)
 	}
 	res.ReportOrder = OrderInOrder
