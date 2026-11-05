@@ -681,6 +681,10 @@
 -- INSERT INTO "cite" ("event_id", "label", "url", "title", "location", "cite_key") VALUES (?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt cf0a82df52e2
+-- INSERT INTO "cite" ("event_id", "label", "url", "title", "location", "cite_key", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_matched", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 4f84c4583aca
 -- INSERT INTO "cite" ("event_id", "text", "source_text_origin", "work_status", "source_completeness") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -743,6 +747,10 @@
 
 == stmt 2f559a00bf6e
 -- INSERT INTO "computation" ("event_id", "computation_id", "bundle_sha", "basis", "invariant") VALUES (?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 1e81c1ff966a
+-- INSERT INTO "computation" ("event_id", "computation_id", "bundle_sha", "cites", "basis") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt d8e8be1fd318
@@ -1307,6 +1315,10 @@
 
 == stmt d1db8f2e890e
 -- INSERT INTO "retire" ("event_id", "claim", "reason", "claim_kept", "answers") VALUES (?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 88186f04bd3b
+-- INSERT INTO "retire" ("event_id", "claim", "reason", "removal_basis", "claim_kept") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 4b540c256338

@@ -446,7 +446,7 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 				t.Errorf("the bare %s anchor survived the retire, or its neighbour moved:\n%s", kind, rep)
 			}
 			_, err = run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", id)
-			if err == nil || !strings.Contains(err.Error(), "RETIRED") {
+			if err == nil || !strings.Contains(err.Error(), "a retired "+kind) || !strings.Contains(err.Error(), "blue retired it at event") {
 				t.Errorf("reading at the retired %s anchor must name the retire: %v", kind, err)
 			}
 			if gap != "" {

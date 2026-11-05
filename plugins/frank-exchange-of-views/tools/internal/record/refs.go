@@ -283,11 +283,12 @@ func requireLiveCitation(q recordsql.Querier, label, flag, advice string) error 
 		"Cite the method again with `cite` and name that citation", flag, label, r.Said())
 }
 
-// requireAboutAnchorLive refuses an act about an evidence anchor that is retired (ruling Retired
-// mint): a retired anchor is in no document, so nothing a gap about it asks for can be done to it, and
-// a defect still in its sentence is a defect of that sentence. Asked of the writing transaction, so a
-// mint and the retire racing it cannot both land.
-func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref string) error {
+// requireAboutAnchorLive refuses a mint or a finding about an anchor that is retired (ruling Retired
+// mint): a retired anchor is in no document, so nothing an act about it asks for can be done to it,
+// and a defect still in its sentence is a defect of that sentence. act names the act refused: "gap"
+// or "finding". Asked of the writing transaction (judgeAct), so the act and the retire racing it
+// cannot both land.
+func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref, act string) error {
 	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil
 	}
@@ -295,8 +296,8 @@ func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref st
 	if err != nil || !retired {
 		return err
 	}
-	return fmt.Errorf("--about names %s %s, which is retired — %s — so it is in no document and no gap about it can be answered. "+
-		"A defect still in the sentence it backed is a gap about that sentence: mint it with --quote on the sentence", EvidenceNoun(ref), ref, r.Said())
+	return fmt.Errorf("--about names %s %s, which is retired — %s — so it is in no document and no %s about it can be answered. "+
+		"A defect still in the sentence it backed is a %s about that sentence: file it with --quote on the sentence", EvidenceNoun(ref), ref, r.Said(), act, act)
 }
 
 // requireCitationUncited refuses a retire that takes a citation a live computation names as its

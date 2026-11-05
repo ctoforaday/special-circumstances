@@ -1059,12 +1059,12 @@ func renderView(cmd *cobra.Command, want string) error {
 					return err
 				}
 				if found && r.Kept {
-					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because blue RETIRED the citation at event %d, keeping the sentence it stood on: %q. It is not a stale reference; read that sentence with --quote",
-						a, r.Event, r.Claim)
+					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because it is a retired %s — %s. It is not a stale reference; read that sentence with --quote",
+						a, record.EvidenceNoun(a), r.Said())
 				}
 				if found {
-					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because it was RETIRED — it left with the claim %q at event %d (blue's `retire` takes a bare anchor out with its claim). It is not a stale reference; there is no live text around it to read",
-						a, r.Claim, r.Event)
+					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because it is a retired %s — %s. It is not a stale reference; there is no live text around it to read",
+						a, record.EvidenceNoun(a), r.Said())
 				}
 			}
 			n, _ := cmd.Flags().GetInt(flags.Window)

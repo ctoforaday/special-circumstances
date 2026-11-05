@@ -968,9 +968,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
 		}
 	case *recordpb.Mint:
-		// The one-gap-per-class rule, the mint budget and the report-voice refusal judge what a seat
-		// may mint next, and run on the live write alone (judgeAct); the minting seat's place on the
-		// roster is asked of every writer.
+		// The one-gap-per-class rule, the mint budget, the report-voice refusal and a retired --about
+		// anchor judge what a seat may mint next, and run on the live write alone (judgeAct); the
+		// minting seat's place on the roster is asked of every writer.
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
@@ -981,9 +981,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
-			return err
-		}
-		if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
@@ -1058,7 +1055,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
-		if err := requireLiveCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
+		// That the citation is still live is the act's to answer (judgeAct): an archived computation
+		// citing a citation retired since replays as it was made.
+		if err := requireCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
 			return err
 		}
 	case *recordpb.Reproduce:
