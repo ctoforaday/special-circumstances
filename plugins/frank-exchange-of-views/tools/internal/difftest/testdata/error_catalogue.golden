@@ -319,7 +319,7 @@ Use "feov-record [command] --help" for more information about a command.
 exit 2
 feov-record: "ingest" is not on your surface — it is the lane seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
 
-feov-record — blue seats — the report and its edits, manifest rows, inquiries. No board verbs at all.
+feov-record — blue seats — the report and its edits, inquiries. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -332,22 +332,21 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
-  compute      settle a claim by RUNNING something, when computing the answer beats arguing about it
-  edit         change the report — the only path into report.md, and how every repair lands
-  engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
-  retire       take a claim out of the report, when it cannot stand and no edit will save it
+  cite        attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
+  closing     blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
+  compute     settle a claim by RUNNING something, when computing the answer beats arguing about it
+  edit        change the report — the only path into report.md, and how every repair lands
+  engage      when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  retire      take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
-  inquiry      propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -409,7 +408,7 @@ Use "feov-record [command] --help" for more information about a command.
 exit 2
 feov-record: "close" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
 
-feov-record — blue seats — the report and its edits, manifest rows, inquiries. No board verbs at all.
+feov-record — blue seats — the report and its edits, inquiries. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -422,22 +421,21 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
-  compute      settle a claim by RUNNING something, when computing the answer beats arguing about it
-  edit         change the report — the only path into report.md, and how every repair lands
-  engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
-  retire       take a claim out of the report, when it cannot stand and no edit will save it
+  cite        attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
+  closing     blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
+  compute     settle a claim by RUNNING something, when computing the answer beats arguing about it
+  edit        change the report — the only path into report.md, and how every repair lands
+  engage      when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  retire      take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
-  inquiry      propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -728,16 +726,6 @@ closing filed for GAP001
 ── a second closing on a gap in one sitting
 exit 2
 feov-record: closing: blue-respond has already recorded a closing on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
-
-── repeat target: blue's manifest row for GAP001
-exit 0
-manifest row recorded for GAP001
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
-
-── a second manifest row for a gap in one sitting
-exit 2
-feov-record: manifest-row: blue-respond has already recorded a manifest_row on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
 
 ── a lens closing a gap a docket motion stands on
 exit 2

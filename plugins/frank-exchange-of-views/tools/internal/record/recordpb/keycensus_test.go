@@ -44,6 +44,7 @@ func loadKeyCensus(t *testing.T) []string {
 // unexplained absence is indistinguishable from one nobody noticed, which is the whole defect
 // class this migration exists to remove.
 var notFields = map[string]string{
+	"row":        "RETIRED at epoch 65 with blue's repair receipt, the one body that carried it: a repair's record is its edit, which names the gap it answers; migrate translates a receipt to no event",
 	"reproduced": "REPLACED at epoch 28 by Reproduce.rerun: a bool read false both where the script printed something else and where nothing re-ran it; migrate's reproduce entry translates true to reproduced and false to differs",
 	"round":      "RETIRED (plans/roundless.md §III.A.2): the envelope stamped a derived count and the record now answers it — events.epoch is the chair-sitting count at the row, events.sitting the seat's own; a migrated record carries neither and every reader derives them",
 	// LEGACY VOCABULARY — read only by the retired-type arms §II.6 deletes in PR3.

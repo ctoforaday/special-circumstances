@@ -34,7 +34,6 @@ var bodyTables = map[string]func() bodyTable{
 	"inquiry":           func() bodyTable { return &inquiryTable{} },
 	"blue_edit":         func() bodyTable { return &blueEditTable{} },
 	"retire":            func() bodyTable { return &retireTable{} },
-	"manifest_row":      func() bodyTable { return &manifestRowTable{} },
 	"log":               func() bodyTable { return &logTable{} },
 	"report_part":       func() bodyTable { return &reportPartTable{} },
 	"sitting_open":      func() bodyTable { return &sittingOpenTable{} },
@@ -1937,46 +1936,6 @@ func (t *retireTable) attach(ev *recordpb.Event, id int64) error {
 		return err
 	}
 	ev.Body = &recordpb.Event_Retire{Retire: m}
-	return nil
-}
-
-// manifestRowTable reads the "manifest_row" table's rows past an event id, with its lists and oneof arms, keyed by event.
-type manifestRowTable struct {
-	rows map[int64]*recordpb.ManifestRow
-	bad  map[int64]error
-}
-
-func (t *manifestRowTable) load(q Querier, after int64) error {
-	t.rows = map[int64]*recordpb.ManifestRow{}
-	{
-		var id int64
-		var c0 sql.NullString
-		var c1 sql.NullString
-		if err := scanRows(q, "manifest_row", `SELECT t."event_id", t."gap_id", t."row" FROM "manifest_row" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
-			m := &recordpb.ManifestRow{}
-			if c0.Valid {
-				m.GapId = ref(c0.String)
-			}
-			if c1.Valid {
-				m.Row = ref(c1.String)
-			}
-			t.rows[id] = m
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (t *manifestRowTable) attach(ev *recordpb.Event, id int64) error {
-	m := t.rows[id]
-	if m == nil {
-		return noBody(id, "manifest_row")
-	}
-	if err := t.bad[id]; err != nil {
-		return err
-	}
-	ev.Body = &recordpb.Event_ManifestRow{ManifestRow: m}
 	return nil
 }
 

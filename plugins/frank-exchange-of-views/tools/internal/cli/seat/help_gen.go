@@ -85,11 +85,6 @@ func generatedHelp(key string) (helpDoc, bool) {
 			menu:   "an entry for the operator who can retool you — what it asserts, said in the positive",
 			detail: "An event that survives aborts, so something you hit is on the record even if the sitting does not finish.\n\nEVERY REFUSAL YOU GET, AND EVERY CALL OF YOURS THAT FAILS, IS ALREADY HERE: the tool records each refusal it gives you, with the flags you typed and never their values, and each tool call of yours that fails — a jq, a Read, a script — with what it was aimed at. Your entry adds what the tool cannot know — what you expected, and where the expectation came from. A guessed name is friction even when the guess was yours. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, is a request: report it rather than engineer around it.\n\nTHE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so do not retell it. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a call, a guess or an act — a workaround, a shape you misread, a harness guard, an act you set aside. A sitting where nothing cost you anything writes no entry.\n\nYOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.\n\nA SITTING THAT RECORDED NOTHING OWES NO ENTRY. Your work list says which case you are in, by not asking.",
 		}, true
-	case "manifest-row":
-		return helpDoc{
-			menu:   "your receipt for one repaired gap: what you checked, and what checking it showed",
-			detail: "It goes on the RECORD, not in the envelope: capture scores it from there, and it reaches a reader through the BOARD — `docket.md` carries your manifest, and a gap you repaired with no row is named there as a repair nobody audited. It is not in the research report, which carries what the checking showed, not the apparatus. A gap the BENCH disposed of owes no receipt: nobody repaired it.",
-		}, true
 	case "mint":
 		return helpDoc{
 			menu:   "turn lens findings into a graded gap on the board, when a defect is real and belongs there",

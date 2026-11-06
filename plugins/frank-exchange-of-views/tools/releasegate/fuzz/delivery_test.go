@@ -88,8 +88,8 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			"verdict": "FAIL", "citations_checked": 0,
 			"gaps": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
-			"dispositions": []any{}, "manifest": []any{"G1", "G2"},
-			"open_gaps": []any{},
+			"dispositions": []any{},
+			"open_gaps":    []any{},
 		}
 		switch {
 		case strings.HasPrefix(seatID, "red-chair"):

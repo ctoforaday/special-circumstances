@@ -620,7 +620,7 @@ test('blue is engaged on named gaps, works from the report and its work list, an
     'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'AN OPEN INQUIRY HOLDS THE PASS', 'owes a fate that settles it', 'checked by the logic lens against its latest fate', 're-opens that check', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
-    'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array',
+    'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS BEFORE YOU SUBMIT THEM', 'the gap\'s lens re-audits the repair',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
   }
@@ -1005,7 +1005,7 @@ test('blue\'s filing is heard after its sitting and before the docket bench; a h
 })
 
 test('a halt on the hearing after blue stops its second sitting on a successor', async () => {
-  const blueRespond = [blueEnv({ manifest: [], found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] })]
+  const blueRespond = [blueEnv({ found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] })]
   const world = makeWorld(readsAt(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-77cc033b')]) })], blueRespond, petition: [{ record_read: read({ halted: true }) }] }), { 'blue-respond': read({ bench_owed: ['petition'] }) }))
   assert.equal((await world.run(script, ARGS)).verdict, 'HALTED')
   assert.equal(world.calls.filter((c) => /^blue-respond /.test(c.opts.label)).length, 1, 'blue sat again past the halt')
@@ -1273,41 +1273,31 @@ test('the engine re-prompts no seat for its sitting record and reads no relayed 
   assert.ok(!/sitting[_ -]record|re-prompt|did not attest/i.test(firstPrompt(stale, 'judge · assemble')), 'the assembly dispatch carries an unresolved-sitting list')
   assert.ok(!stale.logs.some((l) => /claims|attest/.test(l)), stale.logs.join(' | '))
   // blue's "found every engaged gap closed" path needs no attestation: it is the envelope's own list.
-  const closed = makeWorld(makeResponder({ chair: chair(), blueRespond: [blueEnv({ manifest: [], found_closed: ['G-00000001'] })] }))
+  const closed = makeWorld(makeResponder({ chair: chair(), blueRespond: [blueEnv({ found_closed: ['G-00000001'] })] }))
   assert.equal((await closed.run(script, ARGS)).verdict, 'VERIFIED')
   assert.ok(closed.logs.some((l) => l.includes('blue found every engaged gap (G-00000001) closed before it sat — nothing to answer')), closed.logs.join(' | '))
 })
 
-// W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). The B4 ordering: the plan engaged
-// the lenses and blue on G-00000001 and G-00000002, the lenses sat first and closed both, and blue correctly found
-// nothing to repair. The engine checked blue against the plan and threw, killing the run.
+// A GAP CLOSED BEFORE BLUE SAT IS NEVER AN ABORT (gblock's ruling on #868). The B4 ordering: the plan
+// engaged the lenses and blue on G-00000001 and G-00000002, the lenses sat first and closed both, and
+// blue correctly found nothing to answer. The engine checked blue against the plan and threw, killing
+// the run.
 const engagedOn = (...gaps) => [chairEnv({ plan: plan([party('red-lens-logic', ...gaps), party('blue-respond', ...gaps)]) }), passChair()]
-test('W2b: the B4 ordering — lenses close G-00000001 and G-00000002 first, blue files no row — continues and logs nothing unmanifested', async () => {
-  const world = makeWorld(makeResponder({ chair: engagedOn('G-00000001', 'G-00000002'), blueRespond: [blueEnv({ manifest: [], found_closed: ['G-00000001', 'G-00000002'] })] }))
+test('W2b: the B4 ordering — lenses close G-00000001 and G-00000002 first — continues and logs the gaps found closed', async () => {
+  const world = makeWorld(makeResponder({ chair: engagedOn('G-00000001', 'G-00000002'), blueRespond: [blueEnv({ found_closed: ['G-00000001', 'G-00000002'] })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
-  assert.ok(!world.logs.some((l) => /no row for/.test(l)), `a gap closed before blue sat is not owed: ${world.logs.join(' | ')}`)
   assert.ok(world.logs.some((l) => l.includes('blue found G-00000001, G-00000002 closed before it sat')))
 })
-test('W2b: a gap still open with no row is logged and left to capture; none of N is no longer fatal', async () => {
-  const oneOpen = makeWorld(makeResponder({ chair: engagedOn('G-00000001', 'G-00000002'), blueRespond: [blueEnv({ manifest: [], found_closed: ['G-00000001'] })] }))
-  assert.equal((await oneOpen.run(script, ARGS)).verdict, 'VERIFIED')
-  assert.ok(oneOpen.logs.some((l) => l.includes('0/1 gap(s) open when blue sat — no row for: G-00000002') && l.includes('scored at capture')), oneOpen.logs.join(' | '))
-  const noneOfTwo = makeWorld(makeResponder({ chair: engagedOn('G-00000001', 'G-00000002'), blueRespond: [blueEnv({ manifest: [] })] }))
-  assert.equal((await noneOfTwo.run(script, ARGS)).verdict, 'VERIFIED')
-  assert.ok(noneOfTwo.logs.some((l) => l.includes('0/2 gap(s) open when blue sat — no row for: G-00000001, G-00000002')))
-})
-// A MANIFEST ROW IS A GAP ID, AND PROSE IS REFUSED AT THE RETURN. Respond seats wrote rows such as
-// "G-237fed96: repaired (…)" into `manifest` (m29, and 4 of 32 replays); the coverage log matches
-// ids, so each read as "no row for" a gap that had one. GAP_ID is generated from anchor's matcher.
-test('a respond envelope takes gap ids in manifest and found_closed, and refuses prose there', async () => {
+// A FOUND_CLOSED ID IS A GAP ID, AND PROSE IS REFUSED AT THE RETURN. GAP_ID is generated from
+// anchor's matcher.
+test('a respond envelope takes gap ids in found_closed, and refuses prose there', async () => {
   const w = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()] }))
   await w.run(script, ARGS)
   const respond = w.calls.find((c) => /^blue-respond /.test(c.opts.label))
   assert.ok(respond, 'blue-respond was never dispatched')
   const schema = respond.opts.schema
-  assert.ok(schemaAccepts(schema, { manifest: ['G-00000001'], found_closed: ['G-0a1b2c3d'] }), 'gap ids are refused')
-  assert.ok(!schemaAccepts(schema, { manifest: ['G-00000001: repaired (the sum was wrong)'] }), 'a prose manifest row is accepted')
+  assert.ok(schemaAccepts(schema, { found_closed: ['G-0a1b2c3d'] }), 'gap ids are refused')
   assert.ok(!schemaAccepts(schema, { found_closed: ['the evidence gap'] }), 'a prose found_closed entry is accepted')
 })
 
@@ -1318,8 +1308,8 @@ test('a respond envelope takes gap ids in manifest and found_closed, and refuses
 // no more: a second sitting's successors, and a successor already engaged this epoch, are not sat.
 test('R2: blue sits a second time on the successor it engaged, once per successor, and never a third time', async () => {
   const blueRespond = [
-    blueEnv({ manifest: [], found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] }),
-    blueEnv({ manifest: ['G-1ac85c33'], found_closed: ['G-1ac85c33'], successors: ['G-00000003'] }),
+    blueEnv({ found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] }),
+    blueEnv({ found_closed: ['G-1ac85c33'], successors: ['G-00000003'] }),
   ]
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-logic', 'G-77cc033b'), party('blue-respond', 'G-77cc033b')]) }), passChair()], blueRespond }))
   assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
@@ -1334,7 +1324,7 @@ test('R2: blue sits a second time on the successor it engaged, once per successo
 // sitting on a successor: that sitting is engaged on the successor alone.
 test('R2: the closing duty is stated to the sitting the plan dispatched, and not to the second sitting', async () => {
   const blockers = [{ kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' }]
-  const blueRespond = [blueEnv({ manifest: [], found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] }), blueEnv({ manifest: ['G-1ac85c33'] })]
+  const blueRespond = [blueEnv({ found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] }), blueEnv()]
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-77cc033b')], { blockers }) }), passChair()], blueRespond }))
   await world.run(script, ARGS)
   const [first, second] = world.calls.filter((c) => /^blue-respond /.test(c.opts.label)).map((c) => c.prompt)
@@ -1347,9 +1337,9 @@ test('R2: no second sitting without a gap found closed, or on a successor this e
     await w.run(script, ARGS)
     return w.calls.filter((c) => /^blue-respond /.test(c.opts.label)).length
   }
-  assert.equal(await sittings(blueEnv({ manifest: [], successors: ['G-00000002'] }), 'G-00000001'), 1, 'a successor relayed with no gap found closed was sat')
-  assert.equal(await sittings(blueEnv({ manifest: [], found_closed: ['G-00000001'], successors: ['G-00000002'] }), 'G-00000001', 'G-00000002'), 1, 'a successor the plan already engaged blue on was sat twice')
-  assert.equal(await sittings(blueEnv({ manifest: [], found_closed: ['G-00000001'] }), 'G-00000001'), 1, 'a gap closed with no successor sat blue again')
+  assert.equal(await sittings(blueEnv({ successors: ['G-00000002'] }), 'G-00000001'), 1, 'a successor relayed with no gap found closed was sat')
+  assert.equal(await sittings(blueEnv({ found_closed: ['G-00000001'], successors: ['G-00000002'] }), 'G-00000001', 'G-00000002'), 1, 'a successor the plan already engaged blue on was sat twice')
+  assert.equal(await sittings(blueEnv({ found_closed: ['G-00000001'] }), 'G-00000001'), 1, 'a gap closed with no successor sat blue again')
 })
 test('a respond envelope takes gap ids in successors, and refuses prose there', async () => {
   const w = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()] }))
@@ -1359,11 +1349,10 @@ test('a respond envelope takes gap ids in successors, and refuses prose there', 
   assert.ok(!schemaAccepts(schema, { successors: ['the successor'] }), 'a prose successor is accepted')
 })
 
-test('W2b: partial coverage is logged, never fatal; a found_closed id blue was not engaged on is ignored', async () => {
-  const partial = makeWorld(makeResponder({ chair: engagedOn('G-00000001', 'G-00000002'), blueRespond: [blueEnv({ manifest: ['G-00000001'], found_closed: ['G-00000009'] })] }))
+test('W2b: a found_closed id blue was not engaged on is ignored', async () => {
+  const partial = makeWorld(makeResponder({ chair: engagedOn('G-00000001', 'G-00000002'), blueRespond: [blueEnv({ found_closed: ['G-00000009'] })] }))
   const out = await partial.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
-  assert.ok(partial.logs.some((l) => l.includes('1/2 gap(s) open when blue sat') && l.includes('no row for: G-00000002')))
   assert.ok(!partial.logs.some((l) => l.includes('G-00000009')), 'a claimed closure outside the engagement excuses nothing')
 })
 

@@ -10,7 +10,7 @@ package fuzz
 // not a happy path: lens (cite/finding/inquiry/log/closing), merge (position/
 // mint/close incl. repaired_with_regression/regrade any axis/
 // dispute-respond/spot-check/verdict/petition), blue (closing/dispute
-// across all four dimensions/manifest-row/inquiry/retire/petition), bench
+// across all four dimensions/inquiry/retire/petition), bench
 // (opinion/outcome/certify/assemble/petition-rule). The
 // disputes docket is driven through the ENVELOPE (raiseDisputes/answerDisputes) and the
 // petition->petition-rule docket through the RECORD and the plan that relays it
@@ -3943,7 +3943,7 @@ func (r *runner) mintWith(seatID, class string) string {
 		// is matched against blue/report.md — the same rule `lens finding` has always been held
 		// to — so `"§ fuzz — " + directive[:12]` is refused. The sweep went to ZERO gaps the
 		// moment the check landed, and every gap-dependent verb (close, regrade, opinion,
-		// closing, manifest-row, reproduce) followed it to zero. The coverage gate caught that;
+		// closing, reproduce) followed it to zero. The coverage gate caught that;
 		// the mint refusal alone would have looked like a quieter run.
 		//
 		// It quotes the ANCHOR sentence, not the cost sentence: the blue-edit drive swaps the
@@ -5438,17 +5438,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 				}
 			}
 		})
-		// THE CORRECTNESS MANIFEST: one row per repaired gap, on the record (#318).
-		//
-		// It used to fire at 40% for ONE random gap, which modelled a seat that mostly skipped
-		// its own self-audit — and nothing noticed, because the row had no reader and the
-		// coverage metric was counting the ENVELOPE array instead. The verb is now what the
-		// prompt asks for and what the scorecard counts, so the fake discharges it the way a
-		// compliant blue would: every gap it is repairing this round.
-		for _, id := range open {
-			r.do("manifest-row", seatID).set("--id", id).
-				set("--reason", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").admit()
-		}
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).
 		r.maybe(45, func() {
@@ -5602,13 +5591,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("blue", seatID)
 		r.docketedOffTheList("blue", seatID)
 		// BLUE ANSWERS WHAT THE PLAN ENGAGED IT ON, not every open gap: the record dispatched blue
-		// for exactly these, and its manifest must name them (W2b). Closings are owed on the
-		// docketed gaps, which the plan also names.
+		// for exactly these. Closings are owed on the docketed gaps, which the plan also names.
 		// AND THE BOARD IS AUTHORITATIVE, as blue's prompt says: the plan engaged blue on a gap
 		// as the epoch opened, and the lens sat first — so a gap the plan names may have been
 		// closed by its originator before blue sits, and an act on it (a grade motion, an edit
-		// answering it) is refused as an act on a closed gap. Blue works what is still open; the
-		// manifest still names what it was engaged on.
+		// answering it) is refused as an act on a closed gap. Blue works what is still open.
 		engaged := r.engaged(seatID)
 		r.mu.Lock()
 		again := r.againOn
@@ -5670,18 +5657,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// looked at what red had actually asked for.
 		r.presented.add(open...)
 		r.blueRespondTo(seatID, open)
-		// AN ARRAY, NEVER null, as the envelope schema demands: a Go nil slice marshals as null,
-		// and the harness refuses the envelope for it.
-		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
-		// receipt. #318: the envelope is a ROUTING REF now, gap ids only; the rows themselves are
-		// on the record, written by the manifest-row calls above against this same `open` set.
-		manifest := []any{}
-		for _, id := range engaged {
-			manifest = append(manifest, id)
-		}
 		r.maybePetition(seatID)
 		r.dischargeOwed(seatID)
-		env := map[string]any{"manifest": manifest}
+		env := map[string]any{}
 		if again == nil {
 			r.engageSuccessors(seatID, env)
 		}
@@ -8011,7 +7989,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 var verbsWithEvents = []string{
 	"closing", "position", "regrade", "mint", "close",
 	"cite", "verify", "finding", "inquiry", "reproduce", "log", "retire",
-	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
+	"verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
 	// makes an empty log meaningful went undriven.
@@ -8183,10 +8161,6 @@ var dialecticProseKey = map[string]string{
 	// The log: what a seat told the operator. It renders in run.md, beside the seats that sat
 	// and filed nothing.
 	"log": "text",
-	// Blue's self-audit receipt, one per repaired gap. `row` is what blue checked and what
-	// checking it showed — the receipt reached no reader for a year, because the coverage metric
-	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).
-	"manifest_row": "row",
 	// The motion group. `basis` is the ASK, `opinion` the answer — both render in the report's
 	// one Motions section, joined on the motion id (#344).
 	"motion":      "basis",

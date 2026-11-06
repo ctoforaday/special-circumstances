@@ -53,6 +53,11 @@ func Entries() Registry {
 		// and the change is the sitting's edits, each with its reason; nothing reads a revision's
 		// text. The manifest counts each in events_in and none in events_out.
 		"revision": {Translate: toNoEvent},
+		// A MANIFEST ROW TRANSLATES TO NO EVENT (EventSchema 65). It was blue's prose receipt for a
+		// repair; the repair's record is the edit, which names the gap it answers, and the lens's
+		// re-audit is the check of it. Nothing reads a receipt, so a migrated record holds none. The
+		// manifest counts each in events_in and none in events_out.
+		"manifest_row": {Translate: toNoEvent},
 		// A COINING TRANSLATES TO NO EVENT. A gap's class is a value of the closed GapClass set,
 		// whose own definition is the class's; that a run coined a slug, and the coiner's words, are
 		// not carried. Its mints carry the slug, which valueRenames maps onto the set.

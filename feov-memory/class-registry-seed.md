@@ -51,7 +51,7 @@ measurement-methodology-drift, cross-corpus-id-collision, negative-definition.
    counts WITHIN-RUN after the class last reached zero open instances (the
    original design's intent), and the escalator's generator-fix demand keys on
    within-run re-spawning, not corpus totals. Cross-run class pressure routes to
-   craft memory (manifest lines / lens duties), not the docket.
+   craft memory (self-audit checks / lens duties), not the docket.
 2. LINEAGE IS ORTHOGONAL TO CLASS: a successor inherits the class of its
    PROXIMATE defect, not its chain — supersedes carries lineage; class carries
    kind. The anti-shell-game inheritance rule applies to the chain dimension.
@@ -59,8 +59,8 @@ measurement-methodology-drift, cross-corpus-id-collision, negative-definition.
    (false-universal vs enumeration-non-exhaustive vs exhaustive-sweep-omits-case;
    cross-section-contradiction vs claim-contradicts-own-record) — the registry
    entry for each names its neighbor and the distinguishing question.
-4. The registry seed doubles as blue's manifest-line source and red's lens-duty
-   source: top classes are exactly what the correctness manifest's rows check.
+4. The registry seed doubles as the source of blue's self-audit checks and red's
+   lens duties: top classes are exactly what blue's pre-flight self-audit checks.
 
 ## Promoted after the seed
 

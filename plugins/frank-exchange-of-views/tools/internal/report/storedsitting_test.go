@@ -71,7 +71,6 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		recordtest.At(t, "blue-respond", "blue-respond:inquiry:#1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("survey the literature")}),
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e2", &recordpb.BlueEdit{Answers: proto.String("G1")}),
-		recordtest.At(t, "blue-respond", "blue-respond:manifest_row:m1", &recordpb.ManifestRow{GapId: proto.String("G1"), Row: proto.String("recomputed the figure")}),
 		recordtest.At(t, "blue-respond", "blue-respond:retire:r1", &recordpb.Retire{Claim: proto.String("the old figure"),
 			Reason: proto.String("superseded"), RemovalBasis: proto.String(record.RemovalAsserted)}),
 		recordtest.At(t, record.HarnessSeat, "harness:sitting_close:B1", &recordpb.SittingClose{AgentId: proto.String("B1")}),
@@ -170,9 +169,6 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 
 	t.Run("the changelog", func(t *testing.T) {
 		contains("withdrawn claims", withdrawnClaims(fam), "(blue-respond #1)")
-		manifest := correctnessManifest(fam)
-		contains("correctness manifest", manifest, "**G1** (blue-respond #1)")
-		absent("correctness manifest", manifest, "#2")
 	})
 
 	// THE CHANGELOG lists what left the report.

@@ -15,8 +15,8 @@ func TestABacktickTheShellWouldRunIsRefused(t *testing.T) {
 		name, command string
 		deny          bool
 	}{
-		// MEASURED: blue-respond's manifest row. `edit`, `retire` and `compute` ran; the row lost them.
-		{"measured manifest-row, aliased binary", "B=\"/r/.bin/feov-record\"\n\"$B\" --seat-id blue-respond manifest-row --id G3 --reason \"the correct sequence is edit-to-bare-anchor then `retire` with the pre-edit quote\"", true},
+		// MEASURED: a blue-respond act. `edit`, `retire` and `compute` ran; the reason lost them.
+		{"measured blue act, aliased binary", "B=\"/r/.bin/feov-record\"\n\"$B\" --seat-id blue-respond closing --id G3 --reason \"the correct sequence is edit-to-bare-anchor then `retire` with the pre-edit quote\"", true},
 		// MEASURED: red-lens-logic's finding. `factor 91` ran and its output was pasted in.
 		{"measured finding", "\"/r/.bin/feov-record\" finding --quote \"91\" --reason \"confirmed with `factor 91` and `openssl prime 91`\"", true},
 		{"backtick in another free-text flag", "feov-record mint --fix \"replace it with `x`\" --reason 'r'", true},

@@ -17,8 +17,7 @@ import (
 // told it is finished by one surface and refused by another learns to trust neither — is real and
 // still holds. But a duty is derived only where omission already carries a mechanical consequence,
 // so it can name 4 of blue's verbs, 5 of merge's, 3 of bench's and 2 of lens's. Every act whose
-// omission is merely a QUALITY loss — an inquiry never revisited, a repair with no manifest
-// row, an archive never sampled, a citation nobody verified, a source blue never cited, a computation
+// omission is merely a QUALITY loss — an inquiry never revisited, an archive never sampled, a citation nobody verified, a source blue never cited, a computation
 // nobody re-ran, a grade accepted and never moved — got no line. Those are exactly the acts the
 // probe boards bait and the measured runs skip.
 //
@@ -59,11 +58,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 	add := func(it Item) { out = append(out, it) }
 	// A DOCKETED GAP IS OFF A PARTY'S LIST until it is ruled, apart from its closing argument (ruled by
 	// gblock 2026-10-31); the chair's arm reads every gap.
-	docketed := map[string]bool{}
 	if role == "blue" || role == "lens" {
-		for _, g := range gaps {
-			docketed[g.ID] = g.unruledDocket
-		}
 		gaps = undocketed(gaps)
 	}
 
@@ -78,19 +73,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			for _, a := range StaleInquiriesOf(evs, win) {
 				add(Item{Kind: ItemStaleInquiry, Subject: about(SubjectInquiry, a.ID), What: fmt.Sprintf("inquiry %s is at %q and no fate has been recorded on it since epoch %d — an inquiry declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch)})
 			}
-		}
-		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS
-		// ManifestOwed, the one the report and the scorecard read: a gap blue was dispatched onto,
-		// open when it sat, and answered by its edit that sitting.
-		//
-		// NO NOT-MEASURED LINE HERE. A later register closes every earlier blue sitting, so the only
-		// sitting the record can leave unresolved is the latest — and while this list is read, that
-		// is the sitting reading it. Its unreceipted edits are the receipts it can still file.
-		for _, id := range ManifestUnreceipted(evs, win, WhileRunning).Gaps {
-			if docketed[id] {
-				continue
-			}
-			add(gapItem(ItemManifestOwed, id, "gap "+id+" was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author"))
 		}
 		// A LENS THAT KEPT ITS GRADE SAID WHAT ITS CHECK STILL FINDS FAILING, and that is what blue's
 		// answer still lacks — the work, not the argument for the gap, which stays on the board with

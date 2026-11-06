@@ -84,7 +84,6 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `blue inquiry propose` | a question you are putting on the record, with what would be true if it paid off | — | CLEAN |
 | `blue inquiry record` | what became of an inquiry you already proposed: its fate, and what settled it — owed for each open inquiry, which holds the PASS (`open_inquiry`) | — | CLEAN. Separate from `propose` because the two contracts differ: a proposal has no id and defaults its fate, a record of its fate requires the id, the fate and what settled it. Recording a settled inquiry again re-opens the logic lens's check of it |
 | `blue retire` | a claim leaving the report; an evidence anchor — a citation or computation — leaving a sentence that stays (`--anchor` alone), where retiring an open gap's answer leaves the gap owed and a citation a live computation names is refused; or an anchor on a failed check that blue does not fix by an edit — a citation found against is blue's to edit, retire or replace (a `failed_check` PASS blocker readies blue for either) | a claim quietly not being there any more | EXECUTED (#226): `edit` refuses a replacement that drops an anchor or leaves an evidence anchor — a citation or computation — bare, and the retire names the anchors that leave with the claim |
-| `blue manifest-row` | the self-audit receipt for a repaired gap | envelope `manifest[]` array | RESOLVED (#318): the verb is the single source, the row is on the record, and a REPAIRED gap with no row is named in the report as a repair nobody audited. Narrowed from "closed" with the manifest predicate: a bench-disposed gap was never repaired, so no receipt is owed. Narrowed again to OWED gaps (#868): blue dispatched onto it, it still open when blue registered, and blue's edit that sitting answering it (`record.ManifestOwed`). A gap its lens closed before blue sat, or one blue rebutted without an edit, owes nothing; the report, the scorecard and blue's work list all read that one predicate. A row that came out wrong stands for its sitting; the next sitting's row for that gap answers it |
 | `blue engage` | `blue-respond`'s sitting found an engaged gap closed and the record names an open successor of it — its work list blocks on the act | envelope `successors[]` array | CLEAN: the verb is the source — its dispatch row engages blue's next sitting this epoch on exactly the successors the record names, refused otherwise — and the envelope relays the same ids so the engine, which reads no record, sits blue again (gblock's ruling R2) |
 | `blue closing` | a docketed gap: `blue-respond`'s BLUE CLOSING, once per docketing, before the bench rules; no other blue seat files one | — | EXECUTED: a `closing_owed` PASS blocker owned by blue-respond, as for the lens |
 | ~~`blue confidence`~~ | DELETED (0.54.0) — blue self-grading its own claims | — | EXECUTED. It set no grade, entered no matrix, and its calibration computation was specified and never built. The word returned to the field the plan meant by it: `lens verify --confidence`, red's per-pair judgement |
@@ -176,9 +175,9 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
    Kept here rather than deleted, like the `certify` reversal above: a decision that shipped, did
    nothing for six releases, and was removed is evidence about how these calls get made. This one
    was taken as the tidy other half of a real fix, and nobody asked what the half would DO.
-3. **petition filing / spot-check / manifest-row → the record verb is the single source.** The verb
+3. **petition filing / spot-check → the record verb is the single source.** The verb
    event is canonical; the envelope carries a routing ref, not the data.
-   **EXECUTED — #315 (petition filing), #317 (spot-check), #318 (manifest-row).**
+   **EXECUTED — #315 (petition filing), #317 (spot-check).**
 4. ~~**certify → fold into `outcome`.**~~ **REVERSED (#328, 2026-08-09) — `certify` stays its own
    verb.** The original decision read a certification as part of the terminal verdict. It is not:
    a certification is *the bench asking a human to re-examine something*, and a verdict is *the
@@ -212,7 +211,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 
 | collapse | state |
 |---|---|
-| **Envelope round-trip** — the dominant token lever: the envelope carries refs, the tool re-derives from the record | PARTIAL. Done for grade disputes, manifest (#318) and the docket. `corroboration[]` (#326) and the petition ruling's opinion prose (#330) still round-trip. |
+| **Envelope round-trip** — the dominant token lever: the envelope carries refs, the tool re-derives from the record | PARTIAL. Done for grade disputes and the docket. `corroboration[]` (#326) and the petition ruling's opinion prose (#330) still round-trip. |
 | **observe/dispose → retire** | EXECUTED (#327, 2026-08-09). Re-opened after #320 gave observations a reader, then decided to retire regardless: the two verbs and their events are gone, and "undisposed" became "no gap was minted from". **The cost is stated, not hidden — `checked-held` (a check red RAN and confirmed) has no successor vocabulary**, so the run can no longer record a confirmed negative outside the spot-check and computation paths. |
 | **regrade → canonical; debate.js must name it** | EXECUTED (#325, verified 2026-08-13). Named in debate.js and red-auditor.md, and a probed chair seat listed it among its options unprompted. |
 | **tldr / open_questions → drop from the envelope** | DONE. Now `CLEAN` in the table. |

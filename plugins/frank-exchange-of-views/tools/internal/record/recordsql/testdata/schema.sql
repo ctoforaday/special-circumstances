@@ -141,7 +141,6 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench endi
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry', 'an inquiry: its question, its hypothesis and each fate recorded on it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_check', 'the owning lens''s judgement that an inquiry''s latest fate is sound as the report''s account of it, with the reason it holds — a settled inquiry holds the PASS until one stands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('log', 'an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
@@ -891,13 +890,6 @@ CREATE TABLE "retire_anchors" (
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
   PRIMARY KEY ("event_id", "ord")
-) STRICT;
-
-CREATE TABLE "manifest_row" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "gap_id" TEXT,
-  "row" TEXT,
-  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
 CREATE TABLE "log" (

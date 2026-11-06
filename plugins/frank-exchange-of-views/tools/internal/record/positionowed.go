@@ -95,8 +95,8 @@ type PositionSitting struct {
 }
 
 // PositionSittings is one row per chair sitting, in stream order, read at when: the openings
-// dispatchLedger holds for the chair, bounded by sittingCloser — the reading BlueSittings and the
-// manifest use, so a sitting is closed for this function exactly when it is closed for them.
+// dispatchLedger holds for the chair, bounded by sittingCloser — the reading BlueSittings uses, so a
+// sitting is closed for this function exactly when it is closed for it.
 //
 // WITHHELD IS READ OFF THE SITTING'S OWN ACTS, as heardPositionsOf reads it: the plan the sitting
 // stored last before its position — or, with no position heard, the last it stored — says whether a

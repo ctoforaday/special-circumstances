@@ -35,7 +35,7 @@ func TestInquiriesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 			"the originality claim is scoped to English sources, so this is out of scope for the question asked"),
 	})
 	// The envelopes carry NOTHING — exactly the state that produced the false zero.
-	rows := blueRows(record.Run{}, []map[string]any{{}}, nil, board, record.WhileRunning)
+	rows := blueRows(record.Run{}, []map[string]any{{}}, nil, board)
 
 	r := rowByMetric(rows, "inquiries")
 	if r == nil {
@@ -65,7 +65,7 @@ func TestAnInquiryRecordedTwiceIsCountedOnceUnderItsCurrentFate(t *testing.T) {
 			})
 		}(),
 	})
-	rows := blueRows(record.Run{}, nil, nil, board, record.WhileRunning)
+	rows := blueRows(record.Run{}, nil, nil, board)
 	got := string(rowByMetric(rows, "inquiries").Value.(objJSON))
 	if !strings.Contains(got, `"underway":1`) {
 		t.Errorf("an inquiry whose fate changed declined->underway is not counted under its CURRENT status: %s", got)
@@ -79,7 +79,7 @@ func TestAnInquiryRecordedTwiceIsCountedOnceUnderItsCurrentFate(t *testing.T) {
 // inquiries recorded" would be the same defect one layer up — a failed read wearing the words of
 // a finding.
 func TestAnUnreadableRecordSaysNotMeasuredRatherThanNone(t *testing.T) {
-	r := rowByMetric(blueRows(record.Run{}, nil, nil, nil, record.WhileRunning), "inquiries")
+	r := rowByMetric(blueRows(record.Run{}, nil, nil, nil), "inquiries")
 	if r == nil || r.Value != nil {
 		t.Fatalf("expected an uncomputed row, got %+v", r)
 	}

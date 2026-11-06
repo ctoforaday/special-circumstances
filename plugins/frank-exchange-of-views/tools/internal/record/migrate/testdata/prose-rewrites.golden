@@ -104,43 +104,6 @@
 2026-08-22_is-7-prime-run2	Inquiry.reason	Q4 -> Q-4413a475	Q4 (Algorithmic convergence across indepen
 2026-08-22_is-7-prime-run2	BlueEdit.text	R1-4 -> G-08a85de3	R1-4 (Catechism-frontier contradiction): Cla
 2026-08-22_is-7-prime-run2	BlueEdit.text	R1-6 -> G-01d90007	R1-6 (Feature creep / extended coverage just
-2026-08-22_is-7-prime-run2	ManifestRow.row	R1-1 -> G-c28be04c	R1-1 (Uncited claims): Checked all factual c
-2026-08-22_is-7-prime-run2	ManifestRow.row	p-926a6862 -> K-926a6862	S, Lucas-Lehmer) tested via prove verb (p-926a6862, p-6059a5bf). Consistency sweep: All hi
-2026-08-22_is-7-prime-run2	ManifestRow.row	p-6059a5bf -> K-6059a5bf	mer) tested via prove verb (p-926a6862, p-6059a5bf). Consistency sweep: All historical dat
-2026-08-22_is-7-prime-run2	ManifestRow.row	R1-2 -> G-092a5e5e	R1-2 (Unproven computations): Created test_p
-2026-08-22_is-7-prime-run2	ManifestRow.row	p-926a6862 -> K-926a6862	rithms. Recorded proofs via prove verb: p-926a6862 (trial division: 7÷2=3 rem 1, reproduc
-2026-08-22_is-7-prime-run2	ManifestRow.row	p-6059a5bf -> K-6059a5bf	on: 7÷2=3 rem 1, reproducible exit 0), p-6059a5bf (six methods convergence, reproducible
-2026-08-22_is-7-prime-run2	ManifestRow.row	R1-3 -> G-49a38f3c	R1-3 (Unsettled lines of inquiry): Moved Q1-
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	1-3 (Unsettled lines of inquiry): Moved Q1-Q4 via line-of-inquiry move to 'pursued
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	(Unsettled lines of inquiry): Moved Q1-Q4 via line-of-inquiry move to 'pursued' s
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	rsued' status with documented outcomes. Q1: formal definition + divisor exhaustion
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q2 -> Q-d85362a4	isfies definition, no divisors 2-√7). Q2: systematic bounded divisor search —
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q3 -> Q-f394ed0b	5,6 all leave remainders, no divisors). Q3: historical consistency — confirmed (
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	Euclid through modern, no exceptions). Q4: algorithmic convergence — confirmed
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	at was learned. Universals enumerated: 'Q1-Q4' are four distinct lines, all moved.
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	was learned. Universals enumerated: 'Q1-Q4' are four distinct lines, all moved. Bo
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	ur distinct lines, all moved. Boundary: Q1-Q4 each test different verification pat
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	distinct lines, all moved. Boundary: Q1-Q4 each test different verification pathwa
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	nes-of-inquiry projection now shows all Q1-Q4 with 'pursued' status and recorded o
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	-of-inquiry projection now shows all Q1-Q4 with 'pursued' status and recorded outc
-2026-08-22_is-7-prime-run2	ManifestRow.row	R1-4 -> G-08a85de3	R1-4 (Catechism-frontier contradiction): Edi
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	search framing — once clarified here, Q1-Q4's frontier labels become coherent. C
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	rch framing — once clarified here, Q1-Q4's frontier labels become coherent. Comp
-2026-08-22_is-7-prime-run2	ManifestRow.row	R1-5 -> G-93f3c5d9	R1-5 (Hypotheses not mutually exclusive): Ad
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	ally exclusive): Addressed by recording Q1-Q4 movements with explicit known-answer
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	y exclusive): Addressed by recording Q1-Q4 movements with explicit known-answer ve
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	ly exclusive outcomes. Each hypothesis (Q1–Q4) assumes 7 is prime (the known ans
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	clusive outcomes. Each hypothesis (Q1–Q4) assumes 7 is prime (the known answer)
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	tests a distinct verification pathway.' Q1-Q4 are not alternative answers (composi
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	ts a distinct verification pathway.' Q1-Q4 are not alternative answers (composite,
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	or consistency. Universals enumerated: 'Q1-Q4' identified as four verification pat
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	consistency. Universals enumerated: 'Q1-Q4' identified as four verification pathwa
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	methodology, not a defect. Composition: Q1-Q4 movements reinforce this structure (
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	hodology, not a defect. Composition: Q1-Q4 movements reinforce this structure (eac
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q1 -> Q-645d93a1	nes-of-inquiry projection now shows all Q1-Q4 as 'pursued' with outcomes documenti
-2026-08-22_is-7-prime-run2	ManifestRow.row	Q4 -> Q-4413a475	-of-inquiry projection now shows all Q1-Q4 as 'pursued' with outcomes documenting
-2026-08-22_is-7-prime-run2	ManifestRow.row	R1-6 -> G-01d90007	R1-6 (Feature creep / extended coverage just
-2026-08-22_is-7-prime-run2	ManifestRow.row	R1-7 -> G-c5244d00	R1-7 (Missing error recovery): Verified erro
 2026-08-22_is-7-prime-run2	Position.text	R1-1 -> G-c28be04c	prose. **Protocol Compliance Repairs (R1-1, R1-2, R1-3):** **R1-1 (Uncited claims
 2026-08-22_is-7-prime-run2	Position.text	R1-2 -> G-092a5e5e	. **Protocol Compliance Repairs (R1-1, R1-2, R1-3):** **R1-1 (Uncited claims):** R
 2026-08-22_is-7-prime-run2	Position.text	R1-3 -> G-49a38f3c	rotocol Compliance Repairs (R1-1, R1-2, R1-3):** **R1-1 (Uncited claims):** Recorde
@@ -238,16 +201,6 @@
 2026-08-22_is-7-prime	Log.text	R1-3 -> G-4ebca3f8	nd replaced with trial division proof), R1-3 (crypto logic error corrected), R1-4 (o
 2026-08-22_is-7-prime	Log.text	R1-4 -> G-a1fe87f3	), R1-3 (crypto logic error corrected), R1-4 (overclaimed 'every' narrowed to 'four
 2026-08-22_is-7-prime	Log.text	R1-5 -> G-3de271d9	' narrowed to 'four examined systems'), R1-5 (historical universality narrowed to 'd
-2026-08-22_is-7-prime	ManifestRow.row	R1-1 -> G-0911a4b6	R1-1 (No citations recorded). Audit: Swept r
-2026-08-22_is-7-prime	ManifestRow.row	c-5058e9f8 -> C-5058e9f8	Wolfram MathWorld for prime definition (c-5058e9f8), (2) Euclid's Elements for historical
-2026-08-22_is-7-prime	ManifestRow.row	c-b9bd9a52 -> C-b9bd9a52	ts for historical primality discussion (c-b9bd9a52), (3) Gaussian integers definition (c-6
-2026-08-22_is-7-prime	ManifestRow.row	c-6902dffd -> C-6902dffd	a52), (3) Gaussian integers definition (c-6902dffd), (4) Primality test algorithms (c-3973
-2026-08-22_is-7-prime	ManifestRow.row	c-3973f365 -> C-3973f365	02dffd), (4) Primality test algorithms (c-3973f365). Verified all anchors appear in report
-2026-08-22_is-7-prime	ManifestRow.row	R1-2 -> G-a0830340	R1-2 (Undocumented searches). Audit: Replace
-2026-08-22_is-7-prime	ManifestRow.row	p-f3b705eb -> K-f3b705eb	{1, 7}. Proof recorded via prove verb (p-f3b705eb, reproducible, exit 0). Swept Factoriza
-2026-08-22_is-7-prime	ManifestRow.row	R1-3 -> G-4ebca3f8	R1-3 (Crypto logic error). Audit: Verified e
-2026-08-22_is-7-prime	ManifestRow.row	R1-4 -> G-a1fe87f3	R1-4 (Overclaimed 'every tested'). Audit: Ve
-2026-08-22_is-7-prime	ManifestRow.row	R1-5 -> G-3de271d9	R1-5 (Universal historical claim). Audit: Ve
 2026-08-22_is-7-prime	Finding.text	Q3 -> Q-a2169c3d	The report abandons Q3 (historical disagreement hypothesis) ba
 2026-08-22_is-7-prime	Close.anchor_tool	c-5058e9f8 -> C-5058e9f8	show evidence; show report --anchor c-5058e9f8
 2026-08-22_is-7-prime	Close.anchor_tool	f-0dd40334 -> F-0dd40334	show report --anchor f-0dd40334
@@ -275,12 +228,6 @@
 2026-08-22_is-7-prime	BlueEdit.text	R1-5 -> G-3de271d9	R1-5 repair: Original used absolute quantifi
 2026-08-22_is-7-prime	BlueEdit.text	R1-2 -> G-a0830340	R1-2 repair propagation: Confidence section
 2026-08-22_is-7-prime	BlueEdit.text	R1-2 -> G-a0830340	R1-2 repair propagation: Synthesis line clai
-2026-08-22_is-7-prime	ManifestRow.row	p-f3b705eb -> K-f3b705eb	arkers preserved. Trial division proof (p-f3b705eb) remains as primary verification. Four
-2026-08-22_is-7-prime	ManifestRow.row	R1-2 -> G-a0830340	al definitions) remain intact. RESULT: R1-2 resolved. Report now accurately reflect
-2026-08-22_is-7-prime	ManifestRow.row	f-e1c909f8 -> F-e1c909f8	ITATIONS: Finding markers preserved (fx:f-e1c909f8, fx:f-8774f51d, fx:f-62aed719). Cite ma
-2026-08-22_is-7-prime	ManifestRow.row	f-8774f51d -> F-8774f51d	ng markers preserved (fx:f-e1c909f8, fx:f-8774f51d, fx:f-62aed719). Cite markers for Eucli
-2026-08-22_is-7-prime	ManifestRow.row	f-62aed719 -> F-62aed719	erved (fx:f-e1c909f8, fx:f-8774f51d, fx:f-62aed719). Cite markers for Euclid and documenta
-2026-08-22_is-7-prime	ManifestRow.row	R1-5 -> G-3de271d9	No loss of citation authority. RESULT: R1-5 resolved. Historical consistency claim
 2026-08-22_is-7-prime	Closing.text	R1-2 -> G-a0830340	Red graded R1-2 HIGH across all dimensions (severity, l
 2026-08-22_is-7-prime	Closing.text	Q1 -> Q-5006da25	s with quantified hypothesis breakdown (Q1-4), but event log contains zero search
 2026-08-22_is-7-prime	Closing.text	R1-5 -> G-3de271d9	Red graded R1-5 LOW-MEDIUM severity with MEDIUM likelih
@@ -451,14 +398,6 @@
 2026-08-22_record-store-authority	Inquiry.reason	R1-2 -> G-b0c2475d	d with the read/write scope distinction R1-2 required elsewhere in the report, but M
 2026-08-22_record-store-authority	Inquiry.reason	R1-3 -> G-b58efc8b	found two of the ten scripts wanting -- R1-3's live-HEAD drift (fixed with companion
 2026-08-22_record-store-authority	Inquiry.reason	R1-4 -> G-a3823220	xed with companion scripts p12/p13) and R1-4's three unanchored facts (fixed with p1
-2026-08-22_record-store-authority	ManifestRow.row	p-4b296b82 -> K-4b296b82	lseEvent PASS result is proof-anchored (p-4b296b82), verified-at-leaf by direct execution.
-2026-08-22_record-store-authority	ManifestRow.row	p-f8b51444 -> K-f8b51444	ee generalise a read-only result (proof p-f8b51444, a 'show board' call) to 'the boundary'
-2026-08-22_record-store-authority	ManifestRow.row	Q8 -> Q-bdcca8c8	ted write path, which directly re-backs Q8 and Q23's content (both declined lines
-2026-08-22_record-store-authority	ManifestRow.row	Q23 -> Q-8c422f7e	te path, which directly re-backs Q8 and Q23's content (both declined lines whose re
-2026-08-22_record-store-authority	ManifestRow.row	Q8 -> Q-bdcca8c8	se: did not run the write-side probe -- Q8/Q23 already declined it twice citing #3
-2026-08-22_record-store-authority	ManifestRow.row	Q23 -> Q-8c422f7e	did not run the write-side probe -- Q8/Q23 already declined it twice citing #358,
-2026-08-22_record-store-authority	ManifestRow.row	p-1a0ad239 -> K-1a0ad239	since a reader of the ORIGINAL anchors (p-1a0ad239, p-ec0bdac9) would otherwise not know w
-2026-08-22_record-store-authority	ManifestRow.row	p-ec0bdac9 -> K-ec0bdac9	er of the ORIGINAL anchors (p-1a0ad239, p-ec0bdac9) would otherwise not know why a future
 2026-08-22_record-store-authority	Log.text	R1-3 -> G-b58efc8b	ison target turns out to be a live ref (R1-3 this round), there is no verb to 'corre
 2026-08-22_record-store-authority	Log.text	p-1a0ad239 -> K-1a0ad239	he still-present, still-non-reproducing p-1a0ad239/p-ec0bdac9). That is probably the right
 2026-08-22_record-store-authority	Log.text	p-ec0bdac9 -> K-ec0bdac9	esent, still-non-reproducing p-1a0ad239/p-ec0bdac9). That is probably the right tradeoff (
@@ -617,11 +556,6 @@
 2026-08-22_record-store-authority	Inquiry.reason	R2-1 -> G-15cced06	e of a silently-empty section; the fix (R2-1) is a companion proof (p17) that reprod
 2026-08-22_record-store-authority	Inquiry.reason	R2-1 -> G-15cced06	ternal source was cited or refetched in R2-1/2/3, all three of which are internal do
 2026-08-22_record-store-authority	Inquiry.reason	R2-3 -> G-298b9f16	ss block) stand as recorded in F11, and R2-3's edit this round makes F11's role as t
-2026-08-22_record-store-authority	ManifestRow.row	R1-1 -> G-f89cc5c2	ph are the only three sites (same three R1-1 closed against), none of them regressed
-2026-08-22_record-store-authority	ManifestRow.row	p-d7ae569a -> K-d7ae569a	on/proof anchors -- P17's proof anchor (p-d7ae569a) is tool-inserted via prove, referenced
-2026-08-22_record-store-authority	ManifestRow.row	p-d7ae569a -> K-d7ae569a	ims tagged -- E1 adds one clause naming p-d7ae569a and p-4b296b82 by id; both are proof-an
-2026-08-22_record-store-authority	ManifestRow.row	p-4b296b82 -> K-4b296b82	1 adds one clause naming p-d7ae569a and p-4b296b82 by id; both are proof-anchored (verifie
-2026-08-22_record-store-authority	ManifestRow.row	R1-2 -> G-b0c2475d	uired_fix named this the fourth site of R1-2's class with an open enumeration; I gre
 2026-08-22_record-store-authority	Closing.text	p-d7ae569a -> K-d7ae569a	ance_check. Leg 1: companion proof p17 (p-d7ae569a, reproducible) runs from the repo root
 2026-08-22_record-store-authority	Closing.text	p-4b296b82 -> K-4b296b82	eft byte-for-byte untouched, preserving p-4b296b82's binding, per your own accepted constr
 2026-08-22_record-store-authority	Closing.text	R1-2 -> G-b0c2475d	yond this site -- the class enumeration R1-2 left open is now closed across all four
@@ -833,32 +767,6 @@
 2026-08-22_sqlite-schema-source	Inquiry.reason	Q9 -> Q-e7224a3f	rt's Catechism §4, Open Questions, and Q9 summary bullet are updated to state wha
 2026-08-22_sqlite-schema-source	BlueEdit.text	c-a49be6fd -> C-a49be6fd	t's anchor auto-carry, reproducing both c-a49be6fd and c-65ca0a9e anchors literally as the
 2026-08-22_sqlite-schema-source	BlueEdit.text	c-65ca0a9e -> C-65ca0a9e	-carry, reproducing both c-a49be6fd and c-65ca0a9e anchors literally as the tool requires.
-2026-08-22_sqlite-schema-source	ManifestRow.row	c-776b0c91 -> C-776b0c91	ema -> .proto). Both now cite-anchored (c-776b0c91, c-a49be6fd) immediately after the sent
-2026-08-22_sqlite-schema-source	ManifestRow.row	c-a49be6fd -> C-a49be6fd	o). Both now cite-anchored (c-776b0c91, c-a49be6fd) immediately after the sentence. Consis
-2026-08-22_sqlite-schema-source	ManifestRow.row	c-61287ab8 -> C-61287ab8	nely different tool, correctly cited to c-61287ab8, untouched). Boundary case: the tool ha
-2026-08-22_sqlite-schema-source	ManifestRow.row	c-65ca0a9e -> C-65ca0a9e	OWN url field (checked cite --help), so c-65ca0a9e itself still resolves to the wrong page
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q1 -> Q-2513f020	ter the moves). Enumerated all 9 lines (Q1-Q9); moved all 7 that carry report verd
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q9 -> Q-e7224a3f	the moves). Enumerated all 9 lines (Q1-Q9); moved all 7 that carry report verdict
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q1 -> Q-2513f020	moved all 7 that carry report verdicts (Q1 abandoned; Q2-Q7 pursued) plus reaffirm
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q2 -> Q-ceebfae3	at carry report verdicts (Q1 abandoned; Q2-Q7 pursued) plus reaffirmed Q9 (decline
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q7 -> Q-d216c03d	carry report verdicts (Q1 abandoned; Q2-Q7 pursued) plus reaffirmed Q9 (declined,
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q9 -> Q-e7224a3f	andoned; Q2-Q7 pursued) plus reaffirmed Q9 (declined, updated reason) for R1-4. Ea
-2026-08-22_sqlite-schema-source	ManifestRow.row	R1-4 -> G-c109194d	irmed Q9 (declined, updated reason) for R1-4. Each move's --reason cites what was re
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q1 -> Q-2513f020	not merely reasserted from memory (e.g. Q1's re-read view.go/viewjson.go; Q6's re-
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q6 -> Q-f02f0062	(e.g. Q1's re-read view.go/viewjson.go; Q6's re-grep of record-only-channel.md). B
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q1 -> Q-2513f020	record-only-channel.md). Boundary case: Q1's path now shows two 'r1 abandoned' ent
-2026-08-22_sqlite-schema-source	ManifestRow.row	L6-F2 -> F-86056ac8	13=632 across 125 files (matching red's L6-F2 exactly) and the record-only-channel.md
-2026-08-22_sqlite-schema-source	ManifestRow.row	L5-F2 -> F-a4b0936e	ne hit, line 22 heading, matching red's L5-F2 exactly). repo-counts.sh reproduces the
-2026-08-22_sqlite-schema-source	ManifestRow.row	L5-F3 -> F-cbc4a685	no gorm/sqlite in go.mod -- the figures L5-F3 spot-checked and found sound, now ancho
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q3 -> Q-4b57f519	rected all four (Technical foundations, Q3 analysis paragraph, Q3 spot-check parag
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q3 -> Q-4b57f519	cal foundations, Q3 analysis paragraph, Q3 spot-check paragraph, Q8 summary bullet
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q8 -> Q-eb5cd3ec	sis paragraph, Q3 spot-check paragraph, Q8 summary bullet) plus the Q6 'zero menti
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q6 -> Q-f02f0062	paragraph, Q8 summary bullet) plus the Q6 'zero mentions' claim and its own minor
-2026-08-22_sqlite-schema-source	ManifestRow.row	L6-F1 -> F-c6d8f00f	Read L6-F1's full finding text (not just the gap s
-2026-08-22_sqlite-schema-source	ManifestRow.row	f-c6d8f00f -> F-c6d8f00f	ph 4's evidence-limits bullet (where fx:f-c6d8f00f lives), Open Questions bullet, and the
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q9 -> Q-e7224a3f	lives), Open Questions bullet, and the Q9 lines-of-inquiry summary bullet -- all
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q9 -> Q-e7224a3f	equired_fix option (a). Also reaffirmed Q9 on the line-of-inquiry record itself (s
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q3 -> Q-4b57f519	ms (issues #6395/#5360) -- that part of Q3's narrow-form falsification remains doc
 2026-08-22_sqlite-schema-source	Computation.text	R1-4 -> G-c109194d	Settles R1-4's --check-kind computation requirement:
 2026-08-22_sqlite-schema-source	Computation.text	L6-F1 -> F-c6d8f00f	er touching the repo) replicating red's L6-F1 check, not merely re-describing it in p
 2026-08-22_sqlite-schema-source	Computation.text	c-2c7338f4 -> C-2c7338f4	ctly as GORM's own migration docs (cite c-2c7338f4) state; AutoMigrate does not drop a col
@@ -1023,15 +931,6 @@
 2026-08-22_sqlite-schema-source	Inquiry.reason	R2-1 -> G-f89bddfa	und 2: this round's Q6-sentence repair (R2-1 part 2) added a second, independently-r
 2026-08-22_sqlite-schema-source	Inquiry.reason	p-610a6353 -> K-610a6353	ndependently-reproducible proof anchor (p-610a6353, same script/sha256 as p-d86e9cd2) dire
 2026-08-22_sqlite-schema-source	Inquiry.reason	p-d86e9cd2 -> K-d86e9cd2	chor (p-610a6353, same script/sha256 as p-d86e9cd2) directly at the 'zero SQL-relevant men
-2026-08-22_sqlite-schema-source	ManifestRow.row	L5-F4 -> F-dbdcccba	)=24, recordpb-alone=17, matching red's L5-F4/L6-F4 figures exactly. Read all 17 reco
-2026-08-22_sqlite-schema-source	ManifestRow.row	L6-F4 -> F-8f85782a	recordpb-alone=17, matching red's L5-F4/L6-F4 figures exactly. Read all 17 recordpb c
-2026-08-22_sqlite-schema-source	ManifestRow.row	R1-3 -> G-9ce09d42	Composition: this edit and the earlier R1-3 653->632 fix in the same paragraph now
-2026-08-22_sqlite-schema-source	ManifestRow.row	p-dfe09b05 -> K-dfe09b05	Anchors: two new proof anchors placed (p-dfe09b05 at the Technical foundations sentence,
-2026-08-22_sqlite-schema-source	ManifestRow.row	p-610a6353 -> K-610a6353	at the Technical foundations sentence, p-610a6353 -- same script/sha256 as the existing p
-2026-08-22_sqlite-schema-source	ManifestRow.row	p-d86e9cd2 -> K-d86e9cd2	3 -- same script/sha256 as the existing p-d86e9cd2 -- at the Q6 sentence), satisfying the
-2026-08-22_sqlite-schema-source	ManifestRow.row	Q6 -> Q-f02f0062	56 as the existing p-d86e9cd2 -- at the Q6 sentence), satisfying the acceptance ch
-2026-08-22_sqlite-schema-source	ManifestRow.row	c-65ca0a9e -> C-65ca0a9e	anchor-bearing span> --new <span minus c-65ca0a9e>' was refused with 'remove the text wit
-2026-08-22_sqlite-schema-source	ManifestRow.row	c-65ca0a9e -> C-65ca0a9e	tency sweep: re-read the full bullet at c-65ca0a9e's location -- the miscitation is now na
 2026-08-22_sqlite-schema-source	Closing.text	R2-1 -> G-f89bddfa	Both residuals R2-1 named are repaired, not merely argued.
 2026-08-22_sqlite-schema-source	Closing.text	p-dfe09b05 -> K-dfe09b05	akdown (7/5/2/1/1/1), proof-anchored at p-dfe09b05 via a fresh, committed script (blue/get
 2026-08-22_sqlite-schema-source	Closing.text	L5-F4 -> F-dbdcccba	nd, independently reproducing red's own L5-F4 breakdown exactly. (2) The Q6 'zero SQL
@@ -1223,16 +1122,6 @@
 2026-08-23_research-loop-counterparts	Inquiry.reason	R1-5 -> G-343e743c	Reaffirmed and expanded. R1-5 added the untrusted-input/injection vec
 2026-08-23_research-loop-counterparts	Inquiry.reason	R1-6 -> G-0e62e322	he untrusted-input/injection vector and R1-6 graded the case-against; the Goodhart r
 2026-08-23_research-loop-counterparts	Inquiry.reason	Q23 -> Q-922e19b7	d medium x high x medium-high, and BSL (Q23) is the on-point external study of the
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-4b552f7d -> F-4b552f7d	ersity at all'), not the error. Anchors f-4b552f7d + f-73415e01 reproduced verbatim, both
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-73415e01 -> F-73415e01	'), not the error. Anchors f-4b552f7d + f-73415e01 reproduced verbatim, both present post-
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-ab58fc07 -> F-ab58fc07	text verbatim (estops re-raise). Anchor f-ab58fc07 preserved at the trailing edge. Accepta
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q5 -> Q-166374c3	sal CONCEPT: Catechism item 3, Analysis Q5, Table D all state it confidently and a
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q1 -> Q-18ab4298	s (Catechism item 4 bullet 1 + Analysis Q1) and moved line-of-inquiry Q23 to pursu
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q23 -> Q-922e19b7	Analysis Q1) and moved line-of-inquiry Q23 to pursued with the decline reason rest
-2026-08-23_research-loop-counterparts	ManifestRow.row	c-0b2da7ae -> C-0b2da7ae	the combination axis. Citation anchored c-0b2da7ae. Acceptance check RUN: Q23 reason resta
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q23 -> Q-922e19b7	hored c-0b2da7ae. Acceptance check RUN: Q23 reason restated on-axis AND saturation
-2026-08-23_research-loop-counterparts	ManifestRow.row	R1-6 -> G-0e62e322	-medium x high x medium (also satisfies R1-6 for the new bullet). Acceptance check R
-2026-08-23_research-loop-counterparts	ManifestRow.row	R1-5 -> G-343e743c	m item 4 objections (six existing + the R1-5 addition). Universal enumerated: grep r
 2026-08-23_research-loop-counterparts	Position.text	R1-4 -> G-cb34ef9a	wered; five conceded-and-repaired, one (R1-4) rebutted-with-concession. Every repair
 2026-08-23_research-loop-counterparts	Position.text	R1-1 -> G-97e1edce	n a fresh leaf read, not the gap JSON. R1-1 (cross-vendor): conceded outright - a f
 2026-08-23_research-loop-counterparts	Position.text	R1-2 -> G-25d4d914	s-vendor' token is a correct negation. R1-2 (336 false-universal): conceded. I re-c
@@ -1382,19 +1271,6 @@
 2026-08-23_research-loop-counterparts	BlueEdit.text	R2-4 -> G-378f49ff	R2-4 (L6-F6), propagation to Filable finding
 2026-08-23_research-loop-counterparts	BlueEdit.text	L6-F6 -> F-b09ec8c6	R2-4 (L6-F6), propagation to Filable finding #1, wh
 2026-08-23_research-loop-counterparts	BlueEdit.text	Q10 -> Q-5b0c50e4	t-now cleanly. Marked contingent on the Q10 prototype confirming the kernel degrade
-2026-08-23_research-loop-counterparts	ManifestRow.row	R2-1 -> G-1ab70c8e	R2-1 receipt. Acceptance check RUN: re-read
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q3 -> Q-309f1dd6	Acceptance check RUN: re-read Analysis Q3 (line 98) and Filable finding #3 (line
-2026-08-23_research-loop-counterparts	ManifestRow.row	R2-2 -> G-a78e0c3b	R2-2 receipt. Acceptance check RUN: re-read
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q4 -> Q-f5d164e9	parenthetical (21), and Open-questions Q4 (122); all four qualified. Line 35 (ite
-2026-08-23_research-loop-counterparts	ManifestRow.row	c-3e6ba3fb -> C-3e6ba3fb	ity" are the report's own §D citation (c-3e6ba3fb, leaf-verified in a prior round); this
-2026-08-23_research-loop-counterparts	ManifestRow.row	R2-3 -> G-9127efcc	R2-3 receipt. Acceptance check RUN: re-read
-2026-08-23_research-loop-counterparts	ManifestRow.row	R1-5 -> G-343e743c	els injection (line 26, the same bullet R1-5 minted); no other site restates it. Bou
-2026-08-23_research-loop-counterparts	ManifestRow.row	R2-4 -> G-378f49ff	R2-4 receipt. Acceptance check RUN: re-read
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q2 -> Q-f42ac4fa	Acceptance check RUN: re-read Analysis Q2 recommendation (line 96) and Filable fi
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q10 -> Q-5b0c50e4	ate the extraction is contingent on the Q10 prototype, named as its acceptance test
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q10 -> Q-5b0c50e4	ated-now. PASS. Leaf verification: read Q10 on the lines-of-inquiry record this rou
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q10 -> Q-5b0c50e4	onfirming step; the caveat I carried is Q10's own text, verified-at-record. Univers
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q10 -> Q-5b0c50e4	efer the whole recommendation, matching Q10's "recorded and filable now, prototype
 2026-08-23_research-loop-counterparts	Motion.basis	R2-2 -> G-a78e0c3b	R2-2 likelihood: I contest medium, propose l
 2026-08-23_research-loop-counterparts	Inquiry.reason	R1-4 -> G-cb34ef9a	the differentiator. The BSL leaf-check (R1-4) remains the specific grounding; the co
 2026-08-23_research-loop-counterparts	Inquiry.reason	Q2 -> Q-f42ac4fa	Reaffirmed. Red voted Q2 unsupported because the report's kernel
@@ -1576,20 +1452,6 @@
 2026-08-23_research-loop-counterparts	Inquiry.reason	Q10 -> Q-5b0c50e4	ernel-extraction contingency caveat (Q2/Q10).
 2026-08-23_research-loop-counterparts	Inquiry.reason	R1-4 -> G-cb34ef9a	Learning-on-the-combination-axis check (R1-4); the decline's restated reasoning stan
 2026-08-23_research-loop-counterparts	Inquiry.reason	R3-1 -> G-617ad72a	he decline's restated reasoning stands. R3-1 only aligned how the resulting uniquene
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q1 -> Q-18ab4298	estation" — already hedged), Analysis Q1 (already hedged, "grounded-but-not-prov
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-c5ce3205 -> F-c5ce3205	em 4's already-graded basis). fx anchor f-c5ce3205 preserved on item 5.
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q3 -> Q-309f1dd6	Repair: four edits (finding #2 scope; Q3 recommendation restatement; Q3 R2-1 cro
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q3 -> Q-309f1dd6	2 scope; Q3 recommendation restatement; Q3 R2-1 cross-reference; finding #3 cross-
-2026-08-23_research-loop-counterparts	ManifestRow.row	R2-1 -> G-1ab70c8e	cope; Q3 recommendation restatement; Q3 R2-1 cross-reference; finding #3 cross-refer
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q3 -> Q-309f1dd6	ite list: finding #2 (line 110, fixed), Q3 recommendation restatement (line 98a, f
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q3 -> Q-309f1dd6	endation restatement (line 98a, fixed), Q3 R2-1 cross-reference that had leaned on
-2026-08-23_research-loop-counterparts	ManifestRow.row	R2-1 -> G-1ab70c8e	ation restatement (line 98a, fixed), Q3 R2-1 cross-reference that had leaned on find
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q3 -> Q-309f1dd6	t. COMPOSITION: e4 and e5 edit the same Q3 paragraph (line 98) at non-overlapping
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-4eedafa9 -> F-4eedafa9	leaf-verified prior rounds). fx anchor f-4eedafa9 (finding #2) and f-adc23b78 (Q3 cross-r
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-adc23b78 -> F-adc23b78	. fx anchor f-4eedafa9 (finding #2) and f-adc23b78 (Q3 cross-ref) preserved.
-2026-08-23_research-loop-counterparts	ManifestRow.row	Q3 -> Q-309f1dd6	f-4eedafa9 (finding #2) and f-adc23b78 (Q3 cross-ref) preserved.
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-3a917764 -> F-3a917764	rement, cited prior rounds). fx anchors f-3a917764 (proposal path) and f-6399c7e6 (audit p
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-6399c7e6 -> F-6399c7e6	anchors f-3a917764 (proposal path) and f-6399c7e6 (audit path) both preserved on their re
 2026-08-23_research-loop-counterparts	Log.text	Q24 -> Q-62d62b55	ufacturing a proof would be the theater Q24 already records. retire — no claim fa
 2026-08-23_research-loop-counterparts	Log.text	Q13 -> Q-55e1d0ab	n inquiry appeal — I AGREE with red's Q13/Q25 unsupported votes and acted on them
 2026-08-23_research-loop-counterparts	Log.text	Q25 -> Q-dcbb234b	quiry appeal — I AGREE with red's Q13/Q25 unsupported votes and acted on them (mo
@@ -1707,14 +1569,6 @@
 2026-08-23_research-loop-counterparts	BlueEdit.text	R4-3 -> G-0a908b3c	R4-3 (risk-coverage-omission), Catechism ite
 2026-08-23_research-loop-counterparts	BlueEdit.text	R4-2 -> G-52fb6a62	R4-2 (risk-coverage-omission on the stop-con
 2026-08-23_research-loop-counterparts	BlueEdit.text	R4-3 -> G-0a908b3c	input-trust controls. Composition with R4-3: the same stop-condition also reference
-2026-08-23_research-loop-counterparts	ManifestRow.row	R4-1 -> G-2bd25793	R4-1 receipt. Contradiction verified at leaf
-2026-08-23_research-loop-counterparts	ManifestRow.row	R4-2 -> G-52fb6a62	y. Composition: shares no text with the R4-2/R4-3 edits (different Catechism item).
-2026-08-23_research-loop-counterparts	ManifestRow.row	R4-3 -> G-0a908b3c	mposition: shares no text with the R4-2/R4-3 edits (different Catechism item). Accep
-2026-08-23_research-loop-counterparts	ManifestRow.row	f-ec6cd05d -> F-ec6cd05d	not a new external assertion; fx anchor f-ec6cd05d carried verbatim.
-2026-08-23_research-loop-counterparts	ManifestRow.row	R4-2 -> G-52fb6a62	R4-2 receipt. Completeness gap verified at l
-2026-08-23_research-loop-counterparts	ManifestRow.row	R4-3 -> G-0a908b3c	for different attacks. Composition with R4-3 STATED and verified: the same stop-cond
-2026-08-23_research-loop-counterparts	ManifestRow.row	R4-3 -> G-0a908b3c	R4-3 receipt. Grep recomputed at leaf: BEFOR
-2026-08-23_research-loop-counterparts	ManifestRow.row	R4-2 -> G-52fb6a62	r; item 7 references the egress bullet (R4-2 composition). Leaf checks on the new cl
 2026-08-23_research-loop-counterparts	Motion.basis	R4-3 -> G-0a908b3c	R4-3 complexity, medium → low. The complex
 2026-08-23_research-loop-counterparts	Motion.basis	R4-3 -> G-0a908b3c	is worth more than the defect." Fixing R4-3 is textual: name the egress axis in ite
 2026-08-23_research-loop-counterparts	Motion.basis	R4-1 -> G-2bd25793	ntrol coverage — exactly the shape of R4-1 and R4-2, both of which red graded comp
@@ -2013,42 +1867,6 @@
 2026-08-23_sleeper-service-plan	Motion.basis	R1-7 -> G-07397e44	R1-7's complexity_cost is graded medium; I s
 2026-08-23_sleeper-service-plan	Motion.basis	R1-2 -> G-d0deded4	a medium-complexity mitigation such as R1-2's true fix (an OS-level sandbox or live
 2026-08-23_sleeper-service-plan	Motion.basis	R1-7 -> G-07397e44	OS-level sandbox or liveness infra) or R1-7 would need if the raw material were abs
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-c2bdf060 -> F-c2bdf060	ent. All three quote-checkable. Anchors f-c2bdf060, f-d0bbedcd: edit first refused them as
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-d0bbedcd -> F-d0bbedcd	ee quote-checkable. Anchors f-c2bdf060, f-d0bbedcd: edit first refused them as boundary an
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-6 -> G-9f315a61	— verified preserved. Composition with R1-6 (same Analysis paragraph, non-overlappi
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-5b4485e2 -> F-5b4485e2	erved denied, else loop aborts). Anchor f-5b4485e2 carried. Composition: the R1-7 matrix h
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-7 -> G-07397e44	or f-5b4485e2 carried. Composition: the R1-7 matrix houses this grade. New claims: f
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-1 -> G-3b0c7922	ence (no anchor to carry). Composition: R1-1 forward-references "the cadence cross-t
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-7 -> G-07397e44	"the cadence cross-term graded below"; R1-7 matrix carries the grade — verified b
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-abd56845 -> K-abd56845	xactly one filesystem-enumeration proof p-abd56845 (lane3_buildstate.sh); p-90619cee measu
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-90619cee -> K-90619cee	proof p-abd56845 (lane3_buildstate.sh); p-90619cee measures corpus file-count/size (a diff
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q1 -> Q-3c57a05e	laim (the friction-input finding, lanes Q1+Q12, genuinely two lanes) and correctly
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q12 -> Q-b7bb6327	m (the friction-input finding, lanes Q1+Q12, genuinely two lanes) and correctly ret
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-6fd54b2b -> F-6fd54b2b	it is not the build-state claim. Anchor f-6fd54b2b carried. Universal enumerated: "one rec
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q8 -> Q-69ffbfdb	Repair: reconciled declined-Q8 ("over-precision, invalid Poisson premi
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q8 -> Q-69ffbfdb	on a calendar cadence violates. Record: Q8 moved from declined to pursued, its rea
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q8 -> Q-69ffbfdb	Acceptance check RUN (re-read Cadence + Q8 entry): the report qualifies the figure
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q8 -> Q-69ffbfdb	he report qualifies the figures AND the Q8 obituary is amended — both changed (r
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-2efa8a73 -> F-2efa8a73	oth changed (red required one). Anchors f-2efa8a73, p-bcdb35eb carried. Figures unchanged
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-bcdb35eb -> K-bcdb35eb	(red required one). Anchors f-2efa8a73, p-bcdb35eb carried. Figures unchanged (~14/~5wk; ~
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-bcdb35eb -> K-bcdb35eb	k) — recompute not needed: red re-ran p-bcdb35eb, reproduced exactly, graded sound. New
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-3 -> G-6a68f7a1	: none (framing only). Composition with R1-3/R1-9 (same Cadence paragraph): non-over
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-9 -> G-2f8393ae	e (framing only). Composition with R1-3/R1-9 (same Cadence paragraph): non-overlappi
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-12f1e50a -> F-12f1e50a	es now carry the reconciliation. Anchor f-12f1e50a carried. Composition with R1-1 (same An
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-1 -> G-3b0c7922	or f-12f1e50a carried. Composition with R1-1 (same Analysis paragraph, disjoint span
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-2 -> G-d0deded4	ool-composed ## Risk matrix. Houses the R1-2 blocker grade and R1-3 cross-term grade
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-3 -> G-6a68f7a1	trix. Houses the R1-2 blocker grade and R1-3 cross-term grade. Grade dispute filed (
-2026-08-23_sleeper-service-plan	ManifestRow.row	M1 -> M-e6f7de83	ispute filed (complexity medium -> low, M1). New claims: grades = derived/asserted
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-8eb27e2f -> C-8eb27e2f	Repair: leaf — the cached bytes at c-8eb27e2f (inria-00574987) are Maillard/Munos/Sto
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-8eb27e2f -> C-8eb27e2f	tion with the operator remedy (re-title c-8eb27e2f to Maillard 2011). Sibling sweep (class
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q17 -> Q-5dca29e6	lass red declared OPEN): discharged via Q17 — red's round-1 verifies cover all 11
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-8eb27e2f -> C-8eb27e2f	ources; 10/11 titles match their bytes; c-8eb27e2f is the sole mismatch. Anchors f-a08c09a
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-a08c09aa -> F-a08c09aa	-8eb27e2f is the sole mismatch. Anchors f-a08c09aa, c-8eb27e2f carried. New claim: Lai-Rob
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-8eb27e2f -> C-8eb27e2f	the sole mismatch. Anchors f-a08c09aa, c-8eb27e2f carried. New claim: Lai-Robbins-only sc
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-c6032c0e -> C-c6032c0e	No hand-typed anchors — edit refused c-c6032c0e as a boundary anchor until I extended t
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-d37c326a -> F-d37c326a	the span to carry it interior; verified f-d37c326a and c-c6032c0e preserved. Composition w
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-c6032c0e -> C-c6032c0e	ry it interior; verified f-d37c326a and c-c6032c0e preserved. Composition with R1-5 (same
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-5 -> G-6a965a42	c-c6032c0e preserved. Composition with R1-5 (same Cadence paragraph, disjoint span)
 2026-08-23_sleeper-service-plan	Position.text	R1-8 -> G-5dadf602	elocate: eight I fixed at the text, and R1-8 I fixed as far as blue's surface reache
 2026-08-23_sleeper-service-plan	Position.text	R1-1 -> G-3b0c7922	on. Conceded and repaired at the leaf. R1-1 (the keystone): write-confinement bound
 2026-08-23_sleeper-service-plan	Position.text	R1-2 -> G-d0deded4	provenance review it must actually be. R1-2: I read hooks.json myself. The suite's
@@ -2217,20 +2035,6 @@
 2026-08-23_sleeper-service-plan	Inquiry.reason	Q8 -> Q-69ffbfdb	itude M/M/1-specific) but did not alter Q8 reconciliation: the Wq week-counts ship
 2026-08-23_sleeper-service-plan	Inquiry.reason	c-8eb27e2f -> C-8eb27e2f	dit: 10 of 11 agree; the sole mismatch (c-8eb27e2f, the R1-8 bibliography title) cannot be
 2026-08-23_sleeper-service-plan	Inquiry.reason	R1-8 -> G-5dadf602	ree; the sole mismatch (c-8eb27e2f, the R1-8 bibliography title) cannot be corrected
-2026-08-23_sleeper-service-plan	ManifestRow.row	M1 -> M-e6f7de83	-identified prose) — the basis of the M1 dispute (closing filed).
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-58598369 -> K-58598369	,0.99,0.999} via exact Fractions (proof p-58598369, reproducible, exit 0). UNIVERSAL enume
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-bf7bd72f -> F-bf7bd72f	"exactly half": derived (proof). Anchor f-bf7bd72f preserved (sits at the sentence period,
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q18 -> Q-b8bc84bf	aim now traces to a line of inquiry — Q18 recorded PURSUED this round (untrusted-
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-150b5b18 -> C-150b5b18	evidenced by knowledge-store poisoning (c-150b5b18, cited above) + priors-are-poison + aut
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-14802bcc -> F-14802bcc	; 75=gated by recommendation 5). Anchor f-14802bcc preserved. New claims: derived from the
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-2 -> G-d0deded4	the OS control. BOUNDARY: retained the R1-2 "loud failure" scope sentence, no regre
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-324cf587 -> F-324cf587	" scope sentence, no regression. Anchor f-324cf587 preserved. New claims: derived.
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q4 -> Q-67640d66	CHECK: show lines-of-inquiry attributes Q4 to lane 2 (record line: "memory-archite
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q4 -> Q-67640d66	§6 has PRUNE/DECAY for MEMORY (lane 2 Q4)") — confirms the qualification. CLAS
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-4 -> G-962573bf	nput-channel = two lanes; build-state = R1-4 already fixed) are accurate and untouch
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-652d51aa -> F-652d51aa	ed) are accurate and untouched. Anchors f-652d51aa, f-12f1e50a preserved. New claim (Q4=la
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-12f1e50a -> F-12f1e50a	rate and untouched. Anchors f-652d51aa, f-12f1e50a preserved. New claim (Q4=lane 2): verif
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q4 -> Q-67640d66	d51aa, f-12f1e50a preserved. New claim (Q4=lane 2): verified-at-leaf against the r
 2026-08-23_sleeper-service-plan	Closing.text	R1-7 -> G-07397e44	Docketed: R1-7 complexity, I say low, red says medium.
 2026-08-23_sleeper-service-plan	Closing.text	M1 -> M-e6f7de83	say low, red says medium. Red rejected M1 because the tabulation "missed a member
 2026-08-23_sleeper-service-plan	Closing.text	R1-7 -> G-07397e44	ecuted it flawlessly on the first pass. R1-7 fix is "tabulate risks the report alrea
@@ -2408,18 +2212,6 @@
 2026-08-23_sleeper-service-plan	BlueEdit.text	R3-5 -> G-d6cd1fc5	R3-5 propagation / preempt the R1-7 complete
 2026-08-23_sleeper-service-plan	BlueEdit.text	R1-7 -> G-07397e44	R3-5 propagation / preempt the R1-7 completeness class. The matrix intro cl
 2026-08-23_sleeper-service-plan	BlueEdit.text	R1-7 -> G-07397e44	e same intro-vs-contents mismatch class R1-7 was minted for, in the reverse directio
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-1 -> G-533c46a5	R3-1 receipt. Figures: none numeric. Univers
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-4 -> G-2d489672	ecommendation set. Composition with e7 (R3-4) stated: different span, same paragraph
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-2 -> G-29cee5ad	R3-2 receipt. Two named carriers repaired: e
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-d79a8478 -> C-d79a8478	hing the hedge their sibling citations (c-d79a8478, c-150b5b18) already carry. Consistency
-2026-08-23_sleeper-service-plan	ManifestRow.row	c-150b5b18 -> C-150b5b18	ge their sibling citations (c-d79a8478, c-150b5b18) already carry. Consistency sweep repor
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-3 -> G-6adc3557	R3-3 receipt. Three carriers repaired: e4 +
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-c52b2c7d -> F-c52b2c7d	e6 propagates it to the matrix. Anchors f-c52b2c7d (e4) and f-324cf587 (e6) preserved at t
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-324cf587 -> F-324cf587	the matrix. Anchors f-c52b2c7d (e4) and f-324cf587 (e6) preserved at trailing edges. Accep
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-4 -> G-2d489672	R3-4 receipt. Three edits: e7 narrows the An
-2026-08-23_sleeper-service-plan	ManifestRow.row	Q13 -> Q-49b688b2	e human gate, not a blanket deny. Leaf: Q13's GitHub-MCP read of #429 (on the lines
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-5 -> G-d6cd1fc5	R3-5 receipt. Two edits: e9b adds the graded
-2026-08-23_sleeper-service-plan	ManifestRow.row	R1-7 -> G-07397e44	dding non-case-against rows re-open the R1-7 intro-completeness class in reverse? Pr
 2026-08-23_sleeper-service-plan	Motion.basis	R3-2 -> G-29cee5ad	R3-2 impact is graded medium-high; I say med
 2026-08-23_sleeper-service-plan	Inquiry.reason	R3-5 -> G-d6cd1fc5	ound it gains a graded risk-matrix row (R3-5, e9b): the plausible-zero starvation it
 2026-08-23_sleeper-service-plan	Inquiry.reason	R3-2 -> G-29cee5ad	ace-hazardous verdict is unchanged, but R3-2 (e2/e3) relabels the model-collapse tra
@@ -2641,30 +2433,6 @@
 2026-08-23_sleeper-service-plan	Motion.basis	p-1e35a567 -> K-1e35a567	ane3_accumulation/r4_pool_growth (proof p-1e35a567) shows manual at runs=mu holds the pool
 2026-08-23_sleeper-service-plan	Motion.basis	R4-2 -> G-d33cbccd	R4-2 impact: red grades medium-high; I say m
 2026-08-23_sleeper-service-plan	Motion.basis	R4-1 -> G-c730ca6a	um magnitude, not medium-high. Contrast R4-1 (the confidentiality axis), which is a
-2026-08-23_sleeper-service-plan	ManifestRow.row	R4-1 -> G-c730ca6a	R4-1 (confidentiality/exfiltration axis). Ch
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-695e80ec -> F-695e80ec	ty(read-egress) consistently — anchor f-695e80ec on row 5 preserved (verified). Boundary
-2026-08-23_sleeper-service-plan	ManifestRow.row	R4-2 -> G-d33cbccd	Composition: shares the rec-3 span with R4-2's verb reconciliation; both landed in o
-2026-08-23_sleeper-service-plan	ManifestRow.row	R4-2 -> G-d33cbccd	R4-2 (which github-MCP verbs survive credent
-2026-08-23_sleeper-service-plan	ManifestRow.row	R4-1 -> G-c730ca6a	icitly. Composition: same rec-3 edit as R4-1; both horns + confidentiality landed to
-2026-08-23_sleeper-service-plan	ManifestRow.row	R4-3 -> G-813b2245	R4-3 (guardrail-scope-overclaim, supersedes
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-1 -> G-533c46a5	(guardrail-scope-overclaim, supersedes R3-1). Checked: acceptance = keystone mitiga
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-1 -> G-533c46a5	risks it does not fix, consistent with R3-1's holding), and "two" is re-scoped to t
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-284fd752 -> F-284fd752	h" numeral remains to miscount. Anchors f-284fd752/f-a89304b2/f-c2bdf060/f-d0bbedcd carrie
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-a89304b2 -> F-a89304b2	remains to miscount. Anchors f-284fd752/f-a89304b2/f-c2bdf060/f-d0bbedcd carried inside th
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-c2bdf060 -> F-c2bdf060	miscount. Anchors f-284fd752/f-a89304b2/f-c2bdf060/f-d0bbedcd carried inside the span; f-8
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-d0bbedcd -> F-d0bbedcd	nchors f-284fd752/f-a89304b2/f-c2bdf060/f-d0bbedcd carried inside the span; f-84ecb826 pre
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-84ecb826 -> F-84ecb826	060/f-d0bbedcd carried inside the span; f-84ecb826 preserved at the trailing edge (verifie
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-1 -> G-533c46a5	is rewrites the same keystone paragraph R3-1/R3-4 touched; distinct clause, the "bou
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-4 -> G-2d489672	writes the same keystone paragraph R3-1/R3-4 touched; distinct clause, the "bounded
-2026-08-23_sleeper-service-plan	ManifestRow.row	R3-4 -> G-2d489672	se, the "bounded blast radius" phrasing R3-4 narrowed is undisturbed. New framing ta
-2026-08-23_sleeper-service-plan	ManifestRow.row	R4-4 -> G-6b9916cf	R4-4 (pool-growth cross-term ungraded). Chec
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-1e35a567 -> K-1e35a567	re recomputed: r4_pool_growth.py (proof p-1e35a567, reproducible) confirms (7-mu)*52 = 208
-2026-08-23_sleeper-service-plan	ManifestRow.row	M3 -> M-49fa8df3	ate. Impact graded medium (grade motion M3), disputing red's medium-high with the
-2026-08-23_sleeper-service-plan	ManifestRow.row	R4-5 -> G-4f937d98	R4-5 (cross-section-contradiction, check_kin
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-40ede234 -> K-40ede234	matches it. RUN: r4_rho_label.py (proof p-40ede234, reproducible, exact Fractions) inverts
-2026-08-23_sleeper-service-plan	ManifestRow.row	f-eabf0bb7 -> F-eabf0bb7	ly) — no relabel needed. Edge anchors f-eabf0bb7 and proof p-bcdb35eb preserved just pas
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-bcdb35eb -> K-bcdb35eb	eded. Edge anchors f-eabf0bb7 and proof p-bcdb35eb preserved just past "idealization" (ver
-2026-08-23_sleeper-service-plan	ManifestRow.row	p-40ede234 -> K-40ede234	st "idealization" (verified); new proof p-40ede234 spliced at the corrected label. New fig
 2026-08-23_sleeper-service-plan	Closing.text	R4-3 -> G-813b2245	R4-3 (guardrail-scope-overclaim, supersedes
 2026-08-23_sleeper-service-plan	Closing.text	R3-1 -> G-533c46a5	(guardrail-scope-overclaim, supersedes R3-1) is resolved by this round's keystone r
 2026-08-23_sleeper-service-plan	Closing.text	R3-1 -> G-533c46a5	tch was correct and I concede it fully: R3-1's own repair, in narrowing "all four sa
@@ -3024,20 +2792,6 @@
 2026-09-02_quadratic-formula	BlueEdit.text	Q6 -> Q-585fa4aa	ue-lane-3, Q15-Q23 blue-synthesize, and Q6 alone is blue-lane-2. WHAT I AM NOT CL
 2026-09-02_quadratic-formula	Computation.text	R1-8 -> G-ffa5c5b8	R1-8(a) settled by running the sweep rather
 2026-09-02_quadratic-formula	Computation.text	R1-6 -> G-d304bbb2	R1-6 settled by running the commands. Red's
-2026-09-02_quadratic-formula	ManifestRow.row	R1-9 -> G-5d4bad75	is repair shares its paragraph with the R1-9 grading text. The spans are disjoint; t
-2026-09-02_quadratic-formula	ManifestRow.row	p-9bc5562c -> K-9bc5562c	.py re-run and now recorded as a proof (p-9bc5562c, reproducible, exit 0): v1 to today 251
-2026-09-02_quadratic-formula	ManifestRow.row	R1-7 -> G-4f2e3ef7	es the source twice, so it inherits the R1-7 quotation standard. Both quotations run
-2026-09-02_quadratic-formula	ManifestRow.row	c-071a6c61 -> C-071a6c61	carries a tool-placed citation anchor (c-071a6c61). ACCEPTANCE CHECK RUN: one design labe
-2026-09-02_quadratic-formula	ManifestRow.row	p-f9ea66b8 -> K-f9ea66b8	, which carry proof anchors — lane 2 (p-f9ea66b8) 4 add / 1 mul / 3 div / 1 sqrt for bot
-2026-09-02_quadratic-formula	ManifestRow.row	p-6333b37e -> K-6333b37e	he square and Loh, textbook 12; lane 1 (p-6333b37e) textbook 12, completing the square 10
-2026-09-02_quadratic-formula	ManifestRow.row	R1-6 -> G-d304bbb2	for this gap shares a sentence with the R1-6 persistence edit. Disjoint spans; neith
-2026-09-02_quadratic-formula	ManifestRow.row	p-4649aa47 -> K-4649aa47	1_persistence.py, now recorded as proof p-4649aa47 (reproducible, exit 0): check-ignore re
-2026-09-02_quadratic-formula	ManifestRow.row	c-5993070c -> C-5993070c	daries, both carry tool-placed anchors (c-5993070c, c-f0ac092c). The superlative "commones
-2026-09-02_quadratic-formula	ManifestRow.row	c-f0ac092c -> C-f0ac092c	carry tool-placed anchors (c-5993070c, c-f0ac092c). The superlative "commonest" is retire
-2026-09-02_quadratic-formula	ManifestRow.row	f-f338ecc8 -> F-f338ecc8	ation as "critics said"; finding-marker f-f338ecc8 travels through unchanged. LEG 2, THE S
-2026-09-02_quadratic-formula	ManifestRow.row	p-efdefc1e -> K-efdefc1e	COMPUTATION RUN AND RECORDED: proof p-efdefc1e (reproducible, exit 0). 126 single-lane
-2026-09-02_quadratic-formula	ManifestRow.row	Q6 -> Q-585fa4aa	the run, blue-lane-2 filed exactly one (Q6, deferred), against six lane-2-tagged p
-2026-09-02_quadratic-formula	ManifestRow.row	Q6 -> Q-585fa4aa	as deliberately deferred. I re-read the Q6 obituary in the lines-of-inquiry projec
 2026-09-02_quadratic-formula	Inquiry.reason	R1-9 -> G-5d4bad75	a rate. What changed is its role: red's R1-9 asked what happens if the teach-as-addi
 2026-09-02_quadratic-formula	Inquiry.question	R1-8 -> G-ffa5c5b8	This is the branch of R1-8 I did NOT take, and it deserves a filed
 2026-09-02_quadratic-formula	Inquiry.question	Q22 -> Q-803503e3	ure step - the first was formalisation (Q22, declined and ruled too_thin), the seco
@@ -3397,26 +3151,6 @@
 2026-09-02_quadratic-formula	Computation.text	R2-2 -> G-e684016d	e species of unreproducible figure that R2-2 is about, and one red did not raise. Le
 2026-09-02_quadratic-formula	Computation.text	R2-5 -> G-0a58f64b	R2-5's check_kind is document, so this proof
 2026-09-02_quadratic-formula	Computation.text	R2-6 -> G-47de120c	R2-6's check_kind is computation and red spe
-2026-09-02_quadratic-formula	ManifestRow.row	p-75c8a55a -> K-75c8a55a	am is the proof anchor on the sentence (p-75c8a55a, recorded reproducible). UNIVERSALS EN
-2026-09-02_quadratic-formula	ManifestRow.row	Q28 -> Q-88ccee18	he five stored scripts. Line of inquiry Q28 records why, against its own hypothesis
-2026-09-02_quadratic-formula	ManifestRow.row	p-be841542 -> K-be841542	from this container": 4. Proof anchors p-be841542 and p-2184cf8d. UNIVERSALS ENUMERATED.
-2026-09-02_quadratic-formula	ManifestRow.row	p-2184cf8d -> K-2184cf8d	ainer": 4. Proof anchors p-be841542 and p-2184cf8d. UNIVERSALS ENUMERATED. The repair sta
-2026-09-02_quadratic-formula	ManifestRow.row	Q6 -> Q-585fa4aa	ed "lines of inquiry", "twenty-three", "Q6": one site. Catechism 3 restates the re
-2026-09-02_quadratic-formula	ManifestRow.row	R2-5 -> G-0a58f64b	p's edit (the six named sources) and by R2-5's (the seventh). They are adjacent sent
-2026-09-02_quadratic-formula	ManifestRow.row	p-a31f8c81 -> K-a31f8c81	itions plus a fourth pass. Proof anchor p-a31f8c81.
-2026-09-02_quadratic-formula	ManifestRow.row	Q24 -> Q-a9f84f8a	s. WHAT I DID NOT DO. I did not reopen Q24; red's too_thin ruling and its cost arg
-2026-09-02_quadratic-formula	ManifestRow.row	p-941e30b3 -> K-941e30b3	can judge for themselves. Proof anchor p-941e30b3. I WENT BEYOND WHAT RED ASKED, AND SAY
-2026-09-02_quadratic-formula	ManifestRow.row	Q19 -> Q-4813dcd4	report's characterisation to match the Q19 record without exceeding it. All three
-2026-09-02_quadratic-formula	ManifestRow.row	Q19 -> Q-4813dcd4	eding it. All three sites carry it; the Q19 obituary says the fetch returned 403 an
-2026-09-02_quadratic-formula	ManifestRow.row	p-a31f8c81 -> K-a31f8c81	edits. Final run: 0, 0, 0. Proof anchor p-a31f8c81, recorded reproducible. THE MECHANISM,
-2026-09-02_quadratic-formula	ManifestRow.row	R1-7 -> G-4f2e3ef7	Catechism 2 quotation reintroduces the R1-7 hazard — words attributed to a critic
-2026-09-02_quadratic-formula	ManifestRow.row	c-c8d9a6bf -> C-c8d9a6bf	sourced and carry a tool-placed anchor (c-c8d9a6bf, verified at cache sha cd726808: Rusty
-2026-09-02_quadratic-formula	ManifestRow.row	p-a31f8c81 -> K-a31f8c81	run rather than eyeballed, proof anchor p-a31f8c81. UNIVERSALS ENUMERATED, AND THE ENUMER
-2026-09-02_quadratic-formula	ManifestRow.row	R1-5 -> G-6722bfb9	xists. I re-rendered `show changes --id R1-5` this sitting: it renders two edits, at
-2026-09-02_quadratic-formula	ManifestRow.row	R1-5 -> G-6722bfb9	at the span red names and found one of R1-5's own class: the TL;DR gave 9-against-1
-2026-09-02_quadratic-formula	ManifestRow.row	p-6333b37e -> K-6333b37e	are section D's own under proof anchors p-6333b37e and p-f9ea66b8: unit costs 12 textbook,
-2026-09-02_quadratic-formula	ManifestRow.row	p-f9ea66b8 -> K-f9ea66b8	own under proof anchors p-6333b37e and p-f9ea66b8: unit costs 12 textbook, 10 completing
-2026-09-02_quadratic-formula	ManifestRow.row	R1-5 -> G-6722bfb9	f the sentence is untouched: red closed R1-5 on it and called it better than the tex
 2026-09-02_quadratic-formula	Motion.basis	R2-8 -> G-5a1d57a9	R2-8, LIKELIHOOD, HIGH -> MEDIUM, ON THE v2
 2026-09-02_quadratic-formula	Motion.basis	R2-4 -> G-396865bd	R2-4, LIKELIHOOD, MEDIUM_HIGH -> MEDIUM, USI
 2026-09-02_quadratic-formula	Closing.text	R2-1 -> G-970250ea	R2-1 is the gap red called the reason certif
@@ -3723,22 +3457,6 @@
 2026-09-02_quadratic-formula	BlueEdit.text	R3-2 -> G-99effe8a	R3-2. A figure a reader cannot re-derive is
 2026-09-02_quadratic-formula	Computation.text	R3-5 -> G-48310782	R3-5's acceptance check is settled by runnin
 2026-09-02_quadratic-formula	Computation.text	R3-2 -> G-99effe8a	R3-2's acceptance check is a recount, and th
-2026-09-02_quadratic-formula	ManifestRow.row	p-1f443272 -> K-1f443272	comes from r3_medium_recover.py (proof p-1f443272, reproducible): 79,300 bytes on disk, 7
-2026-09-02_quadratic-formula	ManifestRow.row	p-7980f1e0 -> K-7980f1e0	s a class by r3_absence_class.py (proof p-7980f1e0) over ten documents carrying a decisive
-2026-09-02_quadratic-formula	ManifestRow.row	p-1f443272 -> K-1f443272	check has two halves. The program half: p-1f443272 prints (a) byte and character counts, (
-2026-09-02_quadratic-formula	ManifestRow.row	p-80431fbb -> K-80431fbb	All from r3_apparatus_census.py (proof p-80431fbb): 25 programs on disk; sub-counts 9 lan
-2026-09-02_quadratic-formula	ManifestRow.row	R3-7 -> G-b5b003ce	s sentence carries both this repair and R3-7's Missa identification; if either is re
-2026-09-02_quadratic-formula	ManifestRow.row	Q31 -> Q-ccd53337	ires the line of inquiry to have MOVED: Q31 is moved to pursued this round with the
-2026-09-02_quadratic-formula	ManifestRow.row	Q31 -> Q-ccd53337	techism 4 and Catechism 5 — PASS; (d) Q31 moved this round — PASS. NEW CLAIMS
-2026-09-02_quadratic-formula	ManifestRow.row	c-aa79b982 -> C-aa79b982	eference at the sentence that makes it (c-aa79b982). The stranded anchor in the title cann
-2026-09-02_quadratic-formula	ManifestRow.row	p-7980f1e0 -> K-7980f1e0	f is re-derived in r3_absence_class.py (p-7980f1e0): 76 under the case-folded script-dropp
-2026-09-02_quadratic-formula	ManifestRow.row	c-e606dcbe -> C-e606dcbe	t precedes each. Result: c-95969800 and c-e606dcbe both in line 1; c-aa79b982 at the 76 se
-2026-09-02_quadratic-formula	ManifestRow.row	c-aa79b982 -> C-aa79b982	95969800 and c-e606dcbe both in line 1; c-aa79b982 at the 76 sentence. Red's alternative b
-2026-09-02_quadratic-formula	ManifestRow.row	p-50c744cc -> K-50c744cc	Six legs adjudicated, 0 failing (proof p-50c744cc). Leg (c): 5 "sign choice" occurrences,
-2026-09-02_quadratic-formula	ManifestRow.row	R3-6 -> G-f956e7bd	ts Catechism 6 leg keys on a phrase the R3-6 repair rewrote, and two of its four sub
-2026-09-02_quadratic-formula	ManifestRow.row	R3-1 -> G-66889c07	so carries the two new legs that answer R3-1 and R3-4, so a re-audit of any of the t
-2026-09-02_quadratic-formula	ManifestRow.row	R3-4 -> G-057d5781	s the two new legs that answer R3-1 and R3-4, so a re-audit of any of the three land
-2026-09-02_quadratic-formula	ManifestRow.row	R3-3 -> G-c58ddc4e	t of these shares its sentence with the R3-3 repair, and that composition is stated
 2026-09-02_quadratic-formula	Closing.text	p-80431fbb -> K-80431fbb	authored: r3_apparatus_census.py (proof p-80431fbb) walks the directories, checks that the
 2026-09-02_quadratic-formula	Closing.text	Q31 -> Q-ccd53337	the report, not only on the record, and Q31 is moved to pursued with its falsified
 2026-09-02_quadratic-formula	Closing.text	p-50c744cc -> K-50c744cc	TED, six, and legs failing, zero (proof p-50c744cc). Red's other uncharged observation is
@@ -4024,13 +3742,6 @@
 2026-09-02_quadratic-formula	Inquiry.reason	c-e606dcbe -> C-e606dcbe	both anchors (c-95969800, red round 2; c-e606dcbe, blue round 3), attribute each to its p
 2026-09-02_quadratic-formula	Inquiry.reason	c-e606dcbe -> C-e606dcbe	ch to its placing seat, and record that c-e606dcbe stranded while blue was adding the Anal
 2026-09-02_quadratic-formula	Inquiry.reason	R3-4 -> G-057d5781	ebt remains owed outside the debate per R3-4. The remedy this line named (never put
-2026-09-02_quadratic-formula	ManifestRow.row	R4-1 -> G-dd976878	R4-1 receipt. FIGURE recomputed: cite-anchor
-2026-09-02_quadratic-formula	ManifestRow.row	c-e606dcbe -> C-e606dcbe	t line 1 via show report = exactly two (c-e606dcbe, c-95969800), matching the repaired pro
-2026-09-02_quadratic-formula	ManifestRow.row	c-e606dcbe -> C-e606dcbe	= red-lens-r2-L1 round-2 corroboration; c-e606dcbe = blue-respond-r3 round-3 source record
-2026-09-02_quadratic-formula	ManifestRow.row	c-aa79b982 -> C-aa79b982	count clause and stranded in the title; c-aa79b982 = the reference actually at the 76-coun
-2026-09-02_quadratic-formula	ManifestRow.row	R3-4 -> G-057d5781	ed: the repair moves no anchor (honours R3-4's tooling-debt ruling) and attributes c
-2026-09-02_quadratic-formula	ManifestRow.row	c-e606dcbe -> C-e606dcbe	4's tooling-debt ruling) and attributes c-e606dcbe only to blue's own conduct, which the b
-2026-09-02_quadratic-formula	ManifestRow.row	R3-4 -> G-057d5781	o blue's own conduct, which the bench's R3-4 rationale already recorded — so it tr
 2026-09-02_quadratic-formula	Closing.text	R4-1 -> G-dd976878	R4-1 is well-founded and I resolved it by a
 2026-09-02_quadratic-formula	Closing.text	L2-F3 -> F-0d28b626	ing substance and wording to blue. Red (L2-F3) is right on the merits: the Technical
 2026-09-02_quadratic-formula	Closing.text	R3-4 -> G-057d5781	catch, pointing the other way. I honour R3-4 in full: no anchor is moved, and I attr
@@ -4138,15 +3849,6 @@
 2026-09-02_quadratic-formula	Log.text	R3-1 -> G-66889c07	load-bearing for THIS disposition. The R3-1 and R5-1 closure records plus the repor
 2026-09-02_quadratic-formula	Log.text	R5-1 -> G-3da22b21	ring for THIS disposition. The R3-1 and R5-1 closure records plus the report grep se
 2026-09-02_quadratic-formula	Inquiry.reason	R2-2 -> G-e684016d	answering the unchecked-assertion class R2-2 named. Reaffirmed pursued: converged in
-2026-09-02_quadratic-formula	ManifestRow.row	R5-1 -> G-3da22b21	R5-1 manifest receipt (verification-only; no
-2026-09-02_quadratic-formula	ManifestRow.row	c-4e4c92af -> C-4e4c92af	3,773 characters" carrying cite anchor c-4e4c92af is PRESENT. Result: PASS. FIGURES: the
-2026-09-02_quadratic-formula	ManifestRow.row	p-941e30b3 -> K-941e30b3	proof anchors on the same sentences — p-941e30b3 (630 chars of chrome under the script-d
-2026-09-02_quadratic-formula	ManifestRow.row	p-1f443272 -> K-1f443272	e under the script-dropping recipe) and p-1f443272 (a second 9-April-2021 capture yields i
-2026-09-02_quadratic-formula	ManifestRow.row	c-4e4c92af -> C-4e4c92af	state it identically with no drift; the c-4e4c92af anchor sits once (Catechism 4), Analysi
-2026-09-02_quadratic-formula	ManifestRow.row	p-1f443272 -> K-1f443272	Analysis B carries its own proof/cite (p-1f443272, c-9d3572f0). UNIVERSAL/ENUMERATION: th
-2026-09-02_quadratic-formula	ManifestRow.row	c-9d3572f0 -> C-9d3572f0	carries its own proof/cite (p-1f443272, c-9d3572f0). UNIVERSAL/ENUMERATION: the acceptance
-2026-09-02_quadratic-formula	ManifestRow.row	R3-1 -> G-66889c07	no new anchor, no propagation debt, and R3-1's own reopen triggers (a decisive absen
-2026-09-02_quadratic-formula	ManifestRow.row	R2-6 -> G-47de120c	ed, and editing it again would risk the R2-6 verbatim-landing regression for no gain
 2026-09-02_quadratic-formula	Closing.text	R5-1 -> G-3da22b21	R5-1 is resolved in the shipped text, and I
 2026-09-02_quadratic-formula	Closing.text	R5-1 -> G-3da22b21	he leaf rather than trusting the board. R5-1 is a lineage successor of R3-1 that red
 2026-09-02_quadratic-formula	Closing.text	R3-1 -> G-66889c07	e board. R5-1 is a lineage successor of R3-1 that red-merge minted and closed DISPOS
@@ -4275,22 +3977,6 @@
 2026-09-09_is-91-prime-a	Regrade.basis	Q9 -> Q-8ff67713	identical 8 lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) under 'Awaiting a decision', each stil
 2026-09-09_is-91-prime-a	Regrade.basis	G1 -> G-9e2aad3b	which is not an edit (show changes --id G1 shows 'Edits blue recorded against it:
 2026-09-09_is-91-prime-a	Inquiry.reason	G2 -> G-4ee5921d	list wording issue raised separately as G2 concerns a different sentence (the audi
-2026-09-09_is-91-prime-a	ManifestRow.row	Q1 -> Q-bc8f71a7	ory) and confirmed all 8 pursued lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) sat frozen at a s
-2026-09-09_is-91-prime-a	ManifestRow.row	Q2 -> Q-a559104f	) and confirmed all 8 pursued lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) sat frozen at a sing
-2026-09-09_is-91-prime-a	ManifestRow.row	Q3 -> Q-b8fe8226	nd confirmed all 8 pursued lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) sat frozen at a single
-2026-09-09_is-91-prime-a	ManifestRow.row	Q4 -> Q-357e39b7	confirmed all 8 pursued lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) sat frozen at a single epo
-2026-09-09_is-91-prime-a	ManifestRow.row	Q6 -> Q-40993ef3	firmed all 8 pursued lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) sat frozen at a single epoch-
-2026-09-09_is-91-prime-a	ManifestRow.row	Q7 -> Q-e93e5b70	med all 8 pursued lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) sat frozen at a single epoch-0 e
-2026-09-09_is-91-prime-a	ManifestRow.row	Q8 -> Q-abdff6f6	all 8 pursued lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) sat frozen at a single epoch-0 even
-2026-09-09_is-91-prime-a	ManifestRow.row	Q9 -> Q-8ff67713	l 8 pursued lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) sat frozen at a single epoch-0 event w
-2026-09-09_is-91-prime-a	ManifestRow.row	logic-F1 -> F-9ef1bd5b	ffirmed since, exactly as red's finding logic-F1 described -- the report's claim was gen
-2026-09-09_is-91-prime-a	ManifestRow.row	Q1 -> Q-bc8f71a7	onclusion in its original pursued text (Q1 found divisor 7; Q2-Q4,Q6,Q7 corroborat
-2026-09-09_is-91-prime-a	ManifestRow.row	Q2 -> Q-a559104f	ginal pursued text (Q1 found divisor 7; Q2-Q4,Q6,Q7 corroborated the 7x13 factoriz
-2026-09-09_is-91-prime-a	ManifestRow.row	Q4 -> Q-357e39b7	al pursued text (Q1 found divisor 7; Q2-Q4,Q6,Q7 corroborated the 7x13 factorizati
-2026-09-09_is-91-prime-a	ManifestRow.row	Q6 -> Q-40993ef3	pursued text (Q1 found divisor 7; Q2-Q4,Q6,Q7 corroborated the 7x13 factorization
-2026-09-09_is-91-prime-a	ManifestRow.row	Q7 -> Q-e93e5b70	sued text (Q1 found divisor 7; Q2-Q4,Q6,Q7 corroborated the 7x13 factorization fro
-2026-09-09_is-91-prime-a	ManifestRow.row	Q8 -> Q-abdff6f6	factorization from independent sources; Q8 re-executed the script and byte-audited
-2026-09-09_is-91-prime-a	ManifestRow.row	Q9 -> Q-8ff67713	the script and byte-audited the caches; Q9 ran an independent Fermat-witness check
 2026-09-09_is-91-prime-a	Position.text	G1 -> G-9e2aad3b	G1 (logic-F1, regraded medium_high after a
 2026-09-09_is-91-prime-a	Position.text	logic-F1 -> F-9ef1bd5b	G1 (logic-F1, regraded medium_high after a full sile
 2026-09-09_is-91-prime-a	Position.text	Q1 -> Q-bc8f71a7	-lines-of-inquiry listed 8 of 10 lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9) frozen at a singl
@@ -4334,19 +4020,6 @@
 2026-09-09_is-91-prime-a	BlueEdit.text	evidence-F1 -> F-d36ca61c	s sitting at the leaf, independently of evidence-F1's own count: grepped cache/dfdccc632d..
 2026-09-09_is-91-prime-a	BlueEdit.text	evidence-F1 -> F-d36ca61c	those three patterns never occur), AND evidence-F1's own finding text, which stated a 13/1
 2026-09-09_is-91-prime-a	BlueEdit.text	G2 -> G-4ee5921d	This is the other half of G2's required_fix: the Independent audit s
-2026-09-09_is-91-prime-a	ManifestRow.row	Q1 -> Q-bc8f71a7	g before touching the report; confirmed Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9 are listed under '
-2026-09-09_is-91-prime-a	ManifestRow.row	Q2 -> Q-a559104f	efore touching the report; confirmed Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9 are listed under 'Awa
-2026-09-09_is-91-prime-a	ManifestRow.row	Q3 -> Q-b8fe8226	re touching the report; confirmed Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9 are listed under 'Awaiti
-2026-09-09_is-91-prime-a	ManifestRow.row	Q4 -> Q-357e39b7	touching the report; confirmed Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9 are listed under 'Awaiting
-2026-09-09_is-91-prime-a	ManifestRow.row	Q6 -> Q-40993ef3	ching the report; confirmed Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9 are listed under 'Awaiting a d
-2026-09-09_is-91-prime-a	ManifestRow.row	Q7 -> Q-e93e5b70	ng the report; confirmed Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9 are listed under 'Awaiting a deci
-2026-09-09_is-91-prime-a	ManifestRow.row	Q8 -> Q-abdff6f6	the report; confirmed Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9 are listed under 'Awaiting a decisio
-2026-09-09_is-91-prime-a	ManifestRow.row	Q9 -> Q-8ff67713	report; confirmed Q1,Q2,Q3,Q4,Q6,Q7,Q8,Q9 are listed under 'Awaiting a decision'
-2026-09-09_is-91-prime-a	ManifestRow.row	f-9ef1bd5b -> F-9ef1bd5b	class fix (no table/roster). (7) Anchor f-9ef1bd5b carried through both edits unchanged, v
-2026-09-09_is-91-prime-a	ManifestRow.row	evidence-F1 -> F-d36ca61c	independent python script (not trusting evidence-F1's own reported 13/1 split), and found t
-2026-09-09_is-91-prime-a	ManifestRow.row	f-d36ca61c -> F-d36ca61c	tion or finding anchors were dropped -- f-d36ca61c and c-b69ba4bd both carried through the
-2026-09-09_is-91-prime-a	ManifestRow.row	c-b69ba4bd -> C-b69ba4bd	anchors were dropped -- f-d36ca61c and c-b69ba4bd both carried through the Zazkis edit un
-2026-09-09_is-91-prime-a	ManifestRow.row	evidence-F1 -> F-d36ca61c	independently recomputed, distinct from evidence-F1's originally-reported (14/13/1) count,
 2026-09-09_is-91-prime-a	Position.text	G1 -> G-9e2aad3b	her than by further process gymnastics. G1: red's epoch-3 sitting established that
 2026-09-09_is-91-prime-a	Position.text	G2 -> G-4ee5921d	n the operator channel, not the report. G2: evidence-F1 was right that the Zazkis
 2026-09-09_is-91-prime-a	Position.text	evidence-F1 -> F-d36ca61c	e operator channel, not the report. G2: evidence-F1 was right that the Zazkis citation's ex
@@ -4517,12 +4190,6 @@
 2026-09-09_is-91-prime-b	Inquiry.reason	Q5 -> Q-e77231e5	ose independent hand arithmetic check' (Q5's CRT verification). That is not what t
 2026-09-09_is-91-prime-b	Inquiry.reason	Q6 -> Q-641e6d65	production software -- which satisfies Q6's stated goal (an independent, non-self
 2026-09-09_is-91-prime-b	Inquiry.reason	Q6 -> Q-641e6d65	91 is not prime), matching the report. Q6 remains abandoned as a request to insta
-2026-09-09_is-91-prime-b	ManifestRow.row	G1 -> G-a654f9ea	Correctness-manifest receipt for G1 (logic-F1). (1) Figures recomputed: re-
-2026-09-09_is-91-prime-b	ManifestRow.row	logic-F1 -> F-3de138b7	Correctness-manifest receipt for G1 (logic-F1). (1) Figures recomputed: re-ran the se
-2026-09-09_is-91-prime-b	ManifestRow.row	p-808ae840 -> K-808ae840	a new claim): the first prove attempt (p-808ae840) failed reproducibility because the scr
-2026-09-09_is-91-prime-b	ManifestRow.row	p-efb28de8 -> K-efb28de8	he script self-contained and re-proved (p-efb28de8, reproducible). Both anchors are on the
-2026-09-09_is-91-prime-b	ManifestRow.row	Q1 -> Q-ed1ab940	e Analysis section's original sentence, Q1-Q5's findings, or any citation anchor.
-2026-09-09_is-91-prime-b	ManifestRow.row	Q5 -> Q-e77231e5	nalysis section's original sentence, Q1-Q5's findings, or any citation anchor.
 2026-09-09_is-91-prime-b	Reproduce.note	p-808ae840 -> K-808ae840	Anchor p-808ae840, backing 'confirms 5/5 agree 91 is comp
 2026-09-09_is-91-prime-b	Reproduce.note	p-efb28de8 -> K-efb28de8	inal authoring location. Read alongside p-efb28de8 (sha ea972841...), whose own docstring
 2026-09-09_is-91-prime-b	Reproduce.note	p-efb28de8 -> K-efb28de8	Anchor p-efb28de8, backing 'confirms 5/5 agree 91 is comp
@@ -4573,17 +4240,6 @@
 2026-09-09_is-91-prime-b	BlueEdit.text	p-808ae840 -> K-808ae840	not name the internal proof-anchor ids (p-808ae840 / p-efb28de8) in the report prose -- th
 2026-09-09_is-91-prime-b	BlueEdit.text	p-efb28de8 -> K-efb28de8	internal proof-anchor ids (p-808ae840 / p-efb28de8) in the report prose -- they are this r
 2026-09-09_is-91-prime-b	Computation.text	G2 -> G-8337410f	Settles G2's computation requirement: rather than
-2026-09-09_is-91-prime-b	ManifestRow.row	G2 -> G-8337410f	Correctness-manifest receipt for G2 (evidence-F1/logic-F5). (1) Figures rec
-2026-09-09_is-91-prime-b	ManifestRow.row	evidence-F1 -> F-12154913	Correctness-manifest receipt for G2 (evidence-F1/logic-F5). (1) Figures recomputed: wrot
-2026-09-09_is-91-prime-b	ManifestRow.row	logic-F5 -> F-2cacef00	ss-manifest receipt for G2 (evidence-F1/logic-F5). (1) Figures recomputed: wrote blue/ca
-2026-09-09_is-91-prime-b	ManifestRow.row	p-42d8032b -> K-42d8032b	ry double-run before trusting it (prove p-42d8032b: reproducible). (2) Universals enumerat
-2026-09-09_is-91-prime-b	ManifestRow.row	p-808ae840 -> K-808ae840	red's required_fix led with (remove the p-808ae840 anchor) and it is REFUSED by this seat'
-2026-09-09_is-91-prime-b	ManifestRow.row	p-42d8032b -> K-42d8032b	tations/anchors: backed by prove anchor p-42d8032b, not hand-typed; checked against [[patt
-2026-09-09_is-91-prime-b	ManifestRow.row	G2 -> G-8337410f	a prior repair) -- both checked, since G2 is itself a regression born from G1's o
-2026-09-09_is-91-prime-b	ManifestRow.row	G1 -> G-a654f9ea	nce G2 is itself a regression born from G1's own repair. (8) Repair minimalism: ad
-2026-09-09_is-91-prime-b	ManifestRow.row	Q1 -> Q-ed1ab940	ouch the surrounding claim's substance, Q1-Q6/Q8's records, or any other citation.
-2026-09-09_is-91-prime-b	ManifestRow.row	Q6 -> Q-641e6d65	h the surrounding claim's substance, Q1-Q6/Q8's records, or any other citation.
-2026-09-09_is-91-prime-b	ManifestRow.row	Q8 -> Q-35d215aa	he surrounding claim's substance, Q1-Q6/Q8's records, or any other citation.
 2026-09-09_is-91-prime-b	Log.text	G2 -> G-8337410f	nuine tooling limit hit while answering G2, not a self-inflicted error this time:
 2026-09-09_is-91-prime-b	Reproduce.note	p-42d8032b -> K-42d8032b	Anchor p-42d8032b, backing 'is what actually establishes
 2026-09-09_is-91-prime-b	Reproduce.note	G2 -> G-8337410f	ishes the claim by execution' in blue's G2 disclosure sentence. Re-ran the cached
@@ -4680,15 +4336,6 @@
 2026-09-10_is-91-prime-b3	Inquiry.reason	p-d6107488 -> K-d6107488	ller-Rabin criterion. Recorded as proof p-d6107488 and edited into the report's Miller-Rab
 2026-09-10_is-91-prime-b3	Inquiry.reason	Q3 -> Q-46feaafd	into the report's Miller-Rabin bullet. Q3 now documents both structurally indepen
 2026-09-10_is-91-prime-b3	Inquiry.reason	G1 -> G-44fb1b4a	closing the record-vs-document mismatch G1 flagged.
-2026-09-10_is-91-prime-b3	ManifestRow.row	Q3 -> Q-46feaafd	rt --anchor. Also moved line-of-inquiry Q3 to pursued, closing the acceptance_chec
-2026-09-10_is-91-prime-b3	ManifestRow.row	p-6844d749 -> K-6844d749	ment' -- now backed by 8 proof anchors (p-6844d749, p-bd21ef70, p-e2c14426, p-d6107488, p-
-2026-09-10_is-91-prime-b3	ManifestRow.row	p-bd21ef70 -> K-bd21ef70	backed by 8 proof anchors (p-6844d749, p-bd21ef70, p-e2c14426, p-d6107488, p-a897c923, p-
-2026-09-10_is-91-prime-b3	ManifestRow.row	p-e2c14426 -> K-e2c14426	proof anchors (p-6844d749, p-bd21ef70, p-e2c14426, p-d6107488, p-a897c923, p-8f09d8a4, p-
-2026-09-10_is-91-prime-b3	ManifestRow.row	p-d6107488 -> K-d6107488	rs (p-6844d749, p-bd21ef70, p-e2c14426, p-d6107488, p-a897c923, p-8f09d8a4, p-c5213636, p-
-2026-09-10_is-91-prime-b3	ManifestRow.row	p-a897c923 -> K-a897c923	49, p-bd21ef70, p-e2c14426, p-d6107488, p-a897c923, p-8f09d8a4, p-c5213636, p-a30013b5), a
-2026-09-10_is-91-prime-b3	ManifestRow.row	p-8f09d8a4 -> K-8f09d8a4	70, p-e2c14426, p-d6107488, p-a897c923, p-8f09d8a4, p-c5213636, p-a30013b5), all returned
-2026-09-10_is-91-prime-b3	ManifestRow.row	p-c5213636 -> K-c5213636	26, p-d6107488, p-a897c923, p-8f09d8a4, p-c5213636, p-a30013b5), all returned '(reproducib
-2026-09-10_is-91-prime-b3	ManifestRow.row	p-a30013b5 -> K-a30013b5	88, p-a897c923, p-8f09d8a4, p-c5213636, p-a30013b5), all returned '(reproducible, exit 0)'
 2026-09-10_is-91-prime-b3	Position.text	G1 -> G-44fb1b4a	Answering G1, G2, G3 this sitting, all with computed
 2026-09-10_is-91-prime-b3	Position.text	G2 -> G-304b7eeb	Answering G1, G2, G3 this sitting, all with computed/edi
 2026-09-10_is-91-prime-b3	Position.text	G3 -> G-19b1727b	Answering G1, G2, G3 this sitting, all with computed/edited
@@ -4745,17 +4392,6 @@
 2026-09-10_is-91-prime-b3	BlueEdit.text	G3 -> G-19b1727b	ropping 'the extra fetch' language, per G3's actual required_fix) so the anchor ag
 2026-09-10_is-91-prime-b3	BlueEdit.text	G1 -> G-44fb1b4a	inal punctuation -- same fix pattern as G1's miller-rabin anchor cleanup last sitt
 2026-09-10_is-91-prime-b3	BlueEdit.text	logic-F2 -> F-950a7234	Second attempt at fixing logic-F2's doubled-punctuation finding: quoting
-2026-09-10_is-91-prime-b3	ManifestRow.row	G3 -> G-19b1727b	fetch) and confirmed my prior sitting's G3 repair still stands -- only the one pre
-2026-09-10_is-91-prime-b3	ManifestRow.row	G3 -> G-19b1727b	two mechanical defects in my own prior G3 edits, surfaced by red-lens-logic's fin
-2026-09-10_is-91-prime-b3	ManifestRow.row	logic-F2 -> F-950a7234	s, surfaced by red-lens-logic's finding logic-F2 (recorded, not minted -- logic's mint b
-2026-09-10_is-91-prime-b3	ManifestRow.row	G1 -> G-44fb1b4a	ted -- logic's mint budget was spent on G1) and referenced in red-lens-voice's doc
-2026-09-10_is-91-prime-b3	ManifestRow.row	M1 -> M-f60ef77c	enced in red-lens-voice's docket motion M1. Consistency/boundary check (1): the Op
-2026-09-10_is-91-prime-b3	ManifestRow.row	f-950a7234 -> F-950a7234	nal mark. Root cause: a finding anchor (f-950a7234) I had not checked for sat at the origi
-2026-09-10_is-91-prime-b3	ManifestRow.row	G1 -> G-44fb1b4a	the trailing edge (same class of bug as G1's miller-rabin punctuation fix last sit
-2026-09-10_is-91-prime-b3	ManifestRow.row	f-950a7234 -> F-950a7234	Verified clean via show report --anchor f-950a7234 after two follow-up edits (one to remov
-2026-09-10_is-91-prime-b3	ManifestRow.row	f-f03e68d7 -> F-f03e68d7	eck (2): the retired item's bare anchor f-f03e68d7 sits alone as the document's last line,
-2026-09-10_is-91-prime-b3	ManifestRow.row	f-f03e68d7 -> F-f03e68d7	r replacement introduces finding-marker f-f03e68d7, which was not in the span it replaces"
-2026-09-10_is-91-prime-b3	ManifestRow.row	G3 -> G-19b1727b	debris, and should not block accepting G3's substantive repair.
 2026-09-10_is-91-prime-b3	Position.text	G1 -> G-44fb1b4a	G1 and G2 closed by red since my last sitt
 2026-09-10_is-91-prime-b3	Position.text	G2 -> G-304b7eeb	G1 and G2 closed by red since my last sitting (fa
 2026-09-10_is-91-prime-b3	Position.text	G3 -> G-19b1727b	and confirm no residual disagreement. G3 remains open. I read motion M1 (red-len
@@ -4824,9 +4460,6 @@
 2026-09-11_is-91-prime-b4	BlueEdit.text	G1 -> G-d6f0c41e	ing --accept: fix_new was left empty on G1's sibling gap and on this one too -- re
 2026-09-11_is-91-prime-b4	BlueEdit.text	G1 -> G-d6f0c41e	am rewriting (the tool's own refusal on G1 taught me it travels with the sentence
 2026-09-11_is-91-prime-b4	BlueEdit.text	G1 -> G-d6f0c41e	Report-wide sweep for G1 (required by the propagation duty, not
-2026-09-11_is-91-prime-b4	ManifestRow.row	c-754bd25a -> C-754bd25a	5) still matches the untouched citation c-754bd25a ("pseudoprime to 35 bases less than 91"
-2026-09-11_is-91-prime-b4	ManifestRow.row	p-3cf849ef -> K-3cf849ef	(proofs/bda047ed.../script.py, backing p-3cf849ef) was always correct -- it computed coun
-2026-09-11_is-91-prime-b4	ManifestRow.row	p-2906349c -> K-2906349c	a fresh independent computation (proof p-2906349c) rather than against memory of what the
 2026-09-11_is-91-prime-b4	Inquiry.reason	logic-F1 -> F-308ca52b	is the exact miscomposition red caught (logic-F1) and blue has now fixed in the report a
 2026-09-11_is-91-prime-b4	Inquiry.reason	voice-F1 -> F-6e2df7a1	mpt. It was not fully pre-empted: red's voice-F1 finding this epoch caught the Analysis
 2026-09-11_is-91-prime-b4	Inquiry.reason	G2 -> G-509c1642	primality question. Fixed this sitting (G2): the paragraph now states the substanc
@@ -4945,27 +4578,6 @@
 2026-09-11_is-91-prime-b5	BlueEdit.text	p-1406d9d8 -> K-1406d9d8	ensus for both tests (proof-anchored at p-1406d9d8 and p-9f148908) and the report cites it
 2026-09-11_is-91-prime-b5	BlueEdit.text	p-9f148908 -> K-9f148908	tests (proof-anchored at p-1406d9d8 and p-9f148908) and the report cites it elsewhere as a
 2026-09-11_is-91-prime-b5	BlueEdit.text	Q7 -> Q-e551d725	item genuinely declined, and corrected Q7 to state the liar-base census was run r
-2026-09-11_is-91-prime-b5	ManifestRow.row	G1 -> G-d95ddb1f	G1 manifest row. Checked against red's gap
-2026-09-11_is-91-prime-b5	ManifestRow.row	G1 -> G-d95ddb1f	site restates the output. Composition: G1 is independent of G4/G5/G6's edits (dif
-2026-09-11_is-91-prime-b5	ManifestRow.row	G4 -> G-a12c794f	tput. Composition: G1 is independent of G4/G5/G6's edits (different anchors, non-o
-2026-09-11_is-91-prime-b5	ManifestRow.row	G5 -> G-4e13f1bb	t. Composition: G1 is independent of G4/G5/G6's edits (different anchors, non-over
-2026-09-11_is-91-prime-b5	ManifestRow.row	G6 -> G-d2962e60	Composition: G1 is independent of G4/G5/G6's edits (different anchors, non-overlap
-2026-09-11_is-91-prime-b5	ManifestRow.row	G4 -> G-a12c794f	G4 manifest row. Checked against red's gap
-2026-09-11_is-91-prime-b5	ManifestRow.row	Q3 -> Q-8ad21e8c	he report. Consistency sweep: Catechism Q3's "two independent non-bespoke command-
-2026-09-11_is-91-prime-b5	ManifestRow.row	G1 -> G-d95ddb1f	ching edit. Composition: independent of G1/G5/G6 spans. New claims introduced: "us
-2026-09-11_is-91-prime-b5	ManifestRow.row	G5 -> G-4e13f1bb	ng edit. Composition: independent of G1/G5/G6 spans. New claims introduced: "used
-2026-09-11_is-91-prime-b5	ManifestRow.row	G6 -> G-d2962e60	edit. Composition: independent of G1/G5/G6 spans. New claims introduced: "used to
-2026-09-11_is-91-prime-b5	ManifestRow.row	G5 -> G-4e13f1bb	G5 manifest row. Checked against red's gap
-2026-09-11_is-91-prime-b5	ManifestRow.row	Q7 -> Q-e551d725	icals... plus a variant... in Catechism Q7" -- counted the report's own citation p
-2026-09-11_is-91-prime-b5	ManifestRow.row	G6 -> G-d2962e60	G6 manifest row. Checked against red's gap
-2026-09-11_is-91-prime-b5	ManifestRow.row	p-1406d9d8 -> K-1406d9d8	eport inspection confirms proof anchors p-1406d9d8 (Fermat, 71 bases) and p-9f148908 (Mill
-2026-09-11_is-91-prime-b5	ManifestRow.row	p-9f148908 -> K-9f148908	chors p-1406d9d8 (Fermat, 71 bases) and p-9f148908 (Miller-Rabin, 71 bases) both exist and
-2026-09-11_is-91-prime-b5	ManifestRow.row	Q7 -> Q-e551d725	s" -- appears only in the now-corrected Q7 sentence and nowhere as a completed res
-2026-09-11_is-91-prime-b5	ManifestRow.row	Q3 -> Q-8ad21e8c	e. Consistency sweep: re-read Catechism Q3, Q7 and the pseudoprimality section tog
-2026-09-11_is-91-prime-b5	ManifestRow.row	Q7 -> Q-e551d725	onsistency sweep: re-read Catechism Q3, Q7 and the pseudoprimality section togethe
-2026-09-11_is-91-prime-b5	ManifestRow.row	G1 -> G-d95ddb1f	te was not. Composition: independent of G1/G4/G5 spans. New claims introduced: "is
-2026-09-11_is-91-prime-b5	ManifestRow.row	G4 -> G-a12c794f	was not. Composition: independent of G1/G4/G5 spans. New claims introduced: "is re
-2026-09-11_is-91-prime-b5	ManifestRow.row	G5 -> G-4e13f1bb	not. Composition: independent of G1/G4/G5 spans. New claims introduced: "is repor
 2026-09-11_is-91-prime-b5	Inquiry.reason	p-e7dde534 -> K-e7dde534	a committed script and a prove record (p-e7dde534, p-f132b8ab). The convergence argument
 2026-09-11_is-91-prime-b5	Inquiry.reason	p-f132b8ab -> K-f132b8ab	script and a prove record (p-e7dde534, p-f132b8ab). The convergence argument this line's
 2026-09-11_is-91-prime-b5	Inquiry.reason	Q7 -> Q-e551d725	Reaffirmed, same substance as Q7. Unrevisited this sitting; no repair bo
@@ -5073,22 +4685,6 @@
 2026-09-11_is-91-prime-b6	BlueEdit.text	G6 -> G-83420ea6	Answers G6 (2/3). Same defect: "the only reachable
 2026-09-11_is-91-prime-b6	BlueEdit.text	G6 -> G-83420ea6	Answers G6 (3/3). Same defect: "was not found in t
 2026-09-11_is-91-prime-b6	Computation.text	G4 -> G-a73f4ca6	Answers G4 (not one of my assigned gaps, but it bl
-2026-09-11_is-91-prime-b6	ManifestRow.row	G1 -> G-9cb21173	G1 manifest. Checked: (1) figures — none
-2026-09-11_is-91-prime-b6	ManifestRow.row	p-63460ac8 -> K-63460ac8	t section's own already-verified trace, p-63460ac8/f-caf2d515), not a fresh assertion. Pat
-2026-09-11_is-91-prime-b6	ManifestRow.row	f-caf2d515 -> F-caf2d515	own already-verified trace, p-63460ac8/f-caf2d515), not a fresh assertion. Patterns check
-2026-09-11_is-91-prime-b6	ManifestRow.row	G3 -> G-782e2cf3	G3 manifest. Checked: (1) figures — none
-2026-09-11_is-91-prime-b6	ManifestRow.row	c-db0d435d -> C-db0d435d	s carry tool-inserted citation anchors (c-db0d435d, c-03e5eab8). (8) tagged verified-at-le
-2026-09-11_is-91-prime-b6	ManifestRow.row	c-03e5eab8 -> C-03e5eab8	-inserted citation anchors (c-db0d435d, c-03e5eab8). (8) tagged verified-at-leaf (I fetche
-2026-09-11_is-91-prime-b6	ManifestRow.row	G5 -> G-68c6ecf7	G5 manifest. Checked: (1) figures — none
-2026-09-11_is-91-prime-b6	ManifestRow.row	p-4e867682 -> K-4e867682	rified each via show report --anchor on p-4e867682, p-b6de6d7b, p-a8db6d42, p-4e4d96ab, p-
-2026-09-11_is-91-prime-b6	ManifestRow.row	p-b6de6d7b -> K-b6de6d7b	via show report --anchor on p-4e867682, p-b6de6d7b, p-a8db6d42, p-4e4d96ab, p-63460ac8, p-
-2026-09-11_is-91-prime-b6	ManifestRow.row	p-a8db6d42 -> K-a8db6d42	ort --anchor on p-4e867682, p-b6de6d7b, p-a8db6d42, p-4e4d96ab, p-63460ac8, p-e0548b9a bef
-2026-09-11_is-91-prime-b6	ManifestRow.row	p-4e4d96ab -> K-4e4d96ab	on p-4e867682, p-b6de6d7b, p-a8db6d42, p-4e4d96ab, p-63460ac8, p-e0548b9a before AND afte
-2026-09-11_is-91-prime-b6	ManifestRow.row	p-63460ac8 -> K-63460ac8	82, p-b6de6d7b, p-a8db6d42, p-4e4d96ab, p-63460ac8, p-e0548b9a before AND after editing) -
-2026-09-11_is-91-prime-b6	ManifestRow.row	p-e0548b9a -> K-e0548b9a	7b, p-a8db6d42, p-4e4d96ab, p-63460ac8, p-e0548b9a before AND after editing) -- this is ex
-2026-09-11_is-91-prime-b6	ManifestRow.row	G6 -> G-83420ea6	G6 manifest. Checked: (1) figures — none
-2026-09-11_is-91-prime-b6	ManifestRow.row	f-38417f0f -> F-38417f0f	ion-bearing bullet (bullet 1, fx-anchor f-38417f0f) kept its finding anchor exactly where
-2026-09-11_is-91-prime-b6	ManifestRow.row	G4 -> G-a73f4ca6	G4 manifest (not one of my assigned gaps;
 2026-09-11_is-91-prime-b6	Position.text	G1 -> G-9cb21173	Dispatched onto G1, G3, G5, G6 — all four repaired by ed
 2026-09-11_is-91-prime-b6	Position.text	G3 -> G-782e2cf3	Dispatched onto G1, G3, G5, G6 — all four repaired by edit,
 2026-09-11_is-91-prime-b6	Position.text	G5 -> G-68c6ecf7	Dispatched onto G1, G3, G5, G6 — all four repaired by edit, all
@@ -5282,16 +4878,6 @@
 2026-09-11_is-91-prime-b7	Position.text	Q13 -> Q-e2060bd6	he other three declined lines (Q8, Q10, Q13) each state why the direction was not w
 2026-09-11_is-91-prime-b7	Position.text	Q5 -> Q-62b06648	the direction was not worth taking, and Q5 alone states what was found by taking i
 2026-09-11_is-91-prime-b7	Position.text	Q5 -> Q-62b06648	es what was found by taking it. I moved Q5 to pursued rather than leaving "decline
-2026-09-11_is-91-prime-b7	ManifestRow.row	G1 -> G-8f9ef62a	G1 receipt. Checked against red-gap-patter
-2026-09-11_is-91-prime-b7	ManifestRow.row	Q5 -> Q-62b06648	entence match exactly the five named in Q5's own recorded text and in logic-F1's f
-2026-09-11_is-91-prime-b7	ManifestRow.row	logic-F1 -> F-d85ad172	named in Q5's own recorded text and in logic-F1's finding text (Wikipedia, Cuemath, Ved
-2026-09-11_is-91-prime-b7	ManifestRow.row	Q5 -> Q-62b06648	ntu, Smartick" and for "declined" near "Q5" -- the only other place Q5's search is
-2026-09-11_is-91-prime-b7	ManifestRow.row	Q5 -> Q-62b06648	ined" near "Q5" -- the only other place Q5's search is described is the lines-of-i
-2026-09-11_is-91-prime-b7	ManifestRow.row	Q5 -> Q-62b06648	-reading `show lines-of-inquiry`, where Q5 now sits under "pursued" with the new r
-2026-09-11_is-91-prime-b7	ManifestRow.row	Q8 -> Q-17ea0544	erated class needing a sibling sweep -- Q8, Q10, Q13 (the other three declined lin
-2026-09-11_is-91-prime-b7	ManifestRow.row	Q10 -> Q-13a2e2f7	ed class needing a sibling sweep -- Q8, Q10, Q13 (the other three declined lines) w
-2026-09-11_is-91-prime-b7	ManifestRow.row	Q13 -> Q-e2060bd6	ass needing a sibling sweep -- Q8, Q10, Q13 (the other three declined lines) were r
-2026-09-11_is-91-prime-b7	ManifestRow.row	Q5 -> Q-62b06648	ot a completed result, so no sibling of Q5 shares this defect.
 2026-09-11_is-91-prime-b7	Position.text	G1 -> G-8f9ef62a	Verified blue's fix on G1 directly against the record rather than
 2026-09-11_is-91-prime-b7	Position.text	G1 -> G-8f9ef62a	ing its own account: `show changes --id G1` shows one +325 character edit, and bot
 2026-09-11_is-91-prime-b7	Position.text	Q5 -> Q-62b06648	h halves of the required fix landed — Q5 is now "pursued" on the lines-of-inquir
@@ -5395,22 +4981,6 @@
 2026-09-11_is-91-prime-b8	Regrade.basis	G4 -> G-68a55b32	jection for this gap (show changes --id G4) records NONE, and the unscoped changes
 2026-09-11_is-91-prime-b8	BlueEdit.text	G4 -> G-68a55b32	Re-voicing per G4: the sentence explained a residual veri
 2026-09-11_is-91-prime-b8	BlueEdit.text	G4 -> G-68a55b32	Re-voicing per G4: same defect class as the Catechism poi
-2026-09-11_is-91-prime-b8	ManifestRow.row	Q13 -> Q-92afd612	verage the report body denies). Re-read Q13's original reason and the Catechism #4
-2026-09-11_is-91-prime-b8	ManifestRow.row	Q13 -> Q-92afd612	show lines-of-inquiry and show report: Q13 said the third-software-lineage gap was
-2026-09-11_is-91-prime-b8	ManifestRow.row	Q13 -> Q-92afd612	worth pursuing further. Fixed by moving Q13 again (abandoned, corrected reason) to
-2026-09-11_is-91-prime-b8	ManifestRow.row	Q13 -> Q-92afd612	ns pair remains, and it now agrees with Q13's corrected reason. This is a fresh lin
-2026-09-11_is-91-prime-b8	ManifestRow.row	Q13 -> Q-92afd612	ry act, not an --corrects (the original Q13 move is outside its sitting window), so
-2026-09-11_is-91-prime-b8	ManifestRow.row	G1 -> G-f1911636	-reason-mismatch pattern, same class as G1. Searched the full lines-of-inquiry rec
-2026-09-11_is-91-prime-b8	ManifestRow.row	c-718452e2 -> C-718452e2	s OEIS cross-check paragraph (citations c-718452e2, c-2565c041, proof p-498c1dba) had no l
-2026-09-11_is-91-prime-b8	ManifestRow.row	c-2565c041 -> C-2565c041	-check paragraph (citations c-718452e2, c-2565c041, proof p-498c1dba) had no line-of-inqui
-2026-09-11_is-91-prime-b8	ManifestRow.row	p-498c1dba -> K-498c1dba	citations c-718452e2, c-2565c041, proof p-498c1dba) had no line-of-inquiry origin. Fixed v
-2026-09-11_is-91-prime-b8	ManifestRow.row	Q16 -> Q-33676ac0	e required_fix's first option: proposed Q16 (direct A002808/A000040 reading) and mo
-2026-09-11_is-91-prime-b8	ManifestRow.row	Q14 -> Q-6bd053af	ration-space record. Did not also touch Q14's text, since the fix is disjunctive an
-2026-09-11_is-91-prime-b8	ManifestRow.row	Q16 -> Q-33676ac0	ither branch; re-checked afterward that Q16 now appears under a mention-search for
-2026-09-11_is-91-prime-b8	ManifestRow.row	G3 -> G-6c72ffdd	then recorded it with `prove --answers G3`, anchoring the new proof at the same c
-2026-09-11_is-91-prime-b8	ManifestRow.row	p-a0718666 -> K-a0718666	classification. The pre-existing proof p-a0718666 (sanity-check sentence, line 31) makes
-2026-09-11_is-91-prime-b8	ManifestRow.row	f-70c1329a -> F-70c1329a	ullet 2), carrying both finding anchors f-70c1329a and f-cc3adbb4 through unchanged per th
-2026-09-11_is-91-prime-b8	ManifestRow.row	f-cc3adbb4 -> F-cc3adbb4	ing both finding anchors f-70c1329a and f-cc3adbb4 through unchanged per the tool's anchor
 2026-09-11_is-91-prime-b8	Position.text	G1 -> G-f1911636	xed all four rather than disputing any. G1 and G2 are the same defect class: the e
 2026-09-11_is-91-prime-b8	Position.text	G2 -> G-3f3a9f45	four rather than disputing any. G1 and G2 are the same defect class: the explorat
 2026-09-11_is-91-prime-b8	Position.text	Q13 -> Q-92afd612	ation-space record's stated reasons for Q13 and Q14 didn't match what the report bo
@@ -5489,16 +5059,6 @@
 2026-09-11_is-91-prime-b9	Log.text	Q6 -> Q-c5270c8e	se is missing. Seven lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8) have sat at "awaiting a decision
 2026-09-11_is-91-prime-b9	Log.text	Q7 -> Q-b6c87a30	is missing. Seven lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8) have sat at "awaiting a decision" a
 2026-09-11_is-91-prime-b9	Log.text	Q8 -> Q-cceca17f	missing. Seven lines (Q1,Q2,Q3,Q4,Q6,Q7,Q8) have sat at "awaiting a decision" acro
-2026-09-11_is-91-prime-b9	ManifestRow.row	f-353551d2 -> F-353551d2	otnote lag" checked: the finding anchor f-353551d2 was carried through explicitly (the too
-2026-09-11_is-91-prime-b9	ManifestRow.row	G2 -> G-3b07168d	n risk with my other edit this sitting (G2), which lands in a different section wi
-2026-09-11_is-91-prime-b9	ManifestRow.row	G1 -> G-8bd21b5d	. "Sibling-repair composition" checked: G1 and this G2 edit sit in different secti
-2026-09-11_is-91-prime-b9	ManifestRow.row	G2 -> G-3b07168d	epair composition" checked: G1 and this G2 edit sit in different sections (Referen
-2026-09-11_is-91-prime-b9	ManifestRow.row	p-4f9c01f3 -> K-4f9c01f3	anchored earlier in the report by proof p-4f9c01f3 (Miller-Rabin sweep) and independently
-2026-09-11_is-91-prime-b9	ManifestRow.row	p-8ffa6c36 -> K-8ffa6c36	nd independently cross-checked by proof p-8ffa6c36 (Solovay-Strassen), not asserted fresh
-2026-09-11_is-91-prime-b9	ManifestRow.row	G1 -> G-8bd21b5d	s made -- judged not the same defect as G1/G2 and left as is; not a gap I am engag
-2026-09-11_is-91-prime-b9	ManifestRow.row	G2 -> G-3b07168d	ade -- judged not the same defect as G1/G2 and left as is; not a gap I am engaged
-2026-09-11_is-91-prime-b9	ManifestRow.row	f-dd2fb944 -> F-dd2fb944	fix mints a fresh finding-anchor site (f-dd2fb944) rather than closing it outright -- the
-2026-09-11_is-91-prime-b9	ManifestRow.row	G2 -> G-3b07168d	d the first in place; both edits answer G2 and neither changes substance a second
 2026-09-11_is-91-prime-b9	Position.text	G1 -> G-8bd21b5d	Agreed with red on both G1 and G2 and repaired both rather than re
 2026-09-11_is-91-prime-b9	Position.text	G2 -> G-3b07168d	Agreed with red on both G1 and G2 and repaired both rather than rebutting
 2026-09-11_is-91-prime-b9	Position.text	G1 -> G-8bd21b5d	ment had a weak point worth contesting. G1: "this project's own local source and t
@@ -5546,7 +5106,6 @@
 2026-09-11_is-91-prime-b9	Retire.reason	G4 -> G-ddb5c38b	ing anchor f-84381c8e is not retired -- G4 is still open -- so it is named in --ne
 2026-09-11_is-91-prime-b9	Cite.text	f-84381c8e -> F-84381c8e	[] entry -- red-lens-evidence's finding f-84381c8e, gap G4). Read the cached Wikipedia "Fe
 2026-09-11_is-91-prime-b9	Cite.text	G4 -> G-ddb5c38b	lens-evidence's finding f-84381c8e, gap G4). Read the cached Wikipedia "Fermat pse
-2026-09-11_is-91-prime-b9	ManifestRow.row	c-4aa1edf3 -> C-4aa1edf3	c-d49a32c4 and my new, genuinely-backed c-4aa1edf3) rather than one clean anchor, which is
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	lying defect red-lens-evidence found on G4: c-d49a32c4 has the syntax of a citatio
 2026-09-11_is-91-prime-b9	Position.text	c-4aa1edf3 -> C-4aa1edf3	ached a new, genuinely-backed citation (c-4aa1edf3) to the same clause after reading the s
 2026-09-11_is-91-prime-b9	Log.text	G4 -> G-ddb5c38b	`'s anchor-drop guard afterward. On gap G4 (a `` token in the report text with no
@@ -5746,23 +5305,6 @@
 2026-10-09_is-91-prime-wave-a	Retire.reason	p-d2b347a9 -> K-d2b347a9	m the listed terms" cannot stand: proof p-d2b347a9 counts primes by trial division and nev
 2026-10-09_is-91-prime-wave-a	Retire.reason	adversary-F3 -> F-26603302	s (the adversary's finding on this gap, adversary-F3, is correct on this point). The replace
 2026-10-09_is-91-prime-wave-a	Retire.reason	G6 -> G-cb248920	rding and consensus questions stay with G6.
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	p-d2b347a9 -> K-d2b347a9	7; the same figure 25 is the one proof p-d2b347a9 prints. (2) Universals: the Source dept
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G1 -> G-b8948854	survey and page-count wording with the G1 acceptance pattern; the only hit is the
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	p-d2b347a9 -> K-d2b347a9	he OEIS terms was checked against proof p-d2b347a9, which never reads those terms, and was
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G7 -> G-2005086e	e carry the same survey wording and are G7's targets, not repaired here. (4) Bound
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G1 -> G-b8948854	s: the sweep covered every section that G1's fix names; the Catechism and Open que
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G7 -> G-2005086e	and Open questions are declared open to G7. (7) New claims: "The product wording i
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	c-b0a3e943 -> C-b0a3e943	leaf against the cached Wikipedia lead (c-b0a3e943); "the set of sources is small" is an i
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	p-87ff1f52 -> K-87ff1f52	ith zero exceptions (scratch run; proof p-87ff1f52 reports the same empty failure list). "
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G2 -> G-e455bb4e	3) Sweep: the report was swept with the G2 acceptance pattern (reproduc, proof not
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G7 -> G-2005086e	which matches the Open questions line (G7's, unchanged) in substance and does not
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G7 -> G-2005086e	d definition; that line is a sibling of G7's and is not repaired here. (4) Boundar
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	f-e225557d -> F-e225557d	s both anchors on each sentence intact (f-e225557d, p-87ff1f52, f-e06eebcd, p-e16f6e67). (
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	p-87ff1f52 -> K-87ff1f52	rs on each sentence intact (f-e225557d, p-87ff1f52, f-e06eebcd, p-e16f6e67). (6) Enumerate
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	f-e06eebcd -> F-e06eebcd	entence intact (f-e225557d, p-87ff1f52, f-e06eebcd, p-e16f6e67). (6) Enumerated class: the
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	p-e16f6e67 -> K-e16f6e67	ct (f-e225557d, p-87ff1f52, f-e06eebcd, p-e16f6e67). (6) Enumerated class: the Checks sect
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G2 -> G-e455bb4e	ms and full-strength sentences named in G2's required fix are not present in the c
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	p-87ff1f52 -> K-87ff1f52	sal, which is tagged derived from proof p-87ff1f52 and the scratch recomputation.
 2026-10-09_is-91-prime-wave-a	Position.text	G1 -> G-b8948854	G1 and G2 are accepted in full on their re
 2026-10-09_is-91-prime-wave-a	Position.text	G2 -> G-e455bb4e	G1 and G2 are accepted in full on their required
 2026-10-09_is-91-prime-wave-a	Position.text	G1 -> G-b8948854	re the record forced a different route. G1's adversary finding (adversary-F3) is c
@@ -5802,10 +5344,6 @@
 2026-10-09_is-91-prime-wave-a	Finding.text	Q3 -> Q-14fac120	Q3 is concluded, but its hypothesis has a
 2026-10-09_is-91-prime-wave-a	Finding.text	Q8 -> Q-198ff6f8	did not survey nonstandard conventions. Q8 holds that survey as deferred. A line w
 2026-10-09_is-91-prime-wave-a	BlueEdit.text	G7 -> G-2005086e	e) is unchanged; the open-questions gap G7 may edit this sentence further and this
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G6 -> G-cb248920	Checked after the three G6 edits. (1) Figures: no number was added
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	c-b0a3e943 -> C-b0a3e943	nition is the Wikipedia article, anchor c-b0a3e943, which is kept. (4) Boundary: the repai
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G7 -> G-2005086e	; item 5 is also the target of open gap G7, whose wording may change again, and th
-2026-10-09_is-91-prime-wave-a	ManifestRow.row	G7 -> G-2005086e	may change again, and the sweep leaves G7's required fix intact. (6) Enumerated c
 2026-10-09_is-91-prime-wave-a	Position.text	G6 -> G-cb248920	G6 is accepted in full as red wrote it, wi
 2026-10-09_is-91-prime-wave-a	Position.text	G1 -> G-b8948854	limits that support belongs to open gap G1. The equivalence argument is in the rep
 2026-10-09_is-91-prime-wave-a	Position.text	G6 -> G-cb248920	a set the report never identifies. Gap G6 is not closed by this sitting; red's le
@@ -5891,13 +5429,11 @@
 2026-10-10_is-91-prime-m19	Finding.text	P-47ce38d8 -> K-47ce38d8	he four proofs (P-e6803dfe, P-c1c0989f, P-47ce38d8) carry one script under one sha (7a3927
 2026-10-10_is-91-prime-m19	Finding.text	P-6a232c78 -> K-6a232c78	he proof anchored at the Z[1/7] bullet (P-6a232c78), not at these bullets. The protocol an
 2026-10-10_is-91-prime-m19	Finding.text	P-47ce38d8 -> K-47ce38d8	base-3 strong test was run by the proof P-47ce38d8: 3^45 is 27 mod 91, neither 1 nor 90, a
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-47ce38d8 -> K-47ce38d8	o the 45th power is 27 modulo 91 (proof P-47ce38d8, recorded output "strong base 3: fail (
 2026-10-10_is-91-prime-m19	Position.text	P-47ce38d8 -> K-47ce38d8	either 1 nor minus 1; recorded in proof P-47ce38d8), so the old reason's "no single strong
 2026-10-10_is-91-prime-m19	Position.text	P-47ce38d8 -> K-47ce38d8	siteness, yet its own hypothesis, proof P-47ce38d8 and the report's Why section all show t
 2026-10-10_is-91-prime-m19	Verify.text	P-cd9f4c5a -> K-cd9f4c5a	s recomputed by trial division in proof P-cd9f4c5a, which this verdict does not rest on.
 2026-10-10_is-91-prime-m19	Verify.text	P-cd9f4c5a -> K-cd9f4c5a	acement is also re-derived by the proof P-cd9f4c5a, which I re-ran and judged sound. The s
 2026-10-10_is-91-prime-m19	Verify.text	P-cd9f4c5a -> K-cd9f4c5a	absence is also re-derived by the proof P-cd9f4c5a, which I re-ran and judged sound. Plain
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-6a232c78 -> K-6a232c78	: the only proof in the ring section is P-6a232c78 on the integers-with-7-inverted bullet,
 2026-10-10_is-91-prime-m19	SpotCheck.reason	P-e6803dfe -> K-e6803dfe	the computation area: all five proofs (P-e6803dfe, P-c1c0989f, P-47ce38d8, P-6a232c78, P-
 2026-10-10_is-91-prime-m19	SpotCheck.reason	P-c1c0989f -> K-c1c0989f	tion area: all five proofs (P-e6803dfe, P-c1c0989f, P-47ce38d8, P-6a232c78, P-cd9f4c5a) sh
 2026-10-10_is-91-prime-m19	SpotCheck.reason	P-47ce38d8 -> K-47ce38d8	ll five proofs (P-e6803dfe, P-c1c0989f, P-47ce38d8, P-6a232c78, P-cd9f4c5a) show reproduce
@@ -5906,17 +5442,6 @@
 2026-10-10_is-91-prime-m19	Mint.mint_reason	P-e6803dfe -> K-e6803dfe	d at epoch 1, still stands at head 400: P-e6803dfe, P-c1c0989f and P-47ce38d8 are three an
 2026-10-10_is-91-prime-m19	Mint.mint_reason	P-c1c0989f -> K-c1c0989f	, still stands at head 400: P-e6803dfe, P-c1c0989f and P-47ce38d8 are three anchors on thr
 2026-10-10_is-91-prime-m19	Mint.mint_reason	P-47ce38d8 -> K-47ce38d8	at head 400: P-e6803dfe, P-c1c0989f and P-47ce38d8 are three anchors on three sentences th
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-cec6a23e -> K-cec6a23e	: the report cites eight proof anchors (P-cec6a23e, P-cd9f4c5a, P-adf5d61d, P-a212a375, P-
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-cd9f4c5a -> K-cd9f4c5a	cites eight proof anchors (P-cec6a23e, P-cd9f4c5a, P-adf5d61d, P-a212a375, P-85094969, P-
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-adf5d61d -> K-adf5d61d	proof anchors (P-cec6a23e, P-cd9f4c5a, P-adf5d61d, P-a212a375, P-85094969, P-6a232c78, P-
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-a212a375 -> K-a212a375	rs (P-cec6a23e, P-cd9f4c5a, P-adf5d61d, P-a212a375, P-85094969, P-6a232c78, P-5dd02cbd, P-
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-85094969 -> K-85094969	3e, P-cd9f4c5a, P-adf5d61d, P-a212a375, P-85094969, P-6a232c78, P-5dd02cbd, P-4889ffa6); n
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-6a232c78 -> K-6a232c78	5a, P-adf5d61d, P-a212a375, P-85094969, P-6a232c78, P-5dd02cbd, P-4889ffa6); no two sit on
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-5dd02cbd -> K-5dd02cbd	1d, P-a212a375, P-85094969, P-6a232c78, P-5dd02cbd, P-4889ffa6); no two sit on different s
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-4889ffa6 -> K-4889ffa6	75, P-85094969, P-6a232c78, P-5dd02cbd, P-4889ffa6); no two sit on different sentences wit
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-e6803dfe -> K-e6803dfe	e still lists the three retired entries P-e6803dfe, P-c1c0989f and P-47ce38d8, each with h
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-c1c0989f -> K-c1c0989f	s the three retired entries P-e6803dfe, P-c1c0989f and P-47ce38d8, each with hash 7a3927..
-2026-10-10_is-91-prime-m19	ManifestRow.row	P-47ce38d8 -> K-47ce38d8	ired entries P-e6803dfe, P-c1c0989f and P-47ce38d8, each with hash 7a3927..., because the
 2026-10-10_is-91-prime-m19	SpotCheck.reason	P-5dd02cbd -> K-5dd02cbd	nce still carries the same proof anchor P-5dd02cbd. Nothing in the splits closes it. - red
 2026-10-10_is-91-prime-m19	Position.text	P-5dd02cbd -> K-5dd02cbd	entence still carries the shared anchor P-5dd02cbd, so the acceptance check (no two senten
 2026-10-10_is-91-prime-m19	Close.anchor_target	P-5dd02cbd -> K-5dd02cbd	ir sha256 in the proof store: 11fbee69 (P-5dd02cbd, base-3 Fermat), d7aed347 (P-adf5d61d,
@@ -6060,9 +5585,6 @@
 2026-10-11_is-91-prime-m20	Reproduce.note	P-d98285fb -> K-d98285fb	r four anchors (P-8ec7a81c, P-83b16b65, P-d98285fb, P-deb39e43); each anchored sentence is
 2026-10-11_is-91-prime-m20	Reproduce.note	P-deb39e43 -> K-deb39e43	rs (P-8ec7a81c, P-83b16b65, P-d98285fb, P-deb39e43); each anchored sentence is established
 2026-10-11_is-91-prime-m20	Reproduce.note	P-baa0d47b -> K-baa0d47b	I read script.py at P-baa0d47b before this call. It computes pow(3, 90
-2026-10-11_is-91-prime-m20	ManifestRow.row	P-8ec7a81c -> K-8ec7a81c	hmetic: 7 × 13 = 91 is computed (proof P-8ec7a81c); under the standard definition a sourc
-2026-10-11_is-91-prime-m20	ManifestRow.row	P-9e198e9a -> K-9e198e9a	e claim and was left unchanged. Proofs: P-9e198e9a answers this gap; P-37944556 backs the
-2026-10-11_is-91-prime-m20	ManifestRow.row	P-37944556 -> K-37944556	d. Proofs: P-9e198e9a answers this gap; P-37944556 backs the 34 figure.
 2026-10-11_is-91-prime-m20	Reproduce.note	P-9e198e9a -> K-9e198e9a	Read the script at P-9e198e9a and P-37944556 (one stored script, one
 2026-10-11_is-91-prime-m20	Reproduce.note	P-37944556 -> K-37944556	Read the script at P-9e198e9a and P-37944556 (one stored script, one sha256). It is
 2026-10-11_is-91-prime-m20	Reproduce.note	P-9e198e9a -> K-9e198e9a	Read the script at P-9e198e9a and P-37944556 (one stored script, one
@@ -6096,7 +5618,6 @@
 2026-10-11_is-91-prime-m20	Finding.text	P-37944556 -> K-37944556	recorded strong pass list (P-9e198e9a, P-37944556, same output) contains 9 and 10, and by
 2026-10-11_is-91-prime-m20	Log.text	P-9e198e9a -> K-9e198e9a	Two proofs, P-9e198e9a and P-37944556, carry the same sha256,
 2026-10-11_is-91-prime-m20	Log.text	P-37944556 -> K-37944556	Two proofs, P-9e198e9a and P-37944556, carry the same sha256, so the work lis
-2026-10-11_is-91-prime-m20	ManifestRow.row	P-7b35e050 -> K-7b35e050	y the enumeration script that the proof P-7b35e050 records and reruns. Before the edit it
 2026-10-11_is-91-prime-m20	SpotCheck.reason	P-7b35e050 -> K-7b35e050	iting a check. One proof is unverified: P-7b35e050 is anchored to the Alternatives questio
 2026-10-11_is-91-prime-m20	Position.text	P-7b35e050 -> K-7b35e050	o reader decision. The unverified proof P-7b35e050 sits on a question sentence and asserts
 2026-10-11_is-91-prime-m20	Log.text	P-7b35e050 -> K-7b35e050	The stored script for proof P-7b35e050 passes a hard-coded seat id, blue-respo
@@ -6110,10 +5631,6 @@
 2026-10-11_is-91-prime-m20	SpotCheck.reason	P-9e198e9a -> K-9e198e9a	settle it here. - red-lens-computation: P-9e198e9a is the only stored computation the edit
 2026-10-11_is-91-prime-m20	Position.text	P-9e198e9a -> K-9e198e9a	rime test on 91. The stored computation P-9e198e9a shows bases 9 and 10 both pass the stro
 2026-10-11_is-91-prime-m20	BlueEdit.text	P-9e198e9a -> K-9e198e9a	ion rule: the printed strong pass list (P-9e198e9a) contains 9 and 10, and my own recomput
-2026-10-11_is-91-prime-m20	ManifestRow.row	P-9e198e9a -> K-9e198e9a	figures recomputed by the stored script P-9e198e9a and by a second run of my own check (pr
-2026-10-11_is-91-prime-m20	ManifestRow.row	P-337c380d -> K-337c380d	figures the proof reproduces; the proof P-337c380d is anchored on the same sentence as P-9
-2026-10-11_is-91-prime-m20	ManifestRow.row	P-9e198e9a -> K-9e198e9a	80d is anchored on the same sentence as P-9e198e9a, which stays. (5) The repaired sentence
-2026-10-11_is-91-prime-m20	ManifestRow.row	P-37944556 -> K-37944556	at bullet above it: that bullet's proof P-37944556 and its base-3 Fermat caution are untou
 2026-10-11_is-91-prime-m20	SpotCheck.reason	P-9e198e9a -> K-9e198e9a	9. G-f1e3dce6 (stored strong-test proof P-9e198e9a): the proof's recorded output still rea
 2026-10-11_is-91-prime-m20	Position.text	P-9e198e9a -> K-9e198e9a	ass the strong test as the stored proof P-9e198e9a lists them. The advice that two passing
 2026-10-11_is-91-prime-m20	Position.text	P-9e198e9a -> K-9e198e9a	er and blue act on it. The stored proof P-9e198e9a was reopened by edit 389 and red-lens-e
@@ -6277,14 +5794,6 @@
 2026-10-12_is-91-prime-wave-b	Log.text	P-3713f092 -> K-3713f092	proof anchors (P-09bd049d, P-0d706556, P-3713f092, P-ede5a356, P-c53c6b2c) share one scri
 2026-10-12_is-91-prime-wave-b	Log.text	P-ede5a356 -> K-ede5a356	rs (P-09bd049d, P-0d706556, P-3713f092, P-ede5a356, P-c53c6b2c) share one script, sha 843a
 2026-10-12_is-91-prime-wave-b	Log.text	P-c53c6b2c -> K-c53c6b2c	9d, P-0d706556, P-3713f092, P-ede5a356, P-c53c6b2c) share one script, sha 843a2fb7. A verd
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-e6619b43 -> K-e6619b43	utation, anchored to the norm sentence (P-e6619b43, script blue/blue-respond-gaussian-norm
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-c53c6b2c -> K-c53c6b2c	its proof anchor is added. Not removed: P-c53c6b2c, whose script types the norms as litera
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-09bd049d -> K-09bd049d	port are five distinct checks: divisor (P-09bd049d), Fermat count (P-0d706556), strong-tes
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-0d706556 -> K-0d706556	ks: divisor (P-09bd049d), Fermat count (P-0d706556), strong-test count (P-3713f092), norm-
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-3713f092 -> K-3713f092	count (P-0d706556), strong-test count (P-3713f092), norm-7 search (P-ede5a356), and Gauss
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-ede5a356 -> K-ede5a356	test count (P-3713f092), norm-7 search (P-ede5a356), and Gaussian norm identity (P-c53c6b2
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-c53c6b2c -> K-c53c6b2c	-ede5a356), and Gaussian norm identity (P-c53c6b2c with P-e6619b43). They sit in two recor
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-e6619b43 -> K-e6619b43	Gaussian norm identity (P-c53c6b2c with P-e6619b43). They sit in two recorded scripts: fou
 2026-10-12_is-91-prime-wave-b	Log.text	P-c53c6b2c -> K-c53c6b2c	norm sentence leaves the earlier proof (P-c53c6b2c, typed norms) beside the new one, and t
 2026-10-12_is-91-prime-wave-b	Reproduce.note	P-e6619b43 -> K-e6619b43	Read the stored script for P-e6619b43 at its anchor. It computes each Gaussia
 2026-10-12_is-91-prime-wave-b	Reproduce.note	P-ede5a356 -> K-ede5a356	ish that 7 is a Gaussian prime (that is P-ede5a356, a separate anchor) and does not claim
@@ -6324,7 +5833,6 @@
 2026-10-12_is-91-prime-wave-b	Finding.text	P-09bd049d -> K-09bd049d	own. The computation that settles them, P-09bd049d (trial division over 2 to 9 gives 7 wit
 2026-10-12_is-91-prime-wave-b	Finding.text	P-0d706556 -> K-0d706556	where they are restated; their proofs, P-0d706556 and P-3713f092, sit in the body. The fi
 2026-10-12_is-91-prime-wave-b	Finding.text	P-3713f092 -> K-3713f092	restated; their proofs, P-0d706556 and P-3713f092, sit in the body. The figures and the a
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-e6619b43 -> K-e6619b43	ed and rest on the recorded computation P-e6619b43. Not repaired here, and still standing:
 2026-10-12_is-91-prime-wave-b	Position.text	P-c53c6b2c -> K-c53c6b2c	sentence still carries the older proof P-c53c6b2c, whose script types the factor norms as
 2026-10-12_is-91-prime-wave-b	Position.text	P-e6619b43 -> K-e6619b43	im is now carried by the computed proof P-e6619b43, and the report says the identity is co
 2026-10-12_is-91-prime-wave-b	SpotCheck.reason	P-e6619b43 -> K-e6619b43	ds six proofs, five at sha 843a2fb7 and P-e6619b43 at 11c89dc6, matching the closure's cou
@@ -6402,12 +5910,6 @@
 2026-10-12_is-91-prime-wave-b	Finding.text	P-a6ccf362 -> K-a6ccf362	e Z[i][1/7] sentence is backed by proof P-a6ccf362, which re-runs and reproduces. Its clai
 2026-10-12_is-91-prime-wave-b	Reproduce.note	P-a6ccf362 -> K-a6ccf362	Read the stored script at P-a6ccf362 before this call. It computes N(3+2i) =
 2026-10-12_is-91-prime-wave-b	Reproduce.note	P-a6ccf362 -> K-a6ccf362	Read the stored script at P-a6ccf362 before this call. It is a finite enumer
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-0d706556 -> K-0d706556	r output is the stored script output of P-0d706556 and P-3713f092. New figures: the strong
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-3713f092 -> K-3713f092	stored script output of P-0d706556 and P-3713f092. New figures: the strong test with base
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-a079e275 -> K-a079e275	or 90). These come from the enumeration P-a079e275 and were recomputed by hand and in the
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-a079e275 -> K-a079e275	-tests sentence (corrected, anchored to P-a079e275), TL;DR (corrected to name the base-2 e
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-a079e275 -> K-a079e275	On the body sentence, the proof anchor P-a079e275 sits before the gap and finding anchors
-2026-10-12_is-91-prime-wave-b	ManifestRow.row	P-a079e275 -> K-a079e275	e2-below-2047.py, output recorded under P-a079e275 (exit 0; primes 307, composites 1736, p
 2026-10-12_is-91-prime-wave-b	Closing.text	P-0d706556 -> K-0d706556	mpact is not. Red's own verification of P-0d706556 says the script "establishes those sent
 2026-10-12_is-91-prime-wave-b	Closing.text	P-0d706556 -> K-0d706556	anchor and cannot re-point or re-script P-0d706556, P-3713f092, P-09bd049d, P-ede5a356 or
 2026-10-12_is-91-prime-wave-b	Closing.text	P-3713f092 -> K-3713f092	annot re-point or re-script P-0d706556, P-3713f092, P-09bd049d, P-ede5a356 or P-c53c6b2c,
@@ -6454,10 +5956,6 @@
 2026-10-13_is-91-prime-m23	Log.text	P-c45d8337 -> K-c45d8337	, and two proof anchors on this report (P-c45d8337 and P-93be10b6) carry one sha256 and on
 2026-10-13_is-91-prime-m23	Log.text	P-93be10b6 -> K-93be10b6	anchors on this report (P-c45d8337 and P-93be10b6) carry one sha256 and one script. One v
 2026-10-13_is-91-prime-m23	Log.text	P-93be10b6 -> K-93be10b6	other anchor's row with that reason, so P-93be10b6 showed a note describing the A000040 se
-2026-10-13_is-91-prime-m23	ManifestRow.row	P-e01514be -> K-e01514be	runs: 34 of 88 bases pass for 91 (proof P-e01514be); 2^90 mod 91 = 64 and 2^45 mod 91 = 57
-2026-10-13_is-91-prime-m23	ManifestRow.row	P-93be10b6 -> K-93be10b6	e 1 and 12; 91 is 31st semiprime (proof P-93be10b6); primes around 91 are 83, 89, 97. All
-2026-10-13_is-91-prime-m23	ManifestRow.row	P-c45d8337 -> K-c45d8337	8 statements; both are backed by proofs P-c45d8337 and P-93be10b6, which the red lens veri
-2026-10-13_is-91-prime-m23	ManifestRow.row	P-93be10b6 -> K-93be10b6	oth are backed by proofs P-c45d8337 and P-93be10b6, which the red lens verified as reprodu
 2026-10-13_is-91-prime-m23	Reproduce.note	P-e1693676 -> K-e1693676	Read the stored script at P-e1693676. It bounds the divisor search at isqrt(
 2026-10-13_is-91-prime-m23	Reproduce.note	P-653c98bc -> K-653c98bc	Read the stored script at P-653c98bc. It computes pow(2,90,91)=64, pow(2,90,
 2026-10-13_is-91-prime-m23	Reproduce.note	P-e01514be -> K-e01514be	Read the stored script at P-e01514be. It counts bases 2 through 89 (88 bases
@@ -6530,10 +6028,6 @@
 2026-10-17_is-91-prime-07d	Log.text	P-9692c74c -> K-9692c74c	text and the P-50e0bf25 note refers to P-9692c74c. Expected one verdict per proof in both
 2026-10-17_is-91-prime-07d	BlueEdit.text	P-50e0bf25 -> K-50e0bf25	Drops the act word; the proof anchor P-50e0bf25 stays on the congruence (G-b917d3ff).
 2026-10-17_is-91-prime-07d	BlueEdit.text	P-bd2fbc19 -> K-bd2fbc19	s the claims they are; the proof anchor P-bd2fbc19 stays on the sentence (G-b917d3ff).
-2026-10-17_is-91-prime-07d	ManifestRow.row	P-faf0772c -> K-faf0772c	, its citation C-db3156ff and its proof P-faf0772c. Boundary: the 36 failing bases of the
-2026-10-17_is-91-prime-07d	ManifestRow.row	P-faf0772c -> K-faf0772c	instance, as red asked. C-db3156ff and P-faf0772c are new and unverified by red and await
-2026-10-17_is-91-prime-07d	ManifestRow.row	P-425d8ea3 -> K-425d8ea3	ial-division and Gaussian computations (P-425d8ea3, P-bd2fbc19). Acceptance: Q-3ed1bdc6 is
-2026-10-17_is-91-prime-07d	ManifestRow.row	P-bd2fbc19 -> K-bd2fbc19	and Gaussian computations (P-425d8ea3, P-bd2fbc19). Acceptance: Q-3ed1bdc6 is no longer c
 2026-10-17_is-91-prime-07d	Position.text	P-faf0772c -> K-faf0772c	utation over the composites below 5000 (P-faf0772c). The bound holds with equality at 91;
 2026-10-17_is-91-prime-07d	Position.text	P-faf0772c -> K-faf0772c	ed), the three new citations, and proof P-faf0772c, which has no verdict yet.
 2026-10-17_is-91-prime-07d	Position.text	P-425d8ea3 -> K-425d8ea3	s edits 242 to 250 changed (C-b2698b25, P-425d8ea3, P-842ad852, P-50e0bf25, P-27ec12d3, P-
@@ -6662,10 +6156,6 @@
 2026-10-17_is-91-prime-m27	BlueEdit.text	P-6d061f3d -> K-6d061f3d	2^90 mod 91 (P-a2ca63be), 3^90 mod 91 (P-6d061f3d), 3^45 mod 91 (P-94855e84) and 27^2 mod
 2026-10-17_is-91-prime-m27	BlueEdit.text	P-94855e84 -> K-94855e84	3^90 mod 91 (P-6d061f3d), 3^45 mod 91 (P-94855e84) and 27^2 mod 91 (P-ccedd56c). Squaring
 2026-10-17_is-91-prime-m27	BlueEdit.text	P-ccedd56c -> K-ccedd56c	45 mod 91 (P-94855e84) and 27^2 mod 91 (P-ccedd56c). Squaring is exponentiation to the pow
-2026-10-17_is-91-prime-m27	ManifestRow.row	P-a2ca63be -> K-a2ca63be	oofs that compute a power modulo 91 are P-a2ca63be (2^90), P-6d061f3d (3^90), P-94855e84 (
-2026-10-17_is-91-prime-m27	ManifestRow.row	P-6d061f3d -> K-6d061f3d	power modulo 91 are P-a2ca63be (2^90), P-6d061f3d (3^90), P-94855e84 (3^45) and P-ccedd56
-2026-10-17_is-91-prime-m27	ManifestRow.row	P-94855e84 -> K-94855e84	e P-a2ca63be (2^90), P-6d061f3d (3^90), P-94855e84 (3^45) and P-ccedd56c (27^2), which is
-2026-10-17_is-91-prime-m27	ManifestRow.row	P-ccedd56c -> K-ccedd56c	-6d061f3d (3^90), P-94855e84 (3^45) and P-ccedd56c (27^2), which is four, so 'three' was w
 2026-10-17_is-91-prime-m27	Position.text	P-a2ca63be -> K-a2ca63be	proofs that compute a power modulo 91 (P-a2ca63be, P-6d061f3d, P-94855e84, P-ccedd56c), s
 2026-10-17_is-91-prime-m27	Position.text	P-6d061f3d -> K-6d061f3d	compute a power modulo 91 (P-a2ca63be, P-6d061f3d, P-94855e84, P-ccedd56c), so the cost l
 2026-10-17_is-91-prime-m27	Position.text	P-94855e84 -> K-94855e84	ower modulo 91 (P-a2ca63be, P-6d061f3d, P-94855e84, P-ccedd56c), so the cost line reads fo
@@ -6696,12 +6186,6 @@
 2026-10-18_is-91-prime-m28	Inquiry.reason	P-2e6ef124 -> K-2e6ef124	the standard definition, 91 = 7 × 13 (P-2e6ef124, reproduced) makes any listing of 91 as
 2026-10-18_is-91-prime-m28	Inquiry.reason	P-2e6ef124 -> K-2e6ef124	torisation that proves 91 is composite (P-2e6ef124, reproduced; trial division by 2 to 9 f
 2026-10-18_is-91-prime-m28	Inquiry.reason	P-5bf78886 -> K-5bf78886	trial division by 2 to 9 finds 7 first, P-5bf78886). Under the standard definition of prim
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-8ab3b510 -> K-8ab3b510	2 gives 2 to the power 90 = 64 mod 91 (P-8ab3b510, reproduced, sound), so a rejection in
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-5077ef58 -> K-5077ef58	Figure recomputed: 35 of 71 bases pass (P-5077ef58, reproduced), which keeps "one pass is
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-5077ef58 -> K-5077ef58	he 71 bases coprime to 91 from 2 to 90 (P-5077ef58, reproduced); 25 primes up to 100 with
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-e43ad650 -> K-e43ad650	d); 25 primes up to 100 with 91 absent (P-e43ad650, reproduced). New claim introduced: the
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-e43ad650 -> K-e43ad650	t clause supported by the sieve to 100 (P-e43ad650, reproduced) and the cited OEIS data. S
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-2e6ef124 -> K-2e6ef124	as a new inquiry Q-1b3a4ed2 by 7 × 13 (P-2e6ef124, reproduced) under the standard definit
 2026-10-18_is-91-prime-m28	Position.text	P-2e6ef124 -> K-2e6ef124	quiry Q-1b3a4ed2, confirmed by 7 × 13 (P-2e6ef124, reproduced). Asking the bench to weigh
 2026-10-18_is-91-prime-m28	Position.text	P-2e6ef124 -> K-2e6ef124	and the record shows it: 91 = 7 × 13 (P-2e6ef124), trial division finds 7 first (P-5bf78
 2026-10-18_is-91-prime-m28	Position.text	P-5bf78886 -> K-5bf78886	e6ef124), trial division finds 7 first (P-5bf78886), base 2 rejects 91 (P-8ab3b510), and 9
@@ -6726,7 +6210,6 @@
 2026-10-18_is-91-prime-m28	Finding.text	P-a4b2ad47 -> K-a4b2ad47	817dd3. The ProofWiki leg is different: P-a4b2ad47 compares against a literal list typed i
 2026-10-18_is-91-prime-m28	BlueEdit.text	P-8ab3b510 -> K-8ab3b510	ompositeness, the arithmetic behind it (P-8ab3b510) is unchanged, and the anchor stays on
 2026-10-18_is-91-prime-m28	BlueEdit.text	P-a4b2ad47 -> K-a4b2ad47	hich the proof anchor on this sentence (P-a4b2ad47) backs; that proof is reopened by this
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-a4b2ad47 -> K-a4b2ad47	of anchor on the matched-list sentence (P-a4b2ad47) is reopened and owes a lens re-check.
 2026-10-18_is-91-prime-m28	Inquiry.reason	P-e43ad650 -> K-e43ad650	ition clause is settled by computation (P-e43ad650: the sieve to 100 leaves 25 primes with
 2026-10-18_is-91-prime-m28	Inquiry.reason	P-2e6ef124 -> K-2e6ef124	to 100 leaves 25 primes with 91 absent; P-2e6ef124: 91 = 7 x 13). What stays open is the p
 2026-10-18_is-91-prime-m28	Inquiry.reason	P-e43ad650 -> K-e43ad650	ition clause is settled by computation (P-e43ad650: the sieve to 100 leaves 25 primes with
@@ -6735,15 +6218,10 @@
 2026-10-18_is-91-prime-m28	Position.text	P-a4b2ad47 -> K-a4b2ad47	r last check: P-8ab3b510 (edit 343) and P-a4b2ad47 (edit 350). Red-lens-computation owes a
 2026-10-18_is-91-prime-m28	Close.prose	P-8ab3b510 -> K-8ab3b510	l items (the unverified reopened proofs P-8ab3b510 and P-a4b2ad47) are owned by the eviden
 2026-10-18_is-91-prime-m28	Close.prose	P-a4b2ad47 -> K-a4b2ad47	verified reopened proofs P-8ab3b510 and P-a4b2ad47) are owned by the evidence and computat
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-8ab3b510 -> K-8ab3b510	does not change the body. (6) Anchors: P-8ab3b510 sits on the changed body sentence and i
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-90f56e38 -> K-90f56e38	of the cached page). Recorded as proof P-90f56e38 for the 34-of-70 sentence. (2) Universa
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-90f56e38 -> K-90f56e38	citations on the A175101 sentences, and P-90f56e38 is new; C-4a033e1e and the census sente
 2026-10-18_is-91-prime-m28	Position.text	P-90f56e38 -> K-90f56e38	d its formula), a recorded enumeration (P-90f56e38), and base 90 named on every line that
 2026-10-18_is-91-prime-m28	Position.text	P-8ab3b510 -> K-8ab3b510	anchors edited since their last check (P-8ab3b510, P-5077ef58, C-4a033e1e), seven lenses
 2026-10-18_is-91-prime-m28	Position.text	P-5077ef58 -> K-5077ef58	ted since their last check (P-8ab3b510, P-5077ef58, C-4a033e1e), seven lenses readied, and
 2026-10-18_is-91-prime-m28	Close.prose	P-8ab3b510 -> K-8ab3b510	s not a residual of this gap. The proof P-8ab3b510 anchored to the sentence is reopened by
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-a4b2ad47 -> K-a4b2ad47	ier; anchors F-4809f8ca, F-78926454 and P-a4b2ad47 stay on the sentence. P-a4b2ad47 is reo
-2026-10-18_is-91-prime-m28	ManifestRow.row	P-a4b2ad47 -> K-a4b2ad47	54 and P-a4b2ad47 stay on the sentence. P-a4b2ad47 is reopened by this edit and owed to th
 2026-10-18_is-91-prime-m28	Inquiry.reason	P-e43ad650 -> K-e43ad650	1 not among them (recorded computation, P-e43ad650). Still open: whether any source using
 2026-10-18_is-91-prime-m28	Position.text	P-a4b2ad47 -> K-a4b2ad47	rmat-section census is reopened for the P-a4b2ad47 check, which the computation lens owes;
 2026-10-18_is-91-prime-m28	Close.prose	P-e43ad650 -> K-e43ad650	nts it as a recorded computation beside P-e43ad650. The second probe, the report quote, st
@@ -6756,8 +6234,6 @@
 2026-10-18_is-91-prime-m29	Finding.text	P-b1275396 -> K-b1275396	The stored script (sha 6a1164f1, anchor P-b1275396) asserts only the two product identitie
 2026-10-18_is-91-prime-m29	Finding.text	P-7e05bfa4 -> K-7e05bfa4	e stored script (the computation behind P-7e05bfa4, run as one script for the proofs on th
 2026-10-18_is-91-prime-m29	Inquiry.method	P-7294a683 -> K-7294a683	, 5 and 9 in one recorded script (proof P-7294a683), reproduced on a second run, and the s
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7294a683 -> K-7294a683	); the base-9 result is backed by proof P-7294a683 (reproduced on a second run; its judgem
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7294a683 -> K-7294a683	leven proofs as of the first edit, plus P-7294a683 for base 9; all reproduced). The OEIS t
 2026-10-18_is-91-prime-m29	Position.text	P-7294a683 -> K-7294a683	9 result is a new recorded computation (P-7294a683) and a confirmed inquiry (Q-21a970a0).
 2026-10-18_is-91-prime-m29	Reproduce.note	P-7294a683 -> K-7294a683	Read the stored script at P-7294a683. It computes pow(b,45,91) for b in 2,3,
 2026-10-18_is-91-prime-m29	Finding.text	P-7e05bfa4 -> K-7e05bfa4	1, 703, and that the computation behind P-7e05bfa4 is the only one (F-f612d60c read that s
@@ -6782,35 +6258,12 @@
 2026-10-18_is-91-prime-m29	BlueEdit.text	P-90b94c9d -> K-90b94c9d	025, P-dd9211ba, P-7294a683; Carmichael P-90b94c9d; Korselt P-7e05bfa4; Gaussian P-b127539
 2026-10-18_is-91-prime-m29	BlueEdit.text	P-7e05bfa4 -> K-7e05bfa4	294a683; Carmichael P-90b94c9d; Korselt P-7e05bfa4; Gaussian P-b1275396.
 2026-10-18_is-91-prime-m29	BlueEdit.text	P-b1275396 -> K-b1275396	-90b94c9d; Korselt P-7e05bfa4; Gaussian P-b1275396.
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-107b19f0 -> K-107b19f0	amily has a proof anchor on the report (P-107b19f0; P-f7e01907, P-5ca04b02, P-f0957f52, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-f7e01907 -> K-f7e01907	proof anchor on the report (P-107b19f0; P-f7e01907, P-5ca04b02, P-f0957f52, P-e9c27248; P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-5ca04b02 -> K-5ca04b02	on the report (P-107b19f0; P-f7e01907, P-5ca04b02, P-f0957f52, P-e9c27248; P-de734025, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-f0957f52 -> K-f0957f52	rt (P-107b19f0; P-f7e01907, P-5ca04b02, P-f0957f52, P-e9c27248; P-de734025, P-dd9211ba, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-e9c27248 -> K-e9c27248	f0; P-f7e01907, P-5ca04b02, P-f0957f52, P-e9c27248; P-de734025, P-dd9211ba, P-7294a683; P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-de734025 -> K-de734025	07, P-5ca04b02, P-f0957f52, P-e9c27248; P-de734025, P-dd9211ba, P-7294a683; P-90b94c9d; P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-dd9211ba -> K-dd9211ba	02, P-f0957f52, P-e9c27248; P-de734025, P-dd9211ba, P-7294a683; P-90b94c9d; P-7e05bfa4; P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7294a683 -> K-7294a683	52, P-e9c27248; P-de734025, P-dd9211ba, P-7294a683; P-90b94c9d; P-7e05bfa4; P-b1275396). T
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-90b94c9d -> K-90b94c9d	48; P-de734025, P-dd9211ba, P-7294a683; P-90b94c9d; P-7e05bfa4; P-b1275396). The OEIS term
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7e05bfa4 -> K-7e05bfa4	25, P-dd9211ba, P-7294a683; P-90b94c9d; P-7e05bfa4; P-b1275396). The OEIS terms (83, 89, 9
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-b1275396 -> K-b1275396	ba, P-7294a683; P-90b94c9d; P-7e05bfa4; P-b1275396). The OEIS terms (83, 89, 97, 101; 121,
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-de734025 -> K-de734025	S). The proof anchors on the paragraph (P-de734025, P-dd9211ba, P-7294a683) and the findin
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-dd9211ba -> K-dd9211ba	f anchors on the paragraph (P-de734025, P-dd9211ba, P-7294a683) and the findings anchor F-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7294a683 -> K-7294a683	the paragraph (P-de734025, P-dd9211ba, P-7294a683) and the findings anchor F-d68c609c sta
 2026-10-18_is-91-prime-m29	Close.anchor_tool	P-de734025 -> K-de734025	feov-record show evidence --anchor for P-de734025 and P-7294a683 read at their recorded o
 2026-10-18_is-91-prime-m29	Close.anchor_tool	P-7294a683 -> K-7294a683	ow evidence --anchor for P-de734025 and P-7294a683 read at their recorded output
 2026-10-18_is-91-prime-m29	Close.anchor_target	P-de734025 -> K-de734025	the stored proofs P-de734025 (script sha 6a1164f1) and P-7294a683 (s
 2026-10-18_is-91-prime-m29	Close.anchor_target	P-7294a683 -> K-7294a683	fs P-de734025 (script sha 6a1164f1) and P-7294a683 (script sha 45de2880), their recorded o
 2026-10-18_is-91-prime-m29	Finding.text	P-7294a683 -> K-7294a683	the shipped set. The recorded output of P-7294a683 prints the A000040 run 83, 89, 97, 101
 2026-10-18_is-91-prime-m29	Finding.text	P-7294a683 -> K-7294a683	ates the defect. The recorded output of P-7294a683 prints the primes 80 to 105 (83, 89, 97
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-107b19f0 -> K-107b19f0	loor(sqrt 91) = 9 (sqrt 91 about 9.54); P-107b19f0 prints trial divisors [7], cofactor 13;
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-f7e01907 -> K-f7e01907	prints trial divisors [7], cofactor 13; P-f7e01907 prints 2^90 = 64, 3^90 = 1, 5^90 = 64,
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-107b19f0 -> K-107b19f0	ve results. Trial division (arithmetic, P-107b19f0); Fermat failing in bases 2 and 5 (P-f7
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-f7e01907 -> K-f7e01907	19f0); Fermat failing in bases 2 and 5 (P-f7e01907); Fermat passing in bases 3 and 9 (P-f7
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-f7e01907 -> K-f7e01907	1907); Fermat passing in bases 3 and 9 (P-f7e01907); the list omitting 91 (the list, cited
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7141290b -> K-7141290b	ithmetic); smallest base-3 pseudoprime (P-7141290b prints [91] as the only composite at or
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7e05bfa4 -> K-7e05bfa4	) or carried verbatim (the proof anchor P-7e05bfa4 in r3-e5). Anchors standing on the repa
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7e05bfa4 -> K-7e05bfa4	e7, fx:F-6d3f65a6, fx:F-70fe0757, proof:P-7e05bfa4. show evidence reports no reopened anch
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7e05bfa4 -> K-7e05bfa4	sentence (the Korselt verdict stands on P-7e05bfa4, whose recorded output prints 90 mod 12
 2026-10-18_is-91-prime-m29	Position.text	P-7e05bfa4 -> K-7e05bfa4	lication; the Korselt verdict stands on P-7e05bfa4; the stopping rule and the cost stay.
 2026-10-18_is-91-prime-m29	Position.text	P-7294a683 -> K-7294a683	use (G-8a6dbfba; the stored computation P-7294a683 prints 83, 89, 97, 101 and 121, 286, 67
 2026-10-18_is-91-prime-m29	Position.text	P-7294a683 -> K-7294a683	45 = 83 rejecting; 9^45 = 1 passing) in P-7294a683 match the sentence at line 37, and inqu
@@ -6824,25 +6277,6 @@
 2026-10-18_is-91-prime-m29	MotionRule.opinion	P-7294a683 -> K-7294a683	an) is true of the stored computations: P-7294a683 prints the Fermat and strong residues a
 2026-10-18_is-91-prime-m29	MotionRule.opinion	P-b1275396 -> K-b1275396	strong residues and the trial divisors, P-b1275396 asserts Carmichael, Korselt and the Gau
 2026-10-18_is-91-prime-m29	DocketRuling.review_flag	P-7294a683 -> K-7294a683	entence when G-8a6dbfba closes, against P-7294a683's recorded output.
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-84051b61 -> K-84051b61	ity 91 = 7 × 13 is recomputed in proof P-84051b61 (trial divisor 7, cofactor 13). Enumera
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-84051b61 -> K-84051b61	e line (59), which carries proof anchor P-84051b61 and names no language or network use. T
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-f7e01907 -> K-f7e01907	computed figure carries a proof anchor (P-f7e01907, P-5ca04b02, P-f0957f52, P-e9c27248, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-5ca04b02 -> K-5ca04b02	ure carries a proof anchor (P-f7e01907, P-5ca04b02, P-f0957f52, P-e9c27248, P-de734025, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-f0957f52 -> K-f0957f52	a proof anchor (P-f7e01907, P-5ca04b02, P-f0957f52, P-e9c27248, P-de734025, P-dd9211ba, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-e9c27248 -> K-e9c27248	or (P-f7e01907, P-5ca04b02, P-f0957f52, P-e9c27248, P-de734025, P-dd9211ba, P-7294a683, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-de734025 -> K-de734025	07, P-5ca04b02, P-f0957f52, P-e9c27248, P-de734025, P-dd9211ba, P-7294a683, P-7141290b, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-dd9211ba -> K-dd9211ba	02, P-f0957f52, P-e9c27248, P-de734025, P-dd9211ba, P-7294a683, P-7141290b, P-90b94c9d, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7294a683 -> K-7294a683	52, P-e9c27248, P-de734025, P-dd9211ba, P-7294a683, P-7141290b, P-90b94c9d, P-7e05bfa4, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7141290b -> K-7141290b	48, P-de734025, P-dd9211ba, P-7294a683, P-7141290b, P-90b94c9d, P-7e05bfa4, P-107b19f0, P-
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-90b94c9d -> K-90b94c9d	25, P-dd9211ba, P-7294a683, P-7141290b, P-90b94c9d, P-7e05bfa4, P-107b19f0, P-b1275396). N
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7e05bfa4 -> K-7e05bfa4	ba, P-7294a683, P-7141290b, P-90b94c9d, P-7e05bfa4, P-107b19f0, P-b1275396). Not covered b
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-107b19f0 -> K-107b19f0	83, P-7141290b, P-90b94c9d, P-7e05bfa4, P-107b19f0, P-b1275396). Not covered by the narrow
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-b1275396 -> K-b1275396	0b, P-90b94c9d, P-7e05bfa4, P-107b19f0, P-b1275396). Not covered by the narrowed scope: th
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-84051b61 -> K-84051b61	m. Recomputed by an independent script (P-84051b61): 2^90, 3^90, 5^90, 9^90 mod 91 = 64, 1
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-84051b61 -> K-84051b61	question bullet is restated as a limit. P-84051b61 is not yet re-run by a lens, so its ver
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-7294a683 -> K-7294a683	ed: the stored strong-test computation (P-7294a683, re-run as P-edf9e02b) prints 83, 89, 9
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-edf9e02b -> K-edf9e02b	test computation (P-7294a683, re-run as P-edf9e02b) prints 83, 89, 97, 101 and 103 among 8
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-edf9e02b -> K-edf9e02b	has 91, 121, 286, 671, 703. The anchor P-edf9e02b sits on it. Class enumeration by the ga
 2026-10-18_is-91-prime-m29	Position.text	P-7294a683 -> K-7294a683	on. The stored strong-test computation (P-7294a683, re-run as P-edf9e02b) prints 83, 89, 9
 2026-10-18_is-91-prime-m29	Position.text	P-edf9e02b -> K-edf9e02b	test computation (P-7294a683, re-run as P-edf9e02b) prints 83, 89, 97, 101 and 103 among 8
 2026-10-18_is-91-prime-m29	Position.text	P-84051b61 -> K-84051b61	production sentence, now carrying proof P-84051b61 (an independent recomputation of every
@@ -6852,12 +6286,6 @@
 2026-10-18_is-91-prime-m29	Close.anchor_tool	P-edf9e02b -> K-edf9e02b	feov-record show evidence --anchor P-edf9e02b, feov-record fetch of the two cited OEI
 2026-10-18_is-91-prime-m29	Close.anchor_target	P-edf9e02b -> K-edf9e02b	Proof P-edf9e02b recorded_output (script sha f9f5905e...
 2026-10-18_is-91-prime-m29	Close.prose	P-edf9e02b -> K-edf9e02b	cited pages. Each figure checked: proof P-edf9e02b recorded_output prints 83, 89, 97, 101
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-107b19f0 -> K-107b19f0	at their proof anchors (trial division P-107b19f0, base-2 failure P-f7e01907, base-3 pass
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-f7e01907 -> K-f7e01907	ial division P-107b19f0, base-2 failure P-f7e01907, base-3 pass P-5ca04b02). (2) Universal
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-5ca04b02 -> K-5ca04b02	base-2 failure P-f7e01907, base-3 pass P-5ca04b02). (2) Universals: enumerated every line
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-5ca04b02 -> K-5ca04b02	nt of the base-3 pass already proved at P-5ca04b02, not a new claim. The only new wording
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-107b19f0 -> K-107b19f0	hows a pass is an error is derived from P-107b19f0 and the base-3 result is P-5ca04b02; bo
-2026-10-18_is-91-prime-m29	ManifestRow.row	P-5ca04b02 -> K-5ca04b02	rom P-107b19f0 and the base-3 result is P-5ca04b02; both already in the report.
 2026-10-18_is-91-prime-m29	Position.text	P-84051b61 -> K-84051b61	on sentence, which carries proof anchor P-84051b61 and names no language or network use. T
 2026-10-18_is-91-prime-m29	Closing.text	P-84051b61 -> K-84051b61	own fix allows: it carries proof anchor P-84051b61 and names no language or network use. T
 2026-10-18_is-91-prime-m29	Finding.text	P-7141290b -> K-7141290b	composites below 91 (recorded as proof P-7141290b), not short arithmetic and not the prim
@@ -6868,10 +6296,6 @@
 2026-10-19_is-91-prime-m30	Finding.text	P-0cda8f94 -> K-0cda8f94	ab, P-e8532ebe, P-8f36c644, P-813b056c, P-0cda8f94, P-f635b084, P-8ffe905f) are backed by
 2026-10-19_is-91-prime-m30	Finding.text	P-f635b084 -> K-f635b084	be, P-8f36c644, P-813b056c, P-0cda8f94, P-f635b084, P-8ffe905f) are backed by one stored s
 2026-10-19_is-91-prime-m30	Finding.text	P-8ffe905f -> K-8ffe905f	44, P-813b056c, P-0cda8f94, P-f635b084, P-8ffe905f) are backed by one stored script, sha25
-2026-10-19_is-91-prime-m30	ManifestRow.row	P-24a6af66 -> K-24a6af66	imes and 74 composites up to 100 (proof P-24a6af66, reproducible, exit 0); 34 of 70 and 16
-2026-10-19_is-91-prime-m30	ManifestRow.row	P-813b056c -> K-813b056c	nd strong-test counts unchanged (proofs P-813b056c, P-f635b084). Universals: "no source co
-2026-10-19_is-91-prime-m30	ManifestRow.row	P-f635b084 -> K-f635b084	st counts unchanged (proofs P-813b056c, P-f635b084). Universals: "no source consulted trea
-2026-10-19_is-91-prime-m30	ManifestRow.row	P-24a6af66 -> K-24a6af66	ces those 74 terms and 25 primes (proof P-24a6af66, exit 0). Repairs: the Catechism bullet
 2026-10-19_is-91-prime-m30	Position.text	P-24a6af66 -> K-24a6af66	vision reproduces those 74 terms (proof P-24a6af66, reproducible). The half is therefore s
 2026-10-19_is-91-prime-m30	Finding.text	P-24a6af66 -> K-24a6af66	The composite-list proof P-24a6af66 does not read the cached OEIS data file
 2026-10-19_is-91-prime-m30	SpotCheck.reason	P-8f36c644 -> K-8f36c644	areas' concern. Computation spot-check: P-8f36c644 (base-2 Fermat, 2^90 mod 91 = 64) and P
@@ -6898,7 +6322,6 @@
 2026-10-24_is-91-prime-1565	Regrade.basis	P-83b63afb -> K-83b63afb	f 88 match the recorded output of proof P-83b63afb.
 2026-10-24_is-91-prime-1565	Finding.text	P-7d0a1cb5 -> K-7d0a1cb5	the trial-division factorisation (proof P-7d0a1cb5), which no passing base can undermine.
 2026-10-24_is-91-prime-1565	BlueEdit.text	P-83b63afb -> K-83b63afb	re moved to their own sentence so proof P-83b63afb stays on the counts it computes; the 34
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-7e9c9813 -> K-7e9c9813	= 23 x 89 and base 2 strong pass (proof P-7e9c9813). Showed: the asymmetry is gone; the 'd
 2026-10-24_is-91-prime-1565	Reproduce.note	P-83b63afb -> K-83b63afb	I read the stored script at P-83b63afb: it counts Fermat and strong passes ove
 2026-10-24_is-91-prime-1565	Reproduce.note	P-7e9c9813 -> K-7e9c9813	I read the stored script at P-7e9c9813. It takes n = 2047, finds the smallest
 2026-10-24_is-91-prime-1565	Closing.text	P-f8c5642f -> K-f8c5642f	s: the Fermat residue 2^90 mod 91 = 64 (P-f8c5642f) and the strong-test verdict for base 2
@@ -6911,26 +6334,18 @@
 2026-10-24_is-91-prime-1565	Close.prose	P-7f70002b -> K-7f70002b	ermat-liar enumeration (34 of 88 bases, P-7f70002b).
 2026-10-24_is-91-prime-1565	Finding.text	P-72c54e66 -> K-72c54e66	and carries only the computation anchor P-72c54e66, which establishes what the strong test
 2026-10-24_is-91-prime-1565	Mint.mint_reason	P-72c54e66 -> K-72c54e66	y, carrying only the computation anchor P-72c54e66; the fix covers both. Cached Miller–R
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-892810bf -> K-892810bf	es strong; the same counts reproduce in P-892810bf. Universals: 'either test' now covers b
 2026-10-24_is-91-prime-1565	Closing.text	P-f8c5642f -> K-f8c5642f	ine 13) says the same. The cited proofs P-f8c5642f, P-72c54e66, P-1ad12ccd and P-40dcf424
 2026-10-24_is-91-prime-1565	Closing.text	P-72c54e66 -> K-72c54e66	the same. The cited proofs P-f8c5642f, P-72c54e66, P-1ad12ccd and P-40dcf424 print one di
 2026-10-24_is-91-prime-1565	Closing.text	P-1ad12ccd -> K-1ad12ccd	he cited proofs P-f8c5642f, P-72c54e66, P-1ad12ccd and P-40dcf424 print one divisor enumer
 2026-10-24_is-91-prime-1565	Closing.text	P-40dcf424 -> K-40dcf424	P-f8c5642f, P-72c54e66, P-1ad12ccd and P-40dcf424 print one divisor enumeration (divisors
 2026-10-24_is-91-prime-1565	Closing.text	P-892810bf -> K-892810bf	e 2 rejects 91 under both tests, proofs P-892810bf and P-72c54e66). Catechism items 4(d) a
 2026-10-24_is-91-prime-1565	Closing.text	P-72c54e66 -> K-72c54e66	under both tests, proofs P-892810bf and P-72c54e66). Catechism items 4(d) and 4(e) were re
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-03210248 -> K-03210248	cyclopedia, one integer-sequence; proof P-03210248, reproduced, exit 0); the script's URL
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-83b63afb -> K-83b63afb	tates computed counts, carried by proof P-83b63afb, and asserts no property of either test
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-30c2e5d3 -> K-30c2e5d3	es bases 2, 3, 5, 7. Recorded as proofs P-30c2e5d3 (bound 2,047) and P-07b7cd82 (witness f
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-07b7cd82 -> K-07b7cd82	as proofs P-30c2e5d3 (bound 2,047) and P-07b7cd82 (witness for 3,215,031,751), both repro
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-30c2e5d3 -> K-30c2e5d3	laims tagged verified-at-leaf by proofs P-30c2e5d3 and P-07b7cd82; the cited method source
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-07b7cd82 -> K-07b7cd82	rified-at-leaf by proofs P-30c2e5d3 and P-07b7cd82; the cited method sources are C-c5d597a
 2026-10-24_is-91-prime-1565	Reproduce.note	P-30c2e5d3 -> K-30c2e5d3	stored script (sha 662fa854, shared by P-30c2e5d3 and P-07b7cd82). Check 1 is exhaustive
 2026-10-24_is-91-prime-1565	Reproduce.note	P-07b7cd82 -> K-07b7cd82	(sha 662fa854, shared by P-30c2e5d3 and P-07b7cd82). Check 1 is exhaustive over odd n in [
 2026-10-24_is-91-prime-1565	Reproduce.note	P-30c2e5d3 -> K-30c2e5d3	cript (sha 662fa854, the same script as P-30c2e5d3, whose re-run stands here). It computes
 2026-10-24_is-91-prime-1565	Mint.acceptance_check	P-07b7cd82 -> K-07b7cd82	n citation anchor, and the proof anchor P-07b7cd82 stands only over the clause that the wi
 2026-10-24_is-91-prime-1565	Mint.acceptance_check	P-07b7cd82 -> K-07b7cd82	Then feov-record show evidence --anchor P-07b7cd82 must show the proof judged sound again
 2026-10-24_is-91-prime-1565	BlueEdit.text	P-07b7cd82 -> K-07b7cd82	G-8272f728: the proof P-07b7cd82 computes that 3,215,031,751 = 151 × 75
-2026-10-24_is-91-prime-1565	ManifestRow.row	P-07b7cd82 -> K-07b7cd82	Checked: (1) the proof P-07b7cd82 computes 151 x 751 x 28,351 = 3,215,031
 2026-10-24_is-91-prime-1565	Verify.text	P-07b7cd82 -> K-07b7cd82	t this citation's job; it is carried by P-07b7cd82.
 2026-10-24_is-91-prime-1565	Reproduce.note	P-30c2e5d3 -> K-30c2e5d3	cript (sha 662fa854, the same script as P-30c2e5d3, its re-run standing from the recorded
 2026-10-24_is-91-prime-1565	Close.anchor_target	P-07b7cd82 -> K-07b7cd82	the stored script of P-07b7cd82 (sha 662fa854) and the cached Miller–
@@ -6940,21 +6355,13 @@
 2026-10-24_is-91-prime-m32	Regrade.basis	P-4d2a7487 -> K-4d2a7487	heck fails. I read the stored script at P-4d2a7487 (sound, reproduced): it loops over rang
 2026-10-24_is-91-prime-m32	BlueEdit.text	P-4d2a7487 -> K-4d2a7487	The stored script (P-4d2a7487, read at its stored bytes) loops over r
 2026-10-24_is-91-prime-m32	BlueEdit.text	P-4d2a7487 -> K-4d2a7487	e recorded output of the stored script (P-4d2a7487), and is Wilson's theorem for the prime
-2026-10-24_is-91-prime-m32	ManifestRow.row	P-4d2a7487 -> K-4d2a7487	9.3 per cent; the stored script output (P-4d2a7487, P-5ba8edea) matches each figure in the
-2026-10-24_is-91-prime-m32	ManifestRow.row	P-5ba8edea -> K-5ba8edea	; the stored script output (P-4d2a7487, P-5ba8edea) matches each figure in the report. Uni
-2026-10-24_is-91-prime-m32	ManifestRow.row	P-4d2a7487 -> K-4d2a7487	Checked against the stored script (P-4d2a7487, sha 0b153a35): the loop is range(2,91)
-2026-10-24_is-91-prime-m32	ManifestRow.row	P-3695e698 -> K-3695e698	bases, about 49 per cent (stored output P-3695e698 and P-94e67084 agree). A passing test i
-2026-10-24_is-91-prime-m32	ManifestRow.row	P-94e67084 -> K-94e67084	per cent (stored output P-3695e698 and P-94e67084 agree). A passing test is weak evidence
 2026-10-24_is-91-prime-m32	Close.anchor_tool	P-4d2a7487 -> K-4d2a7487	feov-record show evidence --anchor P-4d2a7487 and feov-record show report --quote 'on
 2026-10-24_is-91-prime-m32	Close.anchor_target	P-4d2a7487 -> K-4d2a7487	stored script of P-4d2a7487, sha256 0b153a35ed72487f74646057661ca54
 2026-10-24_is-91-prime-m32	Close.prose	P-4d2a7487 -> K-4d2a7487	and prints. I read the stored script at P-4d2a7487 (sha 0b153a35): it loops over range(2,9
 2026-10-24_is-91-prime-m32	Close.prose	P-4d2a7487 -> K-4d2a7487	ves open to the computation lens. Proof P-4d2a7487 is still reopened by blue's edit; that
 2026-10-24_is-91-prime-m32	Close.prose	P-3695e698 -> K-3695e698	ism line. The census behind the word is P-3695e698, which I read this sitting: 35 of 71 co
-2026-10-24_is-91-prime-m32	ManifestRow.row	P-3a03d2fd -> K-3a03d2fd	re recomputed by the script anchored as P-3a03d2fd. Showed: the square root match in the s
 2026-10-24_is-91-prime-m32	Finding.text	P-3a03d2fd -> K-3a03d2fd	stored computation runs that procedure. P-3a03d2fd lists the primes up to the square root
 2026-10-24_is-91-prime-m32	Finding.text	P-4d2a7487 -> K-4d2a7487	isors of 91 among all integers 2 to 90; P-4d2a7487 tests every integer 2 to 90 and prints
-2026-10-24_is-91-prime-m32	ManifestRow.row	P-3695e698 -> K-3695e698	tion; the census is the existing proofs P-3695e698 and P-94e67084 plus this rerun. (8) the
-2026-10-24_is-91-prime-m32	ManifestRow.row	P-94e67084 -> K-94e67084	s is the existing proofs P-3695e698 and P-94e67084 plus this rerun. (8) the rerun is deriv
 2026-10-24_is-91-prime-m32	SpotCheck.reason	P-5ba8edea -> K-5ba8edea	d. Computation (pin 389): DEFECT. Proof P-5ba8edea anchors the sentence 'A sieve of primes
 2026-10-24_is-91-prime-m32	Position.text	P-5ba8edea -> K-5ba8edea	defect stands that no gap holds. Proof P-5ba8edea is judged unsound by the computation le
 2026-10-27_is-91-prime-m35	Reproduce.note	P-4e0013fc -> K-4e0013fc	ve is computed by a different script at P-4e0013fc, anchored to another sentence. So this
@@ -6982,18 +6389,6 @@
 2026-10-27_is-91-prime-m35	Regrade.basis	P-7a940b61 -> K-7a940b61	e7, P-4e0013fc, P-33174a65, P-8364c324, P-7a940b61, P-9b8104e2) still resolve to one scrip
 2026-10-27_is-91-prime-m35	Regrade.basis	P-9b8104e2 -> K-9b8104e2	fc, P-33174a65, P-8364c324, P-7a940b61, P-9b8104e2) still resolve to one script each: 0cb9
 2026-10-27_is-91-prime-m35	Finding.text	P-33174a65 -> K-33174a65	rints that method. The stored script at P-33174a65 has an outer loop over every i from 2 t
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-33174a65 -> K-33174a65	91 as a multiple of 7) was not shown by P-33174a65, whose script sieves with all primes an
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-33174a65 -> K-33174a65	of 91. Repair: split the sentence; keep P-33174a65 on the 25-count and absence clause; car
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-275b04be -> K-275b04be	the first clause on a new computation (P-275b04be) that prints the sieving prime removing
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-33174a65 -> K-33174a65	Not checked: the lens's re-judgement of P-33174a65 on its new sentence, which is theirs to
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-4e0013fc -> K-4e0013fc	ake. The required fix offered attaching P-4e0013fc; I did not, because that proof prints o
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-4e0013fc -> K-4e0013fc	ing prime. The acceptance literal names P-4e0013fc, which the new sentence does not carry;
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-ba59cbe7 -> K-ba59cbe7	he anchors on the two-scripts sentence. P-ba59cbe7 and P-9b8104e2 are script 0cb9565c; P-4
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-9b8104e2 -> K-9b8104e2	he two-scripts sentence. P-ba59cbe7 and P-9b8104e2 are script 0cb9565c; P-4e0013fc, P-8364
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-4e0013fc -> K-4e0013fc	be7 and P-9b8104e2 are script 0cb9565c; P-4e0013fc, P-8364c324 and P-7a940b61 are script 8
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-8364c324 -> K-8364c324	8104e2 are script 0cb9565c; P-4e0013fc, P-8364c324 and P-7a940b61 are script 89cd1627; P-3
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-7a940b61 -> K-7a940b61	pt 0cb9565c; P-4e0013fc, P-8364c324 and P-7a940b61 are script 89cd1627; P-33174a65 is 0cb9
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-33174a65 -> K-33174a65	324 and P-7a940b61 are script 89cd1627; P-33174a65 is 0cb9565c. Repair: the credit to two
 2026-10-27_is-91-prime-m35	Reproduce.note	P-275b04be -> K-275b04be	as left this sentence and is carried by P-275b04be. Sound for the sentence as it now stand
 2026-10-27_is-91-prime-m35	Reproduce.note	P-33174a65 -> K-33174a65	ound. This is the same stored script as P-33174a65, so its re-run stands from the prior re
 2026-10-27_is-91-prime-m35	Close.anchor_tool	P-275b04be -> K-275b04be	feov-record reproduce --anchor P-275b04be (re-run reproduced) and feov-record rep
@@ -7059,23 +6454,10 @@
 2026-10-27_is-91-prime-m35	Mint.mint_reason	P-4e0013fc -> K-4e0013fc	, which said the second computation was P-4e0013fc (sha256 89cd1627); that anchor is no lo
 2026-10-27_is-91-prime-m35	Mint.mint_reason	P-1297c10b -> K-1297c10b	sentence, and the sentence now carries P-1297c10b. Minted in the sitting that judged the
 2026-10-27_is-91-prime-m35	Finding.text	P-e85ba9b9 -> K-e85ba9b9	er 2 to 1000. The stored computation at P-e85ba9b9 asserts that every prime other than 3 p
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-b1248d2e -> K-b1248d2e	er natural numbers 7 and 13 now carries P-b1248d2e; a reproducible computation gives exact
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-ccc5a5f7 -> K-ccc5a5f7	site by a one-line division now carries P-ccc5a5f7; the division 91 by 7 is exact, giving
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-86c876e3 -> K-86c876e3	base-3 Fermat test passes for 91 carry P-86c876e3 and P-84233162 (3 to the power 90 is 1
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-84233162 -> K-84233162	test passes for 91 carry P-86c876e3 and P-84233162 (3 to the power 90 is 1 modulo 91). The
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-d4687249 -> K-d4687249	7 reports 91 as probably prime carries P-d4687249, and the first-pseudoprime sentence car
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-0e97b359 -> K-0e97b359	the first-pseudoprime sentence carries P-0e97b359. Left without a token, because each is
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-8364c324 -> K-8364c324	ine conclusion sentence, which restates P-8364c324; and the Limits and Open-questions sent
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-424e7f07 -> K-424e7f07	enumerated; the stored divisor script (P-424e7f07 and P-1297c10b, identical bytes) is the
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-1297c10b -> K-1297c10b	e stored divisor script (P-424e7f07 and P-1297c10b, identical bytes) is the subject of G-8
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-f5f91525 -> K-f5f91525	eproducible computation over 2 to 1000, P-f5f91525, printing both populations: primes othe
 2026-10-27_is-91-prime-m35	Log.text	P-f0a9b248 -> K-f0a9b248	judgements that stand on their proofs (P-f0a9b248, P-1297c10b), so the complete flag stay
 2026-10-27_is-91-prime-m35	Log.text	P-1297c10b -> K-1297c10b	that stand on their proofs (P-f0a9b248, P-1297c10b), so the complete flag stays false for
 2026-10-27_is-91-prime-m35	Log.text	P-f0a9b248 -> K-f0a9b248	s-computation judged the sentence proof P-f0a9b248 backs unsound at event 535, and that ju
 2026-10-27_is-91-prime-m35	Log.text	P-1297c10b -> K-1297c10b	s-computation judged the sentence proof P-1297c10b backs unsound at event 536, and that ju
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-f0a9b248 -> K-f0a9b248	in 90. Re-read the stored script (proof P-f0a9b248): it asserts 90 = 2 × 45 as a literal
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-1297c10b -> K-1297c10b	alculation" is supported by its anchor. P-1297c10b's stored script is byte-identical to th
-2026-10-27_is-91-prime-m35	ManifestRow.row	P-424e7f07 -> K-424e7f07	byte-identical to the divisor search's (P-424e7f07); both run the same arithmetic script,
 2026-10-27_is-91-prime-m35	MotionRule.opinion	P-4e0013fc -> K-4e0013fc	closed epoch 4 at head 253; prose names P-4e0013fc as the second computation, and the pass
 2026-10-27_is-91-prime-m35	MotionRule.opinion	P-1297c10b -> K-1297c10b	of the same stored script" with anchor P-1297c10b. P-1297c10b and P-424e7f07 share sha256
 2026-10-27_is-91-prime-m35	MotionRule.opinion	P-1297c10b -> K-1297c10b	stored script" with anchor P-1297c10b. P-1297c10b and P-424e7f07 share sha256 9e19729f...
@@ -7127,8 +6509,6 @@
 2026-10-29_is-91-prime-m36	Finding.text	P-8740b23f -> K-8740b23f	5 and base 3. The proofs P-f3bf83f1 and P-8740b23f compute 3 to the 90th power modulo 91 a
 2026-10-29_is-91-prime-m36	Mint.mint_reason	P-f3bf83f1 -> K-f3bf83f1	Dark-side audit of the proof's scope: P-f3bf83f1 and P-8740b23f establish that 91 is a b
 2026-10-29_is-91-prime-m36	Mint.mint_reason	P-8740b23f -> K-8740b23f	it of the proof's scope: P-f3bf83f1 and P-8740b23f establish that 91 is a base-3 Fermat ps
-2026-10-29_is-91-prime-m36	ManifestRow.row	P-f3bf83f1 -> K-f3bf83f1	nly with the base-3 result (computation P-f3bf83f1 at line 41), and states the OEIS A00593
-2026-10-29_is-91-prime-m36	ManifestRow.row	P-f3354ca4 -> K-f3354ca4	returns no line. Derivation attached as P-f3354ca4 (reproducible, exit 0, judgement of the
 2026-10-29_is-91-prime-m36	Close.anchor_tool	P-f3354ca4 -> K-f3354ca4	feov-record reproduce --anchor P-f3354ca4 (re-run reproduced) and feov-record sho
 2026-10-29_is-91-prime-m36	Close.anchor_target	P-f3354ca4 -> K-f3354ca4	stored proof script for P-f3354ca4 run against the cached math.answers cop
 2026-10-29_is-91-prime-m36	Finding.text	P-ef98551b -> K-ef98551b	lf rests on the standard-library proofs P-ef98551b and P-14aaf55f, which reproduce, so the

@@ -51,20 +51,6 @@ func blueSittingsT(t *testing.T, evs []*Event, when ReadWhen) []BlueSitting {
 	return BlueSittings(m.Events, m.At, when)
 }
 
-// manifestOwedT is ManifestOwed over evs as the write path stores them.
-func manifestOwedT(t *testing.T, evs []*Event, when ReadWhen) ManifestOwing {
-	t.Helper()
-	m := loadedT(t, evs...)
-	return ManifestOwed(m.Events, m.At, when)
-}
-
-// manifestUnreceiptedT is ManifestUnreceipted over evs as the write path stores them.
-func manifestUnreceiptedT(t *testing.T, evs []*Event, when ReadWhen) ManifestOwing {
-	t.Helper()
-	m := loadedT(t, evs...)
-	return ManifestUnreceipted(m.Events, m.At, when)
-}
-
 // bracket is the sitting_open SubagentStart writes for a configuration that seats exactly one seat.
 func (b *stage) bracket(seat, agent string) *stage {
 	return b.add(HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String(agent),

@@ -94,9 +94,6 @@ func actRows() map[string]actRow {
 			}}
 	}
 	return map[string]actRow{
-		"blue manifest-row": {seat: "blue-respond", act: func(_ actVars, text string) []string {
-			return []string{"manifest-row", "--id", "G1", "--reason", text}
-		}},
 		"blue cite": {seat: "blue-respond",
 			setup: func(t *testing.T, runDir string) actVars {
 				withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/corr": []byte("<html>a source on the finding</html>")}})

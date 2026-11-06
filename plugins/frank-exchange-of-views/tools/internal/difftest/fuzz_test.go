@@ -172,8 +172,8 @@ func TestReplayDeterminism(t *testing.T) {
 		}
 		// The tour's repeats reach the once-per-sitting refusals: a tour in which none was refused
 		// has stopped filing the second act, and the check above then holds nothing.
-		if repeatRefused < 6 {
-			t.Errorf("the act tour's repeats were refused %d time(s) for a second act in the sitting, want at least 6 (position ×2, closing ×2, spot-check, regrade, manifest row)", repeatRefused)
+		if repeatRefused < 5 {
+			t.Errorf("the act tour's repeats were refused %d time(s) for a second act in the sitting, want at least 5 (position ×2, closing ×2, spot-check, regrade)", repeatRefused)
 		}
 		for _, a := range append(append([]fuzzArm{}, fuzzArms...), tourArms...) {
 			t.Logf("%-28s landed %2d/%-2d", a.name, landed[a.name], drawn[a.name])
@@ -214,7 +214,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	prepareRun(t, bin, runDir, m, nil, nil)
 	// A BOARD BEFORE THE FUZZ STARTS, as every sitting after the first has: GAP001 open, GAP002
 	// before the bench as MOTION001 — the placeholders the prologue's own output is given below,
-	// which is how a generated command names an id it cannot predict. Without it, every gap verb — close, regrade, carry, manifest-row, both
+	// which is how a generated command names an id it cannot predict. Without it, every gap verb — close, regrade, carry, both
 	// motions — lands only when a random mint happened to precede it on the right seat with the
 	// right id, and a docket ruling only when a random filing did too. Over the fixed seed set
 	// several of them never did; the bench's ruling was 0 in 10 with the gap alone.
@@ -417,8 +417,6 @@ var fuzzArms = []fuzzArm{
 		flags: func(rng *rand.Rand) []string {
 			return []string{"--id", pick(rng, fuzzGapIDs), "--reason", "contested, and not red's to close"}
 		}},
-	{name: "blue manifest-row", weight: 1, seats: blueSeats, verb: []string{"manifest-row"},
-		flags: func(rng *rand.Rand) []string { return []string{"--id", pick(rng, fuzzGapIDs), "--reason", "checked"} }},
 	// Was `blue dispute`, a verb the motion collapse retired: a grade dispute is a grade motion.
 	{name: "blue motion grade file", weight: 1, seats: blueSeats, verb: []string{"motion", "grade", "file"},
 		flags: func(rng *rand.Rand) []string {
@@ -452,7 +450,6 @@ var fuzzArms = []fuzzArm{
 // the assembly sitting it is recorded in — a record with an outcome refuses every seat act after it
 // (record.requireOpenToSeats).
 var tourArms = []fuzzArm{
-	tourArm("blue manifest-row", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
 	tourArm("blue cite", []string{"blue-respond"}, []string{"cite"},
 		func(t string) []string {
 			return []string{"--quote", "A claim sits under S2.", "--url", fuzzSourceURL("/corr"), "--source-span", "a source the fuzz cites at /corr", "--title", t}

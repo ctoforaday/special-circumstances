@@ -17,8 +17,9 @@
 // it never touched, and whether a duty that has a VERB was discharged as prose instead.
 //
 // NOT MEASURED, and it must not pretend otherwise: whether the prose was any good. A seat that
-// repairs a report beautifully without recording a manifest row has done good work and left no
-// receipt; this package reports the missing receipt and takes no position on the work.
+// answers a computation gap beautifully in prose without recording the computation has done good
+// work and left nothing to re-run; this package reports the missing act and takes no position on
+// the work.
 //
 // # Why the expectations are per-BOARD, not per-seat
 //
@@ -154,7 +155,6 @@ var verbOfEvent = map[recordpb.EventType]string{
 	recordpb.EventType_EVENT_TYPE_INQUIRY:       "inquiry",
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:     "edit",
 	recordpb.EventType_EVENT_TYPE_INQUIRY_CHECK: "inquiry check",
-	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:  "manifest-row",
 	recordpb.EventType_EVENT_TYPE_MOTION:        "motion file",
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE:   "motion rule",
 	recordpb.EventType_EVENT_TYPE_COMPUTATION:   "compute",
