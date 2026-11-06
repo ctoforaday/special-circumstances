@@ -76,7 +76,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: str("elsewhere"), New: str("elsewhere, revised"),
 			Text: str("why"), Reopened: []string{"C-0a0a0a0a", "K-00000001"}}),
 		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: str("the claim the computation backed"), Reason: str("superseded"),
-			Anchors: []string{"K-00000001"}}),
+			SupersededBy: str("claim A"), Anchors: []string{"K-00000001"}}),
 		recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: str("G2"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("moved")}),
 		// The chair's plan permitted the PASS and its position withholds it, so the bench hears it:
 		// a position motion (motions), read off the plan and the verdicts of the sitting.
@@ -113,8 +113,37 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.At(t, "red-chair", "red-chair:spot_check:#9", &recordpb.SpotCheck{Areas: []string{"red-lens-r1-logic"},
 			Ids: []string{"G1"}, Reason: str("the area reads clean")}),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+		// The bench's run-level disposition (debate): a halt, a certification a later one supersedes,
+		// and the outcome.
+		recordtest.Event(t, "judge", &recordpb.Halt{Opinion: str("the consent gate failed")}),
+		recordtest.Event(t, "judge", &recordpb.Certify{Statement: str("first statement")}),
+		recordtest.At(t, "judge", "judge:certify:#9", &recordpb.Certify{Statement: str("the statement the debate carries")}),
+		recordtest.Event(t, "judge", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_HALTED.Enum(), Prose: str("the bench halted"),
+			VerdictBasis: str("asserted")}),
 	)
 	run := mustRun(t, dir)
+
+	// THE BENCH'S DISPOSITION AND EVERY RETIRE ARE SERVED TO THE SEATS THAT READ THEM, not only
+	// rendered into the assembled set: the debate carries the halt, each certification and the
+	// outcome; the evidence carries the retire with what superseded its claim.
+	deb, err := debateView.of(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := deb.Bench; len(b.Halts) != 1 || b.Halts[0].Text != "the consent gate failed" ||
+		len(b.Certifications) != 2 || b.Certifications[1].Text != "the statement the debate carries" ||
+		b.Outcome == nil || b.Outcome.Verdict != "halted" || b.Outcome.VerdictBasis != "asserted" || b.Outcome.Prose != "the bench halted" {
+		t.Errorf("the debate does not serve the bench's disposition: %+v (outcome %+v)", b, b.Outcome)
+	}
+	ev, err := evidenceView.of(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ev.Retires) != 1 || ev.Retires[0].Claim != "the claim the computation backed" || ev.Retires[0].SupersededBy != "claim A" ||
+		ev.Retires[0].ClaimKept || !slices.Equal(ev.Retires[0].Anchors, []string{"K-00000001"}) || ev.Retires[0].Reason != "superseded" {
+		t.Errorf("the evidence does not serve the retire: %+v", ev.Retires)
+	}
+
 	whole, err := MergedEvents(run)
 	if err != nil {
 		t.Fatal(err)

@@ -11,13 +11,16 @@ import (
 
 // THE ASSEMBLED LAYOUT: what the shipped set looks like, asked of the assembler.
 //
-// A seat reads the report's TEXT with `show report`, and the report a reader gets is that text
-// placed among sections the tool composes. A seat needs to see which sections the tool composes.
+// THE OPERATOR'S READ (`ops assembled`), AND NO SEAT'S. A seat reads the report's TEXT with `show
+// report`, and the content of every section the tool composes through the record view that serves
+// its source: the board, the inquiries, the evidence, the changes, and the bench's `inquest debate`
+// and `inquest motions`. A composed section is read where its source is, so no seat audits a
+// rendering in place of the record, and the `inquest` views stay the seats' that adjudicate.
+//
 // Layout assembles the set from the record as it stands and slices what assembly made by the rows
 // of `layout`, so the view cannot describe a report other than the one that ships. It shows the
-// record's text as written, because a seat quotes and edits it: the shipped .md is that text with
-// every line ending `\n` and every `<` outside code but a computation's anchor written `&lt;` (ship), and
-// report.html shows it as typed.
+// record's text as written: the shipped .md is that text with every line ending `\n` and every `<`
+// outside code but a computation's anchor written `&lt;` (ship), and report.html shows it as typed.
 
 // LayoutSection is one row of the assembled layout, for the run it was asked of.
 type LayoutSection struct {
@@ -48,7 +51,7 @@ type LayoutSection struct {
 // carry the section.
 const NotInTheSet = "not in the set as the record stands: assembly composed nothing for this section from the record, so no text of it ships"
 
-// LayoutJSON is `show report --assembled --json`.
+// LayoutJSON is `ops assembled --json`.
 type LayoutJSON struct {
 	Sections []LayoutSection `json:"sections"`
 }
@@ -159,12 +162,12 @@ func opens(doc ParsedText, s Section) int {
 
 // LayoutHasNoText is what the bare layout says of itself on standard error, where it survives a
 // pipe. The bare form lists the sections and carries none of their text, so a search piped over it
-// finds nothing and reads as a clean report: on universe-m22 a gap's acceptance check was
-// `show report --assembled | grep -c <phrase>`, twice, and zero was the answer either way. A line
-// at the head of the listing is the first thing such a pipe discards.
-const LayoutHasNoText = "feov-record: `show report --assembled` LISTS THE SECTIONS WITHOUT THEIR TEXT — a search of this output finds no sentence of the report, and a count of zero here says nothing about what ships. `show report --assembled --json` carries each section's `text`."
+// finds nothing and reads as a clean report: on universe-m22 a gap's acceptance check was a grep
+// count over the bare listing, twice, and zero was the answer either way. A line at the head of the
+// listing is the first thing such a pipe discards.
+const LayoutHasNoText = "feov-record: `ops assembled` LISTS THE SECTIONS WITHOUT THEIR TEXT — a search of this output finds no sentence of the report, and a count of zero here says nothing about what ships. `ops assembled --json` carries each section's `text`."
 
-// Markdown is the layout as a seat reads it: one entry per section, in shipping order.
+// Markdown is the layout as the operator reads it: one entry per section, in shipping order.
 func (l LayoutJSON) Markdown() string {
 	var b strings.Builder
 	b.WriteString("THE REPORT SET AS ASSEMBLY SHIPS IT, from the record as it stands — each section in shipping order, who composes it, and how content reaches it. " +

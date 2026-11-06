@@ -563,9 +563,9 @@ func TestEachDocumentIsShippedOnce(t *testing.T) {
 	}
 }
 
-// THE SEAT READS THE RECORD'S TEXT. `show report --assembled` and its --quote and --match selectors
-// read the layout, and a seat copies a sentence from it into `edit`: an entity the shipped file
-// carries would make the copy a misquote and a quote of the text match nothing.
+// THE LAYOUT READS THE RECORD'S TEXT. `ops assembled` and its --quote and --match selectors read the
+// layout, and a sentence copied from it is the record's: an entity the shipped file carries would
+// make the copy a misquote and a quote of the text match nothing.
 func TestTheLayoutShowsTheRecordsTextUnescaped(t *testing.T) {
 	run := runtest.Open(t, newRun(t))
 	id := record.Identity{Run: run, SeatID: "blue-synthesize"}

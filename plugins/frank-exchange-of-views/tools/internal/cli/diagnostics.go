@@ -122,6 +122,8 @@ func newShowDiagnostics() *cobra.Command {
 	// WHERE THE WALL CLOCK WENT. See timing.go — the two views behind it existed unwired, so the
 	// engine could decompose its own clock and had no surface that did.
 	show.AddCommand(newShowTiming())
+	// THE REPORT SET AS IT SHIPS, section by section. See assembled.go.
+	show.AddCommand(newShowAssembled())
 	return show
 }
 

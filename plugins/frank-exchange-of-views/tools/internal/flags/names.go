@@ -226,11 +226,6 @@ const (
 	// validator's job rather than a second word's.
 	Anchor = "anchor"
 
-	// Assembled asks the report view for the ASSEMBLED report — the set as the run ships it, section
-	// by section — where the bare view prints the report's text. "Assembled" is the word the terms
-	// registry already gives that stage of the report.
-	Assembled = "assembled"
-
 	// Match is the selector's REGEX half. Its literal half is Quote, deliberately the same word the
 	// acting verbs take for a span of report text: one concept, one name. See cli/seat/selector.go
 	// for why the pair exists rather than one flag with a toggle, and why the verbs differ on what a
@@ -327,7 +322,7 @@ func All() []string {
 		Class,
 		Problem, Fix, Check, CheckKind, Type, SourceSpan, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
-		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
+		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,
 		Method, AccessDate,

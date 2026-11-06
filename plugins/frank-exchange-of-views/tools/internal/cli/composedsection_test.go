@@ -36,10 +36,15 @@ func refusesTheSection(t *testing.T, out string, err error, want ...string) {
 		t.Fatalf("report text carrying a section the tool composes was recorded:\n%s", out)
 	}
 	msg := err.Error() + "\n" + out
-	for _, w := range append(want, "NOTHING IS RECORDED", "HOW CONTENT REACHES IT", "WHAT TO DO: take that line and what stands under it out", "`show report --assembled`") {
+	for _, w := range append(want, "NOTHING IS RECORDED", "HOW CONTENT REACHES IT", "WHAT TO DO: take that line and what stands under it out",
+		"THE SECTIONS ASSEMBLY COMPOSES, none of which the report's text carries: "+strings.Join(report.RefusedHeadings(), ", ")) {
 		if !strings.Contains(msg, w) {
 			t.Errorf("the refusal does not say %q:\n%s", w, msg)
 		}
+	}
+	// The refusal names the sections itself: the assembled set is the operator's read.
+	if strings.Contains(msg, "--assembled") {
+		t.Errorf("the refusal points a seat at --assembled, which no seat has:\n%s", msg)
 	}
 }
 
@@ -130,14 +135,20 @@ func TestEveryActTheLayoutNamesIsACommand(t *testing.T) {
 	}
 }
 
-// THE ASSEMBLED LAYOUT IS WHAT ASSEMBLY SHIPS, read before a report exists and after.
-func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
+// THE ASSEMBLED LAYOUT IS WHAT ASSEMBLY SHIPS, read by the operator before a report exists and after.
+func TestOpsAssembledIsTheSetAssemblyShips(t *testing.T) {
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
 		t.Fatal(err)
 	}
-	// Before any report is ingested — when the seat about to write one asks.
-	out, err := run(t, "show", "report", "--assembled", "--run", runDir, "--seat-id", "blue-synthesize")
+	// NO SEAT READS IT: the assembled set is the operator's, and every seat's report page lacks it.
+	for _, sid := range []string{"blue-synthesize", "blue-respond", "blue-lane-1", "red-lens-evidence", "red-chair", "judge"} {
+		if out, err := run(t, "show", "report", "--assembled", "--run", runDir, "--seat-id", sid); err == nil {
+			t.Errorf("%s read the assembled set:\n%s", sid, out)
+		}
+	}
+	// Before any report is ingested.
+	out, err := run(t, "ops", "assembled", "--run", runDir, "--seat-id", "operator")
 	if err != nil {
 		t.Fatalf("the assembled layout before any report: %v\n%s", err, out)
 	}
@@ -171,13 +182,13 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 		"--hypothesis", "a factor below 10 exists"); err != nil {
 		t.Fatalf("inquiry propose: %v\n%s", err, out)
 	}
-	out, err = run(t, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", blueSeat)
+	out, err = run(t, "ops", "assembled", "--json", "--run", runDir, "--seat-id", "operator")
 	if err != nil {
-		t.Fatalf("--assembled --json: %v\n%s", err, out)
+		t.Fatalf("ops assembled --json: %v\n%s", err, out)
 	}
 	var got report.LayoutJSON
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
-		t.Fatalf("--assembled --json is not the layout: %v\n%s", err, out)
+		t.Fatalf("ops assembled --json is not the layout: %v\n%s", err, out)
 	}
 	docs, err := shippedDocs(runtest.Open(t, runDir))
 	if err != nil {
@@ -215,18 +226,14 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 		t.Errorf("a run that cites nothing ships no bibliography, and the row still says how content reaches it: %+v", s)
 	}
 
-	// One window is not a set of sections.
-	if out, err := run(t, "show", "report", "--assembled", "--anchor", "F-00000aaa", "--run", runDir, "--seat-id", blueSeat); err == nil {
-		t.Errorf("--assembled with --anchor was answered:\n%s", out)
-	}
 	// A selector picks sections from the structured form, and prints that form with or without
 	// --json: the bare listing has no text to select on.
-	jsonSel, err := run(t, "show", "report", "--assembled", "--json", "--match", "trial division", "--run", runDir, "--seat-id", blueSeat)
+	jsonSel, err := run(t, "ops", "assembled", "--json", "--match", "trial division", "--run", runDir, "--seat-id", "operator")
 	if err != nil || !strings.Contains(jsonSel, `"heading": "Research areas"`) || strings.Contains(jsonSel, `"heading": "Risk matrix"`) {
-		t.Errorf("--assembled --json --match does not select the section that matches: %v\n%s", err, jsonSel)
+		t.Errorf("ops assembled --json --match does not select the section that matches: %v\n%s", err, jsonSel)
 	}
-	if out, err := run(t, "show", "report", "--assembled", "--match", "trial division", "--run", runDir, "--seat-id", blueSeat); err != nil || out != jsonSel {
-		t.Errorf("--assembled --match in the bare form is not the --json form's selection: err %v\n%s", err, out)
+	if out, err := run(t, "ops", "assembled", "--match", "trial division", "--run", runDir, "--seat-id", "operator"); err != nil || out != jsonSel {
+		t.Errorf("ops assembled --match in the bare form is not the --json form's selection: err %v\n%s", err, out)
 	}
 	// A section that ships as one line is that line.
 	if s := by["Title"]; s.Text != "# On 91" {
@@ -343,7 +350,7 @@ func TestTheBareAssembledLayoutSaysItCarriesNoText(t *testing.T) {
 	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")
 	registerBlue(t, runDir)
 	const sentence = "91 is 7 x 13."
-	out, seen, err := runSeen(t, "show", "report", "--assembled", "--run", runDir, "--seat-id", blueSeat)
+	out, seen, err := runSeen(t, "ops", "assembled", "--run", runDir, "--seat-id", "operator")
 	if err != nil {
 		t.Fatalf("the bare layout: %v\n%s", err, out)
 	}
@@ -353,9 +360,9 @@ func TestTheBareAssembledLayoutSaysItCarriesNoText(t *testing.T) {
 	if !strings.Contains(seen, report.LayoutHasNoText) {
 		t.Errorf("a search of the bare layout finds nothing and nothing says why; standard error carries:\n%q", seen)
 	}
-	out, seen, err = runSeen(t, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", blueSeat)
+	out, seen, err = runSeen(t, "ops", "assembled", "--json", "--run", runDir, "--seat-id", "operator")
 	if err != nil {
-		t.Fatalf("--assembled --json: %v\n%s", err, out)
+		t.Fatalf("ops assembled --json: %v\n%s", err, out)
 	}
 	if !strings.Contains(out, sentence) {
 		t.Errorf("the form the statement names does not carry the report's text:\n%s", out)

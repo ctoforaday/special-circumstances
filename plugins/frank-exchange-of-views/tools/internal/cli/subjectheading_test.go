@@ -119,7 +119,7 @@ func TestAReportsOwnComputationsAndMotionsShipAsTheReports(t *testing.T) {
 			}
 		}
 	}
-	out, err := run(t, "show", "report", "--assembled", "--run", runDir, "--seat-id", blueSeat)
+	out, err := run(t, "ops", "assembled", "--run", runDir, "--seat-id", "operator")
 	if err != nil {
 		t.Fatal(err)
 	}
