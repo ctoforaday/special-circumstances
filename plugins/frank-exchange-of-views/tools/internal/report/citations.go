@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -18,9 +19,9 @@ import (
 // citationsHeading is the section of evidence.md this file composes.
 const citationsHeading = "Citations"
 
-// citationsSection renders evidence.md's citations, or "" for a run that cited nothing and read nothing.
-func citationsSection(fam record.Family) string {
-	ev := record.EvidenceJSONOf(fam.Events, fam.At)
+// citationsSection renders evidence.md's citations from the evidence view ev, each with the sentence
+// it backs in the report (live, keyed by anchor), or "" for a run that cited nothing and read nothing.
+func citationsSection(ev record.EvidenceJSON, live map[string]string) string {
 	others := ev.Independent
 	if len(ev.Sources) == 0 && len(others) == 0 {
 		return ""
@@ -30,20 +31,26 @@ func citationsSection(fam record.Family) string {
 	b.WriteString("Each source the report cites, with the sentence it backs and every reading of the source against that sentence. ")
 	b.WriteString("A reading's outcome is what the source does for the sentence — `supports`, `supports_with_bridge` (it supports the sentence through a step the source does not state), `weak`, `refutes`, `absent` (the source says nothing on it) or `unreachable` — and its confidence is how sure the reading is.\n\n")
 	for _, s := range ev.Sources {
-		loc := plain(s.Location)
+		// THE SENTENCE IT BACKS IS THE REPORT'S NOW, as a computation's is: the cite's location is the
+		// sentence as blue cited it, and an edit since changes the one a reading is measured against.
+		// A citation whose token the report does not place has no sentence there, and shows its location.
+		backs := live[s.Anchor]
+		if backs == "" {
+			backs = s.Location
+		}
 		fmt.Fprintf(&b, "### %s\n\n", firstNonEmpty(plain(s.Title), plainURL(s.URL)))
 		fmt.Fprintf(&b, "- **source**: %s", plainURL(s.URL))
 		if s.AccessDate != "" {
 			fmt.Fprintf(&b, ", accessed %s", s.AccessDate)
 		}
 		b.WriteString("\n")
-		if loc != "" {
+		if loc := plain(backs); loc != "" {
 			fmt.Fprintf(&b, "- **backs**: %s\n", loc)
 		}
 		if len(s.Verified) == 0 {
 			b.WriteString("- **not read against its sentence** — no reading of this source is on the record\n")
 		}
-		b.WriteString(readings(s.Verified, loc))
+		b.WriteString(checkLines(readingChecks(s.Verified), backs))
 		b.WriteString("\n")
 	}
 	if len(others) > 0 {
@@ -56,48 +63,97 @@ func citationsSection(fam record.Family) string {
 				fmt.Fprintf(&b, " — %s", plainURL(v.URL))
 			}
 			b.WriteString("\n")
-			b.WriteString(indent(readings([]record.EvidenceVerificationJSON{v}, ""), "  "))
+			b.WriteString(indent(checkLines(readingChecks([]record.EvidenceVerificationJSON{v}), ""), "  "))
 		}
 	}
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
-// readings renders each reading of one source as a list item: who read it and in which epoch, the
-// outcome and the confidence, the page when it read one, the sentence it read against when that is
-// not the sentence the source now backs, and what it read. A text repeated from the reading above
-// it is said to be, rather than printed twice.
-func readings(vs []record.EvidenceVerificationJSON, backs string) string {
+// evidenceCheck is one check of an evidence anchor's sentence as evidence.md lists it: a reading of a
+// cited source (`verify`) or a judgement of a computation (`reproduce`), from the evidence view's row.
+type evidenceCheck struct {
+	// by is the act, "read by" or "judged by"; verdict the reading's outcome or the judgement's
+	// soundness.
+	by, seat   string
+	epoch      int
+	verdict    string
+	confidence string
+	page       int32
+	// text is what the reading read, or the judgement's note; claim the sentence the check was of,
+	// "" where the record holds none (a migrated reproduce).
+	text, claim string
+}
+
+// readingChecks is each reading of a source as a check.
+func readingChecks(vs []record.EvidenceVerificationJSON) []evidenceCheck {
+	out := make([]evidenceCheck, len(vs))
+	for i, v := range vs {
+		out[i] = evidenceCheck{by: "read by", seat: v.SeatID, epoch: v.Epoch, verdict: v.Outcome, confidence: v.Confidence, page: v.Page, text: v.Text, claim: v.Claim}
+	}
+	return out
+}
+
+// judgementChecks is each judgement of a computation's sentence as a check.
+func judgementChecks(js []record.EvidenceReproductionJSON) []evidenceCheck {
+	out := make([]evidenceCheck, len(js))
+	for i, j := range js {
+		out[i] = evidenceCheck{by: "judged by", seat: j.SeatID, epoch: j.Epoch, verdict: j.Soundness, text: j.Note, claim: j.Claim}
+	}
+	return out
+}
+
+// checkLines renders every check of one anchor, a citation's or a computation's, as a list item: who
+// made it and in which epoch, the outcome or the soundness and the confidence, the page when it read
+// one, and what it read or noted. A text repeated from the check above it is said to be, rather than
+// printed twice.
+//
+// UNDER EACH, THE SENTENCE IT WAS OF, when that is not live — the sentence the anchor backs in the
+// report now. A check of an earlier wording is how an edit of the sentence surfaces here; whether the
+// check still stands is the anchor ledger's call. The two are compared in the form a check records
+// its sentence (bluedoc.SameSentence), so a token placed in the sentence after the check — a reading
+// gap's, at its end — is no change of wording. A check that recorded no sentence prints no line.
+func checkLines(cs []evidenceCheck, live string) string {
 	var b strings.Builder
-	prev, prevClaim := "", ""
-	for _, v := range vs {
-		fmt.Fprintf(&b, "- **read by `%s`** (epoch %d): **%s**", v.SeatID, v.Epoch, firstNonEmpty(v.Outcome, "no outcome"))
-		if v.Confidence != "" {
-			fmt.Fprintf(&b, ", confidence %s", v.Confidence)
+	prevText, prevClaim := "", ""
+	for _, c := range cs {
+		fmt.Fprintf(&b, "- **%s `%s`** (epoch %d): **%s**", c.by, c.seat, c.epoch, firstNonEmpty(c.verdict, "no outcome"))
+		if c.confidence != "" {
+			fmt.Fprintf(&b, ", confidence %s", c.confidence)
 		}
-		if v.Page > 0 {
-			fmt.Fprintf(&b, ", page %d", v.Page)
+		if c.page > 0 {
+			fmt.Fprintf(&b, ", page %d", c.page)
 		}
-		text := plain(v.Text)
-		switch {
+		switch text := plain(c.text); {
 		case text == "":
-		case text == prev:
-			b.WriteString(" — the same reading as the one above")
+		case text == prevText:
+			b.WriteString(" — the same text as the check above")
 		default:
-			b.WriteString(" — " + text)
+			b.WriteString(" — " + checkText(c.text))
 		}
-		prev = text
+		prevText = plain(c.text)
 		b.WriteString("\n")
-		claim := plain(v.Claim)
 		switch {
-		case claim == "" || claim == backs:
-		case claim == prevClaim:
-			b.WriteString("  - of the same sentence as the reading above\n")
+		case plain(c.claim) == "" || bluedoc.SameSentence(c.claim, live):
+		case prevClaim != "" && bluedoc.SameSentence(c.claim, prevClaim):
+			b.WriteString("  - of the same sentence as the check above\n")
 		default:
-			fmt.Fprintf(&b, "  - of the sentence: %s\n", claim)
+			fmt.Fprintf(&b, "  - of the sentence: %s\n", plain(c.claim))
 		}
-		prevClaim = claim
+		prevClaim = c.claim
 	}
 	return b.String()
+}
+
+// checkText is a check's text as it ships after the tool's on the check's line, without its tokens as
+// it reads there (stripTokensAfter). Of one line, it stays on that line; of several, it runs on as the
+// item's own paragraphs, a fence it leaves open closed where it ends (ownBlock, reading its first line
+// as text after the tool's), so a reader's quoted block keeps its shape (itemLines).
+func checkText(s string) string {
+	t := strings.TrimSpace(lineEnds.Replace(stripTokensAfter(s)))
+	if !strings.Contains(t, "\n") {
+		return oneLine(t)
+	}
+	return itemLines(ownBlock("x" + t)[1:], "  ")
 }
 
 // plain is a record field as the tool writes it into a line it composes after the weave — a field of

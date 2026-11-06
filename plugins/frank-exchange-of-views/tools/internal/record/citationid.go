@@ -266,10 +266,10 @@ type Computation struct {
 	// bundle compares against instead of executing — nil where no reproduce that ran it names its
 	// execution.
 	Standing *StandingRerun
-	// Soundness is THIS ANCHOR's sentence — sound | unsound | not_judged | reopened — and Judgements
-	// are the standing verdicts it is read from, one per seat (computationverdict.go).
-	Soundness  string
-	Judgements []ComputationJudgement
+	// Soundness is THIS ANCHOR's sentence — sound | unsound | not_judged | reopened — read from its
+	// standing verdicts, one per seat (computationverdict.go). Each judgement, with the sentence it
+	// was of, is the evidence view's row (EvidenceComputationJSON.Checks).
+	Soundness string
 }
 
 // ComputationRerun is one act's comparison: the `reproduce` that set the act's recorded result
@@ -299,15 +299,6 @@ type StandingRerun struct {
 	// Rerun is the standing reproduce's comparison of its own act; calls_the_tool says the execution
 	// called the tool, so no act has an output of it to compare.
 	Rerun recordpb.Rerun
-}
-
-// ComputationJudgement is one standing soundness verdict on a computation's anchor: red's JUDGEMENT,
-// made by reading the program, of whether it establishes that sentence.
-type ComputationJudgement struct {
-	SeatID string
-	Epoch  int
-	Sound  bool
-	Note   string
 }
 
 // RecordedComputations returns every computation on the record, in event order, each with its own
@@ -357,10 +348,6 @@ func RecordedComputations(run Run) ([]Computation, error) {
 				r, _ := recordpb.BodyAs[*recordpb.Reproduce](b.standing)
 				p.Standing = &StandingRerun{SeatID: b.standing.GetSeatId(), RerunSha: r.GetRerunSha(), Exit: int(r.GetRerunExit()), Rerun: r.GetRerun()}
 			}
-		}
-		for _, c := range v.judgements {
-			r, _ := recordpb.BodyAs[*recordpb.Reproduce](c.ev)
-			p.Judgements = append(p.Judgements, ComputationJudgement{SeatID: c.seat, Epoch: m.At.Of(c.ev).Epoch, Sound: c.holds, Note: r.GetNote()})
 		}
 		out = append(out, p)
 	}

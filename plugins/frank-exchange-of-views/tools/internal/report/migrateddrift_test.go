@@ -51,5 +51,5 @@ func TestAMigratedDriftOpensNothingInTheEvidenceDocument(t *testing.T) {
 	if drifts == 0 || setext == 0 {
 		t.Fatalf("the migrated record holds %d DIFFERS with a drift, %d of them with a `====` rule; this measures nothing", drifts, setext)
 	}
-	report.SameShapes(t, report.Shapes(report.ResolveMarks(report.EvidenceDoc(run, bare, nil))), report.Shapes(report.ResolveMarks(report.EvidenceDoc(run, computations, nil))))
+	report.SameShapes(t, report.Shapes(report.ResolveMarks(report.EvidenceDoc(run, bare, nil, nil))), report.Shapes(report.ResolveMarks(report.EvidenceDoc(run, computations, nil, nil))))
 }

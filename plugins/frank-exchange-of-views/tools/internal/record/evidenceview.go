@@ -212,10 +212,14 @@ type EvidenceReproductionJSON struct {
 	Soundness string `json:"soundness"`
 	// Standing is whether this verdict still stands on the anchor: it is its seat's latest, from a
 	// sitting opened after the latest edit of the sentence.
-	Standing bool   `json:"standing"`
-	Note     string `json:"note"`
-	SeatID   string `json:"seat_id"`
-	Epoch    int    `json:"epoch"`
+	Standing bool `json:"standing"`
+	// Claim is the sentence this judgement was of, as the tool read it off the report at the write
+	// (Reproduce.claim), as a verification's `claim` is; "" on a reproduce migrated from a record
+	// that kept none.
+	Claim  string `json:"claim"`
+	Note   string `json:"note"`
+	SeatID string `json:"seat_id"`
+	Epoch  int    `json:"epoch"`
 }
 
 // EvidenceVerificationJSON is one `lens verify` — a claim red checked against a source.
@@ -511,7 +515,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 					r, _ := recordpb.BodyAs[*recordpb.Reproduce](c.ev)
 					checks = append(checks, EvidenceReproductionJSON{
 						Rerun: recordpb.Word(r.GetRerun()), Ran: r.GetRan(), Soundness: recordpb.Word(c.soundness), Standing: standing[c.id],
-						Note: r.GetNote(), SeatID: c.seat, Epoch: win.Of(c.ev).Epoch,
+						Claim: r.GetClaim(), Note: r.GetNote(), SeatID: c.seat, Epoch: win.Of(c.ev).Epoch,
 					})
 				}
 			}

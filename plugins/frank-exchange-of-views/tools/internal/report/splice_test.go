@@ -409,9 +409,9 @@ func TestAProseValueKeepsItsBlocksInsideItsItem(t *testing.T) {
 	}
 }
 
-// RED'S NOTES ON A COMPUTATION KEEP THEIR BLOCKS. Notes of one line share the judgement's line; where one runs
-// to several, each is a paragraph of the judgement's item in evidence.md, and a fence one leaves open
-// closes where it ends rather than taking the next note as code.
+// RED'S NOTES ON A COMPUTATION KEEP THEIR BLOCKS. A note of one line shares its judgement's line; one
+// that runs to several is the paragraphs of its judgement's item in evidence.md, and a fence it leaves
+// open closes where it ends rather than taking the next judgement as code.
 func TestJudgementNotesKeepTheirBlocks(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "abc123def4567890"
@@ -420,16 +420,16 @@ func TestJudgementNotesKeepTheirBlocks(t *testing.T) {
 		notes []string
 		want  string
 	}{
-		{[]string{"one", "two<!--gap:G-00000001-->"}, "establishes this sentence — one / two\n"},
-		{[]string{"one\n```\nx", "two\n\nthree"}, "establishes this sentence — one\n  ```\n  x\n  ```\n\n  two\n\n  three\n"},
+		{[]string{"one", "two<!--gap:G-00000001-->"}, "**sound** — one\n- **judged by `red-lens-logic`** (epoch 1): **sound** — two\n"},
+		{[]string{"one\n```\nx", "two\n\nthree"}, "**sound** — one\n  ```\n  x\n  ```\n- **judged by `red-lens-logic`** (epoch 1): **sound** — two\n\n  three\n"},
 	} {
-		var js []record.ComputationJudgement
-		for _, n := range c.notes {
-			js = append(js, record.ComputationJudgement{SeatID: "red-lens-evidence", Sound: true, Note: n})
+		var js []record.EvidenceReproductionJSON
+		for i, n := range c.notes {
+			js = append(js, record.EvidenceReproductionJSON{SeatID: []string{"red-lens-evidence", "red-lens-logic"}[i], Epoch: 1, Soundness: "sound", Standing: true, Note: n})
 		}
 		computations := []record.Computation{{Label: "K-deadbeef", SHA: sha, Basis: "reproducible", Argv: []string{"python3", "script.py"}, Reason: "trial division",
-			Soundness: record.SoundnessSound, Judgements: js}}
-		if ev := evidenceDoc(runtest.Open(t, runDir), computations, nil); !strings.Contains(ev, c.want) {
+			Soundness: record.SoundnessSound}}
+		if ev := evidenceDoc(runtest.Open(t, runDir), computations, nil, map[string][]record.EvidenceReproductionJSON{"K-deadbeef": js}); !strings.Contains(ev, c.want) {
 			t.Errorf("notes %q: evidence.md does not hold %q:\n%s", c.notes, c.want, ev)
 		}
 	}
