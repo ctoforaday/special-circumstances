@@ -1,7 +1,7 @@
 # Native code leaves `feov-record`: the `feov-ocr` and `feov-embed` helpers
 
 > STATUS: proposed 2026-11-04, not started. F1–F10 ruled by gblock 2026-11-04, F11–F14 on 2026-11-05, F15 on 2026-11-06
-> (§I.4). Revised for audit rounds 1–4 (`~/.claude/scratch/vecplan/audit/round1/` … `round4/`); next is audit round 5.
+> (§I.4). Revised for audit rounds 1–5 (`~/.claude/scratch/vecplan/audit/round1/` … `round5/`); next is audit round 6.
 > Line numbers are against `origin/main` at `7d676a887` unless a census group says otherwise.
 > Ownership (gblock, 2026-11-04, "You'll handle vector here but hand ocr to the agent working on ocr"; F4): the OCR
 > session builds Part 1 (helper mechanics) inside Part 2 (`feov-ocr`); the vector-search session builds Part 3
@@ -529,11 +529,16 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"`. The literal `-o` template and the single `for pair in`
     (`:1792`) stay in this job, so `sc-doctor`'s contract test still reads them.
   - **The target set is five (F15).** `darwin/amd64` leaves the `for pair in` line, which is the set's one source:
-    `releaseassets` reads it, and a target there with no runner fails `releaseassets`. Every other carrier and its
-    disposition is census M. On an Intel Mac, `fetch-bin.sh` (`:234-245`, unchanged) asks for `<n>_darwin_amd64`,
-    which `SHA256SUMS` no longer lists, and fails naming it (`TestFetchBinNamesAnAssetTheReleaseDoesNotCarry`);
-    `sc-doctor -fix` builds the Go binaries from source there, as on any unpublished platform, and reports the helpers
-    missing.
+    `releaseassets` reads it, and a target there with no runner fails `releaseassets`. No other text states the set's
+    size: each statement of it is rewritten as "every published pair" or "the release job's pair list". Every other
+    carrier of the set's membership or size, and its disposition, is census M. On an Intel Mac, `fetch-bin.sh`
+    (`:234-245`, unchanged) asks for `<n>_darwin_amd64`, which `SHA256SUMS` no longer lists, and fails naming it
+    (`TestFetchBinNamesAnAssetTheReleaseDoesNotCarry`); `sc-doctor -fix` builds the Go binaries from source there, as
+    on any unpublished platform, and reports the helpers missing.
+  - Residue (F15): on an Intel Mac, and in a Rosetta-translated shell on Apple Silicon (`uname -m` prints `x86_64`),
+    FEOV's helpers can never be fetched. `stampInstalled` never stamps FEOV, so its `ensure` re-attempts at every
+    session start and its hooks print "installing its hook binaries failed (release has no …_darwin_amd64)" at most
+    once per 5-minute window (`fetch-bin.sh:181-184`), indefinitely. OCR and search refuse there with `helper-absent`.
   - For a FEOV tag it downloads every `native-build` artifact into `$DIST`, renaming each model export to its release
     asset name from `ASSETS` and keeping one copy per name. The legs that fetched the exports checked them against
     `feov-embed`'s `PINS.txt` (F10).
@@ -584,7 +589,11 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
   gain a helper and an `ASSETS` line, and the `fetch-bin-platforms` job's fixture plugin (`hooks.yml:1159-1216`, `:1182`)
   gains `native/fake-helper/ASSETS`, its assets, and a `.fetch/source-built` root.
 - **`sc-doctor`** enumerates the helpers and their `ASSETS` the same way (`binariesOf`, `main.go:73-91`), reports each as
-  installed or missing, and fetches them; it never builds one (`main.go:533-538` stays Go-only). It holds neither FEOV's
+  installed or missing, and fetches them; it never builds one (`main.go:533-538` stays Go-only). `fetchRelease`
+  (`main.go:490-528`) names its asset by `AssetName` (`:496`), which names no model export: for an `ASSETS` line it
+  downloads the field for `runtime.GOARCH` and installs it under the line's first field, and a line without that field
+  fails naming the file and arch, as `fetch-bin.sh` does. `fixWith` (`:580-608`) passes a failed helper or `ASSETS`
+  fetch to the report, never to `buildFromSource`. It holds neither FEOV's
   digest nor a frame client, so it checks no digest. `feov-record`'s handshake and `setup` preflight do.
 - **`pluginparity`** needs no helper check: `releaseassets -scope` and `-matrix` generate the build and run matrices from
   the helpers present, and `releaseassets -check` refuses a release missing one.
@@ -606,8 +615,8 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     `native/feov-ocr/**` (its own `PINS.txt` included), `native/frame/**`, `native/build.sh` and `native/PINS.txt`, the
     inputs of `Identity()`.
 - **Docs:**
-  - `docs/c-stack.md` is rewritten around the helpers and the five targets (F15): zig for Linux, macOS and Windows
-    `feov-ocr`; MSVC for Windows `feov-embed`. The MSVC runner is the decision the current doc says a native-only
+  - `docs/c-stack.md` is rewritten around the helpers and the published targets (F15), stating no count: zig for
+    Linux, macOS and Windows `feov-ocr`; MSVC for Windows `feov-embed`. The MSVC runner is the decision the current doc says a native-only
     toolchain would need.
   - `docs/local-development.md:326-329` is rewritten, and its universe section documents `build --native` and
     `.fetch/source-built`.
@@ -653,12 +662,16 @@ each read for its meaning):**
   `tessocr/corpus/render.go:79, :94` (the wrapped "tagged" the grep misses; it generates `testdata/corpus/STATUS.md:5`,
   regenerated), `tessocr/corpus_records_test.go:19, :143, :160`, `releasegate/fuzz/fuzz_test.go:6016`, the moved
   `PINS.txt`'s header (`:1-14`), `hooks.yml:279-285, :532-549, :648-649` (the module suite now runs the engine tests),
-  `race-nightly.yml:27-28`, and `gates.go:167-174, :320-325` (§1.7). Every changed golden line is read.
+  `race-nightly.yml:27-28`, `gates.go:167-174, :320-325` (§1.7), `engine_cgo_test.go:75` ("one build of `feov-ocr`"),
+  and, moving with `staticproof`, its usage line (`main.go:19-20`: `go run ./scripts/staticproof`, or `releaseassets
+  -check`) and the `ntdll.dll` reason (`:106`: "`feov-ocr`'s C runtime imports it directly"). Every changed golden line
+  is read.
 - Deleted with their files or steps: `engine_cgo.go`, `engine_stub.go`, `testbuild/tags_tessocr.go`, `build-cstack.sh`,
   `hooks.yml:594` (the OCR step) and `:1804` (the C-stack branch). Rewritten whole as "no helper" tests (§Tests):
   `tessocr/engine_stub_test.go`, `tessocr/stubbuild_test.go`, `fetchcache/enginestub_test.go`, `cli/enginestub_test.go`.
   `docs/c-stack.md` is rewritten (§1.7).
-- Same words, other sense, unchanged: `record/cast.go:43`, `report/site.go:119`, `seatprobe/surfacecoverage_test.go:157`,
+- Same words, other sense, unchanged: `record/cast.go:43`, `report/site.go:15, :119`, `tessocr/repaired.go:100`
+  (`stackExtent`), `seatprobe/surfacecoverage_test.go:157`,
   `setup/run_test.go:115`, `cli/cli_test.go:134`, `difftest/golden_test.go:88`, `integration/surface/hookgraph_test.go:74`,
   and from the widening `docs/seat-surface-naming.md:134`, `cli/fetch_test.go:48`, `debatejs.go:175`,
   `recordsql/openrace_test.go:232`, `recordsql/store.go:398-399`, `seatprobe/fidelity_test.go:221`,
@@ -666,7 +679,8 @@ each read for its meaning):**
   `scripts/lawqueue/main.go` (5 lines) and `scripts/universetest/universe_test.go` (11 lines).
 - Still true after the move, unchanged: the pure-Go tests and files that say they run "without the C stack"
   (`lattice_test.go:9`, `levels_test.go:9`, `page.go:449, :509`, `page_test.go:14`, `reconstruct.go:7`, `spread_test.go:13`,
-  `fetchcache/pageread_test.go:17`, whose fake engine still needs no helper), `staticproof`'s "not statically linked"
+  `fetchcache/pageread_test.go:17` and `cli/fetchocr_test.go:17`, whose fake engines still need no helper), the C stack
+  as the helper's build and binary (`shim.cpp:6, :93, :95`, which move to `native/feov-ocr/`), `staticproof`'s "not statically linked"
   refusals, which move with it, and "the real engine" against a fake (`cli/ocr_test.go:180`,
   `ocrcite_real_test.go:20, :26`, `blankreceipt_cgo_test.go:16, :29`, `corpus_cgo_test.go:23`, `pageread_test.go:19`,
   `seatprobe/fixture_cgo_test.go:14, :25, :29`, `goldens_cgo_test.go:15`, `levels_test.go:10`,
@@ -708,7 +722,7 @@ Groups H and M are run at `7d676a887`. Each group's command re-enumerates it; Ap
 | F | `hooks.yml` | 3 jobs build the stack, 1 publishes, 2 contract tests parse the workflow; 4 jobs run tests over a `Require` package | `grep -n "tessocr\|cstack\|linkmode\|for pair in\|go test" .github/workflows/*.yml` |
 | G | Enumerators that treat `tools/cmd` as the binary list | 9 | `grep -rn 'tools/cmd' scripts plugins/*/hooks plugins/prosthetic-conscience/tools/internal/doctor .github \| grep -v _test` |
 | H | Text naming the engine as compiled in, tag-gated or stubbed | 282 lines: 1 seat-facing source, 10 generated agents, 4 golden lines, the rest help, comments and tests | `git grep -in "$H" -- plugins/frank-exchange-of-views docs AGENTS.md scripts .github`, `$H` in Appendix A |
-| M | Carriers of the published target set (F15) | 28 lines in 12 files, plus 1 other sense | `git grep -n -i "$M" -- . ':!run-archive' ':!research' ':!plans' ; git grep -n -i "$M" -- plans/vector-search.md`, `$M` in Appendix A |
+| M | Statements of the published target set's membership or size (F15) | 74 lines in 31 files: 33 carriers, 41 other sense | the three-part command in Appendix A |
 | I | Gates | 3 | `grep -n "tessocr\|C stack" scripts/check/*.go` |
 | J | Engine identity | 1 producer, 4 stores, 3 comparers | `grep -rn "Identity()\|ocr_engine" $F/internal --include=*.go \| grep -v _test` |
 | K | Docs and plans | 3 docs, 1 live plan, 1 rule in AGENTS.md | `grep -rln "tessocr\|build-cstack\|linkmode external" docs plans` |
@@ -736,7 +750,7 @@ Groups H and M are run at `7d676a887`. Each group's command re-enumerates it; Ap
 
 Each item names what re-arms it. Tests that need a helper run through `nativehelper.Require` with `NATIVE_HELPER_DIR`,
 the lookup the shipped binary uses. Tests that need a misbehaving helper, or one with another digest, build the Go fake
-helper (§1.1). Gap numbers are round 1's unless marked r2, r3 or r4.
+helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
 
 1. **`go -C scripts run ./check`** after `unset $(env | grep -o '^FEOV_[A-Z_]*')`: every local gate at `-count=1`. Read
    the fail count, not the exit code. Re-armed by any change.
@@ -847,6 +861,14 @@ helper (§1.1). Gap numbers are round 1's unless marked r2, r3 or r4.
    - `TestStampWaitsForEveryHelper`: `stampInstalled` writes no stamp while one helper or `ASSETS` file is missing.
    - `TestFetchBinPicksTheExportForItsArch`: an `ASSETS` line with `amd64=` and `arm64=` fields installs the right one;
      a line without the host arch fails naming it.
+   - `TestFixFetchesTheExportForItsArch` in `doctor`, driven as `-fix` runs: `binariesOf` over a fixture plugin with
+     `native/feov-embed/ASSETS` (`gte-small.int8.ort` with a distinct export for each arch), then `fixWith` with the
+     shipped `fetchRelease` and a `build` that fails the test if called, and a Go fake `gh`, built by the test and first
+     on `PATH`, serving a fixture release with `SHA256SUMS`. `bin/gte-small.int8.ort` holds the `runtime.GOARCH`
+     export's bytes, and `gh` was asked for that export's name. With `gh` failing, the report names the helper and the
+     `ASSETS` file as fetch failures and `build` is not called. A line without the host arch fails naming it.
+     Deletion checks: name the asset by `AssetName` and the first case fails; route a failed helper fetch to `build`
+     and the second fails.
    - `TestEnsureIsSilentWhenTheInstalledTagMatches` (`fetchbin_contract_test.go:542`) keeps its fixture plugin
      helper-less, so the unmatched `native/*/ASSETS` glob is exercised. Deletion check: drop the `[ -f ]` test and it
      fails.
@@ -917,13 +939,20 @@ helper (§1.1). Gap numbers are round 1's unless marked r2, r3 or r4.
     - The replay set and BEIR hybrid scores reproduce `ortq/RESULT.md` through the helper.
     - The windows-amd64 servercore leg runs the fidelity set with no Visual Studio and no Go present. Its first run
       proves the host-built test binaries and `FEOV_TESTBUILD_PREBUILT` carry everything the container runs.
-12. **Census H and M (gap 12; r4 gap 2; F15).** Re-armed by any text naming the engine or a release target.
+12. **Census H and M (gap 12; r4 gap 2; r5 gap; F15).** Re-armed by any text naming the engine, a release target or
+    the target set's size.
     - After Part 2, the widened census H command (`$H`, Appendix A) returns only the "other sense" and "still true"
       lines listed in Part 2; any other hit fails the PR's review. Deletion check: at `7d676a887` it returns the 282
       lines of the listing, among them `hooks.yml:648-649`, `pageread.go:316` and `fuzz_test.go:6016`, which the
       round-3 command missed.
-    - After Part 1, census M returns only the lines Appendix A marks unchanged, and `plans/vector-search.md`'s until
-      Part 3's PR.
+    - After Part 1, census M's three-part command (Appendix A) returns exactly: the release job's `for pair in` line
+      (five pairs); `hooks.yml:128, :1186`; the four `fetch-bin.sh` `uname -m` lines; `release_contract_test.go:64-65`;
+      `scripts/releaseassets`' reader of `for pair in` and its `TestATargetWithoutARunnerIsRefused` fixture adding
+      `darwin/amd64`; the 41 other-sense lines; and `plans/vector-search.md`'s seven until Part 3's PR. Any other hit,
+      a count rewritten as "five" among them, fails the PR's review. Deletion check: at `7d676a887` it returns the 74
+      lines of the listing; drop the size-beside-a-platform-word half and `pdfextract.go:40` vanishes, drop the
+      size-in-a-membership-file half and `release_contract_test.go:225, :323` vanish, and round 4's `$M` alone
+      returns 29.
 13. **Running the engine:** a smoke run in a `universe.sh build --native` universe that fetches one scanned PDF and runs
     one `--search`, with the run's `engine.log` read.
 14. **The PR's `release-fuzz` parts and `release-fuzz-tally`**, read on the final head (FEOV's tools module changes).
@@ -1133,16 +1162,33 @@ Plans:
 - release-fuzz (4 parts + tally): builds plain, never exercised OCR — unchanged.
 
 ---------------------------------------------------------------------------------------------------
-### M. Carriers of the published target set (F15) — 28 lines in 12 files, plus 1 other sense [run at `7d676a887`]
+### M. Statements of the published target set's membership or size (F15) — 74 lines in 31 files [run at `7d676a887`]
 
-Enumerate: `git grep -n -i "$M" -- . ':!run-archive' ':!research' ':!plans'; git grep -n -i "$M" -- plans/vector-search.md`
-with `M='darwin/amd64\|darwin-amd64\|darwin_amd64\|darwin-{amd64\|macos-15-intel\|six targets\|six GOOS\|six published\|all six targets\|6 targets\|6 release targets\|for pair in\|x86_64-macos\|uname -m\|GOARCH=amd64 go vet'` (listing `~/.claude/scratch/vecplan/census/M-targets-7d676a887.txt`).
+Enumerate (r5 gap: three halves, membership, size beside a platform word, and size anywhere in a file that states
+membership):
+
+```sh
+M='darwin/amd64\|darwin-amd64\|darwin_amd64\|darwin-{amd64\|macos-15-intel\|six targets\|six GOOS\|six published\|all six targets\|6 targets\|6 release targets\|for pair in\|x86_64-macos\|uname -m\|GOARCH=amd64 go vet'
+Z='\bsix\b\|sixty\|\b66\b\|\bfive\b\|\b55\b\|\b[56] \(pair\|platform\|target\|release\)'
+C='platform\|pair\|target\|goos\|goarch\|release\|asset\|triple'
+for P in ". :!run-archive :!research :!plans" "plans/vector-search.md"; do
+  git grep -n -i -e "$M" -- $P
+  git grep -n -i -e "$Z" --and -e "$C" -- $P
+  git grep -l -i -e "$M" -- $P | xargs -r git grep -n -i -e "$Z" --
+done | sort -u
+```
+
+`five` and `55` are in `$Z` so that a rewrite stating the new size is found too. Listing
+`~/.claude/scratch/vecplan/census/M-widened-7d676a887.txt`; round 4's `$M` half alone is
+`M-targets-7d676a887.txt` (29 lines).
 
 - `hooks.yml:1792` `for pair in` — `darwin/amd64` removed; the set's one source (§III.1.5).
-- `hooks.yml:57` "release ships six GOOS/GOARCH pairs" and `gray-area/tools/internal/catalogue/liveness_other.go:8`
-  "the release ships six GOOS/GOARCH pairs" — "five".
-- `doctor/main.go:58` "all six published pairs" — "every published pair".
-- `docs/c-stack.md:14, :20, :42, :46` — rewritten with the doc (§III.1.7).
+- Statements of the size, rewritten with no count: `hooks.yml:57` and `gray-area/tools/internal/catalogue/liveness_other.go:8`
+  ("the release ships six GOOS/GOARCH pairs") — "the release job's pair list"; `doctor/main.go:58` ("all six published
+  pairs") and `fetchcache/pdfextract.go:40` ("all six pairs this repo ships") — "every published pair";
+  `doctor/release_contract_test.go:225` ("NOT SIXTY-SIX") — "NOT ONE PER COMMAND AND PAIR", `:227` ("Eleven commands
+  times six platforms") — "Every command for every pair", `:323` ("duplicate ~66 builds") — "duplicate every build".
+- `docs/c-stack.md:14, :20, :32, :42, :46` — rewritten with the doc (§III.1.7), stating no count.
 - `build-cstack.sh:15, :72, :112, :308` — deleted with the file; `native/build.sh` has no darwin-amd64 target.
 - `staticproof/main.go:116` — moves to `scripts/internal/staticproof`; the Security entry's reason is restated as
   "crypto/x509 links it on darwin", without the retired target.
@@ -1152,5 +1198,13 @@ with `M='darwin/amd64\|darwin-amd64\|darwin_amd64\|darwin-{amd64\|macos-15-intel
   `SHA256SUMS` lacks and fails naming it, §III.1.5); `doctor/release_contract_test.go:64-65` (reads the line; its
   floor, `TestPublishedSetCoversThePlatformsCITestsOn`, is linux/amd64 and windows/amd64).
 - `plans/vector-search.md:8, :61, :71, :89, :484, :498, :499` — in its llama.cpp sections, rewritten by Part 3's PR.
-- Other sense: `README.md:130` ("six published views").
+- `plans/vector-search.md:25, :35, :113, :384` — other sense (seat searches, embedding models, a cache, a code line).
+- Other sense, counts of something else (views, slash commands, sections, failures, releases, days, runs, seeds,
+  seconds, gaps, pairs of gaps, characters, openers, a version `1.66.0`): `README.md:91, :93, :130, :220`;
+  `hooks.yml:728, :1364, :1365`; `staticproof/main.go:107`; in FEOV, `docs/seat-command-triggers.md:177`,
+  `debate.js:290`, `gatetwice_test.go:17`, `capture/attestation_test.go:22`, `capture/capture.go:705`,
+  `lens/verify.go:67`, `hookversion_test.go:17`, `hookprovenance.go:22`, `seatenv.go:69`, `onegapperclass.go:32`,
+  `record.proto:63, :2227` and its generated `record.pb.go:6387`, `recordsql/store.go:229, :570`,
+  `promptsize_test.go:77`, `tools/research/2026-08-10_dual-read-vs-migration/blue/candidates/lane-1.md:51`, and
+  `migrate/testdata/prose-rewrites.golden` (11 lines); `prosthetic-conscience/.../checkpoint/checkpoint.go:598`.
 - No README or doc lists supported platforms; `requirements.json`'s `darwin` install keys are per OS, unchanged.
