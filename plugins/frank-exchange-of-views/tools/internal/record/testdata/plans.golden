@@ -107,49 +107,59 @@
               SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
               USE TEMP B-TREE FOR ORDER BY
             RIGHT
-              SEARCH m USING INDEX mint_about (about_kind=?)
-              BLOOM FILTER ON ea (anchor_id=?)
-              SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-              USE TEMP B-TREE FOR ORDER BY
-        RIGHT
-          MERGE (UNION)
-            LEFT
-              SEARCH v USING INDEX verify_carried_by (carried_by>?)
-              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-              BLOOM FILTER ON ea (anchor_id=?)
-              SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            RIGHT
-              MATERIALIZE own_check
-                COMPOUND QUERY
-                  LEFT-MOST SUBQUERY
-                    SEARCH m USING INDEX mint_about (about_kind=?)
-                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  UNION ALL
-                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                    SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-              MATERIALIZE latest_check
-                CO-ROUTINE (subquery)
+              MATERIALIZE reach
+                CO-ROUTINE demand_reach
                   COMPOUND QUERY
                     LEFT-MOST SUBQUERY
-                      CO-ROUTINE (subquery)
-                        SCAN x
-                        SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                        USE TEMP B-TREE FOR ORDER BY
-                      SCAN (subquery)
+                      MATERIALIZE lineage
+                        SETUP
+                          SCAN m
+                        RECURSIVE STEP
+                          MATERIALIZE carries
+                            CO-ROUTINE fs
+                              SCAN mint_supersedes
+                              USE TEMP B-TREE FOR GROUP BY
+                            SCAN fs
+                            SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                            SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                          SCAN l
+                          BLOOM FILTER ON cy (heir=?)
+                          SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                      SCAN l
+                      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                     UNION ALL
-                      CO-ROUTINE (subquery)
-                        SCAN x USING INDEX reproduce_bundle
-                        SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                        USE TEMP B-TREE FOR ORDER BY
-                      SCAN (subquery)
-                SCAN (subquery)
-              SCAN oc
-              BLOOM FILTER ON lc (anchor=? AND seat=?)
-              SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-              BLOOM FILTER ON ea (anchor_id=?)
-              SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                      SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                      BLOOM FILTER ON l (from_gap=?)
+                      SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+                SCAN demand_reach
+              SCAN ea
+              BLOOM FILTER ON dr (anchor=?)
+              SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
               USE TEMP B-TREE FOR ORDER BY
+        RIGHT
+          MATERIALIZE latest_check
+            CO-ROUTINE (subquery)
+              COMPOUND QUERY
+                LEFT-MOST SUBQUERY
+                  CO-ROUTINE (subquery)
+                    SCAN x
+                    SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                    USE TEMP B-TREE FOR ORDER BY
+                  SCAN (subquery)
+                UNION ALL
+                  CO-ROUTINE (subquery)
+                    SCAN x USING INDEX reproduce_bundle
+                    SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                    USE TEMP B-TREE FOR ORDER BY
+                  SCAN (subquery)
+            SCAN (subquery)
+          SCAN ea
+          BLOOM FILTER ON dr (anchor=?)
+          SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+          BLOOM FILTER ON lc (anchor=? AND seat=?)
+          SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+          USE TEMP B-TREE FOR ORDER BY
     MATERIALIZE answers_retired
       SCAN evidence
       USE TEMP B-TREE FOR GROUP BY
@@ -287,6 +297,33 @@
     SCAN (subquery)
   SCAN convergence_at
 
+== view demand_reach
+  CO-ROUTINE demand_reach
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        MATERIALIZE lineage
+          SETUP
+            SCAN m
+          RECURSIVE STEP
+            MATERIALIZE carries
+              CO-ROUTINE fs
+                SCAN mint_supersedes
+                USE TEMP B-TREE FOR GROUP BY
+              SCAN fs
+              SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+              SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+            SCAN l
+            BLOOM FILTER ON cy (heir=?)
+            SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+        SCAN l
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+      UNION ALL
+        SEARCH v USING INDEX verify_carried_by (carried_by>?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        BLOOM FILTER ON l (from_gap=?)
+        SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+  SCAN demand_reach
+
 == view evidence_anchor
   COMPOUND QUERY
     LEFT-MOST SUBQUERY
@@ -386,49 +423,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -1582,10 +1629,34 @@
   SCAN seat_metrics
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt cf8f36b8505e
--- SELECT "anchor", "seat_id" FROM "carrying_reading" WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "event_id"
-  SEARCH v USING INDEX verify_carried_by (carried_by=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+== stmt 7fa385b231e1
+-- SELECT "anchor", "seat", "from_gap", "via" = 'about' FROM "demand_reach" WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id", "via", "reached"
+  CO-ROUTINE demand_reach
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        MATERIALIZE lineage
+          SETUP
+            SCAN m
+          RECURSIVE STEP
+            MATERIALIZE carries
+              CO-ROUTINE fs
+                SCAN mint_supersedes
+                USE TEMP B-TREE FOR GROUP BY
+              SCAN fs
+              SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+              SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+            SCAN l
+            BLOOM FILTER ON cy (heir=?)
+            SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+        SCAN l
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+      UNION ALL
+        SEARCH v USING INDEX verify_carried_by (carried_by>?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        BLOOM FILTER ON l (gap_id=? AND from_gap=?)
+        SEARCH l USING AUTOMATIC PARTIAL COVERING INDEX (gap_id=? AND from_gap=?)
+  SCAN demand_reach
+  USE TEMP B-TREE FOR ORDER BY
 
 == stmt 8dba93e02a86
 -- SELECT "bundle_sha" FROM "computation" WHERE "computation_id" = ? ORDER BY "event_id" LIMIT 1
@@ -1680,49 +1751,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -1831,49 +1912,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -1982,49 +2073,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -2133,49 +2234,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -2332,49 +2443,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -2487,49 +2608,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -2639,49 +2770,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -2706,14 +2847,34 @@
 -- SELECT "gap_id" FROM "mint"
   SCAN mint USING COVERING INDEX sqlite_autoindex_mint_1
 
-== stmt c83f0ae13cb3
--- SELECT "gap_id", "about_ref", "event_id", 0 FROM "mint" WHERE "about_kind" = 'anchor' UNION ALL SELECT "gap_id", "anchor", "event_id", 1 FROM "carrying_reading" WHERE "anchor" IS NOT NULL
-  COMPOUND QUERY
-    LEFT-MOST SUBQUERY
-      SEARCH mint USING INDEX mint_about (about_kind=?)
-    UNION ALL
-      SEARCH v USING INDEX verify_carried_by (carried_by>?)
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+== stmt 8f3a18ff0c4b
+-- SELECT "gap_id", "anchor", "reached", "via" = 'reading', "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id"
+  CO-ROUTINE demand_reach
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        MATERIALIZE lineage
+          SETUP
+            SCAN m
+          RECURSIVE STEP
+            MATERIALIZE carries
+              CO-ROUTINE fs
+                SCAN mint_supersedes
+                USE TEMP B-TREE FOR GROUP BY
+              SCAN fs
+              SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+              SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+            SCAN l
+            BLOOM FILTER ON cy (heir=?)
+            SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+        SCAN l
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+      UNION ALL
+        SEARCH v USING INDEX verify_carried_by (carried_by>?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        BLOOM FILTER ON l (from_gap=?)
+        SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+  SCAN demand_reach
+  USE TEMP B-TREE FOR ORDER BY
 
 == stmt 3230a8fd0efc
 -- SELECT "gap_id", "close_event", "bench_close_event", "supersede_event", "superseded_by", "closed_by_bench", "bench_closed_last" FROM "gap"
@@ -2804,49 +2965,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -2975,49 +3146,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -3127,49 +3308,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -3279,49 +3470,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -3431,49 +3632,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -3584,49 +3795,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -3851,49 +4072,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -4002,49 +4233,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -4154,49 +4395,59 @@
               SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
               USE TEMP B-TREE FOR ORDER BY
             RIGHT
-              SEARCH m USING INDEX mint_about (about_kind=?)
-              BLOOM FILTER ON ea (anchor_id=?)
-              SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-              USE TEMP B-TREE FOR ORDER BY
-        RIGHT
-          MERGE (UNION)
-            LEFT
-              SEARCH v USING INDEX verify_carried_by (carried_by>?)
-              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-              BLOOM FILTER ON ea (anchor_id=?)
-              SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            RIGHT
-              MATERIALIZE own_check
-                COMPOUND QUERY
-                  LEFT-MOST SUBQUERY
-                    SEARCH m USING INDEX mint_about (about_kind=?)
-                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  UNION ALL
-                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                    SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-              MATERIALIZE latest_check
-                CO-ROUTINE (subquery)
+              MATERIALIZE reach
+                CO-ROUTINE demand_reach
                   COMPOUND QUERY
                     LEFT-MOST SUBQUERY
-                      CO-ROUTINE (subquery)
-                        SCAN x
-                        SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                        USE TEMP B-TREE FOR ORDER BY
-                      SCAN (subquery)
+                      MATERIALIZE lineage
+                        SETUP
+                          SCAN m
+                        RECURSIVE STEP
+                          MATERIALIZE carries
+                            CO-ROUTINE fs
+                              SCAN mint_supersedes
+                              USE TEMP B-TREE FOR GROUP BY
+                            SCAN fs
+                            SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                            SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                          SCAN l
+                          BLOOM FILTER ON cy (heir=?)
+                          SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                      SCAN l
+                      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                     UNION ALL
-                      CO-ROUTINE (subquery)
-                        SCAN x USING INDEX reproduce_bundle
-                        SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                        USE TEMP B-TREE FOR ORDER BY
-                      SCAN (subquery)
-                SCAN (subquery)
-              SCAN oc
-              BLOOM FILTER ON lc (anchor=? AND seat=?)
-              SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-              BLOOM FILTER ON ea (anchor_id=?)
-              SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                      SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                      BLOOM FILTER ON l (from_gap=?)
+                      SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+                SCAN demand_reach
+              SCAN ea
+              BLOOM FILTER ON dr (anchor=?)
+              SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
               USE TEMP B-TREE FOR ORDER BY
+        RIGHT
+          MATERIALIZE latest_check
+            CO-ROUTINE (subquery)
+              COMPOUND QUERY
+                LEFT-MOST SUBQUERY
+                  CO-ROUTINE (subquery)
+                    SCAN x
+                    SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                    USE TEMP B-TREE FOR ORDER BY
+                  SCAN (subquery)
+                UNION ALL
+                  CO-ROUTINE (subquery)
+                    SCAN x USING INDEX reproduce_bundle
+                    SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                    USE TEMP B-TREE FOR ORDER BY
+                  SCAN (subquery)
+            SCAN (subquery)
+          SCAN ea
+          BLOOM FILTER ON dr (anchor=?)
+          SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+          BLOOM FILTER ON lc (anchor=? AND seat=?)
+          SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+          USE TEMP B-TREE FOR ORDER BY
     MATERIALIZE answers_retired
       SCAN evidence
       USE TEMP B-TREE FOR GROUP BY
@@ -4370,157 +4621,6 @@
         UNION ALL
           SEARCH x USING COVERING INDEX computation_id (computation_id=?)
 
-== stmt 13db0410bdae
--- SELECT COALESCE("awaiting_evidence", 0) FROM "gap" WHERE "gap_id" = ?
-  MATERIALIZE gap_grade
-    CO-ROUTINE graded
-      CO-ROUTINE (subquery)
-        MERGE (UNION ALL)
-          LEFT
-            SCAN m
-          RIGHT
-            SCAN m
-            SEARCH a USING INDEX regrade_gap (gap_id=?)
-      SCAN (subquery)
-    SCAN g
-    SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-    SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-    SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-  MATERIALIZE closure
-    CO-ROUTINE closure_act
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN c USING COVERING INDEX close_gap
-        UNION ALL
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        UNION ALL
-          SCAN s
-          CORRELATED SCALAR SUBQUERY
-            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
-          CORRELATED SCALAR SUBQUERY
-            SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
-            SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
-            SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=? AND rowid<?)
-            SEARCH rd USING INTEGER PRIMARY KEY (rowid=?)
-            SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          USE TEMP B-TREE FOR GROUP BY
-    SCAN ca
-    SEARCH cl USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-    USE TEMP B-TREE FOR GROUP BY
-  MATERIALIZE latest_remand
-    CO-ROUTINE (subquery)
-      CO-ROUTINE (subquery)
-        CO-ROUTINE remand
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-            UNION ALL
-              SCAN rp
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
-        SCAN remand
-        USE TEMP B-TREE FOR ORDER BY
-      SCAN (subquery)
-    SCAN (subquery)
-  MATERIALIZE unruled_docket
-    SCAN md USING COVERING INDEX motion_docket_gap
-    SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
-  MATERIALIZE superseded
-    SCAN c
-    SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
-  MATERIALIZE evidence_met
-    MERGE (UNION)
-      LEFT
-        MERGE (UNION)
-          LEFT
-            MATERIALIZE evidence
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SCAN x
-                  CORRELATED SCALAR SUBQUERY
-                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-                UNION ALL
-                  SCAN x
-                  CORRELATED SCALAR SUBQUERY
-                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-            SCAN ea
-            SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-          RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
-                COMPOUND QUERY
-                  LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-                  UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-  MATERIALIZE answers_retired
-    SCAN evidence
-    USE TEMP B-TREE FOR GROUP BY
-  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  SCAN gg LEFT-JOIN
-  BLOOM FILTER ON c (gap_id=?)
-  SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON lr (gap_id=?)
-  SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON ud (gap_id=?)
-  SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON sp (gap_id=?)
-  SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON em (gap_id=?)
-  SEARCH em USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON ar (gap_id=?)
-  SEARCH ar USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-
 == stmt e232412c2186
 -- SELECT COALESCE("class", ''), "open" FROM "gap" WHERE "gap_id" = ?
   MATERIALIZE gap_grade
@@ -4610,49 +4710,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -4761,49 +4871,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -4912,49 +5032,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -5063,49 +5193,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -5214,49 +5354,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -5365,49 +5515,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -5517,49 +5677,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -5673,49 +5843,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -5739,159 +5919,6 @@
   SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
   SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
   SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-
-== stmt a5704baaf93c
--- SELECT COALESCE(m."check_kind", ''), COALESCE(g."evidence_answered", 0), COALESCE(m."about_kind", ''), COALESCE(m."about_ref", ''), COALESCE(e."seat_id", '') FROM "mint" m JOIN "gap" g ON g."gap_id" = m."gap_id" JOIN "events" e ON e."id" = m."event_id" WHERE m."gap_id" = ?
-  MATERIALIZE gap_grade
-    CO-ROUTINE graded
-      CO-ROUTINE (subquery)
-        MERGE (UNION ALL)
-          LEFT
-            SCAN m
-          RIGHT
-            SCAN m
-            SEARCH a USING INDEX regrade_gap (gap_id=?)
-      SCAN (subquery)
-    SCAN g
-    SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-    SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-    SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-  MATERIALIZE closure
-    CO-ROUTINE closure_act
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN c USING COVERING INDEX close_gap
-        UNION ALL
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        UNION ALL
-          SCAN s
-          CORRELATED SCALAR SUBQUERY
-            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
-          CORRELATED SCALAR SUBQUERY
-            SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
-            SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
-            SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=? AND rowid<?)
-            SEARCH rd USING INTEGER PRIMARY KEY (rowid=?)
-            SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          USE TEMP B-TREE FOR GROUP BY
-    SCAN ca
-    SEARCH cl USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-    USE TEMP B-TREE FOR GROUP BY
-  MATERIALIZE latest_remand
-    CO-ROUTINE (subquery)
-      CO-ROUTINE (subquery)
-        CO-ROUTINE remand
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-            UNION ALL
-              SCAN rp
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
-        SCAN remand
-        USE TEMP B-TREE FOR ORDER BY
-      SCAN (subquery)
-    SCAN (subquery)
-  MATERIALIZE unruled_docket
-    SCAN md USING COVERING INDEX motion_docket_gap
-    SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
-  MATERIALIZE superseded
-    SCAN c
-    SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
-  MATERIALIZE evidence_met
-    MERGE (UNION)
-      LEFT
-        MERGE (UNION)
-          LEFT
-            MATERIALIZE evidence
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SCAN x
-                  CORRELATED SCALAR SUBQUERY
-                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-                UNION ALL
-                  SCAN x
-                  CORRELATED SCALAR SUBQUERY
-                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
-            SCAN ea
-            SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-          RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
-                COMPOUND QUERY
-                  LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-                  UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-  MATERIALIZE answers_retired
-    SCAN evidence
-    USE TEMP B-TREE FOR GROUP BY
-  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  SCAN gg LEFT-JOIN
-  BLOOM FILTER ON c (gap_id=?)
-  SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON lr (gap_id=?)
-  SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON ud (gap_id=?)
-  SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON sp (gap_id=?)
-  SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON em (gap_id=?)
-  SEARCH em USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON ar (gap_id=?)
-  SEARCH ar USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
 
 == stmt b225f6c6764f
 -- SELECT COALESCE(max("id"), 0) + 1, COALESCE((SELECT "epoch" FROM "events" ORDER BY "id" DESC LIMIT 1), 0) FROM "events"
@@ -6256,49 +6283,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY
@@ -6375,6 +6412,168 @@
 == stmt 33244ddb23e0
 -- SELECT l."event_id", l."value" FROM "spot_check_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_spot_check_ids_1 (event_id>?)
+
+== stmt 0cc0d378325f
+-- SELECT m."check_kind", COALESCE(g."evidence_answered", 0), COALESCE(g."awaiting_evidence", 0) FROM "mint" m JOIN "gap" g ON g."gap_id" = m."gap_id" WHERE m."gap_id" = ?
+  MATERIALIZE gap_grade
+    CO-ROUTINE graded
+      CO-ROUTINE (subquery)
+        MERGE (UNION ALL)
+          LEFT
+            SCAN m
+          RIGHT
+            SCAN m
+            SEARCH a USING INDEX regrade_gap (gap_id=?)
+      SCAN (subquery)
+    SCAN g
+    SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+    SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+    SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+  MATERIALIZE closure
+    CO-ROUTINE closure_act
+      COMPOUND QUERY
+        LEFT-MOST SUBQUERY
+          SCAN c USING COVERING INDEX close_gap
+        UNION ALL
+          SCAN rd
+          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+        UNION ALL
+          SCAN s
+          CORRELATED SCALAR SUBQUERY
+            SEARCH c USING COVERING INDEX close_gap (gap_id=? AND rowid<?)
+          CORRELATED SCALAR SUBQUERY
+            SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
+            SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+            SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=? AND rowid<?)
+            SEARCH rd USING INTEGER PRIMARY KEY (rowid=?)
+            SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+          USE TEMP B-TREE FOR GROUP BY
+    SCAN ca
+    SEARCH cl USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    USE TEMP B-TREE FOR GROUP BY
+  MATERIALIZE latest_remand
+    CO-ROUTINE (subquery)
+      CO-ROUTINE (subquery)
+        CO-ROUTINE remand
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              SCAN rd
+              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+            UNION ALL
+              SCAN rp
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
+        SCAN remand
+        USE TEMP B-TREE FOR ORDER BY
+      SCAN (subquery)
+    SCAN (subquery)
+  MATERIALIZE unruled_docket
+    SCAN md USING COVERING INDEX motion_docket_gap
+    SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+    CORRELATED SCALAR SUBQUERY
+      SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+  MATERIALIZE superseded
+    SCAN c
+    SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
+  MATERIALIZE evidence_met
+    MERGE (UNION)
+      LEFT
+        MERGE (UNION)
+          LEFT
+            MATERIALIZE evidence
+              COMPOUND QUERY
+                LEFT-MOST SUBQUERY
+                  SCAN x
+                  CORRELATED SCALAR SUBQUERY
+                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+                UNION ALL
+                  SCAN x
+                  CORRELATED SCALAR SUBQUERY
+                    SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+            SCAN ea
+            SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+            USE TEMP B-TREE FOR ORDER BY
+          RIGHT
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
+                COMPOUND QUERY
+                  LEFT-MOST SUBQUERY
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                  UNION ALL
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+            USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
+  MATERIALIZE answers_retired
+    SCAN evidence
+    USE TEMP B-TREE FOR GROUP BY
+  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SCAN gg LEFT-JOIN
+  BLOOM FILTER ON c (gap_id=?)
+  SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON lr (gap_id=?)
+  SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON ud (gap_id=?)
+  SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON sp (gap_id=?)
+  SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON em (gap_id=?)
+  SEARCH em USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON ar (gap_id=?)
+  SEARCH ar USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
 
 == stmt 668d1beb0b81
 -- SELECT m."event_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ? AND m."mint_key" = ? ORDER BY m."event_id" LIMIT 1
@@ -6480,49 +6679,59 @@
             SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
             USE TEMP B-TREE FOR ORDER BY
           RIGHT
-            SEARCH m USING INDEX mint_about (about_kind=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-            USE TEMP B-TREE FOR ORDER BY
-      RIGHT
-        MERGE (UNION)
-          LEFT
-            SEARCH v USING INDEX verify_carried_by (carried_by>?)
-            SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
-          RIGHT
-            MATERIALIZE own_check
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SEARCH m USING INDEX mint_about (about_kind=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            MATERIALIZE latest_check
-              CO-ROUTINE (subquery)
+            MATERIALIZE reach
+              CO-ROUTINE demand_reach
                 COMPOUND QUERY
                   LEFT-MOST SUBQUERY
-                    CO-ROUTINE (subquery)
-                      SCAN x
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
+                    MATERIALIZE lineage
+                      SETUP
+                        SCAN m
+                      RECURSIVE STEP
+                        MATERIALIZE carries
+                          CO-ROUTINE fs
+                            SCAN mint_supersedes
+                            USE TEMP B-TREE FOR GROUP BY
+                          SCAN fs
+                          SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+                          SEARCH h USING INTEGER PRIMARY KEY (rowid=?)
+                        SCAN l
+                        BLOOM FILTER ON cy (heir=?)
+                        SEARCH cy USING AUTOMATIC COVERING INDEX (heir=?)
+                    SCAN l
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
                   UNION ALL
-                    CO-ROUTINE (subquery)
-                      SCAN x USING INDEX reproduce_bundle
-                      SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
-                      USE TEMP B-TREE FOR ORDER BY
-                    SCAN (subquery)
-              SCAN (subquery)
-            SCAN oc
-            BLOOM FILTER ON lc (anchor=? AND seat=?)
-            SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
-            BLOOM FILTER ON ea (anchor_id=?)
-            SEARCH ea USING AUTOMATIC PARTIAL COVERING INDEX (anchor_id=?)
+                    SEARCH v USING INDEX verify_carried_by (carried_by>?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    BLOOM FILTER ON l (from_gap=?)
+                    SEARCH l USING AUTOMATIC COVERING INDEX (from_gap=?)
+              SCAN demand_reach
+            SCAN ea
+            BLOOM FILTER ON dr (anchor=?)
+            SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
             USE TEMP B-TREE FOR ORDER BY
+      RIGHT
+        MATERIALIZE latest_check
+          CO-ROUTINE (subquery)
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                CO-ROUTINE (subquery)
+                  SCAN x
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+              UNION ALL
+                CO-ROUTINE (subquery)
+                  SCAN x USING INDEX reproduce_bundle
+                  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?)
+                  USE TEMP B-TREE FOR ORDER BY
+                SCAN (subquery)
+          SCAN (subquery)
+        SCAN ea
+        BLOOM FILTER ON dr (anchor=?)
+        SEARCH dr USING AUTOMATIC COVERING INDEX (anchor=?)
+        BLOOM FILTER ON lc (anchor=? AND seat=?)
+        SEARCH lc USING AUTOMATIC PARTIAL COVERING INDEX (anchor=? AND seat=?)
+        USE TEMP B-TREE FOR ORDER BY
   MATERIALIZE answers_retired
     SCAN evidence
     USE TEMP B-TREE FOR GROUP BY

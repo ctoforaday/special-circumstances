@@ -115,14 +115,16 @@ func newMint() *cobra.Command {
 			}
 			return mintResult{GapID: prior.GetGapId(), Check: prior.GetAcceptanceCheck(), Idempotent: true}, nil
 		}
-		// A SUCCESSOR OF AN OPEN GAP THAT NOTHING ANSWERS YET CARRIES ITS CHECK KIND, and the demand with it
-		// (record.SuccessorCarriesDemand). Asked here so it refuses before the placement and shape
-		// checks, and again in the write's transaction, where the answer holds.
-		if err := record.SuccessorCarriesDemand(run, p); err != nil {
-			if feov.CodeOf(err) == string(feov.Conflict) {
+		// ONLY AN OPEN GAP'S MINTER SUPERSEDES IT, AND A SUCCESSOR OF ONE THAT NOTHING ANSWERS YET CARRIES ITS
+		// CHECK KIND, and the demand with it (record.SupersessionAdmitted) — the minter rule first, so a
+		// seat that may not supersede the gap is told that rather than what its successor would owe.
+		// Asked here so it refuses before the placement and shape checks, and again in the write's
+		// transaction, where the answer holds.
+		if err := record.SupersessionAdmitted(run, s.SeatID, p); err != nil {
+			if c := feov.CodeOf(err); c == string(feov.Conflict) || c == string(feov.Validation) {
 				return nil, err
 			}
-			return nil, unreadableRefusal("the live-answer demand on the gaps --supersedes names", err)
+			return nil, unreadableRefusal("the gaps --supersedes names", err)
 		}
 		gapID = record.NewID("gap")
 		p.GapId = proto.String(gapID)
@@ -218,7 +220,7 @@ func newMint() *cobra.Command {
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote")
 	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
-	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; an open one closes in this act, its purpose passing to this gap, and an open one whose check kind is source or computation and that nothing answers yet passes its live-answer demand too: this gap carries its --check-kind, and another is refused")
+	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; an open one closes in this act, its purpose passing to this gap, and an open one whose check kind is source or computation and that nothing answers yet passes its live-answer demand too: this gap carries its --check-kind, and another is refused (ancestors of different check kinds are superseded in separate mints), and what would have met the ancestor's demand after this mint meets this gap's")
 	c.Flags().Var(foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it

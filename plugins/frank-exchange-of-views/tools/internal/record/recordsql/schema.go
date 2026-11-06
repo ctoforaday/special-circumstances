@@ -254,7 +254,7 @@ CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
 -- citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRetiresOf) and by the gap view's own_check and evidence_met.
+-- (record.reachingRetiresOf) and by the demand_reach view the gap view's evidence_met reads.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
 -- The readings a gap carries (carrying_reading), asked per gap by the gap's demand
 -- (record.EvidenceDemandOf). Partial: a reading that carries no gap is never asked this way.

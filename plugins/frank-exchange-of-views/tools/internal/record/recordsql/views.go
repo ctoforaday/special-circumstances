@@ -411,7 +411,7 @@ GROUP BY s."value";
 
 -- THE READINGS A GAP CARRIES: each verify whose carried_by names the gap, with the anchor it read
 -- and the seat that read it. EVERY reader of the reading-to-gap link reads it here and nowhere
--- else (the gap view's evidence_answered arms 3 and 4 among them), so the day the link is stated
+-- else (demand_reach, and through it the gap view's evidence_answered, among them), so the day the link is stated
 -- from the gap's side instead of the reading's this view is the one statement that changes.
 CREATE VIEW "carrying_reading" AS
 SELECT v."carried_by" AS "gap_id", v."anchor" AS "anchor", e."seat_id" AS "seat_id", v."event_id" AS "event_id"
@@ -434,6 +434,65 @@ SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "chec
        p."answers" AS "answers", p."placed_event" AS "placed_event",
        (SELECT MIN(ra."event_id") FROM "retire_anchors" ra WHERE ra."value" = p."anchor_id") AS "retired_event"
 FROM "placed" p;
+
+-- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap
+-- is about, checked by its minter, and the anchor of each reading it carries, checked by that
+-- reading's seat. A retire of one, or that seat's check of it again, meets the demand (the gap view's
+-- evidence_met arms 2 and 3); this is the one statement of the reach, which the close's refusal
+-- (record.EvidenceDemandOf) and a retire's reach (record.reachingRetiresOf) read too.
+--
+-- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT (ruled by gblock 2026-11-05). A mint
+-- superseding an open gap of the same source or computation check kind closes it and takes its
+-- demand on, so the successor's demand is met through the ancestor's anchors too: retiring the
+-- citation a refuted reading read is the remedy its failed check names, and it meets the successor.
+-- Transitively, through every same-kind ancestor of the chain of superseding mints. An inherited
+-- row is the successor's from its mint: a retire before it had met the ancestor, which then passed no
+-- demand on, and a check counts for the gap only at or after its mint. An ancestor whose demand was
+-- met, or disposed of by the bench, before the successor named it passes its reach on all the same:
+-- what would have met it after the successor's mint meets the successor too (plans/compute-and-show.md,
+-- "Supersede demand").
+--
+--   from_gap  the gap whose about or reading the row is: gap_id itself, or an ancestor it carries
+--             the demand from.
+--   minted    gap_id's mint event: a check of the anchor counts for gap_id at or after it.
+--   reached   the event from which the anchor is in gap_id's reach: its own mint for the anchor it
+--             is about, the reading's act for a reading it carries, its mint for an inherited row.
+CREATE VIEW "demand_reach" AS
+WITH RECURSIVE "carries" AS MATERIALIZED (
+  -- EACH SUPERSESSION THAT PASSED A DEMAND ON: the first mint naming the ancestor in its supersedes,
+  -- at the ancestor's check kind, one a live answer is demanded under, with the ancestor's subject
+  -- and mint. The first naming mint is the one that closed an open ancestor (closure_act's
+  -- 'supersede' arm). It is not asked whether the ancestor was open, or its demand unmet, when the
+  -- mint named it: the gap view's closure is not this view's to read (closure_act a second time in
+  -- every statement over the gap view), and that ancestor's demand was met, or disposed of by the
+  -- bench, before the successor's mint, which the inherited rows' acts all follow.
+  SELECT h."gap_id" AS "heir", a."gap_id" AS "ancestor", a."about_kind" AS "about_kind", a."about_ref" AS "about_ref",
+         a."event_id" AS "event_id"
+  FROM (SELECT "value", MIN("event_id") AS "by" FROM "mint_supersedes" GROUP BY "value") fs
+  JOIN "mint" h ON h."event_id" = fs."by"
+  JOIN "mint" a ON a."gap_id" = fs."value" AND a."check_kind" = h."check_kind"
+  WHERE a."check_kind" IN (` + evidenceChecksSQL() + `)
+),
+"lineage" AS (
+  -- EACH GAP, AND EVERY ANCESTOR IT CARRIES THE DEMAND FROM, with that gap's subject and mint.
+  SELECT m."gap_id" AS "gap_id", m."gap_id" AS "from_gap", m."check_kind" AS "check_kind", m."event_id" AS "minted",
+         m."about_kind" AS "about_kind", m."about_ref" AS "about_ref", m."event_id" AS "from_event"
+  FROM "mint" m
+  UNION
+  SELECT l."gap_id", cy."ancestor", l."check_kind", l."minted", cy."about_kind", cy."about_ref", cy."event_id"
+  FROM "lineage" l
+  JOIN "carries" cy ON cy."heir" = l."from_gap"
+)
+SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", l."check_kind" AS "check_kind", l."minted" AS "minted",
+       'about' AS "via", l."about_ref" AS "anchor", e."seat_id" AS "seat", l."minted" AS "reached"
+FROM "lineage" l
+JOIN "events" e ON e."id" = l."from_event"
+WHERE l."about_kind" = 'anchor'
+UNION ALL
+SELECT l."gap_id", l."from_gap", l."check_kind", l."minted",
+       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE l."minted" END
+FROM "lineage" l
+JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap";
 
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
 -- row that stands now (until_seq IS NULL) — the one definition of the materiality rule, which
@@ -521,20 +580,10 @@ WITH "closure" AS MATERIALIZED (
   -- THE EVIDENCE ANCHORS, read once for the board: every arm below joins this set.
   SELECT "anchor_id", "kind", "check_kind", "answers", "retired_event" FROM "evidence_anchor"
 ),
-"own_check" AS MATERIALIZED (
-  -- THE ANCHORS A GAP'S OWN CHECK REACHES, and whose check it is: the anchor it is about, checked
-  -- by its minter (the seat whose unread or unsound check owed it), and the anchor of each reading
-  -- it carries, checked by that reading's seat. minted is the gap's mint event: a check counts for
-  -- the gap only at or after it.
-  SELECT m."gap_id" AS "gap_id", m."check_kind" AS "check_kind", m."about_ref" AS "anchor",
-         e."seat_id" AS "seat", m."event_id" AS "minted"
-  FROM "mint" m
-  JOIN "events" e ON e."id" = m."event_id"
-  WHERE m."about_kind" = 'anchor'
-  UNION ALL
-  SELECT m."gap_id", m."check_kind", cr."anchor", cr."seat_id", m."event_id"
-  FROM "carrying_reading" cr
-  JOIN "mint" m ON m."gap_id" = cr."gap_id"
+"reach" AS MATERIALIZED (
+  -- THE ANCHORS EACH GAP'S DEMAND REACHES, and whose check it is (the demand_reach view), read once
+  -- for the board.
+  SELECT "gap_id", "from_gap", "check_kind", "minted", "anchor", "seat", "reached" FROM "demand_reach"
 ),
 "latest_check" AS MATERIALIZED (
   -- EACH SEAT'S LATEST CHECK OF EACH EVIDENCE ANCHOR THAT READ IT, and whether it holds: the anchor
@@ -546,34 +595,30 @@ WITH "closure" AS MATERIALIZED (
   ) WHERE "n" = 1
 ),
 "evidence_met" AS MATERIALIZED (
-  -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause). Four arms, each off rows:
+  -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause). Three arms, each off rows:
   --   1. a live evidence anchor of the gap's check kind was placed as its answer;
-  --   2. the anchor the gap is about is retired;
-  --   3. the anchor of a reading the gap carries is retired;
-  --   4. the gap's own check, again: for an anchor the gap reaches (own_check) that is live and of
-  --      the gap's check kind, that seat's latest check of it that read it is at or after the mint
-  --      and holds. Another seat's check meets nothing, and a check of one kind never meets the
-  --      other kind's demand.
+  --   2. an anchor the demand reaches (demand_reach) is retired: the anchor the gap is about, or
+  --      whose reading it carries, or one an ancestor it carries the demand from was about or
+  --      carried a reading of, retired since the successor's mint;
+  --   3. the check again: for an anchor the demand reaches that is live and of the gap's check
+  --      kind, that row's seat's latest check of it that read it is at or after the gap's mint and
+  --      holds. Another seat's check meets nothing, and a check of one kind never meets the other
+  --      kind's demand.
   SELECT ea."answers" AS "gap_id"
   FROM "evidence" ea
   JOIN "mint" m ON m."gap_id" = ea."answers" AND m."check_kind" = ea."check_kind"
   WHERE ea."retired_event" IS NULL
   UNION
-  SELECT m."gap_id"
-  FROM "mint" m
-  JOIN "evidence" ea ON ea."anchor_id" = m."about_ref"
-  WHERE m."about_kind" = 'anchor' AND ea."retired_event" IS NOT NULL
+  SELECT dr."gap_id"
+  FROM "reach" dr
+  JOIN "evidence" ea ON ea."anchor_id" = dr."anchor"
+  WHERE ea."retired_event" IS NOT NULL AND (dr."from_gap" = dr."gap_id" OR ea."retired_event" > dr."reached")
   UNION
-  SELECT cr."gap_id"
-  FROM "carrying_reading" cr
-  JOIN "evidence" ea ON ea."anchor_id" = cr."anchor"
-  WHERE ea."retired_event" IS NOT NULL
-  UNION
-  SELECT oc."gap_id"
-  FROM "own_check" oc
-  JOIN "evidence" ea ON ea."anchor_id" = oc."anchor"
-  JOIN "latest_check" lc ON lc."anchor" = oc."anchor" AND lc."seat" = oc."seat" AND lc."check_kind" = oc."check_kind"
-  WHERE ea."retired_event" IS NULL AND lc."event_id" >= oc."minted" AND lc."holds"
+  SELECT dr."gap_id"
+  FROM "reach" dr
+  JOIN "evidence" ea ON ea."anchor_id" = dr."anchor"
+  JOIN "latest_check" lc ON lc."anchor" = dr."anchor" AND lc."seat" = dr."seat" AND lc."check_kind" = dr."check_kind"
+  WHERE ea."retired_event" IS NULL AND lc."event_id" >= dr."minted" AND lc."holds"
 ),
 "answers_retired" AS MATERIALIZED (
   -- THE GAPS WHOSE ANSWERS ARE ALL RETIRED: at least one evidence anchor was placed as the gap's

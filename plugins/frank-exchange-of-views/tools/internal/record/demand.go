@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -12,31 +13,35 @@ import (
 
 // EvidenceDemand is a gap's live-answer demand as the close verb states it: the anchor kind owed
 // (the EvidenceTables row whose check is the gap's check kind; "" for a gap no row answers, which
-// owes no demand), whether the gap view's evidence_answered holds, and the evidence anchors the gap
-// reaches — the one it is about, and each read by a reading it carries — whose retire, or whose
-// check again by the seat whose check the gap carries, would meet it.
+// owes no demand), whether the gap view's evidence_answered holds, and the evidence anchors the
+// demand reaches (the demand_reach view) — whose retire, or whose check again by the seat whose
+// check it is, would meet it.
 type EvidenceDemand struct {
 	CheckKind, AnswerKind string
 	// AnswerNoun and AnswerVerb are the owed kind's row's noun and placing verb.
 	AnswerNoun, AnswerVerb string
 	Answered               bool
-	// About is the evidence anchor the gap was minted about, and MintedBy the seat that minted it;
-	// About is "" for a gap about anything else.
-	About, MintedBy string
-	// Readings are the readings the gap carries (the carrying_reading view, the one reader of
-	// Verify.carried_by), each its citation and its reader, in record order.
-	Readings []CarryingReading
+	// Awaiting is the gap view's awaiting_evidence: the gap is open, and its demand owed and unmet.
+	Awaiting bool
+	// Reach is each evidence anchor the demand reaches, the gap's own first, read only while the
+	// demand is unmet: the one case a refusal names them.
+	Reach []Reach
 }
 
-// CarryingReading is one reading a gap carries: the citation it read, and the seat that read it.
-type CarryingReading struct{ Anchor, Seat string }
+// Reach is one evidence anchor a gap's demand reaches: the anchor From is about, checked by its
+// minter Seat, or the anchor of a reading From carries, read by Seat. From is the gap itself, or an
+// ancestor it carries the demand from.
+type Reach struct {
+	Anchor, Seat, From string
+	About              bool
+}
 
 // Unmet reports whether the demand is owed and nothing meets it.
 func (d EvidenceDemand) Unmet() bool { return d.AnswerKind != "" && !d.Answered }
 
-// EvidenceDemandOf reads gap gapID's demand off the mint, the gap view and the carrying readings. A
-// gap not on the record answers the zero demand; a read error is returned, never folded into "no
-// demand".
+// EvidenceDemandOf reads gap gapID's demand off the mint, the gap view and the demand's reach. A
+// gap not on the record answers the zero demand; a read error, or a check kind this binary does not
+// declare, is returned, never folded into "no demand".
 func EvidenceDemandOf(run Run, gapID string) (EvidenceDemand, error) {
 	if gapID == "" {
 		return EvidenceDemand{}, nil
@@ -49,38 +54,48 @@ func EvidenceDemandOf(run Run, gapID string) (EvidenceDemand, error) {
 }
 
 // evidenceDemandAt is EvidenceDemandOf asked of q — on the write path the writing transaction, so a
-// retire of the gap's only answer and the close racing it cannot both land.
+// retire of the gap's only answer and the close racing it cannot both land. The gap view is read
+// once: the demand, whether it is met, and whether the gap awaits it.
 func evidenceDemandAt(q recordsql.Querier, gapID string) (EvidenceDemand, error) {
 	var d EvidenceDemand
 	if gapID == "" || noRecord(q) {
 		return d, nil
 	}
-	var aboutKind, aboutRef string
-	found, err := queryRowAt(q, []any{&d.CheckKind, &d.Answered, &aboutKind, &aboutRef, &d.MintedBy},
-		`SELECT COALESCE(m."check_kind", ''), COALESCE(g."evidence_answered", 0), COALESCE(m."about_kind", ''), COALESCE(m."about_ref", ''), COALESCE(e."seat_id", '')
-		 FROM "mint" m JOIN "gap" g ON g."gap_id" = m."gap_id" JOIN "events" e ON e."id" = m."event_id"
+	found, err := queryRowAt(q, []any{&d.CheckKind, &d.Answered, &d.Awaiting},
+		`SELECT m."check_kind", COALESCE(g."evidence_answered", 0), COALESCE(g."awaiting_evidence", 0)
+		 FROM "mint" m JOIN "gap" g ON g."gap_id" = m."gap_id"
 		 WHERE m."gap_id" = ?`, gapID)
 	if err != nil || !found {
 		return EvidenceDemand{}, err
+	}
+	// A CHECK KIND THIS BINARY DOES NOT DECLARE IS NO DEMAND IT CAN STATE. AnswerKindOf answers ""
+	// for it, which reads exactly like a `document` gap that owes nothing, so the miss is an error.
+	if _, ok := CheckKindOf(d.CheckKind); !ok {
+		return EvidenceDemand{}, fmt.Errorf("gap %s was minted --check-kind %q, a check kind this binary does not declare, so its live-answer demand cannot be read", gapID, d.CheckKind)
 	}
 	d.AnswerKind = AnswerKindOf(d.CheckKind)
 	if row, ok := recordsql.EvidenceTableOf(d.AnswerKind); ok {
 		d.AnswerNoun, d.AnswerVerb = row.Noun, row.Verb
 	}
-	if aboutKind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_ANCHOR) && anchor.Backs(aboutRef) {
-		d.About = aboutRef
+	if !d.Unmet() {
+		return d, nil
 	}
-	rows, err := q.Query(`SELECT "anchor", "seat_id" FROM "carrying_reading" WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "event_id"`, gapID)
+	rows, err := q.Query(`SELECT "anchor", "seat", "from_gap", "via" = 'about' FROM "demand_reach"
+		 WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id", "via", "reached"`, gapID)
 	if err != nil {
 		return EvidenceDemand{}, fmt.Errorf("asking the record: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var c CarryingReading
-		if err := rows.Scan(&c.Anchor, &c.Seat); err != nil {
+		var r Reach
+		if err := rows.Scan(&r.Anchor, &r.Seat, &r.From, &r.About); err != nil {
 			return EvidenceDemand{}, fmt.Errorf("asking the record: %w", err)
 		}
-		d.Readings = append(d.Readings, c)
+		// A gap about an anchor of a kind that backs nothing reaches no evidence anchor.
+		if r.About && !anchor.Backs(r.Anchor) {
+			continue
+		}
+		d.Reach = append(d.Reach, r)
 	}
 	if err := rows.Err(); err != nil {
 		return EvidenceDemand{}, fmt.Errorf("asking the record: %w", err)
@@ -102,46 +117,52 @@ func requireDemandMet(q recordsql.Querier, gapID string) error {
 
 // DemandRefusal is the close's refusal of gap gapID, whose demand d nothing meets: the demand in its
 // one text, then what meets it on this gap — blue's anchor placed as its answer, a retire of each
-// evidence anchor the gap reaches, and the check again by the seat whose check the gap carries — and
-// the bench, for a demand the lens no longer holds.
+// evidence anchor the demand reaches, and the check again by the seat whose check it is — and the
+// bench, for a demand the lens no longer holds.
 func DemandRefusal(gapID string, d EvidenceDemand) error {
 	ways := []string{fmt.Sprintf("blue's `%s --answers %s`, a %s placed on the sentence as its answer (after a reword, on the reworded sentence)", d.AnswerVerb, gapID, d.AnswerNoun)}
-	var retire []string
-	if d.About != "" {
-		retire = append(retire, fmt.Sprintf("blue's `retire --anchor %s`, the %s it is about", d.About, anchor.Kind(d.About)))
-	}
-	for _, r := range d.Readings {
-		retire = append(retire, fmt.Sprintf("blue's `retire --anchor %s`, the citation whose reading by %s it carries", r.Anchor, r.Seat))
+	var retire, again []string
+	for _, r := range d.Reach {
+		var whose string
+		switch {
+		case r.About && r.From == gapID:
+			whose = fmt.Sprintf("the %s it is about", anchor.Kind(r.Anchor))
+		case r.About:
+			whose = fmt.Sprintf("the %s %s was about, whose demand this gap carries", anchor.Kind(r.Anchor), r.From)
+		case r.From == gapID:
+			whose = fmt.Sprintf("the citation whose reading by %s it carries", r.Seat)
+		default:
+			whose = fmt.Sprintf("the citation whose reading by %s %s carries, whose demand this gap carries", r.Seat, r.From)
+		}
+		retire = appendNew(retire, fmt.Sprintf("blue's `retire --anchor %s`, %s", r.Anchor, whose))
+		// THE CHECK AGAIN, BY ITS OWN SEAT, SINCE THE MINT, of an anchor of the demanded kind: a reading
+		// that backs under `source`, a `sound` judgement under `computation`. Another seat's check meets
+		// nothing.
+		switch {
+		case anchor.Kind(r.Anchor) != d.AnswerKind:
+		case d.AnswerKind == "computation":
+			again = appendNew(again, fmt.Sprintf("a `sound` judgement of %s by %s, made since the gap was minted", r.Anchor, r.Seat))
+		default:
+			again = appendNew(again, fmt.Sprintf("a reading of %s by %s, made since the gap was minted, that reads the work and backs the sentence", r.Anchor, r.Seat))
+		}
 	}
 	if len(retire) > 0 {
 		ways = append(ways, strings.Join(retire, ", or "))
 	}
-	// THE CHECK AGAIN, BY ITS OWN SEAT, SINCE THE MINT, of an anchor of the demanded kind: a reading
-	// that backs under `source`, a `sound` judgement under `computation`. Another seat's check meets
-	// nothing.
-	again := func(id, seat string) string {
-		if anchor.Kind(id) != d.AnswerKind {
-			return ""
-		}
-		if d.AnswerKind == "computation" {
-			return fmt.Sprintf("a `sound` judgement of %s by %s, made since the gap was minted", id, seat)
-		}
-		return fmt.Sprintf("a reading of %s by %s, made since the gap was minted, that reads the work and backs the sentence", id, seat)
-	}
-	if d.About != "" {
-		if a := again(d.About, d.MintedBy); a != "" {
-			ways = append(ways, a)
-		}
-	}
-	for _, r := range d.Readings {
-		if a := again(r.Anchor, r.Seat); a != "" {
-			ways = append(ways, a)
-		}
-	}
+	ways = append(ways, again...)
 	return feov.Errorf(feov.Conflict, "gap %s was minted --check-kind %s, and nothing meets its live-answer demand, so this close is refused under every disposition — `moot`, `not_a_defect` and a close to a successor included. Nothing is recorded. "+
 		"The demand: %s. What meets it on this gap: %s; another seat's check meets nothing. "+
 		"A demand you no longer hold is not closed: file `motion docket file` on the gap, and the bench's closing ruling, which is not held to the demand, disposes of it; a regrade keeps it open",
 		gapID, d.CheckKind, recordpb.DemandClause, strings.Join(ways, "; or "))
+}
+
+// appendNew appends s to list unless list holds it: an anchor the gap and an ancestor both reach is
+// one remedy.
+func appendNew(list []string, s string) []string {
+	if slices.Contains(list, s) {
+		return list
+	}
+	return append(list, s)
 }
 
 // THE DEMAND MOVES TO THE SUCCESSOR (ruled by gblock 2026-11-05). A mint superseding an open gap
@@ -151,10 +172,13 @@ func DemandRefusal(gapID string, d EvidenceDemand) error {
 // the demand, which it cannot close without its own live answer. An ancestor whose demand is met, whose
 // check kind owes none, or that is already closed (the supersede is lineage only) is unaffected.
 
-// SuccessorCarriesDemand is requireSuccessorCarriesDemand asked of run before the mint's write, so the
-// verb refuses before the record's placement and shape checks; judgeAct asks it again in the write's
-// transaction, where the answer holds. A read error is returned, never folded into "no demand".
-func SuccessorCarriesDemand(run Run, m *recordpb.Mint) error {
+// SupersessionAdmitted asks of run, before the mint's write, what the write holds a mint's
+// `supersedes` to, in the order a seat is told it: only an open gap's minter supersedes it
+// (requireSupersedable), and a successor of an open gap nothing answers yet carries its check kind
+// (requireSuccessorCarriesDemand). It refuses before the record's placement and shape checks; the
+// write asks both again in its transaction, where the answer holds. A read error is returned, never
+// folded into "admitted".
+func SupersessionAdmitted(run Run, seatID string, m *recordpb.Mint) error {
 	if len(m.GetSupersedes()) == 0 {
 		return nil
 	}
@@ -162,41 +186,69 @@ func SuccessorCarriesDemand(run Run, m *recordpb.Mint) error {
 	if err != nil || db == nil {
 		return err
 	}
+	if err := requireSupersedable(db, seatID, m); err != nil {
+		return err
+	}
 	return requireSuccessorCarriesDemand(db, m)
+}
+
+// awaitingAncestor is one gap a mint's `supersedes` names that awaits a live answer, and its demand.
+type awaitingAncestor struct {
+	id     string
+	demand EvidenceDemand
 }
 
 // requireSuccessorCarriesDemand refuses a mint naming in `supersedes` an open gap that awaits a live
 // answer (the gap view's awaiting_evidence: open, its check kind one EvidenceTables answers, and its
-// demand unmet) unless the mint carries that gap's check kind. Replay never asks it, so an archived
-// supersede replays as it was recorded.
+// demand unmet) unless the mint carries that gap's check kind, naming every such gap. Replay never
+// asks it, so an archived supersede replays as it was recorded.
 func requireSuccessorCarriesDemand(q recordsql.Querier, m *recordpb.Mint) error {
 	kind := recordpb.Word(m.GetCheckKind())
+	var awaiting []awaitingAncestor
+	dropped := false
 	for _, anc := range m.GetSupersedes() {
-		var awaiting bool
-		if _, err := queryRowAt(q, []any{&awaiting}, `SELECT COALESCE("awaiting_evidence", 0) FROM "gap" WHERE "gap_id" = ?`, anc); err != nil || !awaiting {
-			if err != nil {
-				return err
-			}
-			continue
-		}
 		d, err := evidenceDemandAt(q, anc)
 		if err != nil {
 			return err
 		}
-		if d.CheckKind != kind {
-			return SuccessorDemandRefusal(anc, d, kind)
+		if !d.Awaiting {
+			continue
 		}
+		awaiting = append(awaiting, awaitingAncestor{anc, d})
+		dropped = dropped || d.CheckKind != kind
 	}
-	return nil
+	if !dropped {
+		return nil
+	}
+	return successorDemandRefusal(awaiting, kind)
 }
 
-// SuccessorDemandRefusal is the mint's refusal of a successor minted --check-kind kind over open gap
-// gapID, whose demand d nothing meets: the demand passes to the successor, so the successor carries
-// the ancestor's check kind; the remedies are that kind, the demand met on the ancestor first, or the
-// bench.
-func SuccessorDemandRefusal(gapID string, d EvidenceDemand, kind string) error {
-	return feov.Errorf(feov.Conflict, "--supersedes names %s, an open gap minted --check-kind %s that nothing answers yet, and a mint superseding an open gap closes it: its live-answer demand passes to the successor, which carries the same check kind, and this mint is --check-kind %s. Nothing was recorded. "+
-		"The demand: %s. Mint the successor --check-kind %s, and it owes the %s the ancestor owed; or meet the demand on %s first — blue's `%s --answers %s`, a %s placed as its answer, is one way, and its close refusal names the rest — and supersede it then; "+
+// successorDemandRefusal is the mint's refusal of a successor minted --check-kind kind over the open
+// gaps awaiting, which nothing answers yet, one at least at another check kind: each demand passes to
+// the successor, so the successor carries the ancestors' check kind — one kind, so ancestors of
+// different kinds are superseded in separate mints; the remedies are that kind, each demand met
+// first, or the bench.
+func successorDemandRefusal(awaiting []awaitingAncestor, kind string) error {
+	var named, met, ids []string
+	kinds := map[string]bool{}
+	for _, a := range awaiting {
+		named = append(named, fmt.Sprintf("%s, an open gap minted --check-kind %s", a.id, a.demand.CheckKind))
+		met = append(met, fmt.Sprintf("blue's `%s --answers %s`, a %s placed as its answer", a.demand.AnswerVerb, a.id, a.demand.AnswerNoun))
+		ids = append(ids, a.id)
+		kinds[a.demand.CheckKind] = true
+	}
+	it, them := "it", "it"
+	if len(awaiting) > 1 {
+		it, them = "each", "them"
+	}
+	var carry string
+	if first := awaiting[0].demand; len(kinds) == 1 {
+		carry = fmt.Sprintf("Mint the successor --check-kind %s, and it owes the %s %s owed", first.CheckKind, first.AnswerNoun, strings.Join(ids, " and "))
+	} else {
+		carry = "They owe different check kinds and a successor carries one, so no one mint supersedes them all: supersede them in separate mints, each successor minted --check-kind its ancestor's"
+	}
+	return feov.Errorf(feov.Conflict, "--supersedes names %s, and nothing answers %s yet; a mint superseding an open gap closes it: its live-answer demand passes to the successor, which carries the same check kind, and this mint is --check-kind %s. Nothing was recorded. "+
+		"The demand: %s. %s; or meet the demand on %s first — %s, is one way, and its close refusal names the rest — and supersede %s then; "+
 		"or, for a demand you no longer hold, file `motion docket file` on %s, and the bench's closing ruling, which is not held to the demand, disposes of it",
-		gapID, d.CheckKind, kind, recordpb.DemandClause, d.CheckKind, d.AnswerNoun, gapID, d.AnswerVerb, gapID, d.AnswerNoun, gapID)
+		strings.Join(named, ", and "), them, kind, recordpb.DemandClause, carry, it, strings.Join(met, "; "), them, it)
 }

@@ -4696,8 +4696,8 @@ func (r *runner) refuseStandingClose(closer, id, as string, b record.Blocker) {
 // before any other guard; it counts sourceClosesRefused, and readingDemandRefused where the gap carries
 // a reading. A gap of another kind, or one whose demand is met, is not driven.
 func (r *runner) demandCloseRefused(closer, id string) {
-	d, err := record.EvidenceDemandOf(r.run(), id)
-	if err != nil || d.AnswerKind != "citation" || d.Answered {
+	d, ok := r.demandOf(id)
+	if !ok || d.AnswerKind != "citation" || d.Answered {
 		return
 	}
 	args := []string{"close", "--seat-id", closer, "--id", id, "--as", pick(r.rng, []string{"repaired", "not_a_defect", "moot"}),
@@ -4714,7 +4714,7 @@ func (r *runner) demandCloseRefused(closer, id string) {
 	default:
 		r.mu.Lock()
 		r.sourceClosesRefused++
-		if len(d.Readings) > 0 {
+		if slices.ContainsFunc(d.Reach, func(x record.Reach) bool { return !x.About }) {
 			r.readingDemandRefused++
 		}
 		r.mu.Unlock()
@@ -4723,8 +4723,8 @@ func (r *runner) demandCloseRefused(closer, id string) {
 
 // demandOf is gap id's live-answer demand as the close verb and its write ask it (record.EvidenceDemandOf):
 // the anchor kind owed — "citation" for a `source` gap, "computation" for a `computation` gap, "" for a
-// gap no demand is asked of — and whether it is met. ok is false where the record could not be read,
-// which is noted as the run's.
+// `document` gap — and whether it is met. ok is false where the record could not be read, or holds a
+// check kind the binary does not declare (never folded into "nothing owed"), which is noted as the run's.
 func (r *runner) demandOf(id string) (d record.EvidenceDemand, ok bool) {
 	d, err := record.EvidenceDemandOf(r.run(), id)
 	if err != nil {
