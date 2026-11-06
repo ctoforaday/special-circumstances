@@ -2722,6 +2722,14 @@ func (r *runner) noteBridge(seatID, outcome string, kindless bool, out string, e
 	}
 }
 
+// bridgeRefusalOwed reports whether this run has yet to see a kindless supports_with_bridge reading
+// refused.
+func (r *runner) bridgeRefusalOwed() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bridgesRefused == 0
+}
+
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
 // Driven independently of the outcome, because the pairs that matter most — `refutes` at low
 // confidence, `supports` at low confidence — only exist if the two are drawn apart.
@@ -5956,8 +5964,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					r.readRepeatedSentence(seatID, false)
 				}
 				r.forcedRepeatedReading(seatID)
-				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
-				kindless := outcome == "supports_with_bridge" && r.coin(10)
+				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven. Until this
+				// run has seen the refusal, every supports_with_bridge reading names none, so the
+				// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
+				// enough to fail it by chance.
+				kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
 				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
 				axes := func(outcome string, c *cmd) *cmd {
 					if outcome == "supports_with_bridge" && !kindless {
