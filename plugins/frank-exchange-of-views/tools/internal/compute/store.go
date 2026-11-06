@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // THE STORE (plans/compute-and-show.md §III.0). A run's computations live under
@@ -180,12 +181,42 @@ func staging(runDir, bundle string) (string, error) {
 	return os.MkdirTemp(parent, ".tmp-*")
 }
 
+// sharingBudget bounds how long Bundle waits out a sharing violation on dir/. Two lanes writing one
+// bundle race to rename it into place; on Windows the winner's rename holds a handle with DELETE
+// access on the directory after its name binds, and the loser — which sees dir/ present and goes on
+// to read it — has its os.Open refused until that handle closes. A virus scanner opening the fresh
+// directory refuses it the same way, for longer. The budget is cmd/go's robustio figure for the
+// same class of refusal. A var so a test can shorten it.
+var sharingBudget = 2 * time.Second
+
+// sharingRefused and walkBundle are the classifier and the walk Bundle uses; a test replaces them
+// to raise a sharing violation on a platform that has none.
+var (
+	sharingRefused = sharingViolation
+	walkBundle     = filepath.WalkDir
+)
+
 // Bundle reads a stored bundle's files, sorted by path. A bundle the store does not hold is an
-// error naming it, never an empty bundle.
+// error naming it, never an empty bundle. A read Windows refuses with a sharing violation is tried
+// again until sharingBudget runs out; every other error returns at once.
 func Bundle(runDir, bundle string) ([]File, error) {
+	deadline := time.Now().Add(sharingBudget)
+	delay := time.Millisecond
+	for {
+		files, err := readBundle(runDir, bundle)
+		if err == nil || !sharingRefused(err) || time.Now().After(deadline) {
+			return files, err
+		}
+		time.Sleep(delay)
+		delay = min(2*delay, 50*time.Millisecond)
+	}
+}
+
+// readBundle is one attempt at Bundle's read.
+func readBundle(runDir, bundle string) ([]File, error) {
 	root := BundlePath(runDir, bundle)
 	var files []File
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err := walkBundle(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
