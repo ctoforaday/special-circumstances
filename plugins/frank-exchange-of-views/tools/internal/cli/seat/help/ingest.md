@@ -14,7 +14,7 @@ IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with
 
 THE REPORT'S OWN SECTIONS ONLY. A part holds research sections under headings of its own. These are the synthesizer's to write, and a part that carries one is refused with nothing recorded: {{.PartSurfaces}}. The file stands for you to take that line and what stands under it out.
 
-NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: {{.RefusedHeadings}}. A part that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is recorded: the file stands for you to fix. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does. {{.SubjectHeadingsNote}} `show report` has an assembled form that gives the same for every section before you write.
+NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: {{.RefusedHeadings}}. A part that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is recorded: the file stands for you to fix. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does; and it lists every section assembly composes. {{.SubjectHeadingsNote}}
 
 {{.WovenNotesRule}}
 

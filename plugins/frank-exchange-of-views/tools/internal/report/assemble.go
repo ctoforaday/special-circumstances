@@ -568,7 +568,7 @@ func outcomeStamp(o *recordpb.Outcome) string {
 		// basis in parentheses.
 		//
 		// PENDING, NOT A DEFECT. Every assembly before the bench's last sitting has no outcome to
-		// stamp — a seat reading `show report --assembled` mid-run sees this line — and "NONE (no
+		// stamp — an operator reading `ops assembled` mid-run sees this line — and "NONE (no
 		// terminal outcome on the record)" read as a finding: a lens on the 2026-10-17 smoke filed
 		// one against it, at a line no seat can change. Capture re-assembles at the close, so a run
 		// whose bench recorded an outcome ships with it stamped.
