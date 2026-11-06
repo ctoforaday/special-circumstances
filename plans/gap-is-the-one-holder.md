@@ -5,8 +5,8 @@
 > `origin/main` `ec3a3e559` the same day; #1739 anchor-lifecycle is MERGED). Replaces
 > `plans/mint-prerequisites.md` (renamed with `git mv`; its mechanism — a `MintPrerequisite` option, a
 > `rests_on` link, a generic check — was dropped by gblock 2026-11-06). The scope is the ruling quoted in
-> §I; option wording throughout is the lead agent's, not gblock's. The first draft's six forks are RULED
-> (§VI); two new forks the rulings created are OPEN (F7, F8), neither decided here. Every census row in
+> §I; option wording throughout is the lead agent's, not gblock's. Every fork is RULED (§VI): the first
+> draft's six, and the two the rulings created (F7, F8, ruled later the same day). Every census row in
 > §III.9 was re-run by grep on this tree.
 
 ## I. Summary & Goals
@@ -51,8 +51,10 @@ pre-PASS blocker list with the lens as the seat whose act clears it. So the debt
 day: the owed gap is OUTSIDE the mint budget while open (F6 (b)); NO estoppel exemption for a
 found-source 32 (F4 (a)); the capture's assembly screen screens the GAP, not the reading (§III.5); a
 LOST QUOTE leaves the debt standing unless the edit took red's suggested text, then estoppel discharges
-it (F1); a found-source `absent` creates the same debt (F2 — the class question is open, F7); two
-predicates for not-the-work (F3 (a)); one open gap per class per anchor for every class (F5 (a)).
+it (F1); a found-source `absent` creates the same debt (F2) where the sentence carries no citation, and
+none where it does; an `unsourced_claim` gap by any seat on the sentence discharges it (F7 (a)); deleting
+the sentence outright discharges a found-source debt (F8 (a)); two predicates for not-the-work (F3 (a));
+one open gap per class per anchor for every class (F5 (a)).
 
 **Why (the value case against the naive version).** The naive version is "delete `carried_by`, let
 `mint` take the class as before": it leaves G-b2ba7d66's shape — the Eiffel adversary's plain
@@ -79,8 +81,10 @@ field a writer must keep in step.
    refusal is produced by a `refutes`/`absent` reading (T9, T10). A standing found-against reading no
    gap of its class answers is a `reading_debt` blocker owned by its lens: it refuses the lens's
    envelope, readies the lens once per cause, is on the chair's list naming the lens, and holds
-   `pass_permitted` false; the lens's mint of the class about the subject discharges it, after which the
-   gap's materiality alone holds the PASS (T18–T24).
+   `pass_permitted` false; a gap of the class the reading obliges on its subject — 32 or 25 by the lens,
+   or for a found source read `absent` an `unsourced_claim` by any seat — discharges it, after which the
+   gap's materiality alone holds the PASS. A found source read `absent` against a sentence that carries a
+   citation creates no debt (T18–T24).
 5. The reading-minted exemption (`carrier_minted`) is gone from the budget; the 32/25 gap a standing
    found-against reading of the minter's obliges is outside the budget while open, as the owed
    unread/unsound gap is (T11).
@@ -178,7 +182,7 @@ flags. Generated carriers are regenerated, never edited: `agents/*.md` and the t
 | D2 | `verify` records only: no gap flag, no Mint, no Anchor; one event per call | §III.2 |
 | D3 | `mint` of 32/25 is a live act judgement, `requireOwnStandingReading`, keyed on the mint's subject: a CITED source's defect names the citation (`--about-kind anchor --about C`), a FOUND source's defect names the sentence (`--quote S`); the seat's standing reading of that subject must carry the class's outcome; 25 ALSO admits the seat's standing not-the-work reading of C (F3 (a), RULED) | §III.3 |
 | D4 | `stateFoundAgainst` leaves the ledger: a citation with a `refutes`/`absent` reading is holding or unchecked by the ordinary rules; `CheckFoundAgainst`, its blocker, its close refusal and its carriers go. The per-check `holds` stays (the demand's "check again that holds") | §III.5 |
-| D4′ | The reading debt is a `BlockerKind`, `reading_debt`, built in `passBlockersOf` from the ledger's standing checks that do not hold (cited) and the seat's latest found-source readings (found): owned by the lens, owed while no gap of the class stands on the subject, discharged by the mint, the re-read, blue's retire or an estopped edit; it refuses the lens's envelope, readies the lens once per cause, is on the chair's list and holds the PASS. One list (#1202, RULED) | §III.4 |
+| D4′ | The reading debt is a `BlockerKind`, `reading_debt`, built in `passBlockersOf` from the ledger's standing checks that do not hold (cited) and the seat's latest found-source readings (found): owned by the lens, owed while no gap of the class stands on the subject (for a found source read `absent`: an uncited sentence only, and the class is 29 by any seat — F7 (a)), discharged by the mint, the re-read, blue's retire, blue's cite or deletion of the sentence (F8 (a)) or an estopped edit; it refuses the lens's envelope, readies the lens once per cause, is on the chair's list and holds the PASS. One list (#1202, RULED) | §III.4 |
 | D5 | The one-gap rule gains an anchor arm: one open gap per class about one anchor, for EVERY class, except the gap a seat's own owed unread/unsound check obliges (F5 (a), RULED) | §III.3 |
 | D6 | A gap carries nothing of its reading by field; the reading behind a gap is one Go helper, `record.ReadingBehind`, joining (seat, subject, class); `carrying_reading` and `demand_reach`'s reading arm are deleted | §III.6 |
 | D7 | The `carrier_minted` budget exemption is deleted; the 32/25 gap the minter's standing found-against reading obliges is outside the budget while open, through `ownAnswersAt`'s join on `standingReadingOf` (F6 (b), RULED); a 25 gap about a citation whose unread check the minter owes is exempt by the existing own-failed-check rule | §III.3 |
@@ -223,7 +227,9 @@ ruling reverses. The debt therefore reads the ledger's standing checks (`anchorS
 - **`GapClass` [MODIFY `means` only]:** 25 (`:460`) and 32 (`:483`) each gain one clause: "minted on your
   own standing reading of the citation (`absent`, or a copy that is not the work)" / "minted on your own
   standing reading that refutes: of the citation you name, or of a source you found for the sentence you
-  quote". No option, no value change. The class-to-outcome rule lives in Go (§III.3), as 31's does.
+  quote". 29 (`:472`) says "a source a lens read that backs the sentence, or says nothing of it, is not
+  the report's citation". No option, no value change. The class-to-outcome rule lives in Go (§III.3), as
+  31's does.
 - **`AboutKind.ANCHOR` `means` (`:1179`) [MODIFY]:** "…a citation whose work went unread, or whose source
   your reading finds against — a cited source's defect names the citation, never the sentence".
 - **Epoch:** `requirements.json` `eventSchema` 64 → **65**; `go -C scripts run ./schemagen`. A PR that
@@ -243,7 +249,7 @@ ruling reverses. The debt therefore reads the ledger's standing checks (`anchorS
 | `gapFlagsRequiredUnless` `:99`, `readingRequiredGapFlags` `:106`, `readingGapFlags` `:109`, `var gf` `:112`, `gf.register(c, readingSubject)` `:162`, the `RequiredUnless` loop `:163–165` | deleted: every gap flag is an unknown flag on `verify` |
 | `seat.Supplies` for `gap_id`, `class_material`, `carried_by`, `carrier_minted` `:157–160` | deleted |
 | `--title` usage `:146` | "kept on your reading beside its url; a gap you mint on this reading names the source through it" |
-| `writeVerify` `:367–399` (`classes`, `backing`, the gap-flag refusals, `gf.fill`, the class check) | the reading is written alone; `markedSentenceOf` `:373` stays (a backing found-source reading of a marked sentence is refused — `refuseMarked` `:591–616` loses "mints unsourced_claim" and says a found source backs only an unmarked sentence) |
+| `writeVerify` `:367–399` (`classes`, `backing`, the gap-flag refusals, `gf.fill`, the class check) | the reading is written alone; `markedSentenceOf` `:373` stays (a backing found-source reading of a marked sentence is refused — `refuseMarked` `:591–616` loses "mints unsourced_claim" and says a found source backs only an unmarked sentence); the guard keeps its `backing` key (`:369`, `!FindsAgainst`): an `absent` found-source reading of a marked sentence is recorded, and under F7 (a) owes nothing |
 | `recordReading` `:412–517` | the `gap != nil` branch deleted (Anchor, `PlacesToSentenceOf`, `uncitedSentence`, `verifiedFix`, `AppendReading`); `verifyResult.Gap` deleted; the result gains `event` (the reading's `events.id`); the read-back `:496–515` words every blocker on the anchor by its kind through `Blocker.WorkItem()` — the `failed_check` arm keeps unread rows, and a `reading_debt` this reading raised is worded as the seat's own (§III.4) |
 | `givenGapFlags` `:519`, `mintsNothing` `:529`, `classWords` `:552`, `readingGap` + `words` `:644–672`, `failedCheckWords.words`' found-against arm `:694–709`, `sentenceOfRefusal` `:762–773` | deleted |
 | `verifyResult.Human` | names the event: `recorded as event N`; a `refutes`/`absent` adds the debt's own item sentence (one source: the kind row's `item`) |
@@ -264,7 +270,7 @@ this one a live judgement — and the option mechanism that would have housed bo
 | 32 `claim_contradicts_source` | `--about-kind anchor --about C` (a cited source) | of citation C, reads the work (`VerifyReads`), outcome `refutes` |
 | 32 | `--quote S` (a found source) | `verify --url` by the seat whose `claim` locates once in the landing report in S's sentence, reads the work, outcome `refutes` |
 | 25 `citation_figure_misattribution` | `--about-kind anchor --about C` | of citation C: reads the work with outcome `absent`, OR `source_completeness` `not_the_work` (F3 (a), RULED: two predicates — the ledger's `finds_against` is refutes/absent on a copy that READ the work; this row's second alternative is the mint check's alone, and a not-the-work copy stays `unread` in the ledger) |
-| 25 | `--quote S` | refused: the class names a cited source; a found source's `absent` is F7's question (§III.4, §VI) |
+| 25 | `--quote S` | refused: the class names a cited source. A found source read `absent` for an uncited sentence obliges 29 `unsourced_claim` (F7 (a), RULED) — a judgement class, plain mint, NOT a row of this table: any seat mints it with no reading behind it, as today |
 
 **"Standing"** = the seat's LATEST reading of that subject since the subject's sentence last changed:
 for a citation, the ledger's own rule (`anchorStanding.sinceEdit`, anchor not retired — read through
@@ -317,7 +323,9 @@ and the `carried_by` query in `ownAnswersAt` (`:325–345`). `ownAnswersAt` keep
 and `ownsInquiryGap` and gains one join: each open gap of a `readingMintedClasses` class by seatID
 whose subject seatID's standing reading finds against — about anchor C where `standingReadingOf(seat, C)`
 is `refutes`/`absent`/not-the-work, or quoting the sentence `standingReadingOf(seat, url)` locates to —
-so the owed gap is outside the budget exactly while the debt it discharges would otherwise stand, as the
+and each open 29 by seatID quoting an unmarked sentence seatID's standing found-source `absent` reading
+locates to (the gap F7 (a) obliges), so the owed gap is outside the budget exactly while the debt it
+discharges would otherwise stand, as the
 owed unread/unsound gap is outside it while its check stands. `mintStanding.Answering` counts it. The
 header comment `:32–44` and `mintAnswerOutsideBudget` (`:308`), `verbs.go:334`, `setup.go:89`,
 `mint.md:15` say one sentence: "a gap about an anchor whose check of yours read nothing or judged a
@@ -347,7 +355,8 @@ STANDS, while NO gap of the class the outcome obliges stands on the subject:
 | Reading | Stands while | The gap that discharges it | Also discharged by |
 |---|---|---|---|
 | of citation C (`refutes` → 32; `absent` → 25) | X's latest check of C that reads is this one, from a sitting opened after the latest edit naming C, C not retired — `anchorStanding.standing()` with `!c.holds`, the ledger's rule | a gap of the class ABOUT ANCHOR C by ANY seat that is open now, or was minted from this reading's sitting on (closed since) | X's later reading of C that reads and does not find against (the ledger replaces X's standing check); blue's edit naming C (the check is of a sentence the report no longer carries); blue's retire of C |
-| of a found source U for sentence S | X's latest reading of U (`standingReadingOf(X, U)`), whatever the stored claim now locates to | a 32 by any seat whose quote is in the sentence the claim locates to (`gapSentenceIn` = `readingSentenceIn`), open now or minted from this reading's sitting on; for `absent`, F7 | X's later reading of U that does not find against (any sentence — X's latest reading of U is the one that stands); the estopped edit (below); F8 where the sentence was deleted |
+| of a found source U for sentence S, `refutes` | X's latest reading of U (`standingReadingOf(X, U)`), whatever the stored claim now locates to | a 32 by any seat whose quote is in the sentence the claim locates to (`gapSentenceIn` = `readingSentenceIn`), open now or minted from this reading's sitting on | X's later reading of U that does not find against (any sentence — X's latest reading of U is the one that stands); the estopped edit (below); blue's edit that deletes the sentence outright (F8 (a), below) |
+| of a found source U for sentence S, `absent` (F7 (a)) | as `refutes`, AND the sentence the claim locates to carries no mark (`claimcount.BareAnchorIDs` of its span is empty, the input `gapSentenceIn` already reads): a found page silent on a sentence the report cites or computes says nothing against that evidence, so NO debt is created, and none stands once blue cites | a 29 `unsourced_claim` by ANY seat whose quote is in that sentence, open now or minted from this reading's sitting on — plain mint, no reading behind it | as `refutes`; also blue's cite that marks the sentence (the sentence now carries a mark, the predicate above) |
 
 `Blocker` fields: `Subject` C or U; `Owner` X; `since` the reading's `events.id`; `outcome` (new field,
 the reading's); `Detail` the sentence as the reading read it (found) or "" (cited); `lost` (new,
@@ -408,14 +417,29 @@ discharged: red wrote the new sentence, so red holds no unfinished promise again
 U against it; a finds-against re-read creates a fresh debt, whose mint route is the estopped one — a 32
 `--supersedes` the prescribing gap (D10). Residue: where no edit's `old` holds the claim (the report was
 re-ingested whole; the claim now occurs twice), `lost` is 0, the item names the reading alone, and the
-debt clears by X's re-read of U or any seat's 32 on the sentence the claim locates to; where the edit's
-`new` carries no sentence (deleted outright), F8.
+debt clears by X's re-read of U or any seat's 32 on the sentence the claim locates to.
 
-**A found source read `absent` (F2, RULED "Debt like refutes").** The same debt; the class that
-discharges it is F7 (§VI) — no shipped class names "a found page silent on the sentence": 25's `means`
-is a cited source's and its `--quote` form is refused; 32 is "states otherwise", not silence; 29 is the
-REPORT's want of a citation, which the found page's silence neither shows nor changes. The plan ships
-F7's ruled option; until ruled, T19's found-`absent` rows are written against the fork's options.
+**The deleted sentence (F8 (a), RULED "deletion discharges").** Where the edit at M that holds the claim
+in its `old` carries no sentence in its `new` (deleted outright), the debt is DISCHARGED — as blue's edit
+of the cited row's sentence discharges that row; the reading stays as information (`show evidence`
+`independent`). The lens may read U again against any sentence the claim reappears in; a finds-against
+reading there is a fresh debt on that sentence. The predicate is the edit's, not the claim's absence: a
+claim that stops locating because its words CHANGED is the lost quote above (debt stands); one that stops
+locating because its sentence was REMOVED is this (debt gone). Accepted cost, stated in the ruling's
+option: blue deletes a refuted sentence and the lens's promise is void — the defect left the report with
+the sentence.
+
+**A found source read `absent` (F2, RULED "Debt like refutes"; F7 (a), RULED).** The same debt, with one
+input more: the sentence's marks. A found page silent on an UNCITED sentence is the lens's failed search
+for backing, which is what 29 `unsourced_claim` carries to blue ("the gap stands until blue cites one"),
+so a 29 by any seat on the sentence discharges it; a found page silent on a sentence that carries a
+citation (or a computation) says nothing against that evidence, and the reading creates no debt. 29 stays
+a plain mint: nothing checks a reading behind it, and a lens that found three silent pages for one
+uncited sentence owes one 29 (the one-gap rule). Consistent with `verify` today: `refuseMarked`
+(`verify.go:584–616`) refuses a BACKING found-source reading of a marked sentence and lets an `absent`
+one record (`verify.go:369`, `backing` excludes `FindsAgainst`); `mint --class unsourced_claim --quote S`
+asks nothing of S's marks (no reader of `anchor.Backs` in `mint.go` or `record/` judges a 29) — the
+predicate "unmarked" is the debt's and the reading guard's, never the 29 mint's (§VII item 7).
 
 **Census: information surfaces that show a found-against reading, unchanged by the debt** — `show evidence`
 source and `independent` rows (`evidenceview.go:225–266, 300–303`; `CarriedBy` `:407` deleted);
@@ -540,7 +564,7 @@ The census (quotes trimmed) is in §III.9 A1–A13.
 
 | Source | Says today | Becomes |
 |---|---|---|
-| `help/verify.md:15,19,21,25,27,29` | in-act mint; one-gap holds the reading; found against holds the PASS; estoppel exemption; `--url` mints by outcome; result names `gap` | a reading records; a `refutes`/`absent` on a citation is the ground of a gap you mint about the citation (an act; the flags are `mint`'s page's); a refuting found source is the ground of a gap quoting the sentence; a reading that finds against is YOUR DEBT — it holds the PASS as your unfinished promise, on the chair's list with your name, until a gap of its class stands on the subject or you read the subject again, and your envelope is refused while it stands; from the mint on, the gap's grade is what holds; the result names the event |
+| `help/verify.md:15,19,21,25,27,29` | in-act mint; one-gap holds the reading; found against holds the PASS; estoppel exemption; `--url` mints by outcome; result names `gap` | a reading records; a `refutes`/`absent` on a citation is the ground of a gap you mint about the citation (an act; the flags are `mint`'s page's); a refuting found source is the ground of a gap quoting the sentence; a found source silent on an uncited sentence is the ground of the gap that asks blue for a citation, and on a cited one is information; a reading that finds against is YOUR DEBT — it holds the PASS as your unfinished promise, on the chair's list with your name, until a gap of its class stands on the subject or you read the subject again, and your envelope is refused while it stands; from the mint on, the gap's grade is what holds; the result names the event |
 | `help/mint.md:9,15,17` | one-gap on sentence/inquiry; budget exemption; "a reading … mints its gap in the same act" | one-gap on a sentence, an inquiry OR a citation (every class; the exception is the gap your own unread/unsound check obliges); the standing-reading rule for 32/25 in one paragraph — a CITED source's defect names the citation (`--about-kind anchor`), the subject your reading is keyed on; a FOUND source's names the sentence (`--quote`); what standing means (your latest reading of that subject since its sentence last changed); the refusal; the budget sentence (§III.3); estoppel asks of every `--quote` mint |
 | `help/verdict.md` blocker glosses (`PassBlockerGlosses`), `help/dispatch.md:25`, `help/outcome.md` | the kind list | the `reading_debt` gloss arrives: "a lens's reading that finds a source against its sentence, with no gap of its class standing on it" |
 | `help/close.md:13` | "your gap another lens's reading named … found-against check clears…" | unread and unsound only |
@@ -550,7 +574,7 @@ The census (quotes trimmed) is in §III.9 A1–A13.
 | `record/passblockers.go` found-against arms, `dispatch.go:1392–1405`, `reading.go:120,128,132` refusals, `failedcheck.go` refusals, `mintbudget.go:308`, `verdict.go:140–160` | | deleted / unread-unsound only; the debt kind's row (§III.4, §III.5) |
 | `record.proto` `SourceOutcome` `means` `:531–542`, `GapClass` 25/32, `AboutKind.ANCHOR` | "mints … in the same act" | §III.1 |
 | `scripts/agentgen/src/fragments/lens-audit-and-mint.md:3,6,7,9,10`; `fragments/lens-duties.md:5,6`; `fragments/blue-search-and-cite.md:30–31,39,43`; `agents/red-lens-evidence.md:17,19`; `agents/lead-judge.md:81`; `agents/red-chair.md` (the blocker list); `skills/research-protocol/SKILL.md:14–21` | "records its gap in the same act"; "whose reading it carries"; "found against" as a failed check | the reading records; the lens mints the gap about the citation on its reading, or quoting the sentence for a found source, and owes one or a re-read while its reading finds against — the chair sees the debt on its list and names the lens; the demand is met through the citation the gap is about |
-| `skills/research-protocol/scripts/debate.js:883` (authored `ledgerClause`) | "your reading records the gap, and blue answers it with a citation" | "where it refutes the sentence, you mint the gap on that reading — a reading that finds against is yours to answer; where it backs an uncited sentence, you mint the gap that asks for the citation" (acts, no verb path; `TestTheSeatPromptsNameNoVerb`); `:1090–1097` unchanged |
+| `skills/research-protocol/scripts/debate.js:883` (authored `ledgerClause`) | "your reading records the gap, and blue answers it with a citation" | "where it refutes the sentence, you mint the gap on that reading — a reading that finds against is yours to answer; where it backs an uncited sentence, or says nothing of it, you mint the gap that asks for the citation" (acts, no verb path; `TestTheSeatPromptsNameNoVerb`); `:1090–1097` unchanged |
 | `tools/internal/terms/terms.json` rows `reading` (`:762–763`), `failed check` (`:1091–1092`); NEW row `reading debt` | in-act mint; third state | reading: "…it holds nothing by itself; a gap a lens mints on it is the finding"; failed check: two states; reading debt: "a lens's standing reading that finds a source against its sentence with no gap of its class on the subject — the lens's unfinished promise, a PASS blocker it clears by the mint or a re-read"; then `go -C scripts run ./vocabdoc` (`docs/vocabulary.md:464,632`) |
 | `docs/citations-and-bibliography.md:162–164,174–179,181–188,195–197,209–217`; `docs/seat-command-triggers.md:55,67` | three states; in-act; `carried_by` | two states and the debt; the standing-reading mint; the docket line |
 | `report/layout.go:167,184` | "as a lens's `verify` does where its reading mints a gap" | deleted clause |
@@ -669,7 +693,7 @@ archive-iterating tests; 13 agent-facing sources + the generated set; 3 views; 4
 | `fuzz_test.go:1143–1159` (`sourceQuoteRefused`, `FoundSourceGapClassesOf`), `:1351–1374`, `:3333–3383`, `:3707–3775`, `:4781–4799` (`CheckFoundAgainst` arms), `:5861, 5972, 5977`, `:6776`, tally copy-out `:7600–7632`, outcome fields `:6199–6224` | | rewritten per row; the `CheckFoundAgainst` arms deleted |
 | `sweeptally_test.go:201–220` fields `FoundAgainstClosesRefused`, `FoundAgainstRepeats`, `FoundAgainstEdits`, `FoundAgainstRetires`, `FoundAgainstClearedByOwnReading`, `FoundAgainstStage`, `ReadingDemandRefused`, `NotTheWorkFlagsRefused`, `FoundSourceBudgetRefused`, `ReadingsMinted`, `ReadingsHeld`, `FoundSourceGaps` and their gates `:1159–1175` | 18 reading-shaped fields | deleted: the eight found-against/held/minted/flag fields. Replaced (new meaning, new name): `reading_mints_refused` (map by class), `reading_mints_landed` (by class and subject form), `second_reading_mints_refused` (the anchor arm), `found_source_mints_estopped`, `reading_demand_met_by_retire`, `reading_demand_met_by_reread` — each with a zero-is-false-green gate; `FoundSourceBudgetRefused` deleted (F6 (b): the owed gap is never budget-refused) |
 | new drive | — | per sweep, for each row of `readingMintedClasses`: one mint WITHOUT a standing reading (expects the refusal naming `verify`); one with the wrong outcome; one after blue's edit of the sentence (not standing); one with a standing reading (lands, at the cap too — `reading_mints_landed_at_cap`) |
-| new drive (the debt) | — | a lens reads `refutes` and returns its envelope → refused, tallied `envelopes_refused_on_reading_debt`; the chair's `gate --as PASS` → refused naming the lens, `pass_refused_on_reading_debt`; discharged on a coin by its mint, its re-read, another lens's gap of the class, blue's retire, an estopped edit (`edit --accept` of a red fix on the found sentence), or left standing to the run's end (`UNVERIFIED` naming it) → `reading_debts_discharged` (map by discharge, each non-zero); a forced short sitting → `reading_debt_readied_again`; a lost quote by a non-estopped edit → the debt stands and is re-read, `reading_debt_lost_quote_reread` |
+| new drive (the debt) | — | a lens reads `refutes` and returns its envelope → refused, tallied `envelopes_refused_on_reading_debt`; the chair's `gate --as PASS` → refused naming the lens, `pass_refused_on_reading_debt`; discharged on a coin by its mint, its re-read, another lens's gap of the class, blue's retire, an estopped edit (`edit --accept` of a red fix on the found sentence), blue's deletion of the found sentence (F8 (a)), any seat's 29 on an uncited sentence a found source was read `absent` for, blue's cite of that sentence (F7 (a)), or left standing to the run's end (`UNVERIFIED` naming it) → `reading_debts_discharged` (map by discharge, each non-zero); a found `absent` on a CITED sentence → no debt, `found_absent_on_marked_no_debt` non-zero; a forced short sitting → `reading_debt_readied_again`; a lost quote by a non-estopped edit → the debt stands and is re-read, `reading_debt_lost_quote_reread` |
 
 ### III.11 Required tests (each names how it fails if the change is wrong; CLI tests drive the shipped path — `run(t, "lens", "verify", "--run", …)` / `"mint"` — as a seat does)
 
@@ -712,8 +736,10 @@ archive-iterating tests; 13 agent-facing sources + the generated set; 3 views; 4
   still names found against, or the demand no longer reaches C through the 'about' arm.
 - **T11** budget (F6 (b)): at X's cap, a 32 about C on X's standing `refutes` is admitted and
   `mintStanding.Answering` counts it; a 32 about D where X's standing reading of D is `supports` is
-  refused by the budget; after blue edits C's sentence the 32 about C counts against X. *Fails if* the owed
-  gap is budget-refused, an unowed one is exempt, or the exemption outlives the reading's standing.
+  refused by the budget; after blue edits C's sentence the 32 about C counts against X; at the cap, X's 29
+  quoting an uncited sentence X's standing found-source `absent` reading locates to is admitted, and a 29
+  quoting a sentence X read `supports` is refused. *Fails if* the owed gap is budget-refused, an unowed
+  one is exempt, or the exemption outlives the reading's standing.
 - **T12** docket.md golden: the gap's "read for the sentence" line names the source via `ReadingBehind`
   (cited: C's url; found: U); `show evidence` row has no `carried_by`. `seatprobe` counts the gap.
 - **T13** `TestTheEiffelReadingActsComeForwardAsThreeEvents` on `run-archive/2026-11-04_eiffel-tower-height.tar.gz`
@@ -743,8 +769,11 @@ archive-iterating tests; 13 agent-facing sources + the generated set; 3 views; 4
   about C already open before X read (X's mint then refused by the anchor arm, and nothing owed); a 32
   about C closed BEFORE X read → the debt STANDS and X's mint lands; X's later `supports` of C; blue's
   edit naming C (C unchecked); blue's `retire --anchor C`; found source: X's 32 `--quote S`; X's later
-  reading of U for S' `supports`; a found-source `absent` → per F7's ruled option. *Fails if* any
-  discharge is missing or a non-discharge clears it.
+  reading of U for S' `supports`; blue's edit whose `new` holds no sentence for S (deleted outright, F8
+  (a)) → gone, while an edit that only rewords S leaves it (T22); found `absent` (F7 (a)): X reads U
+  `absent` for uncited S → a debt; Y's `mint --class unsourced_claim --quote S` (no reading of Y's) →
+  gone; or blue's `cite` marking S → gone. *Fails if* any discharge is missing, a non-discharge clears it,
+  or the deletion row is confused with the lost quote.
 - **T20** once per cause: X's sitting opened after the reading ends sat through with the debt standing →
   the next plan does not ready X for it, `lensOwesOf` still names it, X is not retired at 3 barren
   sittings, `pass_permitted` stays false and `outcome` names C; X's sitting stopped at the call limit →
@@ -761,8 +790,15 @@ archive-iterating tests; 13 agent-facing sources + the generated set; 3 views; 4
   fresh debt; X's `mint --quote <new S>` → the estoppel refusal naming the prescribing gap; with
   `--supersedes` that gap → lands and discharges. *Fails if* a verbatim red edit leaves the debt, or an
   ordinary edit discharges it, or the fresh debt has no route.
-- **T24** found-`absent` debt (F2): X reads U `absent` for S → a `reading_debt`; discharge per F7's
-  ruled option; X's later `supports` of U → gone. *Fails if* `absent` on a found source creates no debt.
+- **T24** found-`absent` debt (F2, F7 (a)): X reads U `absent` for UNCITED S → a `reading_debt` {Owner X,
+  Subject U, outcome absent} holding the PASS and X's envelope; X's own `mint --class unsourced_claim
+  --quote S` → gone, the mint admitted with no reading check and at X's cap (T11); a second `absent`
+  reading by X of another found source for S → the same one 29 discharges both. X reads U `absent` for a
+  sentence marked by citation C → NO debt, `PassBlockers` holds nothing for U, X's envelope admitted, the
+  reading on `show evidence` `independent`; the same for a sentence marked by a computation token. X's
+  later `supports` of U → gone. *Fails if* `absent` on a found source creates no debt on an uncited
+  sentence, creates one on a marked sentence, 29 does not discharge it, or 29 is refused for want of a
+  reading.
 - **T25** the assembly screen (D11): a captured run with X's 32 about C open and material → FAIL naming C
   and G; the same gap graded low → PASS; closed `not a defect` → PASS; X's `refutes` with no gap →
   FAIL naming X's unfinished promise; a found-source material 32 quoting a sentence the report carries →
@@ -787,7 +823,7 @@ Grades: likelihood × impact × complexity, each L/M/H.
 | K10 | The fuzz (CI only) is the first to drive the two subject forms and the debt at scale; a seat-level defect shows after merge | M×M×M | a `--smoke` universe run reads the record (§V check 11); release-fuzz cadence: a full pass before the next logic PR |
 | K11 | Archived 25/32 mints and G-b2ba7d66 come forward unjudged; archived finds-against readings with no gap read as standing debts | L×L×L | stated residue (§III.7); T13 asserts the debt set by count and subject; an archived record is read, not dispatched |
 | K12 | `passBlockersOf` gains a `report` input: a caller that passes "" silently builds no found-source debt (a plausible zero) | M×M×L | `readingDebtsOf` refuses an empty report where any found-source finds-against reading exists (a `feov.Conflict`, surfaced by `PassBlockers`); §V check 9 passes "" at one caller and expects red |
-| K13 | F7 unruled at Part 1: found-`absent` readings create a debt with no mint route | M×M×L | Part 1 does not open until F7 is ruled; T19/T24's rows are written to the ruled option |
+| K13 | The found-`absent` debt's "unmarked" input (F7 (a)) is read from the report as it stands: a sentence blue cites after the reading drops the debt silently, a 29 is minted on it that nothing now obliges, or `BareAnchorIDs` misses a mark (a plausible zero either way) | L×M×L | Blue's cite IS the discharge (§III.4; T19's cite row); the orphan 29 is an ordinary gap on its own grade; the mark predicate is the one `gapSentenceIn` already uses, and T24's marked rows (citation, computation) each expect no debt; §V check 9 deletes the predicate and expects T24 red |
 
 ## V. Phases and Verification Plan
 
@@ -804,7 +840,7 @@ Within Part 1, one agent per phase, each leaving the tree green: (1a) proto, gen
 only, the `reading_debt` kind and `AssemblyFailures`, deletions in
 `reading.go`/`record.go`/`onegapperclass.go`/`mintbudget.go`/`failedcheck.go`/`passblockers.go`/`dispatch.go`/
 views/`demand.go`/`windowindex.go`, readers switched; (1c) migrate + T13/T14; (1d) agent-facing text +
-goldens; (1e) fuzz. The PR opens after 1e and after F7 is ruled.
+goldens; (1e) fuzz. The PR opens after 1e.
 
 **Validation loop.** Run in the worktree after `unset $(env | grep -o '^FEOV_[A-Z_]*')`; absolute paths;
 each check names what re-arms it; read the FAIL COUNT, never an exit code.
@@ -821,10 +857,10 @@ each check names what re-arms it; read the FAIL COUNT, never an exit code.
    `grep -rnE 'same act|found-against|found against' plugins/frank-exchange-of-views/tools/internal/cli/seat/help plugins/frank-exchange-of-views/docs plugins/frank-exchange-of-views/skills plugins/frank-exchange-of-views/agents scripts/agentgen/src plugins/frank-exchange-of-views/tools/internal/terms/terms.json | grep -v 'supersed\|channel'` (the two unrelated "same act" senses; "finds against" stays as the option's name).
    *Re-armed by:* any text or code edit.
 8. Read each help page before and after, one command at a time: `go -C plugins/frank-exchange-of-views/tools run ./cmd/feov-record lens verify --help` (then `lens mint`, `lens close`, `blue edit`, `verdict`, `dispatch`, `show evidence`). *Re-armed by:* any help source.
-9. Delete-the-row checks by hand, each reverted: remove 32's row from `readingMintedClasses` → T3 red; remove 25's not-the-work alternative → T6 red; remove the anchor arm's own-failed-check exemption → T8 row 3 red; remove `(finds_against) = true` from `ABSENT` → T6, T24 and the ledger's `absent` tests red; delete the `reading_debt` row from `blockerKinds` → T18 red (`TestEveryPassBlockerKindAgreesOnEverySurface`); delete the "or minted from the reading's sitting on" clause → T9's closed-low row red; delete the "by ANY seat" → T19 row 2 and T21 red; delete the `applied_verbatim` discharge → T23 red; delete the `lost` edit lookup → T22's item row red; delete `AssemblyFailures`' material-gap arm → T25 rows 1–3 red; delete its debt arm → T25 row 4 red; delete its computation arm → T25 row 6 red; pass `""` as `report` at one `passBlockersOf` caller → K12's refusal test red; delete the budget join on `standingReadingOf` → T11 red; delete the Verify-column drop in migrate → T13 red. A row that stays green is a finding. *Re-armed by:* any change to the table, the arm, the option, the translation.
+9. Delete-the-row checks by hand, each reverted: remove 32's row from `readingMintedClasses` → T3 red; remove 25's not-the-work alternative → T6 red; remove the anchor arm's own-failed-check exemption → T8 row 3 red; remove `(finds_against) = true` from `ABSENT` → T6, T24 and the ledger's `absent` tests red; delete the `reading_debt` row from `blockerKinds` → T18 red (`TestEveryPassBlockerKindAgreesOnEverySurface`); delete the "or minted from the reading's sitting on" clause → T9's closed-low row red; delete the "by ANY seat" → T19 row 2 and T21 red; delete the `applied_verbatim` discharge → T23 red; delete the `lost` edit lookup → T22's item row red; delete the deleted-sentence discharge → T19's deletion row red; delete the unmarked predicate from the found-`absent` arm → T24's marked rows red; delete the 29 join in the budget → T11's 29 row red; delete `AssemblyFailures`' material-gap arm → T25 rows 1–3 red; delete its debt arm → T25 row 4 red; delete its computation arm → T25 row 6 red; pass `""` as `report` at one `passBlockersOf` caller → K12's refusal test red; delete the budget join on `standingReadingOf` → T11 red; delete the Verify-column drop in migrate → T13 red. A row that stays green is a finding. *Re-armed by:* any change to the table, the arm, the option, the translation.
 10. `go -C scripts run ./check 2>&1 | tee ~/.claude/scratch/mint-prereq/plan2/check.log | tail -40` → read the fail count in the log. *Re-armed by:* every push.
 11. `scripts/universe.sh build`, then `grep -rn 'standing reading' <the universe's installed plugin help>` proves the universe carries the change; one `--smoke` run (one lane, haiku both tiers); read its record: the `verify` table has no gap column; every 32/25 mint has `ReadingBehind`; no plain 32 mint by a seat with no reading; every finds-against reading has a 32/25 gap from its sitting on or a later non-finds-against reading, or the outcome names it. *Re-armed by:* Part 1's merge candidate.
-12. **CI only — release fuzz** (`FEOV_RELEASE_GATE=1`, the sharded job in `.github/workflows/hooks.yml`, scheduled and on tag; never run locally by any door): `reading_mints_refused` non-zero for both classes, `reading_mints_landed` non-zero for both subject forms and at the cap, `second_reading_mints_refused`, `found_source_mints_estopped`, `reading_demand_met_by_retire`, `reading_demand_met_by_reread`, `envelopes_refused_on_reading_debt`, `pass_refused_on_reading_debt`, every key of `reading_debts_discharged`, `reading_debt_readied_again`, `reading_debt_lost_quote_reread` non-zero. A logic PR waits for one full pass (cadence ruling 2026-10-29). *Re-armed by:* Part 1's merge candidate.
+12. **CI only — release fuzz** (`FEOV_RELEASE_GATE=1`, the sharded job in `.github/workflows/hooks.yml`, scheduled and on tag; never run locally by any door): `reading_mints_refused` non-zero for both classes, `reading_mints_landed` non-zero for both subject forms and at the cap, `second_reading_mints_refused`, `found_source_mints_estopped`, `reading_demand_met_by_retire`, `reading_demand_met_by_reread`, `envelopes_refused_on_reading_debt`, `pass_refused_on_reading_debt`, every key of `reading_debts_discharged`, `reading_debt_readied_again`, `reading_debt_lost_quote_reread`, `found_absent_on_marked_no_debt` non-zero. A logic PR waits for one full pass (cadence ruling 2026-10-29). *Re-armed by:* Part 1's merge candidate.
 
 ## VI. Forks
 
@@ -833,52 +869,17 @@ each check names what re-arms it; read the FAIL COUNT, never an exit code.
 | Fork | Question | Ruling | Home |
 |---|---|---|---|
 | F1 | a found-source reading whose quote stops locating after blue's edit | **Debt stands** (not the recommended "owes nothing"); refined: unless the edit took red's suggested text verbatim, then estoppel discharges it. The mint half of (a) stands: no `--quote` mint until the lens reads the new sentence | §III.4 lost quote; T22, T23 |
-| F2 | `absent` on a FOUND source | **Debt like refutes** (not the recommended "no debt"); the discharging class is F7 | §III.4; T24 |
+| F2 | `absent` on a FOUND source | **Debt like refutes** (not the recommended "no debt"); the discharging class and the cited case are F7 | §III.4; T24 |
 | F3 | not-the-work as `finds_against` for 25 | **(a) two predicates**: the ledger's `finds_against` is refutes/absent on a copy that read the work; 25's mint check also admits the seat's standing not-the-work reading | §III.3 table; T6 |
 | F4 | estoppel on a found-source 32 | **(a) no exemption**; reverses the 2026-10-31 exemption for this case | D10; §III.3 |
 | F5 | the one-gap anchor arm's scope | **(a) every class** about an anchor, except the gap a seat owes for its own unread/unsound check; a second lens's debt is discharged by any seat's gap of the class about the citation | D5; T8, T21 |
 | F6 | the owed 32/25 gap and the mint budget | **(b) outside the budget while open**, as the owed unread/unsound gap is | D7; T11 |
 | §VII 1′ (first draft) | the debt's home: a `BlockerKind` or a parallel fold | **a `BlockerKind`** on the one list; the chair sees it, the lens clears it | D4′; §III.4 |
 | §VII 1 (first draft) | the assembly screen on a refuted citation | **screens the gap**: open material 32/25, or a found-wrong reading with no gap | D11; T25 |
+| F7 (from F2) | which gap discharges the debt a found source read `absent` creates | **(a)**: where the sentence carries NO citation, a 29 `unsourced_claim` by any seat on the sentence discharges it (the lens looked and found no backing; 29 is what carries that to blue); where the sentence ALREADY carries a citation, a found page silent on it creates NO debt. Rejected: (b) clears only by the re-read (a debt with no gap route); (c) no debt (reverses F2) | §III.4 found-`absent`; T24; K13 |
+| F8 (from F1's residue) | the found-source debt when blue deletes the sentence outright | **(a)**: the deletion discharges it, as blue's edit does on the cited row; the lens may read again if the claim reappears elsewhere. Rejected: (b) stands until a reading of U for another sentence (a hollow act or an UNVERIFIED end over a sentence the report no longer carries) | §III.4 deleted sentence; T19 |
 
-**OPEN — none decided here (the rulings created them):**
-
-**F7 — which gap discharges the debt a found source read `absent` creates (from F2).** No shipped class
-names "a page the lens found is silent on the sentence": 25 is a CITED source's defect and its `--quote`
-form is refused; 32 is "states otherwise", not silence; 29 `unsourced_claim` is the REPORT's want of a
-citation, true or false of the sentence whatever the found page says.
-- (a) **29 discharges it where the sentence is uncited; where the sentence carries a citation the debt
-  is not created.** A found page silent on an UNCITED sentence is the lens's failed search for backing,
-  which is what 29's gap carries to blue ("the gap stands until blue cites one"); a found page silent
-  on a CITED sentence says nothing against the citation C. Cost: the debt's existence depends on another
-  anchor's presence in the sentence (one more input to the fold: the sentence's bare anchor ids,
-  `claimcount.BareAnchorIDs`, already read by `gapSentenceIn`); 29 is a judgement class forced by a
-  debt; a lens that found three silent pages for one uncited sentence owes one 29 (the one-gap rule).
-- (b) **The debt is created and clears only by the re-read** (the lens's later reading of U, or of any
-  source for the sentence). Cost: a debt with no gap route — at an honest `absent` the lens must read
-  something else to clear it, which is an act for the record's sake; the fork's wording "like refutes"
-  is not met (refutes has a mint route).
-- (c) **No debt** (F2's recommended (a), re-proposed): the reading records; a found page's silence is
-  information. Cost: reverses the 2026-11-06 ruling on F2; the lens's `absent` reading reaches no board
-  unless the lens mints 29 of its own accord.
-- **Recommendation: (a).** It implements the ruling with a class that already carries the found page's
-  meaning to blue, and states the one case (a cited sentence) where silence is no defect. Not decided
-  here; Part 1 does not open on an unruled F7 (K13).
-
-**F8 — the found-source debt when the sentence is deleted outright (from F1's residue).** Blue's edit
-removes the sentence the claim quoted and puts no sentence in its place (`new` empty, or `new` with no
-sentence the claim could be read against).
-- (a) **The deletion discharges the debt.** The sentence the source was read against is gone; nothing is
-  left to mint about or to read against; the reading stays as information (`show evidence`
-  `independent`). Cost: a deletion is a route around a debt — blue deletes a refuted sentence and the
-  lens's promise is void; but the defect left the report with the sentence, which is the remedy the
-  gap would have demanded.
-- (b) **The debt stands until the lens records a reading of U for another sentence**, or the run ends
-  naming it. Cost: a hollow act (a reading against a sentence the source was never found for) or an
-  UNVERIFIED end over a sentence the report no longer carries.
-- **Recommendation: (a).** A deletion is blue's edit naming the sentence, and the cited-source row's
-  rule already treats blue's edit of the sentence as a discharge; (a) makes the found-source row agree
-  where the edit leaves no successor sentence. Not decided here.
+No fork is open.
 
 ## VII. Inconsistencies between the ruling and the code, reported, not resolved
 
@@ -910,3 +911,13 @@ sentence the claim could be read against).
 6. `migrate`: an archived plain finds-against reading with no gap from its sitting on reads as a
    standing `reading_debt` owned by a retired lens on a migrated record (§III.7). The record is not
    dispatched, so nothing acts on it; it is a true statement about the archived run. Stated, not filled.
+7. F7 (a) says "citation" twice; the code's one predicate for a sentence's evidence is `anchor.Backs`
+   (`anchor/anchor.go:316`) — a citation OR a computation token — and 29's `means` (`record.proto:472`)
+   is "no citation or computation of its own". The plan reads the ruling's "citation" as "mark" (either
+   kind, `BareAnchorIDs`): a found page silent on a sentence a computation backs creates no debt, and a 29
+   on it would be false by its own `means`. Stated so the ruling's word and the predicate's are seen to
+   differ; T24's computation row pins the reading taken. Also: "the `unsourced_claim` mint requires the
+   sentence to be unmarked" is NOT what the code does — `refuseMarked` (`verify.go:584–616`) guards the
+   BACKING found-source READING (`verify.go:369`), and no code path judges a 29 MINT by the sentence's
+   marks; the discharge in §III.4 therefore asks nothing of the 29 beyond its quote's sentence, and a 29
+   minted on a marked sentence (admitted today) discharges no debt because none exists there.
