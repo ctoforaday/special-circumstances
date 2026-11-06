@@ -86,7 +86,7 @@ speak() {
 	m=$(printf '%s' "$2" | clean)
 	if [ "$IS_ANTIGRAVITY" = 1 ]; then
 		if [ "$EVENT" = SessionStart ] || [ "$EVENT" = PreInvocation ]; then
-			printf '{"injectSteps":[{"systemMessage":{"systemMessage":"%s","metadata":{"user_markdown":"%s"}}}]}\n' "$m" "$m"
+			printf '{"injectSteps":[{"systemMessage":{"systemMessage":"%s"}}]}\n' "$m"
 		elif [ "$EVENT" = PreToolUse ]; then
 			printf '{"decision":"allow"}\n'
 		elif [ "$EVENT" = PostToolUse ]; then
