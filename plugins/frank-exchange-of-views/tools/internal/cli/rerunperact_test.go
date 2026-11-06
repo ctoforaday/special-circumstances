@@ -433,7 +433,7 @@ func TestAReRunIsStoredBeforeItsEventAndOnlyWhenTheActIsRecorded(t *testing.T) {
 	}
 
 	// (b) the append fails after the rename: a directory no event names.
-	restore := lens.SetBeforeCheckAppendForTest(func() error { return errors.New("the append fails here") })
+	restore := lens.SetAfterRerunStoredForTest(func() error { return errors.New("the append fails here") })
 	_, err := f.reproduce(p, "unsound")
 	restore()
 	if err == nil || !strings.Contains(err.Error(), "the append fails here") {

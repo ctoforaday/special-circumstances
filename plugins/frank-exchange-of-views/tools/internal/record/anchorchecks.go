@@ -59,7 +59,7 @@ type anchorCheck struct {
 	holds bool
 	// soundness is a reproduce's verdict; UNSPECIFIED on a verify.
 	soundness recordpb.Soundness
-	// sentence is the sentence the check judged, as the tool read it off the report at the write
+	// sentence is the sentence the check judged, as the tool read it off the report before the write
 	// (Verify.claim, Reproduce.claim); "" for a migrated reproduce, which recorded none. Standing is
 	// the edit rule's alone: the sentence is how a check of an earlier wording surfaces.
 	sentence string

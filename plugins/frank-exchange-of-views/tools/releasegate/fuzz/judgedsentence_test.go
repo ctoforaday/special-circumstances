@@ -19,9 +19,10 @@ import (
 // judged, and a standing check of a wording the report no longer holds fails the consistency oracle.
 // Two arms, each with its tally gate.
 //
-//   - RECORDED SENTENCE: every reproduce the drive records carries `claim` equal to its anchor's live
-//     sentence at the write (reproduceSentences); one that does not fails the run.
-//     `reproducesWithClaim` = `reproduces`.
+//   - RECORDED SENTENCE: every check of an evidence anchor the drive records — a reproduce, a verify
+//     --anchor — carries `claim` equal to its anchor's live sentence in some report state between its
+//     sitting's opening and its event (checkSentences); one that does not fails the run.
+//     `reproducesWithClaim` = `reproduces`, `anchorVerifiesWithClaim` = `anchorVerifies`.
 //   - STALENESS: one simulated debate per part is forced to hold a check of a sentence an edit then
 //     changes (forcedStaleness), and the test seam takes the anchor out of that edit's `reopened` once
 //     the debate ends (runtest.DropReopened, never a seat path); the oracle must report the debate.
@@ -154,51 +155,98 @@ func staleOf(res consistency.Result, anchor string) (forged, other []string) {
 	return forged, other
 }
 
-// reproduceSentences is the recorded-sentence arm, read at the run's end: each reproduce on the record
-// carries `claim`, and it is the sentence the report held for its anchor at the write — the report
-// folded as of the reproduce's own event, which the verb reads in the transaction it lands in
-// (Landing.LiveSentence). A reproduce places no report op, so that report is the one it landed on. It
-// returns how many do, and why the first that does not fails the run.
-func reproduceSentences(run record.Run, fam record.Family) (withClaim int, msg string) {
+// judgedSentences is the recorded-sentence arm's count over one run's record: the checks of an
+// evidence anchor on it by verb, and those whose `claim` the arm admits (checkSentences).
+type judgedSentences struct {
+	// reproducesWithClaim is the reproduces whose claim is their anchor's sentence in the window.
+	reproducesWithClaim int
+	// anchorVerifies is the verify readings of a citation (`--anchor`), and anchorVerifiesWithClaim
+	// those whose claim is their anchor's sentence in the window.
+	anchorVerifies, anchorVerifiesWithClaim int
+}
+
+// checkSentences is the recorded-sentence arm, read at the run's end: each check of an evidence
+// anchor on the record — a reproduce, a verify --anchor — carries `claim`, and it is the sentence the
+// seat judged: the anchor's sentence in the report as the verb read it before its write. It returns
+// the counts, and why the first check that does not fails the run.
+//
+// THE READ IS A WINDOW, NOT AN EVENT. The verb reads the sentence (record.LiveSentence) and then
+// appends, and the debate's seats act concurrently, so an edit may land between the two. The read is
+// inside the seat's sitting, so the claim must be the anchor's sentence in the report as some state
+// from the sitting's opening to the check itself held it: as of the opening, and after each report
+// change in between.
+func checkSentences(run record.Run, fam record.Family) (got judgedSentences, msg string) {
 	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
 	if err != nil {
-		return 0, "recorded sentence: the record could not be opened: " + err.Error()
+		return got, "recorded sentence: the record could not be opened: " + err.Error()
 	}
-	for _, e := range fam.Events {
-		rp, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
-		if !ok {
-			continue
-		}
-		at := fam.At.Of(e).ID
-		id, claim := rp.GetComputationId(), rp.GetClaim()
+	reportAt := func(at int64) (string, error) {
 		src, err := recordsql.ReportSourceAt(db, at)
 		if err != nil {
-			return withClaim, fmt.Sprintf("recorded sentence: the report as of event %d could not be read: %v", at, err)
+			return "", err
 		}
-		report, err := src.Fold(reportproj.Replay)
-		if err != nil {
-			return withClaim, fmt.Sprintf("recorded sentence: the report as of event %d does not render: %v", at, err)
-		}
-		live, held := record.LiveSentencesIn(report, []string{id})[id]
-		switch {
-		case claim == "":
-			if msg == "" {
-				msg = fmt.Sprintf("recorded sentence: reproduce at event %d of %s recorded no claim", at, id)
-			}
-		case !held || claim != live:
-			if msg == "" {
-				msg = fmt.Sprintf("recorded sentence: reproduce at event %d of %s recorded claim %q, and the report held %q for it at the write", at, id, claim, live)
-			}
-		default:
-			withClaim++
-		}
+		return src.Fold(reportproj.Replay)
 	}
-	return withClaim, msg
+	for _, e := range fam.Events {
+		var verb, id, claim string
+		var admitted *int
+		if rp, ok := recordpb.BodyAs[*recordpb.Reproduce](e); ok {
+			verb, id, claim, admitted = "reproduce", rp.GetComputationId(), rp.GetClaim(), &got.reproducesWithClaim
+		} else if vf, ok := recordpb.BodyAs[*recordpb.Verify](e); ok && vf.GetAnchor() != "" {
+			got.anchorVerifies++
+			verb, id, claim, admitted = "verify", vf.GetAnchor(), vf.GetClaim(), &got.anchorVerifiesWithClaim
+		} else {
+			continue
+		}
+		w := fam.At.Of(e)
+		if claim == "" {
+			if msg == "" {
+				msg = fmt.Sprintf("recorded sentence: %s at event %d of %s recorded no claim", verb, w.ID, id)
+			}
+			continue
+		}
+		// A check in no sitting says nothing about when it read: the write's own state is its window.
+		ats := []int64{w.ID}
+		if w.SittingID != 0 {
+			ats = append(ats, w.SittingID)
+			ops, err := recordsql.ReportOpsBetween(db, w.SittingID, w.ID)
+			if err != nil {
+				return got, "recorded sentence: the report's changes before event " + fmt.Sprint(w.ID) + " could not be read: " + err.Error()
+			}
+			for _, op := range ops {
+				ats = append(ats, op.EventID)
+			}
+		}
+		var held []string
+		for i, at := range ats {
+			report, err := reportAt(at)
+			if err != nil {
+				// The report the write read renders, or the verb would have refused; an earlier state
+				// that does not holds no sentence the read could have taken.
+				if i == 0 {
+					return got, fmt.Sprintf("recorded sentence: the report as of event %d does not render: %v", at, err)
+				}
+				continue
+			}
+			if s, ok := record.LiveSentencesIn(report, []string{id})[id]; ok {
+				held = append(held, s)
+			}
+		}
+		if !slices.Contains(held, claim) {
+			if msg == "" {
+				msg = fmt.Sprintf("recorded sentence: %s at event %d of %s recorded claim %q, and the report held %q for it from its sitting's opening (event %d) to the write",
+					verb, w.ID, id, claim, strings.Join(slices.Compact(held), `" or "`), w.SittingID)
+			}
+			continue
+		}
+		*admitted++
+	}
+	return got, msg
 }
 
 // THE STALENESS ARM AND THE RECORDED-SENTENCE ARM, against the built binary: a forced run's arm leaves
 // an honest record the oracle has nothing to say of; the seam forges it, and the oracle reports the
-// forged anchor; the judgement the arm recorded carries its sentence at the write. An unforced run
+// forged anchor; the judgement the arm recorded carries the sentence it judged. An unforced run
 // drives nothing and owes nothing.
 func TestTheStalenessArmForgesWhatTheOracleReports(t *testing.T) {
 	t.Run("forced", func(t *testing.T) {
@@ -221,8 +269,8 @@ func TestTheStalenessArmForgesWhatTheOracleReports(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if n, msg := reproduceSentences(r.run(), fam); n != 1 || msg != "" {
-			t.Errorf("the arm's judgement: %d reproduce(s) carry their sentence at the write (%s), want 1", n, msg)
+		if got, msg := checkSentences(r.run(), fam); got.reproducesWithClaim != 1 || msg != "" {
+			t.Errorf("the arm's judgement: %d reproduce(s) carry the sentence they judged (%s), want 1", got.reproducesWithClaim, msg)
 		}
 
 		o := outcome{runDir: r.runDir, stalenessAnchor: anchor}

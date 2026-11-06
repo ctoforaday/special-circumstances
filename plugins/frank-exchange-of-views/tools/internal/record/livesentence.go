@@ -46,14 +46,25 @@ func liveSentenceIn(report string, bare []string, id string) (string, sentenceGo
 // sentence each backs as the report renders, read once for all of them. An id with none — absent
 // from report, or standing bare — has no key.
 func LiveSentencesIn(report string, ids []string) map[string]string {
-	out := map[string]string{}
-	bare := claimcount.BareAnchorIDs(report)
+	live, _ := SentencesIn(report, ids)
+	return live
+}
+
+// SentencesIn is LiveSentencesIn with why an id has no live sentence: bare holds each of ids whose
+// token stands bare in report (liveSentenceIn's sentenceBare), so an id in neither map is absent from
+// it. One bare rule for every reader that tells the two apart.
+func SentencesIn(report string, ids []string) (live map[string]string, bare map[string]bool) {
+	live, bare = map[string]string{}, map[string]bool{}
+	bareIDs := claimcount.BareAnchorIDs(report)
 	for _, id := range ids {
-		if sentence, gone := liveSentenceIn(report, bare, id); gone == sentenceLive {
-			out[id] = sentence
+		switch sentence, gone := liveSentenceIn(report, bareIDs, id); gone {
+		case sentenceLive:
+			live[id] = sentence
+		case sentenceBare:
+			bare[id] = true
 		}
 	}
-	return out
+	return live, bare
 }
 
 // LiveSentence is the sentence evidence anchor id backs in the report as it renders now — the claim
@@ -61,26 +72,16 @@ func LiveSentencesIn(report string, ids []string) map[string]string {
 // kind's noun (recordsql.EvidenceTables). A retired anchor's refusal names its retire: the event,
 // its reason, and whether the sentence was kept.
 //
-// It is a read ahead of the write, a refusal a seat meets before the work a check does; the sentence
-// a check RECORDS is the landing's (Landing.LiveSentence), read in the transaction it lands in.
+// THE CLAIM IS THE SENTENCE THE SEAT JUDGED, read before the write: an edit committing between this
+// read and the check's landing leaves the check on the sentence before it, which the edit names
+// reopened, so the check does not stand and evidence.md says which sentence it was of. A retire
+// committing there is refused in the landing (CheckNotRetired).
 func LiveSentence(run Run, id string) (string, error) {
-	return liveSentence(id, func() (string, error) { return RenderRun(run) }, func() (AnchorRetire, bool, error) { return AnchorRetiredAt(run, id) })
-}
-
-// LiveSentence is record.LiveSentence asked of the landing record: the sentence id backs in the
-// report the write lands on, so a check records the sentence the report held when it landed and an
-// edit committing in between cannot slip under it.
-func (l *Landing) LiveSentence(id string) (string, error) {
-	return liveSentence(id, l.Report, func() (AnchorRetire, bool, error) { return anchorRetiredAt(l.w.q, id) })
-}
-
-// liveSentence is LiveSentence over a report and a retire lookup: the run's now, or a landing's.
-func liveSentence(id string, render func() (string, error), retiredAt func() (AnchorRetire, bool, error)) (string, error) {
 	row, ok := recordsql.EvidenceTableOf(anchor.Kind(id))
 	if !ok {
 		return "", feov.Errorf(feov.Validation, "%s is not an evidence anchor — a check reads the sentence a citation or a computation backs", id)
 	}
-	report, err := render()
+	report, err := RenderRun(run)
 	if err != nil {
 		return "", feov.Wrap(feov.Conflict, err, "the report does not render, so the sentence %s %s marks cannot be read, and nothing can be checked until it does: %v. "+
 			"The board's anomalies say why; record that you could not check it with `log`", row.Noun, id, err)
@@ -88,13 +89,12 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 	sentence, gone := liveSentenceIn(report, claimcount.BareAnchorIDs(report), id)
 	switch gone {
 	case sentenceAbsent:
-		r, found, err := retiredAt()
+		r, found, err := AnchorRetiredAt(run, id)
 		if err != nil {
 			return "", err
 		}
 		if found {
-			return "", feov.Errorf(feov.Conflict, "%s %s is retired — %s — so it is in no document and the report holds no sentence for it to check. "+
-				"Check the %ss whose anchors the report carries", row.Noun, id, r.Said(), row.Noun)
+			return "", retiredRefusal(row.Noun, id, r)
 		}
 		return "", feov.Errorf(feov.Conflict, "%s %s's anchor is not in the report — the anchor never placed — so the report holds no sentence for it and there is nothing to check. "+
 			"Check the %ss whose anchors the report carries", row.Noun, id, row.Noun)
@@ -103,6 +103,26 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 			"The anchor leaves with blue's retire of its claim", row.Noun, id)
 	}
 	return sentence, nil
+}
+
+// CheckNotRetired is the guard a check of evidence anchor id lands under: a retire of the anchor
+// committing between the check's read of its sentence (LiveSentence) and its write refuses the check,
+// as LiveSentence refuses a check of a retired anchor. Asked of the writing transaction by
+// retire_anchors_value, so the check and the retire racing it cannot both land.
+func CheckNotRetired(id string) Guard {
+	return Check(func(l *Landing) error {
+		r, found, err := anchorRetiredAt(l.w.q, id)
+		if err != nil || !found {
+			return err
+		}
+		return retiredRefusal(EvidenceNoun(id), id, r)
+	})
+}
+
+// retiredRefusal refuses a check of evidence anchor id, retired by r.
+func retiredRefusal(noun, id string, r AnchorRetire) error {
+	return feov.Errorf(feov.Conflict, "%s %s is retired — %s — so it is in no document and the report holds no sentence for it to check. "+
+		"Check the %ss whose anchors the report carries", noun, id, r.Said(), noun)
 }
 
 // EvidenceNoun is the word an evidence anchor's kind names it by (recordsql.EvidenceTables), and the

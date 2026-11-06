@@ -117,8 +117,8 @@ func newVerify() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			// Asked here, it refuses before the reading is weighed; the sentence the reading is OF is read
-			// again in the landing (claimAtLanding), and that is the claim recorded.
+			// The sentence the reading is OF: the one the seat judged, read before the write. A retire
+			// committing between this read and the landing is refused there (record.CheckNotRetired).
 			claim, err := record.LiveSentence(run, id)
 			if err != nil {
 				return nil, err
@@ -155,7 +155,7 @@ func newVerify() *cobra.Command {
 	// takes the ordinal key, and the record holds it to one reading per url and sentence a sitting
 	// (record.requireNotARetriedReading).
 	seat.KeysOn(c, "anchor")
-	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report the reading lands on (Landing.LiveSentence); on a source you found, your --quote")
+	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands (record.LiveSentence); on a source you found, your --quote")
 	seat.Supplies(c, "gap_id", "the tool mints the id of the gap a reading mints (record.NewID), at random")
 	seat.Supplies(c, "class_material", "stamped on the reading's gap from its class's material default at the write path")
 	seat.Supplies(c, "carried_by", "the tool names the gap that carries a reading that mints: its own act's, or the open gap of its class on the sentence")
@@ -412,21 +412,16 @@ func writeVerify(s seat.Context, cmd *cobra.Command, gf *gapFlags, body *recordp
 // applied verbatim from a red --new; nothing is checked and nothing is logged.
 func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *recordpb.Mint, fixNew func() string) (seat.Result, error) {
 	var evs []*record.Event
-	// A READING OF A CITATION RECORDS THE SENTENCE THE REPORT HOLDS WHERE IT LANDS, read in the write
-	// (claimAtLanding) and asked before every other guard, so its gap's location is that sentence too.
-	var claimed []record.Guard
+	// A READING OF A CITATION RECORDS THE SENTENCE THE SEAT JUDGED, read before the write, and its
+	// gap's location and the place a --new is checked at are that sentence too. A retire of the citation
+	// committing since that read is refused in the landing, asked before every other guard.
+	var live []record.Guard
 	if of := body.GetAnchor(); of != "" {
-		claimed = append(claimed, claimAtLanding(of, &body.Claim))
-		if gap != nil {
-			claimed = append(claimed, record.Check(func(*record.Landing) error {
-				gap.Location = proto.String(body.GetClaim())
-				return nil
-			}))
-		}
-	}
-	if beforeAppend != nil {
-		if err := beforeAppend(); err != nil {
-			return nil, err
+		live = append(live, record.CheckNotRetired(of))
+		if beforeAppend != nil {
+			if err := beforeAppend(); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if gap == nil {
@@ -437,7 +432,7 @@ func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *r
 		if body.GetAnchor() != "" {
 			quote = ""
 		}
-		ev, err := seat.AppendPlaced(s, body, "", quote, claimRefusal, claimed...)
+		ev, err := seat.AppendPlaced(s, body, "", quote, claimRefusal, live...)
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +443,7 @@ func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *r
 		gap.Location = proto.String(body.GetClaim())
 		place := &recordpb.Anchor{Id: proto.String(id)}
 		at := quotePlace(body.GetClaim())
-		guards := claimed
+		guards := live
 		if of := body.GetAnchor(); of != "" {
 			place.SentenceOf = proto.String(of)
 			at = sentenceOfPlace(body.GetClaim(), of)

@@ -92,7 +92,7 @@ type evidenceCheck struct {
 func readingChecks(vs []record.EvidenceVerificationJSON) []evidenceCheck {
 	out := independentChecks(vs)
 	for i, v := range vs {
-		out[i].falls = !v.Standing
+		out[i].falls = v.Standing == nil || !*v.Standing
 	}
 	return out
 }

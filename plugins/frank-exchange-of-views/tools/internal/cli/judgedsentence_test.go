@@ -2,12 +2,15 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -61,7 +64,7 @@ func judgedKinds() map[string]judgedKind {
 
 // EVERY CHECK RECORDS THE SENTENCE IT JUDGED (ruling L5), one script over every backing kind's row: a
 // check of a live anchor records, in its check table's `claim`, the sentence record.LiveSentence reads
-// at the write; the seat has no flag to type it; the result carries it and the human line quotes it.
+// before the write; the seat has no flag to type it; the result carries it and the human line quotes it.
 func TestEveryCheckRecordsTheSentenceItJudged(t *testing.T) {
 	kinds := judgedKinds()
 	for _, row := range recordsql.EvidenceTables {
@@ -116,21 +119,23 @@ func TestEveryCheckRecordsTheSentenceItJudged(t *testing.T) {
 	}
 }
 
-// THE RECORDED SENTENCE IS THE ONE THE REPORT HOLDS WHERE THE CHECK LANDS, one script over every
-// backing kind's row: blue's edit of the sentence commits between the check's read of the report and
-// its write, and the claim recorded is the sentence after the edit — the one the report held when the
-// check landed — never the one read before it. A retire of the anchor committing there refuses the
-// check, nothing recorded, as a check of a retired anchor is refused.
-func TestTheRecordedSentenceIsTheOneTheCheckLandsOn(t *testing.T) {
+// THE RECORDED SENTENCE IS THE ONE THE SEAT JUDGED, one script over every backing kind's row: blue's
+// edit of the sentence commits between the check's read of the report and its write, and the claim
+// recorded is the sentence before the edit — the one the seat read — so the check does not stand (the
+// edit named the anchor reopened) and evidence.md says which sentence it was of. A retire of the
+// anchor committing there refuses the check, nothing recorded and no execution stored, as a check of
+// a retired anchor is refused.
+func TestTheRecordedSentenceIsTheOneTheSeatJudged(t *testing.T) {
 	kinds := judgedKinds()
 	for _, row := range recordsql.EvidenceTables {
 		k, ok := kinds[row.Kind]
 		if !ok {
-			t.Errorf("backing kind %s has no arm here: its check's sentence at the landing is unasserted", row.Kind)
+			t.Errorf("backing kind %s has no arm here: the sentence its check records is unasserted", row.Kind)
 			continue
 		}
 		t.Run(row.Kind, func(t *testing.T) {
 			runDir, id := k.setup(t)
+			sit(t, runDir, k.seat)
 			old, err := record.LiveSentence(runtest.Open(t, runDir), id)
 			if err != nil {
 				t.Fatal(err)
@@ -164,8 +169,18 @@ func TestTheRecordedSentenceIsTheOneTheCheckLandsOn(t *testing.T) {
 			if err := openRunDB(t, runDir).QueryRow(`SELECT coalesce("claim", '') FROM "`+row.CheckTable+`" WHERE "`+row.CheckIDColumn+`" = ?`, id).Scan(&got); err != nil {
 				t.Fatalf("read %s's claim: %v", row.CheckTable, err)
 			}
-			if got != now {
-				t.Errorf("%s recorded claim %q, want the sentence the report held when it landed, %q", row.CheckTable, got, now)
+			if got != old {
+				t.Errorf("%s recorded claim %q, want the sentence the seat judged, %q", row.CheckTable, got, old)
+			}
+			if !uncheckedNow(t, runDir, id) {
+				t.Errorf("the %s's check of the sentence before the edit stands", row.Noun)
+			}
+			ev := assembledSet(t, runDir)[report.FileEvidence]
+			if !strings.Contains(ev, "  - of the sentence: "+old+"\n") {
+				t.Errorf("evidence.md does not print the sentence the check was of, %q:\n%s", old, ev)
+			}
+			if strings.Count(ev, falls) != 1 {
+				t.Errorf("the check of the sentence before the edit is not marked %q:\n%s", falls, ev)
 			}
 
 			runDir, id = k.setup(t)
@@ -183,7 +198,33 @@ func TestTheRecordedSentenceIsTheOneTheCheckLandsOn(t *testing.T) {
 			if n != 0 {
 				t.Errorf("%d %s row(s) recorded on an anchor retired before the check landed", n, row.CheckTable)
 			}
+			// The refused landing stores no execution: nothing under the store but the bundles.
+			stored, err := filepath.Glob(filepath.Join(runDir, compute.StoreDir, "*", "*"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, d := range stored {
+				if b := filepath.Base(d); b == "rerun" || strings.HasPrefix(b, ".tmp-") {
+					t.Errorf("the %s refused on a retired anchor left %s", row.CheckTable, d)
+				}
+			}
 		})
+	}
+}
+
+// THE WINDOW SEAM IS A CHECK'S OF AN EVIDENCE ANCHOR: a reading of a source the report does not cite
+// reads no anchor's sentence ahead of its write, so the seam that commits a write in that window
+// (lens.SetBeforeCheckAppendForTest) is not called on it, and its reading lands.
+func TestAReadingOfNoAnchorHasNoCheckWindow(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, fermatReport)
+	cachedCopy(t, runDir, "", "")
+	registerLensOnce(t, runDir)
+	restore := lens.SetBeforeCheckAppendForTest(func() error { return errors.New("a reading of no anchor opened a check window") })
+	defer restore()
+	if out, err := run(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
+		"--quote", fermatClaim, "--as", "supports", "--confidence", "medium", "--reason", "read at the leaf"}, gapFlagArgs("unsourced_claim")...)...); err != nil {
+		t.Errorf("verify --url: %v\n%s", err, out)
 	}
 }
 

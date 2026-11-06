@@ -210,10 +210,11 @@ type EvidenceReproductionJSON struct {
 	Rerun     string `json:"rerun"`
 	Ran       bool   `json:"ran"`
 	Soundness string `json:"soundness"`
-	// Standing is whether this verdict still stands on the anchor: it is its seat's latest, from a
-	// sitting opened after the latest edit of the sentence.
+	// Standing is whether this verdict still stands on the anchor, by the anchor ledger's one rule
+	// (anchorStanding.stands): it is its seat's latest judgement of the anchor, its sitting opened after
+	// the latest edit naming the anchor reopened, and the computation is not retired.
 	Standing bool `json:"standing"`
-	// Claim is the sentence this judgement was of, as the tool read it off the report at the write
+	// Claim is the sentence this judgement was of, as the tool read it off the report before the write
 	// (Reproduce.claim), as a verification's `claim` is; "" on a reproduce migrated from a record
 	// that kept none.
 	Claim  string `json:"claim"`
@@ -268,11 +269,13 @@ type EvidenceVerificationJSON struct {
 	// text; omitted on a reading no gap carries. Under `independent` it is how blue finds the source a
 	// lens found for a gap it answers.
 	CarriedBy string `json:"carried_by,omitempty"`
-	// Standing is whether this reading stands on its anchor: a reading of the sentence, its seat's
-	// latest, from a sitting opened after the latest edit of the sentence — the rule a reproduce's
-	// `standing` is read by. False on a reading that read nothing (unreachable, not the work) and on a
-	// reading of no citation, which stands on no anchor.
-	Standing bool `json:"standing"`
+	// Standing is whether this reading stands on its citation, by the anchor ledger's one rule for
+	// every check of an anchor (anchorStanding.stands), the rule a reproduce's `standing` is read by:
+	// the reading READ the source (one that read nothing — unreachable, not the work — neither stands
+	// nor replaces one), it is its seat's latest reading of the citation that read, its sitting opened
+	// after the latest edit naming the anchor reopened, and the citation is not retired. Omitted on a
+	// reading under `independent`, which is of no citation and has nothing to stand on.
+	Standing *bool `json:"standing,omitempty"`
 }
 
 // FindsAgainst reports whether this verification found AGAINST the claim — record.FindsAgainst over
@@ -448,7 +451,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			SeatID:     e.GetSeatId(),
 			CarriedBy:  vf.GetCarriedBy(),
 			Epoch:      w.Epoch,
-			Standing:   stands[w.ID],
 
 			Page:             vf.GetPage(),
 			PageRenderSha:    vf.GetPageRenderSha(),
@@ -466,6 +468,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			out.Independent = append(out.Independent, v)
 			continue
 		}
+		v.Standing = new(stands[w.ID])
 		byAnchor[v.Anchor] = append(byAnchor[v.Anchor], v)
 	}
 

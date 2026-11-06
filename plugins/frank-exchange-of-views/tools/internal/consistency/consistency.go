@@ -27,13 +27,11 @@ package consistency
 import (
 	"fmt"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/graph"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -620,8 +618,7 @@ func stalenessIn(standing []record.StandingCheck, report string, add func(Violat
 	for _, c := range standing {
 		ids = append(ids, c.Anchor)
 	}
-	live := record.LiveSentencesIn(report, ids)
-	bare := claimcount.BareAnchorIDs(report)
+	live, bare := record.SentencesIn(report, ids)
 	for _, c := range standing {
 		row, ok := recordsql.EvidenceTableOf(anchor.Kind(c.Anchor))
 		if !ok {
@@ -640,7 +637,7 @@ func stalenessIn(standing []record.StandingCheck, report string, add func(Violat
 		}
 		now, ok := live[c.Anchor]
 		switch {
-		case !ok && slices.Contains(bare, c.Anchor):
+		case !ok && bare[c.Anchor]:
 			unmeasured = append(unmeasured, fmt.Sprintf("staleness: %s %s's standing %s at event %d (%s, %s) is of %q, and the anchor stands bare in the report — the sentence it backed was cut — so there is no sentence to hold it to",
 				row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence))
 		case !ok:

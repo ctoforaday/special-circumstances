@@ -6373,9 +6373,10 @@ type outcome struct {
 	mintsByEpoch, closesByEpoch map[int]int
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
-	// reproducesWithClaim is the reproduces whose `claim` is their anchor's sentence at the write
-	// (reproduceSentences).
-	reproducesWithClaim int
+	// reproducesWithClaim is the reproduces whose `claim` is the sentence they judged, and
+	// anchorVerifies the verify readings of a citation, anchorVerifiesWithClaim those whose `claim` is
+	// (checkSentences).
+	reproducesWithClaim, anchorVerifies, anchorVerifiesWithClaim int
 	// stalenessAnchor is the computation a stalenessSeeds run's arm left for the seam to forge;
 	// stalenessForged is 1 where the seam forged it, and stalenessReported 1 where the consistency
 	// oracle then reported it (forgeStaleness).
@@ -7719,8 +7720,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 		// EVERY JUDGEMENT RECORDS THE SENTENCE IT JUDGED (III.1″.6, recorded sentence).
-		var msg string
-		res.reproducesWithClaim, msg = reproduceSentences(oracleRun, fam)
+		judged, msg := checkSentences(oracleRun, fam)
+		res.reproducesWithClaim, res.anchorVerifies, res.anchorVerifiesWithClaim = judged.reproducesWithClaim, judged.anchorVerifies, judged.anchorVerifiesWithClaim
 		if msg != "" && res.err == "" {
 			res.err = msg
 		}
