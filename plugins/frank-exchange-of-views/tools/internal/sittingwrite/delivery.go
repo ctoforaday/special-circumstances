@@ -22,7 +22,7 @@ import (
 // DeliveryBudget is the most a lens delivery may hold, in bytes of additionalContext, below the
 // harness's 10,000-character cap with room for the document that carries it. A delivery over it
 // clips the current gap's passage to the sentence its anchor sits in and the context around it,
-// and says so (passage_clipped).
+// and says so (passage_clipped); the rest of what gives way is fitted's.
 const DeliveryBudget = 9000
 
 // clipContext is how much of a clipped passage is kept on each side of the gap's location.
@@ -113,6 +113,15 @@ type deliveredGap struct {
 	// PassageClipped marks a passage cut to its anchor's sentence and the context around it, to keep
 	// the delivery within DeliveryBudget; the whole passage is on the work list.
 	PassageClipped bool `json:"passage_clipped,omitempty"`
+	// Backing shadows the row's backing: each anchor in full where the delivery fits, and one line an
+	// anchor where it would not (fitted). BackingOmitted counts the lines cut from its end to keep the
+	// delivery within DeliveryBudget; the work list holds them all.
+	//
+	// THE BACKING IS NOT BOUNDED BY THE RECORD: it is every evidence anchor in the gap's sentence, and a
+	// sentence may carry any number. Thirty-two anchors, each a JSON object, put a lens's delivery
+	// 312 bytes over the budget with everything else already cut.
+	Backing        any `json:"backing"`
+	BackingOmitted int `json:"backing_omitted,omitempty"`
 }
 
 // inlineHoldings is the most the declarations and relief may take inline before each is one line.
@@ -143,18 +152,20 @@ func renderNext(w record.WorkJSON, q []record.QueueEntry, at int, changed bool) 
 
 // fitted renders d under its preamble within DeliveryBudget, measured in BYTES of the rendered
 // text — the harness's cap counts characters, and a byte count is never below it. The CURRENT ITEM IS
-// ALWAYS DELIVERED, whole but for its gap's passage; everything else gives way, in a fixed order,
-// until the delivery fits:
+// ALWAYS DELIVERED, whole but for its gap's passage and backing; everything else gives way, in a
+// fixed order, until the delivery fits:
 //
 //  1. the current gap's passage is cut to its anchor's sentence and the context around it;
-//  2. the header's notes, declarations and relief become one line an entry;
+//  2. the header's notes, declarations and relief, and the current gap's backing, become one line an
+//     entry;
 //  3. lines are cut from the end of the index, then of the estopped lines, then of the notes,
-//     the declarations and the relief, each cut counted in its *_omitted field;
+//     the declarations and the relief, then of the backing — the evidence under the item being
+//     worked outlasts every line about other work — each cut counted in its *_omitted field;
 //  4. the current gap's passage is cut to its location alone.
 //
-// What is left is the current item without its passage and the fixed header (the seat, its standing,
-// its read of the report and its budget). Only a current item that is itself past the budget —
-// a gap whose own problem, fix and check run that long — is delivered over it.
+// What is left is the current item without its passage or backing and the fixed header (the seat,
+// its standing, its read of the report and its budget). Only a current item that is itself past the
+// budget — a gap whose own problem, fix and check run that long — is delivered over it.
 func fitted(preamble string, d lensDelivery) string {
 	text := render(preamble, d)
 	fits := func() bool { text = render(preamble, d); return len(text) <= DeliveryBudget }
@@ -173,11 +184,16 @@ func fitted(preamble string, d lensDelivery) string {
 			}
 		}
 	}
+	var backing []string
+	if g != nil {
+		backing = backingLines(g.WorkGapJSON.Backing)
+		g.Backing = &backing
+	}
 	if s := d.Sitting; s != nil {
 		s.Notes, s.Declarations, s.Relief = noteLines(s.Notes), oneLine(holdingLines(s.w)), oneLine(reliefLines(s.w))
-		if fits() {
-			return text
-		}
+	}
+	if fits() {
+		return text
 	}
 	cuts := []struct {
 		lines   *[]string
@@ -196,6 +212,12 @@ func fitted(preamble string, d lensDelivery) string {
 			lines   *[]string
 			omitted *int
 		}{&relief, &s.ReliefOmitted})
+	}
+	if g != nil {
+		cuts = append(cuts, struct {
+			lines   *[]string
+			omitted *int
+		}{&backing, &g.BackingOmitted})
 	}
 	for _, c := range cuts {
 		for len(*c.lines) > 0 {
@@ -299,6 +321,31 @@ func holdingLines(w record.WorkJSON) []string {
 	return out
 }
 
+// backingLines is each backing anchor in one line: the anchor, its kind, and the check standing on it
+// — its reading or judgement, by whom and at which event — or that none does.
+func backingLines(bs []record.GapBackingJSON) []string {
+	out := []string{}
+	for _, b := range bs {
+		line := b.Anchor + " · " + b.Kind
+		var read []string
+		for _, w := range []string{b.Outcome, b.Confidence, b.Soundness} {
+			if w != "" {
+				read = append(read, w)
+			}
+		}
+		switch {
+		case b.Event != 0:
+			line += fmt.Sprintf(" · %s · by %s, event %d", strings.Join(read, " "), b.VerifiedBy, b.Event)
+		case len(read) > 0:
+			line += " · " + strings.Join(read, " ")
+		default:
+			line += " · unchecked"
+		}
+		out = append(out, line)
+	}
+	return out
+}
+
 // reliefLines is each granted petition's order in one line.
 func reliefLines(w record.WorkJSON) []string {
 	out := []string{}
@@ -312,7 +359,7 @@ func reliefLines(w record.WorkJSON) []string {
 func itemOf(e record.QueueEntry, changed bool) *deliveredItem {
 	d := &deliveredItem{Key: e.Key, Kind: e.Kind, Subject: e.Subject, Blocks: e.Blocks, ChangedSinceDelivered: changed, Items: e.Items}
 	if e.Gap != nil {
-		d.Gap = &deliveredGap{WorkGapJSON: *e.Gap}
+		d.Gap = &deliveredGap{WorkGapJSON: *e.Gap, Backing: e.Gap.Backing}
 	}
 	return d
 }

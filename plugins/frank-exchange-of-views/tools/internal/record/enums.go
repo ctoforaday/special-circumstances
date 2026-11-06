@@ -298,6 +298,12 @@ var EnumFields = map[string][]EnumField{
 			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",
 		},
 	},
+	// `position`, and its class is the mint's set: the same KIND-of-defect question asked of the
+	// defect the chair found with no lens to mint it. Optional: a position need not argue a defect.
+	"position": {{
+		Key: "class", Flag: flags.Class, Optional: true, Values: evsOf(recordpb.GapClass(0).Descriptor()),
+		Why: "the class is the KIND of defect the position argues, and its material default binds the hearing: the bench may not overrule a position whose class is always material",
+	}},
 	"reproduce": {{
 		Key: "soundness", Flag: flags.As, Values: evsOf(recordpb.Soundness(0).Descriptor()),
 		Why: "REPRODUCING IS NOT PROVING. Re-running a program and getting the same bytes measures DETERMINISM; `print(\"7 is prime\")` reproduces perfectly forever. Whether the program actually establishes the claim it is anchored to cannot be computed — red must READ it — so it is judged, and it is required. The dangerous cell is reproduces+unsound: a computation that looks maximally credible and establishes nothing",

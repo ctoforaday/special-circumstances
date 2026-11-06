@@ -363,14 +363,18 @@ enum CheckKind {
 }
 
 // ClassMaterial is where a gap's materiality starts: from its class. A claim, figure or citation
-// defect changes what a reader concludes whatever it is graded, so its class is `always`; a
-// template-shape defect changes no conclusion, so its class is `never`; every other class goes
-// by the gap's current severity, medium and above. The class's `material_default` carries it, and
-// the write path stamps it onto every Mint, so every reader of "is this gap material" reads the
-// same field.
+// defect changes what a reader concludes whatever it is graded, so its class is `always`; so is
+// report prose addressed to the run instead of the subject's reader (gblock, 2026-11-05: the report
+// is subject prose only, #880 and m30), which changes no figure and still ships a sentence no reader
+// of the subject should be handed; a template-shape defect changes no conclusion, so its class is
+// `never`; every other class goes by the gap's current severity, medium and above. The class's
+// `material_default` carries it, and the write path stamps it onto every Mint, so every reader of
+// "is this gap material" reads the same field. NO RULING MOVES IT: the bench may find that a defect
+// is not there, never that a defect of an `always` class is immaterial (record.requirePositionHearing
+// refuses that overrule; m39's bench declared narration "not material" and the run shipped it).
 enum ClassMaterial {
   CLASS_MATERIAL_UNSPECIFIED = 0;
-  CLASS_MATERIAL_ALWAYS = 1 [(means) = "every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on"];
+  CLASS_MATERIAL_ALWAYS = 1 [(means) = "every gap of this class is material, whatever its grade or the reader decision it is judged to change — the class decides it, and no ruling or holding makes it immaterial"];
   CLASS_MATERIAL_NEVER = 2 [(means) = "no gap of this class is material, whatever its grade — it stays on the board and never holds the gate"];
   CLASS_MATERIAL_BY_GRADE = 3 [(means) = "a gap of this class is material when its current severity is medium or above"];
 }
@@ -401,7 +405,7 @@ enum GapClass {
     (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "incomplete_repair_propagation",
     (distinguisher) = "is the defect that no single source governs the copies, or that one repair missed some of them?"];
   GAP_CLASS_REPORT_VOICE = 6 [(means) = "report prose speaks about the run that made it rather than the subject — process voice, a claim wearing the seat that produced it, the report's own draft history, or the machinery that checked it",
-    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "claim_contradicts_own_record",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "claim_contradicts_own_record",
     (distinguisher) = "does the fix correct a FACT the report gets wrong, or the AUDIENCE the sentence is written for, whether or not the fact is true?"];
   GAP_CLASS_STRUCTURE_NONCOMPLIANCE = 7 [(means) = "the report's structure does not carry its argument: material a reader has to take in order is present only as unordered prose, or a part of the answer has no place in it. The report's sections are its author's to name and order, and a heading the report does not have is not this",
     (material_default) = CLASS_MATERIAL_NEVER, (neighbor) = "risk_coverage_omission",
@@ -660,8 +664,8 @@ enum PetitionRuling {
 // sitting, which records a verdict.
 enum PositionRuling {
   POSITION_RULING_UNSPECIFIED = 0;
-  POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
-  POSITION_RULING_OVERRULED = 2 [(means) = "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work"];
+  POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
+  POSITION_RULING_OVERRULED = 2 [(means) = "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"];
 }
 
 // Event is the log line.
@@ -2614,6 +2618,11 @@ message Position {
     unique: true
     why: "the id the bench's ruling on a withheld PASS joins on — the tool assigns it, and a position without one cannot be heard"
   }];
+  // class is the KIND of the defect a position argues, from the closed GapClass set, where it argues
+  // one. Its value's material_default binds the bench's hearing: a position whose class is `always`
+  // material is not overruled (record.requirePositionHearing). m39's chair named "the voice class"
+  // in prose, and the bench overruled it as "not material" — a ruling the class had already decided.
+  optional GapClass class = 3;
 }
 
 // Halt is the safety boundary, and it reaches the human as the words the bench chose, relayed

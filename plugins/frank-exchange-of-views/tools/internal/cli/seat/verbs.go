@@ -201,11 +201,22 @@ func Position() *cobra.Command {
 		}
 		// THE TOOL ASSIGNS THE ID a bench ruling on a withheld PASS joins on (record.heardPositionsOf).
 		id := record.NewID("position")
-		if _, err := record.Append(s.Identity(), &recordpb.Position{Text: proto.String(text), PositionId: proto.String(id)}); err != nil {
+		body := &recordpb.Position{Text: proto.String(text), PositionId: proto.String(id)}
+		// THE CLASS IS A WORD OF THE CLOSED GapClass SET; the flag's parser refused any other.
+		if w := Str(cmd, flags.Class); w != "" {
+			gc, ok := record.GapClassOf(w)
+			if !ok {
+				return nil, feov.Errorf(feov.Validation, "%q is not a gap class — it says what KIND of defect this position argues", w)
+			}
+			body.Class = &gc
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return positionResult{ID: id}, nil
 	})), flags.Reason)
+	enumhelp.Flag(c, flags.Class, record.MustEnum("position", "class"),
+		"the KIND of the defect this position argues, where it argues one, from the values below. A position whose class is always material is not overruled: the bench upholds it and names a lens to audit for the defect")
 	Supplies(c, "position_id", "the tool assigns it; the bench rules a position at a sitting that withheld a PASS on this id")
 	return c
 }
