@@ -179,8 +179,8 @@ type Staged struct {
 }
 
 // StageRerun writes an execution's output and out/ into a fresh staging directory beside its
-// bundle's. Nothing reads staging: the caller compares and judges, then Promotes what it records or
-// Discards what it refuses, so a refused act leaves nothing under rerun/.
+// bundle's. Nothing reads staging: the caller compares and judges, then Promotes what it is about to
+// record or Discards what it refuses, so a refused verdict leaves nothing under rerun/.
 func StageRerun(runDir, bundle string, e Execution) (*Staged, error) {
 	stage, err := staging(runDir, bundle)
 	if err != nil {
@@ -194,9 +194,10 @@ func StageRerun(runDir, bundle string, e Execution) (*Staged, error) {
 	return s, nil
 }
 
-// Promote renames the staging to rerun/<Sha>/. A directory already there holds the same bytes by
+// Promote renames the staging to rerun/<Sha>/, before the caller appends the event that names it, so
+// no event names a directory the store lacks. A directory already there holds the same bytes by
 // construction — its name is the sha of its content — so the staging is removed and the present one
-// stands: an earlier act's execution whose event was never appended, or a concurrent act's.
+// stands: an earlier execution whose act was refused or failed at its append, or a concurrent act's.
 func (s *Staged) Promote() error {
 	final := RerunPath(s.runDir, s.bundle, s.Sha)
 	if err := os.MkdirAll(filepath.Dir(final), 0o755); err != nil {

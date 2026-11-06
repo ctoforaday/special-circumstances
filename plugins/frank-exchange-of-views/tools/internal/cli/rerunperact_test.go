@@ -411,11 +411,12 @@ func TestASoundVerdictOverAnActsOwnDifferingComparisonIsRefused(t *testing.T) {
 	}
 }
 
-// V1a.5 (a), (b), (e), (f): the re-run store's lifecycle. A refused verdict stores nothing; a landing
-// that fails after the act was judged admissible discards the staging and stores nothing, and the next
-// reproduce executes again and stands; the archive holds each recorded re-run and nothing else; and a
-// migration that renumbers the `ran` event leaves its directory as it was, resolved from the record.
-func TestAReRunIsStoredOnlyWhenItsActIsRecorded(t *testing.T) {
+// V1a.5 (a), (b), (e), (f): the re-run store's lifecycle. A refused verdict stores nothing; an
+// append that fails after the rename leaves a directory no event names, and the next reproduce
+// executes again, finds that directory holding its bytes, and stands; the archive holds each
+// recorded re-run and nothing else; and a migration that renumbers the `ran` event leaves its
+// directory as it was, resolved from the record.
+func TestAReRunIsStoredBeforeItsEventAndOnlyWhenTheActIsRecorded(t *testing.T) {
 	f := newPerAct(t, "The value is x.")
 	f.set(f.ctl, "x")
 	p := f.compute("The value is x.", "")
@@ -431,29 +432,32 @@ func TestAReRunIsStoredOnlyWhenItsActIsRecorded(t *testing.T) {
 		t.Fatalf("the refused verdict left rerun/ %q and staging %q", r, s)
 	}
 
-	// (b) the landing fails after every guard admitted it, as a failed commit does: no event, and
-	// nothing under rerun/ or staging.
-	restore := lens.SetLandingFailsForTest(func() error { return errors.New("the landing fails here") })
+	// (b) the append fails after the rename: a directory no event names.
+	restore := lens.SetBeforeCheckAppendForTest(func() error { return errors.New("the append fails here") })
 	_, err := f.reproduce(p, "unsound")
 	restore()
-	if err == nil || !strings.Contains(err.Error(), "the landing fails here") {
-		t.Fatalf("the seam did not fail the landing: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "the append fails here") {
+		t.Fatalf("the seam did not fail the append: %v", err)
 	}
-	if r, s, n := reruns(t, f.runDir, bundle), staging(t, f.runDir, bundle), countType(t, f.runDir, recordpb.EventType_EVENT_TYPE_REPRODUCE)-before; len(r) != 0 || len(s) != 0 || n != 0 {
-		t.Fatalf("after the failed landing: rerun/ %q, staging %q, %d event(s) — want none of each", r, s, n)
+	orphan := reruns(t, f.runDir, bundle)
+	if len(orphan) != 1 || countType(t, f.runDir, recordpb.EventType_EVENT_TYPE_REPRODUCE) != before || len(staging(t, f.runDir, bundle)) != 0 {
+		t.Fatalf("after the failed append: rerun/ %q, %d event(s), staging %q — want one directory, no event, no staging",
+			orphan, countType(t, f.runDir, recordpb.EventType_EVENT_TYPE_REPRODUCE)-before, staging(t, f.runDir, bundle))
 	}
+	orphanBytes := treeHash(t, compute.RerunPath(f.runDir, bundle, orphan[0]))
 
-	// The next reproduce executes, stores its execution once it is recorded, and stands.
+	// The next reproduce executes, finds the directory present with its bytes, and stands.
 	res, err := f.reproduce(p, "unsound")
-	stored := reruns(t, f.runDir, bundle)
-	if err != nil || res["ran"] != true || len(stored) != 1 || res["rerun_sha"] != stored[0] || len(staging(t, f.runDir, bundle)) != 0 {
-		t.Fatalf("the next reproduce: %v (%v), rerun/ %q, want an execution standing on the one directory stored", res, err, stored)
+	if err != nil || res["ran"] != true || res["rerun_sha"] != orphan[0] {
+		t.Fatalf("the next reproduce: %v (%v), want an execution standing on %s", res, err, orphan[0])
 	}
 	ev := lastBody(t, f.runDir, &recordpb.Reproduce{})
-	if ev.RerunExit == nil || ev.GetRerunSha() != stored[0] {
+	if ev.RerunExit == nil || ev.GetRerunSha() != orphan[0] {
 		t.Errorf("the recorded execution carries rerun_exit %v and rerun_sha %q", ev.RerunExit, ev.GetRerunSha())
 	}
-	storedBytes := treeHash(t, compute.RerunPath(f.runDir, bundle, stored[0]))
+	if r := reruns(t, f.runDir, bundle); len(r) != 1 || treeHash(t, compute.RerunPath(f.runDir, bundle, r[0])) != orphanBytes {
+		t.Errorf("rerun/ holds %q after the execution that stands, want the one directory unchanged", r)
+	}
 	got, err := compute.ReadRerun(f.runDir, bundle, ev.GetRerunSha(), int(ev.GetRerunExit()))
 	if err != nil || got.Output != "z\n" || len(got.Out) != 1 || string(got.Out[0].Body) != "z" {
 		t.Errorf("the stored execution reads %+v (%v), want its output and out/", got, err)
@@ -479,7 +483,7 @@ func TestAReRunIsStoredOnlyWhenItsActIsRecorded(t *testing.T) {
 		t.Fatal(err)
 	}
 	at := filepath.Join(unpacked, compute.StoreDir, bundle)
-	for _, want := range []string{filepath.Join("rerun", stored[0], "output"), filepath.Join("rerun", stored[0], "out", "f.txt"),
+	for _, want := range []string{filepath.Join("rerun", orphan[0], "output"), filepath.Join("rerun", orphan[0], "out", "f.txt"),
 		filepath.Join("acts", p, "output"), filepath.Join("dir", "count.js")} {
 		if _, err := os.Stat(filepath.Join(at, want)); err != nil {
 			t.Errorf("the archive does not hold %s: %v", want, err)
@@ -522,15 +526,15 @@ func TestAReRunIsStoredOnlyWhenItsActIsRecorded(t *testing.T) {
 	if ranID(to) == ranID(f.runDir) {
 		t.Fatal("the replay did not renumber the `ran` event, so nothing here exercised the store's naming")
 	}
-	if got := treeHash(t, compute.RerunPath(to, bundle, stored[0])); got != storedBytes {
-		t.Errorf("the migrated run's rerun/%s is not the source's", stored[0][:12])
+	if got := treeHash(t, compute.RerunPath(to, bundle, orphan[0])); got != orphanBytes {
+		t.Errorf("the migrated run's rerun/%s is not the source's", orphan[0][:12])
 	}
 	k, err := record.ComputationAt(runtest.Open(t, to), p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if k.Standing == nil || k.Standing.RerunSha != stored[0] {
-		t.Fatalf("the migrated record's standing re-run is %+v, want %s", k.Standing, stored[0])
+	if k.Standing == nil || k.Standing.RerunSha != orphan[0] {
+		t.Fatalf("the migrated record's standing re-run is %+v, want %s", k.Standing, orphan[0])
 	}
 	if _, err := compute.ReadRerun(to, bundle, k.Standing.RerunSha, k.Standing.Exit); err != nil {
 		t.Errorf("the migrated record's re-run does not resolve: %v", err)

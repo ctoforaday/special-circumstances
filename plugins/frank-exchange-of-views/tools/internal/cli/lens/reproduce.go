@@ -111,13 +111,12 @@ func newReproduce() *cobra.Command {
 		// recorded output, exit and out/ — because two acts on one bundle can have recorded
 		// different results, and another act's verdict says nothing about this one's.
 		//
-		// WHERE IT EXECUTES, THE EXECUTION IS STAGED, judged, recorded, and only then stored: a refused
-		// verdict, and a landing that refuses or fails — the sentence changed or the anchor retired since
-		// the read above among them — discard the staging and leave nothing under rerun/. The rename runs
-		// after the event commits, outside the write, so it is never undone by a rollback. Its one
-		// residue is a rename that fails after the commit: the event names a directory the store lacks,
-		// the act's error says so, and a later reproduce of the bundle reads it as missing, by name,
-		// never as an empty execution (compute.ReadRerun).
+		// WHERE IT EXECUTES, THE EXECUTION IS STAGED, judged, stored, and only then recorded: a refused
+		// verdict leaves nothing under rerun/, and the rename comes before the append, so no event ever
+		// names a directory the store lacks. A landing that refuses or fails after the rename — the
+		// sentence changed or the anchor retired since the read above among them — leaves a directory no
+		// event names, which nothing reads; the next execution of the bundle has the same sha and stands
+		// on that directory (compute.Staged.Promote).
 		var o rerunOutcome
 		var staged *compute.Staged
 		if st := p.Standing; st != nil {
@@ -140,7 +139,14 @@ func newReproduce() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			o = rerunOutcome{ran: true, exit: e.Exit, toolCalls: e.Calls, leftover: e.Leftover}
+			if e.Leftover != "" {
+				// COPIES LEFT BEHIND ARE THE TOOL'S DEFECT, NOT THE RE-RUN'S: the execution finished
+				// before the removal, so the leftover is logged whatever becomes of the act, best-effort.
+				defer func() {
+					_, _ = record.Append(s.Identity(), &recordpb.Log{Text: proto.String(e.Leftover), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()})
+				}()
+			}
+			o = rerunOutcome{ran: true, exit: e.Exit, toolCalls: e.Calls}
 			if err := o.compare(run.Dir(), p, e); err != nil {
 				return nil, err
 			}
@@ -172,35 +178,18 @@ func newReproduce() *cobra.Command {
 		res.By, res.Ran, res.RerunSha = o.by, o.ran, o.rerunSha
 		res.Drift = o.drift
 		res.Rerun = recordpb.Word(body.GetRerun())
-		guards := []record.Guard{record.CheckOfSentence(p.Label, claim)}
-		if landingFails != nil {
-			guards = append(guards, record.CheckLast(func(*record.Landing) error { return landingFails() }))
-		}
-		land := func() error {
-			if beforeAppend != nil {
-				if err := beforeAppend(); err != nil {
-					return err
-				}
-			}
-			_, err := record.Append(s.Identity(), body, guards...)
-			return err
-		}
-		if err := land(); err != nil {
-			if staged != nil {
-				err = errors.Join(err, staged.Discard())
-			}
-			return nil, err
-		}
 		if staged != nil {
 			if err := staged.Promote(); err != nil {
-				return nil, feov.Wrap(feov.Internal, err, "your judgement of %s is recorded, and the execution it compared could not be stored under rerun/: %v. "+
-					"A later reproduce of this bundle reads that execution as missing; report it with `log` as a defect", p.Label, err)
+				return nil, err
 			}
 		}
-		// COPIES LEFT BEHIND ARE THE TOOL'S DEFECT, NOT THE RE-RUN'S: the execution finished before
-		// the removal, so the act stands and the leftover is logged after it, best-effort.
-		if o.leftover != "" {
-			_, _ = record.Append(s.Identity(), &recordpb.Log{Text: proto.String(o.leftover), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()})
+		if beforeAppend != nil {
+			if err := beforeAppend(); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := record.Append(s.Identity(), body, record.CheckOfSentence(p.Label, claim)); err != nil {
+			return nil, err
 		}
 		return res, nil
 	}))
@@ -214,30 +203,18 @@ func newReproduce() *cobra.Command {
 }
 
 // beforeAppend runs as a check of an evidence anchor — a reproduce, a verify --anchor — is about to
-// append its event, after its read of the report and outside the write's transaction; nil outside a
-// test.
+// append its event, after its read of the report and outside the write's transaction (a reproduce's
+// after it stores its execution); nil outside a test.
 var beforeAppend func() error
 
 // SetBeforeCheckAppendForTest has every reproduce and every verify --anchor call f between its read of
-// the report and the write it lands in, and an error from f refuses the act there: the seam a test
-// uses to commit another seat's write in that window. It returns the restore.
+// the report and the write it lands in — a reproduce's after it stores its execution — and an error
+// from f refuses the act there: the seam a test uses to commit another seat's write in that window, or
+// to fail a reproduce's append after the rename. It returns the restore.
 func SetBeforeCheckAppendForTest(f func() error) (restore func()) {
 	prev := beforeAppend
 	beforeAppend = f
 	return func() { beforeAppend = prev }
-}
-
-// landingFails runs as the last guard of a reproduce's landing, after the write path's validation;
-// nil outside a test.
-var landingFails func() error
-
-// SetLandingFailsForTest has every reproduce's landing call f after every guard and the write path's
-// validation admitted it, and an error from f fails the landing there, as a failed commit does: the
-// seam a test uses to fail the write after the act was judged admissible. It returns the restore.
-func SetLandingFailsForTest(f func() error) (restore func()) {
-	prev := landingFails
-	landingFails = f
-	return func() { landingFails = prev }
 }
 
 // rerunOutcome is this act's comparison against an execution of its bundle — its own (ran), or the
@@ -251,8 +228,6 @@ type rerunOutcome struct {
 	ran           bool
 	exit          int
 	rerunSha      string
-	// leftover is why this act's execution could not remove its copy, or "".
-	leftover string
 }
 
 // compare sets this act's own recorded result against e.

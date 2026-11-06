@@ -26,6 +26,10 @@ const (
 	sentenceAbsent
 	// sentenceBare: the token stands with no prose before it in its sentence.
 	sentenceBare
+	// sentenceProseless: the sentence holding the token's first occurrence says nothing besides its
+	// anchors (claimcount.HasProse) — a token opening the sentence after a terminator, or outside the
+	// claim stream — while another occurrence keeps it off the bare list.
+	sentenceProseless
 )
 
 // liveSentenceIn is the sentence holding id's token in report, read the way an edit reads it to
@@ -43,19 +47,23 @@ func liveSentenceIn(report string, bare []string, id string) (string, sentenceGo
 	if !ok {
 		return "", sentenceAbsent
 	}
+	if !claimcount.HasProse(sentence) {
+		return sentence, sentenceProseless
+	}
 	return sentence, sentenceLive
 }
 
-// SentencesIn is the live sentence of each of ids in report (liveSentenceIn), keyed by id, read once
-// for all of them, with why an id has none: bare holds each of ids whose token stands bare in report
-// (liveSentenceIn's sentenceBare), so an id in neither map is absent from it. One bare rule for every
-// reader that tells the two apart.
+// SentencesIn is the sentence of each of ids in report (liveSentenceIn), keyed by id, read once for
+// all of them — a proseless one included, as the sentence a standing check is compared with — with
+// why an id has none: bare holds each of ids whose token stands bare in report (liveSentenceIn's
+// sentenceBare), so an id in neither map is absent from it. One bare rule for every reader that tells
+// the two apart.
 func SentencesIn(report string, ids []string) (live map[string]string, bare map[string]bool) {
 	live, bare = map[string]string{}, map[string]bool{}
 	bareIDs := claimcount.BareAnchorIDs(report)
 	for _, id := range ids {
 		switch sentence, gone := liveSentenceIn(report, bareIDs, id); gone {
-		case sentenceLive:
+		case sentenceLive, sentenceProseless:
 			live[id] = sentence
 		case sentenceBare:
 			bare[id] = true
@@ -72,7 +80,7 @@ func SentencesIn(report string, ids []string) (live map[string]string, bare map[
 // THE CLAIM IS THE SENTENCE THE SEAT JUDGED, read before the write; the check lands only on that
 // sentence (CheckOfSentence).
 func LiveSentence(run Run, id string) (string, error) {
-	return liveSentence(id, func() (string, error) { return RenderRun(run) }, func() (AnchorRetire, bool, error) { return AnchorRetiredAt(run, id) }, "")
+	return liveSentence(id, func() (string, error) { return RenderRun(run) }, func() (AnchorRetire, bool, error) { return AnchorRetiredAt(run, id) }, beforeCheck())
 }
 
 // CheckOfSentence is the guard a check of evidence anchor id, which judged claim (LiveSentence), lands
@@ -84,15 +92,25 @@ func LiveSentence(run Run, id string) (string, error) {
 // it cannot both land.
 func CheckOfSentence(id, claim string) Guard {
 	return Check(func(l *Landing) error {
-		_, err := liveSentence(id, l.Report, func() (AnchorRetire, bool, error) { return anchorRetiredAt(l.w.q, id) }, claim)
+		_, err := liveSentence(id, l.Report, func() (AnchorRetire, bool, error) { return anchorRetiredAt(l.w.q, id) }, inLanding(claim))
 		return err
 	})
 }
 
-// liveSentence is LiveSentence over a report and a retire lookup: the run's now, or a landing's. judged
-// is "" for the read before a check; for the read in its landing it is the sentence the check judged,
-// and the refusals say the report changed while the check was made.
-func liveSentence(id string, render func() (string, error), retiredAt func() (AnchorRetire, bool, error), judged string) (string, error) {
+// sentenceRead is which read of an anchor's sentence liveSentence makes: the read before a check
+// (beforeCheck), or the read in its landing (inLanding), which holds the sentence the check judged.
+type sentenceRead struct {
+	landing bool
+	judged  string
+}
+
+func beforeCheck() sentenceRead            { return sentenceRead{} }
+func inLanding(judged string) sentenceRead { return sentenceRead{landing: true, judged: judged} }
+
+// liveSentence is LiveSentence over a report and a retire lookup: the run's now, or a landing's. In
+// the landing the sentence must be the one the check judged, and the refusals say the report changed
+// while the check was made.
+func liveSentence(id string, render func() (string, error), retiredAt func() (AnchorRetire, bool, error), read sentenceRead) (string, error) {
 	row, ok := recordsql.EvidenceTableOf(anchor.Kind(id))
 	if !ok {
 		return "", feov.Errorf(feov.Validation, "%s is not an evidence anchor — a check reads the sentence a citation or a computation backs", id)
@@ -105,7 +123,7 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 	// while is how a refusal in the landing opens: the check read a live sentence, and the report
 	// changed under it.
 	while := ""
-	if judged != "" {
+	if read.landing {
 		while = "while this check was made, "
 	}
 	sentence, gone := liveSentenceIn(report, claimcount.BareAnchorIDs(report), id)
@@ -118,7 +136,7 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 		if found {
 			return "", retiredRefusal(while, row.Noun, id, r)
 		}
-		if judged != "" {
+		if read.landing {
 			return "", feov.Errorf(feov.Conflict, "while this check was made, %s %s's anchor left the report, so the report holds no sentence for it and nothing is recorded. "+
 				"Check the %ss whose anchors the report carries", row.Noun, id, row.Noun)
 		}
@@ -127,10 +145,13 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 	case sentenceBare:
 		return "", feov.Errorf(feov.Conflict, "%s%s %s's anchor stands bare in the report: the sentence it backed was cut, and it backs no prose, so there is nothing to check. "+
 			"The anchor leaves with blue's retire of its claim", while, row.Noun, id)
+	case sentenceProseless:
+		return "", feov.Errorf(feov.Conflict, "%s%s %s's anchor stands in the report in a sentence that says nothing besides its anchors, %s, so there is no prose to check. "+
+			"Check the %ss whose anchors back prose", while, row.Noun, id, quoted(sentence), row.Noun)
 	}
-	if judged != "" && !bluedoc.SameSentence(sentence, judged) {
+	if read.landing && !bluedoc.SameSentence(sentence, read.judged) {
 		return "", feov.Errorf(feov.Conflict, "while this check was made, the sentence holding %s %s's anchor changed: the report now holds %s, not %s, the sentence this check read. "+
-			"Nothing is recorded: read the sentence as it now stands and judge it again", row.Noun, id, quoted(sentence), quoted(judged))
+			"Nothing is recorded: read the sentence as it now stands and judge it again", row.Noun, id, quoted(sentence), quoted(read.judged))
 	}
 	return sentence, nil
 }

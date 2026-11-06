@@ -1449,6 +1449,8 @@ func unverifiableIn(r workReads) unverifiableFunc {
 			return "its anchor is not in the report"
 		case sentenceBare:
 			return "its anchor stands bare: the sentence it backed was cut, and blue's retire of its claim is what removes it"
+		case sentenceProseless:
+			return "its anchor's sentence says nothing besides its anchors, so there is no prose to check"
 		}
 		return ""
 	}

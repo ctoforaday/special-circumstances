@@ -134,7 +134,8 @@ func TestEveryCheckRecordsTheSentenceItJudged(t *testing.T) {
 // A CHECK LANDS ONLY ON THE SENTENCE THE SEAT JUDGED, one script over every backing kind's row. A
 // write of another seat commits between the check's read of the sentence and its landing
 // (lens.SetBeforeCheckAppendForTest). One that changes the sentence, cuts it to leave the anchor bare,
-// or retires the anchor refuses the check: nothing recorded, no execution stored. One that leaves the
+// or retires the anchor refuses the check: nothing recorded, and a reproduce's execution, stored before
+// the append, is the one the check judged again stands on. One that leaves the
 // sentence as it was — an edit elsewhere, a gap's token placed at the sentence's end — lets it land,
 // recording the sentence the seat read, which is the sentence the report holds at the check's event.
 func TestACheckLandsOnlyOnTheSentenceTheSeatJudged(t *testing.T) {
@@ -241,14 +242,51 @@ func TestACheckLandsOnlyOnTheSentenceTheSeatJudged(t *testing.T) {
 				if got := claims(runDir, id); len(got) != 0 {
 					t.Errorf("%s: %s recorded %q on a sentence the seat did not judge", r.name, row.CheckTable, got)
 				}
-				// The refused landing stores no execution: nothing under the store but the bundles.
-				stored, err := filepath.Glob(filepath.Join(runDir, compute.StoreDir, "*", "*"))
+				// The refused landing leaves no staging; a reproduce stored its execution before the append,
+				// so rerun/ holds that one directory, which no event names.
+				staged, err := filepath.Glob(filepath.Join(runDir, compute.StoreDir, "*", ".tmp-*"))
 				if err != nil {
 					t.Fatal(err)
 				}
-				for _, d := range stored {
-					if b := filepath.Base(d); b == "rerun" || strings.HasPrefix(b, ".tmp-") {
-						t.Errorf("%s: the refused %s left %s", r.name, row.CheckTable, d)
+				if len(staged) != 0 {
+					t.Errorf("%s: the refused %s left staging %q", r.name, row.CheckTable, staged)
+				}
+				stored, err := filepath.Glob(filepath.Join(runDir, compute.StoreDir, "*", "rerun", "*"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if want := map[string]int{"computation": 1}[row.Kind]; len(stored) != want {
+					t.Errorf("%s: the refused %s left rerun/ %q, want %d execution(s)", r.name, row.CheckTable, stored, want)
+				}
+				if r.name != "the sentence changed" {
+					continue
+				}
+				// Judged again, the check lands on the sentence the report now holds, and a reproduce's
+				// execution stands on the directory the refused one stored.
+				out, err := k.check(t, runDir, id, "--json")
+				if err != nil {
+					t.Errorf("%s: the %s judged again was refused: %v\n%s", r.name, row.CheckTable, err, out)
+					continue
+				}
+				now, err := record.LiveSentence(runtest.Open(t, runDir), id)
+				if got := claims(runDir, id); err != nil || len(got) != 1 || got[0] != now {
+					t.Errorf("%s: judged again, %s recorded %q, want the sentence the report holds, %q (%v)", r.name, row.CheckTable, got, now, err)
+				}
+				if len(stored) == 1 {
+					var env struct {
+						Result struct {
+							RerunSha string `json:"rerun_sha"`
+						} `json:"result"`
+					}
+					if err := json.Unmarshal([]byte(out), &env); err != nil {
+						t.Fatalf("%s --json: %v\n%s", row.CheckTable, err, out)
+					}
+					again, err := filepath.Glob(filepath.Join(runDir, compute.StoreDir, "*", "rerun", "*"))
+					if err != nil {
+						t.Fatal(err)
+					}
+					if env.Result.RerunSha != filepath.Base(stored[0]) || !slices.Equal(again, stored) {
+						t.Errorf("%s: judged again, the %s stands on %q with rerun/ %q, want the stored %q reused", r.name, row.CheckTable, env.Result.RerunSha, again, stored)
 					}
 				}
 			}

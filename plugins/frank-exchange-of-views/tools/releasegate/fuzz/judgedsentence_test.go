@@ -176,33 +176,23 @@ type judgedSentences struct {
 // is not read here.
 func checkSentences(run record.Run, fam record.Family) (got judgedSentences, msg string) {
 	path := filepath.Join(run.Records(), "record.db")
-	db, err := recordsql.Open(path)
+	// A handle of its own, closed on return, so the process's cached handle — the one the rest of the
+	// sweep reads through — is left as it was.
+	db, err := recordsql.OpenSeparate(path)
 	if err != nil {
 		return got, "recorded sentence: the record could not be opened: " + err.Error()
 	}
-	// The process's one handle is released on every exit, as runtest.DropReopened releases it: the
-	// next reader opens its own.
 	defer func() {
-		if err := recordsql.Close(path); err != nil && msg == "" {
+		if err := db.Close(); err != nil && msg == "" {
 			msg = "recorded sentence: the record's handle did not close: " + err.Error()
 		}
 	}()
-	// One fold per event a check stands at, kept for the checks that share it.
-	folded := map[int64]string{}
 	reportAt := func(at int64) (string, error) {
-		if report, ok := folded[at]; ok {
-			return report, nil
-		}
 		src, err := recordsql.ReportSourceAt(db, at)
 		if err != nil {
 			return "", err
 		}
-		report, err := src.Fold(reportproj.Replay)
-		if err != nil {
-			return "", err
-		}
-		folded[at] = report
-		return report, nil
+		return src.Fold(reportproj.Replay)
 	}
 	for _, e := range fam.Events {
 		var verb, id, claim string
