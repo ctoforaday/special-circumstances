@@ -17,7 +17,7 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a close of a docketed gap or of one carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a docket motion on
+// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
 // that names no kind, a reading that names no gap to carry it, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
@@ -38,6 +38,11 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	q := w.q
 	switch b := body.(type) {
 	case *recordpb.Mint:
+		// A RETIRED ANCHOR IS IN NO DOCUMENT (ruling Retired mint): an archived mint about an anchor
+		// retired since replays as it was made, so this is the act's rule, not the record's shape.
+		if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef(), "gap"); err != nil {
+			return err
+		}
 		// THE ONE-GAP RULE IS ASKED BEFORE THE BUDGET: a reading's Mint on a sentence a gap of its
 		// class already holds is not minted (readingAct.held), so it spends no mint and the cap cannot
 		// refuse it.
@@ -47,13 +52,34 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if err := requireSupersededOffDocket(q, b); err != nil {
 			return err
 		}
+		// THE DEMAND MOVES TO THE SUCCESSOR, asked of the record the mint lands on: a retire of the
+		// ancestor's only answer can commit between the verb's read and this write. An archived
+		// supersede replays as it was recorded.
+		if err := requireSuccessorCarriesDemand(q, b); err != nil {
+			return err
+		}
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}
 		return refuseMintReportVoice(b)
+	case *recordpb.Finding:
+		// The same rule as a mint's: a finding about a retired anchor is about nothing in the report.
+		return requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef(), "finding")
+	case *recordpb.Computation:
+		// --cites NAMES A LIVE CITATION, asked in the write's transaction so a `retire --anchor` of it
+		// racing the compute cannot both land; universe records that cite a citation retired later
+		// replay unrefused.
+		return requireLiveCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice)
 	case *recordpb.Close:
 		if b.CarriedFrom == nil {
 			if err := requireNoStandingDocket(q, b.GetGapId()); err != nil {
+				return err
+			}
+			// THE LIVE-ANSWER DEMAND, ASKED OF THE RECORD THE CLOSE LANDS ON. evidence_answered can
+			// go false — a retire of the gap's only answer — so the verb's read before the write is
+			// not the answer that holds. A carry restates a closure and closes no open gap, and the
+			// replay never asks: every archived close replays as it was admitted.
+			if err := requireDemandMet(q, b.GetGapId()); err != nil {
 				return err
 			}
 		}
@@ -87,6 +113,12 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// THE RUN'S TERMINAL ACT. The verdict itself is derived and needs no defence; a motion whose
 		// gavel is the bench's, standing unruled, is a settlement the run would record without it.
 		return requireBenchMotionsRuled(q)
+	case *recordpb.Retire:
+		// L6, OF EVERY ANCHOR THE RETIRE TAKES: an anchor-alone retire and a claim retire alike, asked
+		// in the write's transaction. It is a rule of the act, not of the record's shape: universe-m37
+		// retired a citation its computation K-93f0a1a7 still applied (event 859), and its replay
+		// writes that retire as it was made.
+		return requireCitationUncited(q, b.GetAnchors())
 	case *recordpb.Cite:
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT: the tool finds the span in the
 		// cached text before it writes.

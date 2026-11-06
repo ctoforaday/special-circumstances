@@ -207,7 +207,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return recordVerification(a.fam) }},
 	{File: FileChangelog, Heading: "Claims retired", Composer: Tool,
 		From:    "the retirements on the record",
-		Path:    "Blue's `retire`, which records the claim as it stood and why it went, or the citation it took off a sentence that stays.",
+		Path:    "Blue's `retire`, which records the claim as it stood and why it went, or the citation or computation it took off a sentence that stays.",
 		compose: func(a *assembly, _ Section) string { return withdrawnClaims(a.fam) }},
 	{File: FileChangelog, Heading: "Superseded bench statements", Composer: Tool,
 		From:    "the bench's statements that a later one replaced",
@@ -688,8 +688,8 @@ func orderClaims(text ParsedText) (out []claim) {
 }
 
 // THE NOTES' LABELS ARE THE TOOL'S. The weave writes a citation's note as [^1], [^2] … in order of
-// first appearance (weaveCitations) and a computation's as [^K1], [^K2] … in record order
-// (weaveComputationRefs), into the text as it stands and beside whatever that text already holds. A
+// first appearance (weaveCitations) and a computation's as [^K1], [^K2] … in order of first
+// appearance, per document (weaveComputationRefs), into the text as it stands and beside whatever that text already holds. A
 // footnote typed by hand under a label of that shape ships next to the tool's note of the same
 // label: markdown resolves a label to one definition and report.html lists one entry for it, so
 // a reader gets one of the two notes and no sign of the other. A reference typed with no

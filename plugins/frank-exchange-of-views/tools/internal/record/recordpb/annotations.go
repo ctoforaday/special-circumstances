@@ -3,6 +3,8 @@ package recordpb
 import (
 	"fmt"
 	"slices"
+	"strings"
+	"text/template"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -72,7 +74,7 @@ func AnnotationsFromOptions(vd protoreflect.EnumValueDescriptor) ValueAnnotation
 		}
 		return DeclaredBool{true, proto.GetExtension(opts, xt).(bool)}
 	}
-	a.Means, a.DefinedTerm, a.RuledBy = str(E_Means), str(E_DefinedTerm), str(E_RuledBy)
+	a.Means, a.DefinedTerm, a.RuledBy = renderMeans(vd, str(E_Means)), str(E_DefinedTerm), str(E_RuledBy)
 	a.Neighbor, a.Distinguisher = str(E_Neighbor), str(E_Distinguisher)
 	a.Closes, a.SeatMayFile = flag(E_Closes), flag(E_SeatMayFile)
 	if proto.HasExtension(opts, E_Mass) {
@@ -89,6 +91,30 @@ func AnnotationsFromOptions(vd protoreflect.EnumValueDescriptor) ValueAnnotation
 	}
 	a.GapClasses, a.FoundSourceGapClasses = classes(E_GapClasses), classes(E_FoundSourceGapClasses)
 	return a
+}
+
+// meansValues is what a `(means)` may render: the texts stated once in Go that a meaning carries
+// word for word.
+var meansValues = map[string]string{"DemandClause": DemandClause}
+
+// renderMeans executes a `(means)` that holds `{{` over meansValues, so the generated table, and
+// every reader of a value's meaning through it (--help, a refusal, the record's vocabulary tables),
+// holds the rendered sentence; any other `(means)` returns as written. A template that does not
+// parse or names no value is a record.proto authoring error, and the generator stops on it:
+// AnnotationsFromOptions runs in vocabgen and its staleness test, never in a shipped path.
+func renderMeans(vd protoreflect.EnumValueDescriptor, means string) string {
+	if !strings.Contains(means, "{{") {
+		return means
+	}
+	t, err := template.New(string(vd.FullName())).Option("missingkey=error").Parse(means)
+	if err != nil {
+		panic(fmt.Sprintf("the (means) of %s does not parse as a template: %v", vd.FullName(), err))
+	}
+	var b strings.Builder
+	if err := t.Execute(&b, meansValues); err != nil {
+		panic(fmt.Sprintf("the (means) of %s names a value it cannot render: %v", vd.FullName(), err))
+	}
+	return b.String()
 }
 
 // annotationsOf is one value's row of the generated table.

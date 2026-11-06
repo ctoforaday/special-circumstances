@@ -189,8 +189,9 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 		}
 	}
 	// AN ID OF A KIND THE ASSEMBLY WEAVES, OR OF ANOTHER SHAPE, DEFINES NOTHING: a citation's id
-	// stands in an anchor, and a word that begins like an id is a word.
-	for _, text := range []string{"C-0000aaa1 — a source", "G20 — the summit", "G-5e10a3c — seven", "G-5e10a3c2f — nine"} {
+	// stands in an anchor, a word that begins like an id is a word, and a footnote number is the one
+	// document's that carries it.
+	for _, text := range []string{"C-0000aaa1 — a source", "G20 — the summit", "G-5e10a3c — seven", "G-5e10a3c2f — nine", "P3 — a numbered note", "K3 — a numbered note"} {
 		anchor := anchors{}
 		renderOne("### "+text+"\n", FileDocket, anchor, map[string]int{}, nil)
 		if len(anchor) != 0 {

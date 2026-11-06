@@ -68,10 +68,11 @@ var (
 			util.Prioritized(extension.NewStrikethroughParser(), 500))...),
 	)
 	// idToken matches the identifiers the record mints and every document quotes: gap, motion
-	// and finding ids, and a computation's footnote number (P1). They are the joins the single-file report
-	// made a reader scroll for. An id that matches nothing renders exactly like an id nobody else
-	// mentioned, so the id shapes are read from the kinds table, never restated.
-	idToken = regexp.MustCompile(`\b(` + anchor.IDPattern("gap", "motion", "finding") + `|P\d+)\b`)
+	// and finding ids. They are the joins the single-file report made a reader scroll for. A footnote
+	// number is no id: it belongs to the one document that carries it and joins nothing across
+	// documents. An id that matches nothing renders exactly like an id nobody else mentioned, so the
+	// id shapes are read from the kinds table, never restated.
+	idToken = regexp.MustCompile(`\b(` + anchor.IDPattern("gap", "motion", "finding") + `)\b`)
 )
 
 // CommonMark's grammar is goldmark's default parsers, and its HTML grammar is two of them: the HTML

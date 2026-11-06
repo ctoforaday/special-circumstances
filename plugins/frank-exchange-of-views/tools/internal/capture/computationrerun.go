@@ -90,7 +90,11 @@ func (p recordedComputation) bases() []string {
 // thing a reader can refuse. Enumerating the directory instead would make a computation the record
 // never recorded invisible to this audit, and a computation recorded with no artifact on disk look
 // like no computation at all: both of those are exactly the states worth reporting.
-func recordedComputations(evs []*record.Event) []recordedComputation {
+//
+// ONLY LIVE COMPUTATIONS ARE SAMPLED. A retired computation is in no document, so nothing a reader
+// is pointed at rests on it; its act is left out, and a bundle only retired acts recorded is not
+// listed (record.RetiredAnchors, the ledger's fold of a retire).
+func recordedComputations(evs []*record.Event, retired map[string]bool) []recordedComputation {
 	// A BUNDLE A SEAT RE-RAN is one with a reproduce that RAN it; a reproduce that compared against
 	// an earlier execution ran nothing.
 	rerun := map[string]bool{}
@@ -103,7 +107,7 @@ func recordedComputations(evs []*record.Event) []recordedComputation {
 	var out []recordedComputation
 	for i := range evs {
 		p, ok := recordpb.BodyAs[*recordpb.Computation](evs[i])
-		if !ok || p.GetBundleSha() == "" {
+		if !ok || p.GetBundleSha() == "" || retired[p.GetComputationId()] {
 			continue
 		}
 		k, seen := at[p.GetBundleSha()]
@@ -139,8 +143,12 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 	if err != nil {
 		return Audit{Check: "computation-rerun", Verdict: "SKIP", Detail: "the record could not be read, so no computation could be re-run — which is NOT a run whose computations reproduce"}
 	}
-	computations := recordedComputations(fam.Events)
+	retired := record.RetiredAnchors(fam.Events, fam.At)
+	computations := recordedComputations(fam.Events, retired)
 	if len(computations) == 0 {
+		if len(recordedComputations(fam.Events, nil)) > 0 {
+			return Audit{Check: "computation-rerun", Verdict: "SKIP", Detail: "every computation this run recorded is retired, so none is in a document to re-run"}
+		}
 		return Audit{Check: "computation-rerun", Verdict: "SKIP", Detail: "this run recorded no computations"}
 	}
 	if sample > len(computations) {
@@ -217,7 +225,7 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 			covered += len(p.acts)
 		}
 	}
-	detail := fmt.Sprintf("re-ran %d of %d distinct bundle(s), behind %d of the %d recorded computation(s)", ran, len(computations), covered, total)
+	detail := fmt.Sprintf("re-ran %d of %d distinct bundle(s), behind %d of the %d live computation(s)", ran, len(computations), covered, total)
 	if unaudited := countUnaudited(computations); unaudited > 0 {
 		detail += fmt.Sprintf("; %d bundle(s) had never been re-run by any seat", unaudited)
 	}

@@ -38,6 +38,10 @@ var censusExcluded = map[string]string{
 	// multi-statement Exec beginning CREATE, which the guard does not plan, and an insert of literal
 	// rows reads no table, so there is no plan to take.
 	`INSERT INTO %q (%s) VALUES (%s);`: "a line of the schema script, not a statement of its own",
+	// The arms recordsql generates from EvidenceTables into a view body: each is planned with the
+	// view it is part of (view evidence_anchor, view gap), never issued alone.
+	`SELECT x." … " AS "anchor_id", ' … ' AS "kind", ' … ' AS "check_kind", x."answers" AS "answers", x."event_id" AS "placed_event" FROM " … " x WHERE x." … " IS NOT NULL`:                                                                                                            "an arm of the evidence_anchor view's body, planned as that view",
+	`SELECT x." … " AS "anchor", ce."seat_id" AS "seat", ' … ' AS "check_kind", x."event_id" AS "event_id", ( … ) AS "holds", row_number() OVER (PARTITION BY x." … ", ce."seat_id" ORDER BY x."event_id" DESC) AS "n" FROM " … " x JOIN "events" ce ON ce."id" = x."event_id" WHERE …`: "an arm of the gap view's latest_check, planned as that view",
 }
 
 // unindexed is each walk of a growing table that no index can serve, keyed by its shapes.golden

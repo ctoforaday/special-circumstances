@@ -158,7 +158,7 @@ func newCite() *cobra.Command {
 			body.OcrTextSha = proto.String(at.loc.ReadingSha)
 		}
 		citeFields(cmd, body, why)
-		if _, err := seat.AppendPlaced(s, body, label, quote, citeRefusal); err != nil {
+		if _, err := seat.AppendPlaced(s, body, label, quote, placementRefusal(record.EvidenceNoun(label))); err != nil {
 			return nil, err
 		}
 		// WHOSE BYTES WERE CITED, as the record holds them: read back from the stored row, so blue
@@ -182,7 +182,8 @@ func newCite() *cobra.Command {
 		"The tool finds them there once — "+fetchcache.SpanNormalisation+" — and refuses one that cuts into a clause, by the boundary rule above. "+
 		"It records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. "+
 		"A source the tool holds no text for is cited without it")
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, --source-span or --reason is refused: a handle names one citation")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this citation is placed as the answer to — while it stands it answers that gap; the page says what a gap's close demands. Omit only for a citation that answers no gap")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, --source-span, --answers or --reason is refused: a handle names one citation")
 	return c
 }
 
@@ -200,6 +201,7 @@ var citeAsserted = []seat.Asserted{
 	{Flag: flags.URL, Field: "url"},
 	{Flag: flags.Title, Field: "title"},
 	{Flag: flags.SourceSpan, Field: "source_span"},
+	{Flag: flags.Answers, Field: "answers"},
 	{Flag: flags.Reason, Field: "text"},
 }
 
@@ -215,21 +217,25 @@ func citeFields(cmd *cobra.Command, body *recordpb.Cite, why string) {
 	body.Url = proto.String(seat.Str(cmd, flags.URL))
 	body.Title = proto.String(seat.Str(cmd, flags.Title))
 	body.CiteKey = proto.String(seat.Str(cmd, flags.Key))
+	body.Answers = proto.String(seat.Str(cmd, flags.Answers))
 	if seat.Given(cmd, flags.Reason) {
 		body.Text = proto.String(why)
 	}
 }
 
-// citeRefusal is the refusal `cite` gives for a quote Attach will not place, on a first call and on
-// the retry that places the anchor a first call left owed.
-func citeRefusal(err error) error {
-	switch {
-	case errors.Is(err, anchortext.ErrMisQuote):
-		return feov.Errorf(feov.Validation, "the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
-	case errors.Is(err, anchortext.ErrInFence):
-		return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — cite a prose sentence, not code")
+// placementRefusal is the refusal `cite` and `compute` give for a quote Attach will not place, on a
+// first call and on the retry that places the anchor a first call left owed, worded by the evidence
+// kind's noun (recordsql.EvidenceTables): every evidence anchor is placed one way.
+func placementRefusal(noun string) func(error) error {
+	return func(err error) error {
+		switch {
+		case errors.Is(err, anchortext.ErrMisQuote):
+			return feov.Errorf(feov.Validation, "the quoted content was not found in report.md — quote the EXACT sentence the %s backs (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing", noun)
+		case errors.Is(err, anchortext.ErrInFence):
+			return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — place a %s on a prose sentence, not code", noun)
+		}
+		return anchortext.Refusal(err)
 	}
-	return anchortext.Refusal(err)
 }
 
 type spanAt struct {

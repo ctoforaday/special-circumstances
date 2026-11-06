@@ -50,6 +50,8 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		{"an edit answering it", blue, "G1", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("a")}},
 		{"a computation answering it", blue, "G1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("P1"), Answers: proto.String("G1")}},
 		{"a judgement of a computation answering it", lens, "G1", &recordpb.Reproduce{ComputationId: proto.String("P1")}},
+		{"a citation placed as its answer", blue, "G1", &recordpb.Cite{Label: proto.String("C-1"), Answers: proto.String("G1")}},
+		{"a reading of a citation answering it", lens, "G1", &recordpb.Verify{Anchor: proto.String("C-1")}},
 		{"a fate changed on the inquiry it is anchored on", blue, "G2", fate("I1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r")},
 		{"a fate changed that the section it is anchored on prints", blue, "G4", fate("I2", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "x")},
 		{"a fate moving its inquiry out of the section it is anchored on", blue, "G4", fate("I2", recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED, "d")},
@@ -75,10 +77,15 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		at(lens, &recordpb.Finding{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Text: proto.String("G1 is wrong")}),
 		at(blue, &recordpb.BlueEdit{Old: proto.String("G1"), New: proto.String("b")}),
 		at(lens, &recordpb.Reproduce{ComputationId: proto.String("K-unknown")}),
+		// A READING NAMES ITS GAP IN carried_by AND MOVES NO TURN THERE: only its citation's answer does.
+		at(blue, &recordpb.Cite{Label: proto.String("C-2")}),
+		at(lens, &recordpb.Verify{Anchor: proto.String("C-2"), CarriedBy: proto.String("G1")}),
 		// A fate repeating its inquiry's previous record word for word.
 		at(blue, fate("I1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r")),
 	}
-	acts := gapActsOf(evs, ids)
+	// No retire is here, so no whole index is needed: a reaching retire is read off the record's rows
+	// (TestAReachingRetireIsBluesActOnTheGap).
+	acts := gapActsOf(evs, ids, WindowIndex{})
 	// A FATE THAT MOVES ITS INQUIRY CHANGES BOTH SECTIONS: the one it leaves and the one it enters.
 	for i, r := range rows {
 		if r.name == "a fate moving its inquiry out of the section it is anchored on" && !slices.ContainsFunc(acts["G5"], func(a gapAct) bool { return a.at == places[i] }) {

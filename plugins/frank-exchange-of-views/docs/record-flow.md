@@ -80,8 +80,8 @@ step: **[citations-and-bibliography.md](citations-and-bibliography.md)**. What t
   there is no file to splice and no torn-splice window.
 - **cite events ⟺ `<!--cite:-->` anchors is a strict bijection.** `blue edit` refuses a span that
   drops or splits an anchor of any kind, and `unbacked_citations` flags any divergence.
-- **The claim unit is the cite anchor** — `count-claims` counts a sentence carrying one; nothing
-  counts the assembled report.
+- **The claim unit is the evidence anchor, a citation or a computation** — `count-claims` counts
+  one claim per distinct evidence anchor per sentence; nothing counts the assembled report.
 
 ## Out of scope (separate concepts)
 

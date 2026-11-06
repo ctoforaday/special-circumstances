@@ -971,9 +971,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
 		}
 	case *recordpb.Mint:
-		// The one-gap-per-class rule, the mint budget and the report-voice refusal judge what a seat
-		// may mint next, and run on the live write alone (judgeAct); the minting seat's place on the
-		// roster is asked of every writer.
+		// The one-gap-per-class rule, the mint budget, the report-voice refusal and a retired --about
+		// anchor judge what a seat may mint next, and run on the live write alone (judgeAct); the
+		// minting seat's place on the roster is asked of every writer.
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
@@ -1061,6 +1061,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
+		// That the citation is still live is the act's to answer (judgeAct): an archived computation
+		// citing a citation retired since replays as it was made.
 		if err := requireCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
 			return err
 		}
@@ -1162,7 +1164,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 			if len(prior) == 0 {
-				return fmt.Errorf("--carried-from says gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
+				return fmt.Errorf("--carried-from says gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against, which asks the gap's live-answer demand: %s", b.GetGapId(), recordpb.DemandClause)
 			}
 			// THE EPOCH IS PART OF THE CLAIM. Any value passed once some closure existed, so a carry
 			// naming the wrong sitting was recorded as the seat's statement of where the closure
@@ -1484,7 +1486,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// claim answers the gap, and a second answer from the retire would join one repair to the gap
 		// twice.
 		if b.GetAnswers() != "" && !b.GetClaimKept() {
-			return fmt.Errorf("--answers names the gap a citation retire answers — a retire naming one citation and no claim. A claim leaves through the edit that cut it, and that edit names the gap it answers")
+			return fmt.Errorf("--answers names the gap an evidence-anchor retire answers — a retire naming one citation or computation and no claim. A claim leaves through the edit that cut it, and that edit names the gap it answers")
 		}
 		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
@@ -1628,6 +1630,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	case *recordpb.Halt:
 	case *recordpb.Certify:
 	case *recordpb.Cite:
+		// THE GAP A CITATION ANSWERS RESOLVES, as a computation's does: a dangling --answers is refused
+		// here rather than accepted and dropped at replay.
+		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+			return err
+		}
 		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool
 		// defect, not a seat's omission — so the refusal names no flag. The OCR pins are refused
 		// on any other origin: a page list on an author's own text has no reading to have been
