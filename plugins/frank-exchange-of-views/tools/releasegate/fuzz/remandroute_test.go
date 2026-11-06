@@ -181,7 +181,7 @@ func (r *runner) docketedOffTheList(role, seatID string) {
 			}
 		}
 		for _, it := range w.Sitting.Open {
-			if strings.Contains(it.What, m.GapID) && !strings.Contains(it.What, "closing") && !strings.Contains(it.What, "PASS is refused while") {
+			if itemAbout(it, m.GapID, "") && it.Kind != record.ItemKind(record.BlockerClosingOwed) {
 				r.noteActErr(fmt.Sprintf("%s's list names gap %s, with docket motion %s standing unruled on it, in an item that is no closing: %s", seatID, m.GapID, m.ID, firstLine(it.What)))
 			}
 		}
@@ -400,18 +400,18 @@ func stageOf(w record.WorkJSON, gapID string) string {
 func itemsOn(s record.SittingJSON, gapID string) []string {
 	var out []string
 	for _, it := range s.Open {
-		if strings.Contains(it.What, "gap "+gapID) {
+		if itemAbout(it, gapID, "") {
 			out = append(out, it.What)
 		}
 	}
 	return out
 }
 
-// blocksOn reports whether a blocking item on the list is the remand's on gapID: it names the gap
-// and carries the ruling's direction, which no other item does.
+// blocksOn reports whether a blocking item on the list is the remand's on gapID: a remand item about
+// the gap, carrying the ruling's direction.
 func blocksOn(s record.SittingJSON, gapID, direction string) bool {
 	for _, it := range s.Open {
-		if it.Blocks && strings.Contains(it.What, "gap "+gapID) && strings.Contains(it.What, direction) {
+		if it.Blocks && it.Kind == record.ItemKind(record.BlockerRemandOwed) && itemAbout(it, gapID, "") && strings.Contains(it.What, direction) {
 			return true
 		}
 	}

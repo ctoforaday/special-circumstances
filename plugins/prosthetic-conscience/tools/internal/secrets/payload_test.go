@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"encoding/json"
+	"math/rand"
 	"strings"
 	"testing"
 
@@ -133,5 +134,38 @@ func TestScopeIsToolInputOnly(t *testing.T) {
 	// handed tool_input alone by its caller.
 	if got, _ := ScanPayload([]byte(`{"command":"safe"}`)); len(got) != 0 {
 		t.Errorf("unexpected match: %v", got)
+	}
+}
+
+// NEITHER PASS COVERS THE OTHER, so the gate keeps both. The decoded pass alone finds a key that
+// opens a line: the wire writes the break as `\n`, and the `n` is a word character, so the key's
+// \b-anchored rule does not start there. The raw pass alone finds a value under a key NAMED like a
+// secret, because the JSON's `":"` is the separator generic-api-key reads, and the decoded pass
+// joins a key to its value with a newline. A gate that dropped either pass to save a scan lets
+// one of these through.
+func TestEachPassFindsWhatTheOtherMisses(t *testing.T) {
+	d := fullDetector(t)
+	value := st.S(rand.New(rand.NewSource(7)), st.Base62, 32)
+	for _, c := range []struct {
+		name, raw string
+		rawFinds  bool
+	}{
+		{"a field named like a secret", `{"api_key":"` + value + `"}`, true},
+		{"a key opening a line", `{"command":"` + jsonText("echo\n"+awsKey) + `"}`, false},
+	} {
+		var doc any
+		if err := json.Unmarshal([]byte(c.raw), &doc); err != nil {
+			t.Fatal(err)
+		}
+		raw, decoded := scan(d, c.raw), scan(d, strings.Join(strs(doc, nil), "\n"))
+		if c.rawFinds && (len(raw) == 0 || len(decoded) != 0) {
+			t.Errorf("%s: raw pass %v, decoded pass %v — want the raw pass alone to find it", c.name, raw, decoded)
+		}
+		if !c.rawFinds && (len(decoded) == 0 || len(raw) != 0) {
+			t.Errorf("%s: raw pass %v, decoded pass %v — want the decoded pass alone to find it", c.name, raw, decoded)
+		}
+		if got, _ := ScanPayload([]byte(c.raw)); len(got) == 0 {
+			t.Errorf("%s: the gate allowed it", c.name)
+		}
 	}
 }

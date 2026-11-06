@@ -5,7 +5,7 @@
 // NOT A HOOK AND NOT A SEAT VERB. It is spawned by the SubagentStart/SubagentStop hooks once they
 // have established there is a live run and a real seat, by the PreToolUse hook once per sitting
 // that reaches the limit and for each envelope it checks, by the PostToolUseFailure hook for a
-// seat's failed call, and by the PostToolUse hook for a seat's envelope the harness accepted — see internal/sittingwrite for why the write is a separate process, which
+// seat's failed call, and by the PostToolUse hook for a seat's envelope the harness accepted and for a lens's call that went to the record — see internal/sittingwrite for why the write is a separate process, which
 // is a frequency argument rather than a structural one.
 package main
 
@@ -22,9 +22,9 @@ import (
 func main() {
 	gcpolicy.Short()
 	run := flag.String("run", "", "the run directory whose record to append to")
-	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call), failure (a call failed) envelope (the record's answer to the call returning the seat's envelope, printed; the call's arguments on stdin) or admission (the call returning the seat's envelope succeeded, recorded as admitted)")
+	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call), failure (a call failed), envelope (the record's answer to the call returning the seat's envelope, printed; the call's arguments on stdin), admission (the call returning the seat's envelope succeeded, recorded as admitted) or next (a lens's call went to the record: what it is handed next, printed)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
-	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as (open and close)")
+	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as (open, close and next)")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
 	sitting := flag.Int("sitting", 0, "the seat's sitting that reached the limit (limit only)")
 	limit := flag.Int("limit", 0, "the per-sitting tool-call limit it reached (limit only)")
@@ -43,6 +43,9 @@ func main() {
 		}
 	case sittingwrite.Admission:
 		err = sittingwrite.WriteAdmission(*run, *agentID)
+	case sittingwrite.Next:
+		// STDOUT IS THE SEAT'S CHANNEL here as on the opening end: the PostToolUse hook passes it on.
+		err = sittingwrite.WriteNextItem(*run, *agentID, *agentType, os.Stdout)
 	case sittingwrite.Refusal, sittingwrite.Failure:
 		err = sittingwrite.WriteToolEntry(*run, sittingwrite.Phase(*phase), *agentID, *entry)
 	default:

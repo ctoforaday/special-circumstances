@@ -232,14 +232,18 @@ type InquiryJSON struct {
 	ID         string `json:"id"`
 	Question   string `json:"question"`
 	Hypothesis string `json:"hypothesis,omitempty"`
-	// Method and Reason belong to the CURRENT status, not to the inquiry: a reader pairing either
-	// with an earlier status in History would be reading the wrong account of the wrong fate.
-	Method  string   `json:"method,omitempty"`
-	Status  string   `json:"status"`
-	Reason  string   `json:"reason,omitempty"`
-	Epoch   int      `json:"epoch"`
-	History []string `json:"history,omitempty"`
-	SeatID  string   `json:"seat_id"`
+	// Method and Reason belong to the CURRENT status, not to the inquiry; each earlier fate's own
+	// account is on its step of History.
+	Method string `json:"method,omitempty"`
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+	Epoch  int    `json:"epoch"`
+	// History is every record of its fate, in order, the proposal first, each with the reason and
+	// the method that record gave: a superseded fate's account is what makes it auditable — m39's
+	// Q-d7df3d8c was abandoned at e0 and refuted at e2, and with the path as bare words no check
+	// could read why it had been set aside.
+	History []InquiryStepJSON `json:"history,omitempty"`
+	SeatID  string            `json:"seat_id"`
 	// State is the inquiry's judged state (InquiryStates): open, unchecked, wanting or sound.
 	State string `json:"state"`
 	// Check is the reason of the check that stands on it and CheckedBy its seat, both empty while
@@ -248,6 +252,15 @@ type InquiryJSON struct {
 	CheckedBy string `json:"checked_by,omitempty"`
 	// Wanting is the open material gaps about it, which hold it wanting.
 	Wanting []string `json:"wanting,omitempty"`
+}
+
+// InquiryStepJSON is one record of an inquiry's fate on the wire (InquiryStep).
+type InquiryStepJSON struct {
+	Epoch  int    `json:"epoch"`
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+	Method string `json:"method,omitempty"`
+	SeatID string `json:"seat_id"`
 }
 
 // InquiriesJSON is the wire form of the exploration space.
@@ -268,8 +281,11 @@ func InquiriesJSONOf(run Run) (InquiriesJSON, error) {
 		a := j.Inquiry
 		row := InquiryJSON{
 			ID: a.ID, Question: a.Question, Hypothesis: a.Hypothesis, Method: a.Method,
-			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History,
+			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch,
 			SeatID: a.SeatID, State: j.State(), Wanting: j.Wanting,
+		}
+		for _, s := range a.Steps {
+			row.History = append(row.History, InquiryStepJSON{Epoch: s.Epoch, Status: s.Status, Reason: s.Reason, Method: s.Method, SeatID: s.SeatID})
 		}
 		if a.Check != nil {
 			row.Check, row.CheckedBy = a.Check.Reason, a.Check.SeatID

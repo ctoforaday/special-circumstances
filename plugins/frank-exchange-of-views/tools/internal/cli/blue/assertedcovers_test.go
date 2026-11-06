@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
 // computeWrite and citeWrite are what each verb's keyed retry states, built by the verb's own writer,
@@ -19,7 +20,7 @@ func computeWrite(c *cobra.Command) proto.Message {
 
 func citeWrite(c *cobra.Command) proto.Message {
 	why, _ := seat.Reason(c)
-	return citeRetry(c, why)
+	return citeRetry(c, why, seat.Str(c, flags.SourceSpan))
 }
 
 // A KEYED RETRY RESTATES EVERY FIELD ITS VERB RECORDS FROM A FLAG. Each flag of compute and cite is

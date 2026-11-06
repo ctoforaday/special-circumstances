@@ -81,7 +81,7 @@ func roster() map[string]Seat {
 	}
 	for _, a := range flags.LensAreas {
 		// One configuration per area, named for the seat: `agent_type` attests WHICH lens sat.
-		m["red-lens-"+a] = Seat{Role: "lens", Base: "red-lens", Area: a, AgentType: AgentTypePrefix + "red-lens-" + a}
+		m["red-lens-"+a] = Seat{Role: "lens", Base: "red-lens", Area: a, AgentType: runlive.LensAgentTypePrefix + a}
 	}
 	return m
 }

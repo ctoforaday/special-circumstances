@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -352,7 +353,7 @@ func TestTheMethodIsTheLatestFatesAccount(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "a proposal holds no method") {
 		t.Fatalf("the write took a proposal carrying a method: %v", err)
 	}
-	method := func() (string, []string) {
+	method := func() (string, []record.InquiryStepJSON) {
 		t.Helper()
 		out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "inquiries", "--json")
 		if err != nil {
@@ -381,22 +382,34 @@ func TestTheMethodIsTheLatestFatesAccount(t *testing.T) {
 			t.Errorf("after recording %s with method %q the inquiry holds %q (path %v); the latest fate's method is the inquiry's", step.as, step.method, got, history)
 		}
 	}
+	// EVERY RECORD OF ITS FATE CARRIES ITS OWN ACCOUNT on --json's history, the proposal first.
+	_, history := method()
+	var methods []string
+	for _, s := range history {
+		methods = append(methods, s.Method)
+		if s.Status != "proposed" && s.Reason != "7 divides 91" {
+			t.Errorf("history step %+v does not carry the reason its record gave", s)
+		}
+	}
+	if want := []string{"", "trial division by 2, 3 and 5", "trial division by every prime up to 9", "", "trial division by 2, 3, 5 and 7"}; !slices.Equal(methods, want) {
+		t.Errorf("--json history carries methods %q, want each record's own %q", methods, want)
+	}
 	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "inquiries")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The bare view prints the latest method once, as it does the reason, and the path the fates
-	// alone: a superseded method is one blue re-recorded away, and printing it on the path ships
-	// what the record corrected.
-	if n := strings.Count(out, "trial division by 2, 3, 5 and 7"); n != 1 {
-		t.Errorf("the latest method prints %d times, want once:\n%s", n, out)
-	}
-	for _, gone := range []string{"trial division by 2, 3 and 5", "trial division by every prime up to 9"} {
-		if strings.Contains(out, gone) {
-			t.Errorf("a superseded method %q still prints:\n%s", gone, out)
+	// The bare view prints the latest method once, as it does the reason, and each superseded
+	// record's own reason and method on its step under the path, so a check can read what each
+	// fate rested on.
+	for _, m := range []string{"trial division by 2, 3, 5 and 7", "trial division by 2, 3 and 5", "trial division by every prime up to 9"} {
+		if n := strings.Count(out, m); n != 1 {
+			t.Errorf("method %q prints %d times, want once:\n%s", m, n, out)
 		}
 	}
 	if !regexp.MustCompile(`path: e\d+ proposed -> e\d+ underway -> e\d+ confirmed -> e\d+ confirmed -> e\d+ confirmed\n`).MatchString(out) {
-		t.Errorf("the path is not the fates alone:\n%s", out)
+		t.Errorf("the path is not the fates in order:\n%s", out)
+	}
+	if !regexp.MustCompile(`\n    - e\d+ underway \([^)]+\) — 7 divides 91; method: trial division by 2, 3 and 5\n`).MatchString(out) {
+		t.Errorf("the superseded underway record does not print its reason and method on its step:\n%s", out)
 	}
 }

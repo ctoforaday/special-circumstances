@@ -56,7 +56,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 	// Blocks is FALSE on every one of these: an affordance is open work, not owed work,
 	// and that distinction is the whole content of the rule this file used to split a list
 	// in half to honour.
-	add := func(what string) { out = append(out, Item{What: what}) }
+	add := func(it Item) { out = append(out, it) }
 	// A DOCKETED GAP IS OFF A PARTY'S LIST until it is ruled, apart from its closing argument (ruled by
 	// gblock 2026-10-31); the chair's arm reads every gap.
 	docketed := map[string]bool{}
@@ -76,7 +76,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// carries each open inquiry as owed instead (blueInquiryItemsOf), so it is not offered here too.
 		if seatID != blueRespondSeat {
 			for _, a := range StaleInquiriesOf(evs, win) {
-				add(fmt.Sprintf("inquiry %s is at %q and no fate has been recorded on it since epoch %d — an inquiry declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
+				add(Item{Kind: ItemStaleInquiry, Subject: about(SubjectInquiry, a.ID), What: fmt.Sprintf("inquiry %s is at %q and no fate has been recorded on it since epoch %d — an inquiry declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch)})
 			}
 		}
 		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS
@@ -90,15 +90,13 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			if docketed[id] {
 				continue
 			}
-			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
+			add(gapItem(ItemManifestOwed, id, "gap "+id+" was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author"))
 		}
 		// A LENS THAT KEPT ITS GRADE SAID WHAT ITS CHECK STILL FINDS FAILING, and that is what blue's
 		// answer still lacks — the work, not the argument for the gap, which stays on the board with
 		// the mint's reason and every regrade that moved a grade (gblock, 2026-10-18). It stays here
 		// until blue answers the gap again.
-		for _, w := range keptGradeItems(evs, win, gaps) {
-			add(w)
-		}
+		out = append(out, keptGradeItems(evs, win, gaps)...)
 	case "chair":
 		// AN OPEN GAP IS EITHER CLOSED OR DOCKETED, and until the docket was a motion this could
 		// not be said here at all — the note above used to record that "`closing` wants the
@@ -154,10 +152,10 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			// than this file's paraphrase of them. What happens next is the dispatch's, and the row
 			// says it by the plan's own predicate (routeOf).
 			if g.Remanded {
-				add(remandedGapForChair(g, blueOut))
+				add(gapItem(ItemKind(BlockerRemandOwed), g.ID, remandedGapForChair(g, blueOut)))
 				continue
 			}
-			add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
+			add(gapItem(ItemDocket, g.ID, "gap "+g.ID+" is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself"))
 		}
 	case "lens":
 		// Accepting a grade motion does not move the grade. Saying so is not doing it.
@@ -173,7 +171,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// was owed and not which way: universe-wave-b's architecture lens found the motion's
 		// dimension and proposed grade on no surface it holds, and regraded another axis upward.
 		for _, o := range regradesAfforded(evs, win, gaps, minted, seatID) {
-			add("gap " + o.GapID + " had a grade motion ACCEPTED and no regrade followed it: " + o.accepted() + " — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
+			add(gapItem(ItemRegradeOwed, o.GapID, "gap "+o.GapID+" had a grade motion ACCEPTED and no regrade followed it: "+o.accepted()+" — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence"))
 		}
 		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).
 		//
@@ -185,9 +183,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		//
 		// ON THE ORIGINATOR'S LIST, by the same rule as the regrade line above: only the minting seat
 		// re-audits and closes its gap, so this is news for that seat and noise for any other.
-		for _, w := range blueAnswers(evs, win, gaps, seatID) {
-			add(w)
-		}
+		out = append(out, blueAnswers(evs, win, gaps, seatID)...)
 		// ANOTHER LENS'S ARGUMENT ABOUT YOUR GAP REACHES YOU, because nobody else can act on it.
 		//
 		// A gap is its minter's from mint to close, so a lens that thinks another lens's gap is
@@ -202,23 +198,21 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// It stays until the minter acts on that gap after the finding — a regrade, one that keeps the
 		// grade included, or a close — so it asks for an answer, not for the finding to be
 		// acknowledged.
-		for _, w := range findingsAboutYourGaps(evs, win, gaps, minted, seatID) {
-			add(w)
-		}
+		out = append(out, findingsAboutYourGaps(evs, win, gaps, minted, seatID)...)
 	}
 	return out
 }
 
 // findingsAboutYourGaps is each finding another seat anchored to an open gap this seat minted, that
 // this seat has not acted on since.
-func findingsAboutYourGaps(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []string {
+func findingsAboutYourGaps(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []Item {
 	open := map[string]bool{}
 	for _, g := range gaps {
 		if g.Open {
 			open[g.ID] = true
 		}
 	}
-	var out []string
+	var out []Item
 	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
 		if f.minter != seatID {
 			continue
@@ -227,8 +221,8 @@ func findingsAboutYourGaps(evs []*Event, win WindowIndex, gaps []WorkGapState, m
 		if r := []rune(what); len(r) > 160 {
 			what = string(r[:160]) + "…"
 		}
-		out = append(out, f.filer+" filed a finding about your gap "+f.gap+" — "+what+
-			" — only you can act on "+f.gap+", so answer it: regrade it, close it, or keep its grade with a regrade that says why it stands")
+		out = append(out, gapItem(ItemFindingOnGap, f.gap, f.filer+" filed a finding about your gap "+f.gap+" — "+what+
+			" — only you can act on "+f.gap+", so answer it: regrade it, close it, or keep its grade with a regrade that says why it stands"))
 	}
 	return out
 }
@@ -491,7 +485,7 @@ func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID st
 		}
 		what := remandItem(g, blue)
 		if !blue {
-			out = append(out, Item{What: what})
+			out = append(out, gapItem(ItemKind(BlockerRemandOwed), g.ID, what))
 			continue
 		}
 		if acts == nil {
@@ -500,11 +494,13 @@ func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID st
 		}
 		switch {
 		case seatActedSince(acts[g.ID], seatID, g.remandRuled):
-			out = append(out, Item{What: what + " — you have recorded an act on it since the ruling, so it does not hold your sitting"})
+			out = append(out, gapItem(ItemKind(BlockerRemandOwed), g.ID, what+" — you have recorded an act on it since the ruling, so it does not hold your sitting"))
 		case dispatched < g.remandRuled:
-			out = append(out, Item{What: what + " — the ruling landed after the dispatch you are sitting for, so your next dispatch owes it"})
+			out = append(out, gapItem(ItemKind(BlockerRemandOwed), g.ID, what+" — the ruling landed after the dispatch you are sitting for, so your next dispatch owes it"))
 		default:
-			out = append(out, Item{What: what, Blocks: true})
+			it := gapItem(ItemKind(BlockerRemandOwed), g.ID, what)
+			it.Blocks = true
+			out = append(out, it)
 		}
 	}
 	return out

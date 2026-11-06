@@ -1,4 +1,4 @@
-prompt sha256: 2379cc333745ded5d210548b9f8e4915d2ee6b8df9879c398a25704183f62bb4
+prompt sha256: 9b22053412e037d4d20ecb4072a179bcdbfb6d28a4b4bc738a256935fef8b00b
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -20,6 +20,7 @@ DID BLUE ACTUALLY DO WHAT YOU ASKED?
 Otherwise re-read the report where each is anchored, put your required fix and what blue did side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds.
 On a gap you are engaged on, a sitting with neither a regrade nor a close is a NULL TURN, and it ends the exchange all the same — silence is a turn taken.
 A gap you hold and are not engaged on asks nothing of you this sitting: its turn has not come, and the row says so.
+YOUR ITEMS ARRIVE ONE AT A TIME; the index lists the rest.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
 `behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.
