@@ -873,6 +873,10 @@ func endSentence(prose string) string {
 //
 // THE SITTING IT NAMES IS THE SITTING THE RECORD HOLDS THE RETIREMENT IN (fam.At): a retirement
 // filed under a register that names a repaired sitting is shown under the sitting it names.
+//
+// THE CLAIM RENDERS WHOLE, on one line. The row is the reader's one account of the claim as it stood;
+// cut to its lead sentence, as a risk-matrix cell is (concise), a retire of two sentences lists the
+// first as withdrawn and the second nowhere.
 func withdrawnClaims(fam record.Family) string {
 	var rows []string
 	for _, e := range fam.Events {
@@ -893,10 +897,10 @@ func withdrawnClaims(fam record.Family) string {
 			if g := r.GetAnswers(); g != "" {
 				answering = ", answering **" + g + "**"
 			}
-			rows = append(rows, fmt.Sprintf("- **%s** — stays in the report; %s it stood on was retired from it%s: %s (%s #%d)", concise(claim), stoodOn(r.GetAnchors()), answering, oneLine(r.GetReason()), e.GetSeatId(), w.Sitting))
+			rows = append(rows, fmt.Sprintf("- **%s** — stays in the report; %s it stood on was retired from it%s: %s (%s #%d)", oneLine(claim), stoodOn(r.GetAnchors()), answering, oneLine(r.GetReason()), e.GetSeatId(), w.Sitting))
 			continue
 		}
-		row := fmt.Sprintf("- **%s** — %s (%s #%d)", concise(claim), oneLine(r.GetReason()), e.GetSeatId(), w.Sitting)
+		row := fmt.Sprintf("- **%s** — %s (%s #%d)", oneLine(claim), oneLine(r.GetReason()), e.GetSeatId(), w.Sitting)
 		if s := oneLine(r.GetSupersededBy()); s != "" {
 			row += "\n  - superseded by: " + s
 		}
