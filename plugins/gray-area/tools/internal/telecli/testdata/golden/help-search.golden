@@ -35,7 +35,7 @@ send to headless sessions, and slash-command and local-command text.
 Neither is the liveness word "unknown" that agents prints.
 
 A SESSION'S TITLE IS NOT IN ITS TRANSCRIPT. The name the app shows for a session
-is held by the cloud and never written to that session's own records, so a find
+is held by the cloud and never written to that session's own records, so a search
 for a title cannot return the titled session. It returns only sessions that
 printed a session list (IN result) or wrote the name down themselves (IN
 assistant), and an assistant row there is THAT session's claim about which id
@@ -46,7 +46,7 @@ search for something that was said in it.
 shows the most recent of those; on a term that appears in a seat prompt most
 unfiltered rows are exactly that:
 
-  telepathy find 'bench rul' --in assistant   what agents SAID about it
+  telepathy search 'bench rul' --in assistant   what agents SAID about it
 
 A filtered row still reports the unfiltered HITS count, so narrowing the view
 never quietly shrinks the number beside it.
@@ -82,10 +82,10 @@ them, "searched N transcripts" counts only what is on disk, and telepathy sql
 still answers for them. When every named transcript is gone, the search refuses.
 
 Usage:
-  telepathy find <term> [flags]
+  telepathy search <term> [flags]
 
 Flags:
-  -h, --help        help for find
+  -h, --help        help for search
       --in string   keep only transcripts with ANY hit in this channel, showing the most recent of those: assistant, user, peer, notification, lead, harness, thinking, tool_use, result, unknown_origin, ?
       --paths       print the transcript path under each row, for citing the record rather than summarising it
       --regex       treat the term as a regular expression rather than a literal (needed for /b word boundaries)
