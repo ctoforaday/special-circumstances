@@ -722,8 +722,12 @@ type runner struct {
 	positionRuledAt  map[string]string
 	overruledPending string
 	// positionClass is the class a heard position named, by position; one that is always material
-	// is upheld, never overruled (rulePositions).
-	positionClass map[string]string
+	// is upheld, never overruled (rulePositions). positionClassFrom is where a drawn run's rotation
+	// through the classes starts (positionClassOf), and positionsClassed counts the positions its
+	// chair has named a class on.
+	positionClass     map[string]string
+	positionClassFrom int64
+	positionsClassed  int
 	// positionFiled says the chair sitting in progress filed a position the bench hears, so the
 	// plan it relays is the one it asks for after it (chairEnvelope).
 	positionFiled bool
@@ -1569,17 +1573,28 @@ func wordsBefore(cur, id string) string {
 }
 
 // chairPosition files the chair's position: owed where its sitting withheld a PASS the plan
-// permitted, and at any other sitting the chair's to file — so it is filed there on a coin.
+// permitted, and at any other sitting the chair's to file — so it is filed there on a coin, and a
+// drawn run's chair files its first positionClassQuota whatever the coin says.
 func (r *runner) chairPosition(seatID string, owed bool) {
-	if !owed && !r.coin(30) {
+	drawn := r.forcePosition == "" && !r.forcedVerdict()
+	r.mu.Lock()
+	quotaOwed := drawn && r.positionsClassed < positionClassQuota
+	r.mu.Unlock()
+	if !owed && !r.coin(30) && !quotaOwed {
 		return
 	}
-	// A DRAWN RUN'S WITHHOLDING NAMES THE DEFECT'S CLASS on a coin, which binds the bench's hearing
-	// (gblock, 2026-11-05): a forced run's ruling is the seed's, so its chair names none.
+	// A DRAWN RUN'S POSITION NAMES THE DEFECT'S CLASS, which binds the bench's hearing of an owed one
+	// (gblock, 2026-11-05): a forced run's ruling is the seed's, so its chair names none. The class
+	// is the run's next in its rotation (positionClassOf), not a draw: one random pick per position
+	// left the sweep's coverage of the class enum to chance, and 40 runs once passed --class zero
+	// times.
 	args := []string{"--json", "position", "--seat-id", seatID, "--reason", "narrative from " + seatID}
 	class := ""
-	if owed && r.forcePosition == "" && !r.forcedVerdict() && r.coin(40) {
-		class = pick(r.rng, positionClasses())
+	if drawn {
+		r.mu.Lock()
+		class = positionClassOf(r.positionClassFrom, r.positionsClassed)
+		r.positionsClassed++
+		r.mu.Unlock()
 		args = append(args, "--class", class)
 	}
 	out, err := r.exec(args...)
@@ -6916,6 +6931,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forcePosition = positionFormOf(seed)
+	r.positionClassFrom = seed
 	r.forcePetitionSeat = petitionSeatOf(seed)
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel

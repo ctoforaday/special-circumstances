@@ -158,6 +158,20 @@ func positionClasses() []string {
 	return out
 }
 
+// positionClassQuota is how many positions a drawn run's chair files whatever its coin says, each
+// naming a class. THE SWEEP'S COVERAGE OF THE CLASS ENUM RESTS ON IT, not on the coin: a seed's
+// rotation starts quota*seed classes in (positionClassOf), so consecutive seeds' first quota
+// positions tile the enum, and the sweep tiles it twice over (TestTheSweepNamesEveryPositionClass)
+// — a forced seed, which names none, or a run cut short leaves no class unnamed.
+const positionClassQuota = 3
+
+// positionClassOf is the class a drawn run's k-th classed position names: the rotation through
+// positionClasses that starts positionClassQuota*seed classes in.
+func positionClassOf(seed int64, k int) string {
+	cs := positionClasses()
+	return cs[(int(seed)*positionClassQuota+k)%len(cs)]
+}
+
 // alwaysMaterial is whether class's material default is `always`; false for "" or an unknown word.
 func alwaysMaterial(class string) bool {
 	c, ok := record.GapClassOf(class)
@@ -536,6 +550,27 @@ func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// THE SWEEP NAMES EVERY POSITION CLASS, by construction: each class is among the first
+// positionClassQuota positions of at least two drawn seeds of the quorum sweep, so the coverage
+// gate (TestFuzzSweepTally's enum values) holds without a coin, and one short run cannot break it.
+func TestTheSweepNamesEveryPositionClass(t *testing.T) {
+	namedBy := map[string][]int64{}
+	for seed := int64(1); seed <= surfaceQuorum; seed++ {
+		if seed == unverifiedSeed || seed == verifiedSeed || positionFormOf(seed) != "" {
+			continue
+		}
+		for k := range positionClassQuota {
+			c := positionClassOf(seed, k)
+			namedBy[c] = append(namedBy[c], seed)
+		}
+	}
+	for _, c := range positionClasses() {
+		if len(namedBy[c]) < 2 {
+			t.Errorf("position class %s is among the first %d positions of drawn seeds %v of the %d-seed sweep — fewer than two, so the class's coverage rests on one run", c, positionClassQuota, namedBy[c], surfaceQuorum)
+		}
 	}
 }
 
