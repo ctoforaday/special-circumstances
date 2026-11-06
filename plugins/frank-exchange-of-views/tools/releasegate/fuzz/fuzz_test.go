@@ -5080,6 +5080,35 @@ func (r *runner) owedCitationReading() string {
 	return "supports"
 }
 
+// readsRepeatCopyAsBacking is whether this run's reading of anchorID never finds it unreachable: the
+// forced found-against run's owner is held to a refuting reading of one copy of the twice-held sentence
+// (readRepeatedSentence), and its owed check of either copy runs first in the same sitting
+// (foundAgainstSeed). An unreachable reading there puts the copy on a failed check, blue's remedy of
+// that check RETIRES the citation (fixFailed), and a retired copy's reading reads nothing at every
+// later sitting: the chain stops at "chained" on a coin the sweep's RNG shares across its runs. Once
+// the owner has made that reading, either copy draws as any citation does.
+func (r *runner) readsRepeatCopyAsBacking(anchorID string) bool {
+	return r.forceFoundAgainst && !r.foundAgainstForcedRead() && r.isRepeatedCite(anchorID)
+}
+
+// owedReadingOf is owedCitationReading for the owed check of anchorID: backing, where the run never
+// reads that citation unreachable (readsRepeatCopyAsBacking).
+func (r *runner) owedReadingOf(anchorID string) string {
+	if r.readsRepeatCopyAsBacking(anchorID) {
+		return "supports"
+	}
+	return r.owedCitationReading()
+}
+
+// citationReadingOf is citationReading for the drawn reading of anchorID: an unreachable one reads
+// backing where the run never reads that citation unreachable (readsRepeatCopyAsBacking).
+func (r *runner) citationReadingOf(anchorID, outcome string, fresh bool) string {
+	if outcome == "unreachable" && r.readsRepeatCopyAsBacking(anchorID) {
+		return "supports"
+	}
+	return r.citationReading(outcome, fresh)
+}
+
 var obsKind = []string{"reason", "checked-held"}
 
 // disputeDims is the full grade-dimension domain — the fuzz must contest each, not only impact.
@@ -6021,7 +6050,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 							// THE COPY THAT IS NOT THE WORK IS READ AND READS NOTHING (readNotTheWork).
 							r.readNotTheWork(seatID, it.Anchor)
 						} else {
-							as := r.owedCitationReading()
+							as := r.owedReadingOf(it.Anchor)
 							r.do("verify", seatID).set("--anchor", it.Anchor).
 								set("--as", as).set("--confidence", pick(r.rng, verifyConfidence)).
 								set("--reason", "fuzz: read the sentence as it now stands against its source").admit()
@@ -6099,7 +6128,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						on(60, "--access-date", "2026-07-24")
 				}
 				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
-					r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, axes)
+					r.readCitation(seatID, anchor, r.citationReadingOf(anchor, outcome, fresh), kindless, axes)
 				} else {
 					if outcome != "absent" && outcome != "unreachable" && !fresh {
 						outcome, kindless = "absent", false

@@ -339,17 +339,28 @@ func (r *runner) forcedRepeatedReading(seatID string) {
 	if !due {
 		return
 	}
-	r.readRepeatedSentence(seatID, true)
+	why := r.readRepeatedSentence(seatID, true)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if len(r.pendingAccepts) > pending {
 		r.foundAgainstRepeatedRead = true
 		r.foundAgainstStage = "chained, and read one copy of the twice-held sentence with a --new"
-	} else if r.repeatedCites[0] == "" {
-		r.foundAgainstStage = "chained; blue has not made the twice-held sentence"
-	} else {
-		r.foundAgainstStage = "chained; no reading of a copy of the twice-held sentence minted its gap with a --new"
+		return
 	}
+	r.foundAgainstStage = repeatedReadingStage(r.repeatedCites, why)
+}
+
+// repeatedReadingStage is the chain's stage after the owner's forced reading of the twice-held
+// sentence minted no gap with a --new: what readRepeatedSentence found instead (why), so the run's
+// error names the path — a retired copy, an open gap, a refusal — and not that no reading minted.
+func repeatedReadingStage(cites [2]string, why string) string {
+	switch {
+	case cites[0] == "":
+		return "chained; blue has not made the twice-held sentence"
+	case why == "":
+		return "chained; a reading of a copy of the twice-held sentence was admitted, and no gap minted with a --new was recorded for blue to accept"
+	}
+	return "chained; the owner's reading of the twice-held sentence minted no gap with a --new: " + why
 }
 
 // foundAgainstForcedErr is the run's error where foundAgainstSeed's run did not drive each path it is
@@ -838,5 +849,47 @@ func TestAForcedChainsFirstPlanReadiesItsOwnerAndNotBlue(t *testing.T) {
 					r.planReadies("blue-respond"), c.owner, r.planReadies(c.owner), r.planThisSitting["why"])
 			}
 		})
+	}
+}
+
+// A RETIRED COPY OF THE TWICE-HELD SENTENCE IS NAMED BY THE STAGE: blue retires one copy's citation
+// (what fixFailed does for a citation no check could read), and the owner's forced reading of the
+// sentence reads nothing at every later sitting — a retired citation's token stands nowhere in the
+// report. The run's error says which citation, and that it stands no times, where one message once
+// stood for every path that read nothing.
+func TestTheForcedRepeatedReadingNamesTheRetiredCopy(t *testing.T) {
+	r := stagedRunner(t)
+	r.forceFoundAgainst = true
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
+		t.Fatalf("record the lanes' parts: %v", err)
+	}
+	const blue = "blue-respond"
+	r.sit("blue", blue)
+	r.stockRepeatedSentence(blue)
+	if r.repeatedCites[0] == "" || r.repeatedCites[1] == "" {
+		t.Fatalf("blue did not make the twice-held sentence (%s)", r.actErr)
+	}
+	retired := r.repeatedCites[0]
+	if _, ok := r.do("retire", blue).set("--anchor", retired).set("--reason", "fuzz: no lens could read its source").admit(); !ok {
+		t.Fatalf("blue's retire of %s: %s", retired, r.actErr)
+	}
+	// THE CHAIN IS COMPLETE; the owner's next duty is the twice-held sentence.
+	r.foundAgainstChained = true
+	r.sit("lens", citationOwner)
+	r.forcedRepeatedReading(citationOwner)
+	if r.actErr != "" {
+		t.Fatalf("the owner's sitting: %s", r.actErr)
+	}
+	if r.foundAgainstRepeatedRead || len(r.pendingAccepts) != 0 {
+		t.Fatalf("the owner read a copy of the sentence with a --new over a retired citation (stage %q)", r.foundAgainstStage)
+	}
+	msg := forcedErrUnderTheRunLock(t, r)
+	for _, want := range []string{"the chain reached chained; the owner's reading of the twice-held sentence minted no gap with a --new: ", "citation " + retired + "'s token stands 0 time(s)"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the forced run's error %q does not say %q", msg, want)
+		}
+	}
+	if strings.Contains(msg, "no reading of a copy of the twice-held sentence minted its gap") {
+		t.Errorf("the forced run's error %q names no path", msg)
 	}
 }
