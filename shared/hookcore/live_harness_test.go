@@ -357,6 +357,11 @@ func TestLiveAntigravityContract(t *testing.T) {
 			_ = os.WriteFile(filepath.Join(fakeAgyDir, extra), data, 0600)
 		}
 	}
+	// Tool calls proceed without prompting — the setting a headless run needs, scoped to this throwaway home.
+	settingsPath := filepath.Join(fakeAgyDir, "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"toolPermission":"always-proceed"}`), 0600); err != nil {
+		t.Fatalf("write fake settings: %v", err)
+	}
 
 	// Install probe plugin into fakeHome's global plugins directory
 	pluginDir := filepath.Join(fakeHome, ".gemini", "config", "plugins", "hookprobe")
@@ -385,6 +390,11 @@ func TestLiveAntigravityContract(t *testing.T) {
 
 	hooksJSON := `{
   "probe-hooks": {
+    "SessionStart": [
+      {
+        "command": "./bin/hookprobe -event SessionStart"
+      }
+    ],
     "PreInvocation": [
       {
         "command": "./bin/hookprobe -event PreInvocation"
@@ -431,7 +441,6 @@ func TestLiveAntigravityContract(t *testing.T) {
 	cmd := exec.CommandContext(ctx, agyBin,
 		"-p", prompt,
 		"--model", "gemini-3.8-flash-low",
-		"--dangerously-skip-permissions",
 	)
 	cmd.Dir = workDir
 	var env []string
@@ -467,6 +476,32 @@ func TestLiveAntigravityContract(t *testing.T) {
 		}
 	}
 
+	// 4. Verify behavioral assertions in the single continuous session
+	if !strings.Contains(output, "BLOCKED_BY_HOOKCORE_PROBE") {
+		t.Errorf("Antigravity output missing PreToolUse block assertion: %s", output)
+	}
+	if !strings.Contains(output, "HOOKCORE_REWRITE_SUCCESS") {
+		t.Errorf("Antigravity output missing PreToolUse rewrite assertion: %s", output)
+	}
+
+	// 5. Verify that hookcore Say message arrived in transcript.jsonl
+	foundSay := false
+	for _, bDir := range newBrainDirs {
+		trFile := filepath.Join(bDir, ".system_generated", "logs", "transcript.jsonl")
+		if data, err := os.ReadFile(trFile); err == nil {
+			if strings.Contains(string(data), "HOOKCORE_SAY_NOTICE") {
+				foundSay = true
+				break
+			}
+		}
+	}
+	if !foundSay {
+		t.Errorf("expected hookcore Say message HOOKCORE_SAY_NOTICE in transcript.jsonl across %v", newBrainDirs)
+	}
+
+	// 6. Verify no hook panics occurred in cli.log
+	assertNoAgyPanics(t, fakeHome)
+
 	archiveBaseDir := getArchiveBaseDir(t)
 	timestamp := time.Now().UTC().Format("2006-01-02_150405")
 	for i, bDir := range newBrainDirs {
@@ -474,13 +509,5 @@ func TestLiveAntigravityContract(t *testing.T) {
 		archiveDir(t, bDir, archivePath)
 		t.Logf("Archived Antigravity session to %s", archivePath)
 		_ = os.RemoveAll(bDir)
-	}
-
-	// 4. Verify behavioral assertions in the single continuous session
-	if !strings.Contains(output, "BLOCKED_BY_HOOKCORE_PROBE") {
-		t.Errorf("Antigravity output missing PreToolUse block assertion: %s", output)
-	}
-	if !strings.Contains(output, "HOOKCORE_REWRITE_SUCCESS") {
-		t.Errorf("Antigravity output missing PreToolUse rewrite assertion: %s", output)
 	}
 }
