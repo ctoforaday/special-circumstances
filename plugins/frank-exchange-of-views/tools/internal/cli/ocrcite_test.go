@@ -143,10 +143,10 @@ func TestOCRCiteFindsASpanAcrossALineEndHyphen(t *testing.T) {
 	}
 }
 
-// A SPAN THE READING HOLDS TWICE IS REFUSED, so the text a lens reads around it is the place blue
-// quoted, and the refusal names the pages.
+// A SPAN THE READING HOLDS TWICE AT A BOUNDARY IS REFUSED, so the text a lens reads around it is
+// the place blue quoted, and the refusal names the pages.
 func TestOCRCiteRefusesASpanTheReadingHoldsTwice(t *testing.T) {
-	runDir, _ := ocrRun(t, []string{"integrity levels", "nothing", "the integrity\nlevels"})
+	runDir, _ := ocrRun(t, []string{"integrity levels", "nothing", "integrity\nlevels"})
 	out, err := ocrCite(t, runDir, "--source-span", "integrity levels")
 	mustRefuse(t, err, out, "holds it 2 times (on pages 1, 3)", "found once")
 	if c := firstCiteEvent(t, runDir); c != nil {

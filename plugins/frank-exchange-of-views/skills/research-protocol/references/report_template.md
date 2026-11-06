@@ -64,8 +64,8 @@
                                               section answers. No heading stands above them and this entry is not one.
                                               A [RECORD] heading of this template written into the report's text is
                                               refused in a lane's part and at every edit; the refusal says how
-                                              content reaches that section, and the report view's assembled form lists
-                                              it for all of them. -->
+                                              content reaches that section and lists every section
+                                              assembly composes. -->
 
 ## Risk matrix                           <!-- [RECORD] every open gap's grades, from the board -->
 

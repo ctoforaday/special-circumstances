@@ -60,19 +60,18 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	report := cmdAt(NewRootFor("red-lens-evidence"), []string{"show", "report"})
 	usage := func(name string) string { return report.Flags().Lookup(name).Usage }
 	for name, says := range map[string]string{
-		"window":    "ONLY with --anchor, and refused without it",
-		"anchor":    "--match, --quote and --assembled are each refused with it",
-		"assembled": "--match and --quote select its sections and print them in the --json form, with or without --json; --anchor and --window are refused beside it in either form",
-		"match":     "Refused beside --anchor. Beside --assembled it selects SECTIONS, printed in the --json form with or without --json",
-		"quote":     "Refused beside --anchor. Beside --assembled it selects SECTIONS, printed in the --json form with or without --json",
+		"window": "ONLY with --anchor, and refused without it",
+		"anchor": "--match and --quote are each refused with it",
+		"match":  "Refused beside --anchor",
+		"quote":  "Refused beside --anchor",
 	} {
 		if !strings.Contains(usage(name), says) {
 			t.Errorf("show report --%s does not say %q:\n%s", name, says, usage(name))
 		}
 	}
-	// THE BOUND IS THE REPORT'S: no other view has an anchor read or an assembled form.
+	// THE BOUND IS THE REPORT'S: no other view has an anchor read.
 	board := cmdAt(NewRootFor("red-lens-evidence"), []string{"show", "board"})
-	if u := board.Flags().Lookup("match").Usage; strings.Contains(u, "--assembled") {
+	if u := board.Flags().Lookup("match").Usage; strings.Contains(u, "Refused beside --anchor") {
 		t.Errorf("show board --match carries the report's bound:\n%s", u)
 	}
 
@@ -83,17 +82,15 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	}
 	for _, refused := range [][]string{
 		{"--window", "2"},
-		{"--assembled", "--window", "2"},
+		// The assembled set is the operator's read, and no seat's.
+		{"--assembled"},
+		{"--assembled", "--json"},
 	} {
 		if out, err := call(refused...); err == nil {
 			t.Errorf("show report %s is accepted, and the page says it is refused:\n%.200s", strings.Join(refused, " "), out)
 		}
 	}
 	for _, taken := range [][]string{
-		{"--assembled", "--json", "--match", "parser"},
-		{"--assembled", "--match", "parser"},
-		{"--assembled", "--quote", "parser"},
-		{"--assembled", "--json"},
 		{"--match", "parser"},
 		{"--json", "--quote", "parser"},
 	} {
@@ -102,20 +99,6 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 		}
 	}
 
-	// `heading` IN ITS TWO SPELLINGS, said under the field tree that lists it.
-	page := seat.HelpText(report)
-	for _, says := range []string{"`heading` IS SPELLED TWO WAYS", "bare name — `Research areas`, no `#` marks", "`## Research areas`"} {
-		if !strings.Contains(page, says) {
-			t.Errorf("show report's page does not say %q", says)
-		}
-	}
-	assembled, err := call("--assembled", "--json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(assembled, `"heading": "Research areas"`) || strings.Contains(assembled, `"heading": "## `) {
-		t.Errorf("the assembled form does not carry bare section names, which the page says it does:\n%.400s", assembled)
-	}
 	lines, err := call("--json")
 	if err != nil {
 		t.Fatal(err)

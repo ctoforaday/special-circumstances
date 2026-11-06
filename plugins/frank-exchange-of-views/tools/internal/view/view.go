@@ -782,6 +782,37 @@ func debateMD(in Input) []byte {
 			debateParts = append(debateParts, strings.Join(parts, "\n\n"))
 		}
 	}
+	// THE BENCH'S RUN-LEVEL DISPOSITION belongs to no epoch: each halt opinion, verbatim; each
+	// certification, the last the one the debate carries; and the outcome the bench recorded.
+	var disp []string
+	for _, l := range in.Events {
+		body, ok := recordpb.Body(l)
+		if !ok {
+			continue
+		}
+		switch t := body.(type) {
+		case *recordpb.Halt:
+			disp = append(disp, fmt.Sprintf("- **HALT** (%s, epoch %d)\n%s", l.GetSeatId(), in.At.Of(l).Epoch, t.GetOpinion()))
+		case *recordpb.Certify:
+			disp = append(disp, fmt.Sprintf("- **CERTIFICATION** (%s, epoch %d)\n%s", l.GetSeatId(), in.At.Of(l).Epoch, t.GetStatement()))
+		case *recordpb.Outcome:
+			basis := ""
+			if b := t.GetVerdictBasis(); b != "" {
+				basis = " (" + b + ")"
+			}
+			o := fmt.Sprintf("- **OUTCOME %s**%s (%s, epoch %d)", strings.ToUpper(recordpb.Word(t.GetVerdict())), basis, l.GetSeatId(), in.At.Of(l).Epoch)
+			if w := t.GetVerdictWhy(); w != "" {
+				o += "\nwhy: " + w
+			}
+			if p := t.GetProse(); p != "" {
+				o += "\n" + p
+			}
+			disp = append(disp, o)
+		}
+	}
+	if len(disp) > 0 {
+		debateParts = append(debateParts, "## Bench disposition\n\n"+strings.Join(disp, "\n"))
+	}
 	return []byte(strings.Join(debateParts, "\n") + "\n")
 }
 

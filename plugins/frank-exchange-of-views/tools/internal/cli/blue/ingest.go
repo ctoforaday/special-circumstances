@@ -186,8 +186,8 @@ func composedRefusal(wasText, docText string) error {
 		"NOTHING IS RECORDED by this call. HOW CONTENT REACHES IT: %s "+
 		"WHAT TO DO: take that line and what stands under it out of the report's text. What it says goes by the way above and by no other; "+
 		"only an argument of the report's own, which that way does not carry, stays in the text, under a heading of the report's own. "+
-		"`show report --assembled` lists every section of the assembled set with who composes it and how content reaches it",
-		line, s.Heading, s.File, s.From, s.Path)
+		"THE SECTIONS ASSEMBLY COMPOSES, none of which the report's text carries: %s",
+		line, s.Heading, s.File, s.From, s.Path, strings.Join(report.RefusedHeadings(), ", "))
 }
 
 // wovenNoteRefusal refuses a footnote typed by hand under a label the weave writes. The hand note

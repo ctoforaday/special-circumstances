@@ -557,13 +557,13 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   assert.ok(!/heredoc/.test(evidence) && !/curl/.test(evidence), 'the lens prompt contradicts its manual on heredocs or bypasses the shared source cache')
   assert.ok(/STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-logic')) && /STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-dark-side')), 'logic and dark-side audit the declines')
   // AN INQUIRY THAT CONTRADICTS WHAT THE READER IS TOLD IS A GAP, NOT A FINDING. The inquiries print
-  // in the report beside the body, so the reader sees both halves. The lens reads the inquiry
-  // sections as they ship before it judges one.
+  // in the report beside the body, so the reader sees both halves. The lens is told those sections
+  // are composed from the record the inquiries projection serves.
   for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
     const p = firstPrompt(world, seat)
     assert.ok(/that is a candidate gap, anchored to the inquiry/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a computation contradicts/.test(p) && /a section built on an approach that is no inquiry/.test(p),
       `${seat} is not told that an inquiry contradicting the report is a gap`)
-    assert.ok(/read them in the report's assembled form before you judge an inquiry/.test(p), `${seat} is not told to read the inquiry sections as they ship`)
+    assert.ok(/in sections the report's text does not hold, composed from the record that projection serves\./.test(p), `${seat} is not told the inquiry sections are composed from the inquiries projection`)
     assert.ok(/A finding about an inquiry reaches the logic lens, which judges every settled inquiry against its latest fate; a gap about it reaches blue, and a material one holds the PASS\./.test(p) && !/Both are findings/.test(p), `${seat} is not told where a finding and a gap about an inquiry go`)
     // AN OPEN INQUIRY IS BLUE'S BLOCKER, NOT A LENS'S FINDING.
     assert.ok(/An inquiry still open already holds the PASS until blue settles it\./.test(p) && !/a decision nobody made/.test(p), `${seat} is told an open inquiry is a finding`)

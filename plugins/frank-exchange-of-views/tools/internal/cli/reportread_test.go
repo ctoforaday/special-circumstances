@@ -50,8 +50,7 @@ func headOf(t *testing.T, runDir string) int64 {
 const servedReport = "# Costs\n\nCosts rose sharply in the first quarter.\n\nVolume grew.\n"
 
 // THE WHOLE REPORT SERVED TO A LENS IS RECORDED, ONCE PER HEAD IN A SITTING, AND NOTHING ELSE IS. Both
-// whole forms record it; a read at an anchor, a selection and the assembled set serve part of it or
-// none of its text, and record nothing; no other seat's read is a lens's pin. A head move is a new
+// whole forms record it; a read at an anchor and a selection serve part of it, and record nothing; no other seat's read is a lens's pin. A head move is a new
 // read.
 func TestTheWholeReportServedToALensIsRecordedAndNothingElseIs(t *testing.T) {
 	runDir := newRun(t)
@@ -82,14 +81,14 @@ func TestTheWholeReportServedToALensIsRecordedAndNothingElseIs(t *testing.T) {
 	head := edit("E1", "Volume grew.", "Volume grew steadily.")
 	for _, partial := range [][]string{
 		{"--anchor", id}, {"--anchor", id, "--json"}, {"--match", "Volume"}, {"--quote", "Volume grew"},
-		{"--json", "--match", "Volume"}, {"--json", "--quote", "Volume grew"}, {"--assembled"}, {"--assembled", "--json"},
+		{"--json", "--match", "Volume"}, {"--json", "--quote", "Volume grew"},
 	} {
 		show(lensSeat, partial...)
 	}
 	show("red-chair")
 	show(blueSeat, "--json")
 	if got := readsOf(t, runDir); len(got) != len(before) {
-		t.Fatalf("a read at an anchor, a selection, the assembled set or another seat's whole read recorded %+v", got[len(before):])
+		t.Fatalf("a read at an anchor, a selection or another seat's whole read recorded %+v", got[len(before):])
 	}
 
 	if out := show(lensSeat); out != readReport(t, runDir) {

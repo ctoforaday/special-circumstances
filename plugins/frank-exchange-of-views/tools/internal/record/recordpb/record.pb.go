@@ -4253,8 +4253,10 @@ type Cite struct {
 	// WHERE THE QUOTE SITS, stamped by the tool. Not `(sql).required`: that annotation teaches a flag, and no seat types these —
 	// validate refuses an unstamped origin instead.
 	//
-	// source_span is the seat's span, verbatim as typed — the source's words, which the tool found
-	// once in the cached text before it wrote. pages are the PDF page indexes of an OCR reading
+	// source_span is the source's words the citation rests on, as its locator resolved them before
+	// the tool wrote: a quoted span verbatim as typed, or the words of the lines named, their
+	// whitespace folded. The locator itself is not kept — the citation is its words from then on, so
+	// no reader can re-resolve a line number against a text read again since. pages are the PDF page indexes of an OCR reading
 	// the span sits on; ocr_engine and ocr_text_sha name WHICH reading located them, because
 	// run-archive keeps no cache and the event is the only thing that outlives it. A page is bound
 	// to that page's pixels, not to the engine: a later engine can stop finding the span, never
@@ -4267,7 +4269,8 @@ type Cite struct {
 	// WHERE THE SPAN WAS FOUND, AND WHAT THE SOURCE SAYS AROUND IT, stamped by the tool. span_start
 	// and span_end are byte offsets of the span in the text it was found in — the source's text for
 	// embedded text, the page's reading for OCR text — and span_text_sha is that text's sha256, so
-	// the offsets name bytes a re-check can open. source_before, source_matched and source_after are
+	// the offsets name bytes a re-check can open; they show where the words sat, and identify nothing.
+	// source_before, source_matched and source_after are
 	// those bytes: up to a bounded window either side, and the span exactly as the source holds it.
 	// They are what a lens reads the cited sentence against, kept on the event because run-archive
 	// keeps no cache. Blue's own wording about the source is `text`, and no reader shows the two
