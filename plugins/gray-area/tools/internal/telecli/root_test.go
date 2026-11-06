@@ -55,7 +55,7 @@ func TestAMissingStoreIsWordedNotEmpty(t *testing.T) {
 		Now:         func() time.Time { return frozen },
 	}
 	h := &harness{env: env, store: env.Store, projects: env.ProjectsDir, sessions: env.SessionsDir}
-	for _, verb := range [][]string{{"touched", "x.go"}, {"session", "abc"}, {"agents"}, {"find", "x"}} {
+	for _, verb := range [][]string{{"touched", "x.go"}, {"session", "abc"}, {"agents"}, {"search", "x"}} {
 		out, errOut, code := h.run(t, verb...)
 		if code == 0 {
 			t.Errorf("%v succeeded against a store that does not exist", verb)
@@ -138,18 +138,18 @@ func TestSQLCannotAttach(t *testing.T) {
 
 // A SEARCH THAT CANNOT RUN MUST REFUSE.
 //
-// With ripgrep absent, `find` must exit non-zero and must NOT print the same "no transcript
+// With ripgrep absent, `search` must exit non-zero and must NOT print the same "no transcript
 // contains" line it prints after a real search. The two are indistinguishable to a reader, and
 // every "nobody else touched this" built on the wrong one is a lie.
-func TestFindRefusesWithoutRipgrep(t *testing.T) {
+func TestSearchRefusesWithoutRipgrep(t *testing.T) {
 	h := newHarness(t)
 	t.Setenv("PATH", t.TempDir()) // a PATH with no rg on it
-	out, errOut, code := h.run(t, "find", "mint.go")
+	out, errOut, code := h.run(t, "search", "mint.go")
 	if code == 0 {
-		t.Fatal("find reported success with no ripgrep installed")
+		t.Fatal("search reported success with no ripgrep installed")
 	}
 	if strings.Contains(out, "no transcript contains") {
-		t.Error("find reported an empty RESULT for a search that never ran")
+		t.Error("search reported an empty RESULT for a search that never ran")
 	}
 	if !strings.Contains(errOut, "ripgrep") {
 		t.Errorf("the refusal does not name ripgrep: %q", errOut)
@@ -159,8 +159,8 @@ func TestFindRefusesWithoutRipgrep(t *testing.T) {
 	}
 }
 
-// find must also distinguish "the store names no transcripts" from "the search found nothing".
-func TestFindRefusesAnEmptyStore(t *testing.T) {
+// search must also distinguish "the store names no transcripts" from "the search found nothing".
+func TestSearchRefusesAnEmptyStore(t *testing.T) {
 	h := newColdHarness(t)
 	// A store that EXISTS and names nothing — the state a fresh install is in before any session
 	// has run, and the one most likely to be met by a first-time user.
@@ -168,9 +168,9 @@ func TestFindRefusesAnEmptyStore(t *testing.T) {
 	if _, _, code := h.run(t, "backfill"); code != 0 {
 		t.Fatal("backfill of an empty corpus should succeed")
 	}
-	out, errOut, code := h.run(t, "find", "anything")
+	out, errOut, code := h.run(t, "search", "anything")
 	if code == 0 {
-		t.Fatal("find succeeded against a store naming no transcripts")
+		t.Fatal("search succeeded against a store naming no transcripts")
 	}
 	if strings.Contains(out, "no transcript contains") {
 		t.Error("an unsearchable store was reported as a search that found nothing")
@@ -224,7 +224,7 @@ func TestEveryVerbIsDocumented(t *testing.T) {
 	}
 	// The roster itself. A verb removed by accident is as much a regression as one added
 	// undocumented, and nothing else in this package would notice.
-	want := []string{"agents", "backfill", "find", "link", "send", "session", "sql", "touched"}
+	want := []string{"agents", "backfill", "link", "search", "send", "session", "sql", "touched"}
 	if strings.Join(sorted(seen), " ") != strings.Join(want, " ") {
 		t.Errorf("the verb set is %v, want %v", sorted(seen), want)
 	}
@@ -307,15 +307,15 @@ func TestTheDefaultShownIsNotTheDefaultUsed(t *testing.T) {
 // A PATTERN THAT DOES NOT COMPILE IS NOT AN EMPTY RESULT.
 //
 // ripgrep has three exit codes and this verb used to collapse them into two: 0 matched, 1 matched
-// nothing, 2 DID NOT RUN. `find 'Mint('` took the third path — unclosed group — and printed "no
+// nothing, 2 DID NOT RUN. `search 'Mint('` took the third path — unclosed group — and printed "no
 // transcript contains", exit 0. That is the same plausible zero the missing-ripgrep branch ten
 // lines above was written to refuse, reached by a different road.
-func TestFindRefusesAPatternThatDoesNotCompile(t *testing.T) {
+func TestSearchRefusesAPatternThatDoesNotCompile(t *testing.T) {
 	if _, err := exec.LookPath("rg"); err != nil {
-		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+		t.Skip("ripgrep is not installed, so `search` cannot be exercised here — a skipped assertion, not a passing one")
 	}
 	h := newHarness(t)
-	out, errOut, code := h.run(t, "find", "--regex", "Mint(")
+	out, errOut, code := h.run(t, "search", "--regex", "Mint(")
 	if code == 0 {
 		t.Fatalf("an uncompilable pattern was reported as a completed search:\n%s", out)
 	}
@@ -331,12 +331,12 @@ func TestFindRefusesAPatternThatDoesNotCompile(t *testing.T) {
 
 // A PATTERN IS ATTRIBUTED WHERE RIPGREP MATCHED IT, like a literal. `\<` is ripgrep's word start,
 // which Go's regexp misreads — so this also proves no second engine re-finds the match.
-func TestFindRegexReportsWhoSpoke(t *testing.T) {
+func TestSearchRegexReportsWhoSpoke(t *testing.T) {
 	if _, err := exec.LookPath("rg"); err != nil {
-		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+		t.Skip("ripgrep is not installed, so `search` cannot be exercised here — a skipped assertion, not a passing one")
 	}
 	h := newHarness(t)
-	out, errOut, code := h.run(t, "find", "--regex", `\<conduct sect`, "--in", "peer")
+	out, errOut, code := h.run(t, "search", "--regex", `\<conduct sect`, "--in", "peer")
 	if code != 0 {
 		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
 	}
@@ -350,11 +350,11 @@ func TestFindRegexReportsWhoSpoke(t *testing.T) {
 	}
 }
 
-// THE CALLER'S RIPGREP CONFIG DOES NOT REACH find. A config holding --ignore-case would make a
+// THE CALLER'S RIPGREP CONFIG DOES NOT REACH search. A config holding --ignore-case would make a
 // literal's matches depend on the box it runs on — and any flag there can move the offsets.
-func TestFindIgnoresRipgrepConfig(t *testing.T) {
+func TestSearchIgnoresRipgrepConfig(t *testing.T) {
 	if _, err := exec.LookPath("rg"); err != nil {
-		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+		t.Skip("ripgrep is not installed, so `search` cannot be exercised here — a skipped assertion, not a passing one")
 	}
 	h := newHarness(t)
 	cfg := filepath.Join(t.TempDir(), "ripgreprc")
@@ -362,24 +362,24 @@ func TestFindIgnoresRipgrepConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("RIPGREP_CONFIG_PATH", cfg)
-	out, errOut, code := h.run(t, "find", "CONDUCT SECTION")
+	out, errOut, code := h.run(t, "search", "CONDUCT SECTION")
 	if code != 0 {
 		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
 	}
 	if !strings.Contains(out, "no transcript contains") {
-		t.Errorf("a ripgrep config file changed what find matched:\n%s", out)
+		t.Errorf("a ripgrep config file changed what search matched:\n%s", out)
 	}
 }
 
 // THE TERM IS A LITERAL BY DEFAULT, which is what removes the class above for the common case:
 // `Mint(` is a reasonable thing to search a Go corpus for and is not a valid regex. The fixture
 // contains it as a Grep pattern precisely so this can be asserted.
-func TestFindTreatsTheTermAsALiteralUnlessAsked(t *testing.T) {
+func TestSearchTreatsTheTermAsALiteralUnlessAsked(t *testing.T) {
 	if _, err := exec.LookPath("rg"); err != nil {
-		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+		t.Skip("ripgrep is not installed, so `search` cannot be exercised here — a skipped assertion, not a passing one")
 	}
 	h := newHarness(t)
-	out, errOut, code := h.run(t, "find", "Mint(")
+	out, errOut, code := h.run(t, "search", "Mint(")
 	if code != 0 {
 		t.Fatalf("a literal containing a regex metacharacter was refused: exit %d, %s", code, errOut)
 	}
@@ -388,8 +388,8 @@ func TestFindTreatsTheTermAsALiteralUnlessAsked(t *testing.T) {
 	}
 	// And --regex genuinely changes the meaning, rather than being a flag that does nothing.
 	// A dot matches any character as a pattern and only itself as a literal.
-	asPattern, _, _ := h.run(t, "find", "--regex", "Mint.")
-	asLiteral, _, _ := h.run(t, "find", "Mint.")
+	asPattern, _, _ := h.run(t, "search", "--regex", "Mint.")
+	asLiteral, _, _ := h.run(t, "search", "Mint.")
 	if asPattern == asLiteral {
 		t.Errorf("--regex did not change how the term is interpreted:\n%s", asPattern)
 	}

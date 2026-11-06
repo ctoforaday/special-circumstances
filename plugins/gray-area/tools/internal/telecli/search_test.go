@@ -28,7 +28,7 @@ func matchIn(path string, n int, lineStart int64, line string) ripRecord {
 }
 
 // EVERY WAY A RECORD CAN FAIL TO READ BACK IS COUNTED, one at a time and all together, and none of
-// them can become a row. A record find could not read as ripgrep matched it was dropped in silence
+// them can become a row. A record search could not read as ripgrep matched it was dropped in silence
 // — or read as `?` — and under --in that made "none has a hit in C" out of a record that might
 // have been C's.
 func TestRecordsAtCountsWhatItCannotReadBack(t *testing.T) {
@@ -145,11 +145,11 @@ func TestSettleRefusesAZeroItCouldNotRead(t *testing.T) {
 
 // RIPGREP'S OFFSETS ARE THE FILE'S RAW BYTES only under --encoding none: by default it strips a
 // UTF-8 byte-order mark and reports every offset after it three bytes short, so every record of
-// such a file would read back stale. Run through real ripgrep with exactly find's flags.
+// such a file would read back stale. Run through real ripgrep with exactly search's flags.
 func TestRipgrepOffsetsAreRawBytes(t *testing.T) {
 	rg, err := exec.LookPath("rg")
 	if err != nil {
-		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+		t.Skip("ripgrep is not installed, so `search` cannot be exercised here — a skipped assertion, not a passing one")
 	}
 	path := filepath.Join(t.TempDir(), "bom.jsonl")
 	// Line 1 is the byte-order mark and an unrelated record (it never parses, and holds no match).
@@ -177,9 +177,9 @@ func TestRipgrepOffsetsAreRawBytes(t *testing.T) {
 // INCOMPLETE — a floor under hundreds of "No such file" lines, for a corpus that was not changing.
 // The rows are the same as with the file present, the gone are stated once, the empty result
 // counts only what was on disk, and a store whose every transcript is gone refuses.
-func TestFindCountsOutTranscriptsGoneFromDisk(t *testing.T) {
+func TestSearchCountsOutTranscriptsGoneFromDisk(t *testing.T) {
 	if _, err := exec.LookPath("rg"); err != nil {
-		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+		t.Skip("ripgrep is not installed, so `search` cannot be exercised here — a skipped assertion, not a passing one")
 	}
 	h := newHarness(t)
 	transcripts := func() []string {
@@ -200,18 +200,18 @@ func TestFindCountsOutTranscriptsGoneFromDisk(t *testing.T) {
 	if err := os.Remove(filepath.Join(h.projects, "-work-delta", deltaID+".jsonl")); err != nil {
 		t.Fatal(err)
 	}
-	out, errOut, code := h.run(t, "find", "mint.go")
+	out, errOut, code := h.run(t, "search", "mint.go")
 	if code != 0 {
 		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
 	}
-	assertGolden(t, "find-hit", out)
+	assertGolden(t, "search-hit", out)
 	if !strings.Contains(errOut, "1 transcript(s) the store names are no longer on disk") ||
 		strings.Contains(errOut, "INCOMPLETE") || strings.Contains(errOut, "No such file") {
 		t.Errorf("one transcript gone: stderr %q — want it counted once and no INCOMPLETE", errOut)
 	}
 
 	// The worded empty result counts the transcripts that WERE searched, not the ones named.
-	out, _, code = h.run(t, "find", "no-such-term-anywhere")
+	out, _, code = h.run(t, "search", "no-such-term-anywhere")
 	want := fmt.Sprintf("searched %d transcripts", len(all)-1)
 	if code != 0 || !strings.Contains(out, want) {
 		t.Errorf("empty result with one gone: exit %d, stdout %q — want %q", code, out, want)
@@ -223,7 +223,7 @@ func TestFindCountsOutTranscriptsGoneFromDisk(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	out, errOut, code = h.run(t, "find", "mint.go")
+	out, errOut, code = h.run(t, "search", "mint.go")
 	if code == 0 || !strings.Contains(errOut, "nothing to search") || strings.Contains(out, "no transcript contains") {
 		t.Errorf("every transcript gone: exit %d, stdout %q, stderr %q — want a refusal", code, out, errOut)
 	}
