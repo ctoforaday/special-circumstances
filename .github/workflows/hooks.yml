@@ -30,7 +30,7 @@ permissions:
 # THE CAP ON EACH JOB'S GO BUILD CACHE, in MiB on disk, which .github/actions/go-cache trims to
 # before main's nightly saves it. A trim first drops everything the run did not use, so the cap
 # binds only on a job whose own working set outgrows it. Each trim prints what it kept against
-# the cap; those lines, beside the repository's 10 GB cache allowance, are what to size it by.
+# the cap; go-cache-prune's line states what all of them come to against the repository's 10 GB.
 env:
   GO_CACHE_MAX_MIB: "2048"
 
@@ -1147,14 +1147,64 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          cache: ${{ github.event_name != 'push' }}
-          cache-dependency-path: |
-            shared/go.mod
+          # The Go build cache is .github/actions/go-cache's: the next step restores it.
+          cache: false
           go-version: "1.27"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: restore
+          # The module has no go.sum: it requires nothing outside the standard library.
+          dependency-files: |
+            shared/go.mod
       - run: go test ./...
       - run: go test -race -timeout=30m ./...
         env:
           CGO_ENABLED: "1"
+      - uses: ./.github/actions/go-cache
+        with:
+          phase: save
+
+  go-cache-prune:
+    # ONE GO BUILD CACHE PER JOB, NOT ONE PER NIGHT. Every save key ends in the run id, so each
+    # nightly adds a whole new set (~3.5 GB compressed) beside the last, and GitHub evicts by LRU
+    # past 10 GB — two sets plus the OCR C stack is ~7.5 GB with no room for anything else.
+    # After the saves, this deletes every main-scoped go- entry but the newest per OS and job;
+    # a job that failed tonight saved nothing, so its previous entry is the newest and stays.
+    # Grouping on OS and job, not the full lineage, also drops a lineage the key has moved off.
+    #
+    # ITS OWN JOB because deleting a cache needs actions: write, and every saving job runs the
+    # repository's tests; this one checks nothing out and runs only gh.
+    needs: [vet, test, feov-record, gray-area, shared, scripts, goldens, debate-sim]
+    if: >-
+      !cancelled() && github.ref == 'refs/heads/main'
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+    steps:
+      - name: Keep the newest Go build cache per OS and job; report the total
+        working-directory: ${{ runner.temp }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh cache list --ref refs/heads/main --key go- --limit 1000 --json id,key,createdAt > go.json
+          # go-<os>-<job>-<go version>-<hash>-<run id>-<attempt>: the group is all but the last four.
+          jq -r 'map(. + {group: (.key | split("-") | .[:-4] | join("-"))}) | group_by(.group)
+            | map(sort_by(.createdAt) | .[:-1][]) | .[] | "\(.id) \(.key)"' go.json > stale.txt
+          while read -r id key; do
+            echo "deleting $key"
+            gh cache delete "$id"
+          done < stale.txt
+          gh cache list --limit 1000 --json key,sizeInBytes > all.json
+          total=$(jq -r '[.[].sizeInBytes] | add // 0 | . / 1048576 | floor' all.json)
+          gocaches=$(jq -r '[.[] | select(.key | startswith("go-")) | .sizeInBytes] | add // 0 | . / 1048576 | floor' all.json)
+          line="go-cache: deleted $(wc -l < stale.txt) superseded; Go build caches ${gocaches} MiB of ${total} MiB in the repository's caches (compressed; LRU eviction past 10 GB)"
+          echo "$line"
+          echo "$line" >> "$GITHUB_STEP_SUMMARY"
 
   fetch-bin-platforms:
     # The hooks' fetcher, driven the way a guard drives it, on each OS a consumer runs: the uname
