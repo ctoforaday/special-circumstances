@@ -143,6 +143,10 @@ type runTally struct {
 	CopiesRead                      map[string]map[string]int `json:"copies_read"`
 	FragmentsDriven                 int                       `json:"fragments_driven"`
 	TruncationsDriven               int                       `json:"truncations_driven"`
+	LineCites                       int                       `json:"line_cites"`
+	BothRefused                     int                       `json:"both_locators_refused"`
+	NeitherRefused                  int                       `json:"no_locator_refused"`
+	PastTextRefused                 int                       `json:"lines_past_text_refused"`
 	QuotesRefused                   int                       `json:"quotes_refused"`
 	BridgesRefused                  int                       `json:"bridges_refused"`
 	BridgesNamed                    int                       `json:"bridges_named"`
@@ -246,7 +250,7 @@ func tallyOf(o outcome) runTally {
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
 		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
 		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, BareEvidenceRefused: o.bareEvidenceRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
-		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, QuotesRefused: o.quotesRefused,
+		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, LineCites: o.lineCites, BothRefused: o.bothRefused, NeitherRefused: o.neitherRefused, PastTextRefused: o.pastTextRefused, QuotesRefused: o.quotesRefused,
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
 		ReopenedPlans: o.reopenedPlans, UnsoundReadied: o.unsoundReadied, UnsoundPlans: o.unsoundPlans,
 		UnsoundAnswers: o.unsoundAnswers, UnsoundRepeats: o.unsoundRepeats, UnsoundOverOpen: o.unsoundOverOpen,
@@ -601,6 +605,8 @@ type sweepFold struct {
 	positionsUpheldLens, positionsUpheldGaps        int
 	positionsOverruled                              int
 	fragmentsDriven, truncationsDriven              int
+	lineCites                                       int
+	bothRefused, neitherRefused, pastTextRefused    int
 	reopenedReadied, reopenedPlans                  int
 	computationReopenedReadied, owedKeptBy          map[string]int
 	owedKept, computationOwedKept                   int
@@ -735,6 +741,10 @@ func foldRuns(runs []runTally) sweepFold {
 		}
 		f.fragmentsDriven += r.FragmentsDriven
 		f.truncationsDriven += r.TruncationsDriven
+		f.lineCites += r.LineCites
+		f.bothRefused += r.BothRefused
+		f.neitherRefused += r.NeitherRefused
+		f.pastTextRefused += r.PastTextRefused
 		f.quotesRefused += r.QuotesRefused
 		f.bridgesRefused += r.BridgesRefused
 		f.bridgesNamed += r.BridgesNamed
@@ -1113,6 +1123,16 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		if f.truncationsDriven == 0 {
 			t.Errorf("fuzz drove ZERO cites of a span ending mid-clause across %d runs — the refusal that keeps a span stopped before its clause ends off the record is unexercised (false green)", f.completed)
+		}
+		// THE LINE-LOCATOR GATE. A citation names its words by quoting them or by line; every second
+		// held cite is by line, and each drives one ill-formed locator first.
+		if f.lineCites == 0 {
+			t.Errorf("fuzz admitted ZERO cites naming their words by line across %d runs — the line locator is unexercised (false green)", f.completed)
+		}
+		for name, n := range map[string]int{"both locators at once": f.bothRefused, "no locator": f.neitherRefused, "lines past the text's end": f.pastTextRefused} {
+			if n == 0 {
+				t.Errorf("fuzz drove ZERO cites with %s across %d runs — that locator refusal is unexercised (false green)", name, f.completed)
+			}
 		}
 		// THE REPORT'S-SENTENCE GATE. The lens drive quotes a real span of the report under every
 		// outcome, so the refusal of a quote the report does not hold is reached only by the drive

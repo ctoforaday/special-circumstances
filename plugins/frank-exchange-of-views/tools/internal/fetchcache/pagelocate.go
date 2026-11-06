@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -123,8 +124,8 @@ type spanText struct {
 // span may be typed either way; and a typographic form of a keyboard character is that character
 // (typoFold) — a seat types ' where the page sets ’, and the glyph is typesetting, not a word the
 // source holds. Case, letters and every other punctuation mark must match: a misread is exactly
-// what an audit has to see. There is no minimum length; a span the text holds twice is refused
-// instead, so the text kept around it is the place blue quoted.
+// what an audit has to see. There is no minimum length; a span the text holds twice at a boundary
+// is refused instead, so the text kept around it is the place blue quoted.
 //
 // A SPAN STARTS AND ENDS WHERE THE SOURCE STARTS AND ENDS A SENTENCE OR A CLAUSE (SpanBoundary).
 // A fragment cut from inside a clause can drop its subject and read the other way — "when n is
@@ -139,20 +140,10 @@ func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error
 	if err != nil {
 		return SpanLocation{}, err
 	}
-	loc := SpanLocation{}
-	if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR {
-		loc.Engine, loc.ReadingSha = rec.Engine, rec.TextSha
-	}
-
 	if h, found, err := locateOnce(texts, span); err != nil {
 		return SpanLocation{}, err
 	} else if found {
-		loc.Start, loc.End, loc.TextSha = h.start, h.end, h.t.sha
-		if h.t.page > 0 {
-			loc.Pages = []int{h.t.page}
-		}
-		loc.Before, loc.Matched, loc.After = window(h.t.text, h.start, h.end)
-		return loc, nil
+		return placedAt(origin, rec, h), nil
 	}
 
 	want := fold(span, hyphenAsIs).s
@@ -211,8 +202,11 @@ func sourceTexts(run record.Run, e Entry) ([]spanText, recordpb.SourceTextOrigin
 }
 
 // locateOnce finds span once in texts under each hyphen reading in turn, the first that finds it
-// deciding: found is false when no reading finds it anywhere, and a span found more than once, or
-// found once and cutting into a clause, is refused.
+// deciding: found is false when no reading finds it anywhere. A place counts only where the span
+// starts and ends at a boundary (ruled by gblock 2026-11-06, for every source): a placement cut into
+// a clause is not the span quoted, and counting it refuses a span cite could take at one place only.
+// A span placed at a boundary more than once is refused as repeated, and one placed at none as
+// cutting into a clause.
 func locateOnce(texts []spanText, span string) (spanHit, bool, error) {
 	for _, mode := range []hyphenMode{hyphenAsIs, hyphenJoined, hyphenKept} {
 		want := fold(span, mode).s
@@ -228,16 +222,28 @@ func locateOnce(texts []spanText, span string) (spanHit, bool, error) {
 				from += i + 1
 			}
 		}
-		switch {
-		case len(hits) > 1:
-			return spanHit{}, false, fmt.Errorf("%w: the source's text holds it %d times%s; quote enough of the sentence that it is found once",
-				ErrSpanRepeated, len(hits), pagesOf(hits))
-		case len(hits) == 1:
-			h := hits[0]
+		if len(hits) == 0 {
+			continue
+		}
+		var placed []spanHit
+		var cut error
+		for _, h := range hits {
 			if err := spanAtBoundaries(h.t.text, h.start, h.end); err != nil {
-				return spanHit{}, false, err
+				cut = cmp.Or(cut, err)
+				continue
 			}
-			return h, true, nil
+			placed = append(placed, h)
+		}
+		switch {
+		case len(placed) > 1:
+			return spanHit{}, false, fmt.Errorf("%w: the source's text holds it %d times%s; quote enough of the sentence that it is found once",
+				ErrSpanRepeated, len(placed), pagesOf(placed))
+		case len(placed) == 1:
+			return placed[0], true, nil
+		case len(hits) > 1:
+			return spanHit{}, false, fmt.Errorf("the source's text holds it %d times%s and each cuts into a unit; the first: %w", len(hits), pagesOf(hits), cut)
+		default:
+			return spanHit{}, false, cut
 		}
 	}
 	return spanHit{}, false, nil
