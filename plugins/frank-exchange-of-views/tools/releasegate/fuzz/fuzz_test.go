@@ -331,6 +331,9 @@ type runner struct {
 	// sittingAgent is the agent id of each seat's open sitting, where its opening carried one
 	// (registerTwice, lookThenRegister): the agent whose stop dispatchReturns writes.
 	sittingAgent map[string]string
+	// lensHead is the key of the item each lens sitting was last handed as current by the writer's next
+	// phase (queueHolds), by seat and sitting.
+	lensHead map[string]string
 	// unreturned counts, per seat, the dispatches opened (dispatchOpens) that have not yet returned
 	// (dispatchReturns), whether or not the sitting's opening carried an agent. It counts DISPATCHES,
 	// not registers: a seat a drive registers between dispatches (register, from closeGap or
@@ -2725,6 +2728,14 @@ func (r *runner) noteBridge(seatID, outcome string, kindless bool, out string, e
 	case !kindless && err == nil:
 		r.bridgesNamed++
 	}
+}
+
+// bridgeRefusalOwed reports whether this run has yet to see a kindless supports_with_bridge reading
+// refused.
+func (r *runner) bridgeRefusalOwed() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bridgesRefused == 0
 }
 
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
@@ -5726,6 +5737,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
+		r.queueHolds(seatID)
 		r.docketedOffTheList("lens", seatID)
 		r.auditRead(seatID)
 		r.checkAnchorOffers(seatID)
@@ -5733,6 +5745,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.forcedSourceDemand(seatID)
 		leftClosed := r.closeLifecycleLeftOpen(seatID)
 		r.closeDocketed(seatID)
+		// AFTER ACTS, THE SAME SITTING: what it was handed moves only where its acts discharged it.
+		r.queueHolds(seatID)
 		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
 		locked := r.lensMovesBenchAxis(seatID)
 		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
@@ -5962,8 +5976,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					r.readRepeatedSentence(seatID, false)
 				}
 				r.forcedRepeatedReading(seatID)
-				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
-				kindless := outcome == "supports_with_bridge" && r.coin(10)
+				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven. Until this
+				// run has seen the refusal, every supports_with_bridge reading names none, so the
+				// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
+				// enough to fail it by chance.
+				kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
 				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
 				axes := func(outcome string, c *cmd) *cmd {
 					if outcome == "supports_with_bridge" && !kindless {
@@ -7096,28 +7113,43 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 	}
-	// THE ASSEMBLED LAYOUT, for every role and in both forms, over whatever record the sweep reached.
-	// The layout assembles the set and slices it by the table's rows, so each claim it makes is
-	// checked against the other: a section it says ships carries text, one it says does not carries
-	// none, and the report's own text holds no section the tool composes — the write refuses one,
-	// and a generator here that wrote one would have its ingest or edit refused.
-	for _, sid := range []string{"blue-respond", "red-lens-evidence", "red-chair", "judge", seatclass.LaneSeatPrefix + "1"} {
-		if out, err := drive(bin, "show", "report", "--assembled", "--run", runDir, "--seat-id", sid); err != nil || !strings.Contains(string(out), "## Risk matrix") {
-			res.err = sid + " show report --assembled failed, or lists no risk matrix:\n" + truncate(string(out))
-			return res
-		}
-		out, err := drive(bin, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", sid)
+	// THE ASSEMBLED LAYOUT IS THE OPERATOR'S, in both forms and selected, over whatever record the
+	// sweep reached. The layout assembles the set and slices it by the table's rows, so each claim it
+	// makes is checked against the other: a section it says ships carries text, one it says does not
+	// carries none, and the report's own text holds no section the tool composes — the write refuses
+	// one, and a generator here that wrote one would have its ingest or edit refused.
+	if out, err := drive(bin, "ops", "assembled", "--run", runDir, "--seat-id", "operator"); err != nil || !strings.Contains(string(out), "## Risk matrix") {
+		res.err = "ops assembled failed, or lists no risk matrix:\n" + truncate(string(out))
+		return res
+	}
+	{
+		out, err := drive(bin, "ops", "assembled", "--json", "--run", runDir, "--seat-id", "operator")
 		var layout reportdoc.LayoutJSON
 		if err != nil || json.Unmarshal(out, &layout) != nil || len(layout.Sections) != len(reportdoc.Sections()) {
-			res.err = sid + " show report --assembled --json is not the layout, a row for each section of the table:\n" + truncate(string(out))
+			res.err = "ops assembled --json is not the layout, a row for each section of the table:\n" + truncate(string(out))
 			return res
 		}
 		for _, sec := range layout.Sections {
 			if sec.Ships != (sec.Text != "") || sec.Path == "" || sec.From == "" {
-				res.err = fmt.Sprintf("%s show report --assembled --json: section %q ships=%v with %d byte(s) of text, from %q, path %q",
-					sid, sec.Heading, sec.Ships, len(sec.Text), sec.From, sec.Path)
+				res.err = fmt.Sprintf("ops assembled --json: section %q ships=%v with %d byte(s) of text, from %q, path %q",
+					sec.Heading, sec.Ships, len(sec.Text), sec.From, sec.Path)
 				return res
 			}
+		}
+		for _, sel := range [][]string{{"--match", "risk matrix"}, {"--quote", "Risk matrix"}} {
+			args := append([]string{"ops", "assembled"}, sel...)
+			out, err := drive(bin, append(args, "--run", runDir, "--seat-id", "operator")...)
+			if err != nil || !strings.Contains(string(out), `"Risk matrix"`) {
+				res.err = strings.Join(args, " ") + " selected no Risk matrix section:\n" + truncate(string(out))
+				return res
+			}
+		}
+	}
+	// NO SEAT READS IT: every role's `show report` refuses the assembled form, and nothing is served.
+	for _, sid := range []string{"blue-respond", "red-lens-evidence", "red-chair", "judge", seatclass.LaneSeatPrefix + "1"} {
+		if out, err := tracked(bin, "show", "report", "--assembled", "--run", runDir, "--seat-id", sid); err == nil {
+			res.err = sid + " show report --assembled SUCCEEDED: the assembled set is the operator's read, refused to every seat:\n" + truncate(string(out))
+			return res
 		}
 	}
 	if out, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {

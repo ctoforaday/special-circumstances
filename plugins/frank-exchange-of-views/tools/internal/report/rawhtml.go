@@ -50,7 +50,7 @@ package report
 // prints each `&lt;` ship wrote as the `<` typed, but one a bare URL runs into. A viewer that does not
 // parse the file as CommonMark finds no `<` in its prose either; what it takes for code is its own.
 //
-// The seat-facing views — `show report --assembled` (Layout), `show inquiries` — print the
+// The views — the operator's `ops assembled` (Layout) and a seat's `show inquiries` — print the
 // record's text as written, because a seat quotes and edits it. report.html never reads the shipped
 // text: it renders through pageReader (md.go) and an allowlist after it (site.go).
 

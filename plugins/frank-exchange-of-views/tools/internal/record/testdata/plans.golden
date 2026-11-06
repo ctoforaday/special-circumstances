@@ -1411,6 +1411,10 @@
 -- INSERT INTO "retire" ("event_id", "claim", "reason", "removal_basis", "claim_kept") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 25ece2097c8f
+-- INSERT INTO "retire" ("event_id", "claim", "reason", "superseded_by") VALUES (?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 4b540c256338
 -- INSERT INTO "retire" ("event_id", "claim", "reason", "superseded_by", "claim_kept", "answers") VALUES (?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -6163,8 +6167,8 @@
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt d32c7dcb000f
--- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."type" IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ORDER BY e."id"
+== stmt 71c0c01dcaae
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."type" IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ORDER BY e."id"
   SEARCH e USING INDEX events_type (type=?)
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN

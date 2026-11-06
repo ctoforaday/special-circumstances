@@ -727,7 +727,14 @@ type WorkJSON struct {
 	// Relief is every granted petition's order, with whom it binds — on every seat's list, as the
 	// declarations are. See ReliefJSON.
 	Relief []ReliefJSON `json:"relief"`
+	// sitting is the reader's latest sitting on the record this list was read from (WindowIndex
+	// LatestSittingOf), 0 where it has none: what a delivery of the list one item at a time keys its
+	// state by, and nothing the seat reads.
+	sitting int64
 }
+
+// SittingID is the reader's latest sitting on the record the list was read from, 0 where it has none.
+func (w WorkJSON) SittingID() int64 { return w.sitting }
 
 // GapBackingJSON is one anchor in a gap's location, and what the record knows about it.
 //
@@ -1549,6 +1556,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		}
 	}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
+	w.sitting = win.LatestSittingOf(seatID)
 	if role == "lens" {
 		// The lens arm of the sitting's list states these in a sentence (availableOf); the fields
 		// are the same reader's rows, joined to the gap they are about.
@@ -1570,13 +1578,13 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		// it follows the statement that the list is empty where SittingOf made one.
 		w.Sitting.MintBudget = budget
 		if budgetLine != "" {
-			w.Sitting.Open = append(w.Sitting.Open, Item{What: budgetLine})
+			w.Sitting.Open = append(w.Sitting.Open, Item{What: budgetLine, Kind: ItemBudget})
 		}
 	}
 	if role == "bench" || role == "chair" {
 		// LAST, AND NEVER BLOCKING, like the lens's budget: a fact about the run, not work. The two
 		// seats that rule are the two whose prompts send them to the law.
-		w.Sitting.Open = append(w.Sitting.Open, Item{What: lawLine(run)})
+		w.Sitting.Open = append(w.Sitting.Open, Item{What: lawLine(run), Kind: ItemLaw})
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
 	w.Engaged = engagedOf(evs, win, gaps, seatID)
@@ -1852,6 +1860,39 @@ func LogJSONBytes(run Run) ([]byte, error) { return logView.jsonBytes(run) }
 // renderings of one replay cannot drift.
 type DebateJSON struct {
 	Epochs []DebateEpochJSON `json:"epochs"`
+	// Bench is the run-level disposition: the bench's halt opinions, its certifications and the
+	// outcome it recorded. They belong to no epoch, so they stand beside the epochs.
+	Bench DebateBenchJSON `json:"bench"`
+}
+
+// DebateBenchJSON is the bench's run-level acts, each in record order. NOT omitempty: `[]` is "the
+// bench recorded none", and a null outcome is "no outcome on the record yet".
+type DebateBenchJSON struct {
+	// Halts is each halt opinion, relayed verbatim.
+	Halts []DebateBenchStatementJSON `json:"halts"`
+	// Certifications is each certification statement; the last one is the one the debate carries,
+	// and each earlier one is superseded.
+	Certifications []DebateBenchStatementJSON `json:"certifications"`
+	// Outcome is the run's outcome as the bench recorded it.
+	Outcome *DebateOutcomeJSON `json:"outcome"`
+}
+
+// DebateBenchStatementJSON is one run-level statement of the bench's: the seat, its epoch and the text.
+type DebateBenchStatementJSON struct {
+	SeatID string `json:"seat_id"`
+	Epoch  int    `json:"epoch"`
+	Text   string `json:"text"`
+}
+
+// DebateOutcomeJSON is the outcome on the record: the verdict, its basis (`derived` from the record
+// or `asserted` by the bench), the derivation's reason, and the bench's account of how the run ended.
+type DebateOutcomeJSON struct {
+	SeatID       string `json:"seat_id"`
+	Epoch        int    `json:"epoch"`
+	Verdict      string `json:"verdict"`
+	VerdictBasis string `json:"verdict_basis"`
+	VerdictWhy   string `json:"verdict_why"`
+	Prose        string `json:"prose"`
 }
 
 // DebateEpochJSON mirrors one `## Epoch N` block of render.go. EVERY LIST IS ALWAYS PRESENT, possibly
@@ -1927,7 +1968,20 @@ type DebateOpinionJSON struct {
 //
 // The archive is the board's, for the count each spot-check is read against.
 func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) DebateJSON {
-	out := DebateJSON{Epochs: []DebateEpochJSON{}}
+	out := DebateJSON{Epochs: []DebateEpochJSON{},
+		Bench: DebateBenchJSON{Halts: []DebateBenchStatementJSON{}, Certifications: []DebateBenchStatementJSON{}}}
+	for _, e := range evs {
+		w := win.Of(e)
+		switch b := mustBody(e).(type) {
+		case *recordpb.Halt:
+			out.Bench.Halts = append(out.Bench.Halts, DebateBenchStatementJSON{SeatID: e.GetSeatId(), Epoch: w.Epoch, Text: b.GetOpinion()})
+		case *recordpb.Certify:
+			out.Bench.Certifications = append(out.Bench.Certifications, DebateBenchStatementJSON{SeatID: e.GetSeatId(), Epoch: w.Epoch, Text: b.GetStatement()})
+		case *recordpb.Outcome:
+			out.Bench.Outcome = &DebateOutcomeJSON{SeatID: e.GetSeatId(), Epoch: w.Epoch, Verdict: recordpb.Word(b.GetVerdict()),
+				VerdictBasis: b.GetVerdictBasis(), VerdictWhy: b.GetVerdictWhy(), Prose: b.GetProse()}
+		}
+	}
 
 	epochOrder := append([]int{}, epochs...)
 	byEpoch := map[int][]*Event{}
@@ -2071,7 +2125,11 @@ var debateView = declareNarrowedView("debate", func(q recordsql.Querier, evs []*
 	// overlaid by every earlier regrade (KeptGrades).
 	recordpb.EventType_EVENT_TYPE_MINT,
 	recordpb.EventType_EVENT_TYPE_REGRADE,
-	recordpb.EventType_EVENT_TYPE_REPORT_READ)
+	recordpb.EventType_EVENT_TYPE_REPORT_READ,
+	// The bench's run-level disposition (DebateBenchJSON).
+	recordpb.EventType_EVENT_TYPE_HALT,
+	recordpb.EventType_EVENT_TYPE_CERTIFY,
+	recordpb.EventType_EVENT_TYPE_OUTCOME)
 
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) { return debateView.jsonBytes(run) }

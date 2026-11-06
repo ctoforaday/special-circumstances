@@ -292,7 +292,7 @@ func (v EvidenceVerificationJSON) FindsAgainst() bool {
 // A RETIRED ANCHOR IS IN NO DOCUMENT, AND NOT IN THESE LISTS OR COUNTS EITHER: Sources and
 // Computations hold the live anchors, as evidence.md does, so the table and the document a reader
 // gets agree on what backs the report. A retired anchor is read at its id (EvidenceAt), which says it
-// is retired and by which retire.
+// is retired and by which retire; every retire itself is listed in Retires.
 type EvidenceJSON struct {
 	Sources      []EvidenceSourceJSON      `json:"sources"`
 	Computations []EvidenceComputationJSON `json:"computations"`
@@ -311,7 +311,11 @@ type EvidenceJSON struct {
 	// sentence the report no longer carries, which is stale, not refuted. It is the standing set: a
 	// check removes the row. It holds a PASS (passBlockersOf).
 	Unchecked []EvidenceUncheckedJSON `json:"unchecked"`
-	Counts    struct {
+	// Retires is every retire on the record, in record order: a claim that left the report, and a
+	// citation or computation taken off a sentence that stays (`claim_kept`). It is the changelog's
+	// "Claims retired", read as the record holds it. NOT omitempty: `[]` is "blue retired nothing".
+	Retires []EvidenceRetireJSON `json:"retires"`
+	Counts  struct {
 		Sources      int `json:"sources"`
 		Computations int `json:"computations"`
 		// ComputationsUnverified is the count whose `verified` is false: the script not reproduced, or the
@@ -329,6 +333,22 @@ type EvidenceJSON struct {
 		SourcesRefuted int `json:"sources_refuted"`
 		Verifications  int `json:"verifications"`
 	} `json:"counts"`
+}
+
+// EvidenceRetireJSON is one retire: its events.id, its seat and epoch, the claim as it stood and why
+// it went, what superseded it, whether the sentence stays with only its evidence taken off it, the
+// anchors it took out, and how far the record shows the claim leaving (`removal_basis`: verified,
+// asserted, or "" on a retire whose sentence stays).
+type EvidenceRetireJSON struct {
+	Event        int64    `json:"event"`
+	SeatID       string   `json:"seat_id"`
+	Epoch        int      `json:"epoch"`
+	Claim        string   `json:"claim"`
+	Reason       string   `json:"reason"`
+	SupersededBy string   `json:"superseded_by"`
+	ClaimKept    bool     `json:"claim_kept"`
+	Anchors      []string `json:"anchors"`
+	RemovalBasis string   `json:"removal_basis"`
 }
 
 // EvidenceRetiredJSON is the retire that took an anchor out of the report: its events.id and its
@@ -371,6 +391,15 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		Independent:  []EvidenceVerificationJSON{},
 	}
 	out.Unchecked = []EvidenceUncheckedJSON{}
+	out.Retires = []EvidenceRetireJSON{}
+	for _, e := range evs {
+		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
+			w := win.Of(e)
+			out.Retires = append(out.Retires, EvidenceRetireJSON{Event: w.ID, SeatID: e.GetSeatId(), Epoch: w.Epoch,
+				Claim: r.GetClaim(), Reason: r.GetReason(), SupersededBy: r.GetSupersededBy(), ClaimKept: r.GetClaimKept(),
+				Anchors: append([]string{}, r.GetAnchors()...), RemovalBasis: r.GetRemovalBasis()})
+		}
+	}
 	for _, u := range uncheckedAnchors(evs, win) {
 		out.Unchecked = append(out.Unchecked, EvidenceUncheckedJSON{Anchor: u.anchor, Edit: u.edit, LastCheck: u.lastCheck})
 	}

@@ -782,13 +782,44 @@ func debateMD(in Input) []byte {
 			debateParts = append(debateParts, strings.Join(parts, "\n\n"))
 		}
 	}
+	// THE BENCH'S RUN-LEVEL DISPOSITION belongs to no epoch: each halt opinion, verbatim; each
+	// certification, the last the one the debate carries; and the outcome the bench recorded.
+	var disp []string
+	for _, l := range in.Events {
+		body, ok := recordpb.Body(l)
+		if !ok {
+			continue
+		}
+		switch t := body.(type) {
+		case *recordpb.Halt:
+			disp = append(disp, fmt.Sprintf("- **HALT** (%s, epoch %d)\n%s", l.GetSeatId(), in.At.Of(l).Epoch, t.GetOpinion()))
+		case *recordpb.Certify:
+			disp = append(disp, fmt.Sprintf("- **CERTIFICATION** (%s, epoch %d)\n%s", l.GetSeatId(), in.At.Of(l).Epoch, t.GetStatement()))
+		case *recordpb.Outcome:
+			basis := ""
+			if b := t.GetVerdictBasis(); b != "" {
+				basis = " (" + b + ")"
+			}
+			o := fmt.Sprintf("- **OUTCOME %s**%s (%s, epoch %d)", strings.ToUpper(recordpb.Word(t.GetVerdict())), basis, l.GetSeatId(), in.At.Of(l).Epoch)
+			if w := t.GetVerdictWhy(); w != "" {
+				o += "\nwhy: " + w
+			}
+			if p := t.GetProse(); p != "" {
+				o += "\n" + p
+			}
+			disp = append(disp, o)
+		}
+	}
+	if len(disp) > 0 {
+		debateParts = append(debateParts, "## Bench disposition\n\n"+strings.Join(disp, "\n"))
+	}
 	return []byte(strings.Join(debateParts, "\n") + "\n")
 }
 
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
-	body := InquiryBody(in.Events, in.At, false, AsWritten)
+	body := InquiryBody(in.Events, in.At, AsWritten)
 	if body == "" {
 		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
@@ -813,17 +844,16 @@ func inquiryMD(in Input) []byte {
 // flat list by final status records only the outcome — which is exactly what report.md carries,
 // and why the path has to ship somewhere.
 //
-// steps adds, under the path, each SUPERSEDED record with the reason and the method it gave: the
-// shipped document's form, whose blurb promises the path each inquiry took. The seat view prints
-// the path's statuses and the current fate's account, which is what a seat acts on; the reasonings
-// an inquiry went through before it (m28: Q-40ceefaa's five `underway` records before `deferred`)
-// are the human's record of how the fate was reached.
+// Under the path, each SUPERSEDED record prints with the reason and the method it gave, in the
+// seat's view as in the shipped document: a fate set aside and taken up again is a choice whose
+// reason a check must be able to read (m39: Q-d7df3d8c abandoned at e0, refuted at e2, and its
+// obituary unjudged because the path was bare words).
 //
 // value writes each value the record holds — a question, a reason, a hypothesis, a method, a check's
 // reason — into its row, given the indent of the row's content: the seat view prints it as written
 // (AsWritten), because a seat quotes and matches it, and the shipped document keeps its paragraphs
 // inside the item (report's inItem).
-func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool, value func(s, indent string) string) string {
+func InquiryBody(evs []*record.Event, win record.WindowIndex, value func(s, indent string) string) string {
 	avs := record.InquiriesOf(evs, win)
 	if len(avs) == 0 {
 		return ""
@@ -841,8 +871,8 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool, value 
 		inquiry = append(inquiry, fmt.Sprintf("## %s (%d)", status, len(rows)), "")
 		for _, a := range rows {
 			// The one-line row keeps its shape — question, reason, seat — and the lifecycle adds to
-			// it rather than replacing it. The method is the latest fate's account, as the reason is,
-			// so it prints once: a superseded method is one blue recorded the fate again to correct.
+			// it rather than replacing it. The method is the latest fate's account, as the reason is;
+			// a superseded fate's reason and method print on its own step under the path.
 			head := a.ID + " " + value(a.Question, "  ")
 			reason := ""
 			if a.Reason != "" {
@@ -858,9 +888,7 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool, value 
 			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
 			if len(a.History) > 1 {
 				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
-				if steps {
-					inquiry = append(inquiry, superseded(a, value)...)
-				}
+				inquiry = append(inquiry, superseded(a, value)...)
 			}
 			// THE CHECK THAT STANDS ON IT, with its reason: what the owning lens judged sound in this
 			// fate. An inquiry no check stands on prints none, and the PASS gate says why it holds.

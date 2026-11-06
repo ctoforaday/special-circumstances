@@ -64,6 +64,7 @@ const (
 	phaseFailure   = "failure"
 	phaseEnvelope  = "envelope"
 	phaseAdmission = "admission"
+	phaseNext      = "next"
 )
 
 // Limit hands a sitting that has reached the run's tool-call limit to the writer, which puts it on
@@ -134,6 +135,24 @@ func Admission(runDir, agentID string) error {
 		return fmt.Errorf("%s: %v: %s", writerName, err, out)
 	}
 	return nil
+}
+
+// NextItem asks the writer what a lens is handed after a call of its that went to the record: the
+// PostToolUse hook passes the text on to the seat, and "" is "nothing it was handed has changed".
+//
+// THE WRITER'S STDOUT IS THE SEAT'S, and its stderr the hook record's, as on the opening end.
+func NextItem(runDir, agentID, agentType string) (string, error) {
+	writer := writerPath()
+	if writer == "" {
+		return "", fmt.Errorf("%s is not beside this hook, so %s was not handed its next item", writerName, agentID)
+	}
+	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseNext, "-agent-id", agentID, "-agent-type", agentType)
+	var forSeat, diagnostics bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &forSeat, &diagnostics
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(diagnostics.String()+" "+forSeat.String()))
+	}
+	return forSeat.String(), nil
 }
 
 func toolEntry(runDir, phase, agentID, text string) error {

@@ -37,7 +37,11 @@ func loadedFamilyT(t *testing.T, gaps []*Gap, evs []*Event) Family {
 func blueAnswersT(t *testing.T, evs []*Event, gaps []WorkGapState, seatID string) []string {
 	t.Helper()
 	m := loadedT(t, evs...)
-	return blueAnswers(m.Events, m.At, gaps, seatID)
+	var out []string
+	for _, it := range blueAnswers(m.Events, m.At, gaps, seatID) {
+		out = append(out, it.What)
+	}
+	return out
 }
 
 // blueSittingsT is BlueSittings over evs as the write path stores them.

@@ -126,6 +126,8 @@ func (b Blocker) ChairOwned() bool { return b.Owner == chairSeat }
 // blockerKind is one row of the table every surface words a blocker from.
 type blockerKind struct {
 	kind BlockerKind
+	// subject is what kind of thing a blocker's Subject names (ItemSubject).
+	subject SubjectKind
 	// gloss is the help page's phrase for the kind.
 	gloss string
 	// item is the chair's work-list sentence for one blocker.
@@ -345,8 +347,9 @@ func subjects(bs []Blocker) []string {
 // blockerKinds is the table, in the order the work list and the refusal state them.
 var blockerKinds = []blockerKind{
 	{
-		kind:  BlockerMaterialGap,
-		gloss: "an open material gap (material by its class, else graded medium or above)",
+		kind:    BlockerMaterialGap,
+		subject: SubjectGap,
+		gloss:   "an open material gap (material by its class, else graded medium or above)",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("gap %s is open and material — PASS is refused while it is; %s closes it", b.Subject, ownerPhrase(b, "minter", "the lens that minted it"))
 		},
@@ -361,8 +364,9 @@ var blockerKinds = []blockerKind{
 	// back, so the plan that readies blue for the exchange never reads as permitting a PASS over it
 	// (routeOf).
 	{
-		kind:  BlockerRemandOwed,
-		gloss: "a gap that is not material, remanded by the bench, whose one more exchange has not been had",
+		kind:    BlockerRemandOwed,
+		subject: SubjectGap,
+		gloss:   "a gap that is not material, remanded by the bench, whose one more exchange has not been had",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("gap %s is not material and the BENCH REMANDED it — PASS is refused until the one more exchange the remand grants, between %s and blue, has been had — an exchange that begins when blue records an act on the gap; the dispatch readies them on the ruling's direction", b.Subject, ownerOr(b, "the lens that minted it"))
 		},
@@ -379,8 +383,9 @@ var blockerKinds = []blockerKind{
 	// THE OWNER IS WHO IS READIED, NOT WHO ALONE MAY CLEAR. Any lens's check clears the blocker, so
 	// each wording says both: the check that clears it, and the seat that owes it and is readied.
 	{
-		kind:  BlockerUnchecked,
-		gloss: "a citation or computation with no check of the sentence the report carries",
+		kind:    BlockerUnchecked,
+		subject: SubjectAnchor,
+		gloss:   "a citation or computation with no check of the sentence the report carries",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("%s — PASS is refused until a lens checks it%s, by %s. %s",
 				uncheckedFact(b), uncheckedAfter(b), uncheckedAct(b), uncheckedOwed(b))
@@ -406,8 +411,9 @@ var blockerKinds = []blockerKind{
 	// the check to blue; a found-against check's gap was minted by its reading, and its reader owes
 	// nothing. Blue's remedy, or a check that holds, clears it.
 	{
-		kind:  BlockerFailedCheck,
-		gloss: "a citation whose source no check could read, a citation a lens's standing reading finds against, or a computation a lens's standing judgement calls unsound",
+		kind:    BlockerFailedCheck,
+		subject: SubjectAnchor,
+		gloss:   "a citation whose source no check could read, a citation a lens's standing reading finds against, or a computation a lens's standing judgement calls unsound",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("%s — PASS is refused while it stands; %s. %s", failedFact(b), failedClears(b), failedOwed(b))
 		},
@@ -423,16 +429,18 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind:  BlockerNoReport,
-		gloss: "no ingested report",
-		item:  func(Blocker) string { return "no report has been ingested — PASS is refused" },
+		kind:    BlockerNoReport,
+		subject: SubjectReport,
+		gloss:   "no ingested report",
+		item:    func(Blocker) string { return "no report has been ingested — PASS is refused" },
 		refusal: func([]Blocker) string {
 			return "no report has been ingested or edited, so there is nothing a lens could have audited"
 		},
 	},
 	{
-		kind:  BlockerLensReady,
-		gloss: "a ready lens",
+		kind:    BlockerLensReady,
+		subject: SubjectSeat,
+		gloss:   "a ready lens",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("lens %s is ready — PASS is refused while it is", b.Subject)
 		},
@@ -446,8 +454,9 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind:  BlockerStaleArea,
-		gloss: "a stale area no spot-check this sitting names",
+		kind:    BlockerStaleArea,
+		subject: SubjectArea,
+		gloss:   "a stale area no spot-check this sitting names",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("area %s is behind its pin %s — PASS is refused until a spot-check this sitting names it", b.Subject, b.Detail)
 		},
@@ -465,8 +474,9 @@ var blockerKinds = []blockerKind{
 	// the gap, and from then its docket motion holds the PASS as an unruled motion. The gap's own reason
 	// in the plan states its readiness, so the kind has no plan line of its own.
 	{
-		kind:  BlockerGradeMovement,
-		gloss: "grade movement the bench has not ruled on past its threshold in total",
+		kind:    BlockerGradeMovement,
+		subject: SubjectGap,
+		gloss:   "grade movement the bench has not ruled on past its threshold in total",
 		item: func(b Blocker) string {
 			return gradeMovementFact(b) + " — PASS is refused until the bench rules on it; the dispatch dockets the gap for the bench"
 		},
@@ -486,8 +496,9 @@ var blockerKinds = []blockerKind{
 	// as well, so every wording says the bench rules once the closings are in. The gap's own reason in
 	// the plan states who is readied and whether the bench sits, so the kind has no plan line of its own.
 	{
-		kind:  BlockerClosingOwed,
-		gloss: "a docketed gap's closing argument a party has not filed",
+		kind:    BlockerClosingOwed,
+		subject: SubjectGap,
+		gloss:   "a docketed gap's closing argument a party has not filed",
 		item: func(b Blocker) string {
 			state := "is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one"
 			if !b.awaited {
@@ -505,8 +516,9 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind:  BlockerUnruledMotion,
-		gloss: "an unruled motion",
+		kind:    BlockerUnruledMotion,
+		subject: SubjectMotion,
+		gloss:   "an unruled motion",
 		item: func(b Blocker) string {
 			return "motion " + b.Subject + " (" + b.Detail + ") was filed and never ruled — PASS is refused while it stands"
 		},
@@ -530,8 +542,9 @@ var blockerKinds = []blockerKind{
 	// 2026-10-30; positionheard.go): the lens is served the report in a sitting opened after the
 	// ruling. The owner is the lens, so the plan readies it; the subject is the position's id.
 	{
-		kind:  BlockerUpheldPosition,
-		gloss: "an audit the bench named in upholding the chair's position, not yet had",
+		kind:    BlockerUpheldPosition,
+		subject: SubjectMotion,
+		gloss:   "an audit the bench named in upholding the chair's position, not yet had",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("the bench upheld the chair's position %s and named %s's area: it owes an audit of it on the ruling's direction — %q — and has been served the report in no sitting since the ruling; PASS is refused until it has", b.Subject, ownerOr(b, "a lens"), b.Detail)
 		},
@@ -554,8 +567,9 @@ var blockerKinds = []blockerKind{
 	// inquiry is open; the plan's line names the latest fate's event, so a re-recorded `underway`
 	// moves it, and a run that cannot settle its inquiries reaches its epoch limit and ends CEILING.
 	{
-		kind:  BlockerOpenInquiry,
-		gloss: "an inquiry still proposed or underway, with no fate that settles it",
+		kind:    BlockerOpenInquiry,
+		subject: SubjectInquiry,
+		gloss:   "an inquiry still proposed or underway, with no fate that settles it",
 		item: func(b Blocker) string {
 			return openInquiryFact(b) + " — PASS is refused until blue records a fate that settles it: confirmed or refuted for an approach that ran, abandoned for one that gave no answer, declined or deferred with why"
 		},
@@ -577,8 +591,9 @@ var blockerKinds = []blockerKind{
 	// owner is the logic lens (inquiryOwner), which dispatch readies once per cause; a wanting inquiry
 	// holds the PASS through its gap's material_gap row instead, and has no row here.
 	{
-		kind:  BlockerUncheckedInquiry,
-		gloss: "a settled inquiry with no check of its latest fate",
+		kind:    BlockerUncheckedInquiry,
+		subject: SubjectInquiry,
+		gloss:   "a settled inquiry with no check of its latest fate",
 		item: func(b Blocker) string {
 			return uncheckedInquiryFact(b) + " — PASS is refused until one does. " + uncheckedInquiryAct(b)
 		},
@@ -610,6 +625,11 @@ func kindOf(k BlockerKind) blockerKind {
 
 // WorkItem is the chair's work-list sentence for the blocker.
 func (b Blocker) WorkItem() string { return kindOf(b.Kind).item(b) }
+
+// asItem is the blocker as a work-list item worded what: its kind, and the subject its row names.
+func (b Blocker) asItem(what string, blocks bool) Item {
+	return Item{What: what, Blocks: blocks, Kind: ItemKind(b.Kind), Subject: about(kindOf(b.Kind).subject, b.Subject)}
+}
 
 // PassBlockerGlosses is each kind's help phrase, in table order — what `verdict --help` lists.
 func PassBlockerGlosses() []string {

@@ -432,7 +432,7 @@ func (r *runner) answersRetiredItem(seat, g string) (record.Item, bool) {
 		return record.Item{}, false
 	}
 	for _, it := range w.Sitting.Open {
-		if strings.Contains(it.What, "the answers to gap "+g+",") {
+		if it.Kind == record.ItemNews && itemAbout(it, g, "") {
 			return it, true
 		}
 	}
@@ -606,7 +606,7 @@ func (r *runner) lifecycleRetiredAbout(blue, lens, comp, cited, computed string)
 		if !r.lifecycleRetire(blue, a.anchor, "") {
 			return "blue's retire of " + a.anchor + ", naming no gap, was refused"
 		}
-		if w, err := record.WorkOfSeat(r.run(), "blue", blue); err != nil || slices.ContainsFunc(w.Sitting.Open, func(it record.Item) bool { return strings.Contains(it.What, g) }) {
+		if w, err := record.WorkOfSeat(r.run(), "blue", blue); err != nil || slices.ContainsFunc(w.Sitting.Open, func(it record.Item) bool { return itemAbout(it, g, a.anchor) }) {
 			return "blue's list holds an item for " + g + " once its anchor " + a.anchor + " was retired"
 		}
 		if env, ok := r.lifecycleClose(a.seat, g); !ok {
@@ -936,4 +936,19 @@ func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 			t.Errorf("a run not forced drove the arm: %q", r.screenUnsoundComputation)
 		}
 	})
+}
+
+// itemAbout reports whether a work-list item is about gap g, or about anchor a where a is not "" —
+// read off the item's subject, the field its sentence is built from.
+func itemAbout(it record.Item, g, a string) bool {
+	if it.Subject == nil {
+		return false
+	}
+	switch it.Subject.Kind {
+	case record.SubjectGap:
+		return it.Subject.ID == g
+	case record.SubjectAnchor:
+		return a != "" && it.Subject.ID == a
+	}
+	return false
 }
