@@ -137,8 +137,12 @@ func source(re *regexp.Regexp) string {
 
 // Config builds the gitleaks configuration s describes, holding only the rules keep selects and
 // the rules they require. Each held rule's patterns are compiled and its allowlists validated,
-// exactly as Translate does; a rule left out costs nothing. The prefilter keywords are every
-// rule's, held or not, so the detector's prefilter is the one the whole configuration builds.
+// exactly as Translate does; a rule left out costs nothing.
+//
+// THE PREFILTER KEYWORDS ARE THE HELD RULES', and every rule's when keep holds them all. The
+// detector builds an Aho-Corasick trie over them for each call, and reads its matches only to ask
+// whether a held rule's keyword occurs, so a keyword no held rule names selects nothing; building
+// the trie over every rule's was most of a small payload's scan.
 func (s Spec) Config(keep func(*RuleSpec) bool) (config.Config, error) {
 	cfg := config.Config{
 		Title:        s.Title,
@@ -147,11 +151,8 @@ func (s Spec) Config(keep func(*RuleSpec) bool) (config.Config, error) {
 		Path:         s.Path,
 		MinVersion:   s.MinVersion,
 		Rules:        map[string]config.Rule{},
-		Keywords:     make(map[string]struct{}, len(s.Keywords)),
+		Keywords:     map[string]struct{}{},
 		OrderedRules: slices.Clone(s.OrderedRules),
-	}
-	for _, k := range s.Keywords {
-		cfg.Keywords[k] = struct{}{}
 	}
 	var err error
 	if cfg.Allowlists, err = allowlists(s.Allowlists); err != nil {
@@ -200,6 +201,11 @@ func (s Spec) Config(keep func(*RuleSpec) bool) (config.Config, error) {
 			if err := add(&s.Rules[i]); err != nil {
 				return config.Config{}, err
 			}
+		}
+	}
+	for _, r := range cfg.Rules {
+		for _, k := range r.Keywords {
+			cfg.Keywords[strings.ToLower(k)] = struct{}{}
 		}
 	}
 	return cfg, nil
