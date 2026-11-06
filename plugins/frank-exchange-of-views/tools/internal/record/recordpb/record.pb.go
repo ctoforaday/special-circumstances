@@ -4904,7 +4904,7 @@ type Reproduce struct {
 	Drift    *string `protobuf:"bytes,11,opt,name=drift,proto3,oneof" json:"drift,omitempty"`
 	RerunSha *string `protobuf:"bytes,12,opt,name=rerun_sha,json=rerunSha,proto3,oneof" json:"rerun_sha,omitempty"`
 	// claim is the sentence this judgement is of, read off the report by the tool
-	// (record.LiveSentence) at the write, as Verify.claim is (ruling L5). Not `required`: migrated
+	// (record.LiveSentence) before the write, as Verify.claim is (ruling L5). Not `required`: migrated
 	// reproduces hold none, and CheckRequired has no migration exemption; the live writer sets it on
 	// every write.
 	Claim         *string `protobuf:"bytes,13,opt,name=claim,proto3,oneof" json:"claim,omitempty"`

@@ -1562,7 +1562,7 @@ message Reproduce {
   optional string drift = 11;
   optional string rerun_sha = 12;
   // claim is the sentence this judgement is of, read off the report by the tool
-  // (record.LiveSentence) at the write, as Verify.claim is (ruling L5). Not `required`: migrated
+  // (record.LiveSentence) before the write, as Verify.claim is (ruling L5). Not `required`: migrated
   // reproduces hold none, and CheckRequired has no migration exemption; the live writer sets it on
   // every write.
   optional string claim = 13;
