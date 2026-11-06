@@ -223,7 +223,7 @@ func TestAnEditUnderAnotherGapsNameGivesTheLensItsTurn(t *testing.T) {
 	}
 	evs, win := mustEvents(t, run)
 	ids := win.IDs(evs)
-	if blueActed(gapActsOf(evs, ids)["G1"], 0, 1<<62) {
+	if blueActed(gapActsOf(evs, ids, win)["G1"], 0, 1<<62) {
 		t.Errorf("the edit answered another gap, and reads as blue's act on G1")
 	}
 }

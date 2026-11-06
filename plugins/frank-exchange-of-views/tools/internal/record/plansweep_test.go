@@ -25,7 +25,11 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	_, _ = ChangesOf(run, "G1")
 	_, _ = ExistingCiteByKey(run, evLens, "k")
 	_, _ = ExistingComputationByKey(run, evLens, "k")
-	_, _, _, _, _ = AnchorRetiredAt(run, "A1")
+	_, _, _ = AnchorRetiredAt(run, "A1")
+	_, _ = EvidenceDemandOf(run, "G1")
+	if db, err := openRunForRead(run); err == nil && db != nil {
+		_ = requireCitationUncited(db, []string{"C-1"})
+	}
 	_, _ = ReportAtPart(run, "harness")
 	_, _ = ReportHasParts(run)
 	_, _, _ = PartStanding(run, "harness")

@@ -387,8 +387,10 @@ func (RunOutcome) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{3}
 }
 
-// CheckKind is WHAT WOULD SETTLE an acceptance check. COMPUTATION is the one with teeth: a gap
-// minted that way cannot be closed on prose. Across six recorded runs no seat ever wrote a
+// CheckKind is WHAT WOULD SETTLE an acceptance check. SOURCE and COMPUTATION are the kinds whose
+// gaps demand a live answer of their kind (recordpb.DemandClause): a citation or a computation placed
+// as the gap's answer, a retire of the anchor the gap is about or whose reading it carries, or the
+// own later check of that anchor that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
 // program, and the cause was that all ten of red's checks were document probes — red could only
 // ever ask whether the report SAYS something.
 type CheckKind int32
@@ -4287,8 +4289,12 @@ type Cite struct {
 	// substitution is not NONE and the bytes were fetched from somewhere.
 	CopySubstitution *CopySubstitution `protobuf:"varint,24,opt,name=copy_substitution,json=copySubstitution,proto3,enum=feov.record.v1.CopySubstitution,oneof" json:"copy_substitution,omitempty"`
 	CopyUrl          *string           `protobuf:"bytes,25,opt,name=copy_url,json=copyUrl,proto3,oneof" json:"copy_url,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// answers is the gap this citation is placed as the answer to, typed --answers: the citation half
+	// of an evidence anchor's answer (Computation.answers is the other), read through the
+	// evidence_anchor view by the gap's live-answer demand.
+	Answers       *string `protobuf:"bytes,26,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Cite) Reset() {
@@ -4478,6 +4484,13 @@ func (x *Cite) GetCopySubstitution() CopySubstitution {
 func (x *Cite) GetCopyUrl() string {
 	if x != nil && x.CopyUrl != nil {
 		return *x.CopyUrl
+	}
+	return ""
+}
+
+func (x *Cite) GetAnswers() string {
+	if x != nil && x.Answers != nil {
+		return *x.Answers
 	}
 	return ""
 }
@@ -5379,21 +5392,21 @@ type Retire struct {
 	// layer, modulo surrounding whitespace, emphasis and trailing punctuation (a fragment names
 	// nothing): each that is present AND bare in the report at the write, and each the seat names
 	// that the edit carried onto surviving prose and no later edit put back into prose. An anchor of
-	// every kind leaves alike. Each named c- anchor is one counted claim
+	// every kind leaves alike. Each named evidence anchor is one counted claim
 	// leaving the report. Replay removes each named anchor at
 	// this event's position (the report_op view's `remove` rows). A record written before this field
 	// carries none, and replays exactly as it did.
 	Anchors []string `protobuf:"bytes,5,rep,name=anchors,proto3" json:"anchors,omitempty"`
-	// claim_kept is a retire of a CITATION, not of its claim: the citation's anchor leaves the report
-	// and its sentence stays word for word, standing on whatever else backs it — another citation, or
+	// claim_kept is a retire of an EVIDENCE ANCHOR, not of its claim: the anchor leaves the report
+	// and its sentence stays word for word, standing on whatever else backs it — another evidence anchor, or
 	// nothing, when it is prose a lens audits like any other. The verb sets it and fills claim with the
 	// sentence as the report holds it at the write, never typed by a seat. Its readers: replay (the
 	// anchor's `remove` row leaves the sentence), the report's list of retirements, which names the
-	// citation retired and the sentence kept rather than listing a claim that never left, and the
-	// anchor ledger, where the citation is retired and owes nothing.
+	// anchor retired and the sentence kept rather than listing a claim that never left, and the
+	// anchor ledger, where the anchor is retired and owes nothing.
 	ClaimKept *bool `protobuf:"varint,6,opt,name=claim_kept,json=claimKept,proto3,oneof" json:"claim_kept,omitempty"`
-	// answers is the gap a citation retire responds to — BlueEdit.answers's key on the other act that
-	// changes the report's text, checked against the board at the write the same way. A citation blue
+	// answers is the gap a retire of an evidence anchor responds to — BlueEdit.answers's key on the
+	// other act that changes the report's text, checked against the board at the write the same way. An anchor blue
 	// retires because a gap asked for it is blue's answer to that gap, and a reader joining the gap to
 	// blue's answers (`show changes --id`, the lens's answered list, the manifest's owed rows) reads it
 	// here. Empty for a retire answering no gap, and on every claim retire: the edit that cut the claim
@@ -8006,7 +8019,7 @@ const file_record_proto_rawDesc = "" +
 	"\x03_idB\v\n" +
 	"\t_locationB\x0e\n" +
 	"\f_sentence_ofJ\x04\b\x03\x10\aR\n" +
-	"finding_idR\vfinding_keyR\x05labelR\x04text\"\xca\v\n" +
+	"finding_idR\vfinding_keyR\x05labelR\x04text\"\xf5\v\n" +
 	"\x04Cite\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
@@ -8037,7 +8050,8 @@ const file_record_proto_rawDesc = "" +
 	"workStatus\x88\x01\x01\x12^\n" +
 	"\x13source_completeness\x18\x11 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\x13R\x12sourceCompleteness\x88\x01\x01\x12X\n" +
 	"\x11copy_substitution\x18\x18 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x14R\x10copySubstitution\x88\x01\x01\x12$\n" +
-	"\bcopy_url\x18\x19 \x01(\tB\x04\xc0\xb5\x18\x00H\x15R\acopyUrl\x88\x01\x01B\b\n" +
+	"\bcopy_url\x18\x19 \x01(\tB\x04\xc0\xb5\x18\x00H\x15R\acopyUrl\x88\x01\x01\x12\x1d\n" +
+	"\aanswers\x18\x1a \x01(\tH\x16R\aanswers\x88\x01\x01B\b\n" +
 	"\x06_labelB\x06\n" +
 	"\x04_urlB\t\n" +
 	"\a_sha256B\b\n" +
@@ -8059,7 +8073,9 @@ const file_record_proto_rawDesc = "" +
 	"\f_work_statusB\x16\n" +
 	"\x14_source_completenessB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlJ\x04\b\b\x10\tJ\x04\b\n" +
+	"\t_copy_urlB\n" +
+	"\n" +
+	"\b_answersJ\x04\b\b\x10\tJ\x04\b\n" +
 	"\x10\vR\x05claimR\x10source_text_read\"\xfb\r\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
@@ -8501,12 +8517,12 @@ const file_record_proto_rawDesc = "" +
 	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\x9e\x02\n" +
 	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\x84\x02\x8a\xb5\x18\xff\x01the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run\x12f\n" +
 	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
-	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xa7\x05\n" +
+	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\x9c\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
-	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xf0\x02\n" +
-	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xd3\x02\x8a\xb5\x18\xce\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a computation answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\x89\x01\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xf6\x03\n" +
+	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xc3\x02\n" +
+	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xa6\x02\x8a\xb5\x18\xa1\x02RUNNING something settles it. The demand on its close: {{.DemandClause}}. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\xab\x01\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1a\x93\x01\x8a\xb5\x18\x8e\x01verifying an external source settles it: the claim stands or falls on what the cited material says. The demand on its close: {{.DemandClause}}*\xf6\x03\n" +
 	"\rClassMaterial\x12\x1e\n" +
 	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\xcd\x01\n" +
 	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1a\xb1\x01\x8a\xb5\x18\xac\x01every gap of this class is material, whatever its grade or the reader decision it is judged to change — the class decides it, and no ruling or holding makes it immaterial\x12\x85\x01\n" +

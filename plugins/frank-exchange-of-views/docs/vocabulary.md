@@ -42,6 +42,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [gap](#gap) | lens, chair, blue, lane, bench, operator |
 | [material](#material) | lens, chair, blue, lane, bench, operator |
 | [blocker](#blocker) | lens, chair, bench |
+| [current item](#current-item) | lens, operator |
 | [reading](#reading) | lens, chair, blue, lane, bench, operator |
 | [retire](#retire) | lens, chair, blue, lane, bench, operator |
 | [lens retirement](#lens-retirement) | lens, chair, operator |
@@ -371,7 +372,7 @@ OCR-derived text is a machine's reading of a scanned document's page images: det
 
 ## anchor
 
-An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report.
+An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -459,6 +460,12 @@ A blocker is one entry on the list the verdict gate refuses a PASS on, with the 
 
 - **blocking (a work item)** — `show work` marks an item blocking when the seat's sitting is not complete while it is open, and such an item is a blocker only when the verdict gate's list carries it
 
+## current item
+
+A lens's current item is the one entry of its queue it is handed in full — an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the lens's work list after an act, and the next item is handed then.
+
+**Delivered to:** lens, operator
+
 ## reading
 
 A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and one that reads the work and finds the source against the sentence mints the gap that carries it in the same act or names the open gap of that class the sentence already holds, and one of a source the lens found that backs an uncited sentence mints the gap that asks blue to cite it, except an `absent` on a source the lens found, which mints nothing.
@@ -473,7 +480,7 @@ A reading is a lens's recorded account of what one source did for one sentence o
 
 ## retire
 
-To retire a claim is to take it out of the report with the retire verb, on the record; retiring a citation alone takes its anchor out of the report and keeps the sentence it stood on word for word.
+To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -539,7 +546,7 @@ Grade movement is the change a lens's regrade makes to a gap's severity, likelih
 
 **Collisions:**
 
-- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue answers it with a computation or a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
+- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
 
 ## grade motion
 
@@ -629,13 +636,13 @@ A citation or computation is unchecked when no check of the sentence the report 
 
 ## failed check
 
-A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, every reading of the citation since its sentence last changed read nothing of the cited work, or a lens's standing reading found the cited source against the sentence and, in the same act, minted the gap that carries it or named the open gap that already does — which holds the PASS and is cleared by no bench ruling; an unread or unsound check obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation or a found-against citation by the checking lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work.
+A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, every reading of the citation since its sentence last changed read nothing of the cited work, or a lens's standing reading found the cited source against the sentence and, in the same act, minted the gap that carries it or named the open gap that already does — which holds the PASS and is cleared by no bench ruling; an unread or unsound check obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation or a found-against citation by the checking lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about or whose reading it carries and the later check of that anchor by the seat whose check the gap carries that holds.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## superseded
 
-A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor, so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.
+A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor — and, for a `source` or `computation` gap that nothing answers yet, its live-answer demand, the successor carrying the same check kind — so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.
 
 **Delivered to:** lens, chair, blue, bench, operator
 

@@ -105,8 +105,8 @@ func (r *runner) citeForFoundAgainst(seatID string) {
 // the reading that finds against a citation, with no --new, then, at its next sitting, the repeat, the
 // refused close and its own re-read. It draws the reading's gap flags as the drawn reading does, and pins the check
 // kind of a gap it mints to a document check; a reading the one-gap rule holds is carried by another
-// lens's gap, whose check kind is that gap's, so each close of the carrier answers a computation check
-// first (answerComputationCheck). It reads only a citation whose sentence holds no gap a scenario
+// lens's gap, whose check kind is that gap's, so each close of the carrier answers its live-answer demand
+// first (answerEvidenceDemand). It reads only a citation whose sentence holds no gap a scenario
 // closes behind a reproduction (foundAgainstCitation), since the chain's close reproduces nothing.
 func (r *runner) forcedFoundAgainstChain(seatID string) {
 	r.mu.Lock()
@@ -708,7 +708,6 @@ func TestTheFoundAgainstChainReadsNoCitationAScenarioGapStandsAt(t *testing.T) {
 	}
 	g := env.Result.GapID
 	r.noteMint(lens, g)
-	r.computationGaps.add(g)
 	open := func() bool { return slices.Contains(r.openGaps(), g) }
 	readsOf := func(anchorID string) bool {
 		_, _, read := r.storedReading(citationOwner, anchorID, "", "")
@@ -757,7 +756,7 @@ func TestTheFoundAgainstChainReadsNoCitationAScenarioGapStandsAt(t *testing.T) {
 // backing re-read (readCitation's coin), closes nothing — the gap closes only behind a reproduction.
 func TestABackingReReadLeavesAComputeCarrierOpen(t *testing.T) {
 	r := stagedRunner(t)
-	// LANE 1 HOLDS THE SENTENCE blue's computation of the carrier quotes (answerComputationCheck).
+	// LANE 1 HOLDS THE SENTENCE blue's computation of the carrier quotes (answerEvidenceDemand).
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2")); err != nil {
 		t.Fatal(err)
 	}
@@ -782,7 +781,6 @@ func TestABackingReReadLeavesAComputeCarrierOpen(t *testing.T) {
 	}
 	g := env.Result.GapID
 	r.noteMint(lens, g)
-	r.computationGaps.add(g)
 	r.sit("lens", citationOwner)
 	if out, ok := r.foundAgainstReading(citationOwner, cite, classes[:1]).admit(); !ok {
 		t.Fatalf("the owner's refuting reading: %s (%s)", out, r.actErr)

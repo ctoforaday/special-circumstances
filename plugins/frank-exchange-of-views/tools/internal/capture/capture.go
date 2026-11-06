@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/archive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
@@ -437,8 +438,19 @@ func AssemblyScreen(run record.Run) Audit {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
 	ev := record.EvidenceJSONOf(fam.Events, fam.At)
-	if ev.Counts.Sources == 0 {
-		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
+	// THE SCREEN COUNTS EVERY EVIDENCE ANCHOR ON THE RECORD, retired ones included: the table's
+	// lists hold the live ones, and a retired anchor is one the screen has found out of the report.
+	citations, computations := ev.Counts.Sources, ev.Counts.Computations
+	for _, r := range ev.Retired {
+		if r.Computation != nil {
+			computations++
+		} else {
+			citations++
+		}
+	}
+	anchors := citations + computations
+	if anchors == 0 {
+		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no evidence anchors on the record — nothing to screen"}
 	}
 
 	// THE SCREEN NEEDS THE DELIVERABLE: before assembly there is nothing a reader is pointed at,
@@ -452,41 +464,64 @@ func AssemblyScreen(run record.Run) Audit {
 	}
 	if !assembled {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP",
-			Detail: fmt.Sprintf("%d citation(s) on the record and no assembled document yet — the screen runs against the assembled artifact", ev.Counts.Sources)}
+			Detail: fmt.Sprintf("%d evidence anchor(s) on the record and no assembled document yet — the screen runs against the assembled artifact", anchors)}
 	}
 
-	// EACH CITATION BY ITS STANDING, KEYED BY ITS ANCHOR. The assembled report weaves every anchor
-	// the report carries into a footnote, so a citation still cited is one the record has not
+	// EACH EVIDENCE ANCHOR BY ITS STANDING, KEYED BY ITS ANCHOR. The assembled report weaves every
+	// anchor the report carries into a footnote, so an anchor still woven is one the record has not
 	// retired — and the ledger that says so is the one that says whether a check of its sentence
-	// stands. A refutation of a sentence blue has since rewritten, and then checked again, is
-	// answered; one standing against the sentence the report carries is not. The url is no key:
-	// two citations of one url back two sentences, and a screen keyed by it failed the run whose
-	// refuted sentence had been fixed and re-verified (m30, C-4f4b8cfa).
+	// stands. "This check fails" is read through the kind's row (record.FailingAnchors): a citation
+	// a standing reading finds against, a computation a standing judgement calls unsound. A
+	// refutation of a sentence blue has since rewritten, and then checked again, is answered; one
+	// standing against the sentence the report carries is not. The url is no key: two citations of
+	// one url back two sentences, and a screen keyed by it failed the run whose refuted sentence had
+	// been fixed and re-verified (m30, C-4f4b8cfa).
 	urlOf := map[string]string{}
 	for _, s := range ev.Sources {
 		urlOf[s.Anchor] = s.URL
 	}
 	var carried []string
-	for _, a := range record.CitationsFoundAgainst(fam.Events, fam.At) {
-		carried = append(carried, fmt.Sprintf("%s (%s)", a, urlOf[a]))
+	for _, a := range record.FailingAnchors(fam.Events, fam.At) {
+		row, _ := recordsql.EvidenceTableOf(anchor.Kind(a))
+		name := row.Noun + " " + a
+		if u := urlOf[a]; u != "" {
+			name += " (" + u + ")"
+		}
+		carried = append(carried, name)
 	}
 
 	if len(carried) > 0 {
 		return Audit{Check: "assembly-screen", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d source(s) red finds AGAINST the sentence the report carries are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
+			Detail: fmt.Sprintf("%d evidence anchor(s) a check finds AGAINST the sentence the report carries are still in the assembled report: %s. A refuted or absent source in the bibliography, or a computation judged unsound in a footnote, points a reader at evidence the audit rejected",
 				len(carried), strings.Join(carried, ", "))}
 	}
-	// EVER FOUND AGAINST is this audit's own count, read off the verification rows: sources_refuted
-	// is the standing set, which a PASS here has just shown empty.
-	ever := 0
-	for _, s := range ev.Sources {
+	// EVER FOUND AGAINST is this audit's own count, per kind, read off each anchor's checks, retired
+	// anchors included: a citation a reading ever found against (refutes|absent), a computation a
+	// judgement ever called unsound. The standing set is what a PASS here has just shown empty.
+	unsound := recordpb.Word(recordpb.Soundness_SOUNDNESS_UNSOUND)
+	sources, comps := slices.Clone(ev.Sources), slices.Clone(ev.Computations)
+	for _, r := range ev.Retired {
+		if r.Source != nil {
+			sources = append(sources, *r.Source)
+		}
+		if r.Computation != nil {
+			comps = append(comps, *r.Computation)
+		}
+	}
+	foundAgainst, judgedUnsound := 0, 0
+	for _, s := range sources {
 		if slices.ContainsFunc(s.Verified, record.EvidenceVerificationJSON.FindsAgainst) {
-			ever++
+			foundAgainst++
+		}
+	}
+	for _, c := range comps {
+		if slices.ContainsFunc(c.Checks, func(j record.EvidenceReproductionJSON) bool { return j.Soundness == unsound }) {
+			judgedUnsound++
 		}
 	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d citation(s), none with a standing check against the sentence it backs (refutes|absent); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
-			ev.Counts.Sources, ever, ev.Counts.SourcesUnverified)}
+		Detail: fmt.Sprintf("%d citation(s) and %d computation(s), none with a standing check against the sentence it backs (refutes|absent, unsound); %d citation(s) ever found against by red and %d computation(s) ever judged unsound, each since re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
+			citations, computations, foundAgainst, judgedUnsound, ev.Counts.SourcesUnverified)}
 }
 
 // ---- AUDIT 6: record parity ----
@@ -830,6 +865,17 @@ type Claim struct {
 // G-968365ad named two computations and reconciled on its own `close --anchor`. A close is located in its
 // sitting's transcript by its stamp, inside the window from the call to its result; a close no
 // call's window holds cannot be told apart from the reads, and its closure is NOT MEASURED.
+//
+// THE ANCHORS ARE A FIELD, AND THE AUDIT JOINS ON THEM ALONE. A closure carries the ids it was
+// verified with as a field the write refused unless the record holds each (Close.anchors). EVERY
+// cited id must appear: a seat naming an id it never touched is the dishonesty this audit looks
+// for, and ids are exact enough that requiring all of them accuses no honest seat. A closure that
+// names no anchor is NOT MEASURED. The audit once cut a needle from the closure's prose instead —
+// the longest fragment over six characters — and twice decided honesty by word length: on
+// 2026-08-22 two closures anchored `report text at line 103` yielded no fragment and were filed
+// as findings, and in m39 (2026-11-05) G-c41c68ef's "…(scratch copy of show report, 76 lines)"
+// yielded "(scratch", which no call carries, so an honest close by a seat that served and read
+// the report FAILed.
 func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFloor int) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
@@ -883,11 +929,10 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 	sampled := sampleClaims(claims, sampleFloor)
 	var unreconciled, unmeasured []Claim
 	for _, c := range sampled {
-		needles, byID := needlesFor(c)
-		if len(needles) == 0 {
+		if len(c.Anchors) == 0 {
 			// NOT MEASURED IS NOT A FINDING, and folding it into one is how this audit came to
-			// accuse honest seats. See needlesFor.
-			c.Why = "no anchor named and no distinctive fragment in the target — nothing to reconcile AGAINST"
+			// accuse honest seats. See AttestationAudit: the audit joins on anchor ids alone.
+			c.Why = "the closure names no anchor id — nothing to reconcile against"
 			unmeasured = append(unmeasured, c)
 			continue
 		}
@@ -898,7 +943,7 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 			continue
 		}
 		missing := ""
-		for _, n := range needles {
+		for _, n := range c.Anchors {
 			found := false
 			for _, k := range reads {
 				if strings.Contains(k, n) {
@@ -912,11 +957,7 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 			}
 		}
 		if missing != "" {
-			if byID {
-				c.Why = "the closure cites " + missing + " but no call of the closer's sitting, other than its closes, read or named it"
-			} else {
-				c.Why = "no call of the closer's sitting, other than its closes, touches " + missing
-			}
+			c.Why = "the closure cites " + missing + " but no call of the closer's sitting, other than its closes, read or named it"
 			unreconciled = append(unreconciled, c)
 		}
 	}
@@ -1071,55 +1112,6 @@ func sampleClaims(claims []Claim, floor int) []Claim {
 }
 
 func ceilDiv(a, b int) int { return (a + b - 1) / b }
-
-var reNonToken = regexp.MustCompile(`[\s|]+`)
-
-// THE ANCHORS ARE A FIELD, AND THE AUDIT JOINS ON IT.
-//
-// MEASURED 2026-08-22, and it is the whole reason needlesFor exists. Two closures anchored
-// `report text at line 103` and `report text at line 62` — precise, human-meaningful, naming the
-// exact line. mostDistinctive found no fragment longer than six characters in either (`report` is
-// exactly six), returned "", and both were filed as claims with no matching tool call, under an
-// audit whose own message says "This rules on whether the RECORD IS HONEST". Honesty was being
-// decided by word length.
-//
-// An anchor id is exact, and the closure now carries the ones it was verified with as a field the
-// write refused unless the record holds each (Close.anchors). Prose is what a human reads; the id
-// is what a machine joins on — never re-derived from --verified-with's words, where an id typed in
-// another shape fell through to the prose path and could pass on an unrelated long word.
-
-// needlesFor returns the tokens a claim can be reconciled by, and whether they came from the
-// record's identifiers or from prose.
-//
-// EVERY CITED ID MUST APPEAR, not merely one: a seat naming an id it never touched is exactly the
-// dishonesty this audit looks for, and ids are exact enough that requiring all of them cannot
-// produce the false accusations the prose path did.
-//
-// The prose fallback keeps its six-character floor deliberately. Lowering it to admit `report`
-// would make the needle match every `show report` call in the run — turning a false FAIL into a
-// false PASS, which is the worse direction for an honesty check. Prose that yields no needle is
-// reported as NOT MEASURED instead.
-func needlesFor(c Claim) (needles []string, fromID bool) {
-	if len(c.Anchors) > 0 {
-		return c.Anchors, true
-	}
-	if n := mostDistinctive(c.Target); n != "" {
-		return []string{n}, false
-	}
-	return nil, false
-}
-
-// mostDistinctive mirrors JS: split target on /[\s|]+/, keep fragments longer than 6, longest first.
-func mostDistinctive(target string) string {
-	frags := reNonToken.Split(target, -1)
-	best := ""
-	for _, f := range frags {
-		if len(f) > 6 && len(f) > len(best) {
-			best = f
-		}
-	}
-	return best
-}
 
 // jsStringify serializes a value as JSON with HTML escaping OFF, matching JS JSON.stringify
 // (used only as a haystack for Contains, so key order is not load-bearing here).

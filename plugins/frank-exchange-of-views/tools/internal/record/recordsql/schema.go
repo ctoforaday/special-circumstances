@@ -243,8 +243,22 @@ CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
 -- The docket motions on a gap: the bench's latest ruling on it and its unruled filing.
 CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
--- Whether a computation answers a gap, which the closing and estoppel checks ask per gap.
+-- The evidence anchors placed as a gap's answer, which the gap view's live-answer demand and the
+-- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
+CREATE INDEX "cite_answers" ON "cite" ("answers");
+-- The retires naming an evidence anchor: its first is the retire the evidence_anchor view reads,
+-- and the retirement that retired an anchor (AnchorRetiredAt).
+CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
+-- The computations applying a citation as their method (Computation.cites): what a retire of that
+-- citation is refused over (record.requireCitationUncited).
+CREATE INDEX "computation_cites" ON "computation" ("cites");
+-- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
+-- (record.reachingRetiresOf) and by the demand_reach view the gap view's evidence_met reads.
+CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
+-- The readings a gap carries (carrying_reading), asked per gap by the gap's demand
+-- (record.EvidenceDemandOf). Partial: a reading that carries no gap is never asked this way.
+CREATE INDEX "verify_carried_by" ON "verify" ("carried_by") WHERE "carried_by" IS NOT NULL;
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
 CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");
@@ -270,8 +284,6 @@ CREATE INDEX "computation_id" ON "computation" ("computation_id");
 CREATE INDEX "inquiry_id" ON "inquiry" ("inquiry_id");
 -- A computation bundle's latest execution (requireNamedExecution).
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
--- The retirement that retired an anchor (AnchorRetiredAt).
-CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
 CREATE INDEX "close_gap" ON "close" ("gap_id");
 `

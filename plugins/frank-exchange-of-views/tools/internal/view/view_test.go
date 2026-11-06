@@ -745,17 +745,17 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	if !strings.Contains(inquiry, "- **Q1 try the archive** — the archive is offline (blue-respond)") {
 		t.Errorf("an abandoned inquiry row is wrong:\n%s", inquiry)
 	}
-	// THE METHOD PRINTS ONCE, THE LATEST, AS THE REASON DOES; THE PATH IS THE FATES ALONE. The first
-	// abandoned record's method was superseded by the second, and a path that printed it would ship
-	// what blue re-recorded away.
+	// THE METHOD PRINTS ONCE ON THE ROW, THE LATEST, AS THE REASON DOES; THE SUPERSEDED RECORD PRINTS
+	// ITS OWN under the path. The first abandoned record's method was superseded by the second, and a
+	// check must still be able to read what that fate rested on.
 	if !strings.Contains(inquiry, "  - method: catalogue search\n") || strings.Count(inquiry, "catalogue search") != 1 {
 		t.Errorf("the latest method does not print once on its row:\n%s", inquiry)
 	}
-	if strings.Contains(inquiry, "full-text search") {
-		t.Errorf("a superseded method still prints:\n%s", inquiry)
-	}
 	if !regexp.MustCompile(`  - path: e\d+ proposed -> e\d+ abandoned -> e\d+ abandoned\n`).MatchString(inquiry) {
-		t.Errorf("the path is not the fates alone:\n%s", inquiry)
+		t.Errorf("the path is not the fates in order:\n%s", inquiry)
+	}
+	if !regexp.MustCompile(`\n    - e\d+ abandoned \([^)]+\) — [^\n]*; method: full-text search\n`).MatchString(inquiry) {
+		t.Errorf("the superseded record does not print its reason and method on its step:\n%s", inquiry)
 	}
 	if strings.Contains(inquiry, "## declined") {
 		t.Errorf("an empty status produced a heading:\n%s", inquiry)

@@ -3,6 +3,7 @@ package record
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -31,7 +32,7 @@ import (
 // # Only duties that are enforced or recorded somewhere else
 //
 // Nothing here invents an obligation. Each one is refused at a write path (open material gaps and
-// unruled motions block `verdict`; a computation gap cannot be closed on prose), is a stated
+// unruled motions block `verdict`; a `source` or `computation` gap cannot be closed on prose), is a stated
 // record requirement (blue-respond's position, the bench's terminal outcome), or is enforced by
 // dispatch (a seat whose sitting has not opened since the dispatch named it — no hook bracket and
 // no register — is readied again; a chair that has not registered for its sitting is refused
@@ -80,6 +81,11 @@ type Item struct {
 	// not the chair (Blocker.ChairOwned): an open material gap its minter closes, a ready lens, a
 	// motion whose gavel is another seat's. Every other seat's blocking items are its own.
 	AnotherSeatClears bool `json:"another_seat_clears,omitempty"`
+	// Kind is what the item is, and Subject what it is about (itemkind.go): the item's identity as
+	// fields, set where the item is built, so a reader keys an item without reading its sentence. A
+	// lens's work arrives one item at a time keyed on them (QueueOf).
+	Kind    ItemKind     `json:"kind"`
+	Subject *ItemSubject `json:"subject,omitempty"`
 }
 
 // SittingJSON is the seat's work: everything open to it, whether the sitting is finished, and —
@@ -105,7 +111,7 @@ type SittingJSON struct {
 }
 
 // SittingOf computes what the given seat still owes on this record — the events carry every
-// act, and the gap rows carry the view's answers (openness, the computation debt) so no fold decides
+// act, and the gap rows carry the view's answers (openness, the evidence debt) so no fold decides
 // them a second time (plans/board-as-views.md wave 1c). ids are the events' row ids, aligned with
 // evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
 // and the chair's list states that condition from the same fold the gate refuses from.
@@ -116,18 +122,21 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 // sittingReads is what a seat's list needs beyond the stream and the gap rows to say whether its
 // sitting can clear an item; a zero value reads every item as clearable.
 type sittingReads struct {
-	// unverifiable: why no verify can reach a citation (unverifiableIn).
+	// unverifiable: why no check can reach an evidence anchor's sentence (unverifiableIn).
 	unverifiable unverifiableFunc
+	// mintsLeft: a lens's mints left (mintBudgetOf), for the clause on an item whose answer is a mint
+	// (answersRetiredItems); nil where the budget was not read or not measured.
+	mintsLeft *int
 	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
 	blueOut bool
 }
 
-// unverifiableFunc says why a citation's sentence cannot be verified from the report as it renders
-// now — the reasons `verify` refuses every outcome on — or "" where it can. nil reads every citation
-// as verifiable.
+// unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
+// renders now — the reasons `verify` and `reproduce` refuse on (LiveSentence) — or "" where one can.
+// nil reads every anchor as checkable.
 type unverifiableFunc func(anchor string) string
 
-// undocketed is gaps without the open ones a docket motion stands unruled on.
+// undocketed is gaps without the ones a docket motion stands unruled on, open or closed.
 func undocketed(gaps []WorkGapState) []WorkGapState {
 	out := make([]WorkGapState, 0, len(gaps))
 	for _, g := range gaps {
@@ -146,8 +155,12 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		ls := lastReadOf(evs, ids, win, seatID)
 		s.LastRead = &ls
 	}
-	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
-	may := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: false}) }
+	add := func(k ItemKind, sub *ItemSubject, what string) {
+		s.Open = append(s.Open, Item{What: what, Blocks: true, Kind: k, Subject: sub})
+	}
+	may := func(k ItemKind, sub *ItemSubject, what string) {
+		s.Open = append(s.Open, Item{What: what, Blocks: false, Kind: k, Subject: sub})
+	}
 
 	// THE AUDIT IS THE LENS'S WORK, AND IT WAS THE ONE THING THIS LIST DID NOT SAY.
 	//
@@ -162,9 +175,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// turn open the way an owed register does. Present-but-not-blocking is what the Item.Blocks field
 	// is for, and the audit is the work it was added to be able to express.
 	if s.LastRead != nil {
+		report := about(SubjectReport, strconv.FormatInt(s.LastRead.Head, 10))
 		switch s.LastRead.Kind {
 		case "first":
-			may("audit the report in full — no sitting of yours before this one was served it whole, so nothing of it is yet yours to have read. " + ServedPinNote)
+			may(ItemAudit, report, "audit the report in full — no sitting of yours before this one was served it whole, so nothing of it is yet yours to have read. "+ServedPinNote)
 		case "behind":
 			// THE PINS ARE NAVIGATION, NOT THE AUDIT SURFACE, and this item said the opposite.
 			//
@@ -183,10 +197,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// before the field counted this sitting (#1565 and #1601 smokes): a lens that had read the
 			// report whole was still told it was behind, re-read its work list, and filed the
 			// contradiction as friction.
-			may(fmt.Sprintf("before this sitting, the report was last served to you whole at %d, and you are dispatched against head %d, so this sitting's audit reads it in full; the pins are here to show you WHAT changed, not to narrow what you audit. %s",
+			may(ItemAudit, report, fmt.Sprintf("before this sitting, the report was last served to you whole at %d, and you are dispatched against head %d, so this sitting's audit reads it in full; the pins are here to show you WHAT changed, not to narrow what you audit. %s",
 				s.LastRead.Pin, s.LastRead.Head, ServedPinNote))
 		case "served":
-			may(fmt.Sprintf("this sitting served you the report whole at head %d, and you are dispatched against head %d: the text you were served is this sitting's audit.",
+			may(ItemAudit, report, fmt.Sprintf("this sitting served you the report whole at head %d, and you are dispatched against head %d: the text you were served is this sitting's audit.",
 				s.LastRead.Pin, s.LastRead.Head))
 		}
 	}
@@ -229,9 +243,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// an impediment", and on universe-m13 every seat read that as "something that stopped me" and
 		// filed nothing across a dozen refusals, guessed flags and workarounds (seven interviews).
 		if refused > 0 {
-			may(fmt.Sprintf("the log is open, and the tool has already recorded %d refused or failed call(s) of yours this sitting — your entry adds what only you know: what you expected, and where the expectation came from. Any other friction goes there too: a workaround, an act you set aside", refused))
+			may(ItemLog, nil, fmt.Sprintf("the log is open, and the tool has already recorded %d refused or failed call(s) of yours this sitting — your entry adds what only you know: what you expected, and where the expectation came from. Any other friction goes there too: a workaround, an act you set aside", refused))
 		} else {
-			may("the log is open — for anything that cost you a call, a guess or an act. A sitting where nothing cost you anything files nothing")
+			may(ItemLog, nil, "the log is open — for anything that cost you a call, a guess or an act. A sitting where nothing cost you anything files nothing")
 		}
 	}
 
@@ -245,9 +259,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// the docket's register to the NEXT sitting: a second register in this one is refused as a repeat,
 	// so this sitting cannot clear it.
 	if d, owed := owedSitting(evs, win, seatID); owed && seatID == benchSeat && benchRegisteredSince(evs, win, d) {
-		may(fmt.Sprintf("the dispatch against report head %d also convenes you for a sitting of its own you have not opened yet — this sitting is registered for its occasion, and the next is registered for the other", d.pin))
+		may(ItemRegisterOwed, nil, fmt.Sprintf("the dispatch against report head %d also convenes you for a sitting of its own you have not opened yet — this sitting is registered for its occasion, and the next is registered for the other", d.pin))
 	} else if owed {
-		add(fmt.Sprintf("you were dispatched against report head %d and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
+		add(ItemRegisterOwed, nil, fmt.Sprintf("you were dispatched against report head %d and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
 	}
 	// THE CHAIR OWES THE SAME REGISTER, AND NO DISPATCH NAMES IT, so the item above never reaches
 	// it. A warm chair resuming its session registered once per run on every archived B run, and
@@ -258,7 +272,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// the rule at the top of this file asks of every item here.
 	if seatID == chairSeat {
 		if g, owed := unopenedChairSitting(evs, win); owed {
-			add(chairRegisterOwed(g) + " — register for this sitting")
+			add(ItemRegisterOwed, nil, chairRegisterOwed(g)+" — register for this sitting")
 		}
 	}
 
@@ -272,12 +286,13 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 
 	switch role {
 	case "blue":
-		// A computation demand prose cannot answer. The lens that minted it is REFUSED if it
-		// tries to close one unproved, so an unanswered demand does not settle — it carries into
-		// the next epoch.
+		// A live-answer demand prose cannot answer (recordpb.DemandClause): a `source` gap owes a
+		// citation, a `computation` gap a computation, placed as its answer. The lens that minted it
+		// is REFUSED if it tries to close one unanswered, so an unanswered demand does not settle —
+		// it carries into the next epoch.
 		//
 		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING IS ENGAGED ON THE GAP, and until a recorded
-		// act answers it there (gblock, 2026-10-24): a computation naming it, which ends the debt; a motion
+		// act answers it there (gblock, 2026-10-24): an anchor placed as its answer, which ends the debt; a motion
 		// blue files on the gap, which puts the demand before its ruler; or a retire that takes the
 		// gap's sentence out. Prose does not: an edit arguing the demand is wrong leaves it owed.
 		var engaged []string
@@ -286,20 +301,22 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 		moved, retired := answeredByActThisSitting(evs, win, seatID)
 		for _, g := range gaps {
-			if !g.AwaitingComputation {
+			if !g.AwaitingEvidence {
 				continue
 			}
 			id := g.ID
-			const what = " was minted --check-kind computation and no computation answers it; prose cannot close it"
+			row, _ := recordsql.EvidenceTableOf(AnswerKindOf(g.CheckKind))
+			what := " was minted --check-kind " + g.CheckKind + " and is owed a " + row.Noun + " placed as its answer; prose cannot close it: " + recordpb.DemandClause
+			gap := about(SubjectGap, id)
 			switch {
 			case !slices.Contains(engaged, id):
-				may("gap " + id + what + " — this sitting is not engaged on it")
+				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — this sitting is not engaged on it")
 			case moved[id]:
-				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until a computation names it")
+				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until the demand is met")
 			case retired && g.LocationState == LocationGone:
-				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until a computation names it")
+				may(ItemAwaitingEvidence, gap, "gap "+id+what+" — your retire this sitting took its sentence out, and the lens's close stays refused until the demand is met")
 			default:
-				add("gap " + id + what)
+				add(ItemAwaitingEvidence, gap, "gap "+id+what)
 			}
 		}
 		// A REMAND'S EXCHANGE HOLDS BLUE'S SITTING UNTIL BLUE ACTS ON THE GAP (remandItemsOf).
@@ -312,9 +329,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// blue's body failed to deliver an inquiry's research, the logic lens finds it wanting and
 		// mints a gap about it, which reaches blue through the ordinary route.
 		if seatID == blueRespondSeat {
-			for _, w := range blueInquiryItemsOf(evs, win, seatID) {
-				add(w)
-			}
+			s.Open = append(s.Open, blueInquiryItemsOf(evs, win, seatID)...)
 		}
 		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage`
 		// (successorsOwedOnTheWorkList): the record names the successor, and blue sits on it a second
@@ -325,7 +340,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				for _, o := range owed {
 					named = append(named, o.GapID+" (successor of "+o.Of+")")
 				}
-				add("this sitting found a gap closed whose successor is open and not yet engaged this epoch — " + strings.Join(named, ", ") +
+				add(ItemSuccessorOwed, nil, "this sitting found a gap closed whose successor is open and not yet engaged this epoch — "+strings.Join(named, ", ")+
 					" — record `engage` on them, then name them in your envelope's successors: you sit on them again this epoch")
 			}
 		}
@@ -339,9 +354,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			switch {
 			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
-				add(b.WorkItem())
+				s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
 			case b.Kind == BlockerFailedCheck && seatID == blueRespondSeat:
-				add(blueFailedItem(b))
+				s.Open = append(s.Open, b.asItem(blueFailedItem(b), true))
 			}
 		}
 	case "chair":
@@ -357,25 +372,27 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// EACH ITEM SAYS WHETHER THE CHAIR CLEARS IT, by the gate's own predicate (ChairOwned), so
 		// the digest counts as the chair's debt only what the chair can clear.
 		hold := func(b Blocker) {
-			s.Open = append(s.Open, Item{What: b.WorkItem(), Blocks: true, AnotherSeatClears: !b.ChairOwned()})
+			it := b.asItem(b.WorkItem(), true)
+			it.AnotherSeatClears = !b.ChairOwned()
+			s.Open = append(s.Open, it)
 		}
-		gapItem := map[string]Blocker{}
+		held := map[string]Blocker{}
 		for _, b := range blockers {
 			if b.Kind == BlockerMaterialGap || b.Kind == BlockerRemandOwed {
-				gapItem[b.Subject] = b
+				held[b.Subject] = b
 			}
 		}
 		for _, g := range gaps {
 			if !g.Open {
 				continue
 			}
-			if b, holds := gapItem[g.ID]; holds {
+			if b, holds := held[g.ID]; holds {
 				hold(b)
 				continue
 			}
 			grade, _ := g.Severity.(string)
-			s.Open = append(s.Open, Item{Blocks: false, What: "gap " + g.ID + " is open and not material (" +
-				notMaterialBecause(g.ClassMaterial, grade) + ") — it does not hold PASS; your PASS lists it by class with why it changes no reader decision"})
+			s.Open = append(s.Open, gapItem(ItemNotMaterial, g.ID, "gap "+g.ID+" is open and not material ("+
+				notMaterialBecause(g.ClassMaterial, grade)+") — it does not hold PASS; your PASS lists it by class with why it changes no reader decision"))
 		}
 		for _, b := range blockers {
 			if b.Kind != BlockerMaterialGap && b.Kind != BlockerRemandOwed {
@@ -383,12 +400,12 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			}
 		}
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
-			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
+			add(ItemVerdictOwed, nil, "your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
 		// THE SITTING AFTER AN OVERRULED POSITION DECIDES THE PASS (gblock, 2026-10-30;
 		// positionheard.go): it owes a verdict, and a position here is refused.
 		if id, owed := overruledVerdictOwed(evs, win); owed {
-			add(overruledVerdictItem(id))
+			add(ItemVerdictOwed, about(SubjectMotion, id), overruledVerdictItem(id))
 		}
 	// THE LENS OWES THE PASS BLOCKERS IT OWNS: CHECKING A CITATION OR COMPUTATION IT OWNS
 	// (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS REACHED, THE GAP ABOUT A CHECK OF
@@ -410,6 +427,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
+		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS ARE ALL RETIRED (ruling Closures are history): news,
+		// never a blocker — the closure stands, and the item says what a mint in answer would be. It
+		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
+		// until the bench rules, as every other item on a docketed gap is held.
+		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID, reads.mintsLeft)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
 			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the
@@ -417,11 +439,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// reading minted its gap, so it is listed as not owed, carried or not, and no envelope of
 			// the reader's is refused over it.
 			if b.Kind == BlockerFailedCheck && b.Owner == seatID {
-				if b.owed() {
-					add(b.WorkItem())
-				} else {
-					may(b.WorkItem())
-				}
+				s.Open = append(s.Open, b.asItem(b.WorkItem(), b.owed()))
 				continue
 			}
 			// AN UPHELD POSITION NAMING THIS LENS IS ITS AUDIT TO HAVE, in a sitting opened after the
@@ -429,7 +447,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// cannot (positionheard.go).
 			if b.Kind == BlockerUpheldPosition && b.Owner == seatID {
 				if win.LatestSittingOf(seatID) > b.since {
-					add(upheldAuditItem(b))
+					s.Open = append(s.Open, b.asItem(upheldAuditItem(b), true))
 				}
 				continue
 			}
@@ -438,7 +456,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// (requireInquiryCheck), so such a sitting does not list it; the next plan readies the lens.
 			if b.Kind == BlockerUncheckedInquiry {
 				if b.Owner == seatID && win.LatestSittingOf(seatID) > b.since {
-					add(b.WorkItem())
+					s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
 				}
 				continue
 			}
@@ -448,16 +466,17 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			if b.Kind == BlockerUnchecked && b.since != 0 && win.LatestSittingOf(seatID) <= b.since {
 				continue
 			}
-			// A CITATION NO VERIFY CAN REACH is not its to clear either: `verify` refuses every
-			// outcome on it (cli/lens/verify.go citedSentence), and blue's retire of its claim, or a
-			// report that renders again, is what moves it.
-			if b.Kind == BlockerUnchecked && b.Detail == "" && reads.unverifiable != nil {
+			// AN EVIDENCE ANCHOR NO CHECK CAN REACH is not its to clear either: `verify` and
+			// `reproduce` refuse an anchor the report holds no sentence for (LiveSentence), and blue's
+			// retire of its claim, or a report that renders again, is what moves it. Asked of every
+			// unchecked anchor, a citation and a computation alike: the gate reads no kind.
+			if b.Kind == BlockerUnchecked && reads.unverifiable != nil {
 				if why := reads.unverifiable(b.Subject); why != "" {
-					may(b.WorkItem() + " — " + why + ", so no verify of this sitting can clear it")
+					s.Open = append(s.Open, b.asItem(b.WorkItem()+" — "+why+", so no check of this sitting can clear it", false))
 					continue
 				}
 			}
-			add(b.WorkItem())
+			s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
 		}
 	case "bench":
 		// THE BENCH'S MOTIONS ARE THE GATE'S LIST, read through passBlockersOf: every unruled motion
@@ -488,10 +507,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 					b.About, at, RemandLimitRule, strings.Join(ClosingDispositions(), ", "))
 			}
 			if held[b.Subject] {
-				add("motion " + b.Subject + " (" + b.Detail + ") is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands" + limit)
+				s.Open = append(s.Open, b.asItem("motion "+b.Subject+" ("+b.Detail+") is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands"+limit, true))
 				continue
 			}
-			may("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours; it waits for the sitting convened for it — the run cannot end in a verdict while it stands" + limit)
+			s.Open = append(s.Open, b.asItem("motion "+b.Subject+" ("+b.Detail+") is unruled and the gavel is yours; it waits for the sitting convened for it — the run cannot end in a verdict while it stands"+limit, false))
 		}
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
@@ -516,7 +535,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// holds work for you" as its only evidence about the record, and proposed five approaches the
 	// record already held.
 	if len(s.Open) == 0 && WorkArrivesAsItems(role, seatID) {
-		may("nothing is owed and nothing is available: this list is complete, not empty — no other projection holds work for you, and ending your turn now is the correct act")
+		may(ItemNothingOwed, nil, "nothing is owed and nothing is available: this list is complete, not empty — no other projection holds work for you, and ending your turn now is the correct act")
 	}
 	s.Complete = !s.Blocked()
 	return s
@@ -729,8 +748,8 @@ func logsThisSitting(evs []*Event, win WindowIndex, seatID string) (seatEntries,
 	return seatEntries, toolRefusals
 }
 
-// gapsAwaitingComputationOn is gone: the gap rows carry awaiting_computation off the view, the same join
-// the close gate reads, so the sitting and the gate cannot disagree about what is owed.
+// The gap rows carry awaiting_evidence off the view, the column the close gate reads, so the sitting
+// and the gate cannot disagree about what is owed.
 
 // sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing of a type
 // recordsql.NotActs does not list, the definition seat_metrics counts acts by.

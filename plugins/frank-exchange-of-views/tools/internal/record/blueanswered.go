@@ -3,7 +3,9 @@ package record
 import (
 	"fmt"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // DID BLUE ANSWER THIS GAP, AND CAN THE RECORD SAY? (#1122)
@@ -51,48 +53,57 @@ import (
 // the route. And an answer the lens has read is no news: only what arrived after lensRead is named, so
 // ANSWERED clears once the lens has audited that answer. A gap that is not material readies nobody,
 // and its lens hears of blue's answer here all the same when it sits for anything else.
-func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []string {
+func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
 	minted := mintedBy(evs)
 	var mine []string
 	open, gone, read, turn := map[string]bool{}, map[string]bool{}, map[string]int64{}, map[string]bool{}
+	demand := map[string]bool{} // the gap's check kind is one an evidence anchor answers
 	for _, g := range gaps {
 		if g.Open && (g.lensDue || g.lensTurn || g.LocationState == LocationGone) && minted[g.ID] == seatID {
 			mine = append(mine, g.ID)
 			open[g.ID] = true
 			gone[g.ID] = g.LocationState == LocationGone
 			read[g.ID], turn[g.ID] = g.lensRead, g.lensTurn
+			_, demand[g.ID] = recordsql.EvidenceTableOf(AnswerKindOf(g.CheckKind))
 		}
 	}
 	if len(mine) == 0 {
 		return nil
 	}
 	answers := blueAnswersOf(evs, win, open, motionsAt(evs, win.IDs(evs), win))
-	var out []string
+	var out []Item
+	say := func(g, what string) { out = append(out, gapItem(ItemReaudit, g, what)) }
 	for _, g := range mine {
 		a := answers[g]
 		switch {
+		// A REACHING RETIRE FIRST (gblock, 2026-11-03): "NO edit answers it" would be false of this gap.
+		// Blue took out the anchor the gap is about, or whose reading it carries, so the gap's demand
+		// is met and only its lens can act on it now.
+		case a.metAt > read[g]:
+			say(g, fmt.Sprintf("gap %s: blue retired %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
+				g, a.met.anchor, a.met.how(g), a.metAt, a.met.result(demand[g])))
 		case a.editedAt > read[g]:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or a citation retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
-		case a.computedAt > read[g]:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a computation — blue recorded %s answering it; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.computation))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or an evidence-anchor retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
+		case a.placedAt > read[g]:
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by a %s — blue placed %s as its answer; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.placedNoun(), a.placed))
 		case a.fateAt > read[g]:
 			on := a.fateOn + ", which the section the gap is anchored on prints"
 			if a.fateOn == a.inquiry {
 				on = a.fateOn + ", the inquiry the gap is anchored on"
 			}
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, changing its fate, reason or method; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, on))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, changing its fate, reason or method; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, on))
 		case a.pending:
-			out = append(out, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
+			say(g, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
 		case a.engaged && gone[g] && a.at > read[g]:
-			out = append(out, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it, or keep its grade with a regrade that says what still fails", g))
+			say(g, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it, or keep its grade with a regrade that says what still fails", g))
 		case turn[g]:
 			// THE LENS'S TURN, NOT BLUE'S ANSWER: an edit answering another gap changed this gap's
 			// sentence, and the row's `edited_since` lists it.
-			out = append(out, fmt.Sprintf("gap %s: an edit changed its sentence since you last acted on it, and no act of blue's answers it — `edited_since` lists the edit; re-audit the sentence as it stands against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g))
+			say(g, fmt.Sprintf("gap %s: an edit changed its sentence since you last acted on it, and no act of blue's answers it — `edited_since` lists the edit; re-audit the sentence as it stands against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g))
 		case a.engaged && a.inquiry != "":
-			out = append(out, fmt.Sprintf("gap %s is open and NO inquiry record answers it since you last acted on it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without changing a fate", g, a.inquiry))
+			say(g, fmt.Sprintf("gap %s is open and NO inquiry record answers it since you last acted on it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without changing a fate", g, a.inquiry))
 		case a.engaged:
-			out = append(out, fmt.Sprintf("gap %s is open and NO edit, computation or changed fate answers it since you last acted on it — blue has been engaged on it and its sitting closed without one", g))
+			say(g, fmt.Sprintf("gap %s is open and NO edit, citation, computation or changed fate answers it since you last acted on it — blue has been engaged on it and its sitting closed without one", g))
 		}
 		// A GAP BLUE HAS NEVER BEEN ENGAGED ON GETS NOTHING, and the silence is correct: it is
 		// waiting for a dispatch, which is the chair's business and not news about blue.
@@ -103,19 +114,52 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 // blueAnswer is what the record says of blue's answer to one gap: what blueAnswers words for the
 // gap's lens, and when it last arrived, which its debt reads (lensOwesOf).
 type blueAnswer struct {
-	editedAt    int64  // the latest change to the report answering it: an edit, old != new, or a citation retire
-	computedAt  int64  // the latest computation answering it
-	computation string // that computation's id
-	fateAt      int64  // the latest fate blue changed that is an act on it (fateActsOf), whatever its sitting was engaged on
-	fate        string // that fate
-	fateOn      string // the inquiry that fate is on
-	inquiry     string // the inquiry it is anchored on; "" for a gap anchored on report text
-	pending     bool   // a blue sitting engaged on it is open on the record
-	engaged     bool   // a blue sitting was engaged on it
+	editedAt int64  // the latest change to the report answering it: an edit, old != new, or an evidence-anchor retire
+	placedAt int64  // the latest evidence anchor — a citation or a computation — placed as its answer
+	placed   string // that anchor's id
+	// metAt is the latest reaching retire of it (WindowIndex.Reaches): a retire that took out the anchor
+	// it is about, or whose reading it carries, whatever gap the retire named. met is what it reached
+	// the gap through.
+	metAt   int64
+	met     reaching
+	fateAt  int64  // the latest fate blue changed that is an act on it (fateActsOf), whatever its sitting was engaged on
+	fate    string // that fate
+	fateOn  string // the inquiry that fate is on
+	inquiry string // the inquiry it is anchored on; "" for a gap anchored on report text
+	pending bool   // a blue sitting engaged on it is open on the record
+	engaged bool   // a blue sitting was engaged on it
 	// at is the events.id of blue's latest answer to it: an edit answering it, a computation, a fate on
 	// its inquiry, or the latest act of a closed sitting engaged on it — the rebuttal, or the silence
 	// its lens states. 0 when blue has given none.
 	at int64
+}
+
+// placedNoun is the kind of the anchor placed as the answer, as the evidence row names it.
+func (a blueAnswer) placedNoun() string {
+	row, _ := recordsql.EvidenceTableOf(anchor.Kind(a.placed))
+	return row.Noun
+}
+
+// how is what a reaching retire reached gap g through, as a work list says it.
+func (r reaching) how(g string) string {
+	switch {
+	case r.from != "" && r.from != g && r.carried:
+		return "whose reading " + r.from + " carries, " + g + " taking " + r.from + "'s demand on"
+	case r.from != "" && r.from != g:
+		return "which " + r.from + " is about, " + g + " taking " + r.from + "'s demand on"
+	case r.carried:
+		return "whose reading " + g + " carries"
+	}
+	return "which " + g + " is about"
+}
+
+// result is what a reaching retire leaves of the gap: its demand met, where its check kind is one an
+// evidence anchor answers (recordpb.DemandClause), and otherwise the anchor gone from the report.
+func (r reaching) result(demand bool) string {
+	if demand {
+		return "so its demand is met"
+	}
+	return "so the anchor is out of the report"
 }
 
 // answered is whether blue has given an answer the record can state — an edit, a fate, or a closed
@@ -183,10 +227,10 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 				at(g, e)
 				continue
 			}
-			if c, ok := recordpb.BodyAs[*recordpb.Computation](e); ok {
-				if g := c.GetAnswers(); g != "" && open[g] && after(g, e) {
+			if id, g, ok := placedAnswer(e); ok {
+				if g != "" && open[g] && after(g, e) {
 					a := out[g]
-					a.computedAt, a.computation, a.inquiry = win.Of(e).ID, c.GetComputationId(), inquiryOf[g]
+					a.placedAt, a.placed, a.inquiry = win.Of(e).ID, id, inquiryOf[g]
 					out[g] = a
 					at(g, e)
 				}
@@ -206,10 +250,33 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 			}
 		}
 	}
+	// A REACHING RETIRE IS READ OFF THE WHOLE STREAM, not a sitting's acts: it meets the gap's demand
+	// whichever sitting recorded it.
+	for _, e := range evs {
+		for _, r := range win.Reaches(e) {
+			if open[r.gap] && after(r.gap, e) {
+				a := out[r.gap]
+				a.metAt, a.met = win.Of(e).ID, r
+				out[r.gap] = a
+			}
+		}
+	}
 	return out
 }
 
-// retireAnswers is the gap a citation retire answers — the key BlueEdit.answers is on the other act
+// placedAnswer is the evidence anchor e places and the gap it was placed as the answer to ("" for
+// none), and false for an event that places no evidence anchor.
+func placedAnswer(e *Event) (id, gap string, ok bool) {
+	switch b := mustBody(e).(type) {
+	case *recordpb.Computation:
+		return b.GetComputationId(), b.GetAnswers(), true
+	case *recordpb.Cite:
+		return b.GetLabel(), b.GetAnswers(), true
+	}
+	return "", "", false
+}
+
+// retireAnswers is the gap an evidence-anchor retire answers — the key BlueEdit.answers is on the other act
 // that changes the report's text, and every reader of blue's answers reads both. "" for any other
 // event, and for a retire answering no gap; a claim retire carries none (validate refuses one).
 func retireAnswers(e *Event) string {

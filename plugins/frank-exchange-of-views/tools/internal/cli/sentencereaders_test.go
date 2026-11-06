@@ -54,7 +54,8 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	c1 := cite("Prices rose 3.5% in 2024", "https://a/1")
 	c1w := cite("Costs rose 4.5% in 2023", "https://a/2")
 	c2 := cite("91 = 7 × 13. ✓", "https://a/3")
-	// A citation never stands bare, so the sentences cut down to their anchors are proved ones.
+	// Evidence never stands bare by an edit, so the cuts down to an anchor below are recorded as an
+	// archived record holds them (recordEdit), on computed sentences.
 	compute := func(sentence string) string {
 		t.Helper()
 		s := script(t, runDir, "p.js", "console.log('it holds');")
@@ -68,8 +69,9 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	c4 := compute("Gone item")
 
 	t.Run("a sentence carrying a terminator inside it counts as one claim", func(t *testing.T) {
-		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", "operator"); err != nil || strings.TrimSpace(out) != "3" {
-			t.Errorf("count-claims = %q (%v), want 3 — the three citations: \"91 = 7 × 13. ✓%s\" is a cited claim", out, err, anchor.Token(c2))
+		// Five evidence anchors on prose: three citations and two computations, each one claim.
+		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", "operator"); err != nil || strings.TrimSpace(out) != "5" {
+			t.Errorf("count-claims = %q (%v), want 5 — three citations and two computations: \"91 = 7 × 13. ✓%s\" is a cited claim", out, err, anchor.Token(c2))
 		}
 	})
 	t.Run("an anchor left out of a rewritten claim is refused by its whole sentence", func(t *testing.T) {
@@ -102,7 +104,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	})
 	t.Run("the retire tidy keeps the closer before the emptied sentence", func(t *testing.T) {
 		tok := anchor.Token(c3)
-		edit("Gone soon"+tok+".", tok) // the cut; the splice tidy takes its period
+		recordEdit(t, runDir, "Gone soon"+tok+".", tok) // the cut; the splice tidy takes its period
 		edit("**One.** "+tok+" Two.", "**One.** "+tok+". Two.")
 		if got := retire("Gone soon.").GetAnchors(); !slices.Equal(got, []string{c3}) {
 			t.Errorf("retire took %v, want [%s]", got, c3)
@@ -112,7 +114,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 		}
 	})
 	t.Run("the retire tidy keeps an emptied ordered item's marker", func(t *testing.T) {
-		edit("Gone item"+anchor.Token(c4)+".", anchor.Token(c4))
+		recordEdit(t, runDir, "Gone item"+anchor.Token(c4)+".", anchor.Token(c4))
 		retire("Gone item.")
 		if md := readReport(t, runDir); !strings.Contains(md, "\n1.\n2. Kept item.") {
 			t.Errorf("want the emptied item to read \"1.\" after the retire:\n%s", md)
