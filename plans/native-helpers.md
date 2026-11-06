@@ -360,9 +360,10 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
   - The edit is made in `scripts/fetchbingen/fetch-bin.sh` and regenerated into the three plugin copies.
 - **`fetch-bin.sh` and `sc-doctor` never fetch into a source-built root.** `universe.sh build` writes
   `.fetch/source-built` into every root it populates. `fetch-bin.sh`'s `hook`, `ensure` and `fetch`, and `sc-doctor
-  -fix`'s fetch, exit before any network access when it is present, and `ensure` and `-fix` say so in one line naming
-  `universe.sh build --native`. The checkout guard (§II.4) heals a universe root by design, so the marker is the only
-  thing that stops it.
+  -fix`'s fetch, exit before any network access when it is present. `fetch` and `-fix` say so in one line naming
+  `universe.sh build --native`; `hook` and `ensure` exit silently, because `ensure` runs at every SessionStart and
+  `setup`'s preflight (F9) and `sc-doctor` already report an absent helper. The checkout guard (§II.4) heals a universe
+  root by design, so the marker is the only thing that stops it.
 - **Source digest (F8, L1).** For each helper, `devcmd/nativedigest` hashes, in a fixed order with CRLF folded to LF
   (as `cstackPin` does today), that helper's inputs and no other's: `native/<helper>/**` (its sources and its own
   `PINS.txt`), `native/frame/**`, `native/build.sh` and `native/PINS.txt` (the toolchain). It writes every helper's
@@ -533,10 +534,11 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     size: each statement of it is rewritten as "every published pair" or "the release job's pair list". Every other
     carrier of the set's membership or size, and its disposition, is census M. On an Intel Mac, `fetch-bin.sh`
     (`:234-245`, unchanged) asks for `<n>_darwin_amd64`, which `SHA256SUMS` no longer lists, and fails naming it
-    (`TestFetchBinNamesAnAssetTheReleaseDoesNotCarry`); `sc-doctor -fix` builds the Go binaries from source there, as
-    on any unpublished platform, and reports the helpers missing.
+    (`TestFetchBinNamesAnAssetTheReleaseDoesNotCarry`).
   - Residue (F15): on an Intel Mac, and in a Rosetta-translated shell on Apple Silicon (`uname -m` prints `x86_64`),
-    FEOV's helpers can never be fetched. `stampInstalled` never stamps FEOV, so its `ensure` re-attempts at every
+    `fetch-bin.sh` is all-or-none, so no plugin's Go binaries are fetched either, and hooks run only after
+    `sc-doctor -fix` builds them from source; FEOV's helpers can never be fetched, and `sc-doctor` reads DEGRADED
+    there. `stampInstalled` never stamps FEOV, so its `ensure` re-attempts at every
     session start and its hooks print "installing its hook binaries failed (release has no …_darwin_amd64)" at most
     once per 5-minute window (`fetch-bin.sh:181-184`), indefinitely. OCR and search refuse there with `helper-absent`.
   - For a FEOV tag it downloads every `native-build` artifact into `$DIST`, renaming each model export to its release
@@ -588,21 +590,45 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
   `TestFetchBinInstallsNothingWhenOneDigestIsWrong` `:276`, `TestFetchBinNamesAnAssetTheReleaseDoesNotCarry` `:289`)
   gain a helper and an `ASSETS` line, and the `fetch-bin-platforms` job's fixture plugin (`hooks.yml:1159-1216`, `:1182`)
   gains `native/fake-helper/ASSETS`, its assets, and a `.fetch/source-built` root.
-- **`sc-doctor`** enumerates the helpers and their `ASSETS` the same way (`binariesOf`, `main.go:73-91`), reports each as
-  installed or missing, and fetches them; it never builds one (`main.go:533-538` stays Go-only). `fetchRelease`
-  (`main.go:490-528`) names its asset by `AssetName` (`:496`), which names no model export: for an `ASSETS` line it
-  downloads the field for `runtime.GOARCH` and installs it under the line's first field, and a line without that field
-  fails naming the file and arch, as `fetch-bin.sh` does. `fixWith` (`:580-608`) passes a failed helper or `ASSETS`
-  fetch to the report, never to `buildFromSource`. It holds neither FEOV's
-  digest nor a frame client, so it checks no digest. `feov-record`'s handshake and `setup` preflight do.
+- **`sc-doctor`** judges a helper or `ASSETS` file present or missing only, never by a Go build stamp, and checks no
+  digest (FEOV's handshake and `setup` preflight do). Sweep, at `fa20d83b7`, each non-test hit read for what it assumes
+  about an entry: `grep -n "binStatus\|binPath\|ReadBuildStamp\|AssetName\|binariesOf"
+  plugins/prosthetic-conscience/tools/internal/doctor/*.go`. Line numbers are `main.go`'s unless named.
+  - **Entries.** `binariesOf` (`:73-91`), the only non-test constructor of `binStatus`, also lists each helper (§1.1
+    predicate) and each `ASSETS` line. It sets two new fields: `Kind` (`go`, `helper`, `asset`) and, for an `asset`,
+    `Export`, the line's field for `runtime.GOARCH` (empty when there is none). Two methods derive the rest: `file()`
+    is `buildid.ExeName(Name)` for `go` and `helper` and `Name` verbatim for `asset`; `asset()` is
+    `AssetName(Name, GOOS, GOARCH)` for `go` and `helper` and `Export` for `asset`.
+  - **Presence.** `binariesOf`'s `Stat` (`:83-84`) and `binPath` (`:284`) read `file()`, so `bin/gte-small.int8.ort`
+    is found on Windows, where today's `ExeName` looks for `gte-small.int8.ort.exe`. `fetchRelease` (`:490-528`) asks
+    `gh` for `asset()` (today `AssetName`, `:495`) and writes `binPath(b)` (today `:524`); an `asset` with an empty
+    `Export` fails naming the file and arch, as `fetch-bin.sh` does.
+  - **Stamps.** Four readers call `ReadBuildStamp(binPath(b))`: `verdict`'s stale arm (`:188`), `UnstampedCount`
+    (`:206-217`), `table` (`:273`) and `NoReferenceCount` (`reference.go:78-90`). A non-Go file has no stamp, so
+    today `table` prints "! unstamped" for each helper and export and `UnstampedCount` qualifies every FEOV verdict
+    with "3 binaries carry no build stamp". All four read through one function, `stampVerdict(b)`, which gives no
+    verdict for a non-`go` entry. A present helper or export reads `✓ installed`, a missing one `✗ missing (run
+    -fix)`, which degrades the verdict as a missing Go binary does.
+  - **Provisioning.** `fixWith` (`:580-608`) passes a failed non-`go` fetch to the report, never to `buildFromSource`
+    (`:533-538`, Go-only), and its line naming the file to place reads `asset()` (today `AssetName(b.Name, …)`,
+    `:603-604`, which names `gte-small.int8.ort_<os>_<arch>`, an asset no release carries). `stampInstalled`
+    (`:550-570`) reads presence through `binariesOf`, so it waits for every entry.
+  - **`danceWarnings`** (`:384-417`) counts every entry, which is what `ensure` installs, and its message (`:404`) says
+    "release files", not "hook binaries".
+  - **Unchanged:** `hookBinaries` and `siblingBinaries` (pass `binariesOf` through), `ReferenceCommit` (per root),
+    `releaseTag` and `downloadArgs` (per plugin), `fix`, `run`. Test hits construct `go` entries.
+  - **The mechanism's own sweep:** `grep -n "Kind\|Export\|file()\|asset()\|stampVerdict\|ReadBuildStamp\|AssetName"
+    doctor/*.go | grep -v _test` shows `binariesOf` the only writer of `Kind` and `Export`, `stampVerdict` the only
+    caller of `ReadBuildStamp` outside `builtfrom.go`, and `asset()` the only caller of `AssetName`.
 - **`pluginparity`** needs no helper check: `releaseassets -scope` and `-matrix` generate the build and run matrices from
   the helpers present, and `releaseassets -check` refuses a release missing one.
 - **`bootstrap-plugins.sh`** (`:85-97`) builds Go commands from the cache and no helpers, and prints one line saying the
   next session start fetches them.
 - **`universe.sh`** follows F5. `build` writes `.fetch/source-built`; `build --native` also runs `native/build.sh` for the
   host target and copies both helpers and the host arch's model export into `bin/` of every root it populates. Its
-  post-build assertion (`universe.sh:498-`) is extended to run `fetch-bin.sh fetch` on each staged root and assert
-  `bin/` is unchanged.
+  post-build assertion (`universe.sh:502-511`) still dies on any `ensure` output, which a source-built root keeps
+  empty with or without helpers (§1.4), and also runs `fetch-bin.sh fetch` on each staged root and asserts `bin/` and
+  `.fetch/installed` are unchanged; `fetch`'s one line is expected there.
 - **Unchanged:** `marketplacegen`, `versionguard` and `gcpolicy`, because helpers are not Go `cmd/` directories.
 
 #### 1.7 Gates and docs
@@ -710,7 +736,8 @@ sections (`:8, :61, :69-120, :329-332, :458-506`) give way to ONNX Runtime 8-bit
 Groups A–F and I–K are the run against `origin/main` at `7b973ec4e`, 2026-11-04. Group G and every line number cited in
 §I–§V are re-derived at `68a735d51`, re-checked at `cd527c7e8`, and re-checked at `7d676a887`, where of the cited files
 only `AGENTS.md`, the difftest manual golden and `releasegate/fuzz/fuzz_test.go` moved; their citations are updated.
-Groups H and M are run at `7d676a887`. Each group's command re-enumerates it; Appendix A has every line.
+Groups H and M are run at `7d676a887`. The `sc-doctor` sweep (G) and the `universe.sh` and `test`-job citations are
+read at `fa20d83b7`, where `doctor/` and `universe.sh` are unchanged since `7d676a887`. Each group's command re-enumerates it; Appendix A has every line.
 
 | Group | What | Count | Enumerate |
 |---|---|---|---|
@@ -720,9 +747,9 @@ Groups H and M are run at `7d676a887`. Each group's command re-enumerates it; Ap
 | D | Build-tag test infrastructure | 14 tagged + 3 harness sites | `grep -rln '^//go:build.*tessocr' plugins --include=*.go` |
 | E | C-stack tooling, and every reader of it | 3 entries (4 tracked files); 89 reader lines in 21 files | `git ls-files $F/third_party/pins; git grep -n '"third_party"\|third_party/pins\|PINS\.txt' -- . ':!run-archive'` |
 | F | `hooks.yml` | 3 jobs build the stack, 1 publishes, 2 contract tests parse the workflow; 4 jobs run tests over a `Require` package | `grep -n "tessocr\|cstack\|linkmode\|for pair in\|go test" .github/workflows/*.yml` |
-| G | Enumerators that treat `tools/cmd` as the binary list | 9 | `grep -rn 'tools/cmd' scripts plugins/*/hooks plugins/prosthetic-conscience/tools/internal/doctor .github \| grep -v _test` |
+| G | Enumerators that treat `tools/cmd` as the binary list | 9; `sc-doctor`'s entry readers swept at `fa20d83b7` (§III.1.6) | `grep -rn 'tools/cmd' scripts plugins/*/hooks plugins/prosthetic-conscience/tools/internal/doctor .github \| grep -v _test`; `grep -n "binStatus\|binPath\|ReadBuildStamp\|AssetName\|binariesOf" plugins/prosthetic-conscience/tools/internal/doctor/*.go` |
 | H | Text naming the engine as compiled in, tag-gated or stubbed | 282 lines: 1 seat-facing source, 10 generated agents, 4 golden lines, the rest help, comments and tests | `git grep -in "$H" -- plugins/frank-exchange-of-views docs AGENTS.md scripts .github`, `$H` in Appendix A |
-| M | Statements of the published target set's membership or size (F15) | 74 lines in 31 files: 33 carriers, 41 other sense | the three-part command in Appendix A |
+| M | Statements of the published target set's membership or size (F15) | 74 lines in 31 files: 34 carriers, 40 other sense | the three-part command in Appendix A |
 | I | Gates | 3 | `grep -n "tessocr\|C stack" scripts/check/*.go` |
 | J | Engine identity | 1 producer, 4 stores, 3 comparers | `grep -rn "Identity()\|ocr_engine" $F/internal --include=*.go \| grep -v _test` |
 | K | Docs and plans | 3 docs, 1 live plan, 1 rule in AGENTS.md | `grep -rln "tessocr\|build-cstack\|linkmode external" docs plans` |
@@ -855,8 +882,9 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
      `universe.sh` stages it (`plugins/<name>/` under a directory holding the marketplace manifest and no `scripts/`,
      with `tools/go.mod`), a helper missing and a `file://` release holding it. First, without `.fetch/source-built`,
      `fetch` installs the helper. That proves the checkout guard does not stop it. Then, with the marker, `hook`,
-     `ensure` and `fetch` each leave `bin/` and `.fetch/installed` unchanged. Deletion check: remove the marker test
-     from `fetch-bin.sh` and the second half fails.
+     `ensure` and `fetch` each leave `bin/` and `.fetch/installed` unchanged, `hook` and `ensure` print nothing, and
+     `fetch` prints one line naming `universe.sh build --native`. Deletion checks: remove the marker test from
+     `fetch-bin.sh` and the second half fails; have `ensure` print the line and it fails.
    - `TestFixDoesNotFetchIntoASourceBuiltRoot`, through `fixWith`.
    - `TestStampWaitsForEveryHelper`: `stampInstalled` writes no stamp while one helper or `ASSETS` file is missing.
    - `TestFetchBinPicksTheExportForItsArch`: an `ASSETS` line with `amd64=` and `arm64=` fields installs the right one;
@@ -869,13 +897,28 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
      `ASSETS` file as fetch failures and `build` is not called. A line without the host arch fails naming it.
      Deletion checks: name the asset by `AssetName` and the first case fails; route a failed helper fetch to `build`
      and the second fails.
+   - Two `doctor` tests through `run`, as `Main` calls it (`-root` and the shipped `fix`), on every leg of the `test`
+     job (`hooks.yml:136-138` at `fa20d83b7`: Linux and Windows). Fixture: an install,
+     `<cache>/<marketplace>/frank-exchange-of-views/<v>/`, with `installed_plugins.json` recording `<v>`'s commit, a
+     `requirements.json` declaring no tools, `tools/cmd/alpha`, `native/feov-ocr/ASSETS` (empty) and `native/feov-embed/ASSETS` (`gte-small.int8.ort` with an
+     export per arch).
+     - `TestDoctorJudgesHelpersByPresenceOnly`, no `-fix`: `bin/` holds `alpha`, built by the test with `go build` in
+       the repository so its stamp is the recorded commit, both helpers as non-Go bytes under `buildid.ExeName`, and
+       `bin/gte-small.int8.ort` with no `.exe`. The output is `VERDICT: READY` with no qualifier, `alpha` reads
+       `✓ built` and the other three `✓ installed`. Deletion checks: have `UnstampedCount` read a non-`go` entry's
+       stamp and the qualifier "3 binaries carry no build stamp" appears; have `table` read it and "! unstamped"
+       appears; derive `file()` from `ExeName` for an `asset` and the Windows leg reads the export missing.
+     - `TestDoctorNamesTheExportWhenNothingCanProvideIt`, `-fix` with `bin/` empty and `PATH` holding only a Go fake
+       `gh` that exits 1 (no `go`): the report names `feov-ocr`'s `AssetName` and the host arch's export
+       (`gte-small.int8.<arch>.ort`) as the files to place, and no `gte-small.int8.ort_<os>_<arch>`. Deletion check:
+       name the file to place with `AssetName(b.Name, …)` and it fails.
    - `TestEnsureIsSilentWhenTheInstalledTagMatches` (`fetchbin_contract_test.go:542`) keeps its fixture plugin
      helper-less, so the unmatched `native/*/ASSETS` glob is exercised. Deletion check: drop the `[ -f ]` test and it
      fails.
    - `fetch-bin-platforms` (Linux, macOS, Windows) runs the fixture plugin with a fake helper, an `ASSETS` line and a
      source-built root.
-   - `scripts/universe.sh build`, then its post-build assertion runs `fetch-bin.sh fetch` on every staged root and `bin/`
-     is unchanged.
+   - `scripts/universe.sh build` with no helpers completes: `ensure` prints nothing on every staged root, and `fetch`
+     leaves `bin/` and `.fetch/installed` unchanged.
    - `scripts/universe.sh build --native`, then `cmp` each staged helper against `native/build.sh`'s output, and
      `feov-record setup` in the universe prints `feov-ocr: available`.
 8. **Test gating in CI, the helper cache, and a helper on every event (gap 4; r2 gap 1; r3 gaps 1, 2).** Re-armed by
@@ -948,10 +991,11 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
     - After Part 1, census M's three-part command (Appendix A) returns exactly: the release job's `for pair in` line
       (five pairs); `hooks.yml:128, :1186`; the four `fetch-bin.sh` `uname -m` lines; `release_contract_test.go:64-65`;
       `scripts/releaseassets`' reader of `for pair in` and its `TestATargetWithoutARunnerIsRefused` fixture adding
-      `darwin/amd64`; the 41 other-sense lines; and `plans/vector-search.md`'s seven until Part 3's PR. Any other hit,
+      `darwin/amd64`; the 40 other-sense lines; and `plans/vector-search.md`'s eight until Part 3's PR. Any other hit,
       a count rewritten as "five" among them, fails the PR's review. Deletion check: at `7d676a887` it returns the 74
       lines of the listing; drop the size-beside-a-platform-word half and `pdfextract.go:40` vanishes, drop the
-      size-in-a-membership-file half and `release_contract_test.go:225, :323` vanish, and round 4's `$M` alone
+      size-in-a-membership-file half and `release_contract_test.go:225` vanishes (`:323` survives through the
+      second half, which matches its `runtime.GOOS`), and round 4's `$M` alone
       returns 29.
 13. **Running the engine:** a smoke run in a `universe.sh build --native` universe that fetches one scanned PDF and runs
     one `--search`, with the run's `engine.log` read.
@@ -1083,11 +1127,12 @@ All of these treat "shipped binary" == "directory under plugins/<p>/tools/cmd/, 
 - `plugins/{frank-exchange-of-views,gray-area,prosthetic-conscience}/hooks/fetch-bin.sh` (the same lines +1) — GENERATED copies of the above (`go -C scripts run ./fetchbingen`, gate "Every plugin's fetch-bin.sh matches the one authored copy", hooks.yml:1586).
 - `scripts/fetchbingen/main.go:120-138` targets(): plugins with tools/cmd — unchanged.
 - `plugins/prosthetic-conscience/tools/internal/doctor/main.go:60` AssetName `<name>_<goos>_<goarch>[.exe]`; `:73-91` binariesOf ReadDir(tools/cmd); `:102` siblingBinaries walks every installed SC plugin's tools/cmd; `:490` fetchRelease via `gh release download --pattern <asset> --pattern SHA256SUMS`; `:533-538` buildFromSource `go build -C tools ./cmd/<name>` fallback; `:550-570` stampInstalled; `:580-608` fixWith — CHANGES: binariesOf lists helpers and `ASSETS`; helpers are fetch-only; the source-built refusal.
+- `sc-doctor`'s readers of an entry, swept at `fa20d83b7`: `grep -n "binStatus\|binPath\|ReadBuildStamp\|AssetName\|binariesOf" plugins/prosthetic-conscience/tools/internal/doctor/*.go`. Each assumes a Go binary: `verdict` `:188`, `UnstampedCount` `:206-217`, `table` `:273` and `NoReferenceCount` `reference.go:78-90` read a build stamp; `binariesOf` `:83-84`, `binPath` `:284` and `fetchRelease` `:524` append `ExeName`; `fetchRelease` `:495` and `fixWith` `:603-604` name `AssetName`; `danceWarnings` `:404` calls every entry a hook binary — CHANGES: `Kind`, `Export`, `file()`, `asset()`, `stampVerdict` (§III.1.6). Unchanged: `hookBinaries`, `siblingBinaries`, `ReferenceCommit`, `releaseTag`, `downloadArgs`, `fix`, `run`; test hits.
 - `plugins/prosthetic-conscience/tools/internal/doctor/release_contract_test.go:64-74` `rePairs`/`reOutput`; `:82` rePairs over the WHOLE file; `:110-114` reOutput after `\n  release:\n`; `:241` TestSHA256SUMSCoversEveryContractedName — CHANGES: both searches narrowed to the release job's span; asserts `releaseassets -check` precedes `sha256sum`.
 - `plugins/prosthetic-conscience/tools/internal/doctor/fetchbin_contract_test.go:260,276,289` — contract tests over fetch-bin.sh — gain a helper, an `ASSETS` line and the source-built case.
 - `scripts/pluginparity/main.go:121-143` counts tools/cmd dirs vs docs/setup-script.md ("22 at the time of writing", setup-script.md:148); `:147-172` requirements.json `_hook_binaries` vs tools/cmd (PC requirements.json:65, gray-area :28; FEOV declares none); `:214-` shippedHarnessProblems ("Every directory under plugins/*/tools/cmd/ ships") — unchanged; helpers stay out of tools/cmd, and `releaseassets` generates and checks the helper set.
 - `scripts/bootstrap-plugins.sh:85-97` cold bootstrap: `go build ./cmd/<name>` for every cmd in every cached plugin, no stamp written — unchanged for Go; helpers never built here; the next `ensure` installs the tag's set.
-- `scripts/universe.sh:437-453` builds every cmd from the CHECKOUT with plain go build into cache, `:459-481` mirrors into the staged marketplace, `:482-496` stamps .fetch/installed, `:498-` asserts `ensure` does nothing — CHANGES: `build` writes `.fetch/source-built`; `build --native` builds and stages helpers; the assertion also runs `fetch` (F5, §III.1.6).
+- `scripts/universe.sh:437-453` builds every cmd from the CHECKOUT with plain go build into cache, `:459-481` mirrors into the staged marketplace, `:482-496` stamps .fetch/installed, `:502-511` asserts `ensure` prints nothing — CHANGES: `build` writes `.fetch/source-built`, on which `ensure` stays silent; `build --native` builds and stages helpers; the assertion also runs `fetch` and checks `bin/` unchanged (F5, §III.1.6).
 - `scripts/marketplacegen/main.go:15` "A plugin without tools/cmd has no binaries and no tag" — unchanged.
 - `scripts/versionguard/main.go` — tag/manifest agreement, per-binary version constant sweep — unchanged; helpers take no tag namespace of their own (the release job's "tag names a plugin with tools/go.mod" check, hooks.yml:1709-1720, would refuse one).
 - `shared/gcpolicy/gcpolicy.go:4` every main under tools/cmd calls Short/Long — unchanged (helpers are not Go).
@@ -1197,8 +1242,9 @@ done | sort -u
   `scripts/fetchbingen/fetch-bin.sh:235` and its three generated copies `:236` (an Intel Mac asks for an asset
   `SHA256SUMS` lacks and fails naming it, §III.1.5); `doctor/release_contract_test.go:64-65` (reads the line; its
   floor, `TestPublishedSetCoversThePlatformsCITestsOn`, is linux/amd64 and windows/amd64).
-- `plans/vector-search.md:8, :61, :71, :89, :484, :498, :499` — in its llama.cpp sections, rewritten by Part 3's PR.
-- `plans/vector-search.md:25, :35, :113, :384` — other sense (seat searches, embedding models, a cache, a code line).
+- `plans/vector-search.md:8, :61, :71, :89, :113, :484, :498, :499` — in its llama.cpp sections (`:113` states the
+  set's size, "all 6 platform"), rewritten by Part 3's PR.
+- `plans/vector-search.md:25, :35, :384` — other sense (seat searches, embedding models, a code line).
 - Other sense, counts of something else (views, slash commands, sections, failures, releases, days, runs, seeds,
   seconds, gaps, pairs of gaps, characters, openers, a version `1.66.0`): `README.md:91, :93, :130, :220`;
   `hooks.yml:728, :1364, :1365`; `staticproof/main.go:107`; in FEOV, `docs/seat-command-triggers.md:177`,
