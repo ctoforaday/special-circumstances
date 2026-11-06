@@ -34,25 +34,6 @@ func TestAnAnchorBareInProseIsBareWhereverItFirstOccurs(t *testing.T) {
 	}
 }
 
-// A CHECK NEEDS PROSE TO JUDGE: an anchor off the bare list whose first occurrence opens a sentence
-// that says nothing besides its anchors has no sentence to check, and the read before a check refuses
-// it rather than recording an empty claim. The work list says the same of it.
-func TestASentenceWithNoProseIsRefusedBeforeTheCheck(t *testing.T) {
-	id := "C-0badcafe"
-	report := "# Findings\n\nOne. " + anchor.Token(id) + "\n\nThe grass is green" + anchor.Token(id) + ".\n"
-	if slices.Contains(claimcount.BareAnchorIDs(report), id) {
-		t.Fatalf("the fixture stands %s bare, so it does not reach the proseless arm:\n%s", id, report)
-	}
-	render := func() (string, error) { return report, nil }
-	notRetired := func() (AnchorRetire, bool, error) { return AnchorRetire{}, false, nil }
-	if got, err := liveSentence(id, render, notRetired, beforeCheck()); err == nil || !strings.Contains(err.Error(), "no prose to check") {
-		t.Errorf("the read before a check of %s, whose sentence is its anchor alone, returned %q, %v; want the refusal", id, got, err)
-	}
-	if got := unverifiableReason(t, report, id); !strings.Contains(got, "no prose to check") {
-		t.Errorf("the work list says %q of %s, want that it has no prose to check", got, id)
-	}
-}
-
 // THE LANDING COMPARES WHATEVER THE CHECK JUDGED: the read in a landing is its own mode, so a judged
 // sentence that is empty is compared like any other, never read as the read before a check.
 func TestTheLandingComparesAnEmptyJudgedSentence(t *testing.T) {
@@ -66,10 +47,4 @@ func TestTheLandingComparesAnEmptyJudgedSentence(t *testing.T) {
 	if got, err := liveSentence(id, render, notRetired, inLanding("The grass is green.")); err != nil || got != "The grass is green." {
 		t.Errorf("a landing on the sentence judged: %q, %v", got, err)
 	}
-}
-
-// unverifiableReason is what the work list says of id over report (unverifiableIn).
-func unverifiableReason(t *testing.T, report, id string) string {
-	t.Helper()
-	return unverifiableIn(workReads{report: &reportRender{rendered: true, text: report}})(id)
 }

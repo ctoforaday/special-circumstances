@@ -139,14 +139,7 @@ func newReproduce() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			if e.Leftover != "" {
-				// COPIES LEFT BEHIND ARE THE TOOL'S DEFECT, NOT THE RE-RUN'S: the execution finished
-				// before the removal, so the leftover is logged whatever becomes of the act, best-effort.
-				defer func() {
-					_, _ = record.Append(s.Identity(), &recordpb.Log{Text: proto.String(e.Leftover), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()})
-				}()
-			}
-			o = rerunOutcome{ran: true, exit: e.Exit, toolCalls: e.Calls}
+			o = rerunOutcome{ran: true, exit: e.Exit, toolCalls: e.Calls, leftover: e.Leftover}
 			if err := o.compare(run.Dir(), p, e); err != nil {
 				return nil, err
 			}
@@ -191,6 +184,11 @@ func newReproduce() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body, record.CheckOfSentence(p.Label, claim)); err != nil {
 			return nil, err
 		}
+		// COPIES LEFT BEHIND ARE THE TOOL'S DEFECT, NOT THE RE-RUN'S: the execution finished before
+		// the removal, so the act stands and the leftover is logged after it, best-effort.
+		if o.leftover != "" {
+			_, _ = record.Append(s.Identity(), &recordpb.Log{Text: proto.String(o.leftover), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()})
+		}
 		return res, nil
 	}))
 	c.Flags().Var(flags.ComputationAnchor().WithCheck(record.ComputationExists), flags.Anchor, "the id of the computation whose sentence you judge, from the report's `"+anchor.Token("K-…")+"` token — `show evidence` lists every computation by it. The tool executes that computation's bundle unless the bundle already has a standing re-run; either way it compares THIS computation's own output, exit and out/")
@@ -228,6 +226,8 @@ type rerunOutcome struct {
 	ran           bool
 	exit          int
 	rerunSha      string
+	// leftover is why this act's execution could not remove its copy, or "".
+	leftover string
 }
 
 // compare sets this act's own recorded result against e.

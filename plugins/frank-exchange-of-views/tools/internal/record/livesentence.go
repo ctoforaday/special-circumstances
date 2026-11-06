@@ -26,10 +26,6 @@ const (
 	sentenceAbsent
 	// sentenceBare: the token stands with no prose before it in its sentence.
 	sentenceBare
-	// sentenceProseless: the sentence holding the token's first occurrence says nothing besides its
-	// anchors (claimcount.HasProse) — a token opening the sentence after a terminator, or outside the
-	// claim stream — while another occurrence keeps it off the bare list.
-	sentenceProseless
 )
 
 // liveSentenceIn is the sentence holding id's token in report, read the way an edit reads it to
@@ -47,23 +43,19 @@ func liveSentenceIn(report string, bare []string, id string) (string, sentenceGo
 	if !ok {
 		return "", sentenceAbsent
 	}
-	if !claimcount.HasProse(sentence) {
-		return sentence, sentenceProseless
-	}
 	return sentence, sentenceLive
 }
 
-// SentencesIn is the sentence of each of ids in report (liveSentenceIn), keyed by id, read once for
-// all of them — a proseless one included, as the sentence a standing check is compared with — with
-// why an id has none: bare holds each of ids whose token stands bare in report (liveSentenceIn's
-// sentenceBare), so an id in neither map is absent from it. One bare rule for every reader that tells
-// the two apart.
+// SentencesIn is the live sentence of each of ids in report (liveSentenceIn), keyed by id, read once
+// for all of them, with why an id has none: bare holds each of ids whose token stands bare in report
+// (liveSentenceIn's sentenceBare), so an id in neither map is absent from it. One bare rule for every
+// reader that tells the two apart.
 func SentencesIn(report string, ids []string) (live map[string]string, bare map[string]bool) {
 	live, bare = map[string]string{}, map[string]bool{}
 	bareIDs := claimcount.BareAnchorIDs(report)
 	for _, id := range ids {
 		switch sentence, gone := liveSentenceIn(report, bareIDs, id); gone {
-		case sentenceLive, sentenceProseless:
+		case sentenceLive:
 			live[id] = sentence
 		case sentenceBare:
 			bare[id] = true
@@ -145,9 +137,6 @@ func liveSentence(id string, render func() (string, error), retiredAt func() (An
 	case sentenceBare:
 		return "", feov.Errorf(feov.Conflict, "%s%s %s's anchor stands bare in the report: the sentence it backed was cut, and it backs no prose, so there is nothing to check. "+
 			"The anchor leaves with blue's retire of its claim", while, row.Noun, id)
-	case sentenceProseless:
-		return "", feov.Errorf(feov.Conflict, "%s%s %s's anchor stands in the report in a sentence that says nothing besides its anchors, %s, so there is no prose to check. "+
-			"Check the %ss whose anchors back prose", while, row.Noun, id, quoted(sentence), row.Noun)
 	}
 	if read.landing && !bluedoc.SameSentence(sentence, read.judged) {
 		return "", feov.Errorf(feov.Conflict, "while this check was made, the sentence holding %s %s's anchor changed: the report now holds %s, not %s, the sentence this check read. "+
