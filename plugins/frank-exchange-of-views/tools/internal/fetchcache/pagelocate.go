@@ -113,8 +113,6 @@ type spanText struct {
 	page int // 0 for embedded text
 	text string
 	sha  string
-	// edges is how the source divides into units — the same for every text of one source.
-	edges unitEdges
 }
 
 // LocateSourceSpan finds span in the cached source's text, once.
@@ -126,16 +124,14 @@ type spanText struct {
 // span may be typed either way; and a typographic form of a keyboard character is that character
 // (typoFold) — a seat types ' where the page sets ’, and the glyph is typesetting, not a word the
 // source holds. Case, letters and every other punctuation mark must match: a misread is exactly
-// what an audit has to see. There is no minimum length; a span the text holds twice is refused
-// instead, so the text kept around it is the place blue quoted.
+// what an audit has to see. There is no minimum length; a span the text holds twice at a boundary
+// is refused instead, so the text kept around it is the place blue quoted.
 //
 // A SPAN STARTS AND ENDS WHERE THE SOURCE STARTS AND ENDS A SENTENCE OR A CLAUSE (SpanBoundary).
 // A fragment cut from inside a clause can drop its subject and read the other way — "when n is
 // composite is known as a Fermat liar" from "Any a such that … when n is composite is known as a
 // Fermat liar" — or stop before what the clause says of it, and a lens judges the span, so the
-// refusal shows the sentence it sits in. In a source whose text ends no sentence, a line is a unit
-// too (unitEdges), so a row of a data file is cited whole. The tool never widens the span: blue
-// quotes more.
+// refusal shows the sentence it sits in. The tool never widens the span: blue quotes more.
 func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error) {
 	if strings.TrimSpace(span) == "" {
 		return SpanLocation{}, fmt.Errorf("%w: the span is empty", ErrSpanAbsent)
@@ -144,20 +140,10 @@ func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error
 	if err != nil {
 		return SpanLocation{}, err
 	}
-	loc := SpanLocation{}
-	if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR {
-		loc.Engine, loc.ReadingSha = rec.Engine, rec.TextSha
-	}
-
 	if h, found, err := locateOnce(texts, span); err != nil {
 		return SpanLocation{}, err
 	} else if found {
-		loc.Start, loc.End, loc.TextSha = h.start, h.end, h.t.sha
-		if h.t.page > 0 {
-			loc.Pages = []int{h.t.page}
-		}
-		loc.Before, loc.Matched, loc.After = window(h.t.text, h.start, h.end)
-		return loc, nil
+		return placedAt(origin, rec, h), nil
 	}
 
 	want := fold(span, hyphenAsIs).s
@@ -212,18 +198,15 @@ func sourceTexts(run record.Run, e Entry) ([]spanText, recordpb.SourceTextOrigin
 	default:
 		return nil, 0, ReadingRecord{}, fmt.Errorf("%w: %s", ErrNoText, recordpb.Word(origin))
 	}
-	edges := edgesOf(texts)
-	for i := range texts {
-		texts[i].edges = edges
-	}
 	return texts, origin, rec, nil
 }
 
 // locateOnce finds span once in texts under each hyphen reading in turn, the first that finds it
 // deciding: found is false when no reading finds it anywhere. A place counts only where the span
-// starts and ends at a boundary — "66 91" inside m39's row "10466 9185" is not that row quoted, and
-// counting it left no short row of a data file citeable. A span placed at a boundary more than once
-// is refused as repeated, and one placed at none as cutting into a clause.
+// starts and ends at a boundary (ruled by gblock 2026-11-06, for every source): a placement cut into
+// a clause is not the span quoted, and counting it refuses a span cite could take at one place only.
+// A span placed at a boundary more than once is refused as repeated, and one placed at none as
+// cutting into a clause.
 func locateOnce(texts []spanText, span string) (spanHit, bool, error) {
 	for _, mode := range []hyphenMode{hyphenAsIs, hyphenJoined, hyphenKept} {
 		want := fold(span, mode).s
@@ -245,7 +228,7 @@ func locateOnce(texts []spanText, span string) (spanHit, bool, error) {
 		var placed []spanHit
 		var cut error
 		for _, h := range hits {
-			if err := spanAtBoundaries(h.t.text, h.start, h.end, h.t.edges); err != nil {
+			if err := spanAtBoundaries(h.t.text, h.start, h.end); err != nil {
 				cut = cmp.Or(cut, err)
 				continue
 			}

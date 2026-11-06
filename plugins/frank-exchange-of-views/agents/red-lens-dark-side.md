@@ -74,8 +74,8 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
-  - A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
-  - A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
+  - A source span is the words of the source's own cached text a citation rests on, chosen by quoting them (found there once) or by naming their lines, and kept on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
+  - A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries its lines, the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
   - OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
@@ -845,7 +845,7 @@ SEARCH ONE CACHED SOURCE'S TEXT — the text a citation of it is found in: the e
 
 NAME THE SOURCE with --sha (its sha256, as the fetch summary and `show evidence` print it) or --anchor (a citation's id), and WHAT TO FIND with --match (an RE2 regex) or --quote (literal text). Both match case-insensitively, against the text as the citation locator reads it: every run of whitespace, line breaks included, is one space, and curly quotes, en and em dashes, an ellipsis and the ligatures read as their keyboard forms — so a phrase broken across lines is found, and a ' you type matches the page's ’. A page's text is what you search and quote: in an HTML page's text a list item opens with "- ", a superscript reads ^n, or ^(n-1) when it is more than one number or one letter, a subscript reads _n or _(n+1), and a linked footnote mark reads [1]; quote these as the text prints them. To --match a caret, write \^.
 
-EACH HIT carries `matched`, the source's bytes; `start` and `end`, their byte offsets in the text whose sha256 is `text_sha` (on an OCR source, the reading of `page`) — the coordinates a citation records; and `sentence`, the source's sentence (or line, where the source ends no sentence) the match sits in, between `sentence_start` and `sentence_end`. `source_span` is that sentence when blue's `cite --source-span` takes it as printed — the source holds it once and it starts and ends at a boundary — and empty otherwise, with `not_citeable` saying why: quote a whole clause of it instead.
+EACH HIT carries `matched`, the source's bytes; `start` and `end`, their byte offsets in the text whose sha256 is `text_sha` (on an OCR source, the reading of `page`) — the coordinates a citation records; `line` and `last_line`, the lines of that text it starts and ends on, which `cite --source-lines` takes with that `text_sha`; and `sentence`, the source's sentence the match sits in, between `sentence_start` and `sentence_end`. `source_span` is that sentence when blue's `cite --source-span` takes it as printed — the source holds it once and it starts and ends at a boundary — and empty otherwise, with `not_citeable` saying why: quote a whole clause of it instead.
 
 EVERY MATCH IS LISTED, in text order; nothing is ranked or cut. `selection` says what was asked (`criterion`) and how many matches the text holds (`matched`) — a count far larger than you can read is the signal to narrow the pattern.
 
@@ -853,7 +853,7 @@ An unknown source, a source the tool holds no text for, an empty pattern, and a 
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §17
 
-OUTPUT (JSON): {sha256,url,source_text_origin,text_path,hits:[{page,start,end,text_sha,matched,sentence,sentence_start,sentence_end,source_span,not_citeable}],selection:{criterion,matched}}
+OUTPUT (JSON): {sha256,url,source_text_origin,text_path,hits:[{page,start,end,text_sha,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable}],selection:{criterion,matched}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 

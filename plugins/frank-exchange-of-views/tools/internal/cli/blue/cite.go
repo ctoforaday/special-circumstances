@@ -46,7 +46,10 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 		quote, url, title := seat.Location(cmd), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
-		span := seat.Str(cmd, flags.SourceSpan)
+		locator, err := citeLocatorOf(cmd)
+		if err != nil {
+			return nil, err
+		}
 		if strings.TrimSpace(quote) == "" {
 			return nil, feov.Errorf(feov.MissingField, "requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
 		}
@@ -80,12 +83,18 @@ func newCite() *cobra.Command {
 			// A KEY IS ONE CITATION'S NAME: a retry under it cites the same source, under the same
 			// title, at the same span, for the same sentence and with the same argument, or it is a
 			// second citation reusing the name.
-			retry := citeRetry(cmd, why)
+			// The retry's locator is resolved in the source the prior citation read, so a retry is
+			// judged on the text it names, whichever locator names it.
+			span, err := locator.retrySpan(run, prior.GetSha256())
+			if err != nil {
+				return nil, err
+			}
+			retry := citeRetry(cmd, why, span)
 			if err := seat.RepeatsKeyed(key, "citation", prior.GetLabel(), prior, retry, citeAsserted...); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: prior.GetLabel(), URL: prior.GetUrl(), Sha256: prior.GetSha256(), Pages: prior.GetPages(), Origin: recordpb.Word(prior.GetSourceTextOrigin()),
-				CopySubstitution: recordpb.Word(prior.GetCopySubstitution()), CopyURL: prior.GetCopyUrl(), Idempotent: true, VoiceTells: tells}, nil
+				Matched: prior.GetSourceMatched(), CopySubstitution: recordpb.Word(prior.GetCopySubstitution()), CopyURL: prior.GetCopyUrl(), Idempotent: true, VoiceTells: tells}, nil
 		}
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
@@ -102,10 +111,10 @@ func newCite() *cobra.Command {
 			return nil, record.ToolLogged(unloaded)
 		}
 
-		// WHERE THE CITED TEXT CAME FROM, WHERE THE SPAN SITS IN IT, and what the source says
-		// around it. The binary finds the span; a seat never types an offset or a page. Refused
-		// before the label is minted, so a refusal leaves nothing on the record.
-		at, err := locateSourceSpan(run, entry, url, span)
+		// WHERE THE CITED TEXT CAME FROM, WHAT THE LOCATOR RESOLVES TO IN IT, and what the source
+		// says around it. The binary resolves the locator; a seat never types an offset or a page.
+		// Refused before the label is minted, so a refusal leaves nothing on the record.
+		at, err := locateSourceSpan(run, entry, url, locator)
 		if err != nil {
 			return nil, err
 		}
@@ -145,7 +154,7 @@ func newCite() *cobra.Command {
 			body.CopyUrl = proto.String(entry.CopyURL)
 		}
 		if at.located {
-			body.SourceSpan = proto.String(span)
+			body.SourceSpan = proto.String(at.span)
 			body.SpanStart = proto.Int32(int32(at.loc.Start))
 			body.SpanEnd = proto.Int32(int32(at.loc.End))
 			body.SpanTextSha = proto.String(at.loc.TextSha)
@@ -171,19 +180,22 @@ func newCite() *cobra.Command {
 			return nil, feov.Errorf(feov.Internal, "citation %s was written and is not on the record", label)
 		}
 		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: at.pages(), Origin: recordpb.Word(at.origin),
-			CopySubstitution: recordpb.Word(stored.GetCopySubstitution()), CopyURL: stored.GetCopyUrl(), VoiceTells: tells}, nil
+			Matched: stored.GetSourceMatched(), CopySubstitution: recordpb.Word(stored.GetCopySubstitution()), CopyURL: stored.GetCopyUrl(), VoiceTells: tells}, nil
 	}))
 
 	flags.Text(c, flags.Quote, flags.DescQuote+". A mis-quote is rejected rather than guessed at")
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
-	flags.Text(c, flags.SourceSpan, "required for every source whose text the tool holds: the words you rely on, copied from the source's cached text (not the report, and not your own wording of it). "+
-		"The tool finds them there once — "+fetchcache.SpanNormalisation+" — and refuses one that cuts into a clause, by the boundary rule above. "+
+	flags.Text(c, flags.SourceSpan, "one of the two ways to name the source's words, for every source whose text the tool holds — this or --"+flags.SourceLines+", never both: the words you rely on, copied from the source's cached text (not the report, and not your own wording of it). "+
+		"The tool finds them there once at a boundary — "+fetchcache.SpanNormalisation+" — and refuses one that cuts into a clause, by the boundary rule above. "+
 		"It records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. "+
 		"A source the tool holds no text for is cited without it")
+	c.Flags().String(flags.SourceLines, "", "the other way to name the source's words — this or --"+flags.SourceSpan+", never both: `N` or `N-M`, lines of the source's text as `show source` numbers them, from 1, with --"+flags.TextSha+". "+
+		"No boundary rule and no repeat check apply: the lines are found by number. The citation records their words, trimmed of blanks at either end, exactly as it records a quoted span")
+	c.Flags().String(flags.TextSha, "", "with --"+flags.SourceLines+": the `text_sha` `show source` printed beside the line numbers — the text they count in (on an OCR source, the page's reading). A text the source no longer holds is refused, never counted in another")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this citation is placed as the answer to — while it stands it answers that gap; the page says what a gap's close demands. Omit only for a citation that answers no gap")
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, --source-span, --answers or --reason is refused: a handle names one citation")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, source words, --answers or --reason is refused: a handle names one citation")
 	return c
 }
 
@@ -205,9 +217,10 @@ var citeAsserted = []seat.Asserted{
 	{Flag: flags.Reason, Field: "text"},
 }
 
-// citeRetry is what a retry under a cite's key states: every field citeFields writes, and the span.
-func citeRetry(cmd *cobra.Command, why string) *recordpb.Cite {
-	retry := &recordpb.Cite{SourceSpan: proto.String(seat.Str(cmd, flags.SourceSpan))}
+// citeRetry is what a retry under a cite's key states: every field citeFields writes, and the span
+// its locator resolved to.
+func citeRetry(cmd *cobra.Command, why, span string) *recordpb.Cite {
+	retry := &recordpb.Cite{SourceSpan: proto.String(span)}
 	citeFields(cmd, retry, why)
 	return retry
 }
@@ -242,6 +255,70 @@ type spanAt struct {
 	origin  recordpb.SourceTextOrigin
 	located bool
 	loc     fetchcache.SpanLocation
+	// span is the words the citation records as its source span.
+	span string
+}
+
+// citeLocator is how a seat chose the source's words: quoted (--source-span) or by line number
+// (--source-lines in the text --text-sha names). The two are peers; the seat picks one.
+type citeLocator struct {
+	span           string
+	lines, textSha string
+	first, last    int
+}
+
+// citeLocatorOf reads the locator flags, refusing both locators at once and a line locator
+// missing its text or malformed.
+func citeLocatorOf(cmd *cobra.Command) (citeLocator, error) {
+	l := citeLocator{span: seat.Str(cmd, flags.SourceSpan), lines: strings.TrimSpace(seat.Str(cmd, flags.SourceLines)), textSha: strings.TrimSpace(seat.Str(cmd, flags.TextSha))}
+	switch {
+	case strings.TrimSpace(l.span) != "" && l.lines != "":
+		return l, feov.Errorf(feov.Validation, "--%s and --%s each name the source's words; a citation names them one way — pass one", flags.SourceSpan, flags.SourceLines)
+	case l.lines == "" && l.textSha != "":
+		return l, feov.Errorf(feov.Validation, "--%s names the text --%s counts in, and no --%s was given", flags.TextSha, flags.SourceLines, flags.SourceLines)
+	case l.lines == "":
+		return l, nil
+	case l.textSha == "":
+		return l, feov.Errorf(feov.MissingField, "--%s requires --%s: the text_sha `show source` printed beside the line numbers, which says the text they count in", flags.SourceLines, flags.TextSha)
+	}
+	var err error
+	if l.first, l.last, err = fetchcache.ParseLineRange(l.lines); err != nil {
+		return l, feov.Errorf(feov.Validation, "--%s %v", flags.SourceLines, err)
+	}
+	return l, nil
+}
+
+func (l citeLocator) given() bool { return strings.TrimSpace(l.span) != "" || l.lines != "" }
+
+// resolve is the text the locator names in the source, and the words the citation records for it:
+// one resolver per locator, and nothing after it asks which one ran.
+func (l citeLocator) resolve(run record.Run, entry fetchcache.Entry) (fetchcache.SpanLocation, string, error) {
+	if l.lines == "" {
+		loc, err := fetchcache.LocateSourceSpan(run, entry, l.span)
+		return loc, l.span, err
+	}
+	loc, err := fetchcache.LocateSourceLines(run, entry, l.textSha, l.first, l.last)
+	return loc, strings.Join(strings.Fields(loc.Matched), " "), err
+}
+
+// retrySpan is the span a keyed retry states: its locator resolved in the source the prior
+// citation read.
+func (l citeLocator) retrySpan(run record.Run, sha string) (string, error) {
+	if l.lines == "" {
+		return l.span, nil
+	}
+	entry, ok, err := fetchcache.LookupSha(run, sha)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", feov.Errorf(feov.Internal, "the cached source %s a citation read is not in the cache", sha)
+	}
+	_, span, err := l.resolve(run, entry)
+	if err != nil {
+		return "", feov.Errorf(feov.Validation, "--%s %v", flags.SourceLines, err)
+	}
+	return span, nil
 }
 
 func (a spanAt) pages() []int32 {
@@ -257,31 +334,34 @@ func (a spanAt) pages() []int32 {
 // at words found in it: the record then carries the source's own text at the citation, and a
 // lens reads that rather than blue's account of it. On a source with no text the span is refused
 // rather than dropped — a flag accepted and recorded nowhere reads as a span nobody found.
-func locateSourceSpan(run record.Run, entry fetchcache.Entry, url, span string) (spanAt, error) {
+func locateSourceSpan(run record.Run, entry fetchcache.Entry, url string, locator citeLocator) (spanAt, error) {
 	origin, _, err := fetchcache.TextOrigin(run, entry)
 	if err != nil {
 		return spanAt{}, err
 	}
 	out := spanAt{origin: origin}
-	given := strings.TrimSpace(span) != ""
+	named := "--" + flags.SourceSpan
+	if locator.lines != "" {
+		named = "--" + flags.SourceLines
+	}
 	switch origin {
 	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
-		if !given {
-			return spanAt{}, feov.Errorf(feov.Validation, "the tool holds this source's text, so a citation of it names the words it relies on with --%s, copied from that text — it is at %s",
-				flags.SourceSpan, fetchcache.SourceTextPath(run, entry, origin))
+		if !locator.given() {
+			return spanAt{}, feov.Errorf(feov.Validation, "the tool holds this source's text, so a citation of it names the words it relies on — quoted with --%s, or by line with --%s and --%s — from that text: it is at %s",
+				flags.SourceSpan, flags.SourceLines, flags.TextSha, fetchcache.SourceTextPath(run, entry, origin))
 		}
-		loc, lerr := fetchcache.LocateSourceSpan(run, entry, span)
+		loc, span, lerr := locator.resolve(run, entry)
 		switch {
 		case errors.Is(lerr, fetchcache.ErrReadingIncomplete):
 			return spanAt{}, feov.Errorf(feov.Validation, "%v — `fetch --url %s` re-derives it", lerr, url)
 		case lerr != nil:
-			return spanAt{}, feov.Errorf(feov.Validation, "--%s %v", flags.SourceSpan, lerr)
+			return spanAt{}, feov.Errorf(feov.Validation, "%s %v", named, lerr)
 		}
-		out.located, out.loc = true, loc
+		out.located, out.loc, out.span = true, loc, span
 	default:
-		if given {
-			return spanAt{}, feov.Errorf(feov.Validation, "--%s is found in the source's text, and the tool holds none for %s (%s) — cite it without one, or `fetch --url %s` to read a scan first",
-				flags.SourceSpan, url, recordpb.Word(origin), url)
+		if locator.given() {
+			return spanAt{}, feov.Errorf(feov.Validation, "%s names words in the source's text, and the tool holds none for %s (%s) — cite it without one, or `fetch --url %s` to read a scan first",
+				named, url, recordpb.Word(origin), url)
 		}
 	}
 	return out, nil
@@ -300,19 +380,25 @@ type citeResult struct {
 	// which a copy stood in for it — and CopyURL where that copy was read, when it was.
 	CopySubstitution string `json:"copy_substitution"`
 	CopyURL          string `json:"copy_url,omitempty"`
-	Idempotent       bool   `json:"idempotent,omitempty"`
+	// Matched is the source's words the citation holds, as the source holds them: what its locator
+	// resolved to, echoed so the seat sees exactly what it cited.
+	Matched    string `json:"source_matched,omitempty"`
+	Idempotent bool   `json:"idempotent,omitempty"`
 	// VoiceTells is ADVICE on the title, and the citation is already recorded by the time it renders.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r citeResult) Human() string {
 	note := reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
-	if r.Idempotent {
-		return seat.Repeated("citation "+r.Label) + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
-	}
 	span := ""
-	if r.Origin == recordpb.Word(recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE) {
+	switch {
+	case r.Origin == recordpb.Word(recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE):
 		span = ". It carries no source span: the tool holds no text for this source"
+	case r.Matched != "":
+		span = ". It cites the source's words «" + r.Matched + "»"
+	}
+	if r.Idempotent {
+		return seat.Repeated("citation "+r.Label) + span + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
 	}
 	return "citation recorded: " + r.Label + " — an invisible anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + span + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
 }

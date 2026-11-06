@@ -470,6 +470,12 @@ type runner struct {
 	// refuse holds each to the refusal. bogusSpans rotates the three refused spans with no draw of
 	// its own. The sweep gates both counts at zero.
 	fragmentsDriven, truncationsDriven, bogusSpans int
+	// heldCites counts the cites of a held span, every second of which names its words by line
+	// (byLine); lineCites counts those admitted, each holding the words the line names. Each line cite
+	// first drives one locator refusal, in turn both locators, neither, and lines past the text's
+	// end (nextLocatorRefusal), counted in locatorRefusals. The sweep gates every count at zero.
+	heldCites, lineCites int
+	locatorRefusals      [3]int
 	// reopenedReadied counts the plans that readied the owner of every reopened blocker they hold
 	// (readiedForReopened), and reopenedPlans the plans holding one, whoever they readied.
 	// computationReopenedReadied counts, by owner, the reopened COMPUTATIONS whose owner a plan readied; the
@@ -990,6 +996,79 @@ const (
 	spanTruncated                  // ends inside its clause (sourceTruncation)
 )
 
+// byLine reports whether the next cite of a held span names its words by line: every second one,
+// drawing nothing from the run's RNG.
+func (r *runner) byLine() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.heldCites++
+	return r.heldCites%2 == 0
+}
+
+// locatorRefusal is which ill-formed locator a cite typed to be refused types.
+type locatorRefusal int
+
+const (
+	locatorBoth     locatorRefusal = iota // a quoted span and lines at once
+	locatorNeither                        // no locator, on a source whose text the tool holds
+	locatorPastText                       // lines past the text's last line
+)
+
+// nextLocatorRefusal rotates the locator refusals, drawing nothing from the run's RNG, and counts
+// each.
+func (r *runner) nextLocatorRefusal() locatorRefusal {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	k := locatorRefusal((r.locatorRefusals[0] + r.locatorRefusals[1] + r.locatorRefusals[2]) % 3)
+	r.locatorRefusals[k]++
+	return k
+}
+
+// sourceLine fetches the source at path as seatID and searches it for its body, as a seat finds the
+// line it cites by: the text_sha and line of the one hit. The body is one line, and the hit is held
+// to it.
+func (r *runner) sourceLine(seatID, path string) (textSha string, line int, ok bool) {
+	out, ok := r.admit("fetch", "--seat-id", seatID, "--url", sourceURL(path), "--json")
+	if !ok {
+		return "", 0, false
+	}
+	var sum struct {
+		Sha256 string `json:"sha256"`
+	}
+	if json.Unmarshal([]byte(out), &sum) != nil || sum.Sha256 == "" {
+		r.noteSourceSearch("fetch --json of " + path + " names no sha256: " + firstLine(out))
+		return "", 0, false
+	}
+	out, ok = r.admit("show", "source", "--seat-id", seatID, "--sha", sum.Sha256, "--quote", sourceBody(path))
+	if !ok {
+		return "", 0, false
+	}
+	var s struct {
+		Hits []struct {
+			TextSha  string `json:"text_sha"`
+			Line     int    `json:"line"`
+			LastLine int    `json:"last_line"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal([]byte(out), &s); err != nil || len(s.Hits) != 1 || s.Hits[0].Line != 1 || s.Hits[0].LastLine != 1 || s.Hits[0].TextSha == "" {
+		r.noteSourceSearch(fmt.Sprintf("%s's search of %s for its one-line body printed %v (%v), want one hit on line 1 of a named text: %s", seatID, path, s.Hits, err, firstLine(out)))
+		return "", 0, false
+	}
+	return s.Hits[0].TextSha, s.Hits[0].Line, true
+}
+
+// citedWords holds a cite's --json result to echoing the words it cites.
+func (r *runner) citedWords(seatID, out, span string) {
+	var env struct {
+		Result struct {
+			Matched string `json:"source_matched"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(out), &env) != nil || env.Result.Matched != span {
+		r.noteSourceSearch(fmt.Sprintf("%s's cite echoed the words %q, and the words it named are %q: %s", seatID, env.Result.Matched, span, firstLine(out)))
+	}
+}
+
 // nextBogusSpan rotates the cites that type a span to be refused through a mid-clause start, a
 // mid-clause end and words the source does not hold, drawing nothing from the run's RNG, and
 // counts the fragments and truncations.
@@ -1101,6 +1180,8 @@ func (r *runner) searchCitedSource(seatID, label, span string, args []string) (s
 			Matched    string `json:"matched"`
 			SourceSpan string `json:"source_span"`
 			Why        string `json:"not_citeable"`
+			Line       int    `json:"line"`
+			LastLine   int    `json:"last_line"`
 		} `json:"hits"`
 	}
 	if err := json.Unmarshal([]byte(out), &s); err != nil || len(s.Hits) == 0 {
@@ -1114,6 +1195,10 @@ func (r *runner) searchCitedSource(seatID, label, span string, args []string) (s
 			return "", false
 		case h.Start < 0 || h.End <= h.Start || h.End > len(span) || span[h.Start:h.End] != h.Matched:
 			r.noteSourceSearch(fmt.Sprintf("%s's search %v of %s printed offsets [%d,%d) that do not hold its matched %q", seatID, args, label, h.Start, h.End, h.Matched))
+			return "", false
+		case h.Line != 1 || h.LastLine != 1:
+			// The source's text is its one-line body: every match is on line 1.
+			r.noteSourceSearch(fmt.Sprintf("%s's search %v of %s printed lines %d-%d of a one-line text", seatID, args, label, h.Line, h.LastLine))
 			return "", false
 		}
 	}
@@ -5177,10 +5262,38 @@ func (r *runner) extras(role, seatID string, open []string) {
 				out, err := cite.set("--source-span", span).result()
 				r.citeSpanRefused(seatID, out, err)
 			default:
+				// EVERY SECOND HELD CITE NAMES ITS WORDS BY LINE, the peer of quoting them: the line
+				// and the text a search of the source printed. Before it, one ill-formed locator is
+				// driven and refused, leaving nothing on the record.
+				byLine := r.byLine()
+				if byLine {
+					textSha, line, ok := r.sourceLine(seatID, path)
+					if !ok {
+						return
+					}
+					refused := &cmd{r: r, args: append([]string{}, cite.args...)}
+					switch r.nextLocatorRefusal() {
+					case locatorBoth:
+						refused.set("--source-span", span).set("--source-lines", strconv.Itoa(line)).set("--text-sha", textSha)
+					case locatorPastText:
+						refused.set("--source-lines", strconv.Itoa(line+1)).set("--text-sha", textSha)
+					}
+					refused.refuse(feov.Validation)
+					cite.set("--source-lines", strconv.Itoa(line)).set("--text-sha", textSha)
+				} else {
+					cite.set("--source-span", span)
+				}
 				// THE KEY NAMES THE CITATION, everything it states: a retry of the same act under it is
-				// idempotent, and the record refuses a key naming another.
-				out, ok := cite.set("--source-span", span).keyed(40, "C").bare("--json").admit()
+				// idempotent, and the record refuses a key naming another. Whichever locator named
+				// them, the citation holds the words, echoes them, and a search of its source agrees.
+				out, ok := cite.keyed(40, "C").bare("--json").admit()
 				if ok {
+					if byLine {
+						r.mu.Lock()
+						r.lineCites++
+						r.mu.Unlock()
+					}
+					r.citedWords(seatID, out, span)
 					r.sourceSearchCited(seatID, out, span)
 				}
 			}
@@ -6173,6 +6286,9 @@ type outcome struct {
 	// fragmentsDriven and truncationsDriven are the cites driven to be refused for a span starting
 	// and ending mid-clause (runner.fragmentsDriven, runner.truncationsDriven).
 	fragmentsDriven, truncationsDriven int
+	// lineCites are the cites named by line and admitted, and bothRefused, neitherRefused and
+	// pastTextRefused the locator refusals driven of each kind (runner.lineCites, locatorRefusals).
+	lineCites, bothRefused, neitherRefused, pastTextRefused int
 	// quotesRefused is the found-source readings the tool refused for a quote the report does not hold
 	// (runner.quotesRefused).
 	quotesRefused int
@@ -7589,6 +7705,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.sourceSearches = r.sourceSearches
 	res.copiesRead = r.copiesRead
 	res.fragmentsDriven, res.truncationsDriven = r.fragmentsDriven, r.truncationsDriven
+	res.lineCites = r.lineCites
+	res.bothRefused, res.neitherRefused, res.pastTextRefused = r.locatorRefusals[locatorBoth], r.locatorRefusals[locatorNeither], r.locatorRefusals[locatorPastText]
 	res.quotesRefused = r.quotesRefused
 	res.bridgesRefused, res.bridgesNamed = r.bridgesRefused, r.bridgesNamed
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans

@@ -63,7 +63,7 @@ func TestASpanStartsWhereTheSourceStartsASentenceOrAClause(t *testing.T) {
 			if i < 0 {
 				t.Fatalf("%q not in the text", c.span)
 			}
-			if got := spanStartsAtBoundary(c.text, f.at[i], sentenceEdges); got != c.admit {
+			if got := spanStartsAtBoundary(c.text, f.at[i]); got != c.admit {
 				t.Errorf("%q admitted %v, want %v", c.span, got, c.admit)
 			}
 		})
@@ -139,7 +139,7 @@ func TestTheRefusalsSentenceEndsAtATerminatorOrABlankLine(t *testing.T) {
 		{"It is prime. It has no factor but\n1 and itself. Done.", "no factor", "It has no factor but 1 and itself."},
 	} {
 		i := strings.Index(c.text, c.span)
-		if got := sentenceAround(c.text, i, i+len(c.span), sentenceEdges); got != c.want {
+		if got := sentenceAround(c.text, i, i+len(c.span)); got != c.want {
 			t.Errorf("sentence around %q = %q, want %q", c.span, got, c.want)
 		}
 	}
@@ -206,7 +206,7 @@ func TestASpanEndsWhereTheSourceEndsASentenceOrAClause(t *testing.T) {
 			if i < 0 {
 				t.Fatalf("%q not in the text", c.span)
 			}
-			if got := spanEndsAtBoundary(c.text, f.end[i+len(want)-1], sentenceEdges); got != c.admit {
+			if got := spanEndsAtBoundary(c.text, f.end[i+len(want)-1]); got != c.admit {
 				t.Errorf("%q admitted %v, want %v", c.span, got, c.admit)
 			}
 		})
@@ -276,7 +276,7 @@ func TestSpanBoundarysExampleIsWhatTheToolDoes(t *testing.T) {
 		if i < 0 || !strings.Contains(SpanBoundary, "«"+c.span+"»") {
 			t.Fatalf("%q is not in the example or not shown in SpanBoundary", c.span)
 		}
-		from, to := spanStartsAtBoundary(spanExample, i, sentenceEdges), spanEndsAtBoundary(spanExample, i+len(c.span), sentenceEdges)
+		from, to := spanStartsAtBoundary(spanExample, i), spanEndsAtBoundary(spanExample, i+len(c.span))
 		if from != c.from || to != c.to {
 			t.Errorf("%q: starts at a boundary %v, ends at one %v; SpanBoundary says %v, %v", c.span, from, to, c.from, c.to)
 		}
