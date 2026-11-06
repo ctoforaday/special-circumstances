@@ -73,8 +73,9 @@ func newReproduce() *cobra.Command {
 		// never placed, or bare — has nothing to judge its program against, as a citation has nothing to
 		// read its source against (record.LiveSentence, the one predicate both verbs refuse on).
 		// The sentence it reads is the one this judgement is OF, recorded with it as Verify.claim is
-		// (ruling L5): an edit that changes the sentence — before the judgement lands or after — leaves
-		// the judgement on an earlier wording, and the record says which.
+		// (ruling L5). The judgement lands only while the anchor still backs that sentence
+		// (record.CheckOfSentence); an edit that changes the sentence after it lands leaves it on an
+		// earlier wording, and the record says which.
 		claim, err := record.LiveSentence(run, p.Label)
 		if err != nil {
 			return nil, err
@@ -110,12 +111,13 @@ func newReproduce() *cobra.Command {
 		// recorded output, exit and out/ — because two acts on one bundle can have recorded
 		// different results, and another act's verdict says nothing about this one's.
 		//
-		// WHERE IT EXECUTES, THE EXECUTION IS STAGED, judged, and only then stored and recorded: a
-		// refused verdict leaves nothing under rerun/. The rename is the landing's last guard, after the
-		// write path's validation and every refusal of the act (a retire of the anchor committing since
-		// the read above among them), so a refused landing leaves nothing under rerun/ either, and no
-		// event ever names a directory the store lacks. A failed insert after the rename leaves a
-		// directory no event names, which nothing reads, and the next reproduce executes again.
+		// WHERE IT EXECUTES, THE EXECUTION IS STAGED, judged, recorded, and only then stored: a refused
+		// verdict, and a landing that refuses or fails — the sentence changed or the anchor retired since
+		// the read above among them — discard the staging and leave nothing under rerun/. The rename runs
+		// after the event commits, outside the write, so it is never undone by a rollback. Its one
+		// residue is a rename that fails after the commit: the event names a directory the store lacks,
+		// the act's error says so, and a later reproduce of the bundle reads it as missing, by name,
+		// never as an empty execution (compute.ReadRerun).
 		var o rerunOutcome
 		var staged *compute.Staged
 		if st := p.Standing; st != nil {
@@ -170,17 +172,9 @@ func newReproduce() *cobra.Command {
 		res.By, res.Ran, res.RerunSha = o.by, o.ran, o.rerunSha
 		res.Drift = o.drift
 		res.Rerun = recordpb.Word(body.GetRerun())
-		guards := []record.Guard{record.CheckNotRetired(p.Label)}
-		if staged != nil {
-			guards = append(guards, record.CheckLast(func(*record.Landing) error {
-				if err := staged.Promote(); err != nil {
-					return err
-				}
-				if afterStore != nil {
-					return afterStore()
-				}
-				return nil
-			}))
+		guards := []record.Guard{record.CheckOfSentence(p.Label, claim)}
+		if landingFails != nil {
+			guards = append(guards, record.CheckLast(func(*record.Landing) error { return landingFails() }))
 		}
 		land := func() error {
 			if beforeAppend != nil {
@@ -196,6 +190,12 @@ func newReproduce() *cobra.Command {
 				err = errors.Join(err, staged.Discard())
 			}
 			return nil, err
+		}
+		if staged != nil {
+			if err := staged.Promote(); err != nil {
+				return nil, feov.Wrap(feov.Internal, err, "your judgement of %s is recorded, and the execution it compared could not be stored under rerun/: %v. "+
+					"A later reproduce of this bundle reads that execution as missing; report it with `log` as a defect", p.Label, err)
+			}
 		}
 		// COPIES LEFT BEHIND ARE THE TOOL'S DEFECT, NOT THE RE-RUN'S: the execution finished before
 		// the removal, so the act stands and the leftover is logged after it, best-effort.
@@ -227,17 +227,17 @@ func SetBeforeCheckAppendForTest(f func() error) (restore func()) {
 	return func() { beforeAppend = prev }
 }
 
-// afterStore runs inside a reproduce's landing, after its execution is renamed under rerun/ and before
-// the event is inserted; nil outside a test.
-var afterStore func() error
+// landingFails runs as the last guard of a reproduce's landing, after the write path's validation;
+// nil outside a test.
+var landingFails func() error
 
-// SetAfterRerunStoredForTest has every reproduce that executes call f in its landing after the rename
-// under rerun/, and an error from f refuses the act there: the seam a test uses to fail the insert
-// after the rename. It returns the restore.
-func SetAfterRerunStoredForTest(f func() error) (restore func()) {
-	prev := afterStore
-	afterStore = f
-	return func() { afterStore = prev }
+// SetLandingFailsForTest has every reproduce's landing call f after every guard and the write path's
+// validation admitted it, and an error from f fails the landing there, as a failed commit does: the
+// seam a test uses to fail the write after the act was judged admissible. It returns the restore.
+func SetLandingFailsForTest(f func() error) (restore func()) {
+	prev := landingFails
+	landingFails = f
+	return func() { landingFails = prev }
 }
 
 // rerunOutcome is this act's comparison against an execution of its bundle — its own (ran), or the

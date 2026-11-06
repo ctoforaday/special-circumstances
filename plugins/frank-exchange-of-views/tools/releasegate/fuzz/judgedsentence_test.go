@@ -20,8 +20,8 @@ import (
 // Two arms, each with its tally gate.
 //
 //   - RECORDED SENTENCE: every check of an evidence anchor the drive records — a reproduce, a verify
-//     --anchor — carries `claim` equal to its anchor's live sentence in some report state between its
-//     sitting's opening and its event (checkSentences); one that does not fails the run.
+//     --anchor — carries `claim` equal to its anchor's live sentence in the report as of its own event
+//     (checkSentences); one that does not fails the run.
 //     `reproducesWithClaim` = `reproduces`, `anchorVerifiesWithClaim` = `anchorVerifies`.
 //   - STALENESS: one simulated debate per part is forced to hold a check of a sentence an edit then
 //     changes (forcedStaleness), and the test seam takes the anchor out of that edit's `reopened` once
@@ -158,34 +158,51 @@ func staleOf(res consistency.Result, anchor string) (forged, other []string) {
 // judgedSentences is the recorded-sentence arm's count over one run's record: the checks of an
 // evidence anchor on it by verb, and those whose `claim` the arm admits (checkSentences).
 type judgedSentences struct {
-	// reproducesWithClaim is the reproduces whose claim is their anchor's sentence in the window.
+	// reproducesWithClaim is the reproduces whose claim is their anchor's sentence at their event.
 	reproducesWithClaim int
 	// anchorVerifies is the verify readings of a citation (`--anchor`), and anchorVerifiesWithClaim
-	// those whose claim is their anchor's sentence in the window.
+	// those whose claim is their anchor's sentence at their event.
 	anchorVerifies, anchorVerifiesWithClaim int
 }
 
 // checkSentences is the recorded-sentence arm, read at the run's end: each check of an evidence
-// anchor on the record — a reproduce, a verify --anchor — carries `claim`, and it is the sentence the
-// seat judged: the anchor's sentence in the report as the verb read it before its write. It returns
-// the counts, and why the first check that does not fails the run.
+// anchor on the record — a reproduce, a verify --anchor — carries `claim`, and it is the anchor's
+// sentence in the report folded as of the check's own event. It returns the counts, and why the first
+// check that does not fails the run.
 //
-// THE READ IS A WINDOW, NOT AN EVENT. The verb reads the sentence (record.LiveSentence) and then
-// appends, and the debate's seats act concurrently, so an edit may land between the two. The read is
-// inside the seat's sitting, so the claim must be the anchor's sentence in the report as some state
-// from the sitting's opening to the check itself held it: as of the opening, and after each report
-// change in between.
+// IT IS EQUALITY AT THE EVENT. The verb reads the sentence before its write, and the landing refuses
+// the check unless the anchor still backs that sentence (record.CheckOfSentence), so a check that
+// recorded a row was of the sentence the report held when it landed. A refused check writes no row and
+// is not read here.
 func checkSentences(run record.Run, fam record.Family) (got judgedSentences, msg string) {
-	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
+	path := filepath.Join(run.Records(), "record.db")
+	db, err := recordsql.Open(path)
 	if err != nil {
 		return got, "recorded sentence: the record could not be opened: " + err.Error()
 	}
+	// The process's one handle is released on every exit, as runtest.DropReopened releases it: the
+	// next reader opens its own.
+	defer func() {
+		if err := recordsql.Close(path); err != nil && msg == "" {
+			msg = "recorded sentence: the record's handle did not close: " + err.Error()
+		}
+	}()
+	// One fold per event a check stands at, kept for the checks that share it.
+	folded := map[int64]string{}
 	reportAt := func(at int64) (string, error) {
+		if report, ok := folded[at]; ok {
+			return report, nil
+		}
 		src, err := recordsql.ReportSourceAt(db, at)
 		if err != nil {
 			return "", err
 		}
-		return src.Fold(reportproj.Replay)
+		report, err := src.Fold(reportproj.Replay)
+		if err != nil {
+			return "", err
+		}
+		folded[at] = report
+		return report, nil
 	}
 	for _, e := range fam.Events {
 		var verb, id, claim string
@@ -198,44 +215,28 @@ func checkSentences(run record.Run, fam record.Family) (got judgedSentences, msg
 		} else {
 			continue
 		}
-		w := fam.At.Of(e)
+		at := fam.At.Of(e).ID
 		if claim == "" {
 			if msg == "" {
-				msg = fmt.Sprintf("recorded sentence: %s at event %d of %s recorded no claim", verb, w.ID, id)
+				msg = fmt.Sprintf("recorded sentence: %s at event %d of %s recorded no claim", verb, at, id)
 			}
 			continue
 		}
-		// A check in no sitting says nothing about when it read: the write's own state is its window.
-		ats := []int64{w.ID}
-		if w.SittingID != 0 {
-			ats = append(ats, w.SittingID)
-			ops, err := recordsql.ReportOpsBetween(db, w.SittingID, w.ID)
-			if err != nil {
-				return got, "recorded sentence: the report's changes before event " + fmt.Sprint(w.ID) + " could not be read: " + err.Error()
-			}
-			for _, op := range ops {
-				ats = append(ats, op.EventID)
-			}
+		report, err := reportAt(at)
+		if err != nil {
+			return got, fmt.Sprintf("recorded sentence: the report as of event %d does not render: %v", at, err)
 		}
-		var held []string
-		for i, at := range ats {
-			report, err := reportAt(at)
-			if err != nil {
-				// The report the write read renders, or the verb would have refused; an earlier state
-				// that does not holds no sentence the read could have taken.
-				if i == 0 {
-					return got, fmt.Sprintf("recorded sentence: the report as of event %d does not render: %v", at, err)
-				}
-				continue
-			}
-			if s, ok := record.LiveSentencesIn(report, []string{id})[id]; ok {
-				held = append(held, s)
-			}
-		}
-		if !slices.Contains(held, claim) {
+		live, bare := record.SentencesIn(report, []string{id})
+		if now, ok := live[id]; !ok || now != claim {
 			if msg == "" {
-				msg = fmt.Sprintf("recorded sentence: %s at event %d of %s recorded claim %q, and the report held %q for it from its sitting's opening (event %d) to the write",
-					verb, w.ID, id, claim, strings.Join(slices.Compact(held), `" or "`), w.SittingID)
+				held := fmt.Sprintf("%q", now)
+				switch {
+				case bare[id]:
+					held = "the anchor bare"
+				case !ok:
+					held = "no sentence for it"
+				}
+				msg = fmt.Sprintf("recorded sentence: %s at event %d of %s recorded claim %q, and the report as of that event held %s", verb, at, id, claim, held)
 			}
 			continue
 		}

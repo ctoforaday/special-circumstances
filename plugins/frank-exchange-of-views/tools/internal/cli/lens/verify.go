@@ -117,8 +117,8 @@ func newVerify() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			// The sentence the reading is OF: the one the seat judged, read before the write. A retire
-			// committing between this read and the landing is refused there (record.CheckNotRetired).
+			// The sentence the reading is OF: the one the seat judged, read before the write. The reading
+			// lands only while the anchor still backs that sentence (record.CheckOfSentence).
 			claim, err := record.LiveSentence(run, id)
 			if err != nil {
 				return nil, err
@@ -413,11 +413,13 @@ func writeVerify(s seat.Context, cmd *cobra.Command, gf *gapFlags, body *recordp
 func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *recordpb.Mint, fixNew func() string) (seat.Result, error) {
 	var evs []*record.Event
 	// A READING OF A CITATION RECORDS THE SENTENCE THE SEAT JUDGED, read before the write, and its
-	// gap's location and the place a --new is checked at are that sentence too. A retire of the citation
-	// committing since that read is refused in the landing, asked before every other guard.
+	// gap's location and the place a --new is checked at are that sentence too. The landing asks first,
+	// before every other guard, that the citation still backs that sentence (record.CheckOfSentence):
+	// an edit or a retire committing since the read refuses the reading, so the sentence recorded is
+	// the one the report holds at its event, and the gap is placed at it.
 	var live []record.Guard
 	if of := body.GetAnchor(); of != "" {
-		live = append(live, record.CheckNotRetired(of))
+		live = append(live, record.CheckOfSentence(of, body.GetClaim()))
 		if beforeAppend != nil {
 			if err := beforeAppend(); err != nil {
 				return nil, err

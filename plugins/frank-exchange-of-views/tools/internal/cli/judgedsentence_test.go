@@ -3,12 +3,16 @@ package cli
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -29,6 +33,10 @@ type judgedKind struct {
 	// quote is a span of the checked sentence a mint may place a gap at; edit rewrites the sentence.
 	quote string
 	edit  [2]string
+	// elsewhere rewrites prose outside the checked sentence; cut is the checked sentence's prose before
+	// and after the anchor's token, which an edit down to the token alone leaves bare.
+	elsewhere [2]string
+	cut       [2]string
 }
 
 // judgedKinds is every backing kind's script, keyed by its EvidenceTables row's kind.
@@ -41,8 +49,10 @@ func judgedKinds() map[string]judgedKind {
 					"--as", "supports", "--confidence", "high", "--reason", "read at the leaf"}, extra...)...)
 			},
 			seat: lensSeat, by: "read by",
-			quote: "the grass is green",
-			edit:  [2]string{"the grass is green", "the grass is wet"},
+			quote:     "the grass is green",
+			edit:      [2]string{"the grass is green", "the grass is wet"},
+			elsewhere: [2]string{"Closing paragraph stays", "Closing paragraph moves"},
+			cut:       [2]string{"The data shows the sky is blue", " and the grass is green."},
 		},
 		"computation": {
 			setup: func(t *testing.T) (string, string) {
@@ -56,8 +66,10 @@ func judgedKinds() map[string]judgedKind {
 					"--as", "sound", "--reason", "it computes what the sentence says"}, extra...)...)
 			},
 			seat: "red-lens-computation", by: "judged by",
-			quote: "Alpha holds",
-			edit:  [2]string{"Alpha", "Alpha still"},
+			quote:     "Alpha holds",
+			edit:      [2]string{"Alpha", "Alpha still"},
+			elsewhere: [2]string{"Plain prose here", "Plain prose there"},
+			cut:       [2]string{"Alpha holds.", ""},
 		},
 	}
 }
@@ -119,93 +131,151 @@ func TestEveryCheckRecordsTheSentenceItJudged(t *testing.T) {
 	}
 }
 
-// THE RECORDED SENTENCE IS THE ONE THE SEAT JUDGED, one script over every backing kind's row: blue's
-// edit of the sentence commits between the check's read of the report and its write, and the claim
-// recorded is the sentence before the edit — the one the seat read — so the check does not stand (the
-// edit named the anchor reopened) and evidence.md says which sentence it was of. A retire of the
-// anchor committing there refuses the check, nothing recorded and no execution stored, as a check of
-// a retired anchor is refused.
-func TestTheRecordedSentenceIsTheOneTheSeatJudged(t *testing.T) {
+// A CHECK LANDS ONLY ON THE SENTENCE THE SEAT JUDGED, one script over every backing kind's row. A
+// write of another seat commits between the check's read of the sentence and its landing
+// (lens.SetBeforeCheckAppendForTest). One that changes the sentence, cuts it to leave the anchor bare,
+// or retires the anchor refuses the check: nothing recorded, no execution stored. One that leaves the
+// sentence as it was — an edit elsewhere, a gap's token placed at the sentence's end — lets it land,
+// recording the sentence the seat read, which is the sentence the report holds at the check's event.
+func TestACheckLandsOnlyOnTheSentenceTheSeatJudged(t *testing.T) {
 	kinds := judgedKinds()
 	for _, row := range recordsql.EvidenceTables {
 		k, ok := kinds[row.Kind]
 		if !ok {
-			t.Errorf("backing kind %s has no arm here: the sentence its check records is unasserted", row.Kind)
+			t.Errorf("backing kind %s has no arm here: the sentence its check lands on is unasserted", row.Kind)
 			continue
 		}
 		t.Run(row.Kind, func(t *testing.T) {
-			runDir, id := k.setup(t)
-			sit(t, runDir, k.seat)
-			old, err := record.LiveSentence(runtest.Open(t, runDir), id)
-			if err != nil {
-				t.Fatal(err)
-			}
-			once := func(args ...string) func() error {
+			// window runs the check with write committed between its read and its landing, and returns the
+			// run, the anchor, the sentence the seat read and the check's answer.
+			window := func(write func(t *testing.T, runDir, id string) error) (string, string, string, error) {
+				t.Helper()
+				runDir, id := k.setup(t)
+				sit(t, runDir, k.seat)
+				old, err := record.LiveSentence(runtest.Open(t, runDir), id)
+				if err != nil {
+					t.Fatal(err)
+				}
 				done := false
-				return func() error {
+				restore := lens.SetBeforeCheckAppendForTest(func() error {
 					if done {
 						return nil
 					}
 					done = true
-					out, err := run(t, args...)
+					if err := write(t, runDir, id); err != nil {
+						t.Errorf("the write between the check's read and its landing: %v", err)
+					}
+					return nil
+				})
+				defer restore()
+				out, err := k.check(t, runDir, id)
+				if err != nil {
+					t.Logf("%s:\n%s", row.CheckTable, out)
+				}
+				return runDir, id, old, err
+			}
+			// verb is a write by the verb args name, with "ID" read as the checked anchor.
+			verb := func(args ...string) func(t *testing.T, runDir, id string) error {
+				return func(t *testing.T, runDir, id string) error {
+					argv := []string{args[0], "--run", runDir}
+					for _, a := range args[1:] {
+						if a == "ID" {
+							a = id
+						}
+						argv = append(argv, a)
+					}
+					out, err := run(t, argv...)
 					if err != nil {
-						t.Errorf("%s between the check's read and its write: %v\n%s", args[0], err, out)
+						return fmt.Errorf("%w\n%s", err, out)
 					}
 					return nil
 				}
 			}
-			restore := lens.SetBeforeCheckAppendForTest(once("edit", "--run", runDir, "--seat-id", blueSeat, "--quote", k.edit[0], "--new", k.edit[1],
-				"--reason", "rewrote the sentence while it was checked"))
-			out, err := k.check(t, runDir, id)
-			restore()
-			if err != nil {
-				t.Fatalf("the %s: %v\n%s", row.CheckTable, err, out)
-			}
-			now, err := record.LiveSentence(runtest.Open(t, runDir), id)
-			if err != nil || now == old {
-				t.Fatalf("the edit left the sentence %q (%v), want it changed from %q", now, err, old)
-			}
-			var got string
-			if err := openRunDB(t, runDir).QueryRow(`SELECT coalesce("claim", '') FROM "`+row.CheckTable+`" WHERE "`+row.CheckIDColumn+`" = ?`, id).Scan(&got); err != nil {
-				t.Fatalf("read %s's claim: %v", row.CheckTable, err)
-			}
-			if got != old {
-				t.Errorf("%s recorded claim %q, want the sentence the seat judged, %q", row.CheckTable, got, old)
-			}
-			if !uncheckedNow(t, runDir, id) {
-				t.Errorf("the %s's check of the sentence before the edit stands", row.Noun)
-			}
-			ev := assembledSet(t, runDir)[report.FileEvidence]
-			if !strings.Contains(ev, "  - of the sentence: "+old+"\n") {
-				t.Errorf("evidence.md does not print the sentence the check was of, %q:\n%s", old, ev)
-			}
-			if strings.Count(ev, falls) != 1 {
-				t.Errorf("the check of the sentence before the edit is not marked %q:\n%s", falls, ev)
+			claims := func(runDir, id string) []string {
+				t.Helper()
+				rows, err := openRunDB(t, runDir).Query(`SELECT coalesce("claim", '') FROM "`+row.CheckTable+`" WHERE "`+row.CheckIDColumn+`" = ?`, id)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer rows.Close()
+				var out []string
+				for rows.Next() {
+					var c string
+					if err := rows.Scan(&c); err != nil {
+						t.Fatal(err)
+					}
+					out = append(out, c)
+				}
+				if err := rows.Err(); err != nil {
+					t.Fatal(err)
+				}
+				return out
 			}
 
-			runDir, id = k.setup(t)
-			restore = lens.SetBeforeCheckAppendForTest(once("retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", id,
-				"--reason", "retired while it was checked"))
-			out, err = k.check(t, runDir, id)
-			restore()
-			if err == nil || !strings.Contains(err.Error(), "is retired") {
-				t.Errorf("a %s of an anchor retired before it landed was not refused as retired: %v\n%s", row.CheckTable, err, out)
+			refusals := []struct {
+				name  string
+				write func(t *testing.T, runDir, id string) error
+				says  []string
+			}{
+				{"the sentence changed", verb("edit", "--seat-id", blueSeat, "--quote", k.edit[0], "--new", k.edit[1], "--reason", "rewrote the sentence while it was checked"),
+					[]string{"while this check was made", "changed", "the report now holds", "judge it again"}},
+				// `blue edit` refuses to leave a citation bare, so the cut is appended as an edit from a
+				// record before that refusal holds it — the state the landing must still refuse.
+				{"the anchor left bare", func(t *testing.T, runDir, id string) error {
+					tok := anchor.Token(id)
+					_, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, &recordpb.BlueEdit{
+						Old: proto.String(k.cut[0] + tok + k.cut[1]), New: proto.String(tok), Text: proto.String("cut the sentence while it was checked"),
+					})
+					return err
+				}, []string{"while this check was made", "stands bare"}},
+				{"the anchor retired", verb("retire", "--seat-id", blueSeat, "--anchor", "ID", "--reason", "retired while it was checked"),
+					[]string{"while this check was made", "is retired"}},
 			}
-			var n int
-			if err := openRunDB(t, runDir).QueryRow(`SELECT count(*) FROM "`+row.CheckTable+`" WHERE "`+row.CheckIDColumn+`" = ?`, id).Scan(&n); err != nil {
-				t.Fatal(err)
+			for _, r := range refusals {
+				runDir, id, _, err := window(r.write)
+				for _, want := range r.says {
+					if err == nil || !strings.Contains(err.Error(), want) {
+						t.Errorf("%s: a %s that landed after %s was not refused saying %q: %v", r.name, row.CheckTable, r.name, want, err)
+					}
+				}
+				if got := claims(runDir, id); len(got) != 0 {
+					t.Errorf("%s: %s recorded %q on a sentence the seat did not judge", r.name, row.CheckTable, got)
+				}
+				// The refused landing stores no execution: nothing under the store but the bundles.
+				stored, err := filepath.Glob(filepath.Join(runDir, compute.StoreDir, "*", "*"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, d := range stored {
+					if b := filepath.Base(d); b == "rerun" || strings.HasPrefix(b, ".tmp-") {
+						t.Errorf("%s: the refused %s left %s", r.name, row.CheckTable, d)
+					}
+				}
 			}
-			if n != 0 {
-				t.Errorf("%d %s row(s) recorded on an anchor retired before the check landed", n, row.CheckTable)
+
+			lands := []struct {
+				name  string
+				write func(t *testing.T, runDir, id string) error
+			}{
+				{"an edit elsewhere", verb("edit", "--seat-id", blueSeat, "--quote", k.elsewhere[0], "--new", k.elsewhere[1], "--reason", "rewrote another sentence")},
+				{"a gap's token at the sentence's end", verb("mint", "--seat-id", k.seat, "--quote", k.quote, "--class", "spec_underspecification",
+					"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium")},
 			}
-			// The refused landing stores no execution: nothing under the store but the bundles.
-			stored, err := filepath.Glob(filepath.Join(runDir, compute.StoreDir, "*", "*"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, d := range stored {
-				if b := filepath.Base(d); b == "rerun" || strings.HasPrefix(b, ".tmp-") {
-					t.Errorf("the %s refused on a retired anchor left %s", row.CheckTable, d)
+			for _, l := range lands {
+				runDir, id, old, err := window(l.write)
+				if err != nil {
+					t.Errorf("%s: the %s was refused: %v", l.name, row.CheckTable, err)
+					continue
+				}
+				if got := claims(runDir, id); len(got) != 1 || got[0] != old {
+					t.Errorf("%s: %s recorded %q, want the sentence the seat judged, %q", l.name, row.CheckTable, got, old)
+				}
+				if now, err := record.LiveSentence(runtest.Open(t, runDir), id); err != nil || now != old {
+					t.Errorf("%s: the report holds %q (%v) for the anchor, want the sentence judged, %q", l.name, now, err, old)
+				}
+				if uncheckedNow(t, runDir, id) {
+					t.Errorf("%s: the %s's check of the sentence the report holds does not stand", l.name, row.Noun)
 				}
 			}
 		})
