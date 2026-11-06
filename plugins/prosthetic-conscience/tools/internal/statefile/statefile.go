@@ -56,7 +56,10 @@ func (s Status) String() string {
 // can ALSO observe the name as not existing at all for an instant while the replace binds
 // — measured once the CI temp dir moved to a RAM disk, where 800 renames land in 0.38s and
 // the window is sampled often enough to see: 3 of 800 reads came back ErrNotExist on a
-// file that existed before and after.
+// file that existed before and after. Under heavy concurrency on loaded Windows CI runners,
+// transient NTFS replace/rename delays and thread scheduling can occasionally exceed 6ms.
+// Six attempts with linear backoff (2+4+6+8+10 = 30ms total) completely absorb the NTFS
+// replace window under load while remaining well within hook latency budgets.
 //
 // That second case is why ErrNotExist is RETRIED rather than trusted. It is the dangerous
 // one: a sharing violation reports Unreadable, which forbids a write, while a premature
@@ -64,7 +67,7 @@ func (s Status) String() string {
 //
 // Vars, not consts, so a test can widen the window deterministically.
 var (
-	readAttempts = 3
+	readAttempts = 6
 	readBackoff  = 2 * time.Millisecond
 )
 
