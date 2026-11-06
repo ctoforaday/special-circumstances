@@ -3,6 +3,7 @@ package fuzz
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -53,7 +54,8 @@ func (r *runner) unruledPositions() []string {
 // permits the PASS (38 of 40 end CEILING), so a coin over it drove one withheld PASS in a sweep and
 // neither upheld form: `motion position rule --ids` went unpassed. Each position seed's run is a
 // forced-VERIFIED run, which reaches a permitted PASS by construction; its chair withholds the first
-// one, and its bench rules the position the way the seed names.
+// one its ruling's route fits the epoch limit (withholds), and its bench rules the position the way
+// the seed names.
 const (
 	positionLensSeed      = 10
 	positionGapsSeed      = 11
@@ -74,21 +76,110 @@ func positionFormOf(seed int64) string {
 	return ""
 }
 
-// withholds is whether a chair whose plan permits the PASS withholds it. A run forced to a position
-// withholds its first permitted PASS, and the gaps run only once a gap stands open for the bench to
-// name; every other forced run never withholds, and a drawn run on a coin.
-func (r *runner) withholds() bool {
+// withholds is whether a chair whose plan permits the PASS, at the chair sitting that opened epoch
+// of the run's limit maxEpochs, withholds it. A drawn run withholds on a coin and a forced run with no
+// position to force never does. A run forced to a position withholds once, and only where its
+// ruling's route still fits the limit (lastWithholdEpoch): a PASS withheld later sends the run to
+// CEILING, which no ruling the bench makes can lift, and the forced-VERIFIED run fails on a draw. Its
+// first permitted PASS in the window is the one withheld — the gaps run's once its lens holds a gap
+// open for the bench to name, or at the window's last epoch whatever it holds, so the seed is
+// exercised whenever the window holds a permitted PASS. A permitted PASS past the window is passed,
+// and its epoch kept for the forced-position oracle to name.
+func (r *runner) withholds(epoch, maxEpochs int) bool {
 	if r.forcePosition == "" {
 		return !r.forcedVerdict() && r.coin(5)
 	}
+	last := lastWithholdEpoch(r.forcePosition, maxEpochs)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.positionForced || (r.forcePosition == "gaps" && !r.heldTrifle) {
+	r.positionLimit = maxEpochs
+	switch {
+	case r.positionForced:
+		return false
+	case epoch > last:
+		if r.positionPassedLate == 0 {
+			r.positionPassedLate = epoch
+		}
+		return false
+	case r.forcePosition == "gaps" && !r.heldTrifle && epoch < last:
 		return false
 	}
 	r.positionForced = true
+	r.positionWithheldAt = epoch
 	return true
 }
+
+// planEpochs is the epoch a plan was asked in and the run's epoch limit, read off the plan's own
+// epoch and max_epochs.
+func planEpochs(plan map[string]any) (epoch, maxEpochs int) {
+	e, _ := plan["epoch"].(float64)
+	m, _ := plan["max_epochs"].(float64)
+	return int(e), int(m)
+}
+
+// THE ROUTE A RULING ON A WITHHELD PASS SENDS THE RUN DOWN, as the record routes it
+// (record/positionheard.go): one seat dispatched per epoch after the withholding chair sitting, in
+// order, and then the chair's sitting that records the PASS.
+//   - lens: the named lens owes an audit of its area (an upheld_position blocker), which readies it
+//     at the next chair sitting until it is served the report in a sitting opened after the ruling.
+//   - gaps: each named gap goes back for one more exchange — a remand whose plan readies blue until
+//     it has acted, and then the gap's minting lens alone, whose re-audit closes it.
+//   - overruled: the chair's next sitting decides on the PASS, and dispatches nobody first.
+//
+// The bench's position sitting falls inside the withholding epoch: the engine convenes it before the
+// next chair sitting, so it takes no epoch of its own.
+func positionRoute(form string) []string {
+	switch form {
+	case "lens":
+		return []string{routeLens}
+	case "gaps":
+		return []string{routeBlue, routeLens}
+	}
+	return nil
+}
+
+// The roles a position's route dispatches: blue answering a remand, and a lens auditing.
+const (
+	routeBlue = "blue"
+	routeLens = "lens"
+)
+
+// positionRouteSittings is the chair sittings a ruling's route needs after the one that withheld the
+// PASS: one per seat it dispatches, each in an epoch of its own, and the one that records the PASS.
+func positionRouteSittings(form string) int { return len(positionRoute(form)) + 1 }
+
+// lastWithholdEpoch is the last epoch under the limit maxEpochs at which a chair withholding a PASS
+// leaves the form's route room to reach the PASS: every seat it dispatches sits in an epoch that
+// dispatches it — not the final sitting, which dispatches nobody, and for blue not the epoch it is
+// held out of (record.Plan.BlueHeldOut) — and the PASS is recorded by the final sitting at the
+// latest. 0 when no epoch leaves the room; maxEpochs 0 holds the run to no limit.
+func lastWithholdEpoch(form string, maxEpochs int) int {
+	if maxEpochs <= 0 {
+		return math.MaxInt
+	}
+	route := positionRoute(form)
+	fits := func(withheld int) bool {
+		for i, seat := range route {
+			e := withheld + 1 + i
+			if finalEpoch(e, maxEpochs) || (seat == routeBlue && record.Plan{MaxEpochs: maxEpochs, Epoch: e}.BlueHeldOut()) {
+				return false
+			}
+		}
+		return withheld+len(route)+1 <= maxEpochs
+	}
+	for e := maxEpochs; e >= 1; e-- {
+		if fits(e) {
+			return e
+		}
+	}
+	return 0
+}
+
+// finalEpoch is whether epoch is the run's final sitting under the limit maxEpochs — the chair
+// sitting that opens epoch maxEpochs, after which no seat is dispatched (record.isFinalEpoch, which
+// the record does not export; TestTheLensRouteFitsTheLimitAtItsLastWithholdEpoch drives the record
+// to the boundary it draws).
+func finalEpoch(epoch, maxEpochs int) bool { return maxEpochs > 0 && epoch >= maxEpochs }
 
 // mintHeldTrifle is the gaps run's lens minting, once, a gap of a class that is never material, at
 // a sitting after the first where it holds no gap of its own open (the budget refuses a second
@@ -185,6 +276,8 @@ func (r *runner) rulePositions(seatID, occasion string) {
 	if r.positionRuledAt == nil {
 		r.positionRuledAt = map[string]string{}
 	}
+	// The bench sits between chair sittings: its ruling falls in the epoch the last one opened.
+	epoch, _ := planEpochs(r.planThisSitting)
 	for _, id := range r.unruledPositions() {
 		const opinion = "fuzz: the bench's reasoning on the PASS withheld"
 		open := r.openGaps()
@@ -224,6 +317,7 @@ func (r *runner) rulePositions(seatID, occasion string) {
 			}
 			r.mu.Lock()
 			r.positionRuledAt[id] = occasion
+			r.positionRuledAtEpoch = epoch
 			r.positionsOverruled++
 			r.overruledPending = id
 			r.mu.Unlock()
@@ -270,6 +364,7 @@ func (r *runner) rulePositions(seatID, occasion string) {
 		}
 		r.mu.Lock()
 		r.positionRuledAt[id] = occasion
+		r.positionRuledAtEpoch = epoch
 		if form == "gaps" {
 			r.positionsUpheldGaps++
 		} else {
@@ -368,7 +463,7 @@ func (r *runner) forcedPositionOracle() string {
 	named := slices.Clone(r.positionNamedGaps)
 	r.mu.Unlock()
 	if got[r.forcePosition] == 0 {
-		return fmt.Sprintf("forced-position oracle: the run is forced to a %s ruling on a withheld PASS, and its bench made none (rulings %v, %d PASS withheld)", r.forcePosition, got, r.positionsWithheld)
+		return fmt.Sprintf("forced-position oracle: the run is forced to a %s ruling on a withheld PASS, and its bench made none (rulings %v, %d PASS withheld)%s", r.forcePosition, got, r.positionsWithheld, r.positionRouteClause())
 	}
 	open := r.openGaps()
 	for _, g := range named {
@@ -377,6 +472,34 @@ func (r *runner) forcedPositionOracle() string {
 		}
 	}
 	return ""
+}
+
+// positionRouteClause is what a forced position run's failure says about its route against the epoch
+// limit: the window its ruling's route fits, the epoch the PASS was withheld at and the epoch of the
+// ruling, or the epoch whose permitted PASS came past the window and was passed. "" in a run forced to
+// no position.
+func (r *runner) positionRouteClause() string {
+	if r.forcePosition == "" {
+		return ""
+	}
+	r.mu.Lock()
+	limit, withheld, ruled, late := r.positionLimit, r.positionWithheldAt, r.positionRuledAtEpoch, r.positionPassedLate
+	r.mu.Unlock()
+	if limit == 0 && withheld == 0 && late == 0 {
+		return "; no chair sitting's plan permitted the PASS"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "; the %s route takes %d chair sitting(s) after the withholding one, so under the epoch limit %d the last epoch that can withhold is %d", r.forcePosition, positionRouteSittings(r.forcePosition), limit, lastWithholdEpoch(r.forcePosition, limit))
+	switch {
+	case withheld > 0 && ruled > 0:
+		fmt.Fprintf(&b, "; the PASS was withheld at epoch %d and the bench ruled in epoch %d", withheld, ruled)
+	case withheld > 0:
+		fmt.Fprintf(&b, "; the PASS was withheld at epoch %d and the bench never ruled", withheld)
+	}
+	if late > 0 {
+		fmt.Fprintf(&b, "; the first PASS permitted past that window, at epoch %d, was passed", late)
+	}
+	return b.String()
 }
 
 // namedGapEvidence is what the forced-position oracle's failure carries about a named gap left open,
@@ -574,25 +697,171 @@ func TestTheSweepNamesEveryPositionClass(t *testing.T) {
 	}
 }
 
-// A FORCED CHAIR WITHHOLDS ONCE, and the gaps run's only once its lens holds a gap open to name.
-func TestTheForcedChairWithholdsItsFirstPermittedPass(t *testing.T) {
-	r := &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: "lens"}
-	if !r.withholds() || r.withholds() {
-		t.Error("the lens run's chair must withhold its first permitted PASS, and only that one")
+// A FORCED CHAIR WITHHOLDS ONCE, AND ONLY WHERE ITS ROUTE FITS THE LIMIT: the lens run's at its first
+// permitted PASS up to the window's last epoch, the gaps run's once its lens holds a gap open or at that
+// last epoch whatever it holds, and none past it — that PASS is passed, and its epoch kept.
+func TestTheForcedChairWithholdsWhereItsRouteFitsTheLimit(t *testing.T) {
+	limit := record.DefaultParams.MaxEpochs
+	for _, form := range []string{"lens", "gaps", "overruled"} {
+		last := lastWithholdEpoch(form, limit)
+		t.Run(form, func(t *testing.T) {
+			r := &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: form, heldTrifle: true}
+			if r.withholds(last+1, limit) {
+				t.Errorf("withheld at epoch %d, past %d, the last its route fits the limit %d", last+1, last, limit)
+			}
+			if r.positionPassedLate != last+1 {
+				t.Errorf("the PASS passed late is kept at epoch %d, want %d", r.positionPassedLate, last+1)
+			}
+			r = &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: form, heldTrifle: true}
+			if !r.withholds(last, limit) || r.withholds(last, limit) {
+				t.Errorf("must withhold at epoch %d, the last its route fits, and only once", last)
+			}
+			if r.positionWithheldAt != last || r.positionPassedLate != 0 {
+				t.Errorf("withheld at %d, passed late at %d; want withheld at %d", r.positionWithheldAt, r.positionPassedLate, last)
+			}
+			r = &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: form}
+			switch got := r.withholds(last-1, limit); {
+			case form == "gaps" && got:
+				t.Errorf("the gaps run's chair withheld at epoch %d, before the window's last, with no gap held open to name", last-1)
+			case form != "gaps" && !got:
+				t.Errorf("the %s run's chair passed its first permitted PASS, at epoch %d, inside the window", form, last-1)
+			}
+			if form == "gaps" {
+				if !r.withholds(last, limit) {
+					t.Errorf("the gaps run's chair did not withhold at epoch %d, the window's last, with no gap held open: the seed would go unexercised", last)
+				}
+				r = &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: form, heldTrifle: true}
+				if !r.withholds(last-1, limit) {
+					t.Errorf("the gaps run's chair did not withhold at epoch %d once the gap stood open", last-1)
+				}
+			}
+		})
 	}
-	r = &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: "gaps"}
-	if r.withholds() {
-		t.Error("the gaps run's chair withheld before its lens minted the gap it holds open")
-	}
-	r.heldTrifle = true
-	if !r.withholds() {
-		t.Error("the gaps run's chair did not withhold once the gap stood open")
-	}
-	r = &runner{rng: newLockedRand(1), forceVerified: true}
+	r := &runner{rng: newLockedRand(1), forceVerified: true}
 	for range 50 {
-		if r.withholds() {
+		if r.withholds(1, limit) {
 			t.Fatal("a forced run with no position to force withheld a permitted PASS")
 		}
+	}
+}
+
+// THE WINDOW IS THE ROUTE'S SITTINGS COUNTED BACK FROM THE LIMIT: the PASS may be recorded at the final
+// sitting, so a route of n chair sittings after the withholding one fits from epoch limit-n — the lens
+// route's audit, the gaps route's remand answer and re-audit, the overruled route's next chair sitting.
+// Where blue sits, the epoch it is held out of (record.Plan.BlueHeldOut) is the one before the final,
+// and its route puts its lens there.
+func TestThePositionRouteWindowIsItsSittings(t *testing.T) {
+	want := map[string]int{"lens": 2, "gaps": 3, "overruled": 1}
+	for _, limit := range []int{3, 4, record.DefaultParams.MaxEpochs} {
+		for form, sittings := range want {
+			if got := positionRouteSittings(form); got != sittings {
+				t.Errorf("the %s route takes %d chair sittings, want %d", form, got, sittings)
+			}
+			last := lastWithholdEpoch(form, limit)
+			if wantLast := max(limit-sittings, 0); last != wantLast {
+				t.Errorf("limit %d: the %s route's last withholding epoch is %d, want %d (the limit less its %d sittings)", limit, form, last, wantLast, sittings)
+			}
+			for i, seat := range positionRoute(form) {
+				e := last + 1 + i
+				if seat == routeBlue && (record.Plan{MaxEpochs: limit, Epoch: e}.BlueHeldOut() || finalEpoch(e, limit)) {
+					t.Errorf("limit %d: the %s route's blue sits at epoch %d, which does not dispatch it", limit, form, e)
+				}
+			}
+		}
+	}
+	if got := lastWithholdEpoch("gaps", 0); got != math.MaxInt {
+		t.Errorf("a run held to no limit withholds at any epoch; got a last epoch of %d", got)
+	}
+}
+
+// THE LENS ROUTE FITS THE LIMIT AT ITS LAST WITHHOLDING EPOCH AND NOT ONE LATER, on the record: a PASS
+// withheld at epoch 2 of a limit of 4 is upheld naming the lens, the lens is readied at epoch 3 and
+// served the report, and the final sitting records the PASS; withheld at epoch 2 of a limit of 3, the
+// final sitting has the lens readied and undispatched, and the run ends CEILING.
+func TestTheLensRouteFitsTheLimitAtItsLastWithholdEpoch(t *testing.T) {
+	for _, tc := range []struct {
+		path  conversePath
+		limit int
+		want  string
+	}{
+		{redClosesAndWithholdsWithRoom, 4, "VERIFIED"},
+		{redClosesAndWithholdsEarly, 3, "CEILING"},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			r, _ := converseRun(t, tc.path)
+			const withheldAt = 2
+			if fits := withheldAt <= lastWithholdEpoch("lens", tc.limit); fits != (tc.want == "VERIFIED") {
+				t.Fatalf("lastWithholdEpoch(lens, %d) = %d; the record's route ends %s from epoch %d", tc.limit, lastWithholdEpoch("lens", tc.limit), tc.want, withheldAt)
+			}
+			id := r.unruledPositions()[0]
+			r.dispatchSits("bench", "judge", "position")
+			if _, err := r.exec("motion", "position", "rule", "--seat-id", "judge", "--id", id, "--as", "upheld",
+				"--lens", converseLens, "--direction", "fuzz: audit the claim the chair would not pass", "--reason", "fuzz: the objection holds"); err != nil {
+				t.Fatal(err)
+			}
+			r.dispatchReturns("judge", false)
+			r.dispatchSits("chair", "red-chair")
+			var plan record.Plan
+			if out, err := r.exec("--json", "dispatch", "next", "--seat-id", "red-chair"); err != nil || json.Unmarshal([]byte(out), &plan) != nil {
+				t.Fatalf("the chair's plan after the ruling: %v\n%s", err, out)
+			}
+			r.dispatchReturns("red-chair", false)
+			if tc.want == "CEILING" {
+				if !plan.EpochLimitReached || plan.Epoch != tc.limit {
+					t.Fatalf("the plan after the ruling = %+v, want the final sitting at the limit with the lens undispatched", plan)
+				}
+				if why := epochLimitWhy(plan); !strings.Contains(why, fmt.Sprintf("epoch %d of the limit %d", tc.limit, tc.limit)) || !strings.Contains(why, converseLens) {
+					t.Errorf("the exit reason names neither the limit nor the lens it held: %q", why)
+				}
+			} else {
+				if !slices.ContainsFunc(plan.Parties, func(p record.Party) bool { return p.SeatID == converseLens }) {
+					t.Fatalf("the plan after the ruling = %+v, want the named lens readied", plan)
+				}
+				r.dispatchSits("lens", converseLens)
+				if _, err := r.exec("--json", "--seat-id", converseLens, "show", "report"); err != nil {
+					t.Fatal(err)
+				}
+				r.dispatchReturns(converseLens, false)
+				r.dispatchSits("chair", "red-chair")
+				out, err := r.exec("--json", "dispatch", "next", "--seat-id", "red-chair")
+				if err != nil || !strings.Contains(out, `"pass_permitted":true`) {
+					t.Fatalf("the final sitting's plan: %v\n%s", err, out)
+				}
+				if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair", "--as", "PASS"); err != nil {
+					t.Fatalf("the PASS the lens's audit freed: %v", err)
+				}
+				r.dispatchReturns("red-chair", false)
+			}
+			requireEveryDispatchReturned(t, r)
+			if got, why, ok, err := record.DeriveVerdict(r.run()); err != nil || !ok || got != tc.want {
+				t.Fatalf("derived (%q, %q, %v, %v), want %s", got, why, ok, err, tc.want)
+			}
+		})
+	}
+}
+
+// A FORCED RUN THAT ENDS AT ITS LIMIT SAYS SO: the exit reason is the limit with what it held, and a
+// position run's names the route's window and the epochs it withheld and ruled at, or the PASS it
+// passed past the window.
+func TestTheForcedPositionFailureNamesItsRoute(t *testing.T) {
+	r := &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: "lens"}
+	r.withholds(10, 12)
+	r.positionRuledAtEpoch = 10
+	if got := r.positionRouteClause(); !strings.Contains(got, "the last epoch that can withhold is 10") || !strings.Contains(got, "withheld at epoch 10 and the bench ruled in epoch 10") {
+		t.Errorf("the route clause: %q", got)
+	}
+	r = &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: "gaps"}
+	r.withholds(11, 12)
+	if got := r.positionRouteClause(); !strings.Contains(got, "the last epoch that can withhold is 9") || !strings.Contains(got, "at epoch 11, was passed") {
+		t.Errorf("the route clause of a PASS passed past the window: %q", got)
+	}
+	if got := (&runner{}).positionRouteClause(); got != "" {
+		t.Errorf("a run forced to no position has a route clause: %q", got)
+	}
+	why := epochLimitWhy(record.Plan{Epoch: 12, MaxEpochs: 12, EpochLimitReached: true,
+		Blockers: []record.PlanBlocker{{Kind: record.BlockerUpheldPosition, Subject: "red-lens-logic", Owner: "red-lens-logic"}}})
+	if !strings.Contains(why, "epoch 12 of the limit 12") || !strings.Contains(why, "red-lens-logic") {
+		t.Errorf("the epoch-limit exit reason: %q", why)
 	}
 }
 
