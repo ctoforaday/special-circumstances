@@ -371,7 +371,7 @@ func TestAComparisonAgainstAReRunThatStoppedStandingIsRefused(t *testing.T) {
 	later := &recordpb.Reproduce{ComputationId: proto.String(p), BundleSha: proto.String(bundle), Ran: proto.Bool(true),
 		Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), RerunSha: proto.String(strings.Repeat("f", 64)), RerunExit: proto.Int32(0),
 		Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String("another checker's execution")}
-	restore := lens.SetBeforeReproduceAppendForTest(func() error {
+	restore := lens.SetBeforeCheckAppendForTest(func() error {
 		_, err := record.Append(record.Identity{Run: runtest.Open(t, f.runDir), SeatID: "red-lens-computation"}, later)
 		return err
 	})
@@ -433,7 +433,7 @@ func TestAReRunIsStoredBeforeItsEventAndOnlyWhenTheActIsRecorded(t *testing.T) {
 	}
 
 	// (b) the append fails after the rename: a directory no event names.
-	restore := lens.SetBeforeReproduceAppendForTest(func() error { return errors.New("the append fails here") })
+	restore := lens.SetBeforeCheckAppendForTest(func() error { return errors.New("the append fails here") })
 	_, err := f.reproduce(p, "unsound")
 	restore()
 	if err == nil || !strings.Contains(err.Error(), "the append fails here") {

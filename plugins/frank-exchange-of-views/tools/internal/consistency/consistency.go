@@ -27,11 +27,13 @@ package consistency
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/graph"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -594,40 +596,59 @@ func staleness(run record.Run, m record.Merged, add func(Violation)) (unmeasured
 	if len(standing) == 0 {
 		return nil
 	}
-	ids := make([]string, 0, len(standing))
-	for _, c := range standing {
-		ids = append(ids, c.Anchor)
-	}
 	// A REPORT THAT DOES NOT RENDER HOLDS NO SENTENCE TO COMPARE: the rule measures nothing, and says
 	// so. Whether the record should render is the render's readers' to hold, not this rule's.
 	report, err := record.RenderRun(run)
 	if err != nil {
 		return []string{fmt.Sprintf("staleness: the report does not render, so %d standing check(s) are not held to the sentences it carries: %v", len(standing), err)}
 	}
+	return stalenessIn(standing, report, add)
+}
+
+// stalenessIn holds each standing check to the sentence report carries for its anchor (staleness),
+// and returns each it could not measure.
+//
+// EACH CHECK IS READ BY ITS ANCHOR'S KIND'S ROW (recordsql.EvidenceTableOf). A check of a kind that
+// backs nothing has no row to say what it is a check of: it is counted unmeasured, never skipped,
+// which would read as agreement. A check of an anchor standing BARE has no sentence to be held to — the
+// sentence it backed was cut, and the edit that cut it names no anchor reopened, so the check still
+// stands: it is counted unmeasured. An anchor absent from the report while a check of it stands is a
+// disagreement: a check is recorded only of a live sentence, an edit never drops an anchor, and a
+// retire takes the check out of standing.
+func stalenessIn(standing []record.StandingCheck, report string, add func(Violation)) (unmeasured []string) {
+	ids := make([]string, 0, len(standing))
+	for _, c := range standing {
+		ids = append(ids, c.Anchor)
+	}
 	live := record.LiveSentencesIn(report, ids)
-	for _, row := range recordsql.EvidenceTables {
-		for _, c := range standing {
-			if anchor.Kind(c.Anchor) != row.Kind {
-				continue
-			}
-			state := "holds"
-			if !c.Holds {
-				state = row.Failed
-			}
-			if c.Sentence == "" {
-				unmeasured = append(unmeasured, fmt.Sprintf("staleness: %s %s's standing %s at event %d (%s, %s) recorded no sentence, so whether it is of the sentence the report carries is not measured",
-					row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state))
-				continue
-			}
-			now, ok := live[c.Anchor]
-			switch {
-			case !ok:
-				add(Violation{Rule: "staleness", Anchor: c.Anchor, Detail: fmt.Sprintf("%s %s's standing %s at event %d (%s, %s) is of %q, and the report holds no sentence for the anchor",
-					row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence)})
-			case !bluedoc.SameSentence(c.Sentence, now):
-				add(Violation{Rule: "staleness", Anchor: c.Anchor, Detail: fmt.Sprintf("%s %s's standing %s at event %d (%s, %s) is of %q, and the report's sentence is %q: an edit changed it without naming the anchor reopened",
-					row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence, now)})
-			}
+	bare := claimcount.BareAnchorIDs(report)
+	for _, c := range standing {
+		row, ok := recordsql.EvidenceTableOf(anchor.Kind(c.Anchor))
+		if !ok {
+			unmeasured = append(unmeasured, fmt.Sprintf("staleness: the standing check at event %d (%s) is of %s, a %s anchor, which backs no sentence, so what it is a check of is not measured",
+				c.Event, c.Seat, c.Anchor, anchor.Kind(c.Anchor)))
+			continue
+		}
+		state := "holds"
+		if !c.Holds {
+			state = row.Failed
+		}
+		if c.Sentence == "" {
+			unmeasured = append(unmeasured, fmt.Sprintf("staleness: %s %s's standing %s at event %d (%s, %s) recorded no sentence, so whether it is of the sentence the report carries is not measured",
+				row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state))
+			continue
+		}
+		now, ok := live[c.Anchor]
+		switch {
+		case !ok && slices.Contains(bare, c.Anchor):
+			unmeasured = append(unmeasured, fmt.Sprintf("staleness: %s %s's standing %s at event %d (%s, %s) is of %q, and the anchor stands bare in the report — the sentence it backed was cut — so there is no sentence to hold it to",
+				row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence))
+		case !ok:
+			add(Violation{Rule: "staleness", Anchor: c.Anchor, Detail: fmt.Sprintf("%s %s's standing %s at event %d (%s, %s) is of %q, and the report holds no sentence for the anchor",
+				row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence)})
+		case !bluedoc.SameSentence(c.Sentence, now):
+			add(Violation{Rule: "staleness", Anchor: c.Anchor, Detail: fmt.Sprintf("%s %s's standing %s at event %d (%s, %s) is of %q, and the report's sentence is %q: an edit changed it without naming the anchor reopened",
+				row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence, now)})
 		}
 	}
 	return unmeasured

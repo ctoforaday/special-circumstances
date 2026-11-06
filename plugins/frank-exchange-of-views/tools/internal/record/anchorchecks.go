@@ -229,6 +229,17 @@ type anchorLedger struct {
 // at is the anchor's standing, or nil when the record holds no citation or computation at that anchor.
 func (l *anchorLedger) at(anchor string) *anchorStanding { return l.byAnchor[anchor] }
 
+// standingByEvent is the events.id of every check the ledger holds standing (anchorStanding.stands).
+func (l *anchorLedger) standingByEvent() map[int64]bool {
+	out := map[int64]bool{}
+	for _, s := range l.order {
+		for _, c := range s.standing() {
+			out[c.id] = true
+		}
+	}
+	return out
+}
+
 // anchorChecksOf folds the record into its anchor ledger. win supplies each event's events.id and
 // sitting.
 func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {

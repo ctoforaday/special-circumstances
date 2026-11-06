@@ -155,74 +155,43 @@ func staleOf(res consistency.Result, anchor string) (forged, other []string) {
 }
 
 // reproduceSentences is the recorded-sentence arm, read at the run's end: each reproduce on the record
-// carries `claim`, and it is the sentence the report held for its anchor at the write. It returns how
-// many do, and why the first that does not fails the run.
-//
-// THE WRITE IS A WINDOW, NOT AN EVENT. The verb reads the sentence (record.LiveSentence) and then
-// appends, and the debate's seats act concurrently, so an edit may land between the two. The read is
-// inside the seat's sitting, so the claim must be the anchor's sentence in the report as some state
-// from the sitting's opening to the reproduce itself held it: as of the opening, and after each report
-// change in between.
+// carries `claim`, and it is the sentence the report held for its anchor at the write — the report
+// folded as of the reproduce's own event, which the verb reads in the transaction it lands in
+// (Landing.LiveSentence). A reproduce places no report op, so that report is the one it landed on. It
+// returns how many do, and why the first that does not fails the run.
 func reproduceSentences(run record.Run, fam record.Family) (withClaim int, msg string) {
 	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
 	if err != nil {
 		return 0, "recorded sentence: the record could not be opened: " + err.Error()
-	}
-	reportAt := func(at int64) (string, error) {
-		src, err := recordsql.ReportSourceAt(db, at)
-		if err != nil {
-			return "", err
-		}
-		return src.Fold(reportproj.Replay)
 	}
 	for _, e := range fam.Events {
 		rp, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
 		if !ok {
 			continue
 		}
-		w := fam.At.Of(e)
+		at := fam.At.Of(e).ID
 		id, claim := rp.GetComputationId(), rp.GetClaim()
-		if claim == "" {
+		src, err := recordsql.ReportSourceAt(db, at)
+		if err != nil {
+			return withClaim, fmt.Sprintf("recorded sentence: the report as of event %d could not be read: %v", at, err)
+		}
+		report, err := src.Fold(reportproj.Replay)
+		if err != nil {
+			return withClaim, fmt.Sprintf("recorded sentence: the report as of event %d does not render: %v", at, err)
+		}
+		live, held := record.LiveSentencesIn(report, []string{id})[id]
+		switch {
+		case claim == "":
 			if msg == "" {
-				msg = fmt.Sprintf("recorded sentence: reproduce at event %d of %s recorded no claim", w.ID, id)
+				msg = fmt.Sprintf("recorded sentence: reproduce at event %d of %s recorded no claim", at, id)
 			}
-			continue
-		}
-		// A check in no sitting says nothing about when it read: the write's own state is its window.
-		ats := []int64{w.ID}
-		if w.SittingID != 0 {
-			ats = append(ats, w.SittingID)
-			ops, err := recordsql.ReportOpsBetween(db, w.SittingID, w.ID)
-			if err != nil {
-				return withClaim, "recorded sentence: the report's changes before event " + fmt.Sprint(w.ID) + " could not be read: " + err.Error()
-			}
-			for _, op := range ops {
-				ats = append(ats, op.EventID)
-			}
-		}
-		var held []string
-		for i, at := range ats {
-			report, err := reportAt(at)
-			if err != nil {
-				// The report the write read renders, or the verb would have refused; an earlier state
-				// that does not holds no sentence the read could have taken.
-				if i == 0 {
-					return withClaim, fmt.Sprintf("recorded sentence: the report as of event %d does not render: %v", at, err)
-				}
-				continue
-			}
-			if s, ok := record.LiveSentencesIn(report, []string{id})[id]; ok {
-				held = append(held, s)
-			}
-		}
-		if !slices.Contains(held, claim) {
+		case !held || claim != live:
 			if msg == "" {
-				msg = fmt.Sprintf("recorded sentence: reproduce at event %d of %s recorded claim %q, and the report held %q for it from its sitting's opening (event %d) to the write",
-					w.ID, id, claim, strings.Join(slices.Compact(held), `" or "`), w.SittingID)
+				msg = fmt.Sprintf("recorded sentence: reproduce at event %d of %s recorded claim %q, and the report held %q for it at the write", at, id, claim, live)
 			}
-			continue
+		default:
+			withClaim++
 		}
-		withClaim++
 	}
 	return withClaim, msg
 }

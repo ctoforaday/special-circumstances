@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -115,6 +116,77 @@ func TestEveryCheckRecordsTheSentenceItJudged(t *testing.T) {
 	}
 }
 
+// THE RECORDED SENTENCE IS THE ONE THE REPORT HOLDS WHERE THE CHECK LANDS, one script over every
+// backing kind's row: blue's edit of the sentence commits between the check's read of the report and
+// its write, and the claim recorded is the sentence after the edit — the one the report held when the
+// check landed — never the one read before it. A retire of the anchor committing there refuses the
+// check, nothing recorded, as a check of a retired anchor is refused.
+func TestTheRecordedSentenceIsTheOneTheCheckLandsOn(t *testing.T) {
+	kinds := judgedKinds()
+	for _, row := range recordsql.EvidenceTables {
+		k, ok := kinds[row.Kind]
+		if !ok {
+			t.Errorf("backing kind %s has no arm here: its check's sentence at the landing is unasserted", row.Kind)
+			continue
+		}
+		t.Run(row.Kind, func(t *testing.T) {
+			runDir, id := k.setup(t)
+			old, err := record.LiveSentence(runtest.Open(t, runDir), id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			once := func(args ...string) func() error {
+				done := false
+				return func() error {
+					if done {
+						return nil
+					}
+					done = true
+					out, err := run(t, args...)
+					if err != nil {
+						t.Errorf("%s between the check's read and its write: %v\n%s", args[0], err, out)
+					}
+					return nil
+				}
+			}
+			restore := lens.SetBeforeCheckAppendForTest(once("edit", "--run", runDir, "--seat-id", blueSeat, "--quote", k.edit[0], "--new", k.edit[1],
+				"--reason", "rewrote the sentence while it was checked"))
+			out, err := k.check(t, runDir, id)
+			restore()
+			if err != nil {
+				t.Fatalf("the %s: %v\n%s", row.CheckTable, err, out)
+			}
+			now, err := record.LiveSentence(runtest.Open(t, runDir), id)
+			if err != nil || now == old {
+				t.Fatalf("the edit left the sentence %q (%v), want it changed from %q", now, err, old)
+			}
+			var got string
+			if err := openRunDB(t, runDir).QueryRow(`SELECT coalesce("claim", '') FROM "`+row.CheckTable+`" WHERE "`+row.CheckIDColumn+`" = ?`, id).Scan(&got); err != nil {
+				t.Fatalf("read %s's claim: %v", row.CheckTable, err)
+			}
+			if got != now {
+				t.Errorf("%s recorded claim %q, want the sentence the report held when it landed, %q", row.CheckTable, got, now)
+			}
+
+			runDir, id = k.setup(t)
+			restore = lens.SetBeforeCheckAppendForTest(once("retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", id,
+				"--reason", "retired while it was checked"))
+			out, err = k.check(t, runDir, id)
+			restore()
+			if err == nil || !strings.Contains(err.Error(), "is retired") {
+				t.Errorf("a %s of an anchor retired before it landed was not refused as retired: %v\n%s", row.CheckTable, err, out)
+			}
+			var n int
+			if err := openRunDB(t, runDir).QueryRow(`SELECT count(*) FROM "`+row.CheckTable+`" WHERE "`+row.CheckIDColumn+`" = ?`, id).Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			if n != 0 {
+				t.Errorf("%d %s row(s) recorded on an anchor retired before the check landed", n, row.CheckTable)
+			}
+		})
+	}
+}
+
 // The reproduce page teaches that the sentence is recorded with the judgement, and that an edit of it
 // leaves the judgement on an earlier wording, owed again (V1a″.3): asserted on the rendered page.
 func TestTheReproducePageSaysTheJudgedSentenceIsRecorded(t *testing.T) {
@@ -202,6 +274,9 @@ func TestEveryCheckRendersWithTheSentenceItJudged(t *testing.T) {
 			if !strings.Contains(ev, "  - of the sentence: "+old+"\n") {
 				t.Errorf("evidence.md does not print the sentence the stale check was of, %q:\n%s", old, ev)
 			}
+			if strings.Count(ev, falls) != 1 {
+				t.Errorf("the check of the sentence before the edit is not marked %q:\n%s", falls, ev)
+			}
 
 			// A fresh check, from a sitting opened after the edit.
 			sit(t, runDir, k.seat)
@@ -226,6 +301,49 @@ func TestEveryCheckRendersWithTheSentenceItJudged(t *testing.T) {
 				t.Errorf("the fresh check prints a sentence line:\n%s", ev)
 			case strings.Count(ev, "of the sentence: ") != 1:
 				t.Errorf("evidence.md prints a sentence line for other than the stale check:\n%s", ev)
+			case strings.Contains(lines[last], falls) || strings.Count(ev, falls) != 1:
+				t.Errorf("the fresh check is marked, or the stale one is not, %q:\n%s", falls, ev)
+			}
+		})
+	}
+}
+
+// falls is how evidence.md marks a check that does not stand on its anchor.
+const falls = " (does not stand)"
+
+// A SEAT'S LATER CHECK REPLACES ITS EARLIER ONE, and evidence.md, which lists both, says which stands
+// (checkLines, from the view's `standing`), one script over every backing kind's row: without the mark
+// a lens's earlier verdict reads as current beneath a headline that reports its later one.
+func TestASeatsEarlierCheckIsMarkedAsNotStanding(t *testing.T) {
+	kinds := judgedKinds()
+	for _, row := range recordsql.EvidenceTables {
+		k, ok := kinds[row.Kind]
+		if !ok {
+			t.Errorf("backing kind %s has no arm here: which of its checks stands is unasserted", row.Kind)
+			continue
+		}
+		t.Run(row.Kind, func(t *testing.T) {
+			runDir, id := k.setup(t)
+			sit(t, runDir, k.seat)
+			if out, err := k.check(t, runDir, id); err != nil {
+				t.Fatalf("%s: %v\n%s", row.CheckTable, err, out)
+			}
+			if ev := assembledSet(t, runDir)[report.FileEvidence]; strings.Contains(ev, falls) {
+				t.Errorf("the one check of the %s is marked as not standing:\n%s", row.Noun, ev)
+			}
+			sit(t, runDir, k.seat)
+			if out, err := k.check(t, runDir, id); err != nil {
+				t.Fatalf("the second %s: %v\n%s", row.CheckTable, err, out)
+			}
+			checkLine := "- **" + k.by + " `" + k.seat + "`**"
+			var marked []bool
+			for _, ln := range strings.Split(assembledSet(t, runDir)[report.FileEvidence], "\n") {
+				if strings.HasPrefix(ln, checkLine) {
+					marked = append(marked, strings.Contains(ln, falls))
+				}
+			}
+			if !slices.Equal(marked, []bool{true, false}) {
+				t.Errorf("the %s's two checks by one seat are marked %v as not standing, want [true false]", row.Noun, marked)
 			}
 		})
 	}

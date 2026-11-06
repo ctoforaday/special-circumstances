@@ -63,7 +63,7 @@ func citationsSection(ev record.EvidenceJSON, live map[string]string) string {
 				fmt.Fprintf(&b, " — %s", plainURL(v.URL))
 			}
 			b.WriteString("\n")
-			b.WriteString(indent(checkLines(readingChecks([]record.EvidenceVerificationJSON{v}), ""), "  "))
+			b.WriteString(indent(checkLines(independentChecks([]record.EvidenceVerificationJSON{v}), ""), "  "))
 		}
 	}
 	return strings.TrimRight(b.String(), "\n") + "\n"
@@ -82,10 +82,24 @@ type evidenceCheck struct {
 	// text is what the reading read, or the judgement's note; claim the sentence the check was of,
 	// "" where the record holds none (a migrated reproduce).
 	text, claim string
+	// falls is whether the check is of an anchor and does not stand on it: its seat checked the
+	// sentence again, an edit changed the sentence since, or it read nothing. The view's `standing`
+	// says which checks stand, by the anchor ledger's one rule.
+	falls bool
 }
 
-// readingChecks is each reading of a source as a check.
+// readingChecks is each reading of a cited source as a check, each marked where it does not stand.
 func readingChecks(vs []record.EvidenceVerificationJSON) []evidenceCheck {
+	out := independentChecks(vs)
+	for i, v := range vs {
+		out[i].falls = !v.Standing
+	}
+	return out
+}
+
+// independentChecks is each reading of a source the report does not cite as a check: it is of no
+// anchor, so there is nothing for it to stand on and nothing to mark.
+func independentChecks(vs []record.EvidenceVerificationJSON) []evidenceCheck {
 	out := make([]evidenceCheck, len(vs))
 	for i, v := range vs {
 		out[i] = evidenceCheck{by: "read by", seat: v.SeatID, epoch: v.Epoch, verdict: v.Outcome, confidence: v.Confidence, page: v.Page, text: v.Text, claim: v.Claim}
@@ -97,7 +111,7 @@ func readingChecks(vs []record.EvidenceVerificationJSON) []evidenceCheck {
 func judgementChecks(js []record.EvidenceReproductionJSON) []evidenceCheck {
 	out := make([]evidenceCheck, len(js))
 	for i, j := range js {
-		out[i] = evidenceCheck{by: "judged by", seat: j.SeatID, epoch: j.Epoch, verdict: j.Soundness, text: j.Note, claim: j.Claim}
+		out[i] = evidenceCheck{by: "judged by", seat: j.SeatID, epoch: j.Epoch, verdict: j.Soundness, text: j.Note, claim: j.Claim, falls: !j.Standing}
 	}
 	return out
 }
@@ -106,6 +120,11 @@ func judgementChecks(js []record.EvidenceReproductionJSON) []evidenceCheck {
 // made it and in which epoch, the outcome or the soundness and the confidence, the page when it read
 // one, and what it read or noted. A text repeated from the check above it is said to be, rather than
 // printed twice.
+//
+// A CHECK THAT DOES NOT STAND SAYS SO on its line: every check of the anchor is listed, a seat's
+// earlier check under its later one and a check of the sentence before an edit under the headline
+// that reports the anchor unchecked, and without the mark an earlier `unsound` reads as current
+// beneath a headline that accepts the sentence.
 //
 // UNDER EACH, THE SENTENCE IT WAS OF, when that is not live — the sentence the anchor backs in the
 // report now. A check of an earlier wording is how an edit of the sentence surfaces here; whether the
@@ -117,6 +136,9 @@ func checkLines(cs []evidenceCheck, live string) string {
 	prevText, prevClaim := "", ""
 	for _, c := range cs {
 		fmt.Fprintf(&b, "- **%s `%s`** (epoch %d): **%s**", c.by, c.seat, c.epoch, firstNonEmpty(c.verdict, "no outcome"))
+		if c.falls {
+			b.WriteString(" (does not stand)")
+		}
 		if c.confidence != "" {
 			fmt.Fprintf(&b, ", confidence %s", c.confidence)
 		}

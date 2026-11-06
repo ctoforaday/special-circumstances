@@ -117,6 +117,8 @@ func newVerify() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
+			// Asked here, it refuses before the reading is weighed; the sentence the reading is OF is read
+			// again in the landing (claimAtLanding), and that is the claim recorded.
 			claim, err := record.LiveSentence(run, id)
 			if err != nil {
 				return nil, err
@@ -153,7 +155,7 @@ func newVerify() *cobra.Command {
 	// takes the ordinal key, and the record holds it to one reading per url and sentence a sitting
 	// (record.requireNotARetriedReading).
 	seat.KeysOn(c, "anchor")
-	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands (record.LiveSentence); on a source you found, your --quote")
+	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report the reading lands on (Landing.LiveSentence); on a source you found, your --quote")
 	seat.Supplies(c, "gap_id", "the tool mints the id of the gap a reading mints (record.NewID), at random")
 	seat.Supplies(c, "class_material", "stamped on the reading's gap from its class's material default at the write path")
 	seat.Supplies(c, "carried_by", "the tool names the gap that carries a reading that mints: its own act's, or the open gap of its class on the sentence")
@@ -410,6 +412,23 @@ func writeVerify(s seat.Context, cmd *cobra.Command, gf *gapFlags, body *recordp
 // applied verbatim from a red --new; nothing is checked and nothing is logged.
 func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *recordpb.Mint, fixNew func() string) (seat.Result, error) {
 	var evs []*record.Event
+	// A READING OF A CITATION RECORDS THE SENTENCE THE REPORT HOLDS WHERE IT LANDS, read in the write
+	// (claimAtLanding) and asked before every other guard, so its gap's location is that sentence too.
+	var claimed []record.Guard
+	if of := body.GetAnchor(); of != "" {
+		claimed = append(claimed, claimAtLanding(of, &body.Claim))
+		if gap != nil {
+			claimed = append(claimed, record.Check(func(*record.Landing) error {
+				gap.Location = proto.String(body.GetClaim())
+				return nil
+			}))
+		}
+	}
+	if beforeAppend != nil {
+		if err := beforeAppend(); err != nil {
+			return nil, err
+		}
+	}
 	if gap == nil {
 		// A reading that mints nothing places nothing. A --url reading's quote is still held to the
 		// report the reading lands on: it is the sentence the source was read for, whatever it did. A
@@ -418,7 +437,7 @@ func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *r
 		if body.GetAnchor() != "" {
 			quote = ""
 		}
-		ev, err := seat.AppendPlaced(s, body, "", quote, claimRefusal)
+		ev, err := seat.AppendPlaced(s, body, "", quote, claimRefusal, claimed...)
 		if err != nil {
 			return nil, err
 		}
@@ -429,7 +448,7 @@ func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *r
 		gap.Location = proto.String(body.GetClaim())
 		place := &recordpb.Anchor{Id: proto.String(id)}
 		at := quotePlace(body.GetClaim())
-		var guards []record.Guard
+		guards := claimed
 		if of := body.GetAnchor(); of != "" {
 			place.SentenceOf = proto.String(of)
 			at = sentenceOfPlace(body.GetClaim(), of)

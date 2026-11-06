@@ -268,6 +268,11 @@ type EvidenceVerificationJSON struct {
 	// text; omitted on a reading no gap carries. Under `independent` it is how blue finds the source a
 	// lens found for a gap it answers.
 	CarriedBy string `json:"carried_by,omitempty"`
+	// Standing is whether this reading stands on its anchor: a reading of the sentence, its seat's
+	// latest, from a sitting opened after the latest edit of the sentence — the rule a reproduce's
+	// `standing` is read by. False on a reading that read nothing (unreachable, not the work) and on a
+	// reading of no citation, which stands on no anchor.
+	Standing bool `json:"standing"`
 }
 
 // FindsAgainst reports whether this verification found AGAINST the claim — record.FindsAgainst over
@@ -406,6 +411,10 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
 	// so each source carries its own; the rest are readings of sources red found and stand alone.
+	// Each anchored reading carries whether it stands, by the one rule the ledger holds for every
+	// check of an anchor (anchorStanding.stands).
+	ledger := anchorChecksOf(evs, win)
+	stands := ledger.standingByEvent()
 	byAnchor := map[string][]EvidenceVerificationJSON{}
 	for _, e := range evs {
 		w := win.Of(e)
@@ -439,6 +448,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			SeatID:     e.GetSeatId(),
 			CarriedBy:  vf.GetCarriedBy(),
 			Epoch:      w.Epoch,
+			Standing:   stands[w.ID],
 
 			Page:             vf.GetPage(),
 			PageRenderSha:    vf.GetPageRenderSha(),
@@ -461,7 +471,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 
 	// Red's checks of each computation: the bundle's executions by sha, each act's comparison and its
 	// sentence's verdicts by anchor, and each bundle's bases.
-	ledger := anchorChecksOf(evs, win)
 	reruns, acts := bundleRerunsOf(evs), actVerdictsOf(evs)
 	bases := bundleBasesOf(evs)
 	// THE RETIRE THAT HOLDS EACH RETIRED ANCHOR OUT is its first (anchorChecksOf): nothing brings a

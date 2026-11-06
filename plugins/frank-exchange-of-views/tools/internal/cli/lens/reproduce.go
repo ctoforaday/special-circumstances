@@ -72,11 +72,10 @@ func newReproduce() *cobra.Command {
 		// A JUDGEMENT NEEDS A LIVE SENTENCE: a computation the report holds no sentence for — retired,
 		// never placed, or bare — has nothing to judge its program against, as a citation has nothing to
 		// read its source against (record.LiveSentence, the one predicate both verbs refuse on).
-		// The sentence it reads is the one this judgement is OF, recorded with it as Verify.claim is
-		// (ruling L5): an edit that changes the sentence leaves the judgement on an earlier wording,
-		// and the record says which.
-		claim, err := record.LiveSentence(run, p.Label)
-		if err != nil {
+		// Asked here, it refuses before the bundle runs; the sentence this judgement is OF is read again
+		// in the landing (claimAtLanding) and recorded with it as Verify.claim is (ruling L5): an edit
+		// that changes the sentence leaves the judgement on an earlier wording, and the record says which.
+		if _, err := record.LiveSentence(run, p.Label); err != nil {
 			return nil, err
 		}
 		soundness := seat.Str(cmd, flags.As)
@@ -99,9 +98,8 @@ func newReproduce() *cobra.Command {
 			BundleSha:     proto.String(p.SHA),
 			Soundness:     &snd,
 			Note:          proto.String(note),
-			Claim:         proto.String(claim),
 		}
-		res := reproduceResult{Anchor: p.Label, SHA: p.SHA, Claim: claim}
+		res := reproduceResult{Anchor: p.Label, SHA: p.SHA}
 		// ONE STANDING RE-RUN PER BUNDLE, JUDGED PER ACT (gblock, 2026-10-17: "Why keep reproducing it
 		// when it wasn't modified?"; plans/compute-and-show.md §III.1.4). The bundle is addressed by
 		// its sha256 and never changes, so a second execution of the same bytes measures the
@@ -178,9 +176,10 @@ func newReproduce() *cobra.Command {
 				return nil, err
 			}
 		}
-		if _, err := record.Append(s.Identity(), body); err != nil {
+		if _, err := record.Append(s.Identity(), body, claimAtLanding(p.Label, &body.Claim)); err != nil {
 			return nil, err
 		}
+		res.Claim = body.GetClaim()
 		// COPIES LEFT BEHIND ARE THE TOOL'S DEFECT, NOT THE RE-RUN'S: the execution finished before
 		// the removal, so the act stands and the leftover is logged after it, best-effort.
 		if o.leftover != "" {
@@ -191,20 +190,21 @@ func newReproduce() *cobra.Command {
 	c.Flags().Var(flags.ComputationAnchor().WithCheck(record.ComputationExists), flags.Anchor, "the id of the computation whose sentence you judge, from the report's `"+anchor.Token("K-…")+"` token — `show evidence` lists every computation by it. The tool executes that computation's bundle unless the bundle already has a standing re-run; either way it compares THIS computation's own output, exit and out/")
 	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), "having READ the program: does it actually establish the sentence at --anchor?")
 	seat.Require(c, flags.Anchor, flags.As)
-	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands")
+	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report the judgement lands on")
 	seat.Supplies(c, "ran", "the tool executes the bundle unless it already has a standing re-run, and records whether this act executed it")
 	// The handler refuses a verdict with no reading behind it; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }
 
-// beforeAppend runs after a reproduce stores its execution and before it appends its event; nil
-// outside a test.
+// beforeAppend runs as a check of an evidence anchor is about to append its event — a reproduce after
+// it stores its execution, a verify after it reads the sentence ahead of the write; nil outside a test.
 var beforeAppend func() error
 
-// SetBeforeReproduceAppendForTest has every reproduce call f after it stores its execution and
-// before it appends its event, and an error from f refuses the act there: the seam a test uses to
-// fail the append after the rename. It returns the restore.
-func SetBeforeReproduceAppendForTest(f func() error) (restore func()) {
+// SetBeforeCheckAppendForTest has every reproduce and verify call f just before it appends its event,
+// and an error from f refuses the act there: the seam a test uses to fail a reproduce's append after
+// the rename, or to commit another write between a check's read of the report and its landing. It
+// returns the restore.
+func SetBeforeCheckAppendForTest(f func() error) (restore func()) {
 	prev := beforeAppend
 	beforeAppend = f
 	return func() { beforeAppend = prev }
@@ -343,4 +343,19 @@ func (r reproduceResult) Human() string {
 	}
 	return "computation " + r.Anchor + " (bundle " + short + ") DOES NOT REPRODUCE.\n  recorded: " + r.Recorded + "\n  now:      " + r.Got +
 		"\n  Either the computation depends on something that moved, or the recorded output is not what the program produces. Both are findings; neither is recorded for you. " + judged
+}
+
+// claimAtLanding is the guard that reads the sentence evidence anchor id backs in the report the
+// check lands on (Landing.LiveSentence) into *claim, or refuses the check as LiveSentence does. The
+// recorded claim is then the sentence the report held when the check landed: a read before the write
+// lets an edit commit in between, and records a sentence the report no longer held.
+func claimAtLanding(id string, claim **string) record.Guard {
+	return record.Check(func(l *record.Landing) error {
+		sentence, err := l.LiveSentence(id)
+		if err != nil {
+			return err
+		}
+		*claim = proto.String(sentence)
+		return nil
+	})
 }

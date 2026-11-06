@@ -60,12 +60,27 @@ func LiveSentencesIn(report string, ids []string) map[string]string {
 // a check of it records — or the refusal of a check of an anchor with none, naming the anchor by its
 // kind's noun (recordsql.EvidenceTables). A retired anchor's refusal names its retire: the event,
 // its reason, and whether the sentence was kept.
+//
+// It is a read ahead of the write, a refusal a seat meets before the work a check does; the sentence
+// a check RECORDS is the landing's (Landing.LiveSentence), read in the transaction it lands in.
 func LiveSentence(run Run, id string) (string, error) {
+	return liveSentence(id, func() (string, error) { return RenderRun(run) }, func() (AnchorRetire, bool, error) { return AnchorRetiredAt(run, id) })
+}
+
+// LiveSentence is record.LiveSentence asked of the landing record: the sentence id backs in the
+// report the write lands on, so a check records the sentence the report held when it landed and an
+// edit committing in between cannot slip under it.
+func (l *Landing) LiveSentence(id string) (string, error) {
+	return liveSentence(id, l.Report, func() (AnchorRetire, bool, error) { return anchorRetiredAt(l.w.q, id) })
+}
+
+// liveSentence is LiveSentence over a report and a retire lookup: the run's now, or a landing's.
+func liveSentence(id string, render func() (string, error), retiredAt func() (AnchorRetire, bool, error)) (string, error) {
 	row, ok := recordsql.EvidenceTableOf(anchor.Kind(id))
 	if !ok {
 		return "", feov.Errorf(feov.Validation, "%s is not an evidence anchor — a check reads the sentence a citation or a computation backs", id)
 	}
-	report, err := RenderRun(run)
+	report, err := render()
 	if err != nil {
 		return "", feov.Wrap(feov.Conflict, err, "the report does not render, so the sentence %s %s marks cannot be read, and nothing can be checked until it does: %v. "+
 			"The board's anomalies say why; record that you could not check it with `log`", row.Noun, id, err)
@@ -73,7 +88,7 @@ func LiveSentence(run Run, id string) (string, error) {
 	sentence, gone := liveSentenceIn(report, claimcount.BareAnchorIDs(report), id)
 	switch gone {
 	case sentenceAbsent:
-		r, found, err := AnchorRetiredAt(run, id)
+		r, found, err := retiredAt()
 		if err != nil {
 			return "", err
 		}
