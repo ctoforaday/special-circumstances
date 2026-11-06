@@ -73,3 +73,39 @@ func TestASuccessorCarriesItsAncestorsLiveAnswerDemand(t *testing.T) {
 		t.Fatalf("the document successor %s of answered %s: %s", doc, met, r.actErr)
 	}
 }
+
+// AN ANSWER LANDING BETWEEN THE DRAW AND THE MINT ADMITS THE SUCCESSOR: refuseDroppedDemand's draw saw
+// the gap awaiting its live answer, blue's citation answered it before the mint, and the record admits
+// a document successor. The drive holds the record to the answer, notes the mint as the lens's, and
+// holds the ancestor closed naming it; it notes no error and counts no refusal.
+func TestADroppedDemandAnsweredAfterTheDrawIsAdmitted(t *testing.T) {
+	r := stagedLifecycleRunner(t)
+	const blue, lens = "blue-respond", citationOwner
+	c := lifecycleClaims
+	if _, ok := r.do("edit", blue).set("--quote", sourceDemandOpen).set("--new", sourceDemandOpen+". "+strings.Join(c[:], ". ")).
+		set("--reason", "fuzz: the claims the supersede arms rest on").admit(); !ok {
+		t.Fatalf("blue's edit adding the claims: %s", r.actErr)
+	}
+	if !r.openSitting(lens) {
+		t.Fatalf("the register of %s: %s", lens, r.actErr)
+	}
+	g, why := r.lifecycleMint(lens, "source", c[0], "", "low")
+	if g == "" {
+		t.Fatalf("the source gap's mint: %s", why)
+	}
+	if _, owing, _ := r.supersedable(lens, "document"); !slices.Contains(owing, g) {
+		t.Fatalf("for a document successor, supersedable holds back %v; want %s, which awaits its answer", owing, g)
+	}
+	// The answer lands after the draw.
+	if r.lifecycleCite(blue, c[0], "/lifecycle-0", g) == "" {
+		t.Fatalf("blue's cite --answers %s: %s", g, r.actErr)
+	}
+	before := r.landedMints(lens)
+	r.refuseDroppedDemand(lens, g, "document")
+	if r.actErr != "" || r.supersedeDemandRefused != 0 {
+		t.Fatalf("a document successor of %s, answered after the draw: refused %d, noted %q; want it admitted and noted as a landed mint", g, r.supersedeDemandRefused, r.actErr)
+	}
+	if r.openOnRecord(g) || r.landedMints(lens) != before+1 {
+		t.Fatalf("after the admitted successor of %s: open %v, %s's mints %d (were %d); want %s closed and the mint noted", g, r.openOnRecord(g), lens, r.landedMints(lens), before, g)
+	}
+}

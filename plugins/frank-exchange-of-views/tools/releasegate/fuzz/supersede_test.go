@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -55,8 +56,13 @@ func (r *runner) supersedable(seatID, kind string) (out, owing []string, carries
 }
 
 // refuseDroppedDemand drives seatID's mint of a successor at check kind kind over ancestor, an open
-// gap of its own that awaits a live answer at another check kind: the record refuses it naming the
-// ancestor's demand, and the refusal is counted only when it says so.
+// gap of its own that awaited a live answer at another check kind when supersedable drew it: the record
+// refuses it naming the ancestor's demand, and the refusal is counted only when it says so.
+//
+// THE DRAW IS NOT THE MINT'S RECORD. Blue's answer to the ancestor can land between supersedable's read
+// and this mint, and the record then rightly admits the successor at any kind. An admitted mint is
+// held to that: the ancestor's demand is met on the record after it, and the successor is then the
+// drive's like any other mint (droppedDemandAdmitted); a demand still unmet is the record's error.
 func (r *runner) refuseDroppedDemand(seatID, ancestor, kind string) {
 	out, err := r.exec("--json", "mint", "--seat-id", seatID, "--quote", "A § fuzz sentence to anchor findings.",
 		"--class", mintPoolClasses[0], "--problem", "fuzz: a successor that drops its ancestor's demand", "--check-kind", kind,
@@ -65,7 +71,7 @@ func (r *runner) refuseDroppedDemand(seatID, ancestor, kind string) {
 	env, ok := refusalEnvelopeIn(out)
 	switch {
 	case err == nil:
-		r.noteActErr(seatID + "'s --check-kind " + kind + " successor of " + ancestor + ", which awaits a live answer of another kind, was admitted: " + firstLine(out))
+		r.droppedDemandAdmitted(seatID, ancestor, kind, out)
 	case !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "--supersedes names "+ancestor+", an open gap minted --check-kind "):
 		r.noteActErr(seatID + "'s --check-kind " + kind + " successor of " + ancestor + " was refused, and not by the demand it carries: " + firstLine(out))
 	default:
@@ -73,6 +79,33 @@ func (r *runner) refuseDroppedDemand(seatID, ancestor, kind string) {
 		r.supersedeDemandRefused++
 		r.mu.Unlock()
 	}
+}
+
+// droppedDemandAdmitted holds the record to the admitted mint (out) of seatID's --check-kind kind
+// successor over ancestor, drawn awaiting a live answer of another kind: admitted only where an
+// answer met the ancestor's demand after the draw, and then noted as a landed mint superseding it —
+// its minter, and the ancestor closed naming it.
+func (r *runner) droppedDemandAdmitted(seatID, ancestor, kind, out string) {
+	var res struct {
+		Result struct {
+			GapID string `json:"gap_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &res) != nil || res.Result.GapID == "" {
+		r.noteActErr(seatID + "'s --check-kind " + kind + " successor of " + ancestor + " was admitted naming no gap: " + firstLine(out))
+		return
+	}
+	succ := res.Result.GapID
+	d, ok := r.demandOf(ancestor)
+	if !ok {
+		return
+	}
+	if d.Unmet() {
+		r.noteActErr(seatID + "'s --check-kind " + kind + " successor " + succ + " of " + ancestor + ", which awaits a live answer of another kind, was admitted: " + firstLine(out))
+		return
+	}
+	r.noteMint(seatID, succ)
+	r.supersessionClosed(ancestor, succ, false)
 }
 
 // supersessionClosed holds the record to a landed mint of successor that superseded ancestor, open
