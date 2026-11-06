@@ -72,7 +72,11 @@ func newReproduce() *cobra.Command {
 		// A JUDGEMENT NEEDS A LIVE SENTENCE: a computation the report holds no sentence for — retired,
 		// never placed, or bare — has nothing to judge its program against, as a citation has nothing to
 		// read its source against (record.LiveSentence, the one predicate both verbs refuse on).
-		if _, err := record.LiveSentence(run, p.Label); err != nil {
+		// The sentence it reads is the one this judgement is OF, recorded with it as Verify.claim is
+		// (ruling L5): an edit that changes the sentence leaves the judgement on an earlier wording,
+		// and the record says which.
+		claim, err := record.LiveSentence(run, p.Label)
+		if err != nil {
 			return nil, err
 		}
 		soundness := seat.Str(cmd, flags.As)
@@ -95,8 +99,9 @@ func newReproduce() *cobra.Command {
 			BundleSha:     proto.String(p.SHA),
 			Soundness:     &snd,
 			Note:          proto.String(note),
+			Claim:         proto.String(claim),
 		}
-		res := reproduceResult{Anchor: p.Label, SHA: p.SHA}
+		res := reproduceResult{Anchor: p.Label, SHA: p.SHA, Claim: claim}
 		// ONE STANDING RE-RUN PER BUNDLE, JUDGED PER ACT (gblock, 2026-10-17: "Why keep reproducing it
 		// when it wasn't modified?"; plans/compute-and-show.md §III.1.4). The bundle is addressed by
 		// its sha256 and never changes, so a second execution of the same bytes measures the
@@ -186,6 +191,7 @@ func newReproduce() *cobra.Command {
 	c.Flags().Var(flags.ComputationAnchor().WithCheck(record.ComputationExists), flags.Anchor, "the id of the computation whose sentence you judge, from the report's `"+anchor.Token("K-…")+"` token — `show evidence` lists every computation by it. The tool executes that computation's bundle unless the bundle already has a standing re-run; either way it compares THIS computation's own output, exit and out/")
 	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), "having READ the program: does it actually establish the sentence at --anchor?")
 	seat.Require(c, flags.Anchor, flags.As)
+	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands")
 	seat.Supplies(c, "ran", "the tool executes the bundle unless it already has a standing re-run, and records whether this act executed it")
 	// The handler refuses a verdict with no reading behind it; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
@@ -290,6 +296,8 @@ func truncateOutput(s string) string {
 type reproduceResult struct {
 	Anchor string `json:"anchor"`
 	SHA    string `json:"sha256"`
+	// Claim is the sentence this verdict is of, as the report held it at the write.
+	Claim string `json:"claim"`
 	// Rerun is what this act's comparison found, in the record's word: reproduced | differs |
 	// calls_the_tool. Where the bundle already had a standing re-run, this act executed nothing and By
 	// names whose execution it compared against.
@@ -317,21 +325,22 @@ type reproduceResult struct {
 
 func (r reproduceResult) Human() string {
 	short := compute.Short(r.SHA)
+	judged := "Your verdict on the sentence \"" + r.Claim + "\" is recorded" // unescaped: the sentence as the report holds it
 	if r.By != "" {
 		showed := map[string]string{
 			recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED):     "this computation's recorded output REPRODUCED",
 			recordpb.Word(recordpb.Rerun_RERUN_DIFFERS):        "this computation's recorded output did NOT reproduce (" + r.Drift + ")",
 			recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL): "that re-run CALLED THE TOOL, so it checked nothing",
 		}[r.Rerun]
-		return "computation " + r.Anchor + ": compared against its bundle " + short + "'s re-run by " + r.By + ", so nothing was executed — " + showed + ". Your verdict on this sentence is recorded"
+		return "computation " + r.Anchor + ": compared against its bundle " + short + "'s re-run by " + r.By + ", so nothing was executed — " + showed + ". " + judged
 	}
 	switch r.Rerun {
 	case recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL):
 		return "computation " + r.Anchor + " CANNOT BE CHECKED: its bundle called feov-record (" + strings.Join(r.ToolCalls, "; ") + "), which refuses every call made while a checker runs a program, so nothing it printed is a result.\n  now: " + r.Got +
-			"\n  Recorded as calls_the_tool, with your verdict: the program reads the debate's tool rather than computing its claim"
+			"\n  Recorded as calls_the_tool: the program reads the debate's tool rather than computing its claim. " + judged
 	case recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED):
-		return "computation " + r.Anchor + " (bundle " + short + ") REPRODUCES — executing it gives this computation's recorded output byte for byte. Your verdict on this sentence is recorded"
+		return "computation " + r.Anchor + " (bundle " + short + ") REPRODUCES — executing it gives this computation's recorded output byte for byte. " + judged
 	}
 	return "computation " + r.Anchor + " (bundle " + short + ") DOES NOT REPRODUCE.\n  recorded: " + r.Recorded + "\n  now:      " + r.Got +
-		"\n  Either the computation depends on something that moved, or the recorded output is not what the program produces. Both are findings; neither is recorded for you."
+		"\n  Either the computation depends on something that moved, or the recorded output is not what the program produces. Both are findings; neither is recorded for you. " + judged
 }

@@ -684,6 +684,8 @@ ONE BUNDLE CAN BACK SEVERAL SENTENCES, and the halves belong to different things
 
 READ FIRST, THEN CALL THIS ONCE. This call re-runs the computation where it has to AND records your verdict in the same act: the verdict and its reason are part of it, and no form of it re-runs without recording. So the reading comes before the call. `show evidence`, read AT THE COMPUTATION'S OWN ANCHOR, prints the program files this call executes and the output blue recorded — its page says how. Read it, decide what it computes and whether that is what the sentence at its anchor says, then call this with that verdict and your reason. A verdict recorded in order to see the re-run is your judgement on the record from that moment, where every other seat reads it.
 
+THE SENTENCE YOU JUDGED IS RECORDED WITH YOUR VERDICT. The tool reads the sentence holding the computation's token off the report as it stands and records it with your judgement; you do not type it, and the result quotes it back. An edit that changes that sentence leaves your judgement on an earlier wording: it no longer stands, and the sentence is owed a judgement again, from a sitting opened after the edit.
+
 YOUR LATEST VERDICT ON A SENTENCE IS YOURS; ANOTHER LENS'S DOES NOT REPLACE IT. An `unsound` you record stands on that anchor beside any other lens's `sound` until you judge the sentence again or blue edits it — an edit reopens the anchor, and a judgement from a sitting opened after the edit is owed.
 
 AN `unsound` THAT STANDS HOLDS THE PASS until the sentence is judged sound again — by your own later verdict, or by one from a sitting opened after blue's edit — or blue retires the computation. You owe the gap that carries it to blue — a gap about this computation's anchor, minted in this sitting, with the fix blue must make; it takes no mint of your budget. Blue is readied to fix the computation or retire it, and you are readied until the gap is minted. Your close of that gap is refused while the judgement stands; a closing ruling of the bench closes it, and the judgement still holds the PASS. Your own later `sound` judgement of the computation meets the `computation` demand of the gap you minted about it; another lens's judgement does not.
@@ -696,7 +698,7 @@ WHEN THE RE-RUN DOES NOT REPRODUCE. The result's `reproduced` — `result.reprod
 
 A PROGRAM THAT CALLS THIS TOOL CANNOT BE CHECKED. The tool refuses every call a program makes to it while a checker runs it, and records that it did: the result's `rerun` reads `calls_the_tool` and lists the calls, whatever the program printed — a refusal piped into a number prints a number. A `sound` verdict on it is refused; it is `unsound`, with a reason that says the program reads the debate's tool rather than computing its claim.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{anchor,sha256,rerun,reproduced,got,recorded,drift,ran,rerun_sha,rerun_by,tool_calls:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{anchor,sha256,claim,rerun,reproduced,got,recorded,drift,ran,rerun_sha,rerun_by,tool_calls:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 

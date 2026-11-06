@@ -59,6 +59,10 @@ type anchorCheck struct {
 	holds bool
 	// soundness is a reproduce's verdict; UNSPECIFIED on a verify.
 	soundness recordpb.Soundness
+	// sentence is the sentence the check judged, as the tool read it off the report at the write
+	// (Verify.claim, Reproduce.claim); "" for a migrated reproduce, which recorded none. Standing is
+	// the edit rule's alone: the sentence is how a check of an earlier wording surfaces.
+	sentence string
 	// ev is the check's own event, for a reader that needs more of it than the ledger keeps.
 	ev *Event
 }
@@ -276,13 +280,14 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 			}
 		case *recordpb.Verify:
 			reads := VerifyReads(b)
-			c := anchorCheck{reads: reads, holds: reads && !FindsAgainst(b)}
+			c := anchorCheck{reads: reads, holds: reads && !FindsAgainst(b), sentence: b.GetClaim()}
 			check(l.byAnchor[b.GetAnchor()], c)
 		case *recordpb.Reproduce:
 			check(l.byAnchor[b.GetComputationId()], anchorCheck{
 				reads:     true,
 				holds:     b.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
 				soundness: b.GetSoundness(),
+				sentence:  b.GetClaim(),
 			})
 		}
 	}

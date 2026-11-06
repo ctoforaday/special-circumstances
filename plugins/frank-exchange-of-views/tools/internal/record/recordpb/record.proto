@@ -1558,6 +1558,11 @@ message Reproduce {
   // drift is what differs between this act's recorded result and the re-run.
   optional string drift = 11;
   optional string rerun_sha = 12;
+  // claim is the sentence this judgement is of, read off the report by the tool
+  // (record.LiveSentence) at the write, as Verify.claim is (ruling L5). Not `required`: migrated
+  // reproduces hold none, and CheckRequired has no migration exemption; the live writer sets it on
+  // every write.
+  optional string claim = 13;
 
   reserved 2, 4, 5;
   reserved "reproduced", "recorded_output", "observed_output";

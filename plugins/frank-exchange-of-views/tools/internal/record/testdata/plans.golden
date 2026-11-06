@@ -1387,6 +1387,10 @@
 -- INSERT INTO "reproduce" ("event_id", "bundle_sha", "soundness", "note", "computation_id", "rerun", "ran", "rerun_sha") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 1e33f599dc67
+-- INSERT INTO "reproduce" ("event_id", "bundle_sha", "soundness", "note", "computation_id", "rerun", "ran", "rerun_sha", "claim") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 19015202cb54
 -- INSERT INTO "reproduce" ("event_id", "soundness", "computation_id", "ran") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -6829,8 +6833,8 @@
 -- SELECT t."event_id", t."agent_id", t."agent_type", t."seat_id" FROM "sitting_open" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 7c9e0ecb3057
--- SELECT t."event_id", t."bundle_sha", t."soundness", t."note", t."computation_id", t."rerun", t."ran", t."rerun_exit", t."drift", t."rerun_sha" FROM "reproduce" t WHERE t."event_id" > ?
+== stmt 342a9d372b24
+-- SELECT t."event_id", t."bundle_sha", t."soundness", t."note", t."computation_id", t."rerun", t."ran", t."rerun_exit", t."drift", t."rerun_sha", t."claim" FROM "reproduce" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt ee4e096ffde2

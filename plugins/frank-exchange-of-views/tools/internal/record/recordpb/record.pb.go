@@ -4898,8 +4898,13 @@ type Reproduce struct {
 	Ran           *bool                  `protobuf:"varint,9,opt,name=ran,proto3,oneof" json:"ran,omitempty"`
 	RerunExit     *int32                 `protobuf:"varint,10,opt,name=rerun_exit,json=rerunExit,proto3,oneof" json:"rerun_exit,omitempty"`
 	// drift is what differs between this act's recorded result and the re-run.
-	Drift         *string `protobuf:"bytes,11,opt,name=drift,proto3,oneof" json:"drift,omitempty"`
-	RerunSha      *string `protobuf:"bytes,12,opt,name=rerun_sha,json=rerunSha,proto3,oneof" json:"rerun_sha,omitempty"`
+	Drift    *string `protobuf:"bytes,11,opt,name=drift,proto3,oneof" json:"drift,omitempty"`
+	RerunSha *string `protobuf:"bytes,12,opt,name=rerun_sha,json=rerunSha,proto3,oneof" json:"rerun_sha,omitempty"`
+	// claim is the sentence this judgement is of, read off the report by the tool
+	// (record.LiveSentence) at the write, as Verify.claim is (ruling L5). Not `required`: migrated
+	// reproduces hold none, and CheckRequired has no migration exemption; the live writer sets it on
+	// every write.
+	Claim         *string `protobuf:"bytes,13,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4993,6 +4998,13 @@ func (x *Reproduce) GetDrift() string {
 func (x *Reproduce) GetRerunSha() string {
 	if x != nil && x.RerunSha != nil {
 		return *x.RerunSha
+	}
+	return ""
+}
+
+func (x *Reproduce) GetClaim() string {
+	if x != nil && x.Claim != nil {
+		return *x.Claim
 	}
 	return ""
 }
@@ -8138,7 +8150,7 @@ const file_record_proto_rawDesc = "" +
 	"\x06_basisB\f\n" +
 	"\n" +
 	"_invariantJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"R\vproof_basisR\x06script\"\xfe\b\n" +
+	"R\vproof_basisR\x06script\"\xa3\t\n" +
 	"\tReproduce\x12\"\n" +
 	"\n" +
 	"bundle_sha\x18\x01 \x01(\tH\x00R\tbundleSha\x88\x01\x01\x12<\n" +
@@ -8151,7 +8163,8 @@ const file_record_proto_rawDesc = "" +
 	"rerun_exit\x18\n" +
 	" \x01(\x05H\x06R\trerunExit\x88\x01\x01\x12\x19\n" +
 	"\x05drift\x18\v \x01(\tH\aR\x05drift\x88\x01\x01\x12 \n" +
-	"\trerun_sha\x18\f \x01(\tH\bR\brerunSha\x88\x01\x01:\xdf\x02\x92\xb5\x18\xc6\x01\n" +
+	"\trerun_sha\x18\f \x01(\tH\bR\brerunSha\x88\x01\x01\x12\x19\n" +
+	"\x05claim\x18\r \x01(\tH\tR\x05claim\x88\x01\x01:\xdf\x02\x92\xb5\x18\xc6\x01\n" +
 	"S(\"rerun\" = 'differs') = (coalesce(trim(\"drift\", ' ' || char(9, 10, 13)), '') <> '')\x12oa re-run that differs from this act's recorded result says what differs, and one that does not carries no drift\x92\xb5\x18\x8f\x01\n" +
 	"?\"rerun_exit\" IS NULL OR (\"ran\" = 1 AND \"rerun_sha\" IS NOT NULL)\x12La re-run's exit is the exit of an execution this act ran, named by rerun_shaB\r\n" +
 	"\v_bundle_shaB\f\n" +
@@ -8164,7 +8177,8 @@ const file_record_proto_rawDesc = "" +
 	"\v_rerun_exitB\b\n" +
 	"\x06_driftB\f\n" +
 	"\n" +
-	"_rerun_shaJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\n" +
+	"_rerun_shaB\b\n" +
+	"\x06_claimJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\n" +
 	"reproducedR\x0frecorded_outputR\x0fobserved_output\"\xc6\x02\n" +
 	"\fInquiryCheck\x12m\n" +
 	"\n" +

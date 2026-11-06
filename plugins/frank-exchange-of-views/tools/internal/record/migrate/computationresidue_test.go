@@ -296,6 +296,10 @@ func reproducesOf(bodies []any) []*recordpb.Reproduce {
 // and 43 more in 1565, m35 and m36, archived after it, every one on a re-run that reproduced — and a
 // reproduce before epoch 28 carried to a second anchor on its script (reproduceanchor_test.go). A
 // native archive writes the act as `ran` = false on its bundle's re-run, and it comes through so.
+//
+// NO MIGRATED REPRODUCE HOLDS A SENTENCE (Reproduce.claim, ruling L5): the report an archived judgement
+// saw is not re-derivable at its event, so migrate reads none back into it, and each archive's count of
+// judgements with no recorded sentence is logged once for the plan's residue.
 func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	notRun := map[string]int{
 		"2026-10-17_is-91-prime-final.tar.gz": 3,
@@ -329,7 +333,7 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	ranNothing := map[string]int{
 		"2026-10-30_mersenne-31-prime-sum.tar.gz": 10,
 	}
-	ledger, native := 0, 0
+	ledger, native, unsentenced := 0, 0, 0
 	for _, name := range archivedRuns(t) {
 		proofs := proofStage(t, name)
 		archived, wrote := 0, 0
@@ -354,7 +358,17 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 		bodies, _, _ := migratedBodies(t, name)
 		standing := map[string]*recordpb.Reproduce{}
 		stood := 0
-		for _, r := range reproducesOf(bodies) {
+		rs := reproducesOf(bodies)
+		for _, r := range rs {
+			if r.Claim != nil {
+				t.Errorf("%s: migrated reproduce of %s holds the sentence %q; an archived judgement recorded none", name, r.GetComputationId(), r.GetClaim())
+			}
+		}
+		if len(rs) > 0 {
+			t.Logf("%s: %d reproduce(s) with no recorded sentence", name, len(rs))
+		}
+		unsentenced += len(rs)
+		for _, r := range rs {
 			if r.GetRan() {
 				standing[r.GetBundleSha()] = r
 				continue
@@ -384,6 +398,9 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	}
 	if native == 0 {
 		t.Error("no native archive wrote an act ran=false — the native branch checked nothing")
+	}
+	if unsentenced == 0 {
+		t.Error("no archive migrated a reproduce — the no-sentence assertion checked nothing")
 	}
 }
 

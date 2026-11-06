@@ -1681,7 +1681,8 @@ func (t *reproduceTable) load(q Querier, after int64) error {
 		var c6 sql.NullInt64
 		var c7 sql.NullString
 		var c8 sql.NullString
-		if err := scanRows(q, "reproduce", `SELECT t."event_id", t."bundle_sha", t."soundness", t."note", t."computation_id", t."rerun", t."ran", t."rerun_exit", t."drift", t."rerun_sha" FROM "reproduce" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8}, func() {
+		var c9 sql.NullString
+		if err := scanRows(q, "reproduce", `SELECT t."event_id", t."bundle_sha", t."soundness", t."note", t."computation_id", t."rerun", t."ran", t."rerun_exit", t."drift", t."rerun_sha", t."claim" FROM "reproduce" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9}, func() {
 			m := &recordpb.Reproduce{}
 			if c0.Valid {
 				m.BundleSha = ref(c0.String)
@@ -1717,6 +1718,9 @@ func (t *reproduceTable) load(q Querier, after int64) error {
 			}
 			if c8.Valid {
 				m.RerunSha = ref(c8.String)
+			}
+			if c9.Valid {
+				m.Claim = ref(c9.String)
 			}
 			t.rows[id] = m
 		}); err != nil {
