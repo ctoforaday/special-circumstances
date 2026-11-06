@@ -68,7 +68,10 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 	// registered still owes nothing, because the bracket opened its sitting — and if the render ran
 	// first, this item would be here.
 	var all []record.Item
-	all = append(all, d.Sitting.Notes...)
+	rawNotes, _ := json.Marshal(d.Sitting.Notes)
+	if err := json.Unmarshal(rawNotes, &all); err != nil {
+		t.Fatalf("the notes of a delivery that fits are not whole items: %s", rawNotes)
+	}
 	if d.Current != nil {
 		all = append(all, d.Current.Items...)
 	}

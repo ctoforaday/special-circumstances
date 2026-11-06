@@ -3,6 +3,7 @@ package sittingwrite
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,4 +129,61 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	if err := WriteNextItem(dir, "agent_02", "frank-exchange-of-views:red-chair", &out); err != nil || out.Len() != 0 {
 		t.Errorf("a chair's call was handed %q (%v)", out.String(), err)
 	}
+}
+
+// EVERY DELIVERY FITS THE BUDGET, IN BYTES, WHATEVER THE BOARD HOLDS — and the current item arrives
+// whole but for its passage. An adversarial board: sixty other open gaps, forty readied gaps of the
+// lens's own, thirty estopped rulings, twenty long declarations and petitions, twenty notes, all in
+// multi-byte text, and a current gap with a long passage. What is cut is counted, never silent.
+func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
+	long := strings.Repeat("Ünïcödé prose — every rune here is more than one byte. ", 40)
+	row := func(id, by string, turn bool) record.WorkGapJSON {
+		return record.WorkGapJSON{ID: id, MintedBy: by, YourTurn: turn, Class: "false_universal", Material: turn,
+			Location: "the sentence " + id, Passage: long + "the sentence " + id + ". " + long, Problem: "problem of " + id,
+			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: []record.GapBackingJSON{}, RegradesOwed: []record.OwedRegradeJSON{}}
+	}
+	w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-voice", Role: "lens", Open: []record.Item{}}}
+	for i := 0; i < 40; i++ {
+		id := fmt.Sprintf("G-own-%02d", i)
+		w.Open = append(w.Open, row(id, "red-lens-voice", true))
+		w.Sitting.Open = append(w.Sitting.Open, record.Item{Kind: record.ItemReaudit, Subject: &record.ItemSubject{Kind: record.SubjectGap, ID: id}, What: "gap " + id + " was answered — " + long[:300]})
+	}
+	for i := 0; i < 60; i++ {
+		w.Open = append(w.Open, row(fmt.Sprintf("G-other-%02d", i), "red-lens-logic", false))
+	}
+	for i := 0; i < 20; i++ {
+		w.Sitting.Open = append(w.Sitting.Open, record.Item{Kind: record.ItemNews, Subject: &record.ItemSubject{Kind: record.SubjectGap, ID: fmt.Sprintf("G-n%d", i)}, What: long})
+		w.Declarations = append(w.Declarations, record.DeclarationJSON{Holding: long, Epoch: i, Gaps: []record.DeclaredGapJSON{{ID: "G-1", Status: "open"}}})
+		w.Relief = append(w.Relief, record.ReliefJSON{Motion: fmt.Sprintf("M-%d", i), Petitioner: "blue-respond", Binds: "red", Relief: long, Epoch: i})
+	}
+	for i := 0; i < 30; i++ {
+		w.Estopped = append(w.Estopped, record.EstoppedJSON{ID: fmt.Sprintf("G-e%d", i), Class: "false_universal", Fate: "not_a_defect", Settled: long})
+	}
+	q := record.QueueOf(w)
+	check := func(name, text string, at int) {
+		t.Helper()
+		if len(text) > DeliveryBudget {
+			t.Fatalf("%s: %d bytes, over the budget of %d", name, len(text), DeliveryBudget)
+		}
+		var d lensDelivery
+		if err := json.Unmarshal([]byte(text[strings.Index(text, "{"):]), &d); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		e := q[at]
+		if d.Current == nil || d.Current.Key != e.Key || len(d.Current.Items) != len(e.Items) || d.Current.Items[0].What != e.Items[0].What ||
+			d.Current.Gap.Problem != e.Gap.Problem || d.Current.Gap.RequiredFix != e.Gap.RequiredFix || !d.Current.Gap.PassageClipped {
+			t.Errorf("%s: the current item did not arrive whole but for its passage: %+v", name, d.Current)
+		}
+		// Every other queued entry and open gap is a line or a count: nothing is dropped silently.
+		if got, want := len(d.Index)+d.IndexOmitted, len(q)-1+60; got != want {
+			t.Errorf("%s: index holds %d lines and %d omitted, want %d in all", name, len(d.Index), d.IndexOmitted, want)
+		}
+		// The estopped lines ride the delivery at dispatch; a next item carries the item and the index.
+		if got := len(d.Estopped) + d.EstoppedOmitted; d.Sitting != nil && got != 30 {
+			t.Errorf("%s: estopped holds %d lines and %d omitted, want 30 in all", name, len(d.Estopped), d.EstoppedOmitted)
+		}
+	}
+	check("at dispatch", RenderLensDelivery(w), 0)
+	check("next", renderNext(w, q, 3, false), 3)
+	check("changed", renderNext(w, q, 0, true), 0)
 }

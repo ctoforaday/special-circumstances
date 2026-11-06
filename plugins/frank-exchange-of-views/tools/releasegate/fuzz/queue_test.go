@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -20,7 +21,7 @@ var subjectlessOwed = map[record.ItemKind]bool{
 // queueHolds holds a lens's work list, on whatever board the sweep reached, to its delivery one item
 // at a time: every item carries a kind; every item it owes carries a subject (bar the run-scoped
 // kinds) and is on its queue (record.QueueOf) under a key no other entry holds; its delivery at
-// dispatch fits sittingwrite.DeliveryBudget; and the item the writer's next phase hands it as current
+// dispatch fits sittingwrite.DeliveryBudget, in bytes as the writer measures it; and the item the writer's next phase hands it as current
 // moves only when the one before it has left the queue.
 func (r *runner) queueHolds(seatID string) {
 	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
@@ -54,8 +55,8 @@ owed:
 		r.noteActErr(fmt.Sprintf("queue oracle: %s owes %q and it is not queued", seatID, it.What))
 		return
 	}
-	if n := len(sittingwrite.RenderLensDelivery(w)); n > sittingwrite.DeliveryBudget {
-		r.noteActErr(fmt.Sprintf("queue oracle: %s's delivery is %d bytes, over the budget of %d", seatID, n, sittingwrite.DeliveryBudget))
+	if text := sittingwrite.RenderLensDelivery(w); len(text) > sittingwrite.DeliveryBudget {
+		r.noteActErr(fmt.Sprintf("queue oracle: %s's delivery is %d bytes, over the budget of %d (%s)", seatID, len(text), sittingwrite.DeliveryBudget, sectionBytes(text)))
 		return
 	}
 	r.headMovesOnlyOnDischarge(seatID, fmt.Sprintf("%s#%d", seatID, w.SittingID()), keys)
@@ -106,4 +107,33 @@ func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[str
 		}
 		r.lensHead[sitting] = current
 	}
+}
+
+// sectionBytes is the size of each part of a rendered delivery, for a failure to say what was large.
+func sectionBytes(text string) string {
+	i := strings.Index(text, "{")
+	if i < 0 {
+		return "no document"
+	}
+	var top map[string]json.RawMessage
+	if json.Unmarshal([]byte(text[i:]), &top) != nil {
+		return "the document does not parse"
+	}
+	var parts []string
+	for k, v := range top {
+		parts = append(parts, fmt.Sprintf("%s=%d", k, len(v)))
+	}
+	var cur map[string]json.RawMessage
+	if json.Unmarshal(top["current"], &cur) == nil {
+		var gap map[string]json.RawMessage
+		if json.Unmarshal(cur["gap"], &gap) == nil {
+			for k, v := range gap {
+				if len(v) > 200 {
+					parts = append(parts, fmt.Sprintf("current.gap.%s=%d", k, len(v)))
+				}
+			}
+		}
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, " ")
 }

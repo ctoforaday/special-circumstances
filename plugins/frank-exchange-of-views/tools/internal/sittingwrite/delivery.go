@@ -37,7 +37,8 @@ const (
 		"`estopped` one line for each bench ruling you may not re-raise. `sitting` is your standing: " +
 		"whether anything blocks you finishing, your read of the report, your mint budget, the items " +
 		"that are not work to queue (`notes`), the bench's holdings (`declarations`), each gap one names beside " +
-		"where the board says it stands now, and granted relief (`relief`). The next item arrives after the call of yours that the " +
+		"where the board says it stands now, and granted relief (`relief`). A count in a field ending " +
+		"`_omitted` is that many entries left out to keep this delivery whole; your work list holds them. The next item arrives after the call of yours that the " +
 		"record shows discharged this one. Your whole work list is on your own surface when you want it."
 
 	// nextArrived is the preamble on the item handed after a call that discharged the one before it.
@@ -55,6 +56,10 @@ type lensDelivery struct {
 	Current  *deliveredItem `json:"current"`
 	Index    []string       `json:"index"`
 	Estopped []string       `json:"estopped,omitempty"`
+	// IndexOmitted and EstoppedOmitted count the lines cut from the end of Index and Estopped to keep
+	// the delivery within DeliveryBudget (fitted); the work list on the seat's surface holds them all.
+	IndexOmitted    int `json:"index_omitted,omitempty"`
+	EstoppedOmitted int `json:"estopped_omitted,omitempty"`
 }
 
 // lensStanding is the sitting's header: the work list's sitting without its items, the counts, the
@@ -73,9 +78,17 @@ type lensStanding struct {
 	} `json:"counts"`
 	// Notes are the list's items that are not queued: the log channel, the budget, news of a closure,
 	// an anchor no check of this sitting can reach, the statement that nothing is owed.
-	Notes        []record.Item `json:"notes"`
-	Declarations any           `json:"declarations"`
-	Relief       any           `json:"relief"`
+	// Each is whole where the delivery fits, and one line an entry where it would not (fitted).
+	Notes        any `json:"notes"`
+	Declarations any `json:"declarations"`
+	Relief       any `json:"relief"`
+	// NotesOmitted, DeclarationsOmitted and ReliefOmitted count the lines cut from the end of each to
+	// keep the delivery within DeliveryBudget; the work list on the seat's surface holds them all.
+	NotesOmitted        int `json:"notes_omitted,omitempty"`
+	DeclarationsOmitted int `json:"declarations_omitted,omitempty"`
+	ReliefOmitted       int `json:"relief_omitted,omitempty"`
+	// w is the list the standing was read from, for the one-line forms; never rendered.
+	w record.WorkJSON
 }
 
 // deliveredItem is a queue entry as the seat is handed it.
@@ -128,19 +141,102 @@ func renderNext(w record.WorkJSON, q []record.QueueEntry, at int, changed bool) 
 	return fitted(preamble, d)
 }
 
-// fitted renders d under its preamble, clipping the current gap's passage when the whole is over
-// DeliveryBudget.
+// fitted renders d under its preamble within DeliveryBudget, measured in BYTES of the rendered
+// text — the harness's cap counts characters, and a byte count is never below it. The CURRENT ITEM IS
+// ALWAYS DELIVERED, whole but for its gap's passage; everything else gives way, in a fixed order,
+// until the delivery fits:
+//
+//  1. the current gap's passage is cut to its anchor's sentence and the context around it;
+//  2. the header's notes, declarations and relief become one line an entry;
+//  3. lines are cut from the end of the index, then of the estopped lines, then of the notes,
+//     the declarations and the relief, each cut counted in its *_omitted field;
+//  4. the current gap's passage is cut to its location alone.
+//
+// What is left is the current item without its passage and the fixed header (the seat, its standing,
+// its read of the report and its budget). Only a current item that is itself past the budget —
+// a gap whose own problem, fix and check run that long — is delivered over it.
 func fitted(preamble string, d lensDelivery) string {
 	text := render(preamble, d)
-	if len(text) <= DeliveryBudget || d.Current == nil || d.Current.Gap == nil {
+	fits := func() bool { text = render(preamble, d); return len(text) <= DeliveryBudget }
+	if len(text) <= DeliveryBudget {
 		return text
 	}
-	g := d.Current.Gap
-	if clipped, ok := clipPassage(g.Passage, g.Location); ok {
-		g.Passage, g.PassageClipped = clipped, true
-		text = render(preamble, d)
+	var g *deliveredGap
+	if d.Current != nil {
+		g = d.Current.Gap
+	}
+	if g != nil {
+		if clipped, ok := clipPassage(g.Passage, g.Location); ok {
+			g.Passage, g.PassageClipped = clipped, true
+			if fits() {
+				return text
+			}
+		}
+	}
+	if s := d.Sitting; s != nil {
+		s.Notes, s.Declarations, s.Relief = noteLines(s.Notes), oneLine(holdingLines(s.w)), oneLine(reliefLines(s.w))
+		if fits() {
+			return text
+		}
+	}
+	cuts := []struct {
+		lines   *[]string
+		omitted *int
+	}{{&d.Index, &d.IndexOmitted}, {&d.Estopped, &d.EstoppedOmitted}}
+	if s := d.Sitting; s != nil {
+		notes, decls, relief := s.Notes.([]string), s.Declarations.([]string), s.Relief.([]string)
+		s.Notes, s.Declarations, s.Relief = &notes, &decls, &relief
+		cuts = append(cuts, struct {
+			lines   *[]string
+			omitted *int
+		}{&notes, &s.NotesOmitted}, struct {
+			lines   *[]string
+			omitted *int
+		}{&decls, &s.DeclarationsOmitted}, struct {
+			lines   *[]string
+			omitted *int
+		}{&relief, &s.ReliefOmitted})
+	}
+	for _, c := range cuts {
+		for len(*c.lines) > 0 {
+			*c.lines = (*c.lines)[:len(*c.lines)-1]
+			*c.omitted++
+			if fits() {
+				return text
+			}
+		}
+	}
+	if g != nil && g.Passage != g.Location {
+		g.Passage, g.PassageClipped = g.Location, true
+		fits()
 	}
 	return text
+}
+
+// noteLines is the notes, one line each: the item's kind, what it is about, and its sentence cut
+// short. Already lines, they are returned as they are.
+func noteLines(notes any) []string {
+	items, ok := notes.([]record.Item)
+	if !ok {
+		lines, _ := notes.([]string)
+		return lines
+	}
+	out := []string{}
+	for _, it := range items {
+		line := string(it.Kind)
+		if it.Subject != nil {
+			line += " · " + string(it.Subject.Kind) + " " + it.Subject.ID
+		}
+		out = append(out, line+" · "+clip(it.What, 160))
+	}
+	return out
+}
+
+func oneLine(lines []string) []string {
+	if lines == nil {
+		return []string{}
+	}
+	return lines
 }
 
 func render(preamble string, d lensDelivery) string {
@@ -154,7 +250,8 @@ func render(preamble string, d lensDelivery) string {
 // standingOf is the delivery's header.
 func standingOf(w record.WorkJSON, q []record.QueueEntry) *lensStanding {
 	s := &lensStanding{Seat: w.Sitting.Seat, Role: w.Sitting.Role, Complete: w.Sitting.Complete,
-		LastRead: w.Sitting.LastRead, MintBudget: w.Sitting.MintBudget, Notes: []record.Item{}}
+		LastRead: w.Sitting.LastRead, MintBudget: w.Sitting.MintBudget, w: w}
+	notes := []record.Item{}
 	s.Counts.Open, s.Counts.Estopped, s.Counts.Queued = w.Counts.Open, w.Counts.Estopped, len(q)
 	queued := map[string]bool{}
 	for _, e := range q {
@@ -164,9 +261,10 @@ func standingOf(w record.WorkJSON, q []record.QueueEntry) *lensStanding {
 	}
 	for _, it := range w.Sitting.Open {
 		if !queued[itemID(it)] {
-			s.Notes = append(s.Notes, it)
+			notes = append(notes, it)
 		}
 	}
+	s.Notes = notes
 	s.Declarations, s.Relief = holdingsOf(w)
 	return s
 }
@@ -184,18 +282,30 @@ func holdingsOf(w record.WorkJSON) (declarations, relief any) {
 	if len(b) <= inlineHoldings {
 		return w.Declarations, w.Relief
 	}
-	dl, rl := []string{}, []string{}
+	return holdingLines(w), reliefLines(w)
+}
+
+// holdingLines is each declaration in one line: its epoch, its holding cut short, and the gaps it
+// names with where each stands.
+func holdingLines(w record.WorkJSON) []string {
+	out := []string{}
 	for _, d := range w.Declarations {
 		var ids []string
 		for _, g := range d.Gaps {
 			ids = append(ids, g.ID+" "+g.Status)
 		}
-		dl = append(dl, fmt.Sprintf("epoch %d: %s · gaps: %s", d.Epoch, clip(d.Holding, 240), strings.Join(ids, ", ")))
+		out = append(out, fmt.Sprintf("epoch %d: %s · gaps: %s", d.Epoch, clip(d.Holding, 240), strings.Join(ids, ", ")))
 	}
+	return out
+}
+
+// reliefLines is each granted petition's order in one line.
+func reliefLines(w record.WorkJSON) []string {
+	out := []string{}
 	for _, r := range w.Relief {
-		rl = append(rl, fmt.Sprintf("%s (%s, binds %s, epoch %d): %s", r.Motion, r.Petitioner, r.Binds, r.Epoch, clip(r.Relief, 240)))
+		out = append(out, fmt.Sprintf("%s (%s, binds %s, epoch %d): %s", r.Motion, r.Petitioner, r.Binds, r.Epoch, clip(r.Relief, 240)))
 	}
-	return dl, rl
+	return out
 }
 
 // itemOf is a queue entry as the seat is handed it.
