@@ -21,8 +21,7 @@ import (
 
 // DeliveryBudget is the most a lens delivery may hold, in bytes of additionalContext, below the
 // harness's 10,000-character cap with room for the document that carries it. A delivery over it
-// clips the current gap's passage to the sentence its anchor sits in and the context around it,
-// and says so (passage_clipped).
+// gives way in a fixed order until it fits (fitted), and says what it cut in a field.
 const DeliveryBudget = 9000
 
 // clipContext is how much of a clipped passage is kept on each side of the gap's location.
@@ -38,7 +37,11 @@ const (
 		"whether anything blocks you finishing, your read of the report, your mint budget, the items " +
 		"that are not work to queue (`notes`), the bench's holdings (`declarations`), each gap one names beside " +
 		"where the board says it stands now, and granted relief (`relief`). A count in a field ending " +
-		"`_omitted` is that many entries left out to keep this delivery whole; your work list holds them. The next item arrives after the call of yours that the " +
+		"`_omitted` is that many entries left out to keep this delivery whole; your work list holds them. A field " +
+		"ending `_clipped` marks a part of the current gap cut short for the same reason: a clipped `backing` is its anchors " +
+		"without their readings, which the evidence view gives an anchor at a time, and a clipped `edited_since` is each " +
+		"edit's epoch and editor without its text, which the changes view gives for the gap; a clipped passage, problem, " +
+		"fix or check is whole on your work list. The next item arrives after the call of yours that the " +
 		"record shows discharged this one. Your whole work list is on your own surface when you want it."
 
 	// nextArrived is the preamble on the item handed after a call that discharged the one before it.
@@ -113,6 +116,29 @@ type deliveredGap struct {
 	// PassageClipped marks a passage cut to its anchor's sentence and the context around it, to keep
 	// the delivery within DeliveryBudget; the whole passage is on the work list.
 	PassageClipped bool `json:"passage_clipped,omitempty"`
+	// Backing and EditedSince shadow the row's own: the row's lists where the delivery fits, and the
+	// short forms (anchorIDs, editMarks) where it does not — marked BackingClipped and
+	// EditedSinceClipped, with entries cut from the end counted in BackingOmitted and
+	// EditedSinceOmitted. Never omitted, as on the row: an empty list is an answer.
+	Backing            any  `json:"backing"`
+	EditedSince        any  `json:"edited_since"`
+	BackingClipped     bool `json:"backing_clipped,omitempty"`
+	EditedSinceClipped bool `json:"edited_since_clipped,omitempty"`
+	BackingOmitted     int  `json:"backing_omitted,omitempty"`
+	EditedSinceOmitted int  `json:"edited_since_omitted,omitempty"`
+	// ProblemClipped, RequiredFixClipped, AcceptanceCheckClipped, FixOldClipped and FixNewClipped mark
+	// that text cut short, the last thing given way; the work list holds it whole.
+	ProblemClipped         bool `json:"problem_clipped,omitempty"`
+	RequiredFixClipped     bool `json:"required_fix_clipped,omitempty"`
+	AcceptanceCheckClipped bool `json:"acceptance_check_clipped,omitempty"`
+	FixOldClipped          bool `json:"fix_old_clipped,omitempty"`
+	FixNewClipped          bool `json:"fix_new_clipped,omitempty"`
+}
+
+// editMark is an edit of the gap's sentence without its text: the changes view holds the pair.
+type editMark struct {
+	Epoch    int    `json:"epoch"`
+	EditedBy string `json:"edited_by"`
 }
 
 // inlineHoldings is the most the declarations and relief may take inline before each is one line.
@@ -150,11 +176,20 @@ func renderNext(w record.WorkJSON, q []record.QueueEntry, at int, changed bool) 
 //  2. the header's notes, declarations and relief become one line an entry;
 //  3. lines are cut from the end of the index, then of the estopped lines, then of the notes,
 //     the declarations and the relief, each cut counted in its *_omitted field;
-//  4. the current gap's passage is cut to its location alone.
+//  4. the current gap's passage is cut to its location alone;
+//  5. its backing becomes its anchor ids (backing_clipped), and its edited_since each edit's epoch and
+//     editor (edited_since_clipped) — what a seat needs to ask the evidence and changes views;
+//  6. anchor ids, then edit marks, are cut from the end, counted in backing_omitted and
+//     edited_since_omitted — each is a pointer the views hold, where the prose below is the work;
+//  7. its problem, required fix, acceptance check and fix pair are cut, each to a length halved until
+//     the delivery fits, down to nothing, each cut marked in its *_clipped field.
 //
-// What is left is the current item without its passage and the fixed header (the seat, its standing,
-// its read of the report and its budget). Only a current item that is itself past the budget —
-// a gap whose own problem, fix and check run that long — is delivered over it.
+// THE RECORD HOLDS NO LIMIT on the length of any of these — a mint's problem, fix and check are the
+// lens's prose, a sentence may carry any number of anchors — so no maximum size of the current item
+// can be computed from the record, and the budget holds because steps 6 and 7 can cut that prose and
+// those lists to nothing. What is never cut is the item's key, kind and items, and the gap's id,
+// grades, location and short fields, beside the fixed header (the seat, its standing, its read of
+// the report and its budget).
 func fitted(preamble string, d lensDelivery) string {
 	text := render(preamble, d)
 	fits := func() bool { text = render(preamble, d); return len(text) <= DeliveryBudget }
@@ -206,11 +241,78 @@ func fitted(preamble string, d lensDelivery) string {
 			}
 		}
 	}
-	if g != nil && g.Passage != g.Location {
-		g.Passage, g.PassageClipped = g.Location, true
-		fits()
+	if g == nil {
+		return text
 	}
-	return text
+	if g.Passage != g.Location {
+		g.Passage, g.PassageClipped = g.Location, true
+		if fits() {
+			return text
+		}
+	}
+	ids, marks := anchorIDs(g.WorkGapJSON.Backing), editMarks(g.WorkGapJSON.EditedSince)
+	g.Backing, g.BackingClipped = ids, len(ids) > 0
+	g.EditedSince, g.EditedSinceClipped = marks, len(marks) > 0
+	if fits() {
+		return text
+	}
+	for len(ids) > 0 {
+		ids = ids[:len(ids)-1]
+		g.Backing, g.BackingOmitted = ids, g.BackingOmitted+1
+		if fits() {
+			return text
+		}
+	}
+	for len(marks) > 0 {
+		marks = marks[:len(marks)-1]
+		g.EditedSince, g.EditedSinceOmitted = marks, g.EditedSinceOmitted+1
+		if fits() {
+			return text
+		}
+	}
+	prose := []struct {
+		whole   string
+		text    *string
+		clipped *bool
+	}{
+		{g.WorkGapJSON.Problem, &g.Problem, &g.ProblemClipped},
+		{g.WorkGapJSON.RequiredFix, &g.RequiredFix, &g.RequiredFixClipped},
+		{g.WorkGapJSON.AcceptanceCheck, &g.AcceptanceCheck, &g.AcceptanceCheckClipped},
+		{g.WorkGapJSON.FixOld, &g.FixOld, &g.FixOldClipped},
+		{g.WorkGapJSON.FixNew, &g.FixNew, &g.FixNewClipped},
+	}
+	longest := 0
+	for _, p := range prose {
+		longest = max(longest, len([]rune(p.whole)))
+	}
+	for n := longest / 2; ; n /= 2 {
+		for _, p := range prose {
+			if len([]rune(p.whole)) > n {
+				*p.text, *p.clipped = clip(p.whole, n), true
+			}
+		}
+		if fits() || n == 0 {
+			return text
+		}
+	}
+}
+
+// anchorIDs is a gap's backing as its anchor ids alone; the evidence view holds each one's reading.
+func anchorIDs(backing []record.GapBackingJSON) []string {
+	out := []string{}
+	for _, b := range backing {
+		out = append(out, b.Anchor)
+	}
+	return out
+}
+
+// editMarks is a gap's edits without their text; the changes view holds each pair.
+func editMarks(edits []record.GapEdit) []editMark {
+	out := []editMark{}
+	for _, e := range edits {
+		out = append(out, editMark{Epoch: e.Epoch, EditedBy: e.EditedBy})
+	}
+	return out
 }
 
 // noteLines is the notes, one line each: the item's kind, what it is about, and its sentence cut
@@ -312,7 +414,7 @@ func reliefLines(w record.WorkJSON) []string {
 func itemOf(e record.QueueEntry, changed bool) *deliveredItem {
 	d := &deliveredItem{Key: e.Key, Kind: e.Kind, Subject: e.Subject, Blocks: e.Blocks, ChangedSinceDelivered: changed, Items: e.Items}
 	if e.Gap != nil {
-		d.Gap = &deliveredGap{WorkGapJSON: *e.Gap}
+		d.Gap = &deliveredGap{WorkGapJSON: *e.Gap, Backing: e.Gap.Backing, EditedSince: e.Gap.EditedSince}
 	}
 	return d
 }
