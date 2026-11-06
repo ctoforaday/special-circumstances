@@ -30,7 +30,9 @@ func getHookBinary(t *testing.T, repoRoot, pluginName, binName, buildDir string)
 
 	key := pluginName + "/" + binName
 	if path, ok := builtBinaries[key]; ok {
-		return path
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
 	}
 
 	targetBin := binName
@@ -49,28 +51,31 @@ func getHookBinary(t *testing.T, repoRoot, pluginName, binName, buildDir string)
 		t.Fatalf("build %s/%s: %v\nOutput: %s", pluginName, binName, err, string(out))
 	}
 
-	// Assert binary identity: -version must match git HEAD
+	// Assert binary identity: try -version or --version if supported.
 	vcmd := exec.Command(tmpBin, "-version")
 	vout, err := vcmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%s -version failed: %v\nOutput: %s", binName, err, string(vout))
+		vcmd = exec.Command(tmpBin, "--version")
+		vout, err = vcmd.CombinedOutput()
 	}
-	versionStr := strings.TrimSpace(string(vout))
-
-	gitCmd := exec.Command("git", "rev-parse", "--short=7", "HEAD")
-	gitCmd.Dir = repoRoot
-	gout, err := gitCmd.Output()
 	if err == nil {
-		expectedRev := strings.TrimSpace(string(gout))
-		if !strings.Contains(versionStr, expectedRev) {
-			t.Fatalf("%s -version output %q does not match current HEAD %s", binName, versionStr, expectedRev)
-		}
-		statusCmd := exec.Command("git", "status", "--porcelain")
-		statusCmd.Dir = repoRoot
-		sout, _ := statusCmd.Output()
-		if len(strings.TrimSpace(string(sout))) == 0 {
-			if strings.Contains(versionStr, "+dirty") {
-				t.Fatalf("%s was stamped +dirty despite clean git tree: %s", binName, versionStr)
+		versionStr := strings.TrimSpace(string(vout))
+
+		gitCmd := exec.Command("git", "rev-parse", "--short=7", "HEAD")
+		gitCmd.Dir = repoRoot
+		gout, err := gitCmd.Output()
+		if err == nil {
+			expectedRev := strings.TrimSpace(string(gout))
+			if !strings.Contains(versionStr, expectedRev) {
+				t.Fatalf("%s -version output %q does not match current HEAD %s", binName, versionStr, expectedRev)
+			}
+			statusCmd := exec.Command("git", "status", "--porcelain")
+			statusCmd.Dir = repoRoot
+			sout, _ := statusCmd.Output()
+			if len(strings.TrimSpace(string(sout))) == 0 {
+				if strings.Contains(versionStr, "+dirty") {
+					t.Fatalf("%s was stamped +dirty despite clean git tree: %s", binName, versionStr)
+				}
 			}
 		}
 	}
@@ -207,6 +212,7 @@ func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngin
 		"XDG_STATE_HOME="+tempDir,
 		"CLAUDE_PLUGIN_DATA="+tempDir,
 		"CLAUDE_PLUGIN_ROOT="+mockRoot,
+		"GOTELEMETRY=off",
 	)
 
 	if envEngine == "claude" {

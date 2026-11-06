@@ -232,4 +232,6 @@ func TestLiveAntigravityEventContract(t *testing.T) {
 	if len(invs) == 0 || invs[0] != 0 {
 		t.Errorf("on resume, PreInvocation invocationNums = %v, want a turn starting at 0", invs)
 	}
+
+	assertNoAgyPanics(t, w.home)
 }
