@@ -281,7 +281,7 @@ func Write(s Sitting, seat io.Writer) error {
 		return err
 	}
 	if phase == Open && seat != nil {
-		injectWorkList(run, agentType, seat)
+		injectWorkList(run, agentID, agentType, seat)
 	}
 	return ingestTurns(run, phase, transcriptPath)
 }

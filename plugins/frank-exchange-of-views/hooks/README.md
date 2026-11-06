@@ -83,8 +83,8 @@ catches a seat that typed a plausible event under a dead hook. Claude Code
 
 ## PostToolUse
 
-MATCHER `StructuredOutput`: the binary is spawned for the call that returns a seat's envelope and for
-no other. PostToolUse fires on a call that SUCCEEDED, so when it fires the envelope gate refused
+MATCHER `StructuredOutput|Bash`, ONE ENTRY: the binary is spawned for the call that returns a seat's
+envelope, and for every Bash call (below). PostToolUse fires on a call that SUCCEEDED, so when it fires the envelope gate refused
 nothing and the harness accepted the envelope against its schema. The hook hands the call to
 feov-sitting-write (`-phase admission`), which records the envelope as ADMITTED — an
 `envelope_admitted` event under `harness`, keyed to the agent, one per sitting. That admission is what
@@ -95,6 +95,25 @@ reaches PostToolUseFailure, which logs it as the seat's `failure` entry. An admi
 not take goes on the hook record (stage `envelope-admission`), and the sitting reads as failed. A call
 from no seat — the main session, an operator — writes nothing. The bootstrap guard mirrors every other
 hook here.
+
+ON A Bash CALL, A LENS IS HANDED ITS NEXT ITEM. A lens's work arrives one item at a
+time — SubagentStart hands it the current item in full and an index of the rest — and the next item
+has to arrive after the act that discharged the current one, which is a Bash call to the record. So the
+binary returns at once for every Bash call that is not a lens's (the payload's `agent_type`, read
+without the roster: `runlive.IsLensAgentType`) or whose command does not name `feov-record`; for the
+rest it hands the call to feov-sitting-write (`-phase next`), which reads the lens's work list, orders
+it into its queue (`record.QueueOf`), and compares it with what the lens was last handed — the current
+item's key and digest and the keys queued beside it, one file per lens sitting under the run's
+`.work-delivery/`. The current item stays current until it leaves the queue; a moved one is handed
+again marked `changed_since_delivered`; another item leaving is one line; nothing changed is nothing.
+Two calls returning together hand the next item once: the comparison runs under an O_EXCL marker. What
+the writer prints is the lens's, passed on as `additionalContext` — which reaches a Workflow seat's
+context and an Agent subagent's alike, up to the harness's 10,000-character cap, past which it is
+spilled to a file in the PARENT session with a two-kilobyte preview (measured on 2.1.318); a delivery
+is held to 9,000 bytes (`sittingwrite.DeliveryBudget`). A writer that fails goes on the hook record
+(stage `next-item`) and is said to the lens as a statement that nothing was determined, never as
+silence. Under Antigravity a PostToolUse response carries nothing back to the agent, so a lens there
+reads its next item off its work list.
 
 ## SubagentStart
 

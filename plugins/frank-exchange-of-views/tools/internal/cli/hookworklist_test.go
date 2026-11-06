@@ -49,7 +49,9 @@ func TestTheDeliveredWorkListPlacesAGapWhereTheFetchedOneDoes(t *testing.T) {
 		return got
 	}
 
-	fetched, err := run(t, "show", "work", "--run", runDir, "--seat-id", lensSeat)
+	// THE CHAIR'S LIST, which arrives whole: a lens's arrives one item at a time, and its index places
+	// no gap. The renderer is linked or not per binary, so one seat's list answers for the writer.
+	fetched, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-chair")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +62,7 @@ func TestTheDeliveredWorkListPlacesAGapWhereTheFetchedOneDoes(t *testing.T) {
 
 	cmd := exec.Command(testbuild.Binary(t, "feov-sitting-write"),
 		"-run", runDir, "-phase", "open", "-agent-id", "agent_01",
-		"-agent-type", "frank-exchange-of-views:"+lensSeat)
+		"-agent-type", "frank-exchange-of-views:red-chair")
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

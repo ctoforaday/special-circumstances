@@ -331,6 +331,9 @@ type runner struct {
 	// sittingAgent is the agent id of each seat's open sitting, where its opening carried one
 	// (registerTwice, lookThenRegister): the agent whose stop dispatchReturns writes.
 	sittingAgent map[string]string
+	// lensHead is the key of the item each lens sitting was last handed as current by the writer's next
+	// phase (queueHolds), by seat and sitting.
+	lensHead map[string]string
 	// unreturned counts, per seat, the dispatches opened (dispatchOpens) that have not yet returned
 	// (dispatchReturns), whether or not the sitting's opening carried an agent. It counts DISPATCHES,
 	// not registers: a seat a drive registers between dispatches (register, from closeGap or
@@ -5720,6 +5723,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
+		r.queueHolds(seatID)
 		r.docketedOffTheList("lens", seatID)
 		r.auditRead(seatID)
 		r.checkAnchorOffers(seatID)
@@ -5727,6 +5731,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.forcedSourceDemand(seatID)
 		leftClosed := r.closeLifecycleLeftOpen(seatID)
 		r.closeDocketed(seatID)
+		// AFTER ACTS, THE SAME SITTING: what it was handed moves only where its acts discharged it.
+		r.queueHolds(seatID)
 		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
 		locked := r.lensMovesBenchAxis(seatID)
 		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}

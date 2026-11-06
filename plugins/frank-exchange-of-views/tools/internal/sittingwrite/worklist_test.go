@@ -43,32 +43,43 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := forSeat.String()
-	if !strings.HasPrefix(out, arrived[:40]) {
+	if !strings.HasPrefix(out, lensArrived[:40]) {
 		t.Fatalf("the list arrived without the preamble that says it arrived:\n%s", out)
 	}
 	body := out[strings.Index(out, "{"):]
-	var w record.WorkJSON
-	if err := json.Unmarshal([]byte(body), &w); err != nil {
-		t.Fatalf("what was handed to the seat is not the work list projection (%v):\n%s", err, body)
+	var d lensDelivery
+	if err := json.Unmarshal([]byte(body), &d); err != nil {
+		t.Fatalf("what was handed to the lens is not its delivery (%v):\n%s", err, body)
 	}
-	if len(w.Declarations) != 1 || w.Declarations[0].Holding != declared {
-		t.Errorf("the seat was handed declarations %+v, want the bench's one as recorded", w.Declarations)
-	} else if g := w.Declarations[0].Gaps; g == nil || len(g) != 0 {
+	raw, _ := json.Marshal(d.Sitting.Declarations)
+	var decls []record.DeclarationJSON
+	if err := json.Unmarshal(raw, &decls); err != nil || len(decls) != 1 || decls[0].Holding != declared {
+		t.Errorf("the seat was handed declarations %s, want the bench's one as recorded, inline", raw)
+	} else if g := decls[0].Gaps; g == nil || len(g) != 0 {
 		t.Errorf("the declaration reads gaps %#v, want [] — it was declared about none, and its prose is not read for one", g)
 	}
 	if !strings.Contains(out[:strings.Index(out, "{")], "`declarations`") {
 		t.Errorf("the preamble does not tell the seat where the bench's holdings are:\n%s", out)
 	}
-	if w.Sitting.Seat != "red-lens-evidence" || w.Sitting.Role != "lens" {
-		t.Errorf("the list is addressed to %q/%q, not to the seat the configuration names", w.Sitting.Seat, w.Sitting.Role)
+	if d.Sitting.Seat != "red-lens-evidence" || d.Sitting.Role != "lens" {
+		t.Errorf("the delivery is addressed to %q/%q, not to the seat the configuration names", d.Sitting.Seat, d.Sitting.Role)
 	}
 	// THE SPAN THIS PROCESS JUST WROTE IS ON THE RECORD THE LIST READS. A lens that has not
 	// registered still owes nothing, because the bracket opened its sitting — and if the render ran
 	// first, this item would be here.
-	for _, it := range w.Sitting.Open {
-		if strings.Contains(it.What, "register for this sitting") {
+	var all []record.Item
+	all = append(all, d.Sitting.Notes...)
+	if d.Current != nil {
+		all = append(all, d.Current.Items...)
+	}
+	for _, it := range all {
+		if it.Kind == record.ItemRegisterOwed {
 			t.Errorf("the list was rendered before the span it depends on: %q", it.What)
 		}
+	}
+	// THE FIRST READ IS THE AUDIT, AND IT IS THE CURRENT ITEM.
+	if d.Current == nil || d.Current.Kind != record.ItemAudit {
+		t.Errorf("a lens dispatched for its first read was handed %+v as current, want its audit", d.Current)
 	}
 }
 
@@ -113,7 +124,7 @@ func TestAnUnreadableListSaysSoRatherThanReadingEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	var forSeat bytes.Buffer
-	injectWorkList(mustRun(t, dir), "frank-exchange-of-views:red-lens-evidence", &forSeat)
+	injectWorkList(mustRun(t, dir), "agent_01", "frank-exchange-of-views:red-lens-evidence", &forSeat)
 	out := forSeat.String()
 	for _, want := range []string{"COULD NOT BE READ", "NOT the same as nothing being open"} {
 		if !strings.Contains(out, want) {
