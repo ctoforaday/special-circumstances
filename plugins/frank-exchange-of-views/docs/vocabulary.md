@@ -354,13 +354,13 @@ A citation is a source attached to a sentence of the report with the cite verb, 
 
 ## source span
 
-A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
+A source span is the words of the source's own cached text a citation rests on, chosen by quoting them (found there once) or by naming their lines, and kept on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
 
 **Delivered to:** lens, blue, lane
 
 ## source search
 
-A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
+A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries its lines, the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
 
 **Delivered to:** lens, blue, lane
 

@@ -186,6 +186,11 @@ const (
 	// page image red checked, on `verify`, and the one page `render-page` draws.
 	SourceSpan = "source-span"
 	Page       = "page"
+	// SourceLines is the peer of SourceSpan: lines of one of the source's texts, by number, and
+	// TextSha the hash of the text they were counted in, both as `show source` prints them. Either
+	// locator resolves to the same stored text; the citation keeps that, not the locator.
+	SourceLines = "source-lines"
+	TextSha     = "text-sha"
 
 	// Via names WHICH BACKEND to reach a source through. The strategies answer different
 	// questions — an archive says what a page said on a date, an open-access lookup says whether
@@ -320,7 +325,7 @@ func All() []string {
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class,
-		Problem, Fix, Check, CheckKind, Type, SourceSpan, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
@@ -348,7 +353,7 @@ func ClosedForm(name string) bool { return closedForm[name] }
 var closedForm = map[string]bool{
 	Run: true, SeatID: true, For: true, ID: true, Key: true, Class: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Dir: true, VerifiedBy: true,
-	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
+	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true, SourceLines: true, TextSha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true,
 	BinDir: true, RunID: true, ScriptPath: true, FromSession: true,
 	Card: true, Occasion: true, Grounds: true, Lens: true,
