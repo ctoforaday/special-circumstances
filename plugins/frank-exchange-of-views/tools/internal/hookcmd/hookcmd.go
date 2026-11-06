@@ -69,6 +69,8 @@ const (
 	StageEnvelope hookfailures.Stage = "envelope-check"
 	// StageAdmission is the PostToolUse hook's one job: a seat's accepted envelope recorded as admitted.
 	StageAdmission hookfailures.Stage = "envelope-admission"
+	// StageNextItem is the PostToolUse hook's other job: what a lens is handed after a call to the record.
+	StageNextItem hookfailures.Stage = "next-item"
 )
 
 // Entry is a hook entry point: it reads the payload, writes its decision document (if any) to
@@ -422,11 +424,12 @@ var envelopeAnswer = sittinghook.Envelope
 // recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
 var recordLimit = sittinghook.Limit
 
-// recordRefusal, recordFailure and recordAdmission are variables for the same reason.
+// recordRefusal, recordFailure, recordAdmission and handNextItem are variables for the same reason.
 var (
 	recordRefusal   = sittinghook.Refusal
 	recordFailure   = sittinghook.Failure
 	recordAdmission = sittinghook.Admission
+	handNextItem    = sittinghook.NextItem
 )
 
 // cwdOf pulls the seat's working directory out of the raw payload.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -57,5 +58,61 @@ func TestASucceededEnvelopeCallIsAdmitted(t *testing.T) {
 	}
 	if !rec.Failed() {
 		t.Error("an admission the writer could not record did not reach the hook record")
+	}
+}
+
+// A LENS'S CALL TO THE RECORD HANDS IT WHAT IT IS HANDED NEXT, AS additionalContext — and nothing
+// else spawns the writer: another seat's call, a lens's call that does not reach the record, a call
+// from no seat. A writer that fails is said to the lens, never silence.
+func TestALensCallToTheRecordIsHandedItsNextItem(t *testing.T) {
+	cwd, runDir, _ := limitRun(t, 1000)
+	var asked []string
+	text, writeErr := "YOUR NEXT ITEM: …", error(nil)
+	prev := handNextItem
+	handNextItem = func(dir, agent, typ string) (string, error) {
+		asked = append(asked, dir+" | "+agent+" | "+typ)
+		return text, writeErr
+	}
+	t.Cleanup(func() { handNextItem = prev })
+	const lens = "frank-exchange-of-views:red-lens-logic"
+	post := func(agentType, command string) (string, *bytes.Buffer) {
+		t.Helper()
+		b, _ := json.Marshal(map[string]any{"tool_name": "Bash", "tool_input": map[string]string{"command": command}, "cwd": cwd,
+			"session_id": testLead, "agent_id": "a7cc47571ab8b015d", "agent_type": agentType, "tool_response": map[string]string{}})
+		var out bytes.Buffer
+		if err := Post(bytes.NewReader(b), &out, testRecorder()); err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			HookSpecificOutput struct {
+				HookEventName     string `json:"hookEventName"`
+				AdditionalContext string `json:"additionalContext"`
+			} `json:"hookSpecificOutput"`
+		}
+		if out.Len() > 0 {
+			if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+				t.Fatalf("the hook printed %q, not a PostToolUse document: %v", out.String(), err)
+			}
+		}
+		return doc.HookSpecificOutput.AdditionalContext, &out
+	}
+
+	got, _ := post(lens, `"$FEOV_RUN/.bin/feov-record" lens close --gap G-1`)
+	if len(asked) != 1 || asked[0] != runDir+" | a7cc47571ab8b015d | "+lens || got != text {
+		t.Fatalf("asked %q, handed %q — want the lens's run, agent and type asked once, and the answer handed on", asked, got)
+	}
+	if _, out := post("frank-exchange-of-views:red-chair", "feov-record show work"); len(asked) != 1 || out.Len() != 0 {
+		t.Errorf("a chair's call spawned the writer or spoke: %q %q", asked, out.String())
+	}
+	if _, out := post(lens, "ls -la"); len(asked) != 1 || out.Len() != 0 {
+		t.Errorf("a lens's call that does not reach the record spawned the writer or spoke: %q %q", asked, out.String())
+	}
+	text = ""
+	if _, out := post(lens, "feov-record show report"); len(asked) != 2 || out.Len() != 0 {
+		t.Errorf("nothing to hand was said anyway: %q", out.String())
+	}
+	writeErr = errors.New("the record is locked")
+	if got, _ := post(lens, "feov-record show report"); !strings.Contains(got, "COULD NOT BE READ") || !strings.Contains(got, "the record is locked") {
+		t.Errorf("a writer that failed was handed to the lens as %q — want the statement that nothing was determined, and why", got)
 	}
 }

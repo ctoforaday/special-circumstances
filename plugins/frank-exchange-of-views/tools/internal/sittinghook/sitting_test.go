@@ -169,6 +169,9 @@ func TestThePhaseStringsMatchTheWriters(t *testing.T) {
 	if phaseAdmission != string(sittingwrite.Admission) {
 		t.Errorf("the hook sends phase %q and the writer parses %q — no accepted envelope would be admitted, and every sitting would read as failed", phaseAdmission, sittingwrite.Admission)
 	}
+	if phaseNext != string(sittingwrite.Next) {
+		t.Errorf("the hook sends phase %q and the writer parses %q — no lens would be handed its next item", phaseNext, sittingwrite.Next)
+	}
 }
 
 // liveRun builds a project whose run-live marker points at a run, so InferRunDir resolves it

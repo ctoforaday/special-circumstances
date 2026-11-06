@@ -236,14 +236,14 @@ func openInquiryFact(b Blocker) string {
 // was last recorded before this sitting opened. A fate recorded this sitting clears it — a
 // reaffirmation of `underway` with what was learned among them — though the inquiry still holds the
 // PASS until a fate settles it.
-func blueInquiryItemsOf(evs []*Event, win WindowIndex, seatID string) []string {
+func blueInquiryItemsOf(evs []*Event, win WindowIndex, seatID string) []Item {
 	sitting := win.LatestSittingOf(seatID)
-	var out []string
+	var out []Item
 	for _, a := range InquiriesOf(evs, win) {
 		if !a.Open() || a.Fate > sitting {
 			continue
 		}
-		out = append(out, fmt.Sprintf("inquiry %s is at %q and no fate has been recorded on it this sitting — record one before your sitting ends. An open inquiry holds the PASS: confirmed or refuted for an approach you ran, abandoned for one that gave no answer, declined or deferred with why; `underway` again, with what you learned, only while the research goes on. A settled one is checked by %s against its latest fate, and recording it again re-opens that check", a.ID, a.Status, inquiryOwner))
+		out = append(out, Item{Blocks: true, Kind: ItemKind(BlockerOpenInquiry), Subject: about(SubjectInquiry, a.ID), What: fmt.Sprintf("inquiry %s is at %q and no fate has been recorded on it this sitting — record one before your sitting ends. An open inquiry holds the PASS: confirmed or refuted for an approach you ran, abandoned for one that gave no answer, declined or deferred with why; `underway` again, with what you learned, only while the research goes on. A settled one is checked by %s against its latest fate, and recording it again re-opens that check", a.ID, a.Status, inquiryOwner)})
 	}
 	return out
 }

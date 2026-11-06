@@ -135,11 +135,14 @@ import (
 // nothing to audit asks nothing of it.
 // red-lens-logic enters at its measured size, 9,156, with the lens-inquiry board: the logic lens owns
 // every settled inquiry's check (ruled by gblock 2026-11-01), and a board now dispatches it.
+// Raised 2026-11-06 for the lens's work arriving one item at a time (gblock): every lens prompt says
+// so in one sentence, 59 characters. red-lens-logic had no headroom and rises to its measured size,
+// 9,215; red-lens-evidence absorbs it.
 var ceilings = map[string]int{
 	"blue-respond":      9557,
 	"red-chair":         6335,
 	"red-lens-evidence": 10820,
-	"red-lens-logic":    9156,
+	"red-lens-logic":    9215,
 	"judge":             6057,
 }
 

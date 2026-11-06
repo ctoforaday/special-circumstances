@@ -42,6 +42,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [gap](#gap) | lens, chair, blue, lane, bench, operator |
 | [material](#material) | lens, chair, blue, lane, bench, operator |
 | [blocker](#blocker) | lens, chair, bench |
+| [current item](#current-item) | lens, operator |
 | [reading](#reading) | lens, chair, blue, lane, bench, operator |
 | [retire](#retire) | lens, chair, blue, lane, bench, operator |
 | [lens retirement](#lens-retirement) | lens, chair, operator |
@@ -458,6 +459,12 @@ A blocker is one entry on the list the verdict gate refuses a PASS on, with the 
 **Collisions:**
 
 - **blocking (a work item)** — `show work` marks an item blocking when the seat's sitting is not complete while it is open, and such an item is a blocker only when the verdict gate's list carries it
+
+## current item
+
+A lens's current item is the one entry of its queue it is handed in full — an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the lens's work list after an act, and the next item is handed then.
+
+**Delivered to:** lens, operator
 
 ## reading
 

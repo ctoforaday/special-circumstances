@@ -80,7 +80,7 @@ func KeptGradeHeading(e *Event) string {
 // keptGradeItems is blue's item for each open gap of gaps whose minting lens kept its grade after
 // blue last answered it (blueAnswersOf): the lens's reason, which is what its check still finds
 // failing. A keep blue has answered since is answered, and drops off.
-func keptGradeItems(evs []*Event, win WindowIndex, gaps []WorkGapState) []string {
+func keptGradeItems(evs []*Event, win WindowIndex, gaps []WorkGapState) []Item {
 	open := map[string]bool{}
 	for _, g := range gaps {
 		if g.Open {
@@ -99,10 +99,10 @@ func keptGradeItems(evs []*Event, win WindowIndex, gaps []WorkGapState) []string
 		}
 		latest[k.gap] = k
 	}
-	var out []string
+	var out []Item
 	for _, g := range order {
 		k := latest[g]
-		out = append(out, fmt.Sprintf("gap %s: its lens re-audited it and KEEPS ITS GRADE — what its check still finds failing: %s", g, k.reason))
+		out = append(out, gapItem(ItemKeptGrade, g, fmt.Sprintf("gap %s: its lens re-audited it and KEEPS ITS GRADE — what its check still finds failing: %s", g, k.reason)))
 	}
 	return out
 }
