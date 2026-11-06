@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -39,24 +40,47 @@ func exe(name string) string {
 	return name
 }
 
-// fake builds testdata/fakehelper with a digest, a protocol version and a misbehaviour, once per
-// combination, and returns the directory holding it as fake-helper.
-func fake(t *testing.T, digest string, version uint16, mode string) string {
+// fake builds testdata/fakehelper with a digest, a protocol version, a misbehaviour and the asset
+// sha256 its handshake reports, once per combination, and returns the directory holding it as
+// fake-helper.
+func fake(t *testing.T, digest string, version uint16, mode string, assets ...string) string {
 	t.Helper()
-	key := fmt.Sprintf("%s-%d-%s", digest, version, mode)
+	key := fmt.Sprintf("%s-%d-%s-%s", digest, version, mode, strings.Join(assets, "+"))
 	fakeMu.Lock()
 	defer fakeMu.Unlock()
 	if dir, ok := fakeBuilt[key]; ok {
 		return dir
 	}
 	dir := filepath.Join(fakeRoot, key)
-	ldflags := fmt.Sprintf("-X main.digest=%s -X main.protocol=%d -X main.mode=%s", digest, version, mode)
+	ldflags := fmt.Sprintf("-X main.digest=%s -X main.protocol=%d -X main.mode=%s -X main.assets=%s", digest, version, mode, strings.Join(assets, ","))
 	cmd := exec.Command("go", "build", "-o", filepath.Join(dir, exe(fakeName)), "-ldflags", ldflags, "./testdata/fakehelper")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("building the fake helper: %v\n%s", err, out)
 	}
 	fakeBuilt[key] = dir
 	return dir
+}
+
+// startPIDs points the fake's start log at a fresh file and returns a reader of the pids in it.
+func startPIDs(t *testing.T) func() []int {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "starts")
+	t.Setenv("FAKEHELPER_START_LOG", p)
+	return func() []int {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return nil
+		}
+		var pids []int
+		for _, f := range strings.Fields(string(b)) {
+			pid, err := strconv.Atoi(f)
+			if err != nil {
+				t.Fatalf("the start log holds %q, not a pid", f)
+			}
+			pids = append(pids, pid)
+		}
+		return pids
+	}
 }
 
 // startLog points the fake's start log at a fresh file and returns a counter over it.

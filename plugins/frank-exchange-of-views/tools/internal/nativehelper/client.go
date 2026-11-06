@@ -34,8 +34,6 @@ const (
 	DefaultDeadline = 120 * time.Second
 	// closeGrace is how long Close waits for the helper to exit on stdin EOF before killing it.
 	closeGrace = 2 * time.Second
-	// stderrKeep bounds the stderr an error carries.
-	stderrKeep = 64 << 10
 )
 
 // Pins is what this binary was built to accept from one helper: its source digest, and the
@@ -104,20 +102,25 @@ func executableDir() (string, error) {
 }
 
 // Locate is the path the helper is looked up at: under NATIVE_HELPER_DIR when it is set, and only
-// there; otherwise beside the running executable. It is ErrAbsent when nothing is there.
+// there; otherwise beside the running executable. It is ErrAbsent when no executable is there,
+// and when NATIVE_HELPER_DIR is set to none or to the empty string.
 func (c *Client) Locate() (string, error) {
 	exe := c.name
 	if runtime.GOOS == "windows" {
 		exe += ".exe"
 	}
-	if dir := os.Getenv(EnvDir); dir != "" {
-		if dir == "none" {
+	if dir, set := os.LookupEnv(EnvDir); set {
+		switch dir {
+		case "none":
 			return "", &Error{Kind: ErrAbsent, Helper: c.name, Detail: EnvDir + "=none runs without a helper"}
+		case "":
+			return "", &Error{Kind: ErrAbsent, Helper: c.name,
+				Detail: EnvDir + " is set to the empty string; set it to the directory holding the helper, or to none"}
 		}
 		p := filepath.Join(dir, exe)
-		if !isFile(p) {
+		if why := notExecutable(p); why != "" {
 			return "", &Error{Kind: ErrAbsent, Helper: c.name, Path: p,
-				Detail: EnvDir + " is set, and it is the only directory looked in"}
+				Detail: why + "; " + EnvDir + " is set, and it is the only directory looked in"}
 		}
 		return p, nil
 	}
@@ -126,15 +129,25 @@ func (c *Client) Locate() (string, error) {
 		return "", &Error{Kind: ErrAbsent, Helper: c.name, Detail: "cannot find the running executable: " + err.Error()}
 	}
 	p := filepath.Join(dir, exe)
-	if !isFile(p) {
-		return "", &Error{Kind: ErrAbsent, Helper: c.name, Path: p}
+	if why := notExecutable(p); why != "" {
+		return "", &Error{Kind: ErrAbsent, Helper: c.name, Path: p, Detail: why}
 	}
 	return p, nil
 }
 
-func isFile(p string) bool {
+// notExecutable says why p is not an executable file, or is empty when it is one. On Windows a
+// regular file under the .exe name is executable; elsewhere it needs an execute bit.
+func notExecutable(p string) string {
 	fi, err := os.Stat(p)
-	return err == nil && fi.Mode().IsRegular()
+	switch {
+	case err != nil:
+		return "no such file"
+	case !fi.Mode().IsRegular():
+		return "not a regular file"
+	case runtime.GOOS != "windows" && fi.Mode().Perm()&0o111 == 0:
+		return "a file without an execute bit"
+	}
+	return ""
 }
 
 // Start spawns the helper and runs the handshake, unless it is already up. A handshake that
@@ -301,6 +314,8 @@ func (c *Client) exchange(p *process, op Op, fields [][]byte) (Frame, error) {
 		bad = fmt.Sprintf("response op %s to a %s request", f.Op, op)
 	case len(f.Fields) < 2 || len(f.Fields[0]) != 1:
 		bad = "response without its status and stderr fields"
+	case Status(f.Fields[0][0]) > StatusUnknownOp:
+		bad = "response status " + Status(f.Fields[0][0]).String() + ", which the protocol does not define"
 	}
 	if bad != "" {
 		p.kill()
@@ -363,7 +378,9 @@ func spawn(path string) (*process, error) {
 }
 
 // reap waits for an exiting helper (killing it after the grace period) and returns its exit
-// status and everything it wrote to stderr, its capture file included.
+// status and its stderr: the capture file of the request it died in, then what it wrote to the
+// stderr pipe, each bounded by BoundStderr. The pipe comes last and is bounded on its own, so a
+// request that flooded its capture cannot push out the helper's last words.
 func (p *process) reap() (string, []byte) {
 	select {
 	case <-p.done:
@@ -372,16 +389,31 @@ func (p *process) reap() (string, []byte) {
 		<-p.done
 	}
 	var b bytes.Buffer
+	if capture, dropped, err := readTail(filepath.Join(p.dir, "capture")); err == nil {
+		b.Write(BoundStderr(capture, dropped))
+	}
 	b.Write(p.stderr.Bytes())
-	if capture, err := os.ReadFile(filepath.Join(p.dir, "capture")); err == nil {
-		b.Write(capture)
-	}
 	p.release()
-	out := b.Bytes()
-	if len(out) > stderrKeep {
-		out = out[len(out)-stderrKeep:]
+	return p.cmd.ProcessState.String(), b.Bytes()
+}
+
+// readTail reads the last StderrKeep bytes of the file at path, and how many bytes precede them.
+func readTail(path string) ([]byte, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, 0, err
 	}
-	return p.cmd.ProcessState.String(), out
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	skip := max(fi.Size()-StderrKeep, 0)
+	if _, err := f.Seek(skip, io.SeekStart); err != nil {
+		return nil, 0, err
+	}
+	b, err := io.ReadAll(io.LimitReader(f, StderrKeep))
+	return b, skip, err
 }
 
 func (p *process) kill() {
@@ -411,24 +443,27 @@ func (p *process) close(name string) error {
 	}
 }
 
-// tail keeps the last stderrKeep bytes written to it.
+// tail keeps the last StderrKeep bytes written to it, and counts the bytes it dropped.
 type tail struct {
-	mu  sync.Mutex
-	buf []byte
+	mu      sync.Mutex
+	buf     []byte
+	dropped int64
 }
 
 func (t *tail) Write(b []byte) (int, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.buf = append(t.buf, b...)
-	if len(t.buf) > stderrKeep {
-		t.buf = append([]byte(nil), t.buf[len(t.buf)-stderrKeep:]...)
+	if len(t.buf) > StderrKeep {
+		t.dropped += int64(len(t.buf) - StderrKeep)
+		t.buf = append([]byte(nil), t.buf[len(t.buf)-StderrKeep:]...)
 	}
 	return len(b), nil
 }
 
+// Bytes is what the tail kept, bounded by BoundStderr.
 func (t *tail) Bytes() []byte {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return append([]byte(nil), t.buf...)
+	return BoundStderr(append([]byte(nil), t.buf...), t.dropped)
 }

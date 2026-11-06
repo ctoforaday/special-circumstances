@@ -10,7 +10,7 @@ import (
 // The five ways a helper fails, each a distinct error a caller matches with errors.Is. None of
 // them ever comes back as an empty result: a missing helper is not a page with no text.
 var (
-	// ErrAbsent: no executable at the looked-up path, or NATIVE_HELPER_DIR=none.
+	// ErrAbsent: no executable at the looked-up path, or NATIVE_HELPER_DIR set to none or empty.
 	ErrAbsent = errors.New("helper-absent")
 	// ErrDigestMismatch: the handshake reported another source digest, or another asset sha256.
 	ErrDigestMismatch = errors.New("helper-digest-mismatch")
@@ -34,7 +34,8 @@ type Error struct {
 	What string
 	// Exit is the process's exit status (ErrCrashed).
 	Exit string
-	// Stderr is what the helper wrote to stderr, its capture file included (ErrCrashed).
+	// Stderr is the helper's stderr (ErrCrashed): the capture of the request it died in, then what
+	// it wrote to the stderr pipe, each its last StderrKeep bytes.
 	Stderr []byte
 	// Op and Elapsed name the request (ErrDeadline, ErrCrashed, ErrProtocol).
 	Op      Op

@@ -61,8 +61,8 @@ func Helpers(native string) ([]string, error) {
 }
 
 // Inputs is the files a helper's digest covers, as slash paths relative to native, sorted:
-// native/<helper>/**, native/frame/**, native/build.sh when present, and native/PINS.txt. No
-// other helper's files are among them.
+// native/<helper>/**, native/frame/**, native/build.sh and native/PINS.txt. A helper without
+// native/build.sh or native/PINS.txt is an error. No other helper's files are among them.
 func Inputs(native, helper string) ([]string, error) {
 	var out []string
 	for _, dir := range []string{helper, "frame"} {
@@ -88,13 +88,12 @@ func Inputs(native, helper string) ([]string, error) {
 			return nil, err
 		}
 	}
-	if _, err := os.Stat(filepath.Join(native, "build.sh")); err == nil {
-		out = append(out, "build.sh")
+	for _, shared := range []struct{ file, what string }{{"build.sh", "the build script"}, {"PINS.txt", "the toolchain pins"}} {
+		if _, err := os.Stat(filepath.Join(native, shared.file)); err != nil {
+			return nil, fmt.Errorf("nativesrc: helper %s needs %s %s: %w", helper, shared.what, filepath.Join(native, shared.file), err)
+		}
+		out = append(out, shared.file)
 	}
-	if _, err := os.Stat(filepath.Join(native, "PINS.txt")); err != nil {
-		return nil, fmt.Errorf("nativesrc: helper %s needs the toolchain pins %s: %w", helper, filepath.Join(native, "PINS.txt"), err)
-	}
-	out = append(out, "PINS.txt")
 	sort.Strings(out)
 	return out, nil
 }

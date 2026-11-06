@@ -7,7 +7,8 @@
 // filling the payload exactly.
 //
 // A response's payload is field 0, one status byte; field 1, the stderr captured during the
-// request; fields 2 on, the op's result. The handshake's result is the helper's source digest,
+// request, its last kStderrKeep bytes after a line naming how many were dropped; fields 2 on, the
+// op's result. The handshake's result is the helper's source digest,
 // then the sha256 of each extra asset it loaded, in its ASSETS order.
 //
 // The helper writes frames on a private descriptor that only this codec writes: claim() moves
@@ -30,6 +31,8 @@ constexpr uint16_t kVersion = 1;
 constexpr size_t kHeaderSize = 16;
 constexpr uint32_t kMaxPayload = 64u << 20;
 constexpr size_t kMaxFields = 1u << 16;
+// kStderrKeep bounds a request's captured stderr. nativehelper.StderrKeep is the same number.
+constexpr size_t kStderrKeep = 64u << 10;
 
 // Ops 0-15 are the protocol's own and every helper answers them; a helper's own ops start at
 // kFirstHelperOp.
@@ -86,12 +89,14 @@ int read_frame(Frame* f, std::string* err);
 bool write_frame(const Frame& f, std::string* err);
 
 // Capture points fd 1 and fd 2 together at the capture file for one request, and restores both:
-// fd 2 to stderr, fd 1 to fd 2. The capture file is NATIVE_HELPER_CAPTURE when set, else an
-// anonymous temporary file.
+// fd 2 to stderr, fd 1 to fd 2. The capture file is NATIVE_HELPER_CAPTURE when set, else a
+// temporary file deleted when the helper exits.
 class Capture {
  public:
   bool begin(std::string* err);
-  // end restores the descriptors and returns what was written during the request.
+  // end restores the descriptors and returns the last kStderrKeep bytes written during the
+  // request; when more was written, they follow the line "frame: <n> earlier bytes of stderr
+  // dropped".
   std::string end();
 
  private:

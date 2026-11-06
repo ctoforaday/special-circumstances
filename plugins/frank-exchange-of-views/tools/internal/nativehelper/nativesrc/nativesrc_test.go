@@ -45,6 +45,7 @@ func fixture(t *testing.T) string {
 	}
 	files := map[string]string{
 		"PINS.txt":            "# toolchain\n" + shaA + "  zig-0.17.0.tar.xz  https://example.invalid/zig\n",
+		"build.sh":            "#!/bin/sh\n",
 		"feov-ocr/ASSETS":     "",
 		"feov-ocr/main.cpp":   "int main() { return 0; }\n",
 		"feov-ocr/PINS.txt":   shaB + "  tesseract-5.5.3.tar.gz  https://example.invalid/t\n" + shaC + "  leptonica-1.87.0.tar.gz  https://example.invalid/l\n" + shaD + "  eng.traineddata  https://example.invalid/e\n",
@@ -163,13 +164,19 @@ func TestNativeDigestFoldsCRLF(t *testing.T) {
 	}
 }
 
-func TestAHelperNeedsTheToolchainPins(t *testing.T) {
-	native := fixture(t)
-	if err := os.Remove(filepath.Join(native, "PINS.txt")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Digest(native, "feov-ocr"); err == nil || !strings.Contains(err.Error(), "PINS.txt") {
-		t.Errorf("a helper digests without native/PINS.txt: %v", err)
+// TestAHelperNeedsItsSharedInputs: native/build.sh and native/PINS.txt are inputs of every
+// helper, and no helper digests without either.
+func TestAHelperNeedsItsSharedInputs(t *testing.T) {
+	for _, shared := range []string{"PINS.txt", "build.sh"} {
+		t.Run(shared, func(t *testing.T) {
+			native := fixture(t)
+			if err := os.Remove(filepath.Join(native, shared)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Digest(native, "feov-ocr"); err == nil || !strings.Contains(err.Error(), shared) {
+				t.Errorf("a helper digests without native/%s: %v", shared, err)
+			}
+		})
 	}
 }
 

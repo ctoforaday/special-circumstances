@@ -27,6 +27,7 @@ func TestWriteCheckAndPrint(t *testing.T) {
 	native := filepath.Join(dir, "native")
 	out := filepath.Join(dir, "digest_gen.go")
 	writeFile(t, filepath.Join(native, "PINS.txt"), "")
+	writeFile(t, filepath.Join(native, "build.sh"), "#!/bin/sh\n")
 	writeFile(t, filepath.Join(native, "frame", "frame.cpp"), "// codec\n")
 	writeFile(t, filepath.Join(native, "feov-x", "ASSETS"), "")
 	writeFile(t, filepath.Join(native, "feov-x", "main.cpp"), "int main() {}\n")

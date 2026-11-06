@@ -22,7 +22,8 @@ import (
 // fields fill the payload exactly; a short or overlong field is a protocol error.
 //
 // A response's payload is: field 0, one byte of Status; field 1, the helper's stderr captured
-// during the request; fields 2 on, the op's result. A handshake response's result is the helper's
+// during the request, bounded by BoundStderr; fields 2 on, the op's result. A status other than
+// the three below is a protocol error. A handshake response's result is the helper's
 // source digest, then the sha256 of each extra asset it loaded, in its ASSETS file's order.
 const (
 	Magic           uint32 = 'F' | 'V'<<8 | 'N'<<16 | 'H'<<24
@@ -33,7 +34,24 @@ const (
 	MaxPayload = 64 << 20
 	// MaxFields bounds the fields of one frame, for the same reason.
 	MaxFields = 1 << 16
+	// StderrKeep bounds a run of helper stderr: the last StderrKeep bytes are kept. native/frame's
+	// kStderrKeep is the same number.
+	StderrKeep = 64 << 10
 )
+
+// BoundStderr is b's last StderrKeep bytes. When anything was cut — the bytes of b beyond the
+// bound, plus dropped bytes already cut before b — they are preceded by one line saying how
+// many, the same line native/frame writes.
+func BoundStderr(b []byte, dropped int64) []byte {
+	if len(b) > StderrKeep {
+		dropped += int64(len(b) - StderrKeep)
+		b = b[len(b)-StderrKeep:]
+	}
+	if dropped == 0 {
+		return b
+	}
+	return append([]byte(fmt.Sprintf("frame: %d earlier bytes of stderr dropped\n", dropped)), b...)
+}
 
 // Op names one request. Ops 0-15 are the protocol's own, answered by every helper; a helper's
 // own ops start at FirstHelperOp.

@@ -224,7 +224,7 @@ bool claim(std::string* err) {
     return false;
   }
 #else
-  int fd = dup(1);
+  int fd = fcntl(1, F_DUPFD_CLOEXEC, 3);
   if (fd < 0) {
     *err = std::string("duplicating fd 1: ") + std::strerror(errno);
     return false;
@@ -233,7 +233,6 @@ bool claim(std::string* err) {
     *err = std::string("pointing fd 1 at fd 2: ") + std::strerror(errno);
     return false;
   }
-  fcntl(fd, F_SETFD, FD_CLOEXEC);
   g_frame = fd;
 #endif
   std::setvbuf(stdout, nullptr, _IONBF, 0);
@@ -309,13 +308,19 @@ bool Capture::begin(std::string* err) {
       }
       p = std::string(dir) + "feov-helper-capture-" + std::to_string(GetCurrentProcessId());
     }
-    file_ = _open(p.c_str(), _O_RDWR | _O_CREAT | _O_TRUNC | _O_BINARY, 0600);
+    // The client owns a named capture file and reads it after a crash; the default one is the
+    // helper's own and goes when the helper exits.
+    int temporary = (path != nullptr && *path != '\0') ? 0 : _O_TEMPORARY;
+    file_ = _open(p.c_str(), _O_RDWR | _O_CREAT | _O_TRUNC | _O_BINARY | _O_NOINHERIT | temporary, 0600);
 #else
     if (path != nullptr && *path != '\0') {
       file_ = open(path, O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
     } else {
       std::FILE* t = std::tmpfile();
-      if (t != nullptr) file_ = dup(fileno(t));
+      if (t != nullptr) {
+        file_ = fcntl(fileno(t), F_DUPFD_CLOEXEC, 3);
+        std::fclose(t);
+      }
     }
 #endif
     if (file_ < 0) {
@@ -338,7 +343,7 @@ bool Capture::begin(std::string* err) {
     *err = std::string("truncating the capture file: ") + std::strerror(errno);
     return false;
   }
-  saved_err_ = dup(2);
+  saved_err_ = fcntl(2, F_DUPFD_CLOEXEC, 3);
   if (saved_err_ < 0 || dup2(file_, 1) < 0 || dup2(file_, 2) < 0) {
     *err = std::string("pointing fd 1 and fd 2 at the capture file: ") + std::strerror(errno);
     return false;
@@ -351,11 +356,15 @@ std::string Capture::end() {
   flush_all();
   std::string out;
   if (saved_err_ < 0) return out;
+  // Only the last kStderrKeep bytes are read: a request that floods stderr must not push its
+  // response past kMaxPayload.
 #ifdef _WIN32
   _dup2(saved_err_, 2);
   _dup2(2, 1);
   _close(saved_err_);
-  _lseek(file_, 0, SEEK_SET);
+  long long size = _lseeki64(file_, 0, SEEK_END);
+  long long skip = size > static_cast<long long>(kStderrKeep) ? size - static_cast<long long>(kStderrKeep) : 0;
+  _lseeki64(file_, skip, SEEK_SET);
   char buf[65536];
   int r;
   while ((r = _read(file_, buf, sizeof buf)) > 0) out.append(buf, static_cast<size_t>(r));
@@ -363,7 +372,9 @@ std::string Capture::end() {
   dup2(saved_err_, 2);
   dup2(2, 1);
   close(saved_err_);
-  lseek(file_, 0, SEEK_SET);
+  off_t size = lseek(file_, 0, SEEK_END);
+  off_t skip = size > static_cast<off_t>(kStderrKeep) ? size - static_cast<off_t>(kStderrKeep) : 0;
+  lseek(file_, skip, SEEK_SET);
   char buf[65536];
   ssize_t r;
   while ((r = read(file_, buf, sizeof buf)) > 0 || (r < 0 && errno == EINTR)) {
@@ -371,6 +382,9 @@ std::string Capture::end() {
   }
 #endif
   saved_err_ = -1;
+  if (skip > 0) {
+    out.insert(0, "frame: " + std::to_string(static_cast<long long>(skip)) + " earlier bytes of stderr dropped\n");
+  }
   return out;
 }
 

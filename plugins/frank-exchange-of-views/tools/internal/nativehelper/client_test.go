@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -69,8 +70,10 @@ func TestACrashedRequestIsNotRetried(t *testing.T) {
 	c := fakeClient(t, "d1")
 	_, err := c.Do(OpSelftestStdout)
 	e := asError(t, err, ErrCrashed)
+	// The fake writes "crashing as built to" into the capture file the client names, never to its
+	// stderr pipe: the client reads it back from there.
 	if e.Op != OpSelftestStdout || !strings.Contains(e.Exit, "3") || !bytes.Contains(e.Stderr, []byte("crashing as built to")) {
-		t.Errorf("the crash does not name its op, exit status and stderr: %v", err)
+		t.Errorf("the crash does not name its op, exit status and captured stderr: %v", err)
 	}
 	if e.Handshake {
 		t.Errorf("a crash after a good handshake is marked as the helper never coming up")
@@ -127,6 +130,7 @@ func TestHelperExitsOnStdinEOF(t *testing.T) {
 	}
 	// The control: a helper that ignores EOF is killed, and Close says so.
 	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, "ignore-eof"))
+	pids := startPIDs(t)
 	c = fakeClient(t, "d1")
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
@@ -137,6 +141,11 @@ func TestHelperExitsOnStdinEOF(t *testing.T) {
 	}
 	if d := time.Since(start); d > 10*time.Second {
 		t.Errorf("Close took %s to kill a helper that ignores EOF", d)
+	}
+	if started := pids(); len(started) != 1 {
+		t.Errorf("the start log holds %v, want one pid", started)
+	} else {
+		assertGone(t, started[0])
 	}
 }
 
@@ -165,13 +174,165 @@ func TestADeadlineKillsAndNames(t *testing.T) {
 	}
 }
 
+// TestAProtocolErrorKillsAndNames: every response the client refuses is helper-protocol naming
+// the op and the defect, never a panic or an *OpError, and the helper is gone afterwards.
 func TestAProtocolErrorKillsAndNames(t *testing.T) {
-	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, "garbage"))
+	for _, tc := range []struct{ mode, detail string }{
+		{"garbage", "magic"},
+		{"wrong-id", "response id"},
+		{"no-fields", "without its status and stderr"},
+		{"one-field", "without its status and stderr"},
+		{"empty-status", "without its status and stderr"},
+		{"status-7", "status-7"},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, tc.mode))
+			pids := startPIDs(t)
+			c := fakeClient(t, "d1")
+			_, err := c.Do(OpSelftestStdout)
+			e := asError(t, err, ErrProtocol)
+			if e.Op != OpSelftestStdout || !strings.Contains(e.Detail, tc.detail) {
+				t.Errorf("the protocol error does not name its op and %q: %v", tc.detail, err)
+			}
+			started := pids()
+			if len(started) != 1 {
+				t.Fatalf("the start log holds %v, want one pid", started)
+			}
+			assertGone(t, started[0])
+		})
+	}
+}
+
+// floodTail is the fake's last writes in a flood request: the flood's last line, then the
+// selftest's own diagnostics.
+const floodTail = "fakehelper: the flood's last line\nprintf\ncout\nfwrite\nwrite1\n"
+
+// TestAStderrFloodIsBoundedAndMarked: a request that writes far past StderrKeep to stderr still
+// succeeds, and its stderr field is the last StderrKeep bytes after a line naming the cut.
+func TestAStderrFloodIsBoundedAndMarked(t *testing.T) {
+	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, "flood"))
+	c := fakeClient(t, "d1")
+	r, err := c.Do(OpSelftestStdout)
+	if err != nil {
+		t.Fatalf("a request that flooded stderr failed: %v", err)
+	}
+	marker := fmt.Sprintf("frame: %d earlier bytes of stderr dropped\n", 1<<20+len(floodTail)-StderrKeep)
+	if len(r.Stderr) != len(marker)+StderrKeep || !bytes.HasPrefix(r.Stderr, []byte(marker)) {
+		t.Errorf("the stderr field is %d bytes starting %.80q; want %d bytes after %q", len(r.Stderr), r.Stderr, len(marker)+StderrKeep, marker)
+	}
+	if !bytes.HasSuffix(r.Stderr, []byte(floodTail)) {
+		t.Errorf("the stderr field lost the request's last writes: ends %q", r.Stderr[max(len(r.Stderr)-80, 0):])
+	}
+}
+
+// TestACrashAfterAFloodKeepsTheHelpersLastWords: a helper that floods its capture and then dies
+// writing to its stderr pipe is helper-crashed carrying both, the pipe's last line intact.
+func TestACrashAfterAFloodKeepsTheHelpersLastWords(t *testing.T) {
+	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, "flood-crash"))
 	c := fakeClient(t, "d1")
 	_, err := c.Do(OpSelftestStdout)
-	e := asError(t, err, ErrProtocol)
-	if e.Op != OpSelftestStdout || !strings.Contains(e.Detail, "magic") {
-		t.Errorf("the protocol error does not name its op and the decoder's complaint: %v", err)
+	e := asError(t, err, ErrCrashed)
+	for _, want := range []string{"writing a frame failed, as built to", "fakehelper: the flood's last line", "earlier bytes of stderr dropped"} {
+		if !bytes.Contains(e.Stderr, []byte(want)) {
+			t.Errorf("the crash's stderr lacks %q (%d bytes)", want, len(e.Stderr))
+		}
+	}
+	if len(e.Stderr) > 2*StderrKeep+200 {
+		t.Errorf("the crash carries %d bytes of stderr, over the bound", len(e.Stderr))
+	}
+}
+
+// TestAWrongAssetHashIsADigestMismatch: the handshake's asset sha256 is checked against this
+// binary's pin for its arch, and a mismatch names both.
+func TestAWrongAssetHashIsADigestMismatch(t *testing.T) {
+	pins := Pins{Digest: "d1", Assets: []AssetPin{{File: "model.ort", SHA256: map[string]string{runtime.GOARCH: "aaaa"}}}}
+	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, "", "bbbb"))
+	c := newClient(fakeName, pins)
+	t.Cleanup(func() { _ = c.Close() })
+	err := c.Start()
+	e := asError(t, err, ErrDigestMismatch)
+	if e.Want != "aaaa" || e.Got != "bbbb" || !strings.Contains(err.Error(), "model.ort") || !strings.Contains(err.Error(), "aaaa") || !strings.Contains(err.Error(), "bbbb") {
+		t.Errorf("the mismatch does not name the asset and both hashes: %v", err)
+	}
+	// The control: the pinned hash passes.
+	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, "", "aaaa"))
+	c = newClient(fakeName, pins)
+	t.Cleanup(func() { _ = c.Close() })
+	if err := c.Start(); err != nil {
+		t.Fatalf("the pinned asset hash is refused: %v", err)
+	}
+}
+
+// TestTheDeadlineExcludesTheWaitForTheLock: a request queued behind another for longer than the
+// deadline still has its whole deadline once it holds the lock.
+func TestTheDeadlineExcludesTheWaitForTheLock(t *testing.T) {
+	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, ""))
+	c := fakeClient(t, "d1")
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	c.deadline = time.Second
+	c.mu.Lock() // the first holder: a request in flight for two and a half deadlines
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.Do(OpSelftestSleep, le32(1))
+		done <- err
+	}()
+	time.Sleep(c.deadline * 5 / 2)
+	c.mu.Unlock()
+	if err := <-done; err != nil {
+		t.Fatalf("a request that waited for the lock failed: %v", err)
+	}
+}
+
+// TestALookedUpFileMustBeExecutable: a regular file without an execute bit at the looked-up path
+// is helper-absent, under the override and beside the executable, and it does not latch.
+func TestALookedUpFileMustBeExecutable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("SKIPPED, NOT PASSED: on Windows a file under the .exe name is executable; there is no execute bit to withhold")
+	}
+	b, err := os.ReadFile(filepath.Join(fake(t, "d1", ProtocolVersion, ""), exe(fakeName)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	p := filepath.Join(dir, exe(fakeName))
+	if err := os.WriteFile(p, b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(EnvDir, dir)
+	c := fakeClient(t, "d1")
+	e := asError(t, c.Start(), ErrAbsent)
+	if e.Path != p || !strings.Contains(e.Detail, "execute bit") || e.Handshake {
+		t.Errorf("the absent helper does not name the path and the missing bit: %v", e)
+	}
+	os.Unsetenv(EnvDir)
+	c.exeDir = func() (string, error) { return dir, nil }
+	asError(t, c.Start(), ErrAbsent)
+	if err := os.Chmod(p, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Start(); err != nil {
+		t.Fatalf("helper-absent latched: with the bit set, the helper still does not start: %v", err)
+	}
+}
+
+// TestAnEmptyOverrideIsAbsent: NATIVE_HELPER_DIR set to the empty string is set, so it is
+// helper-absent naming the variable, never a lookup beside the executable.
+func TestAnEmptyOverrideIsAbsent(t *testing.T) {
+	beside := fake(t, "d1", ProtocolVersion, "")
+	t.Setenv(EnvDir, "")
+	c := fakeClient(t, "d1")
+	c.exeDir = func() (string, error) { return beside, nil }
+	err := c.Start()
+	asError(t, err, ErrAbsent)
+	if !strings.Contains(err.Error(), EnvDir+" is set to the empty string") {
+		t.Errorf("the empty override is not named: %v", err)
+	}
+	// The control: unset, the helper beside the executable starts.
+	os.Unsetenv(EnvDir)
+	if err := c.Start(); err != nil {
+		t.Fatalf("with the override unset, the helper beside the executable is not found: %v", err)
 	}
 }
 
@@ -194,7 +355,7 @@ func TestTheOverrideHasNoFallback(t *testing.T) {
 		t.Errorf("the absent helper does not name the override: %v", err)
 	}
 	// The control: unset, the same client finds the helper beside the executable.
-	t.Setenv(EnvDir, "")
+	os.Unsetenv(EnvDir)
 	if err := c.Start(); err != nil {
 		t.Fatalf("with the override unset, the helper beside the executable is not found: %v", err)
 	}
@@ -234,12 +395,14 @@ func TestRequireFailsInCIWithoutAHelper(t *testing.T) {
 	helper := fake(t, "d1", ProtocolVersion, "")
 	for _, tc := range []struct {
 		name, ci, dir, want string
+		set                 bool
 	}{
-		{"CI without the variable fails", "true", "", "--- FAIL"},
-		{"CI with none skips", "true", "none", "--- SKIP"},
-		{"CI with a mistyped directory fails", "true", helper + "-typo", "--- FAIL"},
-		{"outside CI without the variable skips", "", "", "--- SKIP"},
-		{"CI with the helper passes", "true", helper, "--- PASS"},
+		{"CI without the variable fails", "true", "", "--- FAIL", false},
+		{"CI with none skips", "true", "none", "--- SKIP", false},
+		{"CI with a mistyped directory fails", "true", helper + "-typo", "--- FAIL", false},
+		{"outside CI without the variable skips", "", "", "--- SKIP", false},
+		{"outside CI with the variable empty fails", "", "", "--- FAIL", true},
+		{"CI with the helper passes", "true", helper, "--- PASS", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestRequireFailsInCIWithoutAHelper$", "-test.v", "-test.count=1")
@@ -252,7 +415,7 @@ func TestRequireFailsInCIWithoutAHelper(t *testing.T) {
 			if tc.ci != "" {
 				env = append(env, "GITHUB_ACTIONS="+tc.ci)
 			}
-			if tc.dir != "" {
+			if tc.dir != "" || tc.set {
 				env = append(env, EnvDir+"="+tc.dir)
 			}
 			cmd.Env = env
