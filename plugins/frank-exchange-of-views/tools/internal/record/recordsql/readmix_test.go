@@ -34,6 +34,8 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		}
 	}
 	originals := []proto.Message{
+		mint("G1"),
+		mint("G2"),
 		mint("G3", "G1", "G2"),
 		&recordpb.Position{PositionId: proto.String("A-00000001"), Text: proto.String("red speaks")},
 		// A grade motion: the oneof arm WITH scalar columns, referencing the mint above.
@@ -102,16 +104,16 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		}
 	}
 	// Stated separately, because proto.Equal cannot say WHICH mechanism dropped the arm.
-	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[2]); !ok || m.GetGrade() == nil {
+	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[4]); !ok || m.GetGrade() == nil {
 		t.Error("the grade motion's filing arm did not come home")
 	}
-	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[4]); !ok || m.GetPetition() == nil {
+	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[6]); !ok || m.GetPetition() == nil {
 		t.Error("the empty petition arm came back unset — an empty row is still a filing")
 	}
-	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[5]); !ok || m.GetFiling() != nil {
+	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[7]); !ok || m.GetFiling() != nil {
 		t.Error("the bare motion grew a filing arm it never had")
 	}
-	if r, ok := recordpb.BodyAs[*recordpb.MotionRule](evs[6]); !ok || fmt.Sprint(r.GetPosition().GetGapIds()) != "[G4 G3]" {
+	if r, ok := recordpb.BodyAs[*recordpb.MotionRule](evs[8]); !ok || fmt.Sprint(r.GetPosition().GetGapIds()) != "[G4 G3]" {
 		t.Errorf("the position ruling's gap list came back %v, want [G4 G3] in the order named", r.GetPosition().GetGapIds())
 	}
 }
@@ -144,6 +146,11 @@ func BenchmarkEvents(b *testing.B) {
 	b.Cleanup(func() { _ = Close(path) })
 	for i := 0; i < 400; i++ {
 		gap := fmt.Sprintf("R1-%d", i+1)
+		// The two gaps minted before this one: each names only a gap already minted.
+		var supersedes []string
+		for j := max(1, i-1); j <= i; j++ {
+			supersedes = append(supersedes, fmt.Sprintf("R1-%d", j))
+		}
 		bodies := []proto.Message{
 			&recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 				GapId:           proto.String(gap),
@@ -153,7 +160,7 @@ func BenchmarkEvents(b *testing.B) {
 				CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 				Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 				Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-				Supersedes:      []string{"G1", "G2"},
+				Supersedes:      supersedes,
 			},
 			&recordpb.Position{PositionId: proto.String("A-00000002"), Text: proto.String("a position")},
 			&recordpb.Motion{

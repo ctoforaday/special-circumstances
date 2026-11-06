@@ -54,6 +54,8 @@ func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) 
 // joins, constraints and aggregates — which is the trade this test exists to refuse.
 func TestABodyIsWrittenAsColumns(t *testing.T) {
 	db := store(t)
+	mintGap(t, db, 1, "G1")
+	mintGap(t, db, 2, "G2")
 	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
 		Class:           recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(),
@@ -220,6 +222,8 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 		// severity and complexity_cost are deliberately NOT set: the axes this gap was never
 		// graded on, which must come back ungraded.
 	}
+	mintGap(t, db, 1, "G1")
+	mintGap(t, db, 2, "G2")
 	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, original)); err != nil {
 		t.Fatal(err)
 	}
@@ -228,10 +232,10 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(evs) != 1 {
-		t.Fatalf("read %d events, want 1", len(evs))
+	if len(evs) != 3 {
+		t.Fatalf("read %d events, want 3", len(evs))
 	}
-	got, ok := recordpb.BodyAs[*recordpb.Mint](evs[0])
+	got, ok := recordpb.BodyAs[*recordpb.Mint](evs[2])
 	if !ok {
 		t.Fatal("the event came back with no Mint body")
 	}
@@ -244,8 +248,8 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 	if got.ComplexityCost != nil {
 		t.Errorf("complexity_cost came back set (%v) for an axis the seat never graded", got.GetComplexityCost())
 	}
-	if evs[0].GetType() != recordpb.EventType_EVENT_TYPE_MINT {
-		t.Errorf("type = %v", evs[0].GetType())
+	if evs[2].GetType() != recordpb.EventType_EVENT_TYPE_MINT {
+		t.Errorf("type = %v", evs[2].GetType())
 	}
 }
 

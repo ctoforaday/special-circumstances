@@ -184,15 +184,35 @@ BENCH decision". SQL can refuse; it cannot teach. Where a constraint and a messa
 wanted, the constraint goes in SQL as the wall and the message stays in Go as the door —
 that is why `merge close`'s subset check exists twice on purpose.
 
-**Computing a derived value → a VIEW, not a trigger.** Same language, opposite direction:
+**Computing a derived value → a VIEW by default.** Same language, opposite direction:
 a view is SQL used as a QUERY, which is what it is good at. A trigger maintaining a
-denormalised column is logic, and it buys nothing a view does not — see the presence
-section above for the measurement.
+denormalised column on an event's own row is logic, and it buys nothing a view does not —
+see the presence section above for the measurement.
 
-**The one trigger that earns its place** is the append-only guard on `events`. It refuses
-an unconditionally illegal state (editing a written event), and its static message is
-adequate precisely because there is nothing conditional to explain: you cannot edit the
-record, and that is the whole sentence.
+**A trigger may maintain a STORED PROJECTION** — a table of its own, beside the record — when
+three things hold:
+
+1. **An oracle proves it equal to the view it replaces**: the view's SQL, kept as test-only
+   SQL, compared row for row with the projection after every event of every archived run, and
+   on fixtures for the shapes no archive holds. The oracle is the cutover's proof, not a
+   second definition: it is deleted once the cutover lands.
+2. **It holds no fact of its own.** `events` is the log; the projection is a fold of rows the
+   write path already stores, and a migration rebuilds it by replaying every event through the
+   same triggers. A migration never carries a source's projection.
+3. **Its rules are DDL.** A trigger's text is in `sqlite_master`, so the event-schema epoch's
+   DDL hash covers it: a rule changed without an epoch bump fails
+   `TestEveryDDLChangeBumpsTheEpoch`, and a record holding the old rule is refused at open.
+
+It earns its place where the view costs every read more than the trigger costs the writes that
+change it. `demand_lineage` is the case: a gap's demand lineage is fixed at its mint, so the triggers on
+`mint` and `mint_supersedes` write the whole of it once, and `demand_reach` reads it with no
+recursion instead of walking the supersedes chain on every read.
+
+**The triggers that earn their place** are the append-only guards — on `events`,
+`report_checkpoint` and `demand_lineage` — and a stored projection's maintenance under the rule
+above. A guard refuses an unconditionally illegal state (editing a written event), and its
+static message is adequate precisely because there is nothing conditional to explain: you
+cannot edit the record, and that is the whole sentence.
 
 ### Presence for a list, if a verb ever needs it
 
