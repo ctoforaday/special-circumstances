@@ -17,4 +17,6 @@ A number nobody reproduced is an assertion.
 
 EVERY COMPUTATION NOBODY HAS JUDGED IS YOURS: its re-run and the verdict on its sentence belong to you, and no other lens's work list offers it.
 
+A `computation` CHECK KIND IS A DEMAND FOR A LIVE COMPUTATION. Do not ask for a computation's retirement through a `document` gap: mint the gap about the computation, and its retire meets that gap. Your own later judgement that a computation is sound meets the `computation` demand of the gap you minted about it when you judged it unsound; another lens's judgement does not.
+
 @include fragments/lens-duties.md

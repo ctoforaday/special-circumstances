@@ -101,7 +101,11 @@ func MergedEvents(run Run) (Merged, error) {
 	if err != nil {
 		return Merged{}, err
 	}
-	return Merged{Events: evs, At: windowIndexOf(evs, ws)}, nil
+	at := windowIndexOf(evs, ws)
+	if at.reach, err = reachingRetiresOf(db); err != nil {
+		return Merged{}, err
+	}
+	return Merged{Events: evs, At: at}, nil
 }
 
 // Gap is the replayed state of one board gap.
@@ -167,18 +171,6 @@ type Gap struct {
 	Material bool
 }
 
-// NeedsComputation reports whether this gap's acceptance check is one PROSE CANNOT SETTLE.
-//
-// It is the rule that decides whether a gap can close at all, placed once: a bare literal
-// comparison written out at each site that asks is as many chances to disagree about one rule,
-// across packages, with nothing able to see them drift.
-//
-// IT DOES NOT ASK WHETHER THE GAP IS OPEN, and callers must keep that condition themselves:
-// openness is about whether the debt is still owed, this is about what would discharge it, and
-// folding them together would make a closed computation gap indistinguishable from a document one.
-//
-// A nil gap or a gap with no mint answers false: GetCheckKind on an absent Mint is the
-// UNSPECIFIED zero.
 // GradeAt returns the gap's grade on ONE axis, and whether that axis is one this binary knows.
 //
 // THE SECOND RETURN IS LOAD-BEARING. A dimension added to the enum and not added here would
@@ -200,8 +192,36 @@ func (g *Gap) GradeAt(d recordpb.GradeDimension) (recordpb.Grade, bool) {
 	return recordpb.Grade_GRADE_UNSPECIFIED, false
 }
 
-func (g *Gap) NeedsComputation() bool {
-	return g != nil && g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION
+// AnswerKind is the evidence-anchor kind this gap's acceptance check demands as its live answer —
+// "citation" under `source`, "computation" under `computation`, read off recordsql.EvidenceTables'
+// `check` column — and "" for a check kind prose settles (`document`).
+//
+// It is the rule that decides what can close a gap, placed once: a bare literal comparison written
+// out at each site that asks is as many chances to disagree about one rule, across packages, with
+// nothing able to see them drift.
+//
+// IT DOES NOT ASK WHETHER THE GAP IS OPEN, and callers must keep that condition themselves:
+// openness is about whether the debt is still owed, this is about what would discharge it, and
+// folding them together would make a closed evidence gap indistinguishable from a document one.
+//
+// A nil gap or a gap with no mint answers "": GetCheckKind on an absent Mint is the UNSPECIFIED
+// zero, which no row answers.
+func (g *Gap) AnswerKind() string {
+	if g == nil {
+		return ""
+	}
+	return AnswerKindOf(recordpb.Word(g.Mint.GetCheckKind()))
+}
+
+// AnswerKindOf is AnswerKind of a check kind's word: the evidence-anchor kind whose row answers it,
+// "" when none does.
+func AnswerKindOf(checkKind string) string {
+	for _, t := range recordsql.EvidenceTables {
+		if t.Check == checkKind {
+			return t.Kind
+		}
+	}
+	return ""
 }
 
 // ClosureReason is the ONE word that says why a gap is closed, whichever verb closed it.

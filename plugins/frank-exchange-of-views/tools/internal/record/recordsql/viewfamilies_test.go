@@ -47,23 +47,23 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 		}
 	}
 	if _, err := Insert(db, event(t, 5, recordpb.EventType_EVENT_TYPE_COMPUTATION, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
-		Answers: proto.String("G3"), Text: proto.String("t"), Exit: proto.Int32(0)})); err != nil {
+		ComputationId: proto.String("K-0000f003"), Answers: proto.String("G3"), Text: proto.String("t"), Exit: proto.Int32(0)})); err != nil {
 		t.Fatal(err)
 	}
 
 	type row struct {
-		curImpact, curLik             sql.NullString
-		computationAnswered, awaiting bool
-		supersededBy                  sql.NullString
-		supersedeEvent                sql.NullInt64
-		open                          bool
+		curImpact, curLik          sql.NullString
+		evidenceAnswered, awaiting bool
+		supersededBy               sql.NullString
+		supersedeEvent             sql.NullInt64
+		open                       bool
 	}
 	read := func(id string) row {
 		t.Helper()
 		var r row
-		if err := db.QueryRow(`SELECT "current_impact", "current_likelihood", "computation_answered",
-		    "awaiting_computation", "superseded_by", "supersede_event", "open" FROM "gap" WHERE "gap_id" = ?`, id).
-			Scan(&r.curImpact, &r.curLik, &r.computationAnswered, &r.awaiting, &r.supersededBy, &r.supersedeEvent, &r.open); err != nil {
+		if err := db.QueryRow(`SELECT "current_impact", "current_likelihood", "evidence_answered",
+		    "awaiting_evidence", "superseded_by", "supersede_event", "open" FROM "gap" WHERE "gap_id" = ?`, id).
+			Scan(&r.curImpact, &r.curLik, &r.evidenceAnswered, &r.awaiting, &r.supersededBy, &r.supersedeEvent, &r.open); err != nil {
 			t.Fatal(err)
 		}
 		return r
@@ -76,18 +76,18 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 	if r1.curLik.String != "medium" {
 		t.Errorf("current_likelihood = %q, want the mint's grade on an axis no regrade touched", r1.curLik.String)
 	}
-	if r1.computationAnswered || !r1.awaiting {
-		t.Errorf("G1 = (computation_answered=%v, awaiting=%v): an open computation gap with no computation is the debt", r1.computationAnswered, r1.awaiting)
+	if r1.evidenceAnswered || !r1.awaiting {
+		t.Errorf("G1 = (evidence_answered=%v, awaiting=%v): an open computation gap with no computation is the debt", r1.evidenceAnswered, r1.awaiting)
 	}
 	if r1.supersededBy.Valid || r1.supersedeEvent.Valid || !r1.open {
 		t.Errorf("G1 = (superseded_by=%v, supersede_event=%v, open=%v): no mint names it yet", r1.supersededBy, r1.supersedeEvent, r1.open)
 	}
 	r3 := read("G3")
-	if !r3.computationAnswered || r3.awaiting {
-		t.Errorf("G3 = (computation_answered=%v, awaiting=%v): the recorded computation discharges the debt", r3.computationAnswered, r3.awaiting)
+	if !r3.evidenceAnswered || r3.awaiting {
+		t.Errorf("G3 = (evidence_answered=%v, awaiting=%v): the recorded computation discharges the debt", r3.evidenceAnswered, r3.awaiting)
 	}
 	if r2 := read("G2"); r2.awaiting {
-		t.Error("a document-check gap can never be awaiting computation")
+		t.Error("a document-check gap can never be awaiting evidence")
 	}
 
 	// A mint superseding the open G1 closes it in that act: the view names the successor and the

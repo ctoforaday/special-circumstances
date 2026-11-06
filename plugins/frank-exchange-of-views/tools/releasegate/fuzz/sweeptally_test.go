@@ -137,7 +137,7 @@ type runTally struct {
 	PositionsOverruled              int                       `json:"positions_overruled"`
 	OrdersRefused                   int                       `json:"orders_refused"`
 	SpansRefused                    int                       `json:"spans_refused"`
-	LeftOutRefused                  int                       `json:"left_out_refused"`
+	BareEvidenceRefused             int                       `json:"bare_evidence_refused"`
 	MintBareRefused                 int                       `json:"mint_bare_refused"`
 	SourceSearches                  int                       `json:"source_searches"`
 	CopiesRead                      map[string]map[string]int `json:"copies_read"`
@@ -172,6 +172,8 @@ type runTally struct {
 	OneGapFindings                  int                       `json:"one_gap_findings"`
 	UnclassifiedMinted              int                       `json:"unclassified_minted"`
 	UnclassifiedRefused             int                       `json:"unclassified_refused"`
+	SupersedeDemandCarried          int                       `json:"supersede_demand_carried"`
+	SupersedeDemandRefused          int                       `json:"supersede_demand_refused"`
 	RulerFilingsRefused             int                       `json:"ruler_filings_refused"`
 	ClosedRemandsRefused            int                       `json:"closed_remands_refused"`
 	TrifleRemandsRouted             int                       `json:"trifle_remands_routed"`
@@ -202,6 +204,9 @@ type runTally struct {
 	FoundAgainstRetires             int                       `json:"found_against_retires"`
 	FoundAgainstClearedByOwnReading int                       `json:"found_against_cleared_by_own_reading"`
 	FoundAgainstStage               string                    `json:"found_against_stage"`
+	SourceClosesRefused             int                       `json:"source_closes_refused"`
+	ReadingDemandRefused            int                       `json:"reading_demand_refused"`
+	Lifecycle                       lifecycleTally            `json:"lifecycle"`
 	NotTheWorkFlagsRefused          int                       `json:"not_the_work_flags_refused"`
 	NotTheWorkReadingsUnread        int                       `json:"not_the_work_readings_unread"`
 	MarkedSentenceRefused           int                       `json:"marked_sentence_refused"`
@@ -236,7 +241,7 @@ func tallyOf(o outcome) runTally {
 		InquiryChecks: o.inquiryChecks, InquiryCheckRefused: o.inquiryCheckRefused,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
 		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
-		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, LeftOutRefused: o.leftOutRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
+		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, BareEvidenceRefused: o.bareEvidenceRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
 		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, QuotesRefused: o.quotesRefused,
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
 		ReopenedPlans: o.reopenedPlans, UnsoundReadied: o.unsoundReadied, UnsoundPlans: o.unsoundPlans,
@@ -247,6 +252,7 @@ func tallyOf(o outcome) runTally {
 		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused, BudgetRefused: o.budgetRefused,
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
+		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, FateTurns: o.fateTurns, LensWaits: o.lensWaits,
@@ -254,7 +260,7 @@ func tallyOf(o outcome) runTally {
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
-		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, FoundAgainstStage: o.foundAgainstStage, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
+		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, SourceClosesRefused: o.sourceClosesRefused, ReadingDemandRefused: o.readingDemandRefused, Lifecycle: o.lifecycle.tally(), FoundAgainstStage: o.foundAgainstStage, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
 
@@ -581,7 +587,7 @@ type sweepFold struct {
 	inquiryCheckRefused                             map[string]int
 	bridgesRefused, bridgesNamed                    int
 	ordersRefused, spansRefused, forcedSpansRefused int
-	leftOutRefused, mintBareRefused                 int
+	bareEvidenceRefused, mintBareRefused            int
 	sourceSearches                                  int
 	copiesRead                                      map[string]map[string]int
 	closingsFiled, closingsRefused, closingWaits    int
@@ -604,6 +610,7 @@ type sweepFold struct {
 	forcedOwnerWhys                                 []string
 	unsoundRepeats, unsoundOverOpen                 int
 	unclassifiedMinted, unclassifiedRefused         int
+	supersedeDemandCarried, supersedeDemandRefused  int
 	rulerFilingsRefused                             int
 	closedRemandsRefused, trifleRemandsRouted       int
 	blueRemandActs, pastLimitRemandsRefused         int
@@ -623,6 +630,11 @@ type sweepFold struct {
 	foundAgainstClosesRefused, foundAgainstRepeats int
 	foundAgainstEdits, foundAgainstRetires         int
 	foundAgainstClearedByOwnReading                int
+	// sourceClosesRefused and readingDemandRefused: closes of `source` gaps nothing answers refused
+	// by the live-answer demand, and those of them whose gap carries a reading.
+	sourceClosesRefused, readingDemandRefused int
+	// lifecycle is the anchor lifecycle's counts summed over the runs (lifecycleTally).
+	lifecycle lifecycleTally
 	// foundAgainstStage is the last step foundAgainstSeed's chain reached, from the one run forced
 	// through it.
 	foundAgainstStage                                string
@@ -699,7 +711,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.positionsOverruled += r.PositionsOverruled
 		f.ordersRefused += r.OrdersRefused
 		f.spansRefused += r.SpansRefused
-		f.leftOutRefused += r.LeftOutRefused
+		f.bareEvidenceRefused += r.BareEvidenceRefused
 		f.mintBareRefused += r.MintBareRefused
 		f.sourceSearches += r.SourceSearches
 		if r.Seed == absentSpanSeed {
@@ -757,6 +769,9 @@ func foldRuns(runs []runTally) sweepFold {
 		f.foundAgainstEdits += r.FoundAgainstEdits
 		f.foundAgainstRetires += r.FoundAgainstRetires
 		f.foundAgainstClearedByOwnReading += r.FoundAgainstClearedByOwnReading
+		f.sourceClosesRefused += r.SourceClosesRefused
+		f.readingDemandRefused += r.ReadingDemandRefused
+		f.lifecycle.add(r.Lifecycle)
 		// THE LEAST STAGE, so the fold names the same one whatever order the runs arrive in; one run
 		// in a sweep is forced through the chain.
 		if s := r.FoundAgainstStage; s != "" && (f.foundAgainstStage == "" || s < f.foundAgainstStage) {
@@ -797,6 +812,8 @@ func foldRuns(runs []runTally) sweepFold {
 		f.oneGapFindings += r.OneGapFindings
 		f.unclassifiedMinted += r.UnclassifiedMinted
 		f.unclassifiedRefused += r.UnclassifiedRefused
+		f.supersedeDemandCarried += r.SupersedeDemandCarried
+		f.supersedeDemandRefused += r.SupersedeDemandRefused
 		f.rulerFilingsRefused += r.RulerFilingsRefused
 		f.closedRemandsRefused += r.ClosedRemandsRefused
 		f.trifleRemandsRouted += r.TrifleRemandsRouted
@@ -875,7 +892,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("citation owner: %d run(s) offered an unverified citation to the evidence lens, at a sitting or the run's end", f.citationOfferedRuns)
 	t.Logf("unsound computations: %d plan(s) readied the judge or blue for every unsound computation they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundComputationSeed, f.unsoundAnswers)
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", f.spansRefused, f.forcedSpansRefused, absentSpanSeed)
-	t.Logf("left-out anchors: %d edit(s) refused for leaving bare an anchor their quote left out, all seed %d's forced run", f.leftOutRefused, leftOutSeed)
+	t.Logf("bare evidence anchors: %d edit(s) refused for leaving an evidence anchor bare, all seed %d's forced run", f.bareEvidenceRefused, bareEvidenceSeed)
 	t.Logf("bare prescriptions: %d mint(s) refused for a prescription that would leave a citation bare, all seed %d's forced run", f.mintBareRefused, mintBareSeed)
 	t.Logf("source searches: %d search(es) of a cited source whose every hit's source_span is the span cite took", f.sourceSearches)
 	if f.completed > 0 && (f.unsoundReadied == 0 || f.unsoundAnswers == 0) {
@@ -898,6 +915,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("unread citations: %d gap(s) minted about a citation the lens's reading could not read, %d repeat unread reading(s) refused over that gap, %d citation(s) blue retired off a sentence for it (%d of them answering that gap and listed in its change log), %d close(s) of that gap refused while the citation stood", f.unreadAnswers, f.unreadRepeats, f.unreadRetires, f.unreadRetiresJoined, f.unreadClosesRefused)
 	t.Logf("unsound closes: %d close(s) of a judge's gap refused while the unsound judgement it carries stood", f.unsoundClosesRefused)
 	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", f.unclassifiedMinted, f.unclassifiedRefused)
+	t.Logf("supersede demand: %d successor(s) carried an unanswered ancestor's check kind, %d at another check kind refused", f.supersedeDemandCarried, f.supersedeDemandRefused)
 	t.Logf("classes: %d by_grade in the mint pool; %d always/never minted once each, %d landed", len(mintPoolClasses), len(mintDrivenClasses), len(mintDrivenClasses)-len(unlandedClassDrive(p.ClassLanded)))
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
@@ -1051,10 +1069,10 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.spansRefused == 0 {
 			t.Errorf("fuzz drove ZERO cites refused for a source span the source does not hold across %d runs — the refusal that keeps blue's own wording off the record as the source's is unexercised (false green)", f.completed)
 		}
-		// THE LEFT-OUT-ANCHOR GATE. No drawn edit cuts a sentence down to its anchors, so the refusal of
-		// one that leaves an anchor out is reached only by the forced drive.
-		if f.leftOutRefused == 0 {
-			t.Errorf("seed %d's forced run drove ZERO edits refused for leaving bare an anchor their quote left out across %d runs — the refusal that keeps an orphan anchor out of the report is unexercised (false green)", leftOutSeed, f.completed)
+		// THE BARE-EVIDENCE GATE. No drawn edit cuts a sentence down to its anchors, so the refusal of
+		// one that leaves an evidence anchor bare is reached only by the forced drive.
+		if f.bareEvidenceRefused == 0 {
+			t.Errorf("seed %d's forced run drove ZERO edits refused for leaving an evidence anchor bare across %d runs — the refusal that keeps an unchecked, orphaned anchor out of the report is unexercised (false green)", bareEvidenceSeed, f.completed)
 		}
 		// THE BARE-PRESCRIPTION GATE. No drawn prescription leaves an anchor bare, so the mint's refusal
 		// of one is reached only by the forced drive.
@@ -1125,6 +1143,15 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			f.readingsMinted, f.readingsHeld, f.foundSourceGaps, f.maxOpenPerClassSentence)
 		t.Logf("found against: %d close(s) refused, %d repeat(s) refused, %d edit(s) and %d retire(s) by blue, %d cleared by the reader's own re-read and closed; seed %d's forced chain reached: %s",
 			f.foundAgainstClosesRefused, f.foundAgainstRepeats, f.foundAgainstEdits, f.foundAgainstRetires, f.foundAgainstClearedByOwnReading, foundAgainstSeed, cmp.Or(f.foundAgainstStage, "no stage (its run is not in this tally)"))
+		t.Logf("live-answer demand: %d close(s) of a source gap refused, %d of them of a gap carrying a reading; seed %d's run is forced through both", f.sourceClosesRefused, f.readingDemandRefused, sourceDemandSeed)
+		// THE ANCHOR LIFECYCLE'S GATES (plans/compute-and-show.md III.1′.7): each act and refusal 1a′ adds,
+		// every one driven by seed lifecycleSeed's run, and the assembly screen by limitSeed's.
+		t.Logf("anchor lifecycle: %+v; seed %d's run is forced through every arm, seed %d's ends on a live unsound computation", f.lifecycle, lifecycleSeed, limitSeed)
+		for _, c := range f.lifecycle.gates() {
+			if c.n == 0 {
+				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", c.what, f.completed)
+			}
+		}
 		for _, c := range []struct {
 			n    int
 			what string
@@ -1134,6 +1161,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			{f.foundAgainstClosesRefused, "closes refused of a gap carrying a found-against check still standing"},
 			{f.foundAgainstEdits + f.foundAgainstRetires, "remedies by blue of a found-against check (an edit of its sentence, or a retire of its citation)"},
 			{f.foundAgainstClearedByOwnReading, "closes admitted after the reader's own backing re-read cleared its found-against check"},
+			{f.sourceClosesRefused, "closes of a source gap nothing answers, refused by its live-answer demand"},
+			{f.readingDemandRefused, "closes of a source gap carrying a reading nothing answers, refused by its live-answer demand"},
 			{f.foundAgainstRepeats, "repeat readings refused over the lens's own standing found-against check"},
 			{f.notTheWorkFlagsRefused, "gap flags refused on a reading of a copy that is not the work"},
 			{f.notTheWorkReadingsUnread, "readings of a copy that is not the work leaving the citation unread"},
@@ -1163,6 +1192,14 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		if f.unclassifiedRefused == 0 {
 			t.Errorf("fuzz drove ZERO unclassified mints refused for want of a reason across %d runs — the record's reason check is unexercised (false green)", f.completed)
+		}
+		// THE DEMAND MOVES TO THE SUCCESSOR: both arms of the rule, the successor that carries an
+		// unanswered ancestor's check kind and the one at another kind the record refuses.
+		if f.supersedeDemandCarried == 0 {
+			t.Errorf("fuzz minted ZERO successors carrying an unanswered ancestor's check kind across %d runs — the demand's move is unexercised (false green)", f.completed)
+		}
+		if f.supersedeDemandRefused == 0 {
+			t.Errorf("fuzz drove ZERO successors at another check kind refused over an unanswered ancestor across %d runs — the refusal is unexercised (false green)", f.completed)
 		}
 		// THE RULER-FILES-NOTHING GATE. The chair's grade motion and the bench's docket motion are
 		// refused at the surface; a drive that stopped reaching for them would leave the refusal
@@ -1205,7 +1242,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// A FATE BLUE CHANGED IS ITS ACT ON A GAP ABOUT A SECTION THAT PRINTS IT (ruled by gblock
 		// 2026-11-05): lenses mint about the inquiry sections and blue settles open inquiries in its
 		// sittings, so some lens's turn on a gap about a section came with a changed fate.
-		t.Logf("fate turns: %d of those lens engagement(s) on a gap about a section came with a fate blue changed", f.fateTurns)
+		t.Logf("fate turns: %d lens engagement(s) on a gap about a section, with blue or alone, came with a fate blue changed", f.fateTurns)
 		if f.fateTurns == 0 {
 			t.Errorf("no lens turn across %d runs on a gap about a section came with a fate blue changed — the rule that a changed fate is blue's act on a gap about a section that prints it is unexercised (false green)", f.completed)
 		}

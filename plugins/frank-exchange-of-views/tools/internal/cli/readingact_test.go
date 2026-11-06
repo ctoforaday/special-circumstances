@@ -259,7 +259,8 @@ func TestAPlainMintALaterReadingNamesKeepsItsMint(t *testing.T) {
 		b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
 		g1 := b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...).Gap.ID
 		b.fillTo(lensL, 0)
-		_, err := b.plainMint(lensL, rdCited, "claim_contradicts_source", "--supersedes", g1)
+		// The reading's gap awaits its `source` answer, so its successor carries that check kind.
+		_, err := b.plainMint(lensL, rdCited, "claim_contradicts_source", "--supersedes", g1, "--check-kind", "source")
 		mustRefuse(t, err, "", "mint budget admits no more")
 	})
 }

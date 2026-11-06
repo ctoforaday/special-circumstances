@@ -56,7 +56,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("new evidence")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), Answers: proto.String("G3"), BundleSha: proto.String("sha-7"),
+	if _, err := Append(blue, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-0000e003"), Answers: proto.String("G3"), BundleSha: proto.String("sha-7"),
 		Text: proto.String("7 is prime"), Exit: proto.Int32(0)}); err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("requireInquiry on an unknown id = %v, want the refusal", err)
 	}
 
-	// Estoppel: the byte-exact pair, the computation join.
+	// Estoppel: the byte-exact pair, the live-answer demand.
 	// Over a render the location stands in unanchored, the pair is the recorded one.
 	const render = "# R\n\nAt dawn the sky is teal at noon, or so it reads.\n"
 	if ok, err := ProposalAppliedVerbatim(run, "G1", render, "the sky is teal at noon", "the sky is blue at noon"); !ok || err != nil {
@@ -156,21 +156,21 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if ok, _ := ProposalAppliedVerbatim(run, "G3", render, "", ""); ok {
 		t.Error("ProposalAppliedVerbatim matched an edit to a gap that prescribed no text — there is no proposal to apply")
 	}
-	if !computationAnswers(t, run, "G3") || computationAnswers(t, run, "G1") || computationAnswers(t, run, "") {
-		t.Error("ComputationAnswers disagrees with the recorded computation join")
+	if !evidenceAnswers(t, run, "G3") || evidenceAnswers(t, run, "G1") || evidenceAnswers(t, run, "") {
+		t.Error("EvidenceDemandOf disagrees with the gap view's live-answer demand")
 	}
 
-	// The gaps the work list marks as awaiting a computation: G1 is the open computation gap with no computation; G3's computation discharges
+	// The gaps the work list marks as awaiting evidence: G1 is the open computation gap with no computation; G3's computation discharges
 	// it and G2 is a document check.
-	if got := awaitingComputationT(t, run); len(got) != 1 || got[0] != "G1" {
-		t.Errorf("the work list's awaiting-computation gaps = %v, want [G1]", got)
+	if got := awaitingEvidenceT(t, run); len(got) != 1 || got[0] != "G1" {
+		t.Errorf("the work list's awaiting-evidence gaps = %v, want [G1]", got)
 	}
 
-	if kind, err := MintCheckKind(run, "G2"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_DOCUMENT {
-		t.Errorf("MintCheckKind(G2) = (%v, %v)", kind, err)
+	if d, err := EvidenceDemandOf(run, "G2"); err != nil || d.CheckKind != recordpb.Word(recordpb.CheckKind_CHECK_KIND_DOCUMENT) || d.Unmet() {
+		t.Errorf("EvidenceDemandOf(G2) = (%+v, %v), want a document check owing nothing", d, err)
 	}
-	if kind, err := MintCheckKind(run, "G4"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
-		t.Errorf("MintCheckKind on an unknown gap = (%v, %v), want the unspecified zero", kind, err)
+	if d, err := EvidenceDemandOf(run, "G4"); err != nil || d.CheckKind != "" || d.Unmet() {
+		t.Errorf("EvidenceDemandOf on an unknown gap = (%+v, %v), want the zero demand", d, err)
 	}
 
 	// The bench records the outcome; RecordedOutcome is that act and TerminalVerdict serves it.
@@ -210,20 +210,21 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if err := requireNotSuperseded(recordOf(t, run), "G1", "--id"); err != nil {
 		t.Errorf("the superseded refusal = %v", err)
 	}
-	if got := awaitingComputationT(t, run); got != nil {
-		t.Errorf("the work list's awaiting-computation gaps = %v", got)
+	if got := awaitingEvidenceT(t, run); got != nil {
+		t.Errorf("the work list's awaiting-evidence gaps = %v", got)
 	}
-	if kind, err := MintCheckKind(run, "G1"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
-		t.Errorf("MintCheckKind = (%v, %v)", kind, err)
+	if d, err := EvidenceDemandOf(run, "G1"); err != nil || d.CheckKind != "" || d.Unmet() {
+		t.Errorf("EvidenceDemandOf = (%+v, %v), want the zero demand", d, err)
 	}
 }
 
-// computationAnswers is ComputationAnswers with its read error failing the test rather than reading as false.
-func computationAnswers(t *testing.T, run Run, gapID string) bool {
+// evidenceAnswers is EvidenceDemandOf's answered, with its read error failing the test rather than
+// reading as false.
+func evidenceAnswers(t *testing.T, run Run, gapID string) bool {
 	t.Helper()
-	ok, err := ComputationAnswers(run, gapID)
+	d, err := EvidenceDemandOf(run, gapID)
 	if err != nil {
-		t.Fatalf("ComputationAnswers(%q): %v", gapID, err)
+		t.Fatalf("EvidenceDemandOf(%q): %v", gapID, err)
 	}
-	return ok
+	return d.Answered
 }

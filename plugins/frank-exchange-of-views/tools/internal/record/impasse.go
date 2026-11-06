@@ -22,10 +22,11 @@ import (
 // sitting, and a gap blue never acts on reaches impasse with no lens readied on it.
 //
 // Movement is a STATE change: the gap's grade changed, its anchored text changed (a blue edit
-// answering G with old != new, or a citation retire), blue answered it with a computation (ruled by
-// gblock 2026-10-31) or with a fate it changed on the inquiry G is anchored on or that the section G
-// is anchored on prints (fateActsOf, ruled by gblock 2026-11-05), its lineage moved (a mint
-// superseding G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
+// answering G with old != new, or an evidence-anchor retire answering it or taking out the anchor it
+// is about or whose reading it carries), blue placed a citation or computation as its answer (ruled
+// by gblock 2026-10-31) or changed a fate on the inquiry G is anchored on or that the section G is
+// anchored on prints (fateActsOf, ruled by gblock 2026-11-05), its lineage moved (a mint superseding
+// G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
 // grade or an edit that changed nothing are acts but not movement.
 //
 // THE COUNTS ARE A FLOOR AND UNRESOLVED IS THE REST OF THE ANSWER. Exchanges and Stalled state
@@ -262,7 +263,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
 	fates := fateActsOf(evs)
-	acts := gapActsOf(evs, ids)
+	acts := gapActsOf(evs, ids, win)
 
 	for i, e := range evs {
 		id := ids[i]
@@ -301,6 +302,11 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			if g := b.GetAnswers(); g != "" && seatclass.RoleOfSeat(e.GetSeatId()) == "blue" {
 				movement[g] = append(movement[g], id)
 			}
+		case *recordpb.Cite:
+			// AN EVIDENCE ANCHOR PLACED AS THE ANSWER MOVES THE GAP, of either kind.
+			if g := b.GetAnswers(); g != "" && seatclass.RoleOfSeat(e.GetSeatId()) == "blue" {
+				movement[g] = append(movement[g], id)
+			}
 		case *recordpb.Inquiry:
 			// A FATE BLUE CHANGED MOVES THE GAPS ABOUT WHAT IT CHANGED (fateActsOf): those anchored on
 			// the inquiry, which no edit can answer, and those anchored on a section that prints it,
@@ -309,9 +315,16 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Retire:
-			// A citation retire moves the report as an edit does: the citation leaves its sentence.
+			// An evidence-anchor retire moves the report as an edit does: the anchor leaves its sentence. A
+			// REACHING RETIRE moves each gap it reaches as a named one does: it meets the gap's demand
+			// whatever gap it named (WindowIndex.Reaches).
 			if g := retireAnswers(e); g != "" {
 				movement[g] = append(movement[g], id)
+			}
+			for _, r := range win.Reaches(e) {
+				if !slices.Contains(movement[r.gap], id) {
+					movement[r.gap] = append(movement[r.gap], id)
+				}
 			}
 		case *recordpb.Close:
 			movement[b.GetGapId()] = append(movement[b.GetGapId()], id)

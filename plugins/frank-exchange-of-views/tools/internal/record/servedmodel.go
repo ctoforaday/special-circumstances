@@ -147,16 +147,18 @@ func servedOnRecord(run Run) map[string]string {
 	if err != nil || db == nil {
 		return out
 	}
-	rows, err := db.Query(`SELECT t."agent_id", t."model" FROM "seat_turn" t
-	  WHERE t."model" <> '' AND t."turn_idx" = (SELECT min(u."turn_idx") FROM "seat_turn" u
-	    WHERE u."agent_id" = t."agent_id" AND u."model" <> '')`)
+	// One walk of the primary key in agent order. SQLite takes a bare column beside a lone min()
+	// from the row that holds the minimum, so model is the agent's first served model.
+	rows, err := db.Query(`SELECT "agent_id", "model", min("turn_idx") FROM "seat_turn"
+	  WHERE "model" <> '' GROUP BY "agent_id"`)
 	if err != nil {
 		return out
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var agent, model string
-		if rows.Scan(&agent, &model) == nil {
+		var first int64
+		if rows.Scan(&agent, &model, &first) == nil {
 			out[agent] = model
 		}
 	}

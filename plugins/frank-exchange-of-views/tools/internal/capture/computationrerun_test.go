@@ -186,7 +186,7 @@ func TestComputationRerunSamplesTheUnauditedFirstAndSaysHowManyItRan(t *testing.
 		&recordpb.Reproduce{ComputationId: proto.String("K-00000001"), BundleSha: proto.String(rs[0].Bundle), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(true)}))
 
 	got := ComputationRerunAudit(runtest.Open(t, run), 2)
-	if !strings.Contains(got.Detail, "re-ran 2 of 4 distinct bundle(s), behind 2 of the 4 recorded computation(s)") {
+	if !strings.Contains(got.Detail, "re-ran 2 of 4 distinct bundle(s), behind 2 of the 4 live computation(s)") {
 		t.Errorf("the sample size must reach the report; got:\n%s", got.Detail)
 	}
 	if !strings.Contains(got.Detail, "3 bundle(s) had never been re-run by any seat") {
@@ -208,11 +208,34 @@ func TestComputationRerunCountsTheComputationsBehindEachBundle(t *testing.T) {
 		behind = 2
 	}
 	got := ComputationRerunAudit(runtest.Open(t, run), 1)
-	if want := fmt.Sprintf("re-ran 1 of 2 distinct bundle(s), behind %d of the 3 recorded computation(s)", behind); !strings.Contains(got.Detail, want) {
+	if want := fmt.Sprintf("re-ran 1 of 2 distinct bundle(s), behind %d of the 3 live computation(s)", behind); !strings.Contains(got.Detail, want) {
 		t.Errorf("the count must name the bundles and the computations behind the ones re-run; got:\n%s", got.Detail)
 	}
 	got = ComputationRerunAudit(runtest.Open(t, run), 3)
-	if !strings.Contains(got.Detail, "re-ran 2 of 2 distinct bundle(s), behind 3 of the 3 recorded computation(s)") {
+	if !strings.Contains(got.Detail, "re-ran 2 of 2 distinct bundle(s), behind 3 of the 3 live computation(s)") {
 		t.Errorf("got:\n%s", got.Detail)
+	}
+}
+
+// ONLY LIVE COMPUTATIONS ARE RE-RUN. A retired computation is in no document: the sample is the live
+// computations, and the audit's report names no retired one.
+func TestComputationRerunSamplesLiveComputationsOnly(t *testing.T) {
+	run := t.TempDir()
+	a := provenComputation(t, run, "a.sh", "#!/bin/sh\necho a\n")
+	b := provenComputation(t, run, "b.sh", "#!/bin/sh\necho b\n")
+	seedComputationEvents(t, run, a, b)
+	recordtest.Seed(t, run, recordtest.At(t, "blue-respond", "blue-respond:retire:#1",
+		&recordpb.Retire{Claim: proto.String("b holds"), Reason: proto.String("the claim cannot stand"), Anchors: []string{"K-00000002"}}))
+	got := ComputationRerunAudit(runtest.Open(t, run), 5)
+	if !strings.Contains(got.Detail, "re-ran 1 of 1 distinct bundle(s), behind 1 of the 1 live computation(s)") {
+		t.Errorf("the sample must be the one live computation; got:\n%s", got.Detail)
+	}
+	if strings.Contains(got.Detail, compute.Short(b.Bundle)) || strings.Contains(got.Detail, "K-00000002") {
+		t.Errorf("the retired computation's bundle is named:\n%s", got.Detail)
+	}
+	recordtest.Seed(t, run, recordtest.At(t, "blue-respond", "blue-respond:retire:#2",
+		&recordpb.Retire{Claim: proto.String("a holds"), Reason: proto.String("the claim cannot stand"), Anchors: []string{"K-00000001"}}))
+	if got := ComputationRerunAudit(runtest.Open(t, run), 5); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "every computation this run recorded is retired") {
+		t.Errorf("every computation retired: want a SKIP that says so, got %s (%s)", got.Verdict, got.Detail)
 	}
 }

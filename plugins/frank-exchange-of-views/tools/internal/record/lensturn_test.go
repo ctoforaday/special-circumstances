@@ -113,7 +113,7 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 // there and since the gap's latest remand ruling, in a plan folded from evs: "seat:gap" rows.
 func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]remandRow, plan Plan) []string {
 	ids := win.IDs(evs)
-	acts, mintedAt := gapActsOf(evs, ids), mintPlaces(evs, ids)
+	acts, mintedAt := gapActsOf(evs, ids, win), mintPlaces(evs, ids)
 	var out []string
 	for _, p := range plan.Parties {
 		if seatclass.RoleOfSeat(p.SeatID) != "lens" {

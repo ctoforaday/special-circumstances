@@ -16,15 +16,17 @@ import (
 //
 // Left to the draw it is a chain of coins: a lens mints about a composed section (half the section
 // draws, once inquiries exist), the gap is material, blue's sitting engaged on it records a fate that
-// section prints with a changed status, reason or method, and a later plan engages the lens and blue on
-// the gap together. MEASURED on #1744's sweep (run 41988247415): 0 of 40 runs reached it once blue was
-// held out of the last epoch that dispatches a lens, where main's sweep reached it on the draw.
+// section prints with a changed status, reason or method, and a later plan engages the lens on the gap.
+// MEASURED on #1744's sweep (run 41988247415), with the tally reading only a lens engaged beside blue:
+// 0 of 40 runs reached it once blue was held out of the last epoch that dispatches a lens, where main's
+// sweep reached it on the draw.
 //
 // The run's first lens sitting mints a material gap about the section that prints one inquiry's fate
 // (mintAboutFateSection), before any other mint of its sitting spends its budget. Blue's first sitting
 // engaged on that gap records the inquiry's fate again with its status kept and its reason re-voiced
 // (changeFateForTurn) — the m38 shape: the only way blue changes a composed section is a fate. The next
-// plan engages the lens, whose turn that fate brought, and blue, and the lens-turn tally counts it.
+// plan engages the lens, whose turn that fate brought, alone or beside blue, and the lens-turn tally
+// counts it.
 const fateTurnSeed = 11
 
 // mintAboutFateSection is the forced run's lens mint about the composed section that prints an
@@ -97,7 +99,7 @@ func (r *runner) changeFateForTurn(seatID string) {
 		}
 		r.mu.Lock()
 		r.fateTurnChanged = true
-		r.fateTurnStage = "blue changed " + id + "'s fate answering " + gap + "; no later plan engaged the lens and blue on it together"
+		r.fateTurnStage = "blue changed " + id + "'s fate answering " + gap + "; no later plan engaged the lens on it"
 		r.mu.Unlock()
 		return
 	}
@@ -141,6 +143,40 @@ func (r *runner) fateTurnForcedErr() string {
 // the gap changes that fate, and the next plan engages the lens, whose turn the fate brought, and blue
 // — which the lens-turn tally counts. With the run not forced, none of it is driven.
 func TestTheFateTurnSeedReachesAFateTurn(t *testing.T) {
+	r, plan := drivenToAChangedFate(t)
+	r.tallyLensTurns(plan())
+	if r.actErr != "" {
+		t.Fatalf("the drive: %s", r.actErr)
+	}
+	if r.fateTurns != 1 {
+		t.Errorf("fate turns %d, want 1: %s", r.fateTurns, r.fateTurnStage)
+	}
+	if msg := r.fateTurnForcedErr(); msg != "" {
+		t.Errorf("the forced run drove its chain and still reads %q", msg)
+	}
+}
+
+// A LENS ALONE ON THE GAP AFTER BLUE'S CHANGED FATE IS A FATE TURN TOO (ruled by gblock 2026-11-05):
+// the epoch blue is held out of (#1744) re-audits the fate with the lens alone, and the tally counts it
+// as it counts the lens engaged beside blue.
+func TestALensAloneAfterAChangedFateIsAFateTurn(t *testing.T) {
+	r, _ := drivenToAChangedFate(t)
+	r.tallyLensTurns(map[string]any{"parties": []any{
+		map[string]any{"seat_id": citationOwner, "gap_ids": []any{r.fateTurnGap}},
+	}})
+	if r.actErr != "" {
+		t.Fatalf("the drive: %s", r.actErr)
+	}
+	if r.fateTurns != 1 || r.lensAlone != 1 {
+		t.Errorf("fate turns %d and lens-alone engagements %d, want 1 and 1: %s", r.fateTurns, r.lensAlone, r.fateTurnStage)
+	}
+}
+
+// drivenToAChangedFate is a forced run driven, on its own sittings, to blue's changed fate answering
+// the lens's gap about the composed section that prints it, and plan, which sits the chair and returns
+// the plan it relays.
+func drivenToAChangedFate(t *testing.T) (*runner, func() map[string]any) {
+	t.Helper()
 	r := stagedRunner(t)
 	r.forceFateTurn = true
 	if err := r.stagePart(lanePartText("blue-lane-1")); err != nil {
@@ -184,14 +220,5 @@ func TestTheFateTurnSeedReachesAFateTurn(t *testing.T) {
 	if !r.fateTurnChanged {
 		t.Fatalf("blue changed no fate answering %s: %s (%s)", r.fateTurnGap, r.fateTurnStage, r.actErr)
 	}
-	r.tallyLensTurns(plan())
-	if r.actErr != "" {
-		t.Fatalf("the drive: %s", r.actErr)
-	}
-	if r.fateTurns != 1 {
-		t.Errorf("fate turns %d, want 1: %s", r.fateTurns, r.fateTurnStage)
-	}
-	if msg := r.fateTurnForcedErr(); msg != "" {
-		t.Errorf("the forced run drove its chain and still reads %q", msg)
-	}
+	return r, plan
 }

@@ -278,25 +278,10 @@ func EstoppelRejectionsOf(evs []*Event) int {
 // `CheckKindComputation` IS GONE for the same reason. It was the acceptance-check kind prose
 // cannot settle, compared as a bare literal at three sites in three packages — three chances to
 // disagree about the one rule that decides whether a gap can close at all. The schema owns the
-// value (`recordpb.CheckKind_CHECK_KIND_COMPUTATION`) and the QUESTION now has one home:
-// `Gap.NeedsComputation()` in replay.go, which every one of those sites calls. Where a lowercase
-// spelling is genuinely needed for a projection it is `recordpb.Spelling`, never a literal.
-
-// ComputationAnswers reports whether any recorded computation names this gap in its --answers.
-//
-// It is the join a `computation` acceptance check closes on. The link is a FIELD checked
-// against the board at write time, never a gap id mentioned in prose — the convention
-// blue_edit's --answers replaced after it measured 73% reliable, which is reliable enough to
-// look like a key and not reliable enough to be one.
-//
-// A read error is returned, never folded into false: "no computation" and "could not look" are two
-// answers, and the caller refuses on the second naming it.
-func ComputationAnswers(run Run, gapID string) (bool, error) {
-	if gapID == "" {
-		return false, nil
-	}
-	return recordHas(run, `SELECT 1 FROM "computation" WHERE "answers" = ? LIMIT 1`, gapID)
-}
+// values, recordsql.EvidenceTables says which check kinds an evidence anchor answers, and the
+// QUESTION has one home: `Gap.AnswerKind()` in replay.go, which every one of those sites calls.
+// Where a lowercase spelling is genuinely needed for a projection it is `recordpb.Spelling`, never
+// a literal.
 
 // RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the
 // same footing as fix_basis, a computation's basis and verdict_basis.
@@ -341,15 +326,44 @@ func editSpansAt(q recordsql.Querier) ([]EditSpan, error) {
 	return out, rows.Err()
 }
 
+// AnchorRetire is the retire that took an anchor out of the report: its event, the claim and reason
+// it recorded, and whether it kept that claim — kept true for an anchor retired alone off a sentence
+// that stays.
+type AnchorRetire struct {
+	Event         int64
+	Claim, Reason string
+	Kept          bool
+}
+
 // AnchorRetiredAt answers where an anchor went when it is no longer in the report: the retire
-// event that took it out — with its claim, or, kept true, off a claim that stayed (a citation
-// retired from its sentence). found is false for an anchor no retire named — then it is a stale
-// reference or another run's id, and the caller says so.
-func AnchorRetiredAt(run Run, id string) (event int64, claim string, kept, found bool, err error) {
-	var c sql.NullString
+// event that took it out — with its claim, or, kept true, off a claim that stayed. found is false
+// for an anchor no retire named — then it is a stale reference or another run's id, and the caller
+// says so.
+func AnchorRetiredAt(run Run, id string) (r AnchorRetire, found bool, err error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return r, false, err
+	}
+	return anchorRetiredAt(db, id)
+}
+
+// anchorRetiredAt is AnchorRetiredAt asked of q — on the write path the writing transaction, so a
+// check that refuses an act on a retired anchor and the retire racing it cannot both land.
+func anchorRetiredAt(q recordsql.Querier, id string) (r AnchorRetire, found bool, err error) {
+	var c, why sql.NullString
 	var k sql.NullBool
-	found, err = queryRow(run, []any{&event, &c, &k},
-		`SELECT r."event_id", r."claim", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
+	found, err = queryRowAt(q, []any{&r.Event, &c, &why, &k},
+		`SELECT r."event_id", r."claim", r."reason", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
 		 WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1`, id)
-	return event, c.String, k.Bool, found, err
+	r.Claim, r.Reason, r.Kept = c.String, why.String, k.Bool
+	return r, found, err
+}
+
+// Said is the retire as a refusal names it: its event, its reason, and whether the sentence stayed.
+func (r AnchorRetire) Said() string {
+	kept := "it left the report with its claim " + quoted(r.Claim)
+	if r.Kept {
+		kept = "its sentence " + quoted(r.Claim) + " kept"
+	}
+	return fmt.Sprintf("blue retired it at event %d (%s; %s)", r.Event, reasonOf(r.Reason), kept)
 }
