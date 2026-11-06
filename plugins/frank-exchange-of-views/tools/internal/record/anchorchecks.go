@@ -344,6 +344,36 @@ func FailingAnchors(evs []*Event, win WindowIndex) []string {
 	return out
 }
 
+// StandingCheck is one check that stands (anchorStanding.stands), as a reader outside the ledger
+// holds it.
+type StandingCheck struct {
+	// Anchor is the evidence anchor the check is of; Event is the check's events.id and Seat the seat
+	// that made it.
+	Anchor string
+	Event  int64
+	Seat   string
+	// Holds is whether the check backs its sentence; one that stands and does not hold is its kind's
+	// failed check (recordsql.EvidenceTables' `failed`).
+	Holds bool
+	// Sentence is the sentence the check recorded it judged; "" for a migrated reproduce, which
+	// recorded none.
+	Sentence string
+}
+
+// StandingChecks is every check the ledger holds standing, anchor by anchor in the order the record
+// placed them, each anchor's in record order. Standing is the ledger's rule alone: whether the check
+// is of the sentence the report carries is what a reader of the recorded sentence asks of it. win
+// supplies each event's events.id and sitting.
+func StandingChecks(evs []*Event, win WindowIndex) []StandingCheck {
+	var out []StandingCheck
+	for _, s := range anchorChecksOf(evs, win).order {
+		for _, c := range s.standing() {
+			out = append(out, StandingCheck{Anchor: s.anchor, Event: c.id, Seat: c.seat, Holds: c.holds, Sentence: c.sentence})
+		}
+	}
+	return out
+}
+
 // RetiredAnchors is every evidence anchor the ledger holds retired: a retire has named it, so it is in
 // no document. win supplies each event's events.id and sitting.
 func RetiredAnchors(evs []*Event, win WindowIndex) map[string]bool {

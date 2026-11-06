@@ -821,6 +821,11 @@ type runner struct {
 	lifecycleStage, lifecycleLeftOpen string
 	// lifecycle is the anchor lifecycle's counts (lifecycleCounts).
 	lifecycle lifecycleCounts
+	// forceStaleness drives forcedStaleness on a stalenessSeeds run, once; stalenessStage is how far it
+	// reached, stalenessDriven where it drove every step, and stalenessAnchor the computation whose
+	// judgement the seam forges standing once the debate ends.
+	forceStaleness                  bool
+	stalenessStage, stalenessAnchor string
 	// forceScreenUnsound drives screenAtLimit on limitSeed's run; screenUnsoundComputation is the
 	// computation it judges, "refused" where blue's compute was, and "" until the limit plan.
 	forceScreenUnsound       bool
@@ -5121,6 +5126,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.cutBaringEvidence(seatID)
 		r.citeForBareMint(seatID)
 		r.forcedLifecycle(seatID)
+		r.forcedStaleness(seatID)
 		// THE FORCED FATE-TURN RUN NEEDS AN INQUIRY BEFORE ITS LENS CAN MINT ABOUT THE SECTION THAT
 		// PRINTS ONE (mintAboutFateSection waits for it): blue proposes one at its first sitting there
 		// rather than on the draw, which a trajectory can miss at every sitting before the last lens's.
@@ -6234,6 +6240,14 @@ type outcome struct {
 	mintsByEpoch, closesByEpoch map[int]int
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
+	// reproducesWithClaim is the reproduces whose `claim` is their anchor's sentence at the write
+	// (reproduceSentences).
+	reproducesWithClaim int
+	// stalenessAnchor is the computation a stalenessSeeds run's arm left for the seam to forge;
+	// stalenessForged is 1 where the seam forged it, and stalenessReported 1 where the consistency
+	// oracle then reported it (forgeStaleness).
+	stalenessAnchor                    string
+	stalenessForged, stalenessReported int
 	// ownerOffered is the computations nobody judged that the run ended with, each offered on its owner's
 	// work list and on no other lens's (anchorOffersAgree), plus the owner sittings offered one for its
 	// first check (checkAnchorOffers). citationsOffered is the same count of the citations nobody
@@ -6779,6 +6793,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceMintBare = seed == mintBareSeed
 	r.forceSourceDemand = seed == sourceDemandSeed
 	r.forceLifecycle = seed == lifecycleSeed
+	r.forceStaleness = slices.Contains(stalenessSeeds, seed)
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
 	r.benchOrders = sweepBenchOrders
@@ -7555,6 +7570,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				}
 			}
 		}
+		// EVERY JUDGEMENT RECORDS THE SENTENCE IT JUDGED (III.1″.6, recorded sentence).
+		var msg string
+		res.reproducesWithClaim, msg = reproduceSentences(oracleRun, fam)
+		if msg != "" && res.err == "" {
+			res.err = msg
+		}
 	}
 	// A CITATION OR COMPUTATION IS OFFERED TO ITS OWNER ALONE, read at the run's end when no seat is writing.
 	if msg, computations, citations := r.anchorOffersAgree(oracleRun); msg != "" && res.err == "" {
@@ -7652,6 +7673,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if msg := r.lifecycleForcedErr(); msg != "" && res.err == "" {
 		res.err = msg
+	}
+	if msg := r.stalenessForcedErr(); msg != "" && res.err == "" {
+		res.err = msg
+	}
+	if r.stalenessStage == stalenessDriven {
+		res.stalenessAnchor = r.stalenessAnchor
 	}
 	if r.forceMintBare && r.mintBareRefused == 0 && res.err == "" {
 		res.err = "forced bare prescription: no mint prescribing a citation bare was refused"
@@ -8485,9 +8512,34 @@ func TestFuzzDebate(t *testing.T) {
 			// see, because each exercises one reader against its own fixture. A violation keeps
 			// the run directory like any other failure, so the disagreement can be inspected.
 			if o.err == "" {
-				if violations, cerr := consistency.Check(runtest.Open(t, o.runDir)); cerr != nil {
+				// THE FORGED STALENESS (III.1″.6): the seam takes the arm's computation out of its edit's
+				// `reopened` now, where no seat writes, and the oracle owes this debate its report.
+				forged, ferr := forgeStaleness(&o)
+				if ferr != "" {
+					o.err = ferr
+				} else if forged {
+					o.stalenessForged = 1
+				}
+				res, cerr := consistency.Check(runtest.Open(t, o.runDir))
+				var stale, violations []string
+				if cerr == nil {
+					stale, violations = staleOf(res, o.stalenessAnchor)
+				}
+				if len(stale) > 0 {
+					o.stalenessReported = 1
+				}
+				switch {
+				case o.err != "":
+				case cerr != nil:
 					o.err = "consistency oracle: " + cerr.Error()
-				} else if len(violations) > 0 {
+				case forged && len(stale) == 0:
+					o.err = "consistency oracle: the seam took " + o.stalenessAnchor + " out of its edit's reopened, so " + stalenessJudge + "'s judgement of it stands on an earlier wording, and the oracle reported no staleness"
+				case len(res.Unmeasured) > 0:
+					// A RECORD THE DRIVE WROTE HOLDS EVERY FACT THE ORACLE ASKS OF IT: every check records
+					// its sentence and the report renders. What it could not measure is not agreement.
+					o.err = "consistency oracle: not measured:\n  " + strings.Join(res.Unmeasured, "\n  ")
+				}
+				if o.err == "" && len(violations) > 0 {
 					// THE EVIDENCE TRAVELS WITH THE VIOLATION, because the run directory does
 					// not. "A violation keeps the run directory so the disagreement can be
 					// inspected" is true on a developer's machine and false everywhere this

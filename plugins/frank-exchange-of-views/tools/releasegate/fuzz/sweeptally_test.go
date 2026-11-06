@@ -173,6 +173,10 @@ type runTally struct {
 	UnclassifiedMinted              int                       `json:"unclassified_minted"`
 	UnclassifiedRefused             int                       `json:"unclassified_refused"`
 	SupersedeDemandCarried          int                       `json:"supersede_demand_carried"`
+	Reproduces                      int                       `json:"reproduces"`
+	ReproducesWithClaim             int                       `json:"reproduces_with_claim"`
+	StalenessForged                 int                       `json:"staleness_forged"`
+	StalenessReported               int                       `json:"staleness_reported"`
 	SupersedeDemandRefused          int                       `json:"supersede_demand_refused"`
 	RulerFilingsRefused             int                       `json:"ruler_filings_refused"`
 	ClosedRemandsRefused            int                       `json:"closed_remands_refused"`
@@ -253,6 +257,8 @@ func tallyOf(o outcome) runTally {
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
+		Reproduces: o.reproduces, ReproducesWithClaim: o.reproducesWithClaim,
+		StalenessForged: o.stalenessForged, StalenessReported: o.stalenessReported,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, FateTurns: o.fateTurns, LensWaits: o.lensWaits,
@@ -611,6 +617,8 @@ type sweepFold struct {
 	unsoundRepeats, unsoundOverOpen                 int
 	unclassifiedMinted, unclassifiedRefused         int
 	supersedeDemandCarried, supersedeDemandRefused  int
+	reproduces, reproducesWithClaim                 int
+	stalenessForged, stalenessReported              int
 	rulerFilingsRefused                             int
 	closedRemandsRefused, trifleRemandsRouted       int
 	blueRemandActs, pastLimitRemandsRefused         int
@@ -813,6 +821,10 @@ func foldRuns(runs []runTally) sweepFold {
 		f.unclassifiedMinted += r.UnclassifiedMinted
 		f.unclassifiedRefused += r.UnclassifiedRefused
 		f.supersedeDemandCarried += r.SupersedeDemandCarried
+		f.reproduces += r.Reproduces
+		f.reproducesWithClaim += r.ReproducesWithClaim
+		f.stalenessForged += r.StalenessForged
+		f.stalenessReported += r.StalenessReported
 		f.supersedeDemandRefused += r.SupersedeDemandRefused
 		f.rulerFilingsRefused += r.RulerFilingsRefused
 		f.closedRemandsRefused += r.ClosedRemandsRefused
@@ -1151,6 +1163,17 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			if c.n == 0 {
 				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", c.what, f.completed)
 			}
+		}
+		// THE JUDGED SENTENCE'S GATES (plans/compute-and-show.md III.1″.6): every reproduce records the
+		// sentence it judged, and every debate the seam forged a staleness into, one per part
+		// (stalenessSeeds), the consistency oracle reported.
+		t.Logf("judged sentence: %d of %d reproduce(s) recorded their anchor's sentence at the write; %d staleness forged, %d reported (seeds %v)",
+			f.reproducesWithClaim, f.reproduces, f.stalenessForged, f.stalenessReported, stalenessSeeds)
+		if f.reproduces == 0 || f.reproducesWithClaim != f.reproduces {
+			t.Errorf("fuzz recorded %d reproduce(s), %d of them carrying their anchor's sentence at the write — every one must, and some must be recorded (false green)", f.reproduces, f.reproducesWithClaim)
+		}
+		if f.stalenessForged == 0 || f.stalenessReported != f.stalenessForged {
+			t.Errorf("the seam forged %d staleness(es) and the consistency oracle reported %d — every forged debate must be reported, and one must be forged (false green)", f.stalenessForged, f.stalenessReported)
 		}
 		for _, c := range []struct {
 			n    int

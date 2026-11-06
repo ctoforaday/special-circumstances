@@ -31,9 +31,11 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/graph"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -319,17 +321,42 @@ func holdGap(id string, g *gtGap, rg *record.Gap, add func(rule, format string, 
 	}
 }
 
+// Violation is one disagreement the oracle found: the rule that found it, the evidence anchor it is
+// about where a rule names one, and what each side says.
+type Violation struct {
+	Rule, Anchor, Detail string
+}
+
+func (v Violation) String() string { return v.Rule + ": " + v.Detail }
+
+// Result is what Check found: every violation, and every fact a rule could not hold to the record.
+//
+// AN UNMEASURED FACT IS COUNTED, NEVER FOLDED INTO AGREEMENT. A rule that has nothing to compare —
+// a check that recorded no sentence — would otherwise report exactly what it reports of a record
+// that agrees, and the miss and the honest zero would be the same silence.
+type Result struct {
+	Violations []Violation
+	// Unmeasured is each fact a rule could not measure, and why.
+	Unmeasured []string
+}
+
 // Check derives the ground truth for a run and holds every projection to it.
-func Check(run record.Run) ([]string, error) {
+func Check(run record.Run) (Result, error) {
 	m, err := record.MergedEvents(run)
 	if err != nil {
-		return nil, fmt.Errorf("consistency: reading the record: %w", err)
+		return Result{}, fmt.Errorf("consistency: reading the record: %w", err)
 	}
 	gt := walk(m.Events)
 
-	var v []string
+	var res Result
 	add := func(rule, format string, args ...any) {
-		v = append(v, rule+": "+fmt.Sprintf(format, args...))
+		res.Violations = append(res.Violations, Violation{Rule: rule, Detail: fmt.Sprintf(format, args...)})
+	}
+	// refused is the result of a reader that errored where the raw walk did not: every comparison
+	// below it reads that reader, so the oracle stops at it.
+	refused := func(rule, format string, args ...any) (Result, error) {
+		add(rule, format, args...)
+		return res, nil
 	}
 
 	// A DOCKET RULING THE WALK COULD NOT PAIR settles no gap here and would settle none on the
@@ -347,7 +374,7 @@ func Check(run record.Run) ([]string, error) {
 	if err != nil {
 		// The walk tolerates what the family read refuses, so a record the family cannot be
 		// assembled from at all is itself the finding.
-		return append(v, fmt.Sprintf("family-refused: FamilyOf errored where the raw walk did not: %v", err)), nil
+		return refused("family-refused", "FamilyOf errored where the raw walk did not: %v", err)
 	}
 	for id, g := range gt.gaps {
 		rg := fam.Gap(id)
@@ -369,7 +396,7 @@ func Check(run record.Run) ([]string, error) {
 	// fold-shaped twin of it.
 	bj, err := record.BoardJSONOfRun(run)
 	if err != nil {
-		return append(v, fmt.Sprintf("board-json-refused: BoardJSONOfRun errored where the raw walk did not: %v", err)), nil
+		return refused("board-json-refused", "BoardJSONOfRun errored where the raw walk did not: %v", err)
 	}
 	openGT, closedGT := 0, 0
 	for _, g := range gt.gaps {
@@ -413,7 +440,7 @@ func Check(run record.Run) ([]string, error) {
 	// The RUN-shaped work list — the production read path (wave 1c).
 	wj, err := record.WorkJSONOfRun(run)
 	if err != nil {
-		return append(v, fmt.Sprintf("work-json-refused: WorkJSONOfRun errored where the raw walk did not: %v", err)), nil
+		return refused("work-json-refused", "WorkJSONOfRun errored where the raw walk did not: %v", err)
 	}
 	if got, want := idsOfWork(wj), openIDs(gt); !sameSet(got, want) {
 		add("work-mirror", "work.open=%v, raw walk open=%v", got, want)
@@ -450,7 +477,7 @@ func Check(run record.Run) ([]string, error) {
 	// The renders read the RUN-shaped input — the production path (wave 3).
 	rin, rerr := view.InputOf(run)
 	if rerr != nil {
-		return append(v, fmt.Sprintf("render-input-refused: view.InputOf errored where the raw walk did not: %v", rerr)), nil
+		return refused("render-input-refused", "view.InputOf errored where the raw walk did not: %v", rerr)
 	}
 	if ledger, err := view.MarkdownFrom(rin, "ledger", ""); err != nil {
 		add("ledger-md", "render failed: %v", err)
@@ -539,8 +566,71 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 
-	sort.Strings(v)
-	return v, nil
+	res.Unmeasured = staleness(run, m, func(v Violation) { res.Violations = append(res.Violations, v) })
+
+	sort.Slice(res.Violations, func(i, j int) bool { return res.Violations[i].String() < res.Violations[j].String() })
+	return res, nil
+}
+
+// staleness holds every standing check to the sentence the report carries (plans/compute-and-show.md
+// III.1″.1, ruling Staleness), and returns each check it could not measure.
+//
+// ONE RULE, EVERY EVIDENCE KIND. Whether a check stands is the anchor ledger's alone
+// (record.StandingChecks): from a sitting opened after the latest edit naming its anchor in
+// `reopened`, its seat's latest reading, of an anchor not retired. The sentence the check recorded is
+// how a check of an earlier wording surfaces, so a standing check whose sentence is not the anchor's
+// live sentence is a disagreement between the edit record and the report — an edit changed the
+// sentence and did not name the anchor. It covers every state a standing check puts its anchor in:
+// one that holds, and its kind's failed check (a computation's `unsound`, a citation's
+// `found_against`). An `unread` reading read nothing and never stands.
+//
+// The two sentences are compared in the form a check records one (bluedoc.SameSentence): a gap
+// token placed at the sentence's end after the check is no change of wording.
+//
+// A check that recorded no sentence (a migrated reproduce) is counted unmeasured, as are the standing
+// checks of a record whose report does not render.
+func staleness(run record.Run, m record.Merged, add func(Violation)) (unmeasured []string) {
+	standing := record.StandingChecks(m.Events, m.At)
+	if len(standing) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(standing))
+	for _, c := range standing {
+		ids = append(ids, c.Anchor)
+	}
+	// A REPORT THAT DOES NOT RENDER HOLDS NO SENTENCE TO COMPARE: the rule measures nothing, and says
+	// so. Whether the record should render is the render's readers' to hold, not this rule's.
+	report, err := record.RenderRun(run)
+	if err != nil {
+		return []string{fmt.Sprintf("staleness: the report does not render, so %d standing check(s) are not held to the sentences it carries: %v", len(standing), err)}
+	}
+	live := record.LiveSentencesIn(report, ids)
+	for _, row := range recordsql.EvidenceTables {
+		for _, c := range standing {
+			if anchor.Kind(c.Anchor) != row.Kind {
+				continue
+			}
+			state := "holds"
+			if !c.Holds {
+				state = row.Failed
+			}
+			if c.Sentence == "" {
+				unmeasured = append(unmeasured, fmt.Sprintf("staleness: %s %s's standing %s at event %d (%s, %s) recorded no sentence, so whether it is of the sentence the report carries is not measured",
+					row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state))
+				continue
+			}
+			now, ok := live[c.Anchor]
+			switch {
+			case !ok:
+				add(Violation{Rule: "staleness", Anchor: c.Anchor, Detail: fmt.Sprintf("%s %s's standing %s at event %d (%s, %s) is of %q, and the report holds no sentence for the anchor",
+					row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence)})
+			case !bluedoc.SameSentence(c.Sentence, now):
+				add(Violation{Rule: "staleness", Anchor: c.Anchor, Detail: fmt.Sprintf("%s %s's standing %s at event %d (%s, %s) is of %q, and the report's sentence is %q: an edit changed it without naming the anchor reopened",
+					row.Noun, c.Anchor, row.CheckTable, c.Event, c.Seat, state, c.Sentence, now)})
+			}
+		}
+	}
+	return unmeasured
 }
 
 func idsOfWork(wj record.WorkJSON) []string {
