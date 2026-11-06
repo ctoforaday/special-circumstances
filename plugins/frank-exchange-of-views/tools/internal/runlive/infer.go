@@ -59,6 +59,17 @@ const (
 // harness attests it on a hook payload (seatclass names each seat's configuration under it).
 const SeatTypePrefix = "frank-exchange-of-views:"
 
+// LensAgentTypePrefix is the configuration prefix of every lens seat: seatclass builds each lens's
+// configuration as this plus its area, so a configuration is a lens's exactly when it carries it.
+// It lives here because the hooks decide whether a call is a lens's without linking the roster, and
+// seatclass reads it from here rather than spelling it a second time.
+const LensAgentTypePrefix = SeatTypePrefix + "red-lens-"
+
+// IsLensAgentType reports whether a hook payload's agent type is a lens seat's configuration.
+func IsLensAgentType(agentType string) bool {
+	return strings.HasPrefix(agentType, LensAgentTypePrefix) && len(agentType) > len(LensAgentTypePrefix)
+}
+
 // StageMembership is the failure-record stage for a payload a live run could not be told to own or
 // disown: one with no session id, or one of this plugin's agents dispatched by a session that leads
 // no live run here — the shape of a run resumed in a new session that was not taken over. Cleared

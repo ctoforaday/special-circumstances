@@ -759,6 +759,16 @@
       ]
     },
     {
+      "term": "current item",
+      "definition": "A lens's current item is the one entry of its queue it is handed in full — an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the lens's work list after an act, and the next item is handed then.",
+      "seats": [
+        "lens",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": []
+    },
+    {
       "term": "reading",
       "definition": "A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and one that reads the work and finds the source against the sentence mints the gap that carries it in the same act or names the open gap of that class the sentence already holds, and one of a source the lens found that backs an uncited sentence mints the gap that asks blue to cite it, except an `absent` on a source the lens found, which mints nothing.",
       "seats": [

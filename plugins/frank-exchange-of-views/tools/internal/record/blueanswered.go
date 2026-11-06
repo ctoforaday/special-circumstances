@@ -53,7 +53,7 @@ import (
 // the route. And an answer the lens has read is no news: only what arrived after lensRead is named, so
 // ANSWERED clears once the lens has audited that answer. A gap that is not material readies nobody,
 // and its lens hears of blue's answer here all the same when it sits for anything else.
-func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []string {
+func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
 	minted := mintedBy(evs)
 	var mine []string
 	open, gone, read, turn := map[string]bool{}, map[string]bool{}, map[string]int64{}, map[string]bool{}
@@ -71,7 +71,8 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 		return nil
 	}
 	answers := blueAnswersOf(evs, win, open, motionsAt(evs, win.IDs(evs), win))
-	var out []string
+	var out []Item
+	say := func(g, what string) { out = append(out, gapItem(ItemReaudit, g, what)) }
 	for _, g := range mine {
 		a := answers[g]
 		switch {
@@ -79,30 +80,30 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 		// Blue took out the anchor the gap is about, or whose reading it carries, so the gap's demand
 		// is met and only its lens can act on it now.
 		case a.metAt > read[g]:
-			out = append(out, fmt.Sprintf("gap %s: blue retired %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
+			say(g, fmt.Sprintf("gap %s: blue retired %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
 				g, a.met.anchor, a.met.how(g), a.metAt, a.met.result(demand[g])))
 		case a.editedAt > read[g]:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or an evidence-anchor retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or an evidence-anchor retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
 		case a.placedAt > read[g]:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a %s — blue placed %s as its answer; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.placedNoun(), a.placed))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by a %s — blue placed %s as its answer; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.placedNoun(), a.placed))
 		case a.fateAt > read[g]:
 			on := a.fateOn + ", which the section the gap is anchored on prints"
 			if a.fateOn == a.inquiry {
 				on = a.fateOn + ", the inquiry the gap is anchored on"
 			}
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, changing its fate, reason or method; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, on))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, changing its fate, reason or method; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, on))
 		case a.pending:
-			out = append(out, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
+			say(g, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
 		case a.engaged && gone[g] && a.at > read[g]:
-			out = append(out, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it, or keep its grade with a regrade that says what still fails", g))
+			say(g, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it, or keep its grade with a regrade that says what still fails", g))
 		case turn[g]:
 			// THE LENS'S TURN, NOT BLUE'S ANSWER: an edit answering another gap changed this gap's
 			// sentence, and the row's `edited_since` lists it.
-			out = append(out, fmt.Sprintf("gap %s: an edit changed its sentence since you last acted on it, and no act of blue's answers it — `edited_since` lists the edit; re-audit the sentence as it stands against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g))
+			say(g, fmt.Sprintf("gap %s: an edit changed its sentence since you last acted on it, and no act of blue's answers it — `edited_since` lists the edit; re-audit the sentence as it stands against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g))
 		case a.engaged && a.inquiry != "":
-			out = append(out, fmt.Sprintf("gap %s is open and NO inquiry record answers it since you last acted on it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without changing a fate", g, a.inquiry))
+			say(g, fmt.Sprintf("gap %s is open and NO inquiry record answers it since you last acted on it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without changing a fate", g, a.inquiry))
 		case a.engaged:
-			out = append(out, fmt.Sprintf("gap %s is open and NO edit, citation, computation or changed fate answers it since you last acted on it — blue has been engaged on it and its sitting closed without one", g))
+			say(g, fmt.Sprintf("gap %s is open and NO edit, citation, computation or changed fate answers it since you last acted on it — blue has been engaged on it and its sitting closed without one", g))
 		}
 		// A GAP BLUE HAS NEVER BEEN ENGAGED ON GETS NOTHING, and the silence is correct: it is
 		// waiting for a dispatch, which is the chair's business and not news about blue.

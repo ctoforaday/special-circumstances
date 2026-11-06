@@ -3,6 +3,7 @@ package sittingwrite
 import (
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	// THE REPORT RENDERER, LINKED FOR ITS REGISTRATION. The work list places each quote gap in the
@@ -62,17 +63,38 @@ const (
 //
 // A WRITE FAULT IS NOT THIS FUNCTION'S TO REPORT. The caller has already appended the span and
 // returns its own error; this one either produces text for the seat or produces nothing.
-func injectWorkList(run record.Run, agentType string, out io.Writer) {
+func injectWorkList(run record.Run, agentID, agentType string, out io.Writer) {
 	seat, known := record.SeatOfAgentType(agentType)
 	if !known {
 		return
 	}
 	// The seat is a roster row: the attestation table is the roster read by configuration.
 	role := seatclass.RoleOfSeat(seat)
+	if role == "lens" {
+		injectLensWork(run, agentID, seat, out)
+		return
+	}
 	b, err := record.WorkJSONBytes(run, role, seat)
 	if err != nil {
 		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
 		return
 	}
 	fmt.Fprintf(out, "%s\n\n%s", arrived, b)
+}
+
+// injectLensWork is a lens's delivery at dispatch (delivery.go): its standing, the head of its queue
+// in full, and the index — and what it was handed, stored for the first call after it to compare
+// against (WriteNextItem). A store that fails costs the comparison and never the delivery: the first
+// call after it hands the head of the queue again.
+func injectLensWork(run record.Run, agentID, seat string, out io.Writer) {
+	w, err := record.WorkOfSeat(run, "lens", seat)
+	if err != nil {
+		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
+		return
+	}
+	q := record.QueueOf(w)
+	if err := recordDelivered(run.Dir(), agentID, w, q); err != nil {
+		fmt.Fprintf(os.Stderr, "sittingwrite: storing what %s was handed: %v\n", agentID, err)
+	}
+	io.WriteString(out, renderLens(w, q))
 }

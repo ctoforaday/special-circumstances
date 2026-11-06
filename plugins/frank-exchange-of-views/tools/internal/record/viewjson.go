@@ -727,7 +727,14 @@ type WorkJSON struct {
 	// Relief is every granted petition's order, with whom it binds — on every seat's list, as the
 	// declarations are. See ReliefJSON.
 	Relief []ReliefJSON `json:"relief"`
+	// sitting is the reader's latest sitting on the record this list was read from (WindowIndex
+	// LatestSittingOf), 0 where it has none: what a delivery of the list one item at a time keys its
+	// state by, and nothing the seat reads.
+	sitting int64
 }
+
+// SittingID is the reader's latest sitting on the record the list was read from, 0 where it has none.
+func (w WorkJSON) SittingID() int64 { return w.sitting }
 
 // GapBackingJSON is one anchor in a gap's location, and what the record knows about it.
 //
@@ -1549,6 +1556,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		}
 	}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
+	w.sitting = win.LatestSittingOf(seatID)
 	if role == "lens" {
 		// The lens arm of the sitting's list states these in a sentence (availableOf); the fields
 		// are the same reader's rows, joined to the gap they are about.
@@ -1570,13 +1578,13 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		// it follows the statement that the list is empty where SittingOf made one.
 		w.Sitting.MintBudget = budget
 		if budgetLine != "" {
-			w.Sitting.Open = append(w.Sitting.Open, Item{What: budgetLine})
+			w.Sitting.Open = append(w.Sitting.Open, Item{What: budgetLine, Kind: ItemBudget})
 		}
 	}
 	if role == "bench" || role == "chair" {
 		// LAST, AND NEVER BLOCKING, like the lens's budget: a fact about the run, not work. The two
 		// seats that rule are the two whose prompts send them to the law.
-		w.Sitting.Open = append(w.Sitting.Open, Item{What: lawLine(run)})
+		w.Sitting.Open = append(w.Sitting.Open, Item{What: lawLine(run), Kind: ItemLaw})
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
 	w.Engaged = engagedOf(evs, win, gaps, seatID)

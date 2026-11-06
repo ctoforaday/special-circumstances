@@ -57,7 +57,7 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 		if mintsLeft != nil && *mintsLeft <= 0 {
 			what += " — you have no mint left; a close of a gap you hold frees one"
 		}
-		out = append(out, Item{What: what})
+		out = append(out, gapItem(ItemNews, g.ID, what))
 	}
 	return out
 }

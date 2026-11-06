@@ -1,4 +1,4 @@
-prompt sha256: bf7dd43cff7a1a3f3cb164d9a9c65c6e60a5aa72dd7fd3881901736a557f9f4f
+prompt sha256: 51b17e7a88f130835480da7c6d2bf767933a5c450ecd3146adbba47706cb622d
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `inquiries` projection (the tool renders it fresh from the inquiry events on the record).
@@ -9,6 +9,7 @@ Assembly prints every inquiry in the report, with its fate and its reason, in se
 Where the two tell the reader different things — one approach under two fates; a fate the report's own text or a computation contradicts, as an approach printed as declined that a section carries; a section built on an approach that is no inquiry — that is a candidate gap, anchored to the inquiry and weighed like any other: by what it changes for a reader, who decides by what was tried as well as by the answer.
 A finding about an inquiry reaches the logic lens, which judges every settled inquiry against its latest fate; a gap about it reaches blue, and a material one holds the PASS.
 An inquiry still open already holds the PASS until blue settles it.
+YOUR ITEMS ARRIVE ONE AT A TIME; the index lists the rest.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
 `behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.

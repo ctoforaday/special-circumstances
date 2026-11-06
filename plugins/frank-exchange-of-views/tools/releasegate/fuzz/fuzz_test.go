@@ -331,6 +331,9 @@ type runner struct {
 	// sittingAgent is the agent id of each seat's open sitting, where its opening carried one
 	// (registerTwice, lookThenRegister): the agent whose stop dispatchReturns writes.
 	sittingAgent map[string]string
+	// lensHead is the key of the item each lens sitting was last handed as current by the writer's next
+	// phase (queueHolds), by seat and sitting.
+	lensHead map[string]string
 	// unreturned counts, per seat, the dispatches opened (dispatchOpens) that have not yet returned
 	// (dispatchReturns), whether or not the sitting's opening carried an agent. It counts DISPATCHES,
 	// not registers: a seat a drive registers between dispatches (register, from closeGap or
@@ -2805,6 +2808,14 @@ func (r *runner) noteBridge(seatID, outcome string, kindless bool, out string, e
 	case !kindless && err == nil:
 		r.bridgesNamed++
 	}
+}
+
+// bridgeRefusalOwed reports whether this run has yet to see a kindless supports_with_bridge reading
+// refused.
+func (r *runner) bridgeRefusalOwed() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bridgesRefused == 0
 }
 
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
@@ -5833,6 +5844,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
+		r.queueHolds(seatID)
 		r.docketedOffTheList("lens", seatID)
 		r.auditRead(seatID)
 		r.checkAnchorOffers(seatID)
@@ -5840,6 +5852,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.forcedSourceDemand(seatID)
 		leftClosed := r.closeLifecycleLeftOpen(seatID)
 		r.closeDocketed(seatID)
+		// AFTER ACTS, THE SAME SITTING: what it was handed moves only where its acts discharged it.
+		r.queueHolds(seatID)
 		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
 		locked := r.lensMovesBenchAxis(seatID)
 		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
@@ -6069,8 +6083,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					r.readRepeatedSentence(seatID, false)
 				}
 				r.forcedRepeatedReading(seatID)
-				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
-				kindless := outcome == "supports_with_bridge" && r.coin(10)
+				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven. Until this
+				// run has seen the refusal, every supports_with_bridge reading names none, so the
+				// sweep's bridge gate never rests on the coin: at one in ten, 40 runs drew none often
+				// enough to fail it by chance.
+				kindless := outcome == "supports_with_bridge" && (r.coin(10) || r.bridgeRefusalOwed())
 				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
 				axes := func(outcome string, c *cmd) *cmd {
 					if outcome == "supports_with_bridge" && !kindless {

@@ -133,8 +133,8 @@ func TestTheChangelogShowsEveryEditWithItsReason(t *testing.T) {
 	)
 }
 
-// EVERY RECORD OF AN INQUIRY'S PATH SHIPS WITH THE REASON AND THE METHOD IT GAVE, in inquiries.md;
-// the view a seat reads keeps the path's statuses and the current fate's account.
+// EVERY RECORD OF AN INQUIRY'S PATH SHIPS WITH THE REASON AND THE METHOD IT GAVE, in inquiries.md
+// and in the view a seat reads: a check must be able to read why a superseded fate was recorded.
 func TestTheInquiriesShowEveryRecordOfThePath(t *testing.T) {
 	rec := func(seat string, st recordpb.InquiryStatus, reason, method string) *record.Event {
 		return recordtest.Event(t, seat, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(st), Reason: proto.String(reason), Method: proto.String(method)})
@@ -154,10 +154,11 @@ func TestTheInquiriesShowEveryRecordOfThePath(t *testing.T) {
 			"    - e1 underway (blue-respond) — The first clause holds on the cited list.; method: Read A000040.\n"+
 			"    - e1 underway (blue-respond) — the same reason as the record before it; method: Read A000040 and search for a listing.\n",
 	)
-	if strings.Contains(seatView, "Read A000040.") {
-		t.Errorf("the view a seat reads carries the superseded records of the path:\n%s", seatView)
-	}
-	if want := view.InquiryBody(nil, record.WindowIndex{}, true, inItem); want != "" {
+	mustContain(t, seatView, "show inquiries",
+		"    - e1 underway (blue-respond) — The first clause holds on the cited list.; method: Read A000040.\n",
+		"    - e1 underway (blue-respond) — the same reason as the record before it; method: Read A000040 and search for a listing.\n",
+	)
+	if want := view.InquiryBody(nil, record.WindowIndex{}, inItem); want != "" {
 		t.Errorf("no inquiries render %q", want)
 	}
 }
@@ -183,7 +184,7 @@ func inquiriesDoc(t *testing.T, evs ...*record.Event) (doc, seatView string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return doc, view.InquiryBody(fam.Events, fam.At, false, view.AsWritten)
+	return doc, view.InquiryBody(fam.Events, fam.At, view.AsWritten)
 }
 
 // THE CHECK THAT STANDS SHIPS WITH ITS REASON, in inquiries.md beside the fate it judged, and in the
