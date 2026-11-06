@@ -1,8 +1,9 @@
 # Native code leaves `feov-record`: the `feov-ocr` and `feov-embed` helpers
 
-> STATUS: proposed 2026-11-04, not started. F1–F10 ruled by gblock 2026-11-04, F11–F14 on 2026-11-05, F15–F20 on
-> 2026-11-06 (§I.4). Revised for audit rounds 1–9 (`~/.claude/scratch/vecplan/audit/round1/` …
-> `round9/`); next is audit round 10.
+> STATUS: approved by gblock 2026-11-06, not started. Audit rounds 1–10 (`~/.claude/scratch/vecplan/audit/round1/` …
+> `round10/`); the final round failed on one local gap, fixed in the text and carried with its notes as required tests
+> (§V, round 10); approved by the human under the plan-audit rule for all-local gaps. F1–F10 ruled by gblock
+> 2026-11-04, F11–F14 on 2026-11-05, F15–F20 on 2026-11-06 (§I.4).
 > Line numbers are against `origin/main` at `bdcc411c4` unless a census group says otherwise. Between `ec3a3e559` and
 > `bdcc411c4` the cited files are unchanged except the difftest manual golden, `releasegate/fuzz/fuzz_test.go` and
 > `record.proto` with its generated `record.pb.go` (re-cited).
@@ -650,21 +651,38 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
   - **Isolated only (F20).** Every `--live` carrier census N lists goes, with the `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`
     fallbacks only `--live` reached. No `teardown` verb: removing a universe is deleting the three paths `build` prints
     (`:548`), `$WORKDIR`, `$WORKDIR.marketplace` and `$WORKDIR.release`. Usage (`:45-55`) is unchanged.
-  - **One environment.** `WORKDIR` is made absolute after argument parsing, so the URL is valid from a relative
-    `--dir`. `universe_env` (`:236-242`), every verb's first act, exports `SC_RELEASE_BASE_URL=file://$WORKDIR.release`,
+  - **One environment.** `WORKDIR` is made absolute and stripped of a trailing slash (`${WORKDIR%/}`) after argument
+    parsing, before `PID_FILE` and the other derived paths (`:135`), so the URL is valid from a relative `--dir` and
+    `--dir u/` names `u.release`, not `u/.release`. `universe_env` (`:236-242`), every verb's first act, exports `SC_RELEASE_BASE_URL=file://$WORKDIR.release`,
     so every process the script starts carries it: each `claude` and its hooks, the supervisor, the build's own
     `fetch-bin.sh fetch` and `ensure` calls, and any fetch `ensure` detaches. `universe.sh` runs no `sc-doctor`.
   - **`settings.json`.** Before staging (`:371`), `build` writes the same URL into `env` of
     `$CLAUDE_CONFIG_DIR/settings.json`, for a Claude started there by hand; a build that dies later leaves roots that
     fetch only the local release (S9). `enabledPlugins` (`:516-527`) stays after the last `claude plugin` call, because
-    `marketplace remove` strips it (`:352-356`).
-  - **The local release.** `$WORKDIR.release/` is rewritten whole. For each plugin with `tools/cmd`, the tag
+    `marketplace remove` strips it (`:352-356`). If the R15 probe (§V.7) finds a real `marketplace remove` strips `env`
+    as well, `build` writes `env` again after the last `claude plugin` call.
+  - **One writer of a staged root (S9).** Between staging and the build's fetch, the writers of a staged root's `bin/`
+    and `.fetch/` are: staging itself (`:395-403`, which strips both); the build's `fetch-bin.sh fetch`; and any session
+    in this universe, through its guard's `ensure` and the fetch it detaches: `run`, `resume` and `_supervise` (one
+    `run.pid`), `shell`, and a Claude started by hand. `build` closes each:
+    - It deletes `$WORKDIR.release/` before staging and writes the new one after it, so from staging on the URL
+      resolves to this build's release or to none. A build that dies after staging (a missing toolchain, a failed
+      export download, `marketplace add` at `:413`) leaves a guard's fetch failing with "has no SHA256SUMS yet", never
+      installing an older release.
+    - `shell` writes `$WORKDIR/shell.pid` and removes it on exit; `guard_no_live_run` refuses `build` while that pid
+      or `run.pid` is alive, naming it, as it does a live run.
+    - Immediately before its fetch, `build` deletes each staged root's `bin/` and `.fetch/`, and after it `cmp`s each
+      `bin/<n>` against the release asset; a difference fails the build naming the plugin and `<n>`. A Claude started
+      by hand, which no pid file records, is caught there.
+  - **The local release.** `$WORKDIR.release/` is deleted before staging and written whole after it (above). For each plugin with `tools/cmd`, the tag
     directory `fetch-bin.sh` asks for (`<name>--v<version>/`, `:249`) holds each command built for the host's
     `go env GOOS GOARCH` by the release job's Go line (§1.5), `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o
     "<dir>/${name}_${os}_${arch}${ext}"`, in the checkout's `tools/`, so the build stamp carries the commit.
     Each helper present is added as `<helper>_<os>_<arch>[.exe]` (F19), and each `ASSETS` export, downloaded from
     `feov-embed`'s `PINS.txt` URL and checked against its sha256 as a `native-build` leg does (F10), is named by its
-    host-arch `ASSETS` field, as the release job renames it. `sha256sum * > SHA256SUMS` is the release job's `:1875`.
+    host-arch `ASSETS` field, as the release job renames it. `sha256sum * > SHA256SUMS` is the release job's `:1875`;
+    without `sha256sum`, `shasum -a 256` writes it, as `fetch-bin.sh:227-233` reads, and an empty `SHA256SUMS` fails
+    the build.
     A failed `go build` keeps its WARNING (`:446-450`) and leaves its asset out; the fetch below owns the failure (S10).
   - **The helper cache (F19).** Per helper, `build` reads the key from `nativedigest -print <helper>`, the digest
     `native/build.sh` compiles in, and looks in `${XDG_CACHE_HOME:-$HOME/.cache}/sc-universe/native/<helper>/<digest>/`,
@@ -676,8 +694,10 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     `native/build.sh` runs, `build` checks each on `PATH` and, if one is absent, exits non-zero naming it; it never
     skips the helper.
   - **Install.** After `claude plugin install` (`:415-418`), `CLAUDE_PLUGIN_ROOT=<root> sh <root>/hooks/fetch-bin.sh
-    fetch` runs in each staged root `$mkt/plugins/<p>/` that has one; the checkout guard passes it (§II.4), and
-    `fetch-bin.sh` writes `.fetch/installed`. A non-zero exit fails the build, naming the plugin and quoting
+    fetch </dev/null` runs in each staged root `$mkt/plugins/<p>/` that has one, stdin closed as `hooks.yml:1251` and
+    `:1712` do, because `fetch-bin.sh:42-43` reads stdin when it is not a TTY and a held-open pipe would hang the
+    build; the `ensure` assertion's calls take `</dev/null` too. The checkout guard passes it (§II.4), and
+    `fetch-bin.sh` writes `.fetch/installed`. A non-zero exit fails the build at this step, naming the plugin and quoting
     `.fetch/failed`: a binary that did not build reads `release <tag> has no <asset>` (`fetch-bin.sh:278`) (S10). The
     same line reaches a session through the guard's "installing its hook binaries failed" message.
   - **Staged roots only**, the roots a session loads (`:33-37`): `build` reads no `cache_root` (`:430-431`); the
@@ -700,7 +720,8 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
     Linux, macOS and Windows `feov-ocr`; MSVC for Windows `feov-embed`. The MSVC runner is the decision the current doc says a native-only
     toolchain would need.
   - `docs/local-development.md`: `:326-329` is rewritten; the universe section loses `--live` and documents the helper
-    build, its cache and toolchain, and the local release. "Two paths" (`:47-49`) becomes three; `:92-94` `cmp`s against
+    build, its cache and toolchain, and the local release. `:42` drops "by default" ("`build` is isolated"), since no
+    other mode remains. "Two paths" (`:47-49`) becomes three; `:92-94` `cmp`s against
     the local release, not the cache; `:96-106` says binaries come from it, built in the checkout, so `--version`
     carries the commit; `:205-207` and `:216-218` name the release (census N, docs sweep).
   - `docs/setup-script.md:73` says "nothing needs provisioning", which becomes false.
@@ -940,23 +961,37 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
    - The real `universe.sh build`, in `scripts/universetest` (linux, the `scripts` job, `hooks.yml:1437`), on a fixture
      repository (`universe.sh`, `universe-manifest.py`, the manifest; plugins with the generated `fetch-bin.sh` and
      `hooks.json`, and Go `tools/cmd/alpha`, `beta`). Its environment drops `CLAUDE_CONFIG_DIR`,
-     `CLAUDE_CODE_PLUGIN_CACHE_DIR` and `XDG_CACHE_HOME` and sets `HOME`. The stub `claude` gains `plugin marketplace
+     `CLAUDE_CODE_PLUGIN_CACHE_DIR` and `XDG_CACHE_HOME` and sets `HOME`, with `GOCACHE` and `GOMODCACHE` pinned to the
+     job's values (read by `go env` before `HOME` moves), so builds stay warm. The stub `claude` gains `plugin marketplace
      add|remove|list` and `plugin install`, records its environment, and its `remove` strips `enabledPlugins` as the real
      one does. A `curl` shim first on `PATH` logs every URL and fails any that is not `file://`.
-     - `TestBuildInstallsFromTheLocalRelease` (F18, gap 3'), with a relative `--dir`: each staged root's `bin/<n>`
-       equals `$WORKDIR.release/<p>--v<v>/<n>_linux_<arch>`, `.fetch/installed` names the tag, `.fetch/log` holds
-       `fetch-bin.sh`'s `installed … from <tag>`, `SHA256SUMS` lists every asset, and every logged URL is under the
-       release. Deletion checks: drop the export from `universe_env` and `build` fails naming a `https://` URL; leave
-       `WORKDIR` relative and the fetch fails; write `bin/` directly and the log line is absent.
-     - `TestBuildFailsNamingABinaryThatDidNotBuild` (S10): a `beta` that does not compile makes `build` exit non-zero
-       naming `beta_linux_<arch>` and the tag, and that root's `bin/` holds no `alpha` (all or none). `fetch-bin.sh` owns
-       S10; `universe.sh` runs no `releaseassets`. Deletion check: ignore `fetch`'s exit status and `build` exits 0.
+     - `TestBuildInstallsFromTheLocalRelease` (F18, gap 3'), with a relative `--dir` ending in `/` and stdin a pipe
+       the test holds open: `build` completes, `$WORKDIR.release` is a sibling of `$WORKDIR`, each staged root's
+       `bin/<n>` equals `$WORKDIR.release/<p>--v<v>/<n>_linux_<arch>`, `.fetch/installed` names the tag, `.fetch/log`
+       holds `fetch-bin.sh`'s `installed … from <tag>`, `SHA256SUMS` lists every asset, and every URL the `curl` shim
+       logged is under the release. A second `build` with `sha256sum` off `PATH` writes the same `SHA256SUMS`. Deletion
+       checks: drop the export from `universe_env` and the shim's log holds an `https://` URL and `build` fails; leave
+       `WORKDIR` relative and the fetch fails; drop the `${WORKDIR%/}` and the release lands at `<dir>/.release`; drop
+       a `</dev/null` and `build` does not finish within 60 s; drop the `shasum` fallback and the second `build` fails on
+       an empty `SHA256SUMS`; write `bin/` directly and the log line is absent.
+     - `TestBuildFailsNamingABinaryThatDidNotBuild` (S10): a `beta` that does not compile makes `build` exit non-zero at
+       the fetch step, its error line naming the plugin and quoting `.fetch/failed`'s `beta_linux_<arch>` and the tag,
+       and that root's `bin/` holds no `alpha` (all or none). `fetch-bin.sh` owns S10; `universe.sh` runs no
+       `releaseassets`. Deletion check: ignore `fetch`'s exit status and `build` fails at the `ensure` assertion
+       instead, whose line the test rejects.
      - `TestEverySessionFetchesOnlyTheLocalRelease` (S9), driven as `hooks.json`'s exec runs: after two `build`s,
        `settings.json` holds `env.SC_RELEASE_BASE_URL` and all four `enabledPlugins`, and the stub `universe.sh shell`
        starts records the same URL. With a staged `bin/alpha` deleted, that root's `PreToolUse` guard, run by `sh -c`
        under the recorded environment and its `CLAUDE_PLUGIN_ROOT`, restores it from the release within 60 s. With
        `marketplace add` failing (`:413`, after staging), `env` already names the release. Deletion checks: write `env` after `marketplace add` and the
        dying build leaves none; write `enabledPlugins` before staging and the second build loses it.
+       r10 gap (S9): after a first `build`, a second with `zig` off `PATH` and the helper cache empty dies after
+       staging; the guard of a staged root, run as above, leaves `.fetch/failed` and no `bin/alpha`. With a live
+       `$WORKDIR/shell.pid`, `build` refuses naming it and stages nothing. With the stub `claude plugin install` writing
+       a stale `bin/alpha` and a `.fetch/installed` naming the tag into a staged root, `build` ends with `bin/alpha`
+       equal to the release asset. Deletion checks: delete the release after staging and the guard installs the first
+       build's `alpha`; drop the `shell.pid` check and `build` proceeds; drop the clear before the fetch and `build`
+       fails at the `cmp` naming `alpha`; drop the clear and the `cmp` and `build` exits 0 over the stale `alpha`.
    - `TestFixFetchesFromTheConfiguredRelease` in `doctor`, through `fixWith` and the shipped `fetchRelease` (L3),
      `SC_RELEASE_BASE_URL` at a `file://` fixture release, no `gh` on `PATH`: `bin/alpha` holds the fixture's bytes; on a
      checkout root, which `fetch-bin.sh` skips with exit 0, the report names `alpha` not installed; with `alpha` absent
@@ -965,7 +1000,8 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
    - By hand on the Part 1 PR (R15): a universe whose `settings.json` `env` sets `SC_RELEASE_BASE_URL=file:///nonexistent`,
      the variable unset in the shell and one staged binary deleted; a real `claude -p` there leaves `.fetch/failed`
      reading "has no SHA256SUMS yet". A fetch completed from GitHub is R15 and goes to gblock. A second real `build`
-     leaves `env` in place after the real `marketplace remove`.
+     leaves `env` in place after the real `marketplace remove`; if it does not, `build` writes `env` again after the
+     last `claude plugin` call (§III.1.6) and the probe is repeated.
    - `TestStampWaitsForEveryHelper`: `stampInstalled` writes no stamp while one helper or `ASSETS` file is missing.
    - `TestFetchBinPicksTheExportForItsArch`: an `ASSETS` line with `amd64=` and `arm64=` fields installs the right one;
      a line without the host arch fails naming it.
@@ -1097,6 +1133,24 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
 14. **The PR's `release-fuzz` parts and `release-fuzz-tally`**, read on the final head (FEOV's tools module changes).
 15. **The auditor gate:** `/prosthetic-conscience:plan-audit` on this plan.
 
+### Required tests carried from the final audit (round 10)
+
+Each is an implementation requirement (`~/.claude/scratch/vecplan/audit/round10/VERDICT.md`):
+
+- Gap: a build dying after staging leaves `.fetch/failed` and no `bin/alpha`; a live `shell.pid` refuses `build`; a
+  stale write before the fetch is cleared or fails the `cmp` — §V.7, `TestEverySessionFetchesOnlyTheLocalRelease`.
+- `ocr read`'s help in the difftest manual golden (`:2150` at `bdcc411c4`, census C) is read line by line when Part 2
+  rewrites it — §V.1 (`golden`).
+- `local-development.md:42` says `build` is isolated, with no "by default" — §V.12 (census N docs sweep).
+- The S10 failure is asserted at the fetch step, not the `ensure` assertion — §V.7, `TestBuildFailsNamingABinaryThatDidNotBuild`.
+- The dropped-export deletion check reads the `curl` shim's log — §V.7, `TestBuildInstallsFromTheLocalRelease`.
+- `build` completes with stdin a held-open pipe — §V.7, `TestBuildInstallsFromTheLocalRelease`.
+- A `--dir` ending in `/` puts the release beside `WORKDIR` — §V.7, `TestBuildInstallsFromTheLocalRelease`.
+- Without `sha256sum`, `shasum -a 256` writes the same `SHA256SUMS` — §V.7, `TestBuildInstallsFromTheLocalRelease`.
+- `universetest` pins `GOCACHE` and `GOMODCACHE` to the job's — §V.7 (the `universetest` environment).
+- If a real `marketplace remove` strips `env`, `build` rewrites it after the last `claude plugin` call — §V.7, the R15
+  by-hand probe.
+
 ## Appendix A: Census detail
 
 Copied from `~/.claude/scratch/vecplan/census/CENSUS.md`, the run against `7b973ec4e`. Group G is re-run against
@@ -1159,7 +1213,7 @@ Enumerate: `grep -rln 'internal/tessocr"' $F --include=*.go | grep -v _test` (th
 - `$F/internal/fetchcache/pagerender.go:21,49` — only `tessocr.RenderDPI` — unchanged.
 - `$F/internal/cli/fetch.go:17,205` — `s.OCREngineAbsent = errors.Is(rerr, tessocr.ErrNotCompiledIn)` — changes: target errors are the §III.1.3 set; field `ocr_engine_absent` (fetchsummary.go:91) is seat-facing JSON, its meaning widens to "no working engine", `ocr_reason` names the case.
 - Not importers: `$F/internal/fetchcache/pagelocate.go:144` — copies rec.Engine into loc.Engine for cite — unchanged (string passthrough).
-- Not importers: `$F/internal/cli/ocr.go:66-72` doc comment "THE ENGINE IS IN THE BINARY NOW", `:226`, `:244` `ocr read` Long help "OCR engine compiled into this binary (tesseract + leptonica, statically linked)" — help text changes -> difftest manual golden `:2162`.
+- Not importers: `$F/internal/cli/ocr.go:66-72` doc comment "THE ENGINE IS IN THE BINARY NOW", `:226`, `:244` `ocr read` Long help "OCR engine compiled into this binary (tesseract + leptonica, statically linked)" — help text changes -> difftest manual golden `:2150` (at `bdcc411c4`).
 - `$F/internal/cli/fetch.go:62` fetch Long help "LOCAL OCR ENGINE compiled into this binary" — changes; this sentence is inlined by agentgen into 10 agent definitions (group H).
 
 ---------------------------------------------------------------------------------------------------
@@ -1362,5 +1416,5 @@ Enumerate:
 - Readers, 11 lines in 7 files, unchanged: `fetchbingen/fetch-bin.sh:37` and its three copies (`:38`), fetching `$BASE_URL/<tag>/<asset>` (§II.4); `hooks.yml:1251` (`fetch-bin-platforms`) and `doctor/fetchbin_contract_test.go:98`, `file://` fixture releases; `hooks.yml:1712`, `file:///nonexistent`; `plans/hook-binary-self-heal.md:178, :260, :368, :388`, the shipped design record. New: `universe.sh`'s `universe_env` and `settings.json` writer (writers), `doctor/main.go`'s `fetchRelease` (L3).
 - `universe.sh` steps (§III.1.6): `:236` exports it; `:395-403` staging and `:409-417` marketplace and install — unchanged, then `fetch-bin.sh fetch` per staged root; `:430`, `:446` (cache build), `:463-467` (mirror), `:483-493` (stamp) — deleted, replaced by the local release; `:435` warm-up — unchanged; `:503-505` (`ensure` assertion) — over the staged roots; `:516` (`settings.json`) — `env` written before staging, `enabledPlugins` where it is; `:554`, `:561` (`cmd_doctor`) — read the staged roots.
 - `--live`, 11 carrier lines in 2 files, all deleted or rewritten (F20): `universe.sh:30` (header, with `:25-29`), `:110`, `:124`, `:234`, `:237`, `:308`, `:311`, `:333`, `:334`; `docs/local-development.md:33`, `:44` (with `:42-45`). Reached only by `--live`, rewritten: the `${CLAUDE_CONFIG_DIR:-$HOME/.claude}` fallbacks `universe.sh:430`, `:516`, `:554`. Other sense, unchanged: `universe.sh:190` ("A LIVE PROCESS"), `agentgen/src/fragments/blue-search-and-cite.md:40`, `lens-audit-and-mint.md:7`, `red-lens-computation.md:20`, `red-lens-evidence.md:19`, `archaeology/main.go:110`, `fixtureparity/main.go:18`. `AGENTS.md`, `universetest` and the READMEs carry none.
-- Docs sweep (§III.1.6, §III.1.7). Rewritten: `docs/local-development.md:47-49`, `:92-94`, `:96-106`, `:205-207`, `:216-218`; `universe.sh:25-31`, `:39-44`, `:393-394`, `:399-403`, `:420-512` (deleted with the steps), `:548`, `:552-561` (`cmd_doctor`). Unchanged: `local-development.md:42`, `:68`, `:88-90`, `:196` and `universe.sh:37`, `:239-240`, `:372`, `:398` (the isolating variables, the staged path, what install copies); `universe.sh:291-323` (`hermetic_path`, less its `--live` lines); `universe.sh:381`, `:530` (history of the staged path); a run's `stamp` (`local-development.md:115-146`, `universe.sh:580-718`) and the token cache (`local-development.md:262-265`, `:350-357`) in other senses.
+- Docs sweep (§III.1.6, §III.1.7). Rewritten: `docs/local-development.md:42` ("isolated by default"), `:47-49`, `:92-94`, `:96-106`, `:205-207`, `:216-218`; `universe.sh:25-31`, `:39-44`, `:393-394`, `:399-403`, `:420-512` (deleted with the steps), `:548`, `:552-561` (`cmd_doctor`). Unchanged: `local-development.md:68`, `:88-90`, `:196` and `universe.sh:37`, `:239-240`, `:372`, `:398` (the isolating variables, the staged path, what install copies); `universe.sh:291-323` (`hermetic_path`, less its `--live` lines); `universe.sh:381`, `:530` (history of the staged path); a run's `stamp` (`local-development.md:115-146`, `universe.sh:580-718`) and the token cache (`local-development.md:262-265`, `:350-357`) in other senses.
 - `.fetch/` readers (round 8 `fetch-state-readers.txt`): `doctor/main.go:405-408`, `:564-568`, `hooks.yml:1262` — unchanged; `hookprovenance.go:43, :64, :132`, `report/registrations.go:185` — "installed" in another sense, unchanged.
