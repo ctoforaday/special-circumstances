@@ -81,6 +81,10 @@ func hammer(t *testing.T, write func(string, State)) (empty, unread, reads int) 
 // the second says do not touch it — so a reader that confuses them re-stamps
 // tokens_at_write at the current count and growth silently measures from there.
 //
+// On Windows under concurrent writers, NTFS replace/rename operations can briefly report
+// ErrNotExist while a rename is binding. statefile.ReadFile retries across this window so
+// transient unreadability is never mistaken for an honest absence.
+//
 // It must hold for BOTH writers, which is why it is asserted against both: the truncating
 // writer is unsafe for a different reason, and this property is not the one that
 // distinguishes them.
