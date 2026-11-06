@@ -131,7 +131,7 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 // ids, since one gap may hold several — so a clause listing two items never reads as one listed twice.
 //
 //   - ON A GAP IT MINTED, WHAT IS NEW SINCE IT LAST SAT (gblock, 2026-10-18): blue's answer to the gap
-//     (blueAnswersOf), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
+//     (blueAnswersOf), a retire that reached it (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
 //     remand of it, another seat's finding about it (findingsAboutGapsOf) — each owed until the lens
 //     sits through a sitting opened after it arrived (satThrough), whether or not that sitting acts
 //     on it. A sitting stopped at the call limit, or one that never closed, does not end the debt. A gap it holds with
@@ -184,7 +184,7 @@ type gapNews struct {
 }
 
 // gapNewsOf IS "WHAT IS NEW ON A GAP" (gblock, 2026-10-18), for each gap of gaps: blue's answer to it
-// (blueAnswersOf), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
+// (blueAnswersOf), a reaching retire of it (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
 // remand of it, another seat's finding about it (findingsAboutGapsOf). It is one reading with two
 // readers: the minting lens owes each item until it sits through a sitting opened after it
 // (lensOwesOf), and a seat's act on the gap is refused while an item arrived after its sitting opened
@@ -198,8 +198,16 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 	motions := motionsAt(evs, ids, win)
 	answers := blueAnswersOf(evs, win, open, motions)
 	for _, g := range gaps {
-		if a := answers[g.id]; a.answered() {
+		a := answers[g.id]
+		// ONE EVENT, ONE ITEM: a retire that answers the gap it also reaches is named once, as the
+		// reaching retire below, which says what it reached the gap through.
+		if a.answered() && a.at != a.metAt {
 			out = append(out, gapNews{gap: g.id, at: a.at, item: "blue's answer to " + g.id})
+		}
+		// A REACHING RETIRE IS NEWS OF ITS OWN: blue's sitting need not have been engaged on the gap,
+		// and the retire met the gap's demand all the same.
+		if a.metAt != 0 {
+			out = append(out, gapNews{gap: g.id, at: a.metAt, item: "blue's retire of " + a.met.anchor + ", " + a.met.how(g.id)})
 		}
 	}
 	for _, o := range regradesAwaitedOf(evs, win, open) {

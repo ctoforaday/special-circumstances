@@ -23,6 +23,9 @@ import (
 // AN ARCHIVED `not_run` IS AN ACT THAT RAN NOTHING (epoch 49): it states the comparison of its
 // bundle's standing re-run — the latest reproduce before it that ran the bundle.
 //
+// A NATIVE ARCHIVE'S REPRODUCE IS ITS SOURCE'S: each comes through as written, on the anchor it
+// names.
+//
 // Asserted on every archive, in order, against the source read directly: the n-th source
 // reproduce becomes exactly the expected run of migrated reproduces, each on the bundle its
 // script's computation was written with.
@@ -32,13 +35,15 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 		ran           bool
 		soundness     string
 	}
-	fanned, shared, kept, stood := 0, 0, 0, 0
+	fanned, shared, kept, stood, native := 0, 0, 0, 0, 0
 	for _, name := range archivedRuns(t) {
 		t.Run(name, func(t *testing.T) {
-			evs, err := archivedSource(t, recordtest.ExtractArchive(t, name)).Events()
+			src := recordtest.ExtractArchive(t, name)
+			evs, err := archivedSource(t, src).Events()
 			if err != nil {
 				t.Fatal(err)
 			}
+			proofs := sourceProofStage(evs, src)
 			computationsOn := map[string]int{} // bundle -> computations written so far
 			bundleOf := map[string]string{}    // archived script sha -> bundle
 			standing := map[string]string{}    // bundle -> the comparison of the latest reproduce that ran it
@@ -59,6 +64,20 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 					bundleOf[sha] = bundle
 					computationsOn[bundle]++
 				case "reproduce":
+					if !proofs {
+						bundle, _ := old.Fields["bundle_sha"].(string)
+						rerun, _ := old.Fields["rerun"].(string)
+						snd, _ := old.Fields["soundness"].(string)
+						id, _ := old.Fields["computation_id"].(string)
+						ran := sourceRan(old)
+						if !ran {
+							stood++
+						}
+						want = append(want, carried{bundle, rerun, ran, snd})
+						named = append(named, id)
+						native++
+						continue
+					}
 					sha, _ := old.Fields["proof_sha"].(string)
 					bundle := bundleOf[sha]
 					// A reproduce written at epoch 28 or later names its anchor and passes as written.
@@ -146,6 +165,9 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 	}
 	if kept == 0 {
 		t.Error("no archived reproduce named its anchor as written — the check that it keeps it checks nothing")
+	}
+	if native == 0 {
+		t.Error("no native archive held a reproduce — the check that it comes through as written checks nothing")
 	}
 }
 

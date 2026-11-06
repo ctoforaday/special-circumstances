@@ -247,27 +247,29 @@ func newEdit() *cobra.Command {
 
 // refuseBaredAnchors refuses an edit that would leave an anchor BARE — no prose before it in its
 // sentence — where it stood on prose before (claimcount.BareAnchorIDs), in the two cases where no act
-// could then take it out: a citation, carried or not, and any other kind the edit does not carry.
+// could then take it out: an evidence anchor, carried or not, and any other kind the edit does not
+// carry.
 //
-// A CITATION THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25), and a bare one cannot be
-// checked: `verify` reads the sentence holding the anchor, and a bare anchor backs none, so the
-// citation would hold the PASS unchecked with no act any lens could make on it. The edit is where
-// the sentence leaves, so the edit is refused, naming the anchor and the two ways out: keep a
-// sentence before it, or retire the citation while its sentence still stands (the retire keeps the
-// sentence word for word and takes the anchor out), then edit the sentence as freely as any prose.
-// An edit answering a gap names that gap on the retire it sends blue to, because the retire is the
-// first half of the repair and joins the gap by the same key the edit does.
+// EVIDENCE THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25; every evidence kind, ruling
+// Lifecycle, 2026-10-31), and a bare anchor cannot be checked: `verify` and `reproduce` read the
+// sentence holding the anchor, and a bare anchor backs none, so the anchor would hold the PASS
+// unchecked with no act any lens could make on it. The edit is where the sentence leaves, so the edit
+// is refused, naming the anchor and the two ways out: keep a sentence before it, or retire the anchor
+// while its sentence still stands (the retire keeps the sentence word for word and takes the anchor
+// out), then edit the sentence as freely as any prose. An edit answering a gap names that gap on the
+// retire it sends blue to, because the retire is the first half of the repair and joins the gap by
+// the same key the edit does.
 //
 // A BARE ANCHOR THE EDIT DOES NOT CARRY IS AN ORPHAN (the #1677 smoke's D18; gblock, 2026-11-01). A
 // claim retire takes the anchors the edit that cut the claim holds in its replacement (heldAt), so one
 // the quote left out stands where the cut left it with no retire able to name it. applied is what the
-// edit records: carried means there, whichever way the anchor got there. One carried may stand bare
-// until the retire.
+// edit records: carried means there, whichever way the anchor got there. A finding or gap anchor
+// carried may stand bare until the retire.
 func refuseBaredAnchors(before, after, applied, gapID string) error {
-	citations, leftOut := BaredAnchors(before, after, applied)
+	evidence, leftOut := BaredAnchors(before, after, applied)
 	var refusals []string
-	if len(citations) > 0 {
-		refusals = append(refusals, baredCitations(citations, gapID))
+	if len(evidence) > 0 {
+		refusals = append(refusals, baredEvidence(evidence, gapID))
 	}
 	if len(leftOut) > 0 {
 		refusals = append(refusals, baredLeftOut(leftOut))
@@ -279,12 +281,12 @@ func refuseBaredAnchors(before, after, applied, gapID string) error {
 }
 
 // BaredAnchors is THE judgement of which anchors an edit leaves bare where no act could then take
-// them out (refuseBaredAnchors): the citations it bares, carried or not, and the tokens of the other
-// anchors it bares without carrying them in applied. before and after are the report the edit plans
-// over and the report it plans; applied is the replacement it records. `lens mint` asks it of a
-// prescription over the report the mint lands on, so a fix the accept would refuse for this is
-// refused where red writes it.
-func BaredAnchors(before, after, applied string) (citations, leftOut []string) {
+// them out (refuseBaredAnchors): the evidence anchors it bares, carried or not (anchor.Backs), and the
+// tokens of the other anchors it bares without carrying them in applied. before and after are the
+// report the edit plans over and the report it plans; applied is the replacement it records. `lens
+// mint` asks it of a prescription over the report the mint lands on, so a fix the accept would refuse
+// for this is refused where red writes it.
+func BaredAnchors(before, after, applied string) (evidence, leftOut []string) {
 	was := map[string]bool{}
 	for _, id := range claimcount.BareAnchorIDs(before) {
 		was[id] = true
@@ -293,28 +295,38 @@ func BaredAnchors(before, after, applied string) (citations, leftOut []string) {
 	for _, id := range claimcount.BareAnchorIDs(after) {
 		switch {
 		case was[id]:
-		case anchor.Kind(id) == "citation":
-			citations = append(citations, id)
+		case anchor.Backs(id):
+			evidence = append(evidence, id)
 		case !slices.Contains(carried, id):
 			leftOut = append(leftOut, anchor.Token(id))
 		}
 	}
-	return citations, leftOut
+	return evidence, leftOut
 }
 
-// baredCitations is the refusal of an edit that would leave these citations bare.
-func baredCitations(bared []string, gapID string) string {
-	what, it, its := "citation "+bared[0], "it", "its"
-	if len(bared) > 1 {
-		what, it, its = "citations "+strings.Join(bared, ", "), "them", "their"
+// EvidenceNamed is evidence anchors named by their kind's noun, as a refusal lists them, with the
+// pronouns that follow: "citation C-…", "citation C-… and computation K-…".
+func EvidenceNamed(ids []string) (what, it, its string) {
+	named := make([]string, len(ids))
+	for i, id := range ids {
+		named[i] = record.EvidenceNoun(id) + " " + id
 	}
+	if len(ids) == 1 {
+		return named[0], "it", "its"
+	}
+	return strings.Join(named[:len(named)-1], ", ") + " and " + named[len(named)-1], "them", "their"
+}
+
+// baredEvidence is the refusal of an edit that would leave these evidence anchors bare.
+func baredEvidence(bared []string, gapID string) string {
+	what, it, its := EvidenceNamed(bared)
 	retire := "`retire --anchor <its id>`"
 	if gapID != "" {
 		retire = "`retire --anchor <its id> --answers " + gapID + "`"
 	}
 	return fmt.Sprintf(
 		"this edit would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against. Nothing is recorded. "+
-			"Keep the sentence in --new; or, where the sentence is to go, first retire the citation with %s while the sentence still stands — that takes the anchor out and keeps the sentence word for word — and then edit the sentence as you would any prose",
+			"Keep the sentence in --new; or, where the sentence is to go, first retire each anchor with %s while the sentence still stands — that takes the anchor out and keeps the sentence word for word — and then edit the sentence as you would any prose",
 		what, it, its, it, retire)
 }
 

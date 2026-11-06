@@ -115,6 +115,17 @@ func newMint() *cobra.Command {
 			}
 			return mintResult{GapID: prior.GetGapId(), Check: prior.GetAcceptanceCheck(), Idempotent: true}, nil
 		}
+		// ONLY AN OPEN GAP'S MINTER SUPERSEDES IT, AND A SUCCESSOR OF ONE THAT NOTHING ANSWERS YET CARRIES ITS
+		// CHECK KIND, and the demand with it (record.SupersessionAdmitted) — the minter rule first, so a
+		// seat that may not supersede the gap is told that rather than what its successor would owe.
+		// Asked here so it refuses before the placement and shape checks, and again in the write's
+		// transaction, where the answer holds.
+		if err := record.SupersessionAdmitted(run, s.SeatID, p); err != nil {
+			if c := feov.CodeOf(err); c == string(feov.Conflict) || c == string(feov.Validation) {
+				return nil, err
+			}
+			return nil, unreadableRefusal("the gaps --supersedes names", err)
+		}
 		gapID = record.NewID("gap")
 		p.GapId = proto.String(gapID)
 
@@ -209,7 +220,7 @@ func newMint() *cobra.Command {
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote")
 	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
-	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; an open one closes in this act, its purpose passing to this gap")
+	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; an open one closes in this act, its purpose passing to this gap, and an open one whose check kind is source or computation and that nothing answers yet passes its live-answer demand too: this gap carries its --check-kind, and another is refused (ancestors of different check kinds are superseded in separate mints), and what would have met the ancestor's demand after this mint meets this gap's")
 	c.Flags().Var(foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
@@ -466,8 +477,8 @@ func verifiedFix(p *recordpb.Mint, report, gapID string, at gapPlace, fixNew str
 	}
 	// The accept refuses a fix that leaves an anchor bare where no act could take it out
 	// (blue.BaredAnchors), so the mint asks the same of the edit it planned, and words it for red.
-	if citations, leftOut := blue.BaredAnchors(placed, a.Planned, a.Applied); len(citations)+len(leftOut) > 0 {
-		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(at, citations, leftOut))
+	if evidence, leftOut := blue.BaredAnchors(placed, a.Planned, a.Applied); len(evidence)+len(leftOut) > 0 {
+		return feov.Errorf(feov.Validation, "%s", mintBaredRefusal(at, evidence, leftOut))
 	}
 	p.FixNew = proto.String(fixNew)
 	p.FixBasis = proto.String("verified")
@@ -484,16 +495,13 @@ func fixWhat(at gapPlace) string {
 }
 
 // mintBaredRefusal is the refusal of a prescription whose --new would leave these anchors bare: the
-// citations, and the tokens of the other anchors --new does not carry. A reading's gap stands on the
-// sentence the tool reads by its citation's token, which the seat cannot widen, so its refusal offers
-// no carry through a quote.
-func mintBaredRefusal(at gapPlace, citations, leftOut []string) string {
+// evidence anchors, and the tokens of the other anchors --new does not carry. A reading's gap stands
+// on the sentence the tool reads by its citation's token, which the seat cannot widen, so its refusal
+// offers no carry through a quote.
+func mintBaredRefusal(at gapPlace, evidence, leftOut []string) string {
 	var refusals []string
-	if len(citations) > 0 {
-		what, it, its := "citation "+citations[0], "it", "its"
-		if len(citations) > 1 {
-			what, it, its = "citations "+strings.Join(citations, ", "), "them", "their"
-		}
+	if len(evidence) > 0 {
+		what, it, its := blue.EvidenceNamed(evidence)
 		refusals = append(refusals, fmt.Sprintf(
 			"--new would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against, and blue's accept would refuse it. NOTHING IS RECORDED. "+
 				"Keep the sentence in --new; or, where the sentence is to go, leave --new off and state the fix as prose in --fix",

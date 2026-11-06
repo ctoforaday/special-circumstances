@@ -116,12 +116,10 @@ func (r *runner) closeDocketed(seatID string) {
 // to refusing it as a conflict that names the motion and that nothing was recorded. A gap that moved
 // under the seat's reading refuses first; the same close then lands on the refusal this drive drives.
 func (r *runner) closeDocketedRefused(seatID, gapID string) {
-	// A COMPUTATION GAP NO COMPUTATION ANSWERS refuses first, as a close of it does whatever the docket
-	// says: the verb's guard runs before the write.
-	if r.computationGaps.has(gapID) {
-		if answered, err := record.ComputationAnswers(r.run(), gapID); err != nil || !answered {
-			return
-		}
+	// A GAP WHOSE LIVE-ANSWER DEMAND NOTHING MEETS refuses first, as a close of it does whatever the
+	// docket says: the verb's guard runs before the write.
+	if d, ok := r.demandOf(gapID); !ok || d.Unmet() {
+		return
 	}
 	motions := r.unruledDocketMotions(gapID)
 	args := []string{"close", "--seat-id", seatID, "--id", gapID, "--as", "repaired", "--reason", "fuzz: a close of a docketed gap",
@@ -513,7 +511,12 @@ func (r *runner) remandHeldBeforeRegister() {
 		r.noteActErr("the record could not be read before blue registered")
 		return
 	}
-	acts, _ := actsOnGaps(b.Events)
+	carried, ok := r.carryingOf()
+	if !ok {
+		r.noteActErr("the record's carrying readings could not be read before blue registered")
+		return
+	}
+	acts, _ := actsOnGaps(b.Events, carried)
 	ruled := remandRulings(b.Events)
 	dispatched := -1 // blue's latest dispatch row, a stream position
 	for i, e := range b.Events {

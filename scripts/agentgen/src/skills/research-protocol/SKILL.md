@@ -83,5 +83,6 @@ retired, the asks a later certification superseded, and every edit with blue's r
 directory, indexed by `README.md`.
 
 THE CITATION AND COMPUTATION LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file
-boundary, so each document numbers and defines the references it actually carries; computation numbers
-are run-wide, so `K3` is the same computation wherever it is cited.
+boundary, so each document numbers the references it carries, citations and computations alike, in
+order of first appearance, so one computation can carry a different number in another document. Name a
+computation by its id (`K-…`) and a citation by its id (`C-…`), never by a footnote number.

@@ -195,13 +195,14 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 			Blurb: "the provenance of this report: every claim blue retired from it, every ask a later certification superseded, and every edit blue made to it, with blue's reason and the span it replaced", Body: body[FileChangelog].String()},
 	}
 
-	// THE EVIDENCE LAYER IS RESOLVED ACROSS THE SET, NOT WITHIN A DOCUMENT.
+	// THE EVIDENCE LAYER IS RESOLVED WITHIN EACH DOCUMENT.
 	//
 	// A footnote definition cannot cross a file boundary — that is a fact about markdown, not a
 	// preference — so weaving globally and splitting afterwards would ship dangling references
-	// in every document but one. Each document therefore numbers and defines the citations
-	// it actually contains, and the computation layer is numbered ONCE for the whole run (record
-	// order) so that a P3 in the debate and a P3 in the report are the same computation.
+	// in every document but one. Each document therefore numbers and defines the citations and the
+	// computations it carries, by first appearance. A computation's identity across documents is its
+	// K-… id, which each [^K<n>] definition links to in evidence.md: one computation can carry
+	// different numbers in different documents, as a citation does.
 	sources, err := record.CitedSources(run)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("cited sources: %w", err)
@@ -230,11 +231,12 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		}
 	}
 	// A COMPUTATION IS EVIDENCE FOR THE SENTENCE IT IS ANCHORED TO, AND ONLY WHILE THAT ANCHOR STANDS.
-	// One whose anchor left the set — its claim retired — is numbered, footnoted and shown nowhere:
-	// its retire is in CHANGELOG. Shown under the reason it was recorded with, a retired computation
-	// shipped as evidence for a claim the report no longer makes (#1663 smoke, G-7dcf6270: "gives
-	// eight" beside a report that says seven). The numbering is over the standing ones, so the set
-	// has no gaps in it.
+	// One whose anchor left the set — retired, with its claim or alone off a sentence that stays — is
+	// numbered, footnoted and shown nowhere: its retire is in CHANGELOG. A retire takes the token out
+	// of the report and an edit never drops one, so the computations the set anchors are the live
+	// ones. Shown under the reason it was recorded with, a retired computation shipped as evidence for
+	// a claim the report no longer makes (#1663 smoke, G-7dcf6270: "gives eight" beside a report that
+	// says seven).
 	computations = slices.DeleteFunc(computations, func(c record.Computation) bool { return !anchored[c.Label] })
 	for i := range docs {
 		if docs[i].Body == "" {
@@ -243,12 +245,18 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		body, _ := weaveComputationRefs(docs[i].Body, computations)
 		docs[i].Body = collapseBlanks(body)
 	}
-	// evidence.md is composed LAST, from the computations the set anchors; a reference to a computation
-	// that is not on the record is still stated (it is a defect, and a silent drop reads as clean).
-	// The citations follow the computations, each with every reading of it.
+	// evidence.md is composed LAST, from the computations the set anchors, each with the sentence it
+	// backs in the report; a reference to a computation that is not on the record is still stated (it
+	// is a defect, and a silent drop reads as clean). The live citations follow the computations, each
+	// with every reading of it.
+	labels := make([]string, len(computations))
+	for i, c := range computations {
+		labels[i] = c.Label
+	}
+	backs := record.LiveSentencesIn(blue, labels)
 	for i := range docs {
 		if docs[i].File == FileEvidence {
-			computationSec, citeSec := evidenceDoc(run, computations), citationsSection(fam)
+			computationSec, citeSec := evidenceDoc(run, computations, backs), citationsSection(fam)
 			composed[evidenceHeading], composed[citationsHeading] = computationSec != "", citeSec != ""
 			docs[i].Body = rd.escapeNotes(strings.TrimRight(strings.Join(slices.DeleteFunc([]string{computationSec, citeSec}, func(s string) bool { return s == "" }), "\n"), "\n"))
 		}

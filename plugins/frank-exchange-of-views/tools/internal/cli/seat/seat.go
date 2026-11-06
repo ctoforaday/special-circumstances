@@ -1219,8 +1219,8 @@ func SplitGroups(root *cobra.Command) {
 // record holds an outcome, or an outcome is stamped outside the assembly sitting
 // (record.RequireSeatMayWrite) — BEFORE the verb's own checks run, and before register-first: a verb
 // that refuses on a check of its own first tells a seat after the outcome what else is wrong with
-// an act the run no longer takes (`lens close` on a computation gap with no computation was told to wait
-// for blue's computation). A verb that writes no event type has nothing to ask; the write asks again
+// an act the run no longer takes (`lens close` on a gap whose live-answer demand is unmet was told to wait
+// for blue's answer). A verb that writes no event type has nothing to ask; the write asks again
 // under its lock.
 //
 // A register states its occasion here, as its flag: the bench's register for the assemble occasion

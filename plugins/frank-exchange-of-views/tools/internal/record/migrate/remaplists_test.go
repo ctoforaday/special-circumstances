@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -87,8 +88,8 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 	if motionArms != 10 {
 		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 10 — the walk stopped at the top-level bodies", motionArms)
 	}
-	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "39 43 67" {
-		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 39 43 67", got)
+	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "40 43 67" {
+		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 40 43 67", got)
 	}
 }
 
@@ -274,15 +275,38 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		rm, reg := newRemap(hash), Entries()
 		// THE STORE STILL ANSWERS TO ITS SHA: a migrated computation names the bundle of the script
 		// the archived store holds — its bytes' sha256 under the command its extension names.
+		// A native archive's store is computations/<bundle>/dir, and it answers to its sha under the
+		// argv the record wrote.
 		stored := map[string]bool{}
-		scripts, _ := filepath.Glob(filepath.Join(runDir, "proofs", "*", "script*"))
-		for _, script := range scripts {
-			body, err := os.ReadFile(script)
-			if err != nil {
-				t.Fatal(err)
+		if sourceProofStage(evs, runDir) {
+			scripts, _ := filepath.Glob(filepath.Join(runDir, "proofs", "*", "script*"))
+			for _, script := range scripts {
+				body, err := os.ReadFile(script)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, _, bundle, err := archivedBundle(script, fmt.Sprintf("%x", sha256.Sum256(body))); err == nil {
+					stored[bundle] = true
+				}
 			}
-			if _, _, bundle, err := archivedBundle(script, fmt.Sprintf("%x", sha256.Sum256(body))); err == nil {
-				stored[bundle] = true
+		} else {
+			argvOf := map[string][]string{}
+			for _, old := range evs {
+				if old.Word == "computation" {
+					bundle, _ := old.Fields["bundle_sha"].(string)
+					argvOf[bundle] = old.Lists["argv"]
+				}
+			}
+			dirs, _ := filepath.Glob(filepath.Join(runDir, compute.StoreDir, "*", "dir"))
+			for _, d := range dirs {
+				bundle := filepath.Base(filepath.Dir(d))
+				files, err := compute.Bundle(runDir, bundle)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if compute.BundleSha(argvOf[bundle], compute.Sums(files)) == bundle {
+					stored[bundle] = true
+				}
 			}
 		}
 		for _, old := range evs { // the table is filled first, as Replay fills it
