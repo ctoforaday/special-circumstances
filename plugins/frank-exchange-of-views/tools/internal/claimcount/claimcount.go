@@ -16,30 +16,31 @@
 // cited claim lowers the count by exactly the citations that left with it, the
 // property the retire-vs-drop detector rests on.
 //
-// THE RULE. The count is the number of tool-inserted citation anchors
-// ("<!--cite:c-<hex>-->") ATTACHED to prose — some prose before them in their
+// THE RULE. The count is the number of tool-inserted evidence anchors — a citation's
+// "<!--cite:C-<hex>-->", a computation's "<!--computation:K-<hex>-->" — ATTACHED to prose — some prose before them in their
 // sentence, since every inserter places the anchor after the sentence it backs. An
 // anchor with nothing before it — what an edit leaves when it cuts a cited sentence
 // away, because an edit may carry an anchor but never drop one — is BARE, not a
 // claim: counting it would let the sentence leave while the count stood still, so
 // a gutted claim read as no loss and a retire of it cancelled some other, real one
 // (see BareAnchorIDs for why "bare" cannot mean "alone in its sentence", and for
-// markdown around the terminator). The citation axis replaced the
-// hand-typed "[^label]" footnote as the claim unit: citations are tool-managed, so
-// what a report CITES is exactly what it ANCHORS, and counting the anchor counts the
-// backed claim.
+// markdown around the terminator). The claim unit is the evidence anchor: a token whose
+// kind row `backs` its sentence (anchor.CountsAsClaim), a citation or a computation, both
+// tool-placed, so what a report BACKS is exactly what it ANCHORS, and counting the anchor
+// counts the backed claim.
 //
-// PER CITATION, NOT PER SENTENCE. The count used to be the number of SEGMENTS carrying
+// PER EVIDENCE ANCHOR, NOT PER SENTENCE. The count used to be the number of SEGMENTS carrying
 // an anchor, so a sentence citing two sources counted once. That made the unit the
 // detector compares against retires the wrong one twice over: merging two cited
 // sentences into one — carrying both anchors, which an edit must — lowered the count
 // and read as unrecorded loss that nothing could clear, though no citation left and
 // retire exists so prose may be merged freely; and a retire that took two cited
 // sentences out at once named two citation anchors against a drop that might be one
-// or two. Counted per attached citation, a merge moves nothing, and every citation
+// or two. Counted per attached evidence anchor, a merge moves nothing, and every evidence
 // anchor a retire takes out is exactly one unit of the fall it explains.
 //
-// Only a kind whose row in the anchor kinds table says so counts — a citation. The claim
+// Only a kind whose row in the anchor kinds table backs its sentence counts — a citation or a
+// computation; a finding or gap anchor never does. The claim
 // unit is a sentence as anchor.Sentences splits one: a list item is its own block, so a cited
 // list emits one claim per item, and a sentence soft-wrapped over two lines is one claim. Excluded,
 // because none is a declarative claim: fenced code, footnote definitions ("[^L1]: https://..."),
@@ -155,10 +156,11 @@ func BareAnchorIDs(md string) []string {
 	return out
 }
 
-// segmentLabels returns the DISTINCT citation labels anchored inline in a sentence, in
+// segmentLabels returns the DISTINCT evidence-anchor labels anchored inline in a sentence, in
 // first-seen order. A claim is a sentence carrying a tool-inserted anchor of a kind that counts
-// as a claim — a citation (the citation axis replaced the hand-typed "[^label]" footnote as the
-// claim unit — citations are tool-managed, so what a report cites is exactly what it anchors).
+// as a claim — an evidence anchor, a citation or a computation: the claim unit is the evidence
+// anchor, a token whose kind row backs its sentence (anchor.CountsAsClaim), both kinds
+// tool-placed, so what a report backs is exactly what it anchors.
 // The label is the token's id as anchor.Each reads it. A label repeated in one sentence is one
 // claim. A BARE label — no prose before it in the sentence — backs
 // nothing and is not returned.

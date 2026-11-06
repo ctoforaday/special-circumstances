@@ -30,13 +30,13 @@ func TestTheListSaysWhetherBlueAnsweredThisGap(t *testing.T) {
 		absent    []string
 	}{
 		{name: "answered", answered: true, engaged: true, want: "has been ANSWERED",
-			absent: []string{"NOT MEASURED", "NO edit, computation or changed fate answers it"}},
-		{name: "engaged and blue's sitting closed with no answer", engaged: true, want: "NO edit, computation or changed fate answers it",
+			absent: []string{"NOT MEASURED", "NO edit, citation, computation or changed fate answers it"}},
+		{name: "engaged and blue's sitting closed with no answer", engaged: true, want: "NO edit, citation, computation or changed fate answers it",
 			absent: []string{"NOT MEASURED", "has been ANSWERED"}},
 		{name: "engaged and blue is still sitting", engaged: true, unresolve: true, want: "NOT MEASURED",
-			absent: []string{"NO edit, computation or changed fate answers it", "has been ANSWERED"}},
+			absent: []string{"NO edit, citation, computation or changed fate answers it", "has been ANSWERED"}},
 		{name: "blue never engaged", want: "",
-			absent: []string{"NOT MEASURED", "NO edit, computation or changed fate answers it", "has been ANSWERED"}},
+			absent: []string{"NOT MEASURED", "NO edit, citation, computation or changed fate answers it", "has been ANSWERED"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := strings.Join(blueAnswersT(t,
@@ -68,11 +68,11 @@ func TestOnlyASubstantiveEditOnThisGapCounts(t *testing.T) {
 	gaps := []WorkGapState{{ID: "G1", Open: true, lensDue: true}}
 
 	noop := blueAnswersT(t, answerScenarioEdit(t, lens, "G1", "same", "same"), gaps, lens)
-	if len(noop) != 1 || !strings.Contains(noop[0], "NO edit, computation or changed fate answers it") {
+	if len(noop) != 1 || !strings.Contains(noop[0], "NO edit, citation, computation or changed fate answers it") {
 		t.Errorf("an edit that replaced a span with itself counted as an answer: %v", noop)
 	}
 	other := blueAnswersT(t, answerScenarioEdit(t, lens, "G2", "old", "new"), gaps, lens)
-	if len(other) != 1 || !strings.Contains(other[0], "NO edit, computation or changed fate answers it") {
+	if len(other) != 1 || !strings.Contains(other[0], "NO edit, citation, computation or changed fate answers it") {
 		t.Errorf("an edit answering another gap counted as an answer to this one: %v", other)
 	}
 }
@@ -199,16 +199,16 @@ func TestAGapAnchoredOnAnInquiryIsAnsweredByItsFate(t *testing.T) {
 		absent        []string
 	}{
 		{"blue recorded the inquiry's fate", "Q-1", nil, false, "has been ANSWERED by an inquiry record — blue recorded the fate `deferred` on Q-1, the inquiry the gap is anchored on, changing",
-			[]string{"NO edit, computation or changed fate answers it", "NO inquiry record answers it"}},
+			[]string{"NO edit, citation, computation or changed fate answers it", "NO inquiry record answers it"}},
 		{"blue changed another inquiry's fate", "Q-2", nil, false, "NO inquiry record answers it since you last acted on it — it is anchored on Q-1",
-			[]string{"NO edit, computation or changed fate answers it", "has been ANSWERED"}},
+			[]string{"NO edit, citation, computation or changed fate answers it", "has been ANSWERED"}},
 		{"blue repeated the inquiry's fate", "Q-1", nil, true, "NO inquiry record answers it since you last acted on it — it is anchored on Q-1",
-			[]string{"NO edit, computation or changed fate answers it", "has been ANSWERED"}},
+			[]string{"NO edit, citation, computation or changed fate answers it", "has been ANSWERED"}},
 		{"blue recorded no fate", "", nil, false, "NO inquiry record answers it since you last acted on it — it is anchored on Q-1",
-			[]string{"NO edit, computation or changed fate answers it", "has been ANSWERED"}},
+			[]string{"NO edit, citation, computation or changed fate answers it", "has been ANSWERED"}},
 		{"blue changed a fate the gap's section prints", "Q-2", about("Future research directions"), false, "has been ANSWERED by an inquiry record — blue recorded the fate `deferred` on Q-2, which the section the gap is anchored on prints, changing",
-			[]string{"NO edit, computation or changed fate answers it", "NO inquiry record answers it"}},
-		{"blue changed a fate no section of the gap's prints", "Q-2", about("Findings"), false, "NO edit, computation or changed fate answers it",
+			[]string{"NO edit, citation, computation or changed fate answers it", "NO inquiry record answers it"}},
+		{"blue changed a fate no section of the gap's prints", "Q-2", about("Findings"), false, "NO edit, citation, computation or changed fate answers it",
 			[]string{"has been ANSWERED", "NO inquiry record answers it"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

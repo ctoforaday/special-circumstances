@@ -310,7 +310,11 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 		m.FixNew = proto.String("the fix")
 		m.CheckKind = recordpb.CheckKind_CHECK_KIND_COMPUTATION.Enum()
 	})
-	mint("G2", func(m *recordpb.Mint) { m.Supersedes = []string{"G1"} })
+	// G1 awaits its live answer, so its successor carries its check kind (requireSuccessorCarriesDemand).
+	mint("G2", func(m *recordpb.Mint) {
+		m.Supersedes = []string{"G1"}
+		m.CheckKind = recordpb.CheckKind_CHECK_KIND_COMPUTATION.Enum()
+	})
 	mint("G3", nil)
 
 	// A regrade the projection must both OVERLAY (grades) and EMBED (the regrades list).
