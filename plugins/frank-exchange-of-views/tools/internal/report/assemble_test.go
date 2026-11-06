@@ -870,6 +870,26 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 	}
 }
 
+// A WITHDRAWN CLAIM RENDERS WHOLE. The row is the reader's one account of the claim as it stood, so a
+// claim of two sentences, or one past the risk matrix's scan width, is never cut to its lead: seed 19's
+// retire of an edit's old span, two sentences, shipped its first alone and lost the second.
+func TestAWithdrawnClaimRendersWhole(t *testing.T) {
+	long := "The parser is linear in the input size on every grammar the suite exercises, including the left-recursive ones it rewrites first"
+	for _, claim := range []string{
+		"The eleventh lifecycle claim holds. The twelfth lifecycle claim holds",
+		long,
+	} {
+		for _, kept := range []bool{false, true} {
+			w := withdrawnClaimsT(t, []*record.Event{recordtest.Event(t, "blue-respond", &recordpb.Retire{
+				Claim: proto.String(claim), Reason: proto.String("r"), ClaimKept: proto.Bool(kept),
+			})})
+			if !strings.Contains(w, "**"+claim+"**") {
+				t.Errorf("claim kept %t: the withdrawn row must carry %q whole:\n%s", kept, claim, w)
+			}
+		}
+	}
+}
+
 // EVERY LINE OF THE REPORT'S TEXT SHIPS, ONCE, AND NONE MOVES PAST ANOTHER. The text is parted in
 // two at the section that closes it, with the title line taken out, and nothing is in neither
 // part. universe-m20 lost a section, a computation and fifteen other anchors to a list of headings the

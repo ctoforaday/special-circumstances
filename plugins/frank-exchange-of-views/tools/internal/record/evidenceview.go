@@ -284,9 +284,18 @@ func (v EvidenceVerificationJSON) FindsAgainst() bool {
 }
 
 // EvidenceJSON is the whole evidence layer of the report.
+//
+// A RETIRED ANCHOR IS IN NO DOCUMENT, AND NOT IN THESE LISTS OR COUNTS EITHER: Sources and
+// Computations hold the live anchors, as evidence.md does, so the table and the document a reader
+// gets agree on what backs the report. A retired anchor is read at its id (EvidenceAt), which says it
+// is retired and by which retire.
 type EvidenceJSON struct {
 	Sources      []EvidenceSourceJSON      `json:"sources"`
 	Computations []EvidenceComputationJSON `json:"computations"`
+	// Retired is each retired anchor's row, with the retire that took it out, in the order the record
+	// placed the anchors. It is not in the projection: EvidenceAt reads it to answer a lookup of a
+	// retired id, and the assembly screen to count what it screened.
+	Retired []EvidenceRetiredRow `json:"-"`
 	// Independent is red's readings of a source against a sentence that carries no citation of it
 	// — one red found, or one blue cites elsewhere — which therefore have no anchor. A separate array rather than anchorless rows mixed into the
 	// sources, because "checked something blue did not cite" and "checked a citation" answer
@@ -316,6 +325,29 @@ type EvidenceJSON struct {
 		SourcesRefuted int `json:"sources_refuted"`
 		Verifications  int `json:"verifications"`
 	} `json:"counts"`
+}
+
+// EvidenceRetiredJSON is the retire that took an anchor out of the report: its events.id and its
+// recorded reason.
+type EvidenceRetiredJSON struct {
+	Event  int64  `json:"event"`
+	Reason string `json:"reason"`
+}
+
+// EvidenceRetiredRow is one retired anchor: its row as the live lists would hold it — Source set for
+// a citation, Computation for a computation — and the retire.
+type EvidenceRetiredRow struct {
+	Source      *EvidenceSourceJSON
+	Computation *EvidenceComputationJSON
+	Retired     EvidenceRetiredJSON
+}
+
+// Anchor is the retired anchor's id.
+func (r EvidenceRetiredRow) Anchor() string {
+	if r.Computation != nil {
+		return r.Computation.Anchor
+	}
+	return r.Source.Anchor
 }
 
 // EvidenceUncheckedJSON is one unchecked citation or computation. Edit and LastCheck are events.id: the
@@ -399,6 +431,22 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	ledger := anchorChecksOf(evs, win)
 	reruns, acts := bundleRerunsOf(evs), actVerdictsOf(evs)
 	bases := bundleBasesOf(evs)
+	// THE RETIRE THAT HOLDS EACH RETIRED ANCHOR OUT is its first (anchorChecksOf): nothing brings a
+	// retired anchor back.
+	retiredBy := map[string]EvidenceRetiredJSON{}
+	for _, e := range evs {
+		if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
+			for _, a := range r.GetAnchors() {
+				if _, first := retiredBy[a]; !first {
+					retiredBy[a] = EvidenceRetiredJSON{Event: win.Of(e).ID, Reason: r.GetReason()}
+				}
+			}
+		}
+	}
+	retired := func(label string) bool {
+		s := ledger.at(label)
+		return s != nil && s.retired
+	}
 
 	for _, e := range evs {
 		w := win.Of(e)
@@ -421,7 +469,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			if checks == nil {
 				checks = []EvidenceVerificationJSON{}
 			}
-			out.Sources = append(out.Sources, EvidenceSourceJSON{
+			row := EvidenceSourceJSON{
 				Anchor:     label,
 				URL:        bd.GetUrl(),
 				Title:      bd.GetTitle(),
@@ -442,7 +490,12 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				Pages:              bd.GetPages(),
 				OCREngine:          bd.GetOcrEngine(),
 				OCRTextSha:         bd.GetOcrTextSha(),
-			})
+			}
+			if retired(label) {
+				out.Retired = append(out.Retired, EvidenceRetiredRow{Source: &row, Retired: retiredBy[label]})
+				continue
+			}
+			out.Sources = append(out.Sources, row)
 		case *recordpb.Computation:
 			// The anchor's verdict and its comparison are read by anchor; the bundle's executions by
 			// the bundle_sha the record spells once, on the Computation and on each Reproduce of it.
@@ -466,7 +519,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			if argv == nil {
 				argv = []string{}
 			}
-			out.Computations = append(out.Computations, EvidenceComputationJSON{
+			row := EvidenceComputationJSON{
 				Anchor:    bd.GetComputationId(),
 				Sha256:    bd.GetBundleSha(),
 				Argv:      argv,
@@ -486,7 +539,12 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				Soundness: v.soundness,
 				Verified:  v.verified(),
 				Checks:    checks,
-			})
+			}
+			if retired(row.Anchor) {
+				out.Retired = append(out.Retired, EvidenceRetiredRow{Computation: &row, Retired: retiredBy[row.Anchor]})
+				continue
+			}
+			out.Computations = append(out.Computations, row)
 			// `verify` is handled in the indexing pass above — it has to be, because a source
 			// must carry its verifications and a cite event may arrive after the check of it.
 		}
@@ -538,6 +596,10 @@ type EvidenceAtJSON struct {
 	// PASS refusal sends a seat here for an unchecked anchor, and this is where it reads which edit
 	// and which check.
 	Unchecked *EvidenceUncheckedJSON `json:"unchecked,omitempty"`
+	// Retired is the retire that took the anchor out of the report, absent on a live anchor. A retired
+	// anchor is in no document and in none of the table's lists or counts; read at its id it is still
+	// its row, so a lens can read what left and why.
+	Retired *EvidenceRetiredJSON `json:"retired,omitempty"`
 }
 
 // EvidenceComputationAtJSON is a computation's row WITH THE COMPUTATION ITSELF: the bundle the lens's
@@ -595,12 +657,33 @@ func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
 			return at, nil
 		}
 	}
+	for _, r := range ev.Retired {
+		if r.Anchor() == id {
+			at.Retired = &r.Retired
+			if r.Computation != nil {
+				at.Computation = &EvidenceComputationAtJSON{EvidenceComputationJSON: *r.Computation}
+			}
+			at.Source = r.Source
+			return at, nil
+		}
+	}
 	// A WELL-FORMED ID NOTHING HERE IS AT — a finding's, a gap's, or a citation or computation this
 	// record does not hold. An id of the wrong shape, a computation's sha256 among them, never reaches this: the
 	// flag that takes the anchor refuses it (flags.AnchorID).
 	return EvidenceAtJSON{}, fmt.Errorf("no source or computation is at anchor %q on this record (%d source(s), %d computation(s)). "+
 		"--anchor takes the id inside a citation or computation token in the report, exactly as it reads there; the bare projection lists every one with its anchor",
-		id, len(ev.Sources), len(ev.Computations))
+		id, len(ev.Sources)+countRetired(ev.Retired, false), len(ev.Computations)+countRetired(ev.Retired, true))
+}
+
+// countRetired is how many of rows are computations (computation true) or citations.
+func countRetired(rows []EvidenceRetiredRow, computation bool) int {
+	n := 0
+	for _, r := range rows {
+		if (r.Computation != nil) == computation {
+			n++
+		}
+	}
+	return n
 }
 
 // bundleBasesOf is every bundle's bases, keyed by bundle_sha: each basis an act on it was recorded

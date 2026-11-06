@@ -197,7 +197,7 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 	})
 	t.Run("a computation answering it admits it", func(t *testing.T) {
 		run := computation(t, "G1", func(b *stage) {
-			b.add(blueSeatID, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), Answers: proto.String("G1"), BundleSha: proto.String("sha")})
+			b.add(blueSeatID, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-0000e001"), Answers: proto.String("G1"), BundleSha: proto.String("sha")})
 		})
 		if r := refusalOf(t, run, blueSeatID); r != "" {
 			t.Errorf("proved, blue's envelope is refused: %q", r)
@@ -296,7 +296,7 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 			t.Errorf("the unread citation is not listed: %+v", open)
 		}
 	})
-	t.Run("one no verify can reach — its anchor bare, or not in the report — is listed and does not hold it", func(t *testing.T) {
+	t.Run("a citation no verify can reach — its anchor bare, or not in the report — is listed and does not hold it", func(t *testing.T) {
 		for name, report := range map[string]string{
 			"bare":       "# report\n\nThe claim stands before. " + anchor.Token("C-00000001") + " Next.\n",
 			"absent":     "# report\n\nThe claim stands before.\n",
@@ -306,8 +306,26 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 			if r := refusalOf(t, run, evLens); r != "" {
 				t.Errorf("%s: a citation no verify can reach refuses the lens's envelope: %q", name, r)
 			}
-			if _, open := itemsOn(t, run, "lens", evLens, "so no verify of this sitting can clear it"); len(open) != 1 {
+			if _, open := itemsOn(t, run, "lens", evLens, "so no check of this sitting can clear it"); len(open) != 1 {
 				t.Errorf("%s: the unreachable citation is not listed with why: %+v", name, open)
+			}
+		}
+	})
+	// THE SAME PREDICATE FOR A COMPUTATION: an unchecked computation the report holds no sentence for
+	// is the computation lens's item that no `reproduce` can clear, not a duty that holds its sitting.
+	t.Run("a computation no reproduce can reach — its anchor bare, or not in the report — is listed and does not hold it", func(t *testing.T) {
+		for name, report := range map[string]string{
+			"bare":   "# report\n\nThe claim stands before. " + anchor.Token("K-00000001") + " Next.\n",
+			"absent": "# report\n\nThe claim stands before.\n",
+		} {
+			run := newStage(t).cast(computationSeat, "red-chair", blueSeatID, "judge").
+				add(HarnessSeat, &recordpb.ReportPart{Text: proto.String(report)}).register("red-chair").
+				computation("K-00000001", "ab").dispatch(2, computationSeat).bracket(computationSeat, "lens-c").seed()
+			if r := refusalOf(t, run, computationSeat); r != "" {
+				t.Errorf("%s: a computation no reproduce can reach refuses the lens's envelope: %q", name, r)
+			}
+			if _, open := itemsOn(t, run, "lens", computationSeat, "so no check of this sitting can clear it"); len(open) != 1 {
+				t.Errorf("%s: the unreachable computation is not listed with why: %+v", name, open)
 			}
 		}
 	})

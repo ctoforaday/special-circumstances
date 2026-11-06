@@ -5,7 +5,8 @@ import "testing"
 // The counter is only worth trusting if the RULE is pinned at its boundaries: what
 // counts as one claim, what is excluded, and — the property the retire-vs-drop
 // detector rests on — that it moves by exactly one when one claim leaves. The claim unit
-// is now the tool-inserted citation anchor "<!--cite:c-…-->", not the old "[^label]".
+// is the tool-inserted evidence anchor: a citation's "<!--cite:C-…-->" or a computation's
+// "<!--computation:K-…-->".
 func TestCount(t *testing.T) {
 	cases := []struct {
 		name string
@@ -27,6 +28,18 @@ func TestCount(t *testing.T) {
 			"an anchor repeated in one sentence counts once",
 			"Repeating the same anchor<!--cite:C-0000000a--> twice<!--cite:C-0000000a--> in one sentence.\n",
 			1,
+		},
+		{
+			// A computation backs its sentence as a citation does, and counts as one: one claim per
+			// distinct evidence anchor per sentence.
+			"a sentence with one computation counts one claim",
+			"Two to the 31 minus one is prime<!--computation:K-0000000a-->.",
+			1,
+		},
+		{
+			"a sentence with a citation and a computation counts each",
+			"It is prime<!--cite:C-0000000a--><!--computation:K-0000000b--> by both.",
+			2,
 		},
 		{
 			"a finding anchor is not a claim and never counts",

@@ -342,8 +342,12 @@ var rdFillerReport = rdReport + "\n# Filler\n\n" + strings.Join(rdFillers, " ") 
 // plainMint is seat's `mint --quote quote` of class, its other flags given.
 func (b readingBoard) plainMint(seat, quote, class string, extra ...string) (string, error) {
 	b.t.Helper()
+	// A `document` gap unless extra names its check kind.
+	if !slices.Contains(extra, "--check-kind") {
+		extra = append(extra, "--check-kind", "document")
+	}
 	out, err := run(b.t, append([]string{"mint", "--run", b.runDir, "--seat-id", seat, "--quote", quote, "--class", class,
-		"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
+		"--problem", "the defect", "--fix", "the fix", "--check", "the acceptance check",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"}, extra...)...)
 	if err != nil {
 		return "", err

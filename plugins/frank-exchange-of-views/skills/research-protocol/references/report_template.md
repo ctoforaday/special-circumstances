@@ -140,10 +140,11 @@
 
 # evidence.md — the computations and the citations
 
-## Computations                          <!-- [RECORD] every computation on the record, with its program, output, bundle sha
-                                              and red's independent re-run. Numbered RUN-WIDE, so K3 is the same computation in
-                                              every document that cites it. A computation no document references is still shown, and
-                                              said to be unreferenced. -->
+## Computations                          <!-- [RECORD] every live computation a document of the set carries, with its
+                                              program, output, bundle sha and red's independent re-run. Each document numbers
+                                              its own references, so one computation can carry a different number in another
+                                              document; every footnote links to its entry by the computation's K-… id. A retired
+                                              computation is in no document. -->
 
 ## Citations                             <!-- [RECORD] every source blue cites, with
                                               the sentence it backs and every reading of it: the seat and epoch, the

@@ -57,10 +57,12 @@ reader-facing content that resolves to a source.
 Anchors of every kind in the kinds table live the same way. The tool places an anchor at the end of
 its quote — the quote's one occurrence within one paragraph, or the act is refused. Every edit carries
 it; the tool puts back one whose sentence an edit keeps word for word; an edit that drops or types one
-is refused. **Retire is the one exit.** A citation never stands bare: an edit that would leave one
-with no prose before it is refused, and `blue retire --anchor` alone takes it off a sentence that
-stays. An edit that would leave any other anchor bare without carrying it is refused too: a retire
-reads what the edit carried, so no retire could take it. A claim whose sentence is edited away leaves
+is refused. **Retire is the one exit.** An evidence anchor — a citation or computation — never
+stands bare: an edit that would leave one with no prose before it is refused, whether the edit
+carries it or not, and `blue retire --anchor` alone takes either off a sentence that stays; a citation
+a live computation names is refused, naming the computation. An edit that would leave a finding or
+gap anchor bare without carrying it is refused too: a retire reads what the edit carried, so no
+retire could take it. A claim whose sentence is edited away leaves
 the other anchors it carries BARE (no prose before them in their segment) or on the prose that replaced it; `blue retire` names
 the anchors that stood on the claim in that edit and exit with it — the bare ones computed by the verb,
 one on surviving prose when the seat names it, each validated at the write — and replay removes them

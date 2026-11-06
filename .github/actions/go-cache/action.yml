@@ -18,7 +18,9 @@
 # restored (a cache key is immutable, so a key without the run id keeps whatever its first save
 # held), and a restore takes the newest entry of the lineage by prefix. Per job, because jobs build
 # different things: a key shared between jobs makes them race to save and the smallest job wins.
-# The workflow file is not in the key; an edit to it invalidates nothing.
+# The workflow file is not in the key; an edit to it invalidates nothing. A new entry per nightly
+# would keep every past nightly too, so hooks.yml's go-cache-prune job, after the saves, deletes
+# all but the newest entry per OS and job.
 #
 # THE CAP. A cache restored and saved again only grows, so before the save scripts/gocachetrim
 # deletes every entry this run neither wrote nor read, then the oldest of the rest until it fits

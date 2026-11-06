@@ -2,11 +2,13 @@ package fuzz
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -20,10 +22,11 @@ import (
 // plan the chair relays to the rule from the record's own acts, read here and not through the
 // dispatch's fold: a lens engaged on a gap is a failure unless blue moved it after the lens's latest
 // turn there — its mint, an act, or the opening of a closed sitting it was engaged on, silent or not —
+// where blue's acts include an evidence anchor placed as the gap's answer and a REACHING RETIRE, one
+// taking out the anchor the gap is about or whose reading it carries (gblock, 2026-11-03),
 // and after the bench's latest remand of it; and a gap blue is engaged on whose minting lens's turn HAS
 // come must engage that lens too, so the rule never holds a lens off blue's answer. A gap a successor
-// names is the exception both ways: its lens owes the close the supersession promised, whatever blue
-// did.
+// superseded closed at the successor's mint, so no plan engages anyone on it.
 //
 // A plan's docket comes after the lens: on universe-m37 the dispatch docketed six gaps with the lens's
 // audit of blue's answer still to come, and the lens closed five of them minutes after. A gap the plan
@@ -37,12 +40,15 @@ type gapActs map[string][]struct {
 	at   int
 }
 
-// actsOnGaps reads every act on a gap off evs, and each gap's mint position.
-func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int) {
+// actsOnGaps reads every act on a gap off evs, and each gap's mint position. carried is each
+// citation's gaps that carry a reading of it (carryingOf): with the gap an anchor is about, what a
+// retire of the anchor reaches.
+func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs, minted map[string]int) {
 	acts, minted = gapActs{}, map[string]int{}
 	closed := map[string]bool{}            // gap → closed by a close or a superseding mint (the bench's rulings aside)
 	supersededAt := map[string]int{}       // gap → the position of the mint that closed it by superseding it
-	computationGap := map[string]string{}  // computation id → the gap it answers
+	answering := map[string]string{}       // evidence anchor → the gap it was placed as the answer to
+	about := map[string][]string{}         // anchor → the gaps minted about it
 	anchored := map[string][]string{}      // inquiry id → the gaps minted about it
 	aboutSection := map[string][]string{}  // a section's heading key → the gaps minted about it
 	last := map[string]*recordpb.Inquiry{} // inquiry id → its previous record
@@ -73,6 +79,8 @@ func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int) {
 			case recordpb.AboutKind_ABOUT_KIND_SECTION:
 				k := reportheading.HeadingKey(m.GetAboutRef())
 				aboutSection[k] = append(aboutSection[k], m.GetGapId())
+			case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
+				about[m.GetAboutRef()] = append(about[m.GetAboutRef()], m.GetGapId())
 			}
 			add(seat, i, m.GetSupersedes()...)
 		}
@@ -92,15 +100,34 @@ func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int) {
 		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
 			add(seat, i, b.GetAnswers())
 		}
-		if b, ok := recordpb.BodyAs[*recordpb.Retire](e); ok && b.GetClaimKept() {
-			add(seat, i, b.GetAnswers())
+		if b, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
+			if b.GetClaimKept() {
+				add(seat, i, b.GetAnswers())
+			}
+			// A RETIRE REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT, named or not.
+			reached := map[string]bool{b.GetAnswers(): b.GetClaimKept()}
+			for _, a := range b.GetAnchors() {
+				for _, g := range append(append([]string{}, about[a]...), carried[a]...) {
+					if !reached[g] {
+						reached[g] = true
+						add(seat, i, g)
+					}
+				}
+			}
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Computation](e); ok {
-			computationGap[b.GetComputationId()] = b.GetAnswers()
+			answering[b.GetComputationId()] = b.GetAnswers()
+			add(seat, i, b.GetAnswers())
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.Cite](e); ok {
+			answering[b.GetLabel()] = b.GetAnswers()
 			add(seat, i, b.GetAnswers())
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Reproduce](e); ok {
-			add(seat, i, computationGap[b.GetComputationId()])
+			add(seat, i, answering[b.GetComputationId()])
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.Verify](e); ok {
+			add(seat, i, answering[b.GetAnchor()])
 		}
 		// A FATE BLUE CHANGED — status, reason or method against the inquiry's previous record — is an
 		// act on the gaps about what it changed (ruled by gblock 2026-11-05): those minted about the
@@ -194,6 +221,29 @@ func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turn
 	return turns, sittings
 }
 
+// carryingOf is each citation's gaps that carry a reading of it, read off the record's
+// carrying_reading view: the one statement of the reading-to-gap link.
+func (r *runner) carryingOf() (map[string][]string, bool) {
+	db, err := recordsql.Open(filepath.Join(r.run().Records(), "record.db"))
+	if err != nil {
+		return nil, false
+	}
+	rows, err := db.Query(`SELECT "anchor", "gap_id" FROM "carrying_reading" WHERE "anchor" IS NOT NULL ORDER BY "event_id"`)
+	if err != nil {
+		return nil, false
+	}
+	defer rows.Close()
+	out := map[string][]string{}
+	for rows.Next() {
+		var a, g string
+		if err := rows.Scan(&a, &g); err != nil {
+			return nil, false
+		}
+		out[a] = append(out[a], g)
+	}
+	return out, rows.Err() == nil
+}
+
 // remandRulings is the position of the bench's latest remand of each gap: a docket ruled remanded,
 // and an upheld position naming the gap, which the engine reads as the same remand (blueanswered.go).
 func remandRulings(evs []*record.Event) map[string]int {
@@ -227,7 +277,12 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		r.noteActErr("lens-turn oracle: the record could not be read after the chair's dispatch")
 		return
 	}
-	acts, minted := actsOnGaps(b.Events)
+	carried, ok := r.carryingOf()
+	if !ok {
+		r.noteActErr("lens-turn oracle: the record's carrying readings could not be read after the chair's dispatch")
+		return
+	}
+	acts, minted := actsOnGaps(b.Events, carried)
 	turnActs, sittings := turnsOnGaps(b.Events, b.At, acts)
 	remanded := remandRulings(b.Events)
 	minter := map[string]string{}
@@ -270,6 +325,14 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 			return fate
 		})
 	}
+	// reachedByRetire is whether blue's act on gap since lens's latest turn there is a REACHING retire: one
+	// taking out the anchor gap is about, or whose reading it carries, naming no gap.
+	reachedByRetire := func(lens, gap string) bool {
+		return slices.ContainsFunc(blueSince(lens, gap), func(i int) bool {
+			rt, ok := recordpb.BodyAs[*recordpb.Retire](b.Events[i])
+			return ok && rt.GetAnswers() != gap
+		})
+	}
 	// witness is what the oracle read on gap, and the plan's and the fold's readings beside it: a failure
 	// here is one reading of the record against another, and the sweep's log is all a red leaves behind.
 	witness := func(gap string) string {
@@ -305,11 +368,16 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 			engaged[id][fmt.Sprint(m["seat_id"])] = true
 		}
 	}
-	turns, waits, alone, fates := 0, 0, 0, 0
+	turns, waits, alone, reaching, fates := 0, 0, 0, 0, 0
 	for gap, seats := range engaged {
 		lens := minter[gap]
 		if lens != "" && seats[lens] && !seats["blue-respond"] {
 			alone++
+		}
+		// A REACHING RETIRE GIVES THE LENS ITS TURN: blue is never engaged on a gap whose demand the
+		// retire met, so the plan engages the lens alone, and the oracle below holds that its turn came.
+		if lens != "" && seats[lens] && reachedByRetire(lens, gap) {
+			reaching++
 		}
 		for seat := range seats {
 			if seatclass.RoleOfSeat(seat) == "lens" && !turnCame(seat, gap) {
@@ -379,5 +447,6 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 	r.lensWaits += waits
 	r.lensAlone += alone
 	r.docketsAfterAudit += after
+	r.lifecycle.reachingRetireTurns += reaching
 	r.mu.Unlock()
 }

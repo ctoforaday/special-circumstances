@@ -1,7 +1,10 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -27,6 +30,10 @@ type WindowIndex struct {
 	// latest is each seat's newest sitting, by the id of the event that opened it. nil on an index a
 	// narrowed read built: its slice need not hold any act of a seat's newest sitting.
 	latest map[string]int64
+	// reach is, for each retire, the gaps it reaches (reachingRetiresOf), by the retire's events.id.
+	// The whole-record loaders fill it from the same snapshot as the events; nil on a narrowed
+	// index, and on one a test built from bare windows.
+	reach map[int64][]reaching
 }
 
 // narrowedIndexOf indexes a narrowed read's windows, aligned by position with evs. Each window is
@@ -63,7 +70,123 @@ func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 	if err != nil {
 		return nil, WindowIndex{}, err
 	}
-	return evs, windowIndexOf(evs, ws), nil
+	x := windowIndexOf(evs, ws)
+	if x.reach, err = reachingRetiresOf(q); err != nil {
+		return nil, WindowIndex{}, err
+	}
+	return evs, x, nil
+}
+
+// reaching is one gap a retire reaches: the gap, the retired anchor it reaches it through, whether
+// through a reading (the carrying_reading view) rather than the anchor a gap is about, and the gap
+// whose reading or about it is (from): gap itself, or an ancestor it carries the demand from.
+type reaching struct {
+	gap, anchor, from string
+	carried           bool
+}
+
+// A REACHING RETIRE IS BLUE'S ACT ON EACH GAP IT REACHES (gblock, 2026-11-03; serving Closures are
+// history and L1): a retire whose anchors hold an open gap's about_ref, or the anchor of a reading
+// the gap carries, meets that gap's demand whatever gap the retire named, and without counting it
+// as an act the lens's turn on the gap never comes. It is read here, off the record's rows, and
+// never off a retire's own `answers`: `--answers` is optional, and a claim retire takes the anchor
+// too. A gap closed before the retire is not reached — a closure is history.
+//
+// The gap-to-anchor reach is read through the demand_reach view, its one statement: the anchor a
+// gap is about, the anchor of each reading it carries, and each of those of every ancestor it carries
+// the demand from, which a retire reaches from the successor's mint. The three reads are joined here
+// rather than in one statement: a retire's anchor meets a gap on the gap's side by mint.about_ref and
+// verify.anchor, and verify.anchor is not indexed (verify_carried_by indexes the carrying side), so a
+// join in SQL would build an automatic index on every load. A record with no retire reads the first,
+// empty, and stops.
+const (
+	retiredAnchorsSQL = `SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"`
+	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached", "via" = 'reading', "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL
+  ORDER BY "from_gap" <> "gap_id"`
+	firstClosureSQL = `SELECT "gap_id", MIN("event_id") FROM "closure_act" GROUP BY "gap_id"`
+)
+
+// reachingRetiresOf is every reaching retire on the record, by the retire's events.id, each gap
+// once (the first anchor of the retire that reaches it, through the gap's own about or reading before
+// an ancestor's), in gap order.
+func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
+	type retired struct {
+		at     int64
+		anchor string
+	}
+	var retires []retired
+	if err := scanRows(q, retiredAnchorsSQL, func(rows *sql.Rows) error {
+		var r retired
+		err := rows.Scan(&r.at, &r.anchor)
+		retires = append(retires, r)
+		return err
+	}); err != nil || len(retires) == 0 {
+		return map[int64][]reaching{}, err
+	}
+	type target struct {
+		gap, from string
+		since     int64
+		carried   bool
+	}
+	targets := map[string][]target{} // anchor -> the gaps about it, or carrying a reading of it
+	if err := scanRows(q, reachedGapsSQL, func(rows *sql.Rows) error {
+		var t target
+		var a string
+		err := rows.Scan(&t.gap, &a, &t.since, &t.carried, &t.from)
+		targets[a] = append(targets[a], t)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	closed := map[string]int64{} // gap -> its first closing act
+	if err := scanRows(q, firstClosureSQL, func(rows *sql.Rows) error {
+		var g string
+		var at int64
+		err := rows.Scan(&g, &at)
+		closed[g] = at
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	out := map[int64][]reaching{}
+	for _, r := range retires {
+		for _, t := range targets[r.anchor] {
+			c, isClosed := closed[t.gap]
+			if t.since >= r.at || (isClosed && c < r.at) || slices.ContainsFunc(out[r.at], func(o reaching) bool { return o.gap == t.gap }) {
+				continue
+			}
+			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor, from: t.from, carried: t.carried})
+		}
+	}
+	for at := range out {
+		slices.SortFunc(out[at], func(a, b reaching) int { return strings.Compare(a.gap, b.gap) })
+	}
+	return out, nil
+}
+
+// scanRows runs query and hands each row to scan.
+func scanRows(q recordsql.Querier, query string, scan func(*sql.Rows) error) error {
+	rows, err := q.Query(query)
+	if err != nil {
+		return fmt.Errorf("asking the record which gaps each retire reaches: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := scan(rows); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
+// Reaches is the gaps the retire e reaches (reachingRetiresOf), in gap order; nil for any other
+// event. A narrowed index panics, as in LatestSittingOf: it was not read beside the record's rows.
+func (x WindowIndex) Reaches(e *Event) []reaching {
+	if e.GetType() != recordpb.EventType_EVENT_TYPE_RETIRE {
+		return nil
+	}
+	x.mustBeWhole("the gaps a retire reaches")
+	return x.reach[x.Of(e).ID]
 }
 
 // IDs is each event's row id, aligned with evs: the place sequence a fold compares, read off the

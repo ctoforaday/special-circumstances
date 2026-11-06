@@ -156,7 +156,7 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("the edit that left the citation bare: %v", err)
 		}
-		refused(t, runDir, anchor, anchor, "stands bare", "nothing to verify", "retire")
+		refused(t, runDir, anchor, "citation "+anchor, "stands bare", "nothing to check", "retire")
 	})
 	t.Run("retired", func(t *testing.T) {
 		runDir, anchor := citedClause(t)
@@ -164,7 +164,7 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 			"--anchor", anchor, "--reason", "refuted"); err != nil {
 			t.Fatalf("retire: %v", err)
 		}
-		refused(t, runDir, anchor, anchor, "is not in the report", "retired", "never placed", "nothing to verify")
+		refused(t, runDir, anchor, "citation "+anchor+" is retired", "at event", `reason: "refuted"`, "sentence", "kept", "in no document")
 		// Nor does the lens's work list offer the verification the tool refuses.
 		out, err := run(t, "show", "--run", runDir, "--seat-id", lensSeat)
 		if err != nil || strings.Contains(out, "citation "+anchor+" is on the record and nobody has verified it") {

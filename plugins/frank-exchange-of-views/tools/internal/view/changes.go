@@ -45,8 +45,8 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	out := []string{
 		"# blue changes — RENDERED PROJECTION (source of truth: the record, records/record.db)",
 		"",
-		"Every recorded change to the report — each edit, and each citation retired from a sentence",
-		"the report keeps — in record order, grouped by the sitting that made it (`seat #N` is that",
+		"Every recorded change to the report — each edit, and each evidence anchor retired from a",
+		"sentence the report keeps — in record order, grouped by the sitting that made it (`seat #N` is that",
 		"seat's Nth sitting). This is a navigation hint, not",
 		"a substitute for reading the report: a diff decontextualizes research prose, which is why",
 		"the audit is a full re-read. To put red's required_fix and blue's actual change side by",
@@ -154,8 +154,8 @@ func changesForGap(sel record.ChangesJSON) []byte {
 		out = append(out,
 			"## Changes blue recorded against it: NONE",
 			"",
-			"_Blue recorded no edit and no citation retire answering this gap. That is not proof nothing",
-			"changed — an edit or a citation retire that omitted `--answers` is invisible here — but it is",
+			"_Blue recorded no edit and no evidence anchor's retire answering this gap. That is not proof",
+			"nothing changed — an edit or a retire that omitted `--answers` is invisible here — but it is",
 			"the honest state of the join, and the unscoped `show changes` lists every change including",
 			"the unattributed ones._", "")
 		return []byte(strings.Join(out, "\n"))
@@ -187,11 +187,11 @@ func changesForGap(sel record.ChangesJSON) []byte {
 	return []byte(strings.Join(out, "\n"))
 }
 
-// what names a change: a citation retire by the citation it took off a kept sentence, an edit by
-// its size change.
+// what names a change: a retire by the evidence anchor it took off a kept sentence, named by its
+// kind's noun, an edit by its size change.
 func what(e record.EditJSON) string {
 	if e.Retired != "" {
-		return "retired citation " + e.Retired + ", its sentence kept"
+		return "retired " + record.EvidenceNoun(e.Retired) + " " + e.Retired + ", its sentence kept"
 	}
 	return delta(e.Old, e.New)
 }

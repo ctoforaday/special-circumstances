@@ -31,7 +31,7 @@ import (
 // # Only duties that are enforced or recorded somewhere else
 //
 // Nothing here invents an obligation. Each one is refused at a write path (open material gaps and
-// unruled motions block `verdict`; a computation gap cannot be closed on prose), is a stated
+// unruled motions block `verdict`; a `source` or `computation` gap cannot be closed on prose), is a stated
 // record requirement (blue-respond's position, the bench's terminal outcome), or is enforced by
 // dispatch (a seat whose sitting has not opened since the dispatch named it — no hook bracket and
 // no register — is readied again; a chair that has not registered for its sitting is refused
@@ -105,7 +105,7 @@ type SittingJSON struct {
 }
 
 // SittingOf computes what the given seat still owes on this record — the events carry every
-// act, and the gap rows carry the view's answers (openness, the computation debt) so no fold decides
+// act, and the gap rows carry the view's answers (openness, the evidence debt) so no fold decides
 // them a second time (plans/board-as-views.md wave 1c). ids are the events' row ids, aligned with
 // evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
 // and the chair's list states that condition from the same fold the gate refuses from.
@@ -116,18 +116,21 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 // sittingReads is what a seat's list needs beyond the stream and the gap rows to say whether its
 // sitting can clear an item; a zero value reads every item as clearable.
 type sittingReads struct {
-	// unverifiable: why no verify can reach a citation (unverifiableIn).
+	// unverifiable: why no check can reach an evidence anchor's sentence (unverifiableIn).
 	unverifiable unverifiableFunc
+	// mintsLeft: a lens's mints left (mintBudgetOf), for the clause on an item whose answer is a mint
+	// (answersRetiredItems); nil where the budget was not read or not measured.
+	mintsLeft *int
 	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
 	blueOut bool
 }
 
-// unverifiableFunc says why a citation's sentence cannot be verified from the report as it renders
-// now — the reasons `verify` refuses every outcome on — or "" where it can. nil reads every citation
-// as verifiable.
+// unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
+// renders now — the reasons `verify` and `reproduce` refuse on (LiveSentence) — or "" where one can.
+// nil reads every anchor as checkable.
 type unverifiableFunc func(anchor string) string
 
-// undocketed is gaps without the open ones a docket motion stands unruled on.
+// undocketed is gaps without the ones a docket motion stands unruled on, open or closed.
 func undocketed(gaps []WorkGapState) []WorkGapState {
 	out := make([]WorkGapState, 0, len(gaps))
 	for _, g := range gaps {
@@ -272,12 +275,13 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 
 	switch role {
 	case "blue":
-		// A computation demand prose cannot answer. The lens that minted it is REFUSED if it
-		// tries to close one unproved, so an unanswered demand does not settle — it carries into
-		// the next epoch.
+		// A live-answer demand prose cannot answer (recordpb.DemandClause): a `source` gap owes a
+		// citation, a `computation` gap a computation, placed as its answer. The lens that minted it
+		// is REFUSED if it tries to close one unanswered, so an unanswered demand does not settle —
+		// it carries into the next epoch.
 		//
 		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING IS ENGAGED ON THE GAP, and until a recorded
-		// act answers it there (gblock, 2026-10-24): a computation naming it, which ends the debt; a motion
+		// act answers it there (gblock, 2026-10-24): an anchor placed as its answer, which ends the debt; a motion
 		// blue files on the gap, which puts the demand before its ruler; or a retire that takes the
 		// gap's sentence out. Prose does not: an edit arguing the demand is wrong leaves it owed.
 		var engaged []string
@@ -286,18 +290,19 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 		moved, retired := answeredByActThisSitting(evs, win, seatID)
 		for _, g := range gaps {
-			if !g.AwaitingComputation {
+			if !g.AwaitingEvidence {
 				continue
 			}
 			id := g.ID
-			const what = " was minted --check-kind computation and no computation answers it; prose cannot close it"
+			row, _ := recordsql.EvidenceTableOf(AnswerKindOf(g.CheckKind))
+			what := " was minted --check-kind " + g.CheckKind + " and is owed a " + row.Noun + " placed as its answer; prose cannot close it: " + recordpb.DemandClause
 			switch {
 			case !slices.Contains(engaged, id):
 				may("gap " + id + what + " — this sitting is not engaged on it")
 			case moved[id]:
-				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until a computation names it")
+				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until the demand is met")
 			case retired && g.LocationState == LocationGone:
-				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until a computation names it")
+				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until the demand is met")
 			default:
 				add("gap " + id + what)
 			}
@@ -410,6 +415,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
+		// A CLOSED GAP OF ITS OWN WHOSE ANSWERS ARE ALL RETIRED (ruling Closures are history): news,
+		// never a blocker — the closure stands, and the item says what a mint in answer would be. It
+		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
+		// until the bench rules, as every other item on a docketed gap is held.
+		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID, reads.mintsLeft)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
 			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the
@@ -448,12 +458,13 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			if b.Kind == BlockerUnchecked && b.since != 0 && win.LatestSittingOf(seatID) <= b.since {
 				continue
 			}
-			// A CITATION NO VERIFY CAN REACH is not its to clear either: `verify` refuses every
-			// outcome on it (cli/lens/verify.go citedSentence), and blue's retire of its claim, or a
-			// report that renders again, is what moves it.
-			if b.Kind == BlockerUnchecked && b.Detail == "" && reads.unverifiable != nil {
+			// AN EVIDENCE ANCHOR NO CHECK CAN REACH is not its to clear either: `verify` and
+			// `reproduce` refuse an anchor the report holds no sentence for (LiveSentence), and blue's
+			// retire of its claim, or a report that renders again, is what moves it. Asked of every
+			// unchecked anchor, a citation and a computation alike: the gate reads no kind.
+			if b.Kind == BlockerUnchecked && reads.unverifiable != nil {
 				if why := reads.unverifiable(b.Subject); why != "" {
-					may(b.WorkItem() + " — " + why + ", so no verify of this sitting can clear it")
+					may(b.WorkItem() + " — " + why + ", so no check of this sitting can clear it")
 					continue
 				}
 			}
@@ -729,8 +740,8 @@ func logsThisSitting(evs []*Event, win WindowIndex, seatID string) (seatEntries,
 	return seatEntries, toolRefusals
 }
 
-// gapsAwaitingComputationOn is gone: the gap rows carry awaiting_computation off the view, the same join
-// the close gate reads, so the sitting and the gate cannot disagree about what is owed.
+// The gap rows carry awaiting_evidence off the view, the column the close gate reads, so the sitting
+// and the gate cannot disagree about what is owed.
 
 // sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing of a type
 // recordsql.NotActs does not list, the definition seat_metrics counts acts by.
