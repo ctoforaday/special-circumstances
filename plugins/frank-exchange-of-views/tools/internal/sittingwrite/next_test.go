@@ -134,13 +134,20 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 // EVERY DELIVERY FITS THE BUDGET, IN BYTES, WHATEVER THE BOARD HOLDS — and the current item arrives
 // whole but for its passage. An adversarial board: sixty other open gaps, forty readied gaps of the
 // lens's own, thirty estopped rulings, twenty long declarations and petitions, twenty notes, all in
-// multi-byte text, and a current gap with a long passage. What is cut is counted, never silent.
+// multi-byte text, and a current gap with a long passage and sixty checked anchors in its sentence.
+// What is cut is counted, never silent.
 func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 	long := strings.Repeat("Ünïcödé prose — every rune here is more than one byte. ", 40)
+	const anchors = 60
+	backing := []record.GapBackingJSON{}
+	for i := 0; i < anchors; i++ {
+		backing = append(backing, record.GapBackingJSON{Anchor: fmt.Sprintf("C-%08x", i), Kind: "citation",
+			Outcome: "supports", Confidence: "high", VerifiedBy: "red-lens-evidence", Event: int64(100 + i)})
+	}
 	row := func(id, by string, turn bool) record.WorkGapJSON {
 		return record.WorkGapJSON{ID: id, MintedBy: by, YourTurn: turn, Class: "false_universal", Material: turn,
 			Location: "the sentence " + id, Passage: long + "the sentence " + id + ". " + long, Problem: "problem of " + id,
-			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: []record.GapBackingJSON{}, RegradesOwed: []record.OwedRegradeJSON{}}
+			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: backing, RegradesOwed: []record.OwedRegradeJSON{}}
 	}
 	w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-voice", Role: "lens", Open: []record.Item{}}}
 	for i := 0; i < 40; i++ {
@@ -173,6 +180,10 @@ func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 		if d.Current == nil || d.Current.Key != e.Key || len(d.Current.Items) != len(e.Items) || d.Current.Items[0].What != e.Items[0].What ||
 			d.Current.Gap.Problem != e.Gap.Problem || d.Current.Gap.RequiredFix != e.Gap.RequiredFix || !d.Current.Gap.PassageClipped {
 			t.Errorf("%s: the current item did not arrive whole but for its passage: %+v", name, d.Current)
+		}
+		// Every anchor behind the current gap is a line or a count.
+		if lines, ok := d.Current.Gap.Backing.([]any); !ok || len(lines)+d.Current.Gap.BackingOmitted != anchors {
+			t.Errorf("%s: backing holds %v and %d omitted, want %d in all", name, d.Current.Gap.Backing, d.Current.Gap.BackingOmitted, anchors)
 		}
 		// Every other queued entry and open gap is a line or a count: nothing is dropped silently.
 		if got, want := len(d.Index)+d.IndexOmitted, len(q)-1+60; got != want {
