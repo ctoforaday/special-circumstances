@@ -69,6 +69,12 @@ func newReproduce() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
+		// A JUDGEMENT NEEDS A LIVE SENTENCE: a computation the report holds no sentence for — retired,
+		// never placed, or bare — has nothing to judge its program against, as a citation has nothing to
+		// read its source against (record.LiveSentence, the one predicate both verbs refuse on).
+		if _, err := record.LiveSentence(run, p.Label); err != nil {
+			return nil, err
+		}
 		soundness := seat.Str(cmd, flags.As)
 		if soundness == "" {
 			return nil, feov.Errorf(feov.MissingField, "requires --as sound|unsound: re-running proves the program is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. This call records your verdict on the sentence at --anchor, so read the program FIRST — `show evidence --anchor %s` prints it — then call this once and say whether it computes what THAT sentence says; nothing is recorded by this call", p.Label)

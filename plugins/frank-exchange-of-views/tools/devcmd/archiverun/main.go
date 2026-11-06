@@ -11,8 +11,8 @@
 //	differs     it did not, and the act was recorded reproducible
 //	refused     the bundle could not be executed, or it called the tool
 //
-// A bundle's row is keyed by the archive and the archived script's sha (the one file's sha256,
-// which a migrated bundle keeps), and holds the outcome its acts agree on, or each distinct
+// A bundle's row is keyed by the archive and the bundle's sha (its computations/<bundle_sha>/
+// name, which hashes its files and argv), and holds the outcome its acts agree on, or each distinct
 // outcome, comma-separated, where they do not. The check holds a reproducible act's outcome
 // exactly; a variant act's re-run may or may not write its recorded output, so for it reproduced
 // and moved stand for each other (satisfies).
@@ -134,7 +134,7 @@ func run(archives, outcomes string, m mode, w io.Writer) error {
 				return fmt.Errorf("%s: %w", name, err)
 			}
 			for _, r := range rs {
-				fmt.Fprintf(w, "%s\t%s\t%s\n", r.Archive, r.OldSha, r.Outcome)
+				fmt.Fprintf(w, "%s\t%s\t%s\n", r.Archive, r.Bundle, r.Outcome)
 			}
 			rows = append(rows, rs...)
 		}
@@ -254,10 +254,6 @@ func rerun(archiveName, runDir string) ([]Row, error) {
 	}
 	var rows []Row
 	for _, b := range order {
-		old, err := archivedSha(runDir, b.sha)
-		if err != nil {
-			return nil, err
-		}
 		outcomes := map[string]bool{}
 		var acts []Act
 		e, rerr := compute.Rerun(runDir, b.sha, b.argv)
@@ -269,22 +265,9 @@ func rerun(archiveName, runDir string) ([]Row, error) {
 			outcomes[act.Outcome] = true
 			acts = append(acts, act)
 		}
-		rows = append(rows, Row{Archive: archiveName, OldSha: old, Outcome: joinOutcomes(outcomes), Acts: acts})
+		rows = append(rows, Row{Archive: archiveName, Bundle: b.sha, Outcome: joinOutcomes(outcomes), Acts: acts})
 	}
 	return rows, nil
-}
-
-// archivedSha is the archived script's sha: a migrated bundle holds the one file it stored, whose
-// sha256 the archive named it by.
-func archivedSha(runDir, bundle string) (string, error) {
-	files, err := compute.Bundle(runDir, bundle)
-	if err != nil {
-		return "", err
-	}
-	if len(files) != 1 {
-		return "", fmt.Errorf("bundle %s holds %d files; a migrated computation's bundle holds its one script", bundle, len(files))
-	}
-	return compute.Sums(files)[0].Sha256, nil
 }
 
 // grade is one act's outcome against its bundle's execution: refused where the bundle could not be

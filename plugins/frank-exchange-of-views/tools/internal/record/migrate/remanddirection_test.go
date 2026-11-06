@@ -90,6 +90,7 @@ func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 // supersededRulings is, per archived run, the closing rulings with a reopen condition migrate leaves
 // out with their docket motions, each on a gap a successor's mint had closed (actOnSupersededGap).
 var supersededRulings = map[string]int{
-	"2026-10-18_is-91-prime-m29.tar.gz": 1,
-	"2026-10-19_is-91-prime-m30.tar.gz": 1,
+	"2026-10-18_is-91-prime-m29.tar.gz":       1,
+	"2026-10-19_is-91-prime-m30.tar.gz":       1,
+	"2026-10-30_mersenne-31-prime-sum.tar.gz": 1,
 }

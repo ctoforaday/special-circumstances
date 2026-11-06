@@ -20,9 +20,9 @@ import (
 // THE DUTIES ARE THE ONES THE RECORD SAID BEFORE THE DROP. A dropped closing is the chair's, or
 // blue's on a gap no unruled docket motion stood on, and a dropped position is no chair's, so none of
 // them discharged a duty: a tally that moves here means the drop took an argument a duty read. The
-// one exception is a docket on a gap a successor's mint had closed (epoch 62): m29's two and m30's
-// one are left out as acts on a closed gap, so no closing is owed on them, and their closings are
-// written as none with them.
+// one exception is a docket on a gap a successor's mint had closed (epoch 62): m29's two, m30's
+// one and mersenne's one are left out as acts on a closed gap, so no closing is owed on them, and
+// their closings are written as none with them.
 var argumentResidue = map[string]struct {
 	closings, positions int
 	duties, sittings    string
@@ -60,6 +60,7 @@ var argumentResidue = map[string]struct {
 	"2026-10-24_is-91-prime-1565":           {0, 0, "blue:filed=3,blue:not_owed=2,lens:filed=5", "not_owed=12"},
 	"2026-10-27_is-91-prime-m35":            {0, 0, "blue:filed=8,lens:filed=7,lens:not_owed=1", "not_owed=6"},
 	"2026-10-29_is-91-prime-m36":            {0, 0, "", "not_owed=8"},
+	"2026-10-30_mersenne-31-prime-sum":      {2, 0, "blue:filed=4,lens:filed=4", "not_owed=12"},
 }
 
 // EVERY ARCHIVED RUN'S REFUSED ARGUMENTS ARE WRITTEN AS NO EVENT, AND ONLY THEY. Per run, the

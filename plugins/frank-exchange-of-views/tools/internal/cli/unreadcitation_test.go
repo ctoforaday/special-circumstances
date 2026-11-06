@@ -50,14 +50,17 @@ func TestAnUnreadVerifySaysTheCitationStaysUnreadAndTheGapIsOwed(t *testing.T) {
 	}
 }
 
-// --ANCHOR ALONE RETIRES ONE CITATION STANDING ON A SENTENCE, AND NOTHING ELSE. Each refusal names
-// what it was given and records nothing; the retire that lands shows in the report's retirements as
-// the source a sentence that stays lost — in the changelog — never as a claim that left.
+// --ANCHOR ALONE RETIRES ONE EVIDENCE ANCHOR STANDING ON A SENTENCE, AND NOTHING ELSE. Each refusal
+// names what it was given and records nothing; the retire that lands shows in the report's
+// retirements as the source a sentence that stays lost — in the changelog — never as a claim that
+// left.
 func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1", "https://grass/1")
+	registerChairOnce(t, runDir)
+	registerLensOnce(t, runDir)
 	sky := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 	grass := citeSentence(t, runDir, "The grass is green.", "https://grass/1")
-	computation := computeSentence(t, runDir, "Fire is hot.")
+	finding, _ := markerOfKind(t, runDir, "finding", "Fire is hot.")
 	retire := func(anchors string) error {
 		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", anchors, "--reason", "unreadable")
 		return err
@@ -75,7 +78,7 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	}
 	retires := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE)
 	refused("two citations", retire(sky+","+grass), "names 2", sky, grass)
-	refused("a computation", retire(computation), computation+" is a computation anchor", "--quote")
+	refused("a finding", retire(finding), finding+" is a finding anchor", "--quote")
 	if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != retires {
 		t.Errorf("%d retire(s) recorded by refused retires", n-retires)
 	}
@@ -92,7 +95,7 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(changelog), "**The sky is blue.** — stays in the report; a source it cited was retired from it") {
+	if !strings.Contains(string(changelog), "**The sky is blue.** — stays in the report; a citation it stood on was retired from it") {
 		t.Errorf("the changelog does not list the sentence that kept its place:\n%s", changelog)
 	}
 

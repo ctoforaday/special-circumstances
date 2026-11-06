@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -189,8 +190,11 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 					t.Errorf("%s readied for the reopened anchor = %v (party %v), want %v: %q", l, readied, ready, l == c.owner, plan.Why)
 				}
 			}
-			// The owner's sitting after the edit lists it as blocking.
-			after := newStage(t).cast(append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")...).ingestCited().register("red-chair")
+			// The owner's sitting after the edit lists it as blocking. Its report carries the anchor's
+			// sentence: an anchor the report holds no sentence for is an item no check can clear
+			// (unverifiableIn), for a computation as for a citation.
+			after := newStage(t).cast(append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")...).
+				add("harness", &recordpb.ReportPart{Text: proto.String("# report\n\nThe claim stands before " + anchor.Token(c.anchor) + ".\n")}).register("red-chair")
 			for _, l := range c.cast {
 				after.sit(2, l)
 			}

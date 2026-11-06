@@ -41,12 +41,14 @@ import (
 // anchor, so a counted claim leaves only where a retire names the anchors it takes.
 //
 // AND IT IS HOW AN ANCHOR LEAVES. An edit may carry an anchor but never drop one,
-// so cutting an anchored sentence leaves the anchor BARE — no prose before it in
-// its sentence, backing nothing. Nothing could take that anchor out, so it stood forever: an
-// orphan `[^N]` with a live bibliography entry, an empty `- ?` bullet. The retire
-// now names the bare anchors the claim's removal left (computed here, from the
-// record and the report, never typed by a seat), and replay takes them out at this
-// event. Edit still PERFORMS the removal of prose; retire EXPLAINS it and closes it.
+// so cutting a sentence a finding or gap marks leaves the anchor BARE — no prose before
+// it in its sentence, marking nothing. Nothing could take that anchor out, so it stood forever:
+// an empty `- ?` bullet. The retire names the bare anchors the claim's removal left (computed
+// here, from the record and the report, never typed by a seat), and replay takes them out at
+// this event. Edit still PERFORMS the removal of prose; retire EXPLAINS it and closes it. An
+// evidence anchor never stands bare by an edit (refuseBaredAnchors): it leaves first, alone, its
+// sentence kept (retireAnchor), and reaches a claim retire bare only from an archived record or
+// the synthesizer's round-0 write.
 func newRetire() *cobra.Command {
 	named := flags.IDList(flags.AnchorID)
 	c := seat.Prose(seat.New("retire", retireResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
@@ -77,15 +79,15 @@ func newRetire() *cobra.Command {
 		// claim that left the report: one naming a claim that was never there is a removal
 		// the record asserts and the report never had.
 		claim := seat.Str(cmd, flags.Quote)
-		// A CITATION RETIRED, ITS SENTENCE KEPT: --anchor alone names it, and the tool reads the sentence.
+		// AN EVIDENCE ANCHOR RETIRED, ITS SENTENCE KEPT: --anchor alone names it, and the tool reads the sentence.
 		if !cmd.Flags().Changed(flags.Quote) && len(named.Value()) > 0 {
-			return retireCitation(s, body, named.Value())
+			return retireAnchor(s, body, named.Value())
 		}
 		// A BLANK CLAIM IS A MISSING ONE, refused before the guard reads it as text: every report
 		// contains the empty string, so universe-m29's `retire --quote ""` was told `"" is still in
 		// the report` and sent to edit out a claim it never named.
 		if strings.TrimSpace(claim) == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --quote: the claim being removed, verbatim as it stood in the report before the edit that took it out — or, to retire a citation and keep its sentence, --anchor alone naming the citation")
+			return nil, feov.Errorf(feov.MissingField, "requires --quote: the claim being removed, verbatim as it stood in the report before the edit that took it out — or, to retire an evidence anchor (a citation or computation) and keep its sentence, --anchor alone naming it")
 		}
 		// ASKED OF THE REPORT AND THE EDITS THE RETIRE LANDS ON. Blue's own edits and a lens's
 		// anchor commit in parallel with it, and a retire checked against the report before them can
@@ -153,53 +155,54 @@ func newRetire() *cobra.Command {
 	// from it — the edit that took the claim out comes first, and the retire is refused while the
 	// text still stands. What it is matched against is that edit's old span.
 	//
-	// SUPPLIED, NOT TYPED, WHEN A CITATION IS RETIRED AND ITS SENTENCE KEPT: the record's claim is then
-	// the sentence the citation stood on, which the tool reads off the report.
-	seat.Supplies(c, "claim", "the sentence the retired citation stood on, read off the report, when --anchor alone retires a citation and keeps its sentence")
+	// SUPPLIED, NOT TYPED, WHEN AN EVIDENCE ANCHOR IS RETIRED AND ITS SENTENCE KEPT: the record's claim
+	// is then the sentence the anchor stood on, which the tool reads off the report.
+	seat.Supplies(c, "claim", "the sentence the retired evidence anchor stood on, read off the report, when --anchor alone retires a citation or computation and keeps its sentence")
 	flags.Text(c, flags.Quote, "the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, anchors read past, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show")
 	flags.Text(c, flags.New, "the claim that replaces it, when one does")
-	seat.RequiredUnless(c, flags.Quote, "unless --anchor alone retires a citation")
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "with --anchor alone: the gap id this citation retire responds to — the provenance join key an edit carries, so the gap's change log lists the retire beside what red asked for; omit only for a retire that answers no gap. A claim retire takes none: the edit that cut the claim names the gap it answers")
-	c.Flags().Var(named, flags.Anchor, "with --quote: an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim. Alone, without --quote: the one citation to retire while its sentence stays in the report word for word")
+	seat.RequiredUnless(c, flags.Quote, "unless --anchor alone retires a citation or computation")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "with --anchor alone: the gap id this evidence-anchor retire responds to — the provenance join key an edit carries, so the gap's change log lists the retire beside what red asked for; omit only for a retire that answers no gap. A claim retire takes none: the edit that cut the claim names the gap it answers")
+	c.Flags().Var(named, flags.Anchor, "with --quote: an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim. Alone, without --quote: the one evidence anchor — a citation or computation — to retire while its sentence stays in the report word for word. A citation a computation still in the report names as its method is refused while that computation stands: take the computation out first, by its own retire, or both in one claim retire")
 	return c
 }
 
-// retireCitation retires one citation and keeps its sentence: the anchor leaves the report, and the
-// sentence it stood on stays word for word, backed by whatever else backs it — another citation, or
+// retireAnchor retires one evidence anchor — a citation or a computation, any kind whose row backs
+// its sentence (anchor.Backs) — and keeps its sentence: the anchor leaves the report, and the
+// sentence it stood on stays word for word, backed by whatever else backs it — another anchor, or
 // nothing, when it is prose a lens audits like any other.
 //
-// IT IS HOW BLUE ANSWERS A CITATION NOBODY CAN READ, AND HOW A CITED SENTENCE LEAVES (gblock,
-// 2026-10-25). An edit may carry an anchor but never drop one, and the claim retire takes the
-// anchors of a sentence an edit cut — so a citation whose source could not be read could leave only
-// with its sentence, and re-citing a readable source left the dead one standing beside it (b6's two
-// dead anchors on a sentence that stayed). And an edit may not leave a citation bare
-// (refuseBaredAnchors), so a cited sentence that is to go loses its citation here first, and is
+// IT IS HOW BLUE ANSWERS EVIDENCE THAT CANNOT STAND, AND HOW AN EVIDENCED SENTENCE LEAVES (gblock,
+// 2026-10-25; for every evidence kind, ruling Lifecycle, 2026-10-31). An edit may carry an anchor but
+// never drop one, and the claim retire takes the anchors of a sentence an edit cut — so a citation
+// whose source could not be read, or a computation judged unsound on a sentence that is right, could
+// leave only with its sentence. And an edit may not leave an evidence anchor bare
+// (refuseBaredAnchors), so an evidenced sentence that is to go loses its anchors here first, and is
 // then prose an edit may cut.
 //
 // THE TOOL READS THE SENTENCE. The claim the record holds is the sentence holding the anchor in the
 // report the retire lands on (bluedoc.SentenceAround, as `verify` reads it), and claim_kept says it
-// stayed, so the report's retirements name the citation that left and never list the sentence as a
-// claim that did.
-func retireCitation(s seat.Context, body *recordpb.Retire, named []string) (seat.Result, error) {
+// stayed, so the report's retirements name the anchor that left and never list the sentence as a
+// claim that did. A citation a live computation applies is refused in the write (ruling L6).
+func retireAnchor(s seat.Context, body *recordpb.Retire, named []string) (seat.Result, error) {
 	if len(named) != 1 {
-		return nil, feov.Errorf(feov.Validation, "--anchor alone retires one citation and keeps its sentence, and this names %d: %s. Retire each citation in its own retire, or quote the claim with --quote to retire the claim with the anchors it held", len(named), strings.Join(named, ", "))
+		return nil, feov.Errorf(feov.Validation, "--anchor alone retires one evidence anchor and keeps its sentence, and this names %d: %s. Retire each in its own retire, or quote the claim with --quote to retire the claim with the anchors it held", len(named), strings.Join(named, ", "))
 	}
 	id := named[0]
-	if k := anchor.Kind(id); k != "citation" {
-		return nil, feov.Errorf(feov.Validation, "--anchor alone retires a citation and keeps its sentence, and %s is a %s anchor — it leaves the report with its claim: edit the claim out with the anchor in both the quote and the replacement, then retire it with --quote", id, k)
+	if !anchor.Backs(id) {
+		return nil, feov.Errorf(feov.Validation, "--anchor alone retires an evidence anchor — a citation or computation — and keeps its sentence, and %s is a %s anchor — it leaves the report with its claim: edit the claim out with the anchor in both the quote and the replacement, then retire it with --quote", id, anchor.Kind(id))
 	}
-	tok := anchor.Token(id)
+	noun, tok := record.EvidenceNoun(id), anchor.Token(id)
 	guard := func(l *record.Landing) error {
 		md, err := l.Report()
 		if err != nil {
-			return feov.Wrap(feov.Internal, err, "the report could not be read from the record to find the sentence citation %s stands on, so nothing is recorded: %v", id, err)
+			return feov.Wrap(feov.Internal, err, "the report could not be read from the record to find the sentence %s %s stands on, so nothing is recorded: %v", noun, id, err)
 		}
 		sentence, ok := bluedoc.SentenceAround(md, tok)
 		switch {
 		case !ok:
-			return feov.Errorf(feov.Conflict, "the report holds no %s — citation %s is not on a sentence of the report, so there is no citation to retire from one", tok, id)
+			return feov.Errorf(feov.Conflict, "the report holds no %s — %s %s is not on a sentence of the report, so there is no %s to retire from one", tok, noun, id, noun)
 		case bareAnchors(md)[id]:
-			return feov.Errorf(feov.Conflict, "citation %s stands bare in the report — the sentence it backed was cut, so there is no sentence to keep. It leaves with the claim it backed: retire that claim with --quote", id)
+			return feov.Errorf(feov.Conflict, "%s %s stands bare in the report — the sentence it backed was cut, so there is no sentence to keep. It leaves with the claim it backed: retire that claim with --quote", noun, id)
 		}
 		body.Claim = proto.String(sentence)
 		body.Anchors = []string{id}
@@ -209,7 +212,7 @@ func retireCitation(s seat.Context, body *recordpb.Retire, named []string) (seat
 	if _, err := record.Append(s.Identity(), body, record.Check(guard)); err != nil {
 		return nil, err
 	}
-	return retireResult{Claim: body.GetClaim(), Anchors: body.Anchors, ClaimKept: true, Answers: body.GetAnswers()}, nil
+	return retireResult{Claim: body.GetClaim(), Anchors: body.Anchors, ClaimKept: true, Noun: noun, Answers: body.GetAnswers()}, nil
 }
 
 // leftByTheCut is every marker that stood on this claim in an edit that took it out (heldAt), with
@@ -453,9 +456,11 @@ type retireResult struct {
 	Claim   string       `json:"claim"`
 	Anchors []string     `json:"anchors,omitempty"`
 	Stayed  []keptAnchor `json:"stayed,omitempty"`
-	// ClaimKept is a citation retired from a sentence that stays: Claim is that sentence.
-	ClaimKept bool `json:"claim_kept,omitempty"`
-	// Answers is the gap a citation retire answers, as recorded; empty when it answers none.
+	// ClaimKept is an evidence anchor retired from a sentence that stays: Claim is that sentence, and
+	// Noun is the anchor's kind as EvidenceTables names it.
+	ClaimKept bool   `json:"claim_kept,omitempty"`
+	Noun      string `json:"-"`
+	// Answers is the gap an evidence-anchor retire answers, as recorded; empty when it answers none.
 	Answers string `json:"answers,omitempty"`
 }
 
@@ -465,7 +470,7 @@ func (r retireResult) Human() string {
 		if r.Answers != "" {
 			answering = ", answering gap " + r.Answers
 		}
-		return "retired citation " + strings.Join(r.Anchors, ", ") + answering + "; its sentence stays in the report word for word, backed by whatever else backs it: " + r.Claim
+		return "retired " + r.Noun + " " + strings.Join(r.Anchors, ", ") + answering + "; its sentence stays in the report word for word, backed by whatever else backs it: " + r.Claim
 	}
 	out := "retired: " + r.Claim + "\nanchors out with it: " + cmp.Or(strings.Join(r.Anchors, ", "), "none")
 	for _, k := range r.Stayed {

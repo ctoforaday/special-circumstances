@@ -92,7 +92,7 @@ func TestTheToolsOwnDriftsOpenNothingInTheEvidenceDocument(t *testing.T) {
 			Drift: res.Drift, Invariant: "a file is written", Executed: true,
 			Rerun: &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, RerunSha: staged.Sha, Drift: c.Drift},
 		}
-		return resolveMarks(evidenceDoc(runtest.Open(t, runDir), []record.Computation{k}))
+		return resolveMarks(evidenceDoc(runtest.Open(t, runDir), []record.Computation{k}, nil))
 	}
 	sameShapes(t, shapes(doc(t, false)), shapes(doc(t, true)))
 }

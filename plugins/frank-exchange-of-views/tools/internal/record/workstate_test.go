@@ -25,7 +25,7 @@ func workStatesOfFamilyT(f Family) []WorkGapState {
 			if g.Mint.CheckKind != nil {
 				w.CheckKind = recordpb.Word(g.Mint.GetCheckKind())
 			}
-			w.AwaitingComputation = g.Open && g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !computationNamesT(f.Events, g.ID)
+			w.AwaitingEvidence = g.Open && g.AnswerKind() != "" && !evidenceNamesT(f.Events, g.ID)
 			w.FoundBy, w.Supersedes = g.Mint.GetFoundBy(), g.Mint.GetSupersedes()
 		}
 		if !g.Open {
@@ -70,13 +70,18 @@ func mustWorkJSONT(t *testing.T, run Run) WorkJSON {
 	return w
 }
 
-// computationNamesT is the retired board-side computation join, kept for the synthetic fixtures.
-func computationNamesT(evs []*Event, gapID string) bool {
+// evidenceNamesT is the board-side answer join for the synthetic fixtures: an evidence anchor placed
+// as the gap's answer. The fixtures retire nothing and re-check nothing, so the demand's other arms
+// never meet a gap here.
+func evidenceNamesT(evs []*Event, gapID string) bool {
 	if gapID == "" {
 		return false
 	}
 	for _, e := range evs {
 		if p, ok := recordpb.BodyAs[*recordpb.Computation](e); ok && p.GetAnswers() == gapID {
+			return true
+		}
+		if p, ok := recordpb.BodyAs[*recordpb.Cite](e); ok && p.GetAnswers() == gapID {
 			return true
 		}
 	}

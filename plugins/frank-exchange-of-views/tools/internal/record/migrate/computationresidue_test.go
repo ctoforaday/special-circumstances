@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -36,6 +37,32 @@ func sourceEvents(t *testing.T, name string) []OldEvent {
 	return evs
 }
 
+// sourceProofStage reports whether an archive's source was written before the computation record:
+// it holds a `proof` event or a proofs/ store. A native archive writes `computation` and `reproduce`
+// as the live record does, and migrates through as written; the proof→computation residue below is
+// about the other stage only.
+func sourceProofStage(evs []OldEvent, dir string) bool {
+	for _, e := range evs {
+		if e.Word == "proof" {
+			return true
+		}
+	}
+	_, err := os.Stat(filepath.Join(dir, "proofs"))
+	return err == nil
+}
+
+// proofStage is sourceProofStage over the named archive's source.
+func proofStage(t *testing.T, name string) bool {
+	t.Helper()
+	return sourceProofStage(sourceEvents(t, name), recordtest.RequireArchive(t, name))
+}
+
+// sourceRan is a source reproduce's `ran` column read as a bool.
+func sourceRan(e OldEvent) bool {
+	v := e.Fields["ran"]
+	return v == int64(1) || v == true
+}
+
 // migratedBodies is every body the named archive's migrated record holds, in record order, with the
 // migration's manifest and the migrated run directory.
 func migratedBodies(t *testing.T, name string) ([]any, []string, string) {
@@ -68,20 +95,29 @@ func archivedProofHex(id string) string {
 
 // EVERY `K-` ID'S HEX IS ITS SOURCE ID'S, AND EVERY ACT HAS ITS OUTPUT: over every archive, the
 // migrated computations are exactly the archived proofs, each under its own hex, and the manifest
-// names no artifact the source lacked — every act has acts/<K-id>/output.
+// names no artifact the source lacked — every act has acts/<K-id>/output. A native archive's
+// computations are its source's, each keeping its `K-` id.
 func TestEveryComputationKeepsItsProofsHexAndHasItsOutput(t *testing.T) {
-	total := 0
+	total, native := 0, 0
 	for _, name := range archivedRuns(t) {
+		proofs := proofStage(t, name)
 		var want []string
 		for _, e := range sourceEvents(t, name) {
-			if e.Word != "proof" {
-				continue
-			}
-			id, _ := e.Fields["proof_id"].(string)
-			if h := archivedProofHex(id); h != "" {
-				want = append(want, h)
-			} else {
-				t.Errorf("%s: archived proof id %q is not a proof's id", name, id)
+			switch {
+			case proofs && e.Word == "proof":
+				id, _ := e.Fields["proof_id"].(string)
+				if h := archivedProofHex(id); h != "" {
+					want = append(want, h)
+				} else {
+					t.Errorf("%s: archived proof id %q is not a proof's id", name, id)
+				}
+			case !proofs && e.Word == "computation":
+				id, _ := e.Fields["computation_id"].(string)
+				if !strings.HasPrefix(id, "K-") {
+					t.Errorf("%s: native computation id %q is not a computation's id", name, id)
+				}
+				want = append(want, strings.TrimPrefix(id, "K-"))
+				native++
 			}
 		}
 		bodies, missing, dir := migratedBodies(t, name)
@@ -102,12 +138,15 @@ func TestEveryComputationKeepsItsProofsHexAndHasItsOutput(t *testing.T) {
 		slices.Sort(want)
 		slices.Sort(got)
 		if !slices.Equal(want, got) {
-			t.Errorf("%s: migrated computation hex %v, archived proof hex %v", name, got, want)
+			t.Errorf("%s: migrated computation hex %v, archived hex %v", name, got, want)
 		}
 		total += len(got)
 	}
 	if total == 0 {
 		t.Fatal("no archive held a proof — a pass that checked nothing")
+	}
+	if native == 0 {
+		t.Fatal("no native archive held a computation — the native branch checked nothing")
 	}
 }
 
@@ -255,7 +294,8 @@ func reproducesOf(bodies []any) []*recordpb.Reproduce {
 // false stands on a `ran` reproduce of its bundle before it and states that reproduce's comparison.
 // Two archived shapes become one: a `not_run` — 56 over the seven runs the plan's census counted,
 // and 43 more in 1565, m35 and m36, archived after it, every one on a re-run that reproduced — and a
-// reproduce before epoch 28 carried to a second anchor on its script (reproduceanchor_test.go).
+// reproduce before epoch 28 carried to a second anchor on its script (reproduceanchor_test.go). A
+// native archive writes the act as `ran` = false on its bundle's re-run, and it comes through so.
 func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	notRun := map[string]int{
 		"2026-10-17_is-91-prime-final.tar.gz": 3,
@@ -285,17 +325,32 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 		"2026-10-17_is-91-prime-07d.tar.gz":            27,
 		"2026-10-17_is-91-prime-m26.tar.gz":            64,
 	}
-	ledger := 0
+	// A native archive's acts written `ran` = false, each on its bundle's re-run before it.
+	ranNothing := map[string]int{
+		"2026-10-30_mersenne-31-prime-sum.tar.gz": 10,
+	}
+	ledger, native := 0, 0
 	for _, name := range archivedRuns(t) {
-		archived := 0
+		proofs := proofStage(t, name)
+		archived, wrote := 0, 0
 		for _, e := range sourceEvents(t, name) {
-			if e.Word == "reproduce" && e.Fields["rerun"] == "not_run" {
+			if e.Word != "reproduce" {
+				continue
+			}
+			if e.Fields["rerun"] == "not_run" {
 				archived++
+			}
+			if !proofs && !sourceRan(e) {
+				wrote++
 			}
 		}
 		if archived != notRun[name] {
 			t.Errorf("%s: the archive holds %d not_run, want %d", name, archived, notRun[name])
 		}
+		if wrote != ranNothing[name] {
+			t.Errorf("%s: the native archive holds %d act(s) written ran=false, want %d", name, wrote, ranNothing[name])
+		}
+		native += wrote
 		bodies, _, _ := migratedBodies(t, name)
 		standing := map[string]*recordpb.Reproduce{}
 		stood := 0
@@ -311,12 +366,14 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 				t.Errorf("%s: %s ran nothing and no reproduce before it ran %s", name, r.GetComputationId(), r.GetBundleSha()[:12])
 			case r.GetRerun() != st.GetRerun() || r.GetDrift() != st.GetDrift():
 				t.Errorf("%s: %s states %s %q; its bundle's re-run is %s %q", name, r.GetComputationId(), r.GetRerun(), r.GetDrift(), st.GetRerun(), st.GetDrift())
+			case r.GetRerunSha() != st.GetRerunSha():
+				t.Errorf("%s: %s names execution %q; its bundle's re-run is %q", name, r.GetComputationId(), r.GetRerunSha(), st.GetRerunSha())
 			case notRun[name] > 0 && r.GetRerun() != recordpb.Rerun_RERUN_REPRODUCED:
 				t.Errorf("%s: %s stands on a re-run that %s; every archived not_run stood on one that reproduced", name, r.GetComputationId(), r.GetRerun())
 			}
 		}
-		if stood != notRun[name]+carried[name] {
-			t.Errorf("%s: %d act(s) ran nothing, want %d not_run and %d carried", name, stood, notRun[name], carried[name])
+		if stood != notRun[name]+carried[name]+ranNothing[name] {
+			t.Errorf("%s: %d act(s) ran nothing, want %d not_run, %d carried and %d written ran=false", name, stood, notRun[name], carried[name], ranNothing[name])
 		}
 		if name != "2026-10-24_is-91-prime-1565.tar.gz" && name != "2026-10-27_is-91-prime-m35.tar.gz" && name != "2026-10-29_is-91-prime-m36.tar.gz" {
 			ledger += archived
@@ -324,6 +381,9 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	}
 	if ledger != 56 {
 		t.Errorf("the plan's census archives hold %d not_run, want the ledger's 56", ledger)
+	}
+	if native == 0 {
+		t.Error("no native archive wrote an act ran=false — the native branch checked nothing")
 	}
 }
 
@@ -503,10 +563,10 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 			runs++
 		}
 	}
-	// Measured over the 33 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
-	// over 30, before 1565, m35 and m36 were archived.
-	if acts != 158 || bundles != 39 || runs != 26 {
-		t.Errorf("%d acts share %d bundles in %d runs, want 158, 39, 26", acts, bundles, runs)
+	// Measured over the 34 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
+	// over 30, before 1565, m35, m36 and mersenne-31-prime-sum (11 acts on 3 bundles) were archived.
+	if acts != 169 || bundles != 42 || runs != 27 {
+		t.Errorf("%d acts share %d bundles in %d runs, want 169, 42, 27", acts, bundles, runs)
 	}
 }
 
@@ -517,10 +577,22 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 // RESIDUE: proofs/ IS NOT CARRIED. The store is rebuilt from the record; drafts under proofs/synth/
 // and every other file of the old store stay in the archive, and the argv names the stored file,
 // never the author's script path.
+//
+// A NATIVE ARCHIVE'S RAW RESULTS COME THROUGH: each reproduce's execution and exit, each
+// computation's argv, and the store's rerun/ directories are the source's.
 func TestAMigratedRunHoldsNoRawResultAndNoProofStore(t *testing.T) {
 	scriptFile := regexp.MustCompile(`^script\.(py|sh|js|mjs|go)$`)
+	native := 0
 	for _, name := range archivedRuns(t) {
 		bodies, _, dir := migratedBodies(t, name)
+		if _, err := os.Stat(filepath.Join(dir, "proofs")); !os.IsNotExist(err) {
+			t.Errorf("%s: the migrated run holds proofs/ (%v)", name, err)
+		}
+		if !proofStage(t, name) {
+			native++
+			nativeRawResultsComeThrough(t, name, bodies, dir)
+			continue
+		}
 		for _, r := range reproducesOf(bodies) {
 			if r.GetRerunSha() != "" || r.RerunExit != nil {
 				t.Errorf("%s: %s names an execution (%q, exit %v) the archive never recorded", name, r.GetComputationId(), r.GetRerunSha(), r.RerunExit)
@@ -536,13 +608,71 @@ func TestAMigratedRunHoldsNoRawResultAndNoProofStore(t *testing.T) {
 		if reruns, _ := filepath.Glob(filepath.Join(dir, compute.StoreDir, "*", "rerun")); len(reruns) != 0 {
 			t.Errorf("%s: the migrated store holds %s", name, reruns[0])
 		}
-		if _, err := os.Stat(filepath.Join(dir, "proofs")); !os.IsNotExist(err) {
-			t.Errorf("%s: the migrated run holds proofs/ (%v)", name, err)
-		}
+	}
+	if native == 0 {
+		t.Error("no native archive — the check that its raw results come through checks nothing")
 	}
 	// The drafts this residue row names are in the archive, so the row is about something.
 	if _, err := os.Stat(filepath.Join(recordtest.RequireArchive(t, synthArchive), "proofs", "synth")); err != nil {
 		t.Errorf("%s holds no proofs/synth/: %v", synthArchive, err)
+	}
+}
+
+// nativeRawResultsComeThrough asserts a native archive's reproduces name the source's executions and
+// exits in order, its computations keep the source's argv, and the store holds the source's rerun/
+// directories and no other.
+func nativeRawResultsComeThrough(t *testing.T, name string, bodies []any, dir string) {
+	t.Helper()
+	type raw struct {
+		id, sha string
+		exit    any
+	}
+	var want, got []raw
+	argv := map[string][]string{}
+	for _, e := range sourceEvents(t, name) {
+		switch e.Word {
+		case "reproduce":
+			id, _ := e.Fields["computation_id"].(string)
+			sha, _ := e.Fields["rerun_sha"].(string)
+			var exit any
+			if v, ok := e.Fields["rerun_exit"].(int64); ok {
+				exit = int32(v)
+			}
+			want = append(want, raw{id, sha, exit})
+		case "computation":
+			id, _ := e.Fields["computation_id"].(string)
+			argv[id] = e.Lists["argv"]
+		}
+	}
+	for _, r := range reproducesOf(bodies) {
+		var exit any
+		if r.RerunExit != nil {
+			exit = r.GetRerunExit()
+		}
+		got = append(got, raw{r.GetComputationId(), r.GetRerunSha(), exit})
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("%s: the migrated reproduces' executions are not the source's:\n got  %v\n want %v", name, got, want)
+	}
+	if len(want) == 0 || want[0].sha == "" {
+		t.Errorf("%s: the native source names no execution — the check that it comes through checks nothing", name)
+	}
+	for _, b := range bodies {
+		if c, ok := b.(*recordpb.Computation); ok {
+			if src, held := argv[c.GetComputationId()]; !held || !slices.Equal(c.GetArgv(), src) {
+				t.Errorf("%s: %s's argv %q, the source's %q", name, c.GetComputationId(), c.GetArgv(), src)
+			}
+		}
+	}
+	reruns := func(root string) []string {
+		m, _ := filepath.Glob(filepath.Join(root, compute.StoreDir, "*", "rerun", "*"))
+		for i := range m {
+			m[i], _ = filepath.Rel(root, m[i])
+		}
+		return m
+	}
+	if g, w := reruns(dir), reruns(recordtest.RequireArchive(t, name)); !slices.Equal(g, w) || len(w) == 0 {
+		t.Errorf("%s: the migrated store's rerun/ entries %v, the source's %v", name, g, w)
 	}
 }
 

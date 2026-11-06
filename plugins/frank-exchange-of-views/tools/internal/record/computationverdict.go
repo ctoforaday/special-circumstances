@@ -208,7 +208,8 @@ func computationVerdictOf(id, sha string, s *anchorStanding, reruns map[string]*
 	}
 	// A RETIRED ANCHOR KEEPS THE VERDICTS IT LEFT WITH. Nothing is owed on a sentence the report no
 	// longer carries, which is what `stands` answers for the work list; what its sentence was judged
-	// to be is still the record's to show.
+	// to be is still the record's, and its row read at its id (EvidenceAt) shows it. No document does:
+	// evidence.md and the evidence table's lists hold the live anchors.
 	if s.retired {
 		kept := *s
 		kept.retired = false

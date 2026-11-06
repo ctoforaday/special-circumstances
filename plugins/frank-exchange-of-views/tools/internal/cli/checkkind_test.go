@@ -46,7 +46,7 @@ func TestAComputationCheckCannotBeClosedWithoutAComputation(t *testing.T) {
 	}
 	// THE WAY OUT IS A PATH A SEAT CAN TYPE: the verb as blue's surface lists it, with the flag it
 	// registers. It said `blue compute --location`, and neither the role word nor the flag exists.
-	for _, want := range []string{"check-kind computation", "`compute --quote"} {
+	for _, want := range []string{"check-kind computation", "`compute --answers G-", "`motion docket file`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not mention %q, so nobody learns the way out:\n%v", want, err)
 		}
