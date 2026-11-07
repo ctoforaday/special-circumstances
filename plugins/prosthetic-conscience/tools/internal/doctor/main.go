@@ -92,30 +92,18 @@ func binariesOf(root, plugin, version string) []binStatus {
 
 // hookBinaries lists this plugin's own commands.
 func hookBinaries(root string) []binStatus {
-	return binariesOf(root, filepath.Base(filepath.Dir(root)), filepath.Base(root))
+	name, version := pluginIdentity(root)
+	return binariesOf(root, name, version)
 }
 
-// siblingBinaries walks the marketplace cache for every OTHER installed SC plugin
-// that ships a Go module, so `--fix` provisions the whole suite rather than only
-// the plugin the doctor happens to live in. Each plugin owns its own bin/ and its
-// own release tag; nothing here assumes a shared one.
+// siblingBinaries walks every OTHER installed SC plugin that ships a Go module,
+// so `--fix` provisions the whole suite rather than only the plugin the doctor
+// happens to live in. Supports both versioned marketplace caches (<marketDir>/<plugin>/<version>)
+// and flat plugin directories (<pluginsDir>/<plugin>).
 func siblingBinaries(root string) []binStatus {
-	marketDir := filepath.Dir(filepath.Dir(root))
-	self := filepath.Base(filepath.Dir(root))
-	entries, err := os.ReadDir(marketDir)
-	if err != nil {
-		return nil
-	}
 	var out []binStatus
-	for _, e := range entries {
-		if !e.IsDir() || e.Name() == self {
-			continue
-		}
-		v := newestVersionDir(filepath.Join(marketDir, e.Name()))
-		if v == "" {
-			continue
-		}
-		out = append(out, binariesOf(filepath.Join(marketDir, e.Name(), v), e.Name(), v)...)
+	for _, ref := range siblingPluginRoots(root) {
+		out = append(out, binariesOf(ref.Root, ref.Name, ref.Version)...)
 	}
 	return out
 }
@@ -345,26 +333,182 @@ func newestVersionDir(pluginDir string) string {
 	return best
 }
 
-// siblingRequirements walks the marketplace cache (root/../..) and aggregates every OTHER
-// installed SC plugin's newest requirements.json — each plugin owns its manifest; the
-// doctor reports the whole suite (backlog: doctor cross-plugin aggregation).
-func siblingRequirements(root string) []pluginReq {
-	marketDir := filepath.Dir(filepath.Dir(root)) // <plugin>/<version> -> cache root
-	selfPlugin := filepath.Base(filepath.Dir(root))
-	entries, err := os.ReadDir(marketDir)
-	if err != nil {
-		return nil
+// isSemver reports whether a path segment starts with a digit and consists only
+// of digits and dots, with at least one dot (e.g. "0.52.0", "1.0").
+func isSemver(s string) bool {
+	if s == "" || s[0] < '0' || s[0] > '9' {
+		return false
 	}
+	hasDot := false
+	for _, c := range s {
+		if c == '.' {
+			hasDot = true
+			continue
+		}
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return hasDot
+}
+
+// isPluginDir reports whether dir looks like a plugin root by holding a manifest,
+// requirements.json, or tools/cmd.
+func isPluginDir(dir string) bool {
+	for _, sub := range []string{
+		"requirements.json",
+		"plugin.json",
+		filepath.Join(".claude-plugin", "plugin.json"),
+		filepath.Join(".antigravity-plugin", "plugin.json"),
+		filepath.Join("tools", "cmd"),
+	} {
+		if _, err := os.Stat(filepath.Join(dir, sub)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// isAntigravity reports whether the process runs inside a Google Antigravity session.
+func isAntigravity() bool {
+	return os.Getenv("ANTIGRAVITY_AGENT") != "" ||
+		os.Getenv("ANTIGRAVITY_APP_DATA_DIR") != "" ||
+		os.Getenv("ANTIGRAVITY_CONVERSATION_ID") != ""
+}
+
+type manifestFields struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+func readManifest(path string) (name, version string) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", ""
+	}
+	var m manifestFields
+	if err := json.Unmarshal(b, &m); err == nil {
+		return m.Name, m.Version
+	}
+	return "", ""
+}
+
+// pluginIdentity extracts the plugin name and version from manifests in root,
+// falling back to .fetch/installed or directory path conventions.
+func pluginIdentity(root string) (name, version string) {
+	for _, sub := range []string{
+		"plugin.json",
+		filepath.Join(".claude-plugin", "plugin.json"),
+		filepath.Join(".antigravity-plugin", "plugin.json"),
+	} {
+		n, v := readManifest(filepath.Join(root, sub))
+		if n != "" && name == "" {
+			name = n
+		}
+		if v != "" && version == "" {
+			version = v
+		}
+		if name != "" && version != "" {
+			return name, version
+		}
+	}
+
+	if version == "" {
+		if raw, err := os.ReadFile(filepath.Join(root, ".fetch", "installed")); err == nil {
+			tag := strings.TrimSpace(string(raw))
+			if idx := strings.Index(tag, "--v"); idx >= 0 {
+				if name == "" {
+					name = tag[:idx]
+				}
+				version = tag[idx+3:]
+			}
+		}
+	}
+
+	if isSemver(filepath.Base(root)) {
+		if name == "" {
+			name = filepath.Base(filepath.Dir(root))
+		}
+		if version == "" {
+			version = filepath.Base(root)
+		}
+	} else {
+		if name == "" {
+			name = filepath.Base(root)
+		}
+	}
+	return name, version
+}
+
+type pluginRef struct {
+	Name    string
+	Version string
+	Root    string
+}
+
+// siblingPluginRoots discovers sibling plugin roots across both versioned
+// marketplace caches (<marketDir>/<plugin>/<version>) and flat plugin directories
+// (<pluginsDir>/<plugin>).
+func siblingPluginRoots(root string) []pluginRef {
+	selfName, _ := pluginIdentity(root)
+	var out []pluginRef
+
+	if isSemver(filepath.Base(root)) {
+		// Versioned marketplace cache layout: <marketDir>/<plugin>/<version>
+		marketDir := filepath.Dir(filepath.Dir(root))
+		entries, err := os.ReadDir(marketDir)
+		if err != nil {
+			return nil
+		}
+		for _, e := range entries {
+			if !e.IsDir() || e.Name() == selfName {
+				continue
+			}
+			v := newestVersionDir(filepath.Join(marketDir, e.Name()))
+			if v == "" {
+				continue
+			}
+			siblingDir := filepath.Join(marketDir, e.Name(), v)
+			name, ver := pluginIdentity(siblingDir)
+			if name == "" {
+				name = e.Name()
+			}
+			if ver == "" {
+				ver = v
+			}
+			out = append(out, pluginRef{Name: name, Version: ver, Root: siblingDir})
+		}
+	} else {
+		// Flat plugins directory layout: <pluginsDir>/<plugin> (Antigravity & dev checkout)
+		parent := filepath.Dir(root)
+		entries, err := os.ReadDir(parent)
+		if err != nil {
+			return nil
+		}
+		for _, e := range entries {
+			if !e.IsDir() || e.Name() == selfName {
+				continue
+			}
+			siblingDir := filepath.Join(parent, e.Name())
+			if !isPluginDir(siblingDir) {
+				continue
+			}
+			name, ver := pluginIdentity(siblingDir)
+			if name == "" {
+				name = e.Name()
+			}
+			out = append(out, pluginRef{Name: name, Version: ver, Root: siblingDir})
+		}
+	}
+	return out
+}
+
+// siblingRequirements walks sibling plugins and aggregates each installed SC plugin's
+// newest requirements.json — each plugin owns its manifest; the doctor reports the whole suite.
+func siblingRequirements(root string) []pluginReq {
 	var out []pluginReq
-	for _, e := range entries {
-		if !e.IsDir() || e.Name() == selfPlugin {
-			continue
-		}
-		v := newestVersionDir(filepath.Join(marketDir, e.Name()))
-		if v == "" {
-			continue
-		}
-		raw, err := os.ReadFile(filepath.Join(marketDir, e.Name(), v, "requirements.json"))
+	for _, ref := range siblingPluginRoots(root) {
+		raw, err := os.ReadFile(filepath.Join(ref.Root, "requirements.json"))
 		if err != nil {
 			continue
 		}
@@ -372,7 +516,7 @@ func siblingRequirements(root string) []pluginReq {
 		if err := json.Unmarshal(raw, &req); err != nil {
 			continue
 		}
-		out = append(out, pluginReq{Plugin: e.Name(), Tools: req.Tools})
+		out = append(out, pluginReq{Plugin: ref.Name, Tools: req.Tools})
 	}
 	return out
 }
@@ -380,8 +524,11 @@ func siblingRequirements(root string) []pluginReq {
 // danceWarnings computes update-dance state from observable cache facts: a newer version
 // dir than the one running means the dance is mid-flight; a newest dir with an empty bin/
 // is the empty-bin window (the 0.7.0 crash-storm class). Deterministic verdicts, not
-// remembered rituals.
+// remembered rituals. Only applies to versioned marketplace caches.
 func danceWarnings(root string) []string {
+	if !isSemver(filepath.Base(root)) {
+		return nil
+	}
 	pluginDir := filepath.Dir(root)
 	current := filepath.Base(root)
 	newest := newestVersionDir(pluginDir)
@@ -566,6 +713,13 @@ func stampInstalled(bins []binStatus) {
 			continue
 		}
 		_ = os.WriteFile(filepath.Join(dir, "installed"), []byte(releaseTag(b)+"\n"), 0o644)
+		rev := ReadBuildStamp(binPath(b)).Revision
+		if rev == "" {
+			rev = HeadCommit(root)
+		}
+		if rev != "" {
+			_ = os.WriteFile(filepath.Join(dir, "commit"), []byte(rev+"\n"), 0o644)
+		}
 	}
 }
 
@@ -608,15 +762,34 @@ func fixWith(bins []binStatus, fetch func(binStatus) error, build func(binStatus
 	return report
 }
 
-// resolveRoot picks the plugin root: the -root flag wins, then CLAUDE_PLUGIN_ROOT,
-// then the binary's own grandparent (bin/sc-doctor -> plugin root). executable is a
-// parameter so the fallback is reachable in a test.
+// resolveRoot picks the plugin root: the -root flag wins, then CLAUDE_PLUGIN_ROOT /
+// PLUGIN_ROOT, then the binary's own grandparent (bin/sc-doctor -> plugin root),
+// then Antigravity's ~/.gemini/config/plugins/prosthetic-conscience when running
+// under an Antigravity agent session. executable is a parameter so the fallback
+// is reachable in a test.
 func resolveRoot(rootFlag, envRoot string, executable func() (string, error)) string {
 	if rootFlag != "" {
 		return rootFlag
 	}
 	if envRoot != "" {
 		return envRoot
+	}
+	if pRoot := os.Getenv("PLUGIN_ROOT"); pRoot != "" {
+		return pRoot
+	}
+	if exe, err := executable(); err == nil {
+		grandparent := filepath.Dir(filepath.Dir(exe))
+		if isPluginDir(grandparent) {
+			return grandparent
+		}
+	}
+	if isAntigravity() {
+		if h := homeDir(); h != "" {
+			dir := filepath.Join(h, ".gemini", "config", "plugins", "prosthetic-conscience")
+			if isPluginDir(dir) {
+				return dir
+			}
+		}
 	}
 	if exe, err := executable(); err == nil {
 		return filepath.Dir(filepath.Dir(exe))
@@ -732,7 +905,11 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 // Main is the process boundary: it wires the real environment in and returns the
 // exit code, so cmd/ stays a three-line shim and this stays testable.
 func Main() int {
-	return run(os.Args[1:], os.Stdout, os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Executable, fix)
+	envRoot := os.Getenv("CLAUDE_PLUGIN_ROOT")
+	if envRoot == "" {
+		envRoot = os.Getenv("PLUGIN_ROOT")
+	}
+	return run(os.Args[1:], os.Stdout, envRoot, os.Executable, fix)
 }
 
 // displayVersion prefers the line the check command already produced during Probe over running

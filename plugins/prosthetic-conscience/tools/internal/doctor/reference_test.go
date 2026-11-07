@@ -100,6 +100,62 @@ func TestARecordForAnotherInstallDoesNotAnswer(t *testing.T) {
 	}
 }
 
+// .fetch/commit takes precedence in an install when present.
+func TestReferenceCommitFromFetchCommit(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "plugins", "prosthetic-conscience")
+	if err := os.MkdirAll(filepath.Join(root, ".fetch"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const sha = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+	if err := os.WriteFile(filepath.Join(root, ".fetch", "commit"), []byte(sha+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := ReferenceCommit(binStatus{Name: "sc-doctor", Root: root, Built: true}); got != sha {
+		t.Errorf("ReferenceCommit = %q, want commit from .fetch/commit %q", got, sha)
+	}
+}
+
+// Cross-harness match: when installPath does not match (e.g. Antigravity plugin layout),
+// installed_plugins.json matches by plugin name and version.
+func TestReferenceCommitByNameMatchesCrossHarness(t *testing.T) {
+	tmp := t.TempDir()
+	const sha = "3cc2d7b817c5611032652e83a9e254fc46b57aac"
+
+	rec := map[string]any{"plugins": map[string]any{
+		"gray-area@special-circumstances": []any{
+			map[string]any{
+				"installPath":  filepath.Join(tmp, "claude", "cache", "gray-area", "0.18.0"),
+				"gitCommitSha": sha,
+				"version":      "0.18.0",
+			},
+		},
+	}}
+	b, err := json.Marshal(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "installed_plugins.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Antigravity flat install path
+	agyRoot := filepath.Join(tmp, "gemini", "config", "plugins", "gray-area")
+	if err := os.MkdirAll(agyRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := ReferenceCommit(binStatus{
+		Name:    "telepathy",
+		Plugin:  "gray-area",
+		Version: "0.18.0",
+		Root:    agyRoot,
+		Built:   true,
+	})
+	if got != sha {
+		t.Errorf("ReferenceCommit = %q, want cross-harness commit %q", got, sha)
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) (string, error) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)

@@ -295,3 +295,162 @@ func TestAHealthyToolRendersTheTick(t *testing.T) {
 		t.Errorf("the healthy row lost its name or version:\n%s", out)
 	}
 }
+
+// Flat layout sibling discovery: in Antigravity (~/.gemini/config/plugins/<plugin>) and
+// dev checkouts (plugins/<plugin>), plugin directories sit directly beside each other
+// without version subdirectories.
+func TestSiblingBinariesAndRequirementsFlatLayout(t *testing.T) {
+	pluginsDir := t.TempDir()
+	self := filepath.Join(pluginsDir, "prosthetic-conscience")
+	feov := filepath.Join(pluginsDir, "frank-exchange-of-views")
+	gray := filepath.Join(pluginsDir, "gray-area")
+	nonPlugin := filepath.Join(pluginsDir, "scratch-non-plugin")
+
+	for _, d := range []string{
+		filepath.Join(self, "tools", "cmd", "sc-doctor"),
+		filepath.Join(feov, "tools", "cmd", "feov-record"),
+		filepath.Join(feov, "bin"),
+		filepath.Join(gray, "tools", "cmd", "telepathy"),
+		filepath.Join(gray, "bin"),
+		filepath.Join(gray, ".antigravity-plugin"),
+		nonPlugin,
+	} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Write manifests and requirements
+	if err := os.WriteFile(filepath.Join(self, "plugin.json"), []byte(`{"name":"prosthetic-conscience","version":"0.52.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(feov, "plugin.json"), []byte(`{"name":"frank-exchange-of-views","version":"1.73.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(feov, "requirements.json"), []byte(`{"tools":[{"name":"node","tier":"required","check_cmd":"node --version"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gray, ".antigravity-plugin", "plugin.json"), []byte(`{"name":"gray-area","version":"0.18.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gray, "requirements.json"), []byte(`{"tools":[{"name":"ripgrep","tier":"required","check_cmd":"rg --version"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Sibling roots should discover feov and gray, ignoring nonPlugin
+	roots := siblingPluginRoots(self)
+	if len(roots) != 2 {
+		t.Fatalf("expected 2 sibling roots, got %d: %+v", len(roots), roots)
+	}
+	foundFeov, foundGray := false, false
+	for _, r := range roots {
+		if r.Name == "frank-exchange-of-views" {
+			foundFeov = true
+			if r.Version != "1.73.0" {
+				t.Errorf("feov version = %q, want 1.73.0", r.Version)
+			}
+			if r.Root != feov {
+				t.Errorf("feov root = %q, want %q", r.Root, feov)
+			}
+		}
+		if r.Name == "gray-area" {
+			foundGray = true
+			if r.Version != "0.18.0" {
+				t.Errorf("gray-area version = %q, want 0.18.0", r.Version)
+			}
+			if r.Root != gray {
+				t.Errorf("gray-area root = %q, want %q", r.Root, gray)
+			}
+		}
+	}
+	if !foundFeov || !foundGray {
+		t.Errorf("missing expected siblings: feov=%v, gray=%v", foundFeov, foundGray)
+	}
+
+	// 2. Sibling binaries should list feov-record and telepathy
+	bins := siblingBinaries(self)
+	if len(bins) != 2 {
+		t.Fatalf("expected 2 sibling binaries, got %d: %+v", len(bins), bins)
+	}
+
+	// Writing a binary flips Built
+	if err := os.WriteFile(filepath.Join(feov, "bin", buildid.ExeName("feov-record")), []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rechecked := siblingBinaries(self)
+	for _, b := range rechecked {
+		if b.Name == "feov-record" && !b.Built {
+			t.Errorf("feov-record reported not built after placing binary")
+		}
+		if b.Name == "telepathy" && b.Built {
+			t.Errorf("telepathy reported built without binary")
+		}
+	}
+
+	// 3. Sibling requirements should aggregate node and ripgrep
+	reqs := siblingRequirements(self)
+	if len(reqs) != 2 {
+		t.Fatalf("expected 2 sibling requirements, got %d: %+v", len(reqs), reqs)
+	}
+	toolsFound := map[string]string{}
+	for _, pr := range reqs {
+		for _, tool := range pr.Tools {
+			toolsFound[tool.Name] = pr.Plugin
+		}
+	}
+	if toolsFound["node"] != "frank-exchange-of-views" {
+		t.Errorf("node not found from feov: %+v", toolsFound)
+	}
+	if toolsFound["ripgrep"] != "gray-area" {
+		t.Errorf("ripgrep not found from gray-area: %+v", toolsFound)
+	}
+}
+
+func TestPluginIdentityResolution(t *testing.T) {
+	tmp := t.TempDir()
+
+	// 1. Manifest at root
+	p1 := filepath.Join(tmp, "p1")
+	if err := os.MkdirAll(p1, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p1, "plugin.json"), []byte(`{"name":"plug-one","version":"1.2.3"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if n, v := pluginIdentity(p1); n != "plug-one" || v != "1.2.3" {
+		t.Errorf("p1 = (%q, %q), want (plug-one, 1.2.3)", n, v)
+	}
+
+	// 2. Manifest in .claude-plugin
+	p2 := filepath.Join(tmp, "p2")
+	if err := os.MkdirAll(filepath.Join(p2, ".claude-plugin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p2, ".claude-plugin", "plugin.json"), []byte(`{"name":"plug-two","version":"2.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if n, v := pluginIdentity(p2); n != "plug-two" || v != "2.0.0" {
+		t.Errorf("p2 = (%q, %q), want (plug-two, 2.0.0)", n, v)
+	}
+
+	// 3. Fallback to .fetch/installed tag
+	p3 := filepath.Join(tmp, "plug-three")
+	if err := os.MkdirAll(filepath.Join(p3, ".fetch"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p3, ".fetch", "installed"), []byte("plug-three--v3.4.5\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if n, v := pluginIdentity(p3); n != "plug-three" || v != "3.4.5" {
+		t.Errorf("p3 = (%q, %q), want (plug-three, 3.4.5)", n, v)
+	}
+
+	// 4. Fallback for versioned directory without manifest
+	p4 := filepath.Join(tmp, "plug-four", "4.5.6")
+	if err := os.MkdirAll(p4, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if n, v := pluginIdentity(p4); n != "plug-four" || v != "4.5.6" {
+		t.Errorf("p4 = (%q, %q), want (plug-four, 4.5.6)", n, v)
+	}
+}
