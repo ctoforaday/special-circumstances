@@ -115,6 +115,7 @@ func NewRoot(env Env) *cobra.Command {
 		Long:  longDescription,
 		Example: `  telepathy agents
   telepathy agents --lost
+  telepathy search 1024
   telepathy send 8a3d5199 "your branch conflicts with mine"
   telepathy touched internal/catalogue/schema.go
   telepathy sql "SELECT tool, count(*) n FROM v_action GROUP BY 1 ORDER BY 2 DESC"`,
@@ -169,7 +170,7 @@ func NewRoot(env Env) *cobra.Command {
 		newAgentsCmd(&env),
 		newSessionCmd(&env),
 		newTouchedCmd(&env),
-		newFindCmd(&env),
+		newSearchCmd(&env),
 		newSQLCmd(&env),
 		newBackfillCmd(&env),
 		newSendCmd(&env),

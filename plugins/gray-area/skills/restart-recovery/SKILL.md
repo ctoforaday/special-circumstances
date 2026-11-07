@@ -57,7 +57,7 @@ sessions back when they are opened; `past` means it may not, and opening is stil
   flag: say so in the choice rather than naming a mode it may not get.
 - **The human names sessions by app title; the record holds ids.** The title never reaches the
   session's transcript, so the translation is the step with nothing under it. IF the human names a
-  session, YOU MUST find its id from words that were SAID in it (`telepathy find '<a phrase they
+  session, YOU MUST find its id from words that were SAID in it (`telepathy search '<a phrase they
   remember>' --in assistant`, or `--in user`), never from a name→id table another session wrote —
   a table naming the wrong id fails silently, because the reattach then connects cleanly to the
   wrong session. AFTER a reattach, YOU MUST read the title in its banner

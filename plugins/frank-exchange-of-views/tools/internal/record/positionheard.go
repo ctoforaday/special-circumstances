@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
@@ -69,12 +70,26 @@ func requirePositionRef(q recordsql.Querier, id string) error {
 // names none. A named gap the bench has already remanded at impasse is refused as a second remand
 // at impasse is (remandPastLimit), and one with a docket motion standing unruled is before the bench
 // already.
-func requirePositionHearing(w writeView, seatID string, h *recordpb.PositionHearing) error {
+//
+// A POSITION WHOSE CLASS IS `always` MATERIAL IS NOT OVERRULED (gblock, 2026-11-05). The class
+// decides materiality, so an overrule there can only be the bench ruling a defect of that class
+// immaterial — m39's bench did exactly that to two sentences narrating the run, then declared it
+// as a holding. Whether the defect stands is a lens's to find, so the ruling upholds and names one.
+func requirePositionHearing(w writeView, seatID, positionID string, h *recordpb.PositionHearing) error {
 	lens, gaps := strings.TrimSpace(h.GetLens()), h.GetGapIds()
 	switch h.GetRuling() {
 	case recordpb.PositionRuling_POSITION_RULING_OVERRULED:
 		if h.Lens != nil || len(gaps) > 0 || h.Direction != nil {
 			return fmt.Errorf("--as %s names no work: the objection does not hold and the PASS goes back to the chair's next sitting, so --lens, --ids and --direction are an upheld ruling's", positionOverruled)
+		}
+		var class sql.NullString
+		if _, err := queryRowAt(w.q, []any{&class}, `SELECT "class" FROM "position" WHERE "position_id" = ?`, positionID); err != nil {
+			return err
+		}
+		if c, ok := GapClassOf(class.String); class.Valid && ok && recordpb.MaterialDefault(c) == recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {
+			return feov.Errorf(feov.Conflict,
+				"--as %s is refused: position %s argues a defect of class %s, whose material default is always — the class decides its materiality, and no ruling makes a defect of it immaterial. Whether the defect stands is a lens's to find: rule %s, naming with --lens the lens whose area it is — any lens of the cast, a retired one included — and with --direction what its audit owes. Nothing was recorded",
+				positionOverruled, positionID, class.String, positionUpheld)
 		}
 		return nil
 	case recordpb.PositionRuling_POSITION_RULING_UPHELD:
