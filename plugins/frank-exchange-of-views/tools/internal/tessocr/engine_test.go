@@ -1,43 +1,63 @@
-//go:build tessocr && cgo
-
 package tessocr
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"image"
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 )
 
-// The embedded traineddata must be the pinned bytes — the pin in PINS.txt is the record,
+// The embedded traineddata must be the pinned bytes — the pin in feov-ocr/PINS.txt is the record,
 // and an embed that drifted from it would ship an engine whose Identity() attests to
 // language data it does not carry.
 func TestEmbeddedTraineddataPin(t *testing.T) {
-	pinned := engTraineddataPin
-	sum := sha256.Sum256(engTraineddata)
-	if got := hex.EncodeToString(sum[:]); got != pinned {
-		t.Fatalf("embedded eng.traineddata sha256 = %s, want the PINS.txt pin %s", got, pinned)
-	}
-	pins, err := os.ReadFile(filepath.Join("..", "..", "third_party", "pins", "PINS.txt"))
+	nativehelper.Require(t, "feov-ocr")
+	en, err := New()
 	if err != nil {
-		t.Fatalf("reading PINS.txt: %v", err)
+		t.Fatal(err)
 	}
-	if !strings.Contains(string(pins), pinned) {
-		t.Errorf("PINS.txt no longer carries the traineddata pin %s — update BOTH carriers together", pinned)
+	defer en.Close()
+
+	got, err := en.SelftestTraineddata()
+	if err != nil {
+		t.Fatalf("SelftestTraineddata: %v", err)
+	}
+	want := nativehelper.OCREngine.EngTraineddata
+	if got != want {
+		t.Fatalf("embedded traineddata sha256 = %s, want %s", got, want)
 	}
 }
 
-// The one real image in the tree, end to end through the cgo pixel path: a 2180x800 crop
+// TestSelftestLibc exercises libc symbols inside feov-ocr on Linux.
+func TestSelftestLibc(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("selftest-libc is Linux only")
+	}
+	nativehelper.Require(t, "feov-ocr")
+	en, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer en.Close()
+
+	if err := en.SelftestLibc(); err != nil {
+		t.Fatalf("SelftestLibc failed: %v", err)
+	}
+}
+
+// The one real image in the tree, end to end through the helper pixel path: a 2180x800 crop
 // of p0054's ruled grid, row labels included (105 KB — the boundary set proper is tested
 // over recorded counts, which is why eleven full-page scans are not checked in). The
 // counts are pinned exactly: the morphology is deterministic, so any drift is a change in
 // the shim or the libraries, not noise.
 func TestDetectGridOnRealCrop(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	png, err := os.ReadFile(filepath.Join("testdata", "gridcrop.png"))
 	if err != nil {
 		t.Fatal(err)
@@ -60,6 +80,7 @@ func TestDetectGridOnRealCrop(t *testing.T) {
 }
 
 func TestDetectGridRefusesBrokenImage(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	// A failed decode is an ERROR, never a page measuring zero — zero is what a clean
 	// prose page legitimately measures.
 	if _, err := DetectGrid([]byte("not a png"), Grid300); err == nil {
@@ -76,6 +97,7 @@ func TestDetectGridRefusesBrokenImage(t *testing.T) {
 // stack's fact, not this package's, and pinning it would fail every legitimate library
 // bump with a wall of diff.
 func TestEngineOCRRealCrop(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	en, err := New()
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -110,6 +132,7 @@ func TestEngineOCRRealCrop(t *testing.T) {
 }
 
 func TestEngineRefusalsAfterClose(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	en, err := New()
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -125,6 +148,7 @@ func TestEngineRefusalsAfterClose(t *testing.T) {
 // and reads as empty text; a page of print measures ink, and ReadPage carries the same number the
 // measurement alone returns — so a recognition that came back empty could not have moved it.
 func TestInkFractionMeasuresThePixelsAndReadPageCarriesIt(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	for _, bad := range [][]byte{nil, []byte("not a png")} {
 		if _, err := InkFraction(bad); err == nil {
 			t.Errorf("InkFraction(%q) returned no error — a broken image would read as a blank page", bad)
@@ -179,6 +203,7 @@ func TestEndToEndCorpus(t *testing.T) {
 	if dir == "" {
 		t.Skip("TESSOCR_CORPUS_DIR not set; end-to-end corpus check skipped")
 	}
+	nativehelper.Require(t, "feov-ocr")
 	en, err := New()
 	if err != nil {
 		t.Fatalf("New: %v", err)

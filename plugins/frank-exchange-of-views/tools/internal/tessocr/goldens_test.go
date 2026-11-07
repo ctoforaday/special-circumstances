@@ -1,5 +1,3 @@
-//go:build tessocr && cgo
-
 package tessocr
 
 import (
@@ -10,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 )
 
 // EVERY LAYOUT CASE, READ BY THE REAL ENGINE, PINNED BYTE FOR BYTE.
@@ -29,10 +29,11 @@ import (
 //
 // Regenerate with:
 //
-//	go test -tags tessocr -run TestTextCellGoldens -update ./internal/tessocr/
+//	go test -run TestTextCellGoldens -update ./internal/tessocr/
 var update = flag.Bool("update", false, "rewrite the layout-case goldens from what the engine reads now")
 
 func TestTextCellGoldens(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	pngs, err := filepath.Glob("testdata/*.png")
 	if err != nil {
 		t.Fatal(err)

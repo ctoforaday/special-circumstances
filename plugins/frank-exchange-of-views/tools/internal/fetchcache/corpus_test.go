@@ -1,5 +1,3 @@
-//go:build tessocr
-
 package fetchcache
 
 import (
@@ -14,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
@@ -41,8 +40,7 @@ import (
 //
 // Run it, or regenerate (goldens and STATUS.md together):
 //
-//	FEOV_OCR_CORPUS=1 go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' \
-//	  ./internal/fetchcache/ -run TestCorpusGoldens [-update]
+//	FEOV_OCR_CORPUS=1 NATIVE_HELPER_DIR=<dir> go test -count=1 ./internal/fetchcache/ -run TestCorpusGoldens [-update]
 const corpusRoot = "../tessocr/testdata/corpus"
 
 // update regenerates the goldens and STATUS.md together: a golden without the meter beside it is
@@ -54,6 +52,7 @@ func TestCorpusGoldens(t *testing.T) {
 		t.Skip("the corpus reads eight scans through the real engine; set FEOV_OCR_CORPUS=1 (the " +
 			"ocr-corpus job does) or pass -update")
 	}
+	nativehelper.Require(t, "feov-ocr")
 	cases, err := corpus.Load(corpusRoot)
 	if err != nil {
 		t.Fatal(err)

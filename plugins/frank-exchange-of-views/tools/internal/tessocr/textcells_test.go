@@ -1,11 +1,11 @@
-//go:build tessocr && cgo
-
 package tessocr
 
 import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 )
 
 // A RULED TABLE OF TEXT KEEPS ITS ROWS (#932), through the real engine on real pixels. The
@@ -13,6 +13,7 @@ import (
 // one scan's luck: the detector fires, the marks path finds nothing to rebuild, and the rules'
 // own cells carry each row's text together.
 func TestTextCellTableKeepsItsRowsThroughTheEngine(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	png, err := os.ReadFile("testdata/textcells.png")
 	if err != nil {
 		t.Fatal(err)

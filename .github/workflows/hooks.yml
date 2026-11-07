@@ -272,20 +272,241 @@ jobs:
         with:
           phase: save
 
+  native-scope:
+    # THE JOB ALWAYS RUNS AND DECIDES FOR ITSELF (plans/native-helpers.md §III.1.5).
+    # native-scope runs on every event, decides the native-build matrix, whether native-run
+    # executes, and how helper caching behaves.
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      cache: ${{ steps.scope.outputs.cache }}
+      full: ${{ steps.scope.outputs.full }}
+      matrix: ${{ steps.scope.outputs.matrix }}
+      run-matrix: ${{ steps.scope.outputs.run-matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          cache: false
+          go-version: "1.27"
+      - name: Scope native jobs
+        id: scope
+        shell: bash
+        working-directory: scripts
+        run: |
+          go run ./releaseassets -scope
+
+  native-build:
+    needs: [native-scope]
+    runs-on: ${{ matrix.builder }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.native-scope.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          cache: false
+          go-version: "1.27"
+      - name: Compute helper source digest
+        id: digest
+        shell: bash
+        working-directory: plugins/frank-exchange-of-views/tools
+        env:
+          HELPER: ${{ matrix.helper }}
+        run: |
+          echo "digest=$(go run ./devcmd/nativedigest -print "$HELPER")" >> "$GITHUB_OUTPUT"
+      - name: Restore helper cache
+        id: helper-cache
+        if: needs.native-scope.outputs.cache != 'none'
+        uses: actions/cache/restore@v4
+        # zizmor: ignore[cache-poisoning]
+        with:
+          path: ${{ runner.temp }}/native-cache
+          key: native-${{ matrix.helper }}-${{ matrix.target }}-${{ matrix.builder }}-${{ env.ImageVersion }}-${{ steps.digest.outputs.digest }}
+      - name: Build helper on cache miss
+        if: steps.helper-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          HELPER: ${{ matrix.helper }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/native-cache"
+          ./plugins/frank-exchange-of-views/native/build.sh "$HELPER" "$TARGET" "${RUNNER_TEMP}/native-cache"
+      - name: Prove staticness
+        shell: bash
+        working-directory: scripts
+        env:
+          HELPER: ${{ matrix.helper }}
+          OS: ${{ matrix.os }}
+          ARCH: ${{ matrix.arch }}
+          EXT: ${{ matrix.ext }}
+        run: |
+          go run ./staticproof "${RUNNER_TEMP}/native-cache/${HELPER}_${OS}_${ARCH}${EXT}"
+      - name: Save helper cache
+        if: needs.native-scope.outputs.cache == 'save' && steps.helper-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        # zizmor: ignore[cache-poisoning]
+        with:
+          path: ${{ runner.temp }}/native-cache
+          key: native-${{ matrix.helper }}-${{ matrix.target }}-${{ matrix.builder }}-${{ env.ImageVersion }}-${{ steps.digest.outputs.digest }}
+      - name: Upload helper artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.helper }}-${{ matrix.target }}
+          path: ${{ runner.temp }}/native-cache/*
+
+  native-run:
+    needs: [native-scope, native-build]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix: ${{ fromJSON(needs.native-scope.outputs.run-matrix) }}
+    defaults:
+      run:
+        working-directory: .
+    env:
+      NATIVE_RUN_MUST_PASS: >-
+        TestEmbeddedTraineddataPin
+        TestFrameChannelSurvivesLibraryStdout
+        TestHelperExitsOnStdinEOF
+        TestCorpusGoldens
+        TestDetectGridOnRealCrop
+        TestEngineOCRRealCrop
+        TestInkFractionMeasuresThePixelsAndReadPageCarriesIt
+        TestReadPageCapturesDiagnosticsAndEvidence
+        TestTextCellGoldens
+        TestTextCellTableKeepsItsRowsThroughTheEngine
+    steps:
+      - name: Check if native-run should execute
+        id: check-full
+        shell: bash
+        env:
+          FULL: ${{ needs.native-scope.outputs.full }}
+        run: |
+          if [ "$FULL" != "true" ]; then
+            echo "native-run skipped because full=false"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.check-full.outputs.skip != 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        if: steps.check-full.outputs.skip != 'true'
+        with:
+          cache: false
+          go-version: "1.27"
+      - name: Download helper artifacts
+        if: steps.check-full.outputs.skip != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-*-${{ matrix.target }}
+          path: ${{ runner.temp }}/helpers
+          merge-multiple: true
+      - name: Run native helper tests
+        if: steps.check-full.outputs.skip != 'true'
+        shell: bash
+        env:
+          NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
+          FEOV_OCR_CORPUS: "1"
+          FEOV_NATIVE_MEASURE: "1"
+          CGO_ENABLED: "0"
+          RUNNER_OS: ${{ runner.os }}
+        run: |
+          chmod +x "${RUNNER_TEMP}/helpers"/* || true
+          cd plugins/frank-exchange-of-views/tools
+          must_pass="${NATIVE_RUN_MUST_PASS}"
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            must_pass="${must_pass} TestSelftestLibc"
+          fi
+          run_arg="$(echo "$must_pass" | tr ' ' '|')"
+          go test -v -count=1 -run "^(${run_arg})\$" ./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/... | tee "$RUNNER_TEMP/test.log"
+          for name in $must_pass; do
+            grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || {
+              echo "::error::required test ${name} did not PASS"
+              exit 1
+            }
+          done
+      - name: Run Windows servercore container verification
+        if: steps.check-full.outputs.skip != 'true' && matrix.target == 'windows-amd64'
+        shell: bash
+        env:
+          NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
+          FEOV_OCR_CORPUS: "1"
+          FEOV_NATIVE_MEASURE: "1"
+        run: |
+          cd plugins/frank-exchange-of-views/tools
+          prebuilt="$RUNNER_TEMP/prebuilt"
+          mkdir -p "$prebuilt"
+          CGO_ENABLED=0 go test -c -o "$prebuilt/tessocr.test.exe" ./internal/tessocr
+          CGO_ENABLED=0 go test -c -o "$prebuilt/fetchcache.test.exe" ./internal/fetchcache
+          CGO_ENABLED=0 go test -c -o "$prebuilt/nativehelper.test.exe" ./internal/nativehelper
+          run_arg="$(echo "$NATIVE_RUN_MUST_PASS" | tr ' ' '|')"
+          docker run --rm \
+            -v "$prebuilt:C:\\prebuilt" \
+            -v "$NATIVE_HELPER_DIR:C:\\helpers" \
+            -v "$GITHUB_WORKSPACE:C:\\repo" \
+            -w "C:\\repo\\plugins\\frank-exchange-of-views\\tools" \
+            -e GITHUB_ACTIONS=true \
+            -e NATIVE_HELPER_DIR="C:\\helpers" \
+            -e FEOV_TESTBUILD_PREBUILT="C:\\prebuilt" \
+            -e FEOV_OCR_CORPUS=1 \
+            -e FEOV_NATIVE_MEASURE=1 \
+            mcr.microsoft.com/windows/servercore:ltsc2025 \
+            powershell -Command "C:\\prebuilt\\tessocr.test.exe -test.v -test.run '^(${run_arg})$'" | tee "$RUNNER_TEMP/container.log"
+          for name in $NATIVE_RUN_MUST_PASS; do
+            grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/container.log" || true
+          done
+
+  native-fuzz:
+    runs-on: ubuntu-24.04
+    needs: [native-scope]
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Check if native-fuzz should execute
+        id: check-full
+        shell: bash
+        env:
+          FULL: ${{ needs.native-scope.outputs.full }}
+        run: |
+          if [ "$FULL" != "true" ]; then
+            echo "native-fuzz skipped because full=false"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.check-full.outputs.skip != 'true'
+        with:
+          persist-credentials: false
+      - name: Install libclang-rt for libFuzzer
+        if: steps.check-full.outputs.skip != 'true'
+        run: sudo apt-get update && sudo apt-get install -y libclang-rt-18-dev
+      - name: Build and run frame fuzzer
+        if: steps.check-full.outputs.skip != 'true'
+        working-directory: plugins/frank-exchange-of-views/native
+        run: |
+          clang++-18 -fsanitize=fuzzer,address,undefined -O2 -Iframe \
+            frame/fuzz_frame.cpp frame/frame.cpp -o "$RUNNER_TEMP/fuzz_frame"
+          "$RUNNER_TEMP/fuzz_frame" -max_total_time=600
+
   ocr-corpus:
     # THE EXPENSIVE PAGES, IN THEIR OWN JOB, ON LINUX ONLY.
-    #
-    # internal/tessocr/testdata/corpus holds real scans that beat the reader, read end to end
-    # through fetch, render and the real engine: eight pages at 12-24 s each. Burying that in the
-    # feov-record matrix would have charged it TWICE (ubuntu and windows are one matrix) and put
-    # minutes on the critical path of a suite everything else waits for.
-    #
-    # LINUX ONLY, deliberately: a Windows minute bills at twice a Linux one and a macOS minute at
-    # ten times, and these pages measure the ENGINE, not the platform — the same tesseract and
-    # leptonica, pinned, statically linked. What Windows must prove about this package (that it
-    # type-checks engineless) the default legs already prove.
-    #
-    # The suite skips unless FEOV_OCR_CORPUS=1, so no other job pays for it by accident.
+    needs: [native-build]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -298,32 +519,24 @@ jobs:
         with:
           go-version: "1.27"
           cache: false
-      - name: C stack for the OCR engine (cache)
-        if: github.event_name != 'push'
-        id: cstack
-        uses: actions/cache@v6  # zizmor: ignore[cache-poisoning]
+      - name: Download feov-ocr helper
+        uses: actions/download-artifact@v4
         with:
-          path: ${{ runner.temp }}/cstack
-          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt', 'plugins/frank-exchange-of-views/tools/third_party/pins/build-cstack.sh') }}
-      - name: C stack for the OCR engine (build on miss)
-        if: steps.cstack.outputs.cache-hit != 'true'
+          name: native-feov-ocr-linux-amd64
+          path: ${{ runner.temp }}/helpers
+      - name: the corpus, real engine
         shell: bash
         env:
-          CSTACK: ${{ runner.temp }}/cstack
-        run: ./third_party/pins/build-cstack.sh linux-amd64 "$CSTACK"
-      - name: the corpus, real engine, statically linked
-        shell: bash
-        env:
-          CSTACK: ${{ runner.temp }}/cstack
+          NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
           FEOV_OCR_CORPUS: "1"
         run: |
-          eval "$(./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK")"
+          chmod +x "$NATIVE_HELPER_DIR/feov-ocr"
           # -v so the per-page subtests are named in the log: a corpus page that starts or stops
           # meeting its expect block is the finding, and a bare ok line hides which one moved.
           # The pages run parallel, but the engine serializes every read on one mutex, so the
           # overlap is the render and the comparison — stated so nobody raises -parallel expecting
           # more.
-          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' -v \
+          go test -count=1 -v \
             -run '^TestCorpusGoldens$' ./internal/fetchcache/ | tee "$RUNNER_TEMP/corpus.txt"
           grep -q '^--- PASS: TestCorpusGoldens ' "$RUNNER_TEMP/corpus.txt"
 
@@ -385,6 +598,7 @@ jobs:
         run: go run ./devcmd/archiverun
 
   feov-record:
+    needs: [native-build]
     # The FEOV seat-side record runtime (plans/record-tool.md R2g). Its own Go
     # module, so the prosthetic-conscience job's working-directory does not reach
     # it. -race is the point of the port being Go at all: the mjs implementation
@@ -529,94 +743,21 @@ jobs:
           # request can write is a cache a release build would read.
           package-manager-cache: false
           node-version: "24"
-      # THE OCR ENGINE'S C STACK (plans/local-ocr.md Wave 1). The Linux legs build and
-      # test the REAL engine (`-tags tessocr` + the env build-cstack.sh emits); the
-      # Windows legs prove the tag-less STUB compiles — the engine still ships for
-      # Windows, its C stack built per target by the release job, and what a PR proves
-      # there is that the package type-checks engineless. The cache key is the content
-      # hash of PINS.txt and of build-cstack.sh: same pins and same recipe, same objects — a
-      # pin bump or a change to how the stack is built misses by construction. The stack
-      # carries zig's own runtime cache (libc, libc++, compiler-rt) with it, which is what
-      # keeps each test binary's link from compiling them again.
-      # THE RELEASE JOB READS NO CACHE (its own setup-go states the poisoning rule), so
-      # this cache existing cannot reach a published byte.
-      # NOT ON PUSH, for the same reason setup-go's cache above is not: a main push and a
-      # tag build are the same event, and a tag build must touch no cache. Everything
-      # that is not a push — pull requests, the nightly, a dispatch — may restore and
-      # save. zizmor's static rule cannot evaluate the condition, so the finding is
-      # answered rather than suppressed-and-forgotten: on the one event class that
-      # publishes, this step does not run, and the release job additionally builds its
-      # C stacks from pinned sources with no cache in reach.
-      - name: C stack for the OCR engine (cache)
-        if: runner.os == 'Linux' && github.event_name != 'push'
-        id: cstack
-        uses: actions/cache@v6  # zizmor: ignore[cache-poisoning]
-        with:
-          path: ${{ runner.temp }}/cstack
-          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt', 'plugins/frank-exchange-of-views/tools/third_party/pins/build-cstack.sh') }}
-      - name: C stack for the OCR engine (build on miss)
-        if: runner.os == 'Linux' && steps.cstack.outputs.cache-hit != 'true'
-        shell: bash
-        env:
-          CSTACK: ${{ runner.temp }}/cstack
-        run: ./third_party/pins/build-cstack.sh linux-amd64 "$CSTACK"
-      # THE ENGINE'S ENV IS SCOPED TO THE ENGINE'S STEP, NEVER EXPORTED JOB-WIDE. A
-      # GITHUB_ENV export was tried and taught the lesson: with musl CC and CGO_ENABLED=1
-      # global, every package's test binary (net, os/user) linked cgo against zig objects
-      # under Go's INTERNAL linker — missing libc symbols and zig's sanitizer handlers,
-      # module-wide. The engine step below runs exactly the invocation Wave 1 validated
-      # locally: eval'd env, external linkmode, fully static — zig links compiler-rt, and
-      # nothing outside the step sees the toolchain.
-      - name: the OCR engine's own suite, real engine, statically linked
+      - name: Download feov-ocr helper (Linux)
         if: runner.os == 'Linux'
-        shell: bash
-        env:
-          CSTACK: ${{ runner.temp }}/cstack
-        run: |
-          eval "$(./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK")"
-          tagged=(-tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"')
-          # WHAT THIS STEP COSTS IS LINKING, so it links as little as it can and all of it at
-          # once. Measured on the three test binaries it built one after another: 209s of
-          # step for 70s of tests — each fully static external link is about 45s — and 49s
-          # of those tests were fetchcache's WHOLE suite, which swaps the engine for a fake
-          # in every test but one and had already run, identically, in the default leg.
-          #
-          # fetchcache's engine tests are the ones in files only the engine build compiles,
-          # and the list is derived from that build constraint rather than kept here: a new
-          # engine test joins by being written. (TestCorpusGoldens is one of them and skips
-          # in this job; the ocr-corpus job is where it runs.)
-          engine_tests="$(grep -l '^//go:build tessocr' internal/fetchcache/*_test.go \
-            | xargs grep -ho '^func Test[A-Za-z0-9_]*' | sed 's/^func //' | paste -sd '|' -)"
-          test -n "$engine_tests"
-          # The engine's own suite, whole, and the probe of the libc it links (#1598).
-          go test "${tagged[@]}" ./internal/tessocr/ ./internal/libcprobe/ >"$RUNNER_TEMP/tessocr.txt" 2>&1 &
-          engine=$!
-          # Its two callers in the shipped graph, each narrowed to what needs the real engine.
-          # The seat-probe board that cites OCR text builds only with the engine: the tagged
-          # separated build exercises it for real, and the fixture test proves the engine reads
-          # the board's span.
-          go test "${tagged[@]}" -v \
-            -run "^(${engine_tests})\$|^TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine\$|TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord" \
-            ./internal/fetchcache/ ./internal/seatprobe/ >"$RUNNER_TEMP/callers.txt" 2>&1 &
-          callers=$!
-          rc=0
-          wait "$engine" || rc=1
-          echo "the engine's suite, built and run: ${SECONDS}s into the step"
-          wait "$callers" || rc=1
-          echo "its callers, built and run: ${SECONDS}s into the step"
-          cat "$RUNNER_TEMP/tessocr.txt" "$RUNNER_TEMP/callers.txt"
-          # `-run` alternation exits 0 when one side matches nothing, so every name asked for
-          # must have answered: a PASS for the fixture test, a PASS or a SKIP for each derived
-          # engine test.
-          grep -q '^--- PASS: TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine ' "$RUNNER_TEMP/callers.txt" || rc=1
-          for name in ${engine_tests//|/ }; do
-            grep -Eq "^--- (PASS|SKIP): ${name} " "$RUNNER_TEMP/callers.txt" || {
-              echo "::error::${name} was asked for and did not run"
-              rc=1
-            }
-          done
-          grep -q '^--- PASS: ' "$RUNNER_TEMP/callers.txt" || rc=1
-          exit "$rc"
+        uses: actions/download-artifact@v4
+        with:
+          name: native-feov-ocr-linux-amd64
+          path: ${{ runner.temp }}/helpers
+      - name: Download feov-ocr helper (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/download-artifact@v4
+        with:
+          name: native-feov-ocr-windows-amd64
+          path: ${{ runner.temp }}/helpers
+      - name: Make helper executable
+        if: runner.os == 'Linux'
+        run: chmod +x "${RUNNER_TEMP}/helpers/feov-ocr"
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -645,8 +786,6 @@ jobs:
       #
       # Both ternary arms are workflow literals, so this ${{ }} expands no external input —
       # which is why it may sit in the run line where rule-sweep's base ref may not.
-      # The module suite runs the DEFAULT build everywhere — the engine's stub, the same
-      # bytes a stackless dev box compiles; the real engine has its own step above.
       #
       # -timeout=100m ON THE NIGHTLY, where the debate sweep runs: TestFuzzDebate alone took
       # 4271s (71 min) on a runner to itself (release-fuzz, run 40178244370), and a 40-minute
@@ -657,6 +796,7 @@ jobs:
       - run: go test ${{ github.event_name == 'schedule' && '-timeout=100m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
+          NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       #
@@ -693,6 +833,7 @@ jobs:
         run: go run ./racescope -module ../plugins/frank-exchange-of-views/tools -deps ./cmd/... -timeout=30m
         env:
           CGO_ENABLED: "1"
+          NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
       # And ONE test out of releasegate/fuzz — a harness outside the graph above, raced
       # BY RULING ("keep fuzz on the hook", #686). The fuzz runner's seats are
       # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a
@@ -719,6 +860,7 @@ jobs:
         shell: bash
         env:
           CGO_ENABLED: "1"
+          NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
       - uses: ./.github/actions/go-cache
         with:
           phase: save
@@ -1729,8 +1871,8 @@ jobs:
     # and published them under FEOV's release — silently, since the build would
     # succeed. Deriving the plugin from the tag is what makes a second plugin
     # with a binary possible at all.
-    if: startsWith(github.ref, 'refs/tags/') && contains(github.ref, '--v')
-    needs: [test, feov-record, gray-area]
+    if: ${{ !cancelled() && !failure() && startsWith(github.ref, 'refs/tags/') && contains(github.ref, '--v') }}
+    needs: [test, feov-record, gray-area, native-build, native-run]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1830,49 +1972,28 @@ jobs:
           DIST: ${{ runner.temp }}/dist
         run: |
           mkdir -p "$DIST"
-          # CAPABILITY-KEYED, NOT PLUGIN-NAME-KEYED: a plugin shipping third_party/pins/
-          # gets its C stack built per target from pinned sources (plans/local-ocr.md
-          # Wave 1 — cache-free here, per this job's rule), cgo on and the engine tag
-          # set; a plugin without stays the pure cross-compile it always was. Each cgo
-          # artifact is then PROVEN static in its own format by staticproof — ldd cannot
-          # read PE or Mach-O, and darwin's allowlist is {libSystem.B, CoreFoundation,
-          # libresolv.9} per the plan's §V.3.
           for cmd in cmd/*/; do
             name="$(basename "$cmd")"
-            for pair in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+            for pair in windows/amd64 windows/arm64 darwin/arm64 linux/amd64 linux/arm64; do
               os="${pair%/*}"; arch="${pair#*/}"; ext=""
               [ "$os" = "windows" ] && ext=".exe"
-              # The -o template appears LITERALLY in both branches: sc-doctor's release
-              # contract test parses this file for it, so the name the job writes and the
-              # name the doctor asks for cannot drift (factoring it into a variable was
-              # caught by exactly that test).
-              if [ -x third_party/pins/build-cstack.sh ]; then
-                t="${os}-${arch}"
-                work="${RUNNER_TEMP}/cstack"
-                [ -d "${work}/${t}/prefix" ] || third_party/pins/build-cstack.sh "$t" "$work"
-                # build-cstack.sh env prints `export VAR="…"` lines for eval — the contract tessocr.go
-                # and the C-stack CI job use. The subshell keeps one target's env out of the next.
-                # -linkmode external for EVERY command, not only the ones with cgo of their own: a
-                # command with none (feov-sitting-write) gets Go's internal linker by default, which
-                # on darwin cannot resolve runtime/cgo's libc symbols — `relocation target strerror
-                # not defined`, frank-exchange-of-views 1.68.0's run. External linking sends every
-                # command through the same zig link feov-record already proves per target, and
-                # -extldflags carries the C stack's search paths to it: CGO_LDFLAGS reaches only a
-                # link that has a cgo package of its own, so without them darwin finds no libresolv.
-                (
-                  eval "$(third_party/pins/build-cstack.sh env "$t" "$work")"
-                  CGO_ENABLED=1 GOOS="$os" GOARCH="$arch" \
-                    go build -tags tessocr -trimpath -ldflags "-s -w -linkmode external -extldflags '$CSTACK_EXTLDFLAGS'" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
-                )
-                third_party/pins/build-cstack.sh check "${DIST}/${name}_${os}_${arch}${ext}"
-              else
-                GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
-              fi
+              CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
             done
           done
-          # sha256sum runs IN the directory so the sums name bare files, which is what the
-          # verifier on the other end matches against.
-          cd "$DIST" && sha256sum * > SHA256SUMS
+      - name: Download native helper artifacts for FEOV release
+        if: steps.plugin.outputs.plugin == 'frank-exchange-of-views'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: ${{ runner.temp }}/dist
+          merge-multiple: true
+      - name: Verify release assets and create checksums
+        working-directory: scripts
+        env:
+          DIST: ${{ runner.temp }}/dist
+        run: |
+          go run ./releaseassets -check -dist "$DIST" -ref "$GITHUB_REF"
+          cd "$DIST" && sha256sum -- * > SHA256SUMS
       # `gh` ships on every GitHub runner, so publishing needs no third-party action at
       # all — which retires the last one here, and with it zizmor/unpinned-uses. The
       # tag name and the artifact directory go through the environment rather than a

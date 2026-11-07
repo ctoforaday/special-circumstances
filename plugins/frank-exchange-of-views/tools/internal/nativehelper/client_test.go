@@ -35,6 +35,8 @@ func asError(t *testing.T, err error, kind error) *Error {
 	return e
 }
 
+//racescope:covers internal/nativehelper/client.go:Client.exchange
+//racescope:covers internal/nativehelper/client.go:spawn
 func TestASelftestRoundTrips(t *testing.T) {
 	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, ""))
 	starts := startLog(t)
@@ -427,5 +429,21 @@ func TestRequireFailsInCIWithoutAHelper(t *testing.T) {
 				t.Errorf("the child's exit status (%v) disagrees with its verdict %s", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestEnvironmentChangeReflectsImmediately(t *testing.T) {
+	dir := fake(t, "d1", ProtocolVersion, "")
+	t.Setenv(EnvDir, dir)
+	c := fakeClient(t, "d1")
+	if _, err := c.Do(OpSelftestStdout); err != nil {
+		t.Fatal(err)
+	}
+	// Setting EnvDir to "none" while the process is running must immediately refuse
+	// and close the running process rather than answering from it.
+	t.Setenv(EnvDir, "none")
+	_, err := c.Do(OpSelftestStdout)
+	if !errors.Is(err, ErrAbsent) {
+		t.Fatalf("err = %v, want ErrAbsent", err)
 	}
 }

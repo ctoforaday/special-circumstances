@@ -24,9 +24,8 @@
 #
 # # What it does not need
 #
-# The OCR engine's C stack. The race sweep covers the DEFAULT build — the engine's stub — here
-# as everywhere (scripts/check/gates.go, raceScope, states why), so the tagged build's
-# dependencies are not built.
+# The native helpers. The race detector covers Go code; the C++ helpers sit behind a process
+# boundary and are not raced (plans/native-helpers.md §1.7), so NATIVE_HELPER_DIR=none is set.
 name: race-nightly
 
 on:
@@ -74,6 +73,7 @@ jobs:
         shell: bash
         env:
           CGO_ENABLED: "1"
+          NATIVE_HELPER_DIR: "none"
         run: |
           pkgs="$(go list -deps ./cmd/... | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
           test -n "$pkgs"

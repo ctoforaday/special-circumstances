@@ -77,6 +77,21 @@ type Client struct {
 	latched error
 }
 
+// HelperDigest returns the compiled-in source digest for helper, or empty if unknown.
+func HelperDigest(helper string) string {
+	return helpers[helper].Digest
+}
+
+// IsAbsent reports whether err means no helper came up (helper-absent,
+// helper-digest-mismatch, or a failure before the handshake completed).
+func IsAbsent(err error) bool {
+	var ne *Error
+	if errors.As(err, &ne) {
+		return ne.Kind == ErrAbsent || ne.Kind == ErrDigestMismatch || ne.Handshake
+	}
+	return false
+}
+
 // New is the client for a helper this binary has pins for.
 func New(helper string) (*Client, error) {
 	pins, ok := helpers[helper]
@@ -162,12 +177,20 @@ func (c *Client) start() error {
 	if c.latched != nil {
 		return c.latched
 	}
-	if c.proc != nil {
-		return nil
-	}
 	path, err := c.Locate()
 	if err != nil {
+		if c.proc != nil {
+			_ = c.proc.close(c.name)
+			c.proc = nil
+		}
 		return err
+	}
+	if c.proc != nil {
+		if c.proc.path == path {
+			return nil
+		}
+		_ = c.proc.close(c.name)
+		c.proc = nil
 	}
 	p, err := spawn(path)
 	if err != nil {
@@ -252,6 +275,15 @@ func (c *Client) Close() error {
 		return nil
 	}
 	return p.close(c.name)
+}
+
+// KillProcessForTest kills the running helper process without clearing c.proc, simulating a crash.
+func (c *Client) KillProcessForTest() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.proc != nil {
+		c.proc.kill()
+	}
 }
 
 // exchange writes one request and reads its response under the deadline, and checks the frame:

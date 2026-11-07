@@ -1,20 +1,7 @@
-// Package tessocr is the deterministic reading engine of plans/local-ocr.md: tesseract
-// 5.5.3 + leptonica 1.87.0 statically linked into this binary through the package's own
-// cgo shim, with eng.traineddata embedded so a release binary reads scanned pages with no
-// model, no credentials, no network and no filesystem dependency.
-//
-// The package splits along a DEDICATED build tag, and the split is a stated CI decision
-// (plan §III Wave 1, amended in review): the engine half (engine_cgo.go, shim.cpp) is
-// gated `tessocr && cgo` and only compiles against the C stack that
-// third_party/pins/build-cstack.sh produces; everything else — reconstruction,
-// thresholds, identity, the stub — compiles everywhere with no tags and no toolchain.
-// The tag rather than bare cgo, because cgo defaults ON wherever a host compiler exists
-// and would break every plain `go build ./...` on a box without the C stack. Under the
-// stub every engine entry point returns ErrNotCompiledIn rather than a zero that reads
-// like an empty page. The engine invocation is exactly:
-//
-//	eval "$(third_party/pins/build-cstack.sh env <target> <workdir>)"
-//	go test -tags tessocr -count=1 ./internal/tessocr/
+// Package tessocr is the deterministic reading engine client for feov-ocr (plans/native-helpers.md):
+// tesseract 5.5.3 + leptonica 1.87.0 in the standalone feov-ocr helper binary, with eng.traineddata
+// embedded so a release reads scanned pages with no model, no credentials, no network and no
+// filesystem dependency.
 package tessocr
 
 import (
@@ -22,39 +9,18 @@ import (
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
-	"errors"
 	"io/fs"
 	"sort"
 	"strings"
-)
 
-// The C-stack pins, mirrored from third_party/pins/PINS.txt. These are pins — facts about
-// which upstream tarballs the linked C stack was built from — not a release version of
-// anything this repo ships, which is why they are named Pin and not Version. Two carriers
-// of one fact cannot be generated from each other here (one is Go source, one is the
-// download manifest), so the drift is GATED instead: build-cstack.sh refuses to build a
-// stack whose PINS.txt tarball versions disagree with these constants, and the tests
-// refuse a traineddata embed or a PINS.txt that disagrees with engTraineddataPin.
-const (
-	tesseractPin      = "5.5.3"
-	leptonicaPin      = "1.87.0"
-	engTraineddataPin = "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 )
-
-// cstackPin is the digest of the whole C-stack recipe: every pin in PINS.txt (the zig toolchain
-// and the libc it links, cmake, the image codecs, the two libraries, the traineddata) and
-// build-cstack.sh, which holds the compiler flags. The named pins above leave all of those out,
-// and each moves a reading's bytes — a libc's float formatting, a codec's decode — so a stack
-// rebuilt on Zig 0.17 (#1598) kept the identity of the stack built on 0.16. It is typed, not
-// computed, because neither file is in this package for embed to reach; TestIdentityMatchesPins
-// recomputes it and prints the new value when the recipe moves.
-const cstackPin = "484e7942d3c4"
 
 // engineSource is this package's own source, embedded so the identity can hash it. The
 // pattern takes test files too — embed cannot exclude them — and hashEngineSource drops
 // them, since a test changes no byte a reading produces.
 //
-//go:embed *.go shim.cpp shim.h
+//go:embed *.go
 var engineSource embed.FS
 
 // engineSourceHash is computed once, from the embedded bytes — never typed, so it cannot
@@ -62,8 +28,8 @@ var engineSource embed.FS
 var engineSourceHash = hashEngineSource(engineSource)
 
 // hashEngineSource hashes every non-test file in fsys, in name order, with CRLF folded to
-// LF: .gitattributes pins *.go to LF but not shim.cpp/shim.h, and a Windows checkout must
-// not name a different engine than a Linux one built from the same commit.
+// LF: .gitattributes pins *.go to LF and a Windows checkout must not name a different
+// engine than a Linux one built from the same commit.
 func hashEngineSource(fsys fs.FS) string {
 	names, err := fs.Glob(fsys, "*")
 	if err != nil {
@@ -89,26 +55,29 @@ func hashEngineSource(fsys fs.FS) string {
 
 // Identity is the engine key a ReadingRecord carries (plan goal 3, the #636 extractor
 // model), and it names EVERYTHING that decides a reading's bytes: the two C libraries,
-// the language data, the rest of the C stack and how it was built (cstackPin), and this
-// package's own code — segmentation modes, grid thresholds, reconstruction, the fallback
-// gate, the shim's calls into tesseract, and the normalisation and assembly of the text. The last is a hash of the package source, so a
-// change to any of them yields a new identity and a stored reading stops matching instead
-// of silently disagreeing with what the current binary would produce (#644: the pins
-// alone left every one of those free to move under an unchanged key).
+// the language data, the helper's source digest (feov-ocr@), and this package's own code
+// — segmentation modes, grid thresholds, reconstruction, the fallback gate, and the
+// normalisation and assembly of the text (tessocr@).
 //
-// The hash is deliberately coarse: a comment edit here also mints a new identity and costs
-// a re-read. That is the safe direction — a reading re-derived needlessly, never a stale
-// one served as current.
+// It reads compiled constants only, so the cache-reuse paths that call it before any read
+// never start the helper, and it returns the same string whether or not a helper is
+// installed. A cached reading made by the same sources is reused without one.
 func Identity() string {
-	return "tesseract@" + tesseractPin + "+leptonica@" + leptonicaPin +
-		"+eng@" + engTraineddataPin[:12] + "+cstack@" + cstackPin + "+tessocr@" + engineSourceHash
+	digest := nativehelper.HelperDigest("feov-ocr")
+	digest12 := ""
+	if len(digest) >= 12 {
+		digest12 = digest[:12]
+	}
+	eng12 := ""
+	if len(nativehelper.OCREngine.EngTraineddata) >= 12 {
+		eng12 = nativehelper.OCREngine.EngTraineddata[:12]
+	}
+	return "tesseract@" + nativehelper.OCREngine.Tesseract +
+		"+leptonica@" + nativehelper.OCREngine.Leptonica +
+		"+eng@" + eng12 +
+		"+feov-ocr@" + digest12 +
+		"+tessocr@" + engineSourceHash
 }
-
-// ErrNotCompiledIn is returned by every engine entry point when the binary was built
-// without the engine (no `-tags tessocr`, or no cgo). A named error rather than a zero
-// result: a stub that returned empty text or zero grid stats would be indistinguishable
-// from a blank page or a prose page, and the absent-engine case must stay loud.
-var ErrNotCompiledIn = errors.New("tessocr: engine not compiled in (build with -tags tessocr and the C stack from third_party/pins)")
 
 // RenderDPI is the resolution this engine's constants are TUNED at. It is no longer the resolution
 // a page arrives at: since #1058 each page renders at its own, floored here and capped at 600.

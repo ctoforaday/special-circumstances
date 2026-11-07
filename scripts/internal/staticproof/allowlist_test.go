@@ -1,20 +1,14 @@
-package main
+package staticproof
 
 import "testing"
 
-// THE GATE OVER EVERY PUBLISHED BINARY, AND IT HAD NO TEST. This tool is the last thing
-// between a release artifact and a consumer's machine, and both of its allowlists fail
-// green: invert either and a binary needing libraries the target does not have sails
-// through with the same "fully static" line the honest case prints. The predicates are
-// pure, so the contract is pinned here rather than inferred from whichever artifacts a
-// release happened to build.
 func TestPEAllowlistAdmitsOnlyKernel32NtdllAndTheUCRTApiSets(t *testing.T) {
 	for _, c := range []struct {
 		lib   string
 		allow bool
 	}{
 		{"kernel32.dll", true},
-		{"ntdll.dll", true}, // the loader maps it into every process; no target can lack it
+		{"ntdll.dll", true}, // feov-ocr's C runtime imports it directly
 		{"api-ms-win-crt-runtime-l1-1-0.dll", true},
 		{"api-ms-win-crt-math-l1-1-0.dll", true},
 		{"user32.dll", false},
@@ -24,8 +18,27 @@ func TestPEAllowlistAdmitsOnlyKernel32NtdllAndTheUCRTApiSets(t *testing.T) {
 		{"api-ms-win-core-file-l1-1-0.dll", false}, // core api-sets are NOT the CRT ones
 		{"", false},
 	} {
-		if got := peLibAllowed(c.lib); got != c.allow {
-			t.Errorf("peLibAllowed(%q) = %v, want %v", c.lib, got, c.allow)
+		for _, art := range []string{"", "feov-record", "feov-ocr"} {
+			if got := PELibAllowed(art, c.lib); got != c.allow {
+				t.Errorf("PELibAllowed(%q, %q) = %v, want %v", art, c.lib, got, c.allow)
+			}
+		}
+	}
+}
+
+func TestTheEmbedAllowlistIsItsOwn(t *testing.T) {
+	for _, lib := range []string{
+		"advapi32.dll",
+		"dbghelp.dll",
+		"api-ms-win-core-path-l1-1-0.dll",
+	} {
+		if !PELibAllowed("feov-embed", lib) {
+			t.Errorf("PELibAllowed(%q, %q) = false, want true", "feov-embed", lib)
+		}
+		for _, other := range []string{"", "feov-record", "feov-ocr"} {
+			if PELibAllowed(other, lib) {
+				t.Errorf("PELibAllowed(%q, %q) = true, want false", other, lib)
+			}
 		}
 	}
 }
@@ -38,15 +51,15 @@ func TestMachOAllowlistAdmitsOnlyOSProvidedLibraries(t *testing.T) {
 		{"/usr/lib/libSystem.B.dylib", true},
 		{"/usr/lib/libresolv.9.dylib", true},
 		{"/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation", true},
-		{"/System/Library/Frameworks/Security.framework/Versions/A/Security", true}, // crypto/x509 on darwin
+		{"/System/Library/Frameworks/Security.framework/Versions/A/Security", true}, // crypto/x509 links it on darwin
 		{"/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices", false},
 		{"/usr/local/lib/libtesseract.5.dylib", false},
 		{"/opt/homebrew/lib/libleptonica.dylib", false},
 		{"/usr/lib/libc++.1.dylib", false},
 		{"", false},
 	} {
-		if got := machOLibAllowed(c.lib); got != c.allow {
-			t.Errorf("machOLibAllowed(%q) = %v, want %v", c.lib, got, c.allow)
+		if got := MachOLibAllowed("feov-ocr", c.lib); got != c.allow {
+			t.Errorf("MachOLibAllowed(%q) = %v, want %v", c.lib, got, c.allow)
 		}
 	}
 }

@@ -1,6 +1,4 @@
-//go:build tessocr && cgo
-
-// The package's own shim over tesseract + leptonica — no third-party binding.
+// The helper's own shim over tesseract + leptonica — no third-party binding.
 //
 // It is C++ for exactly one reason: tesseract 5.5.3's C API has no init-from-memory entry
 // point, and embedding eng.traineddata in the binary requires the C++ overload

@@ -18,7 +18,7 @@ import (
 )
 
 // Reading a rendered page is the second half of #644 — and since plans/local-ocr.md it is
-// LOCAL: tesseract + leptonica statically linked into this binary, no model, no
+// LOCAL: tesseract + leptonica in the standalone `feov-ocr` helper, no model, no
 // credentials, no network, no filter. What used to be the expensive, uncorroborated half
 // of the pipeline is now the cheap, re-derivable one.
 //
@@ -37,11 +37,11 @@ import (
 // PageEngine turns one page image into a reading — text for prose, a reconstructed table
 // with stats where a ruled grid fires. It is an interface for the reason the extractor
 // is a variable: the command layer's tests exercise the read loops' plumbing with a
-// pure-Go fake, and only internal/tessocr's own suite needs the C stack.
+// pure-Go fake, and production calls the standalone `feov-ocr` helper.
 //
 // It returns an error when it could not read: an empty Text is a legitimate reading (a
-// blank page) and must never be how a failure arrives. On a binary built without
-// `-tags tessocr` every call fails with the engine-absent error, loudly.
+// blank page) and must never be how a failure arrives. When the helper is absent
+// every call fails with the engine-absent error, loudly.
 type PageEngine interface {
 	// ReadPage reads one page rendered at dpi. The resolution is a parameter because a scan is
 	// read at ITS OWN resolution (#1031): the grid thresholds are derived per page through
@@ -57,11 +57,11 @@ type PageEngine interface {
 // DefaultPageEngine is the process-wide engine. A test replaces it; production never does.
 var DefaultPageEngine PageEngine = &TessocrPageEngine{}
 
-// TessocrPageEngine is the production engine: internal/tessocr's statically linked
-// tesseract + leptonica, initialized once and kept for the life of the process (the CLI
-// is one verb per process, and a TessBaseAPI init per page would re-load the embedded
-// traineddata eighty times per document). The mutex serializes ReadPage because the
-// underlying TessBaseAPI carries per-recognition state.
+// TessocrPageEngine is the production engine: the standalone `feov-ocr` helper
+// (statically linked tesseract + leptonica), initialized once and kept for the life of
+// the process (the CLI is one verb per process, and a TessBaseAPI init per page would
+// re-load the embedded traineddata eighty times per document). The mutex serializes
+// ReadPage because the underlying TessBaseAPI carries per-recognition state.
 type TessocrPageEngine struct {
 	mu sync.Mutex
 	en *tessocr.Engine
@@ -86,16 +86,12 @@ func (t *TessocrPageEngine) ReadPage(png []byte, dpi int) (tessocr.PageResult, e
 	return res, nil
 }
 
-// engineAbsentLoudly turns the stub build's refusal into the sentence a seat reads in
+// engineAbsentLoudly turns the helper-absent refusal into the sentence a seat reads in
 // ocr_reason. The wrap matters because that reason is the ONLY thing standing between
 // "this binary cannot read scans" and a seat concluding the source itself is unreadable
 // — and an empty reading in place of this error would be the plausible zero
 // [[facts-are-fields]] names.
 func engineAbsentLoudly(err error) error {
-	if errors.Is(err, tessocr.ErrNotCompiledIn) {
-		return fmt.Errorf("the OCR engine is not compiled into this binary; release binaries "+
-			"carry it — build with `-tags tessocr` and the C stack from third_party/pins: %w", err)
-	}
 	return err
 }
 
@@ -317,9 +313,8 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi float64)
 	// resolution the page was rasterised at.
 	res, rerr := DefaultPageEngine.ReadPage(png, int(dpi+0.5))
 	if rerr != nil {
-		// AN ENGINE ERROR IS AN ERROR, NOT AN EMPTY PAGE — including the stub build's
-		// engine-absent refusal, which must reach the operator as a sentence, never as a
-		// blank reading.
+		// AN ENGINE ERROR IS AN ERROR, NOT AN EMPTY PAGE — including the helper-absent
+		// refusal, which must reach the operator as a sentence, never as a blank reading.
 		return pageReceipt{}, "", rerr
 	}
 

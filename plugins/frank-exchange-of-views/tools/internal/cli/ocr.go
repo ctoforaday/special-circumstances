@@ -63,10 +63,10 @@ func (s ocrSummary) render() string {
 // event. What a seat later SAYS about the reading will be an act on the record, and a
 // different verb.
 //
-// THE ENGINE IS IN THE BINARY NOW (plans/local-ocr.md). The 2026-08-29 survey that ruled
+// THE ENGINE RUNS IN A STANDALONE HELPER NOW (plans/native-helpers.md). The 2026-08-29 survey that ruled
 // every Go OCR option out — cgo Tesseract as a machine prerequisite, gogosseract
 // panicking against this module's wazero — was answering a different question: whether to
-// take a SYSTEM dependency. internal/tessocr takes none: tesseract + leptonica are built
+// take a SYSTEM dependency. internal/tessocr takes none: the `feov-ocr` helper is built
 // from hash-pinned sources and statically linked, traineddata embedded, so a release
 // binary reads scans with no model, no credentials, no network, and nothing installed on
 // any seat.
@@ -223,8 +223,8 @@ func (s ocrReadSummary) render() string {
 // newOCRRead runs the local OCR engine over the rendered pages, and records the reading.
 //
 // FULLY LOCAL, LIKE EVERYTHING ELSE HERE NOW: fetch serves cached bytes, extraction runs
-// PDFium in-process, rendering rasterises, and this reads with the engine compiled into
-// the binary — no credentials, no network, no filter. It remains a separate verb even
+// PDFium in-process, rendering rasterises, and this reads with the standalone feov-ocr
+// helper — no credentials, no network, no filter. It remains a separate verb even
 // though fetch reads a scanned PDF on its own: fetch reads only what its own extractor
 // found no text layer in, and this is how an operator reads pages that door will not open
 // — a document already cached, a --force re-read over kept images.
@@ -241,7 +241,7 @@ func newOCRRead() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "read",
 		Short: "read the rendered pages with the local OCR engine, and record the reading",
-		Long: "read runs the OCR engine compiled into this binary (tesseract + leptonica, statically linked) over each page image rendered by `ocr pages`. The assembled text is written to <run>/cache/<sha>.ocr.txt and each page's own reading beside its image. " +
+		Long: "read runs the standalone `feov-ocr` helper (tesseract + leptonica, statically linked) over each page image rendered by `ocr pages`. The assembled text is written to <run>/cache/<sha>.ocr.txt and each page's own reading beside its image. " +
 			"FULLY LOCAL AND DETERMINISTIC: no model, no credentials, no network. The record keys the reading to the engine identity and the exact image hashes, so an audit can re-derive it byte for byte. It reads any page rendered between 300 and 600 DPI — the band the detector's constants are derived over, one page at a time from that page's own resolution — and refuses a page outside it; re-render if the images are lower. " +
 			"A page with a ruled table is detected and reconstructed into |-separated rows, with confidence stats as fields on the record; a reconstruction that cannot place its marks falls back to plain text WITH the failure stated, never a plausible half-table. Pages already read are never derived twice — each carries a receipt validated against its image hash — and --force discards the receipts for a full re-read.",
 		Args:          cobra.NoArgs,

@@ -164,14 +164,9 @@ var modules = []struct{ dir, ciJob string }{
 // what they do with their concurrency is SPAWN the real binary, which no race detector
 // observes from the parent.
 //
-// A STATED LIMIT: the race gate covers the DEFAULT build here AND in CI — the engine
-// behind -tags tessocr is not race-instrumented anywhere. Racing the tagged graph was
-// tried and taught why not: musl cgo objects under the race build's linking broke every
-// package that touches net/os_user, and a box without the C stack cannot compile the
-// tagged graph at all. The engine's CI coverage is its own statically-linked test step
-// in the feov-record job; the engine is in the shipped graph (fetchcache imports tessocr),
-// so the divergence is real: the race gate observes the stub, and the tagged engine's race
-// coverage remains the open decision this comment records.
+// A STATED LIMIT: the race gate covers the Go codebase — the standalone native helpers
+// (feov-ocr, feov-embed) sit behind a process boundary and are not race-instrumented anywhere
+// (plans/native-helpers.md §1.7). The helpers are tested on real data per target by native-run.
 var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
 	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/..."},
@@ -321,7 +316,7 @@ func gateSet() []gate {
 		// Linux-only job so no matrix leg pays for it twice. Declared here because a gate that
 		// cannot run on a stackless box must still appear in the report.
 		gate{id: "ocr-corpus", kind: kindExtern, dir: "plugins/frank-exchange-of-views/tools", ciJob: "ocr-corpus",
-			skip: "needs the OCR engine's C stack and FEOV_OCR_CORPUS=1; build it with third_party/pins/build-cstack.sh and run the tagged suite by hand. ANY edit under internal/tessocr re-arms it, COMMENTS INCLUDED: each golden's first line carries DefaultPageEngine.Identity(), which hashes that package's source, so all eight fail together on a hash nothing else notices",
+			skip: "needs the feov-ocr helper and FEOV_OCR_CORPUS=1; build it with native/build.sh and run with NATIVE_HELPER_DIR=<dir>. ANY edit under internal/tessocr re-arms it, COMMENTS INCLUDED: each golden's first line carries DefaultPageEngine.Identity(), which hashes that package's source, so all eight fail together on a hash nothing else notices",
 			why:  "the committed scans that beat the reader, read end to end and pinned byte for byte"},
 		// Every archived computation re-run under pinned interpreters, in its own job that holds no
 		// write credential and saves no cache: it executes every archived program. Declared so the
@@ -379,6 +374,22 @@ func gateSet() []gate {
 			args: []string{"run", "./versionguard", "-tag"}, ciJob: "release",
 			skip: "needs the tag it validates; the release job runs it on a tag before publishing",
 			why:  "a tag and the manifest it publishes cannot disagree — one release act writes both"},
+		gate{id: "releaseassets-scope", kind: kindTool, dir: "scripts",
+			args: []string{"run", "./releaseassets", "-scope"}, ciJob: "native-scope",
+			skip: "decides native build matrix and caching for CI",
+			why:  "native jobs decide build legs and cache mode dynamically"},
+		gate{id: "nativedigest-print", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools",
+			args: []string{"run", "./devcmd/nativedigest", "-print"}, ciJob: "native-build",
+			skip: "prints helper source digest for CI cache key",
+			why:  "helper cache key tracks source changes"},
+		gate{id: "staticproof", kind: kindTool, dir: "scripts",
+			args: []string{"run", "./staticproof"}, ciJob: "native-build",
+			skip: "proves staticness of built helpers in native-build",
+			why:  "no helper links disallowed shared libraries"},
+		gate{id: "releaseassets-check", kind: kindTool, dir: "scripts",
+			args: []string{"run", "./releaseassets", "-check"}, ciJob: "release",
+			skip: "only meaningful on a tag; the release job checks dist assets before publishing",
+			why:  "every published asset is static and matches allowlists"},
 	)
 	return gs
 }

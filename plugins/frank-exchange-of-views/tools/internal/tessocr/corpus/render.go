@@ -76,8 +76,8 @@ type Result struct {
 // against the reading, never from a field somebody set by hand: a hand-set status survives the fix
 // that makes it false, and then the number counts pages that already work.
 //
-// It is written by the tagged harness, which is the only thing that has read the pages. The
-// default-build gate can check that it names exactly the corpus's slugs, and cannot re-establish
+// It is written by the corpus runner with the `feov-ocr` helper, which is what reads the pages. The
+// default gate can check that it names exactly the corpus's slugs, and cannot re-establish
 // the verdicts — that is stated here so the weaker check is not mistaken for the stronger one.
 func Status(results []Result) string {
 	rs := append([]Result(nil), results...)
@@ -91,8 +91,8 @@ func Status(results []Result) string {
 	var b strings.Builder
 	b.WriteString("# Corpus status\n\n")
 	fmt.Fprintf(&b, "**%d of %d pages do not yet read as they should.**\n\n", broken, len(rs))
-	b.WriteString("Derived from each page's `expect` block, checked against the reading by the tagged\n")
-	b.WriteString("harness. GENERATED — edit a record or fix the reader, not this file.\n\n")
+	b.WriteString("Derived from each page's `expect` block, checked against the reading by the corpus\n")
+	b.WriteString("runner with the helper. GENERATED — edit a record or fix the reader, not this file.\n\n")
 	b.WriteString("| page | reads correctly | what still fails |\n|---|---|---|\n")
 	for _, r := range rs {
 		if len(r.Failed) == 0 {

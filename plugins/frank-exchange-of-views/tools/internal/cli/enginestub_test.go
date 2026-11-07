@@ -1,5 +1,3 @@
-//go:build !tessocr || !cgo
-
 package cli
 
 import (
@@ -9,13 +7,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// THE FUSED PATH ON AN ENGINELESS BINARY, ALL THE WAY TO THE SUMMARY. This file compiles
-// only on the stub build, and unlike every other test here it stubs NEITHER the scan
-// reader NOR the page engine: a dev-built `go build` binary (no -tags tessocr) fetching a
-// scan must exit 0 with ocr_reason carrying the engine-absent sentence — never an empty
+// THE FUSED PATH ON A RUN WITHOUT THE HELPER, ALL THE WAY TO THE SUMMARY. This file
+// compiles on all builds, and unlike every other test here it stubs NEITHER the scan
+// reader NOR the page engine: running with NATIVE_HELPER_DIR=none fetching a
+// scan must exit 0 with ocr_reason carrying the helper-absent sentence — never an empty
 // reading, and never a failed fetch. The real rasteriser runs, so this also proves the
 // refusal fires per the wiring and not from a shortcut.
 func TestFetchOnAStubBuildStatesTheEngineIsAbsent(t *testing.T) {
+	t.Setenv("NATIVE_HELPER_DIR", "none")
 	dir := recordtest.TmpRun(t)
 	withFetcher(t, &fakeFetcher{
 		resp:        map[string][]byte{"https://ex/scan.pdf": scanPDF(t)},
@@ -29,9 +28,7 @@ func TestFetchOnAStubBuildStatesTheEngineIsAbsent(t *testing.T) {
 	}
 	for _, want := range []string{
 		"ocr_reason:",
-		"not compiled into this binary",
-		"release binaries",
-		"-tags tessocr",
+		"helper-absent: feov-ocr",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("summary is missing %q — the engineless case must be LOUD. got:\n%s", want, out)

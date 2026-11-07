@@ -1,5 +1,3 @@
-//go:build tessocr
-
 package fetchcache
 
 import (
@@ -8,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr/corpus"
@@ -34,6 +33,7 @@ func (c collapsingEngine) ReadPage(png []byte, dpi int) (tessocr.PageResult, err
 //
 // It reads two pages and does not ride the corpus gate, so it runs wherever the engine is built.
 func TestABlankPageAndACollapsedReadAreDifferentReceiptsOnTheRealEngine(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	cases, err := corpus.Load(corpusRoot)
 	if err != nil {
 		t.Fatal(err)

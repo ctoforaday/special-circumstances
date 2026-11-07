@@ -2,8 +2,8 @@
 
 **9 of 13 pages do not yet read as they should.**
 
-Derived from each page's `expect` block, checked against the reading by the tagged
-harness. GENERATED — edit a record or fix the reader, not this file.
+Derived from each page's `expect` block, checked against the reading by the corpus
+runner with the helper. GENERATED — edit a record or fix the reader, not this file.
 
 | page | reads correctly | what still fails |
 |---|---|---|

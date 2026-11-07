@@ -1,10 +1,10 @@
-//go:build tessocr && cgo
-
 package fetchcache
 
 import (
 	"os"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 )
 
 // THE OTHER HALF OF THE ENGINE SEAM. Its stub twin (enginestub_test.go) pins the refusal
@@ -17,6 +17,7 @@ import (
 // The fixture is tessocr's own crop rather than a second copy: one image, one place to
 // re-cut it if the corpus moves.
 func TestTheEngineBuildReturnsTextItActuallyRead(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	png, err := os.ReadFile("../tessocr/testdata/gridcrop.png")
 	if err != nil {
 		t.Fatal(err)

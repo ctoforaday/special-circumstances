@@ -1,5 +1,3 @@
-//go:build tessocr && cgo
-
 package seatprobe
 
 import (
@@ -7,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
@@ -15,6 +14,7 @@ import (
 // and requires the span on page 1. An engine or traineddata pin bump that changes what it reads is
 // caught here, not in a probe run that reports a seat miss. CI anchors on this test's name.
 func TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	run := runtest.New(t, t.TempDir())
 	no := false
 	e, err := fetchcache.Store(run, fetchcache.Entry{URL: "https://probe/scan.pdf", ContentType: "application/pdf", TextExtracted: &no, Pages: 1}, scannedFixture)

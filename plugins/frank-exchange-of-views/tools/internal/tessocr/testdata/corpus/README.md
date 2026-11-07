@@ -46,8 +46,7 @@ Then fill in `expect` from the PAGE IMAGE — not from the reading, which is the
 and regenerate the README, the golden and `STATUS.md`:
 
 ```
-eval "$(./third_party/pins/build-cstack.sh env linux-amd64 <cstack>)"
-go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' \
+NATIVE_HELPER_DIR=<helper-dir> go test -count=1 \
   ./internal/fetchcache/ -run TestCorpusGoldens -update
 UPDATE_GOLDENS=1 go test -count=1 ./internal/tessocr/ -run 'TestEveryCorpusREADME|TestREFERENCES'
 ```

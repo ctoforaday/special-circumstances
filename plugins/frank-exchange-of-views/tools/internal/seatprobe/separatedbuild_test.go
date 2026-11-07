@@ -3,9 +3,6 @@ package seatprobe
 import (
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
 // EVERY BOARD MUST BUILD THE WAY devcmd/seatprobe BUILDS IT: through a SUBPROCESS, with the record
@@ -88,11 +89,12 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 			}
 
 			err := Build(runtest.Open(t, runDir), b, run)
-			// A TAG-LESS BINARY CANNOT CITE OCR TEXT, and the board says so rather than building
-			// without its citation. A TAGGED one that reports the engine absent is the defect, so
-			// the skip is taken only where the engine was never compiled in.
-			if errors.Is(err, ErrEngineRequired) && !testbuild.EngineCompiledIn {
-				t.Skipf("board %q NOT BUILT — %v", name, err)
+			// A BINARY WITHOUT A HELPER CANNOT CITE OCR TEXT, and the board says so rather than building
+			// without its citation. A binary with a helper that reports the helper absent is the defect, so
+			// the skip is taken only through Require when the helper is absent.
+			if errors.Is(err, ErrEngineRequired) {
+				nativehelper.Require(t, "feov-ocr")
+				t.Fatalf("board %q reported ErrEngineRequired despite Require(feov-ocr) passing: %v", name, err)
 			}
 			if err != nil {
 				t.Fatalf("board %q does not build with a separated record: %v\n\n"+
