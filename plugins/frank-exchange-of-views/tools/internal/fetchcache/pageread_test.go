@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -573,5 +575,130 @@ func TestEveryTablePageNamesItsRuleSource(t *testing.T) {
 				t.Errorf("RepairedCrossings = %d, want %d", got.RepairedCrossings, res.RepairedCrossings)
 			}
 		})
+	}
+}
+
+// WINDOWS RENAME CONTENTION (nightly run 41293190037, seed 7). MoveFileEx with
+// MOVEFILE_REPLACE_EXISTING returns ERROR_ACCESS_DENIED (5) or ERROR_SHARING_VIOLATION (32)
+// when another process is reading or replacing dst at the same moment; a directory at dst
+// returns ERROR_ACCESS_DENIED permanently and must fail without retrying.
+func TestWriteReplacingWaitsOutTransientWindowsRenameLocks(t *testing.T) {
+	prevRename, prevOS, prevBudget := renameFile, transientRenameOS, renameBusyBudget
+	t.Cleanup(func() {
+		renameFile, transientRenameOS, renameBusyBudget = prevRename, prevOS, prevBudget
+	})
+	transientRenameOS = "windows"
+	renameBusyBudget = 50 * time.Millisecond
+
+	t.Run("transient access denied and sharing violation succeed on retry", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "p0001.png")
+		if err := os.WriteFile(dst, []byte("old"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		calls := 0
+		renameFile = func(from, to string) error {
+			calls++
+			switch calls {
+			case 1:
+				return &os.LinkError{Op: "rename", Old: from, New: to, Err: winErrorAccessDenied}
+			case 2:
+				return &os.LinkError{Op: "rename", Old: from, New: to, Err: winErrorSharingViolation}
+			default:
+				return os.Rename(from, to)
+			}
+		}
+		if err := writeReplacing(dst, []byte("new")); err != nil {
+			t.Fatalf("writeReplacing failed under transient lock: %v", err)
+		}
+		if calls != 3 {
+			t.Errorf("renameFile calls = %d, want 3", calls)
+		}
+		got, err := os.ReadFile(dst)
+		if err != nil || string(got) != "new" {
+			t.Errorf("dst = %q (%v), want \"new\"", got, err)
+		}
+		assertNoTempDebris(t, dir, "p0001.png")
+	})
+
+	t.Run("a directory at dst fails once without retrying and cleans up", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "p0001.png")
+		if err := os.MkdirAll(filepath.Join(dst, "occupied"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		calls := 0
+		renameFile = func(from, to string) error {
+			calls++
+			return &os.LinkError{Op: "rename", Old: from, New: to, Err: winErrorAccessDenied}
+		}
+		if err := writeReplacing(dst, []byte("new")); err == nil {
+			t.Fatal("writeReplacing onto a directory reported success")
+		}
+		if calls != 1 {
+			t.Errorf("renameFile calls = %d, want 1 (a directory at dst is not transient)", calls)
+		}
+		assertNoTempDebris(t, dir, "p0001.png")
+	})
+
+	t.Run("an exhausted budget returns the error and cleans up", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "p0001.png")
+		renameBusyBudget = 5 * time.Millisecond
+		calls := 0
+		renameFile = func(from, to string) error {
+			calls++
+			return &os.LinkError{Op: "rename", Old: from, New: to, Err: winErrorAccessDenied}
+		}
+		if err := writeReplacing(dst, []byte("new")); !errors.Is(err, winErrorAccessDenied) {
+			t.Fatalf("err = %v, want winErrorAccessDenied", err)
+		}
+		if calls < 2 {
+			t.Errorf("renameFile calls = %d, want at least 2 attempts before budget expiry", calls)
+		}
+		assertNoTempDebris(t, dir, "")
+	})
+}
+
+func TestWriteReplacingSurvivesConcurrentWriters(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "p0001.png")
+	var wg sync.WaitGroup
+	errs := make(chan error, 64)
+	for w := range 8 {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			for iter := range 8 {
+				payload := fmt.Appendf(nil, "concurrent page image bytes worker=%d iter=%d", worker, iter)
+				if err := writeReplacing(dst, payload); err != nil {
+					errs <- err
+					return
+				}
+			}
+		}(w)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("concurrent writeReplacing: %v", err)
+	}
+	got, err := os.ReadFile(dst)
+	if err != nil || !strings.HasPrefix(string(got), "concurrent page image bytes worker=") {
+		t.Errorf("dst = %q (%v), want a complete worker payload", got, err)
+	}
+	assertNoTempDebris(t, dir, "p0001.png")
+}
+
+func assertNoTempDebris(t *testing.T, dir, keep string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() != keep {
+			t.Errorf("temp debris left behind: %s", e.Name())
+		}
 	}
 }
