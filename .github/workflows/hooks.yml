@@ -305,6 +305,7 @@ jobs:
     needs: [native-scope]
     runs-on: ${{ matrix.builder }}
     strategy:
+      fail-fast: false
       matrix: ${{ fromJSON(needs.native-scope.outputs.matrix) }}
     defaults:
       run:

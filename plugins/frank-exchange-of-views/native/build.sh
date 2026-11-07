@@ -98,23 +98,15 @@ unpack_tool() { # unpack_tool <tarball>
 }
 
 if [ -z "${ZIG:-}" ]; then
-	if command -v zig >/dev/null 2>&1; then
-		ZIG="$(command -v zig)"
-	else
-		[ "$(uname -sm)" = "Linux x86_64" ] || die "pinned zig is linux-x86_64; set ZIG on other hosts"
-		f="$(tool_pin zig)"; [ -n "$f" ] || die "PINS.txt pins no zig"
-		ZIG="$(unpack_tool "$f")/zig"
-	fi
+	[ "$(uname -sm)" = "Linux x86_64" ] || die "pinned zig is linux-x86_64; set ZIG on other hosts"
+	f="$(tool_pin zig)"; [ -n "$f" ] || die "PINS.txt pins no zig"
+	ZIG="$(unpack_tool "$f")/zig"
 fi
 
 if [ -z "${CMAKE:-}" ]; then
-	if command -v cmake >/dev/null 2>&1; then
-		CMAKE="$(command -v cmake)"
-	else
-		[ "$(uname -sm)" = "Linux x86_64" ] || die "pinned cmake is linux-x86_64; set CMAKE on other hosts"
-		f="$(tool_pin cmake)"; [ -n "$f" ] || die "PINS.txt pins no cmake"
-		CMAKE="$(unpack_tool "$f")/bin/cmake"
-	fi
+	[ "$(uname -sm)" = "Linux x86_64" ] || die "pinned cmake is linux-x86_64; set CMAKE on other hosts"
+	f="$(tool_pin cmake)"; [ -n "$f" ] || die "PINS.txt pins no cmake"
+	CMAKE="$(unpack_tool "$f")/bin/cmake"
 fi
 
 # Compiler wrappers
@@ -167,6 +159,10 @@ if [ "$HELPER" = "feov-ocr" ]; then
 			-DZLIB_BUILD_MINIZIP=OFF -DZLIB_INSTALL=ON
 		"$CMAKE" --build zlib/b -j"$J"
 		"$CMAKE" --install zlib/b
+		if [ "$SYSNAME" = "Windows" ]; then
+			( cd "$PREFIX/lib" && if [ -e libzs.a ] && [ ! -e libz.a ]; then ln -sf libzs.a libz.a; fi )
+			( cd "$PREFIX/lib" && if [ -e libzlibstatic.a ] && [ ! -e libz.a ]; then ln -sf libzlibstatic.a libz.a; fi )
+		fi
 	fi
 
 	# libpng
