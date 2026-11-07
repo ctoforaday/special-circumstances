@@ -186,8 +186,7 @@ func TestEveryPageIsReadOnceAndAssembledInOrder(t *testing.T) {
 
 // AN ENGINE THAT FAILED MUST NOT LOOK LIKE A BLANK PAGE. An empty string is a legitimate
 // reading — a blank page reads as nothing — so a failure has to arrive as an error or the
-// two are indistinguishable. This is also the path the stub build's engine-absent refusal
-// travels.
+// two are indistinguishable. This is also the path the helper-absent refusal travels.
 func TestReadingPropagatesAnEngineFailureRatherThanRecordingAnEmptyPage(t *testing.T) {
 	withEngine(t, textEngine(func(int) (string, error) {
 		return "", errors.New("engine exploded mid-page")

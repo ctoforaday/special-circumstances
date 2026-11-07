@@ -12,7 +12,7 @@ import (
 // own resolution.
 //
 // A page's expected reading is a golden beside its image (testdata/<name>.golden), written by
-// `go test -tags tessocr -run TestTextCellGoldens -update`. A golden is the whole reading, byte
+// `NATIVE_HELPER_DIR=<helper-dir> go test -run TestTextCellGoldens -update`. A golden is the whole reading, byte
 // for byte, so a regression is a diff rather than a judgement.
 
 type page struct {

@@ -118,12 +118,12 @@ func TestFetchReadsAScannedPDFAutomatically(t *testing.T) {
 // the document is still a perfectly good cached source. The fetch therefore succeeds and
 // the cause is stated.
 func TestFetchSurvivesAFailedReadAndSaysWhy(t *testing.T) {
-	sr := &stubScanReader{err: errors.New("the OCR engine is not compiled into this binary; release binaries carry it")}
+	sr := &stubScanReader{err: errors.New("helper-absent: feov-ocr")}
 	out, err := fetchScanned(t, sr, scannedPDF(2))
 	if err != nil {
 		t.Fatalf("a failed reading failed the whole fetch: %v", err)
 	}
-	if !strings.Contains(out, "ocr_reason: the OCR engine is not compiled into this binary") {
+	if !strings.Contains(out, "ocr_reason: helper-absent: feov-ocr") {
 		t.Errorf("the summary does not carry the reason the pages went unread. got:\n%s", out)
 	}
 	// And it still says the document is cached and where, or the seat has lost the source.

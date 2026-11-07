@@ -176,7 +176,7 @@ func TestOCRPagesReusesAnExistingRenderAtTheSameResolution(t *testing.T) {
 	}
 }
 
-// stubCLIEngine answers without the C stack. Every `ocr read` test uses one — what is
+// stubCLIEngine answers without the helper. Every `ocr read` test uses one — what is
 // under test here is the verb's plumbing, and the real engine's behaviour belongs to
 // internal/tessocr's own suite.
 type stubCLIEngine struct {

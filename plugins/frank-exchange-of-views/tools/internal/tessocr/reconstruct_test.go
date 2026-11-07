@@ -1,9 +1,6 @@
 package tessocr
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -11,6 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -153,36 +151,17 @@ func readFixture(t *testing.T, name string) string {
 	return string(b)
 }
 
-// The engine identity is the record's re-derivation key; its pin constants must agree
-// with the manifest the C stack is actually built from. This is the in-repo half of the
-// staleness gate (build-cstack.sh is the build-time half): neither carrier can move
-// without the other noticing.
-func TestIdentityMatchesPins(t *testing.T) {
-	want := "tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+cstack@" + cstackPin + "+tessocr@"
-	if got := Identity(); !strings.HasPrefix(got, want) || !isHex(strings.TrimPrefix(got, want), 12) {
-		t.Fatalf("Identity() = %q, want %q followed by the 12-hex engine source hash", got, want)
-	}
-	pins, err := os.ReadFile(filepath.Join("..", "..", "third_party", "pins", "PINS.txt"))
-	if err != nil {
-		t.Fatalf("reading PINS.txt: %v", err)
-	}
-	script, err := os.ReadFile(filepath.Join("..", "..", "third_party", "pins", "build-cstack.sh"))
-	if err != nil {
-		t.Fatalf("reading build-cstack.sh: %v", err)
-	}
-	if got := cstackRecipeDigest(pins, script); got != cstackPin {
-		t.Errorf("cstackPin = %q, but PINS.txt and build-cstack.sh digest to %q — the C-stack "+
-			"recipe moved; set cstackPin to the new digest in the same change", cstackPin, got)
-	}
-	for _, pin := range []string{
-		"tesseract-" + tesseractPin + ".tar.gz",
-		"leptonica-" + leptonicaPin + ".tar.gz",
-		engTraineddataPin,
-	} {
-		if !strings.Contains(string(pins), pin) {
-			t.Errorf("PINS.txt does not pin %s — the Go pin constants and the download "+
-				"manifest have drifted", pin)
-		}
+// TestIdentityReadsTheGeneratedPins verifies that Identity() begins with
+// tesseract@, leptonica@, eng@ and feov-ocr@ followed by digest_gen.go's generated values.
+func TestIdentityReadsTheGeneratedPins(t *testing.T) {
+	wantPrefix := "tesseract@" + nativehelper.OCREngine.Tesseract +
+		"+leptonica@" + nativehelper.OCREngine.Leptonica +
+		"+eng@" + nativehelper.OCREngine.EngTraineddata[:12] +
+		"+feov-ocr@" + nativehelper.HelperDigest("feov-ocr")[:12] +
+		"+tessocr@"
+	got := Identity()
+	if !strings.HasPrefix(got, wantPrefix) || !isHex(strings.TrimPrefix(got, wantPrefix), 12) {
+		t.Fatalf("Identity() = %q, want prefix %q followed by 12-hex engine source hash", got, wantPrefix)
 	}
 }
 
@@ -192,8 +171,8 @@ func TestIdentityMatchesPins(t *testing.T) {
 // or line endings would re-read every document for nothing.
 func TestEngineSourceHashTracksTheCode(t *testing.T) {
 	base := fstest.MapFS{
-		"page.go":  {Data: []byte("package tessocr\nconst MinMarkPlacement = 0.8\n")},
-		"shim.cpp": {Data: []byte("api->SetImage(pix);\n")},
+		"page.go":   {Data: []byte("package tessocr\nconst MinMarkPlacement = 0.8\n")},
+		"client.go": {Data: []byte("package tessocr\nfunc ping() {}\n")},
 	}
 	h := hashEngineSource(base)
 	if !isHex(h, 12) {
@@ -213,10 +192,10 @@ func TestEngineSourceHashTracksTheCode(t *testing.T) {
 		moves bool
 	}{
 		{"a threshold changes", with("page.go", "package tessocr\nconst MinMarkPlacement = 0.9\n"), true},
-		{"the shim changes", with("shim.cpp", "api->SetImage(pix);\napi->SetSourceResolution(300);\n"), true},
+		{"the client changes", with("client.go", "package tessocr\nfunc ping() { println() }\n"), true},
 		{"a source file is added", with("gate.go", "package tessocr\n"), true},
 		{"a test file is added", with("page_test.go", "package tessocr\n"), false},
-		{"the shim is checked out CRLF", with("shim.cpp", "api->SetImage(pix);\r\n"), false},
+		{"client.go is checked out CRLF", with("client.go", "package tessocr\r\nfunc ping() {}\r\n"), false},
 	} {
 		if moved := hashEngineSource(c.fsys) != h; moved != c.moves {
 			t.Errorf("%s: hash moved = %v, want %v", c.name, moved, c.moves)
@@ -225,23 +204,6 @@ func TestEngineSourceHashTracksTheCode(t *testing.T) {
 	if !strings.HasSuffix(Identity(), engineSourceHash) {
 		t.Errorf("Identity() %q does not end in the package's own source hash %q", Identity(), engineSourceHash)
 	}
-}
-
-// cstackRecipeDigest is cstackPin's definition: each PINS.txt pin's checksum and file name, in
-// file order (a URL can move without moving a byte), then build-cstack.sh with line endings
-// normalised.
-func cstackRecipeDigest(pins, script []byte) string {
-	h := sha256.New()
-	for _, line := range strings.Split(string(pins), "\n") {
-		f := strings.Fields(line)
-		if len(f) < 2 || strings.HasPrefix(f[0], "#") {
-			continue
-		}
-		h.Write([]byte(f[0] + " " + f[1] + "\n"))
-	}
-	h.Write([]byte{0})
-	h.Write(bytes.ReplaceAll(script, []byte("\r\n"), []byte("\n")))
-	return hex.EncodeToString(h.Sum(nil))[:12]
 }
 
 func isHex(s string, n int) bool {

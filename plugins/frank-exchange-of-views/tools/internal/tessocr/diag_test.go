@@ -1,5 +1,3 @@
-//go:build tessocr && cgo
-
 package tessocr
 
 import (
@@ -7,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 )
 
 // Tesseract's diagnostics reach the result, per page, and not stderr; and a grid page keeps
@@ -16,6 +16,7 @@ import (
 // saying anything. The second read proves the capture is per page, not cumulative, and that
 // the first restored stderr: a capture still open refuses to start (stage 4).
 func TestReadPageCapturesDiagnosticsAndEvidence(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	en, err := New()
 	if err != nil {
 		t.Fatal(err)

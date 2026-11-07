@@ -365,7 +365,7 @@ func readScan(run record.Run, exec Exec, url string) error {
 	case sum.OCRDerived:
 		return nil
 	case sum.OCREngineAbsent:
-		return fmt.Errorf("%w (-tags tessocr); this binary reports it absent, so the board's cite cannot exist", ErrEngineRequired)
+		return fmt.Errorf("%w: helper feov-ocr is absent, so the board's cite cannot exist", ErrEngineRequired)
 	}
 	return fmt.Errorf("fetch read nothing from the scanned standard and did not report the engine absent: %s", sum.OCRReason)
 }

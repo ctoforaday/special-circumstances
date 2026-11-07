@@ -23,7 +23,7 @@ var scannedFixture []byte
 // a real scanned PDF to serve (the release-gate fuzz's one-page render).
 func ScannedFixturePDF() []byte { return append([]byte(nil), scannedFixture...) }
 
-// ErrEngineRequired is a board that cites OCR text, built by a binary without the OCR engine. Its
+// ErrEngineRequired is a board that cites OCR text, built without the OCR helper. Its
 // citation cannot exist there, so the board is NOT BUILT rather than built without the state its
 // expectations are about.
-var ErrEngineRequired = errors.New("the board needs a binary with the OCR engine compiled in")
+var ErrEngineRequired = errors.New("the board needs the OCR helper feov-ocr")

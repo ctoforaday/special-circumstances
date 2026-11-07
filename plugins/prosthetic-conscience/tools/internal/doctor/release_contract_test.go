@@ -79,9 +79,13 @@ var (
 // publishedPairs is the platform set the release job actually builds, read from the workflow.
 func publishedPairs(t *testing.T, wf string) [][2]string {
 	t.Helper()
-	m := rePairs.FindStringSubmatch(wf)
+	start := strings.Index(wf, "\n  release:\n")
+	if start < 0 {
+		t.Fatal("could not find the release job in the workflow")
+	}
+	m := rePairs.FindStringSubmatch(wf[start:])
 	if m == nil {
-		t.Fatal("could not find the platform-pair loop in the workflow. If the release job was " +
+		t.Fatal("could not find the platform-pair loop in the release job. If the release job was " +
 			"restructured, this test must be rewritten against the new shape rather than deleted — " +
 			"an asset-name contract with no test is how it broke silently before.")
 	}
@@ -116,6 +120,18 @@ func TestAssetNameMatchesWhatTheReleaseJobWrites(t *testing.T) {
 		t.Fatal("could not find the release job's -o template")
 	}
 	template := out[1] // ${name}_${os}_${arch}${ext}
+
+	checkIdx := strings.Index(wf[start:], "releaseassets -check")
+	sumIdx := strings.Index(wf[start:], "sha256sum")
+	if checkIdx < 0 {
+		t.Fatal("the release job does not run releaseassets -check")
+	}
+	if sumIdx < 0 {
+		t.Fatal("the release job does not run sha256sum")
+	}
+	if checkIdx >= sumIdx {
+		t.Fatal("the release job must run releaseassets -check before sha256sum")
+	}
 
 	ext := reExtRule.FindStringSubmatch(wf)
 	if ext == nil {

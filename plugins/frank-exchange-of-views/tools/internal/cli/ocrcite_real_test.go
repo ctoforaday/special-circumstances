@@ -1,5 +1,3 @@
-//go:build tessocr
-
 package cli
 
 import (
@@ -11,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
@@ -21,6 +20,7 @@ import (
 // document served on loopback (this suite refuses outside hosts): env-gated, because it names a
 // local copy of an 80-page PDF that is not checked in.
 func TestOCRCiteOnRealScan(t *testing.T) {
+	nativehelper.Require(t, "feov-ocr")
 	path := os.Getenv("FEOV_OCR_E2E")
 	if path == "" {
 		t.Skip("set FEOV_OCR_E2E=<path to IEEE 1012's PDF> to read it with the real engine")

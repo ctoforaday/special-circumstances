@@ -2,10 +2,9 @@ package tessocr
 
 // The per-page pipeline of plans/local-ocr.md §II, amended by §VI: grid-detect, then
 // either plain text or the full grid branch — orientation recovery, two-PSM TSV, the
-// rotated-header band, deterministic reconstruction, and an honest fallback. This file is
-// deliberately untagged: it orchestrates Engine methods that are themselves tag-split, so
-// under the default (stub) build every path here surfaces ErrNotCompiledIn rather than a
-// zero that reads like a blank page.
+// rotated-header band, deterministic reconstruction, and an honest fallback. This file
+// orchestrates Engine methods that call the helper, so when the helper is absent
+// every path here surfaces an error rather than a zero that reads like a blank page.
 //
 // Every pixel constant in this file is a 300-DPI empirical fit to the IEEE 1012 corpus and says so
 // where it is declared. Reusing one at another DPI is the mistake the Wave 0 spot-check caught, and
@@ -186,9 +185,9 @@ const (
 	bandPadY      = 50
 )
 
-// ReadPage runs the whole per-page pipeline over one PNG. On a stub build the first
-// engine call returns ErrNotCompiledIn and the page fails loudly — the caller must
-// surface that, never record it as an empty reading.
+// ReadPage runs the whole per-page pipeline over one PNG. When the helper is absent
+// the first engine call fails loudly — the caller must surface that, never record it as
+// an empty reading.
 //
 // Tesseract's diagnostics for the page are captured into the result rather than printed.
 func (en *Engine) ReadPage(pagePNG []byte, thr GridThresholds) (PageResult, error) {

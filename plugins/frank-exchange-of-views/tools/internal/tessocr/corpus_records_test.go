@@ -16,7 +16,7 @@ import (
 // drifted from the record it was generated from.
 //
 // The reading itself is pinned by TestCorpusGoldens in internal/fetchcache, which needs the engine
-// and runs only on the tagged Linux leg.
+// and runs when NATIVE_HELPER_DIR is set.
 
 const corpusRoot = "testdata/corpus"
 
@@ -140,7 +140,7 @@ func TestNoSourceIsBothCommittedAndRefused(t *testing.T) {
 	}
 }
 
-// STATUS.md is written by the tagged harness, which is the only thing that has read the pages. This
+// STATUS.md is written by the corpus runner with the helper, which is what reads the pages. This
 // gate can compare the SET of pages it names with the corpus, and cannot re-establish the verdicts —
 // said plainly here so the weaker check is not read as the stronger one.
 func TestStatusNamesExactlyTheCorpusPages(t *testing.T) {
@@ -157,6 +157,6 @@ func TestStatusNamesExactlyTheCorpusPages(t *testing.T) {
 		want = append(want, c.Slug)
 	}
 	if got := corpus.SlugsIn(string(status)); !reflect.DeepEqual(got, want) {
-		t.Errorf("STATUS.md names %v, the corpus holds %v — regenerate it with the tagged harness", got, want)
+		t.Errorf("STATUS.md names %v, the corpus holds %v — regenerate it with the helper", got, want)
 	}
 }

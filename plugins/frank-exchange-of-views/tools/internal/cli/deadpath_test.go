@@ -57,7 +57,6 @@ var notSeatFacing = map[string]string{
 	"internal/record/migrate": "operator-only: brings archived runs forward, and its text is about record shapes",
 	"integration":             "test packages",
 	"releasegate":             "the release-gate fuzzer",
-	"third_party":             "vendored pins",
 }
 
 // roleOfDir is the seat a package's text is addressed to, read from the package path: the four

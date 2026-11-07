@@ -1,30 +1,28 @@
 package tessocr
 
 import (
-	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
+	"errors"
+	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 )
 
-// The default-build contract as a test: a plain, no-tags `go build` of this package MUST
-// succeed on any machine — no C stack, no cgo env, no CGO_ENABLED juggling — because the
-// engine is opt-in behind `-tags tessocr` and everything else resolves to the stub.
-// Running it from the tagged engine suite proves the configuration that suite never
-// otherwise compiles; running it from the stub suite proves a clean checkout.
-func TestDefaultBuildCompiles(t *testing.T) {
-	goTool := filepath.Join(runtime.GOROOT(), "bin", "go")
-	if _, err := os.Stat(goTool); err != nil {
-		// Fall back to PATH; a test binary can outlive its GOROOT.
-		var lookErr error
-		goTool, lookErr = exec.LookPath("go")
-		if lookErr != nil {
-			t.Skipf("no go tool found (GOROOT stat: %v, PATH: %v)", err, lookErr)
-		}
+// The default-build contract as a test: with no helper (NATIVE_HELPER_DIR=none),
+// the engine refuses loudly with helper-absent.
+func TestDefaultBuildRefusesWithoutHelper(t *testing.T) {
+	t.Setenv("NATIVE_HELPER_DIR", "none")
+	resetDefaultClient()
+
+	en, err := New()
+	if err == nil {
+		en.Close()
+		t.Fatal("New() succeeded without a helper")
 	}
-	cmd := exec.Command(goTool, "build", ".")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("plain `go build` failed — the stub no longer covers the default build:\n%s\n%v", out, err)
+	if !errors.Is(err, nativehelper.ErrAbsent) {
+		t.Fatalf("err = %v, want ErrAbsent", err)
+	}
+	if !strings.Contains(err.Error(), "helper-absent: feov-ocr") {
+		t.Fatalf("err = %q, want helper-absent sentence", err)
 	}
 }

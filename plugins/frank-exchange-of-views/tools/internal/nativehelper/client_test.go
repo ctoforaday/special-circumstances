@@ -35,6 +35,8 @@ func asError(t *testing.T, err error, kind error) *Error {
 	return e
 }
 
+//racescope:covers internal/nativehelper/client.go:Client.exchange
+//racescope:covers internal/nativehelper/client.go:spawn
 func TestASelftestRoundTrips(t *testing.T) {
 	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, ""))
 	starts := startLog(t)

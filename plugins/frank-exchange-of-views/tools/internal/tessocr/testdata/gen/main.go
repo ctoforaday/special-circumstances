@@ -10,7 +10,7 @@
 //	go run ./internal/tessocr/testdata/gen
 //
 // The expected READING of each page is a golden beside it, written by
-// `go test -tags tessocr -run TestTextCellGoldens -update ./internal/tessocr/`.
+// `NATIVE_HELPER_DIR=<helper-dir> go test -run TestTextCellGoldens -update ./internal/tessocr/`.
 package main
 
 import (
