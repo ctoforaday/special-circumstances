@@ -16,7 +16,7 @@ func newSessionCmd(env *Env) *cobra.Command {
 		Long: `Summarises what one session did, by tool, with its error count beside each.
 
 The id may be the full session id or any prefix naming exactly one session, so
-the eight characters agents and find print are enough; a prefix naming several
+the eight characters agents and search print are enough; a prefix naming several
 is refused with the candidates, never resolved by guessing. Run 'telepathy agents' for the ones running now
 and, after a restart, 'telepathy agents --lost' for the ones it cut off, or query
 v_session for the ones that have ended.
@@ -67,7 +67,7 @@ store looks once a UTC day and at every backfill.`,
 			// client expires transcripts on its own clock, and what was read from one stays.
 			if s.TranscriptsGone > 0 {
 				fmt.Fprintf(out, "  %d of %d transcript file(s) are gone from disk (noticed %s) — these rows "+
-					"are the record that is left, and `find` does not search what is gone\n",
+					"are the record that is left, and `search` does not search what is gone\n",
 					s.TranscriptsGone, s.Transcripts, env.ago(s.GoneSince.Int64))
 			}
 			// THE SKIPS ARE THE HALF THAT USED TO BE INVISIBLE. "0 thoughts" and "0 thoughts, 300

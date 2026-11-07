@@ -1422,7 +1422,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
 		// no exchange.
 		if h, ok := b.GetRuling().(*recordpb.MotionRule_Position); ok {
-			if err := requirePositionHearing(w, seatID, h.Position); err != nil {
+			if err := requirePositionHearing(w, seatID, b.GetMotionId(), h.Position); err != nil {
 				return err
 			}
 		}

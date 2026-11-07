@@ -68,10 +68,13 @@ petitions land in `judgments.md` regardless of outcome.
 position argues why, and you hear it at a position sitting as soon as nothing is running, before
 any further seat sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
 either way the objection is decided, not dropped. UPHELD names the work the debate continues on,
-one way and with the direction it owes: a lens, which audits its area on that direction, or open
+one way and with the direction it owes: a lens — any lens of the cast, a retired one included, which the
+ruling readies — which audits its area on that direction, or open
 gaps, each sent back for one more exchange, which begins with blue's act on it and its minting
 lens's audit after — a gap sent back this way has had its one remand at impasse, exactly as a
-docket remand would, so weigh it as the only one. OVERRULED names nothing: the PASS goes back to
+docket remand would, so weigh it as the only one. MATERIALITY IS THE CLASS'S, NEVER YOURS: a position whose class is always
+material is upheld, because the class has already decided what an overrule would decide, and no
+declaration of yours makes a defect of such a class immaterial. OVERRULED names nothing: the PASS goes back to
 the chair, whose next sitting decides on the PASS with a verdict, and a second position on the
 same objection is refused. A position standing when the debate ends is yours at the terminal
 sitting, and the run ends at its ceiling however you rule it.

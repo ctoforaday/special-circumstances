@@ -29,8 +29,8 @@ asks the record what **happened**.
 telepathy agents                 who is running, in which worktree, doing what — and after a restart, what it cut off
 telepathy agents --lost          after a restart: each session it cut off, with the commands that bring it back
 telepathy session <id>           one session's shape: calls and errors by tool (short id is enough)
-telepathy touched <path>         which sessions acted on a path, and when
-telepathy find <term>            ripgrep across every local transcript, joined to who
+telepathy touched <path>         who read, edited, or executed commands on a path, and when
+telepathy search <term>          who worked on a PR, branch, issue, or term (ripgrep across transcripts)
 telepathy sql '<SELECT …>'       anything else
 telepathy backfill               read the existing corpus into the store (explicit, safe to repeat)
 telepathy send <id> <message>    deliver a message to a Claude Code or Antigravity session ("-" reads stdin)
@@ -50,13 +50,13 @@ telepathy link                   from an Antigravity shell: make this conversati
   verb) from its own shell; the server's token reaches nothing else. When Gray Area's hook asks you
   to run it, run it: that one command is what lets other agents wake you.
 
-`find` answers in one query: one row per session and agent, **newest first**, with the hit count,
+`search` answers in one query: one row per session and agent, **newest first**, with the hit count,
 the time of the most recent hit, the channel it landed in, and the text around it. `--in C` keeps
 a transcript if ANY of its hits is in channel C, showing the most recent of those — `--in assistant`
 is what agents *said*, `--in user` what the human said; `--paths` adds the transcript path for
 citation.
 
-- AFTER a `find`, YOU MUST read the **IN** column before quoting anything. `find` searches the
+- AFTER a `search`, YOU MUST read the **IN** column before quoting anything. `search` searches the
   whole transcript, so a hit may be a tool result, a file path, or prompt boilerplate, and those
   can crowd out the rows you want. For text, IN is who spoke, read from the record's
   fields and never its text: `user` (the human), `peer` (another session's message),
@@ -70,12 +70,12 @@ citation.
   Neither is the liveness word `unknown` that `agents` prints.
 - BEFORE reading `user` as the human, YOU MUST remember its remainder: no field separates the
   human from prompts that programs send to headless sessions (frank-exchange-of-views seat
-  prompts), slash-command records and local-command output, so `user` holds those too — in `find`
+  prompts), slash-command records and local-command output, so `user` holds those too — in `search`
   and in `v_word.role`, which stores the same speaker values (`user`, `assistant`, `peer`,
   `notification`, `lead`, `harness`, `unknown_origin`). Interrupts are `user` at top level and
-  `lead` in a seat's transcript. Mid-turn deliveries (`queued_command`) appear in `find` and have
+  `lead` in a seat's transcript. Mid-turn deliveries (`queued_command`) appear in `search` and have
   no `v_word` rows.
-- `find` takes a **literal** by default; pass `--regex` for a pattern. IN is read from where ripgrep
+- `search` takes a **literal** by default; pass `--regex` for a pattern. IN is read from where ripgrep
   matched, so IN, SNIPPET and `--in` mean the same for a pattern as for a literal. Use it for word boundaries —
   searching `roving` rather than `\broving\b` returns every occurrence of "p*roving*".
   A substring match is the default failure mode of every search here,
@@ -101,7 +101,7 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
 ## What it cannot tell you
 
 - **A session's app title is not in the record.** The name the app shows is held by the cloud and
-  never written to that session's transcript, so `find <title>` cannot return the titled session —
+  never written to that session's transcript, so `search <title>` cannot return the titled session —
   only sessions that printed a session list, or wrote the name down. BEFORE acting on a session the
   human names, YOU MUST find it by something that was SAID in it, and YOU MUST NOT take a name→id
   mapping from another session's `assistant` row: that is its claim, and a reattach to the wrong id
@@ -128,7 +128,7 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   a clock of its own** (`cleanupPeriodDays`, measured from a file's last write). A session older
   than a month reads from its oldest KEPT act, not its first. A session can be in the store and
   gone from disk: `v_transcript.gone_at` records when the store noticed, `session` says how many
-  of a session's files are gone, and `find` cannot search them. The store looks once a UTC day and
+  of a session's files are gone, and `search` cannot search them. The store looks once a UTC day and
   at every `backfill`, so BEFORE reading a NULL `gone_at` as "the transcript is there", YOU MUST
   check the path — a file that went since the last look is not yet marked.
 - **An upgrade can rebuild the store EMPTY.** When a gray-area update changes the store's shape,
@@ -144,7 +144,7 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   `file_path`, and the answer is exact. For `Bash` it is the command string, truncated at 200
   characters — so an edit made by a long shell command, or a heredoc that names the file past that
   point, does not appear. AFTER a `touched` that returns nothing on a file you expect contention
-  on, YOU MUST fall back to `telepathy find <basename>`, which reads the transcripts themselves.
+  on, YOU MUST fall back to `telepathy search <basename>`, which reads the transcripts themselves.
 - **`unresolved` is not `error`.** A tool call whose result never arrived — an interrupted session
   — is recorded as `unresolved`. YOU MUST NOT fold it into a failure count; doing so overstates
   every error rate on the box, and the sessions it overstates are exactly the ones that were cut
@@ -160,12 +160,35 @@ Both Anthropic Claude Code and Google Antigravity run on this host in Remote Con
 When coordinating across harnesses:
 
 ### 1. Identifying the peer session
-Query `telepathy agents` or `telepathy sql`:
-```bash
-telepathy sql "SELECT session_id, bridge_session_id, cwd, project_dir FROM session WHERE closed_at IS NULL;"
-```
-- **Claude RC sessions**: `cwd` is under `.claude/worktrees/bridge-cse_*` and `bridge_session_id` is set. Each live Claude session file under `~/.claude/sessions/<pid>.json` defines its active Unix domain socket under `messagingSocketPath`.
-- **Antigravity sessions**: `project_dir` is under `~/.gemini/antigravity-cli/brain/<conv_id>`. (Note: the installed plugin cache holds released binaries, so cross-harness indexing requires the dual-engine trajectory build).
+
+Do NOT jump to raw SQL. Reach for the dedicated fast verbs first:
+
+- **By PR, branch, or issue**:
+  ```bash
+  telepathy search "1024"                      # PR or issue number across all transcripts
+  telepathy search "fix/branch-name"           # branch name
+  telepathy search "telepathy" --in assistant  # filter to what agents said
+  ```
+  `search` runs ripgrep across raw JSON transcripts in ~50ms, matching user prompts, tool arguments (e.g. `gh pr checkout`, `git checkout -b`), and assistant speech, returning session ID, agent, timestamp, channel, and snippet.
+
+- **By file or path**:
+  ```bash
+  telepathy touched path/to/file.go          # who read, edited, or ran commands on this path
+  telepathy search file.go                   # fallback if touched missed a shell-truncated act
+  ```
+
+- **By live harness state**:
+  ```bash
+  telepathy agents                           # live sessions, worktrees, and recent tool acts
+  ```
+  - **Claude RC sessions**: `cwd` is under `.claude/worktrees/bridge-cse_*` and `bridge_session_id` is set. Each live Claude session file under `~/.claude/sessions/<pid>.json` defines its active Unix domain socket under `messagingSocketPath`.
+  - **Antigravity sessions**: `project_dir` is under `~/.gemini/antigravity-cli/brain/<conv_id>`. (Note: the installed plugin cache holds released binaries, so cross-harness indexing requires the dual-engine trajectory build).
+
+- **Only for custom aggregations across published views**:
+  ```bash
+  telepathy sql "SELECT session_id, cwd FROM v_session WHERE state = 'live';"
+  ```
+  *(Never query raw internal tables like `session`; use the published `v_*` views.)*
 
 ### 2. Messaging a peer session
 

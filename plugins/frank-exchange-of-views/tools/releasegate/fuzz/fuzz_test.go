@@ -721,6 +721,13 @@ type runner struct {
 	positionsHeard   []string
 	positionRuledAt  map[string]string
 	overruledPending string
+	// positionClass is the class a heard position named, by position; one that is always material
+	// is upheld, never overruled (rulePositions). positionClassFrom is where a drawn run's rotation
+	// through the classes starts (positionClassOf), and positionsClassed counts the positions its
+	// chair has named a class on.
+	positionClass     map[string]string
+	positionClassFrom int64
+	positionsClassed  int
 	// positionFiled says the chair sitting in progress filed a position the bench hears, so the
 	// plan it relays is the one it asks for after it (chairEnvelope).
 	positionFiled bool
@@ -1566,21 +1573,47 @@ func wordsBefore(cur, id string) string {
 }
 
 // chairPosition files the chair's position: owed where its sitting withheld a PASS the plan
-// permitted, and at any other sitting the chair's to file — so it is filed there on a coin.
+// permitted, and at any other sitting the chair's to file — so it is filed there on a coin, and a
+// drawn run's chair files its first positionClassQuota whatever the coin says.
 func (r *runner) chairPosition(seatID string, owed bool) {
-	if !owed && !r.coin(30) {
+	drawn := r.forcePosition == "" && !r.forcedVerdict()
+	r.mu.Lock()
+	quotaOwed := drawn && r.positionsClassed < positionClassQuota
+	r.mu.Unlock()
+	if !owed && !r.coin(30) && !quotaOwed {
 		return
 	}
-	out, err := r.exec("--json", "position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
+	// A DRAWN RUN'S POSITION NAMES THE DEFECT'S CLASS, which binds the bench's hearing of an owed one
+	// (gblock, 2026-11-05): a forced run's ruling is the seed's, so its chair names none. The class
+	// is the run's next in its rotation (positionClassOf), not a draw: one random pick per position
+	// left the sweep's coverage of the class enum to chance, and 40 runs once passed --class zero
+	// times.
+	args := []string{"--json", "position", "--seat-id", seatID, "--reason", "narrative from " + seatID}
+	class := ""
+	if drawn {
+		r.mu.Lock()
+		class = positionClassOf(r.positionClassFrom, r.positionsClassed)
+		r.positionsClassed++
+		r.mu.Unlock()
+		args = append(args, "--class", class)
+	}
+	out, err := r.exec(args...)
 	if err != nil {
 		return
 	}
 	if owed {
 		// THE BENCH HEARS IT (gblock, 2026-10-30): the plan the chair asks for next convenes it.
+		id := positionIDOf(out)
 		r.mu.Lock()
 		r.positionsWithheld++
-		r.positionsHeard = append(r.positionsHeard, positionIDOf(out))
+		r.positionsHeard = append(r.positionsHeard, id)
 		r.positionFiled = true
+		if class != "" {
+			if r.positionClass == nil {
+				r.positionClass = map[string]string{}
+			}
+			r.positionClass[id] = class
+		}
 		r.mu.Unlock()
 	}
 	// A SEAT THAT GOT ITS POSITION WRONG TYPES IT AGAIN. The sitting holds one, so the second is
@@ -5080,6 +5113,35 @@ func (r *runner) owedCitationReading() string {
 	return "supports"
 }
 
+// readsRepeatCopyAsBacking is whether this run's reading of anchorID never finds it unreachable: the
+// forced found-against run's owner is held to a refuting reading of one copy of the twice-held sentence
+// (readRepeatedSentence), and its owed check of either copy runs first in the same sitting
+// (foundAgainstSeed). An unreachable reading there puts the copy on a failed check, blue's remedy of
+// that check RETIRES the citation (fixFailed), and a retired copy's reading reads nothing at every
+// later sitting: the chain stops at "chained" on a coin the sweep's RNG shares across its runs. Once
+// the owner has made that reading, either copy draws as any citation does.
+func (r *runner) readsRepeatCopyAsBacking(anchorID string) bool {
+	return r.forceFoundAgainst && !r.foundAgainstForcedRead() && r.isRepeatedCite(anchorID)
+}
+
+// owedReadingOf is owedCitationReading for the owed check of anchorID: backing, where the run never
+// reads that citation unreachable (readsRepeatCopyAsBacking).
+func (r *runner) owedReadingOf(anchorID string) string {
+	if r.readsRepeatCopyAsBacking(anchorID) {
+		return "supports"
+	}
+	return r.owedCitationReading()
+}
+
+// citationReadingOf is citationReading for the drawn reading of anchorID: an unreachable one reads
+// backing where the run never reads that citation unreachable (readsRepeatCopyAsBacking).
+func (r *runner) citationReadingOf(anchorID, outcome string, fresh bool) string {
+	if outcome == "unreachable" && r.readsRepeatCopyAsBacking(anchorID) {
+		return "supports"
+	}
+	return r.citationReading(outcome, fresh)
+}
+
 var obsKind = []string{"reason", "checked-held"}
 
 // disputeDims is the full grade-dimension domain — the fuzz must contest each, not only impact.
@@ -6021,7 +6083,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 							// THE COPY THAT IS NOT THE WORK IS READ AND READS NOTHING (readNotTheWork).
 							r.readNotTheWork(seatID, it.Anchor)
 						} else {
-							as := r.owedCitationReading()
+							as := r.owedReadingOf(it.Anchor)
 							r.do("verify", seatID).set("--anchor", it.Anchor).
 								set("--as", as).set("--confidence", pick(r.rng, verifyConfidence)).
 								set("--reason", "fuzz: read the sentence as it now stands against its source").admit()
@@ -6099,7 +6161,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						on(60, "--access-date", "2026-07-24")
 				}
 				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
-					r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, axes)
+					r.readCitation(seatID, anchor, r.citationReadingOf(anchor, outcome, fresh), kindless, axes)
 				} else {
 					if outcome != "absent" && outcome != "unreachable" && !fresh {
 						outcome, kindless = "absent", false
@@ -6898,6 +6960,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forcePosition = positionFormOf(seed)
+	r.positionClassFrom = seed
 	r.forcePetitionSeat = petitionSeatOf(seed)
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel

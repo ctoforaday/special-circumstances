@@ -64,6 +64,21 @@ func TestAPositionRulingRendersTheWorkItNames(t *testing.T) {
 	}
 }
 
+// A POSITION'S CLASS IS ON ITS ROW, with the material default that binds the hearing: the bench
+// reads there that a position over narration of the run is upheld, never overruled (gblock,
+// 2026-11-05).
+func TestAPositionsClassRendersOnItsRow(t *testing.T) {
+	p := record.Plan{PassPermitted: true, Parties: []record.Party{}, Docket: []string{}, RemandOwed: []record.RemandOwed{}, Exchanges: []record.ExchangeCount{}, Why: []string{}, StaleAreas: []record.StaleArea{}, Blockers: []record.PlanBlocker{}}
+	b := famOf(t, []*record.Event{
+		recordtest.Event(t, "red-chair", &recordpb.Plan{Printed: proto.String(p.WithKey().Printed())}),
+		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String("A-0000000c"), Text: proto.String("two sentences narrate the run"),
+			Class: recordpb.GapClass_GAP_CLASS_REPORT_VOICE.Enum()}),
+	})
+	if out := motions(b); !strings.Contains(out, "A-0000000c** · the chair's position on a PASS it withheld, over a defect of class report_voice (material: always)") {
+		t.Errorf("the position's row does not name its class and materiality:\n%s", out)
+	}
+}
+
 // A WRITER WITH NO SITTING IS NAMED WITHOUT ONE. The harness files the docket motion migrate
 // translates from a bench opinion and sits in no sitting, so its row names it bare; a seat's row
 // keeps its sitting.
