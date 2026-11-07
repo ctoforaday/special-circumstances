@@ -132,6 +132,11 @@ func captureWarnings(home, project string, read func(string) ([]byte, error)) []
 // being checked for: a capture that is off while everything reads as fine. Substituting this
 // in a test is the only way to assert the warning actually reaches the verdict.
 var boxWarnings = func() []string {
+	if isAntigravity() {
+		// Antigravity persists reasoning blocks into transcript.jsonl natively;
+		// Claude Code's showThinkingSummaries setting does not apply.
+		return nil
+	}
 	// The project half of the chain is the directory the doctor was invoked from; a settings
 	// file beside the work is the one that governs it.
 	cwd, err := os.Getwd()

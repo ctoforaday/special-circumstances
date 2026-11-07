@@ -4,28 +4,40 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // ReferenceCommit answers the question a staleness check needs and could not previously ask of
 // an installed plugin: which commit SHOULD this binary have been built from?
 //
 // In a checkout the answer is HEAD. In an INSTALL it is not available that way at all — a plugin
-// lives under .claude/plugins/cache/<marketplace>/<plugin>/<version>, which is a copied tree with
-// no .git — so `git rev-parse HEAD` failed there for every binary in every real installation, and
-// the whole staleness arm was inert in the only place it runs in production.
+// lives under .claude/plugins/cache/<marketplace>/<plugin>/<version> or ~/.gemini/config/plugins/<plugin>,
+// which is a copied tree with no .git — so `git rev-parse HEAD` failed there for every binary in every
+// real installation, and the whole staleness arm was inert in the only place it runs in production.
 //
 // The client already records the answer. installed_plugins.json carries `gitCommitSha` per
 // install, and the release binaries are built from exactly that commit — measured: the recorded
-// sha and the binaries' vcs.revision agreed byte for byte on this machine.
+// sha and the binaries' vcs.revision agreed byte for byte on this machine. Additionally, an
+// installed plugin may carry `.fetch/commit` stamped at install time.
 //
-// Matched on installPath rather than by assembling "<plugin>@<marketplace>" from parts: the record
-// already holds the path, and a key rebuilt from two fields is a name that can be wrong in ways a
-// path cannot.
+// Matched on installPath first, then on recorded .fetch/commit, then on installed_plugins.json
+// by plugin name and version.
 func ReferenceCommit(b binStatus) string {
 	if head := HeadCommit(b.Root); head != "" {
 		return head
 	}
-	return installedCommit(b.Root)
+	if commitBytes, err := os.ReadFile(filepath.Join(b.Root, ".fetch", "commit")); err == nil {
+		if s := strings.TrimSpace(string(commitBytes)); s != "" {
+			return s
+		}
+	}
+	if sha := installedCommit(b.Root); sha != "" {
+		return sha
+	}
+	if sha := installedCommitByName(b.Root, b.Plugin, b.Version); sha != "" {
+		return sha
+	}
+	return ""
 }
 
 // installedPlugins is the shape this reads, and ONLY the shape it reads. The client owns this
@@ -34,6 +46,7 @@ type installedPlugins struct {
 	Plugins map[string][]struct {
 		InstallPath  string `json:"installPath"`
 		GitCommitSha string `json:"gitCommitSha"`
+		Version      string `json:"version"`
 	} `json:"plugins"`
 }
 
@@ -66,6 +79,58 @@ func installedCommit(root string) string {
 			}
 		}
 		return ""
+	}
+	return ""
+}
+
+// installedCommitByName matches a plugin entry in installed_plugins.json by plugin name
+// and version, supporting cross-harness installs (such as Antigravity importing plugins).
+func installedCommitByName(root, plugin, version string) string {
+	if plugin == "" || version == "" {
+		return ""
+	}
+	var candidateFiles []string
+	dir := root
+	for range 8 {
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+		candidateFiles = append(candidateFiles, filepath.Join(dir, "installed_plugins.json"))
+	}
+	if h := homeDir(); h != "" {
+		candidateFiles = append(candidateFiles, filepath.Join(h, ".claude", "plugins", "installed_plugins.json"))
+	}
+
+	seen := make(map[string]bool)
+	for _, path := range candidateFiles {
+		if seen[path] {
+			continue
+		}
+		seen[path] = true
+		b, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var ip installedPlugins
+		if json.Unmarshal(b, &ip) != nil {
+			continue
+		}
+		for key, entries := range ip.Plugins {
+			name := key
+			if at := strings.IndexByte(key, '@'); at >= 0 {
+				name = key[:at]
+			}
+			if name != plugin {
+				continue
+			}
+			for _, e := range entries {
+				if e.Version == version && e.GitCommitSha != "" {
+					return e.GitCommitSha
+				}
+			}
+		}
 	}
 	return ""
 }
