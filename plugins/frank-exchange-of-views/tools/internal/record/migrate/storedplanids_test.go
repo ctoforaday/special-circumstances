@@ -268,7 +268,7 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 	if firstDropped == 0 {
 		t.Fatal("fixture: every m28 event writes one on the migrated record, so nothing renumbers")
 	}
-	if want := map[string]int{"class_new": 2, "close": 1, "closing": 1, "inquiry_review": 8, "motion_rule": 5, "position": 8}; !maps.Equal(dropped, want) {
+	if want := map[string]int{"class_new": 2, "close": 1, "closing": 1, "inquiry_review": 8, "manifest_row": 16, "motion_rule": 5, "position": 8}; !maps.Equal(dropped, want) {
 		t.Errorf("m28's events that write none: %v, want %v", dropped, want)
 	}
 	same := func(a, b int64) bool { e, ok := src[a]; return ok && dst[b] == e }

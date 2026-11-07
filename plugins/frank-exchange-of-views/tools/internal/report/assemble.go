@@ -971,14 +971,12 @@ func provenance(g *record.Gap, findings map[string]*record.Event) string {
 }
 
 // boardSection composes the board from the replayed gaps: every open gap with its grades and
-// required fix, then the closure index — and, appended below, blue's correctness manifest and
-// red's spot-checks. This is the ledger's content, drawn from the replayed board rather
+// required fix, then the closure index — and, appended below, red's spot-checks. This is the ledger's content, drawn from the replayed board rather
 // than read back from the projection file.
 //
-// THREE PARTIES WRITE INTO THIS SECTION, which is why it is named for none of them: red mints
-// the gaps, blue attests its repairs below, and the bench disposes of what reaches it. Naming it
-// for one attributes the other two's output to that one — and here that is not cosmetic, because
-// the correctness manifest it carries is an accusation.
+// TWO PARTIES WRITE INTO THIS SECTION, which is why it is named for neither: red mints the gaps
+// and spot-checks the closures, and the bench disposes of what reaches it. Naming it for one
+// attributes the other's output to that one.
 func boardSection(fam record.Family) string {
 	// Id -> the finding event it names, so a gap can quote the evidence it was minted from.
 	findings := map[string]*record.Event{}
@@ -1086,9 +1084,6 @@ func boardSection(fam record.Family) string {
 	if sc := spotChecks(fam); sc != "" {
 		fmt.Fprintf(&b, "\n\n%s", sc)
 	}
-	if cm := correctnessManifest(fam); cm != "" {
-		fmt.Fprintf(&b, "\n\n%s", cm)
-	}
 	return b.String()
 }
 
@@ -1185,68 +1180,6 @@ func closureDetail(g *record.Gap, read []string) string {
 		rows = append(rows, fmt.Sprintf("\n  - closed by the bench's ruling: **%s** — its opinion is in %s", recordpb.Word(r.GetDisposition()), FileDebate))
 	}
 	return strings.Join(rows, "")
-}
-
-// correctnessManifest renders blue's self-audit receipts — one row per repaired gap, saying what
-// blue checked and what checking it showed.
-//
-// "An unmanifested repair is unchecked by blue's OWN standard, which is a stronger thing to be
-// able to say than 'we think it was checked'." That is the verb's own justification, and until
-// now nobody could say it: the manifest was scored from a transient envelope and the receipt on
-// the record reached no reader. A repair claimed as done and a repair audited by the party that
-// made it are different things, and only this section shows which one a closure was.
-//
-// A repaired gap with NO row is named rather than omitted. An absent receipt is the finding.
-func correctnessManifest(fam record.Family) string {
-	type row struct {
-		gapID, text, seat string
-		sitting           int
-	}
-	var rows []row
-	// THE SITTING EACH ROW IS FILED UNDER IS THE SITTING THE RECORD HOLDS IT IN (fam.At) — the one
-	// the closer bounds and the one the manifest's owed set is computed for.
-	for _, e := range fam.Events {
-		w := fam.At.Of(e)
-		mr, ok := recordpb.BodyAs[*recordpb.ManifestRow](e)
-		if !ok {
-			continue
-		}
-		text := strings.TrimSpace(mr.GetRow())
-		if text == "" {
-			continue
-		}
-		rows = append(rows, row{mr.GetGapId(), text, e.GetSeatId(), w.Sitting})
-	}
-	// Every gap blue REPAIRED and owed a receipt for, with none filed: record.ManifestUnreceipted,
-	// over ManifestOwed — dispatched onto the gap, still open when blue sat, and answered by blue's
-	// edit in that sitting. It is the one predicate the scorecard divides by and blue's work list
-	// offers the receipt from.
-	//
-	// THE REPAIR IS BLUE'S EDIT, NOT A CLOSURE. Keyed on "a `close` settled it", this list needed
-	// an exclusion for every closure that was not blue's repair — the bench's dispositions, and a
-	// gap its lens closed before blue sat (#868) — and still charged blue for none of the repairs
-	// red had not yet closed. Keyed on the edit that answers the gap, neither exclusion is needed,
-	// a bench ruling after blue's repair does not hide the missing receipt, and a rebuttal with no
-	// edit owes no row.
-	//
-	// Read while the run is running: the bench assembles the report as a seat of the run. The owed
-	// gaps are the same at either reading, and a sitting the record cannot close is process state
-	// for the scorecard, never a line of the report.
-	unmanifested := record.ManifestUnreceipted(fam.Events, fam.At, record.WhileRunning).Gaps
-	if len(rows) == 0 && len(unmanifested) == 0 {
-		return ""
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "### Blue's correctness manifest (%d)\n\n", len(rows))
-	b.WriteString("Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than \"we think it was checked\".\n\n")
-	for _, r := range rows {
-		fmt.Fprintf(&b, "- **%s** (%s #%d): %s\n", r.gapID, r.seat, r.sitting, inItem(r.text, "  "))
-	}
-	if len(unmanifested) > 0 {
-		fmt.Fprintf(&b, "\n**%d repaired gap(s) carry no manifest row (%s).** Those repairs were not audited by the party that made them.\n",
-			len(unmanifested), strings.Join(unmanifested, ", "))
-	}
-	return strings.TrimRight(b.String(), "\n")
 }
 
 // spotChecks renders the chair's spot-checks — the stale areas each read, the closures each

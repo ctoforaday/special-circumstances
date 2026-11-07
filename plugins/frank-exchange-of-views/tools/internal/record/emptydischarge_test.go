@@ -65,20 +65,14 @@ func TestARealDischargeIsAccepted(t *testing.T) {
 	}
 }
 
-// A RECEIPT NAMING NO GAP CANNOT BE AUDITED. requireGap returns nil on an empty id — an ABSENT
-// reference is not a DANGLING one, which is right for the check it makes — so absence needed its
-// own check, and without it a bare manifest-row printed "manifest row recorded for ".
-func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
-	if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "blue-respond", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, &recordpb.ManifestRow{}); err == nil {
-		t.Error("a manifest row naming no gap was accepted")
+// A CLOSING NAMING NO GAP CANNOT BE AUDITED. requireGap returns nil on an empty id — an ABSENT
+// reference is not a DANGLING one, which is right for the check it makes — so absence needs its own
+// check, and without it a bare closing files an argument about nothing.
+func TestAClosingMustNameItsGap(t *testing.T) {
+	if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "blue-respond", recordpb.EventType_EVENT_TYPE_CLOSING, &recordpb.Closing{Text: proto.String("the argument")}); err == nil {
+		t.Error("a closing naming no gap was accepted")
 	} else if !strings.Contains(err.Error(), "--id") {
 		t.Errorf("the refusal does not name --id: %v", err)
-	}
-	// And with a gap but no row: the receipt is what makes "unaudited repair" countable, so a
-	// blank one flatters the count it feeds.
-	if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "blue-respond", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW,
-		&recordpb.ManifestRow{GapId: proto.String("G1")}); err == nil {
-		t.Error("a manifest row with no --row was accepted")
 	}
 }
 

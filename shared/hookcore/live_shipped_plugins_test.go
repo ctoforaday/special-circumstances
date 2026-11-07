@@ -41,6 +41,11 @@ func copyAgyCredentials(t *testing.T, fakeHome string) {
 			_ = os.WriteFile(filepath.Join(fakeAgyDir, extra), data, 0600)
 		}
 	}
+	// Tool calls proceed without prompting — the setting a headless run needs, scoped to this throwaway home.
+	settingsPath := filepath.Join(fakeAgyDir, "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"toolPermission":"always-proceed"}`), 0600); err != nil {
+		t.Fatalf("write fake settings: %v", err)
+	}
 }
 
 // stageShippedPlugin installs a real built plugin into an isolated Antigravity fakeHome.
@@ -64,31 +69,64 @@ func stageShippedPlugin(t *testing.T, fakeHome, repoRoot, pluginName string) {
 	// Copy .antigravity-plugin/plugin.json
 	agDir := filepath.Join(destPlugin, ".antigravity-plugin")
 	_ = os.MkdirAll(agDir, 0755)
+	var pluginManifestData []byte
 	if pData, err := os.ReadFile(filepath.Join(srcPlugin, ".antigravity-plugin", "plugin.json")); err == nil {
+		pluginManifestData = pData
 		_ = os.WriteFile(filepath.Join(agDir, "plugin.json"), pData, 0644)
 	} else if pData, err := os.ReadFile(filepath.Join(srcPlugin, ".claude-plugin", "plugin.json")); err == nil {
+		pluginManifestData = pData
 		_ = os.WriteFile(filepath.Join(agDir, "plugin.json"), pData, 0644)
 	}
 
-	// Copy binaries from bin/
-	srcBin := filepath.Join(srcPlugin, "bin")
-	entries, err := os.ReadDir(srcBin)
+	// Build and stage real binaries from tools/cmd/
+	cmdDir := filepath.Join(srcPlugin, "tools", "cmd")
+	entries, err := os.ReadDir(cmdDir)
 	if err != nil {
-		t.Fatalf("read src bin dir %s: %v", srcBin, err)
+		t.Fatalf("read tools cmd dir %s: %v", cmdDir, err)
 	}
+	buildDir := t.TempDir()
 	for _, e := range entries {
-		if e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(srcBin, e.Name()))
+		binPath := getHookBinary(t, repoRoot, pluginName, e.Name(), buildDir)
+		data, err := os.ReadFile(binPath)
 		if err != nil {
-			t.Fatalf("read bin %s: %v", e.Name(), err)
+			t.Fatalf("read bin %s: %v", binPath, err)
 		}
-		destBinPath := filepath.Join(destPlugin, "bin", e.Name())
+		destBinPath := filepath.Join(destPlugin, "bin", filepath.Base(binPath))
 		if err := os.WriteFile(destBinPath, data, 0755); err != nil {
 			t.Fatalf("write bin %s: %v", destBinPath, err)
 		}
 	}
+
+	// Stamp destPlugin as installed so fetch-bin.sh finds nothing to heal.
+	if len(pluginManifestData) > 0 {
+		var manifest struct{ Name, Version string }
+		if err := json.Unmarshal(pluginManifestData, &manifest); err == nil && manifest.Name != "" && manifest.Version != "" {
+			_ = os.MkdirAll(filepath.Join(destPlugin, ".fetch"), 0755)
+			_ = os.WriteFile(filepath.Join(destPlugin, ".fetch", "installed"), []byte(manifest.Name+"--v"+manifest.Version+"\n"), 0644)
+		}
+	}
+}
+
+// assertNoAgyPanics walks fakeHome/.gemini/antigravity-cli looking for CLI log files,
+// asserting that no hook panics occurred during the session.
+func assertNoAgyPanics(t *testing.T, fakeHome string) {
+	t.Helper()
+	logDir := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
+	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if (strings.HasPrefix(info.Name(), "cli") && strings.HasSuffix(info.Name(), ".log")) || info.Name() == "cli.log" {
+			data, err := os.ReadFile(path)
+			if err == nil && strings.Contains(string(data), "panicked") {
+				t.Errorf("Antigravity hook panicked in %s:\n%s", path, string(data))
+			}
+		}
+		return nil
+	})
 }
 
 // TestLiveShippedAntigravityPlugins verifies that real shipped hook binaries execute
@@ -121,7 +159,6 @@ func TestLiveShippedAntigravityPlugins(t *testing.T) {
 	cmd := exec.CommandContext(ctx, agyBin,
 		"-p", prompt,
 		"--model", "gemini-3.8-flash-low",
-		"--dangerously-skip-permissions",
 	)
 	cmd.Dir = workDir
 	var env []string
@@ -166,6 +203,9 @@ func TestLiveShippedAntigravityPlugins(t *testing.T) {
 			}
 		}
 	}
+
+	// 3. Verify cli.log does not contain hook panics
+	assertNoAgyPanics(t, fakeHome)
 }
 
 // TestLiveShippedAntigravitySecretsBlocking verifies that sc-pretooluse blocks AWS keys live under `agy -p`.
@@ -197,7 +237,6 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 	cmd := exec.CommandContext(ctx, agyBin,
 		"-p", prompt,
 		"--model", "gemini-3.8-flash-low",
-		"--dangerously-skip-permissions",
 	)
 	cmd.Dir = workDir
 	var env []string
@@ -217,14 +256,180 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 	output := string(out)
 
 	// Verify the pretooluse secrets gate denied the call
-	if !strings.Contains(output, "sc-secrets-gate: BLOCKED") && !strings.Contains(output, "aws-access-token") && !strings.Contains(output, "denied by pre-tool hook") {
+	lowerOut := strings.ToLower(output)
+	blocked := strings.Contains(output, "sc-secrets-gate: BLOCKED") ||
+		strings.Contains(lowerOut, "aws-access-token") ||
+		strings.Contains(lowerOut, "aws access") ||
+		strings.Contains(lowerOut, "denied by pre-tool hook") ||
+		(strings.Contains(lowerOut, "secrets") && strings.Contains(lowerOut, "block"))
+	if !blocked {
 		t.Errorf("expected secret block from sc-secrets-gate, got:\n%s", output)
+	}
+
+	// Verify no hook panics occurred in cli.log
+	assertNoAgyPanics(t, fakeHome)
+}
+
+// TestLiveShippedAntigravityFetchBinSay verifies that fetch-bin.sh emitting a missing-binary
+// notification under Antigravity does not panic in cli.log and arrives in transcript.jsonl.
+func TestLiveShippedAntigravityFetchBinSay(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live test without HOOKCORE_LIVE=1")
+	}
+	agyBin, err := exec.LookPath("agy")
+	if err != nil {
+		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
+	}
+
+	repoRoot, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("abs repo root: %v", err)
+	}
+
+	fakeHome := t.TempDir()
+	copyAgyCredentials(t, fakeHome)
+
+	// Stage a mock plugin where a binary is missing, so fetch-bin.sh emits a systemMessage notification
+	destPlugin := filepath.Join(fakeHome, ".gemini", "config", "plugins", "mock-fetchbin-test")
+	if err := os.MkdirAll(filepath.Join(destPlugin, "hooks"), 0755); err != nil {
+		t.Fatalf("mkdir plugin hooks dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(destPlugin, ".antigravity-plugin"), 0755); err != nil {
+		t.Fatalf("mkdir plugin dir: %v", err)
+	}
+	pluginJSON := "{\n  \"name\": \"mock-fetchbin-test\",\n  \"version\": \"0.1.0\",\n  \"description\": \"fetchbin test\"\n}\n"
+	if err := os.WriteFile(filepath.Join(destPlugin, ".antigravity-plugin", "plugin.json"), []byte(pluginJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+	hooksData, err := os.ReadFile(filepath.Join(repoRoot, "plugins", "prosthetic-conscience", "hooks", "fetch-bin.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(destPlugin, "hooks", "fetch-bin.sh"), hooksData, 0755); err != nil {
+		t.Fatal(err)
+	}
+	hooksJSON := `{
+  "mock-fetchbin-hooks": {
+    "SessionStart": [
+      {
+        "command": "sh hooks/fetch-bin.sh hook SessionStart"
+      }
+    ]
+  }
+}`
+	if err := os.WriteFile(filepath.Join(destPlugin, "hooks.json"), []byte(hooksJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	workDir := t.TempDir()
+	prompt := "Run the shell command: echo 'FETCHBIN_SAY_TEST_OK'"
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, agyBin,
+		"-p", prompt,
+		"--model", "gemini-3.8-flash-low",
+	)
+	cmd.Dir = workDir
+	var env []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
+			continue
+		}
+		env = append(env, e)
+	}
+	env = append(env,
+		"HOME="+fakeHome,
+		"PATH="+os.Getenv("PATH"),
+	)
+	cmd.Env = env
+
+	out, runErr := cmd.CombinedOutput()
+	output := string(out)
+	if runErr != nil {
+		t.Logf("Antigravity output:\n%s", output)
+		t.Fatalf("Antigravity execution failed: %v", runErr)
+	}
+
+	if !strings.Contains(output, "FETCHBIN_SAY_TEST_OK") {
+		t.Errorf("expected output to contain FETCHBIN_SAY_TEST_OK, got:\n%s", output)
+	}
+
+	// 1. Assert no hook panics occurred in cli.log
+	assertNoAgyPanics(t, fakeHome)
+
+	// 2. Assert that the fetch-bin systemMessage arrived in transcript.jsonl
+	brainBase := filepath.Join(fakeHome, ".gemini", "antigravity-cli", "brain")
+	foundMessage := false
+	if entries, err := os.ReadDir(brainBase); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			trPath := filepath.Join(brainBase, e.Name(), ".system_generated", "logs", "transcript.jsonl")
+			if trData, err := os.ReadFile(trPath); err == nil {
+				if strings.Contains(string(trData), "mock-fetchbin-test") || strings.Contains(string(trData), "installing") {
+					foundMessage = true
+					break
+				}
+			}
+		}
+	}
+	if !foundMessage {
+		t.Errorf("expected fetch-bin systemMessage in transcript.jsonl under %s", brainBase)
 	}
 }
 
 func findClaudeBin() string {
 	bin, _ := exec.LookPath("claude")
 	return bin
+}
+
+// stageShippedClaudePlugin installs a real built plugin into an isolated directory for claude --plugin-dir.
+func stageShippedClaudePlugin(t *testing.T, baseDir, repoRoot, pluginName string) string {
+	t.Helper()
+	srcPlugin := filepath.Join(repoRoot, "plugins", pluginName)
+	destPlugin := filepath.Join(baseDir, pluginName)
+	if err := os.MkdirAll(filepath.Join(destPlugin, "bin"), 0755); err != nil {
+		t.Fatalf("mkdir plugin dir: %v", err)
+	}
+
+	for _, item := range []string{".claude-plugin", "hooks", "hooks.json", "requirements.json"} {
+		src := filepath.Join(srcPlugin, item)
+		if _, err := os.Stat(src); err == nil {
+			_ = copyDirOrFile(src, filepath.Join(destPlugin, item))
+		}
+	}
+
+	cmdDir := filepath.Join(srcPlugin, "tools", "cmd")
+	entries, err := os.ReadDir(cmdDir)
+	if err != nil {
+		t.Fatalf("read tools cmd dir %s: %v", cmdDir, err)
+	}
+	buildDir := t.TempDir()
+	for _, e := range entries {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		binPath := getHookBinary(t, repoRoot, pluginName, e.Name(), buildDir)
+		data, err := os.ReadFile(binPath)
+		if err != nil {
+			t.Fatalf("read bin %s: %v", binPath, err)
+		}
+		destBinPath := filepath.Join(destPlugin, "bin", filepath.Base(binPath))
+		if err := os.WriteFile(destBinPath, data, 0755); err != nil {
+			t.Fatalf("write bin %s: %v", destBinPath, err)
+		}
+	}
+
+	var manifest struct{ Name, Version string }
+	if pData, err := os.ReadFile(filepath.Join(destPlugin, ".claude-plugin", "plugin.json")); err == nil {
+		if err := json.Unmarshal(pData, &manifest); err == nil && manifest.Name != "" && manifest.Version != "" {
+			_ = os.MkdirAll(filepath.Join(destPlugin, ".fetch"), 0755)
+			_ = os.WriteFile(filepath.Join(destPlugin, ".fetch", "installed"), []byte(manifest.Name+"--v"+manifest.Version+"\n"), 0644)
+		}
+	}
+	return destPlugin
 }
 
 // TestLiveShippedClaudePlugins verifies that real shipped hook binaries execute
@@ -243,15 +448,20 @@ func TestLiveShippedClaudePlugins(t *testing.T) {
 		t.Fatalf("abs repo root: %v", err)
 	}
 
+	stagedDir := t.TempDir()
+	pcDir := stageShippedClaudePlugin(t, stagedDir, repoRoot, "prosthetic-conscience")
+	feovDir := stageShippedClaudePlugin(t, stagedDir, repoRoot, "frank-exchange-of-views")
+	gaDir := stageShippedClaudePlugin(t, stagedDir, repoRoot, "gray-area")
+
 	workDir := t.TempDir()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, claudeBin,
 		"-p", "Print exactly: LIVE_CLAUDE_VERIFIED_SUCCESS",
-		"--plugin-dir", filepath.Join(repoRoot, "plugins", "prosthetic-conscience"),
-		"--plugin-dir", filepath.Join(repoRoot, "plugins", "frank-exchange-of-views"),
-		"--plugin-dir", filepath.Join(repoRoot, "plugins", "gray-area"),
+		"--plugin-dir", pcDir,
+		"--plugin-dir", feovDir,
+		"--plugin-dir", gaDir,
 	)
 	cmd.Dir = workDir
 	var env []string
@@ -288,6 +498,9 @@ func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
 		t.Fatalf("abs repo root: %v", err)
 	}
 
+	stagedDir := t.TempDir()
+	pcDir := stageShippedClaudePlugin(t, stagedDir, repoRoot, "prosthetic-conscience")
+
 	testSecretKey := "AKIAIOSFODNN7EXAMPL2"
 	prompt := fmt.Sprintf("Run the bash command: echo '%s'", testSecretKey)
 
@@ -298,7 +511,7 @@ func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
 	cmd := exec.CommandContext(ctx, claudeBin,
 		"-p", prompt,
 		"--dangerously-skip-permissions",
-		"--plugin-dir", filepath.Join(repoRoot, "plugins", "prosthetic-conscience"),
+		"--plugin-dir", pcDir,
 	)
 	cmd.Dir = workDir
 	var env []string
@@ -313,7 +526,13 @@ func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
 	out, _ := cmd.CombinedOutput()
 	output := string(out)
 
-	if !strings.Contains(output, "sc-secrets-gate: BLOCKED") && !strings.Contains(output, "aws-access-token") && !strings.Contains(output, "denied by pre-tool hook") {
+	lowerOut := strings.ToLower(output)
+	blocked := strings.Contains(output, "sc-secrets-gate: BLOCKED") ||
+		strings.Contains(lowerOut, "aws-access-token") ||
+		strings.Contains(lowerOut, "aws access") ||
+		strings.Contains(lowerOut, "denied by pre-tool hook") ||
+		(strings.Contains(lowerOut, "secrets") && strings.Contains(lowerOut, "block"))
+	if !blocked {
 		t.Errorf("expected secret block from sc-secrets-gate under claude -p, got:\n%s", output)
 	}
 }

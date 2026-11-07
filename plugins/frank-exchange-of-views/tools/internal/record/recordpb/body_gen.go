@@ -109,10 +109,6 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.Retire, true
 		}
-	case *Event_ManifestRow:
-		if b != nil {
-			return b.ManifestRow, true
-		}
 	case *Event_Log:
 		if b != nil {
 			return b.Log, true

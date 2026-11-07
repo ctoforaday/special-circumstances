@@ -235,7 +235,7 @@ func TestAnAssemblySatAgainAfterAGiveUpAssemblesOnTheStampedOutcome(t *testing.T
 // whole debate behind it.
 func TestAReceivedEnvelopeReadiesItsSuccessorSitting(t *testing.T) {
 	r := &runner{}
-	r.envelopeReceived(map[string]any{"manifest": []any{}})
+	r.envelopeReceived(map[string]any{})
 	if r.againOn != nil {
 		t.Fatalf("an envelope naming no successor readied %v", r.againOn)
 	}

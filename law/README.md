@@ -38,6 +38,14 @@ GOVERNANCE: setup mirrors law/ read-only into each run's inputs/; humans
 promote, ignore, or reverse at review. The bench cannot make binding law alone —
 an unappealable precedent is a covert legislature.
 
+A HOLDING CONTRARY TO STATUTE IS REFUSED AT REVIEW, NOT PROMOTED. A gap class's
+material default (`mint --help` prints it beside each class; the binary's
+GapClass carries it) is statute: a holding that a defect of an `always` class is
+immaterial, or that a class is not audited, contradicts it and is never
+promoted. The tool refuses the act such a holding would license — the bench
+overruling a position whose class is `always` material. Changing a class's
+materiality is a change to the binary, by ordinary reviewed commit.
+
 WHAT A PROPOSAL IS: A CHANGE TO SCOPE LIMITS, NOT A NEW RULE FROM NOTHING.
 
 A holding is a rule plus the boundary it holds within, and `scope-limits` is

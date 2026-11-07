@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -17,12 +18,12 @@ import (
 // heardPosition is the chair holding back a PASS its plan permits, on the act fixture: the chair's
 // sitting stores a plan permitting the PASS, then files its position through the verb, which the
 // bench hears (gblock, 2026-10-30). It returns the position's id, as the verb's envelope names it.
-func heardPosition(t *testing.T, runDir string) string {
+func heardPosition(t *testing.T, runDir string, extra ...string) string {
 	t.Helper()
 	p := record.Plan{PassPermitted: true, Parties: []record.Party{}, Docket: []string{}, RemandOwed: []record.RemandOwed{},
 		Exchanges: []record.ExchangeCount{}, Why: []string{}, StaleAreas: []record.StaleArea{}, Blockers: []record.PlanBlocker{}}
 	recordtest.Seed(t, runDir, recordtest.Event(t, "red-chair", &recordpb.Plan{Printed: proto.String(p.WithKey().Printed())}))
-	out := must(t, runDir, "position", "--seat-id", "red-chair", "--reason", "the PASS is withheld: the core claim rests on one source", "--json")
+	out := must(t, runDir, append([]string{"position", "--seat-id", "red-chair", "--reason", "the PASS is withheld: the core claim rests on one source", "--json"}, extra...)...)
 	var env struct {
 		Result struct {
 			PositionID string `json:"position_id"`
@@ -88,4 +89,24 @@ func TestThePositionRulingCarriesTheWorkItNames(t *testing.T) {
 			}
 		})
 	}
+}
+
+// THE VERB CARRIES THE POSITION'S CLASS, AND THE CLASS BINDS THE HEARING (gblock, 2026-11-05): a
+// position over narration of the run names report_voice, which is always material, so the bench's
+// overrule is refused and its upheld ruling naming the lens is admitted. Universe-m39's bench overruled
+// such a position as "not material".
+func TestAPositionsClassBindsTheBenchsHearing(t *testing.T) {
+	d := positionFixture(t)
+	id := heardPosition(t, d.run, "--class", "report_voice")
+	positions := eventsOfWord(t, d.run, "position")
+	if p, _ := recordpb.BodyAs[*recordpb.Position](positions[len(positions)-1]); p.GetClass() != recordpb.GapClass_GAP_CLASS_REPORT_VOICE {
+		t.Fatalf("the position's class = %v, want report_voice", p.GetClass())
+	}
+	msg := d.refused("an overrule of an always-material position", "judge", "motion", "position", "rule", "--id", id, "--reason", "a register matter", "--as", "overruled")
+	for _, want := range []string{"class report_voice", "always", "Nothing was recorded"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal does not say %q: %s", want, msg)
+		}
+	}
+	d.admitted("the upheld ruling", "judge", "motion", "position", "rule", "--id", id, "--reason", "the narration is the voice lens's", "--as", "upheld", "--lens", lensSeat, "--direction", "re-voice the sentences that narrate the run")
 }

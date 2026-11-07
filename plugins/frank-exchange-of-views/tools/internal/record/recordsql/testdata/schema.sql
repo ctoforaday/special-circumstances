@@ -141,7 +141,6 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench endi
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry', 'an inquiry: its question, its hypothesis and each fate recorded on it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_check', 'the owning lens''s judgement that an inquiry''s latest fate is sound as the report''s account of it, with the reason it holds — a settled inquiry holds the PASS until one stands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('log', 'an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
@@ -187,6 +186,52 @@ INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'the run st
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('halted', 'the bench ended the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended without the question being answered, and no ceiling or halt explains it');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board and the bench agrees the question was answered');
+
+CREATE TABLE "enum_class_material" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('always', 'every gap of this class is material, whatever its grade or the reader decision it is judged to change — the class decides it, and no ruling or holding makes it immaterial');
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('by_grade', 'a gap of this class is material when its current severity is medium or above');
+INSERT INTO "enum_class_material" ("value", "means") VALUES ('never', 'no gap of this class is material, whatever its grade — it stays on the board and never holds the gate');
+
+CREATE TABLE "enum_gap_class" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL,
+  "material_default" TEXT NOT NULL REFERENCES "enum_class_material"("value")
+) STRICT;
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('artifact_preservation', 'an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it is', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('citation_figure_misattribution', 'a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_own_record', 'the report and the run''s own record disagree: the report states what the record contradicts — an inquiry''s fate, method or reason, an edit, a computation''s result — or a record entry contradicts what the report shows was done', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_source', 'a source read against the sentence — cited by blue or found by red — states otherwise than the report', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('cross_section_contradiction', 'two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for them', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('derivation_status_overclaim', 'a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shown', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('doctrine_vs_implementation', 'what a system, method or report says it does differs from what its implementation does — a stated rule its code, script or procedure does not follow', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('exhaustive_sweep_omits_case', 'a list, survey, search or sweep the report presents as complete omits a member it should hold', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('false_universal', 'a claim stated universally — every, none, always, the only — that a case the evidence reaches, or one it never tested, contradicts', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('figure_recount_fails', 'a figure, count or computed result the report states differs from what an independent recount, recomputation or re-run produces', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('incomplete_repair_propagation', 'a repair fixed a defect at some of its sites and left it standing at others — a sibling sentence, row or section still carries what the repair removed', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('invalid_inference', 'a reason the report offers for a conclusion does not entail it — the step fails even where every stated fact is true, including a check that gives the same result on the case the conclusion must exclude', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('live_source_drift', 'a claim or computation rests on a source''s or tree''s current state rather than the state the report cites or pins, so it reads differently now from when it was written', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('metric_conflation', 'two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitions', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('missing_root_invariant', 'one fact is restated in several places with nothing tying the copies to a single source, so they have drifted or can drift unnoticed', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('out_of_scope', 'an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run''s research', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('partial_control_coverage', 'a control credited with covering a surface works on part of it and leaves the rest — an axis, channel, verb or case — uncovered', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('policy_without_mechanism', 'a rule, safeguard or guarantee is asserted with nothing that enforces it', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('reader_channel_mismatch', 'a fact the reader needs is held — in the record or elsewhere in the report — but not where the reader who needs it reads, so a reader acting on that section acts without it', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('report_voice', 'report prose speaks about the run that made it rather than the subject — process voice, a claim wearing the seat that produced it, the report''s own draft history, or the machinery that checked it', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('risk_coverage_omission', 'the report''s account of risk leaves out a risk, or a combination of risks, that its own analysis or its subject makes live', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('self_attestation', 'the report asserts its own checking — that it verified, re-ran, searched or matched something — and the record does not bear the assertion out', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('self_defeating_mitigation', 'a control credited with closing a gap cannot deliver that closure by its own operation — it fires after the decision it gates, acts on a variable that does not trigger the harm, erases the signal it was meant to distinguish, rests on an assumption the same document discredits, or is starved of its trigger by another control''s short-circuit', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('spec_underspecification', 'a term, rule, procedure or recommendation the report relies on is not specified enough for a reader to apply or check it — undefined, defined only by what it is not, or left as an undecided either/or', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('structure_noncompliance', 'the report''s structure does not carry its argument: material a reader has to take in order is present only as unordered prose, or a part of the answer has no place in it. The report''s sections are its author''s to name and order, and a heading the report does not have is not this', 'never');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unclassified', 'no other value fits this gap. The mint''s reason names the nearest value and what it does not cover', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unhandled_degenerate_case', 'a procedure or design the report describes breaks or is undefined at an edge input — empty, zero, one, a boundary, a duplicate — that the report does not address', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unsourced_claim', 'a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence is not the report''s citation: the gap stands until blue cites one', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unverified_composition', 'a property of a whole is claimed because its parts were each checked, and the combination itself was never checked', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('verification_scope_blindspot', 'a check, experiment or computation covers less than the claim it is credited with — a read test cited for a write path, one artifact''s check credited to its siblings, a proof that establishes half its sentence', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('vote_laundering', 'agreement among sources, programs or reviewers is counted as independent corroboration when they share an origin, so the count overstates the evidence', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('within_source_condition_misattribution', 'the report carries a source''s or model''s result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is dropped', 'always');
 
 CREATE TABLE "enum_grade_dimension" (
   "value" TEXT PRIMARY KEY,
@@ -252,8 +297,8 @@ CREATE TABLE "enum_position_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('overruled', 'the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work');
-INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('upheld', 'the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue''s act on it and audited by its minting lens after — a remand, and the gap''s one remand at impasse. Name one or the other, with --direction stating the work');
+INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('overruled', 'the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld');
+INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('upheld', 'the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue''s act on it and audited by its minting lens after — a remand, and the gap''s one remand at impasse. Name one or the other, with --direction stating the work');
 
 CREATE TABLE "enum_ruling_binds" (
   "value" TEXT PRIMARY KEY,
@@ -262,52 +307,6 @@ CREATE TABLE "enum_ruling_binds" (
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('blue', 'the relief binds the response seat — what blue must do, or must not, in its coming sitting');
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('both', 'it binds the whole exchange, and every dispatched seat carries it');
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('red', 'it binds the audit seats: the lenses and the chair');
-
-CREATE TABLE "enum_class_material" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
-) STRICT;
-INSERT INTO "enum_class_material" ("value", "means") VALUES ('always', 'every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on');
-INSERT INTO "enum_class_material" ("value", "means") VALUES ('by_grade', 'a gap of this class is material when its current severity is medium or above');
-INSERT INTO "enum_class_material" ("value", "means") VALUES ('never', 'no gap of this class is material, whatever its grade — it stays on the board and never holds the gate');
-
-CREATE TABLE "enum_gap_class" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL,
-  "material_default" TEXT NOT NULL REFERENCES "enum_class_material"("value")
-) STRICT;
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('artifact_preservation', 'an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it is', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('citation_figure_misattribution', 'a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_own_record', 'the report and the run''s own record disagree: the report states what the record contradicts — an inquiry''s fate, method or reason, an edit, a computation''s result — or a record entry contradicts what the report shows was done', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_source', 'a source read against the sentence — cited by blue or found by red — states otherwise than the report', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('cross_section_contradiction', 'two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for them', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('derivation_status_overclaim', 'a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shown', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('doctrine_vs_implementation', 'what a system, method or report says it does differs from what its implementation does — a stated rule its code, script or procedure does not follow', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('exhaustive_sweep_omits_case', 'a list, survey, search or sweep the report presents as complete omits a member it should hold', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('false_universal', 'a claim stated universally — every, none, always, the only — that a case the evidence reaches, or one it never tested, contradicts', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('figure_recount_fails', 'a figure, count or computed result the report states differs from what an independent recount, recomputation or re-run produces', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('incomplete_repair_propagation', 'a repair fixed a defect at some of its sites and left it standing at others — a sibling sentence, row or section still carries what the repair removed', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('invalid_inference', 'a reason the report offers for a conclusion does not entail it — the step fails even where every stated fact is true, including a check that gives the same result on the case the conclusion must exclude', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('live_source_drift', 'a claim or computation rests on a source''s or tree''s current state rather than the state the report cites or pins, so it reads differently now from when it was written', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('metric_conflation', 'two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitions', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('missing_root_invariant', 'one fact is restated in several places with nothing tying the copies to a single source, so they have drifted or can drift unnoticed', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('out_of_scope', 'an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run''s research', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('partial_control_coverage', 'a control credited with covering a surface works on part of it and leaves the rest — an axis, channel, verb or case — uncovered', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('policy_without_mechanism', 'a rule, safeguard or guarantee is asserted with nothing that enforces it', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('reader_channel_mismatch', 'a fact the reader needs is held — in the record or elsewhere in the report — but not where the reader who needs it reads, so a reader acting on that section acts without it', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('report_voice', 'report prose speaks about the run that made it rather than the subject — process voice, a claim wearing the seat that produced it, the report''s own draft history, or the machinery that checked it', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('risk_coverage_omission', 'the report''s account of risk leaves out a risk, or a combination of risks, that its own analysis or its subject makes live', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('self_attestation', 'the report asserts its own checking — that it verified, re-ran, searched or matched something — and the record does not bear the assertion out', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('self_defeating_mitigation', 'a control credited with closing a gap cannot deliver that closure by its own operation — it fires after the decision it gates, acts on a variable that does not trigger the harm, erases the signal it was meant to distinguish, rests on an assumption the same document discredits, or is starved of its trigger by another control''s short-circuit', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('spec_underspecification', 'a term, rule, procedure or recommendation the report relies on is not specified enough for a reader to apply or check it — undefined, defined only by what it is not, or left as an undecided either/or', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('structure_noncompliance', 'the report''s structure does not carry its argument: material a reader has to take in order is present only as unordered prose, or a part of the answer has no place in it. The report''s sections are its author''s to name and order, and a heading the report does not have is not this', 'never');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unclassified', 'no other value fits this gap. The mint''s reason names the nearest value and what it does not cover', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unhandled_degenerate_case', 'a procedure or design the report describes breaks or is undefined at an edge input — empty, zero, one, a boundary, a duplicate — that the report does not address', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unsourced_claim', 'a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence is not the report''s citation: the gap stands until blue cites one', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unverified_composition', 'a property of a whole is claimed because its parts were each checked, and the combination itself was never checked', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('verification_scope_blindspot', 'a check, experiment or computation covers less than the claim it is credited with — a read test cited for a write path, one artifact''s check credited to its siblings, a proof that establishes half its sentence', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('vote_laundering', 'agreement among sources, programs or reviewers is counted as independent corroboration when they share an origin, so the count overstates the evidence', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('within_source_condition_misattribution', 'the report carries a source''s or model''s result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is dropped', 'always');
 
 CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
@@ -476,7 +475,9 @@ CREATE TABLE "outcome" (
 CREATE TABLE "position" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "text" TEXT,
-  "position_id" TEXT NOT NULL UNIQUE
+  "position_id" TEXT NOT NULL UNIQUE,
+  "class" TEXT,
+  FOREIGN KEY ("class") REFERENCES "enum_gap_class"("value")
 ) STRICT;
 
 CREATE TABLE "halt" (
@@ -891,13 +892,6 @@ CREATE TABLE "retire_anchors" (
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
   PRIMARY KEY ("event_id", "ord")
-) STRICT;
-
-CREATE TABLE "manifest_row" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "gap_id" TEXT,
-  "row" TEXT,
-  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
 CREATE TABLE "log" (

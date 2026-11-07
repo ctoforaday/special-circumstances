@@ -13,7 +13,7 @@
   your rebuttal instead of absorbing the complexity — a design made strictly worse to
   satisfy an edge case is itself a defect. Kept complexity pays for itself or goes (COMPLEXITY
   MUST PAY).
-- **THE CORRECTNESS MANIFEST** (your whole pre-flight self-audit; citations are one row of it).
+- **THE PRE-FLIGHT SELF-AUDIT** (citations are one check of it).
   BEFORE submitting any draft, synthesis, or repair batch, per changed claim or repair:
   (1) every figure you wrote or touched, recomputed; (2) every universal claim ("all", "never", "no X is Y") enumerated against
   its cases; (3) consistency sweep of the touched paragraph AND every other section stating
@@ -22,13 +22,9 @@
   either sweeps the siblings or declares the enumeration open; (7) every claim that rests on a
   source carries a tool-inserted citation anchor, no hand-typed footnotes; (8) new claims introduced while repairing tagged verified-at-leaf /
   derived / asserted — repair minimalism: a repair changes no more than the fix requires.
-  (Each manifest row is a measured blue regression class: same-paragraph contradictions,
+  (Each check is a measured blue regression class: same-paragraph contradictions,
   false universals, twice-wrong arithmetic, uncomposed same-line fixes, sibling escapes.)
-  RECORD THE ROW, DO NOT MERELY RUN IT: one manifest-row event per repaired gap. What the row
-  carries, where it goes and how it is scored are that verb's contract, on its own page. An
-  unmanifested repair is unchecked by your own standard, which is a stronger thing to be able to
-  say than "we think it was checked". A row that came out wrong stands for the sitting; your next
-  sitting's row for that gap answers it — never move its text into a log.
+  Your edit names the gap it answers, and the lens's re-audit is the check of the repair.
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence
   should predict survival under audit. An overconfident blue is a defect factory; an
   underconfident one buries its own findings. Where your confidence in a claim is genuinely

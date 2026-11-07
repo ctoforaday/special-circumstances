@@ -884,7 +884,6 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 				injectSteps = append(injectSteps, map[string]any{
 					"systemMessage": map[string]any{
 						"systemMessage": p.Say,
-						"metadata":      map[string]any{"user_markdown": p.Say},
 					},
 				})
 			}
@@ -904,7 +903,6 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 			injectSteps = append(injectSteps, map[string]any{
 				"systemMessage": map[string]any{
 					"systemMessage": resp.Say,
-					"metadata":      map[string]any{"user_markdown": resp.Say},
 				},
 			})
 		}
@@ -958,7 +956,6 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 					{
 						"systemMessage": map[string]any{
 							"systemMessage": text,
-							"metadata":      map[string]any{"user_markdown": text},
 						},
 					},
 				},

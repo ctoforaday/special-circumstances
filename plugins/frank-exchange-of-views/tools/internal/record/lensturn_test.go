@@ -110,10 +110,12 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 }
 
 // lensReadiedBeforeBlue is each lens engaged on a gap blue has not acted on since that lens's last act
-// there and since the gap's latest remand ruling, in a plan folded from evs: "seat:gap" rows.
+// there and since the gap's latest remand ruling, in a plan folded from evs: "seat:gap" rows. The turns
+// are the dispatch's own (lensTurnActsOf): an edit that changed the gap's sentence is the lens's turn.
 func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]remandRow, plan Plan) []string {
 	ids := win.IDs(evs)
-	acts, mintedAt := gapActsOf(evs, ids, win), mintPlaces(evs, ids)
+	minted := mintedBy(evs)
+	acts, mintedAt := lensTurnActsOf(evs, ids, gapActsOf(evs, ids, win), gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted), mintPlaces(evs, ids)
 	var out []string
 	for _, p := range plan.Parties {
 		if seatclass.RoleOfSeat(p.SeatID) != "lens" {
@@ -132,8 +134,14 @@ func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]r
 // before that plan's dispatch rows. Three plans — events 191, 317 and 430 — engaged seven lenses on
 // gaps minted the epoch before, which blue had not answered: each lens sat first, recorded a
 // keep-the-grade regrade ("Blue has not edited the sentence since this gap was minted") and nothing
-// else readied it. Folded now, each of the three readies blue alone, and no plan engages a lens on a
-// gap blue has not acted on since the lens's last act.
+// else readied it. Folded now, none of the three engages a lens on a gap the stored plan engaged it on,
+// blue is ready on every gap it was engaged on, and no plan engages a lens on a gap blue has not acted
+// on since the lens's last act.
+//
+// REPORT_VOICE IS ALWAYS MATERIAL (gblock, 2026-11-05), so m36's low voice gaps hold the board now:
+// blue is ready on them too, and at event 430 the voice lens is engaged on G-380a3523, whose sentence
+// an edit changed — the lens's turn. That one sitting is why the replay saves six lens sittings, not
+// the seven no-op sittings it saved while the class went by grade.
 //
 // M36'S INQUIRIES WERE SETTLED AND NEVER CHECKED, so the replay also readies the logic lens, on no gap,
 // for their check (inquirycheck.go). That readiness engages no lens on a gap, and is left out of both
@@ -187,14 +195,25 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 		lensSittings["stored"] += lenses(sp.Plan)
 		lensSittings["replayed"] += lenses(plan)
 		if blueAlone[at] {
-			parties := slices.DeleteFunc(slices.Clone(plan.Parties), func(q Party) bool { return checksAnInquiry(plan, q) })
-			if len(parties) != 1 || !slices.Equal(gapsOf(plan, "blue-respond"), gapsOf(sp.Plan, "blue-respond")) {
-				t.Errorf("plan at event %d readies %+v, want blue alone on the gaps it was engaged on", at, plan.Parties)
+			for _, q := range sp.Plan.Parties {
+				if seatclass.RoleOfSeat(q.SeatID) != "lens" {
+					continue
+				}
+				for _, g := range q.GapIDs {
+					if slices.Contains(gapsOf(plan, q.SeatID), g) {
+						t.Errorf("plan at event %d engages %s on %s again, before blue's answer: %+v", at, q.SeatID, g, plan.Parties)
+					}
+				}
+			}
+			for _, g := range gapsOf(sp.Plan, "blue-respond") {
+				if !slices.Contains(gapsOf(plan, "blue-respond"), g) {
+					t.Errorf("plan at event %d does not ready blue on %s, which the stored plan engaged it on: %+v", at, g, plan.Parties)
+				}
 			}
 		}
 	}
-	if got := lensSittings["stored"] - lensSittings["replayed"]; got != 7 {
-		t.Errorf("the replayed plans dispatch %d lens sitting(s) fewer than m36's (%d stored, %d replayed), want the 7 no-op sittings", got, lensSittings["stored"], lensSittings["replayed"])
+	if got := lensSittings["stored"] - lensSittings["replayed"]; got != 6 {
+		t.Errorf("the replayed plans dispatch %d lens sitting(s) fewer than m36's (%d stored, %d replayed), want the 7 no-op sittings less voice's turn at event 430", got, lensSittings["stored"], lensSittings["replayed"])
 	}
 
 	// CAPTURE NAMES THEM: the run's own dispatch rows hold the nine early engagements, in the seven

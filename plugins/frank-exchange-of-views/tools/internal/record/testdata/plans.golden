@@ -1003,14 +1003,6 @@
 -- INSERT INTO "log" ("event_id", "text", "type", "source") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 077ec174136e
--- INSERT INTO "manifest_row" ("event_id", "gap_id") VALUES (?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 3140496a996f
--- INSERT INTO "manifest_row" ("event_id", "gap_id", "row") VALUES (?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt 9b660be8b303
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1217,6 +1209,10 @@
 
 == stmt 963c78631f04
 -- INSERT INTO "position" ("event_id", "text", "position_id") VALUES (?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 75ad960e7976
+-- INSERT INTO "position" ("event_id", "text", "position_id", "class") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 1ff97edd63bf
@@ -1665,6 +1661,10 @@
 == stmt 8dba93e02a86
 -- SELECT "bundle_sha" FROM "computation" WHERE "computation_id" = ? ORDER BY "event_id" LIMIT 1
   SEARCH computation USING INDEX computation_id (computation_id=?)
+
+== stmt 59a3e1e11433
+-- SELECT "class" FROM "position" WHERE "position_id" = ?
+  SEARCH position USING INDEX sqlite_autoindex_position_1 (position_id=?)
 
 == stmt b3cbd1fb249f
 -- SELECT "current_complexity_cost" FROM "gap" WHERE "gap_id" = ?
@@ -6877,10 +6877,6 @@
 -- SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."mint_reason", t."class_material" FROM "mint" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 9ccfcbb1e510
--- SELECT t."event_id", t."gap_id", t."row" FROM "manifest_row" t WHERE t."event_id" > ?
-  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
-
 == stmt 5ef11a3df8bd
 -- SELECT t."event_id", t."gap_id", t."severity", t."likelihood", t."impact", t."complexity_cost", t."basis", t."result_severity", t."result_likelihood", t."result_impact", t."result_complexity_cost" FROM "regrade" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
@@ -6965,8 +6961,8 @@
 -- SELECT t."event_id", t."text" FROM "report_part" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 12c234d5e057
--- SELECT t."event_id", t."text", t."position_id" FROM "position" t WHERE t."event_id" > ?
+== stmt 36896a2556b2
+-- SELECT t."event_id", t."text", t."position_id", t."class" FROM "position" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 955f464a9ad1

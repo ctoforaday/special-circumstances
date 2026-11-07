@@ -111,8 +111,7 @@
                                               named in no gap's found_by — red's leaf audit the chair weighed and did
                                               not mint. A finding is addressed by COALESCENCE and nothing else since #327
                                               retired observe/dispose. Then red's spot-checks — the stale areas
-                                              and archived closures each named, and what it found — and blue's
-                                              correctness manifest. -->
+                                              and archived closures each named, and what it found. -->
 
 # debate.md — the transcript
 

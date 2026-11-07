@@ -52,8 +52,8 @@ func main() {
 
 	case "SessionStart", "PreInvocation":
 		code := hookcore.Respond(req, hookcore.Response{
-			Say:               "HOOKCORE_SESSION_STARTED",
-			AdditionalContext: "HOOKCORE_SESSION_STARTED",
+			Say:               "HOOKCORE_SAY_NOTICE",
+			AdditionalContext: "HOOKCORE_CONTEXT_NOTICE",
 		}, os.Stdout, os.Stderr, nil)
 		os.Exit(code)
 

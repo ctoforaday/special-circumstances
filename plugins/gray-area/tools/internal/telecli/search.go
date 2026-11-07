@@ -28,7 +28,7 @@ var errNoRipgrep = errors.New(
 
 // errStaleZero refuses a zero it could not measure: no row survived, and some matching records
 // could not be read back as ripgrep matched them. Printing "none has a hit" or an empty table
-// there would report the records find FAILED to read as records that were read and did not match.
+// there would report the records search FAILED to read as records that were read and did not match.
 var errStaleZero = errors.New(
 	"no row survives, and some matching records could not be read back as ripgrep matched them, " +
 		"so this is not a completed search. Refusing rather than reporting no hits; run it again " +
@@ -40,11 +40,11 @@ var errStaleZero = errors.New(
 // defect this verb keeps finding in itself.
 const samplesPerFile = 200
 
-func newFindCmd(env *Env) *cobra.Command {
+func newSearchCmd(env *Env) *cobra.Command {
 	var asRegex, showPaths bool
 	var only string
 	c := &cobra.Command{
-		Use:   "find <term>",
+		Use:   "search <term>",
 		Short: "search every local transcript (ripgrep, no index)",
 		Long: `Searches the raw transcripts the store names, and reports each session's most
 recent hit with the text around it.
@@ -83,7 +83,7 @@ send to headless sessions, and slash-command and local-command text.
 Neither is the liveness word "unknown" that agents prints.
 
 A SESSION'S TITLE IS NOT IN ITS TRANSCRIPT. The name the app shows for a session
-is held by the cloud and never written to that session's own records, so a find
+is held by the cloud and never written to that session's own records, so a search
 for a title cannot return the titled session. It returns only sessions that
 printed a session list (IN result) or wrote the name down themselves (IN
 assistant), and an assistant row there is THAT session's claim about which id
@@ -94,7 +94,7 @@ search for something that was said in it.
 shows the most recent of those; on a term that appears in a seat prompt most
 unfiltered rows are exactly that:
 
-  telepathy find 'bench rul' --in assistant   what agents SAID about it
+  telepathy search 'bench rul' --in assistant   what agents SAID about it
 
 A filtered row still reports the unfiltered HITS count, so narrowing the view
 never quietly shrinks the number beside it.
@@ -162,7 +162,7 @@ still answers for them. When every named transcript is gone, the search refuses.
 					"and `telepathy sql` answers for them", gone)
 			}
 			if gone > 0 {
-				fmt.Fprintf(cmd.ErrOrStderr(), "telepathy find: %d transcript(s) the store names "+
+				fmt.Fprintf(cmd.ErrOrStderr(), "telepathy search: %d transcript(s) the store names "+
 					"are no longer on disk and were not searched; the store still holds their "+
 					"records, and `telepathy sql` answers for them\n", gone)
 			}
@@ -205,7 +205,7 @@ still answers for them. When every named transcript is gone, the search refuses.
 			}
 			if incomplete != "" {
 				fmt.Fprintf(cmd.ErrOrStderr(),
-					"telepathy find: INCOMPLETE — ripgrep could not finish, so these hits are a "+
+					"telepathy search: INCOMPLETE — ripgrep could not finish, so these hits are a "+
 						"floor and not the answer: %s\n", incomplete)
 			}
 			// REFUSE A CHANNEL THAT CANNOT EXIST. `--in asistant` would otherwise filter every row
@@ -249,7 +249,7 @@ func onDisk(paths map[string]catalogue.TranscriptFile) (names []string, gone int
 	return names, gone
 }
 
-// ripgrepArgs is find's whole ripgrep command line after the binary, extracted so a test runs
+// ripgrepArgs is search's whole ripgrep command line after the binary, extracted so a test runs
 // real ripgrep with exactly these flags.
 //
 //   - --line-number, not --count-matches: the line NUMBER is what lets the second pass read the
@@ -488,7 +488,7 @@ func recordsAt(path string, recs []ripRecord, inSubagent bool) (hits []catalogue
 // empty table says the same thing with no words at all.
 func settle(out, errw io.Writer, rows []row, matched, stale int, term string, only catalogue.Channel, showPaths bool) error {
 	if stale > 0 {
-		fmt.Fprintf(errw, "telepathy find: %d matching record(s) could not be read back as ripgrep "+
+		fmt.Fprintf(errw, "telepathy search: %d matching record(s) could not be read back as ripgrep "+
 			"matched them (the file changed or went away since the search, or the record no longer "+
 			"parses); they are not counted in any row's IN\n", stale)
 	}

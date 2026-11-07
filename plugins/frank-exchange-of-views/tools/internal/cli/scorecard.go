@@ -64,7 +64,7 @@ func newScorecard() *cobra.Command {
 			if ferr != nil {
 				return ferr
 			}
-			rows := scorecard.Compute(run, scorecard.ReadResults(run), &f, record.WhileRunning)
+			rows := scorecard.Compute(run, scorecard.ReadResults(run), &f)
 			w := cmd.OutOrStdout()
 			for i, c := range cards {
 				if i > 0 {

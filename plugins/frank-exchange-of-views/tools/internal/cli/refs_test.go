@@ -46,8 +46,6 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			"--id", "G99", "--severity", "low", "--reason", "b"}},
 		{"closing --id", "no mint event created", []string{"closing", "--seat-id", "blue-respond",
 			"--id", "G99", "--reason", "t"}},
-		{"manifest-row --id", "no mint event created", []string{"manifest-row", "--seat-id", "blue-respond",
-			"--id", "G99", "--reason", "r"}},
 		{"close --successor", "no mint event created", []string{"close", "--seat-id", lensSeat,
 			"--id", real, "--as", "repaired", "--verified-by", "L1", "--verified-with", "t",
 			"--verified-against", "x", "--superseded-by", "G99"}},

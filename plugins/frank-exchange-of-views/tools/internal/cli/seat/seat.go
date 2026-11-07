@@ -588,10 +588,8 @@ var satisfiedByAnyOf = map[string][]string{
 	// The prose channel is ONE spelling (flags.Prose says why the file forms went). Listed so a
 	// prose FIELD is required through the flag a seat types rather than the key the schema stores.
 	"reason": {flags.Reason},
-	// An inquiry's question arrives through its own flag; a manifest receipt is the verb's prose,
-	// so it arrives through the same channel every other prose field does.
+	// An inquiry's question arrives through its own flag.
 	"question": {flags.Question},
-	"row":      {flags.Reason},
 }
 
 // markTree annotates every LEAF under a role. Verbs with subgroups are the ordinary shape now,
@@ -1074,21 +1072,20 @@ func Prose(c *cobra.Command) *cobra.Command {
 // Prose is where the flag is registered; TestReasonIsNamesOnlyProseVerbs refuses a key no prose
 // verb carries, so a renamed verb cannot silently fall back to the generic text.
 var ReasonIs = map[string]string{
-	"record":       "the account of what settled this fate, in the SUBJECT's terms — printed in the report on the inquiry's row, beside its question",
-	"check":        "why this inquiry's latest fate stands as the report's account of it: what its reason and method claim, and what in the report delivers that — one check, one inquiry",
-	"finding":      "the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. " + flags.ReasonNotProcess,
-	"cite":         "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",
-	"compute":      "the computation note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
-	"manifest-row": "the receipt: what you checked, and what checking it showed",
-	"log":          "the entry: what you concluded about the tooling",
-	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
-	"verify":       "what the source says, in your words, or, where it could not be read, what you tried. Where this reading mints a gap, the same text is that gap's argument, the case blue answers and a bench weighs; where an open gap of its class already carries the sentence, it stays on your reading alone and that gap keeps its own. " + flags.ReasonNotProcess,
-	"mint":         "your argument for the gap — why it is worth one, the case blue answers and a bench weighs; the report never prints it. Under unclassified it is REQUIRED: name the nearest class and what it does not cover. " + flags.ReasonNotProcess,
-	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
-	"spot-check":   "what reading the stale areas and sampling the closure archive found, a defect included — printed with the spot-check in the report's board and in the debate transcript. " + flags.ReasonNotProcess,
-	"certify":      "what a human should re-examine after the run, and why. " + flags.ReasonNotProcess,
-	"declare":      "the holding: how the whole record is to be READ. " + flags.ReasonNotProcess,
-	"halt":         "the opinion: the boundary, and why continuing would itself be the harm. " + flags.ReasonNotProcess,
+	"record":     "the account of what settled this fate, in the SUBJECT's terms — printed in the report on the inquiry's row, beside its question",
+	"check":      "why this inquiry's latest fate stands as the report's account of it: what its reason and method claim, and what in the report delivers that — one check, one inquiry",
+	"finding":    "the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. " + flags.ReasonNotProcess,
+	"cite":       "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",
+	"compute":    "the computation note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
+	"log":        "the entry: what you concluded about the tooling",
+	"position":   "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"verify":     "what the source says, in your words, or, where it could not be read, what you tried. Where this reading mints a gap, the same text is that gap's argument, the case blue answers and a bench weighs; where an open gap of its class already carries the sentence, it stays on your reading alone and that gap keeps its own. " + flags.ReasonNotProcess,
+	"mint":       "your argument for the gap — why it is worth one, the case blue answers and a bench weighs; the report never prints it. Under unclassified it is REQUIRED: name the nearest class and what it does not cover. " + flags.ReasonNotProcess,
+	"closing":    "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"spot-check": "what reading the stale areas and sampling the closure archive found, a defect included — printed with the spot-check in the report's board and in the debate transcript. " + flags.ReasonNotProcess,
+	"certify":    "what a human should re-examine after the run, and why. " + flags.ReasonNotProcess,
+	"declare":    "the holding: how the whole record is to be READ. " + flags.ReasonNotProcess,
+	"halt":       "the opinion: the boundary, and why continuing would itself be the harm. " + flags.ReasonNotProcess,
 }
 
 // ProseRequired registers the prose channel AND says so, for a verb whose argument is

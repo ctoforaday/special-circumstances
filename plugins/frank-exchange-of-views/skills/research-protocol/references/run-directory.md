@@ -21,7 +21,7 @@ research/<date>_<slug>/
 │                      # are projections the tool serves live from the same record.
 ├── README.md          # the run's front door: verdict, gaps, and what each document holds
 ├── report.md          # the research — verdict, Catechism, the argument, risks, open questions
-├── docket.md          # the board: every gap, why it was minted and how it closed, blue's manifest, red's spot-checks
+├── docket.md          # the board: every gap, why it was minted and how it closed, red's spot-checks
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
 ├── inquiries.md       # each inquiry's fate, the path it took, each step's reason, and the check that stands on it

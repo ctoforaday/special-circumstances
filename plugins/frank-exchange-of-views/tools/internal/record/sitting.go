@@ -591,8 +591,8 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 // sittingOfBlueRespond is the sitting blue-respond's work list is read in: the latest of
 // record.BlueSittings, read while the run is running. sat is false for every other seat, and for a
 // blue-respond the record holds no dispatched sitting of. Once blue has registered for its dispatch,
-// the gaps the list names as found closed (engagedOf) are read off it — the sitting the manifest's
-// owed set reads — so the list cannot excuse a row over one set of gaps and name another.
+// the gaps the list names as found closed (engagedOf) are read off it, so the list and the sitting
+// name one set of gaps.
 func sittingOfBlueRespond(evs []*Event, win WindowIndex, seatID string) (BlueSitting, bool) {
 	if seatID != blueRespondSeat {
 		return BlueSitting{}, false

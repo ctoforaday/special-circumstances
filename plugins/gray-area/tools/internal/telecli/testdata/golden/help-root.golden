@@ -34,6 +34,7 @@ Usage:
 Examples:
   telepathy agents
   telepathy agents --lost
+  telepathy search 1024
   telepathy send 8a3d5199 "your branch conflicts with mine"
   telepathy touched internal/catalogue/schema.go
   telepathy sql "SELECT tool, count(*) n FROM v_action GROUP BY 1 ORDER BY 2 DESC"
@@ -42,9 +43,9 @@ Available Commands:
   agents      who is running, in which worktree, doing what — and after a restart, what it cut off
   backfill    read the existing corpus into the store
   completion  Generate the autocompletion script for the specified shell
-  find        search every local transcript (ripgrep, no index)
   help        Help about any command
   link        make this Antigravity conversation wakeable by telepathy send
+  search      search every local transcript (ripgrep, no index)
   send        deliver a message to another agent session, Claude Code or Antigravity
   session     one session's shape: calls and errors by tool
   sql         read-only SQL over the published views

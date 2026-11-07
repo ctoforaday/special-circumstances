@@ -228,7 +228,6 @@ The remaining cases are out of scope.
 		},
 		Expect: []Expectation{
 			{Seat: "blue-respond", Verb: "compute", Because: "TWO gaps here are check-kind computation, and " + recordpb.DemandClause + ". A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
-			{Seat: "blue-respond", Verb: "manifest-row", Because: "The manifest is the receipt for a repair, one row per repaired gap, and the report NAMES a gap blue repaired that carries no row as a repair nobody audited including its author."},
 			{Seat: "blue-respond", Verb: "motion grade file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Contesting that is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
 			{Seat: "blue-respond", Verb: "edit", Because: "The control. The document-kind gap is legitimately answered by repairing the prose, and a board where the ordinary move is never right would teach a seat to reach for machinery it does not need."},
 			{Seat: "blue-respond", Verb: "inquiry propose", Because: "Answering the computation gaps opens an inquiry this report has not taken — whether the discrepancy is arithmetic or a measurement error is a question with a hypothesis, and an inquiry may be proposed AT ANY POINT in the run, not only at the start. An inquiry that occurs mid-repair is one a later run needs on the record."},
