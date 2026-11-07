@@ -297,7 +297,7 @@ func TestGoldenOutput(t *testing.T) {
 // leaves every verb working and every caller worse informed, and no functional test would notice.
 func TestGoldenHelp(t *testing.T) {
 	h := newHarness(t)
-	for _, name := range []string{"", "agents", "session", "touched", "find", "sql", "backfill", "send", "link"} {
+	for _, name := range []string{"", "agents", "session", "touched", "search", "sql", "backfill", "send", "link"} {
 		label := "help-root"
 		args := []string{"--help"}
 		if name != "" {
@@ -313,30 +313,30 @@ func TestGoldenHelp(t *testing.T) {
 	}
 }
 
-// find shells out, so its golden runs only where ripgrep is installed. The skip is LOUD about
+// search shells out, so its golden runs only where ripgrep is installed. The skip is LOUD about
 // which of the two it is: a silently skipped test and a passing one look identical in a summary.
-func TestGoldenFind(t *testing.T) {
+func TestGoldenSearch(t *testing.T) {
 	if _, err := exec.LookPath("rg"); err != nil {
-		t.Skip("ripgrep is not installed on this machine, so `find` cannot be exercised here — " +
+		t.Skip("ripgrep is not installed on this machine, so `search` cannot be exercised here — " +
 			"this is a skipped assertion, not a passing one (see requirements.json: ripgrep is required)")
 	}
 	h := newHarness(t)
 	// A term in THREE of the four transcripts, chosen so the output has an order to get wrong:
 	// ripgrep walks the argv, the argv is built from a map, and a single-hit golden would pass
 	// whether or not the results are sorted at all.
-	out, errOut, code := h.run(t, "find", "mint.go")
+	out, errOut, code := h.run(t, "search", "mint.go")
 	if code != 0 {
 		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
 	}
-	assertGolden(t, "find-hit", out)
+	assertGolden(t, "search-hit", out)
 
 	// --in narrows to one channel, and the fixture's mint.go hits are all tool arguments, so
 	// filtering to what an agent SAID must come back empty — worded, and counted in transcripts.
-	out, _, code = h.run(t, "find", "mint.go", "--in", "assistant")
+	out, _, code = h.run(t, "search", "mint.go", "--in", "assistant")
 	if code != 0 {
 		t.Fatalf("--in exited %d", code)
 	}
-	assertGolden(t, "find-in-channel", out)
+	assertGolden(t, "search-in-channel", out)
 
 	// EVERY CHANNEL THE DECODER CAN PRODUCE NEEDS A ROW SOMEWHERE, or the branch that produces it
 	// is untested. The mint.go hits above are all tool arguments; these three reach the others,
@@ -346,26 +346,26 @@ func TestGoldenFind(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"find-channel-assistant", []string{"carriers"}},  // "Widening the four carriers." — the agent speaking
-		{"find-channel-user", []string{"widen the gap"}},  // the human's prompt
-		{"find-channel-thinking", []string{"four sites"}}, // the one thought that carried text
+		{"search-channel-assistant", []string{"carriers"}},  // "Widening the four carriers." — the agent speaking
+		{"search-channel-user", []string{"widen the gap"}},  // the human's prompt
+		{"search-channel-thinking", []string{"four sites"}}, // the one thought that carried text
 		// A peer's turn (isMeta, top level) and a peer's mid-turn delivery, in two transcripts.
-		{"find-channel-peer", []string{"conduct section", "--in", "peer"}},
+		{"search-channel-peer", []string{"conduct section", "--in", "peer"}},
 		// THE SAME TWO ROWS FROM A PATTERN. IN is read from where ripgrep matched, so a regex is
 		// attributed exactly as a literal is — a pattern is not a substring, and re-finding it in
 		// the decoded text found no speaker at all.
-		{"find-regex-in-peer", []string{"--regex", "conduct sect(ion)", "--in", "peer"}},
+		{"search-regex-in-peer", []string{"--regex", "conduct sect(ion)", "--in", "peer"}},
 		// A notification turn, and one delivered mid-turn in a seat by commandMode alone — the
 		// 12-character channel under the widened IN header.
-		{"find-channel-notification", []string{"nightly build"}},
+		{"search-channel-notification", []string{"nightly build"}},
 		// A seat's own prompt, and a coordinator's mid-turn message in another seat.
-		{"find-channel-lead", []string{"every caller"}},
+		{"search-channel-lead", []string{"every caller"}},
 		// isMeta text at both tiers, and a compaction summary (the newer of main's two hits).
-		{"find-channel-harness", []string{"task tools"}},
+		{"search-channel-harness", []string{"task tools"}},
 		// The human said it first and the agent repeated it: the row stays, showing the human.
-		{"find-in-any-hit", []string{"ledger column", "--in", "user"}},
+		{"search-in-any-hit", []string{"ledger column", "--in", "user"}},
 	} {
-		out, errOut, code := h.run(t, append([]string{"find"}, tc.args...)...)
+		out, errOut, code := h.run(t, append([]string{"search"}, tc.args...)...)
 		if code != 0 {
 			t.Fatalf("%s exited %d, stderr:\n%s", tc.name, code, errOut)
 		}
@@ -374,7 +374,7 @@ func TestGoldenFind(t *testing.T) {
 
 	// THE #885 REPRO: a peer's message is not the human's. `--in user` must not return either
 	// transcript that holds it, and must say so in the worded empty result.
-	out, _, code = h.run(t, "find", "conduct section", "--in", "user")
+	out, _, code = h.run(t, "search", "conduct section", "--in", "user")
 	if code != 0 {
 		t.Fatalf("--in user exited %d", code)
 	}
@@ -386,14 +386,14 @@ func TestGoldenFind(t *testing.T) {
 	}
 
 	// The any-hit case is only a case if the NEWEST hit is not the human's: unfiltered, the row
-	// must show the agent, or find-in-any-hit would pass under the old most-recent filter too.
-	out, _, _ = h.run(t, "find", "ledger column")
+	// must show the agent, or search-in-any-hit would pass under the old most-recent filter too.
+	out, _, _ = h.run(t, "search", "ledger column")
 	if !strings.Contains(out, "Renaming the ledger column now.") {
 		t.Errorf("the fixture's newest 'ledger column' hit is not the agent's, so --in user proves nothing:\n%s", out)
 	}
 
 	// A channel that cannot exist is a typo, and must be refused rather than filtered to nothing.
-	_, errOut, code = h.run(t, "find", "mint.go", "--in", "asistant")
+	_, errOut, code = h.run(t, "search", "mint.go", "--in", "asistant")
 	if code != 2 {
 		t.Errorf("an unknown channel exited %d, want 2 (a typo is an argv error)", code)
 	}
@@ -401,11 +401,11 @@ func TestGoldenFind(t *testing.T) {
 		t.Errorf("the refusal does not name the problem: %q", errOut)
 	}
 
-	out, _, code = h.run(t, "find", "a phrase that appears in no transcript")
+	out, _, code = h.run(t, "search", "a phrase that appears in no transcript")
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	assertGolden(t, "find-miss", out)
+	assertGolden(t, "search-miss", out)
 }
 
 // --in IS NEVER CAPPED. Unfiltered, a row reads at most the newest samplesPerFile records; under a
@@ -619,7 +619,7 @@ func TestTheRebuildWarningReachesEveryReadVerb(t *testing.T) {
 		{"agents"},
 		{"touched", "mint.go"},
 		{"sql", "SELECT 1"},
-		{"find", "mint.go"},
+		{"search", "mint.go"},
 		{"session", alphaID},
 	}
 	check := func(wantWarnings int) {
@@ -630,11 +630,11 @@ func TestTheRebuildWarningReachesEveryReadVerb(t *testing.T) {
 				t.Errorf("%v printed the rebuild warning %d times, want %d; stderr:\n%s", args, got, wantWarnings, errOut)
 			}
 			switch {
-			case args[0] == "find" && noRipgrep != nil:
+			case args[0] == "search" && noRipgrep != nil:
 				// openRead runs before the ripgrep lookup, so the warning is still owed; the verb
 				// then refuses in its own words rather than reporting zero matches.
 				if code == 0 || !strings.Contains(errOut, errNoRipgrep.Error()) {
-					t.Errorf("find without ripgrep: exit %d, stderr:\n%s", code, errOut)
+					t.Errorf("search without ripgrep: exit %d, stderr:\n%s", code, errOut)
 				}
 			case code != 0:
 				t.Errorf("%v exited %d; stderr:\n%s", args, code, errOut)
@@ -650,7 +650,7 @@ func TestTheRebuildWarningReachesEveryReadVerb(t *testing.T) {
 
 // THE SHORT ID EVERY VERB PRINTS IS ONE `session` ACCEPTS. It used to take only the full id, and
 // answered "may predate capture" about a session the store held — so a reader copying the id out
-// of `agents` or `find` was told the session was not there.
+// of `agents` or `search` was told the session was not there.
 func TestSessionTakesTheShortIDItPrints(t *testing.T) {
 	h := newHarness(t)
 	full, _, code := h.run(t, "session", alphaID)

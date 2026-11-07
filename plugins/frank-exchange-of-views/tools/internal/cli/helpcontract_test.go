@@ -47,13 +47,6 @@ func markedUnconditionally(f *pflag.Flag) bool {
 	return ok && cond == ""
 }
 
-// satisfiedByAnother are flags whose help says REQUIRED and names an alternative in the same
-// breath, with what satisfies them. The help is telling the truth in both halves; the gate's
-// model — each required flag independently mandatory — is the thing that cannot express it.
-var satisfiedByAnother = map[string]string{
-	"row": "--reason, which manifest-row falls back to when --row is absent. The help says so in the same sentence",
-}
-
 // notEnforcedAtTheFlag are flags whose help says REQUIRED and whose refusal is DELIBERATELY
 // somewhere else, each with where. The distinction matters: a flag required by the record's
 // write path is still required, and a seat still cannot proceed without it — what differs is
@@ -103,7 +96,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 				return
 			}
 			c.Flags().VisitAll(func(f *pflag.Flag) {
-				if !markedUnconditionally(f) || notEnforcedAtTheFlag[f.Name] != "" || satisfiedByAnother[f.Name] != "" {
+				if !markedUnconditionally(f) || notEnforcedAtTheFlag[f.Name] != "" {
 					return
 				}
 				checked++

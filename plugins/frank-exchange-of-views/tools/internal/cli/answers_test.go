@@ -127,7 +127,6 @@ const (
 	rowSpotCheck    = "a new spot-check at your next sitting (a sitting holds one, and this sitting's stands)"
 	rowVerdict      = "the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it"
 	rowClosing      = "a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands)"
-	rowManifest     = "a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands)"
 	rowRegrade      = "a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands)"
 	rowVerify       = "a new verification of the citation at your next sitting (a sitting holds one per --anchor, and this sitting's stands)"
 	rowFoundSource  = "a new reading of that source for this sentence, at your next sitting — a reading of another source, or of this source for another sentence, is recorded now"
@@ -247,12 +246,6 @@ func answerDrives() []answerDrive {
 		{name: "closing, blue", row: rowClosing, helps: []string{"blue closing"}, drive: func(d drive) {
 			d.docketMotion("docket G1", "blue-respond")
 			oncePerSitting(rowClosing, "blue-respond", "closing", "--id", "G1")(d)
-		}},
-		{name: "manifest row", row: rowManifest, helps: []string{"blue manifest-row"}, drive: func(d drive) {
-			oncePerSitting(rowManifest, "blue-respond", "manifest-row", "--id", "G1")(d)
-			d.closeG1(lensSeat)
-			d.nextSitting("blue-respond")
-			d.admitted("the next sitting's row, the gap closed", "blue-respond", "manifest-row", "--id", "G1", "--reason", "the first was wrong")
 		}},
 		{name: "regrade", row: rowRegrade, helps: []string{"lens regrade"}, drive: func(d drive) {
 			oncePerSitting(rowRegrade, lensSeat, "regrade", "--id", "G1", "--severity", "high")(d)
@@ -492,7 +485,7 @@ func TestEveryRefusedRepeatHasARow(t *testing.T) {
 		}
 	})
 	// The derivation is not vacuous, and it reaches the types the plan's census named.
-	for _, want := range []string{"position", "spot_check", "verdict", "closing", "manifest_row", "regrade", "verify", "close"} {
+	for _, want := range []string{"position", "spot_check", "verdict", "closing", "regrade", "verify", "close"} {
 		if !derived[want] {
 			t.Errorf("the derivation no longer reaches %s (derived: %v) — the key declarations or the walk moved", want, derived)
 		}

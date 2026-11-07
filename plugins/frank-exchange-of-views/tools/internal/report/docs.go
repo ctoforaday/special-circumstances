@@ -180,7 +180,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		// reads. The nav, title and blurb are what a human reads beside the heading, and all
 		// three said this was red's when three parties write into it.
 		{File: FileDocket, Nav: "Board", Title: "the board",
-			Blurb: "the board all three parties wrote: every gap red minted, with red's argument for it, the fix it required and the check that would settle it, and how each was closed, with the closing lens's attestation; blue's correctness manifest for the repairs it made, and red's spot-checks", Body: body[FileDocket].String()},
+			Blurb: "the board red and the bench wrote: every gap red minted, with red's argument for it, the fix it required and the check that would settle it, and how each was closed, with the closing lens's attestation or the bench's ruling; and red's spot-checks", Body: body[FileDocket].String()},
 		{File: FileDebate, Nav: "Debate", Title: "the debate",
 			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, red's spot-checks, and the bench's terminal disposition", Body: body[FileDebate].String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",

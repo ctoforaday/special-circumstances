@@ -257,7 +257,7 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 // the note above PreOutcome for why there is no longer anything to look at.
 //
 // `export …;` and NOT the inline `VAR=x cmd` form. Measured: blue's real command was
-// `cd C:/… && "…/feov-record" blue manifest-row …`, where an inline prefix binds to `cd` and
+// `cd C:/… && "…/feov-record" blue <verb> …`, where an inline prefix binds to `cd` and
 // never crosses the `&&`. An export is a statement; it applies to everything after it.
 //
 // QUOTING IS A SECURITY BOUNDARY, not formatting. Each value is single-quoted with `'` escaped

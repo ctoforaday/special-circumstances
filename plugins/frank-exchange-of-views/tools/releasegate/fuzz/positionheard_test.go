@@ -148,6 +148,36 @@ func neverMaterialClass() string {
 	return ""
 }
 
+// positionClasses is every gap class word a position may name, read off the enum.
+func positionClasses() []string {
+	vals := recordpb.GapClass(0).Descriptor().Values()
+	var out []string
+	for i := 1; i < vals.Len(); i++ {
+		out = append(out, recordpb.Word(recordpb.GapClass(vals.Get(i).Number())))
+	}
+	return out
+}
+
+// positionClassQuota is how many positions a drawn run's chair files whatever its coin says, each
+// naming a class. THE SWEEP'S COVERAGE OF THE CLASS ENUM RESTS ON IT, not on the coin: a seed's
+// rotation starts quota*seed classes in (positionClassOf), so consecutive seeds' first quota
+// positions tile the enum, and the sweep tiles it twice over (TestTheSweepNamesEveryPositionClass)
+// — a forced seed, which names none, or a run cut short leaves no class unnamed.
+const positionClassQuota = 3
+
+// positionClassOf is the class a drawn run's k-th classed position names: the rotation through
+// positionClasses that starts positionClassQuota*seed classes in.
+func positionClassOf(seed int64, k int) string {
+	cs := positionClasses()
+	return cs[(int(seed)*positionClassQuota+k)%len(cs)]
+}
+
+// alwaysMaterial is whether class's material default is `always`; false for "" or an unknown word.
+func alwaysMaterial(class string) bool {
+	c, ok := record.GapClassOf(class)
+	return ok && recordpb.MaterialDefault(c) == recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS
+}
+
 // rulePositions rules every position the bench hears, at the sitting of the given occasion. A run
 // forced to a position rules it the way it is forced; any other forced run's bench overrules, and a
 // drawn run's rules on a coin. Upheld names open gaps the tool accepts, or a cast lens.
@@ -170,6 +200,15 @@ func (r *runner) rulePositions(seatID, occasion string) {
 		case len(open) > 0 && r.coin(50):
 			form = "gaps"
 		default:
+			form = "lens"
+		}
+		// A POSITION WHOSE CLASS IS ALWAYS MATERIAL IS NOT OVERRULED (gblock, 2026-11-05): the overrule
+		// is refused, and the bench upholds it naming a lens of the cast, retired or not.
+		r.mu.Lock()
+		class := r.positionClass[id]
+		r.mu.Unlock()
+		if form == "overruled" && alwaysMaterial(class) {
+			r.positionRulingRefused(seatID, id, "overruled over a position of always-material class "+class, "--as", "overruled", "--reason", opinion)
 			form = "lens"
 		}
 		if form == "overruled" {
@@ -511,6 +550,27 @@ func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// THE SWEEP NAMES EVERY POSITION CLASS, by construction: each class is among the first
+// positionClassQuota positions of at least two drawn seeds of the quorum sweep, so the coverage
+// gate (TestFuzzSweepTally's enum values) holds without a coin, and one short run cannot break it.
+func TestTheSweepNamesEveryPositionClass(t *testing.T) {
+	namedBy := map[string][]int64{}
+	for seed := int64(1); seed <= surfaceQuorum; seed++ {
+		if seed == unverifiedSeed || seed == verifiedSeed || positionFormOf(seed) != "" {
+			continue
+		}
+		for k := range positionClassQuota {
+			c := positionClassOf(seed, k)
+			namedBy[c] = append(namedBy[c], seed)
+		}
+	}
+	for _, c := range positionClasses() {
+		if len(namedBy[c]) < 2 {
+			t.Errorf("position class %s is among the first %d positions of drawn seeds %v of the %d-seed sweep — fewer than two, so the class's coverage rests on one run", c, positionClassQuota, namedBy[c], surfaceQuorum)
+		}
 	}
 }
 

@@ -23,7 +23,7 @@ are different kinds of evidence, and this skill keeps them apart.
 - BEFORE interviewing, YOU MUST collect the acts in question from the record, with citations:
   - `telepathy session <id>` — the session's calls and errors by tool;
   - `telepathy sql` over `v_action` for that session — the exact calls, their order, their outcomes;
-  - `telepathy find <phrase>` for the text at issue, reading the IN column before quoting;
+  - `telepathy search <phrase>` for the text at issue, reading the IN column before quoting;
   - `gray-area tools <transcript.jsonl>` for `file:line` citations of each call;
   - `v_thought`, and `v_skip` before reading an empty `v_thought` as "did not reason" — thinking
     is mostly withheld by the client (see [[telepathy]]).

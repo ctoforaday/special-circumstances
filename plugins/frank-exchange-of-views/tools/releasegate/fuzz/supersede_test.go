@@ -33,6 +33,10 @@ func (r *runner) holdClosing(id string, on bool) {
 // the demand passes to the successor (ruled by gblock 2026-11-05). owing is the gaps left out for that
 // last reason alone, the ones refuseDroppedDemand drives the refusal on; carries is each gap in out
 // that awaits a live answer, whose successor then does.
+//
+// THE FORCED FATE-TURN GAP IS NOT SUPERSEDABLE until its turn is counted (fateTurnHeld): its minter
+// drew it here and superseded it in the sitting that minted it, so blue never sat engaged on it and
+// fateTurnSeed's run failed on a chain the drive itself had cut.
 func (r *runner) supersedable(seatID, kind string) (out, owing []string, carries map[string]bool) {
 	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
 	if err != nil {
@@ -44,7 +48,7 @@ func (r *runner) supersedable(seatID, kind string) (out, owing []string, carries
 	carries = map[string]bool{}
 	for _, g := range w.Open {
 		switch {
-		case !g.YoursToClose || r.closingNow[g.ID]:
+		case !g.YoursToClose || r.closingNow[g.ID] || r.fateTurnHeld(g.ID):
 		case g.AwaitingEvidence && g.CheckKind != kind:
 			owing = append(owing, g.ID)
 		default:

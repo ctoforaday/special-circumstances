@@ -12,9 +12,8 @@ import (
 )
 
 // famSeededT is famOfEventsT with the events seeded through the write path, for a metric that reads
-// which sitting an act belongs to — blue's sittings, behind manifest coverage — and so needs the
-// stored one. The gaps the fixtures name are minted ahead of them, so the record can hold their
-// closes and receipts; no blue sitting reads a mint.
+// which sitting an act belongs to, and so needs the stored one. The gaps the fixtures name are
+// minted ahead of them, so the record can hold their closes; no blue sitting reads a mint.
 func famSeededT(t *testing.T, evs []*record.Event) *record.Family {
 	t.Helper()
 	var mints []*record.Event

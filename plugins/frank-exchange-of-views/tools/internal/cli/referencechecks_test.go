@@ -60,8 +60,6 @@ var referenceChecks = []struct {
 		extra: []string{"--reason", "n"}},
 	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
-	{verb: []string{"manifest-row"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--reason", "checked"}},
 	{verb: []string{"edit"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
 	{verb: []string{"retire"}, flag: "--answers", against: "the board", bogus: "G2",

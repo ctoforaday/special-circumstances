@@ -25,7 +25,7 @@ func closeT(t *testing.T, lens, gap string) *record.Event {
 }
 
 // famT is fam with its events seeded through the write path, for a section that reads which sitting
-// an act belongs to — blue's sittings, behind the manifest — and so needs the stored one.
+// an act belongs to — blue's sittings — and so needs the stored one.
 func (b *boardT) famT(t *testing.T) record.Family {
 	t.Helper()
 	f := b.fam()

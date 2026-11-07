@@ -41,7 +41,7 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 		}
 	}
 	if afforded == 0 {
-		t.Fatalf("an edit with no manifest row afforded nothing on the work list: %v", hows(s.Open))
+		t.Fatalf("the sitting afforded nothing on the work list: %v", hows(s.Open))
 	}
 	if blocking != 0 {
 		t.Fatalf("nothing should block here; blocking items: %v", hows(s.Open))
@@ -59,34 +59,12 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 
 // EVERY DERIVATION FIRES ON THE STATE IT CLAIMS TO WATCH.
 //
-// Two of these — the manifest receipt and the unmoved grade — cannot fire at the START of any probe
-// board, because both need an act the SEAT performs mid-sitting. That makes them exactly the shape
-// this repository keeps paying for: code whose only evidence of working is that nobody has seen it
+// One of these — the unmoved grade — cannot fire at the START of any probe board, because it needs
+// an act the SEAT performs mid-sitting. That makes it exactly the shape this repository keeps
+// paying for: code whose only evidence of working is that nobody has seen it
 // fail. A derivation that quietly matches nothing returns an empty affordance list, which reads
 // precisely like a board with nothing to offer.
 func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
-
-	t.Run("manifest row missing after an edit", func(t *testing.T) {
-		b := loadedFamilyT(t, nil, []*Event{
-			mintsGap(t, "red-lens-logic", "G2"),
-			dispatchBlue(t, "G2", "G3"), registers(t, "blue-respond"),
-			recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G2")}),
-		})
-		got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "blue", "blue-respond", false)
-		if !mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
-			t.Fatalf("an edit answering G2 with no manifest row afforded nothing: %v", hows(got))
-		}
-		// G3 was engaged and rebutted, not edited: no repair, so no receipt is offered for it.
-		if mentions(got, "gap G3") {
-			t.Errorf("a rebutted gap was offered a manifest receipt: %v", hows(got))
-		}
-		// And it stops once the receipt exists, or the line is a nag rather than a fact.
-		b = loadedFamilyT(t, nil, append(b.Events, recordtest.Event(t, "blue-respond", &recordpb.ManifestRow{GapId: proto.String("G2")})))
-		if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "blue", "blue-respond", false); mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
-			t.Errorf("the manifest affordance survived its own discharge: %v", hows(got))
-		}
-	})
-
 	// THE DEBT IS THE REGRADE AFTER THE RULING, whatever the gap's history before it. Read through
 	// the production work list on a seeded run: the item is listed only on an open gap, and a
 	// fixture with no gap table would pass or fail for a reason that is not the predicate's.

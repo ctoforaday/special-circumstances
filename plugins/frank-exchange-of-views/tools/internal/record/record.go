@@ -454,7 +454,7 @@ var singleton = map[recordpb.EventType]bool{
 // tool mints them: NewID), so their key stays
 // `seat:verb:label` and a second event with the same label is the SAME act whichever sitting
 // records it. Every other label-keyed verb REFERENCES something that already exists — a verify
-// names a source, a regrade or a manifest row names a gap — and there the label alone would make
+// names a source, a regrade names a gap — and there the label alone would make
 // the act possible once per run; see deriveKey.
 var defines = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_MINT:    true,
@@ -872,7 +872,7 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 		if isDuplicateKey(err) {
 			// THE TAIL NAMES THE ACT THAT ANSWERS THE FIRST, read from the one table that holds it
 			// (supersede.go). A generic "say so in the act that supersedes it" names an act that, for
-			// a manifest row or a regrade, does not exist this sitting, and sending a seat to it is
+			// a regrade, does not exist this sitting, and sending a seat to it is
 			// what moved clean text into a log. Where the table holds no row — a key the tool
 			// minted, which only a retried write lands on twice — the refusal ends without one.
 			tail := ""
@@ -1221,38 +1221,20 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("requires --reason (the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it)")
 		}
 	case *recordpb.Closing:
-		// Both name a gap and neither checked it. Grouped because the reference is the same
-		// reference: the verb differs, the dangling failure does not.
-		//
 		// `dispute` and `dispute-respond` were in this arm until #344. Their checks did not
 		// disappear with them — they moved to the motion verbs, which is where the gap
 		// reference, the open-gap requirement and the prose requirement now live.
 		// PRESENCE FIRST, THEN RESOLVABILITY. requireGap returns nil on an empty id — an
 		// ABSENT reference is not a DANGLING one, and that is right for the check it makes —
-		// so absence needs its own. Without it a bare `manifest-row` recorded a repair receipt
-		// naming no gap and printed "manifest row recorded for ", and a bare `closing` filed an
-		// argument about nothing.
+		// so absence needs its own. Without it a bare `closing` files an argument about nothing.
 		if b.GetGapId() == "" {
-			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
+			return fmt.Errorf("requires --id (the gap this is about; an argument naming no gap cannot be audited against anything)")
 		}
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
 		if err := ClosingRefusal(q, b.GetGapId(), seatID); err != nil {
 			return err
-		}
-	case *recordpb.ManifestRow:
-		if b.GetGapId() == "" {
-			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
-		}
-		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
-			return err
-		}
-		// A MANIFEST ROW IS THE RECEIPT. An empty one says a repair was audited and shows
-		// nothing for it, which is worth less than no row: the row is what makes "unaudited
-		// repair" countable, so a blank one flatters the count it feeds.
-		if b.GetRow() == "" {
-			return fmt.Errorf("requires --%s (what you checked and what it showed — an empty receipt still counts as a repair audited)", flags.ForPayloadKey("row"))
 		}
 	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
 	//
@@ -1422,7 +1404,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
 		// no exchange.
 		if h, ok := b.GetRuling().(*recordpb.MotionRule_Position); ok {
-			if err := requirePositionHearing(w, seatID, h.Position); err != nil {
+			if err := requirePositionHearing(w, seatID, b.GetMotionId(), h.Position); err != nil {
 				return err
 			}
 		}

@@ -119,6 +119,13 @@ func (r *runner) fateTurnNeedsInquiry() bool {
 	return !ok || len(js) == 0
 }
 
+// fateTurnHeld reports whether id is the forced run's gap and its fate turn is not yet counted: the
+// chain runs through that gap, so no drive of its minter's supersedes it before then. The caller
+// holds r.mu.
+func (r *runner) fateTurnHeld(id string) bool {
+	return r.forceFateTurn && id == r.fateTurnGap && r.fateTurns == 0
+}
+
 func (r *runner) reachedFateTurnStage(s string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -153,6 +160,23 @@ func TestTheFateTurnSeedReachesAFateTurn(t *testing.T) {
 	}
 	if msg := r.fateTurnForcedErr(); msg != "" {
 		t.Errorf("the forced run drove its chain and still reads %q", msg)
+	}
+}
+
+// THE FORCED GAP'S MINTER DOES NOT SUPERSEDE IT BEFORE ITS TURN: a mint drawing it as an ancestor
+// would close it, blue would never sit engaged on it, and the forced run would fail on the drive's own
+// act. Once the turn is counted it is the lens's to supersede like any other gap.
+func TestTheForcedFateGapIsNotSupersededBeforeItsTurn(t *testing.T) {
+	r, plan := drivenToAChangedFate(t)
+	if open, _, _ := r.supersedable(citationOwner, "document"); slices.Contains(open, r.fateTurnGap) {
+		t.Fatalf("before its fate turn, %s may supersede the forced gap %s (drawn from %v)", citationOwner, r.fateTurnGap, open)
+	}
+	r.tallyLensTurns(plan())
+	if r.actErr != "" {
+		t.Fatalf("the drive: %s", r.actErr)
+	}
+	if open, _, _ := r.supersedable(citationOwner, "document"); !slices.Contains(open, r.fateTurnGap) {
+		t.Errorf("after its fate turn, %s may not supersede its own open gap %s (drawn from %v)", citationOwner, r.fateTurnGap, open)
 	}
 }
 

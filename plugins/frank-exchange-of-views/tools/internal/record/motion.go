@@ -296,6 +296,10 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			w := win.Of(e)
 			m := &Motion{ID: id, Subject: positionSubject, Filer: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting,
 				Basis: f.GetText(), Fields: map[string]string{"position_id": id}}
+			// THE CLASS BINDS THE HEARING (requirePositionHearing), so the bench reads it on the row.
+			if f.Class != nil {
+				m.Fields["class"] = recordpb.Word(f.GetClass())
+			}
 			if seq != nil {
 				m.filed = seq[i]
 			}

@@ -12,10 +12,9 @@ import (
 //
 // THE ANSWERING PREDICATE IS THE ONE EVERY OTHER READER USES. `BlueEdit.answers` is blue's CLAIM to
 // have answered, validated at the write (requireGap refuses an unknown gap), and with `old != new` it
-// is what `exchangesOf` counts as movement and what ManifestOwed counts as answered. An edit that
+// is what `exchangesOf` counts as movement. An edit that
 // changed a gap's sentence without naming the gap (WorkGapState.Edits) is not an answer: reading it
-// would invent a third definition of "answered", disagreeing with the impasse fold and the manifest
-// audit, and would accuse blue on any gap anchored by --about, which has no sentence to change. It
+// would invent a third definition of "answered", disagreeing with the impasse fold, and would accuse blue on any gap anchored by --about, which has no sentence to change. It
 // gives the lens its turn all the same (lensTurnActsOf), and the item says which of the two it is.
 //
 // A GAP ANCHORED ON AN INQUIRY IS ANSWERED BY THAT INQUIRY'S FATE, NOT BY AN EDIT. A mint made

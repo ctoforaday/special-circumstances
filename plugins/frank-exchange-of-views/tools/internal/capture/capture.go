@@ -1608,7 +1608,7 @@ func WriteScorecards(run record.Run, results []map[string]any, memoryDir string,
 	if _, err := os.Stat(memoryDir); err != nil {
 		return ScorecardResult{Written: false, Reason: fmt.Sprintf("no %s — scorecards need the tracked memory dir", memoryDir)}
 	}
-	cards := scorecard.Compute(run, results, fam, record.AfterTheRun)
+	cards := scorecard.Compute(run, results, fam)
 	label := labelOf(run)
 	rows := 0
 	written := 0

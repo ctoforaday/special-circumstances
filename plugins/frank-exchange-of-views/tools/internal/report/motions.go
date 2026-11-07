@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // ONE SECTION FOR EVERY ADJUDICATED EXCHANGE, joined on the motion id (#344).
@@ -97,6 +98,10 @@ func motionHead(m *record.Motion) string {
 	case "inquiry":
 		return "inquiry " + m.Fields["inquiry_id"]
 	case "position":
+		// THE CLASS BINDS THE HEARING: one that is always material is upheld, never overruled.
+		if c, ok := record.GapClassOf(m.Fields["class"]); ok {
+			return fmt.Sprintf("the chair's position on a PASS it withheld, over a defect of class %s (material: %s)", m.Fields["class"], recordpb.Word(recordpb.MaterialDefault(c)))
+		}
 		return "the chair's position on a PASS it withheld"
 	case "docket":
 		// THE SECOND SUBJECT THAT IS ABOUT A GAP, and the row is unreadable without it. Left to

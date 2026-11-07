@@ -2,7 +2,6 @@ package record
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -20,8 +19,8 @@ func closeGap(t *testing.T, lens, gap string) *Event {
 		ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")})
 }
 
-// gapsExist mints each gap a fixture names, ahead of it, so the record can hold the closes and
-// receipts that name them. The mints are a lens's acts before any sitting of blue's, and no blue
+// gapsExist mints each gap a fixture names, ahead of it, so the record can hold the closes that
+// name them. The mints are a lens's acts before any sitting of blue's, and no blue
 // sitting reads them.
 func gapsExist(t *testing.T, gaps ...string) []*Event {
 	var out []*Event
@@ -39,111 +38,72 @@ func editAnswers(t *testing.T, seat, gap string) *Event {
 	return recordtest.Event(t, seat, &recordpb.BlueEdit{Answers: proto.String(gap)})
 }
 
-// OWED = DISPATCHED ONTO, OPEN WHEN BLUE SAT, AND ANSWERED BY BLUE'S EDIT IN THAT SITTING.
-//
-// The B4 ordering (#868) is the first case: the lenses sat first and closed both gaps, blue found
-// nothing to repair and filed no row, and the engine's abort on that empty manifest killed a
-// $16.91 run. The rebuttal case is the second half of the same rule: the constitutions say one row
-// per REPAIRED gap, and a gap blue argued against without editing was not repaired.
-func TestManifestOwedIsARepairOfAGapStillOpenWhenBlueSat(t *testing.T) {
+// A SITTING OWES AN ANSWER ON THE GAPS ITS DISPATCH NAMED THAT WERE STILL OPEN WHEN BLUE SAT (#868).
+// The lenses sit before blue, so a lens can close a gap between the dispatch that engaged blue on it
+// and blue's register; that gap is found closed. A close after the register is a closure of blue's
+// answer, and the gap was open when blue sat. A dispatch blue never sat has no sitting.
+func TestABlueSittingSplitsItsEngagedGapsAtItsRegister(t *testing.T) {
 	cases := map[string]struct {
-		evs  []*Event
-		want []string
+		evs               []*Event
+		sittings          int
+		open, foundClosed []string
 	}{
-		"B4: both closed before blue registered": {
+		"both closed before blue registered": {
 			evs: []*Event{
 				registers(t, "red-chair"), dispatchBlue(t, "G1", "G2"),
 				registers(t, "red-lens-logic"), closeGap(t, "red-lens-logic", "G1"),
 				registers(t, "red-lens-voice"), closeGap(t, "red-lens-voice", "G2"),
 				registers(t, "blue-respond"),
 			},
-			want: nil,
+			sittings: 1, foundClosed: []string{"G1", "G2"},
 		},
-		"closed first, then edited anyway: still not owed": {
-			evs: []*Event{
-				dispatchBlue(t, "G1"), closeGap(t, "red-lens-logic", "G1"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G1"),
-			},
-			want: nil,
-		},
-		"one closed first, one open and repaired: only the repair is owed": {
+		"one closed first, one open": {
 			evs: []*Event{
 				dispatchBlue(t, "G1", "G2"), closeGap(t, "red-lens-logic", "G1"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G2"),
 			},
-			want: []string{"G2"},
+			sittings: 1, open: []string{"G2"}, foundClosed: []string{"G1"},
 		},
-		"rebutted, no edit: not owed": {
-			evs: []*Event{
-				dispatchBlue(t, "G1", "G2"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G2"),
-			},
-			want: []string{"G2"},
-		},
-		"a close AFTER blue sat is a closure of blue's repair, and the row was owed": {
+		"a close AFTER blue sat leaves the gap open in the sitting": {
 			evs: []*Event{
 				dispatchBlue(t, "G1"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G1"), closeGap(t, "red-lens-evidence", "G1"),
 			},
-			want: []string{"G1"},
+			sittings: 1, open: []string{"G1"},
 		},
-		"a dispatch blue never sat owes nothing, whatever was edited": {
-			evs:  []*Event{dispatchBlue(t, "G1"), editAnswers(t, "blue-respond", "G1")},
-			want: nil,
-		},
-		"an edit answering a gap blue was not dispatched onto is not owed": {
-			evs: []*Event{
-				dispatchBlue(t, "G1"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G7"),
-			},
-			want: nil,
-		},
-		"another seat's edit repairs nothing on blue-respond's account": {
-			evs: []*Event{
-				dispatchBlue(t, "G1"), registers(t, "blue-respond"), editAnswers(t, "blue-synthesize", "G1"),
-			},
-			want: nil,
+		"a dispatch blue never sat has no sitting": {
+			evs:      []*Event{dispatchBlue(t, "G1"), editAnswers(t, "blue-respond", "G1")},
+			sittings: 0,
 		},
 		"the lens's own dispatch engages nobody on blue's behalf": {
 			evs: []*Event{
 				recordtest.Event(t, "red-chair", &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("red-lens-logic"), GapIds: []string{"G1"}}),
 				registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G1"),
 			},
-			want: nil,
-		},
-		"the sitting ends at blue's next register: an edit then answers the new engagement only": {
-			evs: []*Event{
-				dispatchBlue(t, "G1"), registers(t, "blue-respond"),
-				dispatchBlue(t, "G2"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G1"),
-			},
-			want: nil,
-		},
-		"owed once per gap across sittings, in first-owed order; a register no dispatch precedes owes nothing": {
-			evs: []*Event{
-				dispatchBlue(t, "G2"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G2"), registers(t, "blue-respond"),
-				dispatchBlue(t, "G1", "G2"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G1"), editAnswers(t, "blue-respond", "G2"),
-			},
-			want: []string{"G2", "G1"},
+			sittings: 0,
 		},
 		"a close from an earlier epoch does not reach into the next window": {
 			evs: []*Event{
 				closeGap(t, "red-lens-logic", "G1"), dispatchBlue(t, "G1"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G1"),
 			},
-			want: []string{"G1"},
+			sittings: 1, open: []string{"G1"},
 		},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			if got := manifestOwedT(t, append(gapsExist(t, "G1", "G2", "G7"), c.evs...), WhileRunning).Gaps; !reflect.DeepEqual(got, c.want) {
-				t.Errorf("owed = %v, want %v", got, c.want)
+			ss := blueSittingsT(t, append(gapsExist(t, "G1", "G2"), c.evs...), WhileRunning)
+			if len(ss) != c.sittings {
+				t.Fatalf("sittings = %d, want %d: %+v", len(ss), c.sittings, ss)
+			}
+			if c.sittings == 0 {
+				return
+			}
+			var closed []string
+			for _, f := range ss[0].FoundClosed {
+				closed = append(closed, f.GapID)
+			}
+			if !reflect.DeepEqual(ss[0].Open, c.open) || !reflect.DeepEqual(closed, c.foundClosed) {
+				t.Errorf("open = %v, found closed = %v; want %v and %v", ss[0].Open, closed, c.open, c.foundClosed)
 			}
 		})
-	}
-}
-
-func TestManifestUnreceiptedIsOwedLessTheRows(t *testing.T) {
-	evs := []*Event{
-		dispatchBlue(t, "G1", "G2"), registers(t, "blue-respond"),
-		editAnswers(t, "blue-respond", "G1"), editAnswers(t, "blue-respond", "G2"),
-		recordtest.Event(t, "blue-respond", &recordpb.ManifestRow{GapId: proto.String("G1"), Row: proto.String("recomputed")}),
-	}
-	if got := manifestUnreceiptedT(t, append(gapsExist(t, "G1", "G2"), evs...), WhileRunning).Gaps; !reflect.DeepEqual(got, []string{"G2"}) {
-		t.Errorf("unreceipted = %v, want [G2]", got)
 	}
 }
 
@@ -187,9 +147,6 @@ func TestBlueSittingEndsOnBluesOwnActsNotTheChairsDispatchRow(t *testing.T) {
 		if got := actTypes(ss[0]); !reflect.DeepEqual(got, []string{"EVENT_TYPE_REGISTER", "EVENT_TYPE_BLUE_EDIT"}) {
 			t.Errorf("the chair's row is not blue's act and ends nothing: acts = %v, want the register and the edit", got)
 		}
-		if got := manifestOwedT(t, evs, WhileRunning); !reflect.DeepEqual(got.Gaps, []string{"G1"}) || got.Unresolved != 1 {
-			t.Errorf("the edit is in the sitting and the sitting is not closed: owed = %+v, want G1 with 1 unresolved", got)
-		}
 	})
 	t.Run("the agent's stop closes it, and an act after the stop is outside it", func(t *testing.T) {
 		evs := []*Event{
@@ -203,9 +160,6 @@ func TestBlueSittingEndsOnBluesOwnActsNotTheChairsDispatchRow(t *testing.T) {
 		}
 		if got := actTypes(ss[0]); !reflect.DeepEqual(got, []string{"EVENT_TYPE_REGISTER"}) {
 			t.Errorf("the edit follows the stop: acts = %v, want the register alone", got)
-		}
-		if got := manifestOwedT(t, evs, WhileRunning); got.Gaps != nil || got.Unresolved != 0 {
-			t.Errorf("owed = %+v, want nothing and nothing unresolved", got)
 		}
 	})
 	t.Run("a stop by another agent closes nothing", func(t *testing.T) {
@@ -234,20 +188,4 @@ func TestBlueSittingEndsOnBluesOwnActsNotTheChairsDispatchRow(t *testing.T) {
 			t.Errorf("second sitting engaged = %v, want [G2]", ss[1].Engaged)
 		}
 	})
-}
-
-// AN UNRESOLVED SITTING IS WORDED ONCE. The owed set is a floor while a sitting cannot be closed, and
-// NotMeasured is the one place that says so; a record that closes every sitting says nothing.
-func TestManifestOwingWordsTheUnresolvedSittings(t *testing.T) {
-	open := manifestOwedT(t, []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a")}, WhileRunning)
-	if open.Unresolved != 1 || !strings.Contains(open.NotMeasured(), "1 blue sitting(s) NOT MEASURED") {
-		t.Errorf("an unclosed sitting must be worded as not measured: %+v %q", open, open.NotMeasured())
-	}
-	closed := manifestOwedT(t, []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), agentStops(t, "blue-a")}, WhileRunning)
-	if closed.Unresolved != 0 || closed.NotMeasured() != "" {
-		t.Errorf("a closed sitting says nothing: %+v %q", closed, closed.NotMeasured())
-	}
-	if u := manifestUnreceiptedT(t, []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), editAnswers(t, "blue-respond", "G1")}, WhileRunning); u.Unresolved != 1 {
-		t.Errorf("the unreceipted set carries the unresolved sitting: %+v", u)
-	}
 }

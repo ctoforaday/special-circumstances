@@ -137,13 +137,13 @@ func TestTheBlueCardReadsNoRelayedCountAndNoAttestation(t *testing.T) {
 		{"claim_count": float64(10), "sitting_record_appended": true},
 		{"claim_count": float64(5), "sitting_record_appended": false},
 	}
-	with := blueRows(record.Run{}, relayed, nil, board, record.WhileRunning)
+	with := blueRows(record.Run{}, relayed, nil, board)
 	for _, gone := range []string{"unrecorded_claim_loss", "sitting_record_failures"} {
 		if r := rowByMetric(with, gone); r != nil {
 			t.Errorf("the blue card carries %s, a row over what an envelope relayed: %+v", gone, r)
 		}
 	}
-	without := blueRows(record.Run{}, []map[string]any{{}, {}}, nil, board, record.WhileRunning)
+	without := blueRows(record.Run{}, []map[string]any{{}, {}}, nil, board)
 	if !reflect.DeepEqual(with, without) {
 		t.Errorf("the card moved with the envelopes' claim_count and sitting_record_appended:\n with    %+v\n without %+v", with, without)
 	}

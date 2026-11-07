@@ -138,11 +138,10 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 		return move{name: "ceiling", ceiling: true}
 	}
 	var lastMove move
-	var engaged []any // the gap ids the last plan engaged blue on — blue manifests exactly those
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"rulings":      []any{},
-			"dispositions": []any{}, "manifest": []any{},
+			"dispositions": []any{},
 		}
 		switch {
 		case seatID == "red-chair":
@@ -159,7 +158,6 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
 				e.Relay(p)
 			case m.halt:
-				engaged = []any{"G1"}
 				// A petition on the record convenes the bench, through the chair's read; the halt is its
 				// sitting's, and blue, on the plan, has not started.
 				p := plan([]any{party("blue-respond", "G1")}, false, false, nil, "engaged")
@@ -171,20 +169,13 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			case m.fresh:
 				id := fmt.Sprintf("F%d", sittingOf(label))
 				b.raised[id] = true
-				engaged = []any{id}
 				e.Relay(plan([]any{party("red-lens-evidence"), party("blue-respond", id)}, false, false, nil, "fresh"))
 			default: // engage
 				b.raised["G1"] = true
-				engaged = []any{"G1"}
 				e.Relay(plan([]any{party("red-lens-evidence", "G1"), party("blue-respond", "G1")}, false, false, nil, "engaged"))
 			}
 		case strings.HasPrefix(seatID, "red-lens-"):
 			return debatejs.Envelope{}
-		case seatID == "blue-respond":
-			// Blue manifests what the PLAN engaged it on — a ruled gap the chair re-engages is still
-			// blue's to answer this sitting; whether the record would ever engage it is the record's
-			// question, and this test's is only that the loop settles on every schedule.
-			e["manifest"] = engaged
 		case strings.Contains(label, "· petition"):
 			e["rulings"] = []any{map[string]any{"class": "safety", "ruling": "denied", "opinion": "no"}}
 		// ROUTE THE BENCH ON THE QUESTION, NOT THE SEAT. One seat heads five sittings' labels, so

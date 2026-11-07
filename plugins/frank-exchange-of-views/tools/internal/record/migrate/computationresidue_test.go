@@ -492,13 +492,11 @@ func TestASeatsProofStorePathStaysAsWritten(t *testing.T) {
 		"2026-09-02_quadratic-formula.tar.gz":  15,
 		"2026-09-09_is-91-prime-b.tar.gz":      4, // and two in its inquiry reviews, which translate to none
 		"2026-09-10_is-91-prime-b3.tar.gz":     2,
-		"2026-09-11_is-91-prime-b4.tar.gz":     2,
+		"2026-09-11_is-91-prime-b4.tar.gz":     1,
 		"2026-09-11_is-91-prime-b5.tar.gz":     6,
 		"2026-09-11_is-91-prime-b7.tar.gz":     11,
-		"2026-09-11_is-91-prime-b8.tar.gz":     9,
+		"2026-09-11_is-91-prime-b8.tar.gz":     8,
 		"2026-10-09_is-91-prime-wave-a.tar.gz": 3,
-		"2026-10-11_is-91-prime-m20.tar.gz":    1,
-		"2026-10-12_is-91-prime-wave-b.tar.gz": 1,
 		"2026-10-17_is-91-prime-m26.tar.gz":    5,
 	}
 	for _, name := range archivedRuns(t) {

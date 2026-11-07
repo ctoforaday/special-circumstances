@@ -82,7 +82,6 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}:                            {act: "a new declaration", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_HALT}:                               {act: "a new halt", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_LOG}:                                {act: "a new log entry", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_MANIFEST_ROW}:                       {act: "a new manifest row for the gap", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectGrade}: {act: "a docket motion on the gap"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {act: "a declaration, which moves no gap: " +
 		"the gap comes before you again only in a docket motion another seat files"},

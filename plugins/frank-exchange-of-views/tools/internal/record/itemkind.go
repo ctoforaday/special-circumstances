@@ -53,8 +53,6 @@ const (
 	ItemDocket ItemKind = "docket"
 	// ItemStaleInquiry is an inquiry no fate has revisited since it was declared.
 	ItemStaleInquiry ItemKind = "stale_inquiry"
-	// ItemManifestOwed is a gap blue answered with an edit and gave no manifest row.
-	ItemManifestOwed ItemKind = "manifest_owed"
 	// ItemKeptGrade is a gap whose lens kept its grade on re-audit, with what its check still finds
 	// failing, on blue's list.
 	ItemKeptGrade ItemKind = "kept_grade"
@@ -71,7 +69,7 @@ func ItemKinds() []ItemKind {
 	}
 	return append(out, ItemAudit, ItemReaudit, ItemRegradeOwed, ItemFindingOnGap, ItemNews, ItemLog,
 		ItemBudget, ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
-		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemManifestOwed, ItemKeptGrade, ItemNothingOwed)
+		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemNothingOwed)
 }
 
 // SubjectKind is what kind of thing an item is about.
