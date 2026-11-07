@@ -277,6 +277,9 @@ jobs:
     # native-scope runs on every event, decides the native-build matrix, whether native-run
     # executes, and how helper caching behaves.
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: .
     outputs:
       cache: ${{ steps.scope.outputs.cache }}
       full: ${{ steps.scope.outputs.full }}
@@ -303,6 +306,9 @@ jobs:
     runs-on: ${{ matrix.builder }}
     strategy:
       matrix: ${{ fromJSON(needs.native-scope.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: actions/checkout@v7
         with:
@@ -315,8 +321,10 @@ jobs:
         id: digest
         shell: bash
         working-directory: plugins/frank-exchange-of-views/tools
+        env:
+          HELPER: ${{ matrix.helper }}
         run: |
-          echo "digest=$(go run ./devcmd/nativedigest -print ${{ matrix.helper }})" >> "$GITHUB_OUTPUT"
+          echo "digest=$(go run ./devcmd/nativedigest -print "$HELPER")" >> "$GITHUB_OUTPUT"
       - name: Restore helper cache
         id: helper-cache
         if: needs.native-scope.outputs.cache != 'none'
@@ -328,14 +336,22 @@ jobs:
       - name: Build helper on cache miss
         if: steps.helper-cache.outputs.cache-hit != 'true'
         shell: bash
+        env:
+          HELPER: ${{ matrix.helper }}
+          TARGET: ${{ matrix.target }}
         run: |
-          mkdir -p "${{ runner.temp }}/native-cache"
-          ./plugins/frank-exchange-of-views/native/build.sh "${{ matrix.helper }}" "${{ matrix.target }}" "${{ runner.temp }}/native-cache"
+          mkdir -p "${RUNNER_TEMP}/native-cache"
+          ./plugins/frank-exchange-of-views/native/build.sh "$HELPER" "$TARGET" "${RUNNER_TEMP}/native-cache"
       - name: Prove staticness
         shell: bash
         working-directory: scripts
+        env:
+          HELPER: ${{ matrix.helper }}
+          OS: ${{ matrix.os }}
+          ARCH: ${{ matrix.arch }}
+          EXT: ${{ matrix.ext }}
         run: |
-          go run ./staticproof "${{ runner.temp }}/native-cache/${{ matrix.helper }}_${{ matrix.os }}_${{ matrix.arch }}${{ matrix.ext }}"
+          go run ./staticproof "${RUNNER_TEMP}/native-cache/${HELPER}_${OS}_${ARCH}${EXT}"
       - name: Save helper cache
         if: needs.native-scope.outputs.cache == 'save' && steps.helper-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -354,14 +370,29 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix: ${{ fromJSON(needs.native-scope.outputs.run-matrix) }}
+    defaults:
+      run:
+        working-directory: .
     env:
-      NATIVE_RUN_MUST_PASS: "TestEmbeddedTraineddataPin TestFrameChannelSurvivesLibraryStdout TestHelperExitsOnStdinEOF TestCorpusGoldens TestDetectGridOnRealCrop TestEngineOCRRealCrop TestInkFractionMeasuresThePixelsAndReadPageCarriesIt TestReadPageCapturesDiagnosticsAndEvidence TestTextCellGoldens TestTextCellTableKeepsItsRowsThroughTheEngine"
+      NATIVE_RUN_MUST_PASS: >-
+        TestEmbeddedTraineddataPin
+        TestFrameChannelSurvivesLibraryStdout
+        TestHelperExitsOnStdinEOF
+        TestCorpusGoldens
+        TestDetectGridOnRealCrop
+        TestEngineOCRRealCrop
+        TestInkFractionMeasuresThePixelsAndReadPageCarriesIt
+        TestReadPageCapturesDiagnosticsAndEvidence
+        TestTextCellGoldens
+        TestTextCellTableKeepsItsRowsThroughTheEngine
     steps:
       - name: Check if native-run should execute
         id: check-full
         shell: bash
+        env:
+          FULL: ${{ needs.native-scope.outputs.full }}
         run: |
-          if [ "${{ needs.native-scope.outputs.full }}" != "true" ]; then
+          if [ "$FULL" != "true" ]; then
             echo "native-run skipped because full=false"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
@@ -391,14 +422,15 @@ jobs:
           FEOV_OCR_CORPUS: "1"
           FEOV_NATIVE_MEASURE: "1"
           CGO_ENABLED: "0"
+          RUNNER_OS: ${{ runner.os }}
         run: |
-          chmod +x ${{ runner.temp }}/helpers/* || true
+          chmod +x "${RUNNER_TEMP}/helpers"/* || true
           cd plugins/frank-exchange-of-views/tools
           must_pass="${NATIVE_RUN_MUST_PASS}"
-          if [ "${{ runner.os }}" = "Linux" ]; then
+          if [ "$RUNNER_OS" = "Linux" ]; then
             must_pass="${must_pass} TestSelftestLibc"
           fi
-          run_arg="$(echo $must_pass | tr ' ' '|')"
+          run_arg="$(echo "$must_pass" | tr ' ' '|')"
           go test -v -count=1 -run "^(${run_arg})\$" ./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/... | tee "$RUNNER_TEMP/test.log"
           for name in $must_pass; do
             grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || {
@@ -420,7 +452,7 @@ jobs:
           CGO_ENABLED=0 go test -c -o "$prebuilt/tessocr.test.exe" ./internal/tessocr
           CGO_ENABLED=0 go test -c -o "$prebuilt/fetchcache.test.exe" ./internal/fetchcache
           CGO_ENABLED=0 go test -c -o "$prebuilt/nativehelper.test.exe" ./internal/nativehelper
-          run_arg="$(echo $NATIVE_RUN_MUST_PASS | tr ' ' '|')"
+          run_arg="$(echo "$NATIVE_RUN_MUST_PASS" | tr ' ' '|')"
           docker run --rm \
             -v "$prebuilt:C:\\prebuilt" \
             -v "$NATIVE_HELPER_DIR:C:\\helpers" \
@@ -440,12 +472,17 @@ jobs:
   native-fuzz:
     runs-on: ubuntu-24.04
     needs: [native-scope]
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Check if native-fuzz should execute
         id: check-full
         shell: bash
+        env:
+          FULL: ${{ needs.native-scope.outputs.full }}
         run: |
-          if [ "${{ needs.native-scope.outputs.full }}" != "true" ]; then
+          if [ "$FULL" != "true" ]; then
             echo "native-fuzz skipped because full=false"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
@@ -719,7 +756,7 @@ jobs:
           path: ${{ runner.temp }}/helpers
       - name: Make helper executable
         if: runner.os == 'Linux'
-        run: chmod +x ${{ runner.temp }}/helpers/feov-ocr
+        run: chmod +x "${RUNNER_TEMP}/helpers/feov-ocr"
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -1953,7 +1990,7 @@ jobs:
           DIST: ${{ runner.temp }}/dist
         run: |
           go run ./releaseassets -check -dist "$DIST" -ref "$GITHUB_REF"
-          cd "$DIST" && sha256sum * > SHA256SUMS
+          cd "$DIST" && sha256sum -- * > SHA256SUMS
       # `gh` ships on every GitHub runner, so publishing needs no third-party action at
       # all — which retires the last one here, and with it zizmor/unpinned-uses. The
       # tag name and the artifact directory go through the environment rather than a
