@@ -1093,33 +1093,53 @@ func (r *runner) stockRepeatedSentence(seatID string) {
 // blue's next sitting may accept.
 type pendingAccept struct{ gap, cite, other, fixNew string }
 
+// isRepeatedCite is whether anchorID is the citation of a copy of the twice-held sentence.
+func (r *runner) isRepeatedCite(anchorID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return anchorID != "" && slices.Contains(r.repeatedCites[:], anchorID)
+}
+
 // readRepeatedSentence is the citation owner's refuting reading of one copy of the twice-held
 // sentence, by that copy's citation: the gap it mints or names stands at the end of the sentence the
 // citation's token sits in — after its last word, before a citation token that ends it — in that
 // copy and no other, read off the rendered report. A found-source reading quoting the sentence is
-// refused as ambiguous.
-func (r *runner) readRepeatedSentence(seatID string, forced bool) {
+// refused as ambiguous. It returns "" where the reading minted its gap with a --new for blue to
+// accept, else why it did not: the forced run's stage names that, where the one message every
+// path shared ("no reading ... minted its gap with a --new") named none of them.
+func (r *runner) readRepeatedSentence(seatID string, forced bool) string {
 	r.mu.Lock()
 	cites := r.repeatedCites
 	r.mu.Unlock()
-	if cites[0] == "" || !forced && !r.coin(30) {
-		return
+	if cites[0] == "" {
+		return "blue has not made the twice-held sentence"
+	}
+	if !forced && !r.coin(30) {
+		return "the coin drew no reading"
 	}
 	cur, err := record.RenderRun(r.run())
-	if err != nil || strings.Count(plainText(cur), repeatedSentence) != 2 {
-		return // an edit or a retire has since changed a copy
+	if err != nil {
+		return "the report could not be rendered: " + err.Error()
+	}
+	if n := strings.Count(plainText(cur), repeatedSentence); n != 2 {
+		// AN EDIT OR A RETIRE HAS SINCE CHANGED A COPY.
+		return fmt.Sprintf("the report holds the sentence %d time(s), not 2 (%s)", n, repeatedCopiesTokens(cur, cites))
 	}
 	i := r.rng.Intn(2)
 	cite, other := cites[i], cites[1-i]
 	if strings.Count(cur, anchor.Token(cite)) != 1 || strings.Count(cur, anchor.Token(other)) != 1 {
-		return
+		// A RETIRED CITATION'S TOKEN STANDS NOWHERE IN THE REPORT.
+		return "a copy's citation does not stand once in the report (" + repeatedCopiesTokens(cur, cites) + ")"
 	}
-	if _, held := r.ownFoundAgainstGapOpen(seatID, cite, "refutes"); held || !r.firstThisSitting(seatID, cite) {
-		return
+	if _, held := r.ownFoundAgainstGapOpen(seatID, cite, "refutes"); held {
+		return "the owner's own found-against gap on " + cite + " is open"
+	}
+	if !r.firstThisSitting(seatID, cite) {
+		return cite + " was already read this sitting"
 	}
 	classes, notTheWork := r.readingClasses(r.citationURL(cite), "refutes", true)
 	if notTheWork || len(classes) == 0 {
-		return
+		return "a refuting reading of " + cite + " has no gap class to mint"
 	}
 	gap, _ := r.readingGapArgs(classes)
 	c := r.do("verify", seatID).set("--anchor", cite).set("--as", "refutes").set("--confidence", pick(r.rng, verifyConfidence)).
@@ -1135,25 +1155,36 @@ func (r *runner) readRepeatedSentence(seatID string, forced bool) {
 	}
 	out, ok := run.admit()
 	if !ok {
-		return
+		return "the reading of " + cite + " was refused: " + firstLine(out)
 	}
 	v := r.checkReading(seatID, out, run.args)
-	if v == nil || v.GetCarriedBy() == "" {
-		return
+	if v == nil {
+		return "the admitted reading of " + cite + " does not check against the record"
+	}
+	if v.GetCarriedBy() == "" {
+		return "the admitted reading of " + cite + " is carried by no gap"
 	}
 	g := v.GetCarriedBy()
 	now, err := record.RenderRun(r.run())
 	if err != nil {
-		r.noteActErr("the report could not be rendered after a reading of the twice-held sentence: " + err.Error())
-		return
+		msg := "the report could not be rendered after a reading of the twice-held sentence: " + err.Error()
+		r.noteActErr(msg)
+		return msg
 	}
 	if msg := gapEndsSentenceOf(now, g, cite); msg != "" {
 		r.noteActErr(msg)
-		return
+		return msg
+	}
+	why := ""
+	switch {
+	case fixNew == "":
+		why = "no --new fix was composed for the reading of " + cite
+	case !v.GetCarrierMinted():
+		why = "the reading of " + cite + " is carried by " + g + ", already open on its sentence, and did not mint it"
 	}
 	r.mu.Lock()
 	r.repeatedSentenceGaps++
-	if fixNew != "" && v.GetCarrierMinted() {
+	if why == "" {
 		r.pendingAccepts = append(r.pendingAccepts, pendingAccept{gap: g, cite: cite, other: other, fixNew: fixNew})
 	}
 	r.mu.Unlock()
@@ -1174,6 +1205,13 @@ func (r *runner) readRepeatedSentence(seatID string, forced bool) {
 			r.noteActErr("a found-source reading quoting the twice-held sentence was refused, and not as ambiguous: " + firstLine(out))
 		}
 	}
+	return why
+}
+
+// repeatedCopiesTokens is how many times each copy's citation token stands in the rendered report:
+// once each while both copies stand cited, none for a retired citation.
+func repeatedCopiesTokens(report string, cites [2]string) string {
+	return fmt.Sprintf("citation %s's token stands %d time(s), %s's %d", cites[0], strings.Count(report, anchor.Token(cites[0])), cites[1], strings.Count(report, anchor.Token(cites[1])))
 }
 
 // gapEndsSentenceOf is "" where gap g's token stands once in report, in the sentence citation cite's
