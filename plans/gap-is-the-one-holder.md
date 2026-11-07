@@ -723,11 +723,11 @@ deleted, T13/T14 replace them), `readingplace_test.go` (18), `readingsource_test
 §III.10. **Plus the signature callers outside the sweep:** `owedBlockersOf` — `failedcheck_test.go:283`,
 `anchorowner_test.go:70,125`, `inquiry_test.go:351` (pass `nil` `found`); `SittingOf` — `available_test.go:33`,
 `citejoin_test.go:90`; `evidenceview_test.go:265–267, 294` (the `SourcesRefuted` assertions go); the clause
-carriers `reopened_test.go:544`, `devcmd/enginegen/vocabulary_test.go:46`, `tests/simulator/debate.test.mjs:264–275`. **Plus 10 cli files outside the sweep that run `verify` with gap flags through `gapFlagArgs`
+carriers `reopened_test.go:544`, `devcmd/enginegen/vocabulary_test.go:46`, `plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs:264–275`. **Plus 10 cli files outside the sweep that run `verify` with gap flags through `gapFlagArgs`
 (`verifyclaim_test.go:211`):** `verifyclaim_test.go:62,64`, `mintbare_test.go:157`,
 `verifyconfidence_test.go:28`, `bridgekind_test.go:63`, `deadpath_test.go:625`, `gapanchor_test.go:177`,
 `requiredmarker_test.go:120`, `verbs_test.go:117`, `answers_test.go:297`, `verifycopy_test.go:203`. The
-31 test `record/inquiry_test.go:427` is untouched.
+31 test `record/inquiry_test.go:427` is untouched. (Note: a broad grep for `\.Gap\.ID` also matches `record/queue_test.go:57`, which tests gap queue items and is untouched by reading carriers, yielding 46 files on disk; the 45 T-sweep files are the reading- and carrier-touching files listed above).
 
 **Goldens (G), 8 files + the archive set:**
 
@@ -770,7 +770,7 @@ views; 4 1a′ readers; 1 plan.
 
 | Site | Today | Becomes |
 |---|---|---|
-| `reading_test.go` (51 lines: `readingClasses:32`, `readingGapArgs:61`, `checkReading:144–173`, `readCitation:275`, `foundAgainstCleared:399`, `checkCarriedBy:458`, `notTheWorkReading:474`, `readFoundSource:577`, `readAnotherSource:715`, `fixFoundAgainst:774`, `readingTally:831`, `readRepeatedSentence:1101`, `readOverPrescription:1270`, `readNotTheWorkFound:1335`) | in-act mint, held readings, `carried_by` checks, found-against remedy | `verify` alone; then, on a coin, `mint --class … --about-kind anchor --about C` (cited) or `--quote S` (found) and the stored gap's `ReadingBehind` is the reading; the second lens's mint about C refused by the anchor arm; `readOverPrescription` expects the estoppel refusal (D10) and then the `--supersedes` mint |
+| `reading_test.go` (51 lines: `readingClasses:32`, `readingGapArgs:61`, `checkReading:144–173`, `readCitation:275`, `foundAgainstCleared:399`, `checkCarriedBy:458`, `notTheWorkReading:474`, `readFoundSource:577`, `readAnotherSource:715`, `fixFoundAgainst:774`, `readingTally:831` — callers: `fuzz_test.go:7882`, `onegaptally_test.go:53`, `readRepeatedSentence:1101`, `readOverPrescription:1270`, `readNotTheWorkFound:1335`) | in-act mint, held readings, `carried_by` checks, found-against remedy | `verify` alone; then, on a coin, `mint --class … --about-kind anchor --about C` (cited) or `--quote S` (found) and the stored gap's `ReadingBehind` is the reading; the second lens's mint about C refused by the anchor arm; `readOverPrescription` expects the estoppel refusal (D10) and then the `--supersedes` mint |
 | `foundagainstseed_test.go` (47: `forcedFoundAgainstChain:111`, `foundAgainstReading:284`, `foundAgainstReread:297`, 6 tests `:411–811`) | forced found-against chain through the failed check | forced chain: reading → the `reading_debt` holds the PASS and the lens's envelope → mint on it → the gap's materiality holds → blue's edit/retire → the demand met through the 'about' arm; the "check holds the PASS whatever gap stands" assertions go |
 | `failedcheckstate_test.go:18–100, 143–178, 190–210` | `CheckFoundAgainst` drives | two states only; the found-against test deleted |
 | `anothersource_test.go:18–82` | second source held by the first's gap | second found-source mint refused by the one-gap rule on the sentence; the second lens's debt discharged by the first's gap |
@@ -865,7 +865,7 @@ views; 4 1a′ readers; 1 plan.
   `TestNoPromptGrowsItsCommandCatalogue` green on the new `debate.js:883` and constitutions.
 - **T26** the outcome clause (D12): Go — `TestACeilingReasonNamesOnlyAStandingReopenedAnchor` gains a row
   where X's `refutes` of C-1 stands with no gap → the CEILING reason is the term + "; on a reading debt:
-  C-1" and names no other blocker; JS — `debate.test.mjs:264` with the widened fixture expects the clause
+  C-1" and names no other blocker; JS — `plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs:264` with the widened fixture expects the clause
   naming each kind of `STANDING_CLAUSES` once, in table order; `enginegen -check` clean after regenerate;
   `TestTheVocabularyRegionStatesEachSetAndThePlanAsDeclared` carries the constant. *Fails if* the Go
   clause or the JS clause names a kind the other does not, or the JS names a kind word of its own.
@@ -1049,7 +1049,7 @@ No fork is open.
 11. Found by the gap-class sweep, outside the ruling: `verdict.go`'s `anchorsStanding` names the two
     inquiry kinds and `debate.js`'s does not — the record's outcome reason and the engine's termination
     reason already disagree on a run that ends over an open inquiry. D12's table fixes the class; the
-    `debate.test.mjs` fixture gains the inquiry rows with the debt's (T26). Not a fork: the Go clause is the
+    `plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs` fixture gains the inquiry rows with the debt's (T26). Not a fork: the Go clause is the
     record's own derived reason and the JS mirrors it by comment ("as the record's own derived reason does").
 12. The three rulings of 2026-11-06 folded in this revision (`sources_refuted` dropped; the lost-quote lookup
     and the as-of join built) are relayed by the lead agent and are not in #1727's comments; attributed to
