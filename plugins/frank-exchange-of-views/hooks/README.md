@@ -110,7 +110,9 @@ Two calls returning together hand the next item once: the comparison runs under 
 the writer prints is the lens's, passed on as `additionalContext` — which reaches a Workflow seat's
 context and an Agent subagent's alike, up to the harness's 10,000-character cap, past which it is
 spilled to a file in the PARENT session with a two-kilobyte preview (measured on 2.1.318); a delivery
-is held to 9,000 bytes (`sittingwrite.DeliveryBudget`). A writer that fails goes on the hook record
+is held to 9,000 bytes (`sittingwrite.DeliveryBudget`) by construction: past it, parts give way in a fixed
+order (`sittingwrite.fitted`) down to the current gap's own prose, and each cut is said in an `_omitted`
+or `_clipped` field. A writer that fails goes on the hook record
 (stage `next-item`) and is said to the lens as a statement that nothing was determined, never as
 silence. Under Antigravity a PostToolUse response carries nothing back to the agent, so a lens there
 reads its next item off its work list.
