@@ -431,3 +431,19 @@ func TestRequireFailsInCIWithoutAHelper(t *testing.T) {
 		})
 	}
 }
+
+func TestEnvironmentChangeReflectsImmediately(t *testing.T) {
+	dir := fake(t, "d1", ProtocolVersion, "")
+	t.Setenv(EnvDir, dir)
+	c := fakeClient(t, "d1")
+	if _, err := c.Do(OpSelftestStdout); err != nil {
+		t.Fatal(err)
+	}
+	// Setting EnvDir to "none" while the process is running must immediately refuse
+	// and close the running process rather than answering from it.
+	t.Setenv(EnvDir, "none")
+	_, err := c.Do(OpSelftestStdout)
+	if !errors.Is(err, ErrAbsent) {
+		t.Fatalf("err = %v, want ErrAbsent", err)
+	}
+}

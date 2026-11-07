@@ -177,12 +177,20 @@ func (c *Client) start() error {
 	if c.latched != nil {
 		return c.latched
 	}
-	if c.proc != nil {
-		return nil
-	}
 	path, err := c.Locate()
 	if err != nil {
+		if c.proc != nil {
+			_ = c.proc.close(c.name)
+			c.proc = nil
+		}
 		return err
+	}
+	if c.proc != nil {
+		if c.proc.path == path {
+			return nil
+		}
+		_ = c.proc.close(c.name)
+		c.proc = nil
 	}
 	p, err := spawn(path)
 	if err != nil {
