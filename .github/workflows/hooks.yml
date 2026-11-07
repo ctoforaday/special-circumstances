@@ -833,6 +833,7 @@ jobs:
         run: go run ./racescope -module ../plugins/frank-exchange-of-views/tools -deps ./cmd/... -timeout=30m
         env:
           CGO_ENABLED: "1"
+          NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
       # And ONE test out of releasegate/fuzz — a harness outside the graph above, raced
       # BY RULING ("keep fuzz on the hook", #686). The fuzz runner's seats are
       # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a
@@ -859,6 +860,7 @@ jobs:
         shell: bash
         env:
           CGO_ENABLED: "1"
+          NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
       - uses: ./.github/actions/go-cache
         with:
           phase: save
