@@ -212,13 +212,21 @@ func (t *positionTable) load(q Querier, after int64) error {
 		var id int64
 		var c0 sql.NullString
 		var c1 sql.NullString
-		if err := scanRows(q, "position", `SELECT t."event_id", t."text", t."position_id" FROM "position" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1}, func() {
+		var c2 sql.NullString
+		if err := scanRows(q, "position", `SELECT t."event_id", t."text", t."position_id", t."class" FROM "position" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
 			m := &recordpb.Position{}
 			if c0.Valid {
 				m.Text = ref(c0.String)
 			}
 			if c1.Valid {
 				m.PositionId = ref(c1.String)
+			}
+			if c2.Valid {
+				if v, err := wordOf[recordpb.GapClass]("position.class", c2.String); err != nil {
+					t.bad = refuse(t.bad, id, err)
+				} else {
+					m.Class = ref(v)
+				}
 			}
 			t.rows[id] = m
 		}); err != nil {

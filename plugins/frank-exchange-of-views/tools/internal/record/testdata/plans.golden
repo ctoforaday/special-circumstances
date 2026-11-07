@@ -1211,6 +1211,10 @@
 -- INSERT INTO "position" ("event_id", "text", "position_id") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 75ad960e7976
+-- INSERT INTO "position" ("event_id", "text", "position_id", "class") VALUES (?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 1ff97edd63bf
 -- INSERT INTO "register" ("event_id") VALUES (?)
   (no plan rows: the statement reads no table)
@@ -1657,6 +1661,10 @@
 == stmt 8dba93e02a86
 -- SELECT "bundle_sha" FROM "computation" WHERE "computation_id" = ? ORDER BY "event_id" LIMIT 1
   SEARCH computation USING INDEX computation_id (computation_id=?)
+
+== stmt 59a3e1e11433
+-- SELECT "class" FROM "position" WHERE "position_id" = ?
+  SEARCH position USING INDEX sqlite_autoindex_position_1 (position_id=?)
 
 == stmt b3cbd1fb249f
 -- SELECT "current_complexity_cost" FROM "gap" WHERE "gap_id" = ?
@@ -6953,8 +6961,8 @@
 -- SELECT t."event_id", t."text" FROM "report_part" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 12c234d5e057
--- SELECT t."event_id", t."text", t."position_id" FROM "position" t WHERE t."event_id" > ?
+== stmt 36896a2556b2
+-- SELECT t."event_id", t."text", t."position_id", t."class" FROM "position" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 955f464a9ad1

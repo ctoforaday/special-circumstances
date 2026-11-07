@@ -43,15 +43,31 @@ type gapActs map[string][]struct {
 // actsOnGaps reads every act on a gap off evs, and each gap's mint position. carried is each
 // citation's gaps that carry a reading of it (carryingOf): with the gap an anchor is about, what a
 // retire of the anchor reaches.
+//
+// A SUCCESSOR CARRYING ITS ANCESTOR'S DEMAND IS REACHED THROUGH THE ANCESTOR'S ANCHORS (ruled by gblock
+// 2026-11-05: a gap that awaits a live answer passes its demand to its successor). The first mint
+// superseding a gap, at the gap's check kind where that is one a live answer is demanded under,
+// inherits each anchor the ancestor is about or carries a reading of, and the ancestor's inherited
+// ones: a retire after that mint taking one out is an act on the successor. Without it the oracle
+// failed a plan engaging the successor's lens a retire of the ancestor's source had readied.
 func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs, minted map[string]int) {
 	acts, minted = gapActs{}, map[string]int{}
-	closed := map[string]bool{}            // gap → closed by a close or a superseding mint (the bench's rulings aside)
-	supersededAt := map[string]int{}       // gap → the position of the mint that closed it by superseding it
-	answering := map[string]string{}       // evidence anchor → the gap it was placed as the answer to
-	about := map[string][]string{}         // anchor → the gaps minted about it
-	anchored := map[string][]string{}      // inquiry id → the gaps minted about it
-	aboutSection := map[string][]string{}  // a section's heading key → the gaps minted about it
-	last := map[string]*recordpb.Inquiry{} // inquiry id → its previous record
+	closed := map[string]bool{}               // gap → closed by a close or a superseding mint (the bench's rulings aside)
+	supersededAt := map[string]int{}          // gap → the position of the mint that closed it by superseding it
+	answering := map[string]string{}          // evidence anchor → the gap it was placed as the answer to
+	about := map[string][]string{}            // anchor → the gaps minted about it
+	anchored := map[string][]string{}         // inquiry id → the gaps minted about it
+	aboutSection := map[string][]string{}     // a section's heading key → the gaps minted about it
+	last := map[string]*recordpb.Inquiry{}    // inquiry id → its previous record
+	kindOf := map[string]recordpb.CheckKind{} // gap → the check kind it was minted under
+	reach := map[string][]string{}            // gap → the anchors a retire reaches it through
+	heirs := map[string][]string{}            // anchor → the successors that inherited it
+	named := map[string]bool{}                // gap → a mint has named it in its supersedes
+	for a, gs := range carried {
+		for _, g := range gs {
+			reach[g] = append(reach[g], a)
+		}
+	}
 	add := func(seat string, at int, gaps ...string) {
 		for _, g := range gaps {
 			if g != "" {
@@ -67,8 +83,19 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
 			if _, seen := minted[m.GetGapId()]; !seen {
 				minted[m.GetGapId()] = i
+				kindOf[m.GetGapId()] = m.GetCheckKind()
+				if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
+					reach[m.GetGapId()] = append(reach[m.GetGapId()], m.GetAboutRef())
+				}
 			}
 			for _, s := range m.GetSupersedes() {
+				if !named[s] && kindOf[s] == m.GetCheckKind() && (kindOf[s] == recordpb.CheckKind_CHECK_KIND_SOURCE || kindOf[s] == recordpb.CheckKind_CHECK_KIND_COMPUTATION) {
+					for _, a := range reach[s] {
+						reach[m.GetGapId()] = append(reach[m.GetGapId()], a)
+						heirs[a] = append(heirs[a], m.GetGapId())
+					}
+				}
+				named[s] = true
 				if !closed[s] {
 					closed[s], supersededAt[s] = true, i
 				}
@@ -107,7 +134,7 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 			// A RETIRE REACHES THE GAP ABOUT ITS ANCHOR, AND EACH GAP CARRYING A READING OF IT, named or not.
 			reached := map[string]bool{b.GetAnswers(): b.GetClaimKept()}
 			for _, a := range b.GetAnchors() {
-				for _, g := range append(append([]string{}, about[a]...), carried[a]...) {
+				for _, g := range slices.Concat(about[a], carried[a], heirs[a]) {
 					if !reached[g] {
 						reached[g] = true
 						add(seat, i, g)

@@ -1423,7 +1423,7 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
       md.includes('Three sittings in a row without fresh material retire you, and a head move does not ready you after that — unless your work list still owes something'), `red-lens-${area}: readiness is the pin behind the head, until retirement owing nothing`)
     assert.ok(md.includes("On a gap you minted, your turn comes with blue's: the record readies you on it once blue has acted on it since your own last act there, your mint included, and never before"), `red-lens-${area}: a lens's turn on its gap comes with blue's act`)
     assert.ok(!/re-arm/.test(md) && !/two sittings without one retire you/.test(md), `red-lens-${area}: no lens is told it sits twice at one head`)
-    assert.ok(md.includes('replacement text you prescribe'), `red-lens-${area}: the prescription is red text the report prints`)
+    assert.ok(md.includes('the wording you prescribe — replacement text, or the sentence your fix tells blue to write — becomes the report'), `red-lens-${area}: the prescription, in replacement text or in the fix, is red text the report prints`)
   }
 })
 

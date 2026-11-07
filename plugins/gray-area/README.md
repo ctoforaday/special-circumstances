@@ -51,7 +51,7 @@ every agent on the box — Gray Area is the ship, and telepathy is what it does:
 telepathy agents              who is running, in which worktree, doing what — and after a restart, what it cut off
 telepathy touched <path>      is anyone else acting on this file
 telepathy session <id>        one session's calls and errors, by tool
-telepathy find <term>         search every local transcript: who, when, where, and the text
+telepathy search <term>        search every local transcript: who, when, where, and the text
 telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip / v_transcript
 telepathy backfill            read the existing corpus in; safe to repeat
 telepathy send <id> <msg>     deliver a message to a Claude Code or Antigravity session
@@ -124,13 +124,13 @@ What follows from the two clocks not agreeing:
   for as long as their own timestamps allow — on purpose: they are then the only record. Once a
   UTC day, and at every `backfill`, the store looks for each transcript it names and records the
   ones that are gone: `v_transcript.gone_at` is when it noticed, `telepathy session` says how many
-  of a session's files are gone, and `find`, which reads the files, counts them out. `gone_at` is
+  of a session's files are gone, and `search`, which reads the files, counts them out. `gone_at` is
   when the store LOOKED, not when the file went, and a file that went since the last look is not
   yet marked.
 - **A backfill brings back nothing the window would not keep.** After a rebuild it reads every
   surviving transcript from the top, so records older than the window are read in — and the next
   day's prune removes them, and any session that holds nothing newer.
-- **Raising `cleanupPeriodDays` lengthens what `find` can search and what a backfill can re-read.**
+- **Raising `cleanupPeriodDays` lengthens what `search` can search and what a backfill can re-read.**
   It does not lengthen what the store keeps.
 - **A rebuild forgets what is gone.** A shape change rebuilds the store empty and a backfill
   refills it from the transcripts that exist, so rows whose file had already expired do not come
@@ -166,11 +166,11 @@ failure, and counting it as one would overstate every error rate on the box.
 edited through the shell is named in the *middle* of a `Bash` command — under a suffix match every
 such edit reported nothing, which is the plausible zero this plugin exists to refuse. The residue
 is stated rather than papered over: targets are truncated at 200 characters, so a path buried past
-that in a long command is still invisible, and `find` is the fallback that reads the transcripts.
+that in a long command is still invisible, and `search` is the fallback that reads the transcripts.
 
-**Search answers in one query.** `find` returns one row per session and agent, newest first, with
+**Search answers in one query.** `search` returns one row per session and agent, newest first, with
 the hit count, the time of the most recent hit, the **channel** it landed in, and the text around
-it. The channel is not decoration: `find` reads the whole transcript while the store's word tier
+it. The channel is not decoration: `search` reads the whole transcript while the store's word tier
 holds only speech, so a hit can be a tool result or a seat prompt. Searching `bench rul` across
 this box returned 11 rows of which 9 were prompt boilerplate; `--in assistant` cut it to the five
 sessions that had actually discussed it. `--in C` keeps a transcript if ANY of its hits is in C,
@@ -194,7 +194,7 @@ no field separates from them: measured on this box, 158 top-level records with n
 meta flag — 132 prompts that programs send to headless sessions (frank-exchange-of-views seat
 prompts), 15 slash-command records and 11 local-command outputs — beside 605 human-origin prompts.
 Interrupts are `user` at top level and `lead` in a seat's transcript. Messages delivered mid-turn
-(`queued_command` attachments) are reported by `find` under their sender's channel and have no
+(`queued_command` attachments) are reported by `search` under their sender's channel and have no
 `v_word` rows: the word tier stores turns.
 
 **Reasoning is mostly withheld, and the store says so.** The client emits thinking blocks with a
@@ -207,7 +207,7 @@ exactly that confusion and got it. Its `bridge_session_id` is `''` where capture
 id, which is not the same as a session that had none.
 
 **Absence is always worded.** No store, no rows for a path, no sessions running and no reasoning
-captured are four different facts, and each says which it is. `find` refuses outright when ripgrep
+captured are four different facts, and each says which it is. `search` refuses outright when ripgrep
 is missing rather than reporting zero matches, because a search that cannot run and a search that
 found nothing must not print the same thing.
 

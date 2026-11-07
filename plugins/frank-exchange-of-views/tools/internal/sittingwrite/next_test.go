@@ -140,7 +140,7 @@ func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 	row := func(id, by string, turn bool) record.WorkGapJSON {
 		return record.WorkGapJSON{ID: id, MintedBy: by, YourTurn: turn, Class: "false_universal", Material: turn,
 			Location: "the sentence " + id, Passage: long + "the sentence " + id + ". " + long, Problem: "problem of " + id,
-			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: []record.GapBackingJSON{}, RegradesOwed: []record.OwedRegradeJSON{}}
+			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: backingOf(60), EditedSince: editsOf(10), RegradesOwed: []record.OwedRegradeJSON{}}
 	}
 	w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-voice", Role: "lens", Open: []record.Item{}}}
 	for i := 0; i < 40; i++ {
@@ -174,6 +174,10 @@ func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 			d.Current.Gap.Problem != e.Gap.Problem || d.Current.Gap.RequiredFix != e.Gap.RequiredFix || !d.Current.Gap.PassageClipped {
 			t.Errorf("%s: the current item did not arrive whole but for its passage: %+v", name, d.Current)
 		}
+		// The backing the CI run carried past the budget (#1772): its anchors are all there, as ids.
+		if ids, _ := d.Current.Gap.Backing.([]any); !d.Current.Gap.BackingClipped || len(ids) != len(e.Gap.Backing) {
+			t.Errorf("%s: backing arrived as %v (clipped %v), want all %d anchors as ids", name, d.Current.Gap.Backing, d.Current.Gap.BackingClipped, len(e.Gap.Backing))
+		}
 		// Every other queued entry and open gap is a line or a count: nothing is dropped silently.
 		if got, want := len(d.Index)+d.IndexOmitted, len(q)-1+60; got != want {
 			t.Errorf("%s: index holds %d lines and %d omitted, want %d in all", name, len(d.Index), d.IndexOmitted, want)
@@ -186,4 +190,91 @@ func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 	check("at dispatch", RenderLensDelivery(w), 0)
 	check("next", renderNext(w, q, 3, false), 3)
 	check("changed", renderNext(w, q, 0, true), 0)
+}
+
+func backingOf(n int) []record.GapBackingJSON {
+	out := []record.GapBackingJSON{}
+	for i := 0; i < n; i++ {
+		out = append(out, record.GapBackingJSON{Anchor: fmt.Sprintf("C-%04d", i), Kind: "citation", Outcome: "supports_with_qualification",
+			Confidence: "moderate", VerifiedBy: "red-lens-evidence", Event: int64(1000 + i)})
+	}
+	return out
+}
+
+func editsOf(n int) []record.GapEdit {
+	out := []record.GapEdit{}
+	for i := 0; i < n; i++ {
+		out = append(out, record.GapEdit{Epoch: i, EditedBy: "blue-respond", Old: strings.Repeat("old sentence — ", 20), New: strings.Repeat("new sentence — ", 20)})
+	}
+	return out
+}
+
+// THE CURRENT ITEM ITSELF PAST THE BUDGET: a gap whose sentence carries hundreds of verified anchors,
+// edited dozens of times, and whose problem, fix, check and fix pair each run past the budget alone.
+// It still fits, and every part cut short is marked by a field: nothing the seat reads as whole is not.
+func TestAGapPastTheBudgetIsCutAndSaysSo(t *testing.T) {
+	long := strings.Repeat("Ünïcödé prose — every rune here is more than one byte. ", 200)
+	for _, tc := range []struct {
+		name    string
+		backing int
+		edits   int
+		prose   string
+	}{
+		{"huge backing, short prose", 400, 0, "short"},
+		{"huge edits, short prose", 0, 300, "short"},
+		{"long prose, huge lists", 1000, 500, long},
+	} {
+		g := record.WorkGapJSON{ID: "G-1", MintedBy: "red-lens-architecture", YourTurn: true, Class: "false_universal", Material: true,
+			Location: "the sentence", Passage: long + "the sentence. " + long, Problem: "problem " + tc.prose, RequiredFix: "fix " + tc.prose,
+			AcceptanceCheck: "check " + tc.prose, FixBasis: "quoted", FixOld: "old " + tc.prose, FixNew: "new " + tc.prose,
+			Backing: backingOf(tc.backing), EditedSince: editsOf(tc.edits), RegradesOwed: []record.OwedRegradeJSON{}, FoundBy: []string{"F-1"}}
+		w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-architecture", Role: "lens",
+			Open: []record.Item{{Kind: record.ItemReaudit, Subject: &record.ItemSubject{Kind: record.SubjectGap, ID: "G-1"}, What: "gap G-1 was answered"}}},
+			Open: []record.WorkGapJSON{g}}
+		q := record.QueueOf(w)
+		for _, r := range []struct {
+			arm  string
+			text string
+		}{{"at dispatch", RenderLensDelivery(w)}, {"next", renderNext(w, q, 0, false)}} {
+			name := tc.name + ", " + r.arm
+			if len(r.text) > DeliveryBudget {
+				t.Fatalf("%s: %d bytes, over the budget of %d", name, len(r.text), DeliveryBudget)
+			}
+			var d lensDelivery
+			if err := json.Unmarshal([]byte(r.text[strings.Index(r.text, "{"):]), &d); err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			dg := d.Current.Gap
+			if dg == nil || dg.ID != g.ID || dg.Location != g.Location {
+				t.Fatalf("%s: the current gap lost its id or location: %+v", name, dg)
+			}
+			for _, f := range []struct {
+				field, got, whole string
+				clipped           bool
+			}{
+				{"passage", dg.Passage, g.Passage, dg.PassageClipped},
+				{"problem", dg.Problem, g.Problem, dg.ProblemClipped},
+				{"required_fix", dg.RequiredFix, g.RequiredFix, dg.RequiredFixClipped},
+				{"acceptance_check", dg.AcceptanceCheck, g.AcceptanceCheck, dg.AcceptanceCheckClipped},
+				{"fix_old", dg.FixOld, g.FixOld, dg.FixOldClipped},
+				{"fix_new", dg.FixNew, g.FixNew, dg.FixNewClipped},
+			} {
+				if (f.got != f.whole) != f.clipped {
+					t.Errorf("%s: %s is cut %v and marked clipped %v", name, f.field, f.got != f.whole, f.clipped)
+				}
+			}
+			if tc.prose == "short" && (dg.ProblemClipped || dg.RequiredFixClipped || dg.AcceptanceCheckClipped) {
+				t.Errorf("%s: short prose was clipped though the lists could give way first", name)
+			}
+			ids, _ := dg.Backing.([]any)
+			if want := len(g.Backing); want > 0 && (!dg.BackingClipped || len(ids)+dg.BackingOmitted != want) {
+				t.Errorf("%s: backing holds %d ids and %d omitted (clipped %v), want %d in all", name, len(ids), dg.BackingOmitted, dg.BackingClipped, want)
+			}
+			marks, _ := dg.EditedSince.([]any)
+			if want := len(g.EditedSince); want > 0 && (!dg.EditedSinceClipped || len(marks)+dg.EditedSinceOmitted != want) {
+				t.Errorf("%s: edited_since holds %d and %d omitted (clipped %v), want %d in all", name, len(marks), dg.EditedSinceOmitted, dg.EditedSinceClipped, want)
+			}
+			t.Logf("%s: %d bytes; backing %d ids + %d omitted; edits %d + %d omitted", name, len(r.text), len(ids), dg.BackingOmitted, len(marks), dg.EditedSinceOmitted)
+		}
+	}
 }

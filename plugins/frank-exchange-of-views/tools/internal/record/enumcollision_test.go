@@ -45,6 +45,11 @@ var knownEnumKeyCollisions = map[string]string{
 		"TestAFindingAndAGapAnchorToTheSameThings compares the two sets rather than restating " +
 		"them, so a value added to one and not the other fails there — which is what keeps this " +
 		"entry true.",
+	"class": "`mint` and `position` both read the GapClass descriptor, so the vocabularies are " +
+		"the SAME set by construction and a cross-type read has no silent miss. They are one " +
+		"concept: the kind of a defect, minted by a lens or argued by the chair where no lens can " +
+		"mint it, and the class's material default binds both — the gate for a mint, the bench's " +
+		"hearing for a position.",
 }
 
 // sharedEnumKeys returns every payload key declared by more than one event type.
