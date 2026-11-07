@@ -47,13 +47,22 @@ func buildDoctorBinary(t *testing.T) string {
 }
 
 // cleanEnv prepares an isolated environment for real CLI subprocess testing,
-// preserving PATH for tools like git and go, but stripping harness-specific variables.
+// preserving PATH and toolchain variables for tools like git and go, but stripping harness-specific variables.
 func cleanEnv(extra ...string) []string {
 	var env []string
-	keepPrefixes := []string{"PATH=", "HOME=", "USERPROFILE=", "TMP=", "TEMP=", "TMPDIR=", "SYSTEMROOT="}
+	keepVars := []string{
+		"PATH", "HOME", "USERPROFILE", "TMP", "TEMP", "TMPDIR",
+		"SYSTEMROOT", "COMSPEC", "WINDIR", "PATHEXT",
+		"GOPATH", "GOCACHE", "GOMODCACHE", "GOTOOLCHAIN",
+	}
 	for _, kv := range os.Environ() {
-		for _, prefix := range keepPrefixes {
-			if strings.HasPrefix(kv, prefix) {
+		idx := strings.IndexByte(kv, '=')
+		if idx == -1 {
+			continue
+		}
+		key := kv[:idx]
+		for _, target := range keepVars {
+			if strings.EqualFold(key, target) {
 				env = append(env, kv)
 				break
 			}
@@ -385,6 +394,9 @@ func TestRealCLIFixProvisionsSibling(t *testing.T) {
 	if !strings.Contains(stdout, "mock-feov-tool") {
 		t.Errorf("expected fix output to mention mock-feov-tool, got:\n%s", stdout)
 	}
+	if !strings.Contains(stdout, "built from source") && !strings.Contains(stdout, "fetched CI-built") {
+		t.Errorf("expected fix output to indicate successful build or fetch, got:\n%s", stdout)
+	}
 
 	// Verify the binary was actually built into feovRoot/bin
 	ext := ""
@@ -393,7 +405,7 @@ func TestRealCLIFixProvisionsSibling(t *testing.T) {
 	}
 	builtTarget := filepath.Join(feovRoot, "bin", "mock-feov-tool"+ext)
 	if _, err := os.Stat(builtTarget); err != nil {
-		t.Errorf("expected built binary at %s, not found: %v", builtTarget, err)
+		t.Fatalf("expected built binary at %s, not found: %v\nsc-doctor output:\n%s", builtTarget, err, stdout)
 	}
 
 	// Verify .fetch/installed was stamped
