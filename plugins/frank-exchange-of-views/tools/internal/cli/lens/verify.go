@@ -117,6 +117,8 @@ func newVerify() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
+			// The sentence the reading is OF: the one the seat judged, read before the write. The reading
+			// lands only while the anchor still backs that sentence (record.CheckOfSentence).
 			claim, err := record.LiveSentence(run, id)
 			if err != nil {
 				return nil, err
@@ -410,6 +412,20 @@ func writeVerify(s seat.Context, cmd *cobra.Command, gf *gapFlags, body *recordp
 // applied verbatim from a red --new; nothing is checked and nothing is logged.
 func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *recordpb.Mint, fixNew func() string) (seat.Result, error) {
 	var evs []*record.Event
+	// A READING OF A CITATION RECORDS THE SENTENCE THE SEAT JUDGED, read before the write, and its
+	// gap's location and the place a --new is checked at are that sentence too. The landing asks first,
+	// before every other guard, that the citation still backs that sentence (record.CheckOfSentence):
+	// an edit or a retire committing since the read refuses the reading, so the sentence recorded is
+	// the one the report holds at its event, and the gap is placed at it.
+	var live []record.Guard
+	if of := body.GetAnchor(); of != "" {
+		live = append(live, record.CheckOfSentence(of, body.GetClaim()))
+		if beforeAppend != nil {
+			if err := beforeAppend(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	if gap == nil {
 		// A reading that mints nothing places nothing. A --url reading's quote is still held to the
 		// report the reading lands on: it is the sentence the source was read for, whatever it did. A
@@ -418,7 +434,7 @@ func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *r
 		if body.GetAnchor() != "" {
 			quote = ""
 		}
-		ev, err := seat.AppendPlaced(s, body, "", quote, claimRefusal)
+		ev, err := seat.AppendPlaced(s, body, "", quote, claimRefusal, live...)
 		if err != nil {
 			return nil, err
 		}
@@ -429,7 +445,7 @@ func recordReading(s seat.Context, run record.Run, body *recordpb.Verify, gap *r
 		gap.Location = proto.String(body.GetClaim())
 		place := &recordpb.Anchor{Id: proto.String(id)}
 		at := quotePlace(body.GetClaim())
-		var guards []record.Guard
+		guards := live
 		if of := body.GetAnchor(); of != "" {
 			place.SentenceOf = proto.String(of)
 			at = sentenceOfPlace(body.GetClaim(), of)

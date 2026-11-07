@@ -210,12 +210,17 @@ type EvidenceReproductionJSON struct {
 	Rerun     string `json:"rerun"`
 	Ran       bool   `json:"ran"`
 	Soundness string `json:"soundness"`
-	// Standing is whether this verdict still stands on the anchor: it is its seat's latest, from a
-	// sitting opened after the latest edit of the sentence.
-	Standing bool   `json:"standing"`
-	Note     string `json:"note"`
-	SeatID   string `json:"seat_id"`
-	Epoch    int    `json:"epoch"`
+	// Standing is whether this verdict still stands on the anchor, by the anchor ledger's one rule
+	// (anchorStanding.stands): it is its seat's latest judgement of the anchor, its sitting opened after
+	// the latest edit naming the anchor reopened, and the computation is not retired.
+	Standing bool `json:"standing"`
+	// Claim is the sentence this judgement was of, as the tool read it off the report before the write
+	// (Reproduce.claim), as a verification's `claim` is; "" on a reproduce migrated from a record
+	// that kept none.
+	Claim  string `json:"claim"`
+	Note   string `json:"note"`
+	SeatID string `json:"seat_id"`
+	Epoch  int    `json:"epoch"`
 }
 
 // EvidenceVerificationJSON is one `lens verify` — a claim red checked against a source.
@@ -264,6 +269,13 @@ type EvidenceVerificationJSON struct {
 	// text; omitted on a reading no gap carries. Under `independent` it is how blue finds the source a
 	// lens found for a gap it answers.
 	CarriedBy string `json:"carried_by,omitempty"`
+	// Standing is whether this reading stands on its citation, by the anchor ledger's one rule for
+	// every check of an anchor (anchorStanding.stands), the rule a reproduce's `standing` is read by:
+	// the reading READ the source (one that read nothing — unreachable, not the work — neither stands
+	// nor replaces one), it is its seat's latest reading of the citation that read, its sitting opened
+	// after the latest edit naming the anchor reopened, and the citation is not retired. Omitted on a
+	// reading under `independent`, which is of no citation and has nothing to stand on.
+	Standing *bool `json:"standing,omitempty"`
 }
 
 // FindsAgainst reports whether this verification found AGAINST the claim — record.FindsAgainst over
@@ -402,6 +414,10 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
 	// so each source carries its own; the rest are readings of sources red found and stand alone.
+	// Each anchored reading carries whether it stands, by the one rule the ledger holds for every
+	// check of an anchor (anchorStanding.stands).
+	ledger := anchorChecksOf(evs, win)
+	stands := ledger.standingByEvent()
 	byAnchor := map[string][]EvidenceVerificationJSON{}
 	for _, e := range evs {
 		w := win.Of(e)
@@ -452,12 +468,12 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			out.Independent = append(out.Independent, v)
 			continue
 		}
+		v.Standing = new(stands[w.ID])
 		byAnchor[v.Anchor] = append(byAnchor[v.Anchor], v)
 	}
 
 	// Red's checks of each computation: the bundle's executions by sha, each act's comparison and its
 	// sentence's verdicts by anchor, and each bundle's bases.
-	ledger := anchorChecksOf(evs, win)
 	reruns, acts := bundleRerunsOf(evs), actVerdictsOf(evs)
 	bases := bundleBasesOf(evs)
 	// THE RETIRE THAT HOLDS EACH RETIRED ANCHOR OUT is its first (anchorChecksOf): nothing brings a
@@ -540,7 +556,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 					r, _ := recordpb.BodyAs[*recordpb.Reproduce](c.ev)
 					checks = append(checks, EvidenceReproductionJSON{
 						Rerun: recordpb.Word(r.GetRerun()), Ran: r.GetRan(), Soundness: recordpb.Word(c.soundness), Standing: standing[c.id],
-						Note: r.GetNote(), SeatID: c.seat, Epoch: win.Of(c.ev).Epoch,
+						Claim: r.GetClaim(), Note: r.GetNote(), SeatID: c.seat, Epoch: win.Of(c.ev).Epoch,
 					})
 				}
 			}

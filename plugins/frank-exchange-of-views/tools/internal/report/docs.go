@@ -246,17 +246,25 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		docs[i].Body = collapseBlanks(body)
 	}
 	// evidence.md is composed LAST, from the computations the set anchors, each with the sentence it
-	// backs in the report; a reference to a computation that is not on the record is still stated (it
+	// backs in the report and every judgement of it; a reference to a computation that is not on the record is still stated (it
 	// is a defect, and a silent drop reads as clean). The live citations follow the computations, each
 	// with every reading of it.
-	labels := make([]string, len(computations))
-	for i, c := range computations {
-		labels[i] = c.Label
+	ev := record.EvidenceJSONOf(fam.Events, fam.At)
+	var labels []string
+	for _, c := range computations {
+		labels = append(labels, c.Label)
 	}
-	backs := record.LiveSentencesIn(blue, labels)
+	checks := map[string][]record.EvidenceReproductionJSON{}
+	for _, c := range ev.Computations {
+		checks[c.Anchor] = c.Checks
+	}
+	for _, s := range ev.Sources {
+		labels = append(labels, s.Anchor)
+	}
+	backs, _ := record.SentencesIn(blue, labels)
 	for i := range docs {
 		if docs[i].File == FileEvidence {
-			computationSec, citeSec := evidenceDoc(run, computations, backs), citationsSection(fam)
+			computationSec, citeSec := evidenceDoc(run, computations, backs, checks), citationsSection(ev, backs)
 			composed[evidenceHeading], composed[citationsHeading] = computationSec != "", citeSec != ""
 			docs[i].Body = rd.escapeNotes(strings.TrimRight(strings.Join(slices.DeleteFunc([]string{computationSec, citeSec}, func(s string) bool { return s == "" }), "\n"), "\n"))
 		}

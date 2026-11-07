@@ -90,11 +90,11 @@ func chairSits(t *testing.T, n int) *recordpb.Event {
 
 func check(t *testing.T, runDir string) {
 	t.Helper()
-	violations, err := Check(runtest.Open(t, runDir))
+	res, err := Check(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("oracle: %v", err)
 	}
-	for _, v := range violations {
+	for _, v := range res.Violations {
 		t.Errorf("%s", v)
 	}
 }
@@ -352,19 +352,19 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 	t.Run("a quote-anchored finding with no anchor event is still the crash window", func(t *testing.T) {
 		dir := recordtest.TmpRun(t)
 		recordtest.Seed(t, dir, finding("F-11111111", nil, ""))
-		violations, err := Check(runtest.Open(t, dir))
+		res, err := Check(runtest.Open(t, dir))
 		if err != nil {
 			t.Fatal(err)
 		}
 		found := false
-		for _, v := range violations {
-			if strings.Contains(v, "anchor-record") && strings.Contains(v, "finding F-11111111 has no anchor event") {
+		for _, v := range res.Violations {
+			if v.Rule == "anchor-record" && strings.Contains(v.Detail, "finding F-11111111 has no anchor event") {
 				found = true
 			}
 		}
 		if !found {
 			t.Errorf("the half-appended pair went unreported — the rule has been narrowed into "+
-				"silence and the crash it exists for is now invisible. violations: %v", violations)
+				"silence and the crash it exists for is now invisible. violations: %v", res.Violations)
 		}
 	})
 
@@ -376,12 +376,12 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 		} {
 			dir := recordtest.TmpRun(t)
 			recordtest.Seed(t, dir, finding("F-22222222", &k, "G1"))
-			violations, err := Check(runtest.Open(t, dir))
+			res, err := Check(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, v := range violations {
-				if strings.Contains(v, "anchor-record") {
+			for _, v := range res.Violations {
+				if v.Rule == "anchor-record" {
 					t.Errorf("--about-kind %s: an absence has no sentence to mark, so it emits no "+
 						"anchor event — and the oracle called an honest record broken: %s",
 						recordpb.Word(k), v)

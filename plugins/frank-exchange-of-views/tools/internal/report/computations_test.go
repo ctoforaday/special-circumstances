@@ -72,7 +72,7 @@ func TestComputationsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T)
 		}
 	}
 
-	ev := evidenceDoc(runtest.Open(t, runDir), computations, nil)
+	ev := evidenceDoc(runtest.Open(t, runDir), computations, nil, nil)
 	for _, want := range []string{
 		"## Computations",                   // the section
 		computationAnchorMark("K-deadbeef"), // where the anchor the footnote links to ships
@@ -101,7 +101,7 @@ func TestAComputationWithNoReasonIsNamedByItsCommand(t *testing.T) {
 	c := seedComputation(t, runDir, "K-deadbeef", "script.py", "print(91 % 7)", "0\n")
 	computations := []record.Computation{c}
 	out, _ := weaveComputationRefs("Seven divides 91<!--computation:K-deadbeef-->.\n", computations)
-	ev := evidenceDoc(runtest.Open(t, runDir), computations, nil)
+	ev := evidenceDoc(runtest.Open(t, runDir), computations, nil, nil)
 	if !strings.Contains(out, `[^K1]: python3 script\.py`) {
 		t.Errorf("the report's note does not name the command:\n%s", out)
 	}
@@ -110,8 +110,9 @@ func TestAComputationWithNoReasonIsNamedByItsCommand(t *testing.T) {
 	}
 }
 
-// EVERY RE-RUN AND EVERY JUDGEMENT NAMES RED, never the lens's seat and sitting: on each cell of the
-// two axes — the bundle's re-run and this sentence's verdict.
+// THE RE-RUN AND THE VERDICT NAME RED, never the lens's seat and sitting: on each cell of the two
+// axes — the bundle's re-run and this sentence's verdict. Each judgement under the verdict names its
+// seat, as each reading of a citation does (checkLines).
 func TestEveryReRunOfAComputationIsAttributedToRed(t *testing.T) {
 	runDir := newRun(t)
 	base := seedComputation(t, runDir, "K-deadbeef", "nine.py", "print(91 % 7)", "0\n")
@@ -125,8 +126,7 @@ func TestEveryReRunOfAComputationIsAttributedToRed(t *testing.T) {
 			c.Reason = "trial division"
 			c.Rerun = &record.ComputationRerun{SeatID: "red-lens-evidence", Sitting: 5, Rerun: rerun}
 			c.Soundness = soundness
-			c.Judgements = []record.ComputationJudgement{{SeatID: "red-lens-evidence", Sound: sound, Note: "read it"}}
-			ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, nil)
+			ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, nil, nil)
 			if strings.Contains(ev, "red-lens-evidence") || strings.Contains(ev, "#5") {
 				t.Errorf("%s, sound=%v: a re-run is attributed to a seat:\n%s", rerun, sound, ev)
 			}
@@ -158,7 +158,7 @@ func TestAComputationSaysWhatOfItWasCheckedAndWhatWasNot(t *testing.T) {
 	} {
 		p := base
 		p.Rerun, p.Soundness = c.p.Rerun, c.p.Soundness
-		ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{p}, nil)
+		ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{p}, nil, nil)
 		for _, w := range c.want {
 			if !strings.Contains(ev, w) {
 				t.Errorf("%s: the evidence document does not say %q:\n%s", c.name, w, ev)
@@ -230,7 +230,7 @@ func TestAVariantComputationIsLabelledInTheReport(t *testing.T) {
 	c := seedComputation(t, runDir, "K-00000001", "s.py", "import random; print(random.random())", "0.42\n")
 	c.Basis, c.Reason = "variant", "live sample"
 	c.Drift, c.Invariant = "output differs from byte 2 between runs", "a number in [0, 1)"
-	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, nil)
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, nil, nil)
 	for _, want := range []string{"basis**: variant", "differs from byte 2", "**holds across both runs**: a number in [0, 1)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("a variant computation was not distinguished from a reproducible one — missing %q:\n%s", want, out)
@@ -244,7 +244,7 @@ func TestAMissingArtifactIsStatedNotSkipped(t *testing.T) {
 	runDir := newRun(t)
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{{
 		Label: "K-00000009", SHA: "notonthisdisk", Basis: "reproducible", Argv: []string{"node", "gone.js"},
-	}}, nil)
+	}}, nil, nil)
 	for _, want := range []string{"the bundle is missing from computations/notonthisdisk/dir/", "the output is missing from computations/notonthisdisk/acts/K-00000009/"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("a missing artifact was silently omitted, so the report shows a computation it cannot produce — missing %q:\n%s", want, out)
@@ -262,7 +262,7 @@ func TestEachActShowsItsOwnOutput(t *testing.T) {
 	if err := compute.WriteAct(runDir, first.SHA, second.Label, []byte("second act\n"), nil); err != nil {
 		t.Fatal(err)
 	}
-	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{first, second}, nil)
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{first, second}, nil, nil)
 	at := strings.Index(out, "### K2")
 	if at < 0 || !strings.Contains(out[:at], "first act") || strings.Contains(out[:at], "second act") || !strings.Contains(out[at:], "second act") {
 		t.Errorf("an act's output is not its own:\n%s", out)
@@ -282,7 +282,7 @@ func TestABinaryBundleFileIsNamedNotPrinted(t *testing.T) {
 	if err := compute.WriteAct(runDir, bundle, "K-00000001", []byte("1\n"), nil); err != nil {
 		t.Fatal(err)
 	}
-	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{{Label: "K-00000001", SHA: bundle, Argv: argv, Basis: "reproducible"}}, nil)
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{{Label: "K-00000001", SHA: bundle, Argv: argv, Basis: "reproducible"}}, nil, nil)
 	if !strings.Contains(out, `- data\.bin: 3 bytes, sha256 `) || !strings.Contains(out, "print(1)") {
 		t.Errorf("a binary file was printed, or the text file was not:\n%s", out)
 	}
@@ -306,7 +306,7 @@ func TestNoComputationsLeavesTheReportAlone(t *testing.T) {
 	if got != md || used != nil {
 		t.Errorf("an empty computation layer was appended:\n%s", got)
 	}
-	if ev := evidenceDoc(runtest.Open(t, recordtest.TmpRun(t)), nil, nil); ev != "" {
+	if ev := evidenceDoc(runtest.Open(t, recordtest.TmpRun(t)), nil, nil, nil); ev != "" {
 		t.Errorf("evidence.md was composed for a run with no computations:\n%s", ev)
 	}
 }
@@ -329,31 +329,29 @@ func TestADifferingReRunShowsItsDriftFenced(t *testing.T) {
 	runDir := newRun(t)
 	c := seedComputation(t, runDir, "K-deadbeef", "s.py", "print(1)", "1\n")
 	c.Rerun = &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Drift: "on re-run the program wrote: ```\n# 2"}
-	ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, nil)
+	ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, nil, nil)
 	if !strings.Contains(ev, "it DID NOT REPRODUCE") || !strings.Contains(ev, "  ````\n  on re-run the program wrote: ```\n  # 2\n  ````") {
 		t.Errorf("the re-run's drift is not shown fenced under its line:\n%s", ev)
 	}
 }
 
-// A NOTE IS READ WHERE IT STANDS: the first, and every note of one line, after the judgement on its
-// item's line, so its first line is prose behind the tool's text, and a "```" opening it opens no
-// fence whose info string would keep a token. A token in a code span it holds stays, and a note that
-// is a paragraph of its own keeps one in its fence's info string.
-func TestAJudgementNoteIsStrippedWhereItShips(t *testing.T) {
+// A CHECK'S TEXT IS READ WHERE IT STANDS: of one line, after the tool's on the check's line, so it
+// is prose behind the tool's text, and a "```" opening it opens no fence whose info string would keep
+// a token. A token in a code span it holds stays, and a text of several lines keeps one in a fence's
+// info string on a line of its own.
+func TestACheckTextIsStrippedWhereItShips(t *testing.T) {
 	for _, c := range []struct {
-		notes []string
-		keep  int // tokens that are code where they ship
+		text string
+		keep int // tokens that are code where they ship
 	}{
-		{[]string{"```x <!--gap:G-00000001-->"}, 0},
-		{[]string{"```x <!--gap:G-00000001-->\nmore"}, 0},
-		{[]string{"```x <!--gap:G-00000001-->", "second"}, 0},
-		{[]string{"first", "```x <!--gap:G-00000001-->"}, 0},
-		{[]string{"a `<!--gap:G-00000001-->` b\nmore"}, 1},
-		{[]string{"first\nline", "```x <!--gap:G-00000001-->\ny\n```"}, 1},
+		{"```x <!--gap:G-00000001-->", 0},
+		{"```x <!--gap:G-00000001-->\nmore", 0},
+		{"a `<!--gap:G-00000001-->` b\nmore", 1},
+		{"first\nline\n```x <!--gap:G-00000001-->\ny\n```", 1},
 	} {
-		got := judgementNotes(append([]string(nil), c.notes...))
+		got := checkText(c.text)
 		if n := strings.Count(got, "<!--gap:"); n != c.keep {
-			t.Errorf("judgementNotes(%q) keeps %d tokens, want %d:\n%s", c.notes, n, c.keep, got)
+			t.Errorf("checkText(%q) keeps %d tokens, want %d:\n%s", c.text, n, c.keep, got)
 		}
 	}
 }

@@ -383,6 +383,13 @@ func (s sentences) of(i, n int) (int, int) {
 	return -1, -1
 }
 
+// SameSentence reports whether a and b are one sentence in the form a check records it
+// (SentenceAround): anchors stripped, whitespace runs one space. A token placed in a sentence after
+// a check of it — a reading gap's, at its end — is no change of wording, and a raw comparison would
+// read it as one. Every reader asking whether a check is of the sentence the report carries
+// compares through this.
+func SameSentence(a, b string) bool { return flatText(a) == flatText(b) }
+
 // flatText is s with its anchors stripped and its whitespace runs read as one space.
 func flatText(s string) string {
 	return strings.Join(strings.Fields(claimcount.StripAnchors(s)), " ")

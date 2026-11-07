@@ -835,6 +835,7 @@ CREATE TABLE "reproduce" (
   "rerun_exit" INTEGER,
   "drift" TEXT,
   "rerun_sha" TEXT,
+  "claim" TEXT,
   CHECK ("ran" IS NULL OR "ran" IN (0, 1)),
   CHECK (("rerun" = 'differs') = (coalesce(trim("drift", ' ' || char(9, 10, 13)), '') <> '')),
   CHECK ("rerun_exit" IS NULL OR ("ran" = 1 AND "rerun_sha" IS NOT NULL)),

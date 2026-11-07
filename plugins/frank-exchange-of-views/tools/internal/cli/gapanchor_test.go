@@ -355,12 +355,12 @@ func TestEveryPlacerStoresItsQuoteWithoutAnchors(t *testing.T) {
 // assertNoAnchorViolations fails on every anchor-record violation the consistency check names.
 func assertNoAnchorViolations(t *testing.T, runDir string) {
 	t.Helper()
-	violations, err := consistency.Check(runtest.Open(t, runDir))
+	res, err := consistency.Check(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, v := range violations {
-		if strings.Contains(v, "anchor-record") {
+	for _, v := range res.Violations {
+		if v.Rule == "anchor-record" {
 			t.Errorf("%s", v)
 		}
 	}

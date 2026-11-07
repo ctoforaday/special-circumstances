@@ -59,6 +59,10 @@ type anchorCheck struct {
 	holds bool
 	// soundness is a reproduce's verdict; UNSPECIFIED on a verify.
 	soundness recordpb.Soundness
+	// sentence is the sentence the check judged, as the tool read it off the report before the write
+	// (Verify.claim, Reproduce.claim); "" for a migrated reproduce, which recorded none. Standing is
+	// the edit rule's alone: the sentence is how a check of an earlier wording surfaces.
+	sentence string
 	// ev is the check's own event, for a reader that needs more of it than the ledger keeps.
 	ev *Event
 }
@@ -225,6 +229,17 @@ type anchorLedger struct {
 // at is the anchor's standing, or nil when the record holds no citation or computation at that anchor.
 func (l *anchorLedger) at(anchor string) *anchorStanding { return l.byAnchor[anchor] }
 
+// standingByEvent is the events.id of every check the ledger holds standing (anchorStanding.stands).
+func (l *anchorLedger) standingByEvent() map[int64]bool {
+	out := map[int64]bool{}
+	for _, s := range l.order {
+		for _, c := range s.standing() {
+			out[c.id] = true
+		}
+	}
+	return out
+}
+
 // anchorChecksOf folds the record into its anchor ledger. win supplies each event's events.id and
 // sitting.
 func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
@@ -276,13 +291,14 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 			}
 		case *recordpb.Verify:
 			reads := VerifyReads(b)
-			c := anchorCheck{reads: reads, holds: reads && !FindsAgainst(b)}
+			c := anchorCheck{reads: reads, holds: reads && !FindsAgainst(b), sentence: b.GetClaim()}
 			check(l.byAnchor[b.GetAnchor()], c)
 		case *recordpb.Reproduce:
 			check(l.byAnchor[b.GetComputationId()], anchorCheck{
 				reads:     true,
 				holds:     b.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
 				soundness: b.GetSoundness(),
+				sentence:  b.GetClaim(),
 			})
 		}
 	}
@@ -334,6 +350,36 @@ func FailingAnchors(evs []*Event, win WindowIndex) []string {
 		row, ok := recordsql.EvidenceTableOf(anchor.Kind(s.anchor))
 		if ok && row.Failed != "" && string(s.state().checkState()) == row.Failed {
 			out = append(out, s.anchor)
+		}
+	}
+	return out
+}
+
+// StandingCheck is one check that stands (anchorStanding.stands), as a reader outside the ledger
+// holds it.
+type StandingCheck struct {
+	// Anchor is the evidence anchor the check is of; Event is the check's events.id and Seat the seat
+	// that made it.
+	Anchor string
+	Event  int64
+	Seat   string
+	// Holds is whether the check backs its sentence; one that stands and does not hold is its kind's
+	// failed check (recordsql.EvidenceTables' `failed`).
+	Holds bool
+	// Sentence is the sentence the check recorded it judged; "" for a migrated reproduce, which
+	// recorded none.
+	Sentence string
+}
+
+// StandingChecks is every check the ledger holds standing, anchor by anchor in the order the record
+// placed them, each anchor's in record order. Standing is the ledger's rule alone: whether the check
+// is of the sentence the report carries is what a reader of the recorded sentence asks of it. win
+// supplies each event's events.id and sitting.
+func StandingChecks(evs []*Event, win WindowIndex) []StandingCheck {
+	var out []StandingCheck
+	for _, s := range anchorChecksOf(evs, win).order {
+		for _, c := range s.standing() {
+			out = append(out, StandingCheck{Anchor: s.anchor, Event: c.id, Seat: c.seat, Holds: c.holds, Sentence: c.sentence})
 		}
 	}
 	return out

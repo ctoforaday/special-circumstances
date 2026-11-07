@@ -42,6 +42,12 @@ var ErrWritesNothing = errors.New("the record this write would land on does not 
 // added here in its Querier form, never by handing the guard the run.
 type Landing struct {
 	w writeView
+	// report is the report rendered on the first Report and kept for the guard chain: a Landing lives
+	// for one guardsAt call, and nothing it exposes writes, so the record it renders cannot move under
+	// it.
+	report   string
+	rendered bool
+	err      error
 }
 
 // guardsAt runs the guards whose last is last, in order, against w.
@@ -62,8 +68,15 @@ func guardsAt(w writeView, guards []Guard, last bool) error {
 }
 
 // Report is the report as the record the write lands on renders it, read in the writing transaction
-// (RenderAt).
-func (l *Landing) Report() (string, error) { return l.w.report() }
+// (RenderAt) on the first ask and kept for the rest of the guard chain, so the guards that each read
+// the sentence an act lands on render it once.
+func (l *Landing) Report() (string, error) {
+	if !l.rendered {
+		l.rendered = true
+		l.report, l.err = l.w.report()
+	}
+	return l.report, l.err
+}
 
 // Family is FamilyOf asked of the landing record.
 func (l *Landing) Family() (Family, error) { return familyAt(l.w.q) }

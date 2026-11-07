@@ -97,7 +97,8 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 }
 
 // evidenceDoc is the live computations in full — the ones the set anchors, each with the sentence it
-// backs (backs, keyed by anchor) — the document the computation footnotes point at. It numbers its own
+// backs (backs, keyed by anchor) and every judgement of that sentence (checks, the evidence view's rows,
+// keyed by anchor) — the document the computation footnotes point at. It numbers its own
 // entries, K1, K2 … in its own order, and each entry carries its K-… anchor, which every document's
 // footnote links to: the number is this document's, the id is the computation's.
 //
@@ -117,7 +118,7 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 // each bundle file's path and each out/ file's name are the program author's, and a raw one can open
 // a heading, a link, a footnote or raw HTML in the document; outputs and drifts are fenced longer
 // than any backtick run they hold.
-func evidenceDoc(run record.Run, computations []record.Computation, backs map[string]string) string {
+func evidenceDoc(run record.Run, computations []record.Computation, backs map[string]string, checks map[string][]record.EvidenceReproductionJSON) string {
 	if len(computations) == 0 {
 		return ""
 	}
@@ -176,26 +177,19 @@ func evidenceDoc(run record.Run, computations []record.Computation, backs map[st
 				b.WriteString("\n" + itemBlock(fenced("", strings.TrimRight(r.Drift, "\n"))) + "\n")
 			}
 		}
-		var notes []string
-		for _, j := range p.Judgements {
-			if j.Note != "" && (p.Soundness != record.SoundnessUnsound || !j.Sound) {
-				notes = append(notes, j.Note)
-			}
-		}
-		note := ""
-		if len(notes) > 0 {
-			note = " — " + judgementNotes(notes)
-		}
 		switch p.Soundness {
 		case record.SoundnessSound:
-			b.WriteString("- **judged by red**: red read the program and accepts that it establishes this sentence" + note + "\n")
+			b.WriteString("- **judged by red**: red read the program and accepts that it establishes this sentence\n")
 		case record.SoundnessUnsound:
-			b.WriteString("- **judged by red — IT DOES NOT PROVE THIS SENTENCE.** Red read the program and found it does not establish what this sentence says. Re-running measures determinism, not validity" + note + "\n")
+			b.WriteString("- **judged by red — IT DOES NOT PROVE THIS SENTENCE.** Red read the program and found it does not establish what this sentence says. Re-running measures determinism, not validity\n")
 		case record.SoundnessReopened:
 			b.WriteString("- **not judged since the sentence changed** — red's verdict was of an earlier wording of this sentence\n")
 		default:
 			b.WriteString("- **not judged** — nobody has read this program against this sentence\n")
 		}
+		// EVERY JUDGEMENT OF THE SENTENCE, each with the sentence it was of where that is not the one it
+		// backs now: the checks of a computation are listed as a citation's readings are (checkLines).
+		b.WriteString(checkLines(judgementChecks(checks[label]), backs[label]))
 		if p.Cites != "" {
 			// The METHOD is cited and the INSTANCE is computed: naming the citation here is
 			// what makes the pair legible as one argument rather than two artifacts. It is named by
@@ -274,33 +268,6 @@ func longestRun(s string, c byte) int {
 		most = max(most, n)
 	}
 	return most
-}
-
-// judgementNotes is red's notes on a computation, written after the judgement on its list item's line, each
-// without its tokens as it reads where it ships. Notes of one line each are joined on that line, so
-// each is read behind the judgement (stripTokensAfter). Where one runs to several lines each note is
-// the item's own paragraph, its fences closed where it ends (ownBlock, reading the first as text after
-// the tool's, and each after it as a block of its own, as its tokens are read: stripTokensAfter, then
-// StripTokens), and the whole the rest of the item (itemLines).
-func judgementNotes(notes []string) string {
-	multi := false
-	inline := make([]string, len(notes))
-	for i, n := range notes {
-		inline[i] = strings.TrimSpace(lineEnds.Replace(stripTokensAfter(n)))
-		multi = multi || strings.Contains(inline[i], "\n")
-	}
-	if !multi {
-		return strings.Join(inline, " / ")
-	}
-	notes[0] = inline[0]
-	for i := 1; i < len(notes); i++ {
-		notes[i] = strings.TrimSpace(lineEnds.Replace(StripTokens(notes[i])))
-	}
-	notes[0] = ownBlock("x" + notes[0])[1:]
-	for i := 1; i < len(notes); i++ {
-		notes[i] = ownBlock(notes[i])
-	}
-	return itemLines(strings.Join(notes, "\n\n"), "  ")
 }
 
 // oneLine is s as one line of markdown, its runs of whitespace one space: the form of every value the

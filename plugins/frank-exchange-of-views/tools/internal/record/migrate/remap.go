@@ -138,7 +138,7 @@ var (
 		Computation.bundle_sha Computation.argv Computation.toolchain_path Computation.toolchain_sha256
 		Register.agent_id Register.agent_type
 		Register.hook_version Register.run_via Register.tool_version
-		Reproduce.bundle_sha Reproduce.drift Reproduce.rerun_sha Retire.claim
+		Reproduce.bundle_sha Reproduce.claim Reproduce.drift Reproduce.rerun_sha Retire.claim
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
 		SittingClose.agent_transcript_path SittingLimit.seat_id SittingOpen.agent_id
 		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.copy_url Verify.page_render_sha

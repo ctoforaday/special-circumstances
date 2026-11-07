@@ -177,6 +177,12 @@ type runTally struct {
 	UnclassifiedMinted              int                       `json:"unclassified_minted"`
 	UnclassifiedRefused             int                       `json:"unclassified_refused"`
 	SupersedeDemandCarried          int                       `json:"supersede_demand_carried"`
+	Reproduces                      int                       `json:"reproduces"`
+	ReproducesWithClaim             int                       `json:"reproduces_with_claim"`
+	AnchorVerifies                  int                       `json:"anchor_verifies"`
+	AnchorVerifiesWithClaim         int                       `json:"anchor_verifies_with_claim"`
+	StalenessForged                 int                       `json:"staleness_forged"`
+	StalenessReported               int                       `json:"staleness_reported"`
 	SupersedeDemandRefused          int                       `json:"supersede_demand_refused"`
 	RulerFilingsRefused             int                       `json:"ruler_filings_refused"`
 	ClosedRemandsRefused            int                       `json:"closed_remands_refused"`
@@ -257,6 +263,9 @@ func tallyOf(o outcome) runTally {
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
+		Reproduces: o.reproduces, ReproducesWithClaim: o.reproducesWithClaim,
+		AnchorVerifies: o.anchorVerifies, AnchorVerifiesWithClaim: o.anchorVerifiesWithClaim,
+		StalenessForged: o.stalenessForged, StalenessReported: o.stalenessReported,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, FateTurns: o.fateTurns, LensWaits: o.lensWaits,
@@ -617,6 +626,9 @@ type sweepFold struct {
 	unsoundRepeats, unsoundOverOpen                 int
 	unclassifiedMinted, unclassifiedRefused         int
 	supersedeDemandCarried, supersedeDemandRefused  int
+	reproduces, reproducesWithClaim                 int
+	anchorVerifies, anchorVerifiesWithClaim         int
+	stalenessForged, stalenessReported              int
 	rulerFilingsRefused                             int
 	closedRemandsRefused, trifleRemandsRouted       int
 	blueRemandActs, pastLimitRemandsRefused         int
@@ -823,6 +835,12 @@ func foldRuns(runs []runTally) sweepFold {
 		f.unclassifiedMinted += r.UnclassifiedMinted
 		f.unclassifiedRefused += r.UnclassifiedRefused
 		f.supersedeDemandCarried += r.SupersedeDemandCarried
+		f.reproduces += r.Reproduces
+		f.reproducesWithClaim += r.ReproducesWithClaim
+		f.anchorVerifies += r.AnchorVerifies
+		f.anchorVerifiesWithClaim += r.AnchorVerifiesWithClaim
+		f.stalenessForged += r.StalenessForged
+		f.stalenessReported += r.StalenessReported
 		f.supersedeDemandRefused += r.SupersedeDemandRefused
 		f.rulerFilingsRefused += r.RulerFilingsRefused
 		f.closedRemandsRefused += r.ClosedRemandsRefused
@@ -1171,6 +1189,22 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			if c.n == 0 {
 				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", c.what, f.completed)
 			}
+		}
+		// THE JUDGED SENTENCE'S GATES (plans/compute-and-show.md III.1″.6): every check of an evidence
+		// anchor — reproduce and verify --anchor alike — records the sentence it judged, and every debate
+		// the seam forged a staleness into, one per part (stalenessSeeds), the consistency oracle reported.
+		t.Logf("judged sentence: %d of %d reproduce(s) and %d of %d verify --anchor reading(s) recorded the sentence they judged; %d staleness forged, %d reported (seeds %v)",
+			f.reproducesWithClaim, f.reproduces, f.anchorVerifiesWithClaim, f.anchorVerifies, f.stalenessForged, f.stalenessReported, stalenessSeeds)
+		for _, c := range []struct {
+			verb       string
+			n, claimed int
+		}{{"reproduce", f.reproduces, f.reproducesWithClaim}, {"verify --anchor", f.anchorVerifies, f.anchorVerifiesWithClaim}} {
+			if c.n == 0 || c.claimed != c.n {
+				t.Errorf("fuzz recorded %d %s check(s), %d of them carrying the sentence they judged — every one must, and some must be recorded (false green)", c.n, c.verb, c.claimed)
+			}
+		}
+		if f.stalenessForged == 0 || f.stalenessReported != f.stalenessForged {
+			t.Errorf("the seam forged %d staleness(es) and the consistency oracle reported %d — every forged debate must be reported, and one must be forged (false green)", f.stalenessForged, f.stalenessReported)
 		}
 		for _, c := range []struct {
 			n    int
