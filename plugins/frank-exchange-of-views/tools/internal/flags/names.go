@@ -422,10 +422,8 @@ var payloadFlag = map[string]string{
 	// Every prose payload key funnels through the one --reason flag. The keys stay distinct in
 	// the event schema — a dispute stores `evidence`, an opinion `rationale`, a close `prose`
 	// — while the WORD a seat types is `reason`.
-	// `row` is a manifest receipt: the verb's prose, typed as --reason like every other prose
-	// field. An inquiry's `question` is typed as --question.
+	// An inquiry's `question` is typed as --question.
 	"question":  Question,
-	"row":       Reason,
 	"prose":     Reason,
 	"text":      Reason,
 	"evidence":  Reason,

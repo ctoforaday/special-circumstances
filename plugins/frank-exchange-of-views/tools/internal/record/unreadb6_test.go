@@ -15,7 +15,7 @@ const b6Archive = "2026-09-11_is-91-prime-b6.tar.gz"
 
 // B6 PASSED OVER TWO CITATIONS NOBODY COULD READ. Its evidence lens verified C-b718c6b6 and
 // C-f5782056 `unreachable` at events 99 and 100, minted G-782e2cf3 on the sentence (quote-anchored,
-// not about either anchor) and closed it repaired at 177 after blue cited a mirror; the two dead
+// not about either anchor) and closed it repaired at 172 after blue cited a mirror; the two dead
 // anchors stayed in the report, and the chair's PASS stood. Under the ruling (gblock, 2026-10-25:
 // "Citation checking isn't optional. Ever.") both are on a failed check owned by the lens that read
 // nothing, which owes a gap about each; the PASS is refused naming them; and the lens's close of the
@@ -63,13 +63,13 @@ func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
 		}
 	}
 
-	// THE LENS'S CLOSE OF THE GAP ABOUT AN UNREAD CITATION IS REFUSED. Before G-782e2cf3's close (event 177), in the
+	// THE LENS'S CLOSE OF THE GAP ABOUT AN UNREAD CITATION IS REFUSED. Before G-782e2cf3's close (event 172), in the
 	// evidence lens's sitting, the lens mints the gap it owes about C-b718c6b6 — outside its budget —
 	// and its close as repaired is refused while the citation stands unread.
-	if c := whole[176].GetClose(); c.GetGapId() != "G-782e2cf3" || whole[176].GetSeatId() != evLens {
-		t.Fatalf("event 177 is not %s's close of G-782e2cf3: %v", evLens, whole[176])
+	if c := whole[171].GetClose(); c.GetGapId() != "G-782e2cf3" || whole[171].GetSeatId() != evLens {
+		t.Fatalf("event 172 is not %s's close of G-782e2cf3: %v", evLens, whole[171])
 	}
-	run = archiveAt(t, b6Archive, whole, 176)
+	run = archiveAt(t, b6Archive, whole, 171)
 	lens := Identity{Run: run, SeatID: evLens}
 	mint := aboutComputation("G-1", unread[0])
 	mint.Severity = recordpb.Grade_GRADE_HIGH.Enum()

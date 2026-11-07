@@ -1011,7 +1011,7 @@ func benchRowSitting(openings []int64, on map[recordpb.Occasion][]int64, d dispa
 
 // sittingCloser IS THE ONE ANSWER TO "WHERE DID THIS SEAT'S SITTING END", as sittingFor is to where
 // it began. Every reader that bounds a seat's sitting asks it here — the exchange count
-// (exchangesOf), blue's sittings (BlueSittings, behind the manifest's owed set) and the chair's
+// (exchangesOf), blue's sittings (BlueSittings, behind the work list's engaged gaps) and the chair's
 // (PositionSittings, behind capture's record-parity audit) — so a change to what closes a sitting
 // reaches all of them at once.
 //

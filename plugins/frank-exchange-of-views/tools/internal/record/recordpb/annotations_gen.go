@@ -85,7 +85,6 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_FINDING", Means: "something red found, graded but not yet minted as a gap"},
 	{Name: "EVENT_TYPE_LOG", Means: "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"},
 	{Name: "EVENT_TYPE_HALT", Means: "the bench ending the run on a safety, ethics, consent or integrity boundary"},
-	{Name: "EVENT_TYPE_MANIFEST_ROW", Means: "one row of the run's manifest, tying a gap to what shipped for it"},
 	{Name: "EVENT_TYPE_MINT", Means: "a gap put on the board — the act that creates the entity every other act refers to"},
 	{Name: "EVENT_TYPE_MOTION", Means: "a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench"},
 	{Name: "EVENT_TYPE_MOTION_RULE", Means: "the bench's ruling on a filed motion, and whom it binds"},

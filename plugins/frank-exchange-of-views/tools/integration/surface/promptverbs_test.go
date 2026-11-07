@@ -365,9 +365,8 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 
 // THE INVERSE, AND THE QUESTION IT ASKS HAD TO CHANGE WITH THE MODEL.
 //
-// It used to ask whether every recording verb was NAMED IN A PROMPT, and that caught three real
-// holes: `blue manifest-row` had never been invoked in any run, `chair verdict` was in no prompt
-// so a whole derivation was inert in production, and `merge regrade` was declared canonical with
+// It used to ask whether every recording verb was NAMED IN A PROMPT, and that caught real holes:
+// `chair verdict` was in no prompt so a whole derivation was inert in production, and `merge regrade` was declared canonical with
 // the note "debate.js must name it" and appeared there zero times.
 //
 // But the answer it forced is the one this system is deliberately moving away from. Prompts and

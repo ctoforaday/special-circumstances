@@ -1003,14 +1003,6 @@
 -- INSERT INTO "log" ("event_id", "text", "type", "source") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 077ec174136e
--- INSERT INTO "manifest_row" ("event_id", "gap_id") VALUES (?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 3140496a996f
--- INSERT INTO "manifest_row" ("event_id", "gap_id", "row") VALUES (?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt 9b660be8b303
 -- INSERT INTO "mint" ("event_id", "gap_id", "class", "about_kind", "about_ref", "problem", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -6883,10 +6875,6 @@
 
 == stmt 6140ddb450fa
 -- SELECT t."event_id", t."gap_id", t."mint_key", t."class", t."location", t."about_kind", t."about_ref", t."problem", t."required_fix", t."fix_new", t."fix_basis", t."acceptance_check", t."check_kind", t."severity", t."likelihood", t."impact", t."complexity_cost", t."mint_reason", t."class_material" FROM "mint" t WHERE t."event_id" > ?
-  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
-
-== stmt 9ccfcbb1e510
--- SELECT t."event_id", t."gap_id", t."row" FROM "manifest_row" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 5ef11a3df8bd

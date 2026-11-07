@@ -57,8 +57,7 @@ type requiredProbe struct {
 // oneOfAnother are flags the verb accepts in place of each other, with what stands in. Omitting
 // one while the other is present runs clean, and omitting both is refused naming both — a
 // requirement no single-flag marker states, so these are exempt from the marker check and the
-// help carries the alternative in prose (helpcontract_test.go's satisfiedByAnother reads the
-// same shape from the other side). `motion docket rule` answers what follows its ruling with one
+// help carries the alternative in prose. `motion docket rule` answers what follows its ruling with one
 // of three, chosen by --as: --direction on a remand, else --reopens-on or --final. `motion position
 // rule` names an upheld ruling's work one of two ways: --lens or --ids. `verify` names its subject one
 // of two ways, a flag group cobra refuses at the parse: --anchor (a citation) or --url (a source the

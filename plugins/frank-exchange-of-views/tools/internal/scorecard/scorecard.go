@@ -178,7 +178,7 @@ func anchoredClosures(fam *record.Family) (anchored, total int, ok bool) {
 
 // ---- row builders ----
 
-func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, fam *record.Family, when record.ReadWhen) []Row {
+func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, fam *record.Family) []Row {
 	var rows []Row
 
 	// repair_regression_ratio
@@ -202,76 +202,6 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			Joint: "reads WITH red rigour: a low ratio under a lax adversary means nothing"})
 	} else {
 		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Note: "no telemetry epochs with closures"})
-	}
-
-	// manifest_coverage — COUNTED FROM THE RECORD (#318).
-	//
-	// NOT from an envelope field. A metric that scores a channel the verb does not write leaves
-	// the verb uncalled for its whole lifetime — blue required to fill one place, graded on it,
-	// and told about the verb by nothing.
-	//
-	// A metric that reads the transient channel cannot see a receipt on the durable one, which
-	// is the whole reason the migration existed.
-	//
-	// THE DENOMINATOR IS THE RECORD'S TOO. It was `repaired_gaps` summed from the envelopes, a
-	// field no envelope has ever carried, so the ratio branch never ran and every run scored a
-	// COUNT — which meant the engine's "unmanifested … (scored at capture)" was scored by nothing.
-	// It is now record.ManifestOwed: a gap blue-respond was dispatched onto, still open when blue
-	// registered, and answered by blue's edit in that sitting — "one row per repaired gap", read off
-	// the record. A gap its lens closed before blue sat, or one blue rebutted without an edit, owes
-	// no row and is not counted against blue.
-	manifested := 0
-	manifestedGaps := map[string]bool{}
-	var owing record.ManifestOwing
-	if fam != nil {
-		for _, e := range fam.Events {
-			// COUNTED BY EVENT TYPE, not by a readable body. `manifested` is the value this row
-			// falls back to when no denominator exists, so an event of this type whose body did
-			// not decode must still be counted — a short count would read as a low one, which is
-			// the plausible-zero this metric exists to make visible.
-			if e.GetType() != recordpb.EventType_EVENT_TYPE_MANIFEST_ROW {
-				continue
-			}
-			manifested++
-			if mr, ok := recordpb.BodyAs[*recordpb.ManifestRow](e); ok && mr.GetGapId() != "" {
-				manifestedGaps[mr.GetGapId()] = true
-			}
-		}
-		owing = record.ManifestOwed(fam.Events, fam.At, when)
-	}
-	owed := owing.Gaps
-	switch {
-	case fam == nil:
-		// A record that could not be read has no count to fall back to: a 0 here would read as
-		// "blue filed no receipts".
-		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Note: "the record could not be read — not measured"})
-	case len(owed) > 0:
-		var missing []string
-		for _, g := range owed {
-			if !manifestedGaps[g] {
-				missing = append(missing, g)
-			}
-		}
-		var notes []string
-		if len(missing) > 0 {
-			notes = append(notes, fmt.Sprintf("%d of %d owed gap(s) carry no row: %s", len(missing), len(owed), strings.Join(missing, ", ")))
-		}
-		if nm := owing.NotMeasured(); nm != "" {
-			notes = append(notes, nm)
-		}
-		note := strings.Join(notes, "; ")
-		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: float64(len(owed)-len(missing)) / float64(len(owed)), Note: note,
-			Joint: "manifest-row EVENTS over OWED gaps — repaired by blue's edit in a sitting that found them open; distinct gaps, so two rows on one gap is not coverage of two"})
-	case owing.Unresolved > 0:
-		// NOT "NO GAP WAS OWED". The sittings the record closes owed nothing, and one it cannot close
-		// may still owe — the count stands, and the note says the denominator is not measured.
-		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: manifested, Note: "no gap is owed a row as far as the record reaches, and " + owing.NotMeasured() + " — so this is a COUNT of manifest-row events, not a ratio"})
-	default:
-		rows = append(rows, Row{Clause: "Correctness manifest", Metric: "manifest_coverage", Cls: "benchmark",
-			Value: manifested, Note: "no gap was owed a row — blue repaired no gap it was dispatched onto while that gap was open — so this is a COUNT of manifest-row events, not a ratio"})
 	}
 
 	// THE LOG IS NOT SCORED FOR PRESENCE. A sitting that hit nothing files nothing — clean is derived
@@ -514,13 +444,11 @@ func benchRows(fam *record.Family) []Row {
 var Cards = []string{"red", "blue", "bench"}
 
 // Compute assembles all three cards. fam may be nil (the record could not be read → record rows
-// "needs the tool"); telemetry is read from runDir; results are the journal envelopes. when is the
-// caller's: capture scores a finished run after it ends, and the dashboard, a seat's own scorecard
-// and the operator's `scorecard` read a run that may still be sitting.
-func Compute(run record.Run, results []map[string]any, fam *record.Family, when record.ReadWhen) map[string][]Row {
+// "needs the tool"); telemetry is read from runDir; results are the journal envelopes.
+func Compute(run record.Run, results []map[string]any, fam *record.Family) map[string][]Row {
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
-		"blue":  blueRows(run, results, telemetry, fam, when),
+		"blue":  blueRows(run, results, telemetry, fam),
 		"red":   redRows(run, results, telemetry, fam),
 		"bench": benchRows(fam),
 	}

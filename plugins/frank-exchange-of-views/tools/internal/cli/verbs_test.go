@@ -143,14 +143,6 @@ func TestVerbPayloads(t *testing.T) {
 			says: "filed (grade)",
 		},
 		{
-			name: "blue manifest-row records the receipt",
-			role: "blue", seatID: "blue-respond",
-			args: []string{"--id", "G2", "--reason", "figures recomputed; acceptance check run: pass"},
-			typ:  recordpb.EventType_EVENT_TYPE_MANIFEST_ROW,
-			want: map[string]string{"gap_id": "G2", "row": "figures recomputed; acceptance check run: pass"},
-			says: "manifest row recorded for G2",
-		},
-		{
 			name: "blue retire records what left and why",
 			role: "blue", seatID: "blue-respond",
 			args: []string{"--quote", "the claim as it stood", "--reason", "refuted", "--new", "the replacement claim"},
@@ -223,7 +215,7 @@ func TestVerbPayloads(t *testing.T) {
 			path := tc.path
 			if path == nil {
 				// The verb word is the event type's word with the schema's underscores rendered as
-				// the hyphens a COMMAND uses — `manifest_row` is typed `manifest-row`. A case
+				// the hyphens a COMMAND uses — `spot_check` is typed `spot-check`. A case
 				// whose path differs beyond that states it in `path`, as three already do.
 				// NO ROLE SEGMENT. The surface is scoped to the seat, so a verb sits at the ROOT
 				// of its own tree; prefixing the role reproduces the old grouped path and is
@@ -434,7 +426,6 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 		{"bench", "halt", "judge", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
 		{"bench", "certify", "judge", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
 		{"blue", "closing", "blue-respond", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
-		{"blue", "manifest-row", "blue-respond", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"
 	seeded := newRun(t)

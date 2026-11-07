@@ -73,7 +73,7 @@ func seatVerbs(role string) ([]*cobra.Command, string) {
 	case "chair":
 		return chair.Verbs(), "the red chair — runs the debate: dispatches, judges the board, carries, spot-checks."
 	case "blue":
-		return blue.Verbs(), "blue seats — the report and its edits, manifest rows, inquiries. No board verbs at all."
+		return blue.Verbs(), "blue seats — the report and its edits, inquiries. No board verbs at all."
 	case seatclass.Lane.Role:
 		return blue.LaneVerbs(), "a lane — researches, records inquiries, and records its part of the report, once; what becomes of the report after that is blue's."
 	case "bench":

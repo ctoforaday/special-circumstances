@@ -102,8 +102,7 @@ func TestAClosedGapIsNotReported(t *testing.T) {
 //
 // THE EDIT SETS old AND new EXPLICITLY, so editAnswers is not reused. That helper leaves both empty,
 // which makes old == new — and this predicate treats a span replaced by itself as an act and not an
-// answer, matching exchangesOf. ManifestOwed asks a different question (was a manifest row owed) and
-// counts any edit against the gap, so the two helpers are not interchangeable here.
+// answer, matching exchangesOf.
 func answerScenario(t *testing.T, lens string, engaged, answered, unresolved bool) []*Event {
 	t.Helper()
 	evs := []*Event{mintsGap(t, lens, "G1")}

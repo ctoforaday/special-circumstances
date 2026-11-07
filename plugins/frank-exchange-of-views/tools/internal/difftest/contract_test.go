@@ -268,8 +268,6 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a lens that did not mint the gap files a closing on it", []string{"closing", "--seat-id", "red-lens-logic", "--id", "GAP001", "--reason", "another lens's case"}},
 		{"repeat target: blue's closing on GAP001", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered"}},
 		{"a second closing on a gap in one sitting", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered, restated"}},
-		{"repeat target: blue's manifest row for GAP001", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked the sentence"}},
-		{"a second manifest row for a gap in one sitting", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked it again"}},
 		{"a lens closing a gap a docket motion stands on", []string{"close", "--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 			"--verified-against", "t", "--reason", "verified at the leaf"}},
 		{"repeat target: a gap nothing is before the bench on", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",

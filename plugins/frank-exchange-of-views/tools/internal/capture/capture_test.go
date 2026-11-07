@@ -24,7 +24,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
 // chairRegister opens an epoch: the epoch is the count of red-chair sittings at or before an event
@@ -412,8 +411,8 @@ func TestRecordParityAudit(t *testing.T) {
 
 // CAPTURE CLOSES WHAT A LIVE READER CANNOT (#1002, ruling 1). One record, blue's last sitting with
 // no stop and no register after it: a reader while the run runs cannot tell it from a sitting in
-// flight and says NOT MEASURED; capture reads the finished run, where the end of the record closes
-// it, and its manifest coverage is measured. The shape is a headless seat, whose agent fires
+// flight and leaves it unresolved; capture reads the finished run, where the end of the record
+// closes it. The shape is a headless seat, whose agent fires
 // no stop, sitting twice, the second time — G4 still open — filing nothing.
 func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	n := 0
@@ -448,16 +447,6 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	if len(live) != 2 || live[0].Unresolved || !live[1].Unresolved {
 		t.Fatalf("while the run runs, the first sitting is closed by blue's next register and the last is unresolved: %+v", live)
 	}
-	var note string
-	for _, r := range scorecard.Compute(run, nil, &fam, record.WhileRunning)["blue"] {
-		if r.Metric == "manifest_coverage" {
-			note = r.Note
-		}
-	}
-	if !strings.Contains(note, "1 blue sitting(s) NOT MEASURED") {
-		t.Errorf("a live scorecard cannot close the last sitting and must say so: note %q", note)
-	}
-
 	after := record.BlueSittings(fam.Events, fam.At, record.AfterTheRun)
 	if len(after) != 2 || after[0].Unresolved || after[1].Unresolved {
 		t.Fatalf("after the run, the end of the record closes the last sitting: %+v", after)
