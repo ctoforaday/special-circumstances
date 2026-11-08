@@ -166,26 +166,20 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 		! -path '*/feov-embed/*' | sort > "$WORK/libs-unix.txt"
 	while IFS= read -r l; do cygpath -m "$l"; done < "$WORK/libs-unix.txt" | tr -d '\r' > "$WORK/libs.txt"
 
-	# Reverse topological order of core ORT libraries so dependent symbols resolve on MSVC
-	ort_first=()
-	for k in onnxruntime_session.lib onnxruntime_providers.lib onnxruntime_framework.lib onnxruntime_graph.lib onnxruntime_util.lib onnxruntime_common.lib; do
-		l=$(grep "/$k\$" "$WORK/libs.txt" || true)
-		[ -n "$l" ] && ort_first+=("$l")
-	done
-	grep -v -E 'onnxruntime_(session|providers|framework|graph|util|common)\.lib$' "$WORK/libs.txt" > "$WORK/libs-rest.txt" || true
-	{
-		for l in "${ort_first[@]}"; do echo "$l"; done
-		cat "$WORK/libs-rest.txt"
-	} | tr -d '\r' > "$WORK/libs-ordered.txt"
+	LIB_EXE="$("$VSW" -latest -products '*' -find '**/Hostx64/x64/lib.exe' | head -n 1 | tr -d '\r')"
+	if [ -z "$LIB_EXE" ] || [ ! -f "$LIB_EXE" ]; then
+		LIB_EXE="$(find "$VSDIR/VC/Tools/MSVC" -name "lib.exe" 2>/dev/null | grep "Hostx64/x64/lib.exe" | head -n 1 | tr -d '\r')"
+	fi
+	[ -n "$LIB_EXE" ] && [ -f "$LIB_EXE" ] || die "lib.exe not found in $VSDIR"
 
-	session_lib="$(grep '/onnxruntime_session\.lib$' "$WORK/libs.txt" | head -n 1 || true)"
-	session_dir=""
-	[ -n "$session_lib" ] && session_dir="$(dirname "$session_lib")"
-
-	ort_libs_cmake=""
+	ort_static_lib="$WORK/build/ort/Release/onnxruntime_static.lib"
+	rm -f "$ort_static_lib"
 	while IFS= read -r l; do
-		[ -n "$l" ] && ort_libs_cmake="$ort_libs_cmake \"$l\""
-	done < "$WORK/libs-ordered.txt"
+		cygpath -w "$l" | tr -d '\r'
+	done < "$WORK/libs-unix.txt" > "$WORK/libs-rsp.txt"
+
+	echo "=== Merging ONNX Runtime static libraries with lib.exe ==="
+	"$LIB_EXE" /NOLOGO /OUT:"$(cygpath -w "$ort_static_lib" | tr -d '\r')" @"$(cygpath -w "$WORK/libs-rsp.txt" | tr -d '\r')"
 
 	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
 	EMBED_DIR="$WORK/embed"
@@ -194,11 +188,6 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 cmake_minimum_required(VERSION 3.21)
 project(feovembed CXX)
 set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
-link_directories(
-	"${session_dir}"
-	"$(cygpath -m "$WORK/build/ort/Release/Release")"
-	"$(cygpath -m "$WORK/build/ort/Release")"
-)
 add_executable(feov-embed
 	"$(cygpath -m "$NATIVE_DIR/feov-embed/main.cpp")"
 	"$(cygpath -m "$NATIVE_DIR/frame/frame.cpp")"
@@ -210,14 +199,12 @@ target_include_directories(feov-embed PRIVATE
 	"$(cygpath -m "$NATIVE_DIR/frame")"
 	"$(cygpath -m "$NATIVE_DIR/feov-embed")"
 )
-target_link_directories(feov-embed PRIVATE
-	"${session_dir}"
-	"$(cygpath -m "$WORK/build/ort/Release/Release")"
-	"$(cygpath -m "$WORK/build/ort/Release")"
+target_link_libraries(feov-embed PRIVATE
+	"$(cygpath -m "$ort_static_lib")"
+	advapi32 dbghelp setupapi pathcch shlwapi dxgi
 )
-target_link_libraries(feov-embed PRIVATE ${ort_libs_cmake} advapi32 dbghelp setupapi pathcch shlwapi dxgi)
 target_compile_options(feov-embed PRIVATE /Brepro)
-target_link_options(feov-embed PRIVATE /Brepro "/WHOLEARCHIVE:onnxruntime_session.lib")
+target_link_options(feov-embed PRIVATE /Brepro)
 EOS
 	cmake -S "$EMBED_DIR" -B "$EMBED_DIR/b" -G "$GEN" -A "$VS_ARCH"
 	cmake --build "$EMBED_DIR/b" --config Release -j "$J"
