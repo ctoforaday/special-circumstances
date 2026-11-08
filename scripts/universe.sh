@@ -411,7 +411,7 @@ PY
         [ -d "$cmd_dir" ] || continue
         local name; name="$(basename "$cmd_dir")"
         local out_bin="$tag_dir/${name}_${host_os}_${host_arch}${ext}"
-        if CGO_ENABLED=0 go build -C "$tools" -trimpath -ldflags "-s -w" -o "$out_bin" "./cmd/$name" 2>/dev/null; then
+        if CGO_ENABLED=0 go build -C "$tools" -trimpath -ldflags "-s -w" -o "$out_bin" "./cmd/$name"; then
           :
         else
           log "WARNING: could not build $name"
@@ -463,7 +463,7 @@ PY
                 local dl_url="" dl_sha=""
                 while read -r pline || [ -n "$pline" ]; do
                   [[ "$pline" =~ ^[[:space:]]*(#|$) ]] && continue
-                  if echo "$pline" | grep -q "^$export_name[[:space:]]"; then
+                  if echo "$pline" | grep -q "^${export_name}[[:space:]]"; then
                     dl_sha="$(echo "$pline" | awk '{print $2}')"
                     dl_url="$(echo "$pline" | awk '{print $3}')"
                   fi
@@ -487,7 +487,7 @@ PY
       done
     fi
 
-    ( cd "$tag_dir" && ( sha256sum * 2>/dev/null || shasum -a 256 * ) > SHA256SUMS )
+    ( cd "$tag_dir" && ( sha256sum -- * 2>/dev/null || shasum -a 256 -- * ) > SHA256SUMS )
     [ -s "$tag_dir/SHA256SUMS" ] || die "empty SHA256SUMS in $tag_dir"
   done
 
@@ -497,7 +497,7 @@ PY
     [ -d "$staged_root" ] || continue
     [ -f "$staged_root/hooks/fetch-bin.sh" ] || continue
 
-    rm -rf "$staged_root/bin" "$staged_root/.fetch"
+    rm -rf "${staged_root:?}/bin" "${staged_root:?}/.fetch"
     mkdir -p "$staged_root/.fetch"
     if ! CLAUDE_PLUGIN_ROOT="$staged_root" sh "$staged_root/hooks/fetch-bin.sh" fetch </dev/null >>"$staged_root/.fetch/log" 2>&1; then
       local failed_cause=""
@@ -517,7 +517,7 @@ PY
       for bf in "$staged_root/bin"/*; do
         [ -f "$bf" ] || continue
         local bname; bname="$(basename "$bf")"
-        local stripped="${bname%$ext}"
+        local stripped="${bname%"$ext"}"
         local candidate="$tag_dir/${stripped}_${host_os}_${host_arch}${ext}"
         if [ ! -f "$candidate" ]; then
           candidate="$tag_dir/$bname"

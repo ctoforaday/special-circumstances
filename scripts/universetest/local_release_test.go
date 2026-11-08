@@ -298,7 +298,20 @@ func (f *testFixture) runUniverse(t *testing.T, stdin io.Reader, extraEnv []stri
 	t.Helper()
 	cmd := exec.Command("bash", append([]string{filepath.Join(f.repoDir, "scripts", "universe.sh")}, args...)...)
 	cmd.Dir = f.scratch
-	cmd.Env = append(append([]string{}, f.baseEnv...), extraEnv...)
+	envMap := make(map[string]string)
+	for _, kv := range f.baseEnv {
+		k, v, _ := strings.Cut(kv, "=")
+		envMap[k] = v
+	}
+	for _, kv := range extraEnv {
+		k, v, _ := strings.Cut(kv, "=")
+		envMap[k] = v
+	}
+	var cmdEnv []string
+	for k, v := range envMap {
+		cmdEnv = append(cmdEnv, k+"="+v)
+	}
+	cmd.Env = cmdEnv
 	if stdin != nil {
 		cmd.Stdin = stdin
 	}
@@ -426,10 +439,16 @@ func TestBuildInstallsFromTheLocalRelease(t *testing.T) {
 	}
 	if entries, err := os.ReadDir("/usr/bin"); err == nil {
 		for _, e := range entries {
-			if e.Name() != "sha256sum" {
+			if e.Name() != "sha256sum" && e.Name() != "go" && e.Name() != "gofmt" {
 				_ = os.Symlink(filepath.Join("/usr/bin", e.Name()), filepath.Join(shadowBin, e.Name()))
 			}
 		}
+	}
+	if goPath, err := exec.LookPath("go"); err == nil {
+		_ = os.Symlink(goPath, filepath.Join(shadowBin, "go"))
+	}
+	if gofmtPath, err := exec.LookPath("gofmt"); err == nil {
+		_ = os.Symlink(gofmtPath, filepath.Join(shadowBin, "gofmt"))
 	}
 	for _, tool := range []string{"claude", "curl"} {
 		b, _ := os.ReadFile(filepath.Join(f.binDir, tool))
