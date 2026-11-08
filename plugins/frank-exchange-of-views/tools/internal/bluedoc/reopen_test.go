@@ -101,3 +101,37 @@ func TestAnEditAfterASentenceEndingOnANumberReopensOnlyItsOwnSentence(t *testing
 		t.Errorf("ReopenedAnchors = %v, want [C-00d7ffcc] — the computation's sentence ends at \"91.\" and did not change", got)
 	}
 }
+
+// AN ANCHOR'S SENTENCE IS THE ONE IT BACKS (#1780): when a token first appears inside a fenced block
+// or in a sentence that holds nothing besides its anchors, and later backs prose, SentenceAround
+// returns the prose sentence rather than the fence or the empty sentence, and an edit to the prose
+// sentence reopens the anchor. When it appears ONLY in a fence, it is not on a sentence of the report.
+func TestSentenceAroundFindsTheProseSentenceAnAnchorBacks(t *testing.T) {
+	const tok = "<!--cite:C-00abc123-->"
+
+	// Shape 1: First occurrence in a code fence, second occurrence in prose.
+	fenceBefore := "# H\n\n```\n" + tok + "\n```\n\nThe sky is blue and the grass is green" + tok + ".\n"
+	fenceAfter := "# H\n\n```\n" + tok + "\n```\n\nThe sky is green and the grass is on fire" + tok + ".\n"
+	if sent, ok := SentenceAround(fenceBefore, tok); !ok || sent != "The sky is blue and the grass is green." {
+		t.Errorf("SentenceAround(fenceBefore) = %q, %v; want \"The sky is blue and the grass is green.\", true", sent, ok)
+	}
+	if got := ReopenedAnchors(fenceBefore, fenceAfter); len(got) != 1 || got[0] != "C-00abc123" {
+		t.Errorf("ReopenedAnchors(fence) = %v, want [C-00abc123] — editing the prose sentence must reopen the anchor", got)
+	}
+
+	// Shape 2: First occurrence opens a proseless sentence, second occurrence backs prose.
+	proselessBefore := "# H\n\nOne.\n\n" + tok + "\n\nThe sky is blue and the grass is green" + tok + ".\n"
+	proselessAfter := "# H\n\nOne.\n\n" + tok + "\n\nThe sky is green and the grass is on fire" + tok + ".\n"
+	if sent, ok := SentenceAround(proselessBefore, tok); !ok || sent != "The sky is blue and the grass is green." {
+		t.Errorf("SentenceAround(proselessBefore) = %q, %v; want \"The sky is blue and the grass is green.\", true", sent, ok)
+	}
+	if got := ReopenedAnchors(proselessBefore, proselessAfter); len(got) != 1 || got[0] != "C-00abc123" {
+		t.Errorf("ReopenedAnchors(proseless) = %v, want [C-00abc123] — editing the prose sentence must reopen the anchor", got)
+	}
+
+	// Shape 3: An anchor ONLY in a fence has no sentence in the report.
+	onlyFence := "# H\n\n```\n" + tok + "\n```\n"
+	if sent, ok := SentenceAround(onlyFence, tok); ok {
+		t.Errorf("SentenceAround(onlyFence) = %q, %v; want \"\", false (an anchor in a fence is not on a sentence of the report)", sent, ok)
+	}
+}
