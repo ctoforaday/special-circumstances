@@ -68,7 +68,7 @@ J="${CSTACK_JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4
 
 # ---- pin manifest access ------------------------------------------------------------
 pin_field() { # pin_field <file> <manifest> <n: 1=sha 3=url>
-	awk -v f="$1" -v n="$3" '$0 !~ /^#/ && $2 == f { print $n }' "$2"
+	awk -v f="$1" -v n="$3" '$0 !~ /^#/ && $2 == f { print $n }' "$2" | tr -d '\r'
 }
 
 fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
@@ -78,7 +78,7 @@ fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
 	[ -n "$sha" ] && [ -n "$url" ] || die "$file is not pinned in $manifest"
 	if [ ! -f "$dest" ]; then
 		echo "fetching $file"
-		curl -fsSL -o "$dest.part" "$url" && mv "$dest.part" "$dest"
+		curl -fsSL --retry 5 --retry-connrefused --retry-delay 2 --connect-timeout 30 -o "$dest.part" "$url" && mv "$dest.part" "$dest"
 	fi
 	echo "$sha  $dest" | sha256sum -c --quiet - || die "$file does not match its pin"
 }
