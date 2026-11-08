@@ -178,6 +178,10 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 		cat "$WORK/libs-rest.txt"
 	} > "$WORK/libs-ordered.txt"
 
+	session_lib="$(grep '/onnxruntime_session\.lib$' "$WORK/libs.txt" | head -n 1 || true)"
+	session_dir=""
+	[ -n "$session_lib" ] && session_dir="$(dirname "$session_lib")"
+
 	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
 	EMBED_DIR="$WORK/embed"
 	mkdir -p "$EMBED_DIR"
@@ -185,6 +189,11 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 cmake_minimum_required(VERSION 3.21)
 project(feovembed CXX)
 set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
+link_directories(
+	"${session_dir}"
+	"$(cygpath -m "$WORK/build/ort/Release/Release")"
+	"$(cygpath -m "$WORK/build/ort/Release")"
+)
 add_executable(feov-embed
 	"$(cygpath -m "$NATIVE_DIR/feov-embed/main.cpp")"
 	"$(cygpath -m "$NATIVE_DIR/frame/frame.cpp")"
@@ -196,7 +205,8 @@ target_include_directories(feov-embed PRIVATE
 	"$(cygpath -m "$NATIVE_DIR/frame")"
 	"$(cygpath -m "$NATIVE_DIR/feov-embed")"
 )
-link_directories(
+target_link_directories(feov-embed PRIVATE
+	"${session_dir}"
 	"$(cygpath -m "$WORK/build/ort/Release/Release")"
 	"$(cygpath -m "$WORK/build/ort/Release")"
 )
