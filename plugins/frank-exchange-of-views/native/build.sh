@@ -23,6 +23,12 @@ TARGET="$2"
 OUTDIR="${3:-}"
 WORK_ARG="${4:-}"
 
+if command -v cygpath >/dev/null 2>&1; then
+	[ -n "$OUTDIR" ] && OUTDIR="$(cygpath -u "$OUTDIR")"
+	[ -n "$WORK_ARG" ] && WORK_ARG="$(cygpath -u "$WORK_ARG")"
+	[ -n "${RUNNER_TEMP:-}" ] && RUNNER_TEMP="$(cygpath -u "$RUNNER_TEMP")"
+fi
+
 [ -d "$NATIVE_DIR/$HELPER" ] || die "unknown helper $HELPER (no $NATIVE_DIR/$HELPER directory)"
 [ -f "$NATIVE_DIR/$HELPER/ASSETS" ] || die "$HELPER is not a helper (no ASSETS file)"
 [ -f "$NATIVE_DIR/$HELPER/PINS.txt" ] || die "$HELPER has no PINS.txt"
@@ -120,7 +126,7 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 	SRC="$WORK/src/onnxruntime"
 	if [ ! -d "$SRC" ]; then
 		mkdir -p "$SRC"
-		tar --force-local -C "$SRC" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+		tar -C "$SRC" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
 	fi
 
 	if [ ! -f "$WORK/build/ort/Release/onnxruntime_common.lib" ]; then
