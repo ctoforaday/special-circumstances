@@ -178,8 +178,10 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 		cygpath -w "$l" | tr -d '\r'
 	done < "$WORK/libs-unix.txt" > "$WORK/libs-rsp.txt"
 
+	ort_static_lib_win="$(cygpath -w "$ort_static_lib" | tr -d '\r')"
+	rsp_win="$(cygpath -w "$WORK/libs-rsp.txt" | tr -d '\r')"
 	echo "=== Merging ONNX Runtime static libraries with lib.exe ==="
-	"$LIB_EXE" /NOLOGO /OUT:"$(cygpath -w "$ort_static_lib" | tr -d '\r')" @"$(cygpath -w "$WORK/libs-rsp.txt" | tr -d '\r')"
+	MSYS_NO_PATHCONV=1 "$LIB_EXE" -nologo -out:"$ort_static_lib_win" @"$rsp_win"
 
 	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
 	EMBED_DIR="$WORK/embed"

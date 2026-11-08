@@ -1643,6 +1643,7 @@ jobs:
           # base from local refs — so the token has no reason to persist into .git/config.
           persist-credentials: false
           fetch-depth: 0
+      - uses: ./.github/actions/qlty-cache
       # Pinned to a commit, not a tag: a tag is mutable, and this action runs with the
       # workflow's token. v2.3.0.
       - uses: qltysh/qlty-action/install@ebcd284bf32e36a030afe15f1e136c7be08b9506
