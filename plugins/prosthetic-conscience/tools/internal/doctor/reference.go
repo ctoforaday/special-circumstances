@@ -146,7 +146,7 @@ func NoReferenceCount(bins []binStatus) int {
 		if !b.Built {
 			continue
 		}
-		if Compare(ReadBuildStamp(binPath(b)), ReferenceCommit(b)) == NoReference {
+		if v, _ := stampVerdict(b); v == NoReference {
 			n++
 		}
 	}

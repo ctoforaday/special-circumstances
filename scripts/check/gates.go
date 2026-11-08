@@ -316,7 +316,7 @@ func gateSet() []gate {
 		// Linux-only job so no matrix leg pays for it twice. Declared here because a gate that
 		// cannot run on a stackless box must still appear in the report.
 		gate{id: "ocr-corpus", kind: kindExtern, dir: "plugins/frank-exchange-of-views/tools", ciJob: "ocr-corpus",
-			skip: "needs the feov-ocr helper and FEOV_OCR_CORPUS=1; build it with native/build.sh and run with NATIVE_HELPER_DIR=<dir>. ANY edit under internal/tessocr re-arms it, COMMENTS INCLUDED: each golden's first line carries DefaultPageEngine.Identity(), which hashes that package's source, so all eight fail together on a hash nothing else notices",
+			skip: "needs the feov-ocr helper and FEOV_OCR_CORPUS=1; build it with native/build.sh and run with NATIVE_HELPER_DIR=<dir>. ANY edit under internal/tessocr/**, native/feov-ocr/** (its own PINS.txt included), native/frame/**, native/build.sh and native/PINS.txt re-arms it, COMMENTS INCLUDED: each golden's first line carries DefaultPageEngine.Identity(), which hashes those inputs, so every golden fails together on a hash nothing else notices",
 			why:  "the committed scans that beat the reader, read end to end and pinned byte for byte"},
 		// Every archived computation re-run under pinned interpreters, in its own job that holds no
 		// write credential and saves no cache: it executes every archived program. Declared so the

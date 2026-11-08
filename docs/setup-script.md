@@ -70,7 +70,8 @@ the 2026-08-23 retrospective).
 > across 66 seat transcripts, all 33 pdf-reader reads bypassed `fetch`
 > entirely, so better extraction would only have made an unrecorded read
 > cheaper and less visible. PDFs now route through `fetch`, which reads a scan
-> with the OCR engine compiled into the binary, so nothing needs provisioning.
+> with the standalone `feov-ocr` native helper, provisioned automatically by
+> `fetch-bin.sh` on session start.
 
 ### 1. The plugins must be installed by the SETUP SCRIPT, not mid-session
 

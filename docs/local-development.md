@@ -30,7 +30,6 @@ different experiment.
 
 ```sh
 scripts/universe.sh build            # build an ISOLATED environment from this checkout
-scripts/universe.sh build --live     # install into ~/.claude instead (shared with every session)
 scripts/universe.sh run "<topic>"    # one DETACHED `claude -p`, invoking /research as a user would, and follow its log
 scripts/universe.sh run --no-follow "<topic>"   # the same, and return at once
 scripts/universe.sh resume           # restart a run whose process died with no outcome
@@ -39,14 +38,14 @@ scripts/universe.sh shell            # interactive claude inside the universe
 scripts/universe.sh doctor           # what is installed, binaries per plugin, schema epoch
 ```
 
-`build` is isolated by default: `CLAUDE_CONFIG_DIR` and `CLAUDE_CODE_PLUGIN_CACHE_DIR` point inside
+`build` is isolated: `CLAUDE_CONFIG_DIR` and `CLAUDE_CODE_PLUGIN_CACHE_DIR` point inside
 `WORKDIR` (default `~/.claude/scratch/universe`), so nothing touches `~/.claude` and other sessions
-on the box are unaffected. Use `--live` only when you want the change in *your* next session, and
-remember it is shared state.
+on the box are unaffected.
 
-Tearing one down is **two** paths, not one: `$WORKDIR` and `$WORKDIR.marketplace`. The staged
-marketplace is a copy of the checkout's `plugins/` beside the universe, and it is the plugin root a
-universe session loads (below). `build` prints both paths when it finishes.
+Tearing one down is **three** paths, not one: `$WORKDIR`, `$WORKDIR.marketplace`, and
+`$WORKDIR.release`. The staged marketplace is a copy of the checkout's `plugins/` beside the universe,
+and it is the plugin root a universe session loads (below). `$WORKDIR.release` is the local release
+directory that `fetch-bin.sh` installs from. `build` prints all three paths when it finishes.
 
 ### The manifest has to be restaged, and the reason is not obvious
 
@@ -91,19 +90,11 @@ load from it: a run's stream and transcripts reference the cache nowhere.
 
 So a check that reads the cache proves what was installed, not what runs. Grep the staged
 marketplace for a prompt, skill or constitution change; for a binary, `cmp` the staged copy against
-the cache copy, or ask the staged one directly (`$M/frank-exchange-of-views/bin/feov-record --schema`).
+the local release copy (`$WORKDIR.release/...`), or ask the staged one directly (`$M/frank-exchange-of-views/bin/feov-record --schema`).
 
-### Binaries are built in the cache and mirrored
+### Binaries are built in the checkout into the local release
 
-`build` compiles each plugin's binaries in the cache, where the install put its `tools/` — the
-ordering `scripts/bootstrap-plugins.sh` uses for cloud environments, which install from a git
-source and do run from the cache — and copies them into the staged marketplace's `bin/`. A build in
-the checkout leaves both roots with no binaries and hooks degrading to a single stderr line, which
-from inside a run looks exactly like hooks that were never configured.
-
-A cache build has no git context, so `feov-record --version` reports `unknown` where a release
-reports its sha. **Version-skew detection is inert in a universe run** — `tool_version` and
-`hook_version` on the record are not meaningful there.
+`build` builds each plugin's Go binaries from the checkout's `tools/` with `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w"` into the local release (`$WORKDIR.release`), so `--version` carries the commit. Standalone native helpers (`feov-ocr`, `feov-embed`) are compiled via `native/build.sh` or reused from the helper cache (`~/.cache/sc-universe/native/<helper>/<digest>/`), which is keyed by the helper's digest (`nativedigest -print`). `fetch-bin.sh fetch` then installs each binary, helper, and model asset from the local release into the staged marketplace's `bin/`.
 
 ## Seeing what is happening
 
@@ -203,8 +194,8 @@ It isolates the other way too: the run's source tree is `$WORKDIR/src`, so its `
 its pins and its push freeze sit there, away from the tree you develop in.
 
 Hooks are universe-local: `${CLAUDE_PLUGIN_ROOT}` resolves to *this* universe's staged marketplace,
-and the `hooks.json` there points at that root's own `bin/`. Nothing reaches outside `$WORKDIR` and
-`$WORKDIR.marketplace`.
+and the `hooks.json` there points at that root's own `bin/`. Nothing reaches outside `$WORKDIR`,
+`$WORKDIR.marketplace`, and `$WORKDIR.release`.
 
 **The exception is narrower than it first looks: `build` mutates the universe IN PLACE.** It
 re-stages the marketplace and reinstalls over the same version directory, and hooks spawn fresh
@@ -214,8 +205,8 @@ always safe; reinstalling over a running engine is not. `universe.sh build` now 
 is in flight in that `WORKDIR` rather than leaving it to this paragraph; use a second `WORKDIR` for
 a second universe.
 
-A rebuild propagates: it re-copies the staged marketplace from the checkout and reinstalls the same
-edits into the cache. There is no stale-universe trap.
+A rebuild propagates: it re-copies the staged marketplace from the checkout, rebuilds the local
+release, and reinstalls into the staged roots. There is no stale-universe trap.
 
 ### Run the plugin commands from outside the checkout
 
@@ -323,10 +314,10 @@ another session leads, and a run whose outcome is recorded and that was not capt
 rows of runs that were captured or whose directory is gone. Run a second engine from its own
 checkout.
 
-**A plain build has no OCR engine.** Without `-tags tessocr` (and cgo), `internal/tessocr` builds
-its stub, so a checkout build, `go test` and `check` exercise everything except local OCR. The
-engine needs the static C stack that the release links; [`c-stack.md`](c-stack.md) covers building
-it, its cgo environment, and why it cross-compiles with zig.
+**A plain build has no OCR engine.** Without the `feov-ocr` native helper, local OCR skips. A checkout
+build or `go test` runs pure-Go tests; `native/build.sh feov-ocr <target>` builds the standalone
+helper with the pinned zig toolchain, and `NATIVE_HELPER_DIR` points `feov-record` at the built helper.
+[`c-stack.md`](c-stack.md) covers helper builds and why zig is used.
 
 **The box is shared.** Other sessions run their own gates here. Check `uptime` before timing
 anything: a load average of 30 on four cores makes `go test` hit its 600s timeout and look like a
