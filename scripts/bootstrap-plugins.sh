@@ -99,6 +99,7 @@ wait
 
 built="$(find "$cache_root" -type f -perm -u+x -path '*/bin/*' 2>/dev/null | wc -l)"
 log "built $built hook binaries"
+log "native helpers are not built during bootstrap; the next session start fetches them"
 
 # --- verify -----------------------------------------------------------------
 # The suite ships its own preflight; trust it over this script's bookkeeping.

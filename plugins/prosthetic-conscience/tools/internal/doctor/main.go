@@ -41,6 +41,22 @@ type binStatus struct {
 	Plugin  string
 	Root    string
 	Version string
+	Kind    string // "go", "helper", "asset"
+	Export  string // for "asset", the line's field for runtime.GOARCH
+}
+
+func (b binStatus) file() string {
+	if b.Kind == "asset" {
+		return b.Name
+	}
+	return buildid.ExeName(b.Name)
+}
+
+func (b binStatus) asset(goos, goarch string) string {
+	if b.Kind == "asset" {
+		return b.Export
+	}
+	return AssetName(b.Name, goos, goarch)
 }
 
 // AssetName is THE CONTRACT between the release job and this program, in one function.
@@ -68,24 +84,79 @@ func AssetName(name, goos, goarch string) string {
 	return fmt.Sprintf("%s_%s_%s%s", name, goos, goarch, ext)
 }
 
-// binariesOf lists every command under a plugin root's tools/cmd and whether
-// bin/<name> exists.
+// binariesOf lists every command under a plugin root's tools/cmd, native helpers under
+// native/*/ASSETS, and their extra asset lines, plus whether each exists in bin/.
 func binariesOf(root, plugin, version string) []binStatus {
-	entries, err := os.ReadDir(filepath.Join(root, "tools", "cmd"))
-	if err != nil {
-		return nil
-	}
 	var out []binStatus
-	for _, e := range entries {
-		if !e.IsDir() {
+	if entries, err := os.ReadDir(filepath.Join(root, "tools", "cmd")); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			b := binStatus{
+				Name:    e.Name(),
+				Plugin:  plugin,
+				Root:    root,
+				Version: version,
+				Kind:    "go",
+			}
+			_, err := os.Stat(binPath(b))
+			b.Built = (err == nil)
+			out = append(out, b)
+		}
+	}
+	assetsMatches, _ := filepath.Glob(filepath.Join(root, "native", "*", "ASSETS"))
+	for _, a := range assetsMatches {
+		fi, err := os.Stat(a)
+		if err != nil || fi.IsDir() {
 			continue
 		}
-		bin := filepath.Join(root, "bin", e.Name()+buildid.ExeName(""))
-		_, err := os.Stat(bin)
-		out = append(out, binStatus{
-			Name: e.Name(), Built: err == nil,
-			Plugin: plugin, Root: root, Version: version,
-		})
+		helperName := filepath.Base(filepath.Dir(a))
+		hb := binStatus{
+			Name:    helperName,
+			Plugin:  plugin,
+			Root:    root,
+			Version: version,
+			Kind:    "helper",
+		}
+		_, err = os.Stat(binPath(hb))
+		hb.Built = (err == nil)
+		out = append(out, hb)
+
+		data, err := os.ReadFile(a)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			fields := strings.Fields(line)
+			if len(fields) == 0 {
+				continue
+			}
+			assetName := fields[0]
+			var export string
+			prefix := runtime.GOARCH + "="
+			for _, f := range fields[1:] {
+				if strings.HasPrefix(f, prefix) {
+					export = strings.TrimPrefix(f, prefix)
+					break
+				}
+			}
+			ab := binStatus{
+				Name:    assetName,
+				Plugin:  plugin,
+				Root:    root,
+				Version: version,
+				Kind:    "asset",
+				Export:  export,
+			}
+			_, err = os.Stat(binPath(ab))
+			ab.Built = (err == nil)
+			out = append(out, ab)
+		}
 	}
 	return out
 }
@@ -172,10 +243,8 @@ func verdict(tools []toolchain.Status, bins []binStatus) string {
 		// ReferenceCommit, not HeadCommit: in an INSTALL the reference is the commit the
 		// client recorded at install time, and using HEAD meant this arm never fired outside a
 		// checkout — inert in the only place it runs in production.
-		if ref := ReferenceCommit(b); ref != "" {
-			if Compare(ReadBuildStamp(binPath(b)), ref) == Stale {
-				degraded = true
-			}
+		if v, _ := stampVerdict(b); v == Stale {
+			degraded = true
 		}
 	}
 	if degraded {
@@ -197,7 +266,7 @@ func UnstampedCount(bins []binStatus) int {
 		if !b.Built {
 			continue
 		}
-		if Compare(ReadBuildStamp(binPath(b)), ReferenceCommit(b)) == Unstamped {
+		if v, _ := stampVerdict(b); v == Unstamped {
 			n++
 		}
 	}
@@ -251,16 +320,22 @@ func table(tools []toolchain.Status, bins []binStatus) string {
 		// another's binaries.
 		ref := ReferenceCommit(b)
 		mark := "✓ built"
-		switch {
-		case !b.Built:
-			mark = "✗ not built (run -fix)"
-		case ref == "":
-			// Nothing to compare against: staleness is not a question here, so say nothing.
-		default:
-			// Only the non-current states earn extra words.
-			if s := ReadBuildStamp(binPath(b)); Compare(s, ref) != Current {
-				v := Compare(s, ref)
-				mark = fmt.Sprintf("! %s — %s", v, Describe(v, s, ref))
+		if b.Kind == "helper" || b.Kind == "asset" {
+			mark = "✓ installed"
+			if !b.Built {
+				mark = "✗ missing (run -fix)"
+			}
+		} else {
+			switch {
+			case !b.Built:
+				mark = "✗ not built (run -fix)"
+			case ref == "":
+				// Nothing to compare against: staleness is not a question here, so say nothing.
+			default:
+				// Only the non-current states earn extra words.
+				if v, s := stampVerdict(b); v != Current && v != NoReference && v != "" {
+					mark = fmt.Sprintf("! %s — %s", v, Describe(v, s, ref))
+				}
 			}
 		}
 		fmt.Fprintf(&sb, "%-18s %s\n", b.Name, mark)
@@ -270,7 +345,17 @@ func table(tools []toolchain.Status, bins []binStatus) string {
 
 // binPath is where a binStatus's executable lives, matching binariesOf.
 func binPath(b binStatus) string {
-	return filepath.Join(b.Root, "bin", buildid.ExeName(b.Name))
+	return filepath.Join(b.Root, "bin", b.file())
+}
+
+// stampVerdict computes the staleness of one binary against its reference commit.
+// Non-Go entries carry no build stamp and receive no verdict.
+func stampVerdict(b binStatus) (Staleness, BuildStamp) {
+	if b.Kind != "go" {
+		return "", BuildStamp{}
+	}
+	s := ReadBuildStamp(binPath(b))
+	return Compare(s, ReferenceCommit(b)), s
 }
 
 // versionOf best-effort runs a check command and returns its first output line.
@@ -548,7 +633,7 @@ func danceWarnings(root string) []string {
 			}
 		}
 		if missing > 0 {
-			msg := fmt.Sprintf("EMPTY-BIN WINDOW: cache %s is missing %d of its %d hook binaries — ", newest, missing, len(bins))
+			msg := fmt.Sprintf("EMPTY-BIN WINDOW: cache %s is missing %d of its %d release files — ", newest, missing, len(bins))
 			if cause, err := os.ReadFile(filepath.Join(newRoot, ".fetch", "failed")); err == nil {
 				msg += fmt.Sprintf("the hooks' fetch failed (%s); doctor --fix installs them.", strings.TrimSpace(string(cause)))
 			} else if _, err := os.Stat(filepath.Join(newRoot, ".fetch", "lock")); err == nil {
@@ -635,11 +720,25 @@ func describeFetchFailure(tag, ghOutput string) string {
 // fetchRelease downloads the CI-built asset for this platform, verifies its
 // checksum against the release SHA256SUMS, and installs it into bin/.
 func fetchRelease(b binStatus) error {
+	if baseURL := os.Getenv("SC_RELEASE_BASE_URL"); baseURL != "" {
+		cmd := exec.Command("sh", filepath.Join(b.Root, "hooks", "fetch-bin.sh"), "fetch")
+		cmd.Env = append(os.Environ(), "CLAUDE_PLUGIN_ROOT="+b.Root)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("fetch-bin failed from %s: %s: %w", baseURL, strings.TrimSpace(string(out)), err)
+		}
+		if _, err := os.Stat(binPath(b)); err != nil {
+			return fmt.Errorf("%s not installed from %s", b.file(), baseURL)
+		}
+		return nil
+	}
 	if !toolchain.Present("gh") {
 		return errors.New("gh not on PATH")
 	}
-	root, name := b.Root, b.Name
-	asset := AssetName(name, runtime.GOOS, runtime.GOARCH)
+	asset := b.asset(runtime.GOOS, runtime.GOARCH)
+	if asset == "" {
+		return fmt.Errorf("%s has no asset for %s", b.Name, runtime.GOARCH)
+	}
 	tmp, err := os.MkdirTemp("", "sc-doctor-fetch-")
 	if err != nil {
 		return err
@@ -668,11 +767,15 @@ func fetchRelease(b binStatus) error {
 	if !verifySHA256(string(sums), asset, digest) {
 		return fmt.Errorf("checksum mismatch for %s — refusing to install", asset)
 	}
-	dst := filepath.Join(root, "bin", buildid.ExeName(name))
+	dst := binPath(b)
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(dst, data, 0o755)
+	perm := os.FileMode(0o755)
+	if b.Kind == "asset" {
+		perm = 0o644
+	}
+	return os.WriteFile(dst, data, perm)
 }
 
 // buildFromSource is the local-toolchain boundary: the dev-convenience fallback when
@@ -713,7 +816,10 @@ func stampInstalled(bins []binStatus) {
 			continue
 		}
 		_ = os.WriteFile(filepath.Join(dir, "installed"), []byte(releaseTag(b)+"\n"), 0o644)
-		rev := ReadBuildStamp(binPath(b)).Revision
+		rev := ""
+		if _, s := stampVerdict(b); s.Revision != "" {
+			rev = s.Revision
+		}
 		if rev == "" {
 			rev = HeadCommit(root)
 		}
@@ -742,20 +848,24 @@ func fixWith(bins []binStatus, fetch func(binStatus) error, build func(binStatus
 			report = append(report, fmt.Sprintf("%s (%s): fetched CI-built release asset (checksum verified)", b.Name, b.Plugin))
 			continue
 		}
-		if goPresent {
+		if (b.Kind == "go" || b.Kind == "") && goPresent {
 			if msg, err := build(b); err != nil {
 				report = append(report, fmt.Sprintf("%s: fetch failed (%v); BUILD FAILED: %s", b.Name, fetchErr, msg))
 			} else {
 				report = append(report, fmt.Sprintf("%s: fetch failed (%v); built from source (dev fallback)", b.Name, fetchErr))
 			}
 		} else {
-			// AssetName, not a second assembly of it. This message names the file the
-			// human must place, and the release job names the file it publishes; those are
-			// the SAME fact, so they get one statement of it. Hand-composing the pattern
-			// here meant a change to the contract would leave this advice pointing at a
-			// filename that never existed.
-			report = append(report, fmt.Sprintf("%s: fetch failed (%v) and Go not found — install gh or Go, or place %s into %s manually",
-				b.Name, fetchErr, AssetName(b.Name, runtime.GOOS, runtime.GOARCH), filepath.Join(b.Root, "bin")))
+			asset := b.asset(runtime.GOOS, runtime.GOARCH)
+			if asset == "" {
+				asset = b.Name
+			}
+			if os.Getenv("SC_RELEASE_BASE_URL") != "" {
+				report = append(report, fmt.Sprintf("%s: fetch failed (%v) — place %s into %s manually",
+					b.Name, fetchErr, asset, filepath.Join(b.Root, "bin")))
+			} else {
+				report = append(report, fmt.Sprintf("%s: fetch failed (%v) and Go not found — install gh or Go, or place %s into %s manually",
+					b.Name, fetchErr, asset, filepath.Join(b.Root, "bin")))
+			}
 		}
 	}
 	stampInstalled(bins)

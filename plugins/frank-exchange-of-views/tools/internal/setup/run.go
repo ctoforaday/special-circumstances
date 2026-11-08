@@ -1,9 +1,11 @@
 package setup
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -382,6 +384,36 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		v = "(version unreported)"
 	}
 	fmt.Fprintf(stdout, "  record binary: %s %s\n", recordBin, v)
+	for _, h := range nativehelper.Helpers() {
+		client, err := nativehelper.NewBeside(h, recordBin)
+		if err != nil {
+			fmt.Fprintf(stdout, "  %s: %v\n", h, err)
+			continue
+		}
+		if err := client.Start(); err != nil {
+			var ne *nativehelper.Error
+			if errors.As(err, &ne) {
+				detail := ne.Detail
+				if detail == "" {
+					if ne.Path != "" && ne.Kind == nativehelper.ErrAbsent {
+						detail = "no executable at " + ne.Path
+					} else if ne.Kind == nativehelper.ErrDigestMismatch {
+						detail = fmt.Sprintf("%s %s, this binary was built for %s", ne.What, ne.Got, ne.Want)
+					}
+				}
+				if detail != "" {
+					fmt.Fprintf(stdout, "  %s: %s, %s\n", h, ne.Kind, detail)
+				} else {
+					fmt.Fprintf(stdout, "  %s: %s\n", h, ne.Kind)
+				}
+			} else {
+				fmt.Fprintf(stdout, "  %s: %v\n", h, err)
+			}
+		} else {
+			_ = client.Close()
+			fmt.Fprintf(stdout, "  %s: available\n", h)
+		}
+	}
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
 	// LOUD, AND ACTIONABLE PER RUN. A notice that only said "something else is open" would be
 	// the skimmable version of the refusal it replaces; each row names its own capture command.

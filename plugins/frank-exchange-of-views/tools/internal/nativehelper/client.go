@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 	"time"
 )
@@ -92,6 +93,16 @@ func IsAbsent(err error) bool {
 	return false
 }
 
+// Helpers returns the sorted names of helpers this binary carries pins for.
+func Helpers() []string {
+	names := make([]string, 0, len(helpers))
+	for name := range helpers {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
 // New is the client for a helper this binary has pins for.
 func New(helper string) (*Client, error) {
 	pins, ok := helpers[helper]
@@ -99,6 +110,27 @@ func New(helper string) (*Client, error) {
 		return nil, fmt.Errorf("nativehelper: this binary carries no pins for a helper named %q", helper)
 	}
 	return newClient(helper, pins), nil
+}
+
+// NewBeside returns a client that locates the helper beside recordBin instead of beside the
+// current process's executable.
+func NewBeside(helper, recordBin string) (*Client, error) {
+	pins, ok := helpers[helper]
+	if !ok {
+		return nil, fmt.Errorf("nativehelper: this binary carries no pins for a helper named %q", helper)
+	}
+	c := newClient(helper, pins)
+	c.exeDir = func() (string, error) {
+		abs := recordBin
+		if a, err := filepath.Abs(recordBin); err == nil {
+			abs = a
+		}
+		if p, err := filepath.EvalSymlinks(abs); err == nil {
+			return filepath.Dir(p), nil
+		}
+		return filepath.Dir(abs), nil
+	}
+	return c, nil
 }
 
 func newClient(name string, pins Pins) *Client {

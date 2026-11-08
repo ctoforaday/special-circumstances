@@ -1371,17 +1371,22 @@ jobs:
         run: |
           set -eu
           work="$(mktemp -d)"; root="$work/plugin"; rel="$work/rel"
-          mkdir -p "$root/.claude-plugin" "$root/hooks" "$root/bin" "$root/tools/cmd/alpha" "$root/tools/cmd/beta" "$rel/fixture--v1.2.3"
+          mkdir -p "$root/.claude-plugin" "$root/hooks" "$root/bin" "$root/tools/cmd/alpha" "$root/tools/cmd/beta" "$root/native/fake-helper" "$rel/fixture--v1.2.3"
           printf '{\n  "name": "fixture",\n  "version": "1.2.3"\n}\n' > "$root/.claude-plugin/plugin.json"
+          printf 'extra.data amd64=extra.amd64.data arm64=extra.arm64.data\n' > "$root/native/fake-helper/ASSETS"
           cp plugins/prosthetic-conscience/hooks/fetch-bin.sh "$root/hooks/"
           case "$(uname -s)" in Linux) os=linux ;; Darwin) os=darwin ;; *) os=windows ;; esac
           case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; *) arch=arm64 ;; esac
           ext=""; if [ "$os" = windows ]; then ext=".exe"; fi
           a="alpha_${os}_${arch}${ext}"; b="beta_${os}_${arch}${ext}"
+          h="fake-helper_${os}_${arch}${ext}"
+          ed="extra.${arch}.data"
           printf 'binary alpha\n' > "$rel/fixture--v1.2.3/$a"
           printf 'binary beta\n' > "$rel/fixture--v1.2.3/$b"
+          printf 'binary helper\n' > "$rel/fixture--v1.2.3/$h"
+          printf 'extra asset data\n' > "$rel/fixture--v1.2.3/$ed"
           if command -v sha256sum >/dev/null 2>&1; then sum="sha256sum"; else sum="shasum -a 256"; fi
-          (cd "$rel/fixture--v1.2.3" && $sum "$a" "$b" > SHA256SUMS)
+          (cd "$rel/fixture--v1.2.3" && $sum "$a" "$b" "$h" "$ed" > SHA256SUMS)
           base="file://$rel"
           if [ "$os" = windows ]; then base="file:///$(cygpath -m "$rel")"; fi
           # cmd is a guard command, so its ${...} must stay unexpanded until the guard's own shell runs it.
@@ -1396,11 +1401,11 @@ jobs:
           if [ "$took" -gt 2 ]; then echo "the guard waited on the fetch"; exit 1; fi
           case "$out" in *'"systemMessage"'*) ;; *) echo "the guard said nothing"; exit 1 ;; esac
           for _ in $(seq 60); do
-            if [ -f "$root/bin/alpha$ext" ] && [ -f "$root/bin/beta$ext" ]; then break; fi
+            if [ -f "$root/bin/alpha$ext" ] && [ -f "$root/bin/beta$ext" ] && [ -f "$root/bin/fake-helper$ext" ] && [ -f "$root/bin/extra.data" ]; then break; fi
             sleep 1
           done
-          for n in alpha beta; do
-            if [ "$(cat "$root/bin/$n$ext" 2>/dev/null)" != "binary $n" ]; then
+          for n in "alpha$ext" "beta$ext" "fake-helper$ext" "extra.data"; do
+            if [ ! -f "$root/bin/$n" ]; then
               echo "$n was not installed"; cat "$root/.fetch/log" 2>/dev/null || true; exit 1
             fi
           done

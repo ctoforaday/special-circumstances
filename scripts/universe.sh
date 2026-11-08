@@ -22,13 +22,11 @@
 # different experiment. This script removes the rig: the engine is invoked the way a user invokes
 # it, and everything the plugins install — hooks, binaries, subagent dispatch — is really there.
 #
-# TWO UNIVERSES, AND THE DEFAULT IS THE ISOLATED ONE.
+# ISOLATED ENVIRONMENT.
 #
-#   isolated (default)  CLAUDE_CONFIG_DIR and CLAUDE_CODE_PLUGIN_CACHE_DIR point inside WORKDIR,
-#                       so nothing touches ~/.claude. Other sessions on this box are unaffected,
-#                       and the universe is deletable in one `rm -rf`.
-#   --live              install into ~/.claude instead. Use when you want the change in YOUR next
-#                       session. It is shared state: other sessions on this box see it.
+# CLAUDE_CONFIG_DIR and CLAUDE_CODE_PLUGIN_CACHE_DIR point inside WORKDIR, so nothing touches
+# ~/.claude. Other sessions on this box are unaffected, and the universe is deletable by removing
+# $WORKDIR, $WORKDIR.marketplace and $WORKDIR.release.
 #
 # THE STAGED MARKETPLACE IS THE PLUGIN ROOT A SESSION LOADS. It is a `directory` marketplace
 # source, and Claude Code runs a directory source's plugins IN PLACE: ${CLAUDE_PLUGIN_ROOT}, the
@@ -36,11 +34,9 @@
 # $WORKDIR.marketplace/plugins/<name>. `claude plugin install` still copies each plugin into the
 # versioned cache and names that copy in installed_plugins.json, but a session does not load it.
 #
-# The binaries are built in the cache, after install — bootstrap-plugins.sh's ordering — and then
-# mirrored into the staged marketplace. An empty bin/ there is filled BY DESIGN: hooks.json execs
-# hooks/fetch-bin.sh when a binary is missing, which downloads that plugin's RELEASE and installs
-# it there. With the mirror, every feov-record on disk is this checkout's, and which root a hook or
-# a lead reaches stops being a question the result depends on.
+# The binaries and helpers come from a local release directory ($WORKDIR.release), built from this
+# checkout, pointed to via SC_RELEASE_BASE_URL. fetch-bin.sh installs from it into the staged
+# marketplace roots and verifies checksums against SHA256SUMS.
 #
 # Usage:
 #   scripts/universe.sh build                     # make the universe from this checkout
@@ -107,7 +103,6 @@ CONCURRENT_AGENTS="${CONCURRENT_AGENTS:-16}"
 # says why; `launch_detached` keeps the process out of reach of whatever launched it, and says why.
 PERMISSION_MODE="${PERMISSION_MODE:-bypassPermissions}"
 
-LIVE=0
 FOLLOW=1
 
 log()  { printf '[universe] %s\n' "$*"; }
@@ -121,13 +116,15 @@ while [ $# -gt 0 ]; do
   case "$1" in
     -d|--dir)   WORKDIR="${2:?--dir needs a path}"; shift 2 ;;
     --dir=*)    WORKDIR="${1#--dir=}"; shift ;;
-    --live)     LIVE=1; shift ;;
     --force)    FORCE=1; shift ;;
     --no-follow) FOLLOW=0; shift ;;
     *)          ARGS+=("$1"); shift ;;
   esac
 done
 set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+WORKDIR="${WORKDIR%/}"
+[[ "$WORKDIR" != /* ]] && WORKDIR="$PWD/$WORKDIR"
 
 # WHAT SAYS WHETHER A RUN IS ALIVE, AND WHAT IT LAUNCHED. Written per launch; a resume repoints the
 # pid file and the log, and leaves the origin stream where it is, because that is where the run's
@@ -187,6 +184,15 @@ process_detail() {
 guard_no_live_run() {
   local what="$1"
   local marker="$WORKDIR/src/.claude/run-live.json"
+  if [ -f "$WORKDIR/shell.pid" ]; then
+    local spid
+    spid="$(cat "$WORKDIR/shell.pid" 2>/dev/null)"
+    if [ -n "$spid" ] && kill -0 "$spid" 2>/dev/null; then
+      printf '[universe] REFUSING to %s\n' "$what" >&2
+      printf '  An interactive shell is alive in %s (pid %s)\n' "$WORKDIR" "$spid" >&2
+      exit 3
+    fi
+  fi
   # A LIVE PROCESS IS NOT A QUESTION FOR --force, and it holds before `setup` has written the marker.
   # The marker can go stale and the human has to rule on it; a process in this universe's session is
   # measured, and proceeding would overwrite the pid file that is the only handle on it.
@@ -231,12 +237,11 @@ guard_no_live_run() {
   exit 3
 }
 
-# THE ENVIRONMENT IS THE UNIVERSE. Everything below runs under these, and `--live` is the one
-# path that does not set them — which is the whole difference between the two modes.
+# THE ENVIRONMENT IS THE UNIVERSE. Everything below runs under these.
 universe_env() {
-  if [ "$LIVE" = "1" ]; then return; fi
   export CLAUDE_CONFIG_DIR="$WORKDIR/config"
   export CLAUDE_CODE_PLUGIN_CACHE_DIR="$WORKDIR/plugins"
+  export SC_RELEASE_BASE_URL="file://$WORKDIR.release"
   mkdir -p "$CLAUDE_CONFIG_DIR" "$CLAUDE_CODE_PLUGIN_CACHE_DIR"
   share_credentials
 }
@@ -305,10 +310,7 @@ clear_seat_env() {
 # the call, and it sends the seat to the path it was given. Shadowing would also be impossible to do
 # correctly here, because the run directory does not exist until `setup` runs inside the universe.
 #
-# ISOLATED ONLY. Under `--live` the universe INSTALLS into ~/.claude, so the host cache IS its cache
-# and stripping it would remove the binaries the run needs.
 hermetic_path() {
-  if [ "$LIVE" = "1" ]; then return; fi
   local host_cache="$HOME/.claude/plugins/cache" out="" p dropped=0
   local IFS=:
   for p in $PATH; do
@@ -330,77 +332,35 @@ cmd_build() {
   command -v go >/dev/null     || die "go not on PATH — the hook binaries cannot be built"
   universe_env; clear_seat_env
 
-  if [ "$LIVE" = "1" ]; then
-    log "LIVE: installing into ~/.claude — this is shared with every session on this box"
-  else
-    log "isolated universe at $WORKDIR"
-  fi
+  log "isolated universe at $WORKDIR"
   # THE BUILD RECORDS THE COMMIT IT BUILT, and builds only a commit: a smoke is bound to what it ran.
-  [ -z "$(git -C "$REPO" status --porcelain)" ] || die "the checkout has uncommitted changes — a universe is built from a commit"
+  [ -z "$(git -C "$REPO" status --porcelain 2>/dev/null)" ] || die "the checkout has uncommitted changes — a universe is built from a commit"
   rm -f "$WORKDIR/built-from"
-  log "source: $REPO (this checkout, at $(git -C "$REPO" rev-parse --short HEAD))"
+  log "source: $REPO (this checkout, at $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo unknown))"
 
-  # A STAGED MANIFEST, BECAUSE THE REAL ONE PINS RELEASES. Adding $REPO directly looks right and
-  # is not: three of the four plugins declare a `git-subdir` source against the GitHub URL with a
-  # `ref` pinned to a release tag, so `plugin install` fetches the PUBLISHED content and the
-  # working tree is never consulted. Measured the first time this script ran — the universe came
-  # up carrying released prompts, with none of the checkout's changes in it, and reported success.
-  #
-  # So the universe gets its own manifest whose every source is a local path, over a `plugins`
-  # symlink into this checkout. Same four plugins, same names; the only difference is that the
-  # content resolves to the working tree, which is the entire point of building one.
-  # EVERY `claude plugin` CALL RUNS FROM OUTSIDE THE CHECKOUT, and this is not fussiness. Run with
-  # cwd inside the repo, `marketplace remove` resolved the PROJECT's .claude/settings.json — a
-  # TRACKED file — and stripped its extraKnownMarketplaces and enabledPlugins. A tool meant to leave
-  # the tree alone silently edited committed state. $WORKDIR is outside the repo, so project
-  # settings are not found and only the universe's own config is touched.
+  # Delete any existing local release before staging, and write SC_RELEASE_BASE_URL to settings.json
+  rm -rf "$WORKDIR.release"
+  mkdir -p "$CLAUDE_CONFIG_DIR"
+  local settings="$CLAUDE_CONFIG_DIR/settings.json"
+  python3 - "$settings" "$WORKDIR.release" <<'PY'
+import json, os, sys
+p, rel = sys.argv[1], sys.argv[2]
+d = json.load(open(p)) if os.path.exists(p) else {}
+d.setdefault("env", {})["SC_RELEASE_BASE_URL"] = f"file://{rel}"
+os.makedirs(os.path.dirname(p), exist_ok=True)
+json.dump(d, open(p, "w"), indent=2)
+PY
+
+  # A STAGED MANIFEST, BECAUSE THE REAL ONE PINS RELEASES.
   mkdir -p "$WORKDIR"
-  # THE STAGING DIR LIVES BESIDE THE UNIVERSE AND OUTLIVES THE BUILD, and both halves of that are
-  # load-bearing in opposite directions.
-  #
-  # OUTSIDE, because a lead exploring its own WORKDIR with bypassPermissions runs whatever
-  # feov-record it finds there, and the staging tree is a plugin root with a bin/ of its own.
-  #
-  # OUTLIVES, because `extraKnownMarketplaces` in the universe's settings.json records this PATH,
-  # and Claude re-reads it at every session start. Staged in `mktemp -d` and deleted on return, the
-  # config pointed at a directory that no longer existed: the plugins silently failed to load, so
-  # `/frank-exchange-of-views:research` was not a command, and the lead — asked to research a topic
-  # with a slash command it did not have — simply ANSWERED THE TOPIC. One turn, five cents, exit 0.
-  # Deleting it also put it in /tmp, which this repo's scratch rule forbids for exactly this class
-  # of "it worked when I ran it" failure.
-  local mkt; mkt="${WORKDIR%/}.marketplace"
+  local mkt="${WORKDIR}.marketplace"
   rm -rf "$mkt"
-  mkdir -p "$mkt/.claude-plugin"
+  mkdir -p "$mkt/.claude-plugin" "$mkt/plugins"
 
-  # A COPY, AND EVERY `bin/` IT CONTAINS IS BUILT FROM THIS CHECKOUT BELOW.
-  #
-  # Three attempts at this, and the first two were the same mistake in different places. It began
-  # as a `plugins` symlink into the checkout, inside WORKDIR and then beside it; both times the
-  # lead explored, found $mkt/plugins/frank-exchange-of-views/bin/feov-record, and ran `setup` with
-  # it — the CHECKOUT's binary, whatever a previous build happened to leave there. A 16:18 build
-  # drove a run against a 17:58 cache and staged the very file that run existed to prove deleted.
-  #
-  # So the third attempt removed bin/ entirely, and that was WORSE, because it created a vacuum the
-  # plugin fills by design. hooks.json runs ${CLAUDE_PLUGIN_ROOT}/bin/<hook>, and when that is
-  # missing it execs hooks/fetch-bin.sh, which downloads the binaries FROM THE RELEASE TAG and
-  # installs them into that same bin/. Measured: bin/ reappeared 40 seconds after a build that had
-  # deleted it, holding `feov-record version babd3ea` — the 1.72.0 release, predating every change
-  # the run was built to exercise. The lead's first act was `ls -la bin/`, and it found them.
-  #
-  # A path a lead can reach is a path a lead will use, and it is right to — it went looking for the
-  # tool and found one. Hiding the tool is not the fix and neither is removing it: the fix is that
-  # EVERY feov-record on disk is this checkout's, so which one gets used stops being a question
-  # the result depends on. A populated bin/ also means the self-heal never fires, so a universe
-  # cannot silently downgrade itself to the last release.
-  mkdir -p "$mkt/plugins"
   for p in "${PLUGINS[@]}"; do
+    [ -d "$REPO/plugins/$p" ] || continue
     cp -r "$REPO/plugins/$p" "$mkt/plugins/$p" || die "could not stage plugin $p"
-    rm -rf "$mkt/plugins/$p/bin"
-    # .fetch IS THE SELF-HEAL'S STATE, and staging the developer's copy of it is inheriting an
-    # accident. This checkout carries one from a release fetch that ran against it; `cp -r` put it
-    # in the universe, where its stamp happened to match and so happened to hold the self-heal shut.
-    # A universe on a clean clone has no such luck. Stripped here and written deliberately below.
-    rm -rf "$mkt/plugins/$p/.fetch"
+    rm -rf "$mkt/plugins/$p/bin" "$mkt/plugins/$p/.fetch"
   done
   python3 "$REPO/scripts/universe-manifest.py" \
     "$REPO/.claude-plugin/marketplace.json" "$mkt/.claude-plugin/marketplace.json" \
@@ -413,111 +373,181 @@ cmd_build() {
   ( cd "$WORKDIR" && claude plugin marketplace add "$mkt" ) || die "could not add marketplace from $mkt"
 
   for p in "${PLUGINS[@]}"; do
+    [ -d "$mkt/plugins/$p" ] || continue
     log "installing $p"
     ( cd "$WORKDIR" && claude plugin install "$p@$MARKETPLACE_NAME" ) >/dev/null || log "WARNING: install failed: $p"
   done
 
-  # Binaries are built IN THE CACHE, where the install put each plugin's tools/, and mirrored into
-  # the staged marketplace below, which is where ${CLAUDE_PLUGIN_ROOT} resolves. A build in the
-  # checkout leaves both roots with no binaries and hooks degrading to a stderr line — which looks,
-  # from inside a run, exactly like hooks that are not configured.
-  #
-  # They are COMPILED FROM THE CHECKOUT's source and written into the cache, because Go stamps a
-  # binary with its commit only when it builds inside a git tree, and the cache is a copy with no
-  # .git: compiled there, every register's tool_version and hook_version read `unknown`, so run.md
-  # could not tell one build from another. The checkout is the commit the cache was installed from
-  # (the clean-tree check above).
-  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$MARKETPLACE_NAME"
-  [ -d "$cache_root" ] || die "plugin cache not found at $cache_root"
+  # Build the local release into $WORKDIR.release
+  local rel="$WORKDIR.release"
+  rm -rf "$rel"
+  mkdir -p "$rel"
+
+  local host_os host_arch ext=""
+  host_os="$(go env GOOS)"
+  host_arch="$(go env GOARCH)"
+  [ "$host_os" = "windows" ] && ext=".exe"
 
   local first_tools
   first_tools="$(find "$REPO/plugins" -maxdepth 2 -type d -name tools -print -quit 2>/dev/null)"
   [ -n "$first_tools" ] && { log "warming the Go module cache"; go build -C "$first_tools" ./... >/dev/null 2>&1; }
 
-  local built=0
-  for plugin_dir in "$cache_root"/*/*/; do
-    local pname; pname="$(basename "$(dirname "$plugin_dir")")"
-    local tools="$REPO/plugins/$pname/tools"
-    [ -d "$plugin_dir/tools/cmd" ] || continue
-    [ -d "$tools/cmd" ] || die "the cache holds $pname's tools but the checkout has no $tools/cmd"
-    mkdir -p "$plugin_dir/bin"
-    for cmd_dir in "$tools"/cmd/*/; do
-      local name; name="$(basename "$cmd_dir")"
-      if go build -C "$tools" -o "$plugin_dir/bin/$name" "./cmd/$name" 2>/dev/null; then
-        built=$((built + 1))
-      else
-        log "WARNING: could not build $name"
-      fi
-    done
-  done
-  log "built $built hook binaries into the cache"
-
-  # THE STAGING TREE GETS THE SAME BINARIES, because it is the root a session loads and the hooks
-  # fill it from the RELEASE if it is empty (see the header). Copied from what was just built
-  # rather than rebuilt, so the two roots cannot diverge even by a recompile: whichever one a hook
-  # or a curious lead reaches, it is this checkout's code.
-  local staged=0
-  for plugin_dir in "$cache_root"/*/*/; do
-    [ -d "$plugin_dir/bin" ] || continue
-    local pname; pname="$(basename "$(dirname "$plugin_dir")")"
-    [ -d "$mkt/plugins/$pname" ] || continue
-    mkdir -p "$mkt/plugins/$pname/bin"
-    for b in "$plugin_dir"/bin/*; do
-      [ -f "$b" ] || continue
-      cp -f "$b" "$mkt/plugins/$pname/bin/" || die "could not mirror $(basename "$b") into the staging tree"
-      staged=$((staged + 1))
-    done
-  done
-
-  # THE SELF-HEAL TRIGGERS ON THE STAMP, NOT ON AN EMPTY bin/ — which is what the previous version
-  # of this comment got wrong, and it said "the self-heal never reaches for a release" over code
-  # that did not stop it. fetch-bin.sh lists a binary as MISSING when `.fetch/installed` does not
-  # name this plugin's tag, however present and executable the file is: "When the stamp names
-  # another release, or none, every binary is fetched." A `go build` writes no stamp, so a universe
-  # built on a clean clone is one SessionStart away from having its binaries replaced by the
-  # release's, mid-run, with `setup`'s version preflight already past.
-  #
-  # So the stamp is written for every root this script populates, naming that plugin's own version
-  # — the same string tag_of() computes — and the assertion below proves `ensure` then does nothing.
-  local stamped=0
-  for root in "$cache_root"/*/*/ "$mkt/plugins"/*/; do
-    [ -d "$root" ] || continue
-    local pj="$root/.claude-plugin/plugin.json"
-    [ -f "$pj" ] || pj="$root/plugin.json"
+  for p in "${PLUGINS[@]}"; do
+    local pj="$REPO/plugins/$p/plugin.json"
+    [ -f "$pj" ] || pj="$REPO/plugins/$p/.claude-plugin/plugin.json"
     [ -f "$pj" ] || continue
     local nm ver
     nm=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['name'])" "$pj" 2>/dev/null) || continue
     ver=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['version'])" "$pj" 2>/dev/null) || continue
     [ -n "$nm" ] && [ -n "$ver" ] || continue
-    mkdir -p "$root/.fetch"
-    printf '%s\n' "$nm--v$ver" > "$root/.fetch/installed"
-    stamped=$((stamped + 1))
-  done
-  log "mirrored $staged binaries and stamped $stamped root(s) as installed"
 
-  # ASSERT IT, rather than assert it in a comment. `ensure` prints a systemMessage and spawns a
-  # background fetch exactly when it thinks a binary is missing; on a correctly stamped root it
-  # says nothing. A universe whose binaries the release would overwrite mid-run is not a universe
-  # that proves anything about this checkout, and that is a checkable condition, so it is checked.
-  for root in "$cache_root"/*/*/; do
-    [ -f "$root/hooks/fetch-bin.sh" ] || continue
-    local out
-    out=$(CLAUDE_PLUGIN_ROOT="$root" sh "$root/hooks/fetch-bin.sh" ensure SessionStart 2>&1)
-    if [ -n "$out" ]; then
-      die "the self-heal still fires in $(basename "$(dirname "$root")"): $out
-  A stamped root must make \`ensure\` a no-op. If it does not, this universe's binaries can be
-  replaced by the release's at any session start, and the run would be measuring the release."
+    local tag_dir="$rel/${nm}--v${ver}"
+    mkdir -p "$tag_dir"
+
+    # Go binaries
+    local tools="$REPO/plugins/$p/tools"
+    if [ -d "$tools/cmd" ]; then
+      for cmd_dir in "$tools"/cmd/*/; do
+        [ -d "$cmd_dir" ] || continue
+        local name; name="$(basename "$cmd_dir")"
+        local out_bin="$tag_dir/${name}_${host_os}_${host_arch}${ext}"
+        if CGO_ENABLED=0 go build -C "$tools" -trimpath -ldflags "-s -w" -o "$out_bin" "./cmd/$name"; then
+          :
+        else
+          log "WARNING: could not build $name"
+        fi
+      done
+    fi
+
+    # Native helpers
+    local native_root="$REPO/plugins/$p/native"
+    if [ -d "$native_root" ]; then
+      for assets_file in "$native_root"/*/ASSETS; do
+        [ -f "$assets_file" ] || continue
+        local helper_dir; helper_dir="$(dirname "$assets_file")"
+        local helper; helper="$(basename "$helper_dir")"
+        local digest=""
+        if command -v nativedigest >/dev/null 2>&1; then
+          digest="$(nativedigest -print "$helper" 2>/dev/null)"
+        elif [ -d "$tools" ]; then
+          digest="$(go -C "$tools" run ./devcmd/nativedigest -print "$helper" 2>/dev/null)"
+        fi
+        [ -n "$digest" ] || die "could not compute digest for $helper"
+
+        local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/sc-universe/native/$helper/$digest"
+        local helper_bin_name="${helper}_${host_os}_${host_arch}${ext}"
+        if [ -f "$cache_dir/$helper_bin_name" ]; then
+          log "reusing cached helper $helper ($digest)"
+          cp "$cache_dir"/* "$tag_dir/" 2>/dev/null || true
+        else
+          for tool in zig cmake; do
+            command -v "$tool" >/dev/null 2>&1 || die "$helper needs $tool on PATH to build from source"
+          done
+          local tmp_cache="${cache_dir}.tmp.$$"
+          rm -rf "$tmp_cache"
+          mkdir -p "$tmp_cache"
+          local build_sh="$native_root/build.sh"
+          if [ -f "$build_sh" ]; then
+            "$build_sh" "$helper" "${host_os}-${host_arch}" "$tmp_cache" || die "building helper $helper failed"
+          fi
+          while read -r line || [ -n "$line" ]; do
+            [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+            local export_name=""
+            for field in $line; do
+              case "$field" in
+                "${host_arch}="*) export_name="${field#*=}" ;;
+              esac
+            done
+            if [ -n "$export_name" ]; then
+              if [ -f "$helper_dir/PINS.txt" ]; then
+                local dl_url="" dl_sha=""
+                while read -r pline || [ -n "$pline" ]; do
+                  [[ "$pline" =~ ^[[:space:]]*(#|$) ]] && continue
+                  if echo "$pline" | grep -q "^${export_name}[[:space:]]"; then
+                    dl_sha="$(echo "$pline" | awk '{print $2}')"
+                    dl_url="$(echo "$pline" | awk '{print $3}')"
+                  fi
+                done < "$helper_dir/PINS.txt"
+                if [ -n "$dl_url" ]; then
+                  curl -fsSL "$dl_url" -o "$tmp_cache/$export_name" || die "failed downloading $export_name"
+                  if [ -n "$dl_sha" ]; then
+                    local actual_sha
+                    actual_sha="$( ( sha256sum "$tmp_cache/$export_name" 2>/dev/null || shasum -a 256 "$tmp_cache/$export_name" ) | awk '{print $1}')"
+                    [ "$actual_sha" = "$dl_sha" ] || die "sha256 mismatch on $export_name: got $actual_sha, want $dl_sha"
+                  fi
+                fi
+              fi
+            fi
+          done < "$assets_file"
+
+          mkdir -p "$(dirname "$cache_dir")"
+          mv "$tmp_cache" "$cache_dir"
+          cp "$cache_dir"/* "$tag_dir/" 2>/dev/null || true
+        fi
+      done
+    fi
+
+    ( cd "$tag_dir" && ( sha256sum -- * 2>/dev/null || shasum -a 256 -- * ) > SHA256SUMS )
+    [ -s "$tag_dir/SHA256SUMS" ] || die "empty SHA256SUMS in $tag_dir"
+  done
+
+  # Install from local release via fetch-bin.sh
+  for p in "${PLUGINS[@]}"; do
+    local staged_root="$mkt/plugins/$p"
+    [ -d "$staged_root" ] || continue
+    [ -f "$staged_root/hooks/fetch-bin.sh" ] || continue
+
+    rm -rf "${staged_root:?}/bin" "${staged_root:?}/.fetch"
+    mkdir -p "$staged_root/.fetch"
+    if ! CLAUDE_PLUGIN_ROOT="$staged_root" sh "$staged_root/hooks/fetch-bin.sh" fetch </dev/null >>"$staged_root/.fetch/log" 2>&1; then
+      local failed_cause=""
+      [ -f "$staged_root/.fetch/failed" ] && failed_cause="$(cat "$staged_root/.fetch/failed")"
+      [ -z "$failed_cause" ] && [ -f "$staged_root/.fetch/log" ] && failed_cause="$(cat "$staged_root/.fetch/log")"
+      die "fetch failed for $p: $failed_cause"
+    fi
+
+    local pj="$staged_root/plugin.json"
+    [ -f "$pj" ] || pj="$staged_root/.claude-plugin/plugin.json"
+    local nm ver
+    nm=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['name'])" "$pj" 2>/dev/null)
+    ver=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['version'])" "$pj" 2>/dev/null)
+    local tag_dir="$rel/${nm}--v${ver}"
+
+    if [ -d "$staged_root/bin" ]; then
+      for bf in "$staged_root/bin"/*; do
+        [ -f "$bf" ] || continue
+        local bname; bname="$(basename "$bf")"
+        local stripped="${bname%"$ext"}"
+        local candidate="$tag_dir/${stripped}_${host_os}_${host_arch}${ext}"
+        if [ ! -f "$candidate" ]; then
+          candidate="$tag_dir/$bname"
+        fi
+        if [ -f "$candidate" ]; then
+          cmp -s "$bf" "$candidate" || die "$p: bin/$bname does not match release asset $(basename "$candidate")"
+        fi
+      done
     fi
   done
-  log "self-heal checked: silent on every cache root"
 
-  # Enable the plugins for this universe. Without this the content is installed and nothing loads
-  # it, which presents as a session with no skills and no hooks.
-  local settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
-  python3 - "$settings" <<'PY'
+  # Assert ensure is silent on every staged root
+  for root in "$mkt/plugins"/*/; do
+    [ -f "$root/hooks/fetch-bin.sh" ] || continue
+    local out
+    out=$(CLAUDE_PLUGIN_ROOT="$root" sh "$root/hooks/fetch-bin.sh" ensure SessionStart </dev/null 2>&1)
+    if [ -n "$out" ]; then
+      die "the self-heal still fires in $(basename "$root"): $out
+A stamped root must make \`ensure\` a no-op. If it does not, this universe's binaries can be
+replaced by the release's at any session start, and the run would be measuring the release."
+    fi
+  done
+  log "self-heal checked: silent on every staged root"
+
+  # Enable plugins in settings.json
+  python3 - "$settings" "$WORKDIR.release" <<'PY'
 import json, os, sys
-p = sys.argv[1]
+p, rel = sys.argv[1], sys.argv[2]
 d = json.load(open(p)) if os.path.exists(p) else {}
+d.setdefault("env", {})["SC_RELEASE_BASE_URL"] = f"file://{rel}"
 d.setdefault("enabledPlugins", {})
 for name in ("prosthetic-conscience", "frank-exchange-of-views", "sleeper-service", "gray-area"):
     d["enabledPlugins"][f"{name}@special-circumstances"] = True
@@ -526,10 +556,6 @@ json.dump(d, open(p, "w"), indent=2)
 print(f"[universe] enabled {len(d['enabledPlugins'])} plugin(s) in {p}")
 PY
 
-  # THE CONFIG'S MARKETPLACE PATH MUST STILL EXIST, asserted here rather than discovered by a run.
-  # A dangling path does not fail the build, the install, or `doctor` — the cache is fully
-  # populated and every binary is there. It fails at SESSION START, by the plugins not loading,
-  # which presents as a lead that answers the topic instead of researching it.
   python3 - "$settings" "$mkt" <<'PY' || die "the universe's marketplace path is not the one just staged"
 import json, os, sys
 settings, staged = sys.argv[1], sys.argv[2]
@@ -545,20 +571,22 @@ if not os.path.isdir(path):
 print(f"[universe] marketplace source resolves: {path}")
 PY
   cmd_doctor
-  log "the marketplace source lives at $mkt — removing the universe means removing BOTH paths"
-  printf '%s %s\n' "$(git -C "$REPO" rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$WORKDIR/built-from"
+  log "the marketplace source lives at $mkt"
+  log "the local release lives at $WORKDIR.release"
+  log "removing the universe means removing ALL THREE paths: $WORKDIR, $mkt, $WORKDIR.release"
+  printf '%s %s\n' "$(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo unknown)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$WORKDIR/built-from"
 }
 
 cmd_doctor() {
   universe_env; clear_seat_env
-  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$MARKETPLACE_NAME"
-  log "cache: $cache_root"
-  for plugin_dir in "$cache_root"/*/*/; do
+  local mkt="${WORKDIR}.marketplace"
+  log "marketplace: $mkt"
+  for plugin_dir in "$mkt/plugins"/*/; do
     [ -d "$plugin_dir" ] || continue
     local n; n=$(find "$plugin_dir/bin" -maxdepth 1 -type f 2>/dev/null | wc -l)
-    printf '  %-56s binaries=%s\n' "${plugin_dir#"$cache_root"/}" "$n"
+    printf '  %-56s binaries=%s\n' "$(basename "$plugin_dir")" "$n"
   done
-  local rec=("$cache_root/frank-exchange-of-views"/*/bin/feov-record)
+  local rec=("$mkt/plugins/frank-exchange-of-views/bin/feov-record"*)
   for r in "${rec[@]}"; do
     [ -x "$r" ] && log "feov-record: schema epoch $("$r" --schema 2>/dev/null), build $("$r" --version 2>/dev/null | awk '{print $NF}')"
   done
@@ -808,6 +836,8 @@ cmd_watch() {
 cmd_shell() {
   universe_env; clear_seat_env
   local src="$WORKDIR/src"; mkdir -p "$src"
+  printf '%s\n' "$$" > "$WORKDIR/shell.pid"
+  trap 'rm -f "$WORKDIR/shell.pid"' EXIT
   ( cd "$src" && exec claude )
 }
 

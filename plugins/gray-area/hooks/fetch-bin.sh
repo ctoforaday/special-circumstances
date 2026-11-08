@@ -156,6 +156,16 @@ up_to_date() {
 		[ -d "$d" ] || continue
 		[ -x "$ROOT/bin/$(basename "$d")$ext" ] || return 1
 	done
+	for a in "$ROOT"/native/*/ASSETS; do
+		[ -f "$a" ] || continue
+		h=$(basename "$(dirname "$a")")
+		[ -x "$ROOT/bin/$h$ext" ] || return 1
+		while read -r file rest || [ -n "$file" ]; do
+			[ -n "$file" ] || continue
+			case "$file" in \#*) continue ;; esac
+			[ -f "$ROOT/bin/$file" ] || return 1
+		done <"$a"
+	done
 	return 0
 }
 
@@ -250,44 +260,73 @@ fetch() {
 	tag="$name--v$version"
 
 	# The binaries are the directories under tools/cmd — the list the release job builds and the
-	# doctor checks. A binary already installed FROM THIS TAG is left alone: a running .exe cannot
-	# be replaced on Windows, and refetching what is already correct is waste. When the stamp names
-	# another release, or none, every binary is fetched: a stale one is as wrong as a missing one,
-	# and that is the whole reason `ensure` exists.
+	# doctor checks — plus helpers under native/*/ASSETS and extra files in those ASSETS files.
+	# An asset already installed FROM THIS TAG is left alone: a running .exe cannot be replaced
+	# on Windows, and refetching what is already correct is waste. When the stamp names another
+	# release, or none, every binary is fetched: a stale one is as wrong as a missing one, and
+	# that is the whole reason `ensure` exists.
 	stale=1
 	[ "$(cat "$STATE/installed" 2>/dev/null)" = "$tag" ] && stale=0
+	mkdir -p "$TMP" || fail "cannot create $TMP"
 	missing=
 	for d in "$ROOT"/tools/cmd/*/; do
 		[ -d "$d" ] || continue
 		n=$(basename "$d")
 		if [ "$stale" = 1 ] || [ ! -x "$ROOT/bin/$n$ext" ]; then
 			missing="$missing $n"
+			printf '1 %s %s %s\n' "${n}_${os}_${arch}${ext}" "$n$ext" "$n" >>"$TMP/tasks"
 		fi
+	done
+	for a in "$ROOT"/native/*/ASSETS; do
+		[ -f "$a" ] || continue
+		h=$(basename "$(dirname "$a")")
+		if [ "$stale" = 1 ] || [ ! -x "$ROOT/bin/$h$ext" ]; then
+			missing="$missing $h"
+			printf '1 %s %s %s\n' "${h}_${os}_${arch}${ext}" "$h$ext" "$h" >>"$TMP/tasks"
+		fi
+		while read -r file rest || [ -n "$file" ]; do
+			[ -n "$file" ] || continue
+			case "$file" in \#*) continue ;; esac
+			arch_asset=
+			for pair in $rest; do
+				case "$pair" in
+				${arch}=*)
+					arch_asset="${pair#"${arch}="}"
+					break
+					;;
+				esac
+			done
+			[ -n "$arch_asset" ] || fail "$file has no asset for $arch"
+			if [ "$stale" = 1 ] || [ ! -f "$ROOT/bin/$file" ]; then
+				missing="$missing $file"
+				printf '0 %s %s %s\n' "$arch_asset" "$file" "$file" >>"$TMP/tasks"
+			fi
+		done <"$a"
 	done
 	if [ -z "$missing" ]; then
 		rm -f "$STATE/failed"
 		return 0
 	fi
 
-	mkdir -p "$TMP" || fail "cannot create $TMP"
 	curl -fsSL --retry 2 --connect-timeout 20 --max-time 600 -o "$TMP/SHA256SUMS" "$BASE_URL/$tag/SHA256SUMS" ||
 		fail "release $tag has no SHA256SUMS yet, or the network is unreachable"
 	# Verify every asset before installing any, so bin/ never holds part of a failed fetch.
-	for n in $missing; do
-		a="${n}_${os}_${arch}${ext}"
+	while read -r is_exec a dest name; do
 		want=$(awk -v a="$a" '$2 == a || $2 == "*" a { print $1; exit }' "$TMP/SHA256SUMS")
 		[ -n "$want" ] || fail "release $tag has no $a"
 		curl -fsSL --retry 2 --connect-timeout 20 --max-time 600 -o "$TMP/$a" "$BASE_URL/$tag/$a" || fail "downloading $a from release $tag failed"
 		got=$($sum "$TMP/$a" | awk '{ print $1 }')
 		[ "$got" = "$want" ] || fail "checksum mismatch for $a from release $tag"
-	done
+	done <"$TMP/tasks"
 	mkdir -p "$ROOT/bin" || fail "cannot create $ROOT/bin"
-	for n in $missing; do
-		a="${n}_${os}_${arch}${ext}"
-		if ! chmod 0755 "$TMP/$a" || ! mv -f "$TMP/$a" "$ROOT/bin/$n$ext"; then
-			fail "cannot install $n into $ROOT/bin"
+	while read -r is_exec a dest name; do
+		if [ "$is_exec" = 1 ]; then
+			chmod 0755 "$TMP/$a" || fail "cannot install $name into $ROOT/bin"
 		fi
-	done
+		if ! mv -f "$TMP/$a" "$ROOT/bin/$dest"; then
+			fail "cannot install $name into $ROOT/bin"
+		fi
+	done <"$TMP/tasks"
 	rm -f "$STATE/failed"
 	printf '%s\n' "$tag" >"$STATE/installed"
 	printf '%s fetch-bin: installed%s from %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$missing" "$tag"
