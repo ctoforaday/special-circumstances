@@ -84,7 +84,19 @@ fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
 	[ -n "$sha" ] && [ -n "$url" ] || die "$file is not pinned in $manifest"
 	if [ ! -f "$dest" ]; then
 		echo "fetching $file"
-		curl -fsSL --retry 5 --retry-connrefused --retry-delay 2 --connect-timeout 30 -o "$dest.part" "$url" && mv "$dest.part" "$dest"
+		local fetched=0
+		if command -v gh >/dev/null 2>&1 && [[ "$url" =~ github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/(.+) ]]; then
+			local owner="${BASH_REMATCH[1]}"
+			local repo="${BASH_REMATCH[2]}"
+			local tag="${BASH_REMATCH[3]}"
+			local asset="${BASH_REMATCH[4]}"
+			if gh release download "$tag" -R "$owner/$repo" -p "$asset" -D "$3" 2>/dev/null && [ -f "$dest" ]; then
+				fetched=1
+			fi
+		fi
+		if [ "$fetched" -eq 0 ]; then
+			curl -fsSL --retry 5 --retry-connrefused --retry-delay 2 --connect-timeout 30 -o "$dest.part" "$url" && mv "$dest.part" "$dest"
+		fi
 	fi
 	echo "$sha  $dest" | sha256sum -c --quiet - || die "$file does not match its pin"
 }
