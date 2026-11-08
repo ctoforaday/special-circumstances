@@ -57,9 +57,11 @@ PREFIX="$WORK/prefix"
 
 # Exclusive lock on workdir
 exec 9>"$WORK/.build.lock"
-if ! flock -n 9; then
-	echo "native/build.sh: waiting for the lock on $WORK (another build is running)"
-	flock 9
+if command -v flock >/dev/null 2>&1; then
+	if ! flock -n 9; then
+		echo "native/build.sh: waiting for the lock on $WORK (another build is running)"
+		flock 9
+	fi
 fi
 
 J="${CSTACK_JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}"
@@ -80,6 +82,106 @@ fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
 	fi
 	echo "$sha  $dest" | sha256sum -c --quiet - || die "$file does not match its pin"
 }
+
+# Windows MSVC native helper build for feov-embed (plans/native-helpers.md §III.1.5)
+if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
+	HELPER_PINS="$NATIVE_DIR/$HELPER/PINS.txt"
+	model_file="gte-small.int8.${ARCH}.ort"
+	fetch_pinned "$model_file" "$HELPER_PINS" "$WORK/src"
+
+	VSW="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+	[ -f "$VSW" ] || die "vswhere.exe not found at $VSW"
+	V=$("$VSW" -latest -products '*' -property installationVersion | tr -d '\r')
+	VSDIR=$("$VSW" -latest -products '*' -property installationPath | tr -d '\r')
+	case ${V%%.*} in
+	17) GEN="Visual Studio 17 2022" ;;
+	18) GEN="Visual Studio 18 2026" ;;
+	*) die "Visual Studio version $V unknown" ;;
+	esac
+	echo "native/build.sh: Visual Studio $V at $VSDIR (generator: $GEN)"
+
+	case "$ARCH" in
+	amd64) VS_ARCH="x64" ;;
+	arm64) VS_ARCH="ARM64" ;;
+	*) die "unsupported Windows architecture $ARCH" ;;
+	esac
+
+	HP=python
+	command -v python >/dev/null 2>&1 || HP=python3
+	[ -d "$WORK/pyenv" ] || "$HP" -m venv "$WORK/pyenv"
+	if [ -f "$WORK/pyenv/Scripts/python.exe" ]; then
+		PY="$WORK/pyenv/Scripts/python.exe"
+	else
+		PY="$WORK/pyenv/bin/python"
+	fi
+	"$PY" -m pip install -q flatbuffers
+
+	fetch_pinned onnxruntime-1.31.1.tar.gz "$HELPER_PINS" "$WORK/src"
+	SRC="$WORK/src/onnxruntime"
+	if [ ! -d "$SRC" ]; then
+		mkdir -p "$SRC"
+		tar -C "$SRC" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+	fi
+
+	if [ ! -f "$WORK/build/ort/Release/onnxruntime_common.lib" ]; then
+		echo "=== Building ONNX Runtime ($TARGET) with MSVC ==="
+		XARGS=()
+		MACH=$("$PY" -c 'import platform; print(platform.machine())' | tr -d '\r')
+		[ "$VS_ARCH" = "ARM64" ] && [ "$MACH" != "ARM64" ] && XARGS+=(--arm64)
+		"$PY" "$SRC/tools/ci_build/build.py" \
+			--build_dir "$WORK/build/ort" \
+			--config Release \
+			--update --build --parallel "$J" \
+			--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
+			--cmake_generator "$GEN" \
+			--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
+			--include_ops_by_config "$NATIVE_DIR/feov-embed/ops.config" \
+			--enable_reduced_operator_type_support \
+			--enable_msvc_static_runtime ${XARGS[@]+"${XARGS[@]}"} \
+			--cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF onnxruntime_DISABLE_DEVICE_DISCOVERY=ON
+		cmake --build "$WORK/build/ort/Release" --config Release --target cpuinfo -j "$J" || true
+	fi
+
+	find "$WORK/build/ort/Release" -name '*.lib' \
+		! -name 'protoc*.lib' ! -name 'libprotoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' \
+		! -name 'flatbuffers.lib' ! -name 'upb*.lib' ! -path '*gtest*' ! -path '*gmock*' ! -path '*benchmark*' ! -name '*test*' \
+		! -path '*/feov-embed/*' | sort > "$WORK/libs-unix.txt"
+	while IFS= read -r l; do cygpath -m "$l"; done < "$WORK/libs-unix.txt" > "$WORK/libs.txt"
+
+	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
+	EMBED_DIR="$WORK/embed"
+	mkdir -p "$EMBED_DIR"
+	cat > "$EMBED_DIR/CMakeLists.txt" <<EOS
+cmake_minimum_required(VERSION 3.21)
+project(feovembed CXX)
+set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
+add_executable(feov-embed
+	"$(cygpath -m "$NATIVE_DIR/feov-embed/main.cpp")"
+	"$(cygpath -m "$NATIVE_DIR/frame/frame.cpp")"
+)
+target_compile_features(feov-embed PRIVATE cxx_std_17)
+target_compile_definitions(feov-embed PRIVATE FEOV_HELPER_DIGEST=\"${DIGEST}\")
+target_include_directories(feov-embed PRIVATE
+	"$(cygpath -m "$SRC/include/onnxruntime/core/session")"
+	"$(cygpath -m "$NATIVE_DIR/frame")"
+	"$(cygpath -m "$NATIVE_DIR/feov-embed")"
+)
+file(STRINGS "$(cygpath -m "$WORK/libs.txt")" ORT_LIBS)
+target_link_libraries(feov-embed PRIVATE \${ORT_LIBS} advapi32 dbghelp setupapi pathcch shlwapi dxgi)
+target_compile_options(feov-embed PRIVATE /Brepro)
+target_link_options(feov-embed PRIVATE /Brepro)
+EOS
+	cmake -S "$EMBED_DIR" -B "$EMBED_DIR/b" -G "$GEN" -A "$VS_ARCH"
+	cmake --build "$EMBED_DIR/b" --config Release -j "$J"
+
+	OUT_NAME="${HELPER}_${OS}_${ARCH}${EXT}"
+	cp "$EMBED_DIR/b/Release/feov-embed.exe" "$OUTDIR/$OUT_NAME"
+	cp "$EMBED_DIR/b/Release/feov-embed.exe" "$OUTDIR/${HELPER}${EXT}"
+	cp "$WORK/src/$model_file" "$OUTDIR/gte-small.int8.ort"
+	cp "$WORK/src/$model_file" "$OUTDIR/$model_file"
+	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
+	exit 0
+fi
 
 # ---- Toolchain ----------------------------------------------------------------------
 tool_pin() { # tool_pin <name>

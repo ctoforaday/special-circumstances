@@ -3,8 +3,10 @@ package fuzz
 import (
 	"sort"
 	"strings"
+	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -31,6 +33,7 @@ var flagExemptions = map[string]string{
 	"version": "cobra's own",
 	"run":     "the harness passes it on every call through r.exec's prefix, before argv reaches the tally",
 	"seat-id": "same — supplied by r.exec for every seat call",
+	"search":  "hybrid vector search requires native helper feov-embed, which is not built in the plain release-fuzz job (asserted in native-run and internal/hybridsearch)",
 	// NOT A SEAT ACT. `--schema` prints the event epoch and exits before cobra dispatches
 	// anything; setup shells it to compare the binary against the plugin manifest, which is the
 	// guard that refuses a run whose binary and plugin disagree about the record shape. A sweep
@@ -217,4 +220,28 @@ func (r *runner) closedInARoundBefore(round int) []string {
 		out = append(out, id)
 	}
 	return out
+}
+
+func TestViewSelectsCarriesQuote(t *testing.T) {
+	roles := []string{"bench", "chair", "blue-respond", "blue-synthesize", "red-lens-logic", "red-lens-evidence"}
+	quoteViews := 0
+	for _, role := range roles {
+		for _, c := range seat.RoleVerbs(role) {
+			group := c.Name()
+			for _, sub := range c.Commands() {
+				view := sub.Name()
+				hasQuoteFlag := sub.Flags().Lookup("quote") != nil
+				selects := viewSelects(role, group, view)
+				if hasQuoteFlag != selects {
+					t.Errorf("role %s %s %s: hasQuoteFlag=%v but viewSelects=%v", role, group, view, hasQuoteFlag, selects)
+				}
+				if selects {
+					quoteViews++
+				}
+			}
+		}
+	}
+	if quoteViews == 0 {
+		t.Fatal("expected at least one view to support quote selection")
+	}
 }

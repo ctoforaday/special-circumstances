@@ -8524,7 +8524,7 @@ func viewSelects(role, group, view string) bool {
 		}
 		for _, sub := range c.Commands() {
 			if sub.Name() == view {
-				return sub.Flags().Lookup("match") != nil
+				return sub.Flags().Lookup("quote") != nil
 			}
 		}
 	}
