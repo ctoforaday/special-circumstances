@@ -120,7 +120,7 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 	SRC="$WORK/src/onnxruntime"
 	if [ ! -d "$SRC" ]; then
 		mkdir -p "$SRC"
-		tar -C "$SRC" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+		tar --force-local -C "$SRC" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
 	fi
 
 	if [ ! -f "$WORK/build/ort/Release/onnxruntime_common.lib" ]; then
