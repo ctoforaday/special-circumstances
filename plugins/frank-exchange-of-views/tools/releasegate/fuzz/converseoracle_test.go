@@ -29,6 +29,9 @@ const (
 	redClosesAndWithholds
 	// redClosesAndWithholdsEarly is redClosesAndWithholds one epoch before the limit.
 	redClosesAndWithholdsEarly
+	// redClosesAndWithholdsWithRoom is redClosesAndWithholds two epochs before the limit: room for a
+	// lens's audit before the final sitting.
+	redClosesAndWithholdsWithRoom
 )
 
 // converseRun is a record at its epoch limit, over one gap that ends as path says: at epoch 1 the
@@ -40,8 +43,11 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 	runDir := recordtest.TmpRun(t)
 	const sentence = "A § fuzz sentence to anchor findings."
 	maxEpochs := 2
-	if path == benchCloses || path == redClosesAndWithholdsEarly {
+	switch path {
+	case benchCloses, redClosesAndWithholdsEarly:
 		maxEpochs = 3
+	case redClosesAndWithholdsWithRoom:
+		maxEpochs = 4
 	}
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
 		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":1,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25,"maxEpochs":%d}`, maxEpochs)); err != nil {
@@ -83,7 +89,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		t.Fatalf("the board holds %v open after one mint, want one gap", open)
 	}
 	switch path {
-	case redCloses, redClosesAndPetitions, redClosesAndWithholds, redClosesAndWithholdsEarly:
+	case redCloses, redClosesAndPetitions, redClosesAndWithholds, redClosesAndWithholdsEarly, redClosesAndWithholdsWithRoom:
 		must("--seat-id", converseLens, "close", "--id", open[0], "--as", "not_a_defect", "--reason", "fuzz: the argument held",
 			"--verified-by", converseLens, "--verified-with", "fuzz", "--verified-against", "the report")
 		if path == redClosesAndPetitions {
@@ -108,7 +114,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 
 	r.dispatchSits("chair", "red-chair")
 	out := must("--json", "dispatch", "next", "--seat-id", "red-chair")
-	if path == redClosesAndWithholds || path == redClosesAndWithholdsEarly {
+	if path == redClosesAndWithholds || path == redClosesAndWithholdsEarly || path == redClosesAndWithholdsWithRoom {
 		must("--json", "position", "--seat-id", "red-chair", "--reason", "fuzz: the PASS is withheld, the core claim rests on one source")
 		out = must("--json", "dispatch", "next", "--seat-id", "red-chair")
 	}

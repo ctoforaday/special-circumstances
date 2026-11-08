@@ -732,7 +732,8 @@ type runner struct {
 	// plan it relays is the one it asks for after it (chairEnvelope).
 	positionFiled bool
 	// forcePosition is the bench ruling a position seed's run is forced to (positionFormOf): its
-	// chair withholds its first permitted PASS, and its bench rules the position this way. "" in
+	// chair withholds its first permitted PASS its ruling's route fits the epoch limit
+	// (lastWithholdEpoch), and its bench rules the position this way. "" in
 	// every other run. positionForced is set once that chair has withheld, and heldTrifle once the
 	// gaps run's lens has minted the gap it holds open for the bench to name (mintHeldTrifle).
 	forcePosition string
@@ -745,9 +746,16 @@ type runner struct {
 	// positionNamedGaps is each gap a bench's upholding of a position named, in ruling order;
 	// positionNamedAt is, by gap, the occasion and the chair sitting of that ruling, which the
 	// forced-position oracle's failure names.
-	positionNamedGaps                                []string
-	positionNamedAt                                  map[string]string
-	positionForced, heldTrifle                       bool
+	positionNamedGaps          []string
+	positionNamedAt            map[string]string
+	positionForced, heldTrifle bool
+	// positionWithheldAt is the epoch whose chair sitting withheld the forced run's PASS, and
+	// positionRuledAtEpoch the epoch of the chair sitting the bench's ruling on it followed;
+	// positionPassedLate is the first epoch whose permitted PASS came past the route's window
+	// (lastWithholdEpoch) and was passed, and positionLimit the epoch limit that window was read
+	// under. The forced runs' failures name them: an exit at the limit is otherwise a guess.
+	positionWithheldAt, positionRuledAtEpoch         int
+	positionPassedLate, positionLimit                int
 	positionsUpheldLens, positionsUpheldGaps         int
 	positionsOverruled                               int
 	positionRulingsRefused, repeatedPositionsRefused int
@@ -5604,8 +5612,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// A CHAIR MAY WITHHOLD A PASS THE BOARD PERMITS, and its position then says why — the one
 		// sitting the position is owed at (record.PositionSittings). The bench hears it next. Drawn
 		// rarely, never where an overruling decided the objection, and in a forced run only where it
-		// is forced to a position (withholdsForced).
-		if permitted && overruled == "" && r.withholds() {
+		// is forced to a position and its ruling's route fits the epoch limit (withholds).
+		if epoch, maxEpochs := planEpochs(plan); permitted && overruled == "" && r.withholds(epoch, maxEpochs) {
 			r.chairPosition(seatID, true)
 			return r.chairEnvelope(seatID, "", "", responses)
 		}
@@ -7517,6 +7525,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 	lastPlanWhy(&res, board)
+	if res.verdict != "VERIFIED" {
+		res.why += r.positionRouteClause()
+	}
 	{
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		// THE SWITCH IS ON THE BODY, not on a type string beside it. Each arm reaches straight for
@@ -9912,11 +9923,10 @@ func (r *runner) ruleStandingDockets(seatID string) {
 	}
 }
 
-// forcedWhyClause renders the forced run's exit reason when it has one. Split out because the
-// reason is the diagnosis — "PASS refused: … 3 motion(s) filed and never ruled" is what the shape
-// is made of — and an empty one must read as absent rather than as an empty pair of quotes.
 // lastPlanWhy gives a run its exit reason from the plan the chair's last sitting stored, where nothing
-// more specific has: the reason a forced drive's failure message prints.
+// more specific has: the reason a forced drive's failure message prints. A plan at the epoch limit
+// exited on the limit, and says so with what it held; the plan's first why is the first cast lens's
+// state, which names no exit, so it is the reason only where no limit was reached.
 func lastPlanWhy(res *outcome, board record.Family) {
 	if res.why != "" {
 		return
@@ -9926,11 +9936,45 @@ func lastPlanWhy(res *outcome, board record.Family) {
 		res.why = "the plans the record stored do not read: " + err.Error()
 		return
 	}
-	if n := len(stored); n > 0 && len(stored[n-1].Plan.Why) > 0 {
-		res.why = stored[n-1].Plan.Why[0]
+	n := len(stored)
+	if n == 0 {
+		return
+	}
+	if p := stored[n-1].Plan; p.EpochLimitReached {
+		res.why = epochLimitWhy(p)
+	} else if len(p.Why) > 0 {
+		res.why = p.Why[0]
 	}
 }
 
+// epochLimitWhy is the exit reason of a run whose last plan reached its epoch limit: the epoch it was
+// asked in against the limit, and what it held undispatched — the blockers by kind, with their owners.
+func epochLimitWhy(p record.Plan) string {
+	held := map[string][]string{}
+	var kinds []string
+	for _, b := range p.Blockers {
+		k := string(b.Kind)
+		if _, seen := held[k]; !seen {
+			kinds = append(kinds, k)
+		}
+		if b.Owner != "" && !slices.Contains(held[k], b.Owner) {
+			held[k] = append(held[k], b.Owner)
+		}
+	}
+	parts := make([]string, 0, len(kinds))
+	for _, k := range kinds {
+		parts = append(parts, fmt.Sprintf("%s (%s)", k, strings.Join(held[k], ", ")))
+	}
+	what := "nothing the plan names"
+	if len(parts) > 0 {
+		what = strings.Join(parts, "; ")
+	}
+	return fmt.Sprintf("the epoch limit: the last chair sitting opened epoch %d of the limit %d with the PASS held by %s", p.Epoch, p.MaxEpochs, what)
+}
+
+// forcedWhyClause renders the forced run's exit reason when it has one. Split out because the
+// reason is the diagnosis — "PASS refused: … 3 motion(s) filed and never ruled" is what the shape
+// is made of — and an empty one must read as absent rather than as an empty pair of quotes.
 func forcedWhyClause(why string) string {
 	if why == "" {
 		return " The run stated no exit reason."
