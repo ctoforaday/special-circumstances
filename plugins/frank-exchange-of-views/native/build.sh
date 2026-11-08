@@ -4,7 +4,7 @@
 # Usage:
 #   build.sh <helper> <target> [outdir] [workdir]
 #
-# Helpers: feov-ocr
+# Helpers: feov-ocr | feov-embed
 # Targets: linux-amd64 | linux-arm64 | windows-amd64 | windows-arm64 | darwin-arm64
 set -euo pipefail
 
@@ -298,5 +298,119 @@ with open('traineddata.c', 'w') as f:
 
 	cp "$OUT_NAME" "$OUTDIR/$OUT_NAME"
 	cp "$OUT_NAME" "$OUTDIR/${HELPER}${EXT}"
+	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
+fi
+
+if [ "$HELPER" = "feov-embed" ]; then
+	model_file="gte-small.int8.${ARCH}.ort"
+	fetch_pinned "$model_file" "$HELPER_PINS" "$WORK/src"
+
+	if [ ! -f "$PREFIX/lib/libonnxruntime_static.a" ]; then
+		echo "=== Providing ONNX Runtime ($TARGET) ==="
+		mkdir -p "$PREFIX/lib" "$PREFIX/include"
+		if [ -n "${ORT_STATIC_DIR:-}" ] && [ -f "$ORT_STATIC_DIR/lib/libonnxruntime_static.a" ]; then
+			cp "$ORT_STATIC_DIR"/include/* "$PREFIX/include/"
+			cp "$ORT_STATIC_DIR"/lib/* "$PREFIX/lib/"
+		elif [ -f "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/lib/libonnxruntime_static.a" ]; then
+			cp "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/include/"* "$PREFIX/include/"
+			cp "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/lib/"* "$PREFIX/lib/"
+		elif [ -f "$HOME/.claude/scratch/vecplan/ortstatic/out/min/lib/libonnxruntime_static.a" ]; then
+			cp "$HOME/.claude/scratch/vecplan/ortstatic/out/min/include/"* "$PREFIX/include/"
+			cp "$HOME/.claude/scratch/vecplan/ortstatic/out/min/lib/"* "$PREFIX/lib/"
+		else
+			fetch_pinned onnxruntime-1.31.1.tar.gz "$HELPER_PINS" "$WORK/src"
+			echo "=== Building ONNX Runtime ($TARGET) ==="
+			rm -rf "$WORK/build/ort" && mkdir -p "$WORK/build/ort"
+			tar -C "$WORK/build/ort" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+			python3 "$WORK/build/ort/tools/ci_build/build.py" \
+				--build_dir "$WORK/build/ort/b" \
+				--config Release \
+				--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
+				--include_ops_by_config "$NATIVE_DIR/feov-embed/ops.config" \
+				--enable_reduced_operator_type_support \
+				--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
+				--parallel "$J" \
+				--cmake_extra_defines CMAKE_SYSTEM_NAME="$SYSNAME" CMAKE_SYSTEM_PROCESSOR="$PROC" \
+					CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX" \
+					CMAKE_AR="$AR" CMAKE_RANLIB="$RANLIB"
+			local ort_lib_out="$PREFIX/lib/libonnxruntime_static.a"
+			rm -f "$ort_lib_out"
+			local libs=()
+			while IFS= read -r l; do libs+=("$l"); done < <(find "$WORK/build/ort/b/Release" \( -name '*.a' -o -name '*.lib' \) \
+				! -name 'libprotoc.a' ! -name 'libprotobuf.a' ! -name 'libupb*.a' ! -name 'libflatbuffers.a' \
+				! -name 'protoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' ! -name 'flatbuffers.lib' ! -name 'upb*.lib' \
+				! -name 'libonnxruntime_static.a' ! -path '*gtest*' ! -path '*gmock*' ! -path '*benchmark*' ! -name '*test*' | sort)
+			case "$(uname -s)" in
+			Darwin) if [ "$AR" = ar ]; then libtool -static -o "$ort_lib_out" "${libs[@]}"; else { echo "CREATE $ort_lib_out"; for l in "${libs[@]}"; do echo "ADDLIB $l"; done; echo SAVE; echo END; } | "$AR" -M; fi ;;
+			*) { echo "CREATE $ort_lib_out"; for l in "${libs[@]}"; do echo "ADDLIB $l"; done; echo SAVE; echo END; } | "$AR" -M ;;
+			esac
+			cp "$WORK/build/ort"/include/onnxruntime/core/session/onnxruntime_*.h "$PREFIX/include/"
+		fi
+	fi
+
+	# Fixups for Darwin
+	case "$SYSNAME" in
+	Darwin)
+		GOSRC="$(go env GOROOT)/src"
+		tbd_target="$PROC-macos"
+		dyn_syms() {
+			grep -rhoE "//go:cgo_import_dynamic [^ ]+ [^ ]+ \"[^\"]*$1\"" "$GOSRC" |
+				awk '{ print "_" $3 }' | sort -u | paste -sd, - | sed 's/,/, /g'
+		}
+		write_tbd() {
+			mkdir -p "$(dirname "$1")"
+			{
+				printf -- "--- !tapi-tbd\ntbd-version: 4\ntargets: [ %s ]\ninstall-name: '%s'\ncurrent-version: 1.0\n" "$tbd_target" "$2"
+				[ -n "${3:-}" ] && printf -- "exports:\n  - targets: [ %s ]\n    symbols: [ %s ]\n" "$tbd_target" "$3"
+				printf -- '...\n'
+			} > "$1"
+		}
+		cf_syms="$(dyn_syms CoreFoundation)"
+		sec_syms="$(dyn_syms Security)"
+		write_tbd "$PREFIX/lib/libresolv.tbd" '/usr/lib/libresolv.9.dylib'
+		write_tbd "$PREFIX/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" \
+			'/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation' "$cf_syms"
+		write_tbd "$PREFIX/Frameworks/Security.framework/Security.tbd" \
+			'/System/Library/Frameworks/Security.framework/Versions/A/Security' "$sec_syms"
+		;;
+	esac
+
+	# ---- Compile feov-embed -------------------------------------------------------------
+	echo "=== Compiling feov-embed ($TARGET) ==="
+	cd "$WORK/build"
+
+	# Compile C++ objects
+	CXXFLAGS=(-std=c++17 -O2 -DFEOV_HELPER_DIGEST="\"$DIGEST\"" -D_USE_MATH_DEFINES)
+	CXXFLAGS+=(-I"$PREFIX/include" -I"$NATIVE_DIR/frame" -I"$NATIVE_DIR/feov-embed")
+	[ "$SYSNAME" = Darwin ] && CXXFLAGS+=(-fno-cxx-modules)
+
+	"$CXX" "${CXXFLAGS[@]}" -c -o frame.o "$NATIVE_DIR/frame/frame.cpp"
+	"$CXX" "${CXXFLAGS[@]}" -c -o main.o "$NATIVE_DIR/feov-embed/main.cpp"
+
+	LDFLAGS=(-L"$PREFIX/lib" -lonnxruntime_static -lc++)
+	case "$SYSNAME" in
+	Linux)
+		LDFLAGS+=(-static)
+		;;
+	Windows)
+		LDFLAGS+=(-static -lws2_32)
+		;;
+	Darwin)
+		LDFLAGS+=(-F"$PREFIX/Frameworks" -framework CoreFoundation -framework Security -lresolv)
+		;;
+	esac
+
+	OUT_NAME="${HELPER}_${OS}_${ARCH}${EXT}"
+	"$CXX" -o "$OUT_NAME" main.o frame.o "${LDFLAGS[@]}"
+
+	# Run staticproof check on built helper
+	if [ -f "$REPO_ROOT/scripts/staticproof/main.go" ]; then
+		go -C "$REPO_ROOT/scripts" run ./staticproof -artifact "$HELPER" "$PWD/$OUT_NAME"
+	fi
+
+	cp "$OUT_NAME" "$OUTDIR/$OUT_NAME"
+	cp "$OUT_NAME" "$OUTDIR/${HELPER}${EXT}"
+	cp "$WORK/src/$model_file" "$OUTDIR/gte-small.int8.ort"
+	cp "$WORK/src/$model_file" "$OUTDIR/$model_file"
 	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
 fi

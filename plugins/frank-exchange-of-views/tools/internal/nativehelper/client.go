@@ -83,6 +83,21 @@ func HelperDigest(helper string) string {
 	return helpers[helper].Digest
 }
 
+// HelperAssets returns the asset sha256s for helper on the current runtime.GOARCH.
+func HelperAssets(helper string) []string {
+	pins, ok := helpers[helper]
+	if !ok {
+		return nil
+	}
+	var res []string
+	for _, a := range pins.Assets {
+		if sha := a.SHA256[runtime.GOARCH]; sha != "" {
+			res = append(res, sha)
+		}
+	}
+	return res
+}
+
 // IsAbsent reports whether err means no helper came up (helper-absent,
 // helper-digest-mismatch, or a failure before the handshake completed).
 func IsAbsent(err error) bool {

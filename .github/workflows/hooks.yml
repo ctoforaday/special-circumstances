@@ -386,6 +386,7 @@ jobs:
         TestReadPageCapturesDiagnosticsAndEvidence
         TestTextCellGoldens
         TestTextCellTableKeepsItsRowsThroughTheEngine
+        TestEmbedWithBuiltHelper
     steps:
       - name: Check if native-run should execute
         id: check-full
@@ -432,7 +433,7 @@ jobs:
             must_pass="${must_pass} TestSelftestLibc"
           fi
           run_arg="$(echo "$must_pass" | tr ' ' '|')"
-          go test -v -count=1 -run "^(${run_arg})\$" ./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/... | tee "$RUNNER_TEMP/test.log"
+          go test -v -count=1 -run "^(${run_arg})\$" ./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/... ./internal/vecembed/... ./internal/hybridsearch/... | tee "$RUNNER_TEMP/test.log"
           for name in $must_pass; do
             grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || {
               echo "::error::required test ${name} did not PASS"
@@ -755,9 +756,21 @@ jobs:
         with:
           name: native-feov-ocr-windows-amd64
           path: ${{ runner.temp }}/helpers
+      - name: Download feov-embed helper (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/download-artifact@v4
+        with:
+          name: native-feov-embed-linux-amd64
+          path: ${{ runner.temp }}/helpers
+      - name: Download feov-embed helper (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/download-artifact@v4
+        with:
+          name: native-feov-embed-windows-amd64
+          path: ${{ runner.temp }}/helpers
       - name: Make helper executable
         if: runner.os == 'Linux'
-        run: chmod +x "${RUNNER_TEMP}/helpers/feov-ocr"
+        run: chmod +x "${RUNNER_TEMP}/helpers"/* || true
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription

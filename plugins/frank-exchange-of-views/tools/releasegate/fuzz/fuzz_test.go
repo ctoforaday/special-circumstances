@@ -1159,7 +1159,7 @@ func (r *runner) sourceSearchCited(seatID, citeOut, span string) {
 	label, sha := env.Result.Label, env.Result.Sha256
 	pattern := []string{"--quote", "source body for"}
 	if label[len(label)-1]%2 == 0 {
-		pattern = []string{"--match", `.{0,20}source body.{0,40}`}
+		pattern = []string{"--quote", "source body"}
 	}
 	byAnchor, bySha := []string{"--anchor", label}, []string{"--sha", sha}
 	blueBy, lensBy := byAnchor, bySha
@@ -2090,13 +2090,13 @@ func holdsBlueOut(plan map[string]any) bool {
 func (r *runner) auditRead(seatID string) {
 	switch n := r.rng.Intn(10); {
 	case r.foundAgainstHoldsPin(seatID):
-		r.readOnly("show", seatID, "report", "--json", "--match", "§")
+		r.readOnly("show", seatID, "report", "--json", "--quote", "§")
 	case r.forcedVerdict() || n < 5:
 		r.readOnly("show", seatID, "report")
 	case n < 9:
 		r.readOnly("show", seatID, "report", "--json")
 	default:
-		r.readOnly("show", seatID, "report", "--json", "--match", "§")
+		r.readOnly("show", seatID, "report", "--json", "--quote", "§")
 	}
 }
 
@@ -7194,7 +7194,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			if !viewSelects(role, group, v) {
 				continue
 			}
-			for _, sel := range [][]string{{"--match", "."}, {"--quote", impossibleQuote}} {
+			for _, sel := range [][]string{{"--quote", impossibleQuote}} {
 				sargs := append([]string{group, v, "--run", runDir, "--seat-id", sid, "--json"}, sel...)
 				out, err := drive(bin, sargs...)
 				if err != nil {
@@ -7210,22 +7210,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				if json.Unmarshal([]byte(strings.TrimSpace(string(out))), &doc) != nil || doc.Selection == nil {
 					res.err = fmt.Sprintf("%s %s %s --json %s answered with no selection block — the pair it carries did not select:\n%s",
 						role, group, v, strings.Join(sel, " "), out)
-					return res
-				}
-				// THE REPORT'S `of` IS ITS LINE COUNT, blank lines included, and a selection never keeps a
-				// blank line — so there everything means every line with text on it.
-				want := doc.Selection.Of
-				if v == "report" {
-					n, err := reportTextLines(bin, group, runDir, sid)
-					if err != nil {
-						res.err = role + " " + group + " report --json failed: " + err.Error()
-						return res
-					}
-					want = n
-				}
-				if sel[0] == "--match" && doc.Selection.Matched != want {
-					res.err = fmt.Sprintf("%s %s %s --match . kept %d of %d — a pattern matching every character dropped entries",
-						role, group, v, doc.Selection.Matched, want)
 					return res
 				}
 				if sel[0] == "--quote" && doc.Selection.Matched != 0 {
@@ -7302,7 +7286,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				return res
 			}
 		}
-		for _, sel := range [][]string{{"--match", "risk matrix"}, {"--quote", "Risk matrix"}} {
+		for _, sel := range [][]string{{"--quote", "Risk matrix"}} {
 			args := append([]string{"ops", "assembled"}, sel...)
 			out, err := drive(bin, append(args, "--run", runDir, "--seat-id", "operator")...)
 			if err != nil || !strings.Contains(string(out), `"Risk matrix"`) {
@@ -8531,28 +8515,6 @@ var viewNamesForFuzz = seat.ViewNames()
 // literal `role == "bench" || role == "chair"` here would be that rule written twice, going stale
 // the next time it moves. The rule has already moved once, and a hardcoded "show" at the call sites
 // is exactly what failed when it did.
-// reportTextLines is how many of the report's lines carry text, read off its unselected --json form.
-func reportTextLines(bin, group, runDir, sid string) (int, error) {
-	out, err := drive(bin, group, "report", "--run", runDir, "--seat-id", sid, "--json")
-	if err != nil {
-		return 0, err
-	}
-	var doc struct {
-		Lines []struct {
-			Text string `json:"text"`
-		} `json:"lines"`
-	}
-	if err := json.Unmarshal(out, &doc); err != nil {
-		return 0, err
-	}
-	n := 0
-	for _, ln := range doc.Lines {
-		if strings.TrimSpace(ln.Text) != "" {
-			n++
-		}
-	}
-	return n, nil
-}
 
 // viewSelects reports whether the view's page, in this role's tree, carries the selector pair.
 func viewSelects(role, group, view string) bool {

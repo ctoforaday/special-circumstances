@@ -228,12 +228,12 @@ func TestOpsAssembledIsTheSetAssemblyShips(t *testing.T) {
 
 	// A selector picks sections from the structured form, and prints that form with or without
 	// --json: the bare listing has no text to select on.
-	jsonSel, err := run(t, "ops", "assembled", "--json", "--match", "trial division", "--run", runDir, "--seat-id", "operator")
+	jsonSel, err := run(t, "ops", "assembled", "--json", "--quote", "trial division", "--run", runDir, "--seat-id", "operator")
 	if err != nil || !strings.Contains(jsonSel, `"heading": "Research areas"`) || strings.Contains(jsonSel, `"heading": "Risk matrix"`) {
-		t.Errorf("ops assembled --json --match does not select the section that matches: %v\n%s", err, jsonSel)
+		t.Errorf("ops assembled --json --quote does not select the section that matches: %v\n%s", err, jsonSel)
 	}
-	if out, err := run(t, "ops", "assembled", "--match", "trial division", "--run", runDir, "--seat-id", "operator"); err != nil || out != jsonSel {
-		t.Errorf("ops assembled --match in the bare form is not the --json form's selection: err %v\n%s", err, out)
+	if out, err := run(t, "ops", "assembled", "--quote", "trial division", "--run", runDir, "--seat-id", "operator"); err != nil || out != jsonSel {
+		t.Errorf("ops assembled --quote in the bare form is not the --json form's selection: err %v\n%s", err, out)
 	}
 	// A section that ships as one line is that line.
 	if s := by["Title"]; s.Text != "# On 91" {

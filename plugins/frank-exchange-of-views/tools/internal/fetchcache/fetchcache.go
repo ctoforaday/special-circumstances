@@ -31,11 +31,13 @@ import (
 	"fmt"
 	neturl "net/url"
 	"os"
-	"slices"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
 )
 
 // ChainFetcher is a Fetcher that can continue ONE retrieval across several requests.
@@ -778,6 +780,36 @@ func LookupSha(run record.Run, sha string) (Entry, bool, error) {
 	return Entry{}, false, sc.Err()
 }
 
+// AllEntries returns every distinct Entry recorded in the cache index, in first-seen order.
+// When multiple index lines share a Sha, only the first entry is returned.
+func AllEntries(run record.Run) ([]Entry, error) {
+	f, err := os.Open(indexPath(run))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	var out []Entry
+	seen := make(map[string]bool)
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for sc.Scan() {
+		var e Entry
+		if json.Unmarshal(sc.Bytes(), &e) != nil {
+			continue
+		}
+		if e.Sha == "" || seen[e.Sha] {
+			continue
+		}
+		seen[e.Sha] = true
+		out = append(out, e)
+	}
+	return out, sc.Err()
+}
+
 // EntryFor builds the index record for one backend attempt: every field the Attempt carries, the
 // classification of its bytes, and the withdrawal that follows from it.
 //
@@ -814,7 +846,49 @@ func foldExtraction(run record.Run, entry *Entry, ex Extraction) error {
 		return terr
 	}
 	entry.TextSha = textSha
+	prewarmVectors(run, textSha, ex.Text, nil)
 	return nil
+}
+
+// prewarmVectors eagerly computes and caches chunk vector embeddings for text into <run>/cache/<textSha>.vec
+// when an embedder (feov-embed) is available. Best-effort: errors are ignored so extraction/OCR never fails.
+func prewarmVectors(run record.Run, textSha string, text string, pageMap []int) {
+	if textSha == "" || text == "" {
+		return
+	}
+	cachePath := VectorCachePath(run, textSha)
+	if _, err := os.Stat(cachePath); err == nil {
+		return // already cached
+	}
+	emb, err := vecembed.Default()
+	if err != nil {
+		return // helper or model absent; search will fail or lazy-embed later
+	}
+	defer emb.Close()
+
+	chunks := hybridsearch.ChunkSource(text, pageMap)
+	if len(chunks) == 0 {
+		return
+	}
+	chunkTexts := make([]string, len(chunks))
+	for i, ch := range chunks {
+		chunkTexts[i] = ch.Text
+	}
+	vecs, err := emb.Embed(chunkTexts)
+	if err != nil || len(vecs) != len(chunks) {
+		return
+	}
+	cached := make([]hybridsearch.CachedChunk, len(chunks))
+	for i, ch := range chunks {
+		cached[i] = hybridsearch.CachedChunk{
+			Index:     ch.Index,
+			StartByte: ch.StartByte,
+			EndByte:   ch.EndByte,
+			Page:      ch.Page,
+			Vector:    vecs[i],
+		}
+	}
+	_ = hybridsearch.WriteCache(cachePath, emb.ModelID(), cached)
 }
 
 // EntryFor builds the index entry for a backend's answer to url. substitution is the route that

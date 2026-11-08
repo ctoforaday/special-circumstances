@@ -1,0 +1,8 @@
+# Pinned downloads for the feov-embed C stack (plans/native-helpers.md).
+# Format, one record per line, machine-read by build.sh:
+#   <sha256>  <file>  <url>
+# Notes live on comment lines, never inline — the fields are a record, not prose.
+
+92ffbf8b97872fd1e73c9eebdf3319d9a3b24919ae438d27db903b72ee08939e  onnxruntime-1.31.1.tar.gz  https://github.com/microsoft/onnxruntime/archive/refs/tags/v1.31.1.tar.gz
+f9919347c708c08fbdd93df377717bbf282a09ef21423d1a25f9c979bd335320  gte-small.int8.amd64.ort  https://github.com/ctoforaday/special-circumstances/releases/download/model-gte-small-v1/gte-small.int8.amd64.ort
+560718670ef2497d047d210a4e08c3bffce7c471a23714526db6b8571154edf7  gte-small.int8.arm.ort  https://github.com/ctoforaday/special-circumstances/releases/download/model-gte-small-v1/gte-small.int8.arm.ort

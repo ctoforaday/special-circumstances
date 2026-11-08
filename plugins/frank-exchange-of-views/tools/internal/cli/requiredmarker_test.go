@@ -155,8 +155,8 @@ func requiredProbes() map[string]requiredProbe {
 // the reason. A leaf here is a leaf the gate does not measure, named rather than left looking
 // covered.
 var unprobedLeaves = map[string]string{
-	"show":    "a read: its --id/--match/--quote narrow a projection and none is required",
-	"inquest": "a read: --match/--quote narrow the record and neither is required",
+	"show":    "a read: its --id/--quote/--search narrow a projection and none is required",
+	"inquest": "a read: its --quote narrows the record and is not required",
 }
 
 // TestEveryRunnableLeafIsProbedForItsMarkers holds the probe table to the tree: every runnable

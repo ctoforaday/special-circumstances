@@ -523,6 +523,13 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 		return ReadingRecord{}, err
 	}
 	out.TextSha = Sha([]byte(text))
+	pageMap := make([]int, len(texts))
+	offset := 0
+	for i, t := range texts {
+		pageMap[i] = offset
+		offset += len(t) + 2
+	}
+	prewarmVectors(run, out.TextSha, text, pageMap)
 
 	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {

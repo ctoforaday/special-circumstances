@@ -463,9 +463,11 @@ PY
                 local dl_url="" dl_sha=""
                 while read -r pline || [ -n "$pline" ]; do
                   [[ "$pline" =~ ^[[:space:]]*(#|$) ]] && continue
-                  if echo "$pline" | grep -q "^${export_name}[[:space:]]"; then
-                    dl_sha="$(echo "$pline" | awk '{print $2}')"
-                    dl_url="$(echo "$pline" | awk '{print $3}')"
+                  local p_sha p_file p_url
+                  read -r p_sha p_file p_url _ <<< "$pline"
+                  if [ "$p_file" = "$export_name" ]; then
+                    dl_sha="$p_sha"
+                    dl_url="$p_url"
                   fi
                 done < "$helper_dir/PINS.txt"
                 if [ -n "$dl_url" ]; then

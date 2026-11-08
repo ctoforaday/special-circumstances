@@ -360,7 +360,7 @@ A source span is the words of the source's own cached text a citation rests on, 
 
 ## source search
 
-A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries its lines, the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
+A source search is a read of cached sources' text for literal text or a ranked hybrid query (BM25 and dense vectors), scoped to one source or across all cached sources in the run; each hit carries the source's sentence, its URL and SHA256, and whether a citation can quote that sentence as printed, and the search records nothing.
 
 **Delivered to:** lens, blue, lane
 
