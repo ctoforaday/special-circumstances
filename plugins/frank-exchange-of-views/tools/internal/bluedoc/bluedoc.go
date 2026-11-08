@@ -355,30 +355,82 @@ func SentenceAround(doc, tok string) (string, bool) {
 	return splitSentences(doc).around(tok)
 }
 
-// sentences is a document with its sentence bounds, as anchor.Sentences splits it — split once, for
+// sentences is a document with its sentence bounds, as anchor.Blocks splits it — split once, for
 // a reader that asks for the sentence around more than one token of it.
-type sentences struct {
-	doc   string
-	spans [][2]int
+type sentenceSpan struct {
+	start, end int
+	claimBlock bool
 }
 
-func splitSentences(doc string) sentences { return sentences{doc, anchor.Sentences(doc)} }
+type sentences struct {
+	doc   string
+	spans []sentenceSpan
+}
 
-// around is SentenceAround over the split: the sentence holding tok's first occurrence, flattened.
+func splitSentences(doc string) sentences {
+	var spans []sentenceSpan
+	for _, b := range anchor.Blocks(doc) {
+		claim := b.Kind != anchor.Heading && b.Kind != anchor.FootnoteDef && b.Kind != anchor.Fence
+		for _, sp := range b.Sentences {
+			spans = append(spans, sentenceSpan{start: sp[0], end: sp[1], claimBlock: claim})
+		}
+	}
+	return sentences{doc: doc, spans: spans}
+}
+
+// around is SentenceAround over the split: the sentence holding tok's first prose occurrence, flattened.
+// When an anchor token appears in a fence or proseless sentence and later in prose, the prose sentence
+// it backs is returned. If it backs no prose anywhere, an occurrence in a claim block is returned,
+// or false when none exists.
 func (s sentences) around(tok string) (string, bool) {
-	a, b := s.of(strings.Index(s.doc, tok), len(tok))
-	if a < 0 {
+	if len(tok) == 0 {
 		return "", false
 	}
-	return flatText(s.doc[a:b]), true
+	var occurrences []int
+	for idx := 0; idx < len(s.doc); {
+		i := strings.Index(s.doc[idx:], tok)
+		if i < 0 {
+			break
+		}
+		occurrences = append(occurrences, idx+i)
+		idx += i + len(tok)
+	}
+	if len(occurrences) == 0 {
+		return "", false
+	}
+
+	// Pass 1: first occurrence in a claim block with prose before it in its sentence.
+	for _, pos := range occurrences {
+		sp, ok := s.spanAt(pos, len(tok))
+		if ok && sp.claimBlock && claimcount.HasProse(s.doc[sp.start:pos]) {
+			return flatText(s.doc[sp.start:sp.end]), true
+		}
+	}
+
+	// Pass 2: first occurrence in a claim block (bare anchor).
+	for _, pos := range occurrences {
+		sp, ok := s.spanAt(pos, len(tok))
+		if ok && sp.claimBlock {
+			return flatText(s.doc[sp.start:sp.end]), true
+		}
+	}
+
+	return "", false
+}
+
+func (s sentences) spanAt(i, n int) (sentenceSpan, bool) {
+	for _, sp := range s.spans {
+		if sp.start <= i && i+n <= sp.end {
+			return sp, true
+		}
+	}
+	return sentenceSpan{}, false
 }
 
 // of is the bounds of the sentence holding doc[i:i+n], or -1, -1.
 func (s sentences) of(i, n int) (int, int) {
-	for _, sp := range s.spans {
-		if sp[0] <= i && i+n <= sp[1] {
-			return sp[0], sp[1]
-		}
+	if sp, ok := s.spanAt(i, n); ok {
+		return sp.start, sp.end
 	}
 	return -1, -1
 }

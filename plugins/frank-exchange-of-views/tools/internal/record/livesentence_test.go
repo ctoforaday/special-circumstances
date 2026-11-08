@@ -48,3 +48,26 @@ func TestTheLandingComparesAnEmptyJudgedSentence(t *testing.T) {
 		t.Errorf("a landing on the sentence judged: %q, %v", got, err)
 	}
 }
+
+// AN ANCHOR FIRST IN A FENCE OR PROSELESS SENTENCE READS ITS PROSE SENTENCE (#1780): when a token
+// first appears inside a fenced block or proseless sentence and later backs prose, SentencesIn
+// returns the prose sentence it backs, not the fence or an empty string. When an anchor appears
+// ONLY in a fence, it is neither live nor bare (sentenceAbsent).
+func TestAnAnchorInAFenceOrProselessSentenceReadsItsLiveSentenceInProse(t *testing.T) {
+	fencedLive, proselessLive, onlyFenced := "C-11223344", "C-55667788", "C-99aabbcc"
+	report := "# Findings\n\n```\n" + anchor.Token(fencedLive) + "\n" + anchor.Token(onlyFenced) + "\n```\n\n" +
+		"One.\n\n" + anchor.Token(proselessLive) + "\n\n" +
+		"The sky is blue" + anchor.Token(fencedLive) + ".\n\n" +
+		"The grass is green" + anchor.Token(proselessLive) + ".\n"
+
+	sentences, bare := SentencesIn(report, []string{fencedLive, proselessLive, onlyFenced})
+	if got := sentences[fencedLive]; got != "The sky is blue." || bare[fencedLive] {
+		t.Errorf("%s (in fence then prose) = %q (bare %v), want %q", fencedLive, got, bare[fencedLive], "The sky is blue.")
+	}
+	if got := sentences[proselessLive]; got != "The grass is green." || bare[proselessLive] {
+		t.Errorf("%s (in proseless then prose) = %q (bare %v), want %q", proselessLive, got, bare[proselessLive], "The grass is green.")
+	}
+	if got, ok := sentences[onlyFenced]; ok || bare[onlyFenced] {
+		t.Errorf("%s (only in fence) = %q (bare %v), want absent (not in map)", onlyFenced, got, bare[onlyFenced])
+	}
+}
