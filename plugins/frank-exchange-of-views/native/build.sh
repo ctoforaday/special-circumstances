@@ -164,7 +164,7 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 		! -name 'protoc*.lib' ! -name 'libprotoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' \
 		! -name 'flatbuffers.lib' ! -name 'upb*.lib' ! -path '*gtest*' ! -path '*gmock*' ! -path '*benchmark*' ! -name '*test*' \
 		! -path '*/feov-embed/*' | sort > "$WORK/libs-unix.txt"
-	while IFS= read -r l; do cygpath -m "$l"; done < "$WORK/libs-unix.txt" > "$WORK/libs.txt"
+	while IFS= read -r l; do cygpath -m "$l"; done < "$WORK/libs-unix.txt" | tr -d '\r' > "$WORK/libs.txt"
 
 	# Reverse topological order of core ORT libraries so dependent symbols resolve on MSVC
 	ort_first=()
@@ -176,11 +176,16 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 	{
 		for l in "${ort_first[@]}"; do echo "$l"; done
 		cat "$WORK/libs-rest.txt"
-	} > "$WORK/libs-ordered.txt"
+	} | tr -d '\r' > "$WORK/libs-ordered.txt"
 
 	session_lib="$(grep '/onnxruntime_session\.lib$' "$WORK/libs.txt" | head -n 1 || true)"
 	session_dir=""
 	[ -n "$session_lib" ] && session_dir="$(dirname "$session_lib")"
+
+	ort_libs_cmake=""
+	while IFS= read -r l; do
+		[ -n "$l" ] && ort_libs_cmake="$ort_libs_cmake \"$l\""
+	done < "$WORK/libs-ordered.txt"
 
 	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
 	EMBED_DIR="$WORK/embed"
@@ -210,10 +215,9 @@ target_link_directories(feov-embed PRIVATE
 	"$(cygpath -m "$WORK/build/ort/Release/Release")"
 	"$(cygpath -m "$WORK/build/ort/Release")"
 )
-file(STRINGS "$(cygpath -m "$WORK/libs-ordered.txt")" ORT_LIBS)
-target_link_libraries(feov-embed PRIVATE \${ORT_LIBS} advapi32 dbghelp setupapi pathcch shlwapi dxgi)
+target_link_libraries(feov-embed PRIVATE ${ort_libs_cmake} advapi32 dbghelp setupapi pathcch shlwapi dxgi)
 target_compile_options(feov-embed PRIVATE /Brepro)
-target_link_options(feov-embed PRIVATE /Brepro "/WHOLEARCHIVE:onnxruntime_session.lib" "/WHOLEARCHIVE:onnxruntime_providers.lib")
+target_link_options(feov-embed PRIVATE /Brepro "/WHOLEARCHIVE:onnxruntime_session.lib")
 EOS
 	cmake -S "$EMBED_DIR" -B "$EMBED_DIR/b" -G "$GEN" -A "$VS_ARCH"
 	cmake --build "$EMBED_DIR/b" --config Release -j "$J"
