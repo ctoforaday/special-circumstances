@@ -322,6 +322,7 @@ if [ "$HELPER" = "feov-embed" ]; then
 			echo "=== Building ONNX Runtime ($TARGET) ==="
 			rm -rf "$WORK/build/ort" && mkdir -p "$WORK/build/ort"
 			tar -C "$WORK/build/ort" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+			python3 -m pip install flatbuffers 2>/dev/null || pip3 install flatbuffers 2>/dev/null || pip install flatbuffers 2>/dev/null || python3 -m pip install --break-system-packages flatbuffers 2>/dev/null || true
 			python3 "$WORK/build/ort/tools/ci_build/build.py" \
 				--build_dir "$WORK/build/ort/b" \
 				--config Release \
@@ -333,9 +334,9 @@ if [ "$HELPER" = "feov-embed" ]; then
 				--cmake_extra_defines CMAKE_SYSTEM_NAME="$SYSNAME" CMAKE_SYSTEM_PROCESSOR="$PROC" \
 					CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX" \
 					CMAKE_AR="$AR" CMAKE_RANLIB="$RANLIB"
-			local ort_lib_out="$PREFIX/lib/libonnxruntime_static.a"
+			ort_lib_out="$PREFIX/lib/libonnxruntime_static.a"
 			rm -f "$ort_lib_out"
-			local libs=()
+			libs=()
 			while IFS= read -r l; do libs+=("$l"); done < <(find "$WORK/build/ort/b/Release" \( -name '*.a' -o -name '*.lib' \) \
 				! -name 'libprotoc.a' ! -name 'libprotobuf.a' ! -name 'libupb*.a' ! -name 'libflatbuffers.a' \
 				! -name 'protoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' ! -name 'flatbuffers.lib' ! -name 'upb*.lib' \

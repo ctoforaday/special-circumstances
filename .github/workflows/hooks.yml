@@ -341,6 +341,9 @@ jobs:
           HELPER: ${{ matrix.helper }}
           TARGET: ${{ matrix.target }}
         run: |
+          if [ "$HELPER" = "feov-embed" ]; then
+            python3 -m pip install flatbuffers 2>/dev/null || python -m pip install flatbuffers 2>/dev/null || true
+          fi
           mkdir -p "${RUNNER_TEMP}/native-cache"
           ./plugins/frank-exchange-of-views/native/build.sh "$HELPER" "$TARGET" "${RUNNER_TEMP}/native-cache"
       - name: Prove staticness
@@ -433,7 +436,9 @@ jobs:
             must_pass="${must_pass} TestSelftestLibc"
           fi
           run_arg="$(echo "$must_pass" | tr ' ' '|')"
-          go test -v -count=1 -run "^(${run_arg})\$" ./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/... ./internal/vecembed/... ./internal/hybridsearch/... | tee "$RUNNER_TEMP/test.log"
+          test_pkgs="./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/..."
+          test_pkgs="$test_pkgs ./internal/vecembed/... ./internal/hybridsearch/..."
+          go test -v -count=1 -run "^(${run_arg})\$" $test_pkgs | tee "$RUNNER_TEMP/test.log"
           for name in $must_pass; do
             grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || {
               echo "::error::required test ${name} did not PASS"
