@@ -47,6 +47,16 @@ func New() (*ClientEmbedder, error) {
 	}, nil
 }
 
+// NewWithClient creates a ClientEmbedder from an already initialized nativehelper.Client.
+func NewWithClient(client *nativehelper.Client) *ClientEmbedder {
+	digest := nativehelper.HelperDigest(HelperName)
+	return &ClientEmbedder{
+		client:  client,
+		tok:     DefaultTokenizer(),
+		modelID: "gte-small-int8@" + digest,
+	}
+}
+
 // Default returns the default Embedder backed by the feov-embed native helper.
 func Default() (Embedder, error) {
 	return New()

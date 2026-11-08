@@ -2,8 +2,6 @@ package vecembed
 
 import (
 	"math"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
@@ -74,6 +72,34 @@ func TestTokenizerTruncation(t *testing.T) {
 	}
 }
 
+func TestTokenizerEdgeCases(t *testing.T) {
+	tok := DefaultTokenizer()
+
+	// Empty string
+	got := tok.Encode("")
+	if len(got) != 2 || got[0] != tok.cls || got[1] != tok.sep {
+		t.Fatalf("Encode(\"\") = %v, want [%d, %d]", got, tok.cls, tok.sep)
+	}
+
+	// Whitespace only
+	gotWS := tok.Encode("   \t\n  ")
+	if len(gotWS) != 2 || gotWS[0] != tok.cls || gotWS[1] != tok.sep {
+		t.Fatalf("Encode(ws) = %v, want [%d, %d]", gotWS, tok.cls, tok.sep)
+	}
+
+	// Accented normalization: café should tokenize to same tokens as cafe
+	gotCafe := tok.Encode("cafe")
+	gotCafeAccent := tok.Encode("café")
+	if len(gotCafe) != len(gotCafeAccent) {
+		t.Fatalf("Encode(cafe) len=%d != Encode(café) len=%d", len(gotCafe), len(gotCafeAccent))
+	}
+	for i := range gotCafe {
+		if gotCafe[i] != gotCafeAccent[i] {
+			t.Fatalf("token %d mismatch: cafe=%d, café=%d", i, gotCafe[i], gotCafeAccent[i])
+		}
+	}
+}
+
 func TestCosine(t *testing.T) {
 	a := []float32{1, 0, 0}
 	b := []float32{0, 1, 0}
@@ -89,6 +115,17 @@ func TestCosine(t *testing.T) {
 	d := []float32{-0.6, -0.8}
 	if cos := Cosine(c, d); math.Abs(float64(cos+1.0)) > 1e-5 {
 		t.Fatalf("Cosine(opposite) = %f, want -1.0", cos)
+	}
+
+	// Edge cases
+	if cos := Cosine(nil, nil); cos != 0 {
+		t.Fatalf("Cosine(nil, nil) = %f, want 0", cos)
+	}
+	if cos := Cosine([]float32{1, 2}, []float32{1}); cos != 0 {
+		t.Fatalf("Cosine(mismatched) = %f, want 0", cos)
+	}
+	if cos := Cosine([]float32{0, 0, 0}, []float32{0, 0, 0}); cos != 0 {
+		t.Fatalf("Cosine(zeros) = %f, want 0", cos)
 	}
 }
 
@@ -111,33 +148,8 @@ func TestMissingHelperRefusesByName(t *testing.T) {
 }
 
 func TestEmbedWithBuiltHelper(t *testing.T) {
-	cacheHelper := filepath.Join(os.Getenv("HOME"), ".cache/sc-native/feov-embed/linux-amd64/build")
-	binPath := filepath.Join(cacheHelper, "feov-embed")
-	if _, err := os.Stat(binPath); err != nil {
-		archBin := filepath.Join(cacheHelper, "feov-embed_linux_amd64")
-		if _, err := os.Stat(archBin); err == nil {
-			_ = os.Symlink(archBin, binPath)
-		} else {
-			t.Skip("built helper not in cache")
-		}
-	}
-	// Also need gte-small.int8.ort beside it
-	if _, err := os.Stat(filepath.Join(cacheHelper, "gte-small.int8.ort")); err != nil {
-		// Copy model into cacheHelper if needed
-		modelSrc := filepath.Join(os.Getenv("HOME"), ".claude/scratch/vecplan/ortstatic/models/amd64/gte-small.int8.ort")
-		if b, err := os.ReadFile(modelSrc); err == nil {
-			_ = os.WriteFile(filepath.Join(cacheHelper, "gte-small.int8.ort"), b, 0o644)
-		} else {
-			t.Skip("gte-small.int8.ort not found")
-		}
-	}
-
-	t.Setenv("NATIVE_HELPER_DIR", cacheHelper)
-	emb, err := New()
-	if err != nil {
-		t.Fatalf("New() failed: %v", err)
-	}
-	defer emb.Close()
+	cl := nativehelper.Require(t, "feov-embed")
+	emb := NewWithClient(cl)
 
 	texts := []string{
 		"quantum computing with qubits and superposition",
@@ -174,23 +186,8 @@ func TestEmbedWithBuiltHelper(t *testing.T) {
 }
 
 func TestEmbedSplitsAtTheBatch(t *testing.T) {
-	cacheHelper := filepath.Join(os.Getenv("HOME"), ".cache/sc-native/feov-embed/linux-amd64/build")
-	binPath := filepath.Join(cacheHelper, "feov-embed")
-	if _, err := os.Stat(binPath); err != nil {
-		archBin := filepath.Join(cacheHelper, "feov-embed_linux_amd64")
-		if _, err := os.Stat(archBin); err == nil {
-			_ = os.Symlink(archBin, binPath)
-		} else {
-			t.Skip("built helper not in cache")
-		}
-	}
-
-	t.Setenv("NATIVE_HELPER_DIR", cacheHelper)
-	emb, err := New()
-	if err != nil {
-		t.Fatalf("New() failed: %v", err)
-	}
-	defer emb.Close()
+	cl := nativehelper.Require(t, "feov-embed")
+	emb := NewWithClient(cl)
 
 	// Create 35 texts (16 + 16 + 3)
 	texts := make([]string, 35)

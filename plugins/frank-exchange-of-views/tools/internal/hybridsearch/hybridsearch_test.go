@@ -1,6 +1,7 @@
 package hybridsearch
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -178,5 +179,53 @@ func TestFuseRRF(t *testing.T) {
 	// Item 0 is apple pie -> must be #3
 	if scored[2].Index != 0 {
 		t.Fatalf("third item = %d, want 0", scored[2].Index)
+	}
+}
+
+func TestFuseRRFEdgeCases(t *testing.T) {
+	// Empty items
+	res, err := FuseRRF(nil, "test", []float32{1, 0}, 5)
+	if err != nil || len(res) != 0 {
+		t.Fatalf("FuseRRF(nil) = %v, %v, want empty, nil", res, err)
+	}
+
+	items := []Item{
+		{Index: 0, Text: "single item text", Vector: []float32{1, 0, 0}},
+	}
+	// topK <= 0 defaults to 10
+	res, err = FuseRRF(items, "single", []float32{1, 0, 0}, 0)
+	if err != nil || len(res) != 1 {
+		t.Fatalf("FuseRRF(topK=0) = %v, %v, want 1 item (defaulted to 10), nil", res, err)
+	}
+
+	// topK = 1 on single item
+	res, err = FuseRRF(items, "single", []float32{1, 0, 0}, 1)
+	if err != nil || len(res) != 1 {
+		t.Fatalf("FuseRRF(topK=1) = %v, %v, want 1 item, nil", res, err)
+	}
+	if res[0].Index != 0 {
+		t.Fatalf("res[0].Index = %d, want 0", res[0].Index)
+	}
+}
+
+func TestReadCacheCorrupted(t *testing.T) {
+	tmp := t.TempDir()
+
+	// 1. Corrupted magic
+	badMagic := filepath.Join(tmp, "badmagic.vec")
+	if err := os.WriteFile(badMagic, []byte("NOT_FVEC_HEADER_DATA"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadCache(badMagic, "m@v1"); err != ErrCacheMiss {
+		t.Fatalf("ReadCache(badMagic) = %v, want ErrCacheMiss", err)
+	}
+
+	// 2. Truncated header
+	shortFile := filepath.Join(tmp, "short.vec")
+	if err := os.WriteFile(shortFile, []byte("FV"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadCache(shortFile, "m@v1"); err != ErrCacheMiss {
+		t.Fatalf("ReadCache(shortFile) = %v, want ErrCacheMiss", err)
 	}
 }

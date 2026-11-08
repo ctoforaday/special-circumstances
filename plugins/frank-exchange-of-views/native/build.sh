@@ -166,6 +166,18 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 		! -path '*/feov-embed/*' | sort > "$WORK/libs-unix.txt"
 	while IFS= read -r l; do cygpath -m "$l"; done < "$WORK/libs-unix.txt" > "$WORK/libs.txt"
 
+	# Reverse topological order of core ORT libraries so dependent symbols resolve on MSVC
+	ort_first=()
+	for k in onnxruntime_session.lib onnxruntime_providers.lib onnxruntime_framework.lib onnxruntime_graph.lib onnxruntime_util.lib onnxruntime_common.lib; do
+		l=$(grep "/$k\$" "$WORK/libs.txt" || true)
+		[ -n "$l" ] && ort_first+=("$l")
+	done
+	grep -v -E 'onnxruntime_(session|providers|framework|graph|util|common)\.lib$' "$WORK/libs.txt" > "$WORK/libs-rest.txt" || true
+	{
+		for l in "${ort_first[@]}"; do echo "$l"; done
+		cat "$WORK/libs-rest.txt"
+	} > "$WORK/libs-ordered.txt"
+
 	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
 	EMBED_DIR="$WORK/embed"
 	mkdir -p "$EMBED_DIR"
@@ -184,10 +196,14 @@ target_include_directories(feov-embed PRIVATE
 	"$(cygpath -m "$NATIVE_DIR/frame")"
 	"$(cygpath -m "$NATIVE_DIR/feov-embed")"
 )
-file(STRINGS "$(cygpath -m "$WORK/libs.txt")" ORT_LIBS)
+link_directories(
+	"$(cygpath -m "$WORK/build/ort/Release/Release")"
+	"$(cygpath -m "$WORK/build/ort/Release")"
+)
+file(STRINGS "$(cygpath -m "$WORK/libs-ordered.txt")" ORT_LIBS)
 target_link_libraries(feov-embed PRIVATE \${ORT_LIBS} advapi32 dbghelp setupapi pathcch shlwapi dxgi)
 target_compile_options(feov-embed PRIVATE /Brepro)
-target_link_options(feov-embed PRIVATE /Brepro)
+target_link_options(feov-embed PRIVATE /Brepro "/WHOLEARCHIVE:onnxruntime_session.lib" "/WHOLEARCHIVE:onnxruntime_providers.lib")
 EOS
 	cmake -S "$EMBED_DIR" -B "$EMBED_DIR/b" -G "$GEN" -A "$VS_ARCH"
 	cmake --build "$EMBED_DIR/b" --config Release -j "$J"
