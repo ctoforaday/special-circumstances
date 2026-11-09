@@ -174,19 +174,24 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 
 	ort_static_lib="$WORK/build/ort/Release/onnxruntime_static.lib"
 	rm -f "$ort_static_lib"
-	ort_static_lib_win="$(cygpath -w "$ort_static_lib" | tr -d '\r')"
+	ort_static_lib_win="$(cygpath -m "$ort_static_lib" | tr -d '\r')"
 	{
-		echo "/NOLOGO"
-		echo "/OUT:$ort_static_lib_win"
+		printf '/OUT:%s\n' "$ort_static_lib_win"
 		while IFS= read -r l; do
-			cygpath -w "$l" | tr -d '\r'
-		done < "$WORK/libs-unix.txt"
+			printf '%s\n' "$l"
+		done < "$WORK/libs.txt"
 	} > "$WORK/libs-rsp.txt"
 
-	rsp_win="$(cygpath -w "$WORK/libs-rsp.txt" | tr -d '\r')"
+	rsp_win="$(cygpath -m "$WORK/libs-rsp.txt" | tr -d '\r')"
 	echo "=== Merging ONNX Runtime static libraries with lib.exe ==="
-	"$LIB_EXE" @"$rsp_win"
-	[ -f "$ort_static_lib" ] || die "lib.exe failed to create $ort_static_lib"
+	echo "libs-rsp.txt entries: $(wc -l < "$WORK/libs-rsp.txt")"
+	head -n 5 "$WORK/libs-rsp.txt"
+	lib_out="$("$LIB_EXE" @"$rsp_win" 2>&1)" || {
+		echo "lib.exe failed with exit code $?: $lib_out"
+		exit 1
+	}
+	[ -n "$lib_out" ] && echo "$lib_out"
+	[ -f "$ort_static_lib" ] || die "lib.exe did not create $ort_static_lib"
 
 	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
 	EMBED_DIR="$WORK/embed"
