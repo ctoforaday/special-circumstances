@@ -160,10 +160,14 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 		cmake --build "$WORK/build/ort/Release" --config Release --target cpuinfo -j "$J" || true
 	fi
 
-	find "$WORK/build/ort/Release" -name '*.lib' \
+	ort_find_dir="$(cygpath -u "$WORK/build/ort/Release")"
+	find "$ort_find_dir" -name '*.lib' \
+		! -name 'onnxruntime_static.lib' \
 		! -name 'protoc*.lib' ! -name 'libprotoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' \
 		! -name 'flatbuffers.lib' ! -name 'upb*.lib' ! -path '*gtest*' ! -path '*gmock*' ! -path '*benchmark*' ! -name '*test*' \
-		! -path '*/feov-embed/*' | sort > "$WORK/libs-unix.txt"
+		! -path '*/embed/*' | sort > "$WORK/libs-unix.txt"
+	[ -s "$WORK/libs-unix.txt" ] || die "no static libraries found in $ort_find_dir"
+	echo "Found $(wc -l < "$WORK/libs-unix.txt") static libraries to merge"
 	while IFS= read -r l; do cygpath -m "$l"; done < "$WORK/libs-unix.txt" | tr -d '\r' > "$WORK/libs.txt"
 
 	LIB_EXE="$("$VSW" -latest -products '*' -find '**/Hostx64/x64/lib.exe' | head -n 1 | tr -d '\r')"
