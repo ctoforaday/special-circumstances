@@ -174,14 +174,19 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 
 	ort_static_lib="$WORK/build/ort/Release/onnxruntime_static.lib"
 	rm -f "$ort_static_lib"
-	while IFS= read -r l; do
-		cygpath -w "$l" | tr -d '\r'
-	done < "$WORK/libs-unix.txt" > "$WORK/libs-rsp.txt"
-
 	ort_static_lib_win="$(cygpath -w "$ort_static_lib" | tr -d '\r')"
+	{
+		echo "/NOLOGO"
+		echo "/OUT:$ort_static_lib_win"
+		while IFS= read -r l; do
+			cygpath -w "$l" | tr -d '\r'
+		done < "$WORK/libs-unix.txt"
+	} > "$WORK/libs-rsp.txt"
+
 	rsp_win="$(cygpath -w "$WORK/libs-rsp.txt" | tr -d '\r')"
 	echo "=== Merging ONNX Runtime static libraries with lib.exe ==="
-	MSYS_NO_PATHCONV=1 "$LIB_EXE" -nologo -out:"$ort_static_lib_win" @"$rsp_win"
+	"$LIB_EXE" @"$rsp_win"
+	[ -f "$ort_static_lib" ] || die "lib.exe failed to create $ort_static_lib"
 
 	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
 	EMBED_DIR="$WORK/embed"
