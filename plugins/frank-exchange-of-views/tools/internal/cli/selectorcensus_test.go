@@ -11,10 +11,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // EVERY VIEW THAT ADVERTISES --match AND --quote SELECTS WITH THEM.
@@ -46,27 +42,28 @@ func TestEverySelectorThatAViewAdvertisesSelects(t *testing.T) {
 			if len(entries) == 0 {
 				t.Fatalf("the fixture leaves %s %s with no entry, so its selector is not measured:\n%s", row.group, row.view, whole)
 			}
-			flag := "--" + flags.Quote
-			t.Run(flag+" matching nothing", func(t *testing.T) {
-				out, err := read("--json", flag, nothing)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if kept := arrayEntries(t, out); len(kept) != 0 {
-					t.Errorf("%s %q kept %d of %d entries:\n%s", flag, nothing, len(kept), len(entries), out)
-				}
-				sel := selectionOf(t, out)
-				if sel.Matched != 0 || sel.Of != len(entries) {
-					t.Errorf("the selection says %d of %d, want 0 of %d", sel.Matched, sel.Of, len(entries))
-				}
-				// WHAT IS NOT A LIST OF ENTRIES IS LEFT AS IT WAS. A null is not an empty array: `work`'s
-				// `engaged` is an object or null, and a selection rewrote its null as `[]`.
-				for key, was := range nonArrays(t, whole) {
-					if got := nonArrays(t, out)[key]; got != was {
-						t.Errorf("selecting rewrote %q from %s to %s", key, was, got)
+			for _, flag := range []string{"--" + flags.Match, "--" + flags.Quote} {
+				t.Run(flag+" matching nothing", func(t *testing.T) {
+					out, err := read("--json", flag, nothing)
+					if err != nil {
+						t.Fatal(err)
 					}
-				}
-			})
+					if kept := arrayEntries(t, out); len(kept) != 0 {
+						t.Errorf("%s %q kept %d of %d entries:\n%s", flag, nothing, len(kept), len(entries), out)
+					}
+					sel := selectionOf(t, out)
+					if sel.Matched != 0 || sel.Of != len(entries) {
+						t.Errorf("the selection says %d of %d, want 0 of %d", sel.Matched, sel.Of, len(entries))
+					}
+					// WHAT IS NOT A LIST OF ENTRIES IS LEFT AS IT WAS. A null is not an empty array: `work`'s
+					// `engaged` is an object or null, and a selection rewrote its null as `[]`.
+					for key, was := range nonArrays(t, whole) {
+						if got := nonArrays(t, out)[key]; got != was {
+							t.Errorf("selecting rewrote %q from %s to %s", key, was, got)
+						}
+					}
+				})
+			}
 			lit := literalOf(t, entries)
 			t.Run("--quote one entry's text", func(t *testing.T) {
 				out, err := read("--json", "--"+flags.Quote, lit)
@@ -90,38 +87,40 @@ func TestEverySelectorThatAViewAdvertisesSelects(t *testing.T) {
 			// it is markdown it has no entries to select, and the selection is the --json form's,
 			// byte for byte — never every entry, and never a refusal toward --json, which the report's
 			// bare selection does not make either.
-			t.Run("the bare form "+flag, func(t *testing.T) {
-				out, err := read(flag, nothing)
-				switch {
-				case row.view == "report":
-					if err != nil || !strings.Contains(out, "no line of the report matches") {
-						t.Errorf("the bare report did not report an empty selection: %v\n%s", err, out)
-					}
-				case row.markdown:
-					asJSON, jerr := read("--json", flag, nothing)
-					if err != nil || jerr != nil || out != asJSON {
-						t.Errorf("the bare markdown form's selection is not the --json form's: %v / %v\nbare:\n%s\n--json:\n%s", err, jerr, out, asJSON)
-					}
-					if hit, herr := read("--"+flags.Quote, lit); herr != nil || len(arrayEntries(t, hit)) == 0 {
-						t.Errorf("the bare markdown form's --quote %q, taken from an entry, kept nothing: %v\n%s", lit, herr, hit)
-					}
-				default:
-					if err != nil {
-						t.Fatal(err)
-					}
-					if kept := arrayEntries(t, out); len(kept) != 0 {
-						t.Errorf("the bare form kept %d entries for a pattern matching none:\n%s", len(kept), out)
-					}
-				}
-			})
-			// A --format THAT NAMES MARKDOWN is the same markdown, and refuses the pair the same way.
-			if row.formats {
-				t.Run("--format markdown "+flag, func(t *testing.T) {
-					out, err := read("--format", "markdown", flag, nothing)
-					if err == nil || !strings.Contains(err.Error(), "--format") {
-						t.Errorf("--format markdown took %s and did not refuse it: %v\n%s", flag, err, out)
+			for _, flag := range []string{"--" + flags.Match, "--" + flags.Quote} {
+				t.Run("the bare form "+flag, func(t *testing.T) {
+					out, err := read(flag, nothing)
+					switch {
+					case row.view == "report":
+						if err != nil || !strings.Contains(out, "no line of the report matches") {
+							t.Errorf("the bare report did not report an empty selection: %v\n%s", err, out)
+						}
+					case row.markdown:
+						asJSON, jerr := read("--json", flag, nothing)
+						if err != nil || jerr != nil || out != asJSON {
+							t.Errorf("the bare markdown form's selection is not the --json form's: %v / %v\nbare:\n%s\n--json:\n%s", err, jerr, out, asJSON)
+						}
+						if hit, herr := read("--"+flags.Quote, lit); herr != nil || len(arrayEntries(t, hit)) == 0 {
+							t.Errorf("the bare markdown form's --quote %q, taken from an entry, kept nothing: %v\n%s", lit, herr, hit)
+						}
+					default:
+						if err != nil {
+							t.Fatal(err)
+						}
+						if kept := arrayEntries(t, out); len(kept) != 0 {
+							t.Errorf("the bare form kept %d entries for a pattern matching none:\n%s", len(kept), out)
+						}
 					}
 				})
+				// A --format THAT NAMES MARKDOWN is the same markdown, and refuses the pair the same way.
+				if row.formats {
+					t.Run("--format markdown "+flag, func(t *testing.T) {
+						out, err := read("--format", "markdown", flag, nothing)
+						if err == nil || !strings.Contains(err.Error(), "--format") {
+							t.Errorf("--format markdown took %s and did not refuse it: %v\n%s", flag, err, out)
+						}
+					})
+				}
 			}
 		})
 	}
@@ -150,8 +149,11 @@ func selectorViews(t *testing.T) []selectorRow {
 			t.Fatalf("the chair's tree has no %s group: %v", group, err)
 		}
 		for _, v := range g.Commands() {
-			if v.Flags().Lookup(flags.Quote) == nil {
+			if v.Flags().Lookup(flags.Match) == nil && v.Flags().Lookup(flags.Quote) == nil {
 				continue
+			}
+			if v.Flags().Lookup(flags.Match) == nil || v.Flags().Lookup(flags.Quote) == nil {
+				t.Errorf("%s %s carries one of --match and --quote without the other", group, v.Name())
 			}
 			rows = append(rows, selectorRow{group: group, view: v.Name(), markdown: bareIsMarkdown(v), formats: v.Flags().Lookup(flags.Format) != nil})
 		}
@@ -317,92 +319,4 @@ func censusRun(t *testing.T) string {
 		}
 	}
 	return runDir
-}
-
-// RANKED SEARCH STATES THAT IT IS CUT, SCOPED, AND STATES COUNTS AND NOTICE.
-func TestRankedSearchStatesCutAndScope(t *testing.T) {
-	runDir := censusRun(t)
-
-	// 1. show report --search
-	out, err := run(t, "show", "report", "--run", runDir, "--seat-id", "red-chair", "--json", "--search", "moderate and rising")
-	if err == nil {
-		var res struct {
-			Chunks      []any                     `json:"chunks"`
-			SearchScope *hybridsearch.SearchScope `json:"search_scope"`
-		}
-		if err := json.Unmarshal([]byte(out), &res); err != nil {
-			t.Fatalf("unmarshal report search json: %v\n%s", err, out)
-		}
-		if res.SearchScope == nil || !res.SearchScope.RankedAndCut {
-			t.Errorf("expected report search scope with ranked_and_cut=true, got %+v", res.SearchScope)
-		}
-		if res.SearchScope.Notice != hybridsearch.SearchNotice {
-			t.Errorf("notice = %q, want %q", res.SearchScope.Notice, hybridsearch.SearchNotice)
-		}
-	} else if !strings.Contains(err.Error(), "helper-absent") {
-		t.Fatalf("unexpected error from show report --search: %v", err)
-	}
-
-	// 2. show source --search (cross-source)
-	sout, serr := run(t, "show", "source", "--run", runDir, "--seat-id", lensSeat, "--search", "rising cost")
-	if serr == nil {
-		var sres struct {
-			Hits        []any                     `json:"hits"`
-			SearchScope *hybridsearch.SearchScope `json:"search_scope"`
-		}
-		if err := json.Unmarshal([]byte(sout), &sres); err != nil {
-			t.Fatalf("unmarshal source search json: %v\n%s", err, sout)
-		}
-		if sres.SearchScope == nil || !sres.SearchScope.RankedAndCut {
-			t.Errorf("expected source search scope with ranked_and_cut=true, got %+v", sres.SearchScope)
-		}
-		if sres.SearchScope.Notice != hybridsearch.SearchNotice {
-			t.Errorf("notice = %q, want %q", sres.SearchScope.Notice, hybridsearch.SearchNotice)
-		}
-	} else if !strings.Contains(serr.Error(), "helper-absent") {
-		t.Fatalf("unexpected error from show source --search: %v", serr)
-	}
-}
-
-// SHOW REPORT --SEARCH DOES NOT ADVANCE THE READING PIN.
-func TestSearchDoesNotAdvanceServeReportPin(t *testing.T) {
-	runDir := censusRun(t)
-	registerSeatOnce(t, runDir, lensSeat)
-
-	countReads := func() int {
-		m, err := record.MergedEvents(runtest.Open(t, runDir))
-		if err != nil {
-			t.Fatal(err)
-		}
-		c := 0
-		for _, e := range m.Events {
-			if e.GetType() == recordpb.EventType_EVENT_TYPE_REPORT_READ && e.GetSeatId() == lensSeat {
-				c++
-			}
-		}
-		return c
-	}
-	before := countReads()
-
-	// Run show report with --search
-	_, _ = run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--search", "anything")
-
-	after := countReads()
-	if after != before {
-		t.Errorf("show report --search recorded a ReportRead event (before=%d, after=%d); it must not advance the pin", before, after)
-	}
-}
-
-// --SEARCH AND --QUOTE ARE MUTUALLY EXCLUSIVE ON SHOW REPORT AND SHOW SOURCE.
-func TestSearchAndQuoteMutuallyExclusive(t *testing.T) {
-	runDir := censusRun(t)
-	_, err := run(t, "show", "report", "--run", runDir, "--seat-id", "red-chair", "--search", "test", "--quote", "test")
-	if err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
-		t.Fatalf("expected mutual exclusion error on show report, got: %v", err)
-	}
-
-	_, serr := run(t, "show", "source", "--run", runDir, "--seat-id", lensSeat, "--search", "test", "--quote", "test")
-	if serr == nil || !strings.Contains(serr.Error(), "mutually exclusive") {
-		t.Fatalf("expected mutual exclusion error on show source, got: %v", serr)
-	}
 }

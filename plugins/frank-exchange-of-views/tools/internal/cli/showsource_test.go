@@ -26,7 +26,7 @@ func viewReader(t *testing.T, runDir, view string) (group, who string, args []st
 		if err != nil {
 			t.Fatal(err)
 		}
-		return "show", citeSeat, []string{view, "--sha", e.Sha, "--quote", "word"}
+		return "show", citeSeat, []string{view, "--sha", e.Sha, "--match", "word"}
 	}
 	return "show", "red-chair", []string{view}
 }
@@ -61,20 +61,21 @@ func fetchedSha(t *testing.T, runDir string) string {
 	return s.Sha
 }
 
-// A HIT IS CITED AS PRINTED. Blue searches the source it fetched with literal text or ranked search,
-// cites the hit's source_span, and the citation records the span at the hit's sentence offsets;
-// a lens then reaches the same source through the citation's anchor.
+// A HIT IS CITED AS PRINTED. Blue searches the source it fetched with the keyword-in-context
+// pattern m36's seats could not run in their shell, cites the hit's source_span, and the citation
+// records the span at the hit's sentence offsets; a lens then reaches the same source through the
+// citation's anchor.
 func TestAShowSourceHitIsCitedAtTheOffsetsItPrinted(t *testing.T) {
 	runDir := fermatRun(t, "text/html")
 	sha := fetchedSha(t, runDir)
 
-	got := sourceSearch(t, citeSeat, runDir, "--sha", sha, "--quote", "Fermat liar")
+	got := sourceSearch(t, citeSeat, runDir, "--sha", sha, "--match", `.{0,60}Fermat liar.{0,20}`)
 	if got.Selection.Matched != 1 || len(got.Hits) != 1 {
 		t.Fatalf("want one hit, got %+v", got)
 	}
 	h := got.Hits[0]
 	// THE KEY IS `source_span`, the flag's own name, which the page tells a seat to copy from.
-	raw, _ := run(t, "show", "source", "--run", runDir, "--seat-id", citeSeat, "--sha", sha, "--quote", "Fermat liar")
+	raw, _ := run(t, "show", "source", "--run", runDir, "--seat-id", citeSeat, "--sha", sha, "--match", `.{0,60}Fermat liar.{0,20}`)
 	if !strings.Contains(raw, `"source_span": "`+h.SourceSpan+`"`) {
 		t.Errorf("the hit does not print its span under `source_span`:\n%s", raw)
 	}
@@ -97,8 +98,8 @@ func TestAShowSourceHitIsCitedAtTheOffsetsItPrinted(t *testing.T) {
 	}
 }
 
-// A SOURCE SEARCH REFUSES WHAT NAMES NOTHING: an unknown source, no pattern,
-// both search and quote, both sha and anchor — and seats that read no source do not hold it.
+// A SOURCE SEARCH REFUSES WHAT NAMES NOTHING: an unknown source, no source, both sources, no
+// pattern, a pattern that matches everywhere — and the seats that read no source do not hold it.
 func TestShowSourceRefusesAnUnknownSourceAndAnEmptyPattern(t *testing.T) {
 	runDir := fermatRun(t, "text/html")
 	sha := fetchedSha(t, runDir)
@@ -106,18 +107,20 @@ func TestShowSourceRefusesAnUnknownSourceAndAnEmptyPattern(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"--sha", strings.Repeat("0", 64), "--quote", "liar"}, "no source with sha256"},
+		{[]string{"--sha", strings.Repeat("0", 64), "--match", "liar"}, "no source with sha256"},
+		{[]string{"--match", "liar"}, "name the source to search"},
 		{[]string{"--sha", sha}, "name what to find"},
-		{[]string{"--sha", sha, "--quote", ""}, "name what to find"},
-		{[]string{"--sha", sha, "--search", "a", "--quote", "a"}, "mutually exclusive"},
-		{[]string{"--sha", sha, "--anchor", "C-00000000", "--quote", "liar"}, "pass one"},
+		{[]string{"--sha", sha, "--match", ""}, "name what to find"},
+		{[]string{"--sha", sha, "--match", "x*"}, "matches the empty string"},
+		{[]string{"--sha", sha, "--match", "a", "--quote", "a"}, "Pass ONE"},
+		{[]string{"--sha", sha, "--anchor", "C-00000000", "--match", "liar"}, "pass one"},
 	} {
 		out, err := run(t, append([]string{"show", "source", "--run", runDir, "--seat-id", citeSeat}, tc.args...)...)
 		if err == nil || !strings.Contains(out+err.Error(), tc.want) {
 			t.Errorf("show source %v: want a refusal saying %q, got %v\n%s", tc.args, tc.want, err, out)
 		}
 	}
-	if out, err := run(t, "show", "source", "--run", runDir, "--seat-id", "red-chair", "--sha", sha, "--quote", "liar"); err == nil {
+	if out, err := run(t, "show", "source", "--run", runDir, "--seat-id", "red-chair", "--sha", sha, "--match", "liar"); err == nil {
 		t.Errorf("the chair reads no source, and its tree holds `show source`:\n%s", out)
 	}
 }

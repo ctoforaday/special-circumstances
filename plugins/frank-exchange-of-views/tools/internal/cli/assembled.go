@@ -32,7 +32,7 @@ func newShowAssembled() *cobra.Command {
 			"its heading or the line it ships as, who composes it and from what, how content reaches it, and whether the set carries it as the record stands. " +
 			"The bare form lists the sections WITHOUT their text. " +
 			"--json gives each section's `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered: pipe it to `jq` and select on `heading`. " +
-			"--quote selects sections, printed in the --json form with or without --json. " +
+			"--match and --quote select sections, printed in the --json form with or without --json. " +
 			"The shipped .md differs from that text in three ways: every line ends in a `\\n`; every `<` outside code but a computation's anchor is written `&lt;`, which a markdown reader prints as `<` — so a `<url>` autolink or a `[text](<url>)` destination in the text ships as text, not a link, and a `<` straight after a bare URL prints on GitHub as `&lt;`, inside the link GitHub makes of the URL; and a `<` at the head of a line inside a code span that runs across lines is written `&lt;` too, which the span prints as `&lt;` — at such a `<` GitHub's reader can open an HTML block before it reads the span.\n\n" +
 			"It is yours, not a seat's: a seat reads each composed section's content through the view that serves its source.\n\n" +
 			"OUTPUT WITH --json: " + jsonshape.Tree(report.LayoutJSON{}) +

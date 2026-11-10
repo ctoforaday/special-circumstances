@@ -30,20 +30,23 @@ func storeTextSource(t *testing.T, run record.Run, url, text string) Entry {
 	return e
 }
 
-// A LITERAL SEARCH OF A SOURCE RETURNS CITEABLE SENTENCES, AND EACH HIT IS LOCATED BY CITE.
-func TestALiteralSearchOfASourceReturnsCiteableSentences(t *testing.T) {
+// AN m36 KEYWORD-IN-CONTEXT PATTERN WORKS HERE, AND EACH HIT IS CITEABLE AS PRINTED. adversary's
+// `.{0,50}composite.{0,30}` was refused by the seats' shell grep; RE2 takes it (its tail is
+// shortened here so the two matches do not run into one, as `grep -o`'s would not). Every hit's
+// source_span is located by the locator cite runs, at the sentence offsets the hit printed.
+func TestAKeywordInContextSearchOfASourceReturnsCiteableSentences(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	e := storeTextSource(t, run, "https://ex/primes", m36Page)
 
-	got, err := SearchSource(run, e, "composite")
+	got, err := SearchSource(run, e, `.{0,50}composite.{0,20}`, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.Selection.Matched != 2 || len(got.Hits) != 2 {
 		t.Fatalf("want 2 hits; got selection %+v, %d hits", got.Selection, len(got.Hits))
 	}
-	if !strings.Contains(got.Hits[1].Matched, "composite") {
-		t.Errorf("the second hit's matched text is %q, want composite", got.Hits[1].Matched)
+	if !strings.Contains(got.Hits[1].Matched, "91 is composite") {
+		t.Errorf("the second hit's matched text is %q, want the 91 sentence's", got.Hits[1].Matched)
 	}
 	for i, h := range got.Hits {
 		if h.SourceSpan == "" {
@@ -71,14 +74,14 @@ func TestASourceSearchQuoteFoldsTypographyAndNamesAnUnciteableSentence(t *testin
 	run := runtest.New(t, t.TempDir())
 	e := storeTextSource(t, run, "https://ex/primes", m36Page)
 
-	got, err := SearchSource(run, e, "euler's criterion")
+	got, err := SearchSource(run, e, "", "euler's criterion")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got.Hits) != 1 || got.Hits[0].Matched != "Euler’s criterion" {
 		t.Fatalf("a keyboard apostrophe should find the page's typographic one; got %+v", got.Hits)
 	}
-	rep, err := SearchSource(run, e, "repeated")
+	rep, err := SearchSource(run, e, "repeated", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,23 +94,25 @@ func TestASourceSearchQuoteFoldsTypographyAndNamesAnUnciteableSentence(t *testin
 // where cite reads no sentence end is a hit the hit says cite will not take.
 func TestASourceSearchSentenceIsTrimmedAndAMidClauseEndIsNamed(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
+	// The first sentence opens lowercase, so no sentence start stops the search before the text's
+	// own start; the last ends with no terminator, so only the text's end stops it.
 	text := "\n   lead sentence here. Bases such as e.g. two are liars. Tail words\n"
 	e := storeTextSource(t, run, "https://ex/edges", text)
-	lead, err := SearchSource(run, e, "here")
+	lead, err := SearchSource(run, e, "here", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(lead.Hits) != 1 || lead.Hits[0].SourceSpan != "lead sentence here." || lead.Hits[0].SentenceStart != 4 {
 		t.Fatalf("the text's first sentence starts at its first word; got %+v", lead.Hits)
 	}
-	tail, err := SearchSource(run, e, "tail")
+	tail, err := SearchSource(run, e, "tail", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(tail.Hits) != 1 || tail.Hits[0].SourceSpan != "Tail words" || tail.Hits[0].SentenceEnd != len(text)-1 {
 		t.Fatalf("the text's last sentence ends at its last word; got %+v", tail.Hits)
 	}
-	eg, err := SearchSource(run, e, "bases")
+	eg, err := SearchSource(run, e, "bases", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +126,7 @@ func TestASourceSearchPrintsEveryHit(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	const n = 200
 	e := storeTextSource(t, run, "https://ex/many", strings.Repeat("Word here. ", n))
-	got, err := SearchSource(run, e, "word")
+	got, err := SearchSource(run, e, "word", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,9 +142,9 @@ func TestASourceSearchPrintsEveryHit(t *testing.T) {
 func TestASourceSearchRefusesAnEmptyPatternAndATextlessSource(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	e := storeTextSource(t, run, "https://ex/primes", m36Page)
-	for _, p := range []string{"", "   "} {
-		if _, err := SearchSource(run, e, p); !errors.Is(err, ErrPatternMatchesEmpty) {
-			t.Errorf("SearchSource(%q) = %v, want ErrPatternMatchesEmpty", p, err)
+	for _, p := range [][2]string{{"", ""}, {"x*", ""}, {"", "   "}} {
+		if _, err := SearchSource(run, e, p[0], p[1]); !errors.Is(err, ErrPatternMatchesEmpty) {
+			t.Errorf("SearchSource(%q, %q) = %v, want ErrPatternMatchesEmpty", p[0], p[1], err)
 		}
 	}
 	no := false
@@ -147,13 +152,14 @@ func TestASourceSearchRefusesAnEmptyPatternAndATextlessSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := SearchSource(run, img, "prime"); !errors.Is(err, ErrNoText) {
+	if _, err := SearchSource(run, img, "prime", ""); !errors.Is(err, ErrNoText) {
 		t.Errorf("a source with no text: got %v, want ErrNoText", err)
 	}
 }
 
-// CROSS-SOURCE EXHAUSTIVE LITERAL SEARCH ACROSS MULTIPLE SOURCES
-func TestSearchCrossSourcesQuote(t *testing.T) {
+// A SEARCH ACROSS SOURCES IS EXHAUSTIVE, BY REGEX OR BY LITERAL, and names the source it could not
+// search rather than skipping it in silence.
+func TestSearchCrossSources(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	e1 := storeTextSource(t, run, "https://ex/doc1", "First document mentioning primality.")
 	e2 := storeTextSource(t, run, "https://ex/doc2", "Second document also discussing primality.")
@@ -163,9 +169,15 @@ func TestSearchCrossSourcesQuote(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := SearchCrossSourcesQuote(run, "primality")
+	got, err := SearchCrossSources(run, "", "primality")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if rx, err := SearchCrossSources(run, `prim\w+ty`, ""); err != nil || len(rx.Hits) != 2 || rx.Selection.Criterion != "/prim\\w+ty/" {
+		t.Errorf("a regex across sources = %+v, %v; want both hits under the pattern's criterion", rx, err)
+	}
+	if _, err := SearchCrossSources(run, "x*", ""); !errors.Is(err, ErrPatternMatchesEmpty) {
+		t.Errorf("a pattern matching the empty string across sources = %v, want ErrPatternMatchesEmpty", err)
 	}
 	if len(got.Hits) != 2 || got.Selection.Matched != 2 {
 		t.Fatalf("want 2 hits across sources; got %d hits, selection %+v", len(got.Hits), got.Selection)
@@ -180,6 +192,9 @@ func TestSearchCrossSourcesQuote(t *testing.T) {
 		t.Errorf("hits Shas = [%s, %s], want [%s, %s]", got.Hits[0].Sha, got.Hits[1].Sha, e1.Sha, e2.Sha)
 	}
 	for _, h := range got.Hits {
+		if h.Line != 1 || h.LastLine != 1 {
+			t.Errorf("hit lines = %d..%d, want 1..1 — the lines cite --source-lines takes", h.Line, h.LastLine)
+		}
 		if h.SourceSpan == "" {
 			t.Errorf("hit is not citeable: %+v", h)
 		}

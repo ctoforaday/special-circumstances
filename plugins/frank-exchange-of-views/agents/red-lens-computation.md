@@ -82,7 +82,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
   - A source span is the words of the source's own cached text a citation rests on, chosen by quoting them (found there once) or by naming their lines, and kept on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
-  - A source search is a read of cached sources' text for literal text or a ranked hybrid query (BM25 and dense vectors), scoped to one source or across all cached sources in the run; each hit carries the source's sentence, its URL and SHA256, and whether a citation can quote that sentence as printed, and the search records nothing.
+  - A source search is a read of cached sources' text for a regular expression, literal text, or a ranked hybrid query (BM25 and dense vectors), scoped to one source or across all cached sources in the run; each hit carries the source's sentence, its URL and SHA256, and whether a citation can quote that sentence as printed, and the search records nothing.
   - OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
@@ -189,10 +189,16 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
 §18 (on 2 pages):
-select only the gaps containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Every match is returned and the total is stated; nothing is ranked or cut
+select only the gaps matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§19 (on 4 pages):
-the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Every match is returned and the total is stated; nothing is ranked or cut
+§19 (on 2 pages):
+select only the gaps containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+
+§20 (on 4 pages):
+an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
+
+§21 (on 4 pages):
+the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 ========
 $ feov-record --help
@@ -733,7 +739,7 @@ Available Commands:
   findings    THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`
   inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate, the reason for it, and the check that stands on it. Written by blue's `inquiry propose` and `inquiry record` and the logic lens's `inquiry check`
   report      THE REPORT, as it stands now. `changes` says how it got that way. Written by a lane's `ingest`, one part a lane, and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `compute`
-  source      WHERE ONE CACHED SOURCE'S TEXT SAYS SOMETHING — every place a pattern matches the text, each with the source's sentence around it and whether blue's `cite --source-span` takes that sentence. Read from the run's source cache, which `fetch` fills
+  source      WHERE THE CACHED SOURCES' TEXT SAYS SOMETHING — every place a pattern matches one source's text or every source's, or the passages a query ranks highest, each with the source's sentence around it and whether blue's `cite --source-span` takes that sentence. Read from the run's source cache, which `fetch` fills
   work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — a lens's one item at a time, with an index of the rest — except where your agent configuration seats several seats (blue-researcher's, blue-lane's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`
 
 (Global Flags:) → SHARED §2
@@ -750,8 +756,9 @@ OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --quote is refused beside it) (default "json")
-      --quote text      → SHARED §18
+      --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --match and --quote are refused beside it) (default "json")
+      --match regex     → SHARED §18
+      --quote text      → SHARED §19
 ========
 $ feov-record show changes --help
 every recorded change to the report, in record order — each edit, and each citation or computation blue retired from a sentence the report keeps, named by its kind; add --id <gap> to put red's required_fix and the changes answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit` and `retire`
@@ -761,8 +768,9 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,prob
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --id gap-id    scope this projection to one gap — red's required_fix beside the edits and the retires of evidence anchors answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --quote (a literal, the same span the acting verbs take)
-      --quote text   select only the edits (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §19
+      --id gap-id     scope this projection to one gap — red's required_fix beside the edits and the retires of evidence anchors answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
+      --match regex   select only the edits (printed in the --json form, with or without --json: the bare markdown has no entries) matching this regex (RE2, case-insensitive) — → SHARED §20
+      --quote text    select only the edits (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §21
 ========
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `source_text` is WHAT THE SOURCE SAYS where blue quoted it: blue's span, the same words as the source holds them (`matched`), and the source's own text `before` and `after` them, copied from the cached text when blue cited it — read the sentence against this. `blue_reason` is blue's account of why the source backs the sentence: blue's words, not the source's. A source the tool holds no text for (`source_text_origin` none) has no `source_text`. `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` holds the PDF page the tool found its span on: check the span against that page's image, not against the reading. Every computation keyed by its `<!--computation:K-…-->` anchor — the id the lens's `reproduce --anchor` takes — with its bundle's sha256, its command and red's checks of it — each judgement carries `claim`, the sentence it was of, as each verification does; a judgement whose `claim` is not the sentence the report carries now is of an earlier wording — and red's verified claims with their confidence.
@@ -788,8 +796,9 @@ OUTPUT WITH --anchor (JSON — `source` or `computation`, whichever the anchor n
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --anchor id    read the ONE entry at this anchor id rather than the table — a computation's (K-…) with its bundle's files and recorded output, or a source's (C-…); a retired one with the retire that took it out
-      --quote text   select only the citations and computations containing this text LITERALLY (case-insensitive) — → SHARED §19
+      --anchor id     read the ONE entry at this anchor id rather than the table — a computation's (K-…) with its bundle's files and recorded output, or a source's (C-…); a retired one with the retire that took it out
+      --match regex   select only the citations and computations matching this regex (RE2, case-insensitive) — → SHARED §20
+      --quote text    select only the citations and computations containing this text LITERALLY (case-insensitive) — → SHARED §21
 ========
 $ feov-record show findings --help
 Every lens finding on the record (id, area, seat, epoch, grades, location, text) — the minting lens coalesces these into gaps
@@ -801,7 +810,8 @@ OUTPUT (JSON): {findings:[{id,area,seat_id,epoch,severity,likelihood,impact,loca
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --quote text   select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §19
+      --match regex   select only the findings matching this regex (RE2, case-insensitive) — → SHARED §20
+      --quote text    select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §21
 ========
 $ feov-record show inquiries --help
 the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question, its hypothesis and the fates recorded on it. The fate is the `status` key, one of proposed, underway, confirmed, refuted, deferred, declined, abandoned — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with its epoch, seat, reason and method) and the check that stands on it with its reason, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `reason` and `method` are the latest fate's, `epoch` its epoch, `history` each fate recorded on it, in order, as {`epoch`, `status`, `reason`, `method`, `seat_id`}, `seat_id` the seat that recorded the latest, `state` its judged state — open (proposed or underway: blue owes a fate that settles it), wanting (an open material gap is about it, listed in `wanting`), unchecked (settled, and no check stands on it) or sound (a check stands) — and `check` and `checked_by` the reason and the seat of the check that stands, empty while none does. A check stands until a fate is recorded on the inquiry again or a material gap is minted about it. Written by blue's `inquiry propose` and `inquiry record` and the logic lens's `inquiry check`
@@ -811,37 +821,41 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --quote text   select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §19
+      --match regex   select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) matching this regex (RE2, case-insensitive) — → SHARED §20
+      --quote text    select only the inquiries (printed in the --json form, with or without --json: the bare markdown has no entries) containing this text LITERALLY (case-insensitive) — → SHARED §21
 ========
 $ feov-record show report --help
-THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--computation:K-…-->`, and `show board` resolves `<!--gap:G-…-->`. --quote selects lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. --search ranks paragraphs by hybrid BM25 and vector relevance. Written by the opening synthesis and blue's `edit`.
+THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--computation:K-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. --search is not a selector: it RANKS the report's paragraphs by hybrid lexical and vector relevance to a query and returns the top few — a cut list, in which absence proves nothing — for when you do not know the report's wording. Written by the opening synthesis and blue's `edit`.
 
---json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --quote, or ranked hits under --search — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --quote, `selection` says how many lines matched and of how many; under --search, `search_scope` describes the ranked retrieval. The bare call is the form to READ; this is the form to select from.
+--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. Under --search, --json gives the ranked paragraphs instead, each `text` with its anchors out, and `search_scope` says the list is ranked and cut, how many it returned and of how many paragraphs: {chunks:[{index,heading,start_line,end_line,text,score,anchor}],search_scope:{ranked_and_cut,returned,searched_chunks,searched_sources,unsearched_sources:[{sha256,url,reason}],notice}}. The bare call is the form to READ; this is the form to select from.
 
 THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, Citations, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements, Edits to the report. A lane's `ingest` and blue's `edit` refuse report text that carries one. What a composed section holds is on the record, read through the view that serves its source: `show board` (the gaps and their grades), `show inquiries`, `show evidence` (the citations and computations, every reading of them, and every retire) and `show changes` (the edits).
 
-A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --quote and --search serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat.
+A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote, --search and --assembled serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat.
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --anchor id       read the report AT one anchor id (F-…, C-…, K-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --search and --quote are each refused with it
-      --quote text      select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Every match is returned and the total is stated; nothing is ranked or cut. Refused beside --anchor and --search
-      --search string   ranked top-K hybrid (BM25 + dense vector) retrieval over the report's paragraphs. The list is cut and absence proves nothing; for an exhaustive literal match set, use --quote. Refused beside --anchor and --quote
-      --window int      ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted) (default 3)
+      --anchor id      read the report AT one anchor id (F-…, C-…, K-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --match, --quote and --search are each refused with it
+      --match regex    select only the report lines matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut. Refused beside --anchor and --search
+      --quote text     select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else. Refused beside --anchor and --search
+      --search query   RANK the report's paragraphs by hybrid lexical (BM25) and vector relevance to this query and return the top few — for when you do not know the report's wording. The list is cut and a paragraph absent from it proves nothing; to prove a phrase absent, or to see every place it occurs, use --quote (literal) or --match (regex). Records no read. Refused beside --anchor, --match and --quote
+      --window int     ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted) (default 3)
 ========
 $ feov-record show source --help
-SEARCH ONE CACHED SOURCE'S TEXT OR ALL CACHED SOURCES — the text a citation of it is found in: the extraction of a PDF or an HTML page, the bytes of a text type, or the OCR reading of a scan, page by page. It reads; it records nothing and refuses no act.
+SEARCH THE CACHED SOURCES' TEXT — the text a citation of one is found in: the extraction of a PDF or an HTML page, the bytes of a text type, or the OCR reading of a scan, page by page. It reads; it records nothing and refuses no act.
 
-SCOPE TO ONE SOURCE with --sha (its sha256, as the fetch summary and `show evidence` print it) or --anchor (a citation's id), or omit both to search across all cached sources in the run. WHAT TO FIND with --search (ranked top-K hybrid BM25 + dense vector retrieval) or --quote (exhaustive literal text). Both match case-insensitively, against the text as the citation locator reads it: every run of whitespace, line breaks included, is one space, and curly quotes, en and em dashes, an ellipsis and the ligatures read as their keyboard forms — so a phrase broken across lines is found, and a ' you type matches the page's ’. A page's text is what you search and quote: in an HTML page's text a list item opens with "- ", a superscript reads ^n, or ^(n-1) when it is more than one number or one letter, a subscript reads _n or _(n+1), and a linked footnote mark reads [1]; quote these as the text prints them.
+NAME ONE SOURCE with --sha (its sha256, as the fetch summary and `show evidence` print it) or --anchor (a citation's id), or neither to search every source in the run's cache. Say WHAT TO FIND with --match (an RE2 regex), --quote (literal text) or --search (a query to rank by). --match and --quote match case-insensitively, against the text as the citation locator reads it: every run of whitespace, line breaks included, is one space, and curly quotes, en and em dashes, an ellipsis and the ligatures read as their keyboard forms — so a phrase broken across lines is found, and a ' you type matches the page's ’. A page's text is what you search and quote: in an HTML page's text a list item opens with "- ", a superscript reads ^n, or ^(n-1) when it is more than one number or one letter, a subscript reads _n or _(n+1), and a linked footnote mark reads [1]; quote these as the text prints them. To --match a caret, write \^.
 
-EACH HIT carries `matched`, the source's bytes; `start` and `end`, their byte offsets in the text whose sha256 is `text_sha` (on an OCR source, the reading of `page`) — the coordinates a citation records; and `sentence`, the source's sentence the match sits in, between `sentence_start` and `sentence_end`. `source_span` is that sentence when blue's `cite --source-span` takes it as printed — the source holds it once and it starts and ends at a boundary — and empty otherwise, with `not_citeable` saying why: quote a whole clause of it instead.
+EACH HIT carries `matched`, the source's bytes; `start` and `end`, their byte offsets in the text whose sha256 is `text_sha` (on an OCR source, the reading of `page`) — the coordinates a citation records; `line` and `last_line`, the lines of that text it starts and ends on, which `cite --source-lines` takes with that `text_sha`; and `sentence`, the source's sentence the match sits in, between `sentence_start` and `sentence_end`. `source_span` is that sentence when blue's `cite --source-span` takes it as printed — the source holds it once and it starts and ends at a boundary — and empty otherwise, with `not_citeable` saying why: quote a whole clause of it instead. Across sources, each hit also carries the source's `sha256` and `url`.
 
-A ranked --search returns a cut top-K list with `search_scope` describing what was searched and which sources had no text; absence proves nothing. An exhaustive --quote returns every match with `selection` stating the total.
+UNDER --match OR --quote, EVERY MATCH IS LISTED, in text order; nothing is ranked or cut. `selection` says what was asked (`criterion`) and how many matches the text holds (`matched`) — a count far larger than you can read is the signal to narrow the pattern; across sources it also says how many sources were searched and which held no text to search. UNDER --search, the hits are the top few passages RANKED by hybrid lexical (BM25) and vector relevance to the query, for when you do not know the source's wording: the list is cut, and `search_scope` says so — a passage absent from it proves nothing.
 
-An unknown source, a source the tool holds no text for, an empty pattern, and mutually exclusive flag combinations are refused.
+An unknown source, a source the tool holds no text for, an empty pattern, a pattern that matches the empty string, and --search beside --match or --quote are refused.
+
+WITH NEITHER --sha NOR --anchor, the output is across sources (JSON): {hits:[{sha256,url,source_text_origin,text_sha,page,score,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable,start,end}],selection:{criterion,matched,searched_sources,unsearched_sources:[{sha256,url,reason}]},search_scope:{ranked_and_cut,returned,searched_chunks,searched_sources,unsearched_sources:[{sha256,url,reason}],notice}}. With one, it is the OUTPUT below.
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §17
 
@@ -850,10 +864,11 @@ OUTPUT (JSON): {sha256,url,source_text_origin,text_path,hits:[{page,score,start,
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --anchor id       the citation whose source to search, by its anchor id. Pass this or --sha, or omit both to search across all cached sources
-      --quote text      find every place the source's text holds this text LITERALLY (case-insensitive, in the source's normalisation). Every match is returned; nothing is ranked or cut. Pass this or --search
-      --search string   ranked top-K hybrid (BM25 + dense vector) retrieval over cached sources. The list is cut and absence proves nothing; for an exhaustive literal match set, use --quote. Pass this or --quote
-      --sha sha256      the cached source's sha256, as the fetch summary and the evidence view print it. Pass this or --anchor, or omit both to search across all cached sources
+      --anchor id      the citation whose source to search, by its anchor id. Pass this or --sha, or neither to search every cached source
+      --match regex    find every place the source's text matches this regex (RE2, case-insensitive; a bounded repeat such as .{0,80} is fine). Every match is listed and the total is stated; nothing is ranked or cut. Pass this, --quote or --search
+      --quote text     find every place the source's text holds this text LITERALLY (case-insensitive, in the source's normalisation). Use this rather than --match whenever the text has (), ., *, ?, ^ or [] in it. Pass this, --match or --search
+      --search query   RANK the source's passages by hybrid lexical (BM25) and vector relevance to this query and return the top few — for when you do not know the source's wording. The list is cut and a passage absent from it proves nothing; to prove text absent, or to see every place it occurs, use --quote or --match. Refused beside --match and --quote
+      --sha sha256     the cached source's sha256, as the fetch summary and the evidence view print it. Pass this or --anchor, or neither to search every cached source
 ========
 $ feov-record show work --help
 **A LENS IS HANDED ITS WORK ONE ITEM AT A TIME, AND THIS IS THE WHOLE LIST IT IS CUT FROM.** At dispatch, under a preamble that says so, you hold your standing — `sitting` without its items, with the items that are not queued as `notes` — the CURRENT ITEM in full, with the gap it is about, and an INDEX: one line for each other item queued for you, each other open gap, and each bench ruling you may not re-raise. The next item arrives after a call of yours to the record that discharged the current one, and DISCHARGED IS THE RECORD'S WORD: the item is gone from this list as the record reads it after your act. Until then the current item stays current, whatever arrives ahead of it; one the record moves under you arrives again marked `changed_since_delivered`. THE QUEUE'S ORDER: your audit, while the report has moved past what you were last served whole; every item that blocks you, in list order; each gap of yours the dispatch readies you on — material first, then by mass, then in mint order — with the items about it; then accepted grade motions and other lenses' findings about your gaps; and, for the voice lens, the text the tool composes from the record that it has not had since it was recorded — each inquiry's fate and each open gap's risk-matrix row — as one item, queued only while nothing else is, and among the notes while anything is. Not queued: the log channel, your mint budget, news of a closure, an anchor no check of this sitting can reach, and every gap that is not yours to act on. Read this list when you want the rest, when your dispatch was resumed — a resumed dispatch is handed nothing — and wherever your next item does not arrive after a call that discharged the current one.
@@ -893,7 +908,8 @@ OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clea
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --quote text   → SHARED §18
+      --match regex   → SHARED §18
+      --quote text    → SHARED §19
 ========
 $ feov-record verify --help
 read a source against a report sentence — a citation blue made, or a source you found — and record what it did

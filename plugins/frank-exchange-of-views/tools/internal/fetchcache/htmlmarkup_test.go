@@ -114,7 +114,7 @@ func TestAListItemOfAPageIsCitedAndSearchedAsItself(t *testing.T) {
 		t.Errorf("a cut inside the item: %v, want it refused", err)
 	}
 
-	got, err := SearchSource(run, e, "3^n")
+	got, err := SearchSource(run, e, "", "3^n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +123,9 @@ func TestAListItemOfAPageIsCitedAndSearchedAsItself(t *testing.T) {
 	}
 	if h, want := got.Hits[0], item+"[9]"; h.SourceSpan != want || h.Sentence != want {
 		t.Errorf("hit sentence %q, span %q (%s), want %q", h.Sentence, h.SourceSpan, h.NotCiteable, want)
+	}
+	if got, err := SearchSource(run, e, `3\^n`, ""); err != nil || len(got.Hits) != 1 {
+		t.Errorf("a caret escaped in a regex: %+v, %v", got, err)
 	}
 }
 
@@ -140,7 +143,7 @@ func TestAListMarkerOpeningALineBoundsASpan(t *testing.T) {
 			t.Errorf("%q: %v", span, err)
 		}
 	}
-	got, err := SearchSource(run, e, "palindromic")
+	got, err := SearchSource(run, e, "", "palindromic")
 	if err != nil || len(got.Hits) != 1 {
 		t.Fatalf("search: %+v, %v", got, err)
 	}

@@ -13,12 +13,22 @@ import (
 // universe-m10: 47 of 74 report reads piped the whole document through grep/sed/head, and every board
 // read began `jq '.open[]'`.
 
-// THE LITERAL SELECTOR MATCHES AS TYPED, PARENTHESES INCLUDED.
+// THE DIVERGENCE THAT DECIDED TWO FLAGS RATHER THAN ONE.
 //
-// A research report is full of parentheses. `O(√n)` contains parentheses; as a LITERAL it matches.
-// Verified against m10's real report before this test was written: --quote found line 48.
-func TestPhraseIsLiteral(t *testing.T) {
+// A research report is full of parentheses. `O(√n)` as a REGEX means "O followed by √n" and does not
+// match the text `O(√n)`; as a LITERAL it does. Verified against m10's real report before this test
+// was written: --match found nothing, --quote found line 48. One flag with a `--literal` toggle
+// would hand half the callers the other semantics silently, and a silent zero is the class this
+// surface keeps removing.
+func TestMatchIsARegexAndPhraseIsLiteral(t *testing.T) {
 	runDir := seatRunReport(t, "# Findings\n\nTrial division is O(√n) for 91.\n")
+	regexHit, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--match", `O(√n)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(regexHit, "no line of the report matches") {
+		t.Errorf("--match treated the parens as literal; a capture group must not match `O(√n)`:\n%s", regexHit)
+	}
 	literalHit, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--quote", `O(√n)`)
 	if err != nil {
 		t.Fatal(err)
@@ -28,20 +38,17 @@ func TestPhraseIsLiteral(t *testing.T) {
 	}
 	// AND THE EMPTY CASE SAYS WHAT IT IS. "found nothing" and "the report is empty" must not be the
 	// same bytes — the seat that cannot tell them apart stops auditing.
-	miss, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--quote", "nonexistent phrase")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(miss, "not an empty report") {
-		t.Errorf("an empty selection did not distinguish itself from an empty report:\n%s", miss)
+	if !strings.Contains(regexHit, "not an empty report") {
+		t.Errorf("an empty selection did not distinguish itself from an empty report:\n%s", regexHit)
 	}
 }
 
-// A SELECTED REPORT LINE CARRIES WHAT IT TAKES TO CITE THE HIT: the section heading, the line number and the
-// text. That triple is exactly what a gap's `location` must contain.
+// A SELECTED READ CARRIES WHAT IT TAKES TO CITE THE HIT: the section heading, the line number and the
+// text. That triple is exactly what a gap's `location` must contain, and assembling it by hand is
+// what the grep-then-sed dance was doing — 20 greps and 5 seds across m10.
 func TestASelectedReportLineCarriesItsHeadingAndLineNumber(t *testing.T) {
 	runDir := seatRunReport(t, "# Findings\n\n## 7. Cost\n\nThe methodology would have a flaw.\n")
-	out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--quote", "methodology")
+	out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--match", "methodology")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,14 +57,18 @@ func TestASelectedReportLineCarriesItsHeadingAndLineNumber(t *testing.T) {
 			t.Errorf("a selected line is missing %q — a seat cannot write a location without it:\n%s", want, out)
 		}
 	}
-	// CASE-INSENSITIVE. A tell-hunt wants `Methodology` and `methodology` both, and a seat
-	// that has to remember `(?i)` finds half its hits and believes it found all of them.
-	up, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--quote", "METHODOLOGY")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(up, "no line of the report matches") {
-		t.Errorf("--quote METHODOLOGY missed the lowercase text — a case-sensitive search returns half a hunt and looks complete:\n%s", up)
+	// CASE-INSENSITIVE, BOTH WAYS. A tell-hunt wants `Methodology` and `methodology` both, and a seat
+	// that has to remember `(?i)` finds half its hits and believes it found all of them — which is a
+	// silent partial read, not a missed feature. Unasserted, this was the one claim a mutation of
+	// `(?i)` walked straight through.
+	for _, flag := range []string{"--match", "--quote"} {
+		up, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, flag, "METHODOLOGY")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(up, "no line of the report matches") {
+			t.Errorf("%s METHODOLOGY missed the lowercase text — a case-sensitive search returns half a hunt and looks complete:\n%s", flag, up)
+		}
 	}
 	// NOTHING IS CUT OR RANKED, and the total says so, so a pattern that selects most of the document
 	// is visible as that rather than as a narrow pattern with few hits.
@@ -66,16 +77,33 @@ func TestASelectedReportLineCarriesItsHeadingAndLineNumber(t *testing.T) {
 	}
 }
 
-// ASKING BOTH WAYS IS REFUSED: --search and --quote on show report and show source are mutually exclusive.
+// ASKING BOTH WAYS IS REFUSED, because the two disagree the moment the text has a metacharacter and
+// a tool that picked one would be picking which answer the seat gets.
 func TestTheTwoSelectorsMayNotBeCombined(t *testing.T) {
 	runDir := seatRun(t)
-	for _, v := range []string{"report", "source"} {
-		args := []string{"show", v, "--run", runDir, "--seat-id", "red-lens-evidence", "--search", "x", "--quote", "y"}
-		if _, err := run(t, args...); err == nil {
-			t.Errorf("show %s accepted --search and --quote together", v)
-		} else if !strings.Contains(err.Error(), "mutually exclusive") {
-			t.Errorf("show %s: the refusal does not say mutually exclusive: %v", v, err)
+	for _, v := range []string{"report", "board", "changes"} {
+		args := []string{"show", v, "--run", runDir, "--seat-id", "red-chair", "--match", "x", "--quote", "y"}
+		if v != "report" {
+			args = append(args, "--json")
 		}
+		if _, err := run(t, args...); err == nil {
+			t.Errorf("show %s accepted --match and --quote together", v)
+		} else if !strings.Contains(err.Error(), "Pass ONE") {
+			t.Errorf("show %s: the refusal does not say to pass one: %v", v, err)
+		}
+	}
+}
+
+// A MALFORMED REGEX IS REFUSED AND POINTED AT THE OTHER FLAG, because the commonest cause is text
+// with a bracket in it that the seat meant literally.
+func TestAMalformedRegexNamesTheLiteralFlag(t *testing.T) {
+	runDir := seatRun(t)
+	_, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--match", "O(√n")
+	if err == nil {
+		t.Fatal("an unbalanced regex was accepted")
+	}
+	if !strings.Contains(err.Error(), "--quote") {
+		t.Errorf("the refusal does not point at the literal flag, which is the usual cause: %v", err)
 	}
 }
 
@@ -205,7 +233,7 @@ func TestChangesScopedToAGapIsScopedInBothForms(t *testing.T) {
 func TestTheBoardIsSelectableAndKeepsItsEmptyArrays(t *testing.T) {
 	runDir := seatRun(t)
 	mintGap(t, runDir, "board-sel", "spec_underspecification")
-	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair", "--quote", "no-such-class-anywhere")
+	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair", "--match", "no-such-class-anywhere")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,6 +263,7 @@ func TestASelectorMatchesThroughAnchorsAndWhitespace(t *testing.T) {
 	runDir := seatRunReport(t, "# Findings\n\nOverhead is negligible<!--fx:F-eee49716--><!--fx:F-051df802-->.\n\nCost   is\n  spread over lines.\n")
 	for _, tc := range []struct{ name, flag, value string }{
 		{"a phrase spanning two abutting anchors", "--quote", "negligible."},
+		{"a regex spanning an anchor", "--match", "negligible[.]"},
 		{"a phrase across collapsed whitespace", "--quote", "Cost is"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -270,6 +299,7 @@ func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T)
 	}
 	for _, tc := range []struct{ name, flag, value, count string }{
 		{"an anchor id as a quote", "--quote", "fx:F-eee49716", "1 line(s)"},
+		{"anchor kinds as an alternation", "--match", "fx:|computation:", "2 line(s)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out := show(t, tc.flag, tc.value)
@@ -288,11 +318,11 @@ func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T)
 		})
 	}
 	t.Run("a pattern the report does not hold gets no such sentence", func(t *testing.T) {
-		if out := show(t, "--quote", "zebra"); !strings.Contains(out, "no line of the report matches") || strings.Contains(out, "ANCHOR TOKEN") {
+		if out := show(t, "--match", "zebra"); !strings.Contains(out, "no line of the report matches") || strings.Contains(out, "ANCHOR TOKEN") {
 			t.Errorf("a plain miss is answered as an anchor:\n%s", out)
 		}
 		var d reportDoc
-		if err := json.Unmarshal([]byte(show(t, "--quote", "zebra", "--json")), &d); err != nil {
+		if err := json.Unmarshal([]byte(show(t, "--match", "zebra", "--json")), &d); err != nil {
 			t.Fatal(err)
 		}
 		if d.Selection == nil || d.Selection.Note != "" {
@@ -300,7 +330,7 @@ func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T)
 		}
 	})
 	t.Run("the kind WORD still reads the text, not the tokens", func(t *testing.T) {
-		out := show(t, "--quote", "computation")
+		out := show(t, "--match", "computation")
 		if !strings.Contains(out, "The computation is short") || !strings.Contains(out, "_1 line(s) match") {
 			t.Errorf("a hunt for the word hit a line on its anchor's kind, or missed the sentence:\n%s", out)
 		}

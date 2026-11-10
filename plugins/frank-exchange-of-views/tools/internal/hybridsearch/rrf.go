@@ -16,7 +16,7 @@ const (
 	// RRFK is the standard Reciprocal Rank Fusion constant.
 	RRFK = 60.0
 	// SearchNotice is the mandatory notice stating that hybrid search results are cut and ranked.
-	SearchNotice = "Ranked top-K hybrid (BM25 + vector) results; this list is cut and absence proves nothing. For an exhaustive literal match set, use --quote."
+	SearchNotice = "Ranked top-K hybrid (BM25 + vector) results; this list is cut and absence proves nothing. For an exhaustive literal match set, use --quote (or --match for a regex)."
 )
 
 // SearchScope describes the scope and truncation of a ranked hybrid search.

@@ -44,9 +44,9 @@ type SourceSearch struct {
 	// Hits are every match, in text order (or ranked order for hybrid).
 	Hits []SourceHit `json:"hits"`
 	// Selection says what was asked and how many matches the text holds (for literal search).
-	Selection *SourceSelection `json:"selection"`
+	Selection *SourceSelection `json:"selection,omitempty"`
 	// SearchScope describes the scope and truncation of a ranked hybrid search.
-	SearchScope *hybridsearch.SearchScope `json:"search_scope"`
+	SearchScope *hybridsearch.SearchScope `json:"search_scope,omitempty"`
 }
 
 // SourceSelection is what a search asked and how many matches the text holds.
@@ -70,8 +70,8 @@ type SourceHit struct {
 	Matched string `json:"matched"`
 	// Line and LastLine are the lines of that text the match starts and ends on, numbered from 1 —
 	// what `cite --source-lines` counts, in the text TextSha names.
-	Line     int `json:"line,omitempty"`
-	LastLine int `json:"last_line,omitempty"`
+	Line     int `json:"line"`
+	LastLine int `json:"last_line"`
 	// Sentence is the source's sentence the match sits in, its whitespace folded, between
 	// SentenceStart and SentenceEnd in the same text; an ellipsis marks an edge the search stopped at
 	// without finding the sentence's.
@@ -108,6 +108,8 @@ type CrossSourceHit struct {
 	Page          int     `json:"page,omitempty"`
 	Score         float32 `json:"score,omitempty"`
 	Matched       string  `json:"matched"`
+	Line          int     `json:"line"`
+	LastLine      int     `json:"last_line"`
 	Sentence      string  `json:"sentence"`
 	SentenceStart int     `json:"sentence_start"`
 	SentenceEnd   int     `json:"sentence_end"`
@@ -117,30 +119,20 @@ type CrossSourceHit struct {
 	End           int     `json:"end"`
 }
 
-// SearchSource finds every match of a literal quote in a cached source's text, case-insensitively,
-// in the source's normalisation. It returns an exhaustive match set with nothing cut.
-func SearchSource(run record.Run, e Entry, quote string) (SourceSearch, error) {
-	if quote == "" {
-		return SourceSearch{}, fmt.Errorf("%w: no quote was given", ErrPatternMatchesEmpty)
+// SearchSource finds every match of a pattern in a cached source's text, case-insensitively. match
+// is an RE2 regex; quote, when given instead, is literal text and is read in the source's
+// normalisation, so a ’ typed from the page matches the ’ there. Exactly one of the two is given;
+// an empty one, or a pattern that matches the empty string, is refused.
+func SearchSource(run record.Run, e Entry, match, quote string) (SourceSearch, error) {
+	re, criterion, err := searchPattern(match, quote)
+	if err != nil {
+		return SourceSearch{}, err
 	}
-	want := fold(quote, hyphenAsIs).s
-	if want == "" {
-		return SourceSearch{}, fmt.Errorf("%w: the quote is blank", ErrPatternMatchesEmpty)
-	}
-	re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(want))
-	criterion := `literal: "` + quote + `"`
-
 	texts, origin, _, err := sourceTexts(run, e)
 	if err != nil {
 		return SourceSearch{}, err
 	}
-	out := SourceSearch{
-		Sha:      e.Sha,
-		URL:      e.URL,
-		Origin:   recordpb.Word(origin),
-		TextPath: SourceTextPath(run, e, origin),
-		Hits:     []SourceHit{},
-	}
+	out := SourceSearch{Sha: e.Sha, URL: e.URL, Origin: recordpb.Word(origin), TextPath: SourceTextPath(run, e, origin), Hits: []SourceHit{}}
 	for _, t := range texts {
 		f := fold(t.text, hyphenAsIs)
 		for _, m := range re.FindAllStringIndex(f.s, -1) {
@@ -151,25 +143,21 @@ func SearchSource(run record.Run, e Entry, quote string) (SourceSearch, error) {
 	return out, nil
 }
 
-// SearchCrossSourcesQuote finds every match of a literal quote across all cached sources in a run,
-// case-insensitively, returning an exhaustive match set.
-func SearchCrossSourcesQuote(run record.Run, quote string) (CrossSourceSearch, error) {
-	if quote == "" {
-		return CrossSourceSearch{}, fmt.Errorf("%w: no quote was given", ErrPatternMatchesEmpty)
+// SearchCrossSources is SearchSource over every cached source in the run: every match of match (an
+// RE2 regex) or quote (literal text) in each source's text, in cache order and then text order,
+// with the sources that hold no text to search named rather than skipped in silence.
+func SearchCrossSources(run record.Run, match, quote string) (CrossSourceSearch, error) {
+	re, criterion, err := searchPattern(match, quote)
+	if err != nil {
+		return CrossSourceSearch{}, err
 	}
-	want := fold(quote, hyphenAsIs).s
-	if want == "" {
-		return CrossSourceSearch{}, fmt.Errorf("%w: the quote is blank", ErrPatternMatchesEmpty)
-	}
-	re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(want))
-	criterion := `literal: "` + quote + `"`
 
 	entries, err := AllEntries(run)
 	if err != nil {
 		return CrossSourceSearch{}, err
 	}
 
-	var hits []CrossSourceHit
+	hits := []CrossSourceHit{}
 	searchedSources := 0
 	var unsearchedSources []hybridsearch.UnsearchedSource
 
@@ -196,6 +184,8 @@ func SearchCrossSourcesQuote(run record.Run, quote string) (CrossSourceSearch, e
 					TextSha:       sh.TextSha,
 					Page:          sh.Page,
 					Matched:       sh.Matched,
+					Line:          sh.Line,
+					LastLine:      sh.LastLine,
 					Sentence:      sh.Sentence,
 					SentenceStart: sh.SentenceStart,
 					SentenceEnd:   sh.SentenceEnd,
@@ -396,6 +386,8 @@ func SearchCrossSourcesHybrid(run record.Run, query string, topK int) (CrossSour
 			Page:          sh.Page,
 			Score:         sh.Score,
 			Matched:       sh.Matched,
+			Line:          sh.Line,
+			LastLine:      sh.LastLine,
 			Sentence:      sh.Sentence,
 			SentenceStart: sh.SentenceStart,
 			SentenceEnd:   sh.SentenceEnd,
@@ -599,4 +591,32 @@ func unsearchedReason(e Entry) string {
 // VectorCachePath is where dense vector embeddings of textSha's chunks are cached.
 func VectorCachePath(run record.Run, textSha string) string {
 	return filepath.Join(Dir(run), textSha+".vec")
+}
+
+// searchPattern compiles a search's pattern, case-insensitive, and names it.
+func searchPattern(match, quote string) (*regexp.Regexp, string, error) {
+	var re *regexp.Regexp
+	var criterion string
+	switch {
+	case match != "" && quote != "":
+		return nil, "", errors.New("a search takes a regex or a literal, not both")
+	case quote != "":
+		want := fold(quote, hyphenAsIs).s
+		if want == "" {
+			return nil, "", fmt.Errorf("%w: the quote is blank", ErrPatternMatchesEmpty)
+		}
+		re, criterion = regexp.MustCompile("(?i)"+regexp.QuoteMeta(want)), `the quote "`+quote+`"`
+	case match != "":
+		var err error
+		if re, err = regexp.Compile("(?i)" + match); err != nil {
+			return nil, "", err
+		}
+		criterion = "/" + match + "/"
+	default:
+		return nil, "", fmt.Errorf("%w: no pattern was given", ErrPatternMatchesEmpty)
+	}
+	if re.MatchString("") {
+		return nil, "", ErrPatternMatchesEmpty
+	}
+	return re, criterion, nil
 }

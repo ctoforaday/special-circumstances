@@ -54,8 +54,9 @@ session offers, or the shell's `grep` where it offers none: the terms you want a
 already have, and a lexical match over a known file beats a ranked guess over a corpus. A search's
 count mode — the search tool's or `grep -c` — counts LINES, not occurrences (anchor patterns when counting).
 A cached source is the exception: search it with the run's source search, which reads it as a citation is
-located in it and says, at each hit, whether its sentence can be quoted as printed. An exhaustive literal match
-returns every hit; ranked hybrid retrieval helps when phrasing varies, but its results are cut and never prove absence.
+located in it and says, at each hit, whether its sentence can be quoted as printed. An exhaustive search, by
+literal text or by regular expression, returns every hit, so it alone proves absence; ranked hybrid retrieval
+helps when you do not know the wording, but its results are cut and never prove absence.
 
 ## Report structure
 

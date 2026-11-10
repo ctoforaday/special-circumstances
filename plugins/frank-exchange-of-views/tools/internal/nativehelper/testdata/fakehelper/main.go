@@ -26,6 +26,10 @@
 // and "crash-on-helper-op" exits 3 on any op from nativehelper.FirstHelperOp on, after a good
 // handshake: a helper that comes up and then dies on a page.
 //
+// It answers vecembed's embed op as feov-embed's contract states it — one Dim-float32 L2-normalised
+// vector per (ids, mask) field pair — with a bag of the text's token ids hashed into the vector, so
+// texts sharing words lie close and a ranked search over them has an order to test.
+//
 // FAKEHELPER_START_LOG, when set, names a file it appends its pid to at each start.
 package main
 
@@ -34,12 +38,14 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
 )
 
 var (
@@ -174,6 +180,14 @@ func answer(req nativehelper.Frame, diag *os.File) [][]byte {
 			break
 		}
 		time.Sleep(time.Duration(binary.LittleEndian.Uint32(req.Fields[0])) * time.Millisecond)
+	case vecembed.OpEmbed:
+		if len(req.Fields)%2 != 0 {
+			status, result = byte(nativehelper.StatusOpError), [][]byte{[]byte("embed takes (ids, mask) field pairs")}
+			break
+		}
+		for i := 0; i < len(req.Fields); i += 2 {
+			result = append(result, embed(req.Fields[i]))
+		}
 	default:
 		status, result = byte(nativehelper.StatusUnknownOp), [][]byte{[]byte(req.Op.String())}
 	}
@@ -190,4 +204,30 @@ func captured(diag *os.File) []byte {
 		return []byte("fakehelper: reading the capture file: " + err.Error())
 	}
 	return nativehelper.BoundStderr(b.Bytes(), 0)
+}
+
+// embed is one text's vector: its little-endian int64 token ids hashed into vecembed.Dim buckets,
+// skipping the [CLS] and [SEP] every text carries, L2-normalised.
+func embed(ids []byte) []byte {
+	v := make([]float64, vecembed.Dim)
+	for j := 0; j+8 <= len(ids); j += 8 {
+		id := binary.LittleEndian.Uint64(ids[j:])
+		if id == 101 || id == 102 {
+			continue
+		}
+		v[(id*2654435761)%uint64(vecembed.Dim)]++
+	}
+	var n float64
+	for _, x := range v {
+		n += x * x
+	}
+	n = math.Sqrt(n)
+	out := make([]byte, 4*vecembed.Dim)
+	for d, x := range v {
+		if n > 0 {
+			x /= n
+		}
+		binary.LittleEndian.PutUint32(out[4*d:], math.Float32bits(float32(x)))
+	}
+	return out
 }

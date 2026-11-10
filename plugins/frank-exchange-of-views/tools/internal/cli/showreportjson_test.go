@@ -69,7 +69,7 @@ func TestShowReportJSONIsTheSameLinesAtHead(t *testing.T) {
 	// A seat copies an anchor from this read into a quote, so the token prints as the report holds
 	// it, in the whole read and the selected one: universe-m19's blue read "\u003c!--fx:…--\u003e".
 	t.Run("an anchor prints as its token, never \\u-escaped", func(t *testing.T) {
-		for _, extra := range [][]string{nil, {"--quote", "Costs rose"}} {
+		for _, extra := range [][]string{nil, {"--match", "Costs rose"}} {
 			out, err := run(t, append([]string{"show", "report", "--run", runDir, "--seat-id", lensSeat, "--json"}, extra...)...)
 			if err != nil {
 				t.Fatal(err)
@@ -107,15 +107,15 @@ func TestShowReportJSONIsTheSameLinesAtHead(t *testing.T) {
 			t.Errorf("the selection block does not say 1 of the report's lines: %+v", d.Selection)
 		}
 	})
-	t.Run("--quote that hits nothing: an empty list beside the report's size, never an absent key", func(t *testing.T) {
-		out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--json", "--quote", "zebra")
+	t.Run("--match that hits nothing: an empty list beside the report's size, never an absent key", func(t *testing.T) {
+		out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--json", "--match", "zebra")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if !strings.Contains(out, `"lines": []`) {
 			t.Errorf("a selection that kept nothing does not print `lines: []`:\n%s", out)
 		}
-		if d := reportJSONOf(t, runDir, "--quote", "zebra"); d.Selection == nil || d.Selection.Matched != 0 || d.Selection.Of == 0 {
+		if d := reportJSONOf(t, runDir, "--match", "zebra"); d.Selection == nil || d.Selection.Matched != 0 || d.Selection.Of == 0 {
 			t.Errorf("no match reads as an empty report: %+v", d.Selection)
 		}
 	})

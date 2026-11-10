@@ -69,6 +69,9 @@ func (s Selector) Describe() string {
 	if s.Literal != "" {
 		return "the quote " + `"` + s.Literal + `"`
 	}
+	if s.re != nil {
+		return "/" + s.re.String() + "/"
+	}
 	return ""
 }
 
@@ -169,14 +172,24 @@ func visibleText(s string) string {
 // TestEveryRegisteredFlagIsInTheDeclaredVocabulary. The machinery for this already existed; building
 // the behaviour again per command is what those gates exist to prevent.
 func AddSelectorFlags(c *cobra.Command, what string) {
+	flags.Text(c, flags.Match,
+		"select only the "+what+" matching this `regex` (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut")
 	flags.Text(c, flags.Quote,
-		"select only the "+what+" containing this `text` LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Every match is returned and the total is stated; nothing is ranked or cut")
+		"select only the "+what+" containing this `text` LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else")
 }
 
-// SelectorOf reads --quote, returning an active Selector when given.
+// SelectorOf reads the pair, refusing the two ways a seat can get a wrong answer quietly: asking
+// with both, and asking with a regex that does not compile.
 func SelectorOf(c *cobra.Command) (Selector, error) {
+	rx, _ := c.Flags().GetString(flags.Match)
 	lit, _ := c.Flags().GetString(flags.Quote)
-	if lit != "" {
+	switch {
+	case rx != "" && lit != "":
+		return Selector{}, feov.Errorf(feov.Validation,
+			"--match and --quote ask the same question two ways and would disagree the moment the text "+
+				"has a metacharacter in it. Pass ONE: --match for a regex (an alternation of tells), --quote for "+
+				"text containing (), ., * or [] that a regex would read as syntax")
+	case lit != "":
 		// A QUOTE COPIED AS THE REPORT PRINTS IT CARRIES ITS ANCHORS, and the acting verbs read such
 		// a quote with every token out (Location). The view is the dry run for the act, so it reads
 		// the quote the same way. A quote that is nothing but anchor is left as typed: it selects no
@@ -186,6 +199,14 @@ func SelectorOf(c *cobra.Command) (Selector, error) {
 			want = lit
 		}
 		return Selector{re: regexp.MustCompile("(?i)" + regexp.QuoteMeta(want)), Literal: lit}, nil
+	case rx != "":
+		re, err := regexp.Compile("(?i)" + rx)
+		if err != nil {
+			return Selector{}, feov.Errorf(feov.Validation,
+				"--match %q is not a valid regex: %v. If you meant it literally — text with (), ., * or [] in "+
+					"it — pass it as --quote instead, which matches the characters as typed", rx, err)
+		}
+		return Selector{re: re}, nil
 	}
 	return Selector{}, nil
 }

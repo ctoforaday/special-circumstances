@@ -80,8 +80,8 @@ func TestTheWholeReportServedToALensIsRecordedAndNothingElseIs(t *testing.T) {
 	before := readsOf(t, runDir)
 	head := edit("E1", "Volume grew.", "Volume grew steadily.")
 	for _, partial := range [][]string{
-		{"--anchor", id}, {"--anchor", id, "--json"}, {"--quote", "Volume grew"},
-		{"--json", "--quote", "Volume grew"},
+		{"--anchor", id}, {"--anchor", id, "--json"}, {"--match", "Volume"}, {"--quote", "Volume grew"},
+		{"--json", "--match", "Volume"}, {"--json", "--quote", "Volume grew"},
 	} {
 		show(lensSeat, partial...)
 	}
