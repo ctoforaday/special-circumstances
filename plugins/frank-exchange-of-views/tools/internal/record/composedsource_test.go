@@ -116,6 +116,12 @@ func TestTheVoiceLensAuditsTheTextTheToolComposes(t *testing.T) {
 		t.Errorf("the queue does not end with one entry holding both composed sources: %+v", q)
 	}
 
+	// A DOCKETED GAP IS THE BENCH'S UNTIL IT RULES, and leaves the voice lens's list and debt with it.
+	docketed := voiceBoard(t).add(evLens, composedMint("G1")).docketMotion("red-chair", "M-1", "G1")
+	if why, ready := voiceParty(t, docketed.seed()); ready && strings.Contains(why, "G1") {
+		t.Errorf("a gap docketed and unruled readies the voice lens: %q", why)
+	}
+
 	// THE SITTING IT IS IN STILL LISTS THEM: a register no agent opened is sat through the moment it
 	// opens, and the list reads the sittings before it.
 	sitting := voiceBoard(t).add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true)).

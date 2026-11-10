@@ -63,9 +63,18 @@ func composedSourcesOf(evs []*Event, ids []int64, win WindowIndex, open []blocke
 				a.ID, section, a.Status, a.Fate),
 		})
 	}
+	// A DOCKETED GAP LEAVES THE PARTIES' LISTS UNTIL THE BENCH RULES IT (gblock 2026-10-31), the voice
+	// lens's composed sources included: it is the bench's while its docket motion stands unruled, and
+	// a remand returns it, owed again where the lens has not sat through a sitting since its mint.
+	docketed := map[string]bool{}
+	for _, m := range motionsAt(evs, ids, win) {
+		if m.Subject == "docket" && !m.Ruled() {
+			docketed[m.GapID] = true
+		}
+	}
 	minters := map[string]string{}
 	for _, g := range open {
-		if g.mintedBy != composedSourceAuditor {
+		if g.mintedBy != composedSourceAuditor && !docketed[g.id] {
 			minters[g.id] = g.mintedBy
 		}
 	}

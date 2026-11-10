@@ -434,8 +434,8 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID, reads.mintsLeft)...)
 		// THE COMPOSED SOURCES THE VOICE LENS HAS NOT HAD (composedsource.go): not blocking, as the audit
 		// is not — finding nothing in them is a legitimate audit — and listed until it sits through a
-		// sitting opened after each, which is when the debt that readied it ends. Every open gap's row
-		// prints, a docketed one's included.
+		// sitting opened after each, which is when the debt that readied it ends. A docketed gap is the
+		// bench's until it rules, and composedSourcesOf leaves it out.
 		s.Open = append(s.Open, composedItemsOf(evs, ids, win, blockerGapsOfStates(all), seatID)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
