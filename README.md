@@ -58,6 +58,17 @@ claude plugin install prosthetic-conscience@special-circumstances
 
 Plugins resolve when a session starts, so a mid-session install applies to the *next* session — and a cloud container is discarded when the session ends. To have them present from the first prompt, install them from the environment's **Setup script** field: see [docs/setup-script.md](docs/setup-script.md).
 
+### On Google Antigravity
+
+Clone the repository and install all four plugins through `.agents/plugins.json` (or import from an existing Claude Code installation):
+
+```text
+git clone https://github.com/ctoforaday/special-circumstances.git
+agy plugin install ./special-circumstances
+```
+
+To update an existing Antigravity installation to the release tags pinned in `.claude-plugin/marketplace.json`, run `/prosthetic-conscience:doctor --fix` inside an Antigravity session (or `sc-doctor -fix` with a checkout of the repository available): `sc-doctor` checks each installed plugin under `~/.gemini/config/plugins/` against its pinned tag, reinstalls any stale or half-updated plugin whole via `agy plugin install`, and provisions the release binaries.
+
 ## Try it
 
 - **`/prosthetic-conscience:doctor`** — check the environment before anything assumes a toolchain.

@@ -26,6 +26,11 @@ func ReferenceCommit(b binStatus) string {
 	if head := HeadCommit(b.Root); head != "" {
 		return head
 	}
+	if commitBytes, err := os.ReadFile(filepath.Join(b.Root, agyInstalledRefFile)); err == nil {
+		if s := strings.TrimSpace(string(commitBytes)); s != "" {
+			return s
+		}
+	}
 	if commitBytes, err := os.ReadFile(filepath.Join(b.Root, ".fetch", "commit")); err == nil {
 		if s := strings.TrimSpace(string(commitBytes)); s != "" {
 			return s
