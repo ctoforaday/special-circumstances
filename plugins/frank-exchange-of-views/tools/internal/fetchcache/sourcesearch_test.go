@@ -212,7 +212,7 @@ func TestSearchSourceHybrid(t *testing.T) {
 		t.Logf("SearchSourceHybrid returned err: %v (expected if feov-embed absent)", err)
 		return
 	}
-	if got.SearchScope == nil || !got.SearchScope.RankedAndCut {
+	if !got.SearchScope.RankedAndCut {
 		t.Fatalf("expected SearchScope with ranked_and_cut=true, got %+v", got.SearchScope)
 	}
 	if got.SearchScope.Notice != hybridsearch.SearchNotice {

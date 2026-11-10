@@ -41,12 +41,27 @@ type SourceSearch struct {
 	// that holds it.
 	Origin   string `json:"source_text_origin"`
 	TextPath string `json:"text_path"`
-	// Hits are every match, in text order (or ranked order for hybrid).
+	// Hits are every match, in text order.
 	Hits []SourceHit `json:"hits"`
-	// Selection says what was asked and how many matches the text holds (for literal search).
-	Selection *SourceSelection `json:"selection,omitempty"`
-	// SearchScope describes the scope and truncation of a ranked hybrid search.
-	SearchScope *hybridsearch.SearchScope `json:"search_scope,omitempty"`
+	// Selection says what was asked and how many matches the text holds.
+	Selection SourceSelection `json:"selection"`
+}
+
+// RankedSourceSearch is a ranked search of one source: the top passages for a query, cut, with
+// SearchScope saying so. It carries no Selection, which would claim every match is listed.
+type RankedSourceSearch struct {
+	Sha         string                   `json:"sha256"`
+	URL         string                   `json:"url"`
+	Origin      string                   `json:"source_text_origin"`
+	TextPath    string                   `json:"text_path"`
+	Hits        []RankedSourceHit        `json:"hits"`
+	SearchScope hybridsearch.SearchScope `json:"search_scope"`
+}
+
+// RankedSourceHit is a SourceHit with the fused rank score that placed it.
+type RankedSourceHit struct {
+	SourceHit
+	Score float32 `json:"score"`
 }
 
 // SourceSelection is what a search asked and how many matches the text holds.
@@ -59,8 +74,6 @@ type SourceSelection struct {
 type SourceHit struct {
 	// Page is the PDF page of an OCR reading the match sits on; absent for embedded text.
 	Page int `json:"page,omitempty"`
-	// Score is the RRF score for ranked hybrid search; omitted for literal search.
-	Score float32 `json:"score,omitempty"`
 	// Start and End are the match's byte offsets in the text it was found in — the source's text, or
 	// the page's reading — whose sha256 is TextSha: the coordinates a citation records its span in.
 	Start   int    `json:"start"`
@@ -86,9 +99,20 @@ type SourceHit struct {
 
 // CrossSourceSearch is a search across all cached sources in a run.
 type CrossSourceSearch struct {
-	Hits        []CrossSourceHit          `json:"hits"`
-	Selection   *CrossSourceSelection     `json:"selection,omitempty"`
-	SearchScope *hybridsearch.SearchScope `json:"search_scope,omitempty"`
+	Hits      []CrossSourceHit     `json:"hits"`
+	Selection CrossSourceSelection `json:"selection"`
+}
+
+// RankedCrossSourceSearch is a ranked search across every cached source: the top passages, cut.
+type RankedCrossSourceSearch struct {
+	Hits        []RankedCrossSourceHit   `json:"hits"`
+	SearchScope hybridsearch.SearchScope `json:"search_scope"`
+}
+
+// RankedCrossSourceHit is a CrossSourceHit with the fused rank score that placed it.
+type RankedCrossSourceHit struct {
+	CrossSourceHit
+	Score float32 `json:"score"`
 }
 
 // CrossSourceSelection is what a cross-source literal search asked and how many sources/matches were found.
@@ -101,22 +125,21 @@ type CrossSourceSelection struct {
 
 // CrossSourceHit is one hit from a cross-source search.
 type CrossSourceHit struct {
-	Sha           string  `json:"sha256"`
-	URL           string  `json:"url"`
-	Origin        string  `json:"source_text_origin"`
-	TextSha       string  `json:"text_sha"`
-	Page          int     `json:"page,omitempty"`
-	Score         float32 `json:"score,omitempty"`
-	Matched       string  `json:"matched"`
-	Line          int     `json:"line"`
-	LastLine      int     `json:"last_line"`
-	Sentence      string  `json:"sentence"`
-	SentenceStart int     `json:"sentence_start"`
-	SentenceEnd   int     `json:"sentence_end"`
-	SourceSpan    string  `json:"source_span"`
-	NotCiteable   string  `json:"not_citeable,omitempty"`
-	Start         int     `json:"start"`
-	End           int     `json:"end"`
+	Sha           string `json:"sha256"`
+	URL           string `json:"url"`
+	Origin        string `json:"source_text_origin"`
+	TextSha       string `json:"text_sha"`
+	Page          int    `json:"page,omitempty"`
+	Matched       string `json:"matched"`
+	Line          int    `json:"line"`
+	LastLine      int    `json:"last_line"`
+	Sentence      string `json:"sentence"`
+	SentenceStart int    `json:"sentence_start"`
+	SentenceEnd   int    `json:"sentence_end"`
+	SourceSpan    string `json:"source_span"`
+	NotCiteable   string `json:"not_citeable,omitempty"`
+	Start         int    `json:"start"`
+	End           int    `json:"end"`
 }
 
 // SearchSource finds every match of a pattern in a cached source's text, case-insensitively. match
@@ -139,7 +162,7 @@ func SearchSource(run record.Run, e Entry, match, quote string) (SourceSearch, e
 			out.Hits = append(out.Hits, sourceHit(texts, t, f.at[m[0]], f.end[m[1]-1]))
 		}
 	}
-	out.Selection = &SourceSelection{Criterion: criterion, Matched: len(out.Hits)}
+	out.Selection = SourceSelection{Criterion: criterion, Matched: len(out.Hits)}
 	return out, nil
 }
 
@@ -200,7 +223,7 @@ func SearchCrossSources(run record.Run, match, quote string) (CrossSourceSearch,
 
 	return CrossSourceSearch{
 		Hits: hits,
-		Selection: &CrossSourceSelection{
+		Selection: CrossSourceSelection{
 			Criterion:         criterion,
 			Matched:           len(hits),
 			SearchedSources:   searchedSources,
@@ -210,36 +233,36 @@ func SearchCrossSources(run record.Run, match, quote string) (CrossSourceSearch,
 }
 
 // SearchSourceHybrid executes ranked top-K hybrid (BM25 + dense vector RRF) retrieval over one cached source.
-func SearchSourceHybrid(run record.Run, e Entry, query string, topK int) (SourceSearch, error) {
+func SearchSourceHybrid(run record.Run, e Entry, query string, topK int) (RankedSourceSearch, error) {
 	if strings.TrimSpace(query) == "" {
-		return SourceSearch{}, errors.New("the search query is blank")
+		return RankedSourceSearch{}, errors.New("the search query is blank")
 	}
 	if topK <= 0 {
 		topK = 10
 	}
 	texts, origin, rec, err := sourceTexts(run, e)
 	if err != nil {
-		return SourceSearch{}, err
+		return RankedSourceSearch{}, err
 	}
 	emb, err := vecembed.Default()
 	if err != nil {
-		return SourceSearch{}, err
+		return RankedSourceSearch{}, err
 	}
 	defer emb.Close()
 
 	fullText, pageMap, textSha, err := fullSourceText(run, e, origin, rec, texts)
 	if err != nil {
-		return SourceSearch{}, err
+		return RankedSourceSearch{}, err
 	}
 
 	cachedChunks, err := loadOrComputeChunks(run, emb, textSha, fullText, pageMap)
 	if err != nil {
-		return SourceSearch{}, err
+		return RankedSourceSearch{}, err
 	}
 
 	qVecs, err := emb.Embed([]string{query})
 	if err != nil {
-		return SourceSearch{}, err
+		return RankedSourceSearch{}, err
 	}
 
 	items := make([]hybridsearch.Item, len(cachedChunks))
@@ -253,16 +276,16 @@ func SearchSourceHybrid(run record.Run, e Entry, query string, topK int) (Source
 
 	scored, err := hybridsearch.FuseRRF(items, query, qVecs[0], topK)
 	if err != nil {
-		return SourceSearch{}, err
+		return RankedSourceSearch{}, err
 	}
 
-	out := SourceSearch{
+	out := RankedSourceSearch{
 		Sha:      e.Sha,
 		URL:      e.URL,
 		Origin:   recordpb.Word(origin),
 		TextPath: SourceTextPath(run, e, origin),
-		Hits:     make([]SourceHit, 0, len(scored)),
-		SearchScope: &hybridsearch.SearchScope{
+		Hits:     make([]RankedSourceHit, 0, len(scored)),
+		SearchScope: hybridsearch.SearchScope{
 			RankedAndCut:   true,
 			Returned:       len(scored),
 			SearchedChunks: len(cachedChunks),
@@ -274,35 +297,34 @@ func SearchSourceHybrid(run record.Run, e Entry, query string, topK int) (Source
 		c := cachedChunks[sc.Index]
 		chunkText := fullText[c.StartByte:c.EndByte]
 		hit := hitForChunk(texts, origin, rec, pageMap, fullText, c, chunkText, query)
-		hit.Score = sc.Score
-		out.Hits = append(out.Hits, hit)
+		out.Hits = append(out.Hits, RankedSourceHit{SourceHit: hit, Score: sc.Score})
 	}
 
 	return out, nil
 }
 
 // SearchCrossSourcesHybrid executes ranked top-K hybrid retrieval across all cached sources in the run.
-func SearchCrossSourcesHybrid(run record.Run, query string, topK int) (CrossSourceSearch, error) {
+func SearchCrossSourcesHybrid(run record.Run, query string, topK int) (RankedCrossSourceSearch, error) {
 	if strings.TrimSpace(query) == "" {
-		return CrossSourceSearch{}, errors.New("the search query is blank")
+		return RankedCrossSourceSearch{}, errors.New("the search query is blank")
 	}
 	if topK <= 0 {
 		topK = 10
 	}
 	emb, err := vecembed.Default()
 	if err != nil {
-		return CrossSourceSearch{}, err
+		return RankedCrossSourceSearch{}, err
 	}
 	defer emb.Close()
 
 	qVecs, err := emb.Embed([]string{query})
 	if err != nil {
-		return CrossSourceSearch{}, err
+		return RankedCrossSourceSearch{}, err
 	}
 
 	entries, err := AllEntries(run)
 	if err != nil {
-		return CrossSourceSearch{}, err
+		return RankedCrossSourceSearch{}, err
 	}
 
 	type sourceChunkRef struct {
@@ -369,22 +391,20 @@ func SearchCrossSourcesHybrid(run record.Run, query string, topK int) (CrossSour
 
 	scored, err := hybridsearch.FuseRRF(items, query, qVecs[0], topK)
 	if err != nil {
-		return CrossSourceSearch{}, err
+		return RankedCrossSourceSearch{}, err
 	}
 
-	hits := make([]CrossSourceHit, 0, len(scored))
+	hits := make([]RankedCrossSourceHit, 0, len(scored))
 	for _, sc := range scored {
 		ref := allRefs[sc.Index]
 		chunkText := ref.fullText[ref.chunk.StartByte:ref.chunk.EndByte]
 		sh := hitForChunk(ref.texts, ref.origin, ref.rec, ref.pageMap, ref.fullText, ref.chunk, chunkText, query)
-		sh.Score = sc.Score
-		hits = append(hits, CrossSourceHit{
+		hits = append(hits, RankedCrossSourceHit{Score: sc.Score, CrossSourceHit: CrossSourceHit{
 			Sha:           ref.entry.Sha,
 			URL:           ref.entry.URL,
 			Origin:        recordpb.Word(ref.origin),
 			TextSha:       sh.TextSha,
 			Page:          sh.Page,
-			Score:         sh.Score,
 			Matched:       sh.Matched,
 			Line:          sh.Line,
 			LastLine:      sh.LastLine,
@@ -395,12 +415,12 @@ func SearchCrossSourcesHybrid(run record.Run, query string, topK int) (CrossSour
 			NotCiteable:   sh.NotCiteable,
 			Start:         sh.Start,
 			End:           sh.End,
-		})
+		}})
 	}
 
-	return CrossSourceSearch{
+	return RankedCrossSourceSearch{
 		Hits: hits,
-		SearchScope: &hybridsearch.SearchScope{
+		SearchScope: hybridsearch.SearchScope{
 			RankedAndCut:      true,
 			Returned:          len(hits),
 			SearchedChunks:    len(items),

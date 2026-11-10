@@ -848,11 +848,13 @@ UNDER --match OR --quote, EVERY MATCH IS LISTED, in text order; nothing is ranke
 
 An unknown source, a source the tool holds no text for, an empty pattern, a pattern that matches the empty string, and --search beside --match or --quote are refused.
 
-WITH NEITHER --sha NOR --anchor, the output is across sources (JSON): {hits:[{sha256,url,source_text_origin,text_sha,page,score,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable,start,end}],selection:{criterion,matched,searched_sources,unsearched_sources:[{sha256,url,reason}]},search_scope:{ranked_and_cut,returned,searched_chunks,searched_sources,unsearched_sources:[{sha256,url,reason}],notice}}. With one, it is the OUTPUT below.
+WITH NEITHER --sha NOR --anchor, --match and --quote print across sources (JSON): {hits:[{sha256,url,source_text_origin,text_sha,page,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable,start,end}],selection:{criterion,matched,searched_sources,unsearched_sources:[{sha256,url,reason}]}}; with one, the OUTPUT below.
+
+UNDER --search (JSON), on one source: {sha256,url,source_text_origin,text_path,hits:[{page,start,end,text_sha,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable,score}],search_scope:{ranked_and_cut,returned,searched_chunks,searched_sources,unsearched_sources:[{sha256,url,reason}],notice}}; across sources: {hits:[{sha256,url,source_text_origin,text_sha,page,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable,start,end,score}],search_scope:{ranked_and_cut,returned,searched_chunks,searched_sources,unsearched_sources:[{sha256,url,reason}],notice}}
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §17
 
-OUTPUT (JSON): {sha256,url,source_text_origin,text_path,hits:[{page,score,start,end,text_sha,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable}],selection:{criterion,matched},search_scope:{ranked_and_cut,returned,searched_chunks,searched_sources,unsearched_sources:[{sha256,url,reason}],notice}}
+OUTPUT (JSON): {sha256,url,source_text_origin,text_path,hits:[{page,start,end,text_sha,matched,line,last_line,sentence,sentence_start,sentence_end,source_span,not_citeable}],selection:{criterion,matched}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 

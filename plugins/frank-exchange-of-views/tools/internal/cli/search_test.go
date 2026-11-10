@@ -99,8 +99,8 @@ func TestASelectionAcrossSourcesListsEveryMatch(t *testing.T) {
 		if err := json.Unmarshal([]byte(out), &doc); err != nil {
 			t.Fatal(err)
 		}
-		if doc.SearchScope != nil || doc.Selection == nil || doc.Selection.Matched != 2 || len(doc.Hits) != 2 || doc.Selection.SearchedSources != 1 {
-			t.Errorf("show source %s across sources = %d hits, selection %+v, scope %+v; want both matches in the text source, stated exhaustively", sel[0], len(doc.Hits), doc.Selection, doc.SearchScope)
+		if strings.Contains(out, `"search_scope"`) || doc.Selection.Matched != 2 || len(doc.Hits) != 2 || doc.Selection.SearchedSources != 1 {
+			t.Errorf("show source %s across sources = %d hits, selection %+v; want both matches in the text source, stated exhaustively and unranked:\n%s", sel[0], len(doc.Hits), doc.Selection, out)
 			continue
 		}
 		for _, h := range doc.Hits {
