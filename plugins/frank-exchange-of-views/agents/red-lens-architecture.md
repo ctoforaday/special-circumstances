@@ -756,7 +756,7 @@ Flags:
 $ feov-record show changes --help
 every recorded change to the report, in record order — each edit, and each citation or computation blue retired from a sentence the report keeps, named by its kind; add --id <gap> to put red's required_fix and the changes answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit` and `retire`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,problem,required_fix,acceptance_check,location,fix_new,fix_basis},edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted,retired}],counts:{edits}}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,problem,required_fix,acceptance_check,location,fix_new,fix_basis},edits:[{event_id,seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted,retired}],counts:{edits}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 

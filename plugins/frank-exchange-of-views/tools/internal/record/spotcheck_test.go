@@ -59,10 +59,10 @@ func TestADescribedSpotCheckCarriesItsProseWhateverItNames(t *testing.T) {
 		sc   SpotCheck
 		want []string
 	}{
-		{"stale areas only", SpotCheck{Sitting: 4, SeatID: "red-chair", Areas: []string{"red-lens-logic", "red-lens-voice"}, Prose: "the new paragraph contradicts the table"},
-			[]string{"#4 (red-chair)", "read stale area(s) red-lens-logic, red-lens-voice", "the new paragraph contradicts the table"}},
-		{"stale areas and closures", SpotCheck{Sitting: 4, SeatID: "red-chair", Areas: []string{"red-lens-logic"}, Sampled: []string{"G1"}, Archived: 3, Prose: "G1's anchor resolves"},
-			[]string{"read stale area(s) red-lens-logic", "re-verified G1 of 3 archived closure(s)", "G1's anchor resolves"}},
+		{"stale areas only", SpotCheck{Sitting: 4, SeatID: "red-chair", Areas: []SpotCheckArea{{SeatID: "red-lens-logic", Pin: 260, Changes: []int64{320, 321}}, {SeatID: "red-lens-voice", Pin: 260, Changes: []int64{320, 321}}}, Prose: "the new paragraph contradicts the table"},
+			[]string{"#4 (red-chair)", "read stale area(s) red-lens-logic, red-lens-voice (pin 260: 2 change(s) to the report since — events 320, 321)", "the new paragraph contradicts the table"}},
+		{"stale areas and closures", SpotCheck{Sitting: 4, SeatID: "red-chair", Areas: []SpotCheckArea{{SeatID: "red-lens-logic", Pin: 7, Changes: []int64{}}}, Sampled: []string{"G1"}, Archived: 3, Prose: "G1's anchor resolves"},
+			[]string{"read stale area(s) red-lens-logic (pin 7: 0 change(s) to the report since)", "re-verified G1 of 3 archived closure(s)", "G1's anchor resolves"}},
 		{"closures only", SpotCheck{Sitting: 4, SeatID: "red-chair", Sampled: []string{"G1"}, Archived: 1, Prose: "G1's anchor resolves"},
 			[]string{"re-verified G1 of 1 archived closure(s)", "G1's anchor resolves"}},
 		{"naming nothing", SpotCheck{Sitting: 4, SeatID: "red-chair", Prose: "read the plan"},

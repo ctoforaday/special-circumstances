@@ -708,6 +708,20 @@ CREATE TABLE "spot_check_areas" (
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
+CREATE TABLE "spot_check_pins" (
+  "event_id" INTEGER NOT NULL REFERENCES "spot_check"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    INTEGER NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
+CREATE TABLE "spot_check_changes" (
+  "event_id" INTEGER NOT NULL REFERENCES "spot_check"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    INTEGER NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE TABLE "finding" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "id" TEXT NOT NULL UNIQUE,

@@ -3972,7 +3972,19 @@ type SpotCheck struct {
 	// stale_areas, each a retired lens whose pin the report head has moved past. A PASS is
 	// refused until a spot-check in the chair's sitting names every stale area. Validated against the
 	// cast at the write.
-	Areas         []string `protobuf:"bytes,5,rep,name=areas,proto3" json:"areas,omitempty"`
+	Areas []string `protobuf:"bytes,5,rep,name=areas,proto3" json:"areas,omitempty"`
+	// WHAT CHANGED BEHIND EACH AREA'S PIN IS THE TOOL'S TO STATE, stamped at the write and never
+	// supplied by a seat (record.stampSpotCheckChanges). A chair's prose that counted the changes
+	// itself recorded "42 edits since 260" over a record holding 4, and nothing could refuse it.
+	//
+	// pins holds, for each of `areas` at the same index, the head the whole report was last served
+	// to that lens at in a sitting it sat through. changes holds the event id of every recorded
+	// change to the report — each blue_edit and report_part, the events that move the head — after
+	// the earliest of those pins, in record order; an area's changes are those after its own pin.
+	// The ids are the record's own, so a migration's replay restamps them rather than translating
+	// them.
+	Pins          []int64 `protobuf:"varint,6,rep,packed,name=pins,proto3" json:"pins,omitempty"`
+	Changes       []int64 `protobuf:"varint,7,rep,packed,name=changes,proto3" json:"changes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4024,6 +4036,20 @@ func (x *SpotCheck) GetReason() string {
 func (x *SpotCheck) GetAreas() []string {
 	if x != nil {
 		return x.Areas
+	}
+	return nil
+}
+
+func (x *SpotCheck) GetPins() []int64 {
+	if x != nil {
+		return x.Pins
+	}
+	return nil
+}
+
+func (x *SpotCheck) GetChanges() []int64 {
+	if x != nil {
+		return x.Changes
 	}
 	return nil
 }
@@ -7922,11 +7948,13 @@ const file_record_proto_rawDesc = "" +
 	"\x10_result_severityB\x14\n" +
 	"\x12_result_likelihoodB\x10\n" +
 	"\x0e_result_impactB\x19\n" +
-	"\x17_result_complexity_cost\"z\n" +
+	"\x17_result_complexity_cost\"\xa8\x01\n" +
 	"\tSpotCheck\x12\x10\n" +
 	"\x03ids\x18\x01 \x03(\tR\x03ids\x12!\n" +
 	"\x06reason\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x00R\x06reason\x88\x01\x01\x12\x14\n" +
-	"\x05areas\x18\x05 \x03(\tR\x05areasB\t\n" +
+	"\x05areas\x18\x05 \x03(\tR\x05areas\x12\x12\n" +
+	"\x04pins\x18\x06 \x03(\x03R\x04pins\x12\x18\n" +
+	"\achanges\x18\a \x03(\x03R\achangesB\t\n" +
 	"\a_reasonJ\x04\b\x03\x10\x04J\x04\b\x02\x10\x03R\x04noneR\x05notes\"\x89\x05\n" +
 	"\aFinding\x12\x84\x01\n" +
 	"\x02id\x18\v \x01(\tBo\x82\xb5\x18k\b\x01\x1aethe tool mints it; a finding with none can never be credited in a gap's found_by and its work is lost(\x01H\x00R\x02id\x88\x01\x01\x12$\n" +

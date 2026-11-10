@@ -1154,6 +1154,19 @@ message SpotCheck {
   // cast at the write.
   repeated string areas = 5;
 
+  // WHAT CHANGED BEHIND EACH AREA'S PIN IS THE TOOL'S TO STATE, stamped at the write and never
+  // supplied by a seat (record.stampSpotCheckChanges). A chair's prose that counted the changes
+  // itself recorded "42 edits since 260" over a record holding 4, and nothing could refuse it.
+  //
+  // pins holds, for each of `areas` at the same index, the head the whole report was last served
+  // to that lens at in a sitting it sat through. changes holds the event id of every recorded
+  // change to the report — each blue_edit and report_part, the events that move the head — after
+  // the earliest of those pins, in record order; an area's changes are those after its own pin.
+  // The ids are the record's own, so a migration's replay restamps them rather than translating
+  // them.
+  repeated int64 pins = 6;
+  repeated int64 changes = 7;
+
   reserved 2;
   reserved "notes";
 }

@@ -1459,8 +1459,16 @@
 -- INSERT INTO "spot_check_areas" ("event_id", "ord", "value") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 6bd23aa77681
+-- INSERT INTO "spot_check_changes" ("event_id", "ord", "value") VALUES (?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt ca7917a4df41
 -- INSERT INTO "spot_check_ids" ("event_id", "ord", "value") VALUES (?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 90a4a50ca26d
+-- INSERT INTO "spot_check_pins" ("event_id", "ord", "value") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 6497d73529d2
@@ -2341,6 +2349,19 @@
       UNION ALL
         SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id>? AND event_id<?)
   SCAN report_op
+  USE TEMP B-TREE FOR ORDER BY
+
+== stmt 5db0579b06c0
+-- SELECT "event_id", "seat_id", "sitting", "epoch", "answers", "old", "new", "delta", "reason", "applied_verbatim", "accepted", "retired" FROM "change" WHERE ? = '' OR "answers" = ? ORDER BY "event_id"
+  CO-ROUTINE x
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SCAN b
+      UNION ALL
+        SCAN ra USING COVERING INDEX retire_anchors_value
+        SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+  SCAN x
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
 == stmt 179f570c06e4
@@ -4534,19 +4555,6 @@
   SCAN e
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
-== stmt e5a94815fabd
--- SELECT "seat_id", "sitting", "epoch", "answers", "old", "new", "delta", "reason", "applied_verbatim", "accepted", "retired" FROM "change" WHERE ? = '' OR "answers" = ? ORDER BY "event_id"
-  CO-ROUTINE x
-    COMPOUND QUERY
-      LEFT-MOST SUBQUERY
-        SCAN b
-      UNION ALL
-        SCAN ra USING COVERING INDEX retire_anchors_value
-        SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
-  SCAN x
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  USE TEMP B-TREE FOR ORDER BY
-
 == stmt 6799aad63552
 -- SELECT "seat_id", "ts", "type" FROM "events" WHERE "id" = ?
   SEARCH events USING INTEGER PRIMARY KEY (rowid=?)
@@ -6417,9 +6425,17 @@
 -- SELECT l."event_id", l."value" FROM "spot_check_areas" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_spot_check_areas_1 (event_id>?)
 
+== stmt 18424c3bcdef
+-- SELECT l."event_id", l."value" FROM "spot_check_changes" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
+  SEARCH l USING INDEX sqlite_autoindex_spot_check_changes_1 (event_id>?)
+
 == stmt 33244ddb23e0
 -- SELECT l."event_id", l."value" FROM "spot_check_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_spot_check_ids_1 (event_id>?)
+
+== stmt 9c6348b55750
+-- SELECT l."event_id", l."value" FROM "spot_check_pins" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
+  SEARCH l USING INDEX sqlite_autoindex_spot_check_pins_1 (event_id>?)
 
 == stmt 0cc0d378325f
 -- SELECT m."check_kind", COALESCE(g."evidence_answered", 0), COALESCE(g."awaiting_evidence", 0) FROM "mint" m JOIN "gap" g ON g."gap_id" = m."gap_id" WHERE m."gap_id" = ?

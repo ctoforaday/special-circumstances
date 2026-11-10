@@ -156,6 +156,7 @@ stmt 5292bd746d5b | constrained-scan | anchor | x2 | via report_op
 stmt 5292bd746d5b | constrained-scan | blue_edit | x1 | via report_op
 stmt 5292bd746d5b | constrained-scan | report_part | x1 | via report_op
 stmt 565b38213bb3 | automatic-index | seat_of_agent (agent_id=?) | x1 | via seat_metrics
+stmt 5db0579b06c0 | constrained-scan | blue_edit | x1 | via change
 stmt 63e7fe8cf2f7 | automatic-index | board (seq=?) | x1 | via convergence_at
 stmt 63e7fe8cf2f7 | automatic-index | c(close|closed) (gap_id=?) | x1 | via convergence_at
 stmt 63e7fe8cf2f7 | automatic-index | held (minted_event=?) | x1 | via convergence_at
@@ -464,7 +465,6 @@ stmt e418d8bdc023 | constrained-scan | motion_rule_docket | x1 | via remand
 stmt e418d8bdc023 | constrained-scan | motion_rule_position | x1 | via remand
 stmt e418d8bdc023 | constrained-scan | s(mint_supersedes|stretch) | x1 | via closure_act
 stmt e418d8bdc023 | constrained-scan | x(cite|computation|reproduce|verify) | x3 | via evidence_anchor,gap
-stmt e5a94815fabd | constrained-scan | blue_edit | x1 | via change
 stmt ed01111b482f | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt ed01111b482f | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
 stmt ed01111b482f | automatic-index | carries (heir=?) | x1 | via demand_reach

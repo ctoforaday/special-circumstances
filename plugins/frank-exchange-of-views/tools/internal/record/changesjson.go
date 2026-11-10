@@ -55,6 +55,9 @@ type ChangesGapJSON struct {
 // EditJSON is one recorded change, with the text on both sides: an edit, or an evidence anchor's retire
 // (Retired).
 type EditJSON struct {
+	// EventID is the change's event, the id a spot-check's stamped changes name: the changes behind a
+	// pin are those with a later id.
+	EventID int64  `json:"event_id"`
 	Seat    string `json:"seat"`
 	Sitting int    `json:"sitting"`
 	Epoch   int    `json:"epoch"`
@@ -120,7 +123,7 @@ func ChangesOf(run Run, gapID string) (ChangesJSON, error) {
 		}
 		// THE SCOPE IS ONE PREDICATE ON THE ROWS, "" selecting them all, so the scoped form is the
 		// unscoped one narrowed and never a second query that could read the rows differently.
-		rows, err := q.Query(`SELECT "seat_id", "sitting", "epoch", "answers", "old", "new",
+		rows, err := q.Query(`SELECT "event_id", "seat_id", "sitting", "epoch", "answers", "old", "new",
 		    "delta", "reason", "applied_verbatim", "accepted", "retired"
 		  FROM "change" WHERE ? = '' OR "answers" = ? ORDER BY "event_id"`, gapID, gapID)
 		if err != nil {
@@ -132,7 +135,7 @@ func ChangesOf(run Run, gapID string) (ChangesJSON, error) {
 			// THE SCAN ORDER IS THE SELECT'S ORDER. Two same-typed neighbours swapped here compile
 			// silently and put one edit's text under another's heading, so the two lists are kept
 			// literally adjacent above and below.
-			if err := rows.Scan(&ed.Seat, &ed.Sitting, &ed.Epoch, &ed.Answers, &ed.Old, &ed.New,
+			if err := rows.Scan(&ed.EventID, &ed.Seat, &ed.Sitting, &ed.Epoch, &ed.Answers, &ed.Old, &ed.New,
 				&ed.Delta, &ed.Reason, &ed.AppliedVerbatim, &ed.Accepted, &ed.Retired); err != nil {
 				return err
 			}
