@@ -238,12 +238,12 @@ CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
--- A motion's rulings: motion_answers, inquiry_state, the gap view's unruled docket filing, and the
+-- A motion's rulings: motion_answers, inquiry_state, gap_refresh's unruled docket filing, and the
 -- bench's docket readers.
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
 -- The docket motions on a gap: the bench's latest ruling on it and its unruled filing.
 CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
--- The evidence anchors placed as a gap's answer, which the gap view's live-answer demand and the
+-- The evidence anchors placed as a gap's answer, which gap_refresh's live-answer demand and the
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
 CREATE INDEX "cite_answers" ON "cite" ("answers");
@@ -254,7 +254,7 @@ CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
 -- citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRetiresOf) and by the demand_reach view the gap view's evidence_met reads.
+-- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
 -- The readings a gap carries (carrying_reading), asked per gap by the gap's demand
 -- (record.EvidenceDemandOf). Partial: a reading that carries no gap is never asked this way.
@@ -318,6 +318,7 @@ func Schema() (string, error) {
 	}
 	b.WriteString(QueryIndexDDL)
 	b.WriteString(DemandLineageDDL)
+	b.WriteString(GapStateDDL)
 	return b.String(), nil
 }
 

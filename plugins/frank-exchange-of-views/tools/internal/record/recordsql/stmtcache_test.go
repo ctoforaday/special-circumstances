@@ -53,7 +53,7 @@ const countEvents = `SELECT count(*) FROM "events"`
 
 // A READ IS PREPARED ONCE ON ITS HANDLE, and asked again through the handle or through a transaction
 // on it the kept statement answers — from the record as it is now, not as it was when prepared.
-// A write and a PRAGMA are not kept.
+// An insert is kept too; a PRAGMA is not.
 func TestARecordReadIsPreparedOnceAndAnswersFromTheRecordAsItIsNow(t *testing.T) {
 	db := store(t)
 	seedLogs(t, db, 2)
@@ -96,8 +96,8 @@ func TestARecordReadIsPreparedOnceAndAnswersFromTheRecordAsItIsNow(t *testing.T)
 	}
 	c.mu.Lock()
 	for q := range c.stmts {
-		if !isCachedRead(q) {
-			t.Errorf("the cache keeps %q, which is not a read", q)
+		if !isKept(q) {
+			t.Errorf("the cache keeps %q, which is neither a read nor an insert", q)
 		}
 	}
 	c.mu.Unlock()
@@ -186,5 +186,27 @@ func TestClosingTheHandleFinalizesItsKeptStatements(t *testing.T) {
 	}
 	if err := Close(path); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// AN INSERT IS PREPARED ONCE ON ITS HANDLE, with the trigger programs it fires: the write path's
+// envelope insert and the gap-state flush, whose trigger compiles the whole refresh, are each
+// compiled once per connection and run again from the kept statement.
+func TestAnInsertIsPreparedOnceWithItsTriggers(t *testing.T) {
+	r := newDemandRecord(t)
+	r.mintOf("A", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "")
+	c := cacheOf(t, r.db)
+	const flush = `INSERT INTO "gap_flush" ("id") VALUES (1)`
+	kept := keptStmt(c, flush)
+	if kept == nil {
+		t.Fatal("the flush insert was not kept prepared")
+	}
+	r.mintOf("B", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "")
+	if got := keptStmt(c, flush); got != kept {
+		t.Errorf("the flush insert was prepared again (%p, first %p)", got, kept)
+	}
+	var n int
+	if err := r.db.QueryRow(`SELECT count(*) FROM "gap" WHERE "open"`).Scan(&n); err != nil || n != 2 {
+		t.Errorf("open gaps after two mints through the kept flush = %d (%v), want 2", n, err)
 	}
 }
