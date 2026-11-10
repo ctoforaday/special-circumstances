@@ -353,9 +353,6 @@ jobs:
           HELPER: ${{ matrix.helper }}
           TARGET: ${{ matrix.target }}
         run: |
-          if [ "$HELPER" = "feov-embed" ]; then
-            python3 -m pip install flatbuffers 2>/dev/null || python -m pip install flatbuffers 2>/dev/null || true
-          fi
           mkdir -p "${RUNNER_TEMP}/native-cache"
           ./plugins/frank-exchange-of-views/native/build.sh "$HELPER" "$TARGET" "${RUNNER_TEMP}/native-cache"
       - name: Prove staticness
@@ -2082,6 +2079,23 @@ jobs:
           pattern: native-*
           path: ${{ runner.temp }}/dist
           merge-multiple: true
+      # Each native-build artifact also holds its target's installed-name copies (`<helper>`,
+      # `<helper>.exe`, each ASSETS line's installed file) for native-run. Merged across targets
+      # they are ambiguous, so the release publishes only `<helper>_<os>_<arch>` and the exports.
+      - name: Drop native staging copies from the FEOV release
+        if: steps.plugin.outputs.plugin == 'frank-exchange-of-views'
+        shell: bash
+        env:
+          DIST: ${{ runner.temp }}/dist
+        run: |
+          for a in plugins/frank-exchange-of-views/native/*/ASSETS; do
+            h="$(basename "$(dirname "$a")")"
+            rm -f "$DIST/$h" "$DIST/$h.exe"
+            while read -r file _ || [ -n "$file" ]; do
+              case "$file" in "" | \#*) continue ;; esac
+              rm -f "$DIST/$file"
+            done <"$a"
+          done
       - name: Verify release assets and create checksums
         working-directory: scripts
         env:

@@ -54,7 +54,9 @@ fi
 if [ -n "$WORK_ARG" ]; then
 	WORK="$WORK_ARG"
 else
-	WORK="${RUNNER_TEMP:-${XDG_CACHE_HOME:-$HOME/.cache}/sc-native}/$HELPER/$TARGET"
+	# Keyed by the source digest: a work directory holds intermediate builds (ONNX Runtime, the
+	# engine libraries) that are reused when present, so one left by other sources is never linked.
+	WORK="${RUNNER_TEMP:-${XDG_CACHE_HOME:-$HOME/.cache}/sc-native}/$HELPER/$TARGET/$DIGEST"
 fi
 
 [ -n "$OUTDIR" ] || OUTDIR="$WORK/dist"
@@ -101,11 +103,37 @@ fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
 	echo "$sha  $dest" | sha256sum -c --quiet - || die "$file does not match its pin"
 }
 
+# ---- extra assets (native/<helper>/ASSETS) ------------------------------------------
+# nativedigest -assets resolves each ASSETS line to the export pinned for this arch, so the
+# arch -> export mapping is ASSETS', read by one parser, never composed here.
+ASSET_PAIRS="$(cd "$TOOLS_DIR" && go run ./devcmd/nativedigest -assets "$HELPER" -arch "$ARCH")" ||
+	die "nativedigest -assets $HELPER -arch $ARCH failed"
+
+fetch_assets() { # fetch each export ASSETS names for $ARCH from the helper's pins
+	local file export
+	while read -r file export; do
+		[ -n "$file" ] || continue
+		fetch_pinned "$export" "$NATIVE_DIR/$HELPER/PINS.txt" "$WORK/src"
+	done <<<"$ASSET_PAIRS"
+}
+
+ship_assets() { # copy each export into OUTDIR under its release name and its installed name
+	local file export
+	while read -r file export; do
+		[ -n "$file" ] || continue
+		cp "$WORK/src/$export" "$OUTDIR/$export"
+		cp "$WORK/src/$export" "$OUTDIR/$file"
+	done <<<"$ASSET_PAIRS"
+}
+
+# The flatbuffers Python runtime ONNX Runtime's build scripts import: the pinned wheel, put on
+# PYTHONPATH (a pure-Python wheel imports from the zip), so no package index is consulted.
+FLATBUFFERS_WHEEL=flatbuffers-25.2.10-py2.py3-none-any.whl
+
 # Windows MSVC native helper build for feov-embed (plans/native-helpers.md §III.1.5)
 if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 	HELPER_PINS="$NATIVE_DIR/$HELPER/PINS.txt"
-	model_file="gte-small.int8.${ARCH}.ort"
-	fetch_pinned "$model_file" "$HELPER_PINS" "$WORK/src"
+	fetch_assets
 
 	VSW="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
 	[ -f "$VSW" ] || die "vswhere.exe not found at $VSW"
@@ -124,15 +152,11 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 	*) die "unsupported Windows architecture $ARCH" ;;
 	esac
 
-	HP=python
-	command -v python >/dev/null 2>&1 || HP=python3
-	[ -d "$WORK/pyenv" ] || "$HP" -m venv "$WORK/pyenv"
-	if [ -f "$WORK/pyenv/Scripts/python.exe" ]; then
-		PY="$WORK/pyenv/Scripts/python.exe"
-	else
-		PY="$WORK/pyenv/bin/python"
-	fi
-	"$PY" -m pip install -q flatbuffers
+	PY=python
+	command -v python >/dev/null 2>&1 || PY=python3
+	fetch_pinned "$FLATBUFFERS_WHEEL" "$HELPER_PINS" "$WORK/src"
+	PYTHONPATH="$(cygpath -w "$WORK/src/$FLATBUFFERS_WHEEL")"
+	export PYTHONPATH
 
 	fetch_pinned onnxruntime-1.31.1.tar.gz "$HELPER_PINS" "$WORK/src"
 	SRC="$WORK/src/onnxruntime"
@@ -228,8 +252,7 @@ EOS
 	OUT_NAME="${HELPER}_${OS}_${ARCH}${EXT}"
 	cp "$EMBED_DIR/b/Release/feov-embed.exe" "$OUTDIR/$OUT_NAME"
 	cp "$EMBED_DIR/b/Release/feov-embed.exe" "$OUTDIR/${HELPER}${EXT}"
-	cp "$WORK/src/$model_file" "$OUTDIR/gte-small.int8.ort"
-	cp "$WORK/src/$model_file" "$OUTDIR/$model_file"
+	ship_assets
 	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
 	exit 0
 fi
@@ -449,51 +472,39 @@ with open('traineddata.c', 'w') as f:
 fi
 
 if [ "$HELPER" = "feov-embed" ]; then
-	model_file="gte-small.int8.${ARCH}.ort"
-	fetch_pinned "$model_file" "$HELPER_PINS" "$WORK/src"
+	fetch_assets
 
 	if [ ! -f "$PREFIX/lib/libonnxruntime_static.a" ]; then
-		echo "=== Providing ONNX Runtime ($TARGET) ==="
+		echo "=== Building ONNX Runtime ($TARGET) ==="
 		mkdir -p "$PREFIX/lib" "$PREFIX/include"
-		if [ -n "${ORT_STATIC_DIR:-}" ] && [ -f "$ORT_STATIC_DIR/lib/libonnxruntime_static.a" ]; then
-			cp "$ORT_STATIC_DIR"/include/* "$PREFIX/include/"
-			cp "$ORT_STATIC_DIR"/lib/* "$PREFIX/lib/"
-		elif [ -f "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/lib/libonnxruntime_static.a" ]; then
-			cp "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/include/"* "$PREFIX/include/"
-			cp "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/lib/"* "$PREFIX/lib/"
-		elif [ -f "$HOME/.claude/scratch/vecplan/ortstatic/out/min/lib/libonnxruntime_static.a" ]; then
-			cp "$HOME/.claude/scratch/vecplan/ortstatic/out/min/include/"* "$PREFIX/include/"
-			cp "$HOME/.claude/scratch/vecplan/ortstatic/out/min/lib/"* "$PREFIX/lib/"
-		else
-			fetch_pinned onnxruntime-1.31.1.tar.gz "$HELPER_PINS" "$WORK/src"
-			echo "=== Building ONNX Runtime ($TARGET) ==="
-			rm -rf "$WORK/build/ort" && mkdir -p "$WORK/build/ort"
-			tar -C "$WORK/build/ort" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
-			python3 -m pip install flatbuffers 2>/dev/null || pip3 install flatbuffers 2>/dev/null || pip install flatbuffers 2>/dev/null || python3 -m pip install --break-system-packages flatbuffers 2>/dev/null || true
-			python3 "$WORK/build/ort/tools/ci_build/build.py" \
-				--build_dir "$WORK/build/ort/b" \
-				--config Release \
-				--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
-				--include_ops_by_config "$NATIVE_DIR/feov-embed/ops.config" \
-				--enable_reduced_operator_type_support \
-				--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
-				--parallel "$J" \
-				--cmake_extra_defines CMAKE_SYSTEM_NAME="$SYSNAME" CMAKE_SYSTEM_PROCESSOR="$PROC" \
-					CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX" \
-					CMAKE_AR="$AR" CMAKE_RANLIB="$RANLIB"
-			ort_lib_out="$PREFIX/lib/libonnxruntime_static.a"
-			rm -f "$ort_lib_out"
-			libs=()
-			while IFS= read -r l; do libs+=("$l"); done < <(find "$WORK/build/ort/b/Release" \( -name '*.a' -o -name '*.lib' \) \
-				! -name 'libprotoc.a' ! -name 'libprotobuf.a' ! -name 'libupb*.a' ! -name 'libflatbuffers.a' \
-				! -name 'protoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' ! -name 'flatbuffers.lib' ! -name 'upb*.lib' \
-				! -name 'libonnxruntime_static.a' ! -path '*gtest*' ! -path '*gmock*' ! -path '*benchmark*' ! -name '*test*' | sort)
-			case "$(uname -s)" in
-			Darwin) if [ "$AR" = ar ]; then libtool -static -o "$ort_lib_out" "${libs[@]}"; else { echo "CREATE $ort_lib_out"; for l in "${libs[@]}"; do echo "ADDLIB $l"; done; echo SAVE; echo END; } | "$AR" -M; fi ;;
-			*) { echo "CREATE $ort_lib_out"; for l in "${libs[@]}"; do echo "ADDLIB $l"; done; echo SAVE; echo END; } | "$AR" -M ;;
-			esac
-			cp "$WORK/build/ort"/include/onnxruntime/core/session/onnxruntime_*.h "$PREFIX/include/"
-		fi
+		fetch_pinned onnxruntime-1.31.1.tar.gz "$HELPER_PINS" "$WORK/src"
+		fetch_pinned "$FLATBUFFERS_WHEEL" "$HELPER_PINS" "$WORK/src"
+		rm -rf "$WORK/build/ort" && mkdir -p "$WORK/build/ort"
+		tar -C "$WORK/build/ort" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+		PYTHONPATH="$WORK/src/$FLATBUFFERS_WHEEL" python3 "$WORK/build/ort/tools/ci_build/build.py" \
+			--cmake_path "$CMAKE" --ctest_path "$(dirname "$CMAKE")/ctest" \
+			--build_dir "$WORK/build/ort/b" \
+			--config Release \
+			--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
+			--include_ops_by_config "$NATIVE_DIR/feov-embed/ops.config" \
+			--enable_reduced_operator_type_support \
+			--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
+			--parallel "$J" \
+			--cmake_extra_defines CMAKE_SYSTEM_NAME="$SYSNAME" CMAKE_SYSTEM_PROCESSOR="$PROC" \
+				CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX" \
+				CMAKE_AR="$AR" CMAKE_RANLIB="$RANLIB"
+		ort_lib_out="$PREFIX/lib/libonnxruntime_static.a"
+		rm -f "$ort_lib_out"
+		libs=()
+		while IFS= read -r l; do libs+=("$l"); done < <(find "$WORK/build/ort/b/Release" \( -name '*.a' -o -name '*.lib' \) \
+			! -name 'libprotoc.a' ! -name 'libprotobuf.a' ! -name 'libupb*.a' ! -name 'libflatbuffers.a' \
+			! -name 'protoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' ! -name 'flatbuffers.lib' ! -name 'upb*.lib' \
+			! -name 'libonnxruntime_static.a' ! -path '*gtest*' ! -path '*gmock*' ! -path '*benchmark*' ! -name '*test*' | sort)
+		case "$(uname -s)" in
+		Darwin) if [ "$AR" = ar ]; then libtool -static -o "$ort_lib_out" "${libs[@]}"; else { echo "CREATE $ort_lib_out"; for l in "${libs[@]}"; do echo "ADDLIB $l"; done; echo SAVE; echo END; } | "$AR" -M; fi ;;
+		*) { echo "CREATE $ort_lib_out"; for l in "${libs[@]}"; do echo "ADDLIB $l"; done; echo SAVE; echo END; } | "$AR" -M ;;
+		esac
+		cp "$WORK/build/ort"/include/onnxruntime/core/session/onnxruntime_*.h "$PREFIX/include/"
 	fi
 
 	# Fixups for Darwin
@@ -558,7 +569,6 @@ if [ "$HELPER" = "feov-embed" ]; then
 
 	cp "$OUT_NAME" "$OUTDIR/$OUT_NAME"
 	cp "$OUT_NAME" "$OUTDIR/${HELPER}${EXT}"
-	cp "$WORK/src/$model_file" "$OUTDIR/gte-small.int8.ort"
-	cp "$WORK/src/$model_file" "$OUTDIR/$model_file"
+	ship_assets
 	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
 fi

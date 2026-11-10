@@ -11,6 +11,9 @@
 //	go run ./devcmd/nativedigest                 write digest_gen.go
 //	go run ./devcmd/nativedigest -check          exit 1 when the committed digest_gen.go is stale
 //	go run ./devcmd/nativedigest -print <helper> print one helper's digest, for its build
+//	go run ./devcmd/nativedigest -assets <helper> -arch <arch>
+//	                                             print `<installed file> <pinned export>` for each
+//	                                             ASSETS line, the files a build for that arch stages
 //
 // -native names another native/ tree, for the tests' copies.
 package main
@@ -36,6 +39,8 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("nativedigest", flag.ContinueOnError)
 	check := fs.Bool("check", false, "exit 1 when the committed digest_gen.go is not what native/ renders")
 	print := fs.String("print", "", "print this helper's source digest and exit")
+	assets := fs.String("assets", "", "print this helper's `<installed file> <pinned export>` pairs for -arch and exit")
+	arch := fs.String("arch", "", "the GOARCH -assets resolves the exports for")
 	native := fs.String("native", "", "the native/ tree to read (default: the checkout's)")
 	out := fs.String("out", "", "the file to write or check (default: the checkout's internal/nativehelper/digest_gen.go)")
 	if err := fs.Parse(args); err != nil {
@@ -51,17 +56,32 @@ func run(args []string) error {
 		}
 		*native = p
 	}
-	if *print != "" {
-		names, err := nativesrc.Helpers(*native)
+	if *assets != "" {
+		if *arch == "" {
+			return fmt.Errorf("-assets needs -arch")
+		}
+		if err := isHelper(*native, *assets); err != nil {
+			return err
+		}
+		as, err := nativesrc.Assets(*native, *assets)
 		if err != nil {
 			return err
 		}
-		found := false
-		for _, n := range names {
-			found = found || n == *print
+		for _, a := range as {
+			export, ok := a.Export[*arch]
+			if !ok {
+				return fmt.Errorf("%s/%s/ASSETS names no %s export of %s", *native, *assets, *arch, a.File)
+			}
+			fmt.Println(a.File, export)
 		}
-		if !found {
-			return fmt.Errorf("%s holds no helper %q (a helper is a directory holding an ASSETS file)", *native, *print)
+		return nil
+	}
+	if *arch != "" {
+		return fmt.Errorf("-arch is read only with -assets")
+	}
+	if *print != "" {
+		if err := isHelper(*native, *print); err != nil {
+			return err
 		}
 		d, err := nativesrc.Digest(*native, *print)
 		if err != nil {
@@ -92,4 +112,18 @@ func run(args []string) error {
 		return nil
 	}
 	return os.WriteFile(*out, want, 0o644)
+}
+
+// isHelper refuses a name that is not a helper under native.
+func isHelper(native, name string) error {
+	names, err := nativesrc.Helpers(native)
+	if err != nil {
+		return err
+	}
+	for _, n := range names {
+		if n == name {
+			return nil
+		}
+	}
+	return fmt.Errorf("%s holds no helper %q (a helper is a directory holding an ASSETS file)", native, name)
 }
