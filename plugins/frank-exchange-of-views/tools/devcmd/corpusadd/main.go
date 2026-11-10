@@ -145,7 +145,7 @@ func run(file, url string, page int, slug, publisher, date, rights, evidence, ca
 	fmt.Printf("%s: page %d, %d text objects removed, %.1f%% ink, %d bytes gzipped\n", slug, page, removed, ink*100, len(gz))
 	fmt.Printf("NOW FILL IN expect IN %s — until you do, the corpus gates refuse this page, and\n",
 		filepath.Join(dir, corpus.FileRecord))
-	fmt.Printf("then regenerate the README, the golden and STATUS.md with the feov-ocr helper present (NATIVE_HELPER_DIR).\n")
+	fmt.Printf("then regenerate the README, each target's golden and STATUS.md with the feov-ocr helper present (NATIVE_HELPER_DIR).\n")
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -171,8 +172,20 @@ func TestIdentityReadsTheGeneratedPins(t *testing.T) {
 		"+feov-ocr@" + nativehelper.HelperDigest("feov-ocr")[:12] +
 		"+tessocr@"
 	got := Identity()
-	if !strings.HasPrefix(got, wantPrefix) || !isHex(strings.TrimPrefix(got, wantPrefix), 12) {
-		t.Fatalf("Identity() = %q, want prefix %q followed by 12-hex engine source hash", got, wantPrefix)
+	rest, ok := strings.CutPrefix(got, wantPrefix)
+	hash, target, cut := strings.Cut(rest, "+target@")
+	if !ok || !cut || !isHex(hash, 12) || target != runtime.GOOS+"-"+runtime.GOARCH {
+		t.Fatalf("Identity() = %q, want prefix %q, a 12-hex engine source hash, then +target@%s-%s",
+			got, wantPrefix, runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+// TestIdentityNamesTheRunningTarget: the same sources read a page differently on different
+// targets, so the identity a reading is cached under ends with the running target.
+func TestIdentityNamesTheRunningTarget(t *testing.T) {
+	want := "+tessocr@" + engineSourceHash + "+target@" + runtime.GOOS + "-" + runtime.GOARCH
+	if got := Identity(); !strings.HasSuffix(got, want) {
+		t.Errorf("Identity() = %q, want it to end %q", got, want)
 	}
 }
 
@@ -212,8 +225,8 @@ func TestEngineSourceHashTracksTheCode(t *testing.T) {
 			t.Errorf("%s: hash moved = %v, want %v", c.name, moved, c.moves)
 		}
 	}
-	if !strings.HasSuffix(Identity(), engineSourceHash) {
-		t.Errorf("Identity() %q does not end in the package's own source hash %q", Identity(), engineSourceHash)
+	if !strings.Contains(Identity(), "+tessocr@"+engineSourceHash+"+") {
+		t.Errorf("Identity() %q does not carry the package's own source hash %q", Identity(), engineSourceHash)
 	}
 }
 

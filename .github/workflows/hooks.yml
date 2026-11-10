@@ -446,6 +446,7 @@ jobs:
         env:
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
           FEOV_OCR_CORPUS: "1"
+          FEOV_OCR_CORPUS_OUT: ${{ runner.temp }}/corpus-readings
           FEOV_NATIVE_MEASURE: "1"
           CGO_ENABLED: "0"
           RUNNER_OS: ${{ runner.os }}
@@ -460,13 +461,26 @@ jobs:
           fi
           run_arg="$(echo "$must_pass" | tr ' ' '|')"
           # shellcheck disable=SC2086 # $pkgs is a list of package paths
-          go test -v -count=1 -timeout 40m -run "^(${run_arg})\$" $pkgs | tee "$RUNNER_TEMP/test.log"
+          rc=0
+          go test -v -count=1 -timeout 40m -run "^(${run_arg})\$" $pkgs | tee "$RUNNER_TEMP/test.log" || rc=$?
+          missing=""
           for name in $must_pass; do
-            grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || {
-              echo "::error::required test ${name} did not PASS"
-              exit 1
-            }
+            grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || missing="$missing $name"
           done
+          if [ -n "$missing" ]; then
+            echo "::error::required tests did not PASS:$missing"
+            exit 1
+          fi
+          exit "$rc"
+      # EACH TARGET'S CORPUS READINGS, PASS OR FAIL, under their golden names: a target's golden set
+      # is committed from this artifact after its diff is read (one set per target, gblock 2026-11-10).
+      - name: Upload the corpus readings
+        if: ${{ !cancelled() && steps.check-full.outputs.skip != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-readings-${{ matrix.target }}
+          path: ${{ runner.temp }}/corpus-readings/
+          if-no-files-found: error
       # THE SAME BINARIES ON A CLEAN WINDOWS IMAGE: servercore holds neither Go nor Visual Studio,
       # so a helper that leans on a DLL the runner image happens to carry fails here. The host builds
       # each Require package's test binary and the module's commands; the container runs every test
@@ -474,7 +488,7 @@ jobs:
       # container's output to the same list. docker passes no runner variable in, so each variable
       # the binaries read is set explicitly.
       - name: Run Windows servercore container verification
-        if: steps.check-full.outputs.skip != 'true' && matrix.target == 'windows-amd64'
+        if: ${{ !cancelled() && steps.check-full.outputs.skip != 'true' && matrix.target == 'windows-amd64' }}
         shell: bash
         env:
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers

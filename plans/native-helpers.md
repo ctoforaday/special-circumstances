@@ -70,9 +70,9 @@ The measurements behind it are on #1171 (comment 6621511526), in `~/.claude/scra
   (`~/.claude/scratch/vecplan/cgo0/out.txt`); a plain host build on ubuntu is dynamically linked
   (`audit/round1/feov-record-plain`).
 - **S2.** Every helper asset passes `staticproof` against its own allowlist on all five targets (§III.1.5).
-- **S3.** OCR is behaviour-preserving on linux-amd64, the target the goldens are pinned on. Each of the 13 corpus
-  goldens (`internal/tessocr/testdata/corpus/*/reading.golden`) differs from main on line 1 only, the engine identity,
-  and the remaining bytes are identical. Other targets are held to the bar in §III.1.5 `native-run`.
+- **S3.** OCR is behaviour-preserving on linux-amd64. Each of the 13 corpus goldens in linux-amd64's set
+  (`internal/tessocr/testdata/corpus/*/reading.linux-amd64.golden`) differs from main's on line 1 only, the engine
+  identity, and the remaining bytes are identical. Every other target is held to its own golden set (R9).
 - **S4.** OCR wall time per corpus page through `feov-ocr` is within 5% of the in-process engine on the same runner,
   measured with the two interleaved.
 - **S5.** `feov-embed` int8 fidelity against `ref_gte.npy` is mean ≥ 0.984 and min ≥ 0.966 on every target, measured on
@@ -516,8 +516,8 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
   - `selftest-stdout`: the frame not byte-identical, or the stdout writes absent from the request's captured stderr;
   - helper exit on stdin EOF taking more than 2 s;
   - `selftest-traineddata` differing from the generated `eng` pin (§1.4); `TestSelftestLibc` failing (Linux targets);
-  - the 13 corpus pages: on linux-amd64, any golden byte after line 1 differing (S3); on the other four, the same
-    comparison, and a difference fails the job (R9);
+  - the 13 corpus pages: any byte differing from the running target's own golden set (R9), and a target with no
+    set fails; each leg uploads its readings as `corpus-readings-<target>`, pass or fail;
   - any op's largest client request (§1.2, Deadline) taking over 30 s, a quarter of the deadline;
   - `feov-embed` (Part 3): fidelity on the 300-text set below S5; speed below S6 on the three targets S6 names, and
     speed reported for the two Windows targets.
@@ -847,7 +847,7 @@ group's command re-enumerates it; Appendix A has every line.
 | R6 | The `sc-doctor` contract test reads a line from another job | M × L | The test's search narrowed to the release job (§1.5) |
 | R7 | Release time grows by about 25 minutes for a FEOV tag, and every tag (any plugin's) waits on an uncached build of the test targets' helpers, about 30 minutes once Windows `feov-embed` exists | H × L | Accepted under F2 and F11. Main pushes and pull requests restore main's entries (F13) |
 | R8 | Part 2 and Part 3 drift apart in protocol use | M × M | One `nativehelper` package and one `frame.h`, both landed in Part 1 before either helper |
-| R9 | `feov-ocr` reads a corpus page differently on another target (SIMD paths in tesseract's LSTM) | M × M | `native-run` compares every target with the goldens. A target that differs blocks the Part 2 PR; per-target goldens, or a weaker bar for that target, go to gblock with the diff. Today such a difference ships unseen |
+| R9 | `feov-ocr` reads a corpus page differently on another target (SIMD paths in tesseract's LSTM) | M × M | Ruled by gblock on 2026-11-10: per-platform goldens, keyed by target os-arch (he picked "Yes, per-platform goldens" and "Target os-arch" from options the lead wrote). `Identity()` names the target, so a reading cached on one target is read again on another, and `native-run` compares each target with its own set, committed from the readings that leg uploads (§V.10). A difference within a target's set fails the job |
 | R10 | The 120 s deadline fires on a legitimate request on a slow target | L × M | The client bounds every request's size, and `native-run` sends each op's largest request on every target with a 4× margin (§III.1.2, §V.4). A page far larger than the corpus's largest can still overrun, loudly and for that page only |
 | R11 | `fetch-bin.sh`'s checkout guard comes to refuse an installed or universe root, so consumers never fetch a helper and a universe build installs nothing | L × H | Main's `TestEnsureHealsWhereverThePluginIsInstalledButNeverInACheckout`; `TestBuildInstallsFromTheLocalRelease` (§V.7) |
 | R12 | The one-time model release is deleted or re-tagged | L × H | Its tag matches no workflow trigger; each export's sha256 is in `feov-embed`'s `PINS.txt`, so a changed byte fails `native-build`'s download loudly |
@@ -1099,7 +1099,12 @@ helper (§1.1). Gap numbers are round 1's unless marked r2 to r5.
      prints `helper-absent`.
 10. **Real-data check, OCR (S3, S4, R9).** Re-armed by `native/feov-ocr/**`, `internal/tessocr/**`, the corpus.
     - The 13 corpus scans are read through `feov-ocr` in `ocr-corpus` and in `native-run` on every target.
-    - `diff <(tail -n +2 old) <(tail -n +2 new)` is empty for every golden on linux-amd64; the other targets per R9.
+    - `diff <(tail -n +2 old) <(tail -n +2 new)` is empty for every golden in linux-amd64's set against main's.
+    - Per-target goldens, keyed by target os-arch (gblock, 2026-11-10, picking "Yes, per-platform goldens" and
+      "Target os-arch" from options the lead wrote): `Identity()` ends `+target@<goos>-<goarch>`, each target's set
+      is `reading.<goos>-<goarch>.golden`, committed from that target's `corpus-readings-<target>` artifact after
+      every changed line is read, and `TestCorpusGoldens` fails under CI where the running target has no set,
+      never reading another target's.
     - `TestEmbeddedTraineddataPin` through `selftest-traineddata`, against the generated `eng` pin, on every target;
       `TestSelftestLibc` on both Linux targets.
     - The interleaved in-process and helper timing table is posted to the PR.
