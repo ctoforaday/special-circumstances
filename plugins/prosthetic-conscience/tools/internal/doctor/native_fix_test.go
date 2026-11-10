@@ -209,6 +209,56 @@ func TestStampWaitsForEveryHelper(t *testing.T) {
 	}
 }
 
+// committedAlpha builds cmd/alpha from a git repository the test creates and commits, so its build
+// stamp names that commit and is clean. It returns the binary and the commit.
+func committedAlpha(t *testing.T) (bin, commit string) {
+	t.Helper()
+	repo := t.TempDir()
+	mustWrite(t, filepath.Join(repo, "tools", "go.mod"), "module fixture\n\ngo 1.25\n")
+	mustWrite(t, filepath.Join(repo, "tools", "cmd", "alpha", "main.go"), "package main\n\nfunc main() {}\n")
+	git := func(args ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("add", ".")
+	git("commit", "-q", "-m", "fixture")
+	bin = filepath.Join(t.TempDir(), buildid.ExeName("alpha"))
+	build := exec.Command("go", "build", "-o", bin, "./cmd/alpha")
+	build.Dir = filepath.Join(repo, "tools")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("go build: %v\n%s", err, out)
+	}
+	return bin, git("rev-parse", "HEAD")
+}
+
+func TestStampRecordsTheCommitWithHelpersPresent(t *testing.T) {
+	alpha, commit := committedAlpha(t)
+	// An install outside any git tree, where the Go binary's stamp is the only source of the commit,
+	// and whose last entries are a helper and an export.
+	root := embedPlugin(t, t.TempDir(), true, "alpha")
+	data, err := os.ReadFile(alpha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(root, "bin", buildid.ExeName("alpha")), string(data))
+	mustWrite(t, filepath.Join(root, "bin", buildid.ExeName("feov-ocr")), "helper")
+	mustWrite(t, filepath.Join(root, "bin", buildid.ExeName("feov-embed")), "helper")
+	mustWrite(t, filepath.Join(root, "bin", "gte-small.int8.ort"), "export")
+	if h := HeadCommit(root); h != "" {
+		t.Fatalf("the fixture install sits in a git tree (HEAD %s); the case needs none", h)
+	}
+	stampInstalled(binariesOf(root, "frank-exchange-of-views", "1.0.0"))
+	got, err := os.ReadFile(filepath.Join(root, ".fetch", "commit"))
+	if err != nil || strings.TrimSpace(string(got)) != commit {
+		t.Fatalf(".fetch/commit = %q (%v), want alpha's build commit %s", got, err, commit)
+	}
+}
+
 func TestFixFetchesTheExportForItsArch(t *testing.T) {
 	export := hostExport(t)
 	gh := fakeGH(t)

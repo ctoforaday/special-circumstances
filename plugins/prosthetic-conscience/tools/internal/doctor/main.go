@@ -808,9 +808,15 @@ func stampInstalled(bins []binStatus) {
 		if b.Plugin == "" || b.Version == "" {
 			continue
 		}
+		// The commit comes from a Go binary's build stamp: a helper or an export carries none, and
+		// which entry comes last in a root is an accident of its layout.
+		rev := ""
 		for _, probe := range binariesOf(root, b.Plugin, b.Version) {
 			if !probe.Built {
 				return // a partial install is not this version: leave the stamp alone
+			}
+			if _, s := stampVerdict(probe); rev == "" && s.Revision != "" {
+				rev = s.Revision
 			}
 		}
 		dir := filepath.Join(root, ".fetch")
@@ -818,10 +824,6 @@ func stampInstalled(bins []binStatus) {
 			continue
 		}
 		_ = os.WriteFile(filepath.Join(dir, "installed"), []byte(releaseTag(b)+"\n"), 0o644)
-		rev := ""
-		if _, s := stampVerdict(b); s.Revision != "" {
-			rev = s.Revision
-		}
 		if rev == "" {
 			rev = HeadCommit(root)
 		}

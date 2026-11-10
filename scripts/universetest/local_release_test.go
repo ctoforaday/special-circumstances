@@ -4,6 +4,8 @@ package universetest
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -76,11 +78,13 @@ case "${1:-}" in
         pname="${3%@*}"
         echo "$pname" >> "$STUB_DIR/installed.log"
         if [ "${STUB_INSTALL_WRITE_STALE:-}" = "1" ]; then
-          mkt_root="${WORKDIR}.marketplace/plugins/$pname"
+          mkt_root="${PWD}.marketplace/plugins/$pname"
           if [ -d "$mkt_root" ]; then
             mkdir -p "$mkt_root/bin" "$mkt_root/.fetch"
-            echo "stale" > "$mkt_root/bin/alpha"
+            printf '#!/bin/sh\necho stale\n' > "$mkt_root/bin/alpha"
+            chmod +x "$mkt_root/bin/alpha"
             echo "prosthetic-conscience--v1.0.0" > "$mkt_root/.fetch/installed"
+            echo "$mkt_root/bin/alpha" >> "$STUB_DIR/stale_written"
           fi
         fi
         exit 0
@@ -211,9 +215,29 @@ func newTestFixture(t *testing.T) *testFixture {
 		t.Fatal(err)
 	}
 
-	// Plugin hooks.json
-	hooksJSON := `{"hooks":[{"event":"PreToolUse","command":"hooks/fetch-bin.sh ensure PreToolUse"}]}` + "\n"
-	if err := os.WriteFile(filepath.Join(repoDir, "plugins", "prosthetic-conscience", "hooks", "hooks.json"), []byte(hooksJSON), 0o644); err != nil {
+	// The plugin's .claude-plugin/hooks.json, in the real one's shape: its PreToolUse guard is the
+	// generated command of prosthetic-conscience's own, guarding the fixture's alpha instead of
+	// sc-pretooluse.
+	realHooks, err := os.ReadFile(filepath.Join(realRepo, "plugins", "prosthetic-conscience", ".claude-plugin", "hooks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rh hooksFile
+	if err := json.Unmarshal(realHooks, &rh); err != nil || len(rh.Hooks["PreToolUse"]) == 0 || len(rh.Hooks["PreToolUse"][0].Hooks) == 0 {
+		t.Fatalf("prosthetic-conscience's hooks.json has no PreToolUse guard to copy (%v)", err)
+	}
+	guardCmd := rh.Hooks["PreToolUse"][0].Hooks[0].Command
+	if !strings.Contains(guardCmd, "/bin/sc-pretooluse") || !strings.Contains(guardCmd, "hook PreToolUse") {
+		t.Fatalf("the real PreToolUse guard changed shape: %s", guardCmd)
+	}
+	var fh hooksFile
+	fh.Hooks = map[string][]hookMatcher{"PreToolUse": {{Matcher: "Bash", Hooks: []hookCommand{{Type: "command",
+		Command: strings.Replace(guardCmd, "/bin/sc-pretooluse", "/bin/alpha", 1)}}}}}
+	fixtureHooks, err := json.MarshalIndent(fh, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "plugins", "prosthetic-conscience", ".claude-plugin", "hooks.json"), fixtureHooks, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -266,7 +290,7 @@ func newTestFixture(t *testing.T) *testFixture {
 	}
 	env = append(env,
 		"HOME="+scratch,
-		"PATH="+binDir+string(os.PathListSeparator)+hostToolsWithout(t, "zig", "cmake"),
+		"PATH="+binDir+string(os.PathListSeparator)+hostToolsWithout(t),
 		"STUB_DIR="+stubDir,
 		"GOCACHE="+gocache,
 		"GOMODCACHE="+gomod,
@@ -284,8 +308,8 @@ func newTestFixture(t *testing.T) *testFixture {
 }
 
 // hostToolsWithout is a directory of links to every executable on the host's PATH, the first of
-// each name as PATH finds it, less drop. The fixture's PATH is its stubs and this directory, so
-// whether a build sees zig or cmake is the test's choice, never the host's.
+// each name as PATH finds it, less drop. The fixture's PATH is its stubs and this directory, so a
+// test takes a tool away whatever the host carries.
 func hostToolsWithout(t *testing.T, drop ...string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -346,21 +370,42 @@ func (f *testFixture) writeDigest(t *testing.T, d string) {
 	}
 }
 
-// stubToolchain puts stub zig and cmake on the fixture's PATH.
-func (f *testFixture) stubToolchain(t *testing.T) {
+// pathWithout is the fixture's PATH less the host's drop tools, as extra environment for a case
+// that takes a tool off PATH.
+func (f *testFixture) pathWithout(t *testing.T, drop ...string) string {
 	t.Helper()
-	for _, tool := range []string{"zig", "cmake"} {
-		if err := os.WriteFile(filepath.Join(f.binDir, tool), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
+	return "PATH=" + f.binDir + string(os.PathListSeparator) + hostToolsWithout(t, drop...)
 }
 
-// guard runs a staged root's PreToolUse guard as hooks.json's exec runs it: `sh -c`, under env (the
-// environment a session in this universe records) and that root's CLAUDE_PLUGIN_ROOT.
+// hooksFile is the shape of a plugin's .claude-plugin/hooks.json.
+type hooksFile struct {
+	Hooks map[string][]hookMatcher `json:"hooks"`
+}
+
+type hookMatcher struct {
+	Matcher string        `json:"matcher"`
+	Hooks   []hookCommand `json:"hooks"`
+}
+
+type hookCommand struct {
+	Type    string `json:"type"`
+	Command string `json:"command"`
+}
+
+// guard runs a staged root's PreToolUse guard as hooks.json's exec runs it: its command, read from
+// the root's .claude-plugin/hooks.json, by `sh -c`, under env (the environment a session in this
+// universe records) and that root's CLAUDE_PLUGIN_ROOT, stdin empty.
 func guard(t *testing.T, root string, env []string) {
 	t.Helper()
-	cmd := exec.Command("sh", "-c", filepath.Join(root, "hooks", "fetch-bin.sh")+" ensure PreToolUse </dev/null")
+	raw, err := os.ReadFile(filepath.Join(root, ".claude-plugin", "hooks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hf hooksFile
+	if err := json.Unmarshal(raw, &hf); err != nil || len(hf.Hooks["PreToolUse"]) == 0 || len(hf.Hooks["PreToolUse"][0].Hooks) == 0 {
+		t.Fatalf("%s/.claude-plugin/hooks.json has no PreToolUse guard (%v)", root, err)
+	}
+	cmd := exec.Command("sh", "-c", hf.Hooks["PreToolUse"][0].Hooks[0].Command)
 	cmd.Env = append(append([]string{}, env...), "CLAUDE_PLUGIN_ROOT="+root)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("PreToolUse guard failed: %v\n%s", err, out)
@@ -713,7 +758,11 @@ func TestEverySessionFetchesOnlyTheLocalRelease(t *testing.T) {
 		t.Fatalf("the guard's fetch did not finish within 60 s")
 	}
 
-	// With marketplace add failing, env already names the release
+	// With marketplace add failing, env already names the release — written by this build, from a
+	// CLAUDE_CONFIG_DIR with no settings.json, so nothing an earlier build wrote can stand in for it.
+	if err := os.RemoveAll(filepath.Dir(settingsFile)); err != nil {
+		t.Fatal(err)
+	}
 	failEnv := []string{"STUB_FAIL_MARKETPLACE_ADD=1"}
 	out3, code3 := f.runUniverse(t, nil, failEnv, "build", "--dir="+relDir)
 	if code3 == 0 {
@@ -746,6 +795,9 @@ func TestEverySessionFetchesOnlyTheLocalRelease(t *testing.T) {
 	if code5 != 0 {
 		t.Fatalf("build with stale install failed (exit %d):\n%s", code5, out5)
 	}
+	if written, err := os.ReadFile(filepath.Join(f.stubDir, "stale_written")); err != nil || !strings.Contains(string(written), stagedAlpha) {
+		t.Fatalf("the stub install wrote no stale %s, so the case tests nothing (%v)", stagedAlpha, err)
+	}
 	alphaData, err := os.ReadFile(stagedAlpha)
 	if err != nil {
 		t.Fatal(err)
@@ -759,7 +811,8 @@ func TestEverySessionFetchesOnlyTheLocalRelease(t *testing.T) {
 		t.Fatalf("staged bin/alpha (%d bytes) is not the release asset %s (%d bytes) after a stale install", len(alphaData), releaseAlpha, len(want))
 	}
 
-	// r10 gap: after a build that carries a helper, a build that dies after staging — zig off PATH,
+	// r10 gap: after a build that carries a helper, a build that dies after staging — flock, a tool
+	// native/build.sh runs, off PATH,
 	// the helper cache empty — leaves the staged roots fetching only its own unfinished release:
 	// the guard installs nothing, not the complete release the first build wrote.
 	f.addFakeHelper(t, `#!/usr/bin/env bash
@@ -767,17 +820,13 @@ set -e
 target="$2"
 echo "fake-helper-binary" > "$3/${1}_${target%%-*}_${target##*-}"
 `, "digest-r10")
-	f.stubToolchain(t)
 	if out, code := f.runUniverse(t, nil, nil, "build", "--dir="+relDir); code != 0 {
 		t.Fatalf("the build carrying the helper failed (exit %d):\n%s", code, out)
 	}
-	if err := os.Remove(filepath.Join(f.binDir, "zig")); err != nil {
-		t.Fatal(err)
-	}
 	_ = os.RemoveAll(filepath.Join(f.scratch, ".cache", "sc-universe"))
-	out6, code6 := f.runUniverse(t, nil, nil, "build", "--dir="+relDir)
-	if code6 == 0 || !strings.Contains(out6, "zig") {
-		t.Fatalf("expected the build to die naming zig; exit %d:\n%s", code6, out6)
+	out6, code6 := f.runUniverse(t, nil, []string{f.pathWithout(t, "flock")}, "build", "--dir="+relDir)
+	if code6 == 0 || !strings.Contains(out6, "fake: native/build.sh needs flock on PATH") {
+		t.Fatalf("expected the build to die naming flock; exit %d:\n%s", code6, out6)
 	}
 	if _, err := os.Stat(filepath.Join(stagedRoot, "hooks", "fetch-bin.sh")); err != nil {
 		t.Fatalf("the build died before staging, so the case tests nothing: %v\n%s", err, out6)
@@ -801,7 +850,6 @@ ext=""
 [ "$host_os" = "windows" ] && ext=".exe"
 echo "fake-helper-binary" > "$outdir/${helper}_${host_os}_${host_arch}${ext}"
 `, "digest-111122223333")
-	f.stubToolchain(t)
 
 	relDir := "wd/"
 	absWorkDir := filepath.Join(f.scratch, "wd")
@@ -824,18 +872,19 @@ echo "fake-helper-binary" > "$outdir/${helper}_${host_os}_${host_arch}${ext}"
 		t.Errorf("staged bin/fake does not equal the release's helper")
 	}
 
-	// With zig off PATH — the stub gone, and the fixture's PATH carries no host zig — and the cache
-	// empty, build exits non-zero naming zig.
-	if err := os.Remove(filepath.Join(f.binDir, "zig")); err != nil {
-		t.Fatal(err)
-	}
+	// With a tool native/build.sh runs off PATH (flock; it fetches its own zig and cmake) and the
+	// cache empty, build exits non-zero naming it, before running build.sh.
 	_ = os.RemoveAll(filepath.Join(f.scratch, ".cache", "sc-universe"))
-	out2, code2 := f.runUniverse(t, nil, nil, "build", "--dir="+relDir)
+	calls := countCalls(t, filepath.Join(f.stubDir, "helper_build.log"))
+	out2, code2 := f.runUniverse(t, nil, []string{f.pathWithout(t, "flock")}, "build", "--dir="+relDir)
 	if code2 == 0 {
-		t.Fatalf("build succeeded with zig missing:\n%s", out2)
+		t.Fatalf("build succeeded with flock missing:\n%s", out2)
 	}
-	if !strings.Contains(out2, "fake needs zig on PATH") {
-		t.Errorf("the build's error does not name the missing zig:\n%s", out2)
+	if !strings.Contains(out2, "fake: native/build.sh needs flock on PATH") {
+		t.Errorf("the build's error does not name the missing flock:\n%s", out2)
+	}
+	if n := countCalls(t, filepath.Join(f.stubDir, "helper_build.log")); n != calls {
+		t.Errorf("build.sh ran without its toolchain (%d calls, was %d)", n, calls)
 	}
 }
 
@@ -860,7 +909,6 @@ ext=""
 [ "$host_os" = "windows" ] && ext=".exe"
 echo "fake-helper-binary" > "$outdir/${helper}_${host_os}_${host_arch}${ext}"
 `, "digest-1")
-	f.stubToolchain(t)
 
 	relDir := "wd/"
 	absWorkDir := filepath.Join(f.scratch, "wd")
@@ -937,6 +985,71 @@ echo "fake-helper-binary" > "$outdir/${helper}_${host_os}_${host_arch}${ext}"
 	}
 	if fi, err := os.Stat(entry("digest-3")); err != nil || !fi.IsDir() {
 		t.Fatalf("expected a cache entry at %s after the 5th build", entry("digest-3"))
+	}
+}
+
+func TestBuildFetchesTheHelpersPinnedExport(t *testing.T) {
+	f := newTestFixture(t)
+	f.addFakeHelper(t, `#!/usr/bin/env bash
+set -e
+target="$2"
+echo "call" >> "$STUB_DIR/helper_build.log"
+echo "fake-helper-binary" > "$3/${1}_${target%%-*}_${target##*-}"
+`, "digest-export-1")
+
+	// The export's source, served by the curl shim from a file:// URL, and its pin in the helper's
+	// PINS.txt as native/build.sh reads it: <sha256> <file> <url>.
+	arch := runtime.GOARCH
+	export := "model." + arch + ".bin"
+	src := filepath.Join(f.scratch, "upstream", export)
+	body := "model weights for " + arch + "\n"
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(src, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	native := filepath.Join(f.repoDir, "plugins", "prosthetic-conscience", "native", "fake")
+	if err := os.WriteFile(filepath.Join(native, "ASSETS"), []byte("model.bin amd64=model.amd64.bin arm64=model.arm64.bin\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pins := fmt.Sprintf("# <sha256>  <file>  <url>\n%x  %s  file://%s\n", sha256.Sum256([]byte(body)), export, src)
+	if err := os.WriteFile(filepath.Join(native, "PINS.txt"), []byte(pins), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f.commit(t, "the fake helper ships an export")
+
+	relDir := "wd/"
+	absWorkDir := filepath.Join(f.scratch, "wd")
+	cacheHome := filepath.Join(f.scratch, "cache")
+	cacheEnv := []string{"XDG_CACHE_HOME=" + cacheHome}
+	entry := func(d string) string { return filepath.Join(cacheHome, "sc-universe", "native", "fake", d) }
+
+	if out, code := f.runUniverse(t, nil, cacheEnv, "build", "--dir="+relDir); code != 0 {
+		t.Fatalf("build failed (exit %d):\n%s", code, out)
+	}
+	for _, p := range []string{
+		filepath.Join(absWorkDir+".release", "prosthetic-conscience--v1.0.0", export),
+		filepath.Join(absWorkDir+".marketplace", "plugins", "prosthetic-conscience", "bin", "model.bin"),
+		filepath.Join(entry("digest-export-1"), export),
+	} {
+		if got, err := os.ReadFile(p); err != nil || string(got) != body {
+			t.Errorf("%s = %q (%v), want the pinned export's bytes", p, got, err)
+		}
+	}
+
+	// An export with no pin fails the build naming it, and no cache entry is written without it.
+	if err := os.WriteFile(filepath.Join(native, "PINS.txt"), []byte("# <sha256>  <file>  <url>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f.writeDigest(t, "digest-export-2")
+	f.commit(t, "the export loses its pin")
+	out, code := f.runUniverse(t, nil, cacheEnv, "build", "--dir="+relDir)
+	if code == 0 || !strings.Contains(out, "the export "+export+" has no pin") {
+		t.Fatalf("expected the build to fail naming the unpinned %s; exit %d:\n%s", export, code, out)
+	}
+	if _, err := os.Stat(entry("digest-export-2")); err == nil {
+		t.Fatalf("a cache entry was written without its export: %s", entry("digest-export-2"))
 	}
 }
 

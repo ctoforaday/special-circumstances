@@ -1447,7 +1447,6 @@ jobs:
           work="$(mktemp -d)"; root="$work/plugin"; rel="$work/rel"
           mkdir -p "$root/.claude-plugin" "$root/hooks" "$root/bin" "$root/tools/cmd/alpha" "$root/tools/cmd/beta" "$root/native/fake-helper" "$rel/fixture--v1.2.3"
           printf '{\n  "name": "fixture",\n  "version": "1.2.3"\n}\n' > "$root/.claude-plugin/plugin.json"
-          printf 'extra.data amd64=extra.amd64.data arm64=extra.arm64.data\n' > "$root/native/fake-helper/ASSETS"
           cp plugins/prosthetic-conscience/hooks/fetch-bin.sh "$root/hooks/"
           case "$(uname -s)" in Linux) os=linux ;; Darwin) os=darwin ;; *) os=windows ;; esac
           case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; *) arch=arm64 ;; esac
@@ -1455,7 +1454,10 @@ jobs:
           a="alpha_${os}_${arch}${ext}"; b="beta_${os}_${arch}${ext}"
           h="fake-helper_${os}_${arch}${ext}"
           ed="extra.${arch}.data"
-          if [ "$arch" = amd64 ]; then od="extra.arm64.data"; else od="extra.amd64.data"; fi
+          if [ "$arch" = amd64 ]; then oarch=arm64; else oarch=amd64; fi
+          od="extra.${oarch}.data"
+          # The host's field last and the line ending CRLF, as a Windows checkout with autocrlf leaves it.
+          printf 'extra.data %s=%s %s=%s\r\n' "$oarch" "$od" "$arch" "$ed" > "$root/native/fake-helper/ASSETS"
           printf 'binary alpha\n' > "$rel/fixture--v1.2.3/$a"
           printf 'binary beta\n' > "$rel/fixture--v1.2.3/$b"
           printf 'binary helper\n' > "$rel/fixture--v1.2.3/$h"

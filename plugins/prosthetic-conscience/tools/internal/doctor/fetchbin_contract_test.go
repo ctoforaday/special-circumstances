@@ -788,6 +788,29 @@ func TestFetchBinPicksTheExportForItsArch(t *testing.T) {
 		}
 	})
 
+	t.Run("reads a CRLF line", func(t *testing.T) {
+		otherArch := "arm64"
+		if runtime.GOARCH == "arm64" {
+			otherArch = "amd64"
+		}
+		// The host's field last, where a CRLF checkout leaves its \r.
+		line := "model.bin " + otherArch + "=model." + otherArch + ".bin " + runtime.GOARCH + "=model." + runtime.GOARCH + ".bin"
+		f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+		addNativeToFixture(t, f.root, f.rel, "fake-helper", []string{line}, nil, nil)
+		mustWrite(t, filepath.Join(f.root, "native", "fake-helper", "ASSETS"), line+"\r\n")
+		if _, _, code := f.run(t, "", "fetch"); code != 0 {
+			t.Fatalf("fetch failed on a CRLF ASSETS line: %s", f.failedCause(t))
+		}
+		got, err := os.ReadFile(filepath.Join(f.root, "bin", "model.bin"))
+		if want := "asset data model." + runtime.GOARCH + ".bin\n"; err != nil || string(got) != want {
+			t.Fatalf("model.bin = %q (%v), want %q", got, err, want)
+		}
+		// ensure reads the same line: a complete install is up to date and says nothing.
+		if out, errOut, code := f.run(t, "", "ensure", "SessionStart"); code != 0 || strings.TrimSpace(out) != "" || errOut != "" {
+			t.Fatalf("ensure misread the CRLF line as a missing file: exit %d, stdout %q, stderr %q", code, out, errOut)
+		}
+	})
+
 	t.Run("fails naming file and arch when arch missing", func(t *testing.T) {
 		otherArch := "arm64"
 		if runtime.GOARCH == "arm64" {
