@@ -1751,6 +1751,22 @@
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 7bce27bdb182
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 06e66922a3d3
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt f6cadfb99760
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt d0096b45f286
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt f20f0f91bddb
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1783,6 +1799,30 @@
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness") VALUES (?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt ef36353eff7a
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 7cb80207a8e6
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt f0a0bac5c328
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 1bf53d649130
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt f119c74a2aaf
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt e414243f64dc
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt c32821ea6e5e
 -- INSERT INTO "verify" ("event_id", "claim", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1807,6 +1847,10 @@
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt c0ce8c641796
+-- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 811bfdb8419e
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "anchor", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1825,6 +1869,10 @@
 
 == stmt fb535608e683
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 773f9e090053
+-- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 2461111cc4e9
