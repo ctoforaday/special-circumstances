@@ -136,7 +136,6 @@ func TestAProgramsNamesOpenNothingInTheEvidenceDocument(t *testing.T) {
 			Label: "K-00000001", SHA: bundle, Argv: argv, Basis: "variant", Reason: "counts",
 			ToolchainPath: name("/usr/bin/py](t)<i>`\n## T", "/usr/bin/python3"), ToolchainSha256: strings.Repeat("a", 64),
 			Drift: "out/" + outName + " differs", Invariant: "a count",
-			Executed: true,
 			Rerun: &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, RerunSha: staged.Sha,
 				Drift: name("out/"+outName+" written by this act's run only; on re-run the program wrote: ````\n## V\n====\n    File \"x\"", "out/out.png written by this act's run only; on re-run the program wrote: other output")},
 		}

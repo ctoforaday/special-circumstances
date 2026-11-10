@@ -28,7 +28,8 @@ import (
 //     the one statement the record holds of what the two runs did
 //   - the author's script path is not carried: the argv names the stored file, and the path named a
 //     working file nothing kept
-//   - the shard era's inline output is this act's stored output (writeStore), not a field
+//   - the shard era's inline output is this act's stored output (writeStore), not a field; an
+//     inline output that is the shard era's excerpt of proofs/<sha>/output stands for that file
 
 // archivedArgv is the command an archived script's extension named: the interpreter the tool ran a
 // script of that extension with, and the stored file. A frozen table — it states what the archive
@@ -153,6 +154,68 @@ type migratedComputation struct {
 	oldSha string
 	// output is the shard era's inline output, which is this act's.
 	output *string
+	// exit is the act's recorded exit.
+	exit int
+}
+
+// AN ARCHIVED RE-RUN THAT REPRODUCED IS THE EXECUTION THAT WROTE ITS ACT'S OUTPUT. An archived
+// reproduce that names no execution compared the re-run's output byte for byte with the act's and
+// recorded the result. The record names an execution by its sha (compute.Execution.Sha), over its
+// output, exit and out/, and the archive supplies each: the output is the act's, which the re-run
+// matched; out/ is the act's, empty for an archived proof, which wrote none; and the exit is the
+// act's recorded exit, which no archived reproduce compared — the residue of this translation
+// (gblock, 2026-11-10). A re-run that differed is stored only as the first 400 characters of its
+// output, so it derives no execution and names none.
+
+// derivedRerun is the execution an archived reproduce that ran and reproduced stands for: the act's
+// stored output and out/ (sourceArtifact) and its recorded exit. ok is false where the source does
+// not hold the act's artifact, which writeStore names as missing.
+func derivedRerun(fromDir string, c migratedComputation) (e compute.Execution, ok bool) {
+	_, output, out, _, err := sourceArtifact(fromDir, c)
+	if err != nil {
+		return compute.Execution{}, false
+	}
+	return compute.Execution{Output: string(output), Exit: c.exit, Out: out}, true
+}
+
+// deriveExecution names the execution an archived reproduce compared against, where it names none
+// and the archive holds it, and returns the one it derived, for writeStore to store. One that ran and
+// reproduced stands for its act's derived execution (derivedRerun), with the act's recorded exit as
+// its rerun_exit; one that ran nothing names its bundle's standing re-run, as a live act does.
+// standing is the latest reproduce written that ran each bundle.
+func deriveExecution(r *recordpb.Reproduce, fromDir string, computationOf map[string]migratedComputation, standing map[string]*recordpb.Reproduce) *compute.Execution {
+	if r.GetRerunSha() != "" {
+		return nil
+	}
+	if !r.GetRan() {
+		if st := standing[r.GetBundleSha()]; st != nil && st.GetRerunSha() != "" {
+			r.RerunSha = proto.String(st.GetRerunSha())
+		}
+		return nil
+	}
+	c, ok := computationOf[r.GetComputationId()]
+	if fromDir == "" || !ok || r.GetRerun() != recordpb.Rerun_RERUN_REPRODUCED {
+		return nil
+	}
+	e, ok := derivedRerun(fromDir, c)
+	if !ok {
+		return nil
+	}
+	r.RerunSha, r.RerunExit = proto.String(e.Sha()), proto.Int32(int32(e.Exit))
+	return &e
+}
+
+// shardExcerptCap and shardExcerptNote are how the shard era cut an inline output: the first 2000
+// bytes and this line, the full output written to proofs/<sha>/output beside it. A frozen copy: it
+// states what the archive wrote.
+const (
+	shardExcerptCap  = 2000
+	shardExcerptNote = "\n… truncated; the full output is in <run>/proofs/<sha256>/output"
+)
+
+// isShardExcerpt is whether inline is the shard era's excerpt of full.
+func isShardExcerpt(inline string, full []byte) bool {
+	return len(full) > shardExcerptCap && inline == string(full[:shardExcerptCap])+shardExcerptNote
 }
 
 // writeStore builds the migrated run's computations/ from the source's store: each bundle's dir/
@@ -160,7 +223,7 @@ type migratedComputation struct {
 // the store's own layout, and its directories the record names are copied as they are; .tmp-*
 // staging and a directory no event names are not. An artifact the source does not hold is returned by name — the
 // manifest carries it — and nothing is written in its place.
-func writeStore(fromDir, toDir string, comps []migratedComputation, reruns map[string][]string) ([]string, error) {
+func writeStore(fromDir, toDir string, comps []migratedComputation, reruns map[string][]string, derived map[string][]compute.Execution) ([]string, error) {
 	var missing []string
 	for _, c := range comps {
 		files, output, out, at, err := sourceArtifact(fromDir, c)
@@ -176,6 +239,18 @@ func writeStore(fromDir, toDir string, comps []migratedComputation, reruns map[s
 		}
 		if err := compute.WriteAct(toDir, c.bundle, c.id, output, out); err != nil {
 			return nil, fmt.Errorf("computation %s: %w", c.id, err)
+		}
+	}
+	// A derived execution is stored as a live one is (compute.StageRerun), at rerun/<its sha>/.
+	for bundle, es := range derived {
+		for _, e := range es {
+			staged, err := compute.StageRerun(toDir, bundle, e)
+			if err != nil {
+				return nil, err
+			}
+			if err := staged.Promote(); err != nil {
+				return nil, err
+			}
 		}
 	}
 	for bundle, shas := range reruns {
@@ -214,12 +289,33 @@ func sourceArtifact(fromDir string, c migratedComputation) (files []compute.File
 	if err != nil {
 		return nil, nil, nil, filepath.Join(dir, file), fs.ErrNotExist
 	}
-	if c.output != nil {
-		output = []byte(*c.output)
-	} else if output, err = os.ReadFile(filepath.Join(dir, "output")); err != nil {
-		return nil, nil, nil, filepath.Join(dir, "output"), fs.ErrNotExist
+	if output, at, err = actOutput(fromDir, c); err != nil {
+		return nil, nil, nil, at, err
 	}
 	return []compute.File{{Path: file, Body: body}}, output, nil, "", nil
+}
+
+// actOutput is an archived proof's own output, and where it looked: the shard era's inline output,
+// or proofs/<sha>/output where there is none or the inline output is the file's excerpt. The file is
+// rewritten by every proof of the same script, so an inline output that is not its excerpt is this
+// act's own.
+func actOutput(fromDir string, c migratedComputation) ([]byte, string, error) {
+	if c.oldSha == "" {
+		output, err := compute.ActOutput(fromDir, c.bundle, c.id)
+		if err != nil {
+			return nil, compute.ActPath(fromDir, c.bundle, c.id), fs.ErrNotExist
+		}
+		return output, "", nil
+	}
+	at := filepath.Join(fromDir, "proofs", c.oldSha, "output")
+	full, err := os.ReadFile(at)
+	if c.output != nil && (err != nil || !isShardExcerpt(*c.output, full)) {
+		return []byte(*c.output), "", nil
+	}
+	if err != nil {
+		return nil, at, fs.ErrNotExist
+	}
+	return full, "", nil
 }
 
 // copyStoreTree copies a directory of regular files.

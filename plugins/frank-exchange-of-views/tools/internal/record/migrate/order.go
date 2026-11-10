@@ -44,7 +44,7 @@ const (
 // began, stays; the rolled-back trial leaves no row, so the replay as written starts from the empty
 // record the trial did. A failure of the trial's batch (record.ErrReplayFailed) is the migration's
 // failure, never a reason to replay as written.
-func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Result, error) {
+func replayInOrder(src Source, fromDir string, reg Registry, dst record.Run, opt Options) (*Result, error) {
 	batch, err := record.BeginReplay(dst)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 	// Every exit that does not commit — a refusal, an error, a panic — rolls the open batch back;
 	// after a commit it does nothing. batch is the variable, so this reaches the as-written batch too.
 	defer func() { _ = batch.Rollback() }()
-	res, err := replay(src, reg, batch, dst, opt, true)
+	res, err := replay(src, fromDir, reg, batch, dst, opt, true)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 			return nil, err
 		}
 		batch = next
-		if res, err = replay(src, reg, batch, dst, opt, false); err != nil {
+		if res, err = replay(src, fromDir, reg, batch, dst, opt, false); err != nil {
 			return nil, err
 		}
 	}

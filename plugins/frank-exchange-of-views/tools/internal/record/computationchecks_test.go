@@ -112,7 +112,7 @@ func TestAReproduceThatRanNothingStandsOnTheBundlesReRun(t *testing.T) {
 	}
 }
 
-// AN ARCHIVED REPRODUCE NAMES NO EXECUTION: the record it came from kept no raw re-run. The replay
+// AN ARCHIVED REPRODUCE CAN NAME NO EXECUTION: its archive holds the re-run's output only in part. The replay
 // writes one, ran or not, as the archive holds it; the live write refuses it (requireNamedExecution).
 func TestTheReplayWritesAReproduceThatNamesNoExecution(t *testing.T) {
 	for _, ran := range []bool{true, false} {
@@ -125,6 +125,34 @@ func TestTheReplayWritesAReproduceThatNamesNoExecution(t *testing.T) {
 		}
 		if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPRODUCE, r); err == nil {
 			t.Errorf("ran=%v: the live write admitted a reproduce that names no execution", ran)
+		}
+	}
+}
+
+// AN ACT WITH NO COMPARISON STANDS ON A NAMED EXECUTION OR ON NONE. A bundle's standing re-run is the
+// latest reproduce that ran it and names its execution; a migrated re-run that differed names none,
+// so another act on that bundle that nobody compared is not_rerun, and one on a bundle whose re-run
+// is named is not_compared.
+func TestAnActWithNoComparisonStandsOnlyOnANamedExecution(t *testing.T) {
+	for _, tc := range []struct {
+		sha   string
+		rerun recordpb.Rerun
+		want  string
+	}{
+		{"", recordpb.Rerun_RERUN_DIFFERS, RerunNone},
+		{"e1", recordpb.Rerun_RERUN_REPRODUCED, RerunNotCompared},
+	} {
+		ev := &Event{SeatId: proto.String(evLens)}
+		r := &recordpb.Reproduce{ComputationId: proto.String("K-1"), BundleSha: proto.String("s1"), Ran: proto.Bool(true), Rerun: tc.rerun.Enum()}
+		if tc.sha != "" {
+			r.RerunSha = proto.String(tc.sha)
+		}
+		if _, err := recordpb.SetBody(ev, r); err != nil {
+			t.Fatal(err)
+		}
+		evs := []*Event{ev}
+		if got := computationVerdictOf("K-2", "s1", nil, standingRerunsOf(evs), actVerdictsOf(evs)).rerunWord(); got != tc.want {
+			t.Errorf("an act with no comparison on a bundle whose re-run %s and names %q reads %s, want %s", recordpb.Word(tc.rerun), tc.sha, got, tc.want)
 		}
 	}
 }

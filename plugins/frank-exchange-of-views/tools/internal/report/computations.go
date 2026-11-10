@@ -163,7 +163,7 @@ func evidenceDoc(run record.Run, computations []record.Computation, backs map[st
 		// sentence. The dangerous cell is reproduces-but-unsound: it re-runs clean and establishes
 		// nothing, which is what a computation looks like at its most credible and least useful.
 		switch r := p.Rerun; {
-		case r == nil && !p.Executed:
+		case r == nil && p.Standing == nil:
 			b.WriteString("- **not re-run** — no checker executed this bundle; the computation stands on blue's execution alone\n")
 		case r == nil:
 			b.WriteString("- **not compared** — the bundle was re-run and nobody compared this computation's output against it\n")

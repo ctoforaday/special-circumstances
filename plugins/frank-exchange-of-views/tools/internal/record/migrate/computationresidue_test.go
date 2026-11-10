@@ -3,6 +3,7 @@ package migrate
 import (
 	"database/sql"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -150,15 +151,26 @@ func TestEveryComputationKeepsItsProofsHexAndHasItsOutput(t *testing.T) {
 	}
 }
 
-// AN ERA PROOF'S OUTPUT IS ITS EVENT'S: the shard era kept a proof's output on the event, and that
-// is the act's stored output, byte for byte (is-7-prime-run2's `p-568517ec` among them).
+// AN ERA PROOF'S OUTPUT IS ITS EVENT'S, OR THE FILE ITS EVENT EXCERPTS: the shard era kept a
+// proof's output on the event, and that is the act's stored output, byte for byte (is-7-prime-run2's
+// `p-568517ec` among them) — except where the event holds the first 2000 bytes of
+// proofs/<sha>/output and a line saying so, and then the act's output is the file's. Two acts of
+// record-store-authority hold such an excerpt, of 2643 and 4755 bytes.
 func TestAnEraProofsOutputIsItsEvents(t *testing.T) {
 	checked := 0
+	fromFile := map[string]int{}
 	for _, name := range archivedRuns(t) {
 		inline := map[string]string{}
+		src := recordtest.RequireArchive(t, name)
 		for _, e := range sourceEvents(t, name) {
 			if out, ok := e.Fields["output"].(string); ok && e.Word == "proof" {
 				id, _ := e.Fields["proof_id"].(string)
+				sha, _ := e.Fields["sha256"].(string)
+				if full, err := os.ReadFile(filepath.Join(src, "proofs", sha, "output")); err == nil && len(full) > 2000 &&
+					out == string(full[:2000])+"\n… truncated; the full output is in <run>/proofs/<sha256>/output" {
+					out = string(full)
+					fromFile["K-"+archivedProofHex(id)] = len(full)
+				}
 				inline["K-"+archivedProofHex(id)] = out
 			}
 		}
@@ -185,6 +197,9 @@ func TestAnEraProofsOutputIsItsEvents(t *testing.T) {
 	}
 	if checked != 36 {
 		t.Errorf("checked %d era proofs' outputs, want the 36 the six shard-era archives hold", checked)
+	}
+	if want := map[string]int{"K-5fddd364": 2643, "K-7e3a9ab5": 4755}; !maps.Equal(fromFile, want) {
+		t.Errorf("the acts whose event excerpts proofs/<sha>/output: %v, want %v", fromFile, want)
 	}
 }
 
@@ -587,9 +602,16 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 	}
 }
 
-// RESIDUE: A MIGRATED REPRODUCE HOLDS NO RAW RESULT. The archive recorded none, so no migrated
-// reproduce names an execution (`rerun_sha`) or its exit, and no migrated store holds a rerun/; the
-// next live reproduce on such a bundle executes it.
+// A MIGRATED RE-RUN THAT REPRODUCED NAMES THE EXECUTION LIVE COMPUTE WOULD WRITE (gblock,
+// 2026-11-10). An archived reproduce that ran and reproduced names the execution of its act's stored
+// output, the act's recorded exit and no out/ — rerun_sha is that execution's compute sha, rerun_exit
+// the act's exit, and rerun/<sha>/ holds it, so the per-act comparison against it reproduces. One that
+// ran nothing names its bundle's standing re-run. Over the 33 proof-stage archives, 368 re-runs
+// reproduced, and 360 acts ran nothing, each on a re-run that reproduced.
+//
+// RESIDUE: the re-run's exit is the act's, which no archive recorded. A re-run that differed is
+// stored only as its first 400 characters, so its reproduce names no execution, nor does one that
+// ran nothing on it: 17 differed.
 //
 // RESIDUE: proofs/ IS NOT CARRIED. The store is rebuilt from the record; drafts under proofs/synth/
 // and every other file of the old store stay in the archive, and the argv names the stored file,
@@ -597,9 +619,9 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 //
 // A NATIVE ARCHIVE'S RAW RESULTS COME THROUGH: each reproduce's execution and exit, each
 // computation's argv, and the store's rerun/ directories are the source's.
-func TestAMigratedRunHoldsNoRawResultAndNoProofStore(t *testing.T) {
+func TestAMigratedRunNamesItsArchivedExecutionsAndHoldsNoProofStore(t *testing.T) {
 	scriptFile := regexp.MustCompile(`^script\.(py|sh|js|mjs|go)$`)
-	native := 0
+	native, reproduced, differed, stood := 0, 0, 0, 0
 	for _, name := range archivedRuns(t) {
 		bodies, _, dir := migratedBodies(t, name)
 		if _, err := os.Stat(filepath.Join(dir, "proofs")); !os.IsNotExist(err) {
@@ -610,9 +632,52 @@ func TestAMigratedRunHoldsNoRawResultAndNoProofStore(t *testing.T) {
 			nativeRawResultsComeThrough(t, name, bodies, dir)
 			continue
 		}
-		for _, r := range reproducesOf(bodies) {
-			if r.GetRerunSha() != "" || r.RerunExit != nil {
-				t.Errorf("%s: %s names an execution (%q, exit %v) the archive never recorded", name, r.GetComputationId(), r.GetRerunSha(), r.RerunExit)
+		exitOf := map[string]int32{}
+		standing := map[string]*recordpb.Reproduce{}
+		derived := map[string]bool{}
+		for _, b := range bodies {
+			if c, ok := b.(*recordpb.Computation); ok {
+				exitOf[c.GetComputationId()] = c.GetExit()
+			}
+			r, ok := b.(*recordpb.Reproduce)
+			if !ok {
+				continue
+			}
+			id, bundle := r.GetComputationId(), r.GetBundleSha()
+			switch {
+			case !r.GetRan():
+				stood++
+				if want := standing[bundle].GetRerunSha(); r.GetRerunSha() != want || r.RerunExit != nil {
+					t.Errorf("%s: %s ran nothing and names %q (exit %v), want its standing re-run's %q", name, id, r.GetRerunSha(), r.RerunExit, want)
+				}
+			case r.GetRerun() == recordpb.Rerun_RERUN_REPRODUCED:
+				reproduced++
+				output, err := compute.ActOutput(dir, bundle, id)
+				if err != nil {
+					t.Fatalf("%s: %s: %v", name, id, err)
+				}
+				want := compute.Execution{Output: string(output), Exit: int(exitOf[id])}
+				if r.GetRerunSha() != want.Sha() || r.RerunExit == nil || r.GetRerunExit() != exitOf[id] {
+					t.Errorf("%s: %s names %q (exit %v), want %q, the execution of its output with exit %d", name, id, r.GetRerunSha(), r.RerunExit, want.Sha(), exitOf[id])
+					continue
+				}
+				e, err := compute.ReadRerun(dir, bundle, r.GetRerunSha(), int(r.GetRerunExit()))
+				if err != nil {
+					t.Errorf("%s: %s: %v", name, id, err)
+					continue
+				}
+				if c, err := compute.Compare(dir, bundle, id, int(exitOf[id]), e); err != nil || !c.Matches {
+					t.Errorf("%s: %s's comparison against the execution it names does not reproduce: %+v %v", name, id, c, err)
+				}
+				derived[filepath.Join(compute.StoreDir, bundle, "rerun", r.GetRerunSha())] = true
+			default:
+				differed++
+				if r.GetRerunSha() != "" || r.RerunExit != nil {
+					t.Errorf("%s: %s's re-run %s and names an execution (%q, exit %v)", name, id, recordpb.Word(r.GetRerun()), r.GetRerunSha(), r.RerunExit)
+				}
+			}
+			if r.GetRan() {
+				standing[bundle] = r
 			}
 		}
 		for _, b := range bodies {
@@ -622,9 +687,28 @@ func TestAMigratedRunHoldsNoRawResultAndNoProofStore(t *testing.T) {
 				}
 			}
 		}
-		if reruns, _ := filepath.Glob(filepath.Join(dir, compute.StoreDir, "*", "rerun")); len(reruns) != 0 {
-			t.Errorf("%s: the migrated store holds %s", name, reruns[0])
+		reruns, _ := filepath.Glob(filepath.Join(dir, compute.StoreDir, "*", "rerun", "*"))
+		held := map[string]bool{}
+		for _, p := range reruns {
+			rel, _ := filepath.Rel(dir, p)
+			held[rel] = true
 		}
+		// The verdict reads as a live one does: a bundle whose re-run reproduced has it standing.
+		comps, err := record.RecordedComputations(runtest.Open(t, dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range comps {
+			if r := p.Rerun; r != nil && r.Rerun == recordpb.Rerun_RERUN_REPRODUCED && (p.Standing == nil || p.Standing.RerunSha == "") {
+				t.Errorf("%s: %s reproduced and its bundle has no standing re-run", name, p.Label)
+			}
+		}
+		if !maps.Equal(held, derived) {
+			t.Errorf("%s: the migrated store's rerun/ entries %v, the executions its reproduces name %v", name, slices.Sorted(maps.Keys(held)), slices.Sorted(maps.Keys(derived)))
+		}
+	}
+	if reproduced != 368 || differed != 17 || stood != 360 {
+		t.Errorf("%d archived re-runs reproduced, %d differed and %d acts ran nothing, want 368, 17 and 360", reproduced, differed, stood)
 	}
 	if native == 0 {
 		t.Error("no native archive — the check that its raw results come through checks nothing")
