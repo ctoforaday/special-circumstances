@@ -40,7 +40,8 @@ type readingMintedClass struct {
 	// states is what a gap of the class says of its source, as the refusal words it.
 	states string
 	// cited admits the seat's standing reading of the citation the mint is about; citedSays words the
-	// reading that admits, and citedAs is the `verify` outcome flag that records it.
+	// reading that admits, and citedAs is the `verify` outcome flag that records it (verifyRequired
+	// carries the verb's other required flags, so the refusal names a call the verb admits).
 	cited     func(*recordpb.Verify) bool
 	citedSays string
 	citedAs   string
@@ -76,6 +77,11 @@ var readingMintedClasses = []readingMintedClass{
 		citedAs:   "--as absent",
 	},
 }
+
+// verifyRequired is what every `verify` call a refusal names carries beside --as: the verb's other
+// required flags, as its help states them. A refusal naming a call the verb refuses sends the seat to
+// a second refusal.
+const verifyRequired = "--confidence <high|medium|low> --reason <what the source says>"
 
 // readsWith is a reading that read the work (VerifyReads) with outcome o.
 func readsWith(o recordpb.SourceOutcome) func(*recordpb.Verify) bool {
@@ -668,8 +674,8 @@ func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) err
 		}
 		return feov.Errorf(feov.Conflict,
 			"--class %s states that %s. That is a reading's finding, and the record holds no standing reading of yours of citation %s that %s (%s). "+
-				"Read it first — `verify --anchor %s %s`, with what the source says in --reason — and mint on that reading. Nothing is recorded",
-			class, row.states, c, row.citedSays, latest, c, row.citedAs)
+				"Read it first — `verify --anchor %s %s %s` — and mint on that reading. Nothing is recorded",
+			class, row.states, c, row.citedSays, latest, c, row.citedAs, verifyRequired)
 	}
 	if row.found == nil {
 		return feov.Errorf(feov.Conflict,
@@ -700,9 +706,9 @@ func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) err
 	}
 	return feov.Errorf(feov.Conflict,
 		"--class %s states that %s. That is a reading's finding, and the record holds no standing reading of yours of a source you found for the sentence %s that %s (%s). "+
-			"Read the source first — `verify --url <source> --title <name> --quote <this sentence> %s`, with what it says in --reason — and mint on that reading. "+
+			"Read the source first — `verify --url <source> --title <name> --quote <this sentence> %s %s` — and mint on that reading. "+
 			"Where the source is one blue cites, name the citation it contradicts (`--about-kind anchor --about C-…`): a cited source's defect is keyed on the citation, the subject the mint names. Nothing is recorded",
-		class, row.states, sentenceWords(ms.placed, ms.at), row.foundSays, latest, row.citedAs)
+		class, row.states, sentenceWords(ms.placed, ms.at), row.foundSays, latest, row.citedAs, verifyRequired)
 }
 
 // readingBehind is the reading behind gap gapID, as it stands on report: for a gap of a class a

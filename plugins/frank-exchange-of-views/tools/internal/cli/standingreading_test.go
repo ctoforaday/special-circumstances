@@ -95,7 +95,11 @@ const standingRefusal = "no standing reading of yours"
 func TestAContradictionGapAboutACitationStandsOnTheMintersRefutingReading(t *testing.T) {
 	b := readingRun(t)
 	_, out, err := b.mintSource(lensL, "claim_contradicts_source", about(b.c1)...)
-	mustRefuse(t, err, out, standingRefusal, "citation "+b.c1, "verify --anchor "+b.c1+" --as refutes", "(none)")
+	// The whole line is pinned: the `verify` call it names carries every flag the verb requires, so
+	// a seat that runs it as written is not refused a second time.
+	mustRefuse(t, err, out, "--class claim_contradicts_source states that the source says otherwise than the sentence. "+
+		"That is a reading's finding, and the record holds no standing reading of yours of citation "+b.c1+" that reads the work and refutes it (none). "+
+		"Read it first — `verify --anchor "+b.c1+" --as refutes --confidence <high|medium|low> --reason <what the source says>` — and mint on that reading. Nothing is recorded")
 	if c := b.counts(); c != [3]int{} {
 		t.Errorf("the refusal wrote verify/mint/anchor %v", c)
 	}
@@ -215,7 +219,10 @@ func TestAFoundSourceContradictionGapStandsOnTheMintersReadingOfTheSentence(t *t
 	t.Run("the forms", func(t *testing.T) {
 		b := readingRun(t)
 		_, out, err := b.mintSource(lensL, class, "--quote", rdFree1)
-		mustRefuse(t, err, out, standingRefusal, "a source you found", "verify --url", "(none)")
+		mustRefuse(t, err, out, "--class claim_contradicts_source states that the source says otherwise than the sentence. "+
+			"That is a reading's finding, and the record holds no standing reading of yours of a source you found for the sentence "+fmt.Sprintf("%q", rdFree1)+" that refutes it (none). "+
+			"Read the source first — `verify --url <source> --title <name> --quote <this sentence> --as refutes --confidence <high|medium|low> --reason <what the source says>` — and mint on that reading. "+
+			"Where the source is one blue cites, name the citation it contradicts (`--about-kind anchor --about C-…`): a cited source's defect is keyed on the citation, the subject the mint names. Nothing is recorded")
 		b.readFound(lensL, rdU3, rdFree1, "refutes")
 		_, at := b.lastVerify()
 		gap, out, err := b.mintSource(lensL, class, "--quote", rdFree1)
