@@ -38,7 +38,9 @@ func TestACloseOverAnUnreadableDemandIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
-	dropTable(t, runDir, "computation")
+	// The demand is unmet, so the guard asks which anchors it reaches (demand_reach, over the stored
+	// demand lineage).
+	dropTable(t, runDir, "demand_lineage")
 	_, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "read it")

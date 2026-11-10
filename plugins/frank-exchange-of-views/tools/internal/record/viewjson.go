@@ -380,7 +380,13 @@ var boardView = declareNarrowedView("board", boardJSONOfRecord,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 	recordpb.EventType_EVENT_TYPE_REGRADE,
 	recordpb.EventType_EVENT_TYPE_FINDING,
-	recordpb.EventType_EVENT_TYPE_VERIFY) // for each open gap's backing
+	// for each open gap's backing: the anchor ledger (backingOf), the families evidenceView reads.
+	recordpb.EventType_EVENT_TYPE_CITE,
+	recordpb.EventType_EVENT_TYPE_VERIFY,
+	recordpb.EventType_EVENT_TYPE_COMPUTATION,
+	recordpb.EventType_EVENT_TYPE_REPRODUCE,
+	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
+	recordpb.EventType_EVENT_TYPE_RETIRE)
 
 // boardJSONOfRecord is BoardJSONOfRun over the events its declaration loaded, asking the gap view
 // and the list tables on the same snapshot (q) — so a gap the `gap` table reads as closed has its
@@ -740,7 +746,8 @@ func (w WorkJSON) SittingID() int64 { return w.sitting }
 //
 // Verified is the fact a lens is actually after: an anchor nobody checked is a claim standing on
 // its author's word, which is the defect the evidence lens exists to find. Absent `outcome` means
-// no verification exists — stated by the field being empty rather than by the anchor being missing,
+// no verification of the sentence as it stands exists — none at all, or none since an edit changed
+// it (backingOf) — stated by the field being empty rather than by the anchor being missing,
 // because "nobody looked" and "not backed" are different answers.
 type GapBackingJSON struct {
 	Anchor string `json:"anchor"`
@@ -756,7 +763,8 @@ type GapBackingJSON struct {
 	// VerifiedBy is the seat that checked it, so a lens can see whether its OWN check is the one
 	// standing — re-verifying your own reading is not independent.
 	VerifiedBy string `json:"verified_by,omitempty"`
-	// Event is the events.id of that check; 0, and absent, where no check exists.
+	// Event is the events.id of that check; 0, and absent, where no check of the sentence as it
+	// stands exists.
 	Event int64 `json:"event,omitempty"`
 }
 
@@ -1293,25 +1301,34 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 // verbs, a citation's reading (`verify`) and a computation's judgement (`reproduce`), each anchor's
 // row of recordsql.EvidenceTables naming the one that checks it.
 //
-// THE LAST CHECK WINS, as it does everywhere else a seat may revisit its own act: a lens
-// re-verifying a source after blue moved it is stating the current answer, not a second one.
+// THE LAST CHECK OF THE SENTENCE AS IT STANDS WINS, as it does everywhere else a seat may revisit
+// its own act: a lens re-verifying a source after blue moved it is stating the current answer, not a
+// second one. Which checks are of the sentence as it stands is the ledger's rule (anchorStanding
+// sinceEdit), the one the unchecked blocker and `show evidence` read: a check from a sitting opened
+// before the latest edit that changed the sentence is of a sentence the report no longer carries,
+// so an anchor with no other is listed unverified. On universe-m40 the backing listed a check
+// made before the sentence's edit as standing while the plan called the same anchor unchecked.
 func backingOf(evs []*Event, win WindowIndex) map[string]GapBackingJSON {
 	out := map[string]GapBackingJSON{}
-	for _, e := range evs {
-		var b GapBackingJSON
-		switch body := mustBody(e).(type) {
-		case *recordpb.Verify:
-			b = GapBackingJSON{Anchor: body.GetAnchor(), Outcome: recordpb.Word(body.GetOutcome()), Confidence: recordpb.Word(body.GetConfidence())}
-		case *recordpb.Reproduce:
-			b = GapBackingJSON{Anchor: body.GetComputationId(), Soundness: recordpb.Word(body.GetSoundness())}
-		default:
+	for _, s := range anchorChecksOf(evs, win).order {
+		if s.retired {
 			continue
 		}
-		if b.Anchor == "" {
-			continue
+		for _, c := range slices.Backward(s.checks) {
+			if !s.sinceEdit(c) {
+				continue
+			}
+			var b GapBackingJSON
+			switch body := mustBody(c.ev).(type) {
+			case *recordpb.Verify:
+				b = GapBackingJSON{Outcome: recordpb.Word(body.GetOutcome()), Confidence: recordpb.Word(body.GetConfidence())}
+			case *recordpb.Reproduce:
+				b = GapBackingJSON{Soundness: recordpb.Word(body.GetSoundness())}
+			}
+			b.Anchor, b.Kind, b.VerifiedBy, b.Event = s.anchor, anchor.Kind(s.anchor), c.seat, c.id
+			out[s.anchor] = b
+			break
 		}
-		b.Kind, b.VerifiedBy, b.Event = anchor.Kind(b.Anchor), e.GetSeatId(), win.Of(e).ID
-		out[b.Anchor] = b
 	}
 	return out
 }

@@ -200,6 +200,26 @@ func writeEveryBody(t *testing.T, db *sql.DB) ([]*recordpb.Event, []int64) {
 			t.Fatal(err)
 		}
 	}
+	// AND WITH THE REFUSING TRIGGERS GONE: a refusal that reads another row (a docket ruling's filing)
+	// is a trigger, which no pragma turns off.
+	refusals, err := db.Query(`SELECT "name" FROM sqlite_master WHERE "type" = 'trigger' AND "sql" LIKE '%BEFORE INSERT%RAISE%'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var drop []string
+	for refusals.Next() {
+		var name string
+		if err := refusals.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		drop = append(drop, name)
+	}
+	refusals.Close()
+	for _, name := range drop {
+		if _, err := db.Exec(`DROP TRIGGER "` + name + `"`); err != nil {
+			t.Fatal(err)
+		}
+	}
 	od := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
 	if od == nil {
 		t.Fatal("Event has no `body` oneof")

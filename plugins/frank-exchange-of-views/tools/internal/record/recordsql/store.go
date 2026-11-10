@@ -918,6 +918,9 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	if err := insertBody(tx, id, body.ProtoReflect()); err != nil {
 		return 0, err
 	}
+	if err := flushGapState(tx); err != nil {
+		return 0, err
+	}
 	return id, stampReportCheckpoint(tx, id)
 }
 
