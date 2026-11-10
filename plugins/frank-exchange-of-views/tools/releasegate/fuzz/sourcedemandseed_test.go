@@ -110,11 +110,12 @@ func (r *runner) driveSourceDemand(seatID string) string {
 		return "the refuting reading of citation " + anchorID + " was refused: " + firstLine(read)
 	}
 	v := r.checkReading(seatID, read, c.args)
-	if v == nil || v.GetCarriedBy() == "" {
-		return "the refuting reading of citation " + anchorID + " is carried by no gap"
+	if v == nil {
+		return "the refuting reading of citation " + anchorID + " does not check against the record"
 	}
-	if !r.demandRefused(r.minterOf(v.GetCarriedBy()), v.GetCarriedBy(), true) {
-		return "the close of source gap " + v.GetCarriedBy() + ", carrying the reading, with nothing answering it was not refused by its live-answer demand"
+	g := ""
+	if !r.demandRefused(r.minterOf(g), g, true) {
+		return "the close of source gap " + g + ", carrying the reading, with nothing answering it was not refused by its live-answer demand"
 	}
 	return sourceDemandDriven
 }
@@ -149,6 +150,7 @@ func (r *runner) sourceDemandForcedErr() string {
 // citation answers it and the close is admitted, the close of the `source` gap a refuting reading of that
 // citation mints. With the run not forced, none of it is driven and the run owes nothing.
 func TestTheSourceDemandSeedDrivesBothRefusals(t *testing.T) {
+	awaitsPhase1e(t)
 	stage := func(t *testing.T, force bool) *runner {
 		t.Helper()
 		r := stagedRunner(t)

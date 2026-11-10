@@ -2,13 +2,11 @@ package fuzz
 
 import (
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -248,27 +246,21 @@ func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turn
 	return turns, sittings
 }
 
-// carryingOf is each citation's gaps that carry a reading of it, read off the record's
-// carrying_reading view: the one statement of the reading-to-gap link.
+// carryingOf is each citation's gaps of a class a reading defines minted about it, by any seat, in
+// mint order (record.ReadingBehind names the reading each stands on).
 func (r *runner) carryingOf() (map[string][]string, bool) {
-	db, err := recordsql.Open(filepath.Join(r.run().Records(), "record.db"))
-	if err != nil {
+	b, ok := r.board()
+	if !ok {
 		return nil, false
 	}
-	rows, err := db.Query(`SELECT "anchor", "gap_id" FROM "carrying_reading" WHERE "anchor" IS NOT NULL ORDER BY "event_id"`)
-	if err != nil {
-		return nil, false
-	}
-	defer rows.Close()
 	out := map[string][]string{}
-	for rows.Next() {
-		var a, g string
-		if err := rows.Scan(&a, &g); err != nil {
-			return nil, false
+	for _, e := range b.Events {
+		if m, isM := recordpb.BodyAs[*recordpb.Mint](e); isM && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR &&
+			slices.Contains(record.ReadingMintedClasses(), m.GetClass()) {
+			out[m.GetAboutRef()] = append(out[m.GetAboutRef()], m.GetGapId())
 		}
-		out[a] = append(out[a], g)
 	}
-	return out, rows.Err() == nil
+	return out, true
 }
 
 // remandRulings is the position of the bench's latest remand of each gap: a docket ruled remanded,

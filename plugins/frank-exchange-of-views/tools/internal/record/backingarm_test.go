@@ -53,7 +53,7 @@ func TestTheBackingArmIsTheLedgersHolds(t *testing.T) {
 	judgements := []check{{sound: recordpb.Soundness_SOUNDNESS_SOUND}, {sound: recordpb.Soundness_SOUNDNESS_UNSOUND}}
 
 	var scenarios []armScenario
-	for _, shape := range []string{"source about", "source carrying"} {
+	for _, shape := range []string{"source about"} {
 		for _, seq := range sequencesOf(pairs, third) {
 			scenarios = append(scenarios, armScenario{shape: shape, seq: seq})
 		}
@@ -141,9 +141,6 @@ func runArmScenarios(t *testing.T, scenarios []armScenario) int {
 			Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("t")}
 		if c.compl != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
 			v.SourceCompleteness = c.compl.Enum()
-		}
-		if carried != "" {
-			v.CarriedBy = proto.String(carried)
 		}
 		add(seat, v)
 	}

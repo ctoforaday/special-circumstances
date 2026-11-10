@@ -264,11 +264,6 @@ type EvidenceVerificationJSON struct {
 	// fuller copy is a verdict on that copy.
 	CopySubstitution string `json:"copy_substitution,omitempty"`
 	CopyURL          string `json:"copy_url,omitempty"`
-	// CarriedBy is the gap that carries this reading — the one its act minted, or the open gap of its
-	// class the sentence already held — read off the stored reading's carried_by, never off the gap's
-	// text; omitted on a reading no gap carries. Under `independent` it is how blue finds the source a
-	// lens found for a gap it answers.
-	CarriedBy string `json:"carried_by,omitempty"`
 	// Standing is whether this reading stands on its citation, by the anchor ledger's one rule for
 	// every check of an anchor (anchorStanding.stands), the rule a reproduce's `standing` is read by:
 	// the reading READ the source (one that read nothing — unreachable, not the work — neither stands
@@ -282,8 +277,8 @@ type EvidenceVerificationJSON struct {
 // the row's outcome and the completeness of the copy it read, so a `refutes` of a copy the tool
 // stamped not_the_work, which read nothing, is not one. A named predicate rather than a string
 // comparison at each call site: every reader of one reading must agree on what "found against"
-// means, and they agree by calling this. Whether it STANDS is the anchor ledger's
-// (CitationsFoundAgainst), which counts.sources_refuted reads.
+// means, and they agree by calling this. Whether it STANDS is the anchor ledger's, and a standing one
+// is its lens's reading debt until a gap stands on it (readingDebtsOf).
 func (v EvidenceVerificationJSON) FindsAgainst() bool {
 	r := &recordpb.Verify{}
 	if vd, ok := recordpb.BySpelling(recordpb.SourceOutcome(0).Descriptor(), v.Outcome); ok {
@@ -333,13 +328,7 @@ type EvidenceJSON struct {
 		// SourcesUnverified is its citation twin: cited, and no reading of the sentence the report
 		// carries has reached it — unchecked, or checked and nothing read (anchorStanding.state).
 		SourcesUnverified int `json:"sources_unverified"`
-		// SourcesRefuted counts the citations red finds against NOW: a standing `refutes` or
-		// `absent` check of the sentence the report carries (CitationsFoundAgainst, the anchor
-		// ledger's fold). One count, one meaning: the assembly screen fails on the same set, so a
-		// refutation of a sentence an edit replaced and a re-check backed is not counted (gblock,
-		// 2026-10-19; m30's C-4f4b8cfa).
-		SourcesRefuted int `json:"sources_refuted"`
-		Verifications  int `json:"verifications"`
+		Verifications     int `json:"verifications"`
 	} `json:"counts"`
 }
 
@@ -449,7 +438,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			Title:      vf.GetTitle(),
 			AccessDate: vf.GetAccessDate(),
 			SeatID:     e.GetSeatId(),
-			CarriedBy:  vf.GetCarriedBy(),
 			Epoch:      w.Epoch,
 
 			Page:             vf.GetPage(),
@@ -606,7 +594,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			out.Counts.SourcesUnverified++
 		}
 	}
-	out.Counts.SourcesRefuted = len(CitationsFoundAgainst(evs, win))
 	return out
 }
 

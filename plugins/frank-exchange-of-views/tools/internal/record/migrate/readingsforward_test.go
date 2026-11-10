@@ -161,9 +161,6 @@ func TestM23CorroborationReadingComesForward(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if v.CarriedBy != nil || v.CarrierMinted != nil {
-			t.Errorf("verify %d names a carrier (%q, %v); an archived reading names no gap", m.At.Of(e).ID, v.GetCarriedBy(), v.GetCarrierMinted())
-		}
 		if v.GetAnchor() == "" {
 			found++
 		} else {

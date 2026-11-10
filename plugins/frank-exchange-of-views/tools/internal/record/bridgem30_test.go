@@ -9,6 +9,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
+// m30Archive is universe-m30, whose capture failed its assembly screen on a citation the debate had
+// already answered.
+const m30Archive = "2026-10-19_is-91-prime-m30.tar.gz"
+
 // M30'S BRIDGE OVER AN INVERTED TERM HAS NO HOME NOW. The evidence lens recorded
 // supports_with_bridge on C-4f4b8cfa at events 142 and 394 while its own reason said the source
 // names the base the liar and the report names the composite — none of the three bridges. Written

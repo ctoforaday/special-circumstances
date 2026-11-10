@@ -15,7 +15,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"google.golang.org/protobuf/proto"
 )
 
 // A READING THAT FINDS A DEFECT IN ITS SENTENCE MINTS ITS GAP IN THE SAME ACT. A lens reads a source
@@ -27,7 +26,7 @@ import (
 
 // readingClasses is the gap classes a reading of url with outcome mints in: the outcome's
 // gap_classes for a reading of a citation, its found_source_gap_classes for a source the lens found,
-// and none where the copy the run's cache holds for url is not the work (record.ReadingGapClasses on
+// and none where the copy the run's cache holds for url is not the work (on
 // the body the verb will stamp). notTheWork reports that copy.
 func (r *runner) readingClasses(url, outcome string, cited bool) (classes []string, notTheWork bool) {
 	o, ok := record.SourceOutcomeOf(outcome)
@@ -43,14 +42,9 @@ func (r *runner) readingClasses(url, outcome string, cited bool) (classes []stri
 	if cached {
 		completeness = held.SourceCompleteness()
 	}
-	v := &recordpb.Verify{Outcome: &o, SourceCompleteness: &completeness}
-	if cited {
-		v.Anchor = proto.String("drawn")
-	}
-	for _, c := range record.ReadingGapClasses(v) {
-		classes = append(classes, recordpb.Word(c))
-	}
-	return classes, completeness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK
+	// A READING MINTS NOTHING (plans/gap-is-the-one-holder.md; phase 1e rewrites the drives): no class.
+	_, _ = o, cited
+	return nil, completeness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK
 }
 
 // readingGapArgs is the gap flags a reading that mints passes: a class among the classes its outcome
@@ -154,23 +148,12 @@ func (r *runner) checkReading(seatID, out string, args []string) *recordpb.Verif
 		r.noteActErr(fmt.Sprintf("%s's admitted reading (anchor %q, url %q) is not on the record: %s", seatID, anchorID, url, firstLine(out)))
 		return nil
 	}
-	switch {
-	case (res.Gap != nil) != (v.GetCarriedBy() != ""):
-		r.noteActErr(fmt.Sprintf("%s's reading printed gap %v and the stored reading's carried_by is %q", seatID, res.Gap, v.GetCarriedBy()))
-		return v
-	case res.Gap == nil:
-		return v
-	case res.Gap.ID != v.GetCarriedBy() || res.Gap.Minted != v.GetCarrierMinted():
-		r.noteActErr(fmt.Sprintf("%s's reading printed gap %s (minted %v) and the stored reading names %s (carrier_minted %v)",
-			seatID, res.Gap.ID, res.Gap.Minted, v.GetCarriedBy(), v.GetCarrierMinted()))
+	if res.Gap == nil {
 		return v
 	}
-	if !v.GetCarrierMinted() {
-		return v
-	}
-	m, ok := r.storedMint(v.GetCarriedBy())
+	m, ok := r.storedMint(res.Gap.ID)
 	if !ok {
-		r.noteActErr("gap " + v.GetCarriedBy() + ", which " + seatID + "'s reading minted, has no Mint on the record")
+		r.noteActErr("gap " + res.Gap.ID + ", which " + seatID + "'s reading minted, has no Mint on the record")
 		return v
 	}
 	wantBasis := "proposed"
@@ -204,8 +187,7 @@ func (r *runner) ownFoundAgainstGapOpen(seatID, anchorID, outcome string) (recor
 		return record.Blocker{}, false
 	}
 	for _, f := range bs {
-		if f.Kind != record.BlockerFailedCheck || f.CheckState() != record.CheckFoundAgainst || f.Subject != anchorID ||
-			f.Owner != seatID || !open[f.AnsweredBy()] {
+		if f.Kind != record.BlockerReadingDebt || f.Subject != anchorID || f.Owner != seatID {
 			continue
 		}
 		for _, e := range b.Events {
@@ -461,8 +443,7 @@ func (r *runner) checkCarriedBy(g, anchorID, owner string) (record.Blocker, bool
 		return record.Blocker{}, false
 	}
 	for _, b := range bs {
-		if b.Kind == record.BlockerFailedCheck && b.CheckState() == record.CheckFoundAgainst && b.AnsweredBy() == g &&
-			b.Subject == anchorID && b.Owner == owner {
+		if b.Kind == record.BlockerReadingDebt && b.Subject == anchorID && b.Owner == owner && g != "" {
 			return b, true
 		}
 	}
@@ -500,10 +481,9 @@ var fuzzReadingClasses = []string{recordpb.Word(recordpb.GapClass_GAP_CLASS_CLAI
 // noteNotTheWorkUnread holds an admitted reading of a copy that is not the work to the record: no gap,
 // no carrier, the copy stamped not_the_work, and citation anchorID on a failed check in state unread.
 func (r *runner) noteNotTheWorkUnread(seatID, anchorID string, v *recordpb.Verify) {
-	if v.GetCarriedBy() != "" || v.CarrierMinted != nil ||
-		v.GetSourceCompleteness() != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK {
-		r.noteActErr(fmt.Sprintf("%s's reading of %s, whose copy is not the work, stored carried_by %q, carrier_minted %v, source_completeness %s",
-			seatID, anchorID, v.GetCarriedBy(), v.CarrierMinted, recordpb.Word(v.GetSourceCompleteness())))
+	if v.GetSourceCompleteness() != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK {
+		r.noteActErr(fmt.Sprintf("%s's reading of %s, whose copy is not the work, stored source_completeness %s",
+			seatID, anchorID, recordpb.Word(v.GetSourceCompleteness())))
 		return
 	}
 	bs, err := record.PassBlockers(r.run())
@@ -683,7 +663,7 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 	}
 	// ANOTHER SOURCE FOR THE SAME SENTENCE IS RECORDED, and where the first reading's gap still stands
 	// with the second's class, it names that gap and mints none.
-	if g := first.GetCarriedBy(); g != "" && r.coin(20) && slices.Contains(r.openGaps(), g) {
+	if g := ""; g != "" && r.coin(20) && slices.Contains(r.openGaps(), g) {
 		r.readAnotherSource(seatID, outcome, quote, argOf(c.args, "--class"), g, axes)
 	}
 }
@@ -755,8 +735,8 @@ func (r *runner) readAnotherSource(seatID, outcome, quote, class, g string, axes
 	}
 	r.noteCopy("verify --url", out, wantCopy, wantCopyURL)
 	second := r.checkReading(seatID, out, c.args)
-	if second != nil && second.GetCarriedBy() != g && slices.Contains(r.openGaps(), g) {
-		r.noteActErr(fmt.Sprintf("%s's second source for one sentence was carried by %s, while %s, which carries the first, stands open", seatID, second.GetCarriedBy(), g))
+	if second != nil && slices.Contains(r.openGaps(), g) {
+		r.noteActErr(fmt.Sprintf("%s's second source for one sentence is recorded while %s stands open on it", seatID, g))
 	}
 }
 
@@ -765,65 +745,6 @@ func setArg(args []string, flag, val string) {
 	if i := slices.Index(args, flag); i >= 0 && i+1 < len(args) {
 		args[i+1] = val
 	}
-}
-
-// fixFoundAgainst is blue's remedy of a citation a lens's reading finds against: by coin, the edit
-// that rewrites the sentence — which the record lists as reopening the citation — or the retire of
-// the citation answering the gap that carries the check. One time in ten blue first tries to end its
-// sitting with the check standing, and its envelope is refused naming it.
-func (r *runner) fixFoundAgainst(seatID string, b record.Blocker) {
-	if r.coin(10) {
-		r.envelopeRefusedEarly(seatID, "reading of citation "+b.Subject+" at event")
-	}
-	cur, err := record.RenderRun(r.run())
-	if err != nil {
-		r.noteActErr("the report could not be rendered to fix citation " + b.Subject + ": " + err.Error())
-		return
-	}
-	// A SENTENCE THE REPORT HOLDS TWICE HAS NO SPAN AN EDIT CAN QUOTE BEFORE THE ANCHOR ALONE, so its
-	// citation is retired.
-	words := wordsBefore(cur, b.Subject)
-	if words == "" || r.coin(50) {
-		if !r.retireCitingFirst(seatID, b.Subject) {
-			return
-		}
-		rt := r.do("retire", seatID).set("--anchor", b.Subject).
-			set("--reason", "fuzz: a lens's reading finds the source against the sentence, so the sentence stands without it")
-		if g := b.AnsweredBy(); g != "" {
-			rt = rt.set("--answers", g)
-		}
-		if _, ok := rt.admit(); ok {
-			r.mu.Lock()
-			r.foundAgainstRetires++
-			r.mu.Unlock()
-		}
-		return
-	}
-	if _, ok := r.do("edit", seatID).set("--quote", words).set("--new", "Read against its source, "+words).
-		set("--reason", "fuzz: the sentence now says what the source behind "+b.Subject+" says").admit(); !ok {
-		return
-	}
-	if !r.lastEditReopened(seatID, b.Subject) {
-		r.noteActErr("blue's edit of the sentence citation " + b.Subject + " backs does not list it reopened")
-		return
-	}
-	r.mu.Lock()
-	r.foundAgainstEdits++
-	r.mu.Unlock()
-}
-
-// lastEditReopened reports whether seatID's latest edit on the record lists anchorID reopened.
-func (r *runner) lastEditReopened(seatID, anchorID string) bool {
-	b, ok := r.board()
-	if !ok {
-		return false
-	}
-	for i := len(b.Events) - 1; i >= 0; i-- {
-		if e, isE := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i]); isE && b.Events[i].GetSeatId() == seatID {
-			return slices.Contains(e.GetReopened(), anchorID)
-		}
-	}
-	return false
 }
 
 // readingTally reads the reading counts off the stored record at the run's end, never off --as, and
@@ -837,19 +758,8 @@ func readingTally(res *outcome, board record.Family, run record.Run) {
 	}
 	byReading := map[string]bool{}
 	for _, e := range board.Events {
-		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
-		if !ok || v.GetCarriedBy() == "" {
+		if _, ok := recordpb.BodyAs[*recordpb.Verify](e); !ok {
 			continue
-		}
-		if !v.GetCarrierMinted() {
-			res.readingsHeld++
-			continue
-		}
-		res.readingsMinted++
-		byReading[v.GetCarriedBy()] = true
-		if m := mintOf[v.GetCarriedBy()]; v.GetAnchor() == "" && m != nil &&
-			(m.GetClass() == recordpb.GapClass_GAP_CLASS_UNSOURCED_CLAIM || m.GetClass() == recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE) {
-			res.foundSourceGaps++
 		}
 	}
 	res.openByFoundBy, res.mintsByEpoch, res.closesByEpoch = map[string]int{}, map[int]int{}, map[int]int{}
@@ -1161,10 +1071,10 @@ func (r *runner) readRepeatedSentence(seatID string, forced bool) string {
 	if v == nil {
 		return "the admitted reading of " + cite + " does not check against the record"
 	}
-	if v.GetCarriedBy() == "" {
+	g := ""
+	if g == "" {
 		return "the admitted reading of " + cite + " is carried by no gap"
 	}
-	g := v.GetCarriedBy()
 	now, err := record.RenderRun(r.run())
 	if err != nil {
 		msg := "the report could not be rendered after a reading of the twice-held sentence: " + err.Error()
@@ -1179,8 +1089,7 @@ func (r *runner) readRepeatedSentence(seatID string, forced bool) string {
 	switch {
 	case fixNew == "":
 		why = "no --new fix was composed for the reading of " + cite
-	case !v.GetCarrierMinted():
-		why = "the reading of " + cite + " is carried by " + g + ", already open on its sentence, and did not mint it"
+
 	}
 	r.mu.Lock()
 	r.repeatedSentenceGaps++
@@ -1337,8 +1246,7 @@ func (r *runner) readOverPrescription(seatID, line string) {
 		return
 	}
 	v := r.checkReading(seatID, out, c.args)
-	if v == nil || v.GetCarriedBy() == "" {
-		r.noteActErr("a refuting reading over text blue applied from a red --new names no gap: " + firstLine(out))
+	if v == nil {
 		return
 	}
 	if n := r.estoppelEntries(seatID); n != estoppels {
@@ -1384,8 +1292,6 @@ func (r *runner) readNotTheWorkFound(seatID, quote, outcome string, axes func(st
 	v := r.checkReading(seatID, out, c.args)
 	switch {
 	case v == nil:
-	case v.GetCarriedBy() != "" || v.CarrierMinted != nil:
-		r.noteActErr(fmt.Sprintf("%s's found-source reading of a copy that is not the work is carried by %q", seatID, v.GetCarriedBy()))
 	case r.sourceRows(notTheWorkSource) != rows:
 		r.noteActErr(fmt.Sprintf("%s's found-source reading of %s changed the report's source rows for it (%d before, %d after)", seatID, notTheWorkSource, rows, r.sourceRows(notTheWorkSource)))
 	}

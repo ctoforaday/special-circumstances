@@ -330,8 +330,8 @@ func TestAReadingOfNoAnchorHasNoCheckWindow(t *testing.T) {
 	registerLensOnce(t, runDir)
 	restore := lens.SetBeforeCheckAppendForTest(func() error { return errors.New("a reading of no anchor opened a check window") })
 	defer restore()
-	if out, err := run(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
-		"--quote", fermatClaim, "--as", "supports", "--confidence", "medium", "--reason", "read at the leaf"}, gapFlagArgs("unsourced_claim")...)...); err != nil {
+	if out, err := run(t, "verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
+		"--quote", fermatClaim, "--as", "supports", "--confidence", "medium", "--reason", "read at the leaf"); err != nil {
 		t.Errorf("verify --url: %v\n%s", err, out)
 	}
 }

@@ -47,13 +47,6 @@ import (
 // WHAT THE RECORD PROVES IS ANOTHER RELATION IS ADMITTED: a gap the mint names in --supersedes does
 // not block it, since a successor states its ancestor's subject by design.
 //
-// A READING'S MINT IS NOT REFUSED, IT IS HELD (readingAct): where the sentence a reading finds
-// against already holds an open gap of the Mint's class, the rule names that gap to the act (held)
-// and the act writes the reading alone, carrying it. Its Mint is placed by the act's own Anchor
-// (mintSentenceAt). The anchor arm and the cross-arms are not asked of a reading's Mint: a held
-// reading names a gap standing in its sentence (requireStandingCarrier), which a gap about the
-// citation is not. Deleted with the in-act mint.
-//
 // A closed gap does not block: a defect that recurs after its gap closed is a new gap.
 //
 // ONE QUERY FEEDS EVERY ARM (openGapsOfClassAt): the open gaps of the class with their subject
@@ -100,7 +93,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		}
 		return exempt, nil
 	}
-	if about != "" && !w.act.pairs(m) {
+	if about != "" {
 		// The anchor arm.
 		for _, g := range held {
 			if !g.about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, about) {
@@ -148,15 +141,8 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 			continue
 		}
 		if sp, ok := gapSentenceIn(ms.placed, ms.spans, ms.bare, g.id); ok && sp == ms.at {
-			if w.act.pairs(m) {
-				w.act.held = g.id
-				return errReadingHeld
-			}
 			return oneGapRefusal(m, g, "the sentence "+sentenceWords(ms.placed, ms.at))
 		}
-	}
-	if w.act.pairs(m) {
-		return nil
 	}
 	// The cross-arm, quote over about: an open gap of the class about a citation the sentence holds.
 	for _, c := range anchor.IDs(ms.placed[ms.at[0]:ms.at[1]]) {
@@ -170,15 +156,6 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		}
 	}
 	return nil
-}
-
-// pairedSentenceOf is the anchor whose sentence m's marker ends, where m is a reading's Mint placed by
-// its act's sentence_of Anchor; "" for every other mint.
-func pairedSentenceOf(w writeView, m *recordpb.Mint) string {
-	if !w.act.pairs(m) || w.act.anchor == nil {
-		return ""
-	}
-	return w.act.anchor.GetSentenceOf()
 }
 
 // heldGap is an open gap as the one-gap rule names it: its id, who minted it, what it says is wrong,

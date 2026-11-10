@@ -40,8 +40,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
 			b.register("judge").add("judge", remandRuling("M1", remandDirection))
 		}, false},
-		// A citation found against with no gap carrying it — an archived reading — is blue's.
-		{"citation found against", BlockerFailedCheck, true, true, func(b *stage) {
+		// A citation a lens's reading finds against, with no gap of the class on it, is the lens's
+		// reading debt (readingDebtsOf).
+		{"reading debt", BlockerReadingDebt, true, true, func(b *stage) {
 			b.cite("C-1").foundAgainst(evLens, "C-1", "")
 		}, false},
 		{"reopened citation", BlockerUnchecked, true, true, func(b *stage) {
@@ -253,6 +254,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 	for _, k := range blockerKinds {
 		for _, owner := range []string{chairSeat, benchSeat, evLens, ""} {
 			b := Blocker{Kind: k.kind, Subject: "X1", Owner: owner, Detail: "a detail", foldWhy: "a reason"}
+			if k.kind == BlockerReadingDebt {
+				b.outcome = recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
+			}
 			lines := []string{k.item(b), k.refusal([]Blocker{b})}
 			if k.why != nil {
 				why := k.why(b)
@@ -271,13 +275,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 	}
 }
 
-// THE REFUSAL COUNTS BLOCKERS, NOT KINDS. Two material gaps and a citation found against are three
+// THE REFUSAL COUNTS BLOCKERS, NOT KINDS. Two material gaps and a reading debt are three
 // things holding the PASS; the paragraphs group them by kind.
 func TestTheBlockerRefusalCountsBlockers(t *testing.T) {
 	err := blockerRefusal([]Blocker{
 		{Kind: BlockerMaterialGap, Subject: "G1", Owner: evLens},
 		{Kind: BlockerMaterialGap, Subject: "G2", Owner: evLens},
-		{Kind: BlockerFailedCheck, Subject: "C-1", Owner: "blue-respond", state: CheckFoundAgainst},
+		{Kind: BlockerReadingDebt, Subject: "C-1", Owner: evLens, outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES},
 	})
 	if err == nil || !strings.Contains(err.Error(), "3 things hold it, in 2 kinds") {
 		t.Errorf("refusal = %v, want it to count 3 blockers in 2 kinds", err)

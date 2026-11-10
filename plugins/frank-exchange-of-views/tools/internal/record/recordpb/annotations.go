@@ -2,7 +2,6 @@ package recordpb
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"text/template"
 
@@ -35,11 +34,6 @@ type ValueAnnotations struct {
 	Closes, SeatMayFile DeclaredBool
 	Mass                DeclaredNumber
 	MaterialDefault     DeclaredEnum
-
-	// GapClasses and FoundSourceGapClasses are a SourceOutcome's `gap_classes` and
-	// `found_source_gap_classes` options, in declaration order: the classes a reading with that
-	// outcome may mint its gap in. Nil where the value declares none.
-	GapClasses, FoundSourceGapClasses []GapClass
 
 	// FindsAgainst is a SourceOutcome's `finds_against` option: whether a reading with that outcome
 	// finds the source against the sentence. Declared true on the values that do; undeclared elsewhere.
@@ -87,13 +81,6 @@ func AnnotationsFromOptions(vd protoreflect.EnumValueDescriptor) ValueAnnotation
 	if proto.HasExtension(opts, E_MaterialDefault) {
 		a.MaterialDefault = DeclaredEnum{true, proto.GetExtension(opts, E_MaterialDefault).(protoreflect.Enum).Number()}
 	}
-	classes := func(xt protoreflect.ExtensionType) []GapClass {
-		if !proto.HasExtension(opts, xt) {
-			return nil
-		}
-		return slices.Clone(proto.GetExtension(opts, xt).([]GapClass))
-	}
-	a.GapClasses, a.FoundSourceGapClasses = classes(E_GapClasses), classes(E_FoundSourceGapClasses)
 	a.FindsAgainst = flag(E_FindsAgainst)
 	return a
 }

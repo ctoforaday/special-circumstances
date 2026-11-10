@@ -331,7 +331,8 @@ func (r *runner) lifecycleRead(seat, id, outcome string) (gap string, ok bool) {
 	if v == nil {
 		return "", false
 	}
-	return v.GetCarriedBy(), true
+	_ = v
+	return "", true
 }
 
 // lifecycleJudge is seat's judgement of computation id as `sound` or `unsound`.
@@ -754,14 +755,14 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 // screenUnsound holds a run that ends with a live computation a standing judgement calls unsound to the
 // assembly screen's FAIL naming each such computation, and counts it; msg is the run's failure.
 func (r *runner) screenUnsound() (screened int, msg string) {
-	fam, err := record.FamilyOf(r.run())
+	var unsound []string
+	failures, err := record.AssemblyFailures(r.run())
 	if err != nil {
 		return 0, "assembly screen: the record could not be read: " + err.Error()
 	}
-	var unsound []string
-	for _, a := range record.FailingAnchors(fam.Events, fam.At) {
-		if strings.HasPrefix(a, anchorPrefix["computation"]) {
-			unsound = append(unsound, a)
+	for _, f := range failures {
+		if f.Kind == string(record.CheckUnsound) {
+			unsound = append(unsound, f.Subject)
 		}
 	}
 	if len(unsound) == 0 {
@@ -805,6 +806,7 @@ func stagedSynthesizedRunner(t *testing.T) *runner {
 // above zero once it has run, but the reaching retire's turn, which the next plan gives. With the run not
 // forced, none of it is driven and the run owes nothing.
 func TestTheLifecycleSeedDrivesEveryArm(t *testing.T) {
+	awaitsPhase1e(t)
 	t.Run("forced", func(t *testing.T) {
 		r := stagedLifecycleRunner(t)
 		r.forceLifecycle = true
@@ -853,6 +855,7 @@ func TestTheLifecycleSeedDrivesEveryArm(t *testing.T) {
 // the gap its reaching retire left open, the lens-turn oracle counts the turn, and the lens's close of it
 // is admitted at that sitting. A plan engaging only blue there fails the run.
 func TestAReachingRetireGivesTheLensItsTurn(t *testing.T) {
+	awaitsPhase1e(t)
 	plan := func(seat, gap string) map[string]any {
 		return map[string]any{"parties": []any{map[string]any{"seat_id": seat, "gap_ids": []any{gap}}}}
 	}

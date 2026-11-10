@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // STRUCTURED STATE FOR THE SEATS.
@@ -1106,8 +1107,10 @@ type workReads struct {
 	edits               map[string][]GapEdit
 	report              *reportRender
 	gaps                []workGapRow
-	remands             map[string][]remandRow
-	budget              *budgetRead
+	// found is every located reading (locatedReadingsOn, over the one render), the reading debt's input.
+	found   []locatedReading
+	remands map[string][]remandRow
+	budget  *budgetRead
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
@@ -1173,6 +1176,21 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	r.report.src, r.report.srcErr = reportSourceAt(q, recordsql.Newest)
+	// THE DEBT'S INPUT IS LOCATED ON THE LIST'S ONE RENDER, inside its snapshot: a render that fails is
+	// the list's error, never a list with no found-source debt. A record with nothing to locate asks
+	// for no render here (locatesAnything).
+	if locatesAnything(r.evs, r.win) {
+		report, err := r.report.get()
+		if err != nil && err.Error() == reportproj.NoPart {
+			report, err = "", nil
+		}
+		if err != nil {
+			return r, err
+		}
+		if r.found, err = locatedReadingsOn(q, r.evs, r.win, report); err != nil {
+			return r, err
+		}
+	}
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1546,7 +1564,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs))}
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found}
 	var budget *MintBudgetJSON
 	var budgetLine string
 	if role == "lens" {

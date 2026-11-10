@@ -9,10 +9,11 @@
 # fix removed; a new line takes PLANGUARD_ACCEPT_VIEW_COST=1 as well, and shows in the diff.
 stmt 0cc0d378325f | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 0cc0d378325f | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 0cc0d378325f | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 0cc0d378325f | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 0cc0d378325f | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 0cc0d378325f | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 0cc0d378325f | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 0cc0d378325f | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 0cc0d378325f | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 0cc0d378325f | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 0cc0d378325f | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -23,15 +24,16 @@ stmt 0cc0d378325f | constrained-scan | motion_rule_position | x1 | via remand
 stmt 0cc0d378325f | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt 0cd405f346b6 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 0cd405f346b6 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 0cd405f346b6 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 0cd405f346b6 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 0cd405f346b6 | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 stmt 0cd405f346b6 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 0cd405f346b6 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 0cd405f346b6 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 0cd405f346b6 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 0cd405f346b6 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 0cd405f346b6 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 0cd405f346b6 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
-stmt 0cd405f346b6 | constrained-scan | events | x1 | via carrying_reading,demand_reach,gap,remand
+stmt 0cd405f346b6 | constrained-scan | events | x1 | via demand_reach,gap,remand
 stmt 0cd405f346b6 | constrained-scan | mint | x2 | via gap_grade
 stmt 0cd405f346b6 | constrained-scan | motion_rule_docket | x1 | via closure_act
 stmt 0cd405f346b6 | constrained-scan | motion_rule_docket | x1 | via remand
@@ -39,10 +41,11 @@ stmt 0cd405f346b6 | constrained-scan | motion_rule_position | x1 | via remand
 stmt 0cd405f346b6 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt 2da1ab83b42d | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 2da1ab83b42d | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 2da1ab83b42d | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 2da1ab83b42d | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 2da1ab83b42d | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 2da1ab83b42d | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 2da1ab83b42d | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 2da1ab83b42d | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 2da1ab83b42d | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 2da1ab83b42d | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 2da1ab83b42d | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -53,19 +56,21 @@ stmt 2da1ab83b42d | constrained-scan | motion_rule_position | x1 | via remand
 stmt 2da1ab83b42d | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt 3230a8fd0efc | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 3230a8fd0efc | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 3230a8fd0efc | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 3230a8fd0efc | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 3230a8fd0efc | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 stmt 3230a8fd0efc | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 3230a8fd0efc | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 3230a8fd0efc | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 3230a8fd0efc | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 3230a8fd0efc | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 3230a8fd0efc | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 33a3c31ecc0d | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 33a3c31ecc0d | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 33a3c31ecc0d | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 33a3c31ecc0d | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 33a3c31ecc0d | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 33a3c31ecc0d | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 33a3c31ecc0d | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 33a3c31ecc0d | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 33a3c31ecc0d | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 33a3c31ecc0d | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 33a3c31ecc0d | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -76,10 +81,11 @@ stmt 33a3c31ecc0d | constrained-scan | motion_rule_position | x1 | via remand
 stmt 33a3c31ecc0d | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt 4034a172bb4d | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 4034a172bb4d | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 4034a172bb4d | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 4034a172bb4d | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 4034a172bb4d | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 4034a172bb4d | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 4034a172bb4d | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 4034a172bb4d | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 4034a172bb4d | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 4034a172bb4d | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 4034a172bb4d | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -90,10 +96,11 @@ stmt 4034a172bb4d | constrained-scan | motion_rule_position | x1 | via remand
 stmt 4034a172bb4d | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt 48fe230e326a | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 48fe230e326a | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 48fe230e326a | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 48fe230e326a | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 48fe230e326a | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 48fe230e326a | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 48fe230e326a | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 48fe230e326a | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 48fe230e326a | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 48fe230e326a | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 48fe230e326a | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -104,11 +111,12 @@ stmt 48fe230e326a | constrained-scan | motion_rule_position | x1 | via remand
 stmt 48fe230e326a | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt 4ebc058246d8 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 4ebc058246d8 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 4ebc058246d8 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 4ebc058246d8 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 4ebc058246d8 | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 stmt 4ebc058246d8 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 4ebc058246d8 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 4ebc058246d8 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 4ebc058246d8 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 4ebc058246d8 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 4ebc058246d8 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 4ebc058246d8 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -119,10 +127,11 @@ stmt 4ebc058246d8 | constrained-scan | motion_rule_position | x1 | via remand
 stmt 4ebc058246d8 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt 5092371cdcdd | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 5092371cdcdd | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 5092371cdcdd | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 5092371cdcdd | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 5092371cdcdd | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 5092371cdcdd | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 5092371cdcdd | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 5092371cdcdd | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 5092371cdcdd | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 5092371cdcdd | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 5092371cdcdd | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -144,10 +153,11 @@ stmt 63e7fe8cf2f7 | constrained-scan | motion_rule_docket | x1 | via closure_act
 stmt 68044d32f65b | automatic-index | x (event_id=?) | x1 | via change
 stmt 7a670fb0bc25 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 7a670fb0bc25 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 7a670fb0bc25 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 7a670fb0bc25 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 7a670fb0bc25 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 7a670fb0bc25 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 7a670fb0bc25 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 7a670fb0bc25 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 7a670fb0bc25 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 7a670fb0bc25 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 7a670fb0bc25 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -156,27 +166,13 @@ stmt 7a670fb0bc25 | constrained-scan | motion_rule_docket | x1 | via closure_act
 stmt 7a670fb0bc25 | constrained-scan | motion_rule_docket | x1 | via remand
 stmt 7a670fb0bc25 | constrained-scan | motion_rule_position | x1 | via remand
 stmt 7a670fb0bc25 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
-stmt 82cc4d12574a | automatic-index | answers_retired (gap_id=?) | x1 | via gap
-stmt 82cc4d12574a | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
-stmt 82cc4d12574a | automatic-index | evidence_met (gap_id=?) | x1 | via gap
-stmt 82cc4d12574a | automatic-index | gap_grade (minted_event=?) | x1 | via gap
-stmt 82cc4d12574a | automatic-index | latest_check (anchor=? | x1 | via gap
-stmt 82cc4d12574a | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 82cc4d12574a | automatic-index | reach (anchor=?) | x2 | via gap
-stmt 82cc4d12574a | automatic-index | superseded (gap_id=?) | x1 | via gap
-stmt 82cc4d12574a | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
-stmt 82cc4d12574a | constrained-scan | c(close|closure) | x1 | via closure_act,gap
-stmt 82cc4d12574a | constrained-scan | mint | x2 | via gap_grade
-stmt 82cc4d12574a | constrained-scan | motion_rule_docket | x1 | via closure_act
-stmt 82cc4d12574a | constrained-scan | motion_rule_docket | x1 | via remand
-stmt 82cc4d12574a | constrained-scan | motion_rule_position | x1 | via remand
-stmt 82cc4d12574a | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt 95300ff5b28a | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt 95300ff5b28a | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt 95300ff5b28a | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt 95300ff5b28a | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt 95300ff5b28a | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt 95300ff5b28a | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt 95300ff5b28a | automatic-index | reach (anchor=?) | x2 | via gap
+stmt 95300ff5b28a | automatic-index | reach (anchor=?) | x1 | via gap
 stmt 95300ff5b28a | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt 95300ff5b28a | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt 95300ff5b28a | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -187,10 +183,11 @@ stmt 95300ff5b28a | constrained-scan | motion_rule_position | x1 | via remand
 stmt 95300ff5b28a | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt a2cf5c4411fe | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt a2cf5c4411fe | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt a2cf5c4411fe | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt a2cf5c4411fe | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt a2cf5c4411fe | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt a2cf5c4411fe | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt a2cf5c4411fe | automatic-index | reach (anchor=?) | x2 | via gap
+stmt a2cf5c4411fe | automatic-index | reach (anchor=?) | x1 | via gap
 stmt a2cf5c4411fe | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt a2cf5c4411fe | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt a2cf5c4411fe | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -201,10 +198,11 @@ stmt a2cf5c4411fe | constrained-scan | motion_rule_position | x1 | via remand
 stmt a2cf5c4411fe | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt a9ee89157651 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt a9ee89157651 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt a9ee89157651 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt a9ee89157651 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt a9ee89157651 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt a9ee89157651 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt a9ee89157651 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt a9ee89157651 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt a9ee89157651 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt a9ee89157651 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt a9ee89157651 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -222,10 +220,11 @@ stmt afa3d2ec318a | correlated-scan | report_op | x1 | via report_op
 stmt afa3d2ec318a | correlated-scan | report_part | x1 | via report_op
 stmt b3cbd1fb249f | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt b3cbd1fb249f | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt b3cbd1fb249f | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt b3cbd1fb249f | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt b3cbd1fb249f | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt b3cbd1fb249f | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt b3cbd1fb249f | automatic-index | reach (anchor=?) | x2 | via gap
+stmt b3cbd1fb249f | automatic-index | reach (anchor=?) | x1 | via gap
 stmt b3cbd1fb249f | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt b3cbd1fb249f | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt b3cbd1fb249f | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -236,11 +235,12 @@ stmt b3cbd1fb249f | constrained-scan | motion_rule_position | x1 | via remand
 stmt b3cbd1fb249f | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt b86463934924 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt b86463934924 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt b86463934924 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt b86463934924 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt b86463934924 | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 stmt b86463934924 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt b86463934924 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt b86463934924 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt b86463934924 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt b86463934924 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt b86463934924 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt b86463934924 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -251,10 +251,11 @@ stmt b86463934924 | constrained-scan | motion_rule_position | x1 | via remand
 stmt b86463934924 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt ba2e62bd0528 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt ba2e62bd0528 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt ba2e62bd0528 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt ba2e62bd0528 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt ba2e62bd0528 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt ba2e62bd0528 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt ba2e62bd0528 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt ba2e62bd0528 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt ba2e62bd0528 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt ba2e62bd0528 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt ba2e62bd0528 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -265,20 +266,22 @@ stmt ba2e62bd0528 | constrained-scan | motion_rule_position | x1 | via remand
 stmt ba2e62bd0528 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt c8cc0dd5e50a | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt c8cc0dd5e50a | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt c8cc0dd5e50a | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt c8cc0dd5e50a | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt c8cc0dd5e50a | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 stmt c8cc0dd5e50a | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt c8cc0dd5e50a | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt c8cc0dd5e50a | automatic-index | reach (anchor=?) | x2 | via gap
+stmt c8cc0dd5e50a | automatic-index | reach (anchor=?) | x1 | via gap
 stmt c8cc0dd5e50a | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt c8cc0dd5e50a | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt d1e7bd5ef2f7 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt d1e7bd5ef2f7 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt d1e7bd5ef2f7 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt d1e7bd5ef2f7 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt d1e7bd5ef2f7 | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 stmt d1e7bd5ef2f7 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt d1e7bd5ef2f7 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt d1e7bd5ef2f7 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt d1e7bd5ef2f7 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt d1e7bd5ef2f7 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt d1e7bd5ef2f7 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt d1e7bd5ef2f7 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -290,11 +293,12 @@ stmt d1e7bd5ef2f7 | constrained-scan | motion_rule_position | x1 | via remand
 stmt d1e7bd5ef2f7 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt d8f359712b4d | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt d8f359712b4d | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt d8f359712b4d | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt d8f359712b4d | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt d8f359712b4d | automatic-index | graded (minted_event=?) | x1 | via gap_grade
 stmt d8f359712b4d | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt d8f359712b4d | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt d8f359712b4d | automatic-index | reach (anchor=?) | x2 | via gap
+stmt d8f359712b4d | automatic-index | reach (anchor=?) | x1 | via gap
 stmt d8f359712b4d | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt d8f359712b4d | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt d8f359712b4d | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -305,10 +309,11 @@ stmt d8f359712b4d | constrained-scan | motion_rule_position | x1 | via remand
 stmt d8f359712b4d | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt d9743db704d9 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt d9743db704d9 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt d9743db704d9 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt d9743db704d9 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt d9743db704d9 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt d9743db704d9 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt d9743db704d9 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt d9743db704d9 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt d9743db704d9 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt d9743db704d9 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt d9743db704d9 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -317,45 +322,34 @@ stmt d9743db704d9 | constrained-scan | motion_rule_docket | x1 | via closure_act
 stmt d9743db704d9 | constrained-scan | motion_rule_docket | x1 | via remand
 stmt d9743db704d9 | constrained-scan | motion_rule_position | x1 | via remand
 stmt d9743db704d9 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
-stmt e232412c2186 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
-stmt e232412c2186 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
-stmt e232412c2186 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
-stmt e232412c2186 | automatic-index | latest_check (anchor=? | x1 | via gap
-stmt e232412c2186 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt e232412c2186 | automatic-index | reach (anchor=?) | x2 | via gap
-stmt e232412c2186 | automatic-index | superseded (gap_id=?) | x1 | via gap
-stmt e232412c2186 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
-stmt e232412c2186 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
-stmt e232412c2186 | constrained-scan | mint | x2 | via gap_grade
-stmt e232412c2186 | constrained-scan | motion_rule_docket | x1 | via closure_act
-stmt e232412c2186 | constrained-scan | motion_rule_docket | x1 | via remand
-stmt e232412c2186 | constrained-scan | motion_rule_position | x1 | via remand
-stmt e232412c2186 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt e5a94815fabd | constrained-scan | blue_edit | x1 | via change
 stmt ed01111b482f | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt ed01111b482f | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt ed01111b482f | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt ed01111b482f | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt ed01111b482f | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 stmt ed01111b482f | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt ed01111b482f | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt ed01111b482f | automatic-index | reach (anchor=?) | x2 | via gap
+stmt ed01111b482f | automatic-index | reach (anchor=?) | x1 | via gap
 stmt ed01111b482f | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt ed01111b482f | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt f2743f0cdeaa | automatic-index | answers_retired (gap_id=?) | x1 | via board_counts
 stmt f2743f0cdeaa | automatic-index | c(close|closure) (gap_id=?) | x1 | via board_counts
+stmt f2743f0cdeaa | automatic-index | evidence (anchor_id=?) | x1 | via board_counts
 stmt f2743f0cdeaa | automatic-index | evidence_met (gap_id=?) | x1 | via board_counts
 stmt f2743f0cdeaa | automatic-index | gap_grade (minted_event=?) | x1 | via board_counts
 stmt f2743f0cdeaa | automatic-index | latest_check (anchor=? | x1 | via board_counts
 stmt f2743f0cdeaa | automatic-index | latest_remand (gap_id=?) | x1 | via board_counts
-stmt f2743f0cdeaa | automatic-index | reach (anchor=?) | x2 | via board_counts
+stmt f2743f0cdeaa | automatic-index | reach (anchor=?) | x1 | via board_counts
 stmt f2743f0cdeaa | automatic-index | superseded (gap_id=?) | x1 | via board_counts
 stmt f2743f0cdeaa | automatic-index | unruled_docket (gap_id=?) | x1 | via board_counts
 stmt f392fa27b5f3 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt f392fa27b5f3 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt f392fa27b5f3 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt f392fa27b5f3 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt f392fa27b5f3 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt f392fa27b5f3 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt f392fa27b5f3 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt f392fa27b5f3 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt f392fa27b5f3 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt f392fa27b5f3 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 stmt f392fa27b5f3 | constrained-scan | c(close|closure) | x1 | via closure_act,gap
@@ -366,20 +360,22 @@ stmt f392fa27b5f3 | constrained-scan | motion_rule_position | x1 | via remand
 stmt f392fa27b5f3 | constrained-scan | x(cite|computation|reproduce|verify) | x2 | via evidence_anchor,gap
 stmt fdb2f48a3424 | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 stmt fdb2f48a3424 | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+stmt fdb2f48a3424 | automatic-index | evidence (anchor_id=?) | x1 | via gap
 stmt fdb2f48a3424 | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 stmt fdb2f48a3424 | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 stmt fdb2f48a3424 | automatic-index | latest_check (anchor=? | x1 | via gap
 stmt fdb2f48a3424 | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-stmt fdb2f48a3424 | automatic-index | reach (anchor=?) | x2 | via gap
+stmt fdb2f48a3424 | automatic-index | reach (anchor=?) | x1 | via gap
 stmt fdb2f48a3424 | automatic-index | superseded (gap_id=?) | x1 | via gap
 stmt fdb2f48a3424 | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 view board_counts | automatic-index | answers_retired (gap_id=?) | x1 | via board_counts
 view board_counts | automatic-index | c(close|closure) (gap_id=?) | x1 | via board_counts
+view board_counts | automatic-index | evidence (anchor_id=?) | x1 | via board_counts
 view board_counts | automatic-index | evidence_met (gap_id=?) | x1 | via board_counts
 view board_counts | automatic-index | gap_grade (minted_event=?) | x1 | via board_counts
 view board_counts | automatic-index | latest_check (anchor=? | x1 | via board_counts
 view board_counts | automatic-index | latest_remand (gap_id=?) | x1 | via board_counts
-view board_counts | automatic-index | reach (anchor=?) | x2 | via board_counts
+view board_counts | automatic-index | reach (anchor=?) | x1 | via board_counts
 view board_counts | automatic-index | superseded (gap_id=?) | x1 | via board_counts
 view board_counts | automatic-index | unruled_docket (gap_id=?) | x1 | via board_counts
 view convergence_at | automatic-index | board (seq=?) | x1 | via convergence_at
@@ -387,11 +383,12 @@ view convergence_at | automatic-index | c(close|closed) (gap_id=?) | x1 | via co
 view convergence_at | automatic-index | held (minted_event=?) | x1 | via convergence_at
 view gap | automatic-index | answers_retired (gap_id=?) | x1 | via gap
 view gap | automatic-index | c(close|closure) (gap_id=?) | x1 | via closure_act,gap
+view gap | automatic-index | evidence (anchor_id=?) | x1 | via gap
 view gap | automatic-index | evidence_met (gap_id=?) | x1 | via gap
 view gap | automatic-index | gap_grade (minted_event=?) | x1 | via gap
 view gap | automatic-index | latest_check (anchor=? | x1 | via gap
 view gap | automatic-index | latest_remand (gap_id=?) | x1 | via gap
-view gap | automatic-index | reach (anchor=?) | x2 | via gap
+view gap | automatic-index | reach (anchor=?) | x1 | via gap
 view gap | automatic-index | superseded (gap_id=?) | x1 | via gap
 view gap | automatic-index | unruled_docket (gap_id=?) | x1 | via gap
 view inquiry_state | correlated-scan | inquiry_check [min/max] | x1 | via inquiry_state

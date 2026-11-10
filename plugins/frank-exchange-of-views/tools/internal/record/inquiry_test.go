@@ -348,7 +348,7 @@ func TestARetiredOwnerStillOwesTheCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	ids := win.IDs(evs)
-	owes := lensOwesOf(evs, ids, win, nil, owedBlockersOf(evs, ids, win, nil))
+	owes := lensOwesOf(evs, ids, win, nil, owedBlockersOf(evs, ids, win, nil, nil))
 	if !slices.Contains(owes[inquiryOwner], string(BlockerUncheckedInquiry)+" Q1") {
 		t.Errorf("the owner of an unchecked inquiry owes %q — the check is its debt whatever its quiet sittings", owes[inquiryOwner])
 	}

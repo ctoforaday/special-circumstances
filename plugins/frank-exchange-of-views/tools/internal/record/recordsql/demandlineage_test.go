@@ -100,8 +100,8 @@ func (r *demandRecord) demandLineageOf(gap string) string {
 // archive sweep (migrate) holds demand_lineage and demand_reach equal to the oracle on every archived run,
 // and no archived run carries a demand from an ancestor; these fixtures do: a chain of same-kind
 // supersessions, a second mint naming an ancestor already named, a supersession across check kinds, a
-// non-evidence chain, an ancestor listed twice by one mint, a mint naming itself, and a reading
-// carried by an ancestor before and after its heir's mint.
+// non-evidence chain, an ancestor listed twice by one mint, a mint naming itself, and readings of
+// the anchor an ancestor is about before and after its heir's mint.
 func TestTheStoredDemandLineageIsTheRecursiveViews(t *testing.T) {
 	r := newDemandRecord(t)
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
@@ -140,15 +140,15 @@ func TestTheStoredDemandLineageIsTheRecursiveViews(t *testing.T) {
 			t.Errorf("gap %s carries the demand from %q, want %q", gap, got, want)
 		}
 	}
-	// A reading carried by the ancestor reaches the heir from the heir's mint, whether the reading came
-	// before the heir's mint (reader's) or after it (other's).
+	// The anchor the ancestor is about reaches the heir from the heir's mint, checked by the ancestor's
+	// minter.
 	var n int
 	if err := r.db.QueryRow(`SELECT count(*) FROM "demand_reach" d JOIN "mint" m ON m."gap_id" = d."gap_id"
-	    WHERE d."gap_id" = 'C' AND d."from_gap" = 'A' AND d."via" = 'reading' AND d."reached" = m."event_id"`).Scan(&n); err != nil {
+	    WHERE d."gap_id" = 'C' AND d."from_gap" = 'A' AND d."anchor" = 'C1' AND d."seat" = ? AND d."reached" = m."event_id"`, reader).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if n != 2 {
-		t.Errorf("C reaches %d of A's two carried readings from its own mint, want 2", n)
+	if n != 1 {
+		t.Errorf("C reaches A's anchor %d time(s) from its own mint, want 1", n)
 	}
 }
 

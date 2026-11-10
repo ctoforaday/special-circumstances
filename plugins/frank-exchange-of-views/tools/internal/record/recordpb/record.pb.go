@@ -4518,18 +4518,8 @@ type Verify struct {
 	// it is not_cached. Their reader: `show evidence`'s verification rows.
 	CopySubstitution *CopySubstitution `protobuf:"varint,18,opt,name=copy_substitution,json=copySubstitution,proto3,enum=feov.record.v1.CopySubstitution,oneof" json:"copy_substitution,omitempty"`
 	CopyUrl          *string           `protobuf:"bytes,19,opt,name=copy_url,json=copyUrl,proto3,oneof" json:"copy_url,omitempty"`
-	// THE GAP THAT CARRIES THIS READING AGAINST ITS SENTENCE, set by the tool on a reading that mints
-	// (record.ReadingGapClasses non-empty) and refused on any other: the gap the reading's act
-	// minted, or the open gap of the reading's class on that sentence that refused the mint.
-	// carrier_minted says which — true when this reading's own act minted it, false when it names a
-	// standing gap. No flag sets either. Several readings may carry one gap. Their readers: the
-	// failed check (the found-against check's carrier), the mint budget (a gap a reading of a
-	// citation minted takes no mint), the reading's result, `show evidence`'s verification row and docket.md's
-	// source line. Not `gap_id`: the idempotency key matches a field by that name first.
-	CarriedBy     *string `protobuf:"bytes,21,opt,name=carried_by,json=carriedBy,proto3,oneof" json:"carried_by,omitempty"`
-	CarrierMinted *bool   `protobuf:"varint,22,opt,name=carrier_minted,json=carrierMinted,proto3,oneof" json:"carrier_minted,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Verify) Reset() {
@@ -4665,20 +4655,6 @@ func (x *Verify) GetCopyUrl() string {
 		return *x.CopyUrl
 	}
 	return ""
-}
-
-func (x *Verify) GetCarriedBy() string {
-	if x != nil && x.CarriedBy != nil {
-		return *x.CarriedBy
-	}
-	return ""
-}
-
-func (x *Verify) GetCarrierMinted() bool {
-	if x != nil && x.CarrierMinted != nil {
-		return *x.CarrierMinted
-	}
-	return false
 }
 
 // Computation is a program blue ran twice on a bundle, and what it wrote — the citation model with
@@ -7529,22 +7505,6 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 	},
 	{
 		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
-		ExtensionType: ([]GapClass)(nil),
-		Field:         50014,
-		Name:          "feov.record.v1.gap_classes",
-		Tag:           "varint,50014,rep,packed,name=gap_classes,enum=feov.record.v1.GapClass",
-		Filename:      "record.proto",
-	},
-	{
-		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
-		ExtensionType: ([]GapClass)(nil),
-		Field:         50015,
-		Name:          "feov.record.v1.found_source_gap_classes",
-		Tag:           "varint,50015,rep,packed,name=found_source_gap_classes,enum=feov.record.v1.GapClass",
-		Filename:      "record.proto",
-	},
-	{
-		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
 		ExtensionType: (*bool)(nil),
 		Field:         50016,
 		Name:          "feov.record.v1.finds_against",
@@ -7663,23 +7623,6 @@ var (
 	E_Neighbor = &file_record_proto_extTypes[9]
 	// optional string distinguisher = 50013;
 	E_Distinguisher = &file_record_proto_extTypes[10]
-	// gap_classes ARE THE GAP CLASSES A READING OF A CITATION WITH THIS OUTCOME MAY MINT ITS GAP IN,
-	// declared on the SourceOutcome values that find against a sentence (`refutes`, `absent`) and
-	// absent on every other. It says which classes an OUTCOME admits, never that a reading mints: a
-	// reading of a copy that is not the work reads nothing, whatever its outcome (record.FindsAgainst,
-	// record.ReadingGapClasses). An option, not a vocabulary facet: it is a list, and absent is its
-	// answer on a value that admits no gap.
-	//
-	// repeated feov.record.v1.GapClass gap_classes = 50014;
-	E_GapClasses = &file_record_proto_extTypes[11]
-	// found_source_gap_classes ARE THE GAP CLASSES A READING OF A SOURCE THE LENS FOUND (a Verify with
-	// no anchor) WITH THIS OUTCOME MAY MINT ITS GAP IN. A backing outcome admits `unsourced_claim` —
-	// the source backs the sentence, and the defect is that the report cites nothing for it — and
-	// `refutes` admits `claim_contradicts_source`; `absent` and `unreachable` admit none, so such a
-	// reading is recorded and mints nothing. Read through record.ReadingGapClasses, beside gap_classes.
-	//
-	// repeated feov.record.v1.GapClass found_source_gap_classes = 50015;
-	E_FoundSourceGapClasses = &file_record_proto_extTypes[12]
 	// finds_against IS WHETHER A READING WITH THIS OUTCOME FINDS THE SOURCE AGAINST THE SENTENCE: the
 	// source was read and says otherwise than the sentence, or nothing of it. It is the outcome the
 	// anchor ledger reads as a reading against the sentence (record.FindsAgainst, on a copy that read
@@ -7689,13 +7632,13 @@ var (
 	// facet: a value that does not find against declares nothing.
 	//
 	// optional bool finds_against = 50016;
-	E_FindsAgainst = &file_record_proto_extTypes[13]
+	E_FindsAgainst = &file_record_proto_extTypes[11]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
 	// repeated feov.record.v1.SqlCheck check = 50002;
-	E_Check = &file_record_proto_extTypes[14]
+	E_Check = &file_record_proto_extTypes[12]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -8039,7 +7982,7 @@ const file_record_proto_rawDesc = "" +
 	"\t_copy_urlB\n" +
 	"\n" +
 	"\b_answersJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vR\x05claimR\x10source_text_read\"\xfb\r\n" +
+	"\x10\vR\x05claimR\x10source_text_read\"\x9e\r\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
@@ -8060,10 +8003,7 @@ const file_record_proto_rawDesc = "" +
 	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\vR\x12sourceCompleteness\x88\x01\x01\x12E\n" +
 	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\fR\x06bridge\x88\x01\x01\x12X\n" +
 	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\rR\x10copySubstitution\x88\x01\x01\x12$\n" +
-	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\acopyUrl\x88\x01\x01\x125\n" +
-	"\n" +
-	"carried_by\x18\x15 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x0fR\tcarriedBy\x88\x01\x01\x12*\n" +
-	"\x0ecarrier_minted\x18\x16 \x01(\bH\x10R\rcarrierMinted\x88\x01\x01B\b\n" +
+	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\acopyUrl\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
@@ -8079,9 +8019,8 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\t\n" +
 	"\a_bridgeB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlB\r\n" +
-	"\v_carried_byB\x11\n" +
-	"\x0f_carrier_mintedJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\v\x10\fJ\x04\b\x0f\x10\x10J\x04\b\x14\x10\x15R\treferenceR\vindependentR\x05labelR\vwork_statusR\x06sha256\"\xcd\t\n" +
+	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\v\x10\fJ\x04\b\x0f\x10\x10J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17R\treferenceR\vindependentR\x05labelR\vwork_statusR\x06sha256R\n" +
+	"carried_byR\x0ecarrier_minted\"\xcd\t\n" +
 	"\vComputation\x12*\n" +
 	"\x0ecomputation_id\x18\x01 \x01(\tH\x00R\rcomputationId\x88\x01\x01\x12 \n" +
 	"\x03key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\x03key\x88\x01\x01\x12\"\n" +
@@ -8531,14 +8470,14 @@ const file_record_proto_rawDesc = "" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x9c\x04\n" +
 	"\x14DISPOSITION_REMANDED\x10\a\x1a\x81\x04\x8a\xb5\x18\xf8\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xb3\x10\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\x93\x10\n" +
 	"\rSourceOutcome\x12\x1e\n" +
-	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xa5\x03\n" +
-	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\x87\x03\x8a\xb5\x18\xfd\x02you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\xc9\x02\n" +
-	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1a\x9f\x02\x8a\xb5\x18\x95\x02it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\x99\x02\n" +
-	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1a\xff\x01\x8a\xb5\x18\xf5\x01it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\xb6\x01\n" +
-	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\x99\x01\x8a\xb5\x18\x85\x01you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act\xf2\xb5\x18\x02 \x1a\xfa\xb5\x18\x01 \x80\xb6\x18\x01\x12\xed\x02\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xd1\x02\x8a\xb5\x18\xc2\x02you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing\xf2\xb5\x18\x02\x19\x1a\x80\xb6\x18\x01\x12\xc8\x03\n" +
+	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xa0\x03\n" +
+	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\x82\x03\x8a\xb5\x18\xfd\x02you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\x12\xc4\x02\n" +
+	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1a\x9a\x02\x8a\xb5\x18\x95\x02it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\x12\x94\x02\n" +
+	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1a\xfa\x01\x8a\xb5\x18\xf5\x01it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\x12\xab\x01\n" +
+	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\x8e\x01\x8a\xb5\x18\x85\x01you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act\x80\xb6\x18\x01\x12\xe7\x02\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xcb\x02\x8a\xb5\x18\xc2\x02you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing\x80\xb6\x18\x01\x12\xc8\x03\n" +
 	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xa7\x03\x8a\xb5\x18\xa2\x03you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read*\xc6\x04\n" +
 	"\n" +
 	"BridgeKind\x12\x1b\n" +
@@ -8675,10 +8614,7 @@ const file_record_proto_rawDesc = "" +
 	"\x04mass\x12!.google.protobuf.EnumValueOptions\x18Ն\x03 \x01(\x01R\x04mass\x88\x01\x01:p\n" +
 	"\x10material_default\x12!.google.protobuf.EnumValueOptions\x18ۆ\x03 \x01(\x0e2\x1d.feov.record.v1.ClassMaterialR\x0fmaterialDefault\x88\x01\x01:B\n" +
 	"\bneighbor\x12!.google.protobuf.EnumValueOptions\x18܆\x03 \x01(\tR\bneighbor\x88\x01\x01:L\n" +
-	"\rdistinguisher\x12!.google.protobuf.EnumValueOptions\x18݆\x03 \x01(\tR\rdistinguisher\x88\x01\x01:^\n" +
-	"\vgap_classes\x12!.google.protobuf.EnumValueOptions\x18ކ\x03 \x03(\x0e2\x18.feov.record.v1.GapClassR\n" +
-	"gapClasses:v\n" +
-	"\x18found_source_gap_classes\x12!.google.protobuf.EnumValueOptions\x18߆\x03 \x03(\x0e2\x18.feov.record.v1.GapClassR\x15foundSourceGapClasses:K\n" +
+	"\rdistinguisher\x12!.google.protobuf.EnumValueOptions\x18݆\x03 \x01(\tR\rdistinguisher\x88\x01\x01:K\n" +
 	"\rfinds_against\x12!.google.protobuf.EnumValueOptions\x18\xe0\x86\x03 \x01(\bR\ffindsAgainst\x88\x01\x01:Q\n" +
 	"\x05check\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x03(\v2\x18.feov.record.v1.SqlCheckR\x05checkBlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
 
@@ -8891,19 +8827,15 @@ var file_record_proto_depIdxs = []int32{
 	81,  // 106: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
 	81,  // 107: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
 	81,  // 108: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	81,  // 109: feov.record.v1.gap_classes:extendee -> google.protobuf.EnumValueOptions
-	81,  // 110: feov.record.v1.found_source_gap_classes:extendee -> google.protobuf.EnumValueOptions
-	81,  // 111: feov.record.v1.finds_against:extendee -> google.protobuf.EnumValueOptions
-	82,  // 112: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	31,  // 113: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	5,   // 114: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	6,   // 115: feov.record.v1.gap_classes:type_name -> feov.record.v1.GapClass
-	6,   // 116: feov.record.v1.found_source_gap_classes:type_name -> feov.record.v1.GapClass
-	30,  // 117: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	118, // [118:118] is the sub-list for method output_type
-	118, // [118:118] is the sub-list for method input_type
-	113, // [113:118] is the sub-list for extension type_name
-	98,  // [98:113] is the sub-list for extension extendee
+	81,  // 109: feov.record.v1.finds_against:extendee -> google.protobuf.EnumValueOptions
+	82,  // 110: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	31,  // 111: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	5,   // 112: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	30,  // 113: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	114, // [114:114] is the sub-list for method output_type
+	114, // [114:114] is the sub-list for method input_type
+	111, // [111:114] is the sub-list for extension type_name
+	98,  // [98:111] is the sub-list for extension extendee
 	0,   // [0:98] is the sub-list for field type_name
 }
 
@@ -9014,7 +8946,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      30,
 			NumMessages:   50,
-			NumExtensions: 15,
+			NumExtensions: 13,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

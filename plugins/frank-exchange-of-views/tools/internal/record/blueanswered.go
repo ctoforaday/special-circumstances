@@ -141,13 +141,8 @@ func (a blueAnswer) placedNoun() string {
 
 // how is what a reaching retire reached gap g through, as a work list says it.
 func (r reaching) how(g string) string {
-	switch {
-	case r.from != "" && r.from != g && r.carried:
-		return "whose reading " + r.from + " carries, " + g + " taking " + r.from + "'s demand on"
-	case r.from != "" && r.from != g:
+	if r.from != "" && r.from != g {
 		return "which " + r.from + " is about, " + g + " taking " + r.from + "'s demand on"
-	case r.carried:
-		return "whose reading " + g + " carries"
 	}
 	return "which " + g + " is about"
 }

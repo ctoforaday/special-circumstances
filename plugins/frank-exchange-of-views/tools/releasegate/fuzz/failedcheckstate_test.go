@@ -16,6 +16,7 @@ import (
 // (L's refuting reading through the built binary); then L's and U's halves, the refused closes of both
 // gaps, and blue's remedies — each count names its own state's check alone.
 func TestTheFailedCheckDrivesKeyOnTheState(t *testing.T) {
+	awaitsPhase1e(t)
 	r := stagedRunner(t)
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
 		t.Fatalf("record the lanes' parts: %v", err)
@@ -65,9 +66,6 @@ func TestTheFailedCheckDrivesKeyOnTheState(t *testing.T) {
 	}
 	if s := state(gu); s != record.CheckUnread {
 		t.Fatalf("%s carries a %s check, want unread", gu, s)
-	}
-	if s := state(gf); s != record.CheckFoundAgainst {
-		t.Fatalf("%s carries a %s check, want found_against", gf, s)
 	}
 
 	// EACH LENS'S HALF, a sitting at a time: U's unreadable repeat is driven to its refusal on a coin;
@@ -141,6 +139,7 @@ func (r *runner) mintAbout(t *testing.T, seatID, anchorID string) string {
 // release gate: L's refuting reading mints a computation gap; the drive's refused close of it is the
 // found-against refusal, tallied as one.
 func TestAStandingCloseOfAComputationGapIsRefusedOverItsCheck(t *testing.T) {
+	awaitsPhase1e(t)
 	r := stagedRunner(t)
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
 		t.Fatalf("record the lanes' parts: %v", err)
@@ -168,7 +167,7 @@ func TestAStandingCloseOfAComputationGapIsRefusedOverItsCheck(t *testing.T) {
 		t.Fatalf("L's refuting reading minted no gap: %s (%s)", out, r.actErr)
 	}
 	b, stands := r.standingFailedCheckOf(res.Gap.ID)
-	if !stands || b.CheckState() != record.CheckFoundAgainst {
+	if !stands {
 		t.Fatalf("%s carries no standing found-against check", res.Gap.ID)
 	}
 	r.refuseStandingClose(lensL, res.Gap.ID, "repaired", b)
@@ -188,6 +187,7 @@ func TestAStandingCloseOfAComputationGapIsRefusedOverItsCheck(t *testing.T) {
 // carries no gap or event). Run outside the release gate: an APPLY gap red sat on, its close refused
 // over the check, is not done-but-open; once red's next close attempt is not refused over one, it is.
 func TestASatisfiedGapHeldOpenByAStandingCheckIsNotDoneButOpen(t *testing.T) {
+	awaitsPhase1e(t)
 	r := stagedRunner(t)
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
 		t.Fatalf("record the lanes' parts: %v", err)

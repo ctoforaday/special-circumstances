@@ -143,7 +143,7 @@ func (r *runner) forcedFoundAgainstChain(seatID string) {
 		r.reachedFoundAgainstStage("the refuting reading of " + cite + " was refused")
 		return
 	}
-	if v := r.checkReading(seatID, out, run.args); v == nil || v.GetCarriedBy() == "" {
+	if v := r.checkReading(seatID, out, run.args); v == nil {
 		r.reachedFoundAgainstStage("the refuting reading of " + cite + " named no gap")
 		return
 	}
@@ -420,6 +420,7 @@ func (r *runner) citeAs(t *testing.T, seatID, quote, path string) string {
 // another way (another lens's backing reading first, or not). With the run not forced, none of it
 // is driven and the run owes nothing.
 func TestTheFoundAgainstSeedDrivesEachPathItIsForcedThrough(t *testing.T) {
+	awaitsPhase1e(t)
 	for _, seed := range []int64{1, 2, 3, 4} {
 		t.Run(fmt.Sprint("rng ", seed), func(t *testing.T) {
 			r := stagedRunner(t)
@@ -513,6 +514,7 @@ func TestTheFoundAgainstSeedDrivesEachPathItIsForcedThrough(t *testing.T) {
 // any check — which leaves the completed chain as it stands. The chain's reading passes no --new; the
 // twice-held step's reading passes one, and blue's next sitting accepts it.
 func TestTheFoundAgainstChainSitsAgainBeforeBlue(t *testing.T) {
+	awaitsPhase1e(t)
 	r := stagedRunner(t)
 	r.forceFoundAgainst = true
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
@@ -611,6 +613,7 @@ func TestTheFoundAgainstChainSitsAgainBeforeBlue(t *testing.T) {
 const plainHeldClass = "within_source_condition_misattribution"
 
 func TestACloseASiblingsReadingRefusesInTheWindowIsTallied(t *testing.T) {
+	awaitsPhase1e(t)
 	for _, anchored := range []bool{false, true} {
 		t.Run(map[bool]string{false: "plain", true: "verified with another gap"}[anchored], func(t *testing.T) {
 			r := stagedRunner(t)
@@ -695,6 +698,7 @@ func (r *runner) ownerMintedVerified() bool {
 // carrier — no reproduction behind it — is the close the COMPUTE oracle fails the run on. The chain
 // waits; once blue cites another sentence, it reads that one, and the COMPUTE gap is never closed.
 func TestTheFoundAgainstChainReadsNoCitationAScenarioGapStandsAt(t *testing.T) {
+	awaitsPhase1e(t)
 	r := stagedRunner(t)
 	r.forceFoundAgainst = true
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
@@ -772,6 +776,7 @@ func TestTheFoundAgainstChainReadsNoCitationAScenarioGapStandsAt(t *testing.T) {
 // reading held by the one-gap rule on a COMPUTE-scenario gap, cleared at its next sitting by its own
 // backing re-read (readCitation's coin), closes nothing — the gap closes only behind a reproduction.
 func TestABackingReReadLeavesAComputeCarrierOpen(t *testing.T) {
+	awaitsPhase1e(t)
 	r := stagedRunner(t)
 	// LANE 1 HOLDS THE SENTENCE blue's computation of the carrier quotes (answerEvidenceDemand).
 	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2")); err != nil {

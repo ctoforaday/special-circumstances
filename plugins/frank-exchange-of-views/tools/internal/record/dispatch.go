@@ -18,7 +18,7 @@ import (
 // failed check of its own, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read, edit the sentence a lens's reading finds against or retire or replace its citation — or to record a fate on an open inquiry; empty for the logic lens readied to check a settled inquiry; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a check of its that failed (a citation it read nothing of, a computation it judged unsound), or by a reading debt of its own (a source its reading found against its sentence, with no gap of that class standing — it mints the gap or reads again), or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry; empty for the logic lens readied to check a settled inquiry; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -251,12 +251,14 @@ var errNoCast = errors.New("the record holds no cast. setup writes the run's adm
 // planReads is every answer the dispatch plan takes off the record, read on one snapshot
 // (planReadsAt) and folded after it closes (foldPlan).
 type planReads struct {
-	cast    []string
-	head    int64
-	evs     []*Event
-	win     WindowIndex
-	fresh   map[string]bool
-	gaps    []openGap
+	cast  []string
+	head  int64
+	evs   []*Event
+	win   WindowIndex
+	fresh map[string]bool
+	gaps  []openGap
+	// found is every located reading (locatedReadingsAt), on the same snapshot: the reading debt's input.
+	found   []locatedReading
 	remands map[string][]remandRow
 }
 
@@ -278,6 +280,9 @@ func planReadsAt(q recordsql.Querier) (planReads, error) {
 		return r, err
 	}
 	if r.gaps, err = openGaps(q); err != nil {
+		return r, err
+	}
+	if r.found, err = locatedReadingsAt(q, r.evs, r.win); err != nil {
 		return r, err
 	}
 	r.remands, err = remandRulingsOf(q)
@@ -308,7 +313,7 @@ func foldPlan(params Params, r planReads) Plan {
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
-	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil))))
+	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), r.found)))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax: the epoch this sitting opens, and
 	// whether it is the run's last (isFinalEpoch) or the last that dispatches a lens (blueHeldOut).
@@ -539,7 +544,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// ready the run ended UNVERIFIED over the citation (the release fuzz's forced-VERIFIED seed). The
 	// owner is ready until it sits through a sitting opened after the cause, and one reason names every
 	// anchor it is readied for.
-	blockers := passBlockersOf(evs, ids, win, blockerGapsOfOpen(gaps, owed), fresh)
+	blockers := passBlockersOf(evs, ids, win, blockerGapsOfOpen(gaps, owed), fresh, r.found)
 	uncheckedFor := map[string][]string{}
 	var uncheckedOwners []string
 	for _, b := range blockers {
@@ -605,11 +610,23 @@ func foldPlan(params Params, r planReads) Plan {
 		case b.Kind == BlockerUpheldPosition && seatclass.RoleOfSeat(b.Owner) == "lens":
 			engage(b.Owner)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: the bench upheld the chair's position %s and named its area — ready, to audit it on the ruling's direction: %s", b.Owner, b.Subject, b.Detail))
+		// A READING DEBT READIES ITS LENS, once per cause (gblock, 2026-11-06): the lens whose reading
+		// finds against sits to mint the gap on it or read the subject again. The reading's own sitting
+		// never counts (it opened before the reading), so a lens that reads `refutes`, mints nothing and
+		// ends that sitting is readied at the next plan; one that then sits through a sitting opened
+		// after the reading and still leaves the debt is not readied again, is not retired (it owes),
+		// and the debt holds the PASS with the lens named. Blue is readied by the GAP, never by the debt.
+		case b.Kind == BlockerReadingDebt && seatclass.RoleOfSeat(b.Owner) == "lens":
+			if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since its reading at event %d found the source against the sentence and left the debt standing — readied once per cause, so not again", b.Owner, b.since))
+			} else {
+				engage(b.Owner)
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: %s and no gap of class %s stands on it — ready, to mint the gap or read again", b.Owner, readingDebtFact(b), recordpb.Word(readingDebtClass(b))))
+			}
 		// A FAILED CHECK READIES TWO SEATS (gblock, 2026-10-24, for the computation; 2026-10-25, for the
 		// citation): the lens whose check failed to mint its gap, until it has, and blue to remedy it —
 		// each once per cause, where blue's cause moves when the gap is minted, so blue sits with the
-		// gap's fix in hand. A FOUND-AGAINST CHECK READIES BLUE ALONE: its gap was minted by the
-		// reading, and its reader owes no mint, carried or not.
+		// gap's fix in hand.
 		case b.Kind == BlockerFailedCheck:
 			if b.owed() && seatclass.RoleOfSeat(b.Owner) == "lens" {
 				if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
@@ -1387,21 +1404,15 @@ var benchSittingFor = map[recordpb.MotionSubject]recordpb.Occasion{
 // failedCheckReadiness is the plan's reason for seat on a failed-check blocker: the lens whose unread
 // or unsound check failed, ready to mint its gap, or blue, ready to remedy the anchor — or, where it
 // has sat since the cause, that it is not readied again. Only an owed check (Blocker.owed) readies its
-// lens, so the lens arm's words are the unread and unsound states'.
+// lens.
 func failedCheckReadiness(b Blocker, seat string, satSince bool) string {
 	what, failed := "citation "+b.Subject, "read nothing of its source"
-	switch b.state {
-	case CheckUnsound:
+	if b.state == CheckUnsound {
 		what, failed = "computation "+b.Subject, "judged it unsound"
-	case CheckFoundAgainst:
-		failed = "found the source against the sentence"
 	}
 	if seat == blueRespondSeat {
 		if satSince {
 			return fmt.Sprintf("%s has sat since %s's check failed and left it standing — readied once per cause, so not again", seat, what)
-		}
-		if b.state == CheckFoundAgainst {
-			return fmt.Sprintf("%s: %s stands found against — %s's reading at event %d %s; %s", seat, what, ownerOr(b, failedChecker), b.since, failed, failedOwed(b))
 		}
 		return fmt.Sprintf("%s: %s stands on a failed check by %s — ready to remedy it: blue %s", seat, what, ownerOr(b, failedChecker), failedRemedy(b))
 	}

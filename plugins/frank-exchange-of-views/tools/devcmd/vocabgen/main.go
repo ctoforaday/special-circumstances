@@ -156,18 +156,6 @@ func annotationLiteral(a recordpb.ValueAnnotations) string {
 	if a.MaterialDefault.Declared {
 		fields = append(fields, fmt.Sprintf("MaterialDefault: DeclaredEnum{Declared: true, Value: %d}", a.MaterialDefault.Value))
 	}
-	classes := func(name string, cs []recordpb.GapClass) {
-		if cs == nil {
-			return
-		}
-		ns := make([]string, len(cs))
-		for i, c := range cs {
-			ns[i] = strconv.Itoa(int(c))
-		}
-		fields = append(fields, name+": []GapClass{"+strings.Join(ns, ", ")+"}")
-	}
-	classes("GapClasses", a.GapClasses)
-	classes("FoundSourceGapClasses", a.FoundSourceGapClasses)
 	flag("FindsAgainst", a.FindsAgainst)
 	return "{" + strings.Join(fields, ", ") + "}"
 }

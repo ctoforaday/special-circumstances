@@ -149,20 +149,10 @@ extend google.protobuf.EnumValueOptions {
   optional string neighbor = 50012;
   optional string distinguisher = 50013;
 
-  // gap_classes ARE THE GAP CLASSES A READING OF A CITATION WITH THIS OUTCOME MAY MINT ITS GAP IN,
-  // declared on the SourceOutcome values that find against a sentence (`refutes`, `absent`) and
-  // absent on every other. It says which classes an OUTCOME admits, never that a reading mints: a
-  // reading of a copy that is not the work reads nothing, whatever its outcome (record.FindsAgainst,
-  // record.ReadingGapClasses). An option, not a vocabulary facet: it is a list, and absent is its
-  // answer on a value that admits no gap.
-  repeated GapClass gap_classes = 50014;
-
-  // found_source_gap_classes ARE THE GAP CLASSES A READING OF A SOURCE THE LENS FOUND (a Verify with
-  // no anchor) WITH THIS OUTCOME MAY MINT ITS GAP IN. A backing outcome admits `unsourced_claim` —
-  // the source backs the sentence, and the defect is that the report cites nothing for it — and
-  // `refutes` admits `claim_contradicts_source`; `absent` and `unreachable` admit none, so such a
-  // reading is recorded and mints nothing. Read through record.ReadingGapClasses, beside gap_classes.
-  repeated GapClass found_source_gap_classes = 50015;
+  // 50014 and 50015 held `gap_classes` and `found_source_gap_classes`, the classes a reading with the
+  // outcome minted its gap in. A reading records and mints nothing: a gap of a class a reading
+  // defines is minted on the seat's standing reading of its subject (record.readingMintedClasses).
+  // The numbers are not reused.
 
   // finds_against IS WHETHER A READING WITH THIS OUTCOME FINDS THE SOURCE AGAINST THE SENTENCE: the
   // source was read and says otherwise than the sentence, or nothing of it. It is the outcome the
@@ -545,17 +535,13 @@ enum Disposition {
 // a verdict no field could carry, reporting PASS over an empty file on every run.
 enum SourceOutcome {
   SOURCE_OUTCOME_UNSPECIFIED = 0;
-  SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act",
-    (found_source_gap_classes) = GAP_CLASS_UNSOURCED_CLAIM];
-  SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act",
-    (found_source_gap_classes) = GAP_CLASS_UNSOURCED_CLAIM];
-  SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act",
-    (found_source_gap_classes) = GAP_CLASS_UNSOURCED_CLAIM];
+  SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act"];
+  SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act"];
+  SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act"];
   SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act",
-    (gap_classes) = GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, (gap_classes) = GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION,
-    (found_source_gap_classes) = GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, (finds_against) = true];
+    (finds_against) = true];
   SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing",
-    (gap_classes) = GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION, (gap_classes) = GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION, (finds_against) = true];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
+    (finds_against) = true];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
   SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read"];
 }
 
@@ -1449,22 +1435,14 @@ message Verify {
   optional CopySubstitution copy_substitution = 18 [(prose) = false];
   optional string copy_url = 19 [(prose) = false];
 
-  // THE GAP THAT CARRIES THIS READING AGAINST ITS SENTENCE, set by the tool on a reading that mints
-  // (record.ReadingGapClasses non-empty) and refused on any other: the gap the reading's act
-  // minted, or the open gap of the reading's class on that sentence that refused the mint.
-  // carrier_minted says which — true when this reading's own act minted it, false when it names a
-  // standing gap. No flag sets either. Several readings may carry one gap. Their readers: the
-  // failed check (the found-against check's carrier), the mint budget (a gap a reading of a
-  // citation minted takes no mint), the reading's result, `show evidence`'s verification row and docket.md's
-  // source line. Not `gap_id`: the idempotency key matches a field by that name first.
-  optional string carried_by = 21 [(sql) = { references: "mint.gap_id" }];
-  optional bool carrier_minted = 22;
-
   // `independent` restated the empty anchor as a bool. `label`, `work_status` and `sha256` were the
   // footnote a backing reading of a source the lens found minted, its retraction stamp and the copy
   // it read: no reading places a citation, so none mints a footnote.
-  reserved 2, 4, 11, 15, 20;
-  reserved "reference", "independent", "label", "work_status", "sha256";
+  // `carried_by` and `carrier_minted` named the gap a reading minted in its own act, or the open gap
+  // of its class that held its sentence: a reading records and holds nothing, and a gap stands on
+  // its minter's reading by the subject the mint names, so no field links the two.
+  reserved 2, 4, 11, 15, 20, 21, 22;
+  reserved "reference", "independent", "label", "work_status", "sha256", "carried_by", "carrier_minted";
 }
 
 // Computation is a program blue ran twice on a bundle, and what it wrote — the citation model with

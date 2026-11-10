@@ -284,7 +284,7 @@ func TestTheJudgeOwesItsGapAndNoMore(t *testing.T) {
 			t.Fatal(err)
 		}
 		ids := fam.At.IDs(fam.Events)
-		debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil))
+		debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil, nil))
 		return slices.Contains(debts[compLens], "failed_check K-1")
 	}
 	before := owes(unsoundBoard(t).seed())

@@ -218,7 +218,7 @@ Run `feov-record verify --help` for what it takes, flag by flag.
 exit 2
 feov-record: verify: requires --as, --confidence, --reason
 
-      --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half — refutes and absent — recorded here, not left as prose: a reading of the work that finds a citation's source against its sentence mints that sentence's gap in this act, as a reading of a source you found does where it backs an uncited sentence or refutes one. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
+      --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half — refutes and absent — recorded here, not left as prose: a reading of the work that finds the source against its sentence is the ground of the gap you mint on it, and your debt until that gap stands. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as
       --reason string                REQUIRED — what the source says, in your words, or, where it could not be read, what you tried. Where this reading mints a gap, the same text is that gap's argument, the case blue answers and a bench weighs; where an open gap of its class already carries the sentence, it stays on your reading alone and that gap keeps its own. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 

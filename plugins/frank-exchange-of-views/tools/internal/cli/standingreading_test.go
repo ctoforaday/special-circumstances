@@ -16,47 +16,17 @@ import (
 // subject — the citation for a cited source, the sentence for a source the seat found — and is refused
 // until that reading stands. The one-gap rule gains an anchor arm, for every class, and a cross-arm: a
 // gap about a citation and a gap quoting the sentence that holds it are one subject per class.
-//
-// IN-ACT SCAFFOLD (phase 1a of plans/gap-is-the-one-holder.md). `verify` still mints a gap in the same
-// act as a reading that finds against, so the readings here carry an in-act class the tests never
-// mint about the citation — within_source_condition_misattribution — and a found-source refutes
-// reading's in-act claim_contradicts_source on the sentence is named in --supersedes by the mint that
-// stands on the reading. Phase 1b deletes the in-act mint and with it both arrangements: the readings
-// then take no class and the mints name no --supersedes.
-const inActClass = "within_source_condition_misattribution"
 
-// read is seat's reading of citation c with outcome as, the in-act class supplied where the reading
-// mints (refutes, absent).
+// read is seat's reading of citation c with outcome as.
 func (b readingBoard) read(seat, c, as string) readingJSON {
 	b.t.Helper()
-	class := ""
-	if as == "refutes" || as == "absent" {
-		class = inActClass
-	}
-	return b.mustRead(seat, citeReading(c, as, class)...)
+	return b.mustRead(seat, citeReading(c, as)...)
 }
 
-// readFound is seat's reading of url, a source it found, against quote with outcome as; the in-act
-// class is claim_contradicts_source for refutes and unsourced_claim for a backing outcome.
+// readFound is seat's reading of url, a source it found, against quote with outcome as.
 func (b readingBoard) readFound(seat, url, quote, as string) readingJSON {
 	b.t.Helper()
-	class := ""
-	switch as {
-	case "refutes":
-		class = "claim_contradicts_source"
-	case "supports", "weak":
-		class = "unsourced_claim"
-	}
-	return b.mustRead(seat, urlReading(url, quote, as, class)...)
-}
-
-// supersedingInAct is the --supersedes flag naming r's in-act gap, where r minted one of class; nothing
-// otherwise.
-func supersedingInAct(r readingJSON, class string) []string {
-	if r.Gap != nil && r.Gap.Minted && r.Gap.Class == class {
-		return []string{"--supersedes", r.Gap.ID}
-	}
-	return nil
+	return b.mustRead(seat, urlReading(url, quote, as)...)
 }
 
 // mintSource is seat's mint of class with the subject args given, a `source` gap as a reading's gap is.
@@ -134,11 +104,8 @@ func TestAContradictionGapAboutACitationStandsOnTheMintersRefutingReading(t *tes
 	mustRefuse(t, err, out, standingRefusal, "is `supports`")
 
 	b.sit(lensL)
-	r := b.read(lensL, b.c1, "refutes")
+	b.read(lensL, b.c1, "refutes")
 	_, at := b.lastVerify()
-	if r.Gap == nil || r.Gap.Class != inActClass {
-		t.Fatalf("the scaffold's in-act gap is %+v, want one of class %s", r.Gap, inActClass)
-	}
 	gap, out, err := b.mintSource(lensL, "claim_contradicts_source", about(b.c1)...)
 	if err != nil {
 		t.Fatalf("the mint on the standing refuting reading was refused: %v\n%s", err, out)
@@ -189,8 +156,8 @@ func TestAnotherSeatsReadingDoesNotAdmitTheMint(t *testing.T) {
 		_, out, err := b.mintSource(lensL, c.class, about(c.anchor)...)
 		mustRefuse(t, err, out, standingRefusal, "citation "+c.anchor, "(none)")
 	}
-	if n := countType(t, b.runDir, recordpb.EventType_EVENT_TYPE_MINT) - b.base[1]; n != 2 {
-		t.Errorf("the record holds %d mints beyond the fixture's, want the two in-act scaffold gaps alone", n)
+	if n := countType(t, b.runDir, recordpb.EventType_EVENT_TYPE_MINT) - b.base[1]; n != 0 {
+		t.Errorf("the record holds %d mints beyond the fixture's, want none", n)
 	}
 }
 
@@ -213,10 +180,7 @@ func TestAMisattributionGapAboutACitationStandsOnAbsentOrANotTheWorkCopy(t *test
 	t.Run("a copy that is not the work", func(t *testing.T) {
 		b := readingRun(t)
 		b.cacheAs(rdU1, fetchcache.CompletenessNotTheWork)
-		r := b.mustRead(lensL, citeReading(b.c1, "refutes", "")...)
-		if r.Gap != nil {
-			t.Fatalf("a not-the-work reading minted %+v", r.Gap)
-		}
+		b.mustRead(lensL, citeReading(b.c1, "refutes")...)
 		_, at := b.lastVerify()
 		gap, out, err := b.mintSource(lensL, "citation_figure_misattribution", about(b.c1)...)
 		if err != nil {
@@ -252,9 +216,9 @@ func TestAFoundSourceContradictionGapStandsOnTheMintersReadingOfTheSentence(t *t
 		b := readingRun(t)
 		_, out, err := b.mintSource(lensL, class, "--quote", rdFree1)
 		mustRefuse(t, err, out, standingRefusal, "a source you found", "verify --url", "(none)")
-		r := b.readFound(lensL, rdU3, rdFree1, "refutes")
+		b.readFound(lensL, rdU3, rdFree1, "refutes")
 		_, at := b.lastVerify()
-		gap, out, err := b.mintSource(lensL, class, append([]string{"--quote", rdFree1}, supersedingInAct(r, class)...)...)
+		gap, out, err := b.mintSource(lensL, class, "--quote", rdFree1)
 		if err != nil {
 			t.Fatalf("the mint on the found-source reading was refused: %v\n%s", err, out)
 		}
@@ -278,15 +242,15 @@ func TestAFoundSourceContradictionGapStandsOnTheMintersReadingOfTheSentence(t *t
 	})
 	t.Run("the key is the sentence", func(t *testing.T) {
 		b := readingRun(t)
-		r1 := b.readFound(lensL, rdU3, rdFree1, "refutes")
+		b.readFound(lensL, rdU3, rdFree1, "refutes")
 		_, at1 := b.lastVerify()
-		r2 := b.readFound(lensL, rdU3, rdFree2, "refutes")
+		b.readFound(lensL, rdU3, rdFree2, "refutes")
 		_, at2 := b.lastVerify()
-		g1, out, err := b.mintSource(lensL, class, append([]string{"--quote", rdFree1}, supersedingInAct(r1, class)...)...)
+		g1, out, err := b.mintSource(lensL, class, "--quote", rdFree1)
 		if err != nil {
 			t.Fatalf("the first sentence's mint: %v\n%s", err, out)
 		}
-		g2, out, err := b.mintSource(lensL, class, append([]string{"--quote", rdFree2}, supersedingInAct(r2, class)...)...)
+		g2, out, err := b.mintSource(lensL, class, "--quote", rdFree2)
 		if err != nil {
 			t.Fatalf("the second sentence's mint: %v\n%s", err, out)
 		}
@@ -353,8 +317,8 @@ func TestOneGapPerClassAboutOneCitationAndAcrossItsSentence(t *testing.T) {
 		if err != nil {
 			t.Fatalf("X's gap about C: %v\n%s", err, out)
 		}
-		r := b.readFound(lensM, rdU5, rdCited, "refutes")
-		_, out, err = b.mintSource(lensM, contradicts, append([]string{"--quote", rdCited}, supersedingInAct(r, contradicts)...)...)
+		b.readFound(lensM, rdU5, rdCited, "refutes")
+		_, out, err = b.mintSource(lensM, contradicts, "--quote", rdCited)
 		mustRefuse(t, err, out, gx, "citation "+b.c1, oneGap)
 		// A judgement class, the same direction.
 		gj, out, err := b.mintSource(lensL, judgement, about(b.c1)...)
@@ -366,8 +330,11 @@ func TestOneGapPerClassAboutOneCitationAndAcrossItsSentence(t *testing.T) {
 	})
 	t.Run("the cross-arm, about over quote", func(t *testing.T) {
 		b := readingRun(t)
-		r := b.readFound(lensL, rdU6, rdBacked, "refutes")
-		gq := r.Gap.ID // the in-act quote gap of class claim_contradicts_source on C2's sentence
+		b.readFound(lensL, rdU6, rdBacked, "refutes")
+		gq, out0, err := b.mintSource(lensL, contradicts, "--quote", rdBacked)
+		if err != nil {
+			t.Fatalf("X's quote gap on C2's sentence: %v\n%s", err, out0)
+		}
 		b.read(lensM, b.c2, "refutes")
 		_, out, err := b.mintSource(lensM, contradicts, about(b.c2)...)
 		mustRefuse(t, err, out, gq, "the sentence", "holds citation "+b.c2, oneGap)
@@ -449,9 +416,9 @@ func TestEveryReadingMintedClassIsDriven(t *testing.T) {
 			}
 			_, out, err = b.mintSource(lensL, class, "--quote", rdFree1)
 			mustRefuse(t, err, out, standingRefusal, "a source you found")
-			r := b.readFound(lensL, rdU3, rdFree1, row.admits)
+			b.readFound(lensL, rdU3, rdFree1, row.admits)
 			_, at = b.lastVerify()
-			gap, out, err = b.mintSource(lensL, class, append([]string{"--quote", rdFree1}, supersedingInAct(r, class)...)...)
+			gap, out, err = b.mintSource(lensL, class, "--quote", rdFree1)
 			if err != nil {
 				t.Fatalf("the quote mint on the found-source reading was refused: %v\n%s", err, out)
 			}

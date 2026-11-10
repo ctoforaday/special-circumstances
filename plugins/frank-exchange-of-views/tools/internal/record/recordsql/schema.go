@@ -256,9 +256,6 @@ CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
 -- (record.reachingRetiresOf) and by the demand_reach view the gap view's evidence_met reads.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
--- The readings a gap carries (carrying_reading), asked per gap by the gap's demand
--- (record.EvidenceDemandOf). Partial: a reading that carries no gap is never asked this way.
-CREATE INDEX "verify_carried_by" ON "verify" ("carried_by") WHERE "carried_by" IS NOT NULL;
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
 CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");

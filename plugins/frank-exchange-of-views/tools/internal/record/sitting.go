@@ -115,8 +115,8 @@ type SittingJSON struct {
 // them a second time (plans/board-as-views.md wave 1c). ids are the events' row ids, aligned with
 // evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
 // and the chair's list states that condition from the same fold the gate refuses from.
-func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, role, seatID string) SittingJSON {
-	return sittingOf(evs, ids, win, gaps, role, seatID, sittingReads{})
+func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, role, seatID string, found []locatedReading) SittingJSON {
+	return sittingOf(evs, ids, win, gaps, role, seatID, sittingReads{found: found})
 }
 
 // sittingReads is what a seat's list needs beyond the stream and the gap rows to say whether its
@@ -129,6 +129,9 @@ type sittingReads struct {
 	mintsLeft *int
 	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
 	blueOut bool
+	// found: the located readings (locatedReadingsAt), the reading debt's input, read on the list's
+	// snapshot.
+	found []locatedReading
 }
 
 // unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
@@ -351,7 +354,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		//
 		// IT OWES THE REMEDY OF A FAILED CHECK (failedcheck.go): the PASS gate's blocker, cleared by
 		// blue's retire, or by the fresh check blue's edit of the sentence leaves it owed.
-		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all), reads.found) {
 			switch {
 			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
 				s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
@@ -368,7 +371,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		//
 		// A gap's item stands in the gap's place on the board, and an open gap that holds nothing
 		// is listed there too, as work that is not owed.
-		blockers := passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps))
+		blockers := passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps), reads.found)
 		// EACH ITEM SAYS WHETHER THE CHAIR CLEARS IT, by the gate's own predicate (ChairOwned), so
 		// the digest counts as the chair's debt only what the chair can clear.
 		hold := func(b Blocker) {
@@ -432,13 +435,14 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
 		// until the bench rules, as every other item on a docketed gap is held.
 		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID, reads.mintsLeft)...)
-		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all), reads.found) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
 			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the
-			// sentence that holds, if it checks it again. A FOUND-AGAINST CHECK IS NEVER ITS DEBT: its
-			// reading minted its gap, so it is listed as not owed, carried or not, and no envelope of
-			// the reader's is refused over it.
-			if b.Kind == BlockerFailedCheck && b.Owner == seatID {
+			// sentence that holds, if it checks it again. A READING OF ITS THAT FINDS AGAINST IS ITS DEBT
+			// while no gap of the class stands on the subject (readingDebtsOf): it blocks, and the
+			// envelope gate refuses the sitting's envelope over it until the lens mints the gap or reads
+			// again.
+			if (b.Kind == BlockerFailedCheck || b.Kind == BlockerReadingDebt) && b.Owner == seatID {
 				s.Open = append(s.Open, b.asItem(b.WorkItem(), b.owed()))
 				continue
 			}
@@ -497,7 +501,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				limited[g.ID] = g.remandLimit
 			}
 		}
-		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps), reads.found) {
 			if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
 				continue
 			}

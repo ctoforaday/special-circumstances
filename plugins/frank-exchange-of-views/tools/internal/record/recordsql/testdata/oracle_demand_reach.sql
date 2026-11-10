@@ -26,12 +26,7 @@ SELECT * FROM "demand_lineage";
 
 CREATE TEMP VIEW "oracle_demand_reach" AS
 SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", l."check_kind" AS "check_kind", l."minted" AS "minted",
-       'about' AS "via", l."about_ref" AS "anchor", e."seat_id" AS "seat", l."minted" AS "reached"
+       l."about_ref" AS "anchor", e."seat_id" AS "seat", l."minted" AS "reached"
 FROM "oracle_demand_lineage" l
 JOIN "events" e ON e."id" = l."from_event"
-WHERE l."about_kind" = 'anchor'
-UNION ALL
-SELECT l."gap_id", l."from_gap", l."check_kind", l."minted",
-       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE l."minted" END
-FROM "oracle_demand_lineage" l
-JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap";
+WHERE l."about_kind" = 'anchor';

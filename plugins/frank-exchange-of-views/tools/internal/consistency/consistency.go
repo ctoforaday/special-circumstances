@@ -626,9 +626,14 @@ func stalenessIn(standing []record.StandingCheck, report string, add func(Violat
 				c.Event, c.Seat, c.Anchor, anchor.Kind(c.Anchor)))
 			continue
 		}
+		// A STANDING CHECK THAT DOES NOT HOLD: a computation's unsound judgement; a citation's reading
+		// against, its lens's debt (record.readingDebtsOf).
 		state := "holds"
 		if !c.Holds {
-			state = row.Failed
+			state = "against"
+			if row.Kind == "computation" {
+				state = "unsound"
+			}
 		}
 		if c.Sentence == "" {
 			unmeasured = append(unmeasured, fmt.Sprintf("staleness: %s %s's standing %s at event %d (%s, %s) recorded no sentence, so whether it is of the sentence the report carries is not measured",

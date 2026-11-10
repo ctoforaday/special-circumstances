@@ -376,6 +376,7 @@ const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'im
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
 const BENCH_HEARINGS = ['petition', 'position']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
+const STANDING_CLAUSES = [{ kind: 'unchecked', clause: 'unchecked' }, { kind: 'failed_check', clause: 'on a failed check' }, { kind: 'reading_debt', clause: 'on a reading debt' }, { kind: 'open_inquiry', clause: 'inquiries open' }, { kind: 'unchecked_inquiry', clause: 'inquiries unchecked' }]
 const BENCH_PARTY = {
   type: 'object',
   required: ['seat_id', 'gap_ids'],
@@ -391,7 +392,7 @@ const LENS_OR_BLUE_PARTY = {
   additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['blue-respond', 'red-lens-adversary', 'red-lens-architecture', 'red-lens-computation', 'red-lens-dark-side', 'red-lens-evidence', 'red-lens-logic', 'red-lens-voice'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read, edit the sentence a lens's reading finds against or retire or replace its citation — or to record a fate on an open inquiry; empty for the logic lens readied to check a settled inquiry; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
+    gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a check of its that failed (a citation it read nothing of, a computation it judged unsound), or by a reading debt of its own (a source its reading found against its sentence, with no gap of that class standing — it mints the gap or reads again), or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry; empty for the logic lens readied to check a settled inquiry; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
   },
 }
 const PLAN = {
@@ -412,7 +413,7 @@ const PLAN = {
     epoch: { type: 'integer', minimum: 0, description: 'the epoch the record has reached: the chair sittings opened so far, this one included' },
     final_sitting: { type: 'boolean', description: "this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit" },
     epoch_limit_reached: { type: 'boolean', description: "the run's epoch limit leaves undispatched a party the board readies — any, at the sitting that opens the run's last epoch; blue, the only one, at the sitting before it — so nobody is dispatched, and ceiling is set for that reason" },
-    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['material_gap', 'remand_owed', 'unchecked', 'failed_check', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'upheld_position', 'open_inquiry', 'unchecked_inquiry'] }, subject: { type: 'string', description: 'the reference that names it: a gap id, a motion id, a lens seat, an anchor; empty for the run-wide kinds' }, owner: { type: 'string' } } } },
+    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['material_gap', 'remand_owed', 'unchecked', 'failed_check', 'reading_debt', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'upheld_position', 'open_inquiry', 'unchecked_inquiry'] }, subject: { type: 'string', description: 'the reference that names it: a gap id, a motion id, a lens seat, an anchor; empty for the run-wide kinds' }, owner: { type: 'string' } } } },
     why: { type: 'array', items: { type: 'string' } },
     verdict: { type: 'string', enum: ['PASS', 'FAIL'], description: 'the verdict the chair recorded in this sitting; absent while it has recorded none' },
   },
@@ -1066,15 +1067,14 @@ const verdictNow = () => halted ? outcomeWord('HALTED')
   : (noProgress || seatStop) ? outcomeWord('UNVERIFIED')
   : (lastPlan && (lastPlan.ceiling || limitHeldTheHearing)) ? outcomeWord('CEILING')
   : outcomeWord('UNVERIFIED')
-// A RUN THAT ENDS OVER AN UNCHECKED CITATION OR COMPUTATION, OR ONE ON A FAILED CHECK, NAMES IT, as the
-// record's own derived reason does (verdict.go anchorsStanding): the run ends with an anchor nobody
-// read against the sentence the report carries, or one whose check failed. Those two kinds only, and
-// nothing when there is none.
-const anchorsStanding = (plan) => {
-  const unchecked = plan.blockers.filter((b) => b.kind === 'unchecked').map((b) => b.subject)
-  const failed = [...new Set(plan.blockers.filter((b) => b.kind === 'failed_check').map((b) => b.subject))]
-  return (unchecked.length ? `; unchecked: ${unchecked.join(', ')}` : '') + (failed.length ? `; on a failed check: ${failed.join(', ')}` : '')
-}
+// A RUN THAT ENDS OVER A SUBJECT THAT HOLDS THE PASS BY ITS OWN STATE NAMES IT, as the record's own
+// derived reason does (verdict.go anchorsStanding): the kinds and their clauses are the record's table,
+// STANDING_CLAUSES in the generated vocabulary, folded here in its order with each kind's subjects
+// deduplicated — so this reason and the record's cannot name different kinds. Nothing when none stands.
+const anchorsStanding = (plan) => STANDING_CLAUSES.map(({ kind, clause }) => {
+  const subjects = [...new Set(plan.blockers.filter((b) => b.kind === kind).map((b) => b.subject))]
+  return subjects.length ? `; ${clause}: ${subjects.join(', ')}` : ''
+}).join('')
 const terminationWhyOf = (verdict) => halted ? 'judicial halt'
   : readStop ? `no read of the record: the envelope ${readStop.seat} returned carries no record_read the hook wrote, so the hook did not run, and neither did the envelope gate — the engine stopped rather than dispatch on a record it cannot read`
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'

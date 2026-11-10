@@ -262,10 +262,6 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 			}),
 		)
 		got := evidenceJSONT(t, b)
-		if got.Counts.SourcesRefuted != 1 {
-			t.Errorf("outcome %q: SourcesRefuted = %d, want 1 — a source red found against must be countable",
-				recordpb.Word(outcome), got.Counts.SourcesRefuted)
-		}
 		if !got.Sources[0].Verified[0].FindsAgainst() {
 			t.Errorf("outcome %q: FindsAgainst() = false; the screen and the counts must agree on what 'found against' means", outcome)
 		}
@@ -283,7 +279,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 	if row := evidenceJSONT(t, nw).Sources[0].Verified[0]; row.SourceCompleteness != "not_the_work" || row.FindsAgainst() {
 		t.Errorf("a `refutes` of a copy stamped not_the_work: row %+v, FindsAgainst() = %v — want the stamp on the row and false: it read nothing of the work", row, row.FindsAgainst())
 	}
-	// And the supporting half is NOT counted as found-against.
+	// And the supporting half is NOT found against.
 	b := evidenceBoard(
 		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}),
 		evidenceEvent(t, 2, "lens-r2", &recordpb.Verify{
@@ -291,8 +287,8 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("thin"),
 		}),
 	)
-	if got := evidenceJSONT(t, b); got.Counts.SourcesRefuted != 0 {
-		t.Errorf("`weak` counted as refuted — thin support is not contradiction, and conflating them turns a grading nuance into an assembly failure")
+	if got := evidenceJSONT(t, b); got.Sources[0].Verified[0].FindsAgainst() {
+		t.Errorf("`weak` read as found against — thin support is not contradiction, and conflating them turns a grading nuance into a reading debt")
 	}
 }
 

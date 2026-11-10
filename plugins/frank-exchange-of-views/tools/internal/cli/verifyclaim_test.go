@@ -57,12 +57,6 @@ func verifyAs(t *testing.T, runDir, anchor, as string) (string, error) {
 	t.Helper()
 	args := []string{"verify", "--run", runDir, "--seat-id", lensSeat, "--anchor", anchor,
 		"--as", as, "--confidence", "high", "--reason", "read at the leaf"}
-	switch as {
-	case "refutes":
-		args = append(args, gapFlagArgs("claim_contradicts_source")...)
-	case "absent":
-		args = append(args, gapFlagArgs("citation_figure_misattribution")...)
-	}
 	return run(t, args...)
 }
 
@@ -182,8 +176,8 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 	})
 }
 
-// THE CLAIM KEEPS THE SENTENCE'S MARKUP: verify prints it as the report holds it, unescaped, and the
-// gap its reading mints stands on that claim.
+// THE CLAIM KEEPS THE SENTENCE'S MARKUP: verify prints it as the report holds it, unescaped, and
+// records it so.
 func TestARefutedClaimKeepsItsMarkup(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\n**Iron is \"magnetic\".** Copper is not.\n")
@@ -201,15 +195,7 @@ func TestARefutedClaimKeepsItsMarkup(t *testing.T) {
 	if err != nil || !printsClaim(out, printed) {
 		t.Fatalf("verify did not print the claim %q: %v\n%s", printed, err, out)
 	}
-	if got := lastBody(t, runDir, &recordpb.Mint{}).GetLocation(); got != printed {
-		t.Errorf("the reading's gap stands on %q, want the claim %q", got, printed)
+	if got := lastBody(t, runDir, &recordpb.Verify{}).GetClaim(); got != printed {
+		t.Errorf("the reading records %q, want the claim %q", got, printed)
 	}
-}
-
-// gapFlagArgs are the gap flags a reading that mints is given: its class and the six other flags it
-// requires.
-func gapFlagArgs(class string) []string {
-	return []string{"--class", class, "--problem", "the source says otherwise than the sentence",
-		"--check-kind", "source", "--check", "the sentence states what the source says",
-		"--severity", "high", "--likelihood", "high", "--impact", "medium"}
 }

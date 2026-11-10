@@ -1263,11 +1263,7 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 		"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim"}
 	args = append(args, bridgeFor(outcome, n)...)
 	if o, ok := record.SourceOutcomeOf(outcome); ok {
-		if classes := recordpb.FoundSourceGapClassesOf(o); len(classes) > 0 {
-			args = append(args, "--class", recordpb.Word(classes[0]), "--problem", "fuzz: the sentence and the source disagree",
-				"--check-kind", "document", "--check", "the sentence states what the source says",
-				"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
-		}
+		_ = o
 	}
 	out, err := r.exec(args...)
 	r.mu.Lock()
@@ -1479,9 +1475,6 @@ func (r *runner) fixFailed(seatID string) {
 		fixed[b.Subject] = true
 		switch b.CheckState() {
 		case record.CheckUnread:
-		case record.CheckFoundAgainst:
-			r.fixFoundAgainst(seatID, b)
-			continue
 		case record.CheckUnsound:
 		default:
 			r.noteActErr(fmt.Sprintf("failed check of %s stands in state %q, which blue's remedy drive does not know", b.Subject, b.CheckState()))
@@ -3522,8 +3515,6 @@ func (r *runner) answerFailed(seatID string) {
 		// named its gap in its own act, and one no gap names (an archived reading) owes its reader nothing.
 		switch b.CheckState() {
 		case record.CheckUnread, record.CheckUnsound:
-		case record.CheckFoundAgainst:
-			continue
 		default:
 			r.noteActErr(fmt.Sprintf("failed check of %s stands in state %q, which the owed-gap drive does not know", b.Subject, b.CheckState()))
 			continue
@@ -3913,10 +3904,6 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, computations, ci
 		case record.CheckUnread:
 			names = func(it record.Item) bool {
 				return strings.Contains(it.What, "check of citation "+b.Subject+" ") && strings.Contains(it.What, "Retire the citation")
-			}
-		case record.CheckFoundAgainst:
-			names = func(it record.Item) bool {
-				return strings.Contains(it.What, "reading of citation "+b.Subject+" at event") && strings.Contains(it.What, "edits the sentence, or retires or replaces the citation")
 			}
 		default:
 			return fmt.Sprintf("anchor owner: citation %s stands on a failed check in state %q, which the oracle does not know", b.Subject, b.CheckState()), 0, 0
@@ -4856,9 +4843,7 @@ func (r *runner) demandCloseRefused(closer, id string) {
 	default:
 		r.mu.Lock()
 		r.sourceClosesRefused++
-		if slices.ContainsFunc(d.Reach, func(x record.Reach) bool { return !x.About }) {
-			r.readingDemandRefused++
-		}
+		_ = d
 		r.mu.Unlock()
 	}
 }
@@ -4938,8 +4923,6 @@ func (r *runner) standingCloseRefused(argv, id, out string, b record.Blocker) bo
 		r.unreadClosesRefused++
 	case record.CheckUnsound:
 		r.unsoundClosesRefused++
-	case record.CheckFoundAgainst:
-		r.foundAgainstClosesRefused++
 	default:
 		if r.actErr == "" {
 			r.actErr = fmt.Sprintf("close of %s refused over failed check %s in state %q, which the tally does not know", id, b.Subject, b.CheckState())

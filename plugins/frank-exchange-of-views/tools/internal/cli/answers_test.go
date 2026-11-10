@@ -286,9 +286,6 @@ func answerDrives() []answerDrive {
 				withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{"https://src/c": []byte("<html>the source</html>"), "https://src/d": []byte("<html>another source</html>")}})
 				read := func(url, quote, as string) []string {
 					args := []string{"verify", "--url", url, "--title", "T", "--quote", quote, "--as", as, "--confidence", "high", "--reason", "it says otherwise"}
-					if as == "refutes" {
-						args = append(args, gapFlagArgs("claim_contradicts_source")...)
-					}
 					return args
 				}
 				d.admitted("the first", lensSeat, read("https://src/c", quoteTwo, "refutes")...)

@@ -789,15 +789,11 @@ CREATE TABLE "verify" (
   "bridge" TEXT,
   "copy_substitution" TEXT,
   "copy_url" TEXT,
-  "carried_by" TEXT,
-  "carrier_minted" INTEGER,
-  CHECK ("carrier_minted" IS NULL OR "carrier_minted" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value"),
   FOREIGN KEY ("bridge") REFERENCES "enum_bridge_kind"("value"),
-  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value"),
-  FOREIGN KEY ("carried_by") REFERENCES "mint"("gap_id")
+  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value")
 ) STRICT;
 
 CREATE TABLE "computation" (
@@ -1014,9 +1010,6 @@ CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
 -- (record.reachingRetiresOf) and by the demand_reach view the gap view's evidence_met reads.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
--- The readings a gap carries (carrying_reading), asked per gap by the gap's demand
--- (record.EvidenceDemandOf). Partial: a reading that carries no gap is never asked this way.
-CREATE INDEX "verify_carried_by" ON "verify" ("carried_by") WHERE "carried_by" IS NOT NULL;
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
 CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");
@@ -1455,16 +1448,6 @@ WHERE NOT EXISTS(SELECT 1 FROM "red" r WHERE r."gap_id" = s."value" AND r."event
   AND NOT EXISTS(SELECT 1 FROM "bench" b WHERE b."gap_id" = s."value" AND b."event_id" < s."event_id")
 GROUP BY s."value";
 
--- THE READINGS A GAP CARRIES: each verify whose carried_by names the gap, with the anchor it read
--- and the seat that read it. EVERY reader of the reading-to-gap link reads it here and nowhere
--- else (demand_reach, and through it the gap view's evidence_answered, among them), so the day the link is stated
--- from the gap's side instead of the reading's this view is the one statement that changes.
-CREATE VIEW "carrying_reading" AS
-SELECT v."carried_by" AS "gap_id", v."anchor" AS "anchor", e."seat_id" AS "seat_id", v."event_id" AS "event_id"
-FROM "verify" v
-JOIN "events" e ON e."id" = v."event_id"
-WHERE v."carried_by" IS NOT NULL;
-
 -- EVERY EVIDENCE ANCHOR ON THE RECORD, ONE ROW EACH: a citation or a computation, the check kind
 -- a live one answers, the gap it was placed as the answer to, the act that placed it and the
 -- retire that took it out (NULL while it stands). One arm per recordsql.EvidenceTables row,
@@ -1490,35 +1473,32 @@ SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "chec
 FROM "placed" p;
 
 -- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap
--- is about, checked by its minter, and the anchor of each reading it carries, checked by that
--- reading's seat. A retire of one, or that seat's check of it again, meets the demand (the gap view's
--- evidence_met arms 2 and 3); this is the one statement of the reach, which the close's refusal
--- (record.EvidenceDemandOf) and a retire's reach (record.reachingRetiresOf) read too.
+-- is about, checked by its minter — a cited source's claim_contradicts_source or
+-- citation_figure_misattribution gap is about the citation its minter's reading found against, so the
+-- reader's own backing re-read of it meets the demand here. A retire of one, or that seat's check of
+-- it again, meets the demand (the gap view's evidence_met arms 2 and 3); this is the one statement of
+-- the reach, which the close's refusal (record.EvidenceDemandOf) and a retire's reach
+-- (record.reachingRetiresOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
+-- by blue's cite placed as its answer alone.
 --
 -- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
 -- ancestor it carries the demand from (demand_lineage, written at the gap's mint). An inherited row is
 -- the successor's from its mint: a retire before it had met the ancestor, which then passed no
 -- demand on, and a check counts for the gap only at or after its mint.
 --
---   from_gap  the gap whose about or reading the row is: gap_id itself, or an ancestor it carries
---             the demand from.
+--   from_gap  the gap whose about the row is: gap_id itself, or an ancestor it carries the demand
+--             from.
 --   minted    gap_id's mint event: a check of the anchor counts for gap_id at or after it.
 --   reached   the event from which the anchor is in gap_id's reach: its own mint for the anchor it
---             is about, the reading's act for a reading it carries, its mint for an inherited row.
+--             is about, its mint for an inherited row.
 CREATE VIEW "demand_reach" AS
 SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
-       'about' AS "via", a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+       a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
 FROM "demand_lineage" l
 JOIN "mint" h ON h."gap_id" = l."gap_id"
 JOIN "mint" a ON a."gap_id" = l."from_gap"
 JOIN "events" e ON e."id" = a."event_id"
-WHERE a."about_kind" = 'anchor'
-UNION ALL
-SELECT l."gap_id", l."from_gap", h."check_kind", h."event_id",
-       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE h."event_id" END
-FROM "demand_lineage" l
-JOIN "mint" h ON h."gap_id" = l."gap_id"
-JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap";
+WHERE a."about_kind" = 'anchor';
 
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
 -- row that stands now (until_seq IS NULL) — the one definition of the materiality rule, which
@@ -1636,8 +1616,7 @@ WITH "closure" AS MATERIALIZED (
   -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause). Three arms, each off rows:
   --   1. a live evidence anchor of the gap's check kind was placed as its answer;
   --   2. an anchor the demand reaches (demand_reach) is retired: the anchor the gap is about, or
-  --      whose reading it carries, or one an ancestor it carries the demand from was about or
-  --      carried a reading of, retired since the successor's mint;
+  --      one an ancestor it carries the demand from was about, retired since the successor's mint;
   --   3. the check again: for an anchor the demand reaches that is live and of the gap's check
   --      kind, that row's seat's latest check of it that read it is at or after the gap's mint and
   --      holds. Another seat's check meets nothing, and a check of one kind never meets the other
