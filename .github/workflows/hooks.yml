@@ -401,6 +401,11 @@ jobs:
         TestTextCellGoldens
         TestTextCellTableKeepsItsRowsThroughTheEngine
         TestEmbedWithBuiltHelper
+        TestTokenizerParity400
+        TestEmbedLoadsTheExportForItsArch
+        TestEmbedFidelityMeetsS5
+        TestEmbedSpeedMeetsS6
+        TestEveryOpFitsTheDeadline
     steps:
       - name: Check if native-run should execute
         id: check-full

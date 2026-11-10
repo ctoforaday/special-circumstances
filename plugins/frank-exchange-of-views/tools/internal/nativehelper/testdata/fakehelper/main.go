@@ -31,6 +31,8 @@
 // texts sharing words lie close and a ranked search over them has an order to test.
 //
 // FAKEHELPER_START_LOG, when set, names a file it appends its pid to at each start.
+// FAKEHELPER_EMBED_LOG, when set, names a file it appends one line to per embed request: each text's
+// token-id count, space-separated, so a test reads how the client cut its batches.
 package main
 
 import (
@@ -185,6 +187,7 @@ func answer(req nativehelper.Frame, diag *os.File) [][]byte {
 			status, result = byte(nativehelper.StatusOpError), [][]byte{[]byte("embed takes (ids, mask) field pairs")}
 			break
 		}
+		logEmbed(req.Fields)
 		for i := 0; i < len(req.Fields); i += 2 {
 			result = append(result, embed(req.Fields[i]))
 		}
@@ -192,6 +195,25 @@ func answer(req nativehelper.Frame, diag *os.File) [][]byte {
 		status, result = byte(nativehelper.StatusUnknownOp), [][]byte{[]byte(req.Op.String())}
 	}
 	return append([][]byte{{status}, captured(diag)}, result...)
+}
+
+// logEmbed appends the request's per-text id counts to FAKEHELPER_EMBED_LOG, when set.
+func logEmbed(fields [][]byte) {
+	p := os.Getenv("FAKEHELPER_EMBED_LOG")
+	if p == "" {
+		return
+	}
+	counts := make([]string, 0, len(fields)/2)
+	for i := 0; i < len(fields); i += 2 {
+		counts = append(counts, strconv.Itoa(len(fields[i])/8))
+	}
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "fakehelper: opening the embed log:", err)
+		os.Exit(4)
+	}
+	fmt.Fprintln(f, strings.Join(counts, " "))
+	f.Close()
 }
 
 // captured is the request's capture, bounded as native/frame bounds it.

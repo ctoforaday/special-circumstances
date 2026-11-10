@@ -58,7 +58,7 @@ func TestAPageCrashIsNotAnAbsentEngine(t *testing.T) {
 		t.Skip("builds feov-record and the fake helper")
 	}
 	crashing := t.TempDir()
-	nativehelpertest.Fake(t, crashing, "feov-ocr", nativehelper.HelperDigest("feov-ocr"), "crash-on-helper-op")
+	nativehelpertest.Install(t, crashing, "feov-ocr", nativehelpertest.Spec{Digest: nativehelper.HelperDigest("feov-ocr"), Mode: "crash-on-helper-op"})
 	s := fetchScanThroughBinary(t, crashing)
 	if s.OCREngineAbsent || s.OCRDerived || !strings.Contains(s.OCRReason, "helper-crashed: feov-ocr") {
 		t.Errorf("a helper that crashed on the page reads as %+v; want helper-crashed in ocr_reason and ocr_engine_absent false", s)
@@ -78,7 +78,7 @@ func TestAHelperFromOtherSourcesIsRefused(t *testing.T) {
 	}
 	const other = "0000000000000000000000000000000000000000000000000000000000000000"
 	dir := t.TempDir()
-	nativehelpertest.Fake(t, dir, "feov-ocr", other, "")
+	nativehelpertest.Install(t, dir, "feov-ocr", nativehelpertest.Spec{Digest: other})
 	s := fetchScanThroughBinary(t, dir)
 	want := nativehelper.HelperDigest("feov-ocr")
 	if !s.OCREngineAbsent || !strings.Contains(s.OCRReason, "helper-digest-mismatch: feov-ocr") ||

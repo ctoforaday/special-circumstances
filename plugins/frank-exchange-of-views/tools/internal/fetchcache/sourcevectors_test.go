@@ -7,57 +7,19 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed/vecembedtest"
 )
-
-var (
-	fakeEmbedOnce sync.Once
-	fakeEmbedDir  string
-	fakeEmbedErr  error
-)
-
-// useFakeEmbedder points vecembed at a fake feov-embed (nativehelper/testdata/fakehelper) built with
-// the pins this package carries, so a ranked search runs end to end without the native build. A test
-// that needs the embedder and cannot build it fails: a skip would read as a pass.
-func useFakeEmbedder(t *testing.T) {
-	t.Helper()
-	fakeEmbedOnce.Do(func() {
-		dir, err := os.MkdirTemp("", "feov-fake-embed-")
-		if err != nil {
-			fakeEmbedErr = err
-			return
-		}
-		exe := vecembed.HelperName
-		if runtime.GOOS == "windows" {
-			exe += ".exe"
-		}
-		ldflags := fmt.Sprintf("-X main.digest=%s -X main.assets=%s", nativehelper.HelperDigest(vecembed.HelperName),
-			strings.Join(nativehelper.HelperAssets(vecembed.HelperName), ","))
-		cmd := exec.Command("go", "build", "-o", filepath.Join(dir, exe), "-ldflags", ldflags, "../nativehelper/testdata/fakehelper")
-		if msg, err := cmd.CombinedOutput(); err != nil {
-			fakeEmbedErr = fmt.Errorf("building the fake helper: %v\n%s", err, msg)
-			return
-		}
-		fakeEmbedDir = dir
-	})
-	if fakeEmbedErr != nil {
-		t.Fatal(fakeEmbedErr)
-	}
-	t.Setenv(nativehelper.EnvDir, fakeEmbedDir)
-}
 
 // recordingEmbedder embeds each text as its words hashed into the vector, and records every call.
 type recordingEmbedder struct{ calls [][]string }
@@ -137,7 +99,7 @@ func TestReportSearchCachesUnchangedParagraphs(t *testing.T) {
 // text at the address the search computes — the sha256 of the bytes SourceTextPath holds — so the
 // search finds the vectors and writes none of its own.
 func TestPrewarmMatchesFullSourceTextSha(t *testing.T) {
-	useFakeEmbedder(t)
+	vecembedtest.UseFake(t)
 	vecFiles := func(run record.Run) []string {
 		m, _ := filepath.Glob(filepath.Join(Dir(run), "*.vec"))
 		return m
@@ -203,7 +165,7 @@ func TestPrewarmMatchesFullSourceTextSha(t *testing.T) {
 // holding the query's words, on the page it actually sits on — is the span `cite --source-span`
 // accepts, even when the chunk starts on the page before.
 func TestHybridSourceHitSelectsCiteableSentenceAndPage(t *testing.T) {
-	useFakeEmbedder(t)
+	vecembedtest.UseFake(t)
 	filler := strings.Repeat("The committee met in the spring and adjourned without a vote. ", 6)
 	pages := []string{
 		strings.TrimSpace(filler) + "\nThe minutes were filed late.",
@@ -274,7 +236,7 @@ func TestHybridSourceHitSelectsCiteableSentenceAndPage(t *testing.T) {
 // A SCAN WITH NO READING IS NAMED, NOT DROPPED. A ranked search across sources ranks the sources that
 // hold text and names the image-only PDF as unsearched, saying what it needs.
 func TestACrossSourceSearchNamesAnImageOnlyScanUnsearched(t *testing.T) {
-	useFakeEmbedder(t)
+	vecembedtest.UseFake(t)
 	run, scan := storeScanned(t, 1)
 	storeTextSource(t, run, "https://ex/notes", "The harbour dredging cost rose sharply after the survey.")
 	for name, scope := range map[string]func() ([]hybridsearch.UnsearchedSource, int){

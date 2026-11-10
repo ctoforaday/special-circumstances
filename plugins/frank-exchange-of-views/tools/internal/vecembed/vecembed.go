@@ -16,9 +16,19 @@ const (
 	OpEmbed nativehelper.Op = 16
 	// Dim is the embedding dimension of gte-small.
 	Dim = 384
-	// BatchSize bounds a single request sent to the helper.
+	// BatchSize bounds the texts in one request sent to the helper.
 	BatchSize = 16
+	// MaxIDs bounds one text's token ids, [CLS] and [SEP] included: gte-small's position table.
+	// With BatchSize it bounds the largest request, which TestEveryOpFitsTheDeadline times.
+	MaxIDs = 512
 )
+
+// Ops is the client's op table: every feov-embed op this package sends, by name.
+// TestEveryOpFitsTheDeadline walks it, so an op added here without a largest-request case fails
+// that test.
+var Ops = map[nativehelper.Op]string{
+	OpEmbed: "embed",
+}
 
 // Embedder computes dense vector representations of texts.
 type Embedder interface {

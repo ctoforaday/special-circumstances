@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed/vecembedtest"
 )
 
 // m36Page is a cached page of the kind m36's seats searched: a definition of primality with 91's
@@ -203,7 +204,7 @@ func TestSearchCrossSources(t *testing.T) {
 
 // SINGLE-SOURCE RANKED HYBRID SEARCH
 func TestSearchSourceHybrid(t *testing.T) {
-	useFakeEmbedder(t)
+	vecembedtest.UseFake(t)
 	run := runtest.New(t, t.TempDir())
 	e := storeTextSource(t, run, "https://ex/primes", m36Page)
 

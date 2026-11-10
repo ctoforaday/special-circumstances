@@ -26,10 +26,10 @@ type Tokenizer struct {
 	maxCharsPerWord int
 }
 
-// DefaultTokenizer returns the shared singleton tokenizer with max sequence length 512.
+// DefaultTokenizer returns the shared singleton tokenizer with max sequence length MaxIDs.
 func DefaultTokenizer() *Tokenizer {
 	defaultTokenizerOnce.Do(func() {
-		defaultTokenizer = parseTokenizer(vocabData, 512)
+		defaultTokenizer = parseTokenizer(vocabData, MaxIDs)
 	})
 	return defaultTokenizer
 }

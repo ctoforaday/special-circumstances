@@ -4,57 +4,23 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper/nativehelpertest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
-var (
-	fakeHelperMu    sync.Mutex
-	fakeHelperCache = map[string]string{}
-)
-
+// buildFakeHelper installs nativehelpertest's fake as name in dir, reporting digest and name's asset
+// pins for this GOARCH at its handshake.
 func buildFakeHelper(t *testing.T, dir, name, digest string) {
 	t.Helper()
-	exeName := name
-	if runtime.GOOS == "windows" {
-		exeName += ".exe"
-	}
-	target := filepath.Join(dir, exeName)
-
-	fakeHelperMu.Lock()
-	key := name + "-" + digest
-	cached, ok := fakeHelperCache[key]
-	if !ok {
-		tmpDir := t.TempDir()
-		out := filepath.Join(tmpDir, exeName)
-		assets := nativehelper.HelperAssets(name)
-		ldflags := fmt.Sprintf("-X main.digest=%s -X main.assets=%s", digest, strings.Join(assets, ","))
-		cmd := exec.Command("go", "build", "-o", out, "-ldflags", ldflags, "../nativehelper/testdata/fakehelper")
-		if msg, err := cmd.CombinedOutput(); err != nil {
-			fakeHelperMu.Unlock()
-			t.Fatalf("building fakehelper: %v\n%s", err, msg)
-		}
-		cached = out
-		fakeHelperCache[key] = cached
-	}
-	fakeHelperMu.Unlock()
-
-	data, err := os.ReadFile(cached)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(target, data, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	nativehelpertest.Install(t, dir, name, nativehelpertest.Spec{Digest: digest, Assets: nativehelper.HelperAssets(name)})
 }
 
 func unsetNativeHelperDir(t *testing.T) {

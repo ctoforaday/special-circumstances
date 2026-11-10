@@ -1,10 +1,19 @@
 package vecembed
 
 import (
+	"errors"
+	"fmt"
 	"math"
+	"os"
+	"path/filepath"
+	"runtime"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper/nativehelpertest"
 )
 
 func TestTokenizerSpecialTokens(t *testing.T) {
@@ -129,24 +138,6 @@ func TestCosine(t *testing.T) {
 	}
 }
 
-func TestMissingHelperRefusesByName(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("NATIVE_HELPER_DIR", tmp)
-	embedder, err := New()
-	if err != nil {
-		t.Fatalf("New() failed: %v", err)
-	}
-	defer embedder.Close()
-
-	_, err = embedder.Embed([]string{"test text"})
-	if err == nil {
-		t.Fatal("Embed() on absent helper succeeded, want error")
-	}
-	if !nativehelper.IsAbsent(err) {
-		t.Fatalf("err is not absent: %v", err)
-	}
-}
-
 func TestEmbedWithBuiltHelper(t *testing.T) {
 	cl := nativehelper.Require(t, "feov-embed")
 	emb := NewWithClient(cl)
@@ -185,20 +176,181 @@ func TestEmbedWithBuiltHelper(t *testing.T) {
 	}
 }
 
-func TestEmbedSplitsAtTheBatch(t *testing.T) {
-	cl := nativehelper.Require(t, "feov-embed")
-	emb := NewWithClient(cl)
+// TestTokenizerParity400: the Go tokenizer gives Hugging Face thenlper/gte-small's ids, exactly, on
+// every one of the 400 reference texts (300 of speed.jsonl, 100 of len200.jsonl), truncation at
+// MaxIDs included.
+func TestTokenizerParity400(t *testing.T) {
+	tok := DefaultTokenizer()
+	hfSpeed, hfLen200 := hfTokens(t)
+	sets := []struct {
+		name  string
+		texts []string
+		want  [][]int64
+	}{
+		{"speed.jsonl", speedTexts(t), hfSpeed},
+		{"len200.jsonl", len200Texts(t), hfLen200},
+	}
+	same, total, truncated := 0, 0, 0
+	for _, set := range sets {
+		for i, text := range set.texts {
+			total++
+			got, want := tok.Encode(text), set.want[i]
+			if len(want) == MaxIDs {
+				truncated++
+			}
+			if !slices.Equal(got, want) {
+				at := 0
+				for at < len(got) && at < len(want) && got[at] == want[at] {
+					at++
+				}
+				t.Errorf("%s text %d: %d ids, Hugging Face %d; first difference at id %d", set.name, i, len(got), len(want), at)
+				continue
+			}
+			same++
+		}
+	}
+	t.Logf("tokenizer parity: %d/%d texts give Hugging Face's ids exactly (%d truncated at %d)", same, total, truncated, MaxIDs)
+	if total != 400 {
+		t.Fatalf("compared %d texts, want 400", total)
+	}
+}
 
-	// Create 35 texts (16 + 16 + 3)
-	texts := make([]string, 35)
-	for i := range texts {
-		texts[i] = "sample technical text chunk for batch testing"
-	}
-	vecs, err := emb.Embed(texts)
+// TestModelIDIncludesTargetOSArch: the id a vector cache is keyed by names this target, so a cache
+// written by another os or arch is another model's.
+func TestModelIDIncludesTargetOSArch(t *testing.T) {
+	t.Setenv(nativehelper.EnvDir, t.TempDir())
+	e, err := New()
 	if err != nil {
-		t.Fatalf("Embed() failed: %v", err)
+		t.Fatal(err)
 	}
-	if len(vecs) != 35 {
-		t.Fatalf("len(vecs) = %d, want 35", len(vecs))
+	defer e.Close()
+	want := "+target@" + runtime.GOOS + "-" + runtime.GOARCH
+	if id := e.ModelID(); !strings.HasSuffix(id, want) || !strings.Contains(id, nativehelper.HelperDigest(HelperName)) {
+		t.Errorf("ModelID() = %q; want the helper digest and the suffix %q", id, want)
+	}
+	d := nativehelper.HelperDigest(HelperName)
+	for _, other := range [][2]string{{"linux", "arm64"}, {"darwin", "arm64"}, {"windows", "amd64"}, {"linux", "amd64"}} {
+		if other[0] == runtime.GOOS && other[1] == runtime.GOARCH {
+			continue
+		}
+		if ModelIDFor(d, other[0], other[1]) == e.ModelID() {
+			t.Errorf("%s-%s's model id equals this target's: %q", other[0], other[1], e.ModelID())
+		}
+	}
+}
+
+// TestMissingOrMismatchedHelperRefusesByName: no feov-embed, one built from other sources, and one
+// that loaded another gte-small export each refuse, naming the helper and what disagreed.
+func TestMissingOrMismatchedHelperRefusesByName(t *testing.T) {
+	pins := nativehelper.HelperAssets(HelperName)
+	if len(pins) != 1 {
+		t.Fatalf("feov-embed carries %d asset pins for %s, want the one gte-small export", len(pins), runtime.GOARCH)
+	}
+	cases := []struct {
+		name string
+		spec *nativehelpertest.Spec
+		kind error
+		says []string
+	}{
+		{"absent", nil, nativehelper.ErrAbsent, []string{"helper-absent: feov-embed"}},
+		{"other sources", &nativehelpertest.Spec{Digest: "0000", Assets: pins}, nativehelper.ErrDigestMismatch,
+			[]string{"helper-digest-mismatch: feov-embed", "source digest 0000"}},
+		{"other export", &nativehelpertest.Spec{Digest: nativehelper.HelperDigest(HelperName), Assets: []string{"1111"}}, nativehelper.ErrDigestMismatch,
+			[]string{"helper-digest-mismatch: feov-embed", "gte-small.int8.ort sha256 (" + runtime.GOARCH + ") 1111", pins[0]}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tc.spec != nil {
+				nativehelpertest.Install(t, dir, HelperName, *tc.spec)
+			}
+			t.Setenv(nativehelper.EnvDir, dir)
+			e, err := New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer e.Close()
+			_, err = e.Embed([]string{"a text"})
+			if !errors.Is(err, tc.kind) {
+				t.Fatalf("Embed: %v; want %v", err, tc.kind)
+			}
+			for _, s := range tc.says {
+				if !strings.Contains(err.Error(), s) {
+					t.Errorf("the refusal %q does not say %q", err, s)
+				}
+			}
+		})
+	}
+}
+
+// TestEmbedSplitsAtTheBatch: 1,000 texts, some far over MaxIDs, go to the helper as ceil(1000/16)
+// = 63 requests, none over BatchSize texts or MaxIDs ids in a text, and every text comes back once.
+// The fake helper logs each request it receives.
+func TestEmbedSplitsAtTheBatch(t *testing.T) {
+	dir := t.TempDir()
+	nativehelpertest.Install(t, dir, HelperName, nativehelpertest.Spec{
+		Digest: nativehelper.HelperDigest(HelperName),
+		Assets: nativehelper.HelperAssets(HelperName),
+	})
+	t.Setenv(nativehelper.EnvDir, dir)
+	log := filepath.Join(t.TempDir(), "embed.log")
+	t.Setenv("FAKEHELPER_EMBED_LOG", log)
+
+	long := strings.Repeat("the measured interval between transits widens ", 150)
+	in := make([]string, 1000)
+	over := 0
+	for i := range in {
+		in[i] = fmt.Sprintf("text %d about orbital resonance", i)
+		if i%37 == 0 {
+			in[i] = long + in[i]
+			over++
+		}
+	}
+	e, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close()
+	vecs, err := e.Embed(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vecs) != len(in) {
+		t.Fatalf("Embed returned %d vectors for %d texts", len(vecs), len(in))
+	}
+
+	b, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("the fake helper logged no embed request: %v", err)
+	}
+	reqs := strings.Split(strings.TrimSpace(string(b)), "\n")
+	if want := (len(in) + BatchSize - 1) / BatchSize; len(reqs) != want {
+		t.Errorf("%d requests, want %d", len(reqs), want)
+	}
+	sent, capped := 0, 0
+	for i, r := range reqs {
+		counts := strings.Fields(r)
+		if len(counts) > BatchSize {
+			t.Errorf("request %d carries %d texts, over %d", i, len(counts), BatchSize)
+		}
+		for _, c := range counts {
+			n, err := strconv.Atoi(c)
+			if err != nil {
+				t.Fatalf("request %d logged %q", i, r)
+			}
+			if n > MaxIDs {
+				t.Errorf("request %d carries a text of %d ids, over %d", i, n, MaxIDs)
+			}
+			if n == MaxIDs {
+				capped++
+			}
+		}
+		sent += len(counts)
+	}
+	if sent != len(in) {
+		t.Errorf("the requests carried %d texts, want %d", sent, len(in))
+	}
+	if capped != over {
+		t.Errorf("%d texts went at the %d-id cap, want the %d long ones", capped, MaxIDs, over)
 	}
 }

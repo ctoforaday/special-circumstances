@@ -2,14 +2,8 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -17,11 +11,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed/vecembedtest"
 )
 
 // --search LIVES ON THE TWO PROSE VIEWS AND NOWHERE ELSE. The report and the cached sources are long
@@ -115,7 +108,7 @@ func TestASelectionAcrossSourcesListsEveryMatch(t *testing.T) {
 // (one, and all), and each source hit carries what cite takes. The fake helper embeds by hashed
 // token ids, so the ranking is real fusion over a deterministic vector, not the model's.
 func TestRankedSearchStatesCutAndScope(t *testing.T) {
-	useFakeEmbedder(t)
+	vecembedtest.UseFake(t)
 	runDir, sha := searchRun(t)
 	// An image-only PDF holds no text to rank; the cross-source search names it rather than drop it.
 	no := false
@@ -193,7 +186,7 @@ func TestRankedSearchStatesCutAndScope(t *testing.T) {
 // records no read and does not move the lens's pin. The bare read beside it does, which is what
 // makes the zero a measurement.
 func TestSearchDoesNotAdvanceServeReportPin(t *testing.T) {
-	useFakeEmbedder(t)
+	vecembedtest.UseFake(t)
 	runDir, _ := searchRun(t)
 	registerSeatOnce(t, runDir, lensSeat)
 	reads := func() int {
@@ -254,39 +247,4 @@ func censusCiteAnchor(t *testing.T, runDir string) string {
 		t.Fatalf("the evidence view names no citation:\n%s", out)
 	}
 	return out[i : i+10]
-}
-
-var (
-	fakeEmbedOnce sync.Once
-	fakeEmbedDir  string
-	fakeEmbedErr  error
-)
-
-// useFakeEmbedder points the tool at a fake feov-embed (nativehelper/testdata/fakehelper) built with
-// the pins this binary carries, so a --search runs end to end without the native build.
-func useFakeEmbedder(t *testing.T) {
-	t.Helper()
-	fakeEmbedOnce.Do(func() {
-		dir, err := os.MkdirTemp("", "feov-fake-embed-")
-		if err != nil {
-			fakeEmbedErr = err
-			return
-		}
-		exe := vecembed.HelperName
-		if runtime.GOOS == "windows" {
-			exe += ".exe"
-		}
-		ldflags := fmt.Sprintf("-X main.digest=%s -X main.assets=%s", nativehelper.HelperDigest(vecembed.HelperName),
-			strings.Join(nativehelper.HelperAssets(vecembed.HelperName), ","))
-		cmd := exec.Command("go", "build", "-o", filepath.Join(dir, exe), "-ldflags", ldflags, "../nativehelper/testdata/fakehelper")
-		if msg, err := cmd.CombinedOutput(); err != nil {
-			fakeEmbedErr = fmt.Errorf("building the fake helper: %v\n%s", err, msg)
-			return
-		}
-		fakeEmbedDir = dir
-	})
-	if fakeEmbedErr != nil {
-		t.Fatal(fakeEmbedErr)
-	}
-	t.Setenv(nativehelper.EnvDir, fakeEmbedDir)
 }
