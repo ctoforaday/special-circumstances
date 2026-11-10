@@ -38,7 +38,7 @@ type Inquiry struct {
 	Status     string
 	Reason     string // the reason attached to the CURRENT status
 	// Method is the CURRENT fate's, exactly as Reason is: what an approach that ran actually did,
-	// what a deferred or declined one leaves a later run to do, what an abandoned one tried. A
+	// what would settle the question of a deferred or declined one, what an abandoned one tried. A
 	// proposal holds none — it is written before any research, and a method printed beside the
 	// question from then reads as what was consulted, with nothing to check it against.
 	Method  string

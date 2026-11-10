@@ -822,8 +822,15 @@ type runner struct {
 	// the lens's gap about the composed section, fateTurnInquiry the inquiry whose fate it prints,
 	// fateTurnChanged whether blue has changed that fate answering it, and fateTurnStage the last step
 	// the chain reached, which the run's error names when no fate turn was counted.
-	forceFateTurn, fateTurnChanged                bool
-	fateTurnGap, fateTurnInquiry, fateTurnStage   string
+	forceFateTurn, fateTurnChanged              bool
+	fateTurnGap, fateTurnInquiry, fateTurnStage string
+	// composedGap is the voice lens's gap about composedInquiry's account, minted from a composed
+	// source its list handed it, and composedAnswered whether blue has recorded that fate again
+	// answering it (composedsource_test.go). composedHanded, composedGaps and composedAnswers count
+	// the sources handed, those gaps and those answers; the sweep gates each at zero.
+	composedGap, composedInquiry                  string
+	composedAnswered                              bool
+	composedHanded, composedGaps, composedAnswers int
 	foundAgainstChained, foundAgainstRepeatedRead bool
 	foundAgainstStage                             string
 	foundAgainstCite, foundAgainstAnchor          string
@@ -5725,6 +5732,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.extras("blue", seatID, open)
 		// THE FORCED FATE TURN'S ANSWER comes before the sitting's other fates, so it is a fate of its own.
 		r.changeFateForTurn(seatID)
+		// THE VOICE LENS'S GAP ABOUT AN INQUIRY'S ACCOUNT is answered by recording the fate again.
+		r.answerComposedGap(seatID)
 		// EVERY OPEN INQUIRY GETS A FATE THIS SITTING: each is a blocking item on blue's work list.
 		r.settleOpenInquiries(seatID)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
@@ -5959,6 +5968,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 			}
 		}
+		r.auditComposedSources(seatID)
 		r.mintAboutFateSection(seatID)
 		r.mintHeldTrifle(seatID)
 		r.closeNamedOnTurn(seatID, engaged)
@@ -6457,6 +6467,8 @@ type outcome struct {
 	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
 	// are runner's.
 	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits, fateTurns int
+	// composedHanded, composedGaps and composedAnswers are runner's.
+	composedHanded, composedGaps, composedAnswers int
 	// lensAlone, docketsAfterAudit, docketedClosesRefused and docketedOffList are runner's.
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// hearingsAfter is runner's.
@@ -7898,6 +7910,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
 	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
 	res.fateTurns = r.fateTurns
+	res.composedHanded, res.composedGaps, res.composedAnswers = r.composedHanded, r.composedGaps, r.composedAnswers
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
