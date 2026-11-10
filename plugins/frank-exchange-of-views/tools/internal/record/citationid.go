@@ -259,12 +259,9 @@ type Computation struct {
 	// output, exit and out/ against an execution of the bundle. Nil when nobody compared it — and
 	// that absence is information the reader needs, so the report says so rather than omitting it.
 	Rerun *ComputationRerun
-	// Executed is whether any checker executed the bundle: an act with no comparison on an executed
-	// bundle is not compared, never not re-run.
-	Executed bool
 	// Standing is the bundle's standing re-run — the execution a later reproduce of any act on the
-	// bundle compares against instead of executing — nil where no reproduce that ran it names its
-	// execution.
+	// bundle compares against instead of executing — nil where no checker executed the bundle. An act
+	// with no comparison on a bundle that has one is not compared, never not re-run.
 	Standing *StandingRerun
 	// Soundness is THIS ANCHOR's sentence — sound | unsound | not_judged | reopened — read from its
 	// standing verdicts, one per seat (computationverdict.go). Each judgement, with the sentence it
@@ -286,7 +283,7 @@ type ComputationRerun struct {
 	// Ran is whether this reproduce executed the bundle itself.
 	Ran bool
 	// RerunSha names the execution compared against, rerun/<RerunSha>/ in the store; "" on a
-	// reproduce migrated from a record that kept no raw re-run.
+	// migrated reproduce whose re-run's output the archive holds only in part.
 	RerunSha string
 }
 
@@ -313,7 +310,7 @@ func RecordedComputations(run Run) ([]Computation, error) {
 		return nil, err
 	}
 	ledger := anchorChecksOf(m.Events, m.At)
-	reruns, acts := bundleRerunsOf(m.Events), actVerdictsOf(m.Events)
+	reruns, acts := standingRerunsOf(m.Events), actVerdictsOf(m.Events)
 	var out []Computation
 	for _, e := range m.Events {
 		pf, isComputation := recordpb.BodyAs[*recordpb.Computation](e)
@@ -342,12 +339,9 @@ func RecordedComputations(run Run) ([]Computation, error) {
 			p.Rerun = &ComputationRerun{SeatID: v.comparison.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting, Rerun: r.GetRerun(),
 				Drift: r.GetDrift(), Ran: r.GetRan(), RerunSha: r.GetRerunSha()}
 		}
-		if b := v.bundle; b != nil {
-			p.Executed = true
-			if b.standing != nil {
-				r, _ := recordpb.BodyAs[*recordpb.Reproduce](b.standing)
-				p.Standing = &StandingRerun{SeatID: b.standing.GetSeatId(), RerunSha: r.GetRerunSha(), Exit: int(r.GetRerunExit()), Rerun: r.GetRerun()}
-			}
+		if st := v.standing; st != nil {
+			r, _ := recordpb.BodyAs[*recordpb.Reproduce](st)
+			p.Standing = &StandingRerun{SeatID: st.GetSeatId(), RerunSha: r.GetRerunSha(), Exit: int(r.GetRerunExit()), Rerun: r.GetRerun()}
 		}
 		out = append(out, p)
 	}

@@ -19,7 +19,7 @@ import (
 //   - THE COMPARISON belongs to the ACT. Two acts on one bundle can have recorded different results —
 //     a `variant` program records what its first run wrote — so each act is compared against the
 //     standing re-run with its OWN recorded output, exit and out/, and its verdict is its own latest
-//     reproduce's. An act on an executed bundle that nobody compared is `not_compared`, never another
+//     reproduce's. An act on a bundle with a standing re-run that nobody compared is `not_compared`, never another
 //     act's verdict.
 //   - SOUND belongs to the ANCHOR: does the program and its result support what THAT sentence says.
 //     It is read off the anchor's standing checks (anchorchecks.go), so a standing `unsound` from
@@ -45,38 +45,21 @@ const (
 const (
 	// RerunNone: no checker executed the act's bundle.
 	RerunNone = "not_rerun"
-	// RerunNotCompared: the bundle was executed, and nobody compared this act against it.
+	// RerunNotCompared: the bundle has a standing re-run, and nobody compared this act against it.
 	RerunNotCompared = "not_compared"
 )
 
-// bundleState is what the record holds of one bundle's executions.
-type bundleState struct {
-	// executed is whether any `reproduce` ran the bundle — a migrated one included, which names no
-	// execution.
-	executed bool
-	// standing is the bundle's standing re-run: the latest `reproduce` that ran it AND names its
-	// execution by rerun_sha; nil where none does (never executed, or only by migrated acts).
-	standing *Event
-}
-
-// bundleRerunsOf is every bundle's executions, keyed by bundle_sha. A `reproduce` that compared
-// without running the bundle (`ran` = false) executed nothing.
-func bundleRerunsOf(evs []*Event) map[string]*bundleState {
-	out := map[string]*bundleState{}
+// standingRerunsOf is every bundle's standing re-run, keyed by bundle_sha: the latest `reproduce`
+// that ran it and names its execution by rerun_sha. A `reproduce` that compared without running the
+// bundle (`ran` = false) executed nothing, and a bundle no reproduce ran has none.
+func standingRerunsOf(evs []*Event) map[string]*Event {
+	out := map[string]*Event{}
 	for _, e := range evs {
 		r, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
-		if !ok || r.GetBundleSha() == "" || !r.GetRan() {
+		if !ok || r.GetBundleSha() == "" || !r.GetRan() || r.GetRerunSha() == "" {
 			continue
 		}
-		st := out[r.GetBundleSha()]
-		if st == nil {
-			st = &bundleState{}
-			out[r.GetBundleSha()] = st
-		}
-		st.executed = true
-		if r.GetRerunSha() != "" {
-			st.standing = e
-		}
+		out[r.GetBundleSha()] = e
 	}
 	return out
 }
@@ -116,8 +99,8 @@ func validateReproduce(q recordsql.Querier, b *recordpb.Reproduce) error {
 
 // requireNamedExecution is a reproduce's act judgement (judgeAct): the act names the execution it
 // compared against by its rerun_sha — its own where it ran, else the bundle's standing re-run — and
-// the tool names it before it writes. An archived reproduce from a record that kept no raw re-run
-// names none, and the replay writes it as the archive holds it.
+// the tool names it before it writes. A migrated reproduce whose re-run's output the archive holds
+// only in part names none, and the replay writes it as the archive holds it.
 //
 // AN ACT THAT RAN NOTHING NAMES THE STANDING RE-RUN, and it must still be the standing one: two
 // checkers can execute one bundle at once, both executions are recorded, and the later stands, so an
@@ -161,8 +144,8 @@ func refuseSoundOverTheTool(b *recordpb.Reproduce) error {
 type computationVerdict struct {
 	// comparison is this act's latest reproduce, nil when nobody compared it.
 	comparison *Event
-	// bundle is what the record holds of the bundle's executions, nil when nobody ran it.
-	bundle *bundleState
+	// standing is the bundle's standing re-run, nil when nobody ran it.
+	standing *Event
 	// soundness is one of the Soundness* words.
 	soundness string
 	// judgements are the anchor's standing soundness verdicts, one per seat, in record order.
@@ -188,21 +171,21 @@ func (v computationVerdict) reproduced() bool {
 func (v computationVerdict) verified() bool { return v.reproduced() && v.soundness == SoundnessSound }
 
 // rerunWord is the act's state as every reader prints it: its comparison, or not_compared where its
-// bundle was executed and nobody compared it, or not_rerun where nobody executed the bundle.
+// bundle has a standing re-run and nobody compared it, or not_rerun where nobody executed the bundle.
 func (v computationVerdict) rerunWord() string {
 	if r := v.compared(); r != nil {
 		return recordpb.Word(r.GetRerun())
 	}
-	if v.bundle != nil && v.bundle.executed {
+	if v.standing != nil {
 		return RerunNotCompared
 	}
 	return RerunNone
 }
 
 // computationVerdictOf is one act's standing verdict — computation id on bundle sha — read from the
-// ledger (s, nil where the anchor has none), the bundles' executions and the acts' comparisons.
-func computationVerdictOf(id, sha string, s *anchorStanding, reruns map[string]*bundleState, acts map[string]*Event) computationVerdict {
-	v := computationVerdict{soundness: SoundnessNotJudged, comparison: acts[id], bundle: reruns[sha]}
+// ledger (s, nil where the anchor has none), the bundles' standing re-runs and the acts' comparisons.
+func computationVerdictOf(id, sha string, s *anchorStanding, reruns map[string]*Event, acts map[string]*Event) computationVerdict {
+	v := computationVerdict{soundness: SoundnessNotJudged, comparison: acts[id], standing: reruns[sha]}
 	if s == nil {
 		return v
 	}
