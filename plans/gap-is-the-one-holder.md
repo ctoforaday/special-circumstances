@@ -219,7 +219,7 @@ flags. Generated carriers are regenerated, never edited: `agents/*.md` and the t
 | D8 | `requireNotARepeatReading`'s reads arm is deleted; the unread arm stays. `requireNotARetriedReading` (same seat, same url, same sitting) keys on the SENTENCE by F11's predicate — the stored claim's sentence as of the reading, equal now or reworded to the new claim's sentence — never on claim-string equality (RULED 2026-11-10) | §III.5 |
 | D9 | `migrate`: the in-act reading act machinery is deleted; each archived member comes forward as its own event with the two link fields dropped, and ONE translation: an in-act Mint whose carrying Verify names a citation becomes a Mint ABOUT that citation (`about_kind` anchor, `about_ref` = the Verify's `anchor`, `location` dropped) — so no reading debt is read off the migrated record; stated residue | §III.7 |
 | D10 | Estoppel: no exemption for a found-source 32 — the guard asks of every `--quote` mint as today, and `verify` attaches none (F4 (a), RULED; reverses the 2026-10-31 exemption for this case). A REWORD ENDS IT (F12, RULED 2026-11-10): an applied-verbatim prescription estops while the latest edit touching its gap is the verbatim one; an edit after it that lists the gap in `reopened` makes the span blue's, and a later verbatim edit of the same gap binds red again. Derived from `BlueEdit.reopened` — no new field | §III.3 |
-| D13 | `show evidence`'s cite row carries `location_state` (`marked` / `gone` / `unrendered`, the board's constants) and its `location` is the live sentence around the C- token when `marked`, the stored text otherwise — the board's treatment of a quote gap, through the one locating function (RULED 2026-11-10) | §III.5 |
+| D13 | `show evidence`'s cite row AND computation row carry `location_state` (`marked` / `gone` / `unrendered`, the board's constants) and their `location` is the live sentence around the C- / K- token when `marked`, the stored text (`Cite.location` / `Computation.location`, proto :1495) otherwise — the board's treatment of a quote gap, through the one locating function (RULED 2026-11-10) | §III.5 |
 | D11 | The capture's assembly screen screens the GAP: FAIL on an open MATERIAL 32/25 gap whose subject the assembled report still carries, or on a standing `reading_debt`; `counts.sources_refuted` and `CitationsFoundAgainst` are DELETED with the state (RULED: no destination but one help line) | §III.5 |
 | D12 | The outcome reason's clause naming the kinds that hold a PASS by their own state is ONE Go table, `StandingClauses`, that `verdict.go`'s `anchorsStanding` folds and `enginegen` renders into `debate.js`'s generated region as `STANDING_CLAUSES`; the authored `anchorsStanding` folds the constant. `reading_debt` is a row | §III.8 |
 
@@ -656,7 +656,7 @@ the chair's spot-check (`view.go:672–677`, samples closures, reads no reading)
   removed and the claim of another sentence, same url, same sitting → admitted; an identical claim →
   refused as today. Census: §III.9 C4; §V check 9 — replace the predicate with claim equality → T28's
   reworded row red.
-- **`show evidence`'s cite `location` (D13, RULED 2026-11-10; census row 10)** [`evidenceview.go:70–77`
+- **`show evidence`'s cite and computation `location` (D13, RULED 2026-11-10; census row 10)** [`evidenceview.go:70–77`
   `EvidenceSourceJSON.Location`, `:523` the fill from `Cite.location`]: today the row prints the cite's
   write-time text forever, with no word for a reworded or cut sentence, where a quote gap prints
   `marked` with the live sentence or `gone` with "the text as minted" (`viewjson.go:2181–2225`
@@ -1248,6 +1248,8 @@ No fork is open.
     exactly for F12 and by a positional stand-in for a found reading.
 15. The census names "a cite's or computation's `location` (`evidenceview.go:1052`)": on this tree the
     cite row's field is `EvidenceSourceJSON.Location` (`evidenceview.go:77`, filled `:523`) and the
-    computation row (`EvidenceComputationJSON`, `:159–194`) carries no location at all, so D13 reaches
-    the cite row only; a computation's location would be a NEW report field (field-destination rule),
-    not asked for.
+    computation row (`EvidenceComputationJSON`, `:159–194`) prints no location today. The RECORD holds
+    one (`Computation.location`, proto :1495, the `--quote` it was attached with) and the K- token is
+    the locator, so D13 reaches BOTH rows: the computation row gains `location` and `location_state`
+    as VIEW fields derived from the token and the stored quote — no new record field (gblock, 2026-11-10:
+    every computation is anchored; the omission was the view's).
