@@ -142,12 +142,13 @@ func TestCorpusGoldens(t *testing.T) {
 // recorder.
 type goldenTB interface {
 	Helper()
-	Fatal(args ...any)
+	Error(args ...any)
 	Skip(args ...any)
 }
 
-// requireTargetGoldens ends the test unless every case holds target's golden: a failure under
-// GITHUB_ACTIONS, a loud skip elsewhere. It looks for target's file only, never another's.
+// requireTargetGoldens holds the test to target's goldens. Under GITHUB_ACTIONS a missing set fails
+// the test and the pages are still read, so native-run uploads their readings; elsewhere it skips
+// loudly. It looks for target's file only, never another's.
 func requireTargetGoldens(t goldenTB, cases []corpus.Case, target string) {
 	t.Helper()
 	var missing []string
@@ -162,7 +163,7 @@ func requireTargetGoldens(t goldenTB, cases []corpus.Case, target string) {
 	msg := fmt.Sprintf("no %s golden for %v: this target has no committed set. Commit the readings "+
 		"native-run uploads as corpus-readings-%s, or regenerate here with -update", target, missing, target)
 	if os.Getenv("GITHUB_ACTIONS") != "" {
-		t.Fatal(msg)
+		t.Error(msg)
 		return
 	}
 	t.Skip("SKIPPED, NOT PASSED: " + msg)
@@ -171,7 +172,7 @@ func requireTargetGoldens(t goldenTB, cases []corpus.Case, target string) {
 type goldenRecorder struct{ fatal, skip string }
 
 func (r *goldenRecorder) Helper()           {}
-func (r *goldenRecorder) Fatal(args ...any) { r.fatal = fmt.Sprint(args...) }
+func (r *goldenRecorder) Error(args ...any) { r.fatal = fmt.Sprint(args...) }
 func (r *goldenRecorder) Skip(args ...any)  { r.skip = fmt.Sprint(args...) }
 
 // TestATargetWithoutGoldensFailsInCI: a target with no committed set fails under GITHUB_ACTIONS

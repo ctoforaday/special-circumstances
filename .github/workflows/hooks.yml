@@ -504,8 +504,9 @@ jobs:
           CGO_ENABLED=0 go build -o "$prebuilt/" ./cmd/...
           ls "$prebuilt"
           run_arg="$(echo "$NATIVE_RUN_MUST_PASS" | tr ' ' '|')"
-          # Single-quoted for bash: every $ below is PowerShell's.
-          ps='$failed = 0; foreach ($p in $env:NATIVE_RUN_PACKAGES.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) { Set-Location (Join-Path "C:\repo\plugins\frank-exchange-of-views\tools" $p); & (Join-Path "C:\prebuilt" ((Split-Path $p -Leaf) + ".test.exe")) -test.v -test.run "^($env:NATIVE_RUN_REGEX)$"; if ($LASTEXITCODE -ne 0) { $failed = 1 } }; exit $failed'
+          # Single-quoted for bash: every $ below is PowerShell's. The test flags go in as one splatted
+          # array, because Windows PowerShell splits a bare -test.v at its dot.
+          ps='$failed = 0; $flags = @("-test.v=true", "-test.run=^($env:NATIVE_RUN_REGEX)$"); foreach ($p in $env:NATIVE_RUN_PACKAGES.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) { Set-Location (Join-Path "C:\repo\plugins\frank-exchange-of-views\tools" $p); & (Join-Path "C:\prebuilt" ((Split-Path $p -Leaf) + ".test.exe")) @flags; if ($LASTEXITCODE -ne 0) { $failed = 1 } }; exit $failed'
           docker run --rm \
             -v "$prebuilt:C:\\prebuilt" \
             -v "$NATIVE_HELPER_DIR:C:\\helpers" \
