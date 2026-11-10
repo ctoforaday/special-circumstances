@@ -28,11 +28,12 @@ import (
 
 // FindsAgainst reports whether v is a reading that finds against its sentence: it reads the work
 // (VerifyReads — not `unreachable`, not any outcome of a copy the tool stamped not_the_work) and its
-// outcome admits a gap (its `gap_classes`). It is the anchor ledger's found-against test, so the
-// reading rule and the ledger cannot disagree about a value added to SourceOutcome. A reading that
+// outcome finds against (its `finds_against` option, recordpb.FindsAgainstOf). It is the anchor
+// ledger's found-against test and the mint check's (readingMintedClasses), so the reading rule, the
+// ledger and the mint check cannot disagree about a value added to SourceOutcome. A reading that
 // reads nothing never finds against, whatever its outcome.
 func FindsAgainst(v *recordpb.Verify) bool {
-	return VerifyReads(v) && len(recordpb.GapClassesOf(v.GetOutcome())) > 0
+	return VerifyReads(v) && recordpb.FindsAgainstOf(v.GetOutcome())
 }
 
 // ReadingGapClasses is the classes v's gap may take: nil unless v reads the work (VerifyReads); for

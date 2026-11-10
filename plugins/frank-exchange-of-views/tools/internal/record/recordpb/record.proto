@@ -164,6 +164,15 @@ extend google.protobuf.EnumValueOptions {
   // reading is recorded and mints nothing. Read through record.ReadingGapClasses, beside gap_classes.
   repeated GapClass found_source_gap_classes = 50015;
 
+  // finds_against IS WHETHER A READING WITH THIS OUTCOME FINDS THE SOURCE AGAINST THE SENTENCE: the
+  // source was read and says otherwise than the sentence, or nothing of it. It is the outcome the
+  // anchor ledger reads as a reading against the sentence (record.FindsAgainst, on a copy that read
+  // the work), the outcome whose lens owes a graded gap or a re-read, and the outcome a mint of a
+  // class defined by such a reading stands on (record.readingMintedClasses). True on `refutes` and
+  // `absent`; absent on every other value, which is its answer there. An option, not a vocabulary
+  // facet: a value that does not find against declares nothing.
+  optional bool finds_against = 50016;
+
   // 50007 held `correct`, a type's same-sitting correction tier. No act is corrected: a wrong one is
   // answered by a new act. The number is not reused.
 }
@@ -544,9 +553,9 @@ enum SourceOutcome {
     (found_source_gap_classes) = GAP_CLASS_UNSOURCED_CLAIM];
   SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act",
     (gap_classes) = GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, (gap_classes) = GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION,
-    (found_source_gap_classes) = GAP_CLASS_CLAIM_CONTRADICTS_SOURCE];
+    (found_source_gap_classes) = GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, (finds_against) = true];
   SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing",
-    (gap_classes) = GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION, (gap_classes) = GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
+    (gap_classes) = GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION, (gap_classes) = GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION, (finds_against) = true];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
   SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read"];
 }
 

@@ -168,6 +168,7 @@ func annotationLiteral(a recordpb.ValueAnnotations) string {
 	}
 	classes("GapClasses", a.GapClasses)
 	classes("FoundSourceGapClasses", a.FoundSourceGapClasses)
+	flag("FindsAgainst", a.FindsAgainst)
 	return "{" + strings.Join(fields, ", ") + "}"
 }
 

@@ -74,6 +74,21 @@ func FoundSourceGapClassesOf(o SourceOutcome) []GapClass {
 	return outcomeClasses(o, func(a *ValueAnnotations) []GapClass { return a.FoundSourceGapClasses })
 }
 
+// FindsAgainstOf reports whether a reading with outcome o finds the source against the sentence — the
+// outcome's `finds_against` option, true on `refutes` and `absent`. It says what the OUTCOME finds,
+// never that a reading does: record.FindsAgainst asks it of a reading that read the work.
+func FindsAgainstOf(o SourceOutcome) bool {
+	vd := o.Descriptor().Values().ByNumber(o.Number())
+	if vd == nil {
+		return false
+	}
+	a, err := annotationsOf(vd)
+	if err != nil {
+		return false
+	}
+	return a.FindsAgainst.Declared && a.FindsAgainst.Value
+}
+
 // outcomeClasses reads one of o's class lists off its row of the generated annotation table.
 func outcomeClasses(o SourceOutcome, pick func(*ValueAnnotations) []GapClass) []GapClass {
 	vd := o.Descriptor().Values().ByNumber(o.Number())

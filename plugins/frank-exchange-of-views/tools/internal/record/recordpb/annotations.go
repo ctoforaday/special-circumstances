@@ -40,6 +40,10 @@ type ValueAnnotations struct {
 	// `found_source_gap_classes` options, in declaration order: the classes a reading with that
 	// outcome may mint its gap in. Nil where the value declares none.
 	GapClasses, FoundSourceGapClasses []GapClass
+
+	// FindsAgainst is a SourceOutcome's `finds_against` option: whether a reading with that outcome
+	// finds the source against the sentence. Declared true on the values that do; undeclared elsewhere.
+	FindsAgainst DeclaredBool
 }
 
 // DeclaredBool is a boolean facet with its declared/undeclared split: false is an answer, absent
@@ -90,6 +94,7 @@ func AnnotationsFromOptions(vd protoreflect.EnumValueDescriptor) ValueAnnotation
 		return slices.Clone(proto.GetExtension(opts, xt).([]GapClass))
 	}
 	a.GapClasses, a.FoundSourceGapClasses = classes(E_GapClasses), classes(E_FoundSourceGapClasses)
+	a.FindsAgainst = flag(E_FindsAgainst)
 	return a
 }
 
