@@ -1044,25 +1044,70 @@ func (r *runner) oneURLTwoSentences(seatID string) {
 	}
 }
 
+// debtGoneUnderChain is why seatID's reading debt on sentence s may be gone under the one-url chain
+// by an act that is not the chain's — an open claim_contradicts_source gap on the sentence, quoting
+// it or about a citation it holds (sameClassAndSubject, both arms), or blue's edit of the sentence,
+// after which the report no longer holds it once — or "" where neither holds and the debt's absence
+// is the chain's to fail on.
+func (r *runner) debtGoneUnderChain(s string) string {
+	if open, _ := r.sameClassAndSubject(classContradicts, quoteArgs(s)); len(open) > 0 {
+		return "an open claim_contradicts_source gap landed on the sentence under the chain: " + open[0].ID
+	}
+	cur, err := record.RenderRun(r.run())
+	if err != nil {
+		return ""
+	}
+	if _, once := sentenceMarked(cur, s); !once {
+		return "blue's edit took the sentence out under the chain"
+	}
+	return ""
+}
+
 // citationGapHolds reports whether an open claim_contradicts_source gap is about a citation the
 // sentence holds, which the cross-arm would refuse a quote mint over.
 func (r *runner) citationGapHolds(report, sentence string) bool {
-	_, end, err := anchortext.LocateOnce(report, sentence, anchortext.StopAtParagraph)
-	if err != nil {
-		return false
+	for _, id := range citationsInSentence(report, sentence) {
+		if r.openGapOfClassAbout(classContradicts, id) != "" {
+			return true
+		}
 	}
-	held := false
+	return false
+}
+
+// citationsInSentence is the citations whose tokens the sentence of report holding quote's only
+// occurrence carries — the subject the one-gap rule's cross-arm (F9) reads for a quote mint. None
+// where quote does not locate once.
+func citationsInSentence(report, quote string) []string {
+	_, end, err := anchortext.LocateOnce(report, quote, anchortext.StopAtParagraph)
+	if err != nil {
+		return nil
+	}
+	var out []string
 	for _, sp := range anchor.Sentences(report) {
 		if !(sp[0] < end && end <= sp[1]) {
 			continue
 		}
 		anchor.Each(report[sp[0]:sp[1]], func(_, _ int, id string) {
-			if anchor.Kind(id) == "citation" && r.openGapOfClassAbout(classContradicts, id) != "" {
-				held = true
+			if anchor.Kind(id) == "citation" {
+				out = append(out, id)
 			}
 		})
 	}
-	return held
+	return out
+}
+
+// sentenceHoldingAnchor is the sentence of report carrying anchorID's token, as a reader sees it
+// (plainText) — the subject the cross-arm reads for a mint about a citation — or "" where no
+// sentence carries it.
+func sentenceHoldingAnchor(report, anchorID string) string {
+	for _, sp := range anchor.Sentences(report) {
+		held := false
+		anchor.Each(report[sp[0]:sp[1]], func(_, _ int, id string) { held = held || id == anchorID })
+		if held {
+			return plainText(report[sp[0]:sp[1]])
+		}
+	}
+	return ""
 }
 
 // oneURLChain is one url read by seatID against s1 and s2, both `refutes`, in one sitting, and the
@@ -1086,6 +1131,14 @@ func (r *runner) oneURLChain(seatID, s1, s2 string) string {
 	_, first := r.debtOf(seatID, s1)
 	_, second := r.debtOf(seatID, s2)
 	if !first || !second {
+		// A DEBT ANOTHER SEAT'S ACT DISCHARGED UNDER THE CHAIN is the record's call, not this drive's:
+		// a sibling's open claim_contradicts_source gap on the sentence, in either form, discharges
+		// it (F9), and blue's edit of the sentence takes the reading's claim out of it.
+		for _, s := range []string{s1, s2} {
+			if why := r.debtGoneUnderChain(s); why != "" {
+				return why
+			}
+		}
 		r.noteActErr(fmt.Sprintf("one url read `refutes` against two sentences owes debts on %v and %v, want both: the subject is the sentence, never the url", first, second))
 		return "the two debts did not both stand"
 	}
@@ -1093,10 +1146,16 @@ func (r *runner) oneURLChain(seatID, s1, s2 string) string {
 		return "the first sentence's quote mint was refused: " + firstLine(res.out)
 	}
 	if _, stands := r.debtOf(seatID, s2); !stands {
+		if why := r.debtGoneUnderChain(s2); why != "" {
+			return why
+		}
 		r.noteActErr("the quote mint on the first sentence discharged the debt on the second, read from the same url: the subject is the sentence, never the url")
 		return "the second debt was discharged by the first mint"
 	}
 	if res := r.mintOnReading(seatID, classContradicts, quoteArgs(s2), 0, "quote"); res.gap == "" {
+		if res.refusedBy == "one_gap" {
+			return "the second sentence's quote mint met a sibling's gap on the sentence (oneGapOnReading holds it)"
+		}
 		r.noteActErr("the second sentence's quote mint, on the same url's reading, was refused: " + firstLine(res.out))
 		return "the second sentence's quote mint was refused"
 	}

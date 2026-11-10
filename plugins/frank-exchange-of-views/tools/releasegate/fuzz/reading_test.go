@@ -615,9 +615,22 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 	args := append(readingMintArgs(seatID, classContradicts), "--quote", quote)
 	mout, merr := r.exec(args...)
 	switch {
+	case merr == nil && !r.stillEstops(prescribing):
+		// BLUE REWORDED THE APPLIED SENTENCE UNDER THE READING (F12): the span is blue's, the mint
+		// lands on the reading, and it discharges the debt.
+		noteEither(args[:2], "a found-source mint over a prescription, landed after blue reworded the applied sentence (F12)", true)
+		r.noteReadingMintLanded(seatID, mout, classContradicts, "quote")
+		r.debtDischargedBy(seatID, quote, "mint", "the mint quoting the sentence blue reworded")
+		return
 	case merr == nil:
 		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was admitted with no --supersedes, and a found-source gap meets the estoppel guard like any quote mint: " + firstLine(mout))
 		r.noteReadingMintLanded(seatID, mout, classContradicts, "quote")
+		return
+	case strings.Contains(mout, oneGapWords):
+		// A SIBLING'S claim_contradicts_source GAP ON THE SENTENCE — its own mint --supersedes the
+		// prescribing gap — met the one-gap rule first, and discharges this lens's debt (F9).
+		noteEither(args[:2], "a found-source mint over a prescription, refused by the one-gap rule over a sibling's gap on the sentence", false)
+		r.oneGapOnReading(seatID, classContradicts, mout, args, "quote")
 		return
 	case !strings.Contains(mout, estoppelWords) || !strings.Contains(mout, prescribing):
 		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused, and not as the estoppel against " + prescribing + ": " + firstLine(mout))

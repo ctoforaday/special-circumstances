@@ -1733,14 +1733,68 @@ func (r *runner) noteVerbatimGap(gapID, fixNew string) {
 	r.verbatimGaps[gapID] = fixNew
 }
 
-// aVerbatimGap returns one gap/text pair blue applied verbatim, or "" if none has landed yet.
+// aVerbatimGap returns one gap/text pair blue applied verbatim whose prescription STILL ESTOPS red
+// (stillEstops), or "" where none does — none has landed yet, or every one was since reworded. The
+// reword pair's gap is returned through its stages whatever its standing: the pair drives the reword
+// that ends the estoppel and the re-apply that restores it (mintRewordedText).
 func (r *runner) aVerbatimGap() (string, string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	for id, fn := range r.verbatimGaps {
-		return id, fn // map order is fine: any applied pair estops equally
+	ids := slices.Sorted(maps.Keys(r.verbatimGaps))
+	paired, pairedFix := "", ""
+	if r.reword.stage == rewordReworded || r.reword.stage == rewordLanded || r.reword.stage == rewordRestored {
+		paired, pairedFix = r.reword.gap, r.verbatimGaps[r.reword.gap]
+	}
+	r.mu.Unlock()
+	if paired != "" {
+		return paired, pairedFix
+	}
+	for _, id := range ids {
+		if r.stillEstops(id) {
+			r.mu.Lock()
+			fn := r.verbatimGaps[id]
+			r.mu.Unlock()
+			return id, fn
+		}
 	}
 	return "", ""
+}
+
+// verbatimGapNoted reports whether blue has applied any prescription verbatim in this run.
+func (r *runner) verbatimGapNoted() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.verbatimGaps) > 0
+}
+
+// stillEstops reports whether gapID's applied prescription still estops red, as the record folds it
+// (record.estoppingPrescriptions, F12): the latest blue edit naming gapID — in `answers` with
+// applied_verbatim, or in `reopened` — is a verbatim one. A later edit that rewords the sentence
+// the fix placed the gap's token in lists the gap reopened and makes the span blue's, whether or not
+// the prescribed words survive in it; a later verbatim apply binds red again. The drive asks this
+// before it expects an estoppel refusal, since blue's ordinary edits of the fixture sentence reword
+// it under the sweep.
+func (r *runner) stillEstops(gapID string) bool {
+	b, ok := r.board()
+	if !ok {
+		return false
+	}
+	estops := false
+	for i := range b.Events {
+		ed, isE := lastBlueEdit(b, i)
+		if !isE {
+			continue
+		}
+		if ed.GetAppliedVerbatim() {
+			if ed.GetAnswers() == gapID {
+				estops = true
+			}
+			continue
+		}
+		if slices.Contains(ed.GetReopened(), gapID) {
+			estops = false
+		}
+	}
+	return estops
 }
 
 // noteApplyMiss records WHY the verbatim-apply branch declined, so the estoppel precondition's
@@ -4260,22 +4314,46 @@ func argOf(args []string, flag string) string {
 }
 
 // sameClassAndSubject is the gaps on the board, open and closed, of class on the subject a mint's
-// args name: the inquiry it is about, or the sentence the board marks holding its quote. A mint about
-// anything else names no such subject, and has none.
+// args name, as the record's one-gap rule reads the subject: the inquiry it is about; the sentence
+// the board marks holding its quote, or — the cross-arm (F9) — a citation that sentence holds; the
+// citation it is about, or — the other cross-arm — the sentence holding that citation's token. A mint
+// about anything else names no such subject, and has none.
 func (r *runner) sameClassAndSubject(class string, args []string) (open, all []record.GapJSON) {
 	bj, err := record.BoardJSONOfRun(r.runHandle)
 	if err != nil {
 		return nil, nil
 	}
 	quote, kind, ref := argOf(args, "--quote"), argOf(args, "--about-kind"), argOf(args, "--about")
+	// THE CROSS-ARMS READ THE REPORT: the citations the quoted sentence holds, or the words of the
+	// sentence holding the cited token. A report that does not render leaves both empty, and the
+	// arm folds over the gap's own columns alone.
+	var cites []string
+	sentence := ""
+	if quote != "" || kind == "anchor" && anchor.Kind(ref) == "citation" {
+		if cur, rerr := record.RenderRun(r.run()); rerr == nil {
+			if quote != "" {
+				cites = citationsInSentence(cur, quote)
+			} else {
+				sentence = sentenceHoldingAnchor(cur, ref)
+			}
+		}
+	}
 	on := func(g record.GapJSON) bool {
 		switch {
 		case g.Class != class:
 			return false
 		case kind == "inquiry":
 			return g.AboutKind == "inquiry" && g.AboutRef == ref
+		case kind == "anchor":
+			if g.AboutKind == "anchor" && g.AboutRef == ref {
+				return true
+			}
+			return sentence != "" && g.LocationState == record.LocationMarked && plainText(g.Location) == sentence
 		case quote != "":
-			return g.LocationState == record.LocationMarked && strings.Contains(collapseWS(g.Location), collapseWS(anchortext.Visible(quote)))
+			if g.LocationState == record.LocationMarked && strings.Contains(collapseWS(g.Location), collapseWS(anchortext.Visible(quote))) {
+				return true
+			}
+			return g.AboutKind == "anchor" && slices.Contains(cites, g.AboutRef)
 		}
 		return false
 	}
@@ -4452,9 +4530,14 @@ func (r *runner) mintOverOpen(seatID string) {
 func (r *runner) mintEstopped(seatID string) {
 	gapID, fixNew := r.aVerbatimGap()
 	if gapID == "" {
-		// The precondition genuinely does not hold: nothing has been applied verbatim YET. Said
+		// The precondition genuinely does not hold: nothing has been applied verbatim YET, or
+		// blue has since reworded every applied sentence, which ends the estoppel (F12). Said
 		// out loud, because "the guard is gone" and "the drive never had its input" are the two
 		// readings of estoppels=0 and they want opposite fixes.
+		if r.verbatimGapNoted() {
+			r.noteEstoppelMiss("every prescription blue applied verbatim was since reworded by blue, which ends its estoppel (F12)")
+			return
+		}
 		r.noteEstoppelMiss("nothing applied verbatim yet when the drive fired")
 		return
 	}
@@ -4477,12 +4560,13 @@ func (r *runner) mintEstopped(seatID string) {
 		r.noteEstoppelMiss("could not render the report to find the applied sentence")
 		return
 	}
+	// THE QUOTE IS THE LINE AS A READER SEES IT (plainText): the applied text carries the gap's
+	// anchor and any anchor the edit put back, and a seat quotes the report's words, never its
+	// tokens. VISIBLE TEXT, BOTH SIDES, as EstoppelConflict compares.
 	sentence := ""
 	for _, line := range strings.Split(string(cur), "\n") {
-		// VISIBLE TEXT, BOTH SIDES, as EstoppelConflict compares: the applied text carries the gap's
-		// anchor and any anchor the edit put back.
-		if strings.Contains(anchortext.Visible(line), anchortext.Visible(fixNew)) && len(collapseWS(line)) >= 40 {
-			sentence = strings.TrimSpace(line)
+		if shown := plainText(line); strings.Contains(shown, anchortext.Visible(fixNew)) && len(shown) >= 40 {
+			sentence = shown
 			break
 		}
 	}
@@ -4496,11 +4580,30 @@ func (r *runner) mintEstopped(seatID string) {
 	if r.mintRewordedText(seatID, gapID, sentence) {
 		return
 	}
-	r.refuse(feov.Conflict, "mint", "--seat-id", seatID, "--class", "spec_underspecification",
+	probe := []string{"--json", "mint", "--seat-id", seatID, "--class", "spec_underspecification",
 		"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
 		"--check", "acc", "--fix", "reword it", "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
 		"--quote", sentence,
-		"--reason", "fuzz: estoppel probe — this quotes red's own prescription on "+gapID)
+		"--reason", "fuzz: estoppel probe — this quotes red's own prescription on " + gapID}
+	out, err := r.exec(probe...)
+	switch {
+	case err == nil && !r.stillEstops(gapID):
+		// BLUE REWORDED THE APPLIED SENTENCE BETWEEN THE DRAW AND THE MINT (F12): the landed gap is
+		// the record's call on the report the mint landed on, and the seat's to hold.
+		noteEither(probe[:2], "the estoppel probe's mint landed, blue having reworded the applied sentence under it (F12)", true)
+		if g := r.noteReadingMintLandedPlain(seatID, out); g != "" {
+			r.checkOneGap(g, probe)
+		}
+		return
+	case err == nil:
+		r.noteActErr(strings.Join(probe, " ") + ": admitted, and the drive drives it to be refused (conflict): " + firstLine(out))
+		return
+	}
+	if env, ok := refusalEnvelopeIn(out); !ok {
+		r.noteActErr(strings.Join(probe, " ") + ": refused under --json with no refusal envelope: " + firstLine(out))
+	} else if env.Code != string(feov.Conflict) {
+		r.noteActErr(fmt.Sprintf("%s: refused with code %q, and the drive drives a %q refusal: %s", strings.Join(probe, " "), env.Code, feov.Conflict, firstLine(env.Error)))
+	}
 	// A READING OVER THE SAME TEXT IS RECORDED, AND ITS GAP MEETS THE GUARD (readOverPrescription).
 	r.readOverPrescription(seatID, sentence, gapID)
 	// REFUSED, AND AS A CONFLICT WITH THE RECORD: an admitted mint here is the guard gone.
