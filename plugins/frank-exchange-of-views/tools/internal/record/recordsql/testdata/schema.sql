@@ -996,12 +996,12 @@ CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
--- A motion's rulings: motion_answers, inquiry_state, the gap view's unruled docket filing, and the
+-- A motion's rulings: motion_answers, inquiry_state, gap_refresh's unruled docket filing, and the
 -- bench's docket readers.
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
 -- The docket motions on a gap: the bench's latest ruling on it and its unruled filing.
 CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
--- The evidence anchors placed as a gap's answer, which the gap view's live-answer demand and the
+-- The evidence anchors placed as a gap's answer, which gap_refresh's live-answer demand and the
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
 CREATE INDEX "cite_answers" ON "cite" ("answers");
@@ -1012,7 +1012,7 @@ CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
 -- citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRetiresOf) and by the demand_reach view the gap view's evidence_met reads.
+-- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
 -- The readings a gap carries (carrying_reading), asked per gap by the gap's demand
 -- (record.EvidenceDemandOf). Partial: a reading that carries no gap is never asked this way.
@@ -1086,6 +1086,128 @@ CREATE TRIGGER "demand_lineage_supersedes" AFTER INSERT ON "mint_supersedes" BEG
 END;
 CREATE INDEX "verify_anchor" ON "verify" ("anchor", "event_id");
 CREATE INDEX "reproduce_computation_id" ON "reproduce" ("computation_id", "event_id");
+
+-- ONE ROW PER GAP: the gap view's columns that change after the mint, as the record now holds them.
+-- minted_event is the gap's mint event; every other column is the gap view's column of that name.
+CREATE TABLE "gap_state" (
+  "minted_event"            INTEGER PRIMARY KEY,
+  "gap_id"                  TEXT NOT NULL UNIQUE,
+  "close_event"             INTEGER,
+  "bench_close_event"       INTEGER,
+  "closed_by_bench"         INTEGER,
+  "bench_closed_last"       INTEGER,
+  "supersede_event"         INTEGER,
+  "open"                    INTEGER NOT NULL,
+  "supersedes_count"        INTEGER NOT NULL,
+  "current_severity"        TEXT,
+  "current_likelihood"      TEXT,
+  "current_impact"          TEXT,
+  "current_complexity_cost" TEXT,
+  "evidence_answered"       INTEGER,
+  "awaiting_evidence"       INTEGER,
+  "answers_retired_event"   INTEGER,
+  "unruled_docket_filed"    INTEGER,
+  "docket_direction"        TEXT,
+  "docket_settled"          TEXT,
+  "superseded_by"           TEXT,
+  "material"                INTEGER,
+  "remanded"                INTEGER,
+  "unruled_docket_motion"   TEXT
+) STRICT;
+-- The open gaps, in mint order: the dispatch's open-gap fold and every "is anything open" question.
+CREATE INDEX "gap_state_open" ON "gap_state" ("minted_event") WHERE "open";
+
+-- THE GAPS THE APPEND IN FLIGHT HAS TOUCHED. Empty between appends: the flush clears it.
+CREATE TABLE "gap_dirty" (
+  "gap_id" TEXT PRIMARY KEY
+) STRICT, WITHOUT ROWID;
+
+-- THE FLUSH: InsertTx inserts its one row at the end of an append that touched a gap, and the row's
+-- trigger refreshes the touched gaps and removes it.
+CREATE TABLE "gap_flush" (
+  "id" INTEGER PRIMARY KEY CHECK ("id" = 1)
+) STRICT;
+
+CREATE TRIGGER "gap_flush_refresh" AFTER INSERT ON "gap_flush" BEGIN
+  INSERT OR REPLACE INTO "gap_state" SELECT * FROM "gap_refresh";
+  DELETE FROM "gap_dirty";
+  DELETE FROM "gap_flush";
+END;
+
+-- A DOCKET RULING ANSWERS A DOCKET FILING ON THE RECORD. The gap a docket ruling closes or remands
+-- is the one its motion's filing names, so a ruling written before any filing of its motion would
+-- change a gap only once a later filing named it, retroactively: the bench rules on a motion
+-- filed, and a ruling with no filing behind it is refused for every writer.
+CREATE TRIGGER "motion_rule_docket_answers_a_filing" BEFORE INSERT ON "motion_rule_docket"
+WHEN NOT EXISTS (
+  SELECT 1 FROM "motion_rule" mr
+  JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
+  JOIN "motion_docket" md ON md."event_id" = mo."event_id"
+  WHERE mr."event_id" = NEW."event_id")
+BEGIN
+  SELECT RAISE(ABORT, 'a docket ruling answers a docket motion already filed on the record: no docket filing carries this ruling''s motion id');
+END;
+-- AND A FILING COMES BEFORE ITS RULING: a docket filing whose motion id a ruling already answers is refused.
+CREATE TRIGGER "motion_docket_precedes_its_ruling" BEFORE INSERT ON "motion_docket"
+WHEN EXISTS (
+  SELECT 1 FROM "motion" mo
+  JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
+  WHERE mo."event_id" = NEW."event_id")
+BEGIN
+  SELECT RAISE(ABORT, 'a docket motion is filed before it is ruled on: a ruling already answers this motion id');
+END;
+CREATE TRIGGER "gap_dirty_mint" AFTER INSERT ON "mint" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."gap_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_mint_supersedes" AFTER INSERT ON "mint_supersedes" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."value" UNION SELECT "gap_id" FROM "mint" WHERE "event_id" = NEW."event_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_close" AFTER INSERT ON "close" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."gap_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_regrade" AFTER INSERT ON "regrade" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."gap_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_motion_docket" AFTER INSERT ON "motion_docket" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."gap_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_motion_rule" AFTER INSERT ON "motion_rule" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id"
+      WHERE mo."motion_id" = NEW."motion_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_motion_rule_position_gap_ids" AFTER INSERT ON "motion_rule_position_gap_ids" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."value") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_retire_anchors" AFTER INSERT ON "retire_anchors" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT "answers" FROM "evidence_anchor" WHERE "anchor_id" = NEW."value" AND "answers" IS NOT NULL
+      UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."value") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_cite" AFTER INSERT ON "cite" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."answers" WHERE NEW."answers" IS NOT NULL
+      UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."label") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_verify" AFTER INSERT ON "verify" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."anchor") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_computation" AFTER INSERT ON "computation" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT NEW."answers" WHERE NEW."answers" IS NOT NULL
+      UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."computation_id") WHERE "x" IS NOT NULL;
+END;
+CREATE TRIGGER "gap_dirty_reproduce" AFTER INSERT ON "reproduce" BEGIN
+  INSERT OR IGNORE INTO "gap_dirty" ("gap_id")
+  SELECT "x" FROM (SELECT NULL AS "x" WHERE 0 UNION SELECT "gap_id" FROM "demand_reach" WHERE "anchor" = NEW."computation_id") WHERE "x" IS NOT NULL;
+END;
 
 -- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
 --
@@ -1330,7 +1452,7 @@ JOIN "events" e ON e."id" = x."event_id";
 -- remand too, on the ruling's direction, settling nothing, and the gap's one remand at impasse like
 -- any other.
 --
--- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
+-- ONE DEFINITION FOR EVERY READER OF A REMAND. gap_refresh's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
 -- into bench sittings by "sitting_id" and counts a sitting only where the gap was at impasse when the
 -- bench ruled — a question about the exchange count, which the record's Go fold answers and this
@@ -1363,18 +1485,18 @@ WHERE rp."ruling" = 'upheld';
 -- A GAP'S GRADES OVER THE RECORD, AND WHETHER IT IS MATERIAL: one row per gap (per mint) per stretch
 -- of the record over which its grades held — from "from_seq" up to, not including, "until_seq" (NULL:
 -- they hold now). The row that holds at a point P is the one with from_seq <= P and until_seq NULL or
--- above P. The gap view reads the row that holds now; convergence_at reads the one that held at each
--- verdict. This is the ONE statement of the materiality rule.
+-- above P. convergence_at reads the row that held at each verdict; gap_refresh asks the stretch that
+-- holds now of the regrade stamp directly, for the gap's current grades.
 --
 -- THE GRADES ARE STORED, NOT DERIVED HERE. A stretch begins at the mint and at each regrade, the
 -- only points where a gap's grades can change: the mint's row carries the mint's grades, and a
 -- regrade's row the result grades the write path stamped on it (recordsql.stampRegradeResult, the one
 -- statement of the regrade overlay). LEAD over the stretches of one mint ends each at the next.
 --
--- THE MATERIALITY RULE: the class's default says 'always' or 'never', and a 'by_grade' class is
--- material at a severity of medium (mass 2.0) and above. A gap that is not material stays on the
--- board, and blue may answer it when engaged for something else, but it alone cannot spin the cycle
--- (gblock, 2026-09-08).
+-- THE MATERIALITY RULE (recordsql.materialSQL, which gap_refresh renders too): the class's default
+-- says 'always' or 'never', and a 'by_grade' class is material at a severity of medium (mass 2.0) and
+-- above. A gap that is not material stays on the board, and blue may answer it when engaged for
+-- something else, but it alone cannot spin the cycle (gblock, 2026-09-08).
 --
 -- "mass" is MASS[likelihood] * MASS[impact] and "severity_mass" MASS[severity] — a grade's weight is
 -- a facet on the vocabulary (enum_grade.mass).
@@ -1403,8 +1525,7 @@ SELECT g."minted_event"                                      AS "minted_event",
        g."complexity_cost"                                   AS "complexity_cost",
        COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0)   AS "mass",
        COALESCE(gs."mass", 0.0)                              AS "severity_mass",
-       (g."class_material" = 'always'
-          OR (g."class_material" = 'by_grade' AND COALESCE(gs."mass", 0.0) >= 2.0)) AS "material"
+       (g."class_material" = 'always' OR (g."class_material" = 'by_grade' AND COALESCE(gs."mass", 0.0) >= 2.0))           AS "material"
 FROM "graded" g
 LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
 LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
@@ -1412,8 +1533,11 @@ LEFT JOIN "enum_grade" gs ON gs."value" = g."severity";
 
 -- EVERY ACT THAT CLOSES A GAP, by its arm: red's close ('close'), a docket ruling whose
 -- disposition closes ('bench') — whether it closes is read off the vocabulary rather than decided
--- here — and the mint that superseded it ('supersede'). The gap view reads the LAST of each arm, and
--- which arm acted last; convergence_at asks whether any was written at or before a verdict.
+-- here — and the mint that superseded it ('supersede'). convergence_at asks whether any was written
+-- at or before a verdict. gap_refresh asks the same three arms of the gaps an append touched, per gap
+-- through their indexes: read through this view the refresh compiles x1.45 the folded gap view did
+-- (measured 2026-11-10), so the arms are stated there again, and the archive sweep and the fixtures
+-- hold its closing columns to the folded view's.
 --
 -- A MINT SUPERSEDING AN OPEN GAP CLOSES IT (ruled by gblock 2026-11-04): the ancestor's purpose
 -- passes to the successor in that act, and it has no state of its own left to hold the board. The
@@ -1457,7 +1581,7 @@ GROUP BY s."value";
 
 -- THE READINGS A GAP CARRIES: each verify whose carried_by names the gap, with the anchor it read
 -- and the seat that read it. EVERY reader of the reading-to-gap link reads it here and nowhere
--- else (demand_reach, and through it the gap view's evidence_answered, among them), so the day the link is stated
+-- else (demand_reach, and through it gap_refresh's evidence_answered, among them), so the day the link is stated
 -- from the gap's side instead of the reading's this view is the one statement that changes.
 CREATE VIEW "carrying_reading" AS
 SELECT v."carried_by" AS "gap_id", v."anchor" AS "anchor", e."seat_id" AS "seat_id", v."event_id" AS "event_id"
@@ -1491,8 +1615,8 @@ FROM "placed" p;
 
 -- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap
 -- is about, checked by its minter, and the anchor of each reading it carries, checked by that
--- reading's seat. A retire of one, or that seat's check of it again, meets the demand (the gap view's
--- evidence_met arms 2 and 3); this is the one statement of the reach, which the close's refusal
+-- reading's seat. A retire of one, or that seat's check of it again, meets the demand (gap_refresh's
+-- met arms 2 and 3); this is the one statement of the reach, which the close's refusal
 -- (record.EvidenceDemandOf) and a retire's reach (record.reachingRetiresOf) read too.
 --
 -- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
@@ -1520,9 +1644,8 @@ FROM "demand_lineage" l
 JOIN "mint" h ON h."gap_id" = l."gap_id"
 JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap";
 
--- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
--- row that stands now (until_seq IS NULL) — the one definition of the materiality rule, which
--- convergence_at reads at every other point of the record.
+-- THE GAP: its mint, its mint's event, and its stored state (gap_state, maintained per append by the
+-- triggers recordsql.GapStateDDL holds, through the rules gap_refresh states). One row per gap.
 --
 -- THIS COLUMN LIST IS HAND-AUTHORED, AND IT IS WHERE A NEW GAP FIELD GOES MISSING. The table DDL
 -- is DERIVED from the protobuf descriptors, so a new field on Mint gets its column and its write
@@ -1543,257 +1666,83 @@ JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap";
 --
 -- A field added to Finding does not have this problem: the findings view reads the proto.
 --
--- EACH SUB-QUESTION IS ASKED ONCE FOR THE WHOLE BOARD AND JOINED. closure_act, remand, the unruled
--- docket filing, the successor whose mint closed the gap, the evidence-answered gaps and the retired
--- answers are each one small set keyed by gap id. Asked as correlated subqueries per gap instead,
--- closure_act and remand are each planned three times and the evidence and supersedes lookups scan
--- their tables once per gap.
+-- The state's columns, as gap_refresh answers each:
+--   close_event, bench_close_event  the last close, and the last closing docket ruling. A gap can be
+--                       closed more than once — red re-adjudicates across epochs, the bench rules
+--                       many times — and the LAST of each arm is the word that stands. A reader takes
+--                       a closing act's word, epoch and seat from the event the id names.
+--   closed_by_bench     the arm of the FIRST closing act. A docket motion filed while its gap is open
+--                       stands unruled after the minting lens closes the gap, and the bench rules it to
+--                       clear the PASS: in universe-m25 the lenses closed G-e205e589 and G-a810bbab
+--                       (ev440, ev460) before the bench ruled their k-max dockets (ev488, ev489), and
+--                       read by its later act the run holds four lens closures counted as the bench's.
+--   bench_closed_last   whose word stands: a bench ruling after red's close overrules red's word, and
+--                       the closure's epoch is that act's.
+--   supersede_event, superseded_by  the mint that closed the gap by superseding it, and its gap.
+--   supersedes_count    the gaps the mint names in its supersedes.
+--   current_*, material the grades that stand now and the materiality rule over them: gap_grade's
+--                       standing row. The plain severity columns are MINT-TIME grades.
+--   evidence_answered, awaiting_evidence  the live-answer demand, met, and an open gap whose check
+--                       kind demands one with none met: the debt list blue is handed.
+--   answers_retired_event  the last retire that left none of a closed gap's answers live, while no
+--                       closing act other than a carry follows it. The closure stands; the column is
+--                       the gap's lens's news.
+--   unruled_docket_filed, unruled_docket_motion  the newest docket filing on the gap no ruling names,
+--                       and its motion id. The PASS gate asks the same per-motion question of the
+--                       events (motionsAt), and
+--                       TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled
+--                       (record's narrowedview_test.go) holds the two level.
+--   docket_direction, docket_settled  the latest remand's direction, and the proposition it settles.
+--   remanded            a remand stands on the open gap and no docket motion on it stands unruled: the
+--                       remand sends the gap back for ONE more exchange, and the record's Go fold
+--                       (exchangesOf, over the remand view) decides where it stands against that.
 CREATE VIEW "gap" AS
-WITH "closure" AS MATERIALIZED (
-  -- HOW THE GAP CLOSED, stated here and nowhere else: the last closing act of each arm by its
-  -- events.id (NULL where the arm has none), and the first of each, which says which arm's act
-  -- ended the gap.
-  --
-  -- A SUPERSESSION IS THE LENS'S OWN CLOSING ACT, so beside the bench it is read as red's: whose act
-  -- ended the gap and whose word stands compare the bench with red's close and the superseding mint
-  -- alike ("red_first", "red_last").
-  --
-  -- judged is the last closing act that is not a carry — a close with no carried_from, a closing
-  -- ruling, or the superseding mint: a carry restates a closure the record holds, and each of the
-  -- others judged the gap anew.
-  SELECT ca."gap_id"                                                                AS "gap_id",
-         MAX(CASE WHEN ca."arm" = 'close' THEN ca."event_id" END)                   AS "close_event",
-         MAX(CASE WHEN ca."arm" = 'bench' THEN ca."event_id" END)                   AS "bench_event",
-         MIN(CASE WHEN ca."arm" = 'supersede' THEN ca."event_id" END)               AS "supersede_event",
-         MIN(CASE WHEN ca."arm" IN ('close', 'supersede') THEN ca."event_id" END)   AS "red_first",
-         MAX(CASE WHEN ca."arm" IN ('close', 'supersede') THEN ca."event_id" END)   AS "red_last",
-         MIN(CASE WHEN ca."arm" = 'bench' THEN ca."event_id" END)                   AS "first_bench",
-         MAX(CASE WHEN ca."arm" IN ('bench', 'supersede') OR cl."carried_from" IS NULL
-                  THEN ca."event_id" END)                                           AS "judged"
-  FROM "closure_act" ca
-  LEFT JOIN "close" cl ON cl."event_id" = ca."event_id" AND ca."arm" = 'close'
-  GROUP BY ca."gap_id"
-),
-"latest_remand" AS MATERIALIZED (
-  -- THE LATEST REMAND ON EACH GAP, off the "remand" view every reader of a remand reads.
-  --
-  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL. The events primary key is monotonic, unique,
-  -- and nothing to do with the motion-id spelling that has no usable order. The LATEST remand is
-  -- the live one — an earlier remand's direction has already had its exchange.
-  SELECT "gap_id", "direction", "settled" FROM (
-    SELECT "gap_id", "direction", "settled",
-           row_number() OVER (PARTITION BY "gap_id" ORDER BY "event_id" DESC) AS "n"
-    FROM "remand")
-  WHERE "n" = 1
-),
-"unruled_docket" AS MATERIALIZED (
-  -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
-  -- gap that no ruling names. ASKED PER MOTION, NEVER AS A COUNT. A count of ruling rows against a
-  -- count of dockets reads two rulings on one motion as covering an unruled sibling (#1201).
-  SELECT md."gap_id" AS "gap_id", max(md."event_id") AS "filed"
-  FROM "motion_docket" md
-  JOIN "motion" mo ON mo."event_id" = md."event_id"
-  WHERE NOT EXISTS(SELECT 1 FROM "motion_rule" mr WHERE mr."motion_id" = mo."motion_id")
-  GROUP BY md."gap_id"
-),
-"superseded" AS MATERIALIZED (
-  -- THE SUCCESSOR WHOSE MINT CLOSED THE GAP: the gap the closure's 'supersede' arm names.
-  SELECT c."gap_id" AS "gap_id", m2."gap_id" AS "by"
-  FROM "closure" c
-  JOIN "mint" m2 ON m2."event_id" = c."supersede_event"
-),
-"evidence" AS MATERIALIZED (
-  -- THE EVIDENCE ANCHORS, read once for the board: every arm below joins this set.
-  SELECT "anchor_id", "kind", "check_kind", "answers", "retired_event" FROM "evidence_anchor"
-),
-"reach" AS MATERIALIZED (
-  -- THE ANCHORS EACH GAP'S DEMAND REACHES, and whose check it is (the demand_reach view), read once
-  -- for the board.
-  SELECT "gap_id", "from_gap", "check_kind", "minted", "anchor", "seat", "reached" FROM "demand_reach"
-),
-"latest_check" AS MATERIALIZED (
-  -- EACH SEAT'S LATEST CHECK OF EACH EVIDENCE ANCHOR THAT READ IT, and whether it holds: the anchor
-  -- ledger's replacement rule (a seat's check is replaced only by its own later check that reads)
-  -- and its holds, one arm per recordsql.EvidenceTables row, generated from the row's check table,
-  -- reads and holds.
-  SELECT "anchor", "seat", "check_kind", "event_id", "holds" FROM (
-    SELECT x."anchor" AS "anchor", ce."seat_id" AS "seat", 'source' AS "check_kind",
-           x."event_id" AS "event_id", ((x."outcome" IN ('supports', 'supports_with_bridge', 'weak') AND COALESCE(x."source_completeness", '') <> 'not_the_work')) AS "holds",
-           row_number() OVER (PARTITION BY x."anchor", ce."seat_id" ORDER BY x."event_id" DESC) AS "n"
-    FROM "verify" x
-    JOIN "events" ce ON ce."id" = x."event_id"
-    WHERE (x."outcome" IS NOT NULL AND x."outcome" <> 'unreachable' AND COALESCE(x."source_completeness", '') <> 'not_the_work')
-    UNION ALL
-    SELECT x."computation_id" AS "anchor", ce."seat_id" AS "seat", 'computation' AS "check_kind",
-           x."event_id" AS "event_id", (x."soundness" = 'sound') AS "holds",
-           row_number() OVER (PARTITION BY x."computation_id", ce."seat_id" ORDER BY x."event_id" DESC) AS "n"
-    FROM "reproduce" x
-    JOIN "events" ce ON ce."id" = x."event_id"
-    WHERE 1
-  ) WHERE "n" = 1
-),
-"evidence_met" AS MATERIALIZED (
-  -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause). Three arms, each off rows:
-  --   1. a live evidence anchor of the gap's check kind was placed as its answer;
-  --   2. an anchor the demand reaches (demand_reach) is retired: the anchor the gap is about, or
-  --      whose reading it carries, or one an ancestor it carries the demand from was about or
-  --      carried a reading of, retired since the successor's mint;
-  --   3. the check again: for an anchor the demand reaches that is live and of the gap's check
-  --      kind, that row's seat's latest check of it that read it is at or after the gap's mint and
-  --      holds. Another seat's check meets nothing, and a check of one kind never meets the other
-  --      kind's demand.
-  SELECT ea."answers" AS "gap_id"
-  FROM "evidence" ea
-  JOIN "mint" m ON m."gap_id" = ea."answers" AND m."check_kind" = ea."check_kind"
-  WHERE ea."retired_event" IS NULL
-  UNION
-  SELECT dr."gap_id"
-  FROM "reach" dr
-  JOIN "evidence" ea ON ea."anchor_id" = dr."anchor"
-  WHERE ea."retired_event" IS NOT NULL AND (dr."from_gap" = dr."gap_id" OR ea."retired_event" > dr."reached")
-  UNION
-  SELECT dr."gap_id"
-  FROM "reach" dr
-  JOIN "evidence" ea ON ea."anchor_id" = dr."anchor"
-  JOIN "latest_check" lc ON lc."anchor" = dr."anchor" AND lc."seat" = dr."seat" AND lc."check_kind" = dr."check_kind"
-  WHERE ea."retired_event" IS NULL AND lc."event_id" >= dr."minted" AND lc."holds"
-),
-"answers_retired" AS MATERIALIZED (
-  -- THE GAPS WHOSE ANSWERS ARE ALL RETIRED: at least one evidence anchor was placed as the gap's
-  -- answer, and every one has a retire; retired is the last of them.
-  SELECT "answers" AS "gap_id", MAX("retired_event") AS "retired"
-  FROM "evidence"
-  WHERE "answers" IS NOT NULL
-  GROUP BY "answers"
-  HAVING count(*) = count("retired_event")
-)
 SELECT
-  m."gap_id"                                   AS "gap_id",
-  m."class"                                    AS "class",
-  m."class_material"                           AS "class_material",
-  m."location"                                 AS "location",
-  m."about_kind"                               AS "about_kind",
-  m."about_ref"                                AS "about_ref",
-  m."problem"                                  AS "problem",
-  m."mint_reason"                              AS "mint_reason",
-  m."required_fix"                             AS "required_fix",
-  m."acceptance_check"                         AS "acceptance_check",
-  m."check_kind"                               AS "check_kind",
-  m."fix_basis"                                AS "fix_basis",
-  m."fix_new"                                  AS "fix_new",
-  m."severity"                                 AS "severity",
-  m."likelihood"                               AS "likelihood",
-  m."impact"                                   AS "impact",
-  m."complexity_cost"                          AS "complexity_cost",
-  e."id"                                       AS "minted_seq",
-  e."epoch"                                    AS "minted_epoch",
-  e."seat_id"                                  AS "minted_by",
-  -- A reader takes a closing act's word, epoch and seat from the event the id names.
-  --
-  -- A gap can be closed more than once — red re-adjudicates across epochs (defect_accepted in one,
-  -- repaired in a later one, or the chair carries an earlier closure forward), and the bench can
-  -- rule many times, remanding in one epoch and disposing in the next. The LAST close and the LAST
-  -- closing ruling are the words that stand. ONE ROW PER GAP, because closure is grouped by gap: a
-  -- join to "close" fans out one row per close event, and a gap with two closes then counts twice
-  -- in board_counts while the raw event walk counts it once (a projection disagreement the
-  -- consistency oracle catches).
-  c."close_event"                              AS "close_event",
-  c."bench_event"                              AS "bench_close_event",
-  -- WHO CLOSED IT is the arm of the FIRST closing act. A docket motion filed while its gap is open
-  -- stands unruled after the minting lens closes the gap, and the bench rules it to clear the PASS:
-  -- in universe-m25 the lenses closed G-e205e589 and G-a810bbab (ev440, ev460) before the bench
-  -- ruled their k-max dockets (ev488, ev489), and read by its later act the run holds four lens
-  -- closures counted as the bench's. The ruling is the bench's word on the gap; it is not what
-  -- ended it.
-  (c."first_bench" IS NOT NULL
-     AND (c."red_first" IS NULL OR c."first_bench" < c."red_first"))                    AS "closed_by_bench",
-  -- WHOSE WORD STANDS is the later arm's: a bench ruling after red's close overrules red's word, and
-  -- the closure's epoch is that act's.
-  (c."bench_event" IS NOT NULL
-     AND (c."red_last" IS NULL OR c."bench_event" > c."red_last"))                      AS "bench_closed_last",
-  -- The mint that closed the gap by superseding it, NULL where none did.
-  c."supersede_event"                                                                   AS "supersede_event",
-  (c."gap_id" IS NULL)                                                                  AS "open",
-  -- THE REPEATED FIELDS, ANSWERED HERE RATHER THAN STORED. A gap's lineage and its credited
-  -- findings live in child tables, so "does this gap supersede anything" is a join every reader
-  -- would otherwise write for itself — and several did, differently.
-  --
-  -- Derived rather than denormalised, deliberately: a has_lineage column on mint, maintained by
-  -- an insert trigger on the child, is a second copy of a fact the child table already holds, and
-  -- it would have to be UPDATEd into a record that is append-only. The count is free here and
-  -- cannot disagree with the rows it counts.
-  (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
-  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
-  -- THE CURRENT GRADES, one per axis, off gap_grade's standing row. The plain "severity" columns
-  -- above are MINT-TIME grades — a reader that wants what the gap is graded NOW and reaches for them
-  -- silently reads a number a regrade may have moved, which is why the current grades are answered
-  -- here rather than left to each reader.
-  gg."severity"                                                                       AS "current_severity",
-  gg."likelihood"                                                                     AS "current_likelihood",
-  gg."impact"                                                                         AS "current_impact",
-  gg."complexity_cost"                                                                AS "current_complexity_cost",
-  -- THE LIVE-ANSWER DEMAND, answered where every asker can share it: a gap whose check kind an
-  -- evidence anchor answers closes only once evidence_met holds it, and "awaiting evidence" is the
-  -- debt list blue is handed. The demanded kinds are recordsql.EvidenceTables' check words; the
-  -- Go home for which kind is owed (Gap.AnswerKind) reads the same rows, and THIS is the one SQL
-  -- statement of the demand.
-  (em."gap_id" IS NOT NULL)                                                           AS "evidence_answered",
-  (c."gap_id" IS NULL
-     AND m."check_kind" IN ('source', 'computation') AND em."gap_id" IS NULL)              AS "awaiting_evidence",
-  -- THE ANSWERS TO A CLOSED GAP, ALL RETIRED: the last retire that left none of them live, while
-  -- no closing act other than a carry follows it. The closure stands; the column is the gap's
-  -- lens's news, and NULL on every open gap and on one judged again after the retire.
-  (CASE WHEN c."gap_id" IS NOT NULL
-             AND (c."judged" IS NULL OR c."judged" < ar."retired")
-        THEN ar."retired" END)                                                        AS "answers_retired_event",
-  -- The dispatch plan reads the unruled filing to ready the bench and to key the bench's sitting on
-  -- the filing; remanded and unruled_docket_motion (outer select) read it, as the "nothing pending"
-  -- arm and as the motion's id. The PASS gate asks the same per-motion question of the events
-  -- (motionsAt), and
-  -- TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled (record's
-  -- narrowedview_test.go) holds the two level.
-  ud."filed"                                                                          AS "unruled_docket_filed",
-  -- THE DIRECTION THE LATEST REMAND STATES, and the proposition it settles: a remand closes nothing,
-  -- and may still bar a party from re-asserting what the bench decided on the way to sending the gap
-  -- back.
-  lr."direction"                                                                      AS "docket_direction",
-  lr."settled"                                                                        AS "docket_settled",
-  -- The successor whose mint closed this gap, NULL where no supersession closed it.
-  sp."by"                                                                             AS "superseded_by",
-  -- The mint's own event id, so board order is a sort key rather than a join every reader
-  -- writes for itself.
-  m."event_id"                                                                        AS "minted_event",
-  gg."material"                                                                       AS "material",
-  -- THE BENCH REMANDED IT AND NOTHING IS PENDING, and this is the column that lets a seat be told so.
-  --
-  -- A remand ruled at impasse sends the gap back to the debate for ONE more exchange between its
-  -- minting lens and blue, on the direction the ruling states (docket_direction). Where a remanded
-  -- gap stands against that exchange — owed or had — turns on the exchanges and the acts in them,
-  -- so the record's Go fold decides it (exchangesOf, over the "remand" view's
-  -- rows); this column says only that a remand stands on the gap and no docket motion on it stands
-  -- unruled. Without it the chair was told only "gap G1 is open and material — PASS is refused while
-  -- it is", which is true of a gap nobody has ever put before the bench and of one the bench has
-  -- heard and sent back.
-  --
-  -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap docketed
-  -- again and awaiting an answer is before the bench, not back in the debate. "Nothing pending" is
-  -- unruled_docket_filed's own source, so that the two columns cannot answer "does a docket motion
-  -- stand unruled" differently.
-  (c."gap_id" IS NULL
-     AND ud."filed" IS NULL AND lr."gap_id" IS NOT NULL)                              AS "remanded",
-  -- THE MOTION ID OF THAT FILING, which the dispatch plan's reason names. Read off the same filing
-  -- remanded reads: the filing and its id cannot then name two motions.
-  um."motion_id"                                                                      AS "unruled_docket_motion"
-FROM "mint" m
-JOIN "events" e ON e."id" = m."event_id"
-LEFT JOIN "gap_grade" gg ON gg."minted_event" = m."event_id" AND gg."until_seq" IS NULL
-LEFT JOIN "closure" c ON c."gap_id" = m."gap_id"
-LEFT JOIN "latest_remand" lr ON lr."gap_id" = m."gap_id"
-LEFT JOIN "unruled_docket" ud ON ud."gap_id" = m."gap_id"
-LEFT JOIN "superseded" sp ON sp."gap_id" = m."gap_id"
-LEFT JOIN "evidence_met" em ON em."gap_id" = m."gap_id"
-LEFT JOIN "answers_retired" ar ON ar."gap_id" = m."gap_id"
-LEFT JOIN "motion" um ON um."event_id" = ud."filed";
+  m."gap_id"                   AS "gap_id",
+  m."class"                    AS "class",
+  m."class_material"           AS "class_material",
+  m."location"                 AS "location",
+  m."about_kind"               AS "about_kind",
+  m."about_ref"                AS "about_ref",
+  m."problem"                  AS "problem",
+  m."mint_reason"              AS "mint_reason",
+  m."required_fix"             AS "required_fix",
+  m."acceptance_check"         AS "acceptance_check",
+  m."check_kind"               AS "check_kind",
+  m."fix_basis"                AS "fix_basis",
+  m."fix_new"                  AS "fix_new",
+  m."severity"                 AS "severity",
+  m."likelihood"               AS "likelihood",
+  m."impact"                   AS "impact",
+  m."complexity_cost"          AS "complexity_cost",
+  e."id"                       AS "minted_seq",
+  e."epoch"                    AS "minted_epoch",
+  e."seat_id"                  AS "minted_by",
+  s."close_event"              AS "close_event",
+  s."bench_close_event"        AS "bench_close_event",
+  s."closed_by_bench"          AS "closed_by_bench",
+  s."bench_closed_last"        AS "bench_closed_last",
+  s."supersede_event"          AS "supersede_event",
+  s."open"                     AS "open",
+  s."supersedes_count"         AS "supersedes_count",
+  s."current_severity"         AS "current_severity",
+  s."current_likelihood"       AS "current_likelihood",
+  s."current_impact"           AS "current_impact",
+  s."current_complexity_cost"  AS "current_complexity_cost",
+  s."evidence_answered"        AS "evidence_answered",
+  s."awaiting_evidence"        AS "awaiting_evidence",
+  s."answers_retired_event"    AS "answers_retired_event",
+  s."unruled_docket_filed"     AS "unruled_docket_filed",
+  s."docket_direction"         AS "docket_direction",
+  s."docket_settled"           AS "docket_settled",
+  s."superseded_by"            AS "superseded_by",
+  s."minted_event"             AS "minted_event",
+  s."material"                 AS "material",
+  s."remanded"                 AS "remanded",
+  s."unruled_docket_motion"    AS "unruled_docket_motion"
+FROM "gap_state" s
+JOIN "mint" m ON m."event_id" = s."minted_event"
+JOIN "events" e ON e."id" = s."minted_event";
 
 -- THE CONVERGENCE RULE'S INPUTS, AS THE BOARD STOOD AT A POINT: one row per verdict, and one for the
 -- record's newest event.
@@ -1880,14 +1829,13 @@ FROM "at" a;
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.
 --
--- ONE PASS OVER THE GAP VIEW: both counts are sums over the same rows, and the view is the costly
--- part of the question.
+-- ONE PASS OVER THE STORED STATE: both counts are sums over the same rows.
 CREATE VIEW "board_counts" AS
 SELECT
   COALESCE(SUM("open"), 0)          AS "open_gaps",
   COALESCE(SUM(NOT "open"), 0)      AS "closed_gaps",
   (SELECT count(*) FROM "events")   AS "events"
-FROM "gap";
+FROM "gap_state";
 
 -- THE ANSWERS TO A MOTION, one row per answered id, whichever filing shape asked. The FIRST
 -- ruling is the one that counts, and a second is refused at the write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
@@ -1980,3 +1928,171 @@ CREATE VIEW "report_op" AS
   UNION ALL
   SELECT ra."event_id", 'remove', ra."value", NULL, 0
     FROM "retire_anchors" ra;
+
+-- THE GAP VIEW'S RULES, ASKED OF THE GAPS THE APPEND IN FLIGHT TOUCHED (gap_dirty), one row each in
+-- gap_state's column order. The flush trigger is its one reader; between appends it reads nothing.
+-- recordsql.GapStateDDL says why the state is stored.
+CREATE VIEW "gap_refresh" AS
+WITH "d" AS MATERIALIZED (
+  SELECT m."gap_id" AS "gap_id", m."event_id" AS "minted", m."check_kind" AS "check_kind", m."class_material" AS "class_material"
+  FROM "gap_dirty" g CROSS JOIN "mint" m ON m."gap_id" = g."gap_id"
+),
+"bench" AS MATERIALIZED (
+  -- THE BENCH'S CLOSING RULINGS on each gap: a docket ruling whose disposition closes, on a filing
+  -- that names the gap. The gap rides the filing, not the ruling.
+  SELECT md."gap_id" AS "gap_id", mr."event_id" AS "event_id"
+  FROM "d"
+  CROSS JOIN "motion_docket" md ON md."gap_id" = "d"."gap_id"
+  JOIN "motion" mo ON mo."event_id" = md."event_id"
+  JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
+  JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
+  JOIN "enum_disposition" x ON x."value" = rd."disposition"
+  WHERE x."closes"
+),
+"closure" AS MATERIALIZED (
+  -- HOW EACH GAP CLOSED: the last close, and the first; the last close that is not a carry; the
+  -- bench's last and first closing ruling; and the mint that superseded it — the first mint naming
+  -- it, where no closing act of another arm precedes that mint. A mint naming a gap already closed
+  -- carries its lineage forward and closes nothing (ruled by gblock 2026-11-04). The arms are
+  -- closure_act's, asked per gap here (closure_act's comment says why).
+  SELECT "d"."gap_id" AS "gap_id", "d"."minted" AS "minted", "d"."check_kind" AS "check_kind",
+    "d"."class_material" AS "class_material",
+    (SELECT max(c."event_id") FROM "close" c WHERE c."gap_id" = "d"."gap_id")                          AS "close_event",
+    (SELECT min(c."event_id") FROM "close" c WHERE c."gap_id" = "d"."gap_id")                          AS "close_first",
+    (SELECT max(c."event_id") FROM "close" c WHERE c."gap_id" = "d"."gap_id" AND c."carried_from" IS NULL) AS "close_judged",
+    (SELECT max(b."event_id") FROM "bench" b WHERE b."gap_id" = "d"."gap_id")                          AS "bench_event",
+    (SELECT min(b."event_id") FROM "bench" b WHERE b."gap_id" = "d"."gap_id")                          AS "first_bench",
+    (SELECT min(s."event_id") FROM "mint_supersedes" s
+      WHERE s."value" = "d"."gap_id"
+        AND NOT EXISTS (SELECT 1 FROM "close" c WHERE c."gap_id" = s."value" AND c."event_id" < s."event_id")
+        AND NOT EXISTS (SELECT 1 FROM "bench" b WHERE b."gap_id" = s."value" AND b."event_id" < s."event_id")) AS "supersede_event",
+    -- THE DOCKET MOTION STANDING UNRULED: the newest filing on the gap that no ruling names. Asked
+    -- per motion, never as a count (#1201).
+    (SELECT max(md."event_id") FROM "motion_docket" md JOIN "motion" mo ON mo."event_id" = md."event_id"
+      WHERE md."gap_id" = "d"."gap_id"
+        AND NOT EXISTS (SELECT 1 FROM "motion_rule" mr WHERE mr."motion_id" = mo."motion_id"))         AS "filed"
+  FROM "d"
+),
+"k" AS MATERIALIZED (
+  -- A SUPERSESSION IS THE LENS'S OWN CLOSING ACT, so beside the bench it is read as red's
+  -- (red_first, red_last). judged is the last closing act that is not a carry.
+  SELECT c.*,
+    COALESCE(c."close_event", c."bench_event", c."supersede_event") IS NULL AS "open",
+    CASE WHEN c."close_first" IS NULL THEN c."supersede_event"
+         WHEN c."supersede_event" IS NULL THEN c."close_first"
+         ELSE min(c."close_first", c."supersede_event") END                  AS "red_first",
+    CASE WHEN c."close_event" IS NULL THEN c."supersede_event"
+         WHEN c."supersede_event" IS NULL THEN c."close_event"
+         ELSE max(c."close_event", c."supersede_event") END                  AS "red_last",
+    max(COALESCE(c."close_judged", 0), COALESCE(c."bench_event", 0), COALESCE(c."supersede_event", 0)) AS "judged"
+  FROM "closure" c
+),
+"reach" AS MATERIALIZED (
+  -- THE ANCHORS EACH NAMED GAP'S DEMAND REACHES: demand_reach's arms, over the named gaps' lineage.
+  SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
+       'about' AS "via", a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+FROM "d" CROSS JOIN "demand_lineage" l ON l."gap_id" = "d"."gap_id"
+JOIN "mint" h ON h."gap_id" = l."gap_id"
+JOIN "mint" a ON a."gap_id" = l."from_gap"
+JOIN "events" e ON e."id" = a."event_id"
+WHERE a."about_kind" = 'anchor'
+UNION ALL
+SELECT l."gap_id", l."from_gap", h."check_kind", h."event_id",
+       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE h."event_id" END
+FROM "d" CROSS JOIN "demand_lineage" l ON l."gap_id" = "d"."gap_id"
+JOIN "mint" h ON h."gap_id" = l."gap_id"
+JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap"
+),
+"answered" AS MATERIALIZED (
+  -- THE EVIDENCE ANCHORS PLACED AS EACH NAMED GAP'S ANSWER: how many, how many retired and the last
+  -- retire, and how many stand live of the gap's own check kind. The IN reaches each placing table's
+  -- answers index; the join alone materializes every anchor on the record.
+  SELECT "d"."gap_id" AS "gap_id", count(*) AS "placed", count(ea."retired_event") AS "retired",
+         max(ea."retired_event") AS "last_retired",
+         sum(ea."retired_event" IS NULL AND ea."check_kind" = "d"."check_kind") AS "live"
+  FROM "d" JOIN "evidence_anchor" ea ON ea."answers" = "d"."gap_id"
+  WHERE ea."answers" IN (SELECT "gap_id" FROM "gap_dirty")
+  GROUP BY "d"."gap_id"
+),
+"checks" AS MATERIALIZED (
+  -- EVERY CHECK THAT READ AN ANCHOR THE DEMAND REACHES, and whether it holds: one arm per
+  -- recordsql.EvidenceTables row, from the row's check table, reads and holds.
+  SELECT x."anchor" AS "anchor", ce."seat_id" AS "seat", 'source' AS "check_kind",
+         x."event_id" AS "event_id", ((x."outcome" IN ('supports', 'supports_with_bridge', 'weak') AND COALESCE(x."source_completeness", '') <> 'not_the_work')) AS "holds"
+  FROM "verify" x
+  JOIN "events" ce ON ce."id" = x."event_id"
+  WHERE x."anchor" IN (SELECT "anchor" FROM "reach") AND (x."outcome" IS NOT NULL AND x."outcome" <> 'unreachable' AND COALESCE(x."source_completeness", '') <> 'not_the_work')
+  UNION ALL
+  SELECT x."computation_id" AS "anchor", ce."seat_id" AS "seat", 'computation' AS "check_kind",
+         x."event_id" AS "event_id", (x."soundness" = 'sound') AS "holds"
+  FROM "reproduce" x
+  JOIN "events" ce ON ce."id" = x."event_id"
+  WHERE x."computation_id" IN (SELECT "anchor" FROM "reach") AND 1
+),
+"met" AS MATERIALIZED (
+  -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause):
+  --   1. a live evidence anchor of the gap's check kind was placed as its answer;
+  --   2. an anchor the demand reaches is retired: one the gap is about or carries a reading of, or
+  --      one an ancestor it carries the demand from reaches, retired since the heir's mint;
+  --   3. for a live anchor the demand reaches, that row's seat's latest check of the gap's kind that
+  --      read it is at or after the gap's mint and holds. Another seat's check meets nothing.
+  SELECT "gap_id" FROM "answered" WHERE "live" > 0
+  UNION
+  SELECT r."gap_id"
+  FROM "reach" r JOIN "evidence_anchor" ea ON ea."anchor_id" = r."anchor"
+  WHERE CASE WHEN ea."retired_event" IS NOT NULL THEN (r."from_gap" = r."gap_id" OR ea."retired_event" > r."reached")
+        ELSE (SELECT h."holds" AND h."event_id" >= r."minted" FROM "checks" h
+              WHERE h."anchor" = r."anchor" AND h."seat" = r."seat" AND h."check_kind" = r."check_kind"
+              ORDER BY h."event_id" DESC LIMIT 1) END
+),
+"latest_remand" AS MATERIALIZED (
+  -- THE LATEST REMAND ON EACH NAMED GAP (the remand view): its direction is the live one.
+  SELECT "gap_id", "direction", "settled" FROM (
+    SELECT r."gap_id" AS "gap_id", r."direction" AS "direction", r."settled" AS "settled",
+           row_number() OVER (PARTITION BY r."gap_id" ORDER BY r."event_id" DESC) AS "n"
+    FROM "remand" r WHERE r."gap_id" IN (SELECT "gap_id" FROM "d"))
+  WHERE "n" = 1
+)
+SELECT
+  k."minted"                                                                  AS "minted_event",
+  k."gap_id"                                                                  AS "gap_id",
+  k."close_event"                                                             AS "close_event",
+  k."bench_event"                                                             AS "bench_close_event",
+  -- WHO CLOSED IT is the arm of the first closing act; WHOSE WORD STANDS is the later arm's.
+  (k."first_bench" IS NOT NULL AND (k."red_first" IS NULL OR k."first_bench" < k."red_first")) AS "closed_by_bench",
+  (k."bench_event" IS NOT NULL AND (k."red_last" IS NULL OR k."bench_event" > k."red_last"))   AS "bench_closed_last",
+  k."supersede_event"                                                         AS "supersede_event",
+  k."open"                                                                    AS "open",
+  (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = k."minted")  AS "supersedes_count",
+  -- THE CURRENT GRADES: the latest regrade's stamped result, else the mint's (the stretch gap_grade
+  -- holds open now).
+  g."severity"                                                                AS "current_severity",
+  g."likelihood"                                                              AS "current_likelihood",
+  g."impact"                                                                  AS "current_impact",
+  g."complexity_cost"                                                         AS "current_complexity_cost",
+  (em."gap_id" IS NOT NULL)                                                   AS "evidence_answered",
+  (k."open" AND k."check_kind" IN ('source', 'computation') AND em."gap_id" IS NULL) AS "awaiting_evidence",
+  -- THE ANSWERS TO A CLOSED GAP, ALL RETIRED: at least one anchor placed as its answer, every one
+  -- retired, the last of them after the last closing act that is not a carry.
+  CASE WHEN NOT k."open" AND an."placed" = an."retired" AND k."judged" < an."last_retired"
+       THEN an."last_retired" END                                            AS "answers_retired_event",
+  k."filed"                                                                   AS "unruled_docket_filed",
+  lr."direction"                                                              AS "docket_direction",
+  lr."settled"                                                                AS "docket_settled",
+  (SELECT m2."gap_id" FROM "mint" m2 WHERE m2."event_id" = k."supersede_event") AS "superseded_by",
+  (k."class_material" = 'always' OR (k."class_material" = 'by_grade' AND COALESCE((SELECT eg."mass" FROM "enum_grade" eg WHERE eg."value" = g."severity"), 0.0) >= 2.0)) AS "material",
+  -- THE BENCH REMANDED IT AND NOTHING IS PENDING.
+  (k."open" AND k."filed" IS NULL AND lr."gap_id" IS NOT NULL)               AS "remanded",
+  (SELECT um."motion_id" FROM "motion" um WHERE um."event_id" = k."filed")    AS "unruled_docket_motion"
+FROM "k"
+JOIN (SELECT m."event_id" AS "minted_event",
+             CASE WHEN rg."event_id" IS NULL THEN m."severity" ELSE rg."result_severity" END               AS "severity",
+             CASE WHEN rg."event_id" IS NULL THEN m."likelihood" ELSE rg."result_likelihood" END           AS "likelihood",
+             CASE WHEN rg."event_id" IS NULL THEN m."impact" ELSE rg."result_impact" END                   AS "impact",
+             CASE WHEN rg."event_id" IS NULL THEN m."complexity_cost" ELSE rg."result_complexity_cost" END AS "complexity_cost"
+      FROM "mint" m
+      LEFT JOIN "regrade" rg ON rg."event_id" = (SELECT max(r2."event_id") FROM "regrade" r2 WHERE r2."gap_id" = m."gap_id")) g
+  ON g."minted_event" = k."minted"
+LEFT JOIN "met" em ON em."gap_id" = k."gap_id"
+LEFT JOIN "latest_remand" lr ON lr."gap_id" = k."gap_id"
+LEFT JOIN "answered" an ON an."gap_id" = k."gap_id";
