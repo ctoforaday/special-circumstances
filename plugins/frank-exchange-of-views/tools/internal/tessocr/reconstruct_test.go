@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -154,14 +155,37 @@ func readFixture(t *testing.T, name string) string {
 // TestIdentityReadsTheGeneratedPins verifies that Identity() begins with
 // tesseract@, leptonica@, eng@ and feov-ocr@ followed by digest_gen.go's generated values.
 func TestIdentityReadsTheGeneratedPins(t *testing.T) {
+	for what, v := range map[string]string{
+		"feov-ocr's source digest": nativehelper.HelperDigest("feov-ocr"),
+		"eng.traineddata's sha256": nativehelper.OCREngine.EngTraineddata,
+	} {
+		if !isHex(v, 64) {
+			t.Fatalf("digest_gen.go holds %s as %q, want 64 hex digits; run devcmd/nativedigest", what, v)
+		}
+	}
+	if nativehelper.OCREngine.Tesseract == "" || nativehelper.OCREngine.Leptonica == "" {
+		t.Fatalf("digest_gen.go holds no tesseract or leptonica version: %+v", nativehelper.OCREngine)
+	}
 	wantPrefix := "tesseract@" + nativehelper.OCREngine.Tesseract +
 		"+leptonica@" + nativehelper.OCREngine.Leptonica +
 		"+eng@" + nativehelper.OCREngine.EngTraineddata[:12] +
 		"+feov-ocr@" + nativehelper.HelperDigest("feov-ocr")[:12] +
 		"+tessocr@"
 	got := Identity()
-	if !strings.HasPrefix(got, wantPrefix) || !isHex(strings.TrimPrefix(got, wantPrefix), 12) {
-		t.Fatalf("Identity() = %q, want prefix %q followed by 12-hex engine source hash", got, wantPrefix)
+	rest, ok := strings.CutPrefix(got, wantPrefix)
+	hash, target, cut := strings.Cut(rest, "+target@")
+	if !ok || !cut || !isHex(hash, 12) || target != runtime.GOOS+"-"+runtime.GOARCH {
+		t.Fatalf("Identity() = %q, want prefix %q, a 12-hex engine source hash, then +target@%s-%s",
+			got, wantPrefix, runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+// TestIdentityNamesTheRunningTarget: the same sources read a page differently on different
+// targets, so the identity a reading is cached under ends with the running target.
+func TestIdentityNamesTheRunningTarget(t *testing.T) {
+	want := "+tessocr@" + engineSourceHash + "+target@" + runtime.GOOS + "-" + runtime.GOARCH
+	if got := Identity(); !strings.HasSuffix(got, want) {
+		t.Errorf("Identity() = %q, want it to end %q", got, want)
 	}
 }
 
@@ -201,8 +225,8 @@ func TestEngineSourceHashTracksTheCode(t *testing.T) {
 			t.Errorf("%s: hash moved = %v, want %v", c.name, moved, c.moves)
 		}
 	}
-	if !strings.HasSuffix(Identity(), engineSourceHash) {
-		t.Errorf("Identity() %q does not end in the package's own source hash %q", Identity(), engineSourceHash)
+	if !strings.Contains(Identity(), "+tessocr@"+engineSourceHash+"+") {
+		t.Errorf("Identity() %q does not carry the package's own source hash %q", Identity(), engineSourceHash)
 	}
 }
 

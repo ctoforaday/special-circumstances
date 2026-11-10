@@ -123,7 +123,7 @@ func TestATreeWithAnOrphanOrAMissingFileIsRefused(t *testing.T) {
 	if err := os.MkdirAll(slug, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{FilePage, FileRecord, FileREADME, FileGolden} {
+	for _, name := range []string{FilePage, FileRecord, FileREADME, GoldenFile(ReferenceTarget), GoldenFile("darwin-arm64")} {
 		if err := os.WriteFile(filepath.Join(slug, name), []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -144,12 +144,36 @@ func TestATreeWithAnOrphanOrAMissingFileIsRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.Remove(filepath.Join(slug, FileGolden)); err != nil {
+	if err := os.Remove(filepath.Join(slug, GoldenFile(ReferenceTarget))); err != nil {
 		t.Fatal(err)
 	}
 	err = CheckTree(root)
-	if err == nil || !strings.Contains(err.Error(), FileGolden) {
+	if err == nil || !strings.Contains(err.Error(), GoldenFile(ReferenceTarget)) {
 		t.Fatalf("a missing golden was not named: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(slug, GoldenFile(ReferenceTarget)), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// A second case pinning fewer targets than the first is refused: every case pins the same set.
+	other := filepath.Join(root, "b-page")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{FilePage, FileRecord, FileREADME, GoldenFile(ReferenceTarget)} {
+		if err := os.WriteFile(filepath.Join(other, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	err = CheckTree(root)
+	if err == nil || !strings.Contains(err.Error(), "every case pins the same targets") {
+		t.Fatalf("cases pinning different targets were not refused: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(other, GoldenFile("darwin-arm64")), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckTree(root); err != nil {
+		t.Fatalf("two cases pinning the same targets were refused: %v", err)
 	}
 }
 

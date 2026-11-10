@@ -459,24 +459,16 @@ PY
               esac
             done
             if [ -n "$export_name" ]; then
-              if [ -f "$helper_dir/PINS.txt" ]; then
-                local dl_url="" dl_sha=""
-                while read -r pline || [ -n "$pline" ]; do
-                  [[ "$pline" =~ ^[[:space:]]*(#|$) ]] && continue
-                  if echo "$pline" | grep -q "^${export_name}[[:space:]]"; then
-                    dl_sha="$(echo "$pline" | awk '{print $2}')"
-                    dl_url="$(echo "$pline" | awk '{print $3}')"
-                  fi
-                done < "$helper_dir/PINS.txt"
-                if [ -n "$dl_url" ]; then
-                  curl -fsSL "$dl_url" -o "$tmp_cache/$export_name" || die "failed downloading $export_name"
-                  if [ -n "$dl_sha" ]; then
-                    local actual_sha
-                    actual_sha="$( ( sha256sum "$tmp_cache/$export_name" 2>/dev/null || shasum -a 256 "$tmp_cache/$export_name" ) | awk '{print $1}')"
-                    [ "$actual_sha" = "$dl_sha" ] || die "sha256 mismatch on $export_name: got $actual_sha, want $dl_sha"
-                  fi
-                fi
-              fi
+              # A PINS.txt record is <sha256>  <file>  <url>; an export with no record is refused.
+              local dl_url="" dl_sha=""
+              dl_sha="$(awk -v f="$export_name" '$0 !~ /^#/ && $2 == f { print $1 }' "$helper_dir/PINS.txt")"
+              dl_url="$(awk -v f="$export_name" '$0 !~ /^#/ && $2 == f { print $3 }' "$helper_dir/PINS.txt")"
+              [ -n "$dl_sha" ] && [ -n "$dl_url" ] || die "$helper: $export_name is not pinned in $helper_dir/PINS.txt"
+              curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 --max-time 600 "$dl_url" -o "$tmp_cache/$export_name" ||
+                die "downloading $export_name from $dl_url failed"
+              local actual_sha
+              actual_sha="$( ( sha256sum "$tmp_cache/$export_name" 2>/dev/null || shasum -a 256 "$tmp_cache/$export_name" ) | awk '{print $1}')"
+              [ "$actual_sha" = "$dl_sha" ] || die "sha256 mismatch on $export_name: got $actual_sha, want $dl_sha"
             fi
           done < "$assets_file"
 

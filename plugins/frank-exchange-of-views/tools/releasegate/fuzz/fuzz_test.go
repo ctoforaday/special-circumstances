@@ -6202,10 +6202,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// store, hit — real in the fuzz rather than unit-tested only.
 				//
 				// --ocr=false ALWAYS, AND THAT IS NOT A COVERAGE DODGE. The reading is local now
-				// (plans/local-ocr.md) — no model, no network — but this fuzz binary is a default
-				// build whose OCR engine is the stub, and its synthetic sources are not scanned
-				// PDFs, so "on" would exercise nothing while making the sweep's output depend on
-				// which build variant ran it. Passing the flag drives the stated-refusal path and
+				// (plans/local-ocr.md) — no model, no network — but this sweep runs with no feov-ocr
+				// helper beside its binary, and its synthetic sources are not scanned PDFs, so "on"
+				// would exercise nothing while making the sweep's output depend on whether a helper
+				// happened to be installed. Passing the flag drives the stated-refusal path and
 				// satisfies the gate that every flag be exercised; the default (on) belongs to a
 				// seat reading one real document, not to a fuzzer.
 				// --via live IS DRIVEN; THE OTHER FIVE ARE NOT, AND THAT IS THE HERMETIC LINE.

@@ -84,10 +84,12 @@ type fetchSummary struct {
 	// TextReason says why the DOCUMENT had no text layer; OCRReason says why there is no
 	// reading of its pixels either, and a seat that saw only the first would conclude the
 	// source is unreadable when in fact automatic reading was switched off — or this
-	// binary was built without the engine, which OCRReason states in as many words.
+	// binary reached no feov-ocr helper, which OCRReason states in as many words.
 	OCRReason string `json:"ocr_reason,omitempty"`
-	// OCREngineAbsent says the automatic read failed because this binary was built without the
-	// engine — the fact behind one of OCRReason's sentences, as a field.
+	// OCREngineAbsent says the automatic read failed because no feov-ocr helper came up
+	// (helper-absent, helper-digest-mismatch, or a failed handshake) — the fact behind one of
+	// OCRReason's sentences, as a field. A helper that crashes on one page after a good handshake
+	// fails that page and leaves it false.
 	OCREngineAbsent bool `json:"ocr_engine_absent,omitempty"`
 	// TextRetrievedReason says why the bytes are not the source's text where the fetch reached the
 	// source and took its real document — a container or a binary with no reader here. It is the

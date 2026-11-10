@@ -93,7 +93,7 @@ func TestDetectGridRefusesBrokenImage(t *testing.T) {
 
 // OCR of the real crop through the embedded-traineddata engine. Asserted loosely on
 // CONTENT (row labels that are unmistakably on the crop) rather than pinned bytes: OCR
-// output is deterministic for one build of the C stack, but the exact text is the
+// output is deterministic for one build of feov-ocr, but the exact text is the
 // stack's fact, not this package's, and pinning it would fail every legitimate library
 // bump with a wall of diff.
 func TestEngineOCRRealCrop(t *testing.T) {
@@ -137,8 +137,18 @@ func TestEngineRefusalsAfterClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	en.Close()
-	en.Close() // double-close is safe by contract
+	if !en.c.Running() {
+		t.Fatal("New returned an engine with no helper running")
+	}
+	if err := en.Close(); err != nil {
+		t.Fatalf("Close: the helper did not exit cleanly on stdin EOF: %v", err)
+	}
+	if en.c.Running() {
+		t.Fatal("Close left the engine's helper running")
+	}
+	if err := en.Close(); err != nil { // double-close is safe by contract
+		t.Fatalf("a second Close: %v", err)
+	}
 	if _, err := en.PageTSV([]byte{1}, PSMAuto); err == nil {
 		t.Fatal("PageTSV on a closed engine returned no error")
 	}

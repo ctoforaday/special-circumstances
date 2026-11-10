@@ -5,7 +5,7 @@ package catalogue
 // LocalPidDomain returns "" off Linux, which makes Of report Unknown for every session.
 //
 // SCOPED DELIBERATELY. Establishing a durable process identity needs a per-OS probe, and this
-// repository has none; the release ships six GOOS/GOARCH pairs. Rather than hand-roll three,
+// repository has none; the release ships every GOOS/GOARCH pair on the release job's pair list. Rather than hand-roll three,
 // liveness is exact on Linux and honestly unmeasurable elsewhere. The full concept additionally
 // needs liveness_darwin.go and liveness_windows.go, named here so the omission is tracked rather
 // than discovered.

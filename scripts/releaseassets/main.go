@@ -1,11 +1,16 @@
+// Command releaseassets holds the facts the native jobs and the release job share: the published
+// target set (the release job's `for pair in` line), each target's runner, each helper's builder,
+// which native-build legs an event needs (-scope), the native-run matrix (-matrix), and the check
+// a release's dist passes before SHA256SUMS is written (-check).
 package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -20,149 +25,143 @@ func main() {
 		flagDist   = flag.String("dist", "", "dist directory (defaults to $DIST or dist)")
 		flagRef    = flag.String("ref", "", "git ref override (defaults to $GITHUB_REF)")
 		flagEvent  = flag.String("event", "", "github event override (defaults to $GITHUB_EVENT_NAME)")
-		flagWF     = flag.String("workflow", ".github/workflows/hooks.yml", "path to workflow file")
-		flagNative = flag.String("native-dir", "plugins/frank-exchange-of-views/native", "path to native dir")
+		flagReq    = flag.Bool("testpackages", false, "print the FEOV tools packages that call nativehelper.Require, the packages native-run runs")
 	)
 	flag.Parse()
 
-	if root, err := gitx.Root(); err == nil {
-		if *flagWF == ".github/workflows/hooks.yml" && !filepath.IsAbs(*flagWF) {
-			if _, statErr := os.Stat(*flagWF); os.IsNotExist(statErr) {
-				*flagWF = filepath.Join(root, *flagWF)
-			}
-		}
-		if *flagNative == "plugins/frank-exchange-of-views/native" && !filepath.IsAbs(*flagNative) {
-			if _, statErr := os.Stat(*flagNative); os.IsNotExist(statErr) {
-				*flagNative = filepath.Join(root, *flagNative)
-			}
-		}
-	}
-
-	pairs, err := ReadReleasePairs(*flagWF)
-	if err != nil {
+	if err := run(*flagScope, *flagMatrix, *flagCheck, *flagReq, *flagDist, *flagRef, *flagEvent, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "releaseassets: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func run(doScope, doMatrix, doCheck, doRequirePackages bool, dist, ref, event string, stdout io.Writer) error {
+	root, err := gitx.Root()
+	if err != nil {
+		return err
+	}
+	wf := filepath.Join(root, ".github", "workflows", "hooks.yml")
+	pairs, err := ReadReleasePairs(wf)
+	if err != nil {
+		return err
 	}
 	targets, err := ParseTargets(pairs)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "releaseassets: %v\n", err)
-		os.Exit(1)
+		return err
 	}
-	helpers, err := FindHelpers(*flagNative)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "releaseassets: %v\n", err)
-		os.Exit(1)
+	if ref == "" {
+		ref = os.Getenv("GITHUB_REF")
 	}
 
-	if *flagMatrix {
+	switch {
+	case doMatrix:
 		var runLegs []RunLeg
 		for _, t := range targets {
-			runLegs = append(runLegs, RunLeg{
-				Target: t.Name,
-				Runner: t.Runner,
-				OS:     t.OS,
-				Arch:   t.Arch,
-				Ext:    t.Ext,
-			})
+			runLegs = append(runLegs, RunLeg{Target: t.Name, Runner: t.Runner, OS: t.OS, Arch: t.Arch, Ext: t.Ext})
 		}
 		data, err := json.Marshal(Matrix[RunLeg]{Include: runLegs})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "releaseassets: %v\n", err)
-			os.Exit(1)
+			return err
 		}
-		fmt.Println(string(data))
-		return
-	}
-
-	if *flagScope {
-		event := *flagEvent
+		fmt.Fprintln(stdout, string(data))
+		return nil
+	case doScope:
 		if event == "" {
 			event = os.Getenv("GITHUB_EVENT_NAME")
 		}
-		ref := *flagRef
-		if ref == "" {
-			ref = os.Getenv("GITHUB_REF")
-		}
-
-		var changed []string
-		if event == "pull_request" {
-			// Read changed files via git diff
-			baseRef := os.Getenv("GITHUB_BASE_REF")
-			var cmd *exec.Cmd
-			if baseRef != "" {
-				cmd = exec.Command("git", "diff", "--name-only", "origin/"+baseRef+"...HEAD")
-			} else {
-				cmd = exec.Command("git", "diff", "--name-only", "HEAD~1", "HEAD")
-			}
-			out, err := cmd.Output()
-			if err == nil {
-				for _, line := range strings.Split(string(out), "\n") {
-					line = strings.TrimSpace(line)
-					if line != "" {
-						changed = append(changed, line)
-					}
-				}
-			}
-		}
-
-		consumers, err := DeriveConsumerTargets(*flagWF)
+		nativeSet, err := DeriveNativeSet(root)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "releaseassets: %v\n", err)
-			os.Exit(1)
+			return err
 		}
-
-		scope, err := DecideScope(event, ref, changed, targets, consumers, helpers)
+		return Scope(root, event, ref, nativeSet, targets, stdout, os.Getenv("GITHUB_OUTPUT"))
+	case doRequirePackages:
+		pkgs, err := RequirePackages(root)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "releaseassets: %v\n", err)
-			os.Exit(1)
+			return err
 		}
-
-		matrixJSON, _ := json.Marshal(scope.Matrix)
-		runMatrixJSON, _ := json.Marshal(scope.RunMatrix)
-
-		// Print decision
-		fmt.Printf("cache: %s\n", scope.Cache)
-		fmt.Printf("full: %v\n", scope.Full)
-		fmt.Printf("matrix: %s\n", string(matrixJSON))
-		fmt.Printf("run-matrix: %s\n", string(runMatrixJSON))
-
-		// Write to $GITHUB_OUTPUT if present
-		if ghOut := os.Getenv("GITHUB_OUTPUT"); ghOut != "" {
-			f, err := os.OpenFile(ghOut, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "releaseassets: writing GITHUB_OUTPUT: %v\n", err)
-				os.Exit(1)
-			}
-			defer f.Close()
-			fmt.Fprintf(f, "cache=%s\n", scope.Cache)
-			fmt.Fprintf(f, "full=%v\n", scope.Full)
-			fmt.Fprintf(f, "matrix=%s\n", string(matrixJSON))
-			fmt.Fprintf(f, "run-matrix=%s\n", string(runMatrixJSON))
+		fmt.Fprintln(stdout, strings.Join(pkgs, " "))
+		return nil
+	case doCheck:
+		if dist == "" {
+			dist = os.Getenv("DIST")
 		}
-		return
+		if dist == "" {
+			return errors.New("-check needs -dist or $DIST")
+		}
+		dist, err = filepath.Abs(dist)
+		if err != nil {
+			return err
+		}
+		plugin, err := PluginFromRef(ref)
+		if err != nil {
+			return err
+		}
+		return CheckDist(dist, filepath.Join(root, "plugins", plugin), targets, stdout)
 	}
+	return errors.New("specify -scope, -matrix, -check or -testpackages")
+}
 
-	if *flagCheck {
-		distDir := *flagDist
-		if distDir == "" {
-			distDir = os.Getenv("DIST")
-		}
-		if distDir == "" {
-			distDir = "dist"
-		}
-		distDir, _ = filepath.Abs(distDir)
-		ref := *flagRef
-		if ref == "" {
-			ref = os.Getenv("GITHUB_REF")
-		}
-
-		if err := CheckDist(distDir, ref, targets, helpers); err != nil {
-			fmt.Fprintf(os.Stderr, "releaseassets check: %v\n", err)
-			os.Exit(1)
-		}
-		return
+// Scope decides one event's native jobs for the repository at root and prints the decision; with
+// ghOutput set it also appends the decision there as step outputs. A pull request's changed files
+// are its merge commit's diff against the base tip, HEAD^1; a pull request whose HEAD is not that
+// merge commit, or any git failure, is an error, never an empty change list.
+func Scope(root, event, ref string, nativeSet NativeSet, targets []Target, stdout io.Writer, ghOutput string) error {
+	wf := filepath.Join(root, ".github", "workflows", "hooks.yml")
+	helpers, err := FindHelpers(filepath.Join(root, "plugins", "frank-exchange-of-views", "native"))
+	if err != nil {
+		return err
 	}
+	var changed []string
+	if event == "pull_request" {
+		if changed, err = PullRequestChanges(root); err != nil {
+			return err
+		}
+	}
+	consumers, err := DeriveConsumerTargets(wf)
+	if err != nil {
+		return err
+	}
+	scope, err := DecideScope(event, ref, changed, nativeSet, targets, consumers, helpers)
+	if err != nil {
+		return err
+	}
+	matrixJSON, err := json.Marshal(scope.Matrix)
+	if err != nil {
+		return err
+	}
+	runMatrixJSON, err := json.Marshal(scope.RunMatrix)
+	if err != nil {
+		return err
+	}
+	if event == "pull_request" {
+		fmt.Fprintf(stdout, "changed files: %d, native set touched: %v\n", len(changed), nativeSet.Touched(changed))
+	}
+	fmt.Fprintf(stdout, "cache: %s\nfull: %v\nmatrix: %s\nrun-matrix: %s\n", scope.Cache, scope.Full, matrixJSON, runMatrixJSON)
+	if ghOutput == "" {
+		return nil
+	}
+	f, err := os.OpenFile(ghOutput, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
+	if err != nil {
+		return fmt.Errorf("writing GITHUB_OUTPUT: %w", err)
+	}
+	if _, err := fmt.Fprintf(f, "cache=%s\nfull=%v\nmatrix=%s\nrun-matrix=%s\n", scope.Cache, scope.Full, matrixJSON, runMatrixJSON); err != nil {
+		f.Close()
+		return fmt.Errorf("writing GITHUB_OUTPUT: %w", err)
+	}
+	return f.Close()
+}
 
-	fmt.Fprintln(os.Stderr, "releaseassets: specify -scope, -matrix, or -check")
-	os.Exit(1)
+// PullRequestChanges is the files a pull request's merge commit changes against its first parent,
+// the base tip. The checkout is the merge commit with fetch-depth 2, so both parents' commits are
+// present; HEAD without a second parent is not the merge commit, and its diff is not the pull
+// request's.
+func PullRequestChanges(root string) ([]string, error) {
+	if _, err := gitx.Run(root, "rev-parse", "-q", "--verify", "HEAD^2"); err != nil {
+		return nil, fmt.Errorf("HEAD is not the pull request's merge commit, so its changes cannot be read: %w", err)
+	}
+	out, err := gitx.Run(root, "diff", "--name-only", "HEAD^1", "HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("reading the pull request's changes: %w", err)
+	}
+	return gitx.Lines(out), nil
 }
