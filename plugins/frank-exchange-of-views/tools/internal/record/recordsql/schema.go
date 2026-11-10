@@ -287,7 +287,7 @@ CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
 CREATE INDEX "close_gap" ON "close" ("gap_id");
 -- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
--- (closure_act's supersede arm) and passes its demand on (the demand_lineage_supersedes trigger).
+-- (gap_refresh's supersede_event) and passes its demand on (the demand_lineage_supersedes trigger).
 CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
 `
 

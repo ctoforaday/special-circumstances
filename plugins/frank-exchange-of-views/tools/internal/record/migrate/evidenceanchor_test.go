@@ -21,7 +21,7 @@ import (
 //
 // THE MIGRATION ADDS NO ANSWER AND MOVES NO CLOSURE. No archived cite holds `answers` (the field is
 // newer than every archive), and each gap's openness and closing acts, as the gap view states them,
-// are the closure_act rows the record holds: the live-answer demand is asked in the close verb,
+// are the closing acts the record holds: the live-answer demand is asked in the close verb,
 // which no replay passes, so no archived gap moves open or closed.
 func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 	sourceCloses := map[string]int{}
@@ -66,16 +66,20 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 			if got := column(t, db, `SELECT "label" FROM "cite" WHERE "answers" IS NOT NULL`); len(got) != 0 {
 				t.Errorf("%s: archived citations %v hold an answer, which no archived cite carried", name, got)
 			}
-			// THE CLOSURE COLUMNS ARE THE CLOSURE ROWS: open is no closing act, and the last close and
-			// closing ruling are the latest of each arm.
+			// THE CLOSURE COLUMNS ARE THE CLOSING ACTS: open is no closing act, and the last close and
+			// closing docket ruling are the latest of each arm, read off the bodies.
 			moved := column(t, db, `SELECT g."gap_id" FROM "gap" g
-			  LEFT JOIN (SELECT "gap_id",
-			                    MAX(CASE WHEN "arm" = 'close' THEN "event_id" END) AS "c",
-			                    MAX(CASE WHEN "arm" = 'bench' THEN "event_id" END) AS "b"
-			             FROM "closure_act" GROUP BY "gap_id") a ON a."gap_id" = g."gap_id"
-			  WHERE g."open" <> (a."gap_id" IS NULL)
-			     OR COALESCE(g."close_event", 0) <> COALESCE(a."c", 0)
-			     OR COALESCE(g."bench_close_event", 0) <> COALESCE(a."b", 0)
+			  LEFT JOIN (SELECT "gap_id", MAX("event_id") AS "c" FROM "close" GROUP BY "gap_id") c ON c."gap_id" = g."gap_id"
+			  LEFT JOIN (SELECT md."gap_id" AS "gap_id", MAX(mr."event_id") AS "b"
+			             FROM "motion_rule_docket" rd
+			             JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
+			             JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
+			             JOIN "motion_docket" md ON md."event_id" = mo."event_id"
+			             JOIN "enum_disposition" x ON x."value" = rd."disposition"
+			             WHERE x."closes" GROUP BY md."gap_id") b ON b."gap_id" = g."gap_id"
+			  WHERE g."open" <> (c."c" IS NULL AND b."b" IS NULL AND g."supersede_event" IS NULL)
+			     OR COALESCE(g."close_event", 0) <> COALESCE(c."c", 0)
+			     OR COALESCE(g."bench_close_event", 0) <> COALESCE(b."b", 0)
 			  ORDER BY g."minted_event"`)
 			if len(moved) != 0 {
 				t.Errorf("%s: gap %s is open or closed otherwise than its closing acts say", name, moved[0])

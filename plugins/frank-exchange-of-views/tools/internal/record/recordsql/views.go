@@ -363,54 +363,6 @@ LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
 LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
 LEFT JOIN "enum_grade" gs ON gs."value" = g."severity";
 
--- EVERY ACT THAT CLOSES A GAP, by its arm: red's close ('close'), a docket ruling whose
--- disposition closes ('bench') — whether it closes is read off the vocabulary rather than decided
--- here — and the mint that superseded it ('supersede'). convergence_at asks whether any was written
--- at or before a verdict. gap_refresh asks the same three arms of the gaps an append touched, per gap
--- through their indexes: read through this view the refresh compiles x1.45 the folded gap view did
--- (measured 2026-11-10), so the arms are stated there again, and the archive sweep and the fixtures
--- hold its closing columns to the folded view's.
---
--- A MINT SUPERSEDING AN OPEN GAP CLOSES IT (ruled by gblock 2026-11-04): the ancestor's purpose
--- passes to the successor in that act, and it has no state of its own left to hold the board. The
--- arm is DERIVED from the mint's own "supersedes" list rather than written as a second event: the record
--- already holds the link, and a close the tool wrote beside the mint would be a second copy of it
--- and an act the seat never stated. It is the FIRST such mint, and only where no closing act of
--- another arm precedes it: a mint naming a gap already closed carries its lineage forward and
--- closes nothing.
---
--- TWO HOPS ON THE BENCH ARM, BECAUSE THE GAP RIDES THE FILING. The bench's disposition was its own
--- event carrying a gap_id; it is a docket motion's RULING, and the gap is on the motion that asked.
--- So: the ruling arm gives the disposition, its motion_rule gives the motion id, and the docket
--- FILING gives the gap. Written here once rather than at each reader — the same join was
--- hand-written at eight readers before it.
---
--- SQLite does not validate a view body at CREATE, so a view left reading a table that has gone
--- applies cleanly and returns no bench closures at all: every disposed gap reading as undisposed.
-CREATE VIEW "closure_act" AS
-WITH "red" AS (
-  SELECT c."gap_id" AS "gap_id", c."event_id" AS "event_id"
-  FROM "close" c
-),
-"bench" AS (
-  SELECT md."gap_id" AS "gap_id", mr."event_id" AS "event_id"
-  FROM "motion_rule_docket" rd
-  JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
-  JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
-  JOIN "motion_docket" md ON md."event_id" = mo."event_id"
-  JOIN "enum_disposition" d ON d."value" = rd."disposition"
-  WHERE d."closes"
-)
-SELECT "gap_id", "event_id", 'close' AS "arm" FROM "red"
-UNION ALL
-SELECT "gap_id", "event_id", 'bench' FROM "bench"
-UNION ALL
-SELECT s."value", MIN(s."event_id"), 'supersede'
-FROM "mint_supersedes" s
-WHERE NOT EXISTS(SELECT 1 FROM "red" r WHERE r."gap_id" = s."value" AND r."event_id" < s."event_id")
-  AND NOT EXISTS(SELECT 1 FROM "bench" b WHERE b."gap_id" = s."value" AND b."event_id" < s."event_id")
-GROUP BY s."value";
-
 -- THE READINGS A GAP CARRIES: each verify whose carried_by names the gap, with the anchor it read
 -- and the seat that read it. EVERY reader of the reading-to-gap link reads it here and nowhere
 -- else (demand_reach, and through it gap_refresh's evidence_answered, among them), so the day the link is stated
@@ -575,6 +527,9 @@ JOIN "events" e ON e."id" = s."minted_event";
 --   fresh_material_mints  gaps minted in the point's epoch at or before it, superseding nothing, and
 --                         material at the point: new discovery, not a repair of known work.
 --
+-- A gap is open at a point until its first closing act of any arm (gap_state's closed_event), which
+-- no later append moves, so the stored state answers the question at every point.
+--
 -- "peak" is a running maximum over the points in seq order, framed by ROWS: seq is unique, so the
 -- default RANGE frame selects the same rows and only costs the peer comparison.
 --
@@ -589,14 +544,11 @@ WITH "point" AS MATERIALIZED (
   WHERE e."type" = 'verdict' OR e."id" = (SELECT MAX("id") FROM "events")
 ),
 "minted" AS MATERIALIZED (
-  SELECT m."event_id" AS "minted_event", m."gap_id" AS "gap_id", e."epoch" AS "minted_epoch",
-         NOT EXISTS(SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "fresh"
+  SELECT m."event_id" AS "minted_event", e."epoch" AS "minted_epoch",
+         st."supersedes_count" = 0 AS "fresh", st."closed_event" AS "closed_event"
   FROM "mint" m
+  JOIN "gap_state" st ON st."minted_event" = m."event_id"
   JOIN "events" e ON e."id" = m."event_id"
-),
-"closed" AS MATERIALIZED (
-  SELECT x."gap_id" AS "gap_id", x."event_id" AS "seq"
-  FROM "closure_act" x
 ),
 "held" AS MATERIALIZED (
   SELECT "minted_event", "from_seq", "until_seq", "mass", "severity_mass", "material" FROM "gap_grade"
@@ -605,8 +557,7 @@ WITH "point" AS MATERIALIZED (
   SELECT p."seq"                                    AS "seq",
          b."minted_epoch"                           AS "minted_epoch",
          b."fresh"                                  AS "fresh",
-         NOT EXISTS(SELECT 1 FROM "closed" c
-                     WHERE c."gap_id" = b."gap_id" AND c."seq" <= p."seq") AS "open",
+         (b."closed_event" IS NULL OR b."closed_event" > p."seq") AS "open",
          h."mass"                                   AS "mass",
          h."severity_mass"                          AS "severity_mass",
          h."material"                               AS "material"

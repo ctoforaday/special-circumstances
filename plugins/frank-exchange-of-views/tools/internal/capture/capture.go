@@ -1417,7 +1417,7 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 
 	// THE GAP A DISPOSITION SETTLES RIDES THE FILING, never the ruling — a `motion-rule` carries
 	// the ask's id and nothing else that identifies its subject matter. record.DocketGapByMotion is
-	// that filing join, the one closure_act makes in SQL; harvesting the gap any other way keys every
+	// that filing join, the one gap_refresh's bench arm makes in SQL; harvesting the gap any other way keys every
 	// disposition on the empty string, which is the shape of the defect this function was written
 	// to escape.
 	docketGapOf := record.DocketGapByMotion(evs)
