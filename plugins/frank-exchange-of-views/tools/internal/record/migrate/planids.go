@@ -187,14 +187,15 @@ const archivedReadingBlocker record.BlockerKind = "contradiction"
 // read through q, the replay's batch — and its owner unchanged, the reader. A blocker whose reading
 // names no anchor (a reading of a source the lens found) leaves the plan: a found source's debt is
 // keyed on the sentence the reading locates to in the report, which the stored plan does not hold,
-// the loss the plan's residue states (GAP 2). The plan is re-keyed and re-printed when any moved,
-// and left untouched otherwise. A subject that is no events.id, or that wrote no event or no
-// reading, is a refusal naming it: the loud miss; so is a plan that permits no PASS and would be
-// left holding no blocker.
-func TranslateReadingBlockers(pl *recordpb.Plan, newID map[int64]int64, q recordsql.Querier) error {
+// the loss the plan's residue states (GAP 2) — COUNTED, as dropped, so the manifest states it
+// (Manifest.DroppedPlanBlockers) rather than the plan silently holding one blocker fewer. The plan
+// is re-keyed and re-printed when any moved, and left untouched otherwise. A subject that is no
+// events.id, or that wrote no event or no reading, is a refusal naming it: the loud miss; so is a
+// plan that permits no PASS and would be left holding no blocker.
+func TranslateReadingBlockers(pl *recordpb.Plan, newID map[int64]int64, q recordsql.Querier) (dropped int, err error) {
 	p, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
 	if err != nil {
-		return fmt.Errorf("this stored plan does not read as a plan: %v", err)
+		return 0, fmt.Errorf("this stored plan does not read as a plan: %v", err)
 	}
 	changed := false
 	kept := p.Blockers[:0:0]
@@ -205,30 +206,31 @@ func TranslateReadingBlockers(pl *recordpb.Plan, newID map[int64]int64, q record
 		}
 		n, perr := strconv.ParseInt(b.Subject, 10, 64)
 		if perr != nil {
-			return fmt.Errorf("this stored plan's reading blocker names %q, which is not an events.id", b.Subject)
+			return 0, fmt.Errorf("this stored plan's reading blocker names %q, which is not an events.id", b.Subject)
 		}
 		m, landed := newID[n]
 		if !landed {
-			return fmt.Errorf("this stored plan's reading blocker names event %d, which wrote no event on the migrated record before it", n)
+			return 0, fmt.Errorf("this stored plan's reading blocker names event %d, which wrote no event on the migrated record before it", n)
 		}
 		var anchorID string
 		if err := q.QueryRow(`SELECT COALESCE("anchor", '') FROM "verify" WHERE "event_id" = ?`, m).Scan(&anchorID); err != nil {
-			return fmt.Errorf("this stored plan's reading blocker names event %d (written as %d), which is no reading on the migrated record: %v", n, m, err)
+			return 0, fmt.Errorf("this stored plan's reading blocker names event %d (written as %d), which is no reading on the migrated record: %v", n, m, err)
 		}
 		changed = true
 		if anchorID == "" {
+			dropped++
 			continue
 		}
 		b.Kind, b.Subject = record.BlockerReadingDebt, anchorID
 		kept = append(kept, b)
 	}
 	if len(kept) == 0 && len(p.Blockers) > 0 && !p.PassPermitted {
-		return fmt.Errorf("this stored plan permits no PASS and its every blocker is a reading of a source its lens found, whose debt the plan holds no sentence for: the plan would hold no blocker while it permits no PASS")
+		return 0, fmt.Errorf("this stored plan permits no PASS and its every blocker is a reading of a source its lens found, whose debt the plan holds no sentence for: the plan would hold no blocker while it permits no PASS")
 	}
 	p.Blockers = kept
 	if !changed {
-		return nil
+		return dropped, nil
 	}
 	pl.Printed = proto.String(p.WithKey().Printed())
-	return nil
+	return dropped, nil
 }

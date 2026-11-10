@@ -34,8 +34,12 @@ func TestAStoredPlansReadingBlockersAreCarriedOrDropped(t *testing.T) {
 		{Kind: record.BlockerUnchecked, Subject: "C-2", Owner: "red-lens-evidence"},
 	}
 	pl := storedOf(p)
-	if err := TranslateReadingBlockers(pl, newID, db); err != nil {
+	dropped, err := TranslateReadingBlockers(pl, newID, db)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if dropped != 1 {
+		t.Errorf("dropped = %d, want the one found-source blocker counted", dropped)
 	}
 	got, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
 	if err != nil {
@@ -54,7 +58,7 @@ func TestAStoredPlansReadingBlockersAreCarriedOrDropped(t *testing.T) {
 
 	only := stubPlan(5)
 	only.Blockers = []record.PlanBlocker{{Kind: archivedReadingBlocker, Subject: "11", Owner: "red-lens-logic"}}
-	err = TranslateReadingBlockers(storedOf(only), newID, db)
+	_, err = TranslateReadingBlockers(storedOf(only), newID, db)
 	if err == nil || !strings.Contains(err.Error(), "would hold no blocker while it permits no PASS") {
 		t.Errorf("a plan left with no blocker and no PASS: %v, want the refusal naming it", err)
 	}

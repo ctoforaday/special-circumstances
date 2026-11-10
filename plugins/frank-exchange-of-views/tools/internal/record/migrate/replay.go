@@ -31,19 +31,20 @@ type Options struct {
 
 // Result is what one replay did, counted where the manifest needs counts.
 type Result struct {
-	In                 map[string]int // old events per word, as read
-	Out                map[string]int // new events per word, as written
-	Refusals           []migration.Refusal
-	AcceptedLosses     map[string]string             // word -> the entry's stated reason
-	SourceHash         string                        // sha256 over the event stream AS READ — the logical record
-	IDs                map[string]string             // archived id or finding label -> the id the migrated record carries
-	Serialized         map[string]int                // archived instance seat -> events moved after instance 1 (serializeInstances)
-	StatedFills        []migration.StatedFill        // values supplied where the source predates the field
-	ClassTranslations  []migration.ClassTranslation  // the archived class slugs an authored row of gapclass.go carried, and onto what
-	SupersededOutcomes []migration.SupersededOutcome // the source outcomes a later one replaced, not written (outcomes.go)
-	GapAnchors         migration.GapPlacement        // what bringing the run's gaps onto anchors did (F-c)
-	ReportOrder        string                        // what became of the order of the report's text (order.go)
-	ProseRewrites      []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
+	In                  map[string]int // old events per word, as read
+	Out                 map[string]int // new events per word, as written
+	Refusals            []migration.Refusal
+	AcceptedLosses      map[string]string             // word -> the entry's stated reason
+	SourceHash          string                        // sha256 over the event stream AS READ — the logical record
+	IDs                 map[string]string             // archived id or finding label -> the id the migrated record carries
+	Serialized          map[string]int                // archived instance seat -> events moved after instance 1 (serializeInstances)
+	StatedFills         []migration.StatedFill        // values supplied where the source predates the field
+	ClassTranslations   []migration.ClassTranslation  // the archived class slugs an authored row of gapclass.go carried, and onto what
+	SupersededOutcomes  []migration.SupersededOutcome // the source outcomes a later one replaced, not written (outcomes.go)
+	GapAnchors          migration.GapPlacement        // what bringing the run's gaps onto anchors did (F-c)
+	ReportOrder         string                        // what became of the order of the report's text (order.go)
+	ProseRewrites       []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
+	DroppedPlanBlockers int                           // stored plans' archived reading blockers of a found source, which leave the plan (TranslateReadingBlockers)
 
 	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
 	reruns       map[string][]string            // bundle -> the rerun_sha of each reproduce whose source names one
@@ -289,10 +290,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
-		for _, b := range bodies {
-			if m, ok := b.(*recordpb.Mint); ok {
-				mintAboutCitation(m, cited)
-			}
+		if bodies, err = mintsAboutCitations(bodies, cited); err != nil {
+			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+			continue
 		}
 		ts, err := record.ParseStamp(old.TS)
 		if err != nil {
@@ -421,10 +421,12 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
-				if err := TranslateReadingBlockers(pl, newID, batch.Querier()); err != nil {
+				dropped, err := TranslateReadingBlockers(pl, newID, batch.Querier())
+				if err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
+				res.DroppedPlanBlockers += dropped
 				if err := TranslatePlanIDs(pl, newID); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
@@ -863,17 +865,35 @@ func citedInActMints(evs []OldEvent) map[string]string {
 	return out
 }
 
+// mintsAboutCitations is mintAboutCitation over an act's bodies; a refusal is the act's.
+func mintsAboutCitations(bodies []proto.Message, cited map[string]string) ([]proto.Message, error) {
+	for _, b := range bodies {
+		if m, ok := b.(*recordpb.Mint); ok {
+			if err := mintAboutCitation(m, cited); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return bodies, nil
+}
+
 // mintAboutCitation is the one translation of the in-act model: a Mint whose own act's reading
 // named a citation comes forward ABOUT that citation — about_kind anchor, about_ref the reading's
 // anchor, no quote — the subject a live mint of its class names (record.readingMintedClasses). Its
 // Anchor row stays: an Anchor is a report op, and the token it placed at the citation's sentence is
-// what every later edit's `old` carries. Both values are the source's; nothing is filled.
-func mintAboutCitation(m *recordpb.Mint, cited map[string]string) {
+// what every later edit's `old` carries. Both values are the source's; nothing is filled. A Mint that
+// already names a subject (about_kind set) is REFUSED, never overwritten: the archive then names two
+// subjects for one gap, and the tool makes neither up.
+func mintAboutCitation(m *recordpb.Mint, cited map[string]string) error {
 	a, ok := cited[m.GetGapId()]
 	if !ok {
-		return
+		return nil
+	}
+	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
+		return fmt.Errorf("gap %s was minted in the act of a reading of citation %s and is about %s %s already: the archive names two subjects for one gap, and the translation writes neither", m.GetGapId(), a, recordpb.Word(m.GetAboutKind()), m.GetAboutRef())
 	}
 	m.AboutKind, m.AboutRef, m.Location = recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), proto.String(a), nil
+	return nil
 }
 
 // truthy reads a stored bool: SQLite's 0/1, or a bool.

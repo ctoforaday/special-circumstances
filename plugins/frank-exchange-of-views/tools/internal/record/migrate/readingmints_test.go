@@ -285,6 +285,35 @@ func TestASyntheticInActRecordComesForward(t *testing.T) {
 	}
 }
 
+// AN IN-ACT MINT THAT ALREADY NAMES A SUBJECT IS REFUSED, never overwritten: the archive then names two
+// subjects for one gap — the reading's citation and the mint's own about — and the translation writes
+// neither.
+func TestAnInActMintAlreadyAboutSomethingIsRefused(t *testing.T) {
+	const lens, blue = "red-lens-evidence", "blue-respond"
+	const s1 = "The tower is 330 metres tall."
+	var o oldStream
+	o.add(lens, "register", lens+":register:#1", map[string]any{"agent_id": "l1"})
+	o.add(blue, "report_part", blue+":report_part:#1", map[string]any{"text": "# T — research report\n\n## Findings\n\n" + s1 + "\n"})
+	o.add(blue, "cite", blue+":cite:C-aaaaaaa1", map[string]any{"label": "C-aaaaaaa1", "url": "https://ex/a", "title": "A",
+		"location": s1, "access_date": "2026-11-01", "text": "the page", "source_text_origin": "embedded",
+		"work_status": "not_checked", "source_completeness": "not_asked", "copy_substitution": "none"})
+	o.add(lens, "mint", lens+":mint:G-aaaaaaa1", map[string]any{"gap_id": "G-aaaaaaa1", "mint_key": "", "class": "claim_contradicts_source",
+		"about_kind": "section", "about_ref": "Findings",
+		"problem": "p", "required_fix": "f", "fix_basis": "proposed", "acceptance_check": "a", "check_kind": "source",
+		"severity": "medium", "likelihood": "medium", "impact": "medium", "complexity_cost": "low", "mint_reason": "r", "class_material": "always"})
+	o.add(lens, "verify", lens+":verify:#1:C-aaaaaaa1", map[string]any{"claim": s1, "anchor": "C-aaaaaaa1", "outcome": "refutes", "confidence": "high", "text": "read it",
+		"source_completeness": "not_asked", "copy_substitution": "none", "carried_by": "G-aaaaaaa1", "carrier_minted": int64(1)})
+	res, _ := replaySlice(t, o.evs, migrate.Options{})
+	var got []string
+	for _, r := range res.Refusals {
+		got = append(got, r.Word+": "+r.Err)
+	}
+	want := "mint: gap G-aaaaaaa1 was minted in the act of a reading of citation C-aaaaaaa1 and is about section Findings already: the archive names two subjects for one gap, and the translation writes neither"
+	if len(got) != 1 || got[0] != want {
+		t.Errorf("refusals = %q, want the one naming both subjects", got)
+	}
+}
+
 // migrateEiffelThrough migrates the Eiffel archive cut at source events.id through: a private copy
 // of the extracted run with every row of a later event deleted, so the migrated record is the
 // archive as it stood at that event and every fold over it reads that board.
