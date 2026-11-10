@@ -449,3 +449,43 @@ func TestTheWorkListStatesTheMintsLeft(t *testing.T) {
 		}
 	})
 }
+
+// THE GAP A READING OBLIGES IS OUTSIDE THE BUDGET (F6 (b), ruled): a lens at the cap whose reading of
+// a citation refutes it mints the claim_contradicts_source gap about that citation, and the gap does
+// not count while open; a plain mint at the cap is refused before and after it, and a reading-class
+// mint with no reading behind it is refused on its ground. Driven through Append, as every writer is.
+func TestTheObligedGapTakesNoMint(t *testing.T) {
+	b := debtBoard(t)
+	writeRunConfig(t, b.runDir, `{"mintBudget":1}`)
+	id := Identity{Run: runOf(b), SeatID: evLens}
+	plain := func(gap, sentence string) *recordpb.Mint {
+		return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Location: proto.String(sentence),
+			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+			Severity: recordpb.Grade_GRADE_HIGH.Enum(), Likelihood: recordpb.Grade_GRADE_HIGH.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}
+	}
+	refused := func(m *recordpb.Mint, want string) {
+		t.Helper()
+		if _, err := Append(id, m); err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("%s: err = %v, want a refusal saying %q", m.GetGapId(), err, want)
+		}
+	}
+	// The evidence lens's budget is 3 mints for every 2 citations: one citation lifts it to 2.
+	if lb, err := LensMintBudget(id.Run, evLens); err != nil || lb.Budget != 2 {
+		t.Fatalf("fixture: budget = %+v, %v; want 2", lb, err)
+	}
+	mustAppend(t, id, plain("G-00000001", dbFirst))
+	mustAppend(t, id, plain("G-00000002", dbSecond))
+	refused(plain("G-00000005", dbCited+"."), evLens+" holds 2 gap(s) open")
+	refused(readingGap("G-00000003", "C-00000001"), "no standing reading of yours")
+	runOf(b.verify(evLens, "C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES))
+	wantDebts(t, id.Run, evLens+":C-00000001")
+	if _, err := Append(id, readingGap("G-00000003", "C-00000001")); err != nil {
+		t.Fatalf("the obliged gap was refused at the cap: %v", err)
+	}
+	wantDebts(t, id.Run)
+	refused(plain("G-00000005", dbCited+"."), evLens+" holds 2 gap(s) open")
+	mustAppend(t, id, repairClose("G-00000001"))
+	if _, err := Append(id, plain("G-00000005", dbCited+".")); err != nil {
+		t.Fatalf("the open obliged gap counted against the budget: %v", err)
+	}
+}

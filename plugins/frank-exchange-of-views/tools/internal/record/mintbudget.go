@@ -244,6 +244,14 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 	} else if own != "" {
 		return nil
 	}
+	// THE GAP A READING OF ITS OWN OBLIGES IS ADMITTED AT ANY STANDING (F6 (b), ruled: the owed gap
+	// is outside the budget while open): a lens at the cap whose reading found against owes a gap it
+	// could otherwise not mint, and its debt would hold the PASS until the cap is deleted.
+	if own, err := answersOwnReadingDebtAt(w, seatID, m); err != nil {
+		return feov.Wrap(feov.Conflict, err, "the record's readings could not be read, so whether this mint answers a reading debt of %s's own cannot be told: %v", seatID, err)
+	} else if own {
+		return nil
+	}
 	// THE OWNER'S GAP ABOUT AN INQUIRY TAKES NO MINT (inquirycheck.go): it owes every settled
 	// inquiry's judgement whatever its standing, and the gap is that judgement where the inquiry is
 	// wanting. At the cap it could otherwise neither check nor mint, and the run would stall on it.
@@ -291,7 +299,36 @@ const mintRefusedNext = "Record what you found as a finding now, and mint it whe
 
 // mintAnswerOutsideBudget is the exemption as every lens-facing surface states it: the refusal, the
 // work list, the PASS blocker and the help say one sentence.
-const mintAnswerOutsideBudget = "A gap about an anchor whose check of yours read nothing or judged a computation unsound takes no mint; so does the logic lens's gap about an inquiry, whose judgement it owes. Each is admitted at the cap, and does not count while it is open"
+const mintAnswerOutsideBudget = "A gap about an anchor whose check of yours read nothing or judged a computation unsound takes no mint; nor does the claim_contradicts_source or citation_figure_misattribution gap a reading of yours that found against obliges, while that debt stands; nor does the logic lens's gap about an inquiry, whose judgement it owes. Each is admitted at the cap, and does not count while it is open"
+
+// answersOwnReadingDebtAt reports whether a mint by seatID of a class a reading defines
+// (readingMintedClasses) answers a standing reading debt of seatID's own (readingDebtsOf) on the
+// mint's subject — the citation it is about, or the sentence it quotes, placed as the one-gap rule
+// and the standing-reading check place it (mintSentenceAt) — obliging the mint's class. Read on the
+// mint's own transaction, as the standing is.
+func answersOwnReadingDebtAt(w writeView, seatID string, m *recordpb.Mint) (bool, error) {
+	if !isReadingMintedClass(m.GetClass()) {
+		return false, nil
+	}
+	subject := m.GetAboutRef()
+	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
+		ms, err := mintSentenceAt(w, m)
+		if err != nil || !ms.ok {
+			return false, err
+		}
+		subject = sentenceText(ms.placed[ms.at[0]:ms.at[1]])
+	}
+	r, err := passBlockerReadsAt(w.q)
+	if err != nil {
+		return false, err
+	}
+	for _, b := range readingDebtsOf(r.evs, r.win, openSet(blockerGapsOfOpen(r.gaps, nil)), r.found) {
+		if b.Owner == seatID && b.Subject == subject && readingDebtClass(b) == m.GetClass() {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 // ownsInquiryGap reports whether a mint by seatID about kind is the inquiry owner's gap about an
 // inquiry, which takes no mint (requireMintWithinBudget, ownAnswersAt).
@@ -300,13 +337,25 @@ func ownsInquiryGap(seatID string, kind recordpb.AboutKind) bool {
 }
 
 // ownAnswersAt is the gaps seatID minted that its budget does not count (lensMintStanding): each
-// that answers a standing failed check of seatID's own (ownFailedCheckAnswers), and the inquiry
-// owner's gaps about inquiries (ownsInquiryGap). held is the
-// stream q holds where the reader already took it (heldStream).
+// that answers a standing failed check of seatID's own (ownFailedCheckAnswers), the inquiry
+// owner's gaps about inquiries (ownsInquiryGap), and every gap of a class a reading defines — each
+// landed on seatID's own reading of its subject (requireOwnStandingReading), the gap its debt obliged
+// (answersOwnReadingDebtAt). Residue, stated: a second such gap minted under the floor on a reading
+// whose debt an earlier, closed gap had discharged is outside the count too. held is the stream q
+// holds where the reader already took it (heldStream).
 func ownAnswersAt(q recordsql.Querier, held *heldStream, seatID string) (map[string]bool, error) {
 	out := map[string]bool{}
 	if noRecord(q) {
 		return out, nil
+	}
+	for _, c := range ReadingMintedClasses() {
+		gaps, err := gapsMintedOfClass(q, seatID, c)
+		if err != nil {
+			return nil, err
+		}
+		for _, g := range gaps {
+			out[g] = true
+		}
 	}
 	if ownsInquiryGap(seatID, recordpb.AboutKind_ABOUT_KIND_INQUIRY) {
 		gaps, err := gapsMintedAbout(q, seatID, recordpb.AboutKind_ABOUT_KIND_INQUIRY)
@@ -413,6 +462,24 @@ func lensMintStanding(q recordsql.Querier, report func() (string, error), held *
 	}
 	st.Budget, st.MeasureErr = lensBudgetOver(q, report, area, p.MintBudget)
 	return st, nil
+}
+
+// gapsMintedOfClass is the ids of every gap seatID minted of class c.
+func gapsMintedOfClass(q recordsql.Querier, seatID string, c recordpb.GapClass) ([]string, error) {
+	rows, err := q.Query(`SELECT "gap_id" FROM "gap" WHERE "minted_by" = ? AND "class" = ?`, seatID, recordpb.Word(c))
+	if err != nil {
+		return nil, fmt.Errorf("asking the record: %w", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
 }
 
 // gapsMintedAbout is the ids of every gap seatID minted about something of kind.
