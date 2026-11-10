@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -142,7 +143,7 @@ func TestPrewarmMatchesFullSourceTextSha(t *testing.T) {
 		return m
 	}
 	text := "Costs in the region are moderate and rising. The harbour was dredged twice in the decade."
-	for _, origin := range []string{"embedded", "ocr_derived"} {
+	for _, origin := range []string{"embedded", "ocr_derived", "ocr_derived_at_fetch"} {
 		t.Run(origin, func(t *testing.T) {
 			run := runtest.New(t, t.TempDir())
 			var e Entry
@@ -154,6 +155,14 @@ func TestPrewarmMatchesFullSourceTextSha(t *testing.T) {
 					t.Fatal(err)
 				}
 				if err := foldExtraction(run, &e, Extraction{Attempted: true, Text: text, ExtractorID: htmlExtractorID}); err != nil {
+					t.Fatal(err)
+				}
+			case "ocr_derived_at_fetch":
+				// fetch's automatic path: render and read a stored scan in one call.
+				run2, scan := storeScanned(t, 1)
+				run, e = run2, scan
+				withEngine(t, textEngine(func(int) (string, error) { return text, nil }))
+				if _, err := (RenderAndRead{}).ReadScanned(context.Background(), run, e); err != nil {
 					t.Fatal(err)
 				}
 			default:
