@@ -460,7 +460,8 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
       Linux leg) and `windows-amd64` (its Windows leg). A new consumer joins by being written.
     - The **native set** of paths is `nativedigest`'s own input list, `devcmd/nativedigest/**`, `internal/nativehelper/**`,
       the directory of every package that imports `internal/nativehelper` (from `go list`, so `internal/tessocr` and Part
-      3's embed client join by importing it), `internal/fetchcache/pagerender.go` (it holds `MaxRenderDPI`, the bound on
+      3's embed client join by importing it), `internal/tessocr/**` whole (the corpus's pages, its golden render format
+      and every target's goldens, R9, which only `native-run` checks), `internal/fetchcache/pagerender.go` (it holds `MaxRenderDPI`, the bound on
       every `feov-ocr` request, §1.2), `scripts/releaseassets/**`, `scripts/internal/staticproof/**` and `hooks.yml`.
 
     | Event and ref (every event in `hooks.yml`'s `on:`) | `native-build` legs | `cache` | `native-run` / `native-fuzz` |
@@ -504,8 +505,9 @@ with -tags tessocr" (`pageread.go:85-95`, `tessocr.go:107-111`).
 - **`native-run`** (matrix from `-matrix`, one leg per target on that target's own runner; needs `native-scope` and
   `native-build`) runs on every event. Each leg's first step reads `full`; when it is false the rest skip and the leg
   says so, as the `release-fuzz` parts do (`hooks.yml:866-894`). Otherwise it downloads that target's artifacts and
-  runs FEOV's `go test -v` with `CGO_ENABLED=0`, as every published Go asset is built, for the packages that call
-  `nativehelper.Require`, with `NATIVE_HELPER_DIR` pointing at them, `FEOV_OCR_CORPUS=1` and `FEOV_NATIVE_MEASURE=1`.
+  runs FEOV's `go test -v -p 1` with `CGO_ENABLED=0`, as every published Go asset is built, over the whole of each
+  package that calls `nativehelper.Require` (no `-run` filter; one package at a time, so none shares the CPUs a
+  measurement reads), with `NATIVE_HELPER_DIR` pointing at them, `FEOV_OCR_CORPUS=1` and `FEOV_NATIVE_MEASURE=1`.
   The checks below that measure time or fidelity (the deadline, S5, S6) skip unless `FEOV_NATIVE_MEASURE=1`, so they run
   on `native-run`'s dedicated runners and never in the `feov-record` legs, where parallel packages share the CPUs. The
   job's `env` names, once, `NATIVE_RUN_MUST_PASS`: every top-level test every leg exists to run. The check step appends

@@ -203,3 +203,77 @@ func TestTheNativeMatricesDoNotFailFast(t *testing.T) {
 		t.Errorf("native-run without fail-fast: false reads as %v", bad)
 	}
 }
+
+// nativeRunHostProblems lists every way native-run's host step stops running its packages whole:
+// a go test there with a -run filter (the must-pass names then select the run, and a package with
+// no must-pass test runs nothing), without -p 1 (the packages share the CPUs the deadline check
+// measures), or with no --- PASS check on its log afterwards.
+func nativeRunHostProblems(wf []byte) ([]string, error) {
+	jobs, err := jobsOf(wf)
+	if err != nil {
+		return nil, err
+	}
+	var host *yaml.Node
+	if steps := mapValue(mapValue(jobs, "native-run"), "steps"); steps != nil {
+		for _, step := range steps.Content {
+			if n := mapValue(step, "name"); n != nil && n.Value == "Run native helper tests" {
+				host = mapValue(step, "run")
+			}
+		}
+	}
+	if host == nil {
+		return []string{"native-run has no step named Run native helper tests"}, nil
+	}
+	var problems []string
+	tests := 0
+	for _, line := range strings.Split(host.Value, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "go" || fields[1] != "test" {
+			continue
+		}
+		tests++
+		parallel := true
+		for i, f := range fields {
+			if f == "-run" || strings.HasPrefix(f, "-run=") {
+				problems = append(problems, "the host go test filters with -run: "+strings.TrimSpace(line))
+			}
+			if f == "-p" && i+1 < len(fields) && fields[i+1] == "1" {
+				parallel = false
+			}
+		}
+		if parallel {
+			problems = append(problems, "the host go test runs its packages in parallel (no -p 1): "+strings.TrimSpace(line))
+		}
+	}
+	if tests != 1 {
+		problems = append(problems, fmt.Sprintf("the host step holds %d go test lines, want 1", tests))
+	}
+	if !strings.Contains(host.Value, `grep -q "^--- PASS: ${name} "`) {
+		problems = append(problems, "the host step does not check each must-pass name for --- PASS on its log")
+	}
+	return problems, nil
+}
+
+// TestNativeRunRunsItsPackagesWhole: every test of every Require package runs on every target,
+// and the must-pass names are checked on the log afterwards. A fixture with a -run filter of the
+// must-pass names is refused.
+func TestNativeRunRunsItsPackagesWhole(t *testing.T) {
+	wf := readHooks(t)
+	problems, err := nativeRunHostProblems(wf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range problems {
+		t.Error(p)
+	}
+	filtered := strings.Replace(string(wf), "go test -v -count=1 -p 1 -timeout 40m $pkgs",
+		`go test -v -count=1 -p 1 -timeout 40m -run "^(${run_arg})\$" $pkgs`, 1)
+	if filtered == string(wf) {
+		t.Fatal("the fixture found no host go test line to rewrite")
+	}
+	if problems, err = nativeRunHostProblems([]byte(filtered)); err != nil {
+		t.Fatal(err)
+	} else if len(problems) != 1 {
+		t.Errorf("a host step filtering with -run reads as %v, want one problem", problems)
+	}
+}

@@ -47,16 +47,21 @@ func TestTheNativeSetIsDerived(t *testing.T) {
 		}
 	}
 	for p, want := range map[string]bool{
-		feovTools + "/internal/cli/fetch.go":                              true,
-		feovTools + "/internal/fetchcache/pagerender.go":                  true,
-		"plugins/frank-exchange-of-views/native/frame/frame.cpp":          true,
-		".github/actions/install-helpers/action.yml":                      true,
-		".github/workflows/hooks.yml":                                     true,
-		"scripts/staticproof/main.go":                                     true,
-		feovTools + "/internal/record/record.go":                          false,
-		"README.md":                                                       false,
-		".github/actions/go-cache/action.yml":                             false,
-		feovTools + "/internal/tessocr/testdata/corpus/nbs602-form/x.txt": false,
+		feovTools + "/internal/cli/fetch.go":                     true,
+		feovTools + "/internal/fetchcache/pagerender.go":         true,
+		"plugins/frank-exchange-of-views/native/frame/frame.cpp": true,
+		".github/actions/install-helpers/action.yml":             true,
+		".github/workflows/hooks.yml":                            true,
+		"scripts/staticproof/main.go":                            true,
+		feovTools + "/internal/record/record.go":                 false,
+		"README.md":                                              false,
+		".github/actions/go-cache/action.yml":                    false,
+		// The corpus is checked on every target by native-run alone (R9), so a page, a target's
+		// golden and the golden render format are in the set.
+		feovTools + "/internal/tessocr/testdata/corpus/nbs602-form/reading.darwin-arm64.golden": true,
+		feovTools + "/internal/tessocr/testdata/corpus/a-new-page/page.pdf.gz":                  true,
+		feovTools + "/internal/tessocr/corpus/render.go":                                        true,
+		feovTools + "/internal/tessocr/corpus/corpus.go":                                        true,
 	} {
 		if got := s.Contains(p); got != want {
 			t.Errorf("the native set holds %s: %v, want %v", p, got, want)

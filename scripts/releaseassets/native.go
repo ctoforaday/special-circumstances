@@ -26,8 +26,10 @@ const (
 // NativeSet is the paths whose change makes a pull request build every helper for every target
 // and run native-run and native-fuzz (plan §III.1.5): nativedigest's inputs, nativedigest itself,
 // internal/nativehelper, the directory of every package importing internal/nativehelper (its
-// tests included), the page renderer that bounds every feov-ocr request, the jobs' own tooling and
-// the workflow with the action it installs helpers through.
+// tests included), internal/tessocr's whole tree (the corpus: its pages, the golden render format,
+// and every target's goldens, which only native-run checks), the page renderer that bounds every
+// feov-ocr request, the jobs' own tooling and the workflow with the action it installs helpers
+// through.
 type NativeSet struct {
 	// Trees hold every path under them; Dirs hold only the files directly in them (a package is
 	// one directory, never its subdirectories); Files are single paths. All are repository-relative
@@ -73,6 +75,7 @@ func DeriveNativeSet(root string) (NativeSet, error) {
 			"plugins/frank-exchange-of-views/native",
 			feovTools + "/devcmd/nativedigest",
 			feovTools + "/internal/nativehelper",
+			feovTools + "/internal/tessocr",
 			"scripts/releaseassets",
 			"scripts/internal/staticproof",
 			"scripts/staticproof",

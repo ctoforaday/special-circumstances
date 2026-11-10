@@ -459,10 +459,12 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then
             must_pass="${must_pass} ${NATIVE_RUN_MUST_PASS_LINUX}"
           fi
-          run_arg="$(echo "$must_pass" | tr ' ' '|')"
-          # shellcheck disable=SC2086 # $pkgs is a list of package paths
+          # Each package runs whole, so every Require-gated test runs on every target; the must-pass
+          # names are a check on the log afterwards, never a -run filter. -p 1 keeps the packages off
+          # each other's CPUs while the deadline and fidelity checks measure.
           rc=0
-          go test -v -count=1 -timeout 40m -run "^(${run_arg})\$" $pkgs | tee "$RUNNER_TEMP/test.log" || rc=$?
+          # shellcheck disable=SC2086 # $pkgs is a list of package paths
+          go test -v -count=1 -p 1 -timeout 40m $pkgs | tee "$RUNNER_TEMP/test.log" || rc=$?
           missing=""
           for name in $must_pass; do
             grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || missing="$missing $name"
@@ -485,8 +487,9 @@ jobs:
       # so a helper that leans on a DLL the runner image happens to carry fails here. The host builds
       # each Require package's test binary and the module's commands; the container runs every test
       # binary from its own package directory with the must-pass names, and the host holds the
-      # container's output to the same list. docker passes no runner variable in, so each variable
-      # the binaries read is set explicitly.
+      # container's output to the same list. The container takes those names only, since the rest of
+      # each package builds Go fakes and servercore has no Go; the host step runs every test of them.
+      # docker passes no runner variable in, so each variable the binaries read is set explicitly.
       - name: Run Windows servercore container verification
         if: ${{ !cancelled() && steps.check-full.outputs.skip != 'true' && matrix.target == 'windows-amd64' }}
         shell: bash
