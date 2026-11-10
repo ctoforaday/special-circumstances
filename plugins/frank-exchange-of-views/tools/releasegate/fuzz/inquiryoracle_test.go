@@ -47,9 +47,10 @@ func oracleRun(t *testing.T, evs ...*recordpb.Event) record.Run {
 
 // THE INQUIRY ORACLE HOLDS A VERIFIED RUN TO EVERY INQUIRY BEING SOUND, and each way an inquiry
 // falls short of it is a fixture: open, settled and never checked, checked before its latest fate,
-// a material gap about it open, and checked before a gap about it that was material at its mint and
-// has since been graded down. Two fixtures are sound: checked after its fate, and checked before a
-// gap that was never material. Any other verdict holds no inquiry to anything.
+// a material gap about it open, checked before a gap about it that was material at its mint and has
+// since been graded down, and checked before a gap that was never material. Two fixtures are sound:
+// checked after its fate, and checked after a gap that was never material. Any other verdict holds no
+// inquiry to anything.
 func TestTheInquiryOracleHoldsAVerifiedRunToSoundInquiries(t *testing.T) {
 	settled := recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED
 	for _, tc := range []struct {
@@ -76,10 +77,14 @@ func TestTheInquiryOracleHoldsAVerifiedRunToSoundInquiries(t *testing.T) {
 				oracleGap(t, recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, recordpb.Grade_GRADE_HIGH),
 				recordtest.Event(t, "red-lens-evidence", &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordpb.Grade_GRADE_LOW.Enum(),
 					Basis: proto.String("the consequence is bounded")})}
-		}, "before a gap about it material at its mint"},
-		{"a gap never material", func(t *testing.T) []*recordpb.Event {
+		}, "before a gap minted about it"},
+		{"a gap never material, after its check", func(t *testing.T) []*recordpb.Event {
 			return []*recordpb.Event{oracleProposal(t), oracleFate(t, settled), oracleCheck(t),
 				oracleGap(t, recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, recordpb.Grade_GRADE_LOW)}
+		}, "before a gap minted about it"},
+		{"a gap never material, before its check", func(t *testing.T) []*recordpb.Event {
+			return []*recordpb.Event{oracleProposal(t), oracleFate(t, settled),
+				oracleGap(t, recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, recordpb.Grade_GRADE_LOW), oracleCheck(t)}
 		}, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
