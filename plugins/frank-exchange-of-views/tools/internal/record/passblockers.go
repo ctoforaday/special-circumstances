@@ -136,6 +136,14 @@ func (b Blocker) owed() bool {
 // Outcome is the reading a debt stands on's outcome; UNSPECIFIED for every other kind.
 func (b Blocker) Outcome() recordpb.SourceOutcome { return b.outcome }
 
+// Lost is the edit that took a found-source reading debt's claim out of its sentence, 0 while the
+// claim locates or no edit is named — and for every other kind.
+func (b Blocker) Lost() int64 { return b.lost }
+
+// Reworded is the sentence the edit Lost names left at the place of a found-source reading debt's
+// sentence, "" where it names none — and for every other kind.
+func (b Blocker) Reworded() string { return b.reworded }
+
 // ChairOwned reports whether the chair clears it in its own sitting.
 func (b Blocker) ChairOwned() bool { return b.Owner == chairSeat }
 

@@ -63,9 +63,10 @@ type lifecycleCounts struct {
 	retiredAboutCloses int
 	// citedRetiresRefused: a retire taking a citation a live computation applies, refused naming it (L6).
 	citedRetiresRefused int
-	// readingDemandRetired and readingDemandReread: the close of a `source` gap carrying a refuting
-	// reading, admitted after blue's retire of the citation, and after the reader's backing re-read.
-	readingDemandRetired, readingDemandReread int
+	// readingDemandMetByRetire and readingDemandMetByReread: the close of a `source` gap minted about a
+	// citation on the lens's refuting reading, admitted after blue's retire of the citation met its
+	// demand through the gap's about arm, and after the minter's own backing re-read met it.
+	readingDemandMetByRetire, readingDemandMetByReread int
 	// unreadDemandReread and unreadDemandRefused: the close of a `source` gap owed about an unread
 	// citation, admitted after the reader's own backing reading, and refused after another lens's.
 	unreadDemandReread, unreadDemandRefused int
@@ -90,8 +91,8 @@ type lifecycleTally struct {
 	RetiredItemsCleared      int `json:"retired_items_cleared"`
 	RetiredAboutCloses       int `json:"retired_about_closes"`
 	CitedRetiresRefused      int `json:"cited_retires_refused"`
-	ReadingDemandRetired     int `json:"reading_demand_retired"`
-	ReadingDemandReread      int `json:"reading_demand_reread"`
+	ReadingDemandMetByRetire int `json:"reading_demand_met_by_retire"`
+	ReadingDemandMetByReread int `json:"reading_demand_met_by_reread"`
 	UnreadDemandReread       int `json:"unread_demand_reread"`
 	UnreadDemandRefused      int `json:"unread_demand_refused"`
 	UnsoundDemandRejudged    int `json:"unsound_demand_rejudged"`
@@ -106,7 +107,7 @@ func (c lifecycleCounts) tally() lifecycleTally {
 		ComputationRetires: c.computationRetires, SourceAnswers: c.sourceAnswers,
 		ClosedAnswersRetired: c.closedAnswersRetired, RetiredItemsCleared: c.retiredItemsCleared,
 		RetiredAboutCloses: c.retiredAboutCloses, CitedRetiresRefused: c.citedRetiresRefused,
-		ReadingDemandRetired: c.readingDemandRetired, ReadingDemandReread: c.readingDemandReread,
+		ReadingDemandMetByRetire: c.readingDemandMetByRetire, ReadingDemandMetByReread: c.readingDemandMetByReread,
 		UnreadDemandReread: c.unreadDemandReread, UnreadDemandRefused: c.unreadDemandRefused,
 		UnsoundDemandRejudged: c.unsoundDemandRejudged, UnsoundDemandRefused: c.unsoundDemandRefused,
 		RetiredAboutMintsRefused: c.retiredAboutMintsRefused, ReachingRetireTurns: c.reachingRetireTurns,
@@ -122,8 +123,8 @@ func (t *lifecycleTally) add(o lifecycleTally) {
 	t.RetiredItemsCleared += o.RetiredItemsCleared
 	t.RetiredAboutCloses += o.RetiredAboutCloses
 	t.CitedRetiresRefused += o.CitedRetiresRefused
-	t.ReadingDemandRetired += o.ReadingDemandRetired
-	t.ReadingDemandReread += o.ReadingDemandReread
+	t.ReadingDemandMetByRetire += o.ReadingDemandMetByRetire
+	t.ReadingDemandMetByReread += o.ReadingDemandMetByReread
 	t.UnreadDemandReread += o.UnreadDemandReread
 	t.UnreadDemandRefused += o.UnreadDemandRefused
 	t.UnsoundDemandRejudged += o.UnsoundDemandRejudged
@@ -134,7 +135,7 @@ func (t *lifecycleTally) add(o lifecycleTally) {
 }
 
 // lifecycleGates is the sweep's gate on each count, with what a zero means (III.1′.7's tally column,
-// sourceClosesRefused and readingDemandRefused gated beside the found-against counts).
+// sourceClosesRefused gated beside the reading counts).
 func (t lifecycleTally) gates() []struct {
 	n    int
 	what string
@@ -149,8 +150,8 @@ func (t lifecycleTally) gates() []struct {
 		{t.RetiredItemsCleared, "answers-retired items gone once the lens minted the gap superseding the closed one"},
 		{t.RetiredAboutCloses, "closes admitted of a source or computation gap about an anchor blue retired naming no gap (L1)"},
 		{t.CitedRetiresRefused, "retires of a citation a live computation applies, refused naming the computation (L6)"},
-		{t.ReadingDemandRetired, "closes admitted of a source gap carrying a refuting reading, after blue retired the citation"},
-		{t.ReadingDemandReread, "closes admitted of a source gap carrying a refuting reading, after the reader's own backing re-read"},
+		{t.ReadingDemandMetByRetire, "closes admitted of a source gap minted about a citation on a refuting reading, its demand met by blue's retire of the citation"},
+		{t.ReadingDemandMetByReread, "closes admitted of a source gap minted about a citation on a refuting reading, its demand met by the minter's own backing re-read"},
 		{t.UnreadDemandReread, "closes admitted of a source gap owed about an unread citation, after the reader's own backing reading"},
 		{t.UnreadDemandRefused, "closes of a source gap owed about an unread citation refused by its demand after another lens's backing reading"},
 		{t.UnsoundDemandRejudged, "closes admitted of a computation gap owed about an unsound computation, after the lens's own sound judgement"},
@@ -308,30 +309,42 @@ func (r *runner) lifecycleRetire(seat, id, gap string) bool {
 	return true
 }
 
-// lifecycleRead is seat's reading of citation id as outcome; a refuting reading mints its `source` gap,
-// whose id it returns.
+// lifecycleRead is seat's reading of citation id as outcome; after a refuting reading the seat mints
+// its claim_contradicts_source `source` gap about the citation on that reading, whose id it returns.
 func (r *runner) lifecycleRead(seat, id, outcome string) (gap string, ok bool) {
+	r.firstThisSitting(seat, id)
 	c := r.do("verify", seat).set("--anchor", id).set("--as", outcome).set("--confidence", "high").
 		set("--reason", "fuzz: the lifecycle arm's reading").bare("--json")
-	if outcome == "refutes" {
-		classes, _ := r.readingClasses(r.citationURL(id), outcome, true)
-		if len(classes) == 0 {
-			return "", false
-		}
-		c.args = append(c.args, "--class", classes[0], "--problem", "fuzz: the source says otherwise than the sentence",
-			"--check-kind", "source", "--check", "the sentence states what the source says",
-			"--severity", "low", "--likelihood", "low", "--impact", "low", "--fix", dirCounter)
-	}
 	out, err := c.result()
 	if err != nil {
 		return "", false
 	}
-	v := r.checkReading(seat, out, c.args)
+	v, at := r.checkReading(seat, out, c.args)
 	if v == nil {
 		return "", false
 	}
-	_ = v
-	return "", true
+	if outcome != "refutes" {
+		return "", true
+	}
+	args := append(readingMintArgs(seat, classContradicts), aboutArgs(id)...)
+	setArg(args, "--check-kind", "source")
+	setArg(args, "--check", "a source states what the sentence states")
+	setArg(args, "--severity", "low")
+	setArg(args, "--likelihood", "low")
+	setArg(args, "--impact", "low")
+	mout, merr := r.exec(args...)
+	if merr != nil {
+		r.noteActErr("the claim_contradicts_source mint about " + id + " on " + seat + "'s refuting reading was refused: " + firstLine(mout))
+		return "", false
+	}
+	gap = r.noteReadingMintLanded(seat, mout, classContradicts, "about")
+	if gap == "" {
+		return "", false
+	}
+	if _, got, has, err := record.ReadingBehind(r.run(), gap); err != nil || !has || got != at {
+		r.noteActErr(fmt.Sprintf("the reading behind %s is event %d (found %v, %v), and the mint stood on the reading at event %d", gap, got, has, err, at))
+	}
+	return gap, r.debtDischargedBy(seat, id, "mint", "the lens's mint about the citation on its reading")
 }
 
 // lifecycleJudge is seat's judgement of computation id as `sound` or `unsound`.
@@ -530,10 +543,11 @@ func (r *runner) lifecycleUnreadGap(blue, lens, claim string) string {
 	return ""
 }
 
-// lifecycleReadingGap: three citations, each read refuting by the lens, whose reading mints its `source`
-// gap. The first: blue retires the citation, and the close is admitted. The second: blue edits the
-// sentence, the close is refused by the demand, the lens re-reads it backing, and the close is admitted.
-// The third: the lens re-reads it backing with no edit, and the close is admitted.
+// lifecycleReadingGap: three citations, each read refuting by the lens, which mints its `source` gap
+// about each on the reading. The first: blue retires the citation, whose reaching retire meets the
+// demand through the gap's about arm, and the close is admitted. The second: blue edits the sentence,
+// the close is refused by the demand, the lens re-reads it backing, and the close is admitted. The
+// third: the lens re-reads it backing with no edit, and the close is admitted.
 func (r *runner) lifecycleReadingGap(blue, lens, retired, edited, reread string) string {
 	gaps := map[string]string{}
 	cites := map[string]string{}
@@ -554,7 +568,7 @@ func (r *runner) lifecycleReadingGap(blue, lens, retired, edited, reread string)
 	if env, ok := r.lifecycleClose(lens, gaps[retired]); !ok {
 		return "the close of reading gap " + gaps[retired] + " after blue retired its citation was refused: " + env.Error
 	}
-	r.countLifecycle(func(c *lifecycleCounts) { c.readingDemandRetired++ })
+	r.countLifecycle(func(c *lifecycleCounts) { c.readingDemandMetByRetire++ })
 	if _, ok := r.do("edit", blue).set("--quote", edited).set("--new", strings.Replace(edited, "holds", "stands", 1)).
 		set("--reason", "fuzz: the sentence now says what the source says").admit(); !ok {
 		return "blue's edit of the sentence " + cites[edited] + " backs was refused"
@@ -563,10 +577,7 @@ func (r *runner) lifecycleReadingGap(blue, lens, retired, edited, reread string)
 	if env, ok := r.lifecycleClose(lens, g); ok || !demandRefusal(env, g, "source") {
 		return "the close of reading gap " + g + " after blue's edit was not refused by its demand: " + env.Error
 	}
-	r.countLifecycle(func(*lifecycleCounts) {
-		r.sourceClosesRefused++
-		r.readingDemandRefused++
-	})
+	r.countLifecycle(func(*lifecycleCounts) { r.sourceClosesRefused++ })
 	if !r.openSitting(lens) {
 		return "the register of " + lens + " was refused"
 	}
@@ -577,7 +588,7 @@ func (r *runner) lifecycleReadingGap(blue, lens, retired, edited, reread string)
 		if env, ok := r.lifecycleClose(lens, gaps[claim]); !ok {
 			return "the close of reading gap " + gaps[claim] + " after " + lens + "'s backing re-read was refused: " + env.Error
 		}
-		r.countLifecycle(func(c *lifecycleCounts) { c.readingDemandReread++ })
+		r.countLifecycle(func(c *lifecycleCounts) { c.readingDemandMetByReread++ })
 	}
 	return ""
 }
@@ -749,6 +760,17 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 	if k != "" && r.openSitting(computationOwner) {
 		r.lifecycleJudge(computationOwner, k, "unsound")
 	}
+	// AND A READING DEBT STANDS AT THE RUN'S END: blue cites the fuzz sentence, and the citation
+	// owner, in a sitting of its own, reads the citation `refutes` and mints nothing — the run ends
+	// UNVERIFIED on the debt, its reason naming it (tallyDebtsAtEnd), and the assembly screen fails
+	// on it beside the unsound computation.
+	cite := r.lifecycleCite(blue, "§ fuzz sentence", "/limit-debt", "")
+	if cite != "" && r.openSitting(citationOwner) {
+		r.readCited(citationOwner, cite, "refutes")
+	}
+	r.mu.Lock()
+	r.limitDebtCite = cmp.Or(cite, "refused")
+	r.mu.Unlock()
 }
 
 // screenUnsound holds a run that ends with a live computation a standing judgement calls unsound to the
@@ -805,7 +827,6 @@ func stagedSynthesizedRunner(t *testing.T) *runner {
 // above zero once it has run, but the reaching retire's turn, which the next plan gives. With the run not
 // forced, none of it is driven and the run owes nothing.
 func TestTheLifecycleSeedDrivesEveryArm(t *testing.T) {
-	awaitsPhase1e(t)
 	t.Run("forced", func(t *testing.T) {
 		r := stagedLifecycleRunner(t)
 		r.forceLifecycle = true
@@ -854,7 +875,6 @@ func TestTheLifecycleSeedDrivesEveryArm(t *testing.T) {
 // the gap its reaching retire left open, the lens-turn oracle counts the turn, and the lens's close of it
 // is admitted at that sitting. A plan engaging only blue there fails the run.
 func TestAReachingRetireGivesTheLensItsTurn(t *testing.T) {
-	awaitsPhase1e(t)
 	plan := func(seat, gap string) map[string]any {
 		return map[string]any{"parties": []any{map[string]any{"seat_id": seat, "gap_ids": []any{gap}}}}
 	}

@@ -45,7 +45,7 @@ type gapActs map[string][]struct {
 // A SUCCESSOR CARRYING ITS ANCESTOR'S DEMAND IS REACHED THROUGH THE ANCESTOR'S ANCHORS (ruled by gblock
 // 2026-11-05: a gap that awaits a live answer passes its demand to its successor). The first mint
 // superseding a gap, at the gap's check kind where that is one a live answer is demanded under,
-// inherits each anchor the ancestor is about or carries a reading of, and the ancestor's inherited
+// inherits each anchor the ancestor is about, and the ancestor's inherited
 // ones: a retire after that mint taking one out is an act on the successor. Without it the oracle
 // failed a plan engaging the successor's lens a retire of the ancestor's source had readied.
 func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs, minted map[string]int) {
