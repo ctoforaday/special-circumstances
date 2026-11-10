@@ -729,7 +729,7 @@ func (f failedCheckWords) words(anchor string) string {
 	case f.AnsweredBy != "":
 		return head + ", and gap " + f.AnsweredBy + " carries it to blue, which retires the citation or cites a source a lens can read"
 	case f.Owner == f.seat:
-		return head + ", and you owe a gap about it (`mint --about-kind anchor --about " + anchor + "`, which takes no mint of your budget) asking blue to retire it or cite a source a lens can read"
+		return head + ", and you owe a gap about it (`mint --about-kind anchor --about " + anchor + "`) asking blue to retire it or cite a source a lens can read"
 	}
 	return head + ", and the gap about it is " + f.Owner + "'s to mint, whose check of it read nothing first"
 }

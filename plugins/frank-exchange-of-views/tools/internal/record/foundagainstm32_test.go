@@ -111,7 +111,7 @@ func TestTheMigratedM32HoldsAFailedCheckPerStandingReading(t *testing.T) {
 // archiveWith is the named archive after its event n, with acts appended — a copy a test may act on.
 func archiveWith(t *testing.T, archive string, whole []*Event, n int, acts ...*Event) Run {
 	t.Helper()
-	dir := recordtest.RequireArchive(t, archive)
+	dir := archivedChannels(t, archive)
 	for _, f := range []string{"record.db", "record.db-wal", "record.db-shm"} {
 		if err := os.Remove(filepath.Join(dir, "records", f)); err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)
@@ -176,11 +176,7 @@ func TestAMigratedFoundAgainstCheckReadiesBlueAlone(t *testing.T) {
 				if owes := foldOf(t, run, reader).owes; slices.ContainsFunc(owes, func(o string) bool { return strings.Contains(o, c.anchor) }) {
 					t.Errorf("%s owes %q for a check blue answers", reader, owes)
 				}
-				// 4. budget: its mint about the anchor is counted.
-				if got, err := answersOwnFailedCheckAt(recordOf(t, run), reader, aboutAnchor("G-00000009", c.anchor)); err != nil || got != "" {
-					t.Errorf("%s's mint about %s answers its found-against check (%q, %v), so it would take no mint", reader, c.anchor, got, err)
-				}
-				// 5. the printed sentence.
+				// 4. the printed sentence.
 				stated := map[string]string{
 					"the work item":     b.WorkItem(),
 					"the plan's reason": kindOf(b.Kind).why(b),
@@ -191,7 +187,7 @@ func TestAMigratedFoundAgainstCheckReadiesBlueAlone(t *testing.T) {
 					if !strings.Contains(s, "the source against the sentence") || !strings.Contains(s, "edits the sentence, or retires or replaces the citation") {
 						t.Errorf("%s of %s's check does not say its reading found the source against the sentence and name blue's remedy: %q", name, reader, s)
 					}
-					for _, never := range []string{"owes its gap about the anchor", "takes no mint of its budget", "has minted no gap about it yet", "read nothing of its source"} {
+					for _, never := range []string{"owes its gap about the anchor", "has minted no gap about it yet", "read nothing of its source"} {
 						if strings.Contains(s, never) {
 							t.Errorf("%s of %s's check says %q: %q", name, reader, never, s)
 						}

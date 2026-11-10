@@ -103,11 +103,6 @@ type SittingJSON struct {
 	// with an explicit kind — first, behind, unchanged, served or undispatched — never inferred from
 	// an absent field; absent for every other role.
 	LastRead *LastReadJSON `json:"last_read,omitempty"`
-	// MintBudget is a lens's standing against its mint budget — what it holds open, its budget
-	// with every term, and what is left — from the reading the write refuses a mint on
-	// (lensMintStanding). Present for every lens whose standing reads; absent for every other
-	// role, which spends no budget. An item of Open states the same numbers in a sentence.
-	MintBudget *MintBudgetJSON `json:"mint_budget,omitempty"`
 }
 
 // SittingOf computes what the given seat still owes on this record — the events carry every
@@ -124,9 +119,6 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 type sittingReads struct {
 	// unverifiable: why no check can reach an evidence anchor's sentence (unverifiableIn).
 	unverifiable unverifiableFunc
-	// mintsLeft: a lens's mints left (mintBudgetOf), for the clause on an item whose answer is a mint
-	// (answersRetiredItems); nil where the budget was not read or not measured.
-	mintsLeft *int
 	// blueOut: the record is in the epoch that holds blue out under the run's terms (blueHeldOut).
 	blueOut bool
 }
@@ -431,7 +423,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// never a blocker — the closure stands, and the item says what a mint in answer would be. It
 		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
 		// until the bench rules, as every other item on a docketed gap is held.
-		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID, reads.mintsLeft)...)
+		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
 			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the

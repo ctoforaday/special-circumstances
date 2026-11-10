@@ -266,7 +266,7 @@ func failedRemedy(b Blocker) string {
 func failedOwed(b Blocker) string {
 	switch {
 	case b.owed():
-		return fmt.Sprintf("%s owes its gap about the anchor (`mint --about-kind anchor --about %s`), which takes no mint of its budget, and blue %s", ownerOr(b, failedChecker), b.Subject, failedRemedy(b))
+		return fmt.Sprintf("%s owes its gap about the anchor (`mint --about-kind anchor --about %s`), and blue %s", ownerOr(b, failedChecker), b.Subject, failedRemedy(b))
 	case b.answeredBy == "":
 		return fmt.Sprintf("no gap names it — blue %s", failedRemedy(b))
 	}
@@ -313,7 +313,7 @@ func failedCheckRefusal(bs []Blocker) string {
 	}
 	var said []string
 	if states[CheckUnread] || states[CheckUnsound] {
-		said = append(said, "A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`, which takes no mint of its budget), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
+		said = append(said, "A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
 			"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it. "+demandAfterClear+".")
 	}
 	if states[CheckFoundAgainst] {

@@ -223,7 +223,7 @@ func TestImpasseFiresOnStallAndOnTheMonotoneBound(t *testing.T) {
 	cycle(stall, nil)
 	cycle(stall, nil)
 	cycle(stall, nil)
-	x, _ := Exchanges(stall.seed(), Params{K: 2, KMax: 6, MintBudget: 5, ConvergenceFraction: 0.25})
+	x, _ := Exchanges(stall.seed(), Params{K: 2, KMax: 6, ConvergenceFraction: 0.25})
 	if g := x["G1"]; !g.Impasse || g.Stalled != 2 {
 		t.Fatalf("two stalled exchanges under K=2: %+v, want impasse", g)
 	}
@@ -235,7 +235,7 @@ func TestImpasseFiresOnStallAndOnTheMonotoneBound(t *testing.T) {
 		cycle(oscillate, func(b *stage) { b.regrade(evLens, "G1", g) })
 	}
 	cycle(oscillate, nil)
-	x, _ = Exchanges(oscillate.seed(), Params{K: 2, KMax: 3, MintBudget: 5, ConvergenceFraction: 0.25})
+	x, _ = Exchanges(oscillate.seed(), Params{K: 2, KMax: 3, ConvergenceFraction: 0.25})
 	if g := x["G1"]; !g.Impasse || g.Stalled != 0 || g.Exchanges != 3 {
 		t.Fatalf("a regrade every exchange under KMax=3: %+v, want impasse by the bound with no stall", g)
 	}
@@ -481,44 +481,6 @@ func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 		register("red-chair")
 	if _, err := Append(Identity{Run: b2.seed(), SeatID: "red-chair"}, pass); err == nil || !strings.Contains(err.Error(), "material gap(s) still OPEN: G1") {
 		t.Fatalf("a MEDIUM gap is material and must hold the gate: %v", err)
-	}
-}
-
-// A lens's mint budget is the record's count of its open gaps against the run's term; a mint
-// superseding an open gap of the lens's own closes it and takes none, and one naming only a closed
-// gap takes one like any other. The chair is not a lens and is not bounded here.
-func TestAMintPastTheBudgetIsRefused(t *testing.T) {
-	runDir := newRun(t)
-	writeRunConfig(t, runDir, `{"mintBudget":1}`)
-	run := mustRun(t, runDir)
-	lensID := Identity{Run: run, SeatID: evLens}
-	if _, _, err := RegisterSeat(lensID, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	mint := func(id string, supersedes ...string) *recordpb.Mint {
-		return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
-			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
-			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Supersedes: supersedes}
-	}
-	if _, err := Append(lensID, mint("G1")); err != nil {
-		t.Fatalf("the first mint within a budget of 1 was refused: %v", err)
-	}
-	if _, err := Append(lensID, mint("G2")); err == nil || !strings.Contains(err.Error(), "budget") {
-		t.Fatalf("the second mint past a budget of 1 landed: %v", err)
-	}
-	if _, err := Append(lensID, mint("G3", "G1")); err != nil {
-		t.Fatalf("a mint superseding the lens's own open gap was refused at the cap, which it leaves where it was: %v", err)
-	}
-	if _, err := Append(lensID, mint("G5", "G1")); err == nil || !strings.Contains(err.Error(), "budget") {
-		t.Fatalf("a mint naming only a closed gap landed past the cap: %v", err)
-	}
-	// Another lens has its own budget.
-	other := Identity{Run: run, SeatID: "red-lens-logic"}
-	if _, _, err := RegisterSeat(other, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(other, mint("G4")); err != nil {
-		t.Fatalf("another lens's first mint was refused: %v", err)
 	}
 }
 

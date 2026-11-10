@@ -28,7 +28,7 @@ import (
 //
 // ONE SHAPE FOR UNREAD AND UNSOUND. The seat whose check failed — the judge, or the first reader since
 // the edit that found the source unreadable — owes a gap about the anchor (`about_kind` anchor,
-// `about_ref` it), outside its mint budget, which carries the defect to blue with a grade and a fix;
+// `about_ref` it), which carries the defect to blue with a grade and a fix;
 // dispatch readies it until the gap exists, then blue. The gap answers the seat's debt, NOT the
 // blocker: the blocker holds the PASS until the anchor is checked and holds, is changed by an edit
 // (which leaves it unchecked, owed a fresh check), or is retired — and the gap's close is refused
@@ -82,11 +82,6 @@ type failedCheck struct {
 	// carried_by and every gap on its successor tree (carrierTree).
 	answers []string
 }
-
-// owed reports whether the check's own seat owes a gap for it: an unread or unsound check no gap
-// carries. A found-against check is never owed by its reader, carried or not — its gap is minted at
-// the reading, and where none is named (a migrated archived reading) no mint answers it either.
-func (f failedCheck) owed() bool { return f.state != CheckFoundAgainst && f.answeredBy == "" }
 
 // failedChecksOf is every standing failed check on the record, in the order the record placed the
 // anchors and, within an anchor, its standing failing checks. win supplies each event's events.id and
@@ -225,9 +220,8 @@ func openGapIDsAt(q recordsql.Querier) (map[string]bool, error) {
 }
 
 // failedChecksAt is failedChecksOf asked of q: the stream and the gap view's open set on one snapshot.
-// held is the stream q holds where the reader already took it (heldStream), nil where none is held.
-func failedChecksAt(q recordsql.Querier, held *heldStream) ([]failedCheck, error) {
-	evs, win, err := held.all(q)
+func failedChecksAt(q recordsql.Querier) ([]failedCheck, error) {
+	evs, win, err := eventsAt(q)
 	if err != nil {
 		return nil, err
 	}
@@ -236,21 +230,6 @@ func failedChecksAt(q recordsql.Querier, held *heldStream) ([]failedCheck, error
 		return nil, err
 	}
 	return failedChecksOf(evs, win, open), nil
-}
-
-// answersOwnFailedCheck is the anchor a mint by seatID about kind/ref answers: seatID's own standing
-// unread or unsound check of that anchor, which no gap answers yet. "" where it answers none. A
-// found-against check is never answered this way: its gap is the reading's own, outside the budget by its act.
-func answersOwnFailedCheck(fs []failedCheck, seatID string, kind recordpb.AboutKind, ref string) string {
-	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
-		return ""
-	}
-	for _, f := range fs {
-		if f.anchor == ref && f.owner == seatID && f.owed() {
-			return f.anchor
-		}
-	}
-	return ""
 }
 
 // A REPEAT FAILED CHECK IS REFUSED (gblock, 2026-10-24, for the computation): a lens whose failed check of
@@ -268,7 +247,7 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 	if !fails {
 		return nil
 	}
-	fs, err := failedChecksAt(q, nil)
+	fs, err := failedChecksAt(q)
 	if err != nil {
 		return feov.Wrap(feov.Conflict, err, "the record's checks could not be read, so whether %s already stands as a failed check by %s cannot be told: %v", anchor, seatID, err)
 	}
@@ -396,7 +375,7 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 	if b.CarriedFrom != nil {
 		return nil
 	}
-	fs, err := failedChecksAt(q, nil)
+	fs, err := failedChecksAt(q)
 	if err != nil {
 		return feov.Wrap(feov.Conflict, err, "the record's checks could not be read, so whether gap %s carries a failed check that still stands cannot be told: %v", b.GetGapId(), err)
 	}
@@ -424,20 +403,6 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 		}
 	}
 	return nil
-}
-
-// ownFailedCheckAnswers is the gaps seatID minted that answer a standing unread or unsound check of
-// its own: outside its mint budget while open (lensMintStanding). A found-against check's carrier is
-// never among them — a reading's gap is outside the budget by its act (carrier_minted), so a held
-// gap another lens minted cannot enter this lens's set, and no mint is exempted twice.
-func ownFailedCheckAnswers(fs []failedCheck, seatID string) map[string]bool {
-	out := map[string]bool{}
-	for _, f := range fs {
-		if f.owner == seatID && f.state != CheckFoundAgainst && f.answeredBy != "" {
-			out[f.answeredBy] = true
-		}
-	}
-	return out
 }
 
 // ownerOrSeat is a failed check's reader, or the fallback where the record names none.

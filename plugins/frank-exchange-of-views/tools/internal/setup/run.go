@@ -31,10 +31,9 @@ type Config struct {
 	JudgmentModel string
 	Cites         []string
 	Lanes         string
-	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2): K, KMax, MintBudget and the
-	// convergence fraction. Zero means "setup's default", which is written out so the file always
+	// The run's terms (plans/roundless.md §III.B.2): K, KMax and the convergence fraction. Zero means "setup's default", which is written out so the file always
 	// states what bound the run.
-	K, KMax, MintBudget int
+	K, KMax             int
 	ConvergenceFraction float64
 	// MaxSittingCalls is the tool calls one seat may make in one sitting before the PreToolUse
 	// hook refuses the rest (internal/sittingcap). Zero means sittingcap.DefaultMaxCalls.
@@ -301,9 +300,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.KMax > 0 {
 		terms.KMax = cfg.KMax
 	}
-	if cfg.MintBudget > 0 {
-		terms.MintBudget = cfg.MintBudget
-	}
 	if cfg.ConvergenceFraction > 0 {
 		terms.ConvergenceFraction = cfg.ConvergenceFraction
 	}
@@ -315,7 +311,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		maxCalls = cfg.MaxSittingCalls
 	}
 	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
-		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
+		K: terms.K, KMax: terms.KMax, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
 		MaxSittingCalls: maxCalls,
 		Hooks:           hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"),
 		Billing:         ReadBillingIdentity()}
@@ -456,7 +452,6 @@ type runConfig struct {
 	// The run's terms, always written (record.Params reads them; see that type for what each bounds).
 	K                   int     `json:"k"`
 	KMax                int     `json:"kMax"`
-	MintBudget          int     `json:"mintBudget"`
 	ConvergenceFraction float64 `json:"convergenceFraction"`
 	MaxEpochs           int     `json:"maxEpochs"`
 	// MaxSittingCalls is read by the PreToolUse hook through sittingcap.Limit, not by

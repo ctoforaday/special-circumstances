@@ -1,6 +1,7 @@
 package record
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,26 +18,22 @@ import (
 //   - K: consecutive exchanges on one gap with no movement before it is at impasse.
 //   - KMax: total exchanges on one gap before it is at impasse regardless — the monotone bound
 //     that a regrade per exchange cannot reset.
-//   - MintBudget (M): the FLOOR of the gaps one lens may hold open at once; a gap that closes
-//     frees a mint. A lens's budget is max(M, ceil(units × mints / per)), its units read off the record
-//     at each mint — see mintScales (mintbudget.go) for each area's unit and ratio.
 //   - ConvergenceFraction: the board-mass fraction of the run's peak below which a FAIL over a
 //     board with nothing material is refused (§III.B.2.1).
 //   - MaxEpochs: the chair sittings the run gets. The sitting that opens epoch MaxEpochs
 //     dispatches nobody, and a run with parties still ready there ends CEILING (PlanDispatch).
 //
-// A smoke run is M = 3, KMax = 2: three open gaps per lens unless the report is large enough to buy more.
+// A smoke run is KMax = 2.
 type Params struct {
 	K                   int     `json:"k"`
 	KMax                int     `json:"kMax"`
-	MintBudget          int     `json:"mintBudget"`
 	ConvergenceFraction float64 `json:"convergenceFraction"`
 	MaxEpochs           int     `json:"maxEpochs"`
 }
 
 // DefaultParams are the values setup writes when the operator names none. They are a starting
 // point the gate run measures (plans/roundless.md §V), stated as such.
-var DefaultParams = Params{K: 2, KMax: 6, MintBudget: 15, ConvergenceFraction: 0.25, MaxEpochs: 12}
+var DefaultParams = Params{K: 2, KMax: 6, ConvergenceFraction: 0.25, MaxEpochs: 12}
 
 // RunParams reads the run's terms. A run with no run-config.json, or one written before these
 // were recorded, gets the defaults — a real answer, and the same one setup would have written —
@@ -74,9 +71,6 @@ func paramsIn(dir string) (Params, error) {
 	if err := set(&p.KMax, rc.KMax, "kMax", gapLimit); err != nil {
 		return p, err
 	}
-	if err := set(&p.MintBudget, rc.MintBudget, "mintBudget", gapLimit); err != nil {
-		return p, err
-	}
 	if err := set(&p.MaxEpochs, rc.MaxEpochs, "maxEpochs", "ends the run at its first chair sitting, before any seat is dispatched"); err != nil {
 		return p, err
 	}
@@ -100,18 +94,35 @@ func convergenceFractionIn(dir string) (float64, error) {
 	return rc.fraction()
 }
 
-// runConfig is inputs/run-config.json's terms as written, each nil where the file does not state it.
+// runConfig is inputs/run-config.json as setup writes it: the terms, each nil where the file does not
+// state it, and every other key setup writes, which its own reader takes (the lanes, the model tiers,
+// the sitting's call limit, the hook provenance, the event-schema epoch, the substitution consent, the
+// billing identity) and this one only admits.
+//
+// THE FILE IS READ STRICTLY: a key setup does not write is an error, never ignored. A term a reader
+// skipped would read exactly like a term the run was never given, so a key no struct field declares —
+// a term the engine no longer has, or a misspelt one — refuses the read rather than vanishing.
 type runConfig struct {
 	K                   *int     `json:"k"`
 	KMax                *int     `json:"kMax"`
-	MintBudget          *int     `json:"mintBudget"`
 	ConvergenceFraction *float64 `json:"convergenceFraction"`
 	MaxEpochs           *int     `json:"maxEpochs"`
+
+	Topic                  json.RawMessage `json:"topic"`
+	RunDir                 json.RawMessage `json:"runDir"`
+	Model                  json.RawMessage `json:"model"`
+	JudgmentModel          json.RawMessage `json:"judgmentModel"`
+	Lanes                  json.RawMessage `json:"lanes"`
+	MaxSittingCalls        json.RawMessage `json:"maxSittingCalls"`
+	Hooks                  json.RawMessage `json:"hooks"`
+	EventSchema            json.RawMessage `json:"eventSchema"`
+	AllowModelSubstitution json.RawMessage `json:"allowModelSubstitution"`
+	Billing                json.RawMessage `json:"billing"`
 }
 
 // readRunConfig reads the terms of the run in directory dir; a run with no run-config.json has none
-// (nil, nil). A file that is there and cannot be read is an error, never "no terms": the terms it
-// holds are what the run's budgets are checked against.
+// (nil, nil). A file that is there and cannot be read, or holds a key runConfig does not declare, is
+// an error, never "no terms": the terms it holds are what the run's limits are checked against.
 func readRunConfig(dir string) (*runConfig, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "inputs", "run-config.json"))
 	if errors.Is(err, fs.ErrNotExist) {
@@ -121,8 +132,10 @@ func readRunConfig(dir string) (*runConfig, error) {
 		return nil, fmt.Errorf("inputs/run-config.json could not be read: %w", err)
 	}
 	var rc runConfig
-	if err := json.Unmarshal(b, &rc); err != nil {
-		return nil, fmt.Errorf("inputs/run-config.json does not parse: %w", err)
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&rc); err != nil {
+		return nil, fmt.Errorf("inputs/run-config.json does not parse as the run's configuration: %w", err)
 	}
 	return &rc, nil
 }

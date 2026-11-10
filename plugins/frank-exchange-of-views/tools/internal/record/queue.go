@@ -52,7 +52,7 @@ type QueueEntry struct {
 //  4. each accepted grade motion owed a regrade, and each finding about the seat's own gap, not
 //     already folded into a readied gap.
 //
-// Everything else on the list is not queued: the log channel, the budget, the statement that nothing
+// Everything else on the list is not queued: the log channel, the law, the statement that nothing
 // is owed, news of a closure, an anchor no check can reach, and every gap that is not the seat's to
 // act on. A delivery states those in its header and index.
 func QueueOf(w WorkJSON) []QueueEntry {

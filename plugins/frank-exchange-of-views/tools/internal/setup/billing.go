@@ -10,7 +10,7 @@ import (
 
 // WHAT THIS RUN IS BILLED TO, recorded because the run had no way to say.
 //
-// run-config.json records the topic, the tiers, the budgets and which hook binaries were
+// run-config.json records the topic, the tiers, the run's terms and which hook binaries were
 // installed. It did not record the one fact that decides who PAYS, so "which account is this on"
 // was unanswerable from the record and surfaced only as a failure.
 //

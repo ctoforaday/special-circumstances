@@ -193,7 +193,7 @@ feov-record: verify: --as takes one of supports|supports_with_bridge|weak|refute
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act
     refutes               you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act
     absent                you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing
-    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read
+    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire it or cite a source a lens can read
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
@@ -274,7 +274,7 @@ Flags:
 exit 2
 feov-record: "verdict" is not on your surface — it is the chair seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
 
-feov-record — red lens seats — findings, source readings, computation re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them.
+feov-record — red lens seats — findings, source readings, computation re-runs; mints its own gaps and, as the originator, regrades and closes them.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -604,7 +604,7 @@ feov-record: edit: your quote stops before finding anchor <!--fx:FINDING003--> (
 ── repeat target: the lens regrades GAP001
 exit 0
 regraded GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ── a second regrade of a gap in one sitting
 exit 2
@@ -736,14 +736,14 @@ exit 0
 minted GAP002
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-2 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
+2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── repeat target: the lens closes it
 exit 0
 closed GAP002 (repaired)
-2 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
+2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
@@ -780,14 +780,14 @@ feov-record: carry: red-chair has already recorded a close on "GAP002" this sitt
 ── bunch target: a finding on a plain sentence
 exit 0
 finding recorded: FINDING004 (evidence) — the id a gap's found_by names
-2 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
+2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── bunch target: a second finding on it
 exit 0
 finding recorded: FINDING005 (evidence) — the id a gap's found_by names
-2 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
+2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 

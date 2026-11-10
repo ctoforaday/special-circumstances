@@ -28,20 +28,30 @@ func TestRunParamsAreReadFromTheRunConfigWithLoudRefusals(t *testing.T) {
 	if p, err := RunParams(mustRun(t, runDir)); err != nil || p != unlimited {
 		t.Fatalf("no run-config.json: got (%+v, %v), want the defaults with no epoch limit", p, err)
 	}
-	writeRunConfig(t, runDir, `{"lanes":"3","k":3,"kMax":8,"mintBudget":1,"convergenceFraction":0.5,"maxEpochs":9}`)
+	writeRunConfig(t, runDir, `{"lanes":"3","k":3,"kMax":8,"convergenceFraction":0.5,"maxEpochs":9}`)
 	p, err := RunParams(mustRun(t, runDir))
-	if err != nil || p != (Params{K: 3, KMax: 8, MintBudget: 1, ConvergenceFraction: 0.5, MaxEpochs: 9}) {
+	if err != nil || p != (Params{K: 3, KMax: 8, ConvergenceFraction: 0.5, MaxEpochs: 9}) {
 		t.Fatalf("recorded terms: got (%+v, %v)", p, err)
 	}
 	writeRunConfig(t, runDir, `{"lanes":"3","k":3}`)
 	if p, err := RunParams(mustRun(t, runDir)); err != nil || p.K != 3 || p.KMax != DefaultParams.KMax || p.MaxEpochs != 0 {
 		t.Fatalf("a partial file keeps the defaults for what it does not state, and no epoch limit: (%+v, %v)", p, err)
 	}
-	for _, bad := range []string{`{"k":0}`, `{"kMax":-1}`, `{"mintBudget":0}`, `{"convergenceFraction":1.5}`, `{"convergenceFraction":0}`, `{"maxEpochs":0}`, `{"maxEpochs":-3}`} {
+	for _, bad := range []string{`{"k":0}`, `{"kMax":-1}`, `{"convergenceFraction":1.5}`, `{"convergenceFraction":0}`, `{"maxEpochs":0}`, `{"maxEpochs":-3}`} {
 		writeRunConfig(t, runDir, bad)
 		if _, err := RunParams(mustRun(t, runDir)); err == nil || !strings.Contains(err.Error(), "run-config.json") {
 			t.Errorf("%s was accepted or refused without naming the file: %v", bad, err)
 		}
+	}
+}
+
+// A KEY THE RUN'S CONFIGURATION DOES NOT DECLARE IS REFUSED, never skipped: skipped, a misspelt term
+// reads exactly like a term the run was never given.
+func TestARunConfigKeyTheConfigurationDoesNotDeclareIsRefused(t *testing.T) {
+	runDir := recordtest.TmpRun(t)
+	writeRunConfig(t, runDir, `{"k":3,"maxEpoch":3}`)
+	if _, err := RunParams(mustRun(t, runDir)); err == nil || !strings.Contains(err.Error(), `unknown field "maxEpoch"`) || !strings.Contains(err.Error(), "run-config.json") {
+		t.Errorf("a run-config holding a key no field declares read as: %v", err)
 	}
 }
 

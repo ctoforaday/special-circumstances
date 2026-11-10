@@ -107,7 +107,7 @@ func TestASupersessionIsTheMintersAndWaitsOnTheBench(t *testing.T) {
 // its section.
 func TestAChangedFateActsOnNoSupersededGap(t *testing.T) {
 	about := func(gap, section string, supersedes ...string) *recordpb.Mint {
-		m := budgetMint(gap, supersedes...)
+		m := sectionMint(gap, supersedes...)
 		m.AboutRef = proto.String(section)
 		return m
 	}

@@ -24,7 +24,7 @@ func TestAnUnreadVerifySaysTheCitationStaysUnreadAndTheGapIsOwed(t *testing.T) {
 		t.Fatalf("verify --as unreachable: %v", err)
 	}
 	for _, want := range []string{"citation " + label + " stays unread", "PASS is refused while the report cites it unread",
-		"you owe a gap about it", "which takes no mint of your budget"} {
+		"you owe a gap about it"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the verify does not say %q:\n%s", want, out)
 		}

@@ -171,7 +171,6 @@ type runTally struct {
 	UnreadClosesRefused             int                       `json:"unread_closes_refused"`
 	UnsoundClosesRefused            int                       `json:"unsound_closes_refused"`
 	RepeatsRefused                  int                       `json:"repeats_refused"`
-	BudgetRefused                   int                       `json:"budget_refused"`
 	OneGapRefused                   int                       `json:"one_gap_refused"`
 	OneGapFindings                  int                       `json:"one_gap_findings"`
 	UnclassifiedMinted              int                       `json:"unclassified_minted"`
@@ -220,7 +219,6 @@ type runTally struct {
 	NotTheWorkFlagsRefused          int                       `json:"not_the_work_flags_refused"`
 	NotTheWorkReadingsUnread        int                       `json:"not_the_work_readings_unread"`
 	MarkedSentenceRefused           int                       `json:"marked_sentence_refused"`
-	FoundSourceBudgetRefused        int                       `json:"found_source_budget_refused"`
 	FoundSourceRetriesRefused       int                       `json:"found_source_retries_refused"`
 	RepeatedSentenceGaps            int                       `json:"repeated_sentence_gaps"`
 	RepeatedSentenceAccepts         int                       `json:"repeated_sentence_accepts"`
@@ -259,7 +257,7 @@ func tallyOf(o outcome) runTally {
 		ComputationReopenedReadied: o.computationReopenedReadied, OwedKept: o.owedKept, ComputationOwedKept: o.computationOwedKept,
 		OwedKeptBy: o.owedKeptBy, OwnerWhys: o.ownerWhys, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
 		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires, UnreadRetiresJoined: o.unreadRetiresJoined,
-		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused, BudgetRefused: o.budgetRefused,
+		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused,
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
@@ -273,7 +271,7 @@ func tallyOf(o outcome) runTally {
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
-		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, SourceClosesRefused: o.sourceClosesRefused, ReadingDemandRefused: o.readingDemandRefused, Lifecycle: o.lifecycle.tally(), FoundAgainstStage: o.foundAgainstStage, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
+		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, SourceClosesRefused: o.sourceClosesRefused, ReadingDemandRefused: o.readingDemandRefused, Lifecycle: o.lifecycle.tally(), FoundAgainstStage: o.foundAgainstStage, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
 
@@ -618,7 +616,7 @@ type sweepFold struct {
 	unreadRetires                                   int
 	unreadRetiresJoined                             int
 	unreadClosesRefused, unsoundClosesRefused       int
-	repeatsRefused, budgetRefused                   int
+	repeatsRefused                                  int
 	oneGapRefused, oneGapFindings                   int
 	unsoundReadied, unsoundPlans, unsoundAnswers    int
 	forcedUnsoundReadied, forcedComputationOwedKept int
@@ -657,8 +655,7 @@ type sweepFold struct {
 	// through it.
 	foundAgainstStage                                string
 	notTheWorkFlagsRefused, notTheWorkReadingsUnread int
-	markedSentenceRefused, foundSourceBudgetRefused  int
-	foundSourceRetriesRefused                        int
+	markedSentenceRefused, foundSourceRetriesRefused int
 	repeatedSentenceGaps, repeatedSentenceAccepts    int
 	readingsOverPrescriptions                        int
 	readingsMinted, readingsHeld, foundSourceGaps    int
@@ -802,7 +799,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.notTheWorkFlagsRefused += r.NotTheWorkFlagsRefused
 		f.notTheWorkReadingsUnread += r.NotTheWorkReadingsUnread
 		f.markedSentenceRefused += r.MarkedSentenceRefused
-		f.foundSourceBudgetRefused += r.FoundSourceBudgetRefused
 		f.foundSourceRetriesRefused += r.FoundSourceRetriesRefused
 		f.repeatedSentenceGaps += r.RepeatedSentenceGaps
 		f.repeatedSentenceAccepts += r.RepeatedSentenceAccepts
@@ -829,7 +825,6 @@ func foldRuns(runs []runTally) sweepFold {
 			f.closesByEpoch[ep] += n
 		}
 		f.repeatsRefused += r.RepeatsRefused
-		f.budgetRefused += r.BudgetRefused
 		f.oneGapRefused += r.OneGapRefused
 		f.oneGapFindings += r.OneGapFindings
 		f.unclassifiedMinted += r.UnclassifiedMinted
@@ -1157,14 +1152,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.repeatsRefused == 0 {
 			t.Errorf("fuzz drove ZERO refused repeats across %d runs — no seat filed a second position or closing in a sitting, so the refusal that names the answering act is unexercised (false green)", f.completed)
 		}
-		// THE MINT-BUDGET GATE. The budget caps the gaps a lens holds open, and the sweep's floor of
-		// one keeps most lenses at it: a mint from a lens already holding its budget is refused. The
-		// `mint` verb gate is satisfied by the mints that land, so a budget that stopped refusing — or
-		// terms too generous for any lens to reach it — would leave the refusal unreached behind a
-		// green sweep.
-		if f.budgetRefused == 0 {
-			t.Errorf("fuzz drove ZERO mints refused for budget across %d runs — no lens held its whole mint budget open and minted again, so the cap on open gaps is unexercised (false green)", f.completed)
-		}
 		// THE ONE-GAP GATE. A mint of a class on a sentence or inquiry where an open gap of that class
 		// stands is refused, naming it, and the lens files its point as a finding about that gap. The
 		// `mint` verb gate is satisfied by the mints that land, so a rule that stopped refusing — or a
@@ -1222,7 +1209,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			{f.notTheWorkReadingsUnread, "readings of a copy that is not the work leaving the citation unread"},
 			{f.foundSourceGaps, "found-source readings that minted an unsourced_claim or claim_contradicts_source gap"},
 			{f.markedSentenceRefused, "backing found-source readings of a marked sentence refused"},
-			{f.foundSourceBudgetRefused, "minting found-source readings refused at the lens's cap"},
 			{f.foundSourceRetriesRefused, "identical found-source readings in one sitting refused"},
 			{f.repeatedSentenceGaps, "reading gaps placed at the copy of a twice-held sentence their citation marks"},
 			{f.repeatedSentenceAccepts, "accepts of a reading's fix applied to the cited copy of a twice-held sentence alone"},

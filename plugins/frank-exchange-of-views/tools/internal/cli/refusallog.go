@@ -20,7 +20,7 @@ import (
 // noteRefusal writes the refusal the tool just gave a seat to the log, as the TOOL's entry.
 //
 // THE SEAT DOES NOT HAVE TO. On universe-m13 every seat met refusals — `--key` on a verb that has
-// none, `--acceptance-check` for the flag `--check`, a mint past its budget — and not one reached
+// none, `--acceptance-check` for the flag `--check` — and not one reached
 // the log: each seat classed its own as a mistake, which is what the log's help then told it. The
 // guess is the operator's signal either way: a flag a seat reached for is a flag the surface made
 // it expect. The tool knows every refusal it issues, so the fact is recorded where it happens and

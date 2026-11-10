@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -80,10 +81,46 @@ func archivedEvents(t *testing.T, archive string) []*Event {
 	return evs
 }
 
+// migratedRunConfigs is, by archive, the inputs/run-config.json its migration writes (nil where the
+// archive holds none): migrated once per archive and test binary, since a migration is seconds.
+var migratedRunConfigs sync.Map
+
+// archivedChannels is the named archive unpacked, with the run-config.json its migration writes in
+// place of the archived one: the run's channels as migrate brings them forward, without a replay per
+// call. The caller seeds the record.
+func archivedChannels(t *testing.T, archive string) string {
+	t.Helper()
+	cfg, ok := migratedRunConfigs.Load(archive)
+	if !ok {
+		if archiveMigrate == nil {
+			t.Fatal("no migration installed: archivemigrate_test.go installs migrate before any test runs")
+		}
+		migrated := filepath.Join(t.TempDir(), "run")
+		if err := archiveMigrate(recordtest.RequireArchive(t, archive), migrated); err != nil {
+			t.Fatalf("migrating %s: %v", archive, err)
+		}
+		if err := recordsql.CloseUnder(migrated); err != nil {
+			t.Fatal(err)
+		}
+		b, err := os.ReadFile(filepath.Join(migrated, "inputs", "run-config.json"))
+		if err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		cfg, _ = migratedRunConfigs.LoadOrStore(archive, b)
+	}
+	dir := recordtest.RequireArchive(t, archive)
+	if b := cfg.([]byte); b != nil {
+		if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
 // archiveAt is the named archive as it stood after event n, replayed as m19At says.
 func archiveAt(t *testing.T, archive string, whole []*Event, n int) Run {
 	t.Helper()
-	dir := recordtest.RequireArchive(t, archive)
+	dir := archivedChannels(t, archive)
 	for _, f := range []string{"record.db", "record.db-wal", "record.db-shm"} {
 		if err := os.Remove(filepath.Join(dir, "records", f)); err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)

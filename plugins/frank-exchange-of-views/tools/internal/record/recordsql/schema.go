@@ -116,8 +116,7 @@ CREATE INDEX "events_sitting" ON "events" ("sitting_id");
 -- sitting (recordsql.LatestSitting). Partial, so it holds the openings and none of the acts.
 CREATE INDEX "events_opening" ON "events" ("seat_id") WHERE "sitting_id" = "id";
 -- A seat's own acts of one type, where the type's body table holds nothing to narrow by: the
--- report parts a seat filed (ReportAtPart, partStandingAt) and the verifies a seat carried
--- (ownAnswersAt), and a seat's mints about one kind (gapsMintedAbout).
+-- report parts a seat filed (ReportAtPart, partStandingAt).
 CREATE INDEX "events_seat" ON "events" ("seat_id");
 
 CREATE TRIGGER "events_are_append_only_update" BEFORE UPDATE ON "events" BEGIN

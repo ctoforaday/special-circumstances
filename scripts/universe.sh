@@ -64,11 +64,10 @@ MARKETPLACE_NAME=special-circumstances
 PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area)
 # SMOKE IS THE DEFAULT, AND IT HAS TO BE SAID RATHER THAN IMPLIED.
 #
-# This script set the tiers and the lane count to smoke values and then left --mint-budget and
-# --k-max at the engine's defaults, so it produced something LABELLED a smoke in every log line
-# that was not one. Measured across two runs meant to be compared: the 2026-09-19 baseline ran
-# --mint-budget 1 --k-max 2 (launched --smoke by hand) and the 2026-09-20 run ran 5 and 6. Their
-# gap counts and epoch counts were then read as a result about the change under test.
+# A run that sets the tiers and the lane count to smoke values and leaves --k-max at the engine's
+# default is LABELLED a smoke in every log line and is not one: two runs meant to be compared then
+# differ in their terms, and their gap counts and epoch counts read as a result about the change
+# under test.
 #
 # SMOKE=0 runs the development configuration, which is an order of magnitude more expensive and is
 # a deliberate act; either way the mode is printed beside the tiers, so a log says which experiment
@@ -680,7 +679,7 @@ cmd_run() {
   smoke_flag=""
   if [ "$SMOKE" = "1" ]; then
     if [ "$MODEL" != "haiku" ] || [ "$JUDGMENT_MODEL" != "haiku" ] || [ "$LANES" != "1" ]; then
-      die "SMOKE=1 sets model=haiku judgment=haiku lanes=1 (and --mint-budget 3 --k-max 2), but this run asks for model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES. Pass SMOKE=0 for the development configuration, or drop the overrides."
+      die "SMOKE=1 sets model=haiku judgment=haiku lanes=1 (and --k-max 2), but this run asks for model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES. Pass SMOKE=0 for the development configuration, or drop the overrides."
     fi
     smoke_flag=" --smoke"
   fi

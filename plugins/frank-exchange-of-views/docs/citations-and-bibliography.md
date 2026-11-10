@@ -164,7 +164,7 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   `found_against`.
   - *Unread*: a `verify` `unreachable`, or any outcome on a copy stamped `not_the_work`, reads
     nothing. The first lens whose reading read nothing since the sentence last changed owes a gap
-    about the anchor (`--about-kind anchor`), outside its mint budget. It clears when any lens's
+    about the anchor (`--about-kind anchor`). It clears when any lens's
     reading reads the work, an edit changes the sentence, or blue retires the citation. A second
     reading by the same lens that again reads nothing, while its gap is open and the sentence
     unchanged, is refused.
@@ -174,7 +174,7 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   - *Found against*: a `verify --anchor` that reads the work and finds the source against the
     sentence (`refutes`, `absent`) mints its gap in the same act, at the end of the sentence the
     citation's token sits in, with the mint's judgement flags and its `--reason` as the gap's
-    argument, outside the mint budget. It clears when the same lens's later reading of the sentence
+    argument. It clears when the same lens's later reading of the sentence
     as it stands backs it, an edit changes the sentence, or blue retires the citation; another
     lens's backing reading is a disagreement and clears nothing.
 

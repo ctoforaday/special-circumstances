@@ -275,7 +275,6 @@ const (
 	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2).
 	K                   = "k"
 	KMax                = "k-max"
-	MintBudget          = "mint-budget"
 	ConvergenceFraction = "convergence-fraction"
 	MaxSittingCalls     = "max-sitting-calls"
 	MaxEpochs           = "max-epochs"
@@ -331,7 +330,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
+		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, ConvergenceFraction, MaxSittingCalls, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
 		Card, Watch, Now, Serve,
 		Sha, DPI, Force, OCR,
 	}

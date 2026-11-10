@@ -126,7 +126,7 @@ func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt 
 	labelled := labelSources(evs, rm)
 	// A READING'S ACT IS WRITTEN WHOLE (readingActs): a record written at this epoch holds a reading
 	// that minted its gap as three events one transaction wrote, and the write rules that read the
-	// act — the budget's admission, the reading's carrier_minted — meet it on replay as they did live.
+	// act — the one-gap rule's placement, the reading's carrier_minted — meet it on replay as they did live.
 	acts := readingActs(evs)
 	pos := make(map[int64]int, len(evs)) // source events.id -> its place in the stream
 	for i, old := range evs {

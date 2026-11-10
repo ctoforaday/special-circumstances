@@ -216,31 +216,14 @@ func TestAFoundSourceAbsentMintsNothing(t *testing.T) {
 	}
 }
 
-// 20. A citation reading's gap takes no mint: at the cap it lands, and the count does not move.
-func TestAReadingsGapTakesNoMint(t *testing.T) {
-	b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
-	b.fillTo(lensL, 0)
-	before := b.standing(lensL)
-	r := b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...)
-	g := mintedBy(t, b, lensL, r, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, bySentenceOf(b.c1))
-	after := b.standing(lensL)
-	if after.Open != before.Open || after.Answering != before.Answering+1 {
-		t.Errorf("standing %+v → %+v; want open unchanged and %s answering outside it", before, after, g)
-	}
-	_, err := b.plainMint(lensL, rdFree2, "spec_underspecification")
-	mustRefuse(t, err, "", "mint budget admits no more")
-}
-
-// 21. A plain mint a later reading names keeps its mint; a successor of a reading's gap is a plain
-// mint and takes one.
-func TestAPlainMintALaterReadingNamesKeepsItsMint(t *testing.T) {
-	b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
+// 21. A plain mint a later reading names is the reading's carrier, and the reading mints nothing.
+func TestAPlainMintALaterReadingNamesCarriesIt(t *testing.T) {
+	b := readingRunOf(t, rdFillerReport, rdCited, rdBacked)
 	g, err := b.plainMint(lensL, rdCited, "claim_contradicts_source")
 	if err != nil || g == "" {
 		t.Fatalf("plain mint: %v", err)
 	}
-	b.fillTo(lensL, 0)
-	before := b.standing(lensL)
+	before := b.openOf(lensL)
 	b.sit(lensL)
 	r := b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...)
 	if r.Gap == nil || r.Gap.ID != g || r.Gap.Minted {
@@ -249,20 +232,9 @@ func TestAPlainMintALaterReadingNamesKeepsItsMint(t *testing.T) {
 	if v, _ := b.lastVerify(); v.GetCarriedBy() != g || v.GetCarrierMinted() {
 		t.Errorf("stored carried_by %q carrier_minted %v, want %s and false", v.GetCarriedBy(), v.GetCarrierMinted(), g)
 	}
-	if after := b.standing(lensL); after.Open != before.Open || after.Answering != before.Answering {
-		t.Errorf("standing %+v → %+v; the plain mint %s still takes its mint", before, after, g)
+	if after := b.openOf(lensL); after != before {
+		t.Errorf("the lens's open gaps %d → %d; a reading naming %s mints nothing", before, after, g)
 	}
-	_, err = b.plainMint(lensL, rdFree2, "spec_underspecification")
-	mustRefuse(t, err, "", "mint budget admits no more")
-
-	t.Run("successor", func(t *testing.T) {
-		b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
-		g1 := b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...).Gap.ID
-		b.fillTo(lensL, 0)
-		// The reading's gap awaits its `source` answer, so its successor carries that check kind.
-		_, err := b.plainMint(lensL, rdCited, "claim_contradicts_source", "--supersedes", g1, "--check-kind", "source")
-		mustRefuse(t, err, "", "mint budget admits no more")
-	})
 }
 
 // 22. The held gap is decided inside the reading's write: another lens's reading that lands between
@@ -386,7 +358,7 @@ func TestAReadingOfAFoundAgainstCitationIsWordedByItsState(t *testing.T) {
 
 // 35a. A found-source reading mints the gap its outcome admits, placed by its location.
 func TestAFoundSourceReadingMintsItsGap(t *testing.T) {
-	b := readingRunOf(t, rdFillerReport, 0, rdCited, rdBacked)
+	b := readingRunOf(t, rdFillerReport, rdCited, rdBacked)
 	before := citeTokens(readReport(t, b.runDir))
 	us := recordpb.GapClass_GAP_CLASS_UNSOURCED_CLAIM
 	for i, c := range []struct {
@@ -413,7 +385,7 @@ func TestAFoundSourceReadingMintsItsGap(t *testing.T) {
 
 // 35b. One source backs many sentences in one sitting; one sentence read twice from it is refused.
 func TestOneSourceBacksManySentences(t *testing.T) {
-	b := readingRunOf(t, rdFillerReport, 0, rdCited, rdBacked)
+	b := readingRunOf(t, rdFillerReport, rdCited, rdBacked)
 	for _, s := range []string{rdFree1, rdFree2, rdFree3} {
 		b.mustRead(lensL, urlReading(rdU3, s, "supports", "unsourced_claim")...)
 	}
@@ -548,46 +520,4 @@ func TestOneSentenceReadAgainstManySources(t *testing.T) {
 	if c := b.counts(); c != [3]int{4, 1, 1} {
 		t.Errorf("the refused repeat wrote %v", c)
 	}
-}
-
-// 35f. A found-source reading's gap takes a mint; a citation reading's does not.
-func TestAFoundSourceGapTakesAMint(t *testing.T) {
-	b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
-	b.fillTo(lensL, 0)
-	held := b.counts()
-	for _, args := range [][]string{
-		urlReading(rdU3, rdFree1, "supports", "unsourced_claim"),
-		urlReading(rdU3, rdFree2, "refutes", "claim_contradicts_source"),
-	} {
-		_, err := b.verify(lensL, args...)
-		mustRefuse(t, err, "", "mint budget admits no more")
-	}
-	if c := b.counts(); c != held {
-		t.Errorf("the refused readings wrote %v over %v", c, held)
-	}
-	st := b.standing(lensL)
-	b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...)
-	if after := b.standing(lensL); after.Open != st.Open {
-		t.Errorf("a citation reading's gap at the cap moved the open count %d → %d", st.Open, after.Open)
-	}
-
-	t.Run("below the cap", func(t *testing.T) {
-		b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
-		b.fillTo(lensL, 1)
-		st := b.standing(lensL)
-		g := b.mustRead(lensL, urlReading(rdU3, rdFree1, "supports", "unsourced_claim")...).Gap.ID
-		if after := b.standing(lensL); after.Open != st.Open+1 {
-			t.Errorf("a found-source reading's gap moved the open count %d → %d, want +1", st.Open, after.Open)
-		}
-		st = b.standing(lensL)
-		b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...)
-		if after := b.standing(lensL); after.Open != st.Open {
-			t.Errorf("a citation reading's gap moved the open count %d → %d", st.Open, after.Open)
-		}
-		// AT THE CAP, a reading of a sentence a standing gap of its class carries names it.
-		r := b.mustRead(lensL, urlReading(rdU4, rdFree1, "supports", "unsourced_claim")...)
-		if r.Gap == nil || r.Gap.ID != g || r.Gap.Minted {
-			t.Errorf("at the cap, a reading of a held sentence = %+v, want %s named", r.Gap, g)
-		}
-	})
 }

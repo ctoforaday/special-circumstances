@@ -49,10 +49,10 @@ func migrated(t *testing.T, runDir string) (string, map[string]int, map[string]i
 }
 
 // 33. A RECORD WRITTEN AT THIS EPOCH MIGRATES WITH NO REFUSAL: a reading act — Mint, Anchor, Verify,
-// written in one transaction by a lens at its cap — is re-driven whole on replay, each member keeping
+// written in one transaction by a lens holding gaps of its own — is re-driven whole on replay, each member keeping
 // its own duties, and every reference into the act lands on the member it named.
 func TestARecordWrittenAtThisEpochMigratesWithNoRefusal(t *testing.T) {
-	b := readingRunCast(t, rpReport+"\n# Filler\n\n"+strings.Join(rdFillers, " ")+"\n", 1,
+	b := readingRunCast(t, rpReport+"\n# Filler\n\n"+strings.Join(rdFillers, " ")+"\n",
 		rpRepeated, "The quarter closed with costs rising steeply.", "Margins held, by the survey's count")
 	if _, err := run(t, "edit", "--run", b.runDir, "--seat-id", blueSeat, "--key", "E0", "--quote", "costs rising steeply",
 		"--new", "costs rising sharply", "--reason", "one wording"); err != nil {
@@ -62,7 +62,7 @@ func TestARecordWrittenAtThisEpochMigratesWithNoRefusal(t *testing.T) {
 		b.sit(s)
 	}
 	c := b.cs[1]
-	b.fillTo(lensL, 0)
+	b.fill(lensL)
 	cc := "claim_contradicts_source"
 	newText := "The quarter closed with costs rising modestly" + anchor.Token(c) + "."
 	g := b.mustRead(lensL, citeReading(c, "refutes", cc, "--new", newText)...).Gap.ID
@@ -112,11 +112,11 @@ func TestARecordWrittenAtThisEpochMigratesWithNoRefusal(t *testing.T) {
 	if !lastBody(t, b.runDir, &recordpb.BlueEdit{}).GetExactSpan() {
 		t.Fatal("the accept is not an exact-span edit, so nothing here exercises one")
 	}
-	// N, below its cap, mints unsourced_claim from a source it found.
+	// N mints unsourced_claim from a source it found.
 	if r := b.mustRead(lensN, urlReading(rdU3, rdFillers[7], "supports", "unsourced_claim")...); r.Gap == nil || !r.Gap.Minted {
 		t.Fatalf("N's found-source reading = %+v, want it to mint", r.Gap)
 	}
-	openBefore := b.standing(lensL).Open
+	openBefore := b.openOf(lensL)
 	renderBefore := readReport(t, b.runDir)
 	// THE ACTS ABOVE CROSS THE CHECKPOINT SPACING: a reading's placement by sentence_of and by quote,
 	// blue's accept at an occurrence and the fill's mints each land ops, and every read through the
@@ -156,7 +156,7 @@ func TestARecordWrittenAtThisEpochMigratesWithNoRefusal(t *testing.T) {
 		}
 	}
 	tb := readingBoard{t: t, runDir: to}
-	if got := tb.standing(lensL).Open; got != openBefore {
+	if got := tb.openOf(lensL); got != openBefore {
 		t.Errorf("L's open count %d → %d across the migration", openBefore, got)
 	}
 	if n := checkpointsHold(t, to); n < 2 {

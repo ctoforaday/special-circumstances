@@ -104,3 +104,32 @@ func TestSetupRecordsTheHookVersionsOfThePluginCacheClaudeCodeReads(t *testing.T
 		})
 	}
 }
+
+// EVERY KEY SETUP WRITES IS ONE THE RECORD'S READER DECLARES. record.RunParams reads run-config.json
+// strictly and refuses a key it does not declare, so a field added here and not there refuses every
+// read of the run's terms. Every omitempty field is set, so each key is on the file.
+func TestTheRecordReadsEveryKeySetupWrites(t *testing.T) {
+	lanes := "2"
+	rc := runConfig{Topic: "t", RunDir: "/r", Model: "m", JudgmentModel: "j", Lanes: &lanes,
+		K: 2, KMax: 6, ConvergenceFraction: 0.25, MaxEpochs: 12, MaxSittingCalls: 40,
+		Hooks: hookprovenance.Observe(t.TempDir(), "frank-exchange-of-views"), EventSchema: record.EventSchema,
+		AllowModelSubstitution: true, Billing: BillingIdentity{ConfigDir: "/c", BillingType: "b"}}
+	b, err := marshalJSON(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "inputs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run, err := record.OpenRun(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := record.RunParams(run); err != nil {
+		t.Errorf("the record refuses the run-config setup writes: %v", err)
+	}
+}

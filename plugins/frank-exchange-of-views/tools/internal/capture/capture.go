@@ -2126,7 +2126,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// THE RUN'S TERMS, because without them the archive is BROKEN rather than merely thin.
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
-	// time by a dozen packages: record.RunParams hands k-max, mint-budget, max-epochs and the
+	// time by a dozen packages: record.RunParams hands k-max, max-epochs and the
 	// convergence fraction to the dispatch verb AND the write path; sittingcap reads the
 	// per-sitting call limit; modeltier and cost read the configured tiers; capture's own lane
 	// coverage reads the declared lane count. Measured on an archived run against the same run

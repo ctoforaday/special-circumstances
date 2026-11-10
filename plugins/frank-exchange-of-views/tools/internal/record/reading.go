@@ -78,9 +78,8 @@ var errReadingHeld = errors.New("the reading's sentence is held by an open gap o
 // as ONE act, in one transaction: gap (its Mint), place (the Anchor that places the gap's marker — at
 // the end of the sentence the reading's citation token sits in for `verify --anchor`, `sentence_of`;
 // at its quote for `verify --url`, `location`) and reading, which the write stamps `carried_by` gap
-// and `carrier_minted` true. The Mint is validated with the act's other bodies in hand: a reading of
-// a citation takes no mint of its lens's budget (a reading of a source the lens found takes one), and
-// the one-gap rule places it by the act's Anchor. Where that rule finds the
+// and `carrier_minted` true. The Mint is validated with the act's other bodies in hand: the one-gap
+// rule places it by the act's Anchor. Where that rule finds the
 // sentence already held by an open gap of the Mint's class, it is decided under the write lock: the
 // Mint and the Anchor are dropped and the reading lands alone, `carried_by` the held gap and
 // `carrier_minted` false. It returns every event written — Mint, Anchor and reading, or the reading

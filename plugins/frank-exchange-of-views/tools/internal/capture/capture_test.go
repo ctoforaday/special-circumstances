@@ -1081,7 +1081,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"kMax":6,"mintBudget":5,"maxEpochs":12,"model":"sonnet"}`), 0o644); err != nil {
+		[]byte(`{"kMax":6,"maxEpochs":12,"model":"sonnet"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// The LAW mirror is read by seats during the run and by nothing after it, so it is hashed

@@ -131,13 +131,13 @@ func TestTheGapAboutAFailedCheckClosesOnlyOnceTheCheckIsAnswered(t *testing.T) {
 		_, err := Append(lens, closeAs("G-1", word))
 		mustRefuse(t, err, "gap G-1 carries citation C-1", "Nothing is recorded", "retires the citation")
 	}
-	mustAppend(t, lens, budgetMint("G-3"))
+	mustAppend(t, lens, sectionMint("G-3"))
 	handed := closeAs("G-1", recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION)
 	handed.Successor = proto.String("G-3")
 	_, err := Append(lens, handed)
 	mustRefuse(t, err, "gap G-1 carries citation C-1")
 	// A successor minted superseding G-1 carries the defect on, and closes G-1 in that act.
-	mustAppend(t, lens, budgetMint("G-2", "G-1"))
+	mustAppend(t, lens, sectionMint("G-2", "G-1"))
 	if err := requireNotSuperseded(recordOf(t, run), "G-1", "--id"); err == nil {
 		t.Errorf("G-1 is open after G-2 was minted superseding it")
 	}
@@ -170,18 +170,5 @@ func TestARepeatUnreadReadingIsRefused(t *testing.T) {
 	// Another lens's reading that reads nothing is its own.
 	if err := validateRun(run, "red-lens-logic", recordpb.EventType_EVENT_TYPE_VERIFY, unreachable); err != nil && strings.Contains(err.Error(), "your check of citation") {
 		t.Errorf("another lens's unreachable is refused as this one's repeat: %v", err)
-	}
-}
-
-// THE UNREAD CITATION'S GAP IS OUTSIDE THE BUDGET of the lens whose check read nothing, and of no
-// other lens.
-func TestTheGapAboutAnUnreadCitationTakesNoMint(t *testing.T) {
-	run := unreadBoard(t).seed()
-	q := recordOf(t, run)
-	if got, err := answersOwnFailedCheckAt(q, evLens, aboutAnchor("G-1", "C-1")); err != nil || got != "C-1" {
-		t.Errorf("the evidence lens's gap about C-1 answers %q (%v), want C-1", got, err)
-	}
-	if got, err := answersOwnFailedCheckAt(q, "red-lens-logic", aboutAnchor("G-1", "C-1")); err != nil || got != "" {
-		t.Errorf("another lens's gap about C-1 answers %q (%v), want nothing", got, err)
 	}
 }

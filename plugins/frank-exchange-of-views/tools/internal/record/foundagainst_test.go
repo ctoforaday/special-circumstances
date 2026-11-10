@@ -98,7 +98,7 @@ func TestTheLensCloseOfAReadingsGapIsRefusedWhileTheCitationStandsFoundAgainst(t
 	run := foundAgainstBoard(t).seed()
 	lens := Identity{Run: run, SeatID: evLens}
 	// A regression close names the gap holding the regression; that gap carries nothing of G-1's.
-	mustAppend(t, lens, budgetMint("G-9"))
+	mustAppend(t, lens, sectionMint("G-9"))
 	for _, word := range closing {
 		c := closeOf("G-1", word)
 		if word == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION {
@@ -179,13 +179,13 @@ func TestABenchRulingClosesAFoundAgainstGapAndThePassStaysHeld(t *testing.T) {
 func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 	run := foundAgainstBoard(t).seed()
 	lens := Identity{Run: run, SeatID: evLens}
-	mustAppend(t, lens, budgetMint("G-3"))
+	mustAppend(t, lens, sectionMint("G-3"))
 	handed := closeOf("G-1", recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION)
 	handed.Successor = proto.String("G-3")
 	_, err := Append(lens, handed)
 	mustRefuse(t, err, "gap G-1 carries citation C-1")
 	mustAppend(t, lens, repairClose("G-3"))
-	mustAppend(t, lens, budgetMint("G-2", "G-1"))
+	mustAppend(t, lens, sectionMint("G-2", "G-1"))
 
 	carried := func(want string) {
 		t.Helper()
@@ -214,10 +214,10 @@ func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 
 	// A BRANCH: G-6 names the closed G-1 as lineage, beside G-2, which closed it. The open one
 	// minted last names it.
-	mustAppend(t, lens, budgetMint("G-6", "G-1"))
+	mustAppend(t, lens, sectionMint("G-6", "G-1"))
 	carried("G-6")
 	refused("G-2", "G-6")
-	mustAppend(t, lens, budgetMint("G-4", "G-6"))
+	mustAppend(t, lens, sectionMint("G-4", "G-6"))
 	carried("G-4")
 	refused("G-2", "G-4")
 
@@ -232,7 +232,7 @@ func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 		}
 	}
 	tree()
-	mustAppend(t, lens, budgetMint("G-5"))
+	mustAppend(t, lens, sectionMint("G-5"))
 	tree()
 	mustAppend(t, lens, closeOf("G-5", recordpb.Disposition_DISPOSITION_REPAIRED))
 	tree()
@@ -241,7 +241,7 @@ func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 	// gap minted last — G-2 — names the check, which still stands.
 	t.Run("a carrier the bench ruled closed", func(t *testing.T) {
 		b := foundAgainstBoard(t)
-		b.add(evLens, budgetMint("G-2")).closeSuperseded(evLens, "G-1", "G-2").add(evLens, budgetMint("G-3", "G-1")).
+		b.add(evLens, sectionMint("G-2")).closeSuperseded(evLens, "G-1", "G-2").add(evLens, sectionMint("G-3", "G-1")).
 			register("red-chair").docketMotion("red-chair", "M1", "G-3").
 			dispatch(2, "judge", "G-3").register("judge").add("judge", docketRuling("M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED))
 		run := b.seed()
@@ -315,9 +315,6 @@ func TestAFoundAgainstCheckIsWordedByItsState(t *testing.T) {
 	}
 	if owes := foldOf(t, run, evLens).owes; slices.ContainsFunc(owes, func(o string) bool { return strings.Contains(o, "C-1") }) {
 		t.Errorf("the reader owes %q for a check its reading's gap carries", owes)
-	}
-	if got, err := answersOwnFailedCheckAt(recordOf(t, run), evLens, aboutAnchor("G-9", "C-1")); err != nil || got != "" {
-		t.Errorf("the reader's mint about C-1 answers its found-against check (%q, %v), so it would take no mint", got, err)
 	}
 
 	t.Run("an unread check keeps its owed-mint wording", func(t *testing.T) {

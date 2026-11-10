@@ -874,7 +874,7 @@ Each prime up to the square root of 91 was tried as a divisor in turn.
 		},
 		Expect: []Expectation{
 			{Seat: "red-lens-logic", Verb: "inquiry check", Because: "Q1 is settled and no check stands on it: its fate claims trial division found the factor 7, and the report's Findings and Method deliver exactly that. A settled inquiry with no standing check holds the PASS, the logic lens's work list names it, and the check with its reason is the one act that clears it."},
-			{Seat: "red-lens-logic", Verb: "mint", Because: "Q2 asks which table first listed 91 — a question of history this run, which asks whether 91 is prime, was not asked. Checking it would pass an inquiry the report should not carry; the accounted act is the gap about the inquiry, class out_of_scope, which blue answers by declining it, and which takes none of the logic lens's mint budget."},
+			{Seat: "red-lens-logic", Verb: "mint", Because: "Q2 asks which table first listed 91 — a question of history this run, which asks whether 91 is prime, was not asked. Checking it would pass an inquiry the report should not carry; the accounted act is the gap about the inquiry, class out_of_scope, which blue answers by declining it."},
 		},
 	}
 }

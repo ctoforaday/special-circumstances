@@ -549,29 +549,11 @@ func sentenceMarked(report, quote string) (marked, once bool) {
 	return false, true
 }
 
-// mintsLeft is what lens seatID's work list states is left of its mint budget, and whether its
-// standing read.
-func (r *runner) mintsLeft(seatID string) (int, bool) {
-	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
-	if err != nil || w.Sitting.MintBudget == nil || !w.Sitting.MintBudget.Measured {
-		return 0, false
-	}
-	return w.Sitting.MintBudget.Left, true
-}
-
-// heldOn reports whether an open gap of class stands on the sentence quote's only occurrence ends in:
-// the one-gap rule then names it, and the reading mints nothing.
-func (r *runner) heldOn(class, quote string) bool {
-	open, _ := r.sameClassAndSubject(class, []string{"--quote", quote})
-	return len(open) > 0
-}
-
 // readFoundSource is a lens's reading of a source it found, which blue never cited, for a sentence
-// of the report. Its gap is minted against the lens's budget: a backing outcome on a sentence no
-// citation or computation marks mints unsourced_claim, refutes mints claim_contradicts_source on any
-// sentence, absent mints nothing. The drive holds the act to the record's answer: a backing reading of
-// a marked sentence refused naming its anchor; a minting reading at the cap refused for budget,
-// nothing recorded; below it admitted and held to what is stored. Then, by coin, the identical reading
+// of the report. A backing outcome on a sentence no citation or computation marks mints
+// unsourced_claim, refutes mints claim_contradicts_source on any sentence, absent mints nothing. The
+// drive holds the act to the record's answer: a backing reading of a marked sentence refused naming
+// its anchor; any other admitted and held to what is stored. Then, by coin, the identical reading
 // again in the sitting is refused naming the stored one, and another source read for the same
 // sentence is recorded, naming the gap the first one's reading left standing.
 func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes func(string, *cmd) *cmd) {
@@ -602,9 +584,6 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 	}
 	c, wantCopy, wantCopyURL, classes := r.foundSourceReading(seatID, outcome, quote, url, axes)
 	backing := len(classes) > 0 && outcome != "refutes"
-	class := argOf(c.args, "--class")
-	left, measured := r.mintsLeft(seatID)
-	atCap := len(classes) > 0 && measured && left == 0 && !r.heldOn(class, quote)
 	out, err := c.result()
 	env, isEnv := refusalEnvelopeIn(out)
 	switch {
@@ -616,27 +595,6 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 		// report the reading would have landed on.
 		r.mu.Lock()
 		r.markedSentenceRefused++
-		r.mu.Unlock()
-		return
-	case err != nil && strings.Contains(out, "its mint budget admits no more"):
-		// THE LENSES SIT CONCURRENTLY, and its gaps only close under another seat: a budget read
-		// before the act can only have grown, so a refusal is admissible only where it read none left.
-		if !atCap {
-			// ITS OWN SUCCESSOR MAY LAND IN BETWEEN: a regression close mints as the closer from the
-			// chair's branch. A refusal is admissible where the budget now reads none left.
-			if now, ok := r.mintsLeft(seatID); ok && now == 0 {
-				noteEither(c.args, "a found-source mint whose budget a concurrent mint of the lens spent", false)
-				return
-			}
-			r.noteActErr(fmt.Sprintf("%s's found-source reading was refused for budget, and its work list read %d mint(s) left before it: %s", seatID, left, firstLine(out)))
-			return
-		}
-		if _, _, recorded := r.storedReading(seatID, "", url, quote); recorded {
-			r.noteActErr(seatID + "'s found-source reading refused for budget was recorded: " + url)
-			return
-		}
-		r.mu.Lock()
-		r.foundSourceBudgetRefused++
 		r.mu.Unlock()
 		return
 	case err != nil && backing && marked:
@@ -654,8 +612,6 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 				return
 			}
 		}
-	case atCap:
-		noteEither(c.args, "a found-source mint at the cap, admitted where a close freed a mint in between", true)
 	}
 	r.noteBridge(seatID, outcome, kindless, out, err)
 	r.noteCopy("verify --url", out, wantCopy, wantCopyURL)
@@ -675,8 +631,6 @@ func (r *runner) readFoundSource(seatID, outcome string, kindless bool, axes fun
 			r.mu.Lock()
 			r.foundSourceRetriesRefused++
 			r.mu.Unlock()
-		case strings.Contains(again, "its mint budget admits no more"):
-			noteEither(c.args, "an identical found-source reading whose gap closed in between, refused for budget", false)
 		default:
 			r.noteActErr(fmt.Sprintf("%s's identical found-source reading was refused without naming its stored reading at event %d: %s", seatID, at, firstLine(again)))
 		}
@@ -707,26 +661,17 @@ func (r *runner) foundSourceReading(seatID, outcome, quote, url string, axes fun
 //
 // THE LENSES SIT CONCURRENTLY. g is read open before the act, and another seat may close it in
 // between — g is a sibling's where the first reading was held by it. The reading then mints a gap of
-// its own, and at the lens's cap the record refuses it for budget. That refusal is admissible only
-// where, read after it, no gap of class stands on the sentence and the lens's budget reads none
-// left, with nothing recorded; a refusal of a reading g still holds fails the run. A backing
-// reading is refused naming the anchor a cite landing in between placed on the sentence, as the first
-// reading is.
+// its own. A backing reading is refused naming the anchor a cite landing in between placed on the
+// sentence, as the first reading is.
 func (r *runner) readAnotherSource(seatID, outcome, quote, class, g string, axes func(string, *cmd) *cmd) {
 	url := fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, foundSources.Add(1))
 	c, wantCopy, wantCopyURL, _ := r.foundSourceReading(seatID, outcome, quote, url, axes)
 	setArg(c.args, "--class", class)
-	if r.betweenSecondSourceReadAndAct != nil {
-		r.betweenSecondSourceReadAndAct(g)
-	}
 	out, err := c.result()
 	if err != nil {
-		left, measured := r.mintsLeft(seatID)
-		env, isEnv := refusalEnvelopeIn(out)
-		switch {
-		case outcome != "refutes" && isEnv && env.Code == string(feov.Validation) && strings.Contains(env.Error, "this sentence is marked by"):
-			// A CITE LANDING IN BETWEEN MARKS THE SENTENCE, as for the first reading: the refusal is the
-			// record's call on the report the reading would have landed on, read again here.
+		// A CITE LANDING IN BETWEEN MARKS THE SENTENCE, as for the first reading: the refusal is the
+		// record's call on the report the reading would have landed on, read again here.
+		if env, isEnv := refusalEnvelopeIn(out); outcome != "refutes" && isEnv && env.Code == string(feov.Validation) && strings.Contains(env.Error, "this sentence is marked by") {
 			if now, rerr := record.RenderRun(r.run()); rerr == nil {
 				if m, _ := sentenceMarked(now, quote); m {
 					r.mu.Lock()
@@ -735,20 +680,6 @@ func (r *runner) readAnotherSource(seatID, outcome, quote, class, g string, axes
 					return
 				}
 			}
-		case !strings.Contains(out, "its mint budget admits no more"):
-		case r.heldOn(class, quote):
-			r.noteActErr(fmt.Sprintf("%s's second source for one sentence was refused for budget while a gap of class %s stands on it: %s", seatID, class, firstLine(out)))
-			return
-		case !measured || left != 0:
-			r.noteActErr(fmt.Sprintf("%s's second source for one sentence was refused for budget, and its work list reads %d mint(s) left (measured %v): %s", seatID, left, measured, firstLine(out)))
-			return
-		default:
-			if _, _, recorded := r.storedReading(seatID, "", url, quote); recorded {
-				r.noteActErr(seatID + "'s second found-source reading refused for budget was recorded: " + url)
-				return
-			}
-			noteEither(c.args, "a second found-source reading whose holding gap closed in between, at the cap", false)
-			return
 		}
 		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 		return
@@ -1199,8 +1130,6 @@ func (r *runner) readRepeatedSentence(seatID string, forced bool) string {
 		switch {
 		case err == nil:
 			r.noteActErr("a found-source reading quoting the twice-held sentence was recorded: " + firstLine(out))
-		case strings.Contains(out, "its mint budget admits no more"):
-			noteEither(amb.args, "a found-source reading of the twice-held sentence at the lens's cap", false)
 		case !strings.Contains(out, "occurs more than once"):
 			r.noteActErr("a found-source reading quoting the twice-held sentence was refused, and not as ambiguous: " + firstLine(out))
 		}
@@ -1329,9 +1258,6 @@ func (r *runner) readOverPrescription(seatID, line string) {
 	c.args = append(c.args, gap...)
 	out, err := c.result()
 	switch {
-	case err != nil && strings.Contains(out, "its mint budget admits no more"):
-		noteEither(c.args, "a found-source reading over a prescription at the lens's cap", false)
-		return
 	case err != nil:
 		r.noteActErr("a reading over text blue applied from a red --new was refused, and a reading's gap is exempt from estoppel: " + firstLine(out))
 		return

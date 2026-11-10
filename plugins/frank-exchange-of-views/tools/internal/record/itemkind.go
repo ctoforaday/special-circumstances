@@ -33,8 +33,6 @@ const (
 	ItemNews ItemKind = "news"
 	// ItemLog is the open log channel.
 	ItemLog ItemKind = "log"
-	// ItemBudget is a lens's standing against its mint budget, in a sentence (MintBudgetJSON).
-	ItemBudget ItemKind = "budget"
 	// ItemLaw is whether law is staged for the run, on the lists of the two seats that rule.
 	ItemLaw ItemKind = "law"
 	// ItemRegisterOwed is the sitting a seat was dispatched for, or the chair's, not yet opened.
@@ -68,7 +66,7 @@ func ItemKinds() []ItemKind {
 		out = append(out, ItemKind(r.kind))
 	}
 	return append(out, ItemAudit, ItemReaudit, ItemRegradeOwed, ItemFindingOnGap, ItemNews, ItemLog,
-		ItemBudget, ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
+		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
 		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemNothingOwed)
 }
 
@@ -88,7 +86,7 @@ const (
 )
 
 // ItemSubject is the one thing an item is about: a gap, an anchor, an inquiry, a motion, the report,
-// a lens or an area, by its id. An item about nothing in particular — the log channel, the budget,
+// a lens or an area, by its id. An item about nothing in particular — the log channel, the law,
 // the register a seat owes — carries none.
 type ItemSubject struct {
 	Kind SubjectKind `json:"kind"`

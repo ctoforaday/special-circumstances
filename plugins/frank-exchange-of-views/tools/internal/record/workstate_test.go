@@ -49,7 +49,7 @@ func sittingOfRunT(t *testing.T, run Run, role, seatID string) SittingJSON {
 // workGapStatesT is the work list's gap states, read off one snapshot as the work list reads them.
 func workGapStatesT(t *testing.T, run Run) []WorkGapState {
 	t.Helper()
-	r, err := workView(run, nil)
+	r, err := workView(run)
 	if err != nil {
 		t.Fatal(err)
 	}
