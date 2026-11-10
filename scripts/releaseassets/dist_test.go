@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -177,5 +179,45 @@ func TestPluginFromRef(t *testing.T) {
 		if _, err := PluginFromRef(bad); err == nil {
 			t.Errorf("%s names a plugin release", bad)
 		}
+	}
+}
+
+// TestEveryExportMatchesItsPin: an ASSETS export in the dist is held to its sha256 in the helper's
+// PINS.txt, never staticproofed; bytes no pin names are refused naming the export, and an export
+// with no pin is refused.
+func TestEveryExportMatchesItsPin(t *testing.T) {
+	plugin := fixturePlugin(t, []string{"feov-record"}, map[string]string{
+		"feov-embed": "gte-small.int8.ort amd64=gte-small.int8.amd64.ort arm64=gte-small.int8.arm.ort\n",
+	})
+	exports := map[string]string{"gte-small.int8.amd64.ort": "amd64 model", "gte-small.int8.arm.ort": "arm model"}
+	pins := "# <sha256> <file> <url>\r\n"
+	for name, body := range exports {
+		pins += fmt.Sprintf("%x %s https://example.invalid/%s\r\n", sha256.Sum256([]byte(body)), name, name)
+	}
+	pinsPath := filepath.Join(plugin, "native", "feov-embed", "PINS.txt")
+	if err := os.WriteFile(pinsPath, []byte(pins), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dist := staticDist(t, "feov-record_linux_amd64", "feov-record_windows_arm64.exe", "feov-embed_linux_amd64", "feov-embed_windows_arm64.exe")
+	for name, body := range exports {
+		if err := os.WriteFile(filepath.Join(dist, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	targets := []Target{linuxAMD64, windowsARM64}
+	if err := CheckDist(dist, plugin, targets, &bytes.Buffer{}); err != nil {
+		t.Fatalf("CheckDist refused exports matching their pins: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dist, "gte-small.int8.arm.ort"), []byte("other bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckDist(dist, plugin, targets, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "gte-small.int8.arm.ort") {
+		t.Fatalf("an export whose bytes no pin names was not refused naming it: %v", err)
+	}
+	if err := os.WriteFile(pinsPath, []byte(strings.Split(pins, "\r\n")[1]+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckDist(dist, plugin, targets, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "want exactly one") {
+		t.Fatalf("an export with no pin was not refused: %v", err)
 	}
 }

@@ -400,12 +400,16 @@ jobs:
         TestReadPageCapturesDiagnosticsAndEvidence
         TestTextCellGoldens
         TestTextCellTableKeepsItsRowsThroughTheEngine
+        TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine
+        TestReleaseLayoutFindsItsHelper
         TestEmbedWithBuiltHelper
         TestTokenizerParity400
         TestEmbedLoadsTheExportForItsArch
         TestEmbedFidelityMeetsS5
         TestEmbedSpeedMeetsS6
-        TestEveryOpFitsTheDeadline
+        TestEveryEmbedOpFitsTheDeadline
+      # The target-scoped names: selftest-libc runs on the Linux legs only.
+      NATIVE_RUN_MUST_PASS_LINUX: TestSelftestLibc
     steps:
       - name: Check if native-run should execute
         id: check-full
@@ -461,10 +465,13 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then
             must_pass="${must_pass} ${NATIVE_RUN_MUST_PASS_LINUX}"
           fi
-          run_arg="$(echo "$must_pass" | tr ' ' '|')"
-          test_pkgs="./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/..."
-          test_pkgs="$test_pkgs ./internal/vecembed/... ./internal/hybridsearch/..."
-          go test -v -count=1 -run "^(${run_arg})\$" $test_pkgs | tee "$RUNNER_TEMP/test.log"
+          # Each package runs whole, so every Require-gated test runs on every target; the must-pass
+          # names are a check on the log afterwards, never a -run filter. -p 1 keeps the packages off
+          # each other's CPUs while the deadline and fidelity checks measure.
+          rc=0
+          # shellcheck disable=SC2086 # $pkgs is a list of package paths
+          go test -v -count=1 -p 1 -timeout 40m $pkgs | tee "$RUNNER_TEMP/test.log" || rc=$?
+          missing=""
           for name in $must_pass; do
             grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || missing="$missing $name"
           done
@@ -813,33 +820,18 @@ jobs:
           # request can write is a cache a release build would read.
           package-manager-cache: false
           node-version: "24"
-      - name: Download feov-ocr helper (Linux)
-        if: runner.os == 'Linux'
+      - name: Download helper artifacts
         uses: actions/download-artifact@v4
         with:
-          name: native-feov-ocr-linux-amd64
+          pattern: native-*-${{ runner.os == 'Windows' && 'windows' || 'linux' }}-amd64
           path: ${{ runner.temp }}/native
-      - name: Download feov-ocr helper (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/download-artifact@v4
+          merge-multiple: true
+      - uses: ./.github/actions/install-helpers
         with:
-          name: native-feov-ocr-windows-amd64
-          path: ${{ runner.temp }}/helpers
-      - name: Download feov-embed helper (Linux)
-        if: runner.os == 'Linux'
-        uses: actions/download-artifact@v4
-        with:
-          name: native-feov-embed-linux-amd64
-          path: ${{ runner.temp }}/helpers
-      - name: Download feov-embed helper (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/download-artifact@v4
-        with:
-          name: native-feov-embed-windows-amd64
-          path: ${{ runner.temp }}/helpers
-      - name: Make helper executable
-        if: runner.os == 'Linux'
-        run: chmod +x "${RUNNER_TEMP}/helpers"/* || true
+          from: ${{ runner.temp }}/native
+          to: ${{ runner.temp }}/helpers
+          os: ${{ runner.os == 'Windows' && 'windows' || 'linux' }}
+          arch: amd64
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -2084,23 +2076,6 @@ jobs:
           pattern: native-*
           path: ${{ runner.temp }}/dist
           merge-multiple: true
-      # Each native-build artifact also holds its target's installed-name copies (`<helper>`,
-      # `<helper>.exe`, each ASSETS line's installed file) for native-run. Merged across targets
-      # they are ambiguous, so the release publishes only `<helper>_<os>_<arch>` and the exports.
-      - name: Drop native staging copies from the FEOV release
-        if: steps.plugin.outputs.plugin == 'frank-exchange-of-views'
-        shell: bash
-        env:
-          DIST: ${{ runner.temp }}/dist
-        run: |
-          for a in plugins/frank-exchange-of-views/native/*/ASSETS; do
-            h="$(basename "$(dirname "$a")")"
-            rm -f "$DIST/$h" "$DIST/$h.exe"
-            while read -r file _ || [ -n "$file" ]; do
-              case "$file" in "" | \#*) continue ;; esac
-              rm -f "$DIST/$file"
-            done <"$a"
-          done
       - name: Verify release assets and create checksums
         working-directory: scripts
         env:

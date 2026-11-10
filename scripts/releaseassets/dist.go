@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -57,6 +59,52 @@ func ReadAssets(path string) ([]AssetExport, error) {
 	return out, nil
 }
 
+// ExportPins maps every release asset an ASSETS line names to its sha256 in the same helper's
+// PINS.txt (`<sha256> <file> <url>` records, # comments). An export without exactly one pin is an
+// error: the release publishes only what the build fetched from a pin.
+func ExportPins(pluginDir string) (map[string]string, error) {
+	nativeDir := filepath.Join(pluginDir, "native")
+	helpers, err := FindHelpers(nativeDir)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, h := range helpers {
+		exports, err := ReadAssets(filepath.Join(nativeDir, h, "ASSETS"))
+		if err != nil {
+			return nil, err
+		}
+		if len(exports) == 0 {
+			continue
+		}
+		pinsPath := filepath.Join(nativeDir, h, "PINS.txt")
+		b, err := os.ReadFile(pinsPath)
+		if err != nil {
+			return nil, err
+		}
+		pins := map[string][]string{}
+		for n, line := range strings.Split(string(b), "\n") {
+			f := strings.Fields(line)
+			if len(f) == 0 || strings.HasPrefix(f[0], "#") {
+				continue
+			}
+			if len(f) != 3 {
+				return nil, fmt.Errorf("%s:%d: a pin is <sha256> <file> <url>, got %d fields", pinsPath, n+1, len(f))
+			}
+			pins[f[1]] = append(pins[f[1]], f[0])
+		}
+		for _, a := range exports {
+			for _, asset := range a.ByArch {
+				if len(pins[asset]) != 1 {
+					return nil, fmt.Errorf("%s: %s has %d pins, want exactly one", pinsPath, asset, len(pins[asset]))
+				}
+				out[asset] = pins[asset][0]
+			}
+		}
+	}
+	return out, nil
+}
+
 // ExpectedDist is every name a plugin's release dist holds, each mapped to the artifact whose
 // staticness contract it meets, or to the empty string for a file that is not an executable (an
 // ASSETS export). The names are built from their parts, never parsed back out of a file name:
@@ -108,7 +156,8 @@ func ExpectedDist(pluginDir string, targets []Target) (map[string]string, error)
 
 // CheckDist holds distDir to exactly the names ExpectedDist builds for the plugin at pluginDir,
 // plus SHA256SUMS when it is already there: an unexpected name or a missing one is refused. Every
-// executable in it passes staticproof against its own artifact's allowlist.
+// executable in it passes staticproof against its own artifact's allowlist, and every ASSETS
+// export matches its pin.
 func CheckDist(distDir, pluginDir string, targets []Target, stdout io.Writer) error {
 	want, err := ExpectedDist(pluginDir, targets)
 	if err != nil {
@@ -139,6 +188,10 @@ func CheckDist(distDir, pluginDir string, targets []Target, stdout io.Writer) er
 	if len(unexpected) > 0 || len(missing) > 0 {
 		return fmt.Errorf("dist %s does not hold exactly the release's assets: missing %v, unexpected %v", distDir, missing, unexpected)
 	}
+	pins, err := ExportPins(pluginDir)
+	if err != nil {
+		return err
+	}
 	names := make([]string, 0, len(want))
 	for name := range want {
 		names = append(names, name)
@@ -147,6 +200,15 @@ func CheckDist(distDir, pluginDir string, targets []Target, stdout io.Writer) er
 	for _, name := range names {
 		artifact := want[name]
 		if artifact == "" {
+			b, err := os.ReadFile(filepath.Join(distDir, name))
+			if err != nil {
+				return err
+			}
+			sum := sha256.Sum256(b)
+			if got := hex.EncodeToString(sum[:]); got != pins[name] {
+				return fmt.Errorf("dist %s has sha256 %s, and its pin is %s", name, got, pins[name])
+			}
+			fmt.Fprintf(stdout, "matches its pin: %s\n", name)
 			continue
 		}
 		if err := staticproof.Check(artifact, filepath.Join(distDir, name)); err != nil {

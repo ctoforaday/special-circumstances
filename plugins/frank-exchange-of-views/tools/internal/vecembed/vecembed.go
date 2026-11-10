@@ -19,12 +19,12 @@ const (
 	// BatchSize bounds the texts in one request sent to the helper.
 	BatchSize = 16
 	// MaxIDs bounds one text's token ids, [CLS] and [SEP] included: gte-small's position table.
-	// With BatchSize it bounds the largest request, which TestEveryOpFitsTheDeadline times.
+	// With BatchSize it bounds the largest request, which TestEveryEmbedOpFitsTheDeadline times.
 	MaxIDs = 512
 )
 
 // Ops is the client's op table: every feov-embed op this package sends, by name.
-// TestEveryOpFitsTheDeadline walks it, so an op added here without a largest-request case fails
+// TestEveryEmbedOpFitsTheDeadline walks it, so an op added here without a largest-request case fails
 // that test.
 var Ops = map[nativehelper.Op]string{
 	OpEmbed: "embed",

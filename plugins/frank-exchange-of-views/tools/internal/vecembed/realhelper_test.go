@@ -134,12 +134,12 @@ func TestEmbedSpeedMeetsS6(t *testing.T) {
 	}
 }
 
-// TestEveryOpFitsTheDeadline sends every op in this package's op table its largest client request,
+// TestEveryEmbedOpFitsTheDeadline sends every op in this package's op table its largest client request,
 // BatchSize texts of MaxIDs ids each, and times spawn to handshake reply (the model's hash and the
 // session included) first. Each must finish under a quarter of the deadline. An op in the table
 // with no case here fails, so a new op cannot pass by being absent. It measures time, so it runs
 // only on native-run's dedicated runners, where FEOV_NATIVE_MEASURE=1.
-func TestEveryOpFitsTheDeadline(t *testing.T) {
+func TestEveryEmbedOpFitsTheDeadline(t *testing.T) {
 	measured(t)
 	start := time.Now()
 	c := requireEmbed(t)

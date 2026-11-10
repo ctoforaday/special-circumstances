@@ -97,7 +97,9 @@ fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
 			fi
 		fi
 		if [ "$fetched" -eq 0 ]; then
-			curl -fsSL --retry 5 --retry-connrefused --retry-delay 2 --connect-timeout 30 -o "$dest.part" "$url" && mv "$dest.part" "$dest"
+			curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 --max-time 600 -o "$dest.part" "$url" ||
+				die "downloading $file from $url failed"
+			mv "$dest.part" "$dest"
 		fi
 	fi
 	echo "$sha  $dest" | sha256sum -c --quiet - || die "$file does not match its pin"
@@ -117,12 +119,12 @@ fetch_assets() { # fetch each export ASSETS names for $ARCH from the helper's pi
 	done <<<"$ASSET_PAIRS"
 }
 
-ship_assets() { # copy each export into OUTDIR under its release name and its installed name
+ship_assets() { # copy each export into OUTDIR under its release name; install-helpers and
+	# fetch-bin.sh install it under the ASSETS line's file name
 	local file export
 	while read -r file export; do
 		[ -n "$file" ] || continue
 		cp "$WORK/src/$export" "$OUTDIR/$export"
-		cp "$WORK/src/$export" "$OUTDIR/$file"
 	done <<<"$ASSET_PAIRS"
 }
 
@@ -251,7 +253,6 @@ EOS
 
 	OUT_NAME="${HELPER}_${OS}_${ARCH}${EXT}"
 	cp "$EMBED_DIR/b/Release/feov-embed.exe" "$OUTDIR/$OUT_NAME"
-	cp "$EMBED_DIR/b/Release/feov-embed.exe" "$OUTDIR/${HELPER}${EXT}"
 	ship_assets
 	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
 	exit 0
@@ -568,7 +569,6 @@ if [ "$HELPER" = "feov-embed" ]; then
 	fi
 
 	cp "$OUT_NAME" "$OUTDIR/$OUT_NAME"
-	cp "$OUT_NAME" "$OUTDIR/${HELPER}${EXT}"
 	ship_assets
 	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
 fi
