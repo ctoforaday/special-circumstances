@@ -829,6 +829,13 @@ type runner struct {
 	// act reaches (readingremovalseed_test.go); removal is its state.
 	forceReadingRemoval bool
 	removal             readingRemoval
+	// composedGap is the voice lens's gap about composedInquiry's account, minted from a composed
+	// source its list handed it, and composedAnswered whether blue has recorded that fate again
+	// answering it (composedsource_test.go). composedHanded, composedGaps and composedAnswers count
+	// the sources handed, those gaps and those answers; the sweep gates each at zero.
+	composedGap, composedInquiry                  string
+	composedAnswered                              bool
+	composedHanded, composedGaps, composedAnswers int
 	// forceBareEvidence drives cutBaringEvidence on bareEvidenceSeed's run, once.
 	forceBareEvidence, bareEvidenceDriven bool
 	// forceMintBare drives citeForBareMint and then mintBaringCitation on mintBareSeed's run;
@@ -5694,6 +5701,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.extras("blue", seatID, open)
 		// THE FORCED FATE TURN'S ANSWER comes before the sitting's other fates, so it is a fate of its own.
 		r.changeFateForTurn(seatID)
+		// THE VOICE LENS'S GAP ABOUT AN INQUIRY'S ACCOUNT is answered by recording the fate again.
+		r.answerComposedGap(seatID)
 		// EVERY OPEN INQUIRY GETS A FATE THIS SITTING: each is a blocking item on blue's work list.
 		r.settleOpenInquiries(seatID)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
@@ -5930,6 +5939,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 			}
 		}
+		r.auditComposedSources(seatID)
 		r.mintAboutFateSection(seatID)
 		r.mintHeldTrifle(seatID)
 		r.closeNamedOnTurn(seatID, engaged)
@@ -6172,10 +6182,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// store, hit — real in the fuzz rather than unit-tested only.
 				//
 				// --ocr=false ALWAYS, AND THAT IS NOT A COVERAGE DODGE. The reading is local now
-				// (plans/local-ocr.md) — no model, no network — but this fuzz binary is a default
-				// build whose OCR engine is the stub, and its synthetic sources are not scanned
-				// PDFs, so "on" would exercise nothing while making the sweep's output depend on
-				// which build variant ran it. Passing the flag drives the stated-refusal path and
+				// (plans/local-ocr.md) — no model, no network — but this sweep runs with no feov-ocr
+				// helper beside its binary, and its synthetic sources are not scanned PDFs, so "on"
+				// would exercise nothing while making the sweep's output depend on whether a helper
+				// happened to be installed. Passing the flag drives the stated-refusal path and
 				// satisfies the gate that every flag be exercised; the default (on) belongs to a
 				// seat reading one real document, not to a fuzzer.
 				// --via live IS DRIVEN; THE OTHER FIVE ARE NOT, AND THAT IS THE HERMETIC LINE.
@@ -6393,6 +6403,9 @@ type outcome struct {
 	// anchorVerifies the verify readings of a citation, anchorVerifiesWithClaim those whose `claim` is
 	// (checkSentences).
 	reproducesWithClaim, anchorVerifies, anchorVerifiesWithClaim int
+	// spotChecksNamed is the spot-checks naming a stale area, spotChecksStamped those whose stamp the
+	// record agrees with, and spotChecksWithChanges those naming a change (checkSpotCheckStamps).
+	spotChecksNamed, spotChecksStamped, spotChecksWithChanges int
 	// stalenessAnchor is the computation a stalenessSeeds run's arm left for the seam to forge;
 	// stalenessForged is 1 where the seam forged it, and stalenessReported 1 where the consistency
 	// oracle then reported it (forgeStaleness).
@@ -6425,6 +6438,8 @@ type outcome struct {
 	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
 	// are runner's.
 	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits, fateTurns int
+	// composedHanded, composedGaps and composedAnswers are runner's.
+	composedHanded, composedGaps, composedAnswers int
 	// lensAlone, docketsAfterAudit, docketedClosesRefused and docketedOffList are runner's.
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// hearingsAfter is runner's.
@@ -7738,6 +7753,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if msg != "" && res.err == "" {
 			res.err = msg
 		}
+		// THE TOOL STATES WHAT CHANGED BEHIND EACH SPOT-CHECKED PIN (checkSpotCheckStamps).
+		stamps, msg := checkSpotCheckStamps(fam)
+		res.spotChecksNamed, res.spotChecksStamped, res.spotChecksWithChanges = stamps.named, stamps.stamped, stamps.withChanges
+		if msg != "" && res.err == "" {
+			res.err = msg
+		}
 	}
 	// A CITATION OR COMPUTATION IS OFFERED TO ITS OWNER ALONE, read at the run's end when no seat is writing.
 	if msg, computations, citations := r.anchorOffersAgree(oracleRun); msg != "" && res.err == "" {
@@ -7871,6 +7892,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
 	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
 	res.fateTurns = r.fateTurns
+	res.composedHanded, res.composedGaps, res.composedAnswers = r.composedHanded, r.composedGaps, r.composedAnswers
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
@@ -8986,6 +9008,9 @@ func inquiryCheckCode(class string) feov.Code {
 // sitting the owner is readied for next: the check would judge the fate without what landed in hand,
 // and the tool refuses it.
 func (r *runner) checkInquiries(seatID string) {
+	r.mu.Lock()
+	composedBefore := r.composedGap
+	r.mu.Unlock()
 	js, ok := r.inquiryJudgements()
 	if !ok || len(js) == 0 {
 		return
@@ -9026,6 +9051,16 @@ func (r *runner) checkInquiries(seatID string) {
 			// refusal fails the run.
 			if now, ok := r.inquiryJudgement(j.ID); ok && (now.Fate != j.Fate || now.GapMint != j.GapMint || now.State() != record.InquiryUnchecked) {
 				noteEither(args, "the inquiry moved under the owner's check", false)
+				continue
+			}
+			// THE VOICE LENS'S GAP ABOUT IT LANDED BESIDE THE CHECK and left again before the re-read —
+			// superseded or closed — so the inquiry reads unchecked on both sides of a refusal that
+			// named the gap (composedsource_test.go).
+			r.mu.Lock()
+			composedBeside := r.composedInquiry == j.ID && r.composedGap != composedBefore
+			r.mu.Unlock()
+			if composedBeside {
+				noteEither(args, "the voice lens's gap about the inquiry landed beside the owner's check", false)
 				continue
 			}
 			r.noteActErr("refused, and the drive expects it admitted: " + firstLine(out) + ": " + err.Error())

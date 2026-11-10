@@ -1160,6 +1160,24 @@ func (t *spotCheckTable) load(q Querier, after int64) error {
 	}); err != nil {
 		return err
 	}
+	if err := scanList(q, "spot_check_pins", `SELECT l."event_id", l."value" FROM "spot_check_pins" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v int64) {
+		m := t.rows[id]
+		if m == nil {
+			return // the owner's row is missing, and its event is refused for that
+		}
+		m.Pins = append(m.Pins, v)
+	}); err != nil {
+		return err
+	}
+	if err := scanList(q, "spot_check_changes", `SELECT l."event_id", l."value" FROM "spot_check_changes" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v int64) {
+		m := t.rows[id]
+		if m == nil {
+			return // the owner's row is missing, and its event is refused for that
+		}
+		m.Changes = append(m.Changes, v)
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 

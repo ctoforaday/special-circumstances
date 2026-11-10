@@ -106,7 +106,7 @@ func TestSiblingRequirementsExcludesSelf(t *testing.T) {
 // became parameters: the fetch path shells out to gh, and the fallback shells out to
 // the Go toolchain.
 func TestFixWithReportsEveryOutcome(t *testing.T) {
-	missing := binStatus{Name: "sc-doctor", Plugin: "prosthetic-conscience", Version: "0.9.0", Root: "/plug"}
+	missing := binStatus{Kind: "go", Name: "sc-doctor", Plugin: "prosthetic-conscience", Version: "0.9.0", Root: "/plug"}
 
 	ok := func(binStatus) error { return nil }
 	boom := func(binStatus) error { return fmt.Errorf("gh not on PATH") }
@@ -178,9 +178,9 @@ func TestFixWithReportsEveryOutcome(t *testing.T) {
 	// stays per-binary rather than collapsing.
 	never := func(binStatus) error { t.Error("attempted to provision an already-built binary"); return nil }
 	report := fixWith([]binStatus{
-		{Name: "a", Built: true},
+		{Kind: "go", Name: "a", Built: true},
 		missing,
-		{Name: "b", Plugin: "gray-area", Version: "0.2.0", Root: "/g"},
+		{Kind: "go", Name: "b", Plugin: "gray-area", Version: "0.2.0", Root: "/g"},
 	}, func(b binStatus) error {
 		if b.Built {
 			return never(b)

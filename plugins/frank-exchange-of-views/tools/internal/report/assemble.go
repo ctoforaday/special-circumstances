@@ -27,7 +27,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/yuin/goldmark/ast"
 
@@ -716,16 +715,11 @@ func riskMatrix(bj record.BoardJSON) string {
 			risk = g.ID
 		}
 		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
-			cell(concise(risk)), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(concise(g.RequiredFix))))
+			cell(anchor.Concise(risk)), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(anchor.Concise(g.RequiredFix))))
 	}
 	b.WriteString(riskMatrixFooter())
 	return b.String()
 }
-
-// conciseLimit is the scan surface's width, and it is named where the reader meets it: the
-// matrix's own footer states it, so a cut row reads as a stated limit rather than as the
-// whole of what the seat wrote.
-const conciseLimit = 100
 
 // riskMatrixFooter tells the reader what a cell IS. A truncation nobody announced is
 // indistinguishable from a seat that wrote very little — and the matrix is the surface a
@@ -733,56 +727,7 @@ const conciseLimit = 100
 func riskMatrixFooter() string {
 	return fmt.Sprintf("\nThe matrix is a scan surface: a cell is the field's first sentence, or its "+
 		"first %d characters cut at a word boundary and marked `…`. Each row's full problem statement, "+
-		"required fix and acceptance check are in [the board](%s).", conciseLimit, FileDocket)
-}
-
-// concise returns a scannable one-line version of a long field — its first sentence, or a
-// head cut at a word boundary. A risk matrix is scanned, not read; the tool cannot summarize
-// a 60-word gap description, so it takes the lead sentence and leaves the full text in Red
-// team findings, where nothing is lost.
-//
-// TRUNCATION IS NOT COMPRESSION, and two ways of forgetting that both shipped here. The
-// sentence split took the FIRST `.` anywhere, so "e.g. the parser" became "e." — a cell
-// saying nothing, and saying it in a tool's voice, as though the seat had written one letter.
-// The fallback cut at byte 100 regardless of what was there, producing "a piece of int…"
-// mid-word and splitting any multi-byte rune that straddled the boundary. A sentence is
-// therefore the one every reader of a sentence reads (anchor.Sentences), with a floor under the
-// head so a leading initial ("A. B. Turing") does not make the cell "A."; the fallback backs up
-// to the last space, exactly as the citation scent in md.go already does. Where neither finds a
-// boundary the cell is cut at the limit and marked — cut, and visibly so, is the honest report
-// of a scan surface.
-func concise(s string) string {
-	s = strings.Join(strings.Fields(s), " ") // collapse internal whitespace/newlines
-	for _, sp := range anchor.Sentences(s) {
-		if sp[1] > conciseLimit {
-			break
-		}
-		if sp[1] >= minSentence {
-			return s[:sp[1]]
-		}
-	}
-	if len(s) <= conciseLimit {
-		return s
-	}
-	if cut := strings.LastIndexByte(s[:conciseLimit], ' '); cut > conciseLimit/2 {
-		return strings.TrimSpace(s[:cut]) + "…"
-	}
-	return strings.TrimSpace(truncateRunes(s, conciseLimit)) + "…"
-}
-
-// minSentence is the floor under a cell's lead sentence.
-const minSentence = 25
-
-// truncateRunes cuts to at most n bytes WITHOUT splitting a rune, so a cell that has no space
-// to back up to still renders as text rather than as a replacement character.
-func truncateRunes(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	for n > 0 && !utf8.RuneStart(s[n]) {
-		n--
-	}
-	return s[:n]
+		"required fix and acceptance check are in [the board](%s).", anchor.ConciseLimit, FileDocket)
 }
 
 // inquiries renders the inquiry LIFECYCLE under the given heading — replayed state, one row per

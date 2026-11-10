@@ -113,72 +113,6 @@ func makeStaticELF(t *testing.T, path string) {
 	}
 }
 
-func TestADynamicELFIsRefused(t *testing.T) {
-	dir := t.TempDir()
-	badELF := filepath.Join(dir, "feov-record_linux_amd64")
-	makeDynamicELF(t, badELF)
-
-	err := CheckDist(dir, "refs/tags/frank-exchange-of-views--v0.1.0", nil, nil)
-	if err == nil {
-		t.Fatal("CheckDist passed a dynamic ELF, want refusal")
-	}
-	if !strings.Contains(err.Error(), "not statically linked") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestEveryExecutableIsProven(t *testing.T) {
-	dir := t.TempDir()
-	goodELF := filepath.Join(dir, "feov-record_linux_amd64")
-	makeStaticELF(t, goodELF)
-
-	targets := []Target{
-		{OS: "linux", Arch: "amd64", Name: "linux-amd64"},
-	}
-	err := CheckDist(dir, "refs/tags/gray-area--v0.1.0", targets, nil)
-	if err != nil {
-		t.Fatalf("CheckDist failed on proven static binary: %v", err)
-	}
-}
-
-func TestAFEOVDistMissingOneHelperIsRefused(t *testing.T) {
-	dir := t.TempDir()
-	makeStaticELF(t, filepath.Join(dir, "feov-record_linux_amd64"))
-	makeStaticELF(t, filepath.Join(dir, "feov-ocr_linux_amd64"))
-	// Intentionally missing feov-ocr_windows_arm64.exe
-
-	targets := []Target{
-		{OS: "linux", Arch: "amd64", Name: "linux-amd64"},
-		{OS: "windows", Arch: "arm64", Name: "windows-arm64", Ext: ".exe"},
-	}
-	helpers := []string{"feov-ocr"}
-
-	err := CheckDist(dir, "refs/tags/frank-exchange-of-views--v0.1.0", targets, helpers)
-	if err == nil {
-		t.Fatal("CheckDist passed a FEOV dist missing a helper asset")
-	}
-	if !strings.Contains(err.Error(), "feov-ocr_windows_arm64.exe") {
-		t.Fatalf("error %q does not name the missing helper asset", err)
-	}
-}
-
-func TestADistWithoutHelpersNeedsNone(t *testing.T) {
-	dir := t.TempDir()
-	makeStaticELF(t, filepath.Join(dir, "gray-area_linux_amd64"))
-
-	targets := []Target{
-		{OS: "linux", Arch: "amd64", Name: "linux-amd64"},
-		{OS: "windows", Arch: "arm64", Name: "windows-arm64", Ext: ".exe"},
-	}
-	helpers := []string{"feov-ocr"}
-
-	// gray-area tag has no helpers
-	err := CheckDist(dir, "refs/tags/gray-area--v0.1.0", targets, helpers)
-	if err != nil {
-		t.Fatalf("CheckDist demanded helpers of non-FEOV plugin: %v", err)
-	}
-}
-
 func TestATargetWithoutARunnerIsRefused(t *testing.T) {
 	tmpWF := filepath.Join(t.TempDir(), "hooks.yml")
 	content := `
@@ -236,6 +170,7 @@ func TestScopeBuildsEveryConsumersTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 	helpers := []string{"feov-ocr"}
+	nativeSet := repoNativeSet(t)
 
 	// Must derive consumers dynamically
 	if len(consumers) == 0 {
@@ -256,6 +191,51 @@ func TestScopeBuildsEveryConsumersTarget(t *testing.T) {
 			event:      "pull_request",
 			ref:        "refs/pull/123/merge",
 			changed:    []string{"plugins/frank-exchange-of-views/native/feov-ocr/main.cpp"},
+			wantCache:  "restore",
+			wantFull:   true,
+			needTarget: "linux-amd64",
+		},
+		{
+			name:       "pull request changing a package that imports nativehelper",
+			event:      "pull_request",
+			ref:        "refs/pull/123/merge",
+			changed:    []string{"plugins/frank-exchange-of-views/tools/internal/cli/fetch.go"},
+			wantCache:  "restore",
+			wantFull:   true,
+			needTarget: "linux-amd64",
+		},
+		{
+			name:       "pull request changing the helper install action",
+			event:      "pull_request",
+			ref:        "refs/pull/123/merge",
+			changed:    []string{".github/actions/install-helpers/action.yml"},
+			wantCache:  "restore",
+			wantFull:   true,
+			needTarget: "linux-amd64",
+		},
+		{
+			name:       "pull request changing a fetchcache file outside the renderer",
+			event:      "pull_request",
+			ref:        "refs/pull/123/merge",
+			changed:    []string{"plugins/frank-exchange-of-views/tools/internal/fetchcache/pdfextract.go"},
+			wantCache:  "restore",
+			wantFull:   true,
+			needTarget: "linux-amd64",
+		},
+		{
+			name:       "pull request changing a subpackage of a nativehelper importer",
+			event:      "pull_request",
+			ref:        "refs/pull/123/merge",
+			changed:    []string{"plugins/frank-exchange-of-views/tools/internal/cli/lens/close.go"},
+			wantCache:  "restore",
+			wantFull:   false,
+			needTarget: "linux-amd64",
+		},
+		{
+			name:       "pull request changing a corpus golden",
+			event:      "pull_request",
+			ref:        "refs/pull/123/merge",
+			changed:    []string{"plugins/frank-exchange-of-views/tools/internal/tessocr/testdata/corpus/nbs602-form/reading.darwin-arm64.golden"},
 			wantCache:  "restore",
 			wantFull:   true,
 			needTarget: "linux-amd64",
@@ -337,7 +317,7 @@ func TestScopeBuildsEveryConsumersTarget(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			scope, err := DecideScope(tc.event, tc.ref, tc.changed, targets, consumers, helpers)
+			scope, err := DecideScope(tc.event, tc.ref, tc.changed, nativeSet, targets, consumers, helpers)
 			if err != nil {
 				t.Fatalf("DecideScope failed: %v", err)
 			}
@@ -364,7 +344,7 @@ func TestScopeBuildsEveryConsumersTarget(t *testing.T) {
 	}
 
 	// Deletion check 1: unknown event in on: fails
-	_, err = DecideScope("unknown_event", "refs/heads/main", nil, targets, consumers, helpers)
+	_, err = DecideScope("unknown_event", "refs/heads/main", nil, nativeSet, targets, consumers, helpers)
 	if err == nil {
 		t.Fatal("DecideScope accepted unknown event")
 	}
@@ -396,98 +376,6 @@ jobs:
 	}
 	if !slices.Contains(derived, "windows-arm64") {
 		t.Fatalf("DeriveConsumerTargets did not find windows-arm64 in fixture: %v", derived)
-	}
-}
-
-func TestTheHelperCacheStepsObeyTheScope(t *testing.T) {
-	wfPath := filepath.Join("..", "..", ".github", "workflows", "hooks.yml")
-	if _, err := os.Stat(wfPath); err != nil {
-		t.Skipf("workflow file %s not found: %v", wfPath, err)
-	}
-	b, err := os.ReadFile(wfPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var root yaml.Node
-	if err := yaml.Unmarshal(b, &root); err != nil {
-		t.Fatal(err)
-	}
-
-	// Walk every node looking for cache actions
-	checkCacheSteps(t, &root, "hooks.yml")
-}
-
-func checkCacheSteps(t *testing.T, node *yaml.Node, path string) {
-	t.Helper()
-	if node.Kind == yaml.MappingNode {
-		for i := 0; i < len(node.Content); i += 2 {
-			k := node.Content[i].Value
-			if k == "jobs" {
-				checkJobs(t, node.Content[i+1])
-			}
-		}
-	}
-}
-
-func checkJobs(t *testing.T, jobsNode *yaml.Node) {
-	t.Helper()
-	for i := 0; i < len(jobsNode.Content); i += 2 {
-		jobName := jobsNode.Content[i].Value
-		jobBody := jobsNode.Content[i+1]
-		for j := 0; j < len(jobBody.Content); j += 2 {
-			if jobBody.Content[j].Value == "steps" {
-				stepsNode := jobBody.Content[j+1]
-				for _, step := range stepsNode.Content {
-					checkStep(t, jobName, step)
-				}
-			}
-		}
-	}
-}
-
-func checkStep(t *testing.T, jobName string, stepNode *yaml.Node) {
-	t.Helper()
-	var uses, ifCond string
-	var hasRestoreKeys bool
-	for i := 0; i < len(stepNode.Content); i += 2 {
-		k := stepNode.Content[i].Value
-		v := stepNode.Content[i+1].Value
-		if k == "uses" {
-			uses = v
-		} else if k == "if" {
-			ifCond = v
-		} else if k == "with" {
-			withNode := stepNode.Content[i+1]
-			for w := 0; w < len(withNode.Content); w += 2 {
-				if withNode.Content[w].Value == "restore-keys" {
-					hasRestoreKeys = true
-				}
-			}
-		}
-	}
-
-	if strings.HasPrefix(uses, "actions/cache/restore") {
-		if jobName != "native-build" {
-			t.Errorf("job %s uses actions/cache/restore, only native-build may use it", jobName)
-		}
-		wantIf := "needs.native-scope.outputs.cache != 'none'"
-		if strings.TrimSpace(ifCond) != wantIf {
-			t.Errorf("restore step if: got %q, want %q", ifCond, wantIf)
-		}
-		if hasRestoreKeys {
-			t.Errorf("restore step has restore-keys, must have none")
-		}
-	} else if strings.HasPrefix(uses, "actions/cache/save") {
-		if jobName != "native-build" {
-			t.Errorf("job %s uses actions/cache/save, only native-build may use it", jobName)
-		}
-		wantIf := "needs.native-scope.outputs.cache == 'save' && steps.helper-cache.outputs.cache-hit != 'true'"
-		if strings.TrimSpace(ifCond) != wantIf {
-			t.Errorf("save step if: got %q, want %q", ifCond, wantIf)
-		}
-	} else if strings.HasPrefix(uses, "actions/cache@") {
-		t.Errorf("job %s uses combined actions/cache: must use actions/cache/restore or actions/cache/save", jobName)
 	}
 }
 

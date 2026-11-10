@@ -313,7 +313,7 @@ func foldPlan(params Params, r planReads) Plan {
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
-	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), r.found)))
+	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), r.found)), composedOwedOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil)))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax: the epoch this sitting opens, and
 	// whether it is the run's last (isFinalEpoch) or the last that dispatches a lens (blueHeldOut).

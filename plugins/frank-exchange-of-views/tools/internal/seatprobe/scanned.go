@@ -7,8 +7,8 @@ import (
 
 // ScannedFixtureSentence is the one sentence scanned-1p.pdf carries as pixels, and ScannedFixtureSpan
 // the words of it the lens-ocr-verify board's citation quotes from the reading. The generator
-// (testdata/gen) sets the sentence; the tagged fixture test proves the real engine reads the span on
-// page 1, so the board never demands a citation its own fixture cannot produce.
+// (testdata/gen) sets the sentence; the fixture test run with the feov-ocr helper proves the real
+// engine reads the span on page 1, so the board never demands a citation its own fixture cannot produce.
 const (
 	ScannedFixtureSentence = "Software integrity levels are assigned by consequence."
 	ScannedFixtureSpan     = "Software integrity levels are assigned by consequence"

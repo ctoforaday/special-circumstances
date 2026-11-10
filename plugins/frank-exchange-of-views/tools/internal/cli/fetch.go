@@ -37,7 +37,7 @@ func newFetch() *cobra.Command {
 		Short: "cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes",
 		// WHAT THE LONG NO LONGER SAYS, AND WHERE IT LIVES. The share of cited PDFs that are scans
 		// (one in four, 2026-08-23 corpus) is at the OCR call below; the engine (tesseract +
-		// leptonica, statically linked) and its per-page grayscale render are in
+		// leptonica, in the standalone feov-ocr helper) and its per-page grayscale render are in
 		// fetchcache/pageread.go; the openai.com 403 that shipped a question "open rather than
 		// resolved" (#592) is at fetchcache/httpfetcher.go and egress_test.go. None of it changes
 		// what a seat does, so the page carries only the instruction each one produced.
@@ -173,7 +173,7 @@ func newFetch() *cobra.Command {
 func readScanIfApplicable(cmd *cobra.Command, run record.Run, entry fetchcache.Entry, s *fetchSummary) {
 	// A SCANNED DOCUMENT IS READ HERE, rather than handed back as a dead end (#644).
 	//
-	// The reading is LOCAL — the OCR engine statically linked into this binary — and it
+	// The reading is LOCAL — the standalone feov-ocr helper beside this binary — and it
 	// is deliberately not left to the seat: the alternative was an INSTRUCTION telling a
 	// seat that `ocr pages` and `ocr read` exist, which is the weakest carrier available
 	// for a step the tool can simply take. It fires only where the extractor looked at a
@@ -184,7 +184,7 @@ func readScanIfApplicable(cmd *cobra.Command, run record.Run, entry fetchcache.E
 	// A READ FAILURE IS NEVER A FETCH FAILURE, exactly as an extraction failure is not:
 	// the bytes are cached and the source is perfectly good, it is the READING that is
 	// missing. So the reason travels on the summary and the command still exits 0 — this
-	// is also how a binary built WITHOUT the engine states itself: ocr_reason carries the
+	// is also how a binary with no feov-ocr helper states itself: ocr_reason carries the
 	// engine-absent sentence instead of an empty reading. What must not happen is the
 	// reason travelling nowhere — a document with no text and no stated cause reads
 	// identically whether reading was refused, off, or broken.

@@ -145,7 +145,8 @@ func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]r
 //
 // M36'S INQUIRIES WERE SETTLED AND NEVER CHECKED, so the replay also readies the logic lens, on no gap,
 // for their check (inquirycheck.go). That readiness engages no lens on a gap, and is left out of both
-// counts.
+// counts. So is the voice lens readied, on no gap, for the text the tool composes from a fate or a mint
+// it had not sat through since (composedsource.go).
 func TestM36LensesWaitForBlue(t *testing.T) {
 	whole := archivedEvents(t, m36Archive)
 	stored, err := StoredPlans(whole)
@@ -186,7 +187,7 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 		}
 		lenses := func(p Plan) (n int) {
 			for _, q := range p.Parties {
-				if seatclass.RoleOfSeat(q.SeatID) == "lens" && !checksAnInquiry(p, q) {
+				if seatclass.RoleOfSeat(q.SeatID) == "lens" && !checksAnInquiry(p, q) && !auditsComposedText(p, q) {
 					n++
 				}
 			}
@@ -275,5 +276,15 @@ func checksAnInquiry(p Plan, q Party) bool {
 		slices.ContainsFunc(p.Why, func(w string) bool { return strings.HasPrefix(w, inquiryOwner+" owns the check of inquiry") }) &&
 		!slices.ContainsFunc(p.Why, func(w string) bool {
 			return strings.HasPrefix(w, inquiryOwner+":") && strings.Contains(w, "audits the report")
+		})
+}
+
+// auditsComposedText reports whether party q is the voice lens readied, on no gap, for the text the
+// tool composes from the record and for nothing else: its line of the lens gate readies it for that
+// text alone (lensFold.readiness).
+func auditsComposedText(p Plan, q Party) bool {
+	return q.SeatID == composedSourceAuditor && len(q.GapIDs) == 0 &&
+		slices.ContainsFunc(p.Why, func(w string) bool {
+			return strings.HasPrefix(w, composedSourceAuditor+":") && strings.Contains(w, "audits the text the tool composes")
 		})
 }

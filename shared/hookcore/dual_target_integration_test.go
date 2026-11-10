@@ -198,7 +198,7 @@ func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngin
 	for _, e := range os.Environ() {
 		if strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") || strings.HasPrefix(e, "ANTIGRAVITY_") ||
 			strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "USERPROFILE=") ||
-			strings.HasPrefix(e, "XDG_") {
+			strings.HasPrefix(e, "XDG_") || strings.HasPrefix(e, "APPDATA=") {
 			continue
 		}
 		env = append(env, e)
@@ -210,10 +210,25 @@ func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngin
 		"XDG_CONFIG_HOME="+tempDir,
 		"XDG_DATA_HOME="+tempDir,
 		"XDG_STATE_HOME="+tempDir,
+		"APPDATA="+tempDir, // os.UserConfigDir on Windows
 		"CLAUDE_PLUGIN_DATA="+tempDir,
 		"CLAUDE_PLUGIN_ROOT="+mockRoot,
-		"GOTELEMETRY=off",
 	)
+
+	// sc-sessionstart's toolchain check runs `go version`. The go command reads its telemetry
+	// mode only from the mode file under os.UserConfigDir — GOTELEMETRY is a read-only `go env`
+	// report, and setting it in the environment changes nothing — so under a fresh config dir
+	// the mode is "local": go opens counters there and daemonizes a telemetry child that
+	// outlives the hook and races t.TempDir's RemoveAll (#1820). `go telemetry off` writes the
+	// mode file into this config dir first.
+	if goBin, err := exec.LookPath("go"); err == nil {
+		off := exec.CommandContext(ctx, goBin, "telemetry", "off")
+		off.Dir = tempDir
+		off.Env = env
+		if out, err := off.CombinedOutput(); err != nil {
+			t.Fatalf("go telemetry off under the test's config dir: %v\n%s", err, out)
+		}
+	}
 
 	if envEngine == "claude" {
 		env = append(env, "CLAUDECODE=1")
@@ -235,7 +250,22 @@ func runHook(t *testing.T, binPath string, args []string, stdinPayload, envEngin
 			t.Fatalf("exec %s failed: %v", binPath, err)
 		}
 	}
+	// A go command that ran with telemetry on opened its counters under go/telemetry/local and
+	// may have daemonized a telemetry child that outlives the hook; that child writing while
+	// t.TempDir's RemoveAll runs is the cleanup failure of #1820.
+	if _, err := os.Stat(filepath.Join(userConfigDir(tempDir), "go", "telemetry", "local")); err == nil {
+		t.Errorf("%s ran the go command with telemetry on under the test's config dir (go/telemetry/local exists); its telemetry child races TempDir cleanup", filepath.Base(binPath))
+	}
 	return outBuf.String(), errBuf.String(), rc
+}
+
+// userConfigDir is os.UserConfigDir for a process whose HOME, XDG_CONFIG_HOME and APPDATA are
+// all home.
+func userConfigDir(home string) string {
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(home, "Library", "Application Support")
+	}
+	return home
 }
 
 // TestAllHooksDualTargetIntegration systematically tests every single hook binary across

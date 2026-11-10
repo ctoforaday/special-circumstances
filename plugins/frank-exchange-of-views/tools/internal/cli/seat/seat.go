@@ -1082,7 +1082,7 @@ var ReasonIs = map[string]string{
 	"verify":     "what the source says, in your words, or, where it could not be read, what you tried. It stays on the reading: a gap you mint on this reading carries its own argument, the case blue answers and a bench weighs. " + flags.ReasonNotProcess,
 	"mint":       "your argument for the gap — why it is worth one, the case blue answers and a bench weighs; the report never prints it. Under unclassified it is REQUIRED: name the nearest class and what it does not cover. " + flags.ReasonNotProcess,
 	"closing":    "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
-	"spot-check": "what reading the stale areas and sampling the closure archive found, a defect included — printed with the spot-check in the report's board and in the debate transcript. " + flags.ReasonNotProcess,
+	"spot-check": "your judgement of the changes behind each stale area's pin against that area's duties, and of any closure you re-verified, a defect included — printed with the spot-check, beside the changes the tool states, in the report's board and in the debate transcript; the count and ids of the changes are the tool's, never yours. " + flags.ReasonNotProcess,
 	"certify":    "what a human should re-examine after the run, and why. " + flags.ReasonNotProcess,
 	"declare":    "the holding: how the whole record is to be READ. " + flags.ReasonNotProcess,
 	"halt":       "the opinion: the boundary, and why continuing would itself be the harm. " + flags.ReasonNotProcess,

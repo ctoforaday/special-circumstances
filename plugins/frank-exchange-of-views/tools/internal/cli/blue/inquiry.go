@@ -167,7 +167,7 @@ func newInquiryRecord() *cobra.Command {
 	// THE VALUES ARE NOT RE-LISTED HERE: enumhelp renders every value with its own meaning from the
 	// record, so the usage line's job is to say what the FIELD is for.
 	enumhelp.Flag(c, flags.As, record.MustEnum("inquiry", "status"), "the fate of this inquiry")
-	flags.Text(c, flags.Method, "optional: the method this fate is the account of, in the SUBJECT's terms — what was actually done for an approach that ran, what a later run should do for one deferred or declined, what was tried for one abandoned. Printed on the inquiry's row beside the fate")
+	flags.Text(c, flags.Method, "optional: the method this fate is the account of, in the SUBJECT's terms — what was actually done for an approach that ran, what would settle the question for one deferred or declined, what was tried for one abandoned. Printed on the inquiry's row beside the fate, as report text")
 	return c
 }
 

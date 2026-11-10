@@ -180,6 +180,9 @@ type runTally struct {
 	ReproducesWithClaim        int                       `json:"reproduces_with_claim"`
 	AnchorVerifies             int                       `json:"anchor_verifies"`
 	AnchorVerifiesWithClaim    int                       `json:"anchor_verifies_with_claim"`
+	SpotChecksNamed            int                       `json:"spot_checks_named"`
+	SpotChecksStamped          int                       `json:"spot_checks_stamped"`
+	SpotChecksWithChanges      int                       `json:"spot_checks_with_changes"`
 	StalenessForged            int                       `json:"staleness_forged"`
 	StalenessReported          int                       `json:"staleness_reported"`
 	SupersedeDemandRefused     int                       `json:"supersede_demand_refused"`
@@ -192,6 +195,9 @@ type runTally struct {
 	RemandReleases             int                       `json:"remand_releases"`
 	LensTurns                  int                       `json:"lens_turns"`
 	FateTurns                  int                       `json:"fate_turns"`
+	ComposedHanded             int                       `json:"composed_handed"`
+	ComposedGaps               int                       `json:"composed_gaps"`
+	ComposedAnswers            int                       `json:"composed_answers"`
 	LensWaits                  int                       `json:"lens_waits"`
 	LensAlone                  int                       `json:"lens_alone"`
 	DocketsAfterAudit          int                       `json:"dockets_after_audit"`
@@ -251,10 +257,12 @@ func tallyOf(o outcome) runTally {
 		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
 		Reproduces: o.reproduces, ReproducesWithClaim: o.reproducesWithClaim,
 		AnchorVerifies: o.anchorVerifies, AnchorVerifiesWithClaim: o.anchorVerifiesWithClaim,
+		SpotChecksNamed: o.spotChecksNamed, SpotChecksStamped: o.spotChecksStamped, SpotChecksWithChanges: o.spotChecksWithChanges,
 		StalenessForged: o.stalenessForged, StalenessReported: o.stalenessReported,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, FateTurns: o.fateTurns, LensWaits: o.lensWaits,
+		ComposedHanded: o.composedHanded, ComposedGaps: o.composedGaps, ComposedAnswers: o.composedAnswers,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
@@ -615,12 +623,15 @@ type sweepFold struct {
 	supersedeDemandCarried, supersedeDemandRefused  int
 	reproduces, reproducesWithClaim                 int
 	anchorVerifies, anchorVerifiesWithClaim         int
+	spotChecksNamed, spotChecksStamped              int
+	spotChecksWithChanges                           int
 	stalenessForged, stalenessReported              int
 	rulerFilingsRefused                             int
 	closedRemandsRefused, trifleRemandsRouted       int
 	blueRemandActs, pastLimitRemandsRefused         int
 	remandHolds, remandReleases                     int
 	lensTurns, lensWaits, fateTurns                 int
+	composedHanded, composedGaps, composedAnswers   int
 	lensAlone, docketsAfterAudit                    int
 	docketedClosesRefused, docketedOffList          int
 	benchRegrades, lockRefused, lockLifted          int
@@ -800,6 +811,9 @@ func foldRuns(runs []runTally) sweepFold {
 		f.reproducesWithClaim += r.ReproducesWithClaim
 		f.anchorVerifies += r.AnchorVerifies
 		f.anchorVerifiesWithClaim += r.AnchorVerifiesWithClaim
+		f.spotChecksNamed += r.SpotChecksNamed
+		f.spotChecksStamped += r.SpotChecksStamped
+		f.spotChecksWithChanges += r.SpotChecksWithChanges
 		f.stalenessForged += r.StalenessForged
 		f.stalenessReported += r.StalenessReported
 		f.supersedeDemandRefused += r.SupersedeDemandRefused
@@ -812,6 +826,9 @@ func foldRuns(runs []runTally) sweepFold {
 		f.remandReleases += r.RemandReleases
 		f.lensTurns += r.LensTurns
 		f.fateTurns += r.FateTurns
+		f.composedHanded += r.ComposedHanded
+		f.composedGaps += r.ComposedGaps
+		f.composedAnswers += r.ComposedAnswers
 		f.lensWaits += r.LensWaits
 		f.lensAlone += r.LensAlone
 		f.docketsAfterAudit += r.DocketsAfterAudit
@@ -1175,6 +1192,15 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 				t.Errorf("fuzz recorded %d %s check(s), %d of them carrying the sentence they judged — every one must, and some must be recorded (false green)", c.n, c.verb, c.claimed)
 			}
 		}
+		// THE TOOL STATES WHAT CHANGED BEHIND EACH SPOT-CHECKED PIN (checkSpotCheckStamps): spot-checks
+		// naming stale areas were recorded, every one carries the stamp the record agrees with, and
+		// some stamp names changes.
+		t.Logf("spot-check stamp: %d of %d spot-check(s) naming a stale area carry the record's pins and changes; %d name a change",
+			f.spotChecksStamped, f.spotChecksNamed, f.spotChecksWithChanges)
+		if f.spotChecksNamed == 0 || f.spotChecksStamped != f.spotChecksNamed || f.spotChecksWithChanges == 0 {
+			t.Errorf("fuzz recorded %d spot-check(s) naming a stale area, %d carrying the record's stamp, %d naming a change — every one must carry it, and some must name a change (false green)",
+				f.spotChecksNamed, f.spotChecksStamped, f.spotChecksWithChanges)
+		}
 		if f.stalenessForged == 0 || f.stalenessReported != f.stalenessForged {
 			t.Errorf("the seam forged %d staleness(es) and the consistency oracle reported %d — every forged debate must be reported, and one must be forged (false green)", f.stalenessForged, f.stalenessReported)
 		}
@@ -1258,6 +1284,14 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("fate turns: %d lens engagement(s) on a gap about a section, with blue or alone, came with a fate blue changed", f.fateTurns)
 		if f.fateTurns == 0 {
 			t.Errorf("no lens turn across %d runs on a gap about a section came with a fate blue changed — the rule that a changed fate is blue's act on a gap about a section that prints it is unexercised (false green)", f.completed)
+		}
+		// THE VOICE LENS AUDITS THE TEXT THE TOOL COMPOSES (ruled by gblock 2026-11-10): its list handed
+		// it the inquiries' fates and the open gaps' rows recorded since it last sat, it minted a
+		// report_voice gap about an inquiry's account from one, and blue answered such a gap by
+		// recording the fate again.
+		t.Logf("composed sources: %d handed to the voice lens, %d report_voice gap(s) minted about an inquiry from one, %d answered by a fate recorded again", f.composedHanded, f.composedGaps, f.composedAnswers)
+		if f.composedHanded == 0 || f.composedGaps == 0 || f.composedAnswers == 0 {
+			t.Errorf("fuzz handed the voice lens %d composed source(s), minted %d report_voice gap(s) about an inquiry from one and answered %d by a fate across %d runs — the voice audit of the composed sections is unexercised on one side (false green)", f.composedHanded, f.composedGaps, f.composedAnswers, f.completed)
 		}
 		// THE LENS GOES FIRST AND THE DOCKET AFTER (ruled by gblock 2026-10-31): a plan readied a lens alone
 		// for the audit that reaches the limits, a docket followed a lens's sitting, a docketed gap's close

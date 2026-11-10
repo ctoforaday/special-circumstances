@@ -21,6 +21,8 @@ FEOV's native helpers (`feov-ocr`, and `feov-embed`) run as standalone executabl
 
 Every published helper is proven static by `staticproof` against its target's allowlist. The Go binaries in all plugins compile with `CGO_ENABLED=0` and are also checked by `staticproof` before release.
 
+The same sources read a page differently on different targets, so a reading belongs to its target. `tessocr.Identity()` ends with `+target@<goos>-<goarch>`, so a reading cached on one target is read again on another. The corpus holds one golden set per target (gblock, 2026-11-10): `reading.<goos>-<goarch>.golden` beside each page. `native-run` compares each target with its own set and uploads its readings as `corpus-readings-<target>`; a new or moved set is committed from that artifact after its diff is read.
+
 ## Why zig, and not plain clang or gcc
 
 `zig cc` and `zig c++` are clang and lld. Zig contributes the rest of what a cross-build needs, in one pinned download:

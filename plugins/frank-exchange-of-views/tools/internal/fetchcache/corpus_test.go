@@ -31,10 +31,10 @@ import (
 // never fetched. Nothing in this module refuses an outside host — offline-ness here is the absence
 // of any other address, not a promise.
 //
-// THIS SUITE IS EXPENSIVE AND DOES NOT RIDE THE ORDINARY ONE. Eight scans at 12-24 s each is
+// THIS SUITE IS EXPENSIVE AND DOES NOT RIDE THE ORDINARY ONE. Every committed scan at 12-24 s is
 // minutes of engine time, and CI pays for it on every leg that compiles it. It runs only where
-// FEOV_OCR_CORPUS=1 is set — the `ocr-corpus` job, Linux only, since a Windows minute costs twice a
-// Linux one and a macOS minute ten times, and these pages measure the engine, not the platform.
+// FEOV_OCR_CORPUS=1 is set: the `ocr-corpus` job on linux-amd64, where the goldens are pinned, and
+// native-run on every published pair, which holds each target's helper to the same bytes.
 // The env gate is the repository's existing idiom for a costly gate (FEOV_RELEASE_GATE), and it
 // keeps the file COMPILED everywhere, so it cannot rot behind a build tag.
 //
@@ -49,14 +49,25 @@ var update = flag.Bool("update", false, "rewrite the corpus goldens and STATUS.m
 
 func TestCorpusGoldens(t *testing.T) {
 	if os.Getenv("FEOV_OCR_CORPUS") != "1" && !*update {
-		t.Skip("the corpus reads eight scans through the real engine; set FEOV_OCR_CORPUS=1 (the " +
-			"ocr-corpus job does) or pass -update")
+		t.Skip("the corpus reads every committed scan through the real engine; set FEOV_OCR_CORPUS=1 (the " +
+			"ocr-corpus and native-run jobs do) or pass -update")
 	}
 	nativehelper.Require(t, "feov-ocr")
 	cases, err := corpus.Load(corpusRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// ONE GOLDEN SET PER TARGET (gblock, 2026-11-10): the same sources read a page differently on
+	// different targets, so each pins its own and none is compared against another's. A target
+	// with no set fails in CI and skips loudly elsewhere; it never borrows the reference's.
+	target := tessocr.Target()
+	golden := corpus.GoldenFile(target)
+	if !*update {
+		requireTargetGoldens(t, cases, target)
+	}
+	// FEOV_OCR_CORPUS_OUT names a directory every page's reading is also written to, pass or fail,
+	// under its golden's name: native-run uploads it, so a target's set is committed from CI.
+	outDir := os.Getenv("FEOV_OCR_CORPUS_OUT")
 	var mu sync.Mutex
 	var results []corpus.Result
 	// The pages run in parallel, and the ceiling is stated rather than assumed: the shipped engine
@@ -73,7 +84,16 @@ func TestCorpusGoldens(t *testing.T) {
 				results = append(results, corpus.Result{Slug: c.Slug, Failed: c.Prov.Expect.Check(observed)})
 				mu.Unlock()
 
-				path := filepath.Join(c.Dir, corpus.FileGolden)
+				if outDir != "" {
+					dir := filepath.Join(outDir, c.Slug)
+					if werr := os.MkdirAll(dir, 0o755); werr != nil {
+						t.Fatal(werr)
+					}
+					if werr := os.WriteFile(filepath.Join(dir, golden), []byte(got), 0o644); werr != nil {
+						t.Fatal(werr)
+					}
+				}
+				path := filepath.Join(c.Dir, golden)
 				if *update {
 					if werr := os.WriteFile(path, []byte(got), 0o644); werr != nil {
 						t.Fatal(werr)
@@ -94,6 +114,12 @@ func TestCorpusGoldens(t *testing.T) {
 	if t.Failed() {
 		return
 	}
+	// STATUS.md is the meter of the human-transcribed expect blocks, measured on the reference
+	// target; another target's pages are held to their own goldens above.
+	if target != corpus.ReferenceTarget {
+		t.Logf("STATUS.md is %s's meter; on %s the goldens above are the check", corpus.ReferenceTarget, target)
+		return
+	}
 	statusPath := filepath.Join(corpusRoot, corpus.FileStatus)
 	status := corpus.Status(results)
 	if *update {
@@ -109,6 +135,70 @@ func TestCorpusGoldens(t *testing.T) {
 	if string(have) != status {
 		t.Errorf("STATUS.md is stale — a page's expect block and the reading disagree with what it "+
 			"records. Regenerate with -update.\n--- STATUS.md\n%s\n--- measured\n%s", have, status)
+	}
+}
+
+// goldenTB is the part of testing.TB requireTargetGoldens uses, so its CI rule can be driven by a
+// recorder.
+type goldenTB interface {
+	Helper()
+	Error(args ...any)
+	Skip(args ...any)
+}
+
+// requireTargetGoldens holds the test to target's goldens. Under GITHUB_ACTIONS a missing set fails
+// the test and the pages are still read, so native-run uploads their readings; elsewhere it skips
+// loudly. It looks for target's file only, never another's.
+func requireTargetGoldens(t goldenTB, cases []corpus.Case, target string) {
+	t.Helper()
+	var missing []string
+	for _, c := range cases {
+		if _, err := os.Stat(filepath.Join(c.Dir, corpus.GoldenFile(target))); err != nil {
+			missing = append(missing, c.Slug)
+		}
+	}
+	if len(missing) == 0 {
+		return
+	}
+	msg := fmt.Sprintf("no %s golden for %v: this target has no committed set. Commit the readings "+
+		"native-run uploads as corpus-readings-%s, or regenerate here with -update", target, missing, target)
+	if os.Getenv("GITHUB_ACTIONS") != "" {
+		t.Error(msg)
+		return
+	}
+	t.Skip("SKIPPED, NOT PASSED: " + msg)
+}
+
+type goldenRecorder struct{ fatal, skip string }
+
+func (r *goldenRecorder) Helper()           {}
+func (r *goldenRecorder) Error(args ...any) { r.fatal = fmt.Sprint(args...) }
+func (r *goldenRecorder) Skip(args ...any)  { r.skip = fmt.Sprint(args...) }
+
+// TestATargetWithoutGoldensFailsInCI: a target with no committed set fails under GITHUB_ACTIONS
+// and skips loudly elsewhere, and the reference target's set never stands in for it.
+func TestATargetWithoutGoldensFailsInCI(t *testing.T) {
+	cases, err := corpus.Load(corpusRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const absent = "plan9-arm"
+	t.Setenv("GITHUB_ACTIONS", "true")
+	var r goldenRecorder
+	requireTargetGoldens(&r, cases, absent)
+	if !strings.Contains(r.fatal, "no "+absent+" golden") || r.skip != "" {
+		t.Errorf("under GITHUB_ACTIONS a target with no goldens gave fatal %q, skip %q; want a failure", r.fatal, r.skip)
+	}
+	t.Setenv("GITHUB_ACTIONS", "")
+	r = goldenRecorder{}
+	requireTargetGoldens(&r, cases, absent)
+	if r.fatal != "" || !strings.HasPrefix(r.skip, "SKIPPED, NOT PASSED") {
+		t.Errorf("outside CI a target with no goldens gave fatal %q, skip %q; want a loud skip", r.fatal, r.skip)
+	}
+	r = goldenRecorder{}
+	requireTargetGoldens(&r, cases, corpus.ReferenceTarget)
+	if r.fatal != "" || r.skip != "" {
+		t.Errorf("the reference target's committed set reads as missing: fatal %q, skip %q", r.fatal, r.skip)
 	}
 }
 

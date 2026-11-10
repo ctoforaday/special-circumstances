@@ -889,11 +889,16 @@ const lastReadClause = ` YOUR PIN IS ON YOUR WORK LIST: read \`sitting.last_read
 // full and an index of the rest, and the next item after the act the record shows discharged it — the
 // work list it is cut from was mostly other lenses' gaps (sittingwrite/delivery.go).
 const oneItemClause = ` YOUR ITEMS ARRIVE ONE AT A TIME; the index lists the rest.`
+// THE VOICE LENS AUDITS THE COMPOSED SECTIONS' SOURCES (gblock 2026-11-10; record/composedsource.go): an
+// inquiry's fate and a gap's mint move no report head, so a voice lens readied by one reads `unchanged`
+// on its pin, which lastReadClause says leaves nothing to audit. This clause says that its pin does not
+// govern that text.
+const composedClause = ` THE TEXT THE TOOL COMPOSES IS IN YOUR AUDIT: the reason and the method of each inquiry's fate, and the first sentence of each open gap's problem and fix, which the report prints in sections the tool composes from the record. Your work list hands you each one recorded since you last sat, whatever your pin says; audit it as report text.`
 const owesClosing = (plan, seat) => plan.blockers.some((b) => b.kind === 'closing_owed' && b.owner === seat)
 const closingClause = (owes) => !owes ? '' : ` WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED: file it, and the gap asks nothing else of you until the bench has ruled it.`
 const lensPrompt = (seatID, gaps, owes) => {
   const area = SEATS[seatID].area
-  const extra = area === 'evidence' ? ledgerClause : (area === 'logic' || area === 'dark-side') ? steelmanClause : ''
+  const extra = area === 'evidence' ? ledgerClause : (area === 'logic' || area === 'dark-side') ? steelmanClause : area === 'voice' ? composedClause : ''
   const engaged = gaps.length
     ? ` YOU ARE ENGAGED ON: ${gaps.join(', ')} — gaps you minted that are still open, each with something for you to audit: your work list says what, gap by gap, and its row gives its location state and the edits that changed its sentence since you last sat. DID BLUE ACTUALLY DO WHAT YOU ASKED? \`gone\`: the gap's anchor is not in the report — blue cut its sentence; that is not silence — judge the report as it stands. Otherwise re-read the report where each is anchored, put your required fix and what blue did side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds. On a gap you are engaged on, a sitting with neither a regrade nor a close is a NULL TURN, and it ends the exchange all the same — silence is a turn taken. A gap you hold and are not engaged on asks nothing of you this sitting: its turn has not come, and the row says so.`
     : ''
