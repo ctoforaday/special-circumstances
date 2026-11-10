@@ -1,95 +1,97 @@
 package recordsql
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// installGapOracle installs the folded gap view (testdata/oracle_gap.sql) on conn as TEMP view
-// oracle_gap.
-func installGapOracle(t *testing.T, ctx context.Context, conn *sql.Conn) {
+// gapStateSnapshot is every gap_state row, in mint order, one string each.
+func gapStateSnapshot(t *testing.T, q interface {
+	Query(string, ...any) (*sql.Rows, error)
+}) []string {
 	t.Helper()
-	oracle, err := os.ReadFile("testdata/oracle_gap.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := conn.ExecContext(ctx, `DROP VIEW IF EXISTS temp."oracle_gap";`+string(oracle)); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// gapStateOracleDiff holds the thin gap view against the folded view it replaces, every column the
-// thin view has, on one connection because the oracle is TEMP. It returns "" when they agree row for
-// row, else what differs.
-func gapStateOracleDiff(t *testing.T, db *sql.DB) string {
-	t.Helper()
-	ctx := context.Background()
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	installGapOracle(t, ctx, conn)
-	cols := gapColumns(t, ctx, conn)
-	list := strings.Join(cols, ", ")
-	var out []string
-	for _, q := range []struct{ what, sql string }{
-		{"gap rows the oracle lacks", `SELECT ` + list + ` FROM "gap" EXCEPT SELECT ` + list + ` FROM "oracle_gap"`},
-		{"oracle rows the gap view lacks", `SELECT ` + list + ` FROM "oracle_gap" EXCEPT SELECT ` + list + ` FROM "gap"`},
-		{"row counts (gap, oracle) that differ", `SELECT a, b FROM (SELECT (SELECT count(*) FROM "gap") AS a, (SELECT count(*) FROM "oracle_gap") AS b) WHERE a <> b`},
-		{"gaps named and not flushed", `SELECT "gap_id" FROM "gap_dirty" UNION ALL SELECT "id" FROM "gap_flush"`},
-	} {
-		rows, err := conn.QueryContext(ctx, q.sql)
-		if err != nil {
-			t.Fatal(err)
-		}
-		rc, _ := rows.Columns()
-		for rows.Next() {
-			v := make([]any, len(rc))
-			p := make([]any, len(rc))
-			for i := range v {
-				p[i] = &v[i]
-			}
-			if err := rows.Scan(p...); err != nil {
-				t.Fatal(err)
-			}
-			out = append(out, fmt.Sprintf("%s: %v", q.what, v))
-		}
-		rows.Close()
-	}
-	return strings.Join(out, "\n")
-}
-
-// gapColumns is the thin gap view's columns, quoted.
-func gapColumns(t *testing.T, ctx context.Context, conn *sql.Conn) []string {
-	t.Helper()
-	rows, err := conn.QueryContext(ctx, `SELECT "name" FROM pragma_table_info('gap')`)
+	rows, err := q.Query(`SELECT * FROM "gap_state" ORDER BY "minted_event"`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close()
-	var cols []string
+	cols, _ := rows.Columns()
+	var out []string
 	for rows.Next() {
-		var c string
-		if err := rows.Scan(&c); err != nil {
+		v := make([]any, len(cols))
+		p := make([]any, len(cols))
+		for i := range v {
+			p[i] = &v[i]
+		}
+		if err := rows.Scan(p...); err != nil {
 			t.Fatal(err)
 		}
-		cols = append(cols, `"`+c+`"`)
+		out = append(out, fmt.Sprint(v))
 	}
-	if len(cols) == 0 {
-		t.Fatal("the gap view has no columns")
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
 	}
-	return cols
+	return out
+}
+
+// gapStateRefreshDiff holds the stored gap state, as the marker triggers kept it append by append,
+// against gap_refresh asked of EVERY gap at once, in a transaction it rolls back. It returns "" when
+// they agree row for row and nothing is left named or unflushed, else what differs. The refresh
+// asked of every gap is the rules with no marker in the way, so a gap a marker failed to name stands
+// out as the row the full refresh moves.
+func gapStateRefreshDiff(t *testing.T, db *sql.DB) string {
+	t.Helper()
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	var out []string
+	var pending int
+	if err := tx.QueryRow(`SELECT (SELECT count(*) FROM "gap_dirty") + (SELECT count(*) FROM "gap_flush")`).Scan(&pending); err != nil {
+		t.Fatal(err)
+	}
+	if pending != 0 {
+		out = append(out, fmt.Sprintf("%d gap(s) named and not flushed", pending))
+	}
+	stored := gapStateSnapshot(t, tx)
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO "gap_dirty" ("gap_id") SELECT "gap_id" FROM "mint";
+	    INSERT INTO "gap_flush" ("id") VALUES (1)`); err != nil {
+		t.Fatal(err)
+	}
+	refreshed := gapStateSnapshot(t, tx)
+	for i := 0; i < max(len(stored), len(refreshed)); i++ {
+		var s, f string
+		if i < len(stored) {
+			s = stored[i]
+		}
+		if i < len(refreshed) {
+			f = refreshed[i]
+		}
+		if s != f {
+			out = append(out, fmt.Sprintf("stored %q, refreshed %q", s, f))
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+// gapStateHolds is each of a step's truths that does not hold, or "" when all do.
+func gapStateHolds(t *testing.T, db *sql.DB, holds []string) string {
+	t.Helper()
+	var out []string
+	for _, q := range holds {
+		var ok bool
+		if err := db.QueryRow(q).Scan(&ok); err != nil || !ok {
+			out = append(out, fmt.Sprintf("%s: got %v (%v)", q, ok, err))
+		}
+	}
+	return strings.Join(out, "\n")
 }
 
 // fileDocket files docket motion id on gap.
@@ -124,96 +126,172 @@ func (r *demandRecord) regrade(gap string, severity recordpb.Grade) int64 {
 		GapId: proto.String(gap), Severity: severity.Enum(), Basis: proto.String("moved")})
 }
 
+// gapStep is one act on the fixture record and what the gap view must hold after it: each a query
+// returning one row of one truth.
+type gapStep struct {
+	act   func()
+	holds func() []string
+}
+
+// gapIs is a truth about gap: cond over its gap view row. A gap with no row is no truth.
+func gapIs(gap, cond string) string {
+	return `SELECT ` + cond + ` FROM "gap" WHERE "gap_id" = '` + gap + `'`
+}
+
 // gapStateSteps is a record that moves every column of gap_state through every marker trigger, one
-// act per step, including the three paths no archived run holds: a reading carried by a gap, an
-// upheld position's remand, and an evidence demand carried to an heir by supersession.
-func gapStateSteps(r *demandRecord) []func() {
+// act per step, with the state each act leaves, including the three paths no archived run holds: a
+// reading carried by a gap, an upheld position's remand, and an evidence demand carried to an heir by
+// supersession.
+func gapStateSteps(r *demandRecord) []gapStep {
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
 	supports, refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
-	return []func(){
+	var hMint, rClose, rRetire, rCarry, m1, m1Rule, dClose int64
+	at := func(v *int64) string { return fmt.Sprint(*v) }
+	none := func() []string { return nil }
+	return []gapStep{
 		// A check made before its anchor is placed meets nothing until the anchor is placed.
-		func() { r.mintOf("A", src, "C1") },
-		func() { r.verify(reader, "C1", "", supports) },
-		func() { r.cite("C1", "") },
+		{func() { r.mintOf("A", src, "C1") }, func() []string {
+			return []string{gapIs("A", `"open" AND NOT "evidence_answered" AND "awaiting_evidence" AND "supersedes_count" = 0
+			  AND "close_event" IS NULL AND "closed_by_bench" = 0 AND "material"`)}
+		}},
+		{func() { r.verify(reader, "C1", "", supports) }, func() []string { return []string{gapIs("A", `NOT "evidence_answered"`)} }},
+		{func() { r.cite("C1", "") }, func() []string { return []string{gapIs("A", `"evidence_answered" AND NOT "awaiting_evidence"`)} }},
 		// A recheck that does not hold replaces one that held.
-		func() { r.verify(reader, "C1", "", refutes) },
-		// The heir carries A's demand (same evidence kind) and its mint closes A.
-		func() { r.mintOf("H", src, "", "A") },
+		{func() { r.verify(reader, "C1", "", refutes) }, func() []string { return []string{gapIs("A", `NOT "evidence_answered" AND "awaiting_evidence"`)} }},
+		// The heir carries A's demand (same evidence kind) and its mint closes A; the reader's refuting
+		// check came before the heir's mint, so it meets nothing for H.
+		{func() { hMint = r.mintOf("H", src, "", "A") }, func() []string {
+			return []string{
+				gapIs("A", `NOT "open" AND "superseded_by" = 'H' AND "supersede_event" = `+at(&hMint)+` AND NOT "closed_by_bench" AND NOT "bench_closed_last" AND NOT "awaiting_evidence"`),
+				gapIs("H", `"open" AND "supersedes_count" = 1 AND NOT "evidence_answered" AND "awaiting_evidence"`),
+			}
+		}},
 		// A reading carried by the ancestor, after the heir's mint, by another seat: it meets A and,
-		// through the inherited reach, H.
-		func() { r.verify(other, "C1", "A", supports) },
-		func() { r.verify(other, "C1", "A", refutes) },
+		// through the inherited reach, H; its refutation unmeets both.
+		{func() { r.verify(other, "C1", "A", supports) }, func() []string {
+			return []string{gapIs("A", `"evidence_answered"`), gapIs("H", `"evidence_answered" AND NOT "awaiting_evidence"`)}
+		}},
+		{func() { r.verify(other, "C1", "A", refutes) }, func() []string {
+			return []string{gapIs("A", `NOT "evidence_answered"`), gapIs("H", `NOT "evidence_answered" AND "awaiting_evidence"`)}
+		}},
 		// A retire of the ancestor's anchor after the heir's mint meets the heir.
-		func() { r.retire("C1") },
+		{func() { r.retire("C1") }, func() []string {
+			return []string{gapIs("A", `"evidence_answered"`), gapIs("H", `"evidence_answered" AND NOT "awaiting_evidence"`)}
+		}},
 		// A computation placed as a gap's answer.
-		func() { r.mintOf("P", comp, "") },
-		func() { r.compute("K1", "P") },
+		{func() { r.mintOf("P", comp, "") }, func() []string { return []string{gapIs("P", `"awaiting_evidence"`)} }},
+		{func() { r.compute("K1", "P") }, func() []string { return []string{gapIs("P", `"evidence_answered" AND NOT "awaiting_evidence"`)} }},
 		// A reproduce of the anchor a computation gap is about, by its minter.
-		func() { r.compute("K2", "") },
-		func() { r.mintOf("Q", comp, "K2") },
-		func() { r.reproduce(reader, "K2", recordpb.Soundness_SOUNDNESS_SOUND) },
+		{func() { r.compute("K2", "") }, none},
+		{func() { r.mintOf("Q", comp, "K2") }, func() []string { return []string{gapIs("Q", `NOT "evidence_answered"`)} }},
+		{func() { r.reproduce(reader, "K2", recordpb.Soundness_SOUNDNESS_SOUND) }, func() []string { return []string{gapIs("Q", `"evidence_answered"`)} }},
 		// A citation placed as a gap's answer; the gap closed; its answer retired; a carry that does
 		// not reset the retired answers; a judged close that does.
-		func() { r.mintOf("R", src, "") },
-		func() { r.cite("C2", "R") },
-		func() { r.close("R", "") },
-		func() { r.retire("C2") },
-		func() { r.close("R", "R") },
-		func() { r.close("R", "") },
+		{func() { r.mintOf("R", src, "") }, none},
+		{func() { r.cite("C2", "R") }, func() []string {
+			return []string{gapIs("R", `"evidence_answered" AND "answers_retired_event" IS NULL`)}
+		}},
+		{func() { rClose = r.close("R", "") }, func() []string {
+			return []string{gapIs("R", `NOT "open" AND "close_event" = `+at(&rClose)+` AND "answers_retired_event" IS NULL AND NOT "awaiting_evidence"`)}
+		}},
+		{func() { rRetire = r.retire("C2") }, func() []string { return []string{gapIs("R", `"answers_retired_event" = `+at(&rRetire))} }},
+		{func() { rCarry = r.close("R", "R") }, func() []string {
+			return []string{gapIs("R", `"answers_retired_event" = `+at(&rRetire)+` AND "close_event" = `+at(&rCarry))}
+		}},
+		{func() { r.close("R", "") }, func() []string { return []string{gapIs("R", `"answers_retired_event" IS NULL`)} }},
 		// A mint naming a closed gap closes nothing.
-		func() { r.mintOf("V", doc, "", "R") },
+		{func() { r.mintOf("V", doc, "", "R") }, func() []string {
+			return []string{gapIs("R", `"supersede_event" IS NULL AND "superseded_by" IS NULL`), gapIs("V", `"open" AND "supersedes_count" = 1 AND NOT "awaiting_evidence"`)}
+		}},
 		// The docket: two filings, the newer remanded (the older stands unruled again), then the
 		// older ruled closing; a regrade moves the gap's grades and materiality.
-		func() { r.mintOf("D", doc, "") },
-		func() { r.regrade("D", recordpb.Grade_GRADE_LOW) },
-		func() { r.fileDocket("M1", "D") },
-		func() { r.fileDocket("M2", "D") },
-		func() { r.ruleDocket("M2", recordpb.Disposition_DISPOSITION_REMANDED) },
-		func() { r.ruleDocket("M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED) },
+		{func() { r.mintOf("D", doc, "") }, func() []string { return []string{gapIs("D", `"current_severity" = 'medium' AND "material"`)} }},
+		{func() { r.regrade("D", recordpb.Grade_GRADE_LOW) }, func() []string {
+			return []string{gapIs("D", `"current_severity" = 'low' AND "severity" = 'medium' AND NOT "material"`)}
+		}},
+		{func() { m1 = r.fileDocket("M1", "D") }, func() []string {
+			return []string{gapIs("D", `"unruled_docket_motion" = 'M1' AND "unruled_docket_filed" = `+at(&m1))}
+		}},
+		{func() { r.fileDocket("M2", "D") }, func() []string { return []string{gapIs("D", `"unruled_docket_motion" = 'M2'`)} }},
+		{func() { r.ruleDocket("M2", recordpb.Disposition_DISPOSITION_REMANDED) }, func() []string {
+			return []string{gapIs("D", `"open" AND "unruled_docket_motion" = 'M1' AND "unruled_docket_filed" = `+at(&m1)+`
+			  AND "docket_direction" = 'a reproduction on the shipped binary' AND NOT "remanded"`)}
+		}},
+		{func() { m1Rule = r.ruleDocket("M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED) }, func() []string {
+			return []string{gapIs("D", `NOT "open" AND "bench_close_event" = `+at(&m1Rule)+` AND "closed_by_bench" AND "bench_closed_last"
+			  AND "close_event" IS NULL AND "unruled_docket_motion" IS NULL AND "unruled_docket_filed" IS NULL AND NOT "remanded"`)}
+		}},
 		// A docket remand with nothing pending.
-		func() { r.mintOf("E", doc, "") },
-		func() { r.fileDocket("M3", "E") },
-		func() { r.ruleDocket("M3", recordpb.Disposition_DISPOSITION_REMANDED) },
-		// A red close after the bench's: whose word stands moves to red.
-		func() { r.close("D", "") },
+		{func() { r.mintOf("E", doc, "") }, none},
+		{func() { r.fileDocket("M3", "E") }, func() []string { return []string{gapIs("E", `"unruled_docket_motion" = 'M3' AND NOT "remanded"`)} }},
+		{func() { r.ruleDocket("M3", recordpb.Disposition_DISPOSITION_REMANDED) }, func() []string {
+			return []string{gapIs("E", `"open" AND "remanded" AND "docket_settled" = 'the claim as it stood' AND "unruled_docket_motion" IS NULL`)}
+		}},
+		// A red close after the bench's: whose word stands moves to red, who closed it does not.
+		{func() { dClose = r.close("D", "") }, func() []string {
+			return []string{gapIs("D", `"closed_by_bench" AND NOT "bench_closed_last" AND "close_event" = `+at(&dClose)+` AND "bench_close_event" = `+at(&m1Rule))}
+		}},
 		// An upheld position remands every gap it lists.
-		func() { r.mintOf("U", doc, "") },
-		func() { r.upholdPosition("U-00000001", "U") },
+		{func() { r.mintOf("U", doc, "") }, func() []string { return []string{gapIs("U", `NOT "remanded"`)} }},
+		{func() { r.upholdPosition("U-00000001", "U") }, func() []string {
+			return []string{gapIs("U", `"remanded" AND "docket_direction" = 'source the figure' AND "docket_settled" IS NULL`)}
+		}},
 	}
 }
 
-// THE STORED GAP STATE IS THE FOLDED VIEW'S, AT EVERY EVENT, ON THE SHAPES NO ARCHIVED RUN HOLDS. The
-// archive sweep (migrate) holds the thin gap view equal to the oracle on every archived run; these
-// fixtures move every stored column through every marker trigger, including a reading carried by a
-// gap, an upheld position's remand, and an evidence demand an heir carries from its ancestor.
-func TestTheStoredGapStateIsTheFoldedViews(t *testing.T) {
+// gapStateFirstClosures is each gap's first closing act as gap_state holds it, after every step of
+// gapStateSteps: the act convergence_at and the window index read as the gap's closing.
+func gapStateFirstClosures(t *testing.T, db *sql.DB) map[string]string {
+	t.Helper()
+	rows, err := db.Query(`SELECT s."gap_id", COALESCE(e."type", 'open') FROM "gap_state" s LEFT JOIN "events" e ON e."id" = s."closed_event"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var g, typ string
+		if err := rows.Scan(&g, &typ); err != nil {
+			t.Fatal(err)
+		}
+		out[g] = typ
+	}
+	return out
+}
+
+// THE STORED GAP STATE IS THE RULES', AT EVERY EVENT, ON EVERY SHAPE. Each step's act leaves the
+// state the fixture states for it, and the stored state, kept append by append through the marker
+// triggers, is the refresh asked of every gap at once: a reading carried by a gap, an upheld
+// position's remand, an evidence demand an heir carries from its ancestor, a check before its anchor,
+// a failing recheck, a carry close after the answers retire, a supersession of a closed gap, an older
+// docket standing again under a remand, and a bench closure red's later close overrules.
+func TestTheStoredGapStateIsTheRules(t *testing.T) {
 	r := newDemandRecord(t)
 	for i, step := range gapStateSteps(r) {
-		step()
-		if d := gapStateOracleDiff(t, r.db); d != "" {
-			t.Fatalf("after step %d the stored gap state is not the folded view's:\n%s", i, d)
+		step.act()
+		if d := gapStateHolds(t, r.db, step.holds()); d != "" {
+			t.Errorf("after step %d the gap state is not the one the step leaves:\n%s", i, d)
+		}
+		if d := gapStateRefreshDiff(t, r.db); d != "" {
+			t.Fatalf("after step %d the stored gap state is not the refresh of every gap:\n%s", i, d)
 		}
 	}
-	// The fixtures reach what they are for: an heir met through its ancestor's reading, an upheld
-	// remand, a docket remand with nothing pending, a bench closure red's later close overruled, and
-	// a closed gap whose answers were all retired.
-	for _, c := range []struct{ what, sql string }{
-		{"H answered through A's carried reading and retired anchor", `SELECT "evidence_answered" FROM "gap" WHERE "gap_id" = 'H'`},
-		{"U remanded by the upheld position", `SELECT "remanded" AND "docket_direction" = 'source the figure' FROM "gap" WHERE "gap_id" = 'U'`},
-		{"E remanded with nothing pending", `SELECT "remanded" FROM "gap" WHERE "gap_id" = 'E'`},
-		{"D closed by the bench, red's word last", `SELECT "closed_by_bench" AND NOT "bench_closed_last" FROM "gap" WHERE "gap_id" = 'D'`},
-		{"A closed by H's mint", `SELECT "superseded_by" = 'H' FROM "gap" WHERE "gap_id" = 'A'`},
-		{"V's mint closed nothing", `SELECT "supersede_event" IS NULL FROM "gap" WHERE "gap_id" = 'R'`},
-	} {
-		var ok bool
-		if err := r.db.QueryRow(c.sql).Scan(&ok); err != nil || !ok {
-			t.Errorf("%s: got %v (%v)", c.what, ok, err)
-		}
+	// THE FIRST CLOSING ACT, of each arm: A's by the mint superseding it, R's by red's first close
+	// (two closes follow it), D's by the bench (red's close follows it), the rest open.
+	want := map[string]string{"A": "mint", "H": "open", "P": "open", "Q": "open", "R": "close", "V": "open", "D": "motion_rule", "E": "open", "U": "open"}
+	if got := gapStateFirstClosures(t, r.db); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("each gap's first closing act = %v, want %v", got, want)
+	}
+	var rFirst bool
+	if err := r.db.QueryRow(`SELECT s."closed_event" = (SELECT min(c."event_id") FROM "close" c WHERE c."gap_id" = 'R')
+	    FROM "gap_state" s WHERE s."gap_id" = 'R'`).Scan(&rFirst); err != nil || !rFirst {
+		t.Errorf("R's closed_event is not its first close: %v (%v)", rFirst, err)
 	}
 }
 
-// EVERY MARKER TRIGGER IS NEEDED: with any one dropped, the fixture record's gap state leaves the
-// folded view's at some step. A marker no fixture misses is a marker nothing shows is right.
+// EVERY MARKER TRIGGER IS NEEDED: with any one dropped, some step of the fixture record leaves a gap
+// unrefreshed, so the stored state leaves the refresh of every gap, or a step's state does not hold.
+// A marker no fixture misses is a marker nothing shows is right.
 func TestEveryGapMarkerIsNeeded(t *testing.T) {
 	markers := gapMarkers()
 	if len(markers) != 12 {
@@ -226,12 +304,12 @@ func TestEveryGapMarkerIsNeeded(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, step := range gapStateSteps(r) {
-				step()
-				if gapStateOracleDiff(t, r.db) != "" {
+				step.act()
+				if gapStateRefreshDiff(t, r.db) != "" || gapStateHolds(t, r.db, step.holds()) != "" {
 					return
 				}
 			}
-			t.Errorf("with gap_dirty_%s dropped the stored gap state still equals the folded view at every step: no fixture shows the marker is needed", m.table)
+			t.Errorf("with gap_dirty_%s dropped every step still leaves its state and the refresh of every gap: no fixture shows the marker is needed", m.table)
 		})
 	}
 }
@@ -256,64 +334,48 @@ func TestADocketRulingAnswersAFilingOnTheRecord(t *testing.T) {
 	if _, err := Insert(r.db, ev); err == nil || !strings.Contains(err.Error(), "a ruling already answers this motion id") {
 		t.Errorf("a docket filing of a motion id already ruled = %v, want refused", err)
 	}
-	if d := gapStateOracleDiff(t, r.db); d != "" {
-		t.Errorf("after the refused writes the stored gap state is not the folded view's:\n%s", d)
+	if d := gapStateHolds(t, r.db, []string{gapIs("D", `"open" AND "remanded" AND "docket_direction" = 'source the figure'
+	    AND "bench_close_event" IS NULL AND "unruled_docket_motion" IS NULL`)}); d != "" {
+		t.Errorf("after the refused writes D is not the upheld position's remand alone:\n%s", d)
+	}
+	if d := gapStateRefreshDiff(t, r.db); d != "" {
+		t.Errorf("after the refused writes the stored gap state is not the refresh of every gap:\n%s", d)
 	}
 }
 
-// THE FLUSH COMPILES NO DEARER THAN THE FOLDED VIEW DID. Preparing the flush insert compiles the whole
-// refresh (gap_refresh, through its trigger), and every gap-changing append pays it once; it is held
-// to at most 1.2x preparing a read of the folded view the board used to pay on every read. Measured
-// as the median ratio of interleaved prepare pairs, so load slows both arms alike.
-func TestTheFlushCompilesNoDearerThanTheFoldedView(t *testing.T) {
+// THE FLUSH COMPILES NO LARGER THAN THE FOLDED VIEW DID. Preparing the flush insert compiles the whole
+// refresh (gap_refresh, through its trigger), and every gap-changing append pays it once in each
+// process. It is held to the size of the program the board used to compile on every read: the gap
+// view that folded every gap from the bodies, whose SELECT * compiled to 1769 VDBE instructions
+// (measured 2026-11-10 on modernc SQLite, its prepare a median 1.20 ms beside the flush's 1.29 ms
+// at 1744 instructions), with the x1.2 allowance its timed guard had.
+//
+// COUNTED, NOT TIMED: EXPLAIN of the flush insert lists the program its trigger compiles, and the
+// count is the same on a loaded box as on an idle one, where a timed ratio needs a reference
+// statement as dear as the refresh and nothing left on the record is. A SQLite upgrade can move the
+// count; re-measure against the folded view's text in git history (recordsql/testdata/oracle_gap.sql
+// at c40fc671a) before moving the ceiling.
+func TestTheFlushCompilesNoLargerThanTheFoldedViewDid(t *testing.T) {
+	const foldedViewInstructions = 1769
+	ceiling := foldedViewInstructions * 12 / 10
 	r := newDemandRecord(t)
-	for _, step := range gapStateSteps(r) {
-		step()
-	}
-	ctx := context.Background()
-	conn, err := r.db.Conn(ctx)
+	rows, err := r.db.Query(`EXPLAIN INSERT INTO "gap_flush" ("id") VALUES (1)`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
-	installGapOracle(t, ctx, conn)
-	prepare := func(q string) time.Duration {
-		t0 := time.Now()
-		st, err := conn.PrepareContext(ctx, q)
-		d := time.Since(t0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		st.Close()
-		return d
+	n := 0
+	for rows.Next() {
+		n++
 	}
-	const flush, folded = `INSERT INTO "gap_flush" ("id") VALUES (1)`, `SELECT * FROM "oracle_gap"`
-	prepare(flush)
-	prepare(folded)
-	// One ratio per adjacent pair, its order alternating, and the median of the ratios: a stall on the
-	// box lands on one pair, not on one arm.
-	var ratios []float64
-	var f, o []time.Duration
-	for i := 0; i < 151; i++ {
-		var a, b time.Duration
-		if i%2 == 0 {
-			a = prepare(flush)
-			b = prepare(folded)
-		} else {
-			b = prepare(folded)
-			a = prepare(flush)
-		}
-		f, o = append(f, a), append(o, b)
-		ratios = append(ratios, float64(a)/float64(b))
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
 	}
-	sort.Float64s(ratios)
-	ratio := ratios[len(ratios)/2]
-	median := func(xs []time.Duration) time.Duration {
-		sort.Slice(xs, func(i, j int) bool { return xs[i] < xs[j] })
-		return xs[len(xs)/2]
+	t.Logf("the flush compiles to %d instructions; ceiling %d", n, ceiling)
+	if n < foldedViewInstructions/2 {
+		t.Errorf("the flush compiles to %d instructions: EXPLAIN no longer lists the refresh its trigger runs, and the count measures nothing", n)
 	}
-	t.Logf("prepare medians: flush %v, folded view %v; median pair ratio x%.2f", median(f), median(o), ratio)
-	if ratio > 1.2 {
-		t.Errorf("preparing the flush takes x%.2f preparing the folded gap view (medians %v and %v): above x1.2, the refresh costs a gap-changing append more than the board's read it replaced", ratio, median(f), median(o))
+	if n > ceiling {
+		t.Errorf("the flush compiles to %d instructions, above %d (x1.2 the folded gap view's %d): the refresh costs a gap-changing append more than the board's read it replaced", n, ceiling, foldedViewInstructions)
 	}
 }

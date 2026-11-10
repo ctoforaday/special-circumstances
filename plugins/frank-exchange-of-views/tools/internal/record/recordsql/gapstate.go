@@ -32,7 +32,9 @@ import (
 // event-schema epoch's DDL hash covers them.
 var GapStateDDL = `
 -- ONE ROW PER GAP: the gap view's columns that change after the mint, as the record now holds them.
--- minted_event is the gap's mint event; every other column is the gap view's column of that name.
+-- minted_event is the gap's mint event; closed_event is its first closing act, of any arm (a close, a
+-- closing docket ruling, the mint that superseded it), which convergence_at and the window index ask
+-- of a point in the record; every other column is the gap view's column of that name.
 CREATE TABLE "gap_state" (
   "minted_event"            INTEGER PRIMARY KEY,
   "gap_id"                  TEXT NOT NULL UNIQUE,
@@ -56,7 +58,8 @@ CREATE TABLE "gap_state" (
   "superseded_by"           TEXT,
   "material"                INTEGER,
   "remanded"                INTEGER,
-  "unruled_docket_motion"   TEXT
+  "unruled_docket_motion"   TEXT,
+  "closed_event"            INTEGER
 ) STRICT;
 -- The open gaps, in mint order: the dispatch's open-gap fold and every "is anything open" question.
 CREATE INDEX "gap_state_open" ON "gap_state" ("minted_event") WHERE "open";
@@ -194,8 +197,10 @@ WITH "d" AS MATERIALIZED (
   -- HOW EACH GAP CLOSED: the last close, and the first; the last close that is not a carry; the
   -- bench's last and first closing ruling; and the mint that superseded it — the first mint naming
   -- it, where no closing act of another arm precedes that mint. A mint naming a gap already closed
-  -- carries its lineage forward and closes nothing (ruled by gblock 2026-11-04). The arms are
-  -- closure_act's, asked per gap here (closure_act's comment says why).
+  -- carries its lineage forward and closes nothing (ruled by gblock 2026-11-04): the ancestor's
+  -- purpose passes to the successor in that act. The arm is DERIVED from the mint's own supersedes
+  -- list rather than written as a second event: a close the tool wrote beside the mint would be a
+  -- second copy of the link and an act the seat never stated.
   SELECT "d"."gap_id" AS "gap_id", "d"."minted" AS "minted", "d"."check_kind" AS "check_kind",
     "d"."class_material" AS "class_material",
     (SELECT max(c."event_id") FROM "close" c WHERE c."gap_id" = "d"."gap_id")                          AS "close_event",
@@ -302,7 +307,11 @@ SELECT
   ` + materialSQL(`k."class_material"`, `(SELECT eg."mass" FROM "enum_grade" eg WHERE eg."value" = g."severity")`) + ` AS "material",
   -- THE BENCH REMANDED IT AND NOTHING IS PENDING.
   (k."open" AND k."filed" IS NULL AND lr."gap_id" IS NOT NULL)               AS "remanded",
-  (SELECT um."motion_id" FROM "motion" um WHERE um."event_id" = k."filed")    AS "unruled_docket_motion"
+  (SELECT um."motion_id" FROM "motion" um WHERE um."event_id" = k."filed")    AS "unruled_docket_motion",
+  -- THE FIRST CLOSING ACT, of either party: once written, no later append precedes it.
+  CASE WHEN k."first_bench" IS NULL THEN k."red_first"
+       WHEN k."red_first" IS NULL THEN k."first_bench"
+       ELSE min(k."first_bench", k."red_first") END                          AS "closed_event"
 FROM "k"
 JOIN (SELECT m."event_id" AS "minted_event",
              CASE WHEN rg."event_id" IS NULL THEN m."severity" ELSE rg."result_severity" END               AS "severity",

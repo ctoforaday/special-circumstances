@@ -1,10 +1,6 @@
 package recordsql
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -13,55 +9,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
-
-// demandLineageOracleDiff holds demand_lineage and demand_reach against the recursive view they replace
-// (testdata/oracle_demand_reach.sql), on one connection because the oracle is TEMP. It returns ""
-// when they agree row for row, else what differs.
-func demandLineageOracleDiff(t *testing.T, db *sql.DB) string {
-	t.Helper()
-	oracle, err := os.ReadFile("testdata/oracle_demand_reach.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := context.Background()
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	if _, err := conn.ExecContext(ctx, `DROP VIEW IF EXISTS temp."oracle_demand_reach"; DROP VIEW IF EXISTS temp."oracle_demand_lineage";`+string(oracle)); err != nil {
-		t.Fatal(err)
-	}
-	var out []string
-	for _, q := range []struct{ what, sql string }{
-		{"demand_lineage rows the oracle lacks", `SELECT "gap_id", "from_gap" FROM "demand_lineage" EXCEPT SELECT "gap_id", "from_gap" FROM "oracle_demand_lineage"`},
-		{"oracle lineage rows demand_lineage lacks", `SELECT "gap_id", "from_gap" FROM "oracle_demand_lineage" EXCEPT SELECT "gap_id", "from_gap" FROM "demand_lineage"`},
-		{"demand_reach rows the oracle lacks", `SELECT * FROM "demand_reach" EXCEPT SELECT * FROM "oracle_demand_reach"`},
-		{"oracle demand_reach rows demand_reach lacks", `SELECT * FROM "oracle_demand_reach" EXCEPT SELECT * FROM "demand_reach"`},
-		{"row counts (lineage, oracle lineage, reach, oracle reach) that differ", `SELECT a, b, c, d FROM (SELECT
-		   (SELECT count(*) FROM "demand_lineage") AS a, (SELECT count(*) FROM (SELECT DISTINCT "gap_id", "from_gap" FROM "oracle_demand_lineage")) AS b,
-		   (SELECT count(*) FROM "demand_reach") AS c, (SELECT count(*) FROM "oracle_demand_reach") AS d) WHERE a <> b OR c <> d`},
-	} {
-		rows, err := conn.QueryContext(ctx, q.sql)
-		if err != nil {
-			t.Fatal(err)
-		}
-		cols, _ := rows.Columns()
-		for rows.Next() {
-			v := make([]any, len(cols))
-			p := make([]any, len(cols))
-			for i := range v {
-				p[i] = &v[i]
-			}
-			if err := rows.Scan(p...); err != nil {
-				t.Fatal(err)
-			}
-			out = append(out, fmt.Sprintf("%s: %v", q.what, v))
-		}
-		rows.Close()
-	}
-	return strings.Join(out, "\n")
-}
 
 // mintOf mints gap of kind about anchor (or a section when about is ""), naming supersedes.
 func (r *demandRecord) mintOf(gap string, kind recordpb.CheckKind, about string, supersedes ...string) int64 {
@@ -96,13 +43,12 @@ func (r *demandRecord) demandLineageOf(gap string) string {
 	return strings.Join(got, ",")
 }
 
-// THE STORED DEMAND LINEAGE IS THE RECURSIVE VIEW'S, AT EVERY EVENT, ON THE SHAPES NO ARCHIVED RUN HOLDS. The
-// archive sweep (migrate) holds demand_lineage and demand_reach equal to the oracle on every archived run,
-// and no archived run carries a demand from an ancestor; these fixtures do: a chain of same-kind
+// THE STORED DEMAND LINEAGE IS EACH GAP'S ANCESTORS BY ITS DEMAND, ON THE SHAPES NO ARCHIVED RUN HOLDS.
+// No archived run carries a demand from an ancestor; these fixtures do: a chain of same-kind
 // supersessions, a second mint naming an ancestor already named, a supersession across check kinds, a
 // non-evidence chain, an ancestor listed twice by one mint, a mint naming itself, and a reading
 // carried by an ancestor before and after its heir's mint.
-func TestTheStoredDemandLineageIsTheRecursiveViews(t *testing.T) {
+func TestTheStoredDemandLineageIsEachGapsAncestry(t *testing.T) {
 	r := newDemandRecord(t)
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
 	steps := []func(){
@@ -120,20 +66,19 @@ func TestTheStoredDemandLineageIsTheRecursiveViews(t *testing.T) {
 		func() { r.mintOf("K", comp, "K1") },
 		func() { r.mintOf("L", comp, "", "L", "K") },
 	}
-	for i, step := range steps {
+	for _, step := range steps {
 		step()
-		if d := demandLineageOracleDiff(t, r.db); d != "" {
-			t.Fatalf("after step %d the stored demand lineage is not the recursive view's:\n%s", i, d)
-		}
 	}
 	for gap, want := range map[string]string{
 		"A": "A",
 		"B": "A,B",
 		"C": "A,B,C",
-		"D": "D",   // A was named first by B: D's naming passes nothing on
+		"D": "D", // A was named first by B: D's naming passes nothing on
+		"H": "H",
 		"E": "E",   // computation carries no source demand, and E names C first, so no later mint carries C's
 		"I": "I",   // document demands no live answer
 		"J": "D,J", // D named twice by one mint is carried once
+		"K": "K",
 		"L": "K,L", // a mint naming itself carries itself once
 	} {
 		if got := r.demandLineageOf(gap); got != want {
@@ -149,6 +94,39 @@ func TestTheStoredDemandLineageIsTheRecursiveViews(t *testing.T) {
 	}
 	if n != 2 {
 		t.Errorf("C reaches %d of A's two carried readings from its own mint, want 2", n)
+	}
+	// THE WHOLE REACH: each gap's own about and readings reached at their own acts, and every row it
+	// inherits reached at its own mint ("mint" below); a gap about a section reaches nothing of its own.
+	rows, err := r.db.Query(`SELECT d."gap_id" || ' ' || d."from_gap" || ' ' || d."via" || ' ' || d."anchor" || ' ' || d."seat" || ' ' ||
+	    CASE WHEN d."reached" = d."minted" THEN 'mint' ELSE (SELECT e."type" FROM "events" e WHERE e."id" = d."reached") END
+	  FROM "demand_reach" d ORDER BY 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var reach []string
+	for rows.Next() {
+		var row string
+		if err := rows.Scan(&row); err != nil {
+			t.Fatal(err)
+		}
+		reach = append(reach, row)
+	}
+	want := []string{
+		"A A about C1 " + reader + " mint",
+		"A A reading C1 " + reader + " verify",
+		"A A reading C1 " + other + " verify",
+		"B A about C1 " + reader + " mint",
+		"B A reading C1 " + reader + " mint",
+		"B A reading C1 " + other + " mint",
+		"C A about C1 " + reader + " mint",
+		"C A reading C1 " + reader + " mint",
+		"C A reading C1 " + other + " mint",
+		"K K about K1 " + reader + " mint",
+		"L K about K1 " + reader + " mint",
+	}
+	if got, w := strings.Join(reach, "\n"), strings.Join(want, "\n"); got != w {
+		t.Errorf("demand_reach holds\n%s\nwant\n%s", got, w)
 	}
 }
 
