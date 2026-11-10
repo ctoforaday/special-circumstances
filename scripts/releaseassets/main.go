@@ -25,7 +25,7 @@ func main() {
 		flagDist   = flag.String("dist", "", "dist directory (defaults to $DIST or dist)")
 		flagRef    = flag.String("ref", "", "git ref override (defaults to $GITHUB_REF)")
 		flagEvent  = flag.String("event", "", "github event override (defaults to $GITHUB_EVENT_NAME)")
-		flagReq    = flag.Bool("require-packages", false, "print the FEOV tools packages that call nativehelper.Require, the packages native-run runs")
+		flagReq    = flag.Bool("testpackages", false, "print the FEOV tools packages that call nativehelper.Require, the packages native-run runs")
 	)
 	flag.Parse()
 
@@ -98,7 +98,7 @@ func run(doScope, doMatrix, doCheck, doRequirePackages bool, dist, ref, event st
 		}
 		return CheckDist(dist, filepath.Join(root, "plugins", plugin), targets, stdout)
 	}
-	return errors.New("specify -scope, -matrix, -check or -require-packages")
+	return errors.New("specify -scope, -matrix, -check or -testpackages")
 }
 
 // Scope decides one event's native jobs for the repository at root and prints the decision; with

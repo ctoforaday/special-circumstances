@@ -452,7 +452,7 @@ jobs:
           RUNNER_OS: ${{ runner.os }}
         run: |
           # Every package that calls nativehelper.Require, found by parsing their calls.
-          pkgs="$(cd scripts && go run ./releaseassets -require-packages)"
+          pkgs="$(cd scripts && go run ./releaseassets -testpackages)"
           echo "packages: $pkgs"
           cd plugins/frank-exchange-of-views/tools
           must_pass="${NATIVE_RUN_MUST_PASS}"
@@ -493,7 +493,7 @@ jobs:
         env:
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
         run: |
-          pkgs="$(cd scripts && go run ./releaseassets -require-packages)"
+          pkgs="$(cd scripts && go run ./releaseassets -testpackages)"
           echo "packages: $pkgs"
           cd plugins/frank-exchange-of-views/tools
           prebuilt="$RUNNER_TEMP/prebuilt"

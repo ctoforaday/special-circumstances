@@ -116,7 +116,7 @@ func TestEveryMustPassNameIsATest(t *testing.T) {
 
 // TestNativeRunRunsEveryRequirePackage: the packages calling nativehelper.Require are found by
 // parsing their calls, and native-run and its servercore container take the list from
-// -require-packages rather than naming packages.
+// -testpackages rather than naming packages.
 func TestNativeRunRunsEveryRequirePackage(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
@@ -143,13 +143,13 @@ func TestNativeRunRunsEveryRequirePackage(t *testing.T) {
 			continue
 		}
 		if strings.Contains(run.Value, "go test") && strings.Contains(run.Value, "./internal/") {
-			t.Errorf("a native-run step names its packages instead of reading -require-packages:\n%s", run.Value)
+			t.Errorf("a native-run step names its packages instead of reading -testpackages:\n%s", run.Value)
 		}
-		if strings.Contains(run.Value, "./releaseassets -require-packages") {
+		if strings.Contains(run.Value, "./releaseassets -testpackages") {
 			uses++
 		}
 	}
 	if uses != 2 {
-		t.Errorf("%d native-run steps read -require-packages, want 2: the host run and the servercore container", uses)
+		t.Errorf("%d native-run steps read -testpackages, want 2: the host run and the servercore container", uses)
 	}
 }
