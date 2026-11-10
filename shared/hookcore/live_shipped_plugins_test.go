@@ -536,3 +536,157 @@ func TestLiveShippedClaudeSecretsBlocking(t *testing.T) {
 		t.Errorf("expected secret block from sc-secrets-gate under claude -p, got:\n%s", output)
 	}
 }
+
+// TestLiveAntigravityDoctorFixReinstallsHalfUpdatedPlugin verifies #1796 live:
+// starting from a half-updated Antigravity plugin install (new manifests, old Claude-format
+// hooks.json with a string "description" that causes `agy` to log "failed to parse hooks"),
+// plain `sc-doctor` reports PLUGIN CONTENTS STALE and downgrades READY to DEGRADED,
+// `sc-doctor -fix` reinstalls the whole plugin via `agy plugin install <dir>` from the pinned tag,
+// hooks.json equals the tag's hooks.json, and a one-turn `agy` run logs no "failed to parse hooks"
+// and no "panicked".
+func TestLiveAntigravityDoctorFixReinstallsHalfUpdatedPlugin(t *testing.T) {
+	if os.Getenv("HOOKCORE_LIVE") != "1" {
+		t.Skip("skipping live test without HOOKCORE_LIVE=1")
+	}
+	agyBin, err := exec.LookPath("agy")
+	if err != nil {
+		t.Skip("agy CLI not found on PATH; skipping live Antigravity test")
+	}
+
+	repoRoot, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("abs repo root: %v", err)
+	}
+
+	fakeHome := t.TempDir()
+	copyAgyCredentials(t, fakeHome)
+	stageShippedPlugin(t, fakeHome, repoRoot, "prosthetic-conscience")
+
+	destPlugin := filepath.Join(fakeHome, ".gemini", "config", "plugins", "prosthetic-conscience")
+	doctorBin := filepath.Join(destPlugin, "bin", "sc-doctor")
+
+	// Corrupt hooks.json into the old Claude-only format (with a string "description" field
+	// that Antigravity's hook loader rejects with "failed to parse hooks"), and leave a
+	// stale nested hooks/hooks.json file behind to simulate the 11-07 half-updated state.
+	oldClaudeHooks := `{
+  "description": "Claude Code quality and safety hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\" run sc-session-start"
+          }
+        ]
+      }
+    ]
+  }
+}`
+	if err := os.WriteFile(filepath.Join(destPlugin, "hooks.json"), []byte(oldClaudeHooks), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(destPlugin, "hooks"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(destPlugin, "hooks", "hooks.json"), []byte(oldClaudeHooks), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var baseEnv []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") || strings.HasPrefix(e, "PLUGIN_ROOT=") {
+			continue
+		}
+		baseEnv = append(baseEnv, e)
+	}
+	baseEnv = append(baseEnv,
+		"HOME="+fakeHome,
+		"ANTIGRAVITY_AGENT=1",
+		"PLUGIN_ROOT="+destPlugin,
+		"SC_MARKETPLACE_REPO="+repoRoot,
+		"AGY="+agyBin,
+		"PATH="+os.Getenv("PATH"),
+	)
+
+	// 1. Plain `sc-doctor` detects the stale/half-updated plugin and downgrades READY to DEGRADED.
+	checkCmd := exec.Command(doctorBin)
+	checkCmd.Dir = repoRoot
+	checkCmd.Env = baseEnv
+	checkOutBytes, err := checkCmd.CombinedOutput()
+	checkOut := string(checkOutBytes)
+	if err != nil {
+		t.Fatalf("plain sc-doctor failed: %v\n%s", err, checkOut)
+	}
+	if !strings.Contains(checkOut, "PLUGIN CONTENTS STALE") {
+		t.Errorf("expected plain sc-doctor to report PLUGIN CONTENTS STALE, got:\n%s", checkOut)
+	}
+	if !strings.Contains(checkOut, "VERDICT: DEGRADED") {
+		t.Errorf("expected plain sc-doctor to downgrade verdict to DEGRADED, got:\n%s", checkOut)
+	}
+
+	// 2. `sc-doctor -fix` reinstalls the whole plugin via `agy plugin install` and provisions binaries.
+	fixCmd := exec.Command(doctorBin, "-fix")
+	fixCmd.Dir = repoRoot
+	fixCmd.Env = baseEnv
+	fixOutBytes, err := fixCmd.CombinedOutput()
+	fixOut := string(fixOutBytes)
+	if err != nil {
+		t.Fatalf("sc-doctor -fix failed: %v\n%s", err, fixOut)
+	}
+	if !strings.Contains(fixOut, "prosthetic-conscience: reinstalled plugin contents from prosthetic-conscience--v") {
+		t.Errorf("expected sc-doctor -fix to report whole-plugin reinstall from pinned tag, got:\n%s", fixOut)
+	}
+
+	// 3. Assert hooks.json equals the pinned tag's hooks.json byte-for-byte, and nested hooks/hooks.json is gone.
+	tagHooksOut, err := exec.Command("git", "-C", repoRoot, "show", "prosthetic-conscience--v0.54.0:plugins/prosthetic-conscience/hooks.json").Output()
+	if err != nil {
+		t.Fatalf("git show tag hooks.json: %v", err)
+	}
+	diskHooks, err := os.ReadFile(filepath.Join(destPlugin, "hooks.json"))
+	if err != nil {
+		t.Fatalf("read reinstalled hooks.json: %v", err)
+	}
+	if strings.TrimSpace(string(diskHooks)) != strings.TrimSpace(string(tagHooksOut)) {
+		t.Errorf("reinstalled hooks.json does not match tag:\ngot:\n%s\nwant:\n%s", string(diskHooks), string(tagHooksOut))
+	}
+	if _, err := os.Stat(filepath.Join(destPlugin, "hooks", "hooks.json")); !os.IsNotExist(err) {
+		t.Errorf("expected leftover hooks/hooks.json to be removed by whole-plugin reinstall, err=%v", err)
+	}
+
+	// 4. Run a one-turn `agy -p` session in fakeHome and assert no "failed to parse hooks" and no "panicked".
+	workDir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	agyCmd := exec.CommandContext(ctx, agyBin,
+		"-p", "Run the shell command: echo 'DOCTOR_FIX_REINSTALL_OK'",
+		"--model", "gemini-3.8-flash-low",
+	)
+	agyCmd.Dir = workDir
+	agyCmd.Env = baseEnv
+	agyOutBytes, runErr := agyCmd.CombinedOutput()
+	agyOut := string(agyOutBytes)
+	if runErr != nil {
+		t.Logf("Antigravity output:\n%s", agyOut)
+		t.Fatalf("Antigravity execution after sc-doctor -fix failed: %v", runErr)
+	}
+	if !strings.Contains(agyOut, "DOCTOR_FIX_REINSTALL_OK") {
+		t.Errorf("expected output to contain DOCTOR_FIX_REINSTALL_OK, got:\n%s", agyOut)
+	}
+
+	assertNoAgyPanics(t, fakeHome)
+	logDir := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
+	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if (strings.HasPrefix(info.Name(), "cli") && strings.HasSuffix(info.Name(), ".log")) || info.Name() == "cli.log" {
+			data, err := os.ReadFile(path)
+			if err == nil && strings.Contains(string(data), "failed to parse hooks") {
+				t.Errorf("Antigravity logged 'failed to parse hooks' in %s:\n%s", path, string(data))
+			}
+		}
+		return nil
+	})
+}

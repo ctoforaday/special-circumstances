@@ -27,7 +27,6 @@ import (
 // (changeFateForTurn) — the m38 shape: the only way blue changes a composed section is a fate. The next
 // plan engages the lens, whose turn that fate brought, alone or beside blue, and the lens-turn tally
 // counts it.
-const fateTurnSeed = 11
 
 // mintAboutFateSection is the forced run's lens mint about the composed section that prints an
 // inquiry's fate, once per run, by the first lens sitting with an inquiry on the record.

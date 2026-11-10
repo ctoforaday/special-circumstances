@@ -45,7 +45,10 @@ func TestAPositionRulingRendersTheWorkItNames(t *testing.T) {
 			[]string{"ruled overruled"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			// The gaps an upheld ruling names are gaps the record holds: its list references mint.gap_id.
 			b := famOf(t, []*record.Event{
+				mintT(t, "red-lens-r1-logic", "G-00000001"),
+				mintT(t, "red-lens-r1-logic", "G-00000002"),
 				recordtest.Event(t, "red-chair", &recordpb.Plan{Printed: proto.String(p.WithKey().Printed())}),
 				recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String("A-0000000c"), Text: proto.String("the PASS is withheld")}),
 				recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: proto.String("A-0000000c"), Opinion: proto.String("the bench's reasoning"),

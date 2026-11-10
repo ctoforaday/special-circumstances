@@ -10,12 +10,11 @@ import (
 	"sync"
 )
 
-// THE RECORD HANDLE KEEPS ITS READS PREPARED. Preparing a statement is most of what a point read
-// on a view costs: the `gap` view's plan is built from a dozen CTEs, and its prepare measured
-// 0.99 ms against 0.03 ms to execute one that returns nothing (#1700). A process that asks the same
-// read twice — a seat's write validates against the gap view, then its standing reads the same
-// view; the dashboard re-reads every fifteen seconds; a migration replays a run's acts in one
-// process — prepared it each time.
+// THE RECORD HANDLE KEEPS ITS READS AND INSERTS PREPARED. Preparing a statement is most of what a
+// point read on a view costs: a view built from a dozen CTEs measured 0.99 ms to prepare against
+// 0.03 ms to execute (#1700). A process that asks the same read twice — a seat's write validates
+// against a view, then its standing reads the same view; the dashboard re-reads every fifteen
+// seconds; a migration replays a run's acts in one process — prepared it each time.
 //
 // THE CACHE IS ON THE CONNECTION, NOT ON *sql.DB, because the pool holds one connection
 // (SetMaxOpenConns(1) in openUncached) and the record's reads arrive on it two ways: through the
@@ -31,8 +30,12 @@ import (
 // statements at maxCachedStatements and runs any further text as an uncached query; a cache that
 // fills reads as slower, never as wrong.
 //
-// ONLY READS ARE KEPT: a statement beginning SELECT or WITH. Writes and PRAGMAs go to the driver
-// as they always have.
+// READS AND INSERTS ARE KEPT: a statement beginning SELECT, WITH or INSERT. An insert's prepare
+// compiles the trigger programs it fires — the gap-state markers on a body table, and on the
+// gap_flush row the whole gap refresh (recordsql.GapStateDDL) — so a process that writes many acts
+// (a migration's replay, a test's fixtures) compiles each once. An insert's text is a table's
+// column list with placeholders, fixed by the binary like a read's. Other statements and PRAGMAs go
+// to the driver as they always have.
 //
 // A STATEMENT IN USE IS NOT REUSED. The driver's statement is one cursor: asking it again while
 // the rows of its last answer are open would rewind those rows under their reader. A text whose
@@ -82,24 +85,24 @@ type cachedStmt struct {
 	inUse bool
 }
 
-// stmtCacheConn is the driver's connection with its reads kept prepared. Everything it does not
-// override reaches the driver's connection through the methods below or the embedded Conn.
+// stmtCacheConn is the driver's connection with its reads and inserts kept prepared. Everything it
+// does not override reaches the driver's connection through the methods below or the embedded Conn.
 type stmtCacheConn struct {
 	driver.Conn
 	mu    sync.Mutex
 	stmts map[string]*cachedStmt
 }
 
-// isCachedRead is whether query is a read the cache keeps.
-func isCachedRead(query string) bool {
+// isKept is whether query is a statement the cache keeps: a read, or an insert.
+func isKept(query string) bool {
 	head := strings.ToUpper(strings.TrimLeft(query, " \t\r\n("))
-	return strings.HasPrefix(head, "SELECT") || strings.HasPrefix(head, "WITH")
+	return strings.HasPrefix(head, "SELECT") || strings.HasPrefix(head, "WITH") || strings.HasPrefix(head, "INSERT")
 }
 
 // take is the kept statement for query, prepared on first use and marked in use; nil where the
 // text is not kept or its statement is in use.
 func (c *stmtCacheConn) take(ctx context.Context, query string) (*cachedStmt, error) {
-	if !isCachedRead(query) {
+	if !isKept(query) {
 		return nil, nil
 	}
 	c.mu.Lock()
@@ -122,7 +125,9 @@ func (c *stmtCacheConn) take(ctx context.Context, query string) (*cachedStmt, er
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := st.(driver.StmtQueryContext); !ok {
+	_, queries := st.(driver.StmtQueryContext)
+	_, execs := st.(driver.StmtExecContext)
+	if !queries || !execs {
 		st.Close()
 		return nil, nil
 	}
@@ -159,12 +164,22 @@ func (c *stmtCacheConn) QueryContext(ctx context.Context, query string, args []d
 	return &cachedRows{Rows: rows, conn: c, stmt: s}, nil
 }
 
+// ExecContext runs a kept insert from its prepared statement, and any other statement as the driver
+// does.
 func (c *stmtCacheConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	e, ok := c.Conn.(driver.ExecerContext)
-	if !ok {
-		return nil, driver.ErrSkip
+	s, err := c.take(ctx, query)
+	if err != nil {
+		return nil, err
 	}
-	return e.ExecContext(ctx, query, args)
+	if s == nil {
+		e, ok := c.Conn.(driver.ExecerContext)
+		if !ok {
+			return nil, driver.ErrSkip
+		}
+		return e.ExecContext(ctx, query, args)
+	}
+	defer c.release(s)
+	return s.stmt.(driver.StmtExecContext).ExecContext(ctx, args)
 }
 
 func (c *stmtCacheConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {

@@ -2047,7 +2047,7 @@ $ feov-record count-claims --help
 count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing, and it is the count's one definition: no seat relays the number.
 ========
 $ feov-record dashboard --help
-dashboard renders the run's own instruments — board-mass trend, open/close rates, live seats + completion ETA, cost-so-far, judiciary analytics, the log, and this run's scorecards — into <runDir>/dashboard.html (meta-refreshes every 20s). Reads the record in-process plus the Workflow transcripts. --watch regenerates every 15s until the .run-live marker is removed. --serve <port> instead HOSTS it over HTTPS behind a per-run secret URL (rendered fresh per request, self-tears-down when the run ends) so it is reachable across the local network. Ported from render-run-dashboard.mjs.
+dashboard renders the run's own instruments — board-mass trend, open/close rates, live seats + completion ETA, cost-so-far, judiciary analytics, the log, and this run's scorecards — into <runDir>/dashboard.html (meta-refreshes every 20s). Reads the record in-process plus the Workflow transcripts in <transcriptDir>, the path the Workflow launch result prints on its `Transcript dir:` line; a directory that does not exist is refused. --watch regenerates every 15s until the .run-live marker is removed. --serve <port> instead HOSTS it over HTTPS behind a per-run secret URL (rendered fresh per request, self-tears-down when the run ends) so it is reachable across the local network. Ported from render-run-dashboard.mjs.
 
 Usage:
   feov-record dashboard <runDir> <transcriptDir> [flags]

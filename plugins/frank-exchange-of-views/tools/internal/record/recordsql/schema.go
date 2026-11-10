@@ -238,12 +238,12 @@ CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
--- A motion's rulings: motion_answers, inquiry_state, the gap view's unruled docket filing, and the
+-- A motion's rulings: motion_answers, inquiry_state, gap_refresh's unruled docket filing, and the
 -- bench's docket readers.
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
 -- The docket motions on a gap: the bench's latest ruling on it and its unruled filing.
 CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
--- The evidence anchors placed as a gap's answer, which the gap view's live-answer demand and the
+-- The evidence anchors placed as a gap's answer, which gap_refresh's live-answer demand and the
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
 CREATE INDEX "cite_answers" ON "cite" ("answers");
@@ -254,7 +254,7 @@ CREATE INDEX "retire_anchors_value" ON "retire_anchors" ("value", "event_id");
 -- citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
--- (record.reachingRetiresOf) and by the demand_reach view the gap view's evidence_met reads.
+-- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
 -- The readings a gap carries (carrying_reading), asked per gap by the gap's demand
 -- (record.EvidenceDemandOf). Partial: a reading that carries no gap is never asked this way.
@@ -286,6 +286,9 @@ CREATE INDEX "inquiry_id" ON "inquiry" ("inquiry_id");
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
 CREATE INDEX "close_gap" ON "close" ("gap_id");
+-- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
+-- (gap_refresh's supersede_event) and passes its demand on (the demand_lineage_supersedes trigger).
+CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
 `
 
 func Schema() (string, error) {
@@ -314,6 +317,8 @@ func Schema() (string, error) {
 		b.WriteString(ddl)
 	}
 	b.WriteString(QueryIndexDDL)
+	b.WriteString(DemandLineageDDL)
+	b.WriteString(GapStateDDL)
 	return b.String(), nil
 }
 
@@ -497,6 +502,12 @@ func column(fd protoreflect.FieldDescriptor) (col, check string, err error) {
 // than passed through so a malformed annotation fails HERE, at derivation, instead of producing a
 // schema SQLite refuses at open with a syntax error nobody can trace back to a field.
 func references(fd protoreflect.FieldDescriptor) (string, error) {
+	return referencesAs(fd, string(fd.Name()))
+}
+
+// referencesAs renders the field's foreign key on the named column: the field's own for a scalar,
+// the list table's "value" for a repeated field, whose every element must point at its row.
+func referencesAs(fd protoreflect.FieldDescriptor, column string) (string, error) {
 	ref := Opts(fd).GetReferences()
 	if ref == "" {
 		return "", nil
@@ -505,7 +516,7 @@ func references(fd protoreflect.FieldDescriptor) (string, error) {
 	if !ok || table == "" || col == "" {
 		return "", fmt.Errorf("%s declares references %q — it must be \"table.column\"", fd.FullName(), ref)
 	}
-	return fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(%q)", fd.Name(), table, col), nil
+	return fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(%q)", column, table, col), nil
 }
 
 func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
@@ -747,14 +758,21 @@ func listTableNamed(owner, references string, fd protoreflect.FieldDescriptor) (
 	if err != nil {
 		return "", err
 	}
+	fk, err := referencesAs(fd, "value")
+	if err != nil {
+		return "", err
+	}
+	if fk != "" {
+		fk = ",\n  " + fk
+	}
 	return fmt.Sprintf(`
 CREATE TABLE %q (
   "event_id" INTEGER NOT NULL REFERENCES %q("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    %-7s NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
+  PRIMARY KEY ("event_id", "ord")%s
 ) STRICT;
-`, name, references, typ), nil
+`, name, references, typ, fk), nil
 }
 
 // oneofColumns models a real oneof.

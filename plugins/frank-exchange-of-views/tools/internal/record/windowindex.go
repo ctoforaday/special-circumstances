@@ -95,15 +95,12 @@ type reaching struct {
 // The gap-to-anchor reach is read through the demand_reach view, its one statement: the anchor a
 // gap is about, the anchor of each reading it carries, and each of those of every ancestor it carries
 // the demand from, which a retire reaches from the successor's mint. The three reads are joined here
-// rather than in one statement: a retire's anchor meets a gap on the gap's side by mint.about_ref and
-// verify.anchor, and verify.anchor is not indexed (verify_carried_by indexes the carrying side), so a
-// join in SQL would build an automatic index on every load. A record with no retire reads the first,
-// empty, and stops.
+// rather than in one statement, so a record with no retire reads the first, empty, and stops.
 const (
 	retiredAnchorsSQL = `SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"`
 	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached", "via" = 'reading', "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL
   ORDER BY "from_gap" <> "gap_id"`
-	firstClosureSQL = `SELECT "gap_id", MIN("event_id") FROM "closure_act" GROUP BY "gap_id"`
+	firstClosureSQL = `SELECT "gap_id", "closed_event" FROM "gap_state"`
 )
 
 // reachingRetiresOf is every reaching retire on the record, by the retire's events.id, each gap
@@ -138,12 +135,14 @@ func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
 	}); err != nil {
 		return nil, err
 	}
-	closed := map[string]int64{} // gap -> its first closing act
+	closed := map[string]int64{} // gap -> its first closing act; an open gap has none
 	if err := scanRows(q, firstClosureSQL, func(rows *sql.Rows) error {
 		var g string
-		var at int64
+		var at sql.NullInt64
 		err := rows.Scan(&g, &at)
-		closed[g] = at
+		if at.Valid {
+			closed[g] = at.Int64
+		}
 		return err
 	}); err != nil {
 		return nil, err

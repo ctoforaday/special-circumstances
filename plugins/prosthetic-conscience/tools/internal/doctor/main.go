@@ -926,6 +926,11 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 
 	root := resolveRoot(*rootFlag, envRoot, executable)
 
+	var agyReinstalled []string
+	if *doFix {
+		agyReinstalled = reinstallAgyPlugins(root)
+	}
+
 	raw, err := os.ReadFile(filepath.Join(root, "requirements.json"))
 	if err != nil {
 		fmt.Fprintf(stdout, "sc-doctor: cannot read requirements.json under %q: %v\n", root, err)
@@ -947,6 +952,9 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 	bins := allBins()
 
 	if *doFix {
+		for _, line := range agyReinstalled {
+			fmt.Fprintln(stdout, line)
+		}
 		for _, line := range fixFn(bins) {
 			fmt.Fprintln(stdout, line)
 		}
@@ -976,6 +984,7 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 	obligations := toolchain.MergeStrictest(suite...)
 
 	warnings := danceWarnings(root)
+	warnings = append(warnings, agyContentWarnings(root)...)
 	// Configuration the BOX carries, not the cache: gray-area capturing trajectories with
 	// reasoning switched off is a degraded capture that reads as a complete one. See
 	// captureWarnings for why this check lives in the doctor rather than in gray-area.

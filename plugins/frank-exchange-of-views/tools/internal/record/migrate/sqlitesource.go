@@ -259,6 +259,17 @@ func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[in
 	// destination's checkpoints are its own folds; the source's are not carried.
 	case t == "report_checkpoint":
 		return nil
+	// `demand_lineage` is each gap's demand lineage, a fold of the mints' rows that the write path's triggers
+	// write at each mint. The replay writes every mint through those triggers, so the destination's
+	// demand lineage is its own fold; the source's is not carried.
+	case t == "demand_lineage":
+		return nil
+	// `gap_state` is each gap's stored state, which the write path's triggers refresh at every append
+	// that touches the gap; `gap_dirty` and `gap_flush` are empty between appends. The replay writes
+	// every event through those triggers, so the destination's gap state is its own fold; the
+	// source's is not carried.
+	case t == "gap_state" || t == "gap_dirty" || t == "gap_flush":
+		return nil
 	case byTable[t] != "":
 		return s.readBody(t, byID, byTable[t])
 	case renamedBodyTables[t] != "":

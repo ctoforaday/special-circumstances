@@ -13,7 +13,7 @@ import (
 // refused every verdict of the run.
 //
 // THE CLOSING IS DERIVED, NEVER WRITTEN. The mint's `supersedes` is the one statement of the link;
-// the gap view's closure reads it as a closing arm (recordsql/views.go, closure_act's 'supersede'),
+// the gap state's refresh reads it as a closing arm (recordsql/gapstate.go, gap_refresh's supersede_event),
 // and supersessionsOf is the same reading over a stream. A Close the tool wrote beside the mint
 // would be a second copy of the fact, and an act the seat never stated.
 //
@@ -23,7 +23,7 @@ import (
 
 // supersessionsOf is, for each gap a mint closed by superseding it, the index in evs of that mint:
 // the first mint naming the gap in `supersedes` while no close and no closing docket ruling of the
-// gap precedes it. It is the closure_act view's 'supersede' arm, read over a stream.
+// gap precedes it. It is gap_refresh's supersede_event, read over a stream.
 func supersessionsOf(evs []*Event) map[string]int {
 	docketGap := DocketGapByMotion(evs)
 	closed := map[string]bool{}
