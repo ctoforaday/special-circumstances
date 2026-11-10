@@ -54,7 +54,7 @@ jobs:
   # seat_fallback.go), and seat_fallback.go — the arm darwin actually compiles — had never
   # been vetted by anything.
   #
-  # GOOS ONLY, DELIBERATELY. release ships six GOOS/GOARCH pairs, and vetting all six was
+  # GOOS ONLY, DELIBERATELY. release ships every pair on the release job's pair list, and vetting each pair was
   # measured to be twice the work for exactly the same answer: with no _amd64.go/_arm64.go
   # files anywhere, `go list` returns byte-identical source for amd64 and arm64 under every
   # GOOS, while each extra target costs another full standard-library build. GOOS is the
@@ -326,6 +326,18 @@ jobs:
           HELPER: ${{ matrix.helper }}
         run: |
           echo "digest=$(go run ./devcmd/nativedigest -print "$HELPER")" >> "$GITHUB_OUTPUT"
+      # The builder image is part of the key: an image update misses, so a helper the old image
+      # built is never restored under the new one. The runner names its image in ImageVersion, a
+      # process environment variable that the env context does not hold.
+      - name: Read the builder image version
+        id: image
+        shell: bash
+        run: |
+          if [ -z "${ImageVersion:-}" ]; then
+            echo "::error::the runner sets no ImageVersion, so the helper cache key cannot name its builder image"
+            exit 1
+          fi
+          echo "image=${ImageVersion}" >> "$GITHUB_OUTPUT"
       - name: Restore helper cache
         id: helper-cache
         if: needs.native-scope.outputs.cache != 'none'
@@ -333,7 +345,7 @@ jobs:
         # zizmor: ignore[cache-poisoning]
         with:
           path: ${{ runner.temp }}/native-cache
-          key: native-${{ matrix.helper }}-${{ matrix.target }}-${{ matrix.builder }}-${{ env.ImageVersion }}-${{ steps.digest.outputs.digest }}
+          key: native-${{ matrix.helper }}-${{ matrix.target }}-${{ matrix.builder }}-${{ steps.image.outputs.image }}-${{ steps.digest.outputs.digest }}
       - name: Build helper on cache miss
         if: steps.helper-cache.outputs.cache-hit != 'true'
         shell: bash
@@ -359,7 +371,7 @@ jobs:
         # zizmor: ignore[cache-poisoning]
         with:
           path: ${{ runner.temp }}/native-cache
-          key: native-${{ matrix.helper }}-${{ matrix.target }}-${{ matrix.builder }}-${{ env.ImageVersion }}-${{ steps.digest.outputs.digest }}
+          key: native-${{ matrix.helper }}-${{ matrix.target }}-${{ matrix.builder }}-${{ steps.image.outputs.image }}-${{ steps.digest.outputs.digest }}
       - name: Upload helper artifact
         uses: actions/upload-artifact@v4
         with:
@@ -370,6 +382,7 @@ jobs:
     needs: [native-scope, native-build]
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix: ${{ fromJSON(needs.native-scope.outputs.run-matrix) }}
     defaults:
       run:
@@ -377,6 +390,7 @@ jobs:
     env:
       NATIVE_RUN_MUST_PASS: >-
         TestEmbeddedTraineddataPin
+        TestEveryOpFitsTheDeadline
         TestFrameChannelSurvivesLibraryStdout
         TestHelperExitsOnStdinEOF
         TestCorpusGoldens
@@ -386,6 +400,10 @@ jobs:
         TestReadPageCapturesDiagnosticsAndEvidence
         TestTextCellGoldens
         TestTextCellTableKeepsItsRowsThroughTheEngine
+        TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine
+        TestReleaseLayoutFindsItsHelper
+      # The target-scoped names: selftest-libc runs on the Linux legs only.
+      NATIVE_RUN_MUST_PASS_LINUX: TestSelftestLibc
     steps:
       - name: Check if native-run should execute
         id: check-full
@@ -413,62 +431,110 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: native-*-${{ matrix.target }}
-          path: ${{ runner.temp }}/helpers
+          path: ${{ runner.temp }}/native
           merge-multiple: true
+      - uses: ./.github/actions/install-helpers
+        if: steps.check-full.outputs.skip != 'true'
+        with:
+          from: ${{ runner.temp }}/native
+          to: ${{ runner.temp }}/helpers
+          os: ${{ matrix.os }}
+          arch: ${{ matrix.arch }}
       - name: Run native helper tests
         if: steps.check-full.outputs.skip != 'true'
         shell: bash
         env:
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
           FEOV_OCR_CORPUS: "1"
+          FEOV_OCR_CORPUS_OUT: ${{ runner.temp }}/corpus-readings
           FEOV_NATIVE_MEASURE: "1"
           CGO_ENABLED: "0"
           RUNNER_OS: ${{ runner.os }}
         run: |
-          chmod +x "${RUNNER_TEMP}/helpers"/* || true
+          # Every package that calls nativehelper.Require, found by parsing their calls.
+          pkgs="$(cd scripts && go run ./releaseassets -testpackages)"
+          echo "packages: $pkgs"
           cd plugins/frank-exchange-of-views/tools
           must_pass="${NATIVE_RUN_MUST_PASS}"
           if [ "$RUNNER_OS" = "Linux" ]; then
-            must_pass="${must_pass} TestSelftestLibc"
+            must_pass="${must_pass} ${NATIVE_RUN_MUST_PASS_LINUX}"
           fi
-          run_arg="$(echo "$must_pass" | tr ' ' '|')"
-          go test -v -count=1 -run "^(${run_arg})\$" ./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/... | tee "$RUNNER_TEMP/test.log"
+          # Each package runs whole, so every Require-gated test runs on every target; the must-pass
+          # names are a check on the log afterwards, never a -run filter. -p 1 keeps the packages off
+          # each other's CPUs while the deadline and fidelity checks measure.
+          rc=0
+          # shellcheck disable=SC2086 # $pkgs is a list of package paths
+          go test -v -count=1 -p 1 -timeout 40m $pkgs | tee "$RUNNER_TEMP/test.log" || rc=$?
+          missing=""
           for name in $must_pass; do
-            grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || {
-              echo "::error::required test ${name} did not PASS"
-              exit 1
-            }
+            grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || missing="$missing $name"
           done
+          if [ -n "$missing" ]; then
+            echo "::error::required tests did not PASS:$missing"
+            exit 1
+          fi
+          exit "$rc"
+      # EACH TARGET'S CORPUS READINGS, PASS OR FAIL, under their golden names: a target's golden set
+      # is committed from this artifact after its diff is read (one set per target, gblock 2026-11-10).
+      - name: Upload the corpus readings
+        if: ${{ !cancelled() && steps.check-full.outputs.skip != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-readings-${{ matrix.target }}
+          path: ${{ runner.temp }}/corpus-readings/
+          if-no-files-found: error
+      # THE SAME BINARIES ON A CLEAN WINDOWS IMAGE: servercore holds neither Go nor Visual Studio,
+      # so a helper that leans on a DLL the runner image happens to carry fails here. The host builds
+      # each Require package's test binary and the module's commands; the container runs every test
+      # binary from its own package directory with the must-pass names, and the host holds the
+      # container's output to the same list. The container takes those names only, since the rest of
+      # each package builds Go fakes and servercore has no Go; the host step runs every test of them.
+      # docker passes no runner variable in, so each variable the binaries read is set explicitly.
       - name: Run Windows servercore container verification
-        if: steps.check-full.outputs.skip != 'true' && matrix.target == 'windows-amd64'
+        if: ${{ !cancelled() && steps.check-full.outputs.skip != 'true' && matrix.target == 'windows-amd64' }}
         shell: bash
         env:
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
-          FEOV_OCR_CORPUS: "1"
-          FEOV_NATIVE_MEASURE: "1"
         run: |
+          pkgs="$(cd scripts && go run ./releaseassets -testpackages)"
+          echo "packages: $pkgs"
           cd plugins/frank-exchange-of-views/tools
           prebuilt="$RUNNER_TEMP/prebuilt"
           mkdir -p "$prebuilt"
-          CGO_ENABLED=0 go test -c -o "$prebuilt/tessocr.test.exe" ./internal/tessocr
-          CGO_ENABLED=0 go test -c -o "$prebuilt/fetchcache.test.exe" ./internal/fetchcache
-          CGO_ENABLED=0 go test -c -o "$prebuilt/nativehelper.test.exe" ./internal/nativehelper
+          # One <package>.test.exe per package, and every command for testbuild to return.
+          # shellcheck disable=SC2086 # $pkgs is a list of package paths
+          CGO_ENABLED=0 go test -c -o "$prebuilt/" $pkgs
+          CGO_ENABLED=0 go build -o "$prebuilt/" ./cmd/...
+          ls "$prebuilt"
           run_arg="$(echo "$NATIVE_RUN_MUST_PASS" | tr ' ' '|')"
+          # Single-quoted for bash: every $ below is PowerShell's. The test flags go in as one splatted
+          # array, because Windows PowerShell splits a bare -test.v at its dot.
+          ps='$failed = 0; $flags = @("-test.v=true", "-test.run=^($env:NATIVE_RUN_REGEX)$"); '
+          ps+='foreach ($p in $env:NATIVE_RUN_PACKAGES.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) { '
+          ps+='Set-Location (Join-Path "C:\repo\plugins\frank-exchange-of-views\tools" $p); '
+          ps+='& (Join-Path "C:\prebuilt" ((Split-Path $p -Leaf) + ".test.exe")) @flags; '
+          ps+='if ($LASTEXITCODE -ne 0) { $failed = 1 } }; exit $failed'
           docker run --rm \
             -v "$prebuilt:C:\\prebuilt" \
             -v "$NATIVE_HELPER_DIR:C:\\helpers" \
             -v "$GITHUB_WORKSPACE:C:\\repo" \
-            -w "C:\\repo\\plugins\\frank-exchange-of-views\\tools" \
             -e GITHUB_ACTIONS=true \
             -e NATIVE_HELPER_DIR="C:\\helpers" \
             -e FEOV_TESTBUILD_PREBUILT="C:\\prebuilt" \
             -e FEOV_OCR_CORPUS=1 \
             -e FEOV_NATIVE_MEASURE=1 \
+            -e NATIVE_RUN_PACKAGES="$pkgs" \
+            -e NATIVE_RUN_REGEX="$run_arg" \
             mcr.microsoft.com/windows/servercore:ltsc2025 \
-            powershell -Command "C:\\prebuilt\\tessocr.test.exe -test.v -test.run '^(${run_arg})$'" | tee "$RUNNER_TEMP/container.log"
+            powershell -NoProfile -Command "$ps" | tee "$RUNNER_TEMP/container.log"
+          missing=""
           for name in $NATIVE_RUN_MUST_PASS; do
-            grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/container.log" || true
+            grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/container.log" || missing="$missing $name"
           done
+          if [ -n "$missing" ]; then
+            echo "::error::the servercore container did not PASS:$missing"
+            exit 1
+          fi
 
   native-fuzz:
     runs-on: ubuntu-24.04
@@ -523,14 +589,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: native-feov-ocr-linux-amd64
-          path: ${{ runner.temp }}/helpers
+          path: ${{ runner.temp }}/native
+      - uses: ./.github/actions/install-helpers
+        with:
+          from: ${{ runner.temp }}/native
+          to: ${{ runner.temp }}/helpers
+          os: linux
+          arch: amd64
       - name: the corpus, real engine
         shell: bash
         env:
           NATIVE_HELPER_DIR: ${{ runner.temp }}/helpers
           FEOV_OCR_CORPUS: "1"
         run: |
-          chmod +x "$NATIVE_HELPER_DIR/feov-ocr"
           # -v so the per-page subtests are named in the log: a corpus page that starts or stops
           # meeting its expect block is the finding, and a bare ok line hides which one moved.
           # The pages run parallel, but the engine serializes every read on one mutex, so the
@@ -748,16 +819,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: native-feov-ocr-linux-amd64
-          path: ${{ runner.temp }}/helpers
+          path: ${{ runner.temp }}/native
       - name: Download feov-ocr helper (Windows)
         if: runner.os == 'Windows'
         uses: actions/download-artifact@v4
         with:
           name: native-feov-ocr-windows-amd64
-          path: ${{ runner.temp }}/helpers
-      - name: Make helper executable
-        if: runner.os == 'Linux'
-        run: chmod +x "${RUNNER_TEMP}/helpers/feov-ocr"
+          path: ${{ runner.temp }}/native
+      - uses: ./.github/actions/install-helpers
+        with:
+          from: ${{ runner.temp }}/native
+          to: ${{ runner.temp }}/helpers
+          os: ${{ runner.os == 'Windows' && 'windows' || 'linux' }}
+          arch: amd64
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -1308,8 +1382,8 @@ jobs:
 
   go-cache-prune:
     # ONE GO BUILD CACHE PER JOB, NOT ONE PER NIGHT. Every save key ends in the run id, so each
-    # nightly adds a whole new set (~3.5 GB compressed) beside the last, and GitHub evicts by LRU
-    # past 10 GB — two sets plus the OCR C stack is ~7.5 GB with no room for anything else.
+    # nightly adds a whole new set (~4.4 GB compressed, read 2026-11-10) beside the last, and GitHub evicts by LRU
+    # past 10 GB — two sets plus the native-* helper entries (~0.08 GB) is ~8.9 GB with no room for anything else.
     # After the saves, this deletes every main-scoped go- entry but the newest per OS and job;
     # a job that failed tonight saved nothing, so its previous entry is the newest and stays.
     # Grouping on OS and job, not the full lineage, also drops a lineage the key has moved off.

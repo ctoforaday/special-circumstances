@@ -71,7 +71,7 @@ func (b binStatus) asset(goos, goarch string) string {
 // existed.
 //
 // Taking goos/goarch as ARGUMENTS rather than reading runtime is what makes it testable: the
-// contract has to hold for all six published pairs, not just the one the test happens to run
+// contract has to hold for every published pair, not just the one the test happens to run
 // on. release_contract_test.go reads the workflow and checks every pair against this.
 func AssetName(name, goos, goarch string) string {
 	// Not buildid.ExeName: this is a CROSS-compile name, so the extension follows the

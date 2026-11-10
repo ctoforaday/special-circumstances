@@ -196,6 +196,9 @@ type runTally struct {
 	RemandReleases                  int                       `json:"remand_releases"`
 	LensTurns                       int                       `json:"lens_turns"`
 	FateTurns                       int                       `json:"fate_turns"`
+	ComposedHanded                  int                       `json:"composed_handed"`
+	ComposedGaps                    int                       `json:"composed_gaps"`
+	ComposedAnswers                 int                       `json:"composed_answers"`
 	LensWaits                       int                       `json:"lens_waits"`
 	LensAlone                       int                       `json:"lens_alone"`
 	DocketsAfterAudit               int                       `json:"dockets_after_audit"`
@@ -240,6 +243,7 @@ type runTally struct {
 	ClosesByEpoch                   map[int]int               `json:"closes_by_epoch"`
 	InquiryChecks                   int                       `json:"inquiry_checks"`
 	InquiryCheckRefused             map[string]int            `json:"inquiry_check_refused"`
+	InquiryUnseats                  int                       `json:"inquiry_unseats"`
 }
 
 // tallyOf is the run's tally.
@@ -251,7 +255,7 @@ func tallyOf(o outcome) runTally {
 		VerifiedBasis: o.verifiedBasis, FoundByMints: o.foundByMints, VerbatimApplied: o.verbatimApplied,
 		TypedVerbatim: o.typedVerbatim, EstoppelMisses: o.estoppelMisses, ApplyMisses: o.applyMisses,
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
-		InquiryChecks: o.inquiryChecks, InquiryCheckRefused: o.inquiryCheckRefused,
+		InquiryChecks: o.inquiryChecks, InquiryCheckRefused: o.inquiryCheckRefused, InquiryUnseats: o.inquiryUnseats,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
 		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
 		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, BareEvidenceRefused: o.bareEvidenceRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
@@ -273,6 +277,7 @@ func tallyOf(o outcome) runTally {
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, FateTurns: o.fateTurns, LensWaits: o.lensWaits,
+		ComposedHanded: o.composedHanded, ComposedGaps: o.composedGaps, ComposedAnswers: o.composedAnswers,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
@@ -602,6 +607,7 @@ type sweepFold struct {
 	inquiryRecords, quotesRefused                   int
 	inquiryChecks                                   int
 	inquiryCheckRefused                             map[string]int
+	inquiryUnseats                                  int
 	bridgesRefused, bridgesNamed                    int
 	ordersRefused, spansRefused, forcedSpansRefused int
 	bareEvidenceRefused, mintBareRefused            int
@@ -640,6 +646,7 @@ type sweepFold struct {
 	blueRemandActs, pastLimitRemandsRefused         int
 	remandHolds, remandReleases                     int
 	lensTurns, lensWaits, fateTurns                 int
+	composedHanded, composedGaps, composedAnswers   int
 	lensAlone, docketsAfterAudit                    int
 	docketedClosesRefused, docketedOffList          int
 	benchRegrades, lockRefused, lockLifted          int
@@ -725,6 +732,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.estoppels += r.Estoppels
 		f.inquiryRecords += r.InquiryRecords
 		f.inquiryChecks += r.InquiryChecks
+		f.inquiryUnseats += r.InquiryUnseats
 		for class, n := range r.InquiryCheckRefused {
 			f.inquiryCheckRefused[class] += n
 		}
@@ -860,6 +868,9 @@ func foldRuns(runs []runTally) sweepFold {
 		f.remandReleases += r.RemandReleases
 		f.lensTurns += r.LensTurns
 		f.fateTurns += r.FateTurns
+		f.composedHanded += r.ComposedHanded
+		f.composedGaps += r.ComposedGaps
+		f.composedAnswers += r.ComposedAnswers
 		f.lensWaits += r.LensWaits
 		f.lensAlone += r.LensAlone
 		f.docketsAfterAudit += r.DocketsAfterAudit
@@ -924,7 +935,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		f.completed, f.failed, f.verdicts, f.epochHist, f.whyHist, f.dcov, f.citeAnchors, f.cacheFiles, f.editAnswers, f.dcov["blue_edit"], f.verifiedBasis, f.dcov["mint"], f.verbatimApplied, f.typedVerbatim, f.estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", f.limitExits, f.completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
 	t.Logf("inquiry lifecycle: %d fates recorded on an id read from `inquiry propose` (of %d inquiry events)", f.inquiryRecords, f.dcov["inquiry"])
-	t.Logf("inquiry checks: %d admitted from %s · refusals driven by class %v", f.inquiryChecks, record.InquiryOwner(), f.inquiryCheckRefused)
+	t.Logf("inquiry checks: %d admitted from %s · refusals driven by class %v · %d owed again after a gap below material", f.inquiryChecks, record.InquiryOwner(), f.inquiryCheckRefused, f.inquiryUnseats)
 	t.Logf("computation owner: %d run(s) offered an unjudged computation to its owner, at a sitting or the run's end", f.ownerOfferedRuns)
 	t.Logf("citation owner: %d run(s) offered an unverified citation to the evidence lens, at a sitting or the run's end", f.citationOfferedRuns)
 	t.Logf("unsound computations: %d plan(s) readied the judge or blue for every unsound computation they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundComputationSeed, f.unsoundAnswers)
@@ -1033,6 +1044,12 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// that held an inquiry; a class driven zero times is a refusal nothing would notice go.
 		if f.inquiryChecks == 0 {
 			t.Errorf("fuzz admitted ZERO inquiry checks from %s across %d runs — no settled inquiry was ever judged sound, so every run that proposed one ended short of a PASS or the drive stopped reaching the owner (false green)", record.InquiryOwner(), f.completed)
+		}
+		// ANY GAP ABOUT AN INQUIRY RE-OWES ITS CHECK (ruled by gblock 2026-11-10). A sweep that never
+		// minted a gap below material about a checked inquiry never asked whether the check it judged
+		// before the gap still stands — the shape universe-m40 shipped a false `confirmed` through.
+		if f.inquiryUnseats == 0 {
+			t.Errorf("fuzz minted ZERO gaps below material about a checked inquiry and saw the check owed again across %d runs — whether any gap about an inquiry re-owes its check is unexercised (false green)", f.completed)
 		}
 		for _, c := range inquiryCheckClasses {
 			if f.inquiryCheckRefused[c.class] == 0 {
@@ -1317,6 +1334,14 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("fate turns: %d lens engagement(s) on a gap about a section, with blue or alone, came with a fate blue changed", f.fateTurns)
 		if f.fateTurns == 0 {
 			t.Errorf("no lens turn across %d runs on a gap about a section came with a fate blue changed — the rule that a changed fate is blue's act on a gap about a section that prints it is unexercised (false green)", f.completed)
+		}
+		// THE VOICE LENS AUDITS THE TEXT THE TOOL COMPOSES (ruled by gblock 2026-11-10): its list handed
+		// it the inquiries' fates and the open gaps' rows recorded since it last sat, it minted a
+		// report_voice gap about an inquiry's account from one, and blue answered such a gap by
+		// recording the fate again.
+		t.Logf("composed sources: %d handed to the voice lens, %d report_voice gap(s) minted about an inquiry from one, %d answered by a fate recorded again", f.composedHanded, f.composedGaps, f.composedAnswers)
+		if f.composedHanded == 0 || f.composedGaps == 0 || f.composedAnswers == 0 {
+			t.Errorf("fuzz handed the voice lens %d composed source(s), minted %d report_voice gap(s) about an inquiry from one and answered %d by a fate across %d runs — the voice audit of the composed sections is unexercised on one side (false green)", f.composedHanded, f.composedGaps, f.composedAnswers, f.completed)
 		}
 		// THE LENS GOES FIRST AND THE DOCKET AFTER (ruled by gblock 2026-10-31): a plan readied a lens alone
 		// for the audit that reaches the limits, a docket followed a lens's sitting, a docketed gap's close

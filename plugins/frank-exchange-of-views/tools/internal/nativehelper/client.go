@@ -309,6 +309,13 @@ func (c *Client) Close() error {
 	return p.close(c.name)
 }
 
+// Running reports whether a helper process is up for this client.
+func (c *Client) Running() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.proc != nil
+}
+
 // KillProcessForTest kills the running helper process without clearing c.proc, simulating a crash.
 func (c *Client) KillProcessForTest() {
 	c.mu.Lock()

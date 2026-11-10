@@ -398,17 +398,44 @@ func decodeRunLive(b []byte) (runs []RunLiveMarker, readable bool) {
 // was given — `research/x` from one invocation, an absolute path from another — so a string
 // compare would refuse a re-setup of the very run in progress, which is ordinary and must stay
 // idempotent.
+//
+// BOTH SIDES ARE CANONICAL — symlinks resolved — because the project directory and the run directory
+// reach this from different sources: the project from the process's working directory, which the OS
+// reports resolved, and the run directory from an argument, which the caller spelled. On macOS /var
+// is a link to /private/var, so a run under the temp directory named one way, in a project read the
+// other way, is one run that a lexical compare calls two.
 func SameRun(projectDir, a, b string) bool {
 	abs := func(p string) string {
 		if !filepath.IsAbs(p) {
 			p = filepath.Join(projectDir, p)
 		}
 		if r, err := filepath.Abs(filepath.Clean(p)); err == nil {
-			return r
+			p = r
 		}
-		return filepath.Clean(p)
+		return canonical(filepath.Clean(p))
 	}
 	return strings.EqualFold(abs(a), abs(b))
+}
+
+// canonical is the absolute path p with the symlinks of its longest existing prefix resolved. A run
+// directory a row names may be gone — that is how a row stops being live — and EvalSymlinks fails on
+// a path that does not exist, so the part below the deepest existing ancestor is kept as written.
+func canonical(p string) string {
+	var tail []string
+	for dir := p; ; {
+		if r, err := filepath.EvalSymlinks(dir); err == nil {
+			for i := len(tail) - 1; i >= 0; i-- {
+				r = filepath.Join(r, tail[i])
+			}
+			return r
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return p
+		}
+		tail = append(tail, filepath.Base(dir))
+		dir = parent
+	}
 }
 
 // WriteRunLiveMarker writes projectDir/.claude/run-live.json (commitment-as-state) and returns its

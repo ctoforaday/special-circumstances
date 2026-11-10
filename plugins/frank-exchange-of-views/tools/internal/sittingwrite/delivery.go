@@ -35,7 +35,7 @@ const (
 		"is one line for each other item queued for you and each other open gap on the board, and " +
 		"`estopped` one line for each bench ruling you may not re-raise. `sitting` is your standing: " +
 		"whether anything blocks you finishing, your read of the report, your mint budget, the items " +
-		"that are not work to queue (`notes`), the bench's holdings (`declarations`), each gap one names beside " +
+		"that are not queued (`notes`), the bench's holdings (`declarations`), each gap one names beside " +
 		"where the board says it stands now, and granted relief (`relief`). A count in a field ending " +
 		"`_omitted` is that many entries left out to keep this delivery whole; your work list holds them. A field " +
 		"ending `_clipped` marks a part of the current gap cut short for the same reason: a clipped `backing` is its anchors " +
@@ -103,7 +103,10 @@ type deliveredItem struct {
 	// ChangedSinceDelivered marks an item handed again because the record moved it under the seat.
 	ChangedSinceDelivered bool          `json:"changed_since_delivered,omitempty"`
 	Items                 []record.Item `json:"items"`
-	Gap                   *deliveredGap `json:"gap,omitempty"`
+	// ItemsOmitted counts the items cut from the end of Items to keep the delivery within
+	// DeliveryBudget (fitted); the work list holds them all.
+	ItemsOmitted int           `json:"items_omitted,omitempty"`
+	Gap          *deliveredGap `json:"gap,omitempty"`
 }
 
 // deliveredGap is the work list's row for the current item's gap, without the synopsis of a problem
@@ -242,6 +245,17 @@ func fitted(preamble string, d lensDelivery) string {
 		}
 	}
 	if g == nil {
+		// AN ENTRY OF MANY ITEMS AND NO GAP — the voice lens's composed sources (record.QueueOf) — gives
+		// way item by item from its end, counted, as the index does: each one is whole on the work list.
+		if c := d.Current; c != nil {
+			for len(c.Items) > 1 {
+				c.Items = c.Items[:len(c.Items)-1]
+				c.ItemsOmitted++
+				if fits() {
+					return text
+				}
+			}
+		}
 		return text
 	}
 	if g.Passage != g.Location {

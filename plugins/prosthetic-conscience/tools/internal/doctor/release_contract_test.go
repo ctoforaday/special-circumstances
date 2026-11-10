@@ -238,9 +238,9 @@ func TestEveryPublishedPlatformCompiles(t *testing.T) {
 					goos, goarch, filepath.Base(outPath))
 				continue
 			}
-			// ONE BINARY ON DISK AT A TIME, NOT SIXTY-SIX. The question this test asks is
+			// ONE BINARY ON DISK AT A TIME, NOT ONE PER COMMAND AND PAIR. The question this test asks is
 			// answered the moment the file exists under its contracted name; keeping it
-			// afterwards buys nothing and costs the peak. Eleven commands times six platforms,
+			// afterwards buys nothing and costs the peak. Every command for every pair,
 			// unstripped and all held at once, put this module's TMPDIR at 243 MB (sampled at
 			// 2s, so a floor) — and TMPDIR is a 2 GB tmpfs in CI, which hooks.yml points at
 			// /dev/shm/tmp, so that peak is RAM there. The TempDir still sweeps whatever a
@@ -336,7 +336,7 @@ func requireCrossCompileHost(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS != "linux" {
 		t.Skipf("cross-compile checks run on the linux leg only (host is %s); the output does "+
-			"not depend on the host, so a second leg would duplicate ~66 builds", runtime.GOOS)
+			"not depend on the host, so a second leg would duplicate every build", runtime.GOOS)
 	}
 }
 

@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"unicode/utf8"
 
@@ -47,6 +49,20 @@ func nameClose() string {
 	return `"`
 }
 
+// namesHoldAnyByte skips the test where the filesystem refuses a name that is not UTF-8. APFS stores
+// names as UTF-8 and refuses the 0xff byte with EILSEQ ("Illegal byte sequence"), so no program there
+// can leave such a name under out/, and the drift has none to carry. Any other refusal is a failure.
+func namesHoldAnyByte(t *testing.T) {
+	t.Helper()
+	err := os.WriteFile(filepath.Join(t.TempDir(), "\xff"), nil, 0o644)
+	if errors.Is(err, syscall.EILSEQ) {
+		t.Skipf("this filesystem holds no name that is not UTF-8: %v", err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // validDrift fails the test unless the body's drift is valid UTF-8 and the body projects.
 func validDrift(t *testing.T, body proto.Message, drift string) {
 	t.Helper()
@@ -72,6 +88,9 @@ func TestAReRunsDriftIsValidUTF8(t *testing.T) {
 		{"an out/ name", "a\n", "\xff", "out/" + nameOpen() + nameClose() + " written by the re-run only"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			if !utf8.ValidString(c.outNm) {
+				namesHoldAnyByte(t)
+			}
 			runDir := newRun(t)
 			computeSeat(t, runDir, "# H\n\nThe program prints a.\n")
 			draft := script(t, runDir, "p.sh", driftProgram)
@@ -109,6 +128,7 @@ func TestAReRunsDriftIsValidUTF8(t *testing.T) {
 }
 
 func TestAComputationsDriftIsValidUTF8(t *testing.T) {
+	namesHoldAnyByte(t)
 	runDir := newRun(t)
 	computeSeat(t, runDir, "# H\n\nThe program prints a.\n")
 	draft := script(t, runDir, "p.sh", driftProgram)

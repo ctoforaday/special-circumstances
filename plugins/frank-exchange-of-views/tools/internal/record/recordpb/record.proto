@@ -613,7 +613,7 @@ enum InquiryStatus {
   // REFUTED IS AN APPROACH THAT RAN AND ANSWERED NO. It is an answer, so it ships beside the
   // confirmed inquiries; `abandoned` is left for the inquiry that produced none.
   INQUIRY_STATUS_REFUTED = 7 [(means) = "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this"];
-  INQUIRY_STATUS_DEFERRED = 3 [(means) = "left for a later research run, not this one — kept, not set aside. REQUIRES a reason saying what a later run should pick it up FOR"]; // a deferral with no stated reason is indistinguishable from forgetting, and this status exists to be read by a run that has not happened yet
+  INQUIRY_STATUS_DEFERRED = 3 [(means) = "left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it"]; // a deferral with no stated reason is indistinguishable from forgetting, and the report prints it under Future research directions
   // DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not. The
   // record holds no link from a computation or a section to an inquiry, so no write can tell a declined
   // inquiry that was run from one that was not; the fate's own meaning is where the seat is told.
@@ -1550,7 +1550,7 @@ enum Basis {
 // against — its own where it ran, else the standing one's — stored at
 // computations/<bundle_sha>/rerun/<rerun_sha>/, written before this event. The write refuses an act
 // that ran nothing whose `rerun_sha` is no longer the standing one's. Neither is present on a
-// reproduce migrated from a record that kept no raw re-run.
+// migrated reproduce whose re-run's output the archive holds only in part.
 //
 // NOT KEYED. A seat may judge one anchor more than once in a sitting, and its latest judgement is
 // its verdict: a check is read by the anchor's ledger (anchorchecks.go), which takes each seat's
@@ -1632,8 +1632,8 @@ message Inquiry {
     why: "the question this inquiry asks — an unnamed inquiry teaches a future run nothing"
   }, (prose) = true];
   optional string hypothesis = 3 [(prose) = true];
-  // method is a FATE's account, as reason is: what an approach that ran actually did, what a
-  // deferred or declined one leaves a later run to do, what an abandoned one tried. A proposal holds
+  // method is a FATE's account, as reason is: what an approach that ran actually did, what would
+  // settle the question of a deferred or declined one, what an abandoned one tried. A proposal holds
   // none (record.go's Inquiry arm refuses one), and the latest fate's method is the one printed.
   optional string method = 4 [(prose) = true];
   optional InquiryStatus status = 5 [(sql) = {

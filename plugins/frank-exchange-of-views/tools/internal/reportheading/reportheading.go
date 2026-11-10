@@ -84,8 +84,9 @@ type InquirySection struct {
 //	                             resolved is research this run has taken on, and its row carries
 //	                             the undecided state so the heading does not have to lie about it.
 //	Future research directions   `deferred` — "worth taking, and not by THIS run". KEPT, not set
-//	                             aside. --reason says what a later run should pick it up FOR,
-//	                             and it reaches the report as a proposal a human selects.
+//	                             aside. --reason says what the question still leaves unsettled,
+//	                             --method what would settle it, and it reaches the report as a
+//	                             proposal a human selects.
 //	Alternatives considered      `declined` (weighed, never run) and `abandoned` (started, and no
 //	                             answer came).
 //

@@ -80,7 +80,7 @@
                                               why it stands there. -->
 
 ## Future research directions            <!-- [RECORD] inquiries DEFERRED — kept, not set aside: worth taking and not by THIS
-                                              run. Its reason says what a later run should pick it up FOR. It reaches the
+                                              run. Its reason says what the question still leaves unsettled, and its method what would settle it. It reaches the
                                               report as a proposal a human selects, never an automatic seed. This is its
                                               OWN section because filing it under "Alternatives considered" said the
                                               opposite of its fate. -->

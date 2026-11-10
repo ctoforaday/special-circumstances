@@ -92,10 +92,11 @@ func stateOf(t *testing.T, run Run, id string) string {
 
 // AN INQUIRY HOLDS ONE JUDGED STATE, AND EACH STEP MOVES IT AS THE RULING SAYS (gblock 2026-11-01).
 // Each row is the record ending at one more act: an open inquiry holds the PASS for blue; a settled
-// one for the logic lens until a check stands; a new fate re-opens the check (TestANewFateReopensTheCheck
-// is the row "the fate recorded again"); a gap material at its mint makes it wanting and unseats the
-// check, which its close leaves owed again (TestAMaterialGapUnseatsTheCheck is the rows from "a
-// material gap"); a gap below material unseats nothing.
+// one for the logic lens until a check stands; a new fate re-opens the check (the row "the fate
+// recorded again"); ANY GAP ABOUT IT unseats the check, whatever its materiality (ruled by gblock
+// 2026-11-10): one below material leaves it unchecked for the owner to judge with the gap in hand, a
+// regrade after that check unseats nothing, and a material one makes it wanting until its close
+// leaves it owed again.
 func TestAnInquiryHoldsOneJudgedState(t *testing.T) {
 	steps := []struct {
 		what  string
@@ -120,6 +121,10 @@ func TestAnInquiryHoldsOneJudgedState(t *testing.T) {
 		{"checked again", func(b *stage) { b.register(inquiryOwner).add(inquiryOwner, inquiryCheck("Q1")) }, InquirySound, nil},
 		{"a gap below material", func(b *stage) {
 			b.add(evLens, inquiryGap("G1", "Q1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, recordpb.Grade_GRADE_LOW))
+		}, InquiryUnchecked, []string{"unchecked_inquiry Q1 " + inquiryOwner}},
+		{"checked with the gap in hand", func(b *stage) { b.register(inquiryOwner).add(inquiryOwner, inquiryCheck("Q1")) }, InquirySound, nil},
+		{"the gap regraded", func(b *stage) {
+			b.add(evLens, &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordpb.Grade_GRADE_TRIVIAL.Enum(), Basis: proto.String("the consequence is bounded")})
 		}, InquirySound, nil},
 		{"a material gap", func(b *stage) {
 			b.add(evLens, inquiryGap("G2", "Q1", recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS, recordpb.Grade_GRADE_LOW))
@@ -200,6 +205,13 @@ func TestAnInquiryCheckIsRefusedWhereItCannotJudge(t *testing.T) {
 			}
 			return owner, inquiryCheck("Q1")
 		}, "after your sitting opened"},
+		{"from a sitting opened before a gap about it", func(t *testing.T) (Identity, *recordpb.InquiryCheck) {
+			run, _, owner := board(t, settled)
+			if _, err := Append(seat(t, run, evLens), liveInquiryGap("G-low", "Q1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, recordpb.Grade_GRADE_LOW)); err != nil {
+				t.Fatal(err)
+			}
+			return owner, inquiryCheck("Q1")
+		}, "without that gap in hand"},
 		{"with no reason", func(t *testing.T) (Identity, *recordpb.InquiryCheck) {
 			_, _, owner := board(t, settled)
 			return owner, &recordpb.InquiryCheck{InquiryId: proto.String("Q1"), Reason: proto.String("  ")}
@@ -324,6 +336,21 @@ func TestTheWorkListsCarryTheInquiryDuties(t *testing.T) {
 	}
 	if owes(t, run, "lens", evLens, "inquiry Q1") {
 		t.Error("a lens that does not own the check is owed it")
+	}
+	// A CHECK A GAP PUT IN QUESTION is owed with the gap named on it, whatever the gap's grade, in a
+	// sitting opened after the gap; a sitting opened before the gap does not list it.
+	gapped := func() *stage {
+		return inquiryBoard(t).add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true)).
+			add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, false)).
+			register(inquiryOwner).add(inquiryOwner, inquiryCheck("Q1")).
+			add(evLens, inquiryGap("G-low", "Q1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, recordpb.Grade_GRADE_LOW))
+	}
+	if owes(t, gapped().seed(), "lens", inquiryOwner, "inquiry Q1") {
+		t.Error("a sitting opened before the gap lists a check it cannot record")
+	}
+	run = gapped().register(inquiryOwner).seed()
+	if !owes(t, run, "lens", inquiryOwner, "inquiry Q1 is settled") || !owes(t, run, "lens", inquiryOwner, "since its last check, which they put in question, whatever their grade: G-low ("+evLens+")") {
+		t.Error("the logic lens's list does not owe the check a non-material gap put in question, naming the gap")
 	}
 	// A SITTING OPENED BEFORE THE FATE does not list it: its check would be refused.
 	before := inquiryBoard(t).add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true)).

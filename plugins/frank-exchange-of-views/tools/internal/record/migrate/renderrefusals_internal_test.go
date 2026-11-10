@@ -27,7 +27,7 @@ func TestARenderFailureAfterARefusalNamesTheRefusal(t *testing.T) {
 			"old": "climbing sharply", "new": "rising steadily", "text": "softer"}},
 	}
 	dst := runtest.New(t, recordtest.TmpRun(t))
-	_, err := replayInOrder(stream, Entries(), dst, Options{})
+	_, err := replayInOrder(stream, "", Entries(), dst, Options{})
 	if err == nil {
 		t.Fatal("the replay rendered a report whose last edit quotes text a refused edit never wrote")
 	}
