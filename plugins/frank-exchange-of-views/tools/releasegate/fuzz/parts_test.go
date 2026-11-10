@@ -214,7 +214,7 @@ func (r *runner) laneResearches(seatID string) {
 	if !ok || json.Unmarshal([]byte(out), &sum) != nil || sum.Sha256 == "" {
 		return
 	}
-	r.admit("show", "source", "--seat-id", seatID, "--sha", sum.Sha256, "--match", ".")
+	r.admit("show", "source", "--seat-id", seatID, "--sha", sum.Sha256, "--quote", "source")
 }
 
 // laneReadsTheReport is a lane reading the projections once its part is recorded, drawn as the

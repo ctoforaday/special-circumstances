@@ -4,7 +4,7 @@
 # Usage:
 #   build.sh <helper> <target> [outdir] [workdir]
 #
-# Helpers: feov-ocr
+# Helpers: feov-ocr | feov-embed
 # Targets: linux-amd64 | linux-arm64 | windows-amd64 | windows-arm64 | darwin-arm64
 set -euo pipefail
 
@@ -22,6 +22,12 @@ HELPER="$1"
 TARGET="$2"
 OUTDIR="${3:-}"
 WORK_ARG="${4:-}"
+
+if command -v cygpath >/dev/null 2>&1; then
+	[ -n "$OUTDIR" ] && OUTDIR="$(cygpath -u "$OUTDIR")"
+	[ -n "$WORK_ARG" ] && WORK_ARG="$(cygpath -u "$WORK_ARG")"
+	[ -n "${RUNNER_TEMP:-}" ] && RUNNER_TEMP="$(cygpath -u "$RUNNER_TEMP")"
+fi
 
 [ -d "$NATIVE_DIR/$HELPER" ] || die "unknown helper $HELPER (no $NATIVE_DIR/$HELPER directory)"
 [ -f "$NATIVE_DIR/$HELPER/ASSETS" ] || die "$HELPER is not a helper (no ASSETS file)"
@@ -57,16 +63,18 @@ PREFIX="$WORK/prefix"
 
 # Exclusive lock on workdir
 exec 9>"$WORK/.build.lock"
-if ! flock -n 9; then
-	echo "native/build.sh: waiting for the lock on $WORK (another build is running)"
-	flock 9
+if command -v flock >/dev/null 2>&1; then
+	if ! flock -n 9; then
+		echo "native/build.sh: waiting for the lock on $WORK (another build is running)"
+		flock 9
+	fi
 fi
 
 J="${CSTACK_JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}"
 
 # ---- pin manifest access ------------------------------------------------------------
 pin_field() { # pin_field <file> <manifest> <n: 1=sha 3=url>
-	awk -v f="$1" -v n="$3" '$0 !~ /^#/ && $2 == f { print $n }' "$2"
+	awk -v f="$1" -v n="$3" '$0 !~ /^#/ && $2 == f { print $n }' "$2" | tr -d '\r'
 }
 
 fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
@@ -76,12 +84,155 @@ fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
 	[ -n "$sha" ] && [ -n "$url" ] || die "$file is not pinned in $manifest"
 	if [ ! -f "$dest" ]; then
 		echo "fetching $file"
-		curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 --max-time 600 -o "$dest.part" "$url" ||
-			die "downloading $file from $url failed"
-		mv "$dest.part" "$dest"
+		local fetched=0
+		if command -v gh >/dev/null 2>&1 && [[ "$url" =~ github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/(.+) ]]; then
+			local owner="${BASH_REMATCH[1]}"
+			local repo="${BASH_REMATCH[2]}"
+			local tag="${BASH_REMATCH[3]}"
+			local asset="${BASH_REMATCH[4]}"
+			if gh release download "$tag" -R "$owner/$repo" -p "$asset" -D "$3" 2>/dev/null && [ -f "$dest" ]; then
+				fetched=1
+			fi
+		fi
+		if [ "$fetched" -eq 0 ]; then
+			curl -fsSL --retry 5 --retry-connrefused --retry-delay 2 --connect-timeout 30 -o "$dest.part" "$url" && mv "$dest.part" "$dest"
+		fi
 	fi
 	echo "$sha  $dest" | sha256sum -c --quiet - || die "$file does not match its pin"
 }
+
+# Windows MSVC native helper build for feov-embed (plans/native-helpers.md §III.1.5)
+if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
+	HELPER_PINS="$NATIVE_DIR/$HELPER/PINS.txt"
+	model_file="gte-small.int8.${ARCH}.ort"
+	fetch_pinned "$model_file" "$HELPER_PINS" "$WORK/src"
+
+	VSW="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+	[ -f "$VSW" ] || die "vswhere.exe not found at $VSW"
+	V=$("$VSW" -latest -products '*' -property installationVersion | tr -d '\r')
+	VSDIR=$("$VSW" -latest -products '*' -property installationPath | tr -d '\r')
+	case ${V%%.*} in
+	17) GEN="Visual Studio 17 2022" ;;
+	18) GEN="Visual Studio 18 2026" ;;
+	*) die "Visual Studio version $V unknown" ;;
+	esac
+	echo "native/build.sh: Visual Studio $V at $VSDIR (generator: $GEN)"
+
+	case "$ARCH" in
+	amd64) VS_ARCH="x64" ;;
+	arm64) VS_ARCH="ARM64" ;;
+	*) die "unsupported Windows architecture $ARCH" ;;
+	esac
+
+	HP=python
+	command -v python >/dev/null 2>&1 || HP=python3
+	[ -d "$WORK/pyenv" ] || "$HP" -m venv "$WORK/pyenv"
+	if [ -f "$WORK/pyenv/Scripts/python.exe" ]; then
+		PY="$WORK/pyenv/Scripts/python.exe"
+	else
+		PY="$WORK/pyenv/bin/python"
+	fi
+	"$PY" -m pip install -q flatbuffers
+
+	fetch_pinned onnxruntime-1.31.1.tar.gz "$HELPER_PINS" "$WORK/src"
+	SRC="$WORK/src/onnxruntime"
+	if [ ! -d "$SRC" ]; then
+		mkdir -p "$SRC"
+		tar -C "$SRC" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+	fi
+
+	if [ ! -f "$WORK/build/ort/Release/onnxruntime_common.lib" ]; then
+		echo "=== Building ONNX Runtime ($TARGET) with MSVC ==="
+		XARGS=()
+		MACH=$("$PY" -c 'import platform; print(platform.machine())' | tr -d '\r')
+		[ "$VS_ARCH" = "ARM64" ] && [ "$MACH" != "ARM64" ] && XARGS+=(--arm64)
+		"$PY" "$SRC/tools/ci_build/build.py" \
+			--build_dir "$WORK/build/ort" \
+			--config Release \
+			--update --build --parallel "$J" \
+			--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
+			--cmake_generator "$GEN" \
+			--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
+			--include_ops_by_config "$NATIVE_DIR/feov-embed/ops.config" \
+			--enable_reduced_operator_type_support \
+			--enable_msvc_static_runtime ${XARGS[@]+"${XARGS[@]}"} \
+			--cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF onnxruntime_DISABLE_DEVICE_DISCOVERY=ON
+		cmake --build "$WORK/build/ort/Release" --config Release --target cpuinfo -j "$J" || true
+	fi
+
+	ort_find_dir="$(cygpath -u "$WORK/build/ort/Release")"
+	find "$ort_find_dir" -name '*.lib' \
+		! -name 'onnxruntime_static.lib' \
+		! -name 'protoc*.lib' ! -name 'libprotoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' \
+		! -name 'flatbuffers.lib' ! -name 'upb*.lib' ! -path '*gtest*' ! -path '*gmock*' ! -path '*benchmark*' ! -name '*test*' \
+		! -path '*/embed/*' | sort > "$WORK/libs-unix.txt"
+	[ -s "$WORK/libs-unix.txt" ] || die "no static libraries found in $ort_find_dir"
+	echo "Found $(wc -l < "$WORK/libs-unix.txt") static libraries to merge"
+	while IFS= read -r l; do cygpath -m "$l"; done < "$WORK/libs-unix.txt" | tr -d '\r' > "$WORK/libs.txt"
+
+	LIB_EXE="$("$VSW" -latest -products '*' -find '**/Hostx64/x64/lib.exe' | head -n 1 | tr -d '\r')"
+	if [ -z "$LIB_EXE" ] || [ ! -f "$LIB_EXE" ]; then
+		LIB_EXE="$(find "$VSDIR/VC/Tools/MSVC" -name "lib.exe" 2>/dev/null | grep "Hostx64/x64/lib.exe" | head -n 1 | tr -d '\r')"
+	fi
+	[ -n "$LIB_EXE" ] && [ -f "$LIB_EXE" ] || die "lib.exe not found in $VSDIR"
+
+	ort_static_lib="$WORK/build/ort/Release/onnxruntime_static.lib"
+	rm -f "$ort_static_lib"
+	ort_static_lib_win="$(cygpath -m "$ort_static_lib" | tr -d '\r')"
+	{
+		printf '/OUT:%s\n' "$ort_static_lib_win"
+		while IFS= read -r l; do
+			printf '%s\n' "$l"
+		done < "$WORK/libs.txt"
+	} > "$WORK/libs-rsp.txt"
+
+	rsp_win="$(cygpath -m "$WORK/libs-rsp.txt" | tr -d '\r')"
+	echo "=== Merging ONNX Runtime static libraries with lib.exe ==="
+	echo "libs-rsp.txt entries: $(wc -l < "$WORK/libs-rsp.txt")"
+	head -n 5 "$WORK/libs-rsp.txt"
+	lib_out="$("$LIB_EXE" @"$rsp_win" 2>&1)" || {
+		echo "lib.exe failed with exit code $?: $lib_out"
+		exit 1
+	}
+	[ -n "$lib_out" ] && echo "$lib_out"
+	[ -f "$ort_static_lib" ] || die "lib.exe did not create $ort_static_lib"
+
+	echo "=== Compiling feov-embed ($TARGET) with MSVC ==="
+	EMBED_DIR="$WORK/embed"
+	mkdir -p "$EMBED_DIR"
+	cat > "$EMBED_DIR/CMakeLists.txt" <<EOS
+cmake_minimum_required(VERSION 3.21)
+project(feovembed CXX)
+set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
+add_executable(feov-embed
+	"$(cygpath -m "$NATIVE_DIR/feov-embed/main.cpp")"
+	"$(cygpath -m "$NATIVE_DIR/frame/frame.cpp")"
+)
+target_compile_features(feov-embed PRIVATE cxx_std_17)
+target_compile_definitions(feov-embed PRIVATE FEOV_HELPER_DIGEST=\"${DIGEST}\")
+target_include_directories(feov-embed PRIVATE
+	"$(cygpath -m "$SRC/include/onnxruntime/core/session")"
+	"$(cygpath -m "$NATIVE_DIR/frame")"
+	"$(cygpath -m "$NATIVE_DIR/feov-embed")"
+)
+target_link_libraries(feov-embed PRIVATE
+	"$(cygpath -m "$ort_static_lib")"
+	advapi32 dbghelp setupapi pathcch shlwapi dxgi
+)
+target_compile_options(feov-embed PRIVATE /Brepro)
+target_link_options(feov-embed PRIVATE /Brepro)
+EOS
+	cmake -S "$EMBED_DIR" -B "$EMBED_DIR/b" -G "$GEN" -A "$VS_ARCH"
+	cmake --build "$EMBED_DIR/b" --config Release -j "$J"
+
+	OUT_NAME="${HELPER}_${OS}_${ARCH}${EXT}"
+	cp "$EMBED_DIR/b/Release/feov-embed.exe" "$OUTDIR/$OUT_NAME"
+	cp "$EMBED_DIR/b/Release/feov-embed.exe" "$OUTDIR/${HELPER}${EXT}"
+	cp "$WORK/src/$model_file" "$OUTDIR/gte-small.int8.ort"
+	cp "$WORK/src/$model_file" "$OUTDIR/$model_file"
+	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
+	exit 0
+fi
 
 # ---- Toolchain ----------------------------------------------------------------------
 tool_pin() { # tool_pin <name>
@@ -294,5 +445,120 @@ with open('traineddata.c', 'w') as f:
 	fi
 
 	cp "$OUT_NAME" "$OUTDIR/$OUT_NAME"
+	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
+fi
+
+if [ "$HELPER" = "feov-embed" ]; then
+	model_file="gte-small.int8.${ARCH}.ort"
+	fetch_pinned "$model_file" "$HELPER_PINS" "$WORK/src"
+
+	if [ ! -f "$PREFIX/lib/libonnxruntime_static.a" ]; then
+		echo "=== Providing ONNX Runtime ($TARGET) ==="
+		mkdir -p "$PREFIX/lib" "$PREFIX/include"
+		if [ -n "${ORT_STATIC_DIR:-}" ] && [ -f "$ORT_STATIC_DIR/lib/libonnxruntime_static.a" ]; then
+			cp "$ORT_STATIC_DIR"/include/* "$PREFIX/include/"
+			cp "$ORT_STATIC_DIR"/lib/* "$PREFIX/lib/"
+		elif [ -f "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/lib/libonnxruntime_static.a" ]; then
+			cp "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/include/"* "$PREFIX/include/"
+			cp "$HOME/.claude/scratch/vecplan/ortstatic/build/${TARGET}-zig-min/out/lib/"* "$PREFIX/lib/"
+		elif [ -f "$HOME/.claude/scratch/vecplan/ortstatic/out/min/lib/libonnxruntime_static.a" ]; then
+			cp "$HOME/.claude/scratch/vecplan/ortstatic/out/min/include/"* "$PREFIX/include/"
+			cp "$HOME/.claude/scratch/vecplan/ortstatic/out/min/lib/"* "$PREFIX/lib/"
+		else
+			fetch_pinned onnxruntime-1.31.1.tar.gz "$HELPER_PINS" "$WORK/src"
+			echo "=== Building ONNX Runtime ($TARGET) ==="
+			rm -rf "$WORK/build/ort" && mkdir -p "$WORK/build/ort"
+			tar -C "$WORK/build/ort" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+			python3 -m pip install flatbuffers 2>/dev/null || pip3 install flatbuffers 2>/dev/null || pip install flatbuffers 2>/dev/null || python3 -m pip install --break-system-packages flatbuffers 2>/dev/null || true
+			python3 "$WORK/build/ort/tools/ci_build/build.py" \
+				--build_dir "$WORK/build/ort/b" \
+				--config Release \
+				--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
+				--include_ops_by_config "$NATIVE_DIR/feov-embed/ops.config" \
+				--enable_reduced_operator_type_support \
+				--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
+				--parallel "$J" \
+				--cmake_extra_defines CMAKE_SYSTEM_NAME="$SYSNAME" CMAKE_SYSTEM_PROCESSOR="$PROC" \
+					CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX" \
+					CMAKE_AR="$AR" CMAKE_RANLIB="$RANLIB"
+			ort_lib_out="$PREFIX/lib/libonnxruntime_static.a"
+			rm -f "$ort_lib_out"
+			libs=()
+			while IFS= read -r l; do libs+=("$l"); done < <(find "$WORK/build/ort/b/Release" \( -name '*.a' -o -name '*.lib' \) \
+				! -name 'libprotoc.a' ! -name 'libprotobuf.a' ! -name 'libupb*.a' ! -name 'libflatbuffers.a' \
+				! -name 'protoc*.lib' ! -name 'libprotobuf.lib' ! -name 'libprotobufd.lib' ! -name 'flatbuffers.lib' ! -name 'upb*.lib' \
+				! -name 'libonnxruntime_static.a' ! -path '*gtest*' ! -path '*gmock*' ! -path '*benchmark*' ! -name '*test*' | sort)
+			case "$(uname -s)" in
+			Darwin) if [ "$AR" = ar ]; then libtool -static -o "$ort_lib_out" "${libs[@]}"; else { echo "CREATE $ort_lib_out"; for l in "${libs[@]}"; do echo "ADDLIB $l"; done; echo SAVE; echo END; } | "$AR" -M; fi ;;
+			*) { echo "CREATE $ort_lib_out"; for l in "${libs[@]}"; do echo "ADDLIB $l"; done; echo SAVE; echo END; } | "$AR" -M ;;
+			esac
+			cp "$WORK/build/ort"/include/onnxruntime/core/session/onnxruntime_*.h "$PREFIX/include/"
+		fi
+	fi
+
+	# Fixups for Darwin
+	case "$SYSNAME" in
+	Darwin)
+		GOSRC="$(go env GOROOT)/src"
+		tbd_target="$PROC-macos"
+		dyn_syms() {
+			grep -rhoE "//go:cgo_import_dynamic [^ ]+ [^ ]+ \"[^\"]*$1\"" "$GOSRC" |
+				awk '{ print "_" $3 }' | sort -u | paste -sd, - | sed 's/,/, /g'
+		}
+		write_tbd() {
+			mkdir -p "$(dirname "$1")"
+			{
+				printf -- "--- !tapi-tbd\ntbd-version: 4\ntargets: [ %s ]\ninstall-name: '%s'\ncurrent-version: 1.0\n" "$tbd_target" "$2"
+				[ -n "${3:-}" ] && printf -- "exports:\n  - targets: [ %s ]\n    symbols: [ %s ]\n" "$tbd_target" "$3"
+				printf -- '...\n'
+			} > "$1"
+		}
+		cf_syms="$(dyn_syms CoreFoundation)"
+		sec_syms="$(dyn_syms Security)"
+		write_tbd "$PREFIX/lib/libresolv.tbd" '/usr/lib/libresolv.9.dylib'
+		write_tbd "$PREFIX/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" \
+			'/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation' "$cf_syms"
+		write_tbd "$PREFIX/Frameworks/Security.framework/Security.tbd" \
+			'/System/Library/Frameworks/Security.framework/Versions/A/Security' "$sec_syms"
+		;;
+	esac
+
+	# ---- Compile feov-embed -------------------------------------------------------------
+	echo "=== Compiling feov-embed ($TARGET) ==="
+	cd "$WORK/build"
+
+	# Compile C++ objects
+	CXXFLAGS=(-std=c++17 -O2 -DFEOV_HELPER_DIGEST="\"$DIGEST\"" -D_USE_MATH_DEFINES)
+	CXXFLAGS+=(-I"$PREFIX/include" -I"$NATIVE_DIR/frame" -I"$NATIVE_DIR/feov-embed")
+	[ "$SYSNAME" = Darwin ] && CXXFLAGS+=(-fno-cxx-modules)
+
+	"$CXX" "${CXXFLAGS[@]}" -c -o frame.o "$NATIVE_DIR/frame/frame.cpp"
+	"$CXX" "${CXXFLAGS[@]}" -c -o main.o "$NATIVE_DIR/feov-embed/main.cpp"
+
+	LDFLAGS=(-L"$PREFIX/lib" -lonnxruntime_static -lc++)
+	case "$SYSNAME" in
+	Linux)
+		LDFLAGS+=(-static)
+		;;
+	Windows)
+		LDFLAGS+=(-static -lws2_32)
+		;;
+	Darwin)
+		LDFLAGS+=(-F"$PREFIX/Frameworks" -framework CoreFoundation -framework Security -lresolv)
+		;;
+	esac
+
+	OUT_NAME="${HELPER}_${OS}_${ARCH}${EXT}"
+	"$CXX" -o "$OUT_NAME" main.o frame.o "${LDFLAGS[@]}"
+
+	# Run staticproof check on built helper
+	if [ -f "$REPO_ROOT/scripts/staticproof/main.go" ]; then
+		go -C "$REPO_ROOT/scripts" run ./staticproof -artifact "$HELPER" "$PWD/$OUT_NAME"
+	fi
+
+	cp "$OUT_NAME" "$OUTDIR/$OUT_NAME"
+	cp "$OUT_NAME" "$OUTDIR/${HELPER}${EXT}"
+	cp "$WORK/src/$model_file" "$OUTDIR/gte-small.int8.ort"
+	cp "$WORK/src/$model_file" "$OUTDIR/$model_file"
 	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
 fi

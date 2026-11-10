@@ -56,7 +56,7 @@ func TestM39sRowIsCitedByItsLine(t *testing.T) {
 	body := m39BFile(t)
 	e := storePlainSource(t, run, "https://oeis.org/A002808/b002808.txt", body)
 
-	got, err := SearchSource(run, e, "", "66 91")
+	got, err := SearchSource(run, e, "66 91")
 	if err != nil {
 		t.Fatal(err)
 	}

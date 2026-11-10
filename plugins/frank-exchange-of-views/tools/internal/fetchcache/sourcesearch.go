@@ -3,13 +3,17 @@ package fetchcache
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
 )
 
 // SEARCHING A SOURCE IS A READ OF THE TEXT A CITATION IS FOUND IN, so it reads that text the way
@@ -24,10 +28,6 @@ import (
 // IT GATES NOTHING. It writes no event and refuses no act; a hit is information, and the seat still
 // chooses the words it cites.
 
-// EVERY HIT IS PRINTED, as every selector prints every match (ruled by gblock 2026-10-31): a list cut
-// at N reads as a narrow pattern that found N. A broad pattern says so by its count, which is the
-// seat's signal to narrow it.
-
 // ErrPatternMatchesEmpty is a pattern that matches the empty string: it would match at every
 // position of the text, which is no question about it.
 var ErrPatternMatchesEmpty = errors.New("the pattern matches the empty string")
@@ -41,10 +41,12 @@ type SourceSearch struct {
 	// that holds it.
 	Origin   string `json:"source_text_origin"`
 	TextPath string `json:"text_path"`
-	// Hits are every match, in text order.
+	// Hits are every match, in text order (or ranked order for hybrid).
 	Hits []SourceHit `json:"hits"`
-	// Selection says what was asked and how many matches the text holds.
-	Selection SourceSelection `json:"selection"`
+	// Selection says what was asked and how many matches the text holds (for literal search).
+	Selection *SourceSelection `json:"selection"`
+	// SearchScope describes the scope and truncation of a ranked hybrid search.
+	SearchScope *hybridsearch.SearchScope `json:"search_scope"`
 }
 
 // SourceSelection is what a search asked and how many matches the text holds.
@@ -57,6 +59,8 @@ type SourceSelection struct {
 type SourceHit struct {
 	// Page is the PDF page of an OCR reading the match sits on; absent for embedded text.
 	Page int `json:"page,omitempty"`
+	// Score is the RRF score for ranked hybrid search; omitted for literal search.
+	Score float32 `json:"score,omitempty"`
 	// Start and End are the match's byte offsets in the text it was found in — the source's text, or
 	// the page's reading — whose sha256 is TextSha: the coordinates a citation records its span in.
 	Start   int    `json:"start"`
@@ -66,8 +70,8 @@ type SourceHit struct {
 	Matched string `json:"matched"`
 	// Line and LastLine are the lines of that text the match starts and ends on, numbered from 1 —
 	// what `cite --source-lines` counts, in the text TextSha names.
-	Line     int `json:"line"`
-	LastLine int `json:"last_line"`
+	Line     int `json:"line,omitempty"`
+	LastLine int `json:"last_line,omitempty"`
 	// Sentence is the source's sentence the match sits in, its whitespace folded, between
 	// SentenceStart and SentenceEnd in the same text; an ellipsis marks an edge the search stopped at
 	// without finding the sentence's.
@@ -80,28 +84,467 @@ type SourceHit struct {
 	NotCiteable string `json:"not_citeable,omitempty"`
 }
 
-// SearchSource finds every match of a pattern in a cached source's text, case-insensitively. match
-// is an RE2 regex; quote, when given instead, is literal text and is read in the source's
-// normalisation, so a ’ typed from the page matches the ’ there. Exactly one of the two is given;
-// an empty one, or a pattern that matches the empty string, is refused.
-func SearchSource(run record.Run, e Entry, match, quote string) (SourceSearch, error) {
-	re, criterion, err := searchPattern(match, quote)
-	if err != nil {
-		return SourceSearch{}, err
+// CrossSourceSearch is a search across all cached sources in a run.
+type CrossSourceSearch struct {
+	Hits        []CrossSourceHit          `json:"hits"`
+	Selection   *CrossSourceSelection     `json:"selection,omitempty"`
+	SearchScope *hybridsearch.SearchScope `json:"search_scope,omitempty"`
+}
+
+// CrossSourceSelection is what a cross-source literal search asked and how many sources/matches were found.
+type CrossSourceSelection struct {
+	Criterion         string                          `json:"criterion"`
+	Matched           int                             `json:"matched"`
+	SearchedSources   int                             `json:"searched_sources"`
+	UnsearchedSources []hybridsearch.UnsearchedSource `json:"unsearched_sources,omitempty"`
+}
+
+// CrossSourceHit is one hit from a cross-source search.
+type CrossSourceHit struct {
+	Sha           string  `json:"sha256"`
+	URL           string  `json:"url"`
+	Origin        string  `json:"source_text_origin"`
+	TextSha       string  `json:"text_sha"`
+	Page          int     `json:"page,omitempty"`
+	Score         float32 `json:"score,omitempty"`
+	Matched       string  `json:"matched"`
+	Sentence      string  `json:"sentence"`
+	SentenceStart int     `json:"sentence_start"`
+	SentenceEnd   int     `json:"sentence_end"`
+	SourceSpan    string  `json:"source_span"`
+	NotCiteable   string  `json:"not_citeable,omitempty"`
+	Start         int     `json:"start"`
+	End           int     `json:"end"`
+}
+
+// SearchSource finds every match of a literal quote in a cached source's text, case-insensitively,
+// in the source's normalisation. It returns an exhaustive match set with nothing cut.
+func SearchSource(run record.Run, e Entry, quote string) (SourceSearch, error) {
+	if quote == "" {
+		return SourceSearch{}, fmt.Errorf("%w: no quote was given", ErrPatternMatchesEmpty)
 	}
+	want := fold(quote, hyphenAsIs).s
+	if want == "" {
+		return SourceSearch{}, fmt.Errorf("%w: the quote is blank", ErrPatternMatchesEmpty)
+	}
+	re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(want))
+	criterion := `literal: "` + quote + `"`
+
 	texts, origin, _, err := sourceTexts(run, e)
 	if err != nil {
 		return SourceSearch{}, err
 	}
-	out := SourceSearch{Sha: e.Sha, URL: e.URL, Origin: recordpb.Word(origin), TextPath: SourceTextPath(run, e, origin), Hits: []SourceHit{}}
+	out := SourceSearch{
+		Sha:      e.Sha,
+		URL:      e.URL,
+		Origin:   recordpb.Word(origin),
+		TextPath: SourceTextPath(run, e, origin),
+		Hits:     []SourceHit{},
+	}
 	for _, t := range texts {
 		f := fold(t.text, hyphenAsIs)
 		for _, m := range re.FindAllStringIndex(f.s, -1) {
 			out.Hits = append(out.Hits, sourceHit(texts, t, f.at[m[0]], f.end[m[1]-1]))
 		}
 	}
-	out.Selection = SourceSelection{Criterion: criterion, Matched: len(out.Hits)}
+	out.Selection = &SourceSelection{Criterion: criterion, Matched: len(out.Hits)}
 	return out, nil
+}
+
+// SearchCrossSourcesQuote finds every match of a literal quote across all cached sources in a run,
+// case-insensitively, returning an exhaustive match set.
+func SearchCrossSourcesQuote(run record.Run, quote string) (CrossSourceSearch, error) {
+	if quote == "" {
+		return CrossSourceSearch{}, fmt.Errorf("%w: no quote was given", ErrPatternMatchesEmpty)
+	}
+	want := fold(quote, hyphenAsIs).s
+	if want == "" {
+		return CrossSourceSearch{}, fmt.Errorf("%w: the quote is blank", ErrPatternMatchesEmpty)
+	}
+	re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(want))
+	criterion := `literal: "` + quote + `"`
+
+	entries, err := AllEntries(run)
+	if err != nil {
+		return CrossSourceSearch{}, err
+	}
+
+	var hits []CrossSourceHit
+	searchedSources := 0
+	var unsearchedSources []hybridsearch.UnsearchedSource
+
+	for _, e := range entries {
+		texts, origin, _, err := sourceTexts(run, e)
+		if err != nil {
+			unsearchedSources = append(unsearchedSources, hybridsearch.UnsearchedSource{
+				Sha:    e.Sha,
+				URL:    e.URL,
+				Reason: unsearchedReason(e),
+			})
+			continue
+		}
+		searchedSources++
+		originWord := recordpb.Word(origin)
+		for _, t := range texts {
+			f := fold(t.text, hyphenAsIs)
+			for _, m := range re.FindAllStringIndex(f.s, -1) {
+				sh := sourceHit(texts, t, f.at[m[0]], f.end[m[1]-1])
+				hits = append(hits, CrossSourceHit{
+					Sha:           e.Sha,
+					URL:           e.URL,
+					Origin:        originWord,
+					TextSha:       sh.TextSha,
+					Page:          sh.Page,
+					Matched:       sh.Matched,
+					Sentence:      sh.Sentence,
+					SentenceStart: sh.SentenceStart,
+					SentenceEnd:   sh.SentenceEnd,
+					SourceSpan:    sh.SourceSpan,
+					NotCiteable:   sh.NotCiteable,
+					Start:         sh.Start,
+					End:           sh.End,
+				})
+			}
+		}
+	}
+
+	return CrossSourceSearch{
+		Hits: hits,
+		Selection: &CrossSourceSelection{
+			Criterion:         criterion,
+			Matched:           len(hits),
+			SearchedSources:   searchedSources,
+			UnsearchedSources: unsearchedSources,
+		},
+	}, nil
+}
+
+// SearchSourceHybrid executes ranked top-K hybrid (BM25 + dense vector RRF) retrieval over one cached source.
+func SearchSourceHybrid(run record.Run, e Entry, query string, topK int) (SourceSearch, error) {
+	if strings.TrimSpace(query) == "" {
+		return SourceSearch{}, errors.New("the search query is blank")
+	}
+	if topK <= 0 {
+		topK = 10
+	}
+	texts, origin, rec, err := sourceTexts(run, e)
+	if err != nil {
+		return SourceSearch{}, err
+	}
+	emb, err := vecembed.Default()
+	if err != nil {
+		return SourceSearch{}, err
+	}
+	defer emb.Close()
+
+	fullText, pageMap, textSha, err := fullSourceText(run, e, origin, rec, texts)
+	if err != nil {
+		return SourceSearch{}, err
+	}
+
+	cachedChunks, err := loadOrComputeChunks(run, emb, textSha, fullText, pageMap)
+	if err != nil {
+		return SourceSearch{}, err
+	}
+
+	qVecs, err := emb.Embed([]string{query})
+	if err != nil {
+		return SourceSearch{}, err
+	}
+
+	items := make([]hybridsearch.Item, len(cachedChunks))
+	for i, c := range cachedChunks {
+		items[i] = hybridsearch.Item{
+			Index:  i,
+			Text:   fullText[c.StartByte:c.EndByte],
+			Vector: c.Vector,
+		}
+	}
+
+	scored, err := hybridsearch.FuseRRF(items, query, qVecs[0], topK)
+	if err != nil {
+		return SourceSearch{}, err
+	}
+
+	out := SourceSearch{
+		Sha:      e.Sha,
+		URL:      e.URL,
+		Origin:   recordpb.Word(origin),
+		TextPath: SourceTextPath(run, e, origin),
+		Hits:     make([]SourceHit, 0, len(scored)),
+		SearchScope: &hybridsearch.SearchScope{
+			RankedAndCut:   true,
+			Returned:       len(scored),
+			SearchedChunks: len(cachedChunks),
+			Notice:         hybridsearch.SearchNotice,
+		},
+	}
+
+	for _, sc := range scored {
+		c := cachedChunks[sc.Index]
+		chunkText := fullText[c.StartByte:c.EndByte]
+		hit := hitForChunk(texts, origin, rec, pageMap, fullText, c, chunkText, query)
+		hit.Score = sc.Score
+		out.Hits = append(out.Hits, hit)
+	}
+
+	return out, nil
+}
+
+// SearchCrossSourcesHybrid executes ranked top-K hybrid retrieval across all cached sources in the run.
+func SearchCrossSourcesHybrid(run record.Run, query string, topK int) (CrossSourceSearch, error) {
+	if strings.TrimSpace(query) == "" {
+		return CrossSourceSearch{}, errors.New("the search query is blank")
+	}
+	if topK <= 0 {
+		topK = 10
+	}
+	emb, err := vecembed.Default()
+	if err != nil {
+		return CrossSourceSearch{}, err
+	}
+	defer emb.Close()
+
+	qVecs, err := emb.Embed([]string{query})
+	if err != nil {
+		return CrossSourceSearch{}, err
+	}
+
+	entries, err := AllEntries(run)
+	if err != nil {
+		return CrossSourceSearch{}, err
+	}
+
+	type sourceChunkRef struct {
+		entry    Entry
+		texts    []spanText
+		origin   recordpb.SourceTextOrigin
+		rec      ReadingRecord
+		pageMap  []int
+		fullText string
+		chunk    hybridsearch.CachedChunk
+	}
+
+	var allRefs []sourceChunkRef
+	var items []hybridsearch.Item
+	searchedSources := 0
+	var unsearchedSources []hybridsearch.UnsearchedSource
+
+	for _, e := range entries {
+		texts, origin, rec, err := sourceTexts(run, e)
+		if err != nil {
+			unsearchedSources = append(unsearchedSources, hybridsearch.UnsearchedSource{
+				Sha:    e.Sha,
+				URL:    e.URL,
+				Reason: unsearchedReason(e),
+			})
+			continue
+		}
+		fullText, pageMap, textSha, err := fullSourceText(run, e, origin, rec, texts)
+		if err != nil {
+			unsearchedSources = append(unsearchedSources, hybridsearch.UnsearchedSource{
+				Sha:    e.Sha,
+				URL:    e.URL,
+				Reason: err.Error(),
+			})
+			continue
+		}
+		cachedChunks, err := loadOrComputeChunks(run, emb, textSha, fullText, pageMap)
+		if err != nil {
+			unsearchedSources = append(unsearchedSources, hybridsearch.UnsearchedSource{
+				Sha:    e.Sha,
+				URL:    e.URL,
+				Reason: err.Error(),
+			})
+			continue
+		}
+		searchedSources++
+		for _, c := range cachedChunks {
+			allRefs = append(allRefs, sourceChunkRef{
+				entry:    e,
+				texts:    texts,
+				origin:   origin,
+				rec:      rec,
+				pageMap:  pageMap,
+				fullText: fullText,
+				chunk:    c,
+			})
+			items = append(items, hybridsearch.Item{
+				Index:  len(items),
+				Text:   fullText[c.StartByte:c.EndByte],
+				Vector: c.Vector,
+			})
+		}
+	}
+
+	scored, err := hybridsearch.FuseRRF(items, query, qVecs[0], topK)
+	if err != nil {
+		return CrossSourceSearch{}, err
+	}
+
+	hits := make([]CrossSourceHit, 0, len(scored))
+	for _, sc := range scored {
+		ref := allRefs[sc.Index]
+		chunkText := ref.fullText[ref.chunk.StartByte:ref.chunk.EndByte]
+		sh := hitForChunk(ref.texts, ref.origin, ref.rec, ref.pageMap, ref.fullText, ref.chunk, chunkText, query)
+		sh.Score = sc.Score
+		hits = append(hits, CrossSourceHit{
+			Sha:           ref.entry.Sha,
+			URL:           ref.entry.URL,
+			Origin:        recordpb.Word(ref.origin),
+			TextSha:       sh.TextSha,
+			Page:          sh.Page,
+			Score:         sh.Score,
+			Matched:       sh.Matched,
+			Sentence:      sh.Sentence,
+			SentenceStart: sh.SentenceStart,
+			SentenceEnd:   sh.SentenceEnd,
+			SourceSpan:    sh.SourceSpan,
+			NotCiteable:   sh.NotCiteable,
+			Start:         sh.Start,
+			End:           sh.End,
+		})
+	}
+
+	return CrossSourceSearch{
+		Hits: hits,
+		SearchScope: &hybridsearch.SearchScope{
+			RankedAndCut:      true,
+			Returned:          len(hits),
+			SearchedChunks:    len(items),
+			SearchedSources:   searchedSources,
+			UnsearchedSources: unsearchedSources,
+			Notice:            hybridsearch.SearchNotice,
+		},
+	}, nil
+}
+
+func fullSourceText(run record.Run, e Entry, origin recordpb.SourceTextOrigin, rec ReadingRecord, texts []spanText) (string, []int, string, error) {
+	switch origin {
+	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
+		path := OCRTextPath(run, e.Sha)
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return "", nil, "", err
+		}
+		fullText := string(b)
+		pageMap := make([]int, len(texts))
+		offset := 0
+		for i, t := range texts {
+			pageMap[i] = offset
+			offset += len(t.text) + 2 // "\n\n" separator in AssembleReading
+		}
+		return fullText, pageMap, rec.TextSha, nil
+	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED:
+		if len(texts) == 0 {
+			return "", nil, "", ErrNoText
+		}
+		return texts[0].text, nil, texts[0].sha, nil
+	default:
+		return "", nil, "", fmt.Errorf("%w: %s", ErrNoText, recordpb.Word(origin))
+	}
+}
+
+func loadOrComputeChunks(run record.Run, emb vecembed.Embedder, textSha, fullText string, pageMap []int) ([]hybridsearch.CachedChunk, error) {
+	cachePath := VectorCachePath(run, textSha)
+	cached, err := hybridsearch.ReadCache(cachePath, emb.ModelID())
+	if err == nil {
+		return cached, nil
+	}
+	chunks := hybridsearch.ChunkSource(fullText, pageMap)
+	if len(chunks) == 0 {
+		return nil, nil
+	}
+	chunkTexts := make([]string, len(chunks))
+	for i, ch := range chunks {
+		chunkTexts[i] = ch.Text
+	}
+	vecs, err := emb.Embed(chunkTexts)
+	if err != nil {
+		return nil, err
+	}
+	cached = make([]hybridsearch.CachedChunk, len(chunks))
+	for i, ch := range chunks {
+		cached[i] = hybridsearch.CachedChunk{
+			Index:     ch.Index,
+			StartByte: ch.StartByte,
+			EndByte:   ch.EndByte,
+			Page:      ch.Page,
+			Vector:    vecs[i],
+		}
+	}
+	_ = hybridsearch.WriteCache(cachePath, emb.ModelID(), cached)
+	return cached, nil
+}
+
+func hitForChunk(texts []spanText, origin recordpb.SourceTextOrigin, rec ReadingRecord, pageMap []int, fullText string, c hybridsearch.CachedChunk, chunkText, query string) SourceHit {
+	var t spanText
+	localChunkStart := c.StartByte
+	localChunkEnd := c.EndByte
+	if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR && len(texts) > 0 {
+		pageIdx := c.Page - 1
+		if pageIdx < 0 || pageIdx >= len(texts) {
+			pageIdx = 0
+		}
+		t = texts[pageIdx]
+		pageOffset := 0
+		if pageIdx < len(pageMap) {
+			pageOffset = pageMap[pageIdx]
+		}
+		localChunkStart = max(0, c.StartByte-pageOffset)
+		localChunkEnd = min(len(t.text), c.EndByte-pageOffset)
+	} else if len(texts) > 0 {
+		t = texts[0]
+	}
+
+	wordStart, wordEnd := findBestWordInChunk(t.text, localChunkStart, localChunkEnd, query)
+	return sourceHit(texts, t, wordStart, wordEnd)
+}
+
+func findBestWordInChunk(text string, chunkStart, chunkEnd int, query string) (int, int) {
+	if chunkStart < 0 {
+		chunkStart = 0
+	}
+	if chunkEnd > len(text) {
+		chunkEnd = len(text)
+	}
+	if chunkStart >= chunkEnd {
+		return chunkStart, chunkEnd
+	}
+	slice := text[chunkStart:chunkEnd]
+	words := strings.Fields(query)
+	for _, w := range words {
+		wClean := strings.TrimFunc(w, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+		if len(wClean) < 2 {
+			continue
+		}
+		idx := strings.Index(strings.ToLower(slice), strings.ToLower(wClean))
+		if idx >= 0 {
+			start := chunkStart + idx
+			end := start + len(wClean)
+			return start, end
+		}
+	}
+	inWord := false
+	wStart := chunkStart
+	for i := chunkStart; i < chunkEnd; {
+		r, size := utf8.DecodeRuneInString(text[i:])
+		if unicode.IsSpace(r) {
+			if inWord {
+				return wStart, i
+			}
+		} else {
+			if !inWord {
+				wStart = i
+				inWord = true
+			}
+		}
+		i += size
+	}
+	if inWord {
+		return wStart, chunkEnd
+	}
+	return chunkStart, chunkEnd
 }
 
 // sourceHit is the hit at [start, end) of t, with the sentence it sits in and whether cite takes it.
@@ -137,30 +580,23 @@ func sourceHit(texts []spanText, t spanText, start, end int) SourceHit {
 	return h
 }
 
-// searchPattern compiles a search's pattern, case-insensitive, and names it.
-func searchPattern(match, quote string) (*regexp.Regexp, string, error) {
-	var re *regexp.Regexp
-	var criterion string
-	switch {
-	case match != "" && quote != "":
-		return nil, "", errors.New("a search takes a regex or a literal, not both")
-	case quote != "":
-		want := fold(quote, hyphenAsIs).s
-		if want == "" {
-			return nil, "", fmt.Errorf("%w: the quote is blank", ErrPatternMatchesEmpty)
+func unsearchedReason(e Entry) string {
+	if e.TextReason != "" {
+		if strings.Contains(e.TextReason, "scanned or image-only") {
+			return "image_only: no OCR reading yet; run fetch --url " + e.URL
 		}
-		re, criterion = regexp.MustCompile("(?i)"+regexp.QuoteMeta(want)), `the quote "`+quote+`"`
-	case match != "":
-		var err error
-		if re, err = regexp.Compile("(?i)" + match); err != nil {
-			return nil, "", err
+		return e.TextReason
+	}
+	if e.TextExtracted != nil && !*e.TextExtracted {
+		if e.ContentType == "application/pdf" {
+			return "image_only: no OCR reading yet; run fetch --url " + e.URL
 		}
-		criterion = "/" + match + "/"
-	default:
-		return nil, "", fmt.Errorf("%w: no pattern was given", ErrPatternMatchesEmpty)
+		return "no text extracted from document"
 	}
-	if re.MatchString("") {
-		return nil, "", ErrPatternMatchesEmpty
-	}
-	return re, criterion, nil
+	return "the source has no extracted text"
+}
+
+// VectorCachePath is where dense vector embeddings of textSha's chunks are cached.
+func VectorCachePath(run record.Run, textSha string) string {
+	return filepath.Join(Dir(run), textSha+".vec")
 }

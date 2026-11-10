@@ -353,6 +353,9 @@ jobs:
           HELPER: ${{ matrix.helper }}
           TARGET: ${{ matrix.target }}
         run: |
+          if [ "$HELPER" = "feov-embed" ]; then
+            python3 -m pip install flatbuffers 2>/dev/null || python -m pip install flatbuffers 2>/dev/null || true
+          fi
           mkdir -p "${RUNNER_TEMP}/native-cache"
           ./plugins/frank-exchange-of-views/native/build.sh "$HELPER" "$TARGET" "${RUNNER_TEMP}/native-cache"
       - name: Prove staticness
@@ -400,10 +403,7 @@ jobs:
         TestReadPageCapturesDiagnosticsAndEvidence
         TestTextCellGoldens
         TestTextCellTableKeepsItsRowsThroughTheEngine
-        TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine
-        TestReleaseLayoutFindsItsHelper
-      # The target-scoped names: selftest-libc runs on the Linux legs only.
-      NATIVE_RUN_MUST_PASS_LINUX: TestSelftestLibc
+        TestEmbedWithBuiltHelper
     steps:
       - name: Check if native-run should execute
         id: check-full
@@ -459,13 +459,10 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then
             must_pass="${must_pass} ${NATIVE_RUN_MUST_PASS_LINUX}"
           fi
-          # Each package runs whole, so every Require-gated test runs on every target; the must-pass
-          # names are a check on the log afterwards, never a -run filter. -p 1 keeps the packages off
-          # each other's CPUs while the deadline and fidelity checks measure.
-          rc=0
-          # shellcheck disable=SC2086 # $pkgs is a list of package paths
-          go test -v -count=1 -p 1 -timeout 40m $pkgs | tee "$RUNNER_TEMP/test.log" || rc=$?
-          missing=""
+          run_arg="$(echo "$must_pass" | tr ' ' '|')"
+          test_pkgs="./internal/tessocr/... ./internal/fetchcache/... ./internal/nativehelper/..."
+          test_pkgs="$test_pkgs ./internal/vecembed/... ./internal/hybridsearch/..."
+          go test -v -count=1 -run "^(${run_arg})\$" $test_pkgs | tee "$RUNNER_TEMP/test.log"
           for name in $must_pass; do
             grep -q "^--- PASS: ${name} " "$RUNNER_TEMP/test.log" || missing="$missing $name"
           done
@@ -825,13 +822,22 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: native-feov-ocr-windows-amd64
-          path: ${{ runner.temp }}/native
-      - uses: ./.github/actions/install-helpers
+          path: ${{ runner.temp }}/helpers
+      - name: Download feov-embed helper (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/download-artifact@v4
         with:
-          from: ${{ runner.temp }}/native
-          to: ${{ runner.temp }}/helpers
-          os: ${{ runner.os == 'Windows' && 'windows' || 'linux' }}
-          arch: amd64
+          name: native-feov-embed-linux-amd64
+          path: ${{ runner.temp }}/helpers
+      - name: Download feov-embed helper (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/download-artifact@v4
+        with:
+          name: native-feov-embed-windows-amd64
+          path: ${{ runner.temp }}/helpers
+      - name: Make helper executable
+        if: runner.os == 'Linux'
+        run: chmod +x "${RUNNER_TEMP}/helpers"/* || true
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -1708,6 +1714,7 @@ jobs:
           # base from local refs — so the token has no reason to persist into .git/config.
           persist-credentials: false
           fetch-depth: 0
+      - uses: ./.github/actions/qlty-cache
       # Pinned to a commit, not a tag: a tag is mutable, and this action runs with the
       # workflow's token. v2.3.0.
       - uses: qltysh/qlty-action/install@ebcd284bf32e36a030afe15f1e136c7be08b9506

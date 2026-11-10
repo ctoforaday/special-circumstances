@@ -1,6 +1,7 @@
 package seat
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/jsonshape"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -25,6 +27,7 @@ import (
 	_ "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -371,13 +374,13 @@ type scopedPara struct {
 }
 
 // reportLong is the report's page for every seat.
-var reportLong = "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("K-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.\n\n" + report.ReportTextNote
+var reportLong = "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("K-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --quote selects lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. --search ranks paragraphs by hybrid BM25 and vector relevance. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --quote, or ranked hits under --search — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --quote, `selection` says how many lines matched and of how many; under --search, `search_scope` describes the ranked retrieval. The bare call is the form to READ; this is the form to select from.\n\n" + report.ReportTextNote
 
 // reportPage is the report's page: every seat's, and the lens's paragraph on what its whole read
 // records (record.ServeReport).
 var reportPage = []scopedPara{
 	{text: reportLong},
-	{roles: []string{"lens"}, text: "A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote and --assembled serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat."},
+	{roles: []string{"lens"}, text: "A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --quote and --search serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat."},
 }
 
 // scopedPages are the projections whose page is scoped by role, by name.
@@ -655,7 +658,7 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 		// problem this vocabulary bans everywhere else. --format is the flag `graph` already
 		// uses for the same question.
 		if v.name == "board" {
-			sub.Flags().String(flags.Format, "json", "json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --match and --quote are refused beside it)")
+			sub.Flags().String(flags.Format, "json", "json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --quote is refused beside it)")
 		}
 		// READING AT AN ANCHOR, rather than pulling the whole document to check one sentence.
 		// The window is addressed by anchor because a line number is a fact about a rendering —
@@ -690,7 +693,7 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 		// and verbs on the seat's surface that do take it (RefuseUnknownFlag).
 		if v.name == "changes" {
 			sub.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID,
-				"scope this projection to one gap — red's required_fix beside the edits and the retires of evidence anchors answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)")
+				"scope this projection to one gap — red's required_fix beside the edits and the retires of evidence anchors answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --quote (a literal, the same span the acting verbs take)")
 		}
 		if v.name == "report" {
 			// WHICH SELECTORS COMBINE IS SAID BESIDE EACH ONE, because a seat reads the line of the
@@ -698,12 +701,12 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 			// without --anchor twice, each a refused call. The refusals below (renderView) say the
 			// same things at the call.
 			sub.Flags().Var(flags.AnchorID(), flags.Anchor,
-				"read the report AT one anchor `id` (F-…, C-…, K-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --match and --quote are each refused with it")
+				"read the report AT one anchor `id` (F-…, C-…, K-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --search and --quote are each refused with it")
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
 				"ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted)")
-			for _, name := range []string{flags.Match, flags.Quote} {
-				sub.Flags().Lookup(name).Usage += reportSelectorBound
-			}
+			flags.Text(sub, flags.Search,
+				"ranked top-K hybrid (BM25 + dense vector) retrieval over the report's paragraphs. The list is cut and absence proves nothing; for an exhaustive literal match set, use --quote. Refused beside --anchor and --quote")
+			sub.Flags().Lookup(flags.Quote).Usage += reportSelectorBound
 		}
 		// ONE ENTRY, BY THE TOKEN THE SEAT IS HOLDING. The same flag `report` takes for the same
 		// id — one declaration (flags.AnchorID), so both refuse a malformed id in the same words
@@ -731,11 +734,11 @@ func atAnchorShapeSuffix(name string) string {
 	return "\n\nOUTPUT WITH --anchor (JSON — `source` or `computation`, whichever the anchor names): " + jsonshape.Tree(record.EvidenceAtJSON{})
 }
 
-// reportSelectorBound closes --match and --quote on the report's page with what each combines
-// with there: the pair is every view's, and only this view has an anchor read.
-const reportSelectorBound = ". Refused beside --anchor"
+// reportSelectorBound closes --quote on the report's page with what it combines
+// with there: only this view has an anchor read and ranked hybrid search.
+const reportSelectorBound = ". Refused beside --anchor and --search"
 
-// markdownSelectorBound qualifies what --match and --quote select on a view whose bare form is
+// markdownSelectorBound qualifies what --quote selects on a view whose bare form is
 // markdown: the markdown has no entries, so the selection is printed in the --json form.
 const markdownSelectorBound = " (printed in the --json form, with or without --json: the bare markdown has no entries)"
 
@@ -913,7 +916,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			if sel, serr := SelectorOf(cmd); serr != nil {
 				return serr
 			} else if sel.Active() {
-				return feov.Errorf(feov.Validation, "--match and --quote select gaps from the JSON form of board; --format %s is markdown and has no entries to select. Drop --format", f)
+				return feov.Errorf(feov.Validation, "--quote selects gaps from the JSON form of board; --format %s is markdown and has no entries to select. Drop --format", f)
 			}
 			// One record read for both renders: ledger and archive are two views of the same
 			// family, and each view.Markdown call would fetch it again.
@@ -966,7 +969,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// what `edit` holds a seat responsible for carrying across an edit.
 	if want == "report" {
 		// BOTH FORMS ARE ONE READ AND ONE SELECTION. The JSON takes the text and its head off one
-		// snapshot; what --anchor, --match and --quote choose is decided once, below, and each form
+		// snapshot; what --anchor, --quote and --search choose is decided once, below, and each form
 		// prints it.
 		asJSON, _ := cmd.Flags().GetBool(flags.JSON)
 		var b []byte
@@ -981,7 +984,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			if serr != nil {
 				return serr
 			}
-			serve = !sel.Active()
+			serve = !sel.Active() && Str(cmd, flags.Search) == ""
 		}
 		if serve {
 			s, err := Begin(cmd)
@@ -1014,12 +1017,15 @@ func renderView(cmd *cobra.Command, want string) error {
 			return werr
 		}
 		if a := Str(cmd, flags.Anchor); a != "" {
+			if Str(cmd, flags.Search) != "" {
+				return feov.Errorf(feov.Validation, "--anchor reads the report at one anchor, and --search is a ranked read of the whole report — pass one or the other")
+			}
 			// ONE WINDOW IS NOT A SET TO SELECT FROM, as at `evidence` below: the pair would be
 			// accepted and do nothing, and the seat would read the window as its selection.
 			if sel, serr := SelectorOf(cmd); serr != nil {
 				return serr
 			} else if sel.Active() {
-				return feov.Errorf(feov.Validation, "--anchor reads the report at one anchor, and --match/--quote select lines from the whole report — pass one or the other")
+				return feov.Errorf(feov.Validation, "--anchor reads the report at one anchor, and --quote selects lines from the whole report — pass one or the other")
 			}
 			// AN ANCHOR THAT LEFT WITH ITS CLAIM IS NOT STALE. `retire` takes a bare anchor out
 			// of the report on the record; saying "stale reference or another run" of it would send
@@ -1065,6 +1071,117 @@ func renderView(cmd *cobra.Command, want string) error {
 		if serr != nil {
 			return serr
 		}
+		searchQuery := Str(cmd, flags.Search)
+		if sel.Active() && searchQuery != "" {
+			return feov.Errorf(feov.Validation, "--search and --quote are mutually exclusive: --quote returns every literal match; --search returns a cut ranked list. Pass one")
+		}
+		if searchQuery != "" {
+			if strings.TrimSpace(searchQuery) == "" {
+				return feov.Errorf(feov.Validation, "the search query is blank")
+			}
+			chunks := hybridsearch.ChunkReport(string(b))
+			if len(chunks) == 0 {
+				res := struct {
+					Chunks      []hybridsearch.ReportChunk `json:"chunks"`
+					SearchScope hybridsearch.SearchScope   `json:"search_scope"`
+				}{
+					Chunks: []hybridsearch.ReportChunk{},
+					SearchScope: hybridsearch.SearchScope{
+						RankedAndCut:   true,
+						Returned:       0,
+						SearchedChunks: 0,
+						Notice:         hybridsearch.SearchNotice,
+					},
+				}
+				if asJSON {
+					var buf bytes.Buffer
+					enc := json.NewEncoder(&buf)
+					enc.SetEscapeHTML(false)
+					enc.SetIndent("", "  ")
+					if err := enc.Encode(res); err != nil {
+						return err
+					}
+					_, werr := cmd.OutOrStdout().Write(buf.Bytes())
+					return werr
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), res.SearchScope.Notice)
+				return nil
+			}
+
+			emb, err := vecembed.Default()
+			if err != nil {
+				return err
+			}
+			defer emb.Close()
+
+			chunkTexts := make([]string, len(chunks))
+			for i, ch := range chunks {
+				chunkTexts[i] = ch.Text
+			}
+			vecs, err := emb.Embed(chunkTexts)
+			if err != nil {
+				return err
+			}
+			qVecs, err := emb.Embed([]string{searchQuery})
+			if err != nil {
+				return err
+			}
+
+			items := make([]hybridsearch.Item, len(chunks))
+			for i, ch := range chunks {
+				items[i] = hybridsearch.Item{
+					Index:  i,
+					Text:   ch.Text,
+					Vector: vecs[i],
+				}
+			}
+
+			scored, err := hybridsearch.FuseRRF(items, searchQuery, qVecs[0], 10)
+			if err != nil {
+				return err
+			}
+
+			outChunks := make([]hybridsearch.ReportChunk, len(scored))
+			for i, sc := range scored {
+				ch := chunks[sc.Index]
+				ch.Score = sc.Score
+				outChunks[i] = ch
+			}
+
+			res := struct {
+				Chunks      []hybridsearch.ReportChunk `json:"chunks"`
+				SearchScope hybridsearch.SearchScope   `json:"search_scope"`
+			}{
+				Chunks: outChunks,
+				SearchScope: hybridsearch.SearchScope{
+					RankedAndCut:   true,
+					Returned:       len(scored),
+					SearchedChunks: len(chunks),
+					Notice:         hybridsearch.SearchNotice,
+				},
+			}
+
+			if asJSON {
+				var buf bytes.Buffer
+				enc := json.NewEncoder(&buf)
+				enc.SetEscapeHTML(false)
+				enc.SetIndent("", "  ")
+				if err := enc.Encode(res); err != nil {
+					return err
+				}
+				_, werr := cmd.OutOrStdout().Write(buf.Bytes())
+				return werr
+			}
+
+			for _, ch := range outChunks {
+				if ch.Heading != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), "%s\n", ch.Heading)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "lines %d..%d (score %.4f):\n%s\n\n", ch.StartLine, ch.EndLine, ch.Score, ch.Text)
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), res.SearchScope.Notice)
+			return nil
+		}
 		if asJSON {
 			lines := record.ReportLines(string(b))
 			if !sel.Active() {
@@ -1108,7 +1225,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			if sel, serr := SelectorOf(cmd); serr != nil {
 				return serr
 			} else if sel.Active() {
-				return feov.Errorf(feov.Validation, "--anchor reads the one entry at an anchor, and --match/--quote select entries from the table — pass one or the other")
+				return feov.Errorf(feov.Validation, "--anchor reads the one entry at an anchor, and --quote selects entries from the table — pass one or the other")
 			}
 			b, err := evidenceAt(run, a)
 			if err != nil {
@@ -1173,7 +1290,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// above serves every selection on these views. Handing markdown to WriteSelected printed every
 	// entry for any pattern (universe m26: `show inquiries --match zzqqxx` returned all six).
 	if sel.Active() {
-		return feov.Errorf(feov.Internal, "--match and --quote reached the markdown form of %s, which has no %s to select — the tool is at fault, not your call", want, selectorNoun(want))
+		return feov.Errorf(feov.Internal, "--quote reached the markdown form of %s, which has no %s to select — the tool is at fault, not your call", want, selectorNoun(want))
 	}
 
 	scope := Str(cmd, flags.ID)

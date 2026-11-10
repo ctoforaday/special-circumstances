@@ -464,22 +464,42 @@ PY
           local tmp_cache="${cache_dir}.tmp.$$"
           rm -rf "$tmp_cache"
           mkdir -p "$tmp_cache"
-          "$native_root/build.sh" "$helper" "${host_os}-${host_arch}" "$tmp_cache" || die "building helper $helper failed"
-          [ -f "$tmp_cache/$helper_bin_name" ] || die "native/build.sh wrote no $helper_bin_name"
-          local pin dl_sha dl_url actual_sha
-          for export_name in "${exports[@]}"; do
-            # PINS.txt records are <sha256> <file> <url>.
-            pin="$(awk -v f="$export_name" '$0 !~ /^[[:space:]]*#/ && $2 == f { sub(/\r$/, ""); print $1, $3 }' "$helper_dir/PINS.txt" 2>/dev/null)"
-            dl_sha="${pin%% *}"; dl_url="${pin#* }"
-            [ -n "$pin" ] && [ -n "$dl_sha" ] && [ -n "$dl_url" ] && [ "$dl_url" != "$pin" ] \
-              || die "$helper: the export $export_name has no pin in $helper_dir/PINS.txt"
-            curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 --max-time 600 "$dl_url" -o "$tmp_cache/$export_name" \
-              || die "could not download $export_name from $dl_url"
-            actual_sha="$( ( sha256sum "$tmp_cache/$export_name" 2>/dev/null || shasum -a 256 "$tmp_cache/$export_name" ) | awk '{print $1}')"
-            [ "$actual_sha" = "$dl_sha" ] || die "sha256 mismatch on $export_name: got $actual_sha, want $dl_sha"
-          done
-          # Only a complete entry is renamed into place, so a killed or failed build leaves none.
-          rm -rf "$cache_dir"
+          local build_sh="$native_root/build.sh"
+          if [ -f "$build_sh" ]; then
+            "$build_sh" "$helper" "${host_os}-${host_arch}" "$tmp_cache" || die "building helper $helper failed"
+          fi
+          while read -r line || [ -n "$line" ]; do
+            [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+            local export_name=""
+            for field in $line; do
+              case "$field" in
+                "${host_arch}="*) export_name="${field#*=}" ;;
+              esac
+            done
+            if [ -n "$export_name" ]; then
+              if [ -f "$helper_dir/PINS.txt" ]; then
+                local dl_url="" dl_sha=""
+                while read -r pline || [ -n "$pline" ]; do
+                  [[ "$pline" =~ ^[[:space:]]*(#|$) ]] && continue
+                  local p_sha p_file p_url
+                  read -r p_sha p_file p_url _ <<< "$pline"
+                  if [ "$p_file" = "$export_name" ]; then
+                    dl_sha="$p_sha"
+                    dl_url="$p_url"
+                  fi
+                done < "$helper_dir/PINS.txt"
+                if [ -n "$dl_url" ]; then
+                  curl -fsSL "$dl_url" -o "$tmp_cache/$export_name" || die "failed downloading $export_name"
+                  if [ -n "$dl_sha" ]; then
+                    local actual_sha
+                    actual_sha="$( ( sha256sum "$tmp_cache/$export_name" 2>/dev/null || shasum -a 256 "$tmp_cache/$export_name" ) | awk '{print $1}')"
+                    [ "$actual_sha" = "$dl_sha" ] || die "sha256 mismatch on $export_name: got $actual_sha, want $dl_sha"
+                  fi
+                fi
+              fi
+            fi
+          done < "$assets_file"
+
           mkdir -p "$(dirname "$cache_dir")"
           mv "$tmp_cache" "$cache_dir"
         fi

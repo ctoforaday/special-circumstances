@@ -61,8 +61,8 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	usage := func(name string) string { return report.Flags().Lookup(name).Usage }
 	for name, says := range map[string]string{
 		"window": "ONLY with --anchor, and refused without it",
-		"anchor": "--match and --quote are each refused with it",
-		"match":  "Refused beside --anchor",
+		"anchor": "--search and --quote are each refused with it",
+		"search": "Refused beside --anchor",
 		"quote":  "Refused beside --anchor",
 	} {
 		if !strings.Contains(usage(name), says) {
@@ -71,8 +71,8 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	}
 	// THE BOUND IS THE REPORT'S: no other view has an anchor read.
 	board := cmdAt(NewRootFor("red-lens-evidence"), []string{"show", "board"})
-	if u := board.Flags().Lookup("match").Usage; strings.Contains(u, "Refused beside --anchor") {
-		t.Errorf("show board --match carries the report's bound:\n%s", u)
+	if u := board.Flags().Lookup("quote").Usage; strings.Contains(u, "Refused beside --anchor") {
+		t.Errorf("show board --quote carries the report's bound:\n%s", u)
 	}
 
 	runDir := actFixture(t)
@@ -91,7 +91,7 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 		}
 	}
 	for _, taken := range [][]string{
-		{"--match", "parser"},
+		{"--quote", "parser"},
 		{"--json", "--quote", "parser"},
 	} {
 		if out, err := call(taken...); err != nil {

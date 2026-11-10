@@ -31,18 +31,20 @@ func buildFakeHelper(t *testing.T, dir, name, digest string) {
 	target := filepath.Join(dir, exeName)
 
 	fakeHelperMu.Lock()
-	cached, ok := fakeHelperCache[digest]
+	key := name + "-" + digest
+	cached, ok := fakeHelperCache[key]
 	if !ok {
 		tmpDir := t.TempDir()
 		out := filepath.Join(tmpDir, exeName)
-		ldflags := fmt.Sprintf("-X main.digest=%s", digest)
+		assets := nativehelper.HelperAssets(name)
+		ldflags := fmt.Sprintf("-X main.digest=%s -X main.assets=%s", digest, strings.Join(assets, ","))
 		cmd := exec.Command("go", "build", "-o", out, "-ldflags", ldflags, "../nativehelper/testdata/fakehelper")
 		if msg, err := cmd.CombinedOutput(); err != nil {
 			fakeHelperMu.Unlock()
 			t.Fatalf("building fakehelper: %v\n%s", err, msg)
 		}
 		cached = out
-		fakeHelperCache[digest] = cached
+		fakeHelperCache[key] = cached
 	}
 	fakeHelperMu.Unlock()
 
