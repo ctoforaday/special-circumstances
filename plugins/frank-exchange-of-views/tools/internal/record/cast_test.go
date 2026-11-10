@@ -91,6 +91,11 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 		return "# R\n\nA sentence " + cited + " and another" + unchecked + anchor.Token("F-0b0b0b0b") + anchor.Token("G-00000001") + anchor.Token("G-00000009") + ". Next one.\n", nil
 	}
 	dir := newRun(t)
+	// The citation the reading checks is on the record: the backing reads the anchor ledger, which
+	// holds the anchors a cite or a computation placed.
+	recordtest.Seed(t, dir, recordtest.At(t, "blue-respond", "cite:1", &recordpb.Cite{Label: proto.String("C-a1b2c3d4"),
+		Url: proto.String("https://x/C-a1b2c3d4"), Sha256: proto.String("abc"), Text: proto.String("the source's words"),
+		Location: proto.String("A sentence")}))
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Mint{
 		GapId: proto.String("G-00000001"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem:     proto.String("the claim rests on one source"),
