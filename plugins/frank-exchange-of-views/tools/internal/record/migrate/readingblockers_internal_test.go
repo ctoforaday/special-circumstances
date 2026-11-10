@@ -10,10 +10,10 @@ import (
 )
 
 // A STORED PLAN'S READING BLOCKERS ARE CARRIED OR DROPPED (GAP 2). An archived `contradiction`
-// blocker naming a reading of a citation becomes a failed_check on that citation; one naming a reading
-// of a source its lens found, which names no citation, leaves the plan — the migrated record holds no
-// failed check for it, the loss the plan's residue states — and the plan is re-keyed. A plan that
-// permits no PASS and would be left holding no blocker is refused.
+// blocker naming a reading of a citation becomes the reader's reading_debt on that citation; one
+// naming a reading of a source its lens found, which names no citation, leaves the plan — the debt
+// is keyed on a sentence the plan does not hold, the loss the plan's residue states — and the plan is
+// re-keyed. A plan that permits no PASS and would be left holding no blocker is refused.
 func TestAStoredPlansReadingBlockersAreCarriedOrDropped(t *testing.T) {
 	db, err := sql.Open("sqlite", "file::memory:")
 	if err != nil {
@@ -42,7 +42,7 @@ func TestAStoredPlansReadingBlockersAreCarriedOrDropped(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []record.PlanBlocker{
-		{Kind: record.BlockerFailedCheck, Subject: "C-1", Owner: "red-lens-evidence"},
+		{Kind: record.BlockerReadingDebt, Subject: "C-1", Owner: "red-lens-evidence"},
 		{Kind: record.BlockerUnchecked, Subject: "C-2", Owner: "red-lens-evidence"},
 	}
 	if !slices.Equal(got.Blockers, want) {

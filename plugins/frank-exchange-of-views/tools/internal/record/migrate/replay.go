@@ -129,6 +129,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// event; a reading that named it comes forward as a reading of the label's source. The labels and
 	// their sources are read off the SOURCE stream: the migrated Verify has no label to be found by.
 	labelled := labelSources(evs, rm)
+	// AN IN-ACT MINT OF A CITED READING COMES FORWARD ABOUT ITS CITATION (EventSchema 71): the
+	// citation its carrying reading named is the subject the live mint names, read off the source
+	// stream, since the migrated Verify names no gap.
+	cited := citedInActMints(evs)
 	rm.archivedNotes = true
 	if sq, ok := src.(*SQLiteSource); ok {
 		if e, known := sq.SourceEpoch(); known && e >= computationEpoch {
@@ -285,6 +289,11 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
+		for _, b := range bodies {
+			if m, ok := b.(*recordpb.Mint); ok {
+				mintAboutCitation(m, cited)
+			}
+		}
 		ts, err := record.ParseStamp(old.TS)
 		if err != nil {
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
@@ -402,7 +411,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
 			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds,
-			// and TranslateReadingBlockers carries an archived reading blocker to its failed check.
+			// and TranslateReadingBlockers carries an archived reading blocker to its reading debt.
 			if pl, ok := body.(*recordpb.Plan); ok {
 				if err := TranslatePlanParties(pl); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
@@ -427,9 +436,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 			// A RAISE IS WRITTEN AS NO EVENT (EventSchema 59): a finding about a reading that found
 			// against its sentence — decoded as about an anchor, its ref a reading's events.id rather
-			// than an anchor id — has no place in a record where that reading's gap is minted in its
-			// own act. The ref must name a reading the replay wrote, or the finding is refused: nothing
-			// but a raise is dropped. A gap's found_by naming it loses that entry, below.
+			// than an anchor id — has no place in a record where the lens mints the gap on its reading.
+			// The ref must name a reading the replay wrote, or the finding is refused: nothing but a
+			// raise is dropped. A gap's found_by naming it loses that entry, below.
 			if f, ok := body.(*recordpb.Finding); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && anchor.Kind(f.GetAboutRef()) == "" {
 				if err := raisedReading(batch.Querier(), f, newID); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
@@ -834,4 +843,46 @@ func labelSources(evs []OldEvent, rm *remap) map[string]labelSource {
 	}
 	rm.dropLabels(labels)
 	return out
+}
+
+// citedInActMints is each gap an archived reading of a CITATION minted in its own act, with that
+// citation: the Verify whose carried_by names the gap and whose carrier_minted is set, naming an
+// anchor (EventSchema 55–70). Read from the record's fields, never from adjacency, and keyed on the
+// source's spelling of the gap: the Mint it translates is read before the remap respells it. A
+// reading of a source the lens found names no anchor and is not here: its Mint already quotes the
+// sentence, which is the live mint of that subject.
+func citedInActMints(evs []OldEvent) map[string]string {
+	out := map[string]string{}
+	for _, old := range evs {
+		g, _ := old.Fields["carried_by"].(string)
+		a, _ := old.Fields["anchor"].(string)
+		if old.Word == "verify" && g != "" && a != "" && truthy(old.Fields["carrier_minted"]) {
+			out[g] = a
+		}
+	}
+	return out
+}
+
+// mintAboutCitation is the one translation of the in-act model: a Mint whose own act's reading
+// named a citation comes forward ABOUT that citation — about_kind anchor, about_ref the reading's
+// anchor, no quote — the subject a live mint of its class names (record.readingMintedClasses). Its
+// Anchor row stays: an Anchor is a report op, and the token it placed at the citation's sentence is
+// what every later edit's `old` carries. Both values are the source's; nothing is filled.
+func mintAboutCitation(m *recordpb.Mint, cited map[string]string) {
+	a, ok := cited[m.GetGapId()]
+	if !ok {
+		return
+	}
+	m.AboutKind, m.AboutRef, m.Location = recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), proto.String(a), nil
+}
+
+// truthy reads a stored bool: SQLite's 0/1, or a bool.
+func truthy(v any) bool {
+	switch b := v.(type) {
+	case int64:
+		return b != 0
+	case bool:
+		return b
+	}
+	return false
 }

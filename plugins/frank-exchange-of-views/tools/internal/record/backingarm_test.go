@@ -18,14 +18,14 @@ import (
 
 // ARM 4 OF THE LIVE-ANSWER DEMAND IS THE LEDGER'S HOLDS, OVER ORDERED SEQUENCES. The gap view's own
 // re-check arm is SQL over rows; the anchor ledger is the Go fold every other reader of a check's
-// standing asks. For every ordered sequence of up to three checks of the gap's anchor by the seat
-// whose check the gap carries, made after the mint — beside one check by that seat before the mint
+// standing asks. For every ordered sequence of up to three checks of the gap's anchor by its minter,
+// made after the mint — beside one check by that seat before the mint
 // and one by another seat after it — the two agree. The Go mirror is the ledger itself: the seat's
 // check that stands (anchorStanding.stands, the same-seat replacement rule; no edit is in any
 // sequence), at or after the mint, and holding.
 //
-// The shapes: under `source`, a gap minted about a citation (its minter's check) and a gap carrying a
-// reading of one (the reading's seat's check); under `computation`, a gap minted about a computation.
+// The shapes: under `source`, a gap minted about a citation (its minter's check); under `computation`,
+// a gap minted about a computation.
 // Sequences of one and two readings draw from every SourceOutcome × SourceCompleteness pair; those
 // of three draw each reading from one outcome of each way a reading can stand (`supports` and `weak`
 // back, `refutes` and `absent` read against, `unreachable` reads nothing), each of a copy whose
@@ -136,7 +136,7 @@ func runArmScenarios(t *testing.T, scenarios []armScenario) int {
 		}
 	}
 	const owner, other = "red-lens-evidence", "red-lens-logic"
-	reading := func(seat, anchor, carried string, c check) {
+	reading := func(seat, anchor string, c check) {
 		v := &recordpb.Verify{Claim: proto.String("c"), Anchor: proto.String(anchor), Outcome: c.outcome.Enum(),
 			Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("t")}
 		if c.compl != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
@@ -159,7 +159,6 @@ func runArmScenarios(t *testing.T, scenarios []armScenario) int {
 		add(owner, m)
 	}
 	backing := check{outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS}
-	refuting := check{outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES}
 	sound := check{sound: recordpb.Soundness_SOUNDNESS_SOUND}
 	gaps, anchors := make([]string, len(scenarios)), make([]string, len(scenarios))
 	for i, sc := range scenarios {
@@ -177,16 +176,11 @@ func runArmScenarios(t *testing.T, scenarios []armScenario) int {
 		default:
 			anchors[i] = fmt.Sprintf("C-%08x", i+1)
 			add("blue-respond", &recordpb.Cite{Label: proto.String(anchors[i])})
-			reading(owner, anchors[i], "", backing) // before the mint: never meets the arm
-			if sc.shape == "source about" {
-				mint(gaps[i], recordpb.CheckKind_CHECK_KIND_SOURCE, anchors[i])
-			} else {
-				mint(gaps[i], recordpb.CheckKind_CHECK_KIND_SOURCE, "")
-				reading(owner, anchors[i], gaps[i], refuting) // the reading the gap carries
-			}
-			reading(other, anchors[i], "", backing) // another seat's: never meets the arm
+			reading(owner, anchors[i], backing) // before the mint: never meets the arm
+			mint(gaps[i], recordpb.CheckKind_CHECK_KIND_SOURCE, anchors[i])
+			reading(other, anchors[i], backing) // another seat's: never meets the arm
 			for _, c := range sc.seq {
-				reading(owner, anchors[i], "", c)
+				reading(owner, anchors[i], c)
 			}
 		}
 	}

@@ -27,9 +27,10 @@ import (
 //     (retirement.go, unsatSitting), in the lens fold's `has sat through no sitting` and `head moved`
 //     lines. Two tokens: a bare `at` would read the count in `it retires at %d` as an id;
 //   - edit, event: `changed at edit %d … its last check is event %d` (passblockers.go, reopenedFact);
-//     a failed check's `… at event %d`, each state (passblockers.go, failedFact: `%s's reading of
-//     citation %s at event %d finds the source against the sentence`; dispatch.go: `%s's reading
-//     at event %d`);
+//     a failed check's `… at event %d`, each state (passblockers.go, failedFact); a reading debt's
+//     `lens %s's reading of citation %s at event %d …` and `… blue's edit at event %d changed that
+//     sentence …` (passblockers.go, the debt's item); dispatch.go: `its reading at event %d`, `its
+//     fate recorded at event %d`;
 //   - contradiction: archived bytes only, printed by no live verb — `contradiction %s` among a
 //     lens's debts and of a contradiction blocker, in plans stored before EventSchema 59.
 var planIDPhrases = []string{"head", "pin", "opened at", "edit", "event", "contradiction"}
@@ -175,19 +176,21 @@ func translateWhyLine(line string, newID map[int64]int64, to func(int64) (int64,
 }
 
 // archivedReadingBlocker is the blocker kind an archived plan printed for a reading that found
-// against its sentence, its subject the reading's events.id. The live table holds no such kind: the
-// reading's found-against check is a failed_check blocker on the citation it read.
+// against its sentence, its subject the reading's events.id. The live table holds no such kind: a
+// lens's reading that finds a citation against its sentence is the lens's reading_debt on that
+// citation.
 const archivedReadingBlocker record.BlockerKind = "contradiction"
 
 // TranslateReadingBlockers carries each of a stored plan's archived reading blockers
-// (archivedReadingBlocker) to the failed check the migrated record holds for it: kind failed_check,
-// subject the anchor of the Verify the reading was written as — its source events.id carried through
-// newID and read through q, the replay's batch — and its owner unchanged, the reader. A blocker whose
-// reading names no anchor (a reading of a source the lens found) leaves the plan: the migrated record
-// holds no failed check for it and no gap carries it, the loss the plan's residue states (GAP 2). The
-// plan is re-keyed and re-printed when any moved, and left untouched otherwise. A subject that is no
-// events.id, or that wrote no event or no reading, is a refusal naming it: the loud miss; so is a plan
-// that permits no PASS and would be left holding no blocker.
+// (archivedReadingBlocker) to the debt the live table holds for it: kind reading_debt, subject the
+// anchor of the Verify the reading was written as — its source events.id carried through newID and
+// read through q, the replay's batch — and its owner unchanged, the reader. A blocker whose reading
+// names no anchor (a reading of a source the lens found) leaves the plan: a found source's debt is
+// keyed on the sentence the reading locates to in the report, which the stored plan does not hold,
+// the loss the plan's residue states (GAP 2). The plan is re-keyed and re-printed when any moved,
+// and left untouched otherwise. A subject that is no events.id, or that wrote no event or no
+// reading, is a refusal naming it: the loud miss; so is a plan that permits no PASS and would be
+// left holding no blocker.
 func TranslateReadingBlockers(pl *recordpb.Plan, newID map[int64]int64, q recordsql.Querier) error {
 	p, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
 	if err != nil {
@@ -216,11 +219,11 @@ func TranslateReadingBlockers(pl *recordpb.Plan, newID map[int64]int64, q record
 		if anchorID == "" {
 			continue
 		}
-		b.Kind, b.Subject = record.BlockerFailedCheck, anchorID
+		b.Kind, b.Subject = record.BlockerReadingDebt, anchorID
 		kept = append(kept, b)
 	}
 	if len(kept) == 0 && len(p.Blockers) > 0 && !p.PassPermitted {
-		return fmt.Errorf("this stored plan permits no PASS and its every blocker is a reading of a source its lens found, which the migrated record holds no failed check for: the plan would hold no blocker while it permits no PASS")
+		return fmt.Errorf("this stored plan permits no PASS and its every blocker is a reading of a source its lens found, whose debt the plan holds no sentence for: the plan would hold no blocker while it permits no PASS")
 	}
 	p.Blockers = kept
 	if !changed {
