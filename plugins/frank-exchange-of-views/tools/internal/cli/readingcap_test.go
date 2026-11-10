@@ -13,10 +13,12 @@ import (
 func TestAFoundSourceReadingAtTheCapIsRefusedOnceItsHoldingGapCloses(t *testing.T) {
 	b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
 	const cc = "claim_contradicts_source"
-	g, err := b.plainMint(lensM, rdFree1, cc)
-	if err != nil {
-		t.Fatalf("M's mint: %v", err)
-	}
+	// M's gap on the sentence is the one its own found-source reading mints, a `document` gap so
+	// that its close asks no live-answer demand.
+	g := b.mustRead(lensM, "--url", rdU5, "--title", "Found", "--quote", rdFree1, "--as", "refutes", "--confidence", "high",
+		"--reason", "read at the leaf", "--class", cc, "--problem", "the source says otherwise than the sentence",
+		"--check-kind", "document", "--check", "the sentence states what the source says",
+		"--severity", "high", "--likelihood", "high", "--impact", "medium").Gap.ID
 	b.fillTo(lensL, 0)
 	r := b.mustRead(lensL, urlReading(rdU3, rdFree1, "refutes", cc)...)
 	if r.Gap == nil || r.Gap.ID != g || r.Gap.Minted {
@@ -28,7 +30,7 @@ func TestAFoundSourceReadingAtTheCapIsRefusedOnceItsHoldingGapCloses(t *testing.
 		t.Fatalf("M's close: %v", err)
 	}
 	held := b.counts()
-	_, err = b.verify(lensL, urlReading(rdU4, rdFree1, "refutes", cc)...)
+	_, err := b.verify(lensL, urlReading(rdU4, rdFree1, "refutes", cc)...)
 	mustRefuse(t, err, "", "mint budget admits no more")
 	if c := b.counts(); c != held {
 		t.Errorf("the refused reading wrote %v over %v", c, held)

@@ -234,15 +234,18 @@ func TestAReadingsGapTakesNoMint(t *testing.T) {
 // 21. A plain mint a later reading names keeps its mint; a successor of a reading's gap is a plain
 // mint and takes one.
 func TestAPlainMintALaterReadingNamesKeepsItsMint(t *testing.T) {
+	// A class a refuting reading admits that no reading has to precede: a plain
+	// claim_contradicts_source mint stands on the lens's reading (standingreading_test.go).
+	const wsc = "within_source_condition_misattribution"
 	b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
-	g, err := b.plainMint(lensL, rdCited, "claim_contradicts_source")
+	g, err := b.plainMint(lensL, rdCited, wsc)
 	if err != nil || g == "" {
 		t.Fatalf("plain mint: %v", err)
 	}
 	b.fillTo(lensL, 0)
 	before := b.standing(lensL)
 	b.sit(lensL)
-	r := b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...)
+	r := b.mustRead(lensL, citeReading(b.c1, "refutes", wsc)...)
 	if r.Gap == nil || r.Gap.ID != g || r.Gap.Minted {
 		t.Fatalf("the reading's gap = %+v, want the plain mint %s named", r.Gap, g)
 	}
@@ -257,10 +260,10 @@ func TestAPlainMintALaterReadingNamesKeepsItsMint(t *testing.T) {
 
 	t.Run("successor", func(t *testing.T) {
 		b := readingRunOf(t, rdFillerReport, 1, rdCited, rdBacked)
-		g1 := b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...).Gap.ID
+		g1 := b.mustRead(lensL, citeReading(b.c1, "refutes", wsc)...).Gap.ID
 		b.fillTo(lensL, 0)
 		// The reading's gap awaits its `source` answer, so its successor carries that check kind.
-		_, err := b.plainMint(lensL, rdCited, "claim_contradicts_source", "--supersedes", g1, "--check-kind", "source")
+		_, err := b.plainMint(lensL, rdCited, wsc, "--supersedes", g1, "--check-kind", "source")
 		mustRefuse(t, err, "", "mint budget admits no more")
 	})
 }

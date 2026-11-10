@@ -604,6 +604,12 @@ func TestTheFoundAgainstChainSitsAgainBeforeBlue(t *testing.T) {
 // sentence is held by the one-gap rule and carried by G. The record refuses the close naming the
 // reading; the drive tallies it ONCE as a close refused over a standing found-against check, not as an
 // admitted act refused — with or without another gap named as what the close was verified with.
+// plainHeldClass is the class these drives give a plain gap a refuting reading is later held by: a
+// class a refuting reading admits whose mint stands on no reading. A claim_contradicts_source mint
+// stands on the minter's own reading of the sentence (record.readingMintedClasses), so a plain mint of
+// it with no reading behind it is refused.
+const plainHeldClass = "within_source_condition_misattribution"
+
 func TestACloseASiblingsReadingRefusesInTheWindowIsTallied(t *testing.T) {
 	for _, anchored := range []bool{false, true} {
 		t.Run(map[bool]string{false: "plain", true: "verified with another gap"}[anchored], func(t *testing.T) {
@@ -615,7 +621,7 @@ func TestACloseASiblingsReadingRefusesInTheWindowIsTallied(t *testing.T) {
 			r.sit("blue", blue)
 			cite := r.citeAs(t, blue, "The cost is rising over time", "/window")
 			r.sit("lens", lens)
-			const class = "claim_contradicts_source"
+			const class = plainHeldClass
 			mint := func(quote, class string) string {
 				t.Helper()
 				out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", quote, "--class", class,
@@ -702,11 +708,11 @@ func TestTheFoundAgainstChainReadsNoCitationAScenarioGapStandsAt(t *testing.T) {
 		t.Fatalf("blue's chain citation: %s (%s)", r.foundAgainstStage, r.actErr)
 	}
 	classes, _ := r.readingClasses(r.citationURL(cite), "refutes", true)
-	if len(classes) == 0 {
-		t.Fatal("a refuting reading of the chain's citation mints in no class")
+	if !slices.Contains(classes, plainHeldClass) {
+		t.Fatalf("a refuting reading of the chain's citation mints in %v, not %s", classes, plainHeldClass)
 	}
 	r.sit("lens", lens)
-	out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", "rising over time", "--class", classes[0],
+	out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", "rising over time", "--class", plainHeldClass,
 		"--problem", "fuzz: the trend's figure is computed wrong", "--check-kind", "computation", "--check", "the figure recomputes",
 		"--fix", dirCompute, "--severity", "high", "--impact", "high", "--likelihood", "high", "--reason", "fuzz reason")
 	var env struct {
@@ -775,11 +781,11 @@ func TestABackingReReadLeavesAComputeCarrierOpen(t *testing.T) {
 	r.sit("blue", blue)
 	cite := r.citeAs(t, blue, "The cost is rising over time", "/compute-carrier")
 	classes, _ := r.readingClasses(r.citationURL(cite), "refutes", true)
-	if len(classes) == 0 {
-		t.Fatal("a refuting reading of the citation mints in no class")
+	if !slices.Contains(classes, plainHeldClass) {
+		t.Fatalf("a refuting reading of the citation mints in %v, not %s", classes, plainHeldClass)
 	}
 	r.sit("lens", lens)
-	out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", "across the whole sampled corpus", "--class", classes[0],
+	out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", "across the whole sampled corpus", "--class", plainHeldClass,
 		"--problem", "fuzz: the trend's figure is computed wrong", "--check-kind", "computation", "--check", "the figure recomputes",
 		"--fix", dirCompute, "--severity", "high", "--impact", "high", "--likelihood", "high", "--reason", "fuzz reason")
 	var env struct {
@@ -793,7 +799,7 @@ func TestABackingReReadLeavesAComputeCarrierOpen(t *testing.T) {
 	g := env.Result.GapID
 	r.noteMint(lens, g)
 	r.sit("lens", citationOwner)
-	if out, ok := r.foundAgainstReading(citationOwner, cite, classes[:1]).admit(); !ok {
+	if out, ok := r.foundAgainstReading(citationOwner, cite, []string{plainHeldClass}).admit(); !ok {
 		t.Fatalf("the owner's refuting reading: %s (%s)", out, r.actErr)
 	}
 	f, held := r.ownFoundAgainstGapOpen(citationOwner, cite, "refutes")

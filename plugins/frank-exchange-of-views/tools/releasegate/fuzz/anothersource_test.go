@@ -39,6 +39,9 @@ func TestASecondSourceRefusedForBudgetOnceItsHoldingGapClosedIsTallied(t *testin
 				t.Fatal(err)
 			}
 			r := newRunner(bin, runDir, newLockedRand(7))
+			axes := func(outcome string, c *cmd) *cmd {
+				return c.set("--as", outcome).set("--confidence", "high").set("--reason", "fuzz: what the source actually says")
+			}
 			if err := r.stagePart(lanePartText("blue-lane-1")); err != nil {
 				t.Fatal(err)
 			}
@@ -59,7 +62,20 @@ func TestASecondSourceRefusedForBudgetOnceItsHoldingGapClosedIsTallied(t *testin
 				return env.Result.GapID
 			}
 			r.sit("lens", sibling)
-			g := mint(sibling, sentence, class)
+			// THE SIBLING'S GAP IS THE ONE ITS OWN READING MINTS: a claim_contradicts_source mint stands on
+			// the minter's reading of the sentence (record.readingMintedClasses), so the sibling reads a
+			// source it found against the sentence and its act mints the gap — a `document` gap, so that
+			// its close asks no live-answer demand.
+			sib, _, _, _ := r.foundSourceReading(sibling, "refutes", sentence, "https://fuzz.invalid/"+sibling+"/held", axes)
+			setArg(sib.args, "--class", class)
+			setArg(sib.args, "--check-kind", "document")
+			sibOut, sibOK := sib.admit()
+			sv := r.checkReading(sibling, sibOut, sib.args)
+			if !sibOK || sv == nil || !sv.GetCarrierMinted() || sv.GetCarriedBy() == "" {
+				t.Fatalf("%s's reading minted no gap: %s (%s)", sibling, sibOut, r.actErr)
+			}
+			g := sv.GetCarriedBy()
+			r.noteMint(sibling, g)
 			r.sit("lens", lens)
 			// THE LENS AT ITS CAP: its own mints on the other sentence, a class each.
 			for _, c := range []string{"spec_underspecification", "unsourced_claim", "invalid_inference", "false_universal"} {
@@ -72,9 +88,6 @@ func TestASecondSourceRefusedForBudgetOnceItsHoldingGapClosedIsTallied(t *testin
 			}
 			if left, _ := r.mintsLeft(lens); left != 0 {
 				t.Fatalf("%s has %d mints left; the fixture needs it at its cap", lens, left)
-			}
-			axes := func(outcome string, c *cmd) *cmd {
-				return c.set("--as", outcome).set("--confidence", "high").set("--reason", "fuzz: what the source actually says")
 			}
 			first, _, _, _ := r.foundSourceReading(lens, "refutes", sentence, "https://fuzz.invalid/"+lens+"/first", axes)
 			setArg(first.args, "--class", class)

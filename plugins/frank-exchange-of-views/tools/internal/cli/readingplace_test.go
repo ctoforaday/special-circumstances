@@ -101,7 +101,7 @@ func TestAVerifyOfARepeatedSentencePlacesItsGapByTheAnchor(t *testing.T) {
 		}
 		// A plain mint quoting the whole sentence lands at the same place.
 		p := repeatedRun(t)
-		pg, err := p.plainMint(lensP, rpClause, cc)
+		pg, err := p.plainMint(lensP, rpClause, "spec_underspecification")
 		if err != nil {
 			t.Fatal(err)
 		}

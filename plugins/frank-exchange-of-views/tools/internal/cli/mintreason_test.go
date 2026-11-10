@@ -84,7 +84,9 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 // every field but those the subject decides and fix_new's presence. Walked off the descriptor, so a
 // field added to Mint fails here until it has a disposition.
 func TestAReadingsGapIsFilledAsAPlainMints(t *testing.T) {
-	bySubject := map[string]bool{"gap_id": true, "location": true}
+	// supersedes: the plain mint stands on the lens's reading of its sentence and names that reading's
+	// in-act gap (phase 1a scaffold, standingreading_test.go).
+	bySubject := map[string]bool{"gap_id": true, "location": true, "supersedes": true}
 	byPresenceOnly := map[string]bool{"fix_new": true}
 	judgment := func(extra ...string) []string {
 		return append([]string{"--class", "claim_contradicts_source", "--problem", "the source says otherwise than the sentence",
@@ -93,7 +95,8 @@ func TestAReadingsGapIsFilledAsAPlainMints(t *testing.T) {
 	}
 	three := func(t *testing.T, b readingBoard, plain, cite, found []string) [3]*recordpb.Mint {
 		t.Helper()
-		out, err := run(t, append([]string{"mint", "--run", b.runDir, "--seat-id", lensL, "--quote", rdFree2}, plain...)...)
+		stands := b.mustRead(lensL, urlReading(rdU4, rdFree2, "refutes", "claim_contradicts_source")...)
+		out, err := run(t, append([]string{"mint", "--run", b.runDir, "--seat-id", lensL, "--quote", rdFree2, "--supersedes", stands.Gap.ID}, plain...)...)
 		if err != nil {
 			t.Fatalf("plain mint: %v\n%s", err, out)
 		}
@@ -158,7 +161,8 @@ func TestAReadingsGapIsFilledAsAPlainMints(t *testing.T) {
 				"--severity", "high", "--likelihood", "high", "--impact", "medium", "--reason", "the leaf says otherwise"}
 		}
 		echo := "acceptance check RECORDED as: " + check
-		out, err := run(t, append([]string{"mint", "--run", b.runDir, "--seat-id", lensL, "--quote", rdFree2}, flags()...)...)
+		stands := b.mustRead(lensL, urlReading(rdU4, rdFree2, "refutes", "claim_contradicts_source")...)
+		out, err := run(t, append([]string{"mint", "--run", b.runDir, "--seat-id", lensL, "--quote", rdFree2, "--supersedes", stands.Gap.ID}, flags()...)...)
 		if err != nil {
 			t.Fatal(err)
 		}

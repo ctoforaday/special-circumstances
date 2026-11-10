@@ -51,11 +51,13 @@ func TestAReadingIsAttributedToTheVerbTheSeatTyped(t *testing.T) {
 	}
 
 	b.sit(lensL)
-	if _, err := b.plainMint(lensL, rdFree2, cc); err != nil {
+	// The plain mint stands on L's reading of the sentence and supersedes that reading's in-act gap.
+	stands := b.mustRead(lensL, urlReading(rdU5, rdFree2, "refutes", cc)...)
+	if _, err := b.plainMint(lensL, rdFree2, cc, "--supersedes", stands.Gap.ID, "--check-kind", "source"); err != nil {
 		t.Fatal(err)
 	}
-	if c := read(lensL); c.Used["mint"] != 1 {
-		t.Errorf("L's plain mint: used %v, want mint 1", c.Used)
+	if c := read(lensL); c.Used["mint"] != 1 || c.Used["verify"] != 3 {
+		t.Errorf("L's plain mint: used %v, want mint 1 and verify 3", c.Used)
 	}
 	r := b.mustRead(lensN, urlReading(rdU4, rdFree2, "refutes", cc)...)
 	if r.Gap == nil || r.Gap.Minted {
