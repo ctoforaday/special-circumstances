@@ -45,11 +45,12 @@
   gap is about; or once the lens whose check the gap carries checks that anchor again and the check
   holds. Prose never meets it, and neither does a check clearing: an edit
   that fixes the sentence leaves the gap owed until one of those stands.
-- **A GAP A LENS'S OWN SOURCE CARRIES IS ANSWERED WITH A CITATION.** A source a lens found and read
-  against a sentence places no citation: where it backs a sentence the report cites nothing for, its
-  gap asks you to cite a source for that sentence, and where it refutes the sentence, its gap says the
-  source states otherwise. The evidence on the record names the source the lens read for the gap;
-  answer by citing a source on the sentence as that gap's answer, and a lens reads your citation.
+- **A GAP A LENS MINTS ON A SOURCE IT FOUND IS ANSWERED WITH A CITATION.** A source a lens found and
+  read against a sentence places no citation, and names no gap: where it backs a sentence the report
+  cites nothing for, the gap the lens mints on that reading asks you to cite a source for that
+  sentence, and where it refutes the sentence, the gap says the source states otherwise. The docket's
+  line under the gap names the source the lens read for the sentence; answer by citing a source on
+  the sentence as that gap's answer, and a lens reads your citation.
   Where the source refutes the sentence, edit the sentence to say what the source says, then cite on
   the edited sentence as that gap's answer: an edit alone leaves the gap unanswered, and its lens
   cannot close it until the citation placed as its answer stands.

@@ -986,7 +986,10 @@ func readingDebtFact(b Blocker) string {
 
 // readingDebtClears is what clears a reading debt, stated by every wording of it: the lens's gap of
 // the class on its reading, or its re-read of the subject; for a found source read silent on an
-// uncited sentence, any seat's unsourced_claim gap or blue's cite of the sentence as well.
+// uncited sentence, any seat's unsourced_claim gap or blue's cite of the sentence as well; and blue's
+// act that ends it — an edit of a cited sentence or a retire of its citation, and of a sentence a
+// found source was read against only an edit that removes it or applies red's text verbatim
+// (the estoppel discharge), as the lens's constitution and the help state it.
 func readingDebtClears(b Blocker) string {
 	who := ownerOr(b, failedChecker)
 	class := recordpb.Word(readingDebtClass(b))
@@ -994,9 +997,9 @@ func readingDebtClears(b Blocker) string {
 	case readingDebtCited(b):
 		return fmt.Sprintf("%s clears it by minting that gap about the citation on this reading, graded as it judges, or by reading the citation again at its next sitting; blue's edit of the sentence or retire of the citation ends it", who)
 	case b.lost != 0:
-		return fmt.Sprintf("%s clears it by reading a source against the sentence as it now stands, or by minting a %s gap on a reading of it", who, class)
+		return fmt.Sprintf("%s clears it by reading a source against the sentence as it now stands, or by minting a %s gap on a reading of it; blue's edit that removes the sentence, or applies red's text verbatim, ends it", who, class)
 	case readingDebtClass(b) == recordpb.GapClass_GAP_CLASS_UNSOURCED_CLAIM:
 		return fmt.Sprintf("%s clears it by minting that gap quoting the sentence, as any seat may, or by reading another source for the sentence; blue's cite of the sentence, or edit that removes it, ends it", who)
 	}
-	return fmt.Sprintf("%s clears it by minting that gap quoting the sentence on this reading, graded as it judges, or by reading a source for the sentence again; blue's edit that removes the sentence ends it", who)
+	return fmt.Sprintf("%s clears it by minting that gap quoting the sentence on this reading, graded as it judges, or by reading a source for the sentence again; blue's edit that removes the sentence, or applies red's text verbatim, ends it", who)
 }
