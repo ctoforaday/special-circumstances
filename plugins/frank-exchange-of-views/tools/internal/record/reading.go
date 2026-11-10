@@ -51,8 +51,8 @@ func readingSentenceIn(report string, v *recordpb.Verify) ([2]int, bool) {
 // the seat already recorded THIS SITTING: the same url and the SAME SENTENCE, whatever either's
 // outcome. The sentence is keyed as the reading debt keys it (ruled 2026-11-10): the stored reading's
 // sentence as of its event is the new claim's sentence on the report the act lands on — equal
-// (bluedoc.SameSentence), or reworded to it by an edit since the stored reading (rewordedTo, through
-// the F10-bounded lookup). Where the stored sentence was removed, or the new claim locates in another
+// (bluedoc.SameSentence), or reworded to it by the chain of edits since the stored reading
+// (rewordChainOf, each link through the F10-bounded lookup). Where the stored sentence was removed, or the new claim locates in another
 // sentence, there is no retry and the reading is recorded. The refusal names the stored reading's
 // event, its outcome and, where reworded, the edit that changed the sentence — which is how a
 // crash-retried reading learns its first write landed. "This sitting" is the equality
@@ -122,18 +122,22 @@ func requireNotARetriedReading(w writeView, seatID string, v *recordpb.Verify) e
 				}
 				edits = editsOf(evs, win)
 			}
-			m, found := lostQuoteEdit(edits, s.at, wasWords)
-			if !found {
-				continue
-			}
-			to, removed, err := rewordedTo(q, atReading, m)
+			claim := s.claim
+			links, err := rewordChainOf(q, edits, s.at, wasWords, func(after string) bool {
+				_, ok := readingSentenceIn(after, &recordpb.Verify{Claim: &claim})
+				return !ok
+			})
 			if err != nil {
-				return feov.Wrap(feov.Conflict, err, "the report around edit %d does not render, so whether this reading repeats one of this sitting cannot be told: %v", m.id, err)
+				return feov.Wrap(feov.Conflict, err, "the report around blue's edits of the sentence read at event %d does not read, so whether this reading repeats one of this sitting cannot be told: %v", s.at, err)
 			}
-			if removed || !bluedoc.SameSentence(to, nowWords) {
+			if len(links) == 0 {
 				continue
 			}
-			reworded = m.id
+			last := links[len(links)-1]
+			if last.removed || !bluedoc.SameSentence(last.reworded, nowWords) {
+				continue
+			}
+			reworded = last.m.id
 		}
 		changed := ""
 		if reworded != 0 {

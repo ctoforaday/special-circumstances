@@ -388,6 +388,81 @@ func TestALostQuoteDebtStands(t *testing.T) {
 		b.blueEdit(dbFirst+anchor.Token("G-00000001"), reworded+anchor.Token("G-00000001"), false, "")
 		wantDebts(t, runOf(b.register("red-chair")))
 	})
+
+	// THE REWORD CHAIN: a second reword moves the debt's sentence on, and the lens clears it against
+	// the sentence the report now holds — keyed on the first reword, it was clearable by nothing.
+	const twice = "The first claim rests on the measured figures from every month of the quarter."
+	rewordedTwice := func(t *testing.T) (*stage, int64) {
+		t.Helper()
+		b := debtBoard(t).readFound(evLens, dbURL, dbFirst, refutes).blueEdit(dbFirst, reworded, false, "")
+		first := b.at()
+		return b.blueEdit(reworded, twice, false, ""), first
+	}
+	t.Run("two rewords, no act", func(t *testing.T) {
+		b, first := rewordedTwice(t)
+		lost(t, b, first, twice)
+	})
+	t.Run("two rewords then the re-read", func(t *testing.T) {
+		b, _ := rewordedTwice(t)
+		b.readFound(evLens, dbURL, twice, supports)
+		wantDebts(t, runOf(b.register("red-chair")))
+	})
+	t.Run("two rewords then the mint", func(t *testing.T) {
+		b, _ := rewordedTwice(t)
+		b.readFound(evLens, dbURL, twice, refutes)
+		fresh := wantDebts(t, runOf(b.register("red-chair")), evLens+":"+twice)
+		if len(fresh) == 1 && fresh[0].lost != 0 {
+			t.Errorf("the fresh debt is lost (edit %d)", fresh[0].lost)
+		}
+		b.quoteGap(evLens, "G-00000001", twice, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE)
+		wantDebts(t, runOf(b.register("red-chair")))
+	})
+	t.Run("two rewords then another seat's gap on the current sentence", func(t *testing.T) {
+		b, _ := rewordedTwice(t)
+		b.register(otherLens).quoteGap(otherLens, "G-00000002", twice, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE)
+		wantDebts(t, runOf(b.register("red-chair")))
+	})
+
+	// THE EDIT NAMED IS THE ONE AFTER WHICH THE CLAIM STOPS LOCATING, not the first whose `old`
+	// overlaps the sentence: a paragraph edit that carries the sentence through unchanged — applied
+	// verbatim for another gap — discharges nothing and rewords nothing.
+	const secondPrime = "The second claim rests on the survey's own count of the winter's margins."
+	carriedThrough := func(t *testing.T) *stage {
+		t.Helper()
+		b := debtBoard(t).register(otherLens).readFound(evLens, dbURL, dbFirst, refutes).
+			add(otherLens, &recordpb.Mint{GapId: proto.String("G-00000009"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Location: proto.String(dbSecond),
+				Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FixNew: proto.String(secondPrime),
+				Severity: recordpb.Grade_GRADE_MEDIUM.Enum(), Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}).
+			add(otherLens, &recordpb.Anchor{Id: proto.String("G-00000009"), Location: proto.String(dbSecond)})
+		return b.blueEdit(dbFirst+" "+dbSecond+anchor.Token("G-00000009"), dbFirst+" "+secondPrime+anchor.Token("G-00000009"), true, "G-00000009")
+	}
+	t.Run("a paragraph edit carrying the sentence, then the reword", func(t *testing.T) {
+		b := carriedThrough(t)
+		lost(t, b, 0, "")
+		b.blueEdit(dbFirst, reworded, false, "")
+		lost(t, b, b.at(), reworded)
+	})
+	t.Run("a paragraph edit carrying the sentence, then the cut", func(t *testing.T) {
+		b := carriedThrough(t)
+		b.blueEdit(dbFirst+" ", "", false, "")
+		wantDebts(t, runOf(b.register("red-chair")))
+	})
+
+	// An edit whose `old` does not locate once in the report before it — an exact-span edit whose
+	// literal quote occurs once where the folded one occurs twice — is the read's error, never a debt
+	// reworded to "".
+	t.Run("an old the fold cannot locate is the read's error", func(t *testing.T) {
+		const third = "The third claim stands on the measured  figures from every month of the year."
+		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").
+			add("harness", &recordpb.ReportPart{Text: proto.String("# report\n\n" + dbFirst + " " + third + "\n")}).
+			register("red-chair").dispatch(2, evLens).register(evLens).served(evLens, 2).
+			readFound(evLens, dbURL, dbFirst, refutes)
+		b.add("blue-respond", &recordpb.BlueEdit{Old: proto.String("stands on the measured figures from every month"), New: proto.String("rests on the measured figures from every month"), Text: proto.String("edited"), ExactSpan: proto.Bool(true)})
+		_, err := PassBlockers(runOf(b.register("red-chair")))
+		if err == nil || !strings.Contains(err.Error(), "does not locate once in the report as of the event before it") {
+			t.Errorf("PassBlockers = %v, want the read's error naming the edit", err)
+		}
+	})
 }
 
 // T23. The estoppel discharge: an edit that applied red's text verbatim over the sentence ends the

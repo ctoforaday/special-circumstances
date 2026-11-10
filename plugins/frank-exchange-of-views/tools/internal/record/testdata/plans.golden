@@ -455,6 +455,10 @@
 -- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "applied_verbatim") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt d83c26fd5f6c
+-- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "exact_span") VALUES (?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 5496d2cf1194
 -- INSERT INTO "blue_edit_reopened" ("event_id", "ord", "value") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1865,6 +1869,12 @@
   SCAN s
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+
+== stmt 3dfa77959b1f
+-- SELECT "gap_id" FROM "gap" WHERE "minted_by" = ? AND "class" = ?
+  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt b86463934924
 -- SELECT "gap_id" FROM "gap" WHERE "open" AND "minted_by" = ?

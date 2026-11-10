@@ -209,11 +209,13 @@ type locatedReading struct {
 	// lost is the BlueEdit events.id that took a found reading's claim out (lostQuoteEdit), 0 while
 	// the claim locates or no edit meets the bound.
 	lost int64
-	// removed is whether that edit REMOVED the sentence (rewordedTo found none at the place, or
-	// several); reworded is the one sentence it left there, visible text, for a reword.
+	// removed is whether the reword chain from that edit (rewordChainOf) ends in a REMOVAL of the
+	// sentence (rewordedTo found none at the place, or several); reworded is the sentence the chain's
+	// last link left, visible text — the sentence the report now holds — for a reword.
 	removed  bool
 	reworded string
-	// estopped is whether that edit applied red's prescription verbatim: red wrote the new sentence.
+	// estopped is whether the chain's last edit applied red's prescription verbatim: red wrote the
+	// sentence the report now holds.
 	estopped bool
 }
 
@@ -344,7 +346,7 @@ func locatedReadingsOn(q recordsql.Querier, evs []*Event, win WindowIndex, repor
 		if !FindsAgainst(v) {
 			continue
 		}
-		l, err := lostReadingAt(q, e, v, win, edits)
+		l, err := lostReadingAt(q, e, v, win, edits, report)
 		if err != nil {
 			return nil, err
 		}
@@ -396,7 +398,16 @@ func editsOf(evs []*Event, win WindowIndex) []editAt {
 // that took it out and the tokens of its sentence as of the report before the loss (the as-of join,
 // ruled built 2026-11-06: without it an archived reading whose gap was minted before the loss reads as
 // a debt).
-func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win WindowIndex, edits []editAt) (locatedReading, error) {
+//
+// THE REWORD CHAIN IS FOLLOWED TO THE SENTENCE THE REPORT NOW HOLDS: each later edit that takes the
+// reworded sentence out in turn rewords it again, or removes it, and the debt is judged against the
+// chain's CURRENT sentence — the lens's re-read of it replaces the reading (lostReadingReplaced), a gap
+// quoting it at any link of the chain, or on report as it stands, discharges (the joins are unioned),
+// and the LAST link's applied_verbatim is the estoppel: a reword of red's applied text ends it, and a
+// later verbatim re-apply restores it. Keyed on the first link alone, a debt whose sentence was
+// reworded twice stood against a sentence the report no longer held, and nothing the lens did cleared
+// it.
+func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win WindowIndex, edits []editAt, report string) (locatedReading, error) {
 	w := win.Of(e)
 	l := locatedReading{ev: e, v: v, id: w.ID, seat: e.GetSeatId(), sitting: w.SittingID}
 	atReading, err := renderSource(reportSourceAt(q, w.ID))
@@ -413,34 +424,112 @@ func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win Window
 		// seat's later reading of the same url.
 		return l, nil
 	}
+	l.fillSentence(atReading, s0)
 	words := anchortext.Visible(atReading[s0[0]:s0[1]])
-	m, found := lostQuoteEdit(edits, w.ID, words)
-	asOf := atReading
-	if found {
-		l.lost = m.id
-		// The report before the loss: an anchor placed between the reading and the edit — a gap's
-		// token — is on it, and the edit's `old` is located on it.
-		if asOf, err = renderSource(reportSourceAt(q, m.id-1)); err != nil {
-			return l, err
-		}
-		if l.reworded, l.removed, err = rewordedTo(q, asOf, m); err != nil {
-			return l, err
-		}
-		l.estopped = m.ed.GetAppliedVerbatim()
+	links, err := rewordChainOf(q, edits, w.ID, words, func(after string) bool {
+		_, ok := readingSentenceIn(after, v)
+		return !ok
+	})
+	if err != nil || len(links) == 0 {
+		return l, err
 	}
-	if at, ok := readingSentenceIn(asOf, v); ok {
-		l.fillSentence(asOf, at)
+	l.lost = links[0].m.id
+	for _, k := range links {
+		// The report before this link: an anchor placed between the reading and the edit — a gap's
+		// token — is on it.
+		if at, ok := sentenceByWords(k.before, words); ok {
+			l.joinSentence(k.before, at)
+		}
+		l.reworded, l.removed, l.estopped = k.reworded, k.removed, k.m.ed.GetAppliedVerbatim()
+		words = k.reworded
+	}
+	if !l.removed {
+		if at, ok := sentenceByWords(report, words); ok {
+			l.joinSentence(report, at)
+		}
 	}
 	return l, nil
 }
 
-// lostQuoteEdit is the first blue edit after events.id `after` that took a reading's claim out of the
-// sentence it sat in — BOUNDED (F10, ruled): the edit's `old` LOCATES against that sentence, on
-// visible text — the whole sentence occurs in `old` (a whole-sentence or paragraph edit), or `old`
-// occurs in the sentence and is at least minEstoppelOverlap characters (the estoppel guard's own
-// floor, one constant). An unrelated short `old` that happens to occur in the claim names no edit, so
-// its applied_verbatim discharges nothing.
-func lostQuoteEdit(edits []editAt, after int64, sentence string) (editAt, bool) {
+// rewordLink is one link of a reword chain: blue's edit, the report as of the event before it (where
+// its `old` is located), and the sentence it left — or removed.
+type rewordLink struct {
+	m        editAt
+	before   string
+	reworded string
+	removed  bool
+}
+
+// rewordChainOf is the chain of blue's edits after events.id `after` that took a sentence out of the
+// report and what each left of it: the first link is the first bounded edit after which gone holds of
+// the report as of it (lostQuoteEdit); each later link is the first bounded edit after which the
+// sentence the previous link left is no sentence of the report; the chain ends at a removal or where
+// no edit takes the sentence out. Empty where no edit took the sentence out.
+func rewordChainOf(q recordsql.Querier, edits []editAt, after int64, words string, gone func(after string) bool) ([]rewordLink, error) {
+	var out []rewordLink
+	for {
+		m, found, err := lostQuoteEdit(q, edits, after, words, gone)
+		if err != nil || !found {
+			return out, err
+		}
+		k := rewordLink{m: m}
+		if k.before, err = renderSource(reportSourceAt(q, m.id-1)); err != nil {
+			return out, err
+		}
+		if k.reworded, k.removed, err = rewordedTo(q, k.before, m); err != nil {
+			return out, err
+		}
+		out = append(out, k)
+		if k.removed {
+			return out, nil
+		}
+		after, words = m.id, k.reworded
+		gone = func(after string) bool {
+			_, ok := sentenceByWords(after, words)
+			return !ok
+		}
+	}
+}
+
+// sentenceByWords is the first sentence of report whose visible text is words, and whether one is.
+func sentenceByWords(report, words string) ([2]int, bool) {
+	for _, sp := range anchor.Sentences(report) {
+		if anchortext.Visible(report[sp[0]:sp[1]]) == words {
+			return sp, true
+		}
+	}
+	return [2]int{}, false
+}
+
+// joinSentence adds what the sentence at `at` of report holds to the reading's joins: its gap and
+// citation tokens not already joined, and whether evidence marks it. The words stay the reading's
+// own sentence, the debt's subject.
+func (l *locatedReading) joinSentence(report string, at [2]int) {
+	var j locatedReading
+	j.fillSentence(report, at)
+	for _, id := range j.gapsIn {
+		if !slices.Contains(l.gapsIn, id) {
+			l.gapsIn = append(l.gapsIn, id)
+		}
+	}
+	for _, id := range j.citesIn {
+		if !slices.Contains(l.citesIn, id) {
+			l.citesIn = append(l.citesIn, id)
+		}
+	}
+	l.marked = l.marked || j.marked
+}
+
+// lostQuoteEdit is the first blue edit after events.id `after` that took a sentence out of the report
+// — BOUNDED (F10, ruled): the edit's `old` LOCATES against that sentence, on visible text — the whole
+// sentence occurs in `old` (a whole-sentence or paragraph edit), or `old` occurs in the sentence and
+// is at least minEstoppelOverlap characters (the estoppel guard's own floor, one constant) — AND the
+// sentence is gone from the report as of the edit (gone, read on the report rendered as of it). An
+// unrelated short `old` that happens to occur in the claim names no edit, so its applied_verbatim
+// discharges nothing; nor does a paragraph edit whose `old` carries the sentence through unchanged —
+// named, it discharged a debt it never touched, and reported the paragraph's other sentence as the
+// reword.
+func lostQuoteEdit(q recordsql.Querier, edits []editAt, after int64, sentence string, gone func(after string) bool) (editAt, bool, error) {
 	for _, m := range edits {
 		if m.id <= after {
 			continue
@@ -449,11 +538,18 @@ func lostQuoteEdit(edits []editAt, after int64, sentence string) (editAt, bool) 
 		if old == "" {
 			continue
 		}
-		if strings.Contains(old, sentence) || (len(old) >= minEstoppelOverlap && strings.Contains(sentence, old)) {
-			return m, true
+		if !strings.Contains(old, sentence) && !(len(old) >= minEstoppelOverlap && strings.Contains(sentence, old)) {
+			continue
+		}
+		after, err := renderSource(reportSourceAt(q, m.id))
+		if err != nil {
+			return editAt{}, false, err
+		}
+		if gone(after) {
+			return m, true, nil
 		}
 	}
-	return editAt{}, false
+	return editAt{}, false, nil
 }
 
 // rewordedTo is what edit m left at the place of its `old` (F11, ruled; the stand-in for the
@@ -464,11 +560,13 @@ func lostQuoteEdit(edits []editAt, after int64, sentence string) (editAt, bool) 
 // REWORDED to it — a whole-sentence edit, a fragment inside the sentence with any `new`, a `new` of
 // "" leaving the sentence's remainder; NONE (the sentence cut whole) or SEVERAL (a paragraph rewrite
 // whose new sentences are none of old's) is the sentence REMOVED. Residue, stated: a paragraph
-// rewrite that carries the sentence reworded among other NEW sentences reads as a removal.
+// rewrite that carries the sentence reworded among other NEW sentences reads as a removal. An `old`
+// that does not locate once in the report before its own edit is the read's error — the write placed
+// it there once, so a miss is a record this fold cannot read, never a reword to "".
 func rewordedTo(q recordsql.Querier, before string, m editAt) (reworded string, removed bool, err error) {
 	start, end, lerr := bluedoc.LocateUnique(before, m.ed.GetOld())
 	if lerr != nil {
-		return "", false, nil
+		return "", false, fmt.Errorf("the old text of blue's edit at event %d does not locate once in the report as of the event before it, so what the edit left of the sentence a reading quoted cannot be told: %w", m.id, lerr)
 	}
 	after, err := renderSource(reportSourceAt(q, m.id))
 	if err != nil {
