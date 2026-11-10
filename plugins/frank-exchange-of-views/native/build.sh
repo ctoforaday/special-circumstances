@@ -242,8 +242,8 @@ if [ "$HELPER" = "feov-ocr" ]; then
 		alias_lib() { if [ -e "$1" ] && [ ! -e "$2" ]; then ln -sf "$1" "$2"; fi; }
 		alias_lib libzs.a libz.a
 		alias_lib libzlibstatic.a libz.a
-		alias_lib libleptonica-${LEPTONICA_VERSION}.dll libleptonica.a
-		alias_lib libtesseract${TESSERACT_ABI}.a libtesseract.a
+		alias_lib "libleptonica-${LEPTONICA_VERSION}.dll" libleptonica.a
+		alias_lib "libtesseract${TESSERACT_ABI}.a" libtesseract.a
 		;;
 	esac
 

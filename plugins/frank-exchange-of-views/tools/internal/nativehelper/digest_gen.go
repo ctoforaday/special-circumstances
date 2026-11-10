@@ -5,7 +5,7 @@ package nativehelper
 // helpers is each helper's source digest and per-arch asset sha256, recomputed by
 // TestNativeDigestMatchesSources.
 var helpers = map[string]Pins{
-	"feov-ocr": {Digest: "86d285e5815a0f3c478fe3db05cebdc92b919f536dcb01d11d4dcb03bb700cdc"},
+	"feov-ocr": {Digest: "d76b3018ea9ed4a0eef82e5391b329843e24f1c87233b4fa09ef20e13c539038"},
 }
 
 // OCREngine is feov-ocr's engine pins, from native/feov-ocr/PINS.txt.
