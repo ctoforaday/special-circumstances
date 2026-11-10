@@ -41,8 +41,10 @@ type binStatus struct {
 	Plugin  string
 	Root    string
 	Version string
-	Kind    string // "go", "helper", "asset"
-	Export  string // for "asset", the line's field for runtime.GOARCH
+	// Kind is "go", "helper" or "asset", set by binariesOf, the only constructor outside tests.
+	// An empty Kind is a programming error: every reader branches on it.
+	Kind   string
+	Export string // for "asset", the line's field for runtime.GOARCH
 }
 
 func (b binStatus) file() string {
@@ -848,7 +850,7 @@ func fixWith(bins []binStatus, fetch func(binStatus) error, build func(binStatus
 			report = append(report, fmt.Sprintf("%s (%s): fetched CI-built release asset (checksum verified)", b.Name, b.Plugin))
 			continue
 		}
-		if (b.Kind == "go" || b.Kind == "") && goPresent {
+		if b.Kind == "go" && goPresent {
 			if msg, err := build(b); err != nil {
 				report = append(report, fmt.Sprintf("%s: fetch failed (%v); BUILD FAILED: %s", b.Name, fetchErr, msg))
 			} else {

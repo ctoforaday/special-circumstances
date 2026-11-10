@@ -266,7 +266,7 @@ func newTestFixture(t *testing.T) *testFixture {
 	}
 	env = append(env,
 		"HOME="+scratch,
-		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"PATH="+binDir+string(os.PathListSeparator)+hostToolsWithout(t, "zig", "cmake"),
 		"STUB_DIR="+stubDir,
 		"GOCACHE="+gocache,
 		"GOMODCACHE="+gomod,
@@ -280,6 +280,133 @@ func newTestFixture(t *testing.T) *testFixture {
 		gocache: gocache,
 		gomod:   gomod,
 		baseEnv: env,
+	}
+}
+
+// hostToolsWithout is a directory of links to every executable on the host's PATH, the first of
+// each name as PATH finds it, less drop. The fixture's PATH is its stubs and this directory, so
+// whether a build sees zig or cmake is the test's choice, never the host's.
+func hostToolsWithout(t *testing.T, drop ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	skip := map[string]bool{}
+	for _, d := range drop {
+		skip[d] = true
+	}
+	for _, d := range filepath.SplitList(os.Getenv("PATH")) {
+		entries, err := os.ReadDir(d)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			name := e.Name()
+			dst := filepath.Join(dir, name)
+			if skip[name] {
+				continue
+			}
+			if _, err := os.Lstat(dst); err == nil {
+				continue
+			}
+			src := filepath.Join(d, name)
+			fi, err := os.Stat(src)
+			if err != nil || fi.IsDir() || fi.Mode().Perm()&0o111 == 0 {
+				continue
+			}
+			if err := os.Symlink(src, dst); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	return dir
+}
+
+// addFakeHelper gives the fixture's plugin a helper native/fake/ with an empty ASSETS, the given
+// stub native/build.sh, and a stub nativedigest on PATH printing digest; it commits them.
+func (f *testFixture) addFakeHelper(t *testing.T, buildSh, digest string) {
+	t.Helper()
+	native := filepath.Join(f.repoDir, "plugins", "prosthetic-conscience", "native")
+	if err := os.MkdirAll(filepath.Join(native, "fake"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(native, "fake", "ASSETS"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(native, "build.sh"), []byte(buildSh), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f.writeDigest(t, digest)
+	f.commit(t, "add native helper fixture")
+}
+
+// writeDigest makes the stub nativedigest print d.
+func (f *testFixture) writeDigest(t *testing.T, d string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(f.binDir, "nativedigest"), []byte(fmt.Sprintf("#!/bin/sh\necho %q\n", d)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// stubToolchain puts stub zig and cmake on the fixture's PATH.
+func (f *testFixture) stubToolchain(t *testing.T) {
+	t.Helper()
+	for _, tool := range []string{"zig", "cmake"} {
+		if err := os.WriteFile(filepath.Join(f.binDir, tool), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// guard runs a staged root's PreToolUse guard as hooks.json's exec runs it: `sh -c`, under env (the
+// environment a session in this universe records) and that root's CLAUDE_PLUGIN_ROOT.
+func guard(t *testing.T, root string, env []string) {
+	t.Helper()
+	cmd := exec.Command("sh", "-c", filepath.Join(root, "hooks", "fetch-bin.sh")+" ensure PreToolUse </dev/null")
+	cmd.Env = append(append([]string{}, env...), "CLAUDE_PLUGIN_ROOT="+root)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("PreToolUse guard failed: %v\n%s", err, out)
+	}
+}
+
+// waitFor polls for path for up to 60 s.
+func waitFor(path string) bool {
+	for deadline := time.Now().Add(60 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// assertGuardInstallsNothing runs the guard of a root a dead build left, and requires the fetch it
+// detaches to fail, leaving .fetch/failed and no bin/alpha: no older release is installed.
+func assertGuardInstallsNothing(t *testing.T, root string, env []string) {
+	t.Helper()
+	guard(t, root, env)
+	failed := filepath.Join(root, ".fetch", "failed")
+	installed := filepath.Join(root, ".fetch", "installed")
+	for deadline := time.Now().Add(60 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		if _, err := os.Stat(installed); err == nil {
+			tag, _ := os.ReadFile(installed)
+			t.Fatalf("after the build died, the guard installed a release (.fetch/installed: %s)", strings.TrimSpace(string(tag)))
+		}
+		if _, err := os.Stat(failed); err == nil {
+			break
+		}
+	}
+	if _, err := os.Stat(failed); err != nil {
+		t.Fatalf("the guard's fetch left no .fetch/failed within 60 s")
+	}
+	// The fetch's EXIT trap removes its lock after failed is written; wait for that, so nothing is
+	// still writing into the root when bin/ is read.
+	lock := filepath.Join(root, ".fetch", "lock")
+	for deadline := time.Now().Add(60 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		if _, err := os.Stat(lock); err != nil {
+			break
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "bin", "alpha")); err == nil {
+		cause, _ := os.ReadFile(failed)
+		t.Fatalf("the guard installed bin/alpha after a build died (.fetch/failed: %s)", cause)
 	}
 }
 
@@ -578,26 +705,12 @@ func TestEverySessionFetchesOnlyTheLocalRelease(t *testing.T) {
 	}
 
 	shellEnvLines := strings.Split(strings.TrimSpace(string(shellEnvData)), "\n")
-	shellEnvLines = append(shellEnvLines, "CLAUDE_PLUGIN_ROOT="+stagedRoot)
-
-	// Run guard: sh -c hooks/fetch-bin.sh ensure PreToolUse
-	guardCmd := exec.Command("sh", "-c", filepath.Join(stagedRoot, "hooks", "fetch-bin.sh")+" ensure PreToolUse </dev/null")
-	guardCmd.Env = shellEnvLines
-	if out, err := guardCmd.CombinedOutput(); err != nil {
-		t.Fatalf("PreToolUse guard failed: %v\n%s", err, string(out))
+	guard(t, stagedRoot, shellEnvLines)
+	if !waitFor(stagedAlpha) {
+		t.Fatalf("staged bin/alpha was not restored by the PreToolUse guard within 60 s")
 	}
-
-	// Wait up to 5 seconds for restoration
-	restored := false
-	for i := 0; i < 50; i++ {
-		if _, err := os.Stat(stagedAlpha); err == nil {
-			restored = true
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if !restored {
-		t.Fatalf("staged bin/alpha was not restored by PreToolUse guard")
+	if !waitFor(filepath.Join(stagedRoot, ".fetch", "installed")) {
+		t.Fatalf("the guard's fetch did not finish within 60 s")
 	}
 
 	// With marketplace add failing, env already names the release
@@ -613,6 +726,8 @@ func TestEverySessionFetchesOnlyTheLocalRelease(t *testing.T) {
 	if !strings.Contains(string(sData3), expectedURL) {
 		t.Errorf("settings.json missing %s after marketplace add failure:\n%s", expectedURL, string(sData3))
 	}
+	// The build died after staging: the roots it staged find no release, never the last build's.
+	assertGuardInstallsNothing(t, stagedRoot, shellEnvLines)
 
 	// r10 gap: live $WORKDIR/shell.pid refuses build
 	shellPIDFile := filepath.Join(absWorkDir, "shell.pid")
@@ -631,26 +746,50 @@ func TestEverySessionFetchesOnlyTheLocalRelease(t *testing.T) {
 	if code5 != 0 {
 		t.Fatalf("build with stale install failed (exit %d):\n%s", code5, out5)
 	}
-	alphaData, _ := os.ReadFile(stagedAlpha)
-	if string(alphaData) == "stale\n" || string(alphaData) == "stale" {
-		t.Fatalf("staged bin/alpha remained stale after build")
+	alphaData, err := os.ReadFile(stagedAlpha)
+	if err != nil {
+		t.Fatal(err)
 	}
+	releaseAlpha := filepath.Join(absWorkDir+".release", "prosthetic-conscience--v1.0.0", "alpha_linux_"+runtime.GOARCH)
+	want, err := os.ReadFile(releaseAlpha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(alphaData, want) {
+		t.Fatalf("staged bin/alpha (%d bytes) is not the release asset %s (%d bytes) after a stale install", len(alphaData), releaseAlpha, len(want))
+	}
+
+	// r10 gap: after a build that carries a helper, a build that dies after staging — zig off PATH,
+	// the helper cache empty — leaves the staged roots fetching only its own unfinished release:
+	// the guard installs nothing, not the complete release the first build wrote.
+	f.addFakeHelper(t, `#!/usr/bin/env bash
+set -e
+target="$2"
+echo "fake-helper-binary" > "$3/${1}_${target%%-*}_${target##*-}"
+`, "digest-r10")
+	f.stubToolchain(t)
+	if out, code := f.runUniverse(t, nil, nil, "build", "--dir="+relDir); code != 0 {
+		t.Fatalf("the build carrying the helper failed (exit %d):\n%s", code, out)
+	}
+	if err := os.Remove(filepath.Join(f.binDir, "zig")); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.RemoveAll(filepath.Join(f.scratch, ".cache", "sc-universe"))
+	out6, code6 := f.runUniverse(t, nil, nil, "build", "--dir="+relDir)
+	if code6 == 0 || !strings.Contains(out6, "zig") {
+		t.Fatalf("expected the build to die naming zig; exit %d:\n%s", code6, out6)
+	}
+	if _, err := os.Stat(filepath.Join(stagedRoot, "hooks", "fetch-bin.sh")); err != nil {
+		t.Fatalf("the build died before staging, so the case tests nothing: %v\n%s", err, out6)
+	}
+	assertGuardInstallsNothing(t, stagedRoot, shellEnvLines)
 }
 
 func TestBuildAlwaysBuildsTheHelpers(t *testing.T) {
 	f := newTestFixture(t)
 
-	// Add helper native/fake/ with ASSETS and build.sh
-	nativeDir := filepath.Join(f.repoDir, "plugins", "prosthetic-conscience", "native", "fake")
-	if err := os.MkdirAll(nativeDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(nativeDir, "ASSETS"), []byte(""), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Stub build.sh in native/
-	buildSh := `#!/usr/bin/env bash
+	// The stub build.sh logs each call and writes the helper asset the release job would name.
+	f.addFakeHelper(t, `#!/usr/bin/env bash
 set -e
 helper="$1"
 target="$2"
@@ -660,29 +799,9 @@ host_os="${target%%-*}"
 host_arch="${target##*-}"
 ext=""
 [ "$host_os" = "windows" ] && ext=".exe"
-out="${helper}_${host_os}_${host_arch}${ext}"
-echo "fake-helper-binary" > "$outdir/$out"
-`
-	nativeBuildSh := filepath.Join(f.repoDir, "plugins", "prosthetic-conscience", "native", "build.sh")
-	if err := os.WriteFile(nativeBuildSh, []byte(buildSh), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	// Stub nativedigest on PATH
-	nativedigestSh := `#!/usr/bin/env bash
-echo "digest-111122223333"
-`
-	if err := os.WriteFile(filepath.Join(f.binDir, "nativedigest"), []byte(nativedigestSh), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	// Stub zig and cmake on PATH
-	stubZig := filepath.Join(f.binDir, "zig")
-	stubCmake := filepath.Join(f.binDir, "cmake")
-	_ = os.WriteFile(stubZig, []byte("#!/bin/sh\nexit 0\n"), 0o755)
-	_ = os.WriteFile(stubCmake, []byte("#!/bin/sh\nexit 0\n"), 0o755)
-
-	f.commit(t, "add native helper fixture")
+echo "fake-helper-binary" > "$outdir/${helper}_${host_os}_${host_arch}${ext}"
+`, "digest-111122223333")
+	f.stubToolchain(t)
 
 	relDir := "wd/"
 	absWorkDir := filepath.Join(f.scratch, "wd")
@@ -692,157 +811,132 @@ echo "digest-111122223333"
 		t.Fatalf("build failed (exit %d):\n%s", code, out)
 	}
 
-	hostArch := runtime.GOARCH
-	helperAsset := filepath.Join(absWorkDir+".release", "prosthetic-conscience--v1.0.0", fmt.Sprintf("fake_linux_%s", hostArch))
-	if _, err := os.Stat(helperAsset); err != nil {
-		t.Fatalf("local release missing helper asset %s: %v", helperAsset, err)
-	}
-
-	stagedFake := filepath.Join(absWorkDir+".marketplace", "plugins", "prosthetic-conscience", "bin", "fake")
+	helperAsset := filepath.Join(absWorkDir+".release", "prosthetic-conscience--v1.0.0", "fake_linux_"+runtime.GOARCH)
 	relData, err := os.ReadFile(helperAsset)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("local release missing helper asset %s: %v", helperAsset, err)
 	}
-	stagedData, err := os.ReadFile(stagedFake)
+	stagedData, err := os.ReadFile(filepath.Join(absWorkDir+".marketplace", "plugins", "prosthetic-conscience", "bin", "fake"))
 	if err != nil {
 		t.Fatalf("staged bin/fake missing: %v", err)
 	}
 	if !bytes.Equal(relData, stagedData) {
-		t.Errorf("staged bin/fake does not equal release helper")
+		t.Errorf("staged bin/fake does not equal the release's helper")
 	}
 
-	// With zig off PATH and cache empty, build exits non-zero naming zig
-	_ = os.Remove(stubZig)
-	// Clear cache and release
-	cacheDir := filepath.Join(f.scratch, ".cache", "sc-universe")
-	_ = os.RemoveAll(cacheDir)
-	_ = os.RemoveAll(absWorkDir + ".release")
-
+	// With zig off PATH — the stub gone, and the fixture's PATH carries no host zig — and the cache
+	// empty, build exits non-zero naming zig.
+	if err := os.Remove(filepath.Join(f.binDir, "zig")); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.RemoveAll(filepath.Join(f.scratch, ".cache", "sc-universe"))
 	out2, code2 := f.runUniverse(t, nil, nil, "build", "--dir="+relDir)
 	if code2 == 0 {
 		t.Fatalf("build succeeded with zig missing:\n%s", out2)
 	}
-	if !strings.Contains(out2, "zig") {
-		t.Errorf("error output did not name missing tool zig:\n%s", out2)
+	if !strings.Contains(out2, "fake needs zig on PATH") {
+		t.Errorf("the build's error does not name the missing zig:\n%s", out2)
 	}
 }
 
 func TestBuildReusesTheCachedHelper(t *testing.T) {
 	f := newTestFixture(t)
+	buildLog := filepath.Join(f.stubDir, "helper_build.log")
 
-	nativeDir := filepath.Join(f.repoDir, "plugins", "prosthetic-conscience", "native", "fake")
-	if err := os.MkdirAll(nativeDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(nativeDir, "ASSETS"), []byte(""), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	buildSh := `#!/usr/bin/env bash
+	// The stub build.sh logs each call, then sleeps when STUB_BUILD_SLEEP is set, so a build can be
+	// killed while it runs.
+	f.addFakeHelper(t, `#!/usr/bin/env bash
 set -e
 helper="$1"
 target="$2"
 outdir="$3"
 echo "call" >> "$STUB_DIR/helper_build.log"
 if [ "${STUB_BUILD_SLEEP:-}" = "1" ]; then
-  sleep 10
+  sleep 60
 fi
 host_os="${target%%-*}"
 host_arch="${target##*-}"
 ext=""
 [ "$host_os" = "windows" ] && ext=".exe"
-out="${helper}_${host_os}_${host_arch}${ext}"
-echo "fake-helper-binary" > "$outdir/$out"
-`
-	nativeBuildSh := filepath.Join(f.repoDir, "plugins", "prosthetic-conscience", "native", "build.sh")
-	if err := os.WriteFile(nativeBuildSh, []byte(buildSh), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	digestScript := filepath.Join(f.binDir, "nativedigest")
-	writeDigest := func(d string) {
-		content := fmt.Sprintf("#!/bin/sh\necho %q\n", d)
-		_ = os.WriteFile(digestScript, []byte(content), 0o755)
-	}
-	writeDigest("digest-1")
-
-	_ = os.WriteFile(filepath.Join(f.binDir, "zig"), []byte("#!/bin/sh\nexit 0\n"), 0o755)
-	_ = os.WriteFile(filepath.Join(f.binDir, "cmake"), []byte("#!/bin/sh\nexit 0\n"), 0o755)
-
-	f.commit(t, "native helper cache fixture")
+echo "fake-helper-binary" > "$outdir/${helper}_${host_os}_${host_arch}${ext}"
+`, "digest-1")
+	f.stubToolchain(t)
 
 	relDir := "wd/"
 	absWorkDir := filepath.Join(f.scratch, "wd")
-	mktDir := absWorkDir + ".marketplace"
-	releaseDir := absWorkDir + ".release"
 	cacheHome := filepath.Join(f.scratch, "cache")
 	cacheEnv := []string{"XDG_CACHE_HOME=" + cacheHome}
+	entry := func(d string) string { return filepath.Join(cacheHome, "sc-universe", "native", "fake", d) }
 
-	// 1st build: compiles helper (logs 1 call)
+	// 1st build: compiles the helper (one call).
 	if out, code := f.runUniverse(t, nil, cacheEnv, "build", "--dir="+relDir); code != 0 {
 		t.Fatalf("1st build failed (exit %d):\n%s", code, out)
 	}
-	calls1 := countCalls(t, filepath.Join(f.stubDir, "helper_build.log"))
-	if calls1 != 1 {
-		t.Fatalf("expected 1 build.sh call, got %d", calls1)
+	if n := countCalls(t, buildLog); n != 1 {
+		t.Fatalf("expected 1 build.sh call, got %d", n)
 	}
 
-	// Delete the three paths: WORKDIR, WORKDIR.marketplace, WORKDIR.release
-	_ = os.RemoveAll(absWorkDir)
-	_ = os.RemoveAll(mktDir)
-	_ = os.RemoveAll(releaseDir)
-
-	// 2nd build: with digest unchanged, reuses cache (build.sh logged once)
+	// 2nd build, after the three paths are deleted, with the digest unchanged: reuses the cache.
+	for _, p := range []string{absWorkDir, absWorkDir + ".marketplace", absWorkDir + ".release"} {
+		_ = os.RemoveAll(p)
+	}
 	if out, code := f.runUniverse(t, nil, cacheEnv, "build", "--dir="+relDir); code != 0 {
 		t.Fatalf("2nd build failed (exit %d):\n%s", code, out)
 	}
-	calls2 := countCalls(t, filepath.Join(f.stubDir, "helper_build.log"))
-	if calls2 != 1 {
-		t.Fatalf("expected cached build.sh not to be called again, but got %d calls", calls2)
+	if n := countCalls(t, buildLog); n != 1 {
+		t.Fatalf("expected the cached helper to be reused, but build.sh ran %d times", n)
 	}
 
-	// 3rd build: stub nativedigest prints new digest, logs second call and writes cache
-	writeDigest("digest-2")
+	// 3rd build, a new digest: a second call, written under the printed digest.
+	f.writeDigest(t, "digest-2")
 	if out, code := f.runUniverse(t, nil, cacheEnv, "build", "--dir="+relDir); code != 0 {
 		t.Fatalf("3rd build failed (exit %d):\n%s", code, out)
 	}
-	calls3 := countCalls(t, filepath.Join(f.stubDir, "helper_build.log"))
-	if calls3 != 2 {
-		t.Fatalf("expected 2nd build.sh call on digest change, got %d calls", calls3)
+	if n := countCalls(t, buildLog); n != 2 {
+		t.Fatalf("expected a 2nd build.sh call on the digest change, got %d", n)
 	}
-	expectedCache2 := filepath.Join(cacheHome, "sc-universe", "native", "fake", "digest-2")
-	if fi, err := os.Stat(expectedCache2); err != nil || !fi.IsDir() {
-		t.Fatalf("expected cache dir at %s", expectedCache2)
+	if fi, err := os.Stat(entry("digest-2")); err != nil || !fi.IsDir() {
+		t.Fatalf("expected a cache entry at %s", entry("digest-2"))
 	}
 
-	// 4th build: killed while stub build.sh sleeps on digest-3
-	writeDigest("digest-3")
+	// 4th build, a third digest, killed while the stub build.sh sleeps: the kill lands only once
+	// the stub has logged its call, so the build is mid-helper when it dies.
+	f.writeDigest(t, "digest-3")
 	cmd4 := exec.Command("bash", filepath.Join(f.repoDir, "scripts", "universe.sh"), "build", "--dir="+relDir)
 	cmd4.Dir = f.scratch
 	cmd4.Env = append(append([]string{}, f.baseEnv...), append(cacheEnv, "STUB_BUILD_SLEEP=1")...)
+	cmd4.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	var out4 bytes.Buffer
+	cmd4.Stdout, cmd4.Stderr = &out4, &out4
 	if err := cmd4.Start(); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(300 * time.Millisecond)
-	_ = syscall.Kill(cmd4.Process.Pid, syscall.SIGKILL)
+	inBuild := false
+	for deadline := time.Now().Add(120 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		if countCalls(t, buildLog) == 3 {
+			inBuild = true
+			break
+		}
+	}
+	// The whole group: universe.sh, the stub build.sh and its sleep.
+	_ = syscall.Kill(-cmd4.Process.Pid, syscall.SIGKILL)
 	_ = cmd4.Wait()
-
-	// Leaves no digest-3 directory in cache
-	expectedCache3 := filepath.Join(cacheHome, "sc-universe", "native", "fake", "digest-3")
-	if _, err := os.Stat(expectedCache3); err == nil {
-		t.Fatalf("partial cache entry %s was left by killed build", expectedCache3)
+	if !inBuild {
+		t.Fatalf("the 4th build never reached build.sh within 120 s:\n%s", out4.String())
+	}
+	if _, err := os.Stat(entry("digest-3")); err == nil {
+		t.Fatalf("the killed build left a cache entry %s", entry("digest-3"))
 	}
 
-	// 5th build: logs a call and finishes
+	// 5th build: builds the helper again and finishes.
 	if out, code := f.runUniverse(t, nil, cacheEnv, "build", "--dir="+relDir); code != 0 {
 		t.Fatalf("5th build failed (exit %d):\n%s", code, out)
 	}
-	calls5 := countCalls(t, filepath.Join(f.stubDir, "helper_build.log"))
-	if calls5 != 3 {
-		t.Fatalf("expected 3rd call on 5th build, got %d", calls5)
+	if n := countCalls(t, buildLog); n != 4 {
+		t.Fatalf("expected the 5th build to call build.sh (4 calls in all), got %d", n)
 	}
-	if fi, err := os.Stat(expectedCache3); err != nil || !fi.IsDir() {
-		t.Fatalf("expected cache dir at %s after 5th build", expectedCache3)
+	if fi, err := os.Stat(entry("digest-3")); err != nil || !fi.IsDir() {
+		t.Fatalf("expected a cache entry at %s after the 5th build", entry("digest-3"))
 	}
 }
 

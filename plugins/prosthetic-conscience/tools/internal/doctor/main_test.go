@@ -24,12 +24,12 @@ func TestVerdict(t *testing.T) {
 		bins  []binStatus
 		want  string
 	}{
-		{"all present", []toolchain.Status{status("git", "required", true)}, []binStatus{{Name: "sc-quality-gate", Built: true}}, "READY"},
+		{"all present", []toolchain.Status{status("git", "required", true)}, []binStatus{{Kind: "go", Name: "sc-quality-gate", Built: true}}, "READY"},
 		{"required missing", []toolchain.Status{status("git", "required", false)}, nil, "BLOCKED"},
 		{"recommended missing", []toolchain.Status{status("git", "required", true), status("qlty", "recommended", false)}, nil, "DEGRADED"},
-		{"binary missing", []toolchain.Status{status("git", "required", true)}, []binStatus{{Name: "sc-quality-gate", Built: false}}, "DEGRADED"},
+		{"binary missing", []toolchain.Status{status("git", "required", true)}, []binStatus{{Kind: "go", Name: "sc-quality-gate", Built: false}}, "DEGRADED"},
 		{"optional missing stays ready", []toolchain.Status{status("jq", "optional", false)}, nil, "READY"},
-		{"blocked beats degraded", []toolchain.Status{status("git", "required", false), status("qlty", "recommended", false)}, []binStatus{{Name: "x", Built: false}}, "BLOCKED"},
+		{"blocked beats degraded", []toolchain.Status{status("git", "required", false), status("qlty", "recommended", false)}, []binStatus{{Kind: "go", Name: "x", Built: false}}, "BLOCKED"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -41,7 +41,7 @@ func TestVerdict(t *testing.T) {
 }
 
 func TestTableShowsInstallForMissing(t *testing.T) {
-	out := table([]toolchain.Status{status("qlty", "recommended", false)}, []binStatus{{Name: "sc-quality-gate", Built: false}})
+	out := table([]toolchain.Status{status("qlty", "recommended", false)}, []binStatus{{Kind: "go", Name: "sc-quality-gate", Built: false}})
 	for _, want := range []string{"qlty", "✗", "install:", "sc-quality-gate", "not built"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("table missing %q:\n%s", want, out)
@@ -147,7 +147,7 @@ func TestVerdictIgnoresNotApplicableTools(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			var bins []binStatus
 			if c.name == "n/a does not rescue a missing binary" {
-				bins = []binStatus{{Name: "sc-quality-gate", Built: false}}
+				bins = []binStatus{{Kind: "go", Name: "sc-quality-gate", Built: false}}
 			}
 			if got := verdict(c.tools, bins); got != c.want {
 				t.Fatalf("verdict = %q; want %q", got, c.want)

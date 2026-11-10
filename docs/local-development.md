@@ -94,7 +94,7 @@ the local release copy (`$WORKDIR.release/...`), or ask the staged one directly 
 
 ### Binaries are built in the checkout into the local release
 
-`build` builds each plugin's Go binaries from the checkout's `tools/` with `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w"` into the local release (`$WORKDIR.release`), so `--version` carries the commit. Standalone native helpers (`feov-ocr`, `feov-embed`) are compiled via `native/build.sh` or reused from the helper cache (`~/.cache/sc-universe/native/<helper>/<digest>/`), which is keyed by the helper's digest (`nativedigest -print`). `fetch-bin.sh fetch` then installs each binary, helper, and model asset from the local release into the staged marketplace's `bin/`.
+`build` builds each plugin's Go binaries from the checkout's `tools/` with `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w"` into the local release (`$WORKDIR.release`), so `--version` carries the commit. Every `build` also builds each native helper a plugin carries under `native/` (`feov-ocr` today) into the same release, or reuses it from the helper cache (`${XDG_CACHE_HOME:-~/.cache}/sc-universe/native/<helper>/<digest>/`), keyed by the helper's source digest (`nativedigest -print`), so only a change to a helper's inputs rebuilds it. A cache miss runs `native/build.sh`, which needs the toolchain `native/PINS.txt` pins — `zig` and `cmake` — on `PATH`; `build` checks both first and, when one is absent, exits non-zero naming it. It never skips a helper: a release without one fails the fetch. `fetch-bin.sh fetch` then installs each binary, helper, and model asset from the local release into the staged marketplace's `bin/`.
 
 ## Seeing what is happening
 
@@ -314,9 +314,11 @@ another session leads, and a run whose outcome is recorded and that was not capt
 rows of runs that were captured or whose directory is gone. Run a second engine from its own
 checkout.
 
-**A plain build has no OCR engine.** Without the `feov-ocr` native helper, local OCR skips. A checkout
-build or `go test` runs pure-Go tests; `native/build.sh feov-ocr <target>` builds the standalone
-helper with the pinned zig toolchain, and `NATIVE_HELPER_DIR` points `feov-record` at the built helper.
+**OCR runs in the `feov-ocr` helper, not in `feov-record`.** A checkout build has no helper beside it,
+so every OCR call refuses loudly with `helper-absent`, naming the path it looked in — never an empty
+reading — and `setup` prints one line per helper saying which is unavailable. `native/build.sh feov-ocr
+<target>` builds the helper with the pinned zig toolchain, and `NATIVE_HELPER_DIR` points `feov-record`
+at the built helper.
 [`c-stack.md`](c-stack.md) covers helper builds and why zig is used.
 
 **The box is shared.** Other sessions run their own gates here. Check `uptime` before timing

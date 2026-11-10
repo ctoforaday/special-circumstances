@@ -393,19 +393,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		if err := client.Start(); err != nil {
 			var ne *nativehelper.Error
 			if errors.As(err, &ne) {
-				detail := ne.Detail
-				if detail == "" {
-					if ne.Path != "" && ne.Kind == nativehelper.ErrAbsent {
-						detail = "no executable at " + ne.Path
-					} else if ne.Kind == nativehelper.ErrDigestMismatch {
-						detail = fmt.Sprintf("%s %s, this binary was built for %s", ne.What, ne.Got, ne.Want)
-					}
-				}
-				if detail != "" {
-					fmt.Fprintf(stdout, "  %s: %s, %s\n", h, ne.Kind, detail)
-				} else {
-					fmt.Fprintf(stdout, "  %s: %s\n", h, ne.Kind)
-				}
+				fmt.Fprintf(stdout, "  %s: %s\n", h, helperPreflightDetail(ne))
 			} else {
 				fmt.Fprintf(stdout, "  %s: %v\n", h, err)
 			}
@@ -498,6 +486,37 @@ type runConfig struct {
 	// organization and spent credits for months while reporting a dollar figure that read as
 	// telemetry.
 	Billing BillingIdentity `json:"billing"`
+}
+
+// helperPreflightDetail is setup's line for a helper that did not come up: the error's name, then
+// what an operator acts on — the path looked in, both digests, the exit — and the error's detail.
+// The path is part of every case: a helper-absent line that names no path cannot be acted on.
+func helperPreflightDetail(ne *nativehelper.Error) string {
+	var what string
+	switch ne.Kind {
+	case nativehelper.ErrAbsent:
+		if ne.Path != "" {
+			what = "no executable at " + ne.Path
+		}
+	case nativehelper.ErrDigestMismatch:
+		what = fmt.Sprintf("%s at %s reports %s, this binary was built for %s", ne.What, ne.Path, ne.Got, ne.Want)
+	case nativehelper.ErrCrashed:
+		what = fmt.Sprintf("%s at %s: %s during %s", ne.Helper, ne.Path, ne.Exit, ne.Op)
+	case nativehelper.ErrDeadline:
+		what = fmt.Sprintf("%s at %s: %s ran %s, over the deadline", ne.Helper, ne.Path, ne.Op, ne.Elapsed.Round(time.Millisecond))
+	default:
+		what = fmt.Sprintf("%s at %s: %s", ne.Helper, ne.Path, ne.Op)
+	}
+	parts := []string{}
+	for _, p := range []string{what, ne.Detail} {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) == 0 {
+		return ne.Kind.Error()
+	}
+	return ne.Kind.Error() + ", " + strings.Join(parts, " — ")
 }
 
 func ptrOrNil(s string) *string {

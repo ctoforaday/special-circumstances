@@ -43,7 +43,7 @@ func TestAnInstalledPluginTakesItsReferenceFromTheInstallRecord(t *testing.T) {
 	const sha = "2bb1d7b817c5611032652e83a9e254fc46b57aab"
 	_, root := writeInstallRecord(t, sha)
 
-	if got := ReferenceCommit(binStatus{Name: "sc-stop", Root: root, Built: true}); got != sha {
+	if got := ReferenceCommit(binStatus{Kind: "go", Name: "sc-stop", Root: root, Built: true}); got != sha {
 		t.Errorf("ReferenceCommit = %q, want the recorded install commit %q", got, sha)
 	}
 }
@@ -66,7 +66,7 @@ func TestACheckoutPrefersItsOwnHead(t *testing.T) {
 	}
 	head, _ := runGit(t, dir, "rev-parse", "HEAD")
 
-	if got := ReferenceCommit(binStatus{Name: "sc-stop", Root: dir, Built: true}); got != head {
+	if got := ReferenceCommit(binStatus{Kind: "go", Name: "sc-stop", Root: dir, Built: true}); got != head {
 		t.Errorf("ReferenceCommit = %q, want the checkout's HEAD %q", got, head)
 	}
 }
@@ -78,7 +78,7 @@ func TestAnUnknownInstallYieldsNoReferenceRatherThanAGuess(t *testing.T) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if got := ReferenceCommit(binStatus{Name: "x", Root: root, Built: true}); got != "" {
+	if got := ReferenceCommit(binStatus{Kind: "go", Name: "x", Root: root, Built: true}); got != "" {
 		t.Errorf("ReferenceCommit = %q, want empty for an install nothing recorded", got)
 	}
 	if got := Compare(BuildStamp{Revision: "abc"}, ""); got != NoReference {
@@ -95,7 +95,7 @@ func TestARecordForAnotherInstallDoesNotAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = root
-	if got := ReferenceCommit(binStatus{Name: "sc-stop", Root: other, Built: true}); got != "" {
+	if got := ReferenceCommit(binStatus{Kind: "go", Name: "sc-stop", Root: other, Built: true}); got != "" {
 		t.Errorf("ReferenceCommit = %q for an install the record does not describe; want empty", got)
 	}
 }
@@ -110,7 +110,7 @@ func TestReferenceCommitFromFetchCommit(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".fetch", "commit"), []byte(sha+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := ReferenceCommit(binStatus{Name: "sc-doctor", Root: root, Built: true}); got != sha {
+	if got := ReferenceCommit(binStatus{Kind: "go", Name: "sc-doctor", Root: root, Built: true}); got != sha {
 		t.Errorf("ReferenceCommit = %q, want commit from .fetch/commit %q", got, sha)
 	}
 }
@@ -145,6 +145,7 @@ func TestReferenceCommitByNameMatchesCrossHarness(t *testing.T) {
 	}
 
 	got := ReferenceCommit(binStatus{
+		Kind:    "go",
 		Name:    "telepathy",
 		Plugin:  "gray-area",
 		Version: "0.18.0",

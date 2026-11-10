@@ -1455,12 +1455,14 @@ jobs:
           a="alpha_${os}_${arch}${ext}"; b="beta_${os}_${arch}${ext}"
           h="fake-helper_${os}_${arch}${ext}"
           ed="extra.${arch}.data"
+          if [ "$arch" = amd64 ]; then od="extra.arm64.data"; else od="extra.amd64.data"; fi
           printf 'binary alpha\n' > "$rel/fixture--v1.2.3/$a"
           printf 'binary beta\n' > "$rel/fixture--v1.2.3/$b"
           printf 'binary helper\n' > "$rel/fixture--v1.2.3/$h"
-          printf 'extra asset data\n' > "$rel/fixture--v1.2.3/$ed"
+          printf 'extra asset data for %s\n' "$arch" > "$rel/fixture--v1.2.3/$ed"
+          printf 'extra asset data for the other arch\n' > "$rel/fixture--v1.2.3/$od"
           if command -v sha256sum >/dev/null 2>&1; then sum="sha256sum"; else sum="shasum -a 256"; fi
-          (cd "$rel/fixture--v1.2.3" && $sum "$a" "$b" "$h" "$ed" > SHA256SUMS)
+          (cd "$rel/fixture--v1.2.3" && $sum "$a" "$b" "$h" "$ed" "$od" > SHA256SUMS)
           base="file://$rel"
           if [ "$os" = windows ]; then base="file:///$(cygpath -m "$rel")"; fi
           # cmd is a guard command, so its ${...} must stay unexpanded until the guard's own shell runs it.
@@ -1478,9 +1480,14 @@ jobs:
             if [ -f "$root/bin/alpha$ext" ] && [ -f "$root/bin/beta$ext" ] && [ -f "$root/bin/fake-helper$ext" ] && [ -f "$root/bin/extra.data" ]; then break; fi
             sleep 1
           done
-          for n in "alpha$ext" "beta$ext" "fake-helper$ext" "extra.data"; do
+          # Each installed file is its release asset byte for byte: extra.data is this arch's export.
+          for pair in "alpha$ext:$a" "beta$ext:$b" "fake-helper$ext:$h" "extra.data:$ed"; do
+            n="${pair%%:*}"; asset="${pair#*:}"
             if [ ! -f "$root/bin/$n" ]; then
               echo "$n was not installed"; cat "$root/.fetch/log" 2>/dev/null || true; exit 1
+            fi
+            if ! cmp -s "$root/bin/$n" "$rel/fixture--v1.2.3/$asset"; then
+              echo "bin/$n is not the release asset $asset"; cat "$root/.fetch/log" 2>/dev/null || true; exit 1
             fi
           done
           echo "installed after the guard's shell exited, on $os/$arch"
