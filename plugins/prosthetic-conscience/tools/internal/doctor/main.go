@@ -41,8 +41,10 @@ type binStatus struct {
 	Plugin  string
 	Root    string
 	Version string
-	Kind    string // "go", "helper", "asset"
-	Export  string // for "asset", the line's field for runtime.GOARCH
+	// Kind is "go", "helper" or "asset", set by binariesOf, the only constructor outside tests.
+	// An empty Kind is a programming error: every reader branches on it.
+	Kind   string
+	Export string // for "asset", the line's field for runtime.GOARCH
 }
 
 func (b binStatus) file() string {
@@ -806,9 +808,15 @@ func stampInstalled(bins []binStatus) {
 		if b.Plugin == "" || b.Version == "" {
 			continue
 		}
+		// The commit comes from a Go binary's build stamp: a helper or an export carries none, and
+		// which entry comes last in a root is an accident of its layout.
+		rev := ""
 		for _, probe := range binariesOf(root, b.Plugin, b.Version) {
 			if !probe.Built {
 				return // a partial install is not this version: leave the stamp alone
+			}
+			if _, s := stampVerdict(probe); rev == "" && s.Revision != "" {
+				rev = s.Revision
 			}
 		}
 		dir := filepath.Join(root, ".fetch")
@@ -816,10 +824,6 @@ func stampInstalled(bins []binStatus) {
 			continue
 		}
 		_ = os.WriteFile(filepath.Join(dir, "installed"), []byte(releaseTag(b)+"\n"), 0o644)
-		rev := ""
-		if _, s := stampVerdict(b); s.Revision != "" {
-			rev = s.Revision
-		}
 		if rev == "" {
 			rev = HeadCommit(root)
 		}
@@ -848,7 +852,7 @@ func fixWith(bins []binStatus, fetch func(binStatus) error, build func(binStatus
 			report = append(report, fmt.Sprintf("%s (%s): fetched CI-built release asset (checksum verified)", b.Name, b.Plugin))
 			continue
 		}
-		if (b.Kind == "go" || b.Kind == "") && goPresent {
+		if b.Kind == "go" && goPresent {
 			if msg, err := build(b); err != nil {
 				report = append(report, fmt.Sprintf("%s: fetch failed (%v); BUILD FAILED: %s", b.Name, fetchErr, msg))
 			} else {

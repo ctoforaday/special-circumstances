@@ -326,7 +326,7 @@ func TestSiblingHelpersOnAMissingCache(t *testing.T) {
 // re-download the whole suite. This is the one fix() path safe to exercise: it
 // reaches neither the network nor the Go toolchain.
 func TestFixSkipsBuiltBinaries(t *testing.T) {
-	if got := fix([]binStatus{{Name: "sc-doctor", Built: true}, {Name: "feov-record", Built: true}}); len(got) != 0 {
+	if got := fix([]binStatus{{Kind: "go", Name: "sc-doctor", Built: true}, {Kind: "go", Name: "feov-record", Built: true}}); len(got) != 0 {
 		t.Fatalf("fix reported work for already-built binaries: %v", got)
 	}
 	if got := fix(nil); len(got) != 0 {

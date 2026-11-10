@@ -23,3 +23,7 @@
 # to the default build — only the tagged Linux leg reads them.
 *.gz binary
 *.pdf binary
+# Native helpers: fetch-bin.sh, universe.sh and native/build.sh read these line by line with sh, and
+# a CRLF checkout would end the last field of each line in \r.
+ASSETS text eol=lf
+PINS.txt text eol=lf
