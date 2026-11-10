@@ -441,16 +441,10 @@ FROM "placed" p;
 -- evidence_met arms 2 and 3); this is the one statement of the reach, which the close's refusal
 -- (record.EvidenceDemandOf) and a retire's reach (record.reachingRetiresOf) read too.
 --
--- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT (ruled by gblock 2026-11-05). A mint
--- superseding an open gap of the same source or computation check kind closes it and takes its
--- demand on, so the successor's demand is met through the ancestor's anchors too: retiring the
--- citation a refuted reading read is the remedy its failed check names, and it meets the successor.
--- Transitively, through every same-kind ancestor of the chain of superseding mints. An inherited
--- row is the successor's from its mint: a retire before it had met the ancestor, which then passed no
--- demand on, and a check counts for the gap only at or after its mint. An ancestor whose demand was
--- met, or disposed of by the bench, before the successor named it passes its reach on all the same:
--- what would have met it after the successor's mint meets the successor too (plans/compute-and-show.md,
--- "Supersede demand").
+-- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
+-- ancestor it carries the demand from (demand_lineage, written at the gap's mint). An inherited row is
+-- the successor's from its mint: a retire before it had met the ancestor, which then passed no
+-- demand on, and a check counts for the gap only at or after its mint.
 --
 --   from_gap  the gap whose about or reading the row is: gap_id itself, or an ancestor it carries
 --             the demand from.
@@ -458,40 +452,18 @@ FROM "placed" p;
 --   reached   the event from which the anchor is in gap_id's reach: its own mint for the anchor it
 --             is about, the reading's act for a reading it carries, its mint for an inherited row.
 CREATE VIEW "demand_reach" AS
-WITH RECURSIVE "carries" AS MATERIALIZED (
-  -- EACH SUPERSESSION THAT PASSED A DEMAND ON: the first mint naming the ancestor in its supersedes,
-  -- at the ancestor's check kind, one a live answer is demanded under, with the ancestor's subject
-  -- and mint. The first naming mint is the one that closed an open ancestor (closure_act's
-  -- 'supersede' arm). It is not asked whether the ancestor was open, or its demand unmet, when the
-  -- mint named it: the gap view's closure is not this view's to read (closure_act a second time in
-  -- every statement over the gap view), and that ancestor's demand was met, or disposed of by the
-  -- bench, before the successor's mint, which the inherited rows' acts all follow.
-  SELECT h."gap_id" AS "heir", a."gap_id" AS "ancestor", a."about_kind" AS "about_kind", a."about_ref" AS "about_ref",
-         a."event_id" AS "event_id"
-  FROM (SELECT "value", MIN("event_id") AS "by" FROM "mint_supersedes" GROUP BY "value") fs
-  JOIN "mint" h ON h."event_id" = fs."by"
-  JOIN "mint" a ON a."gap_id" = fs."value" AND a."check_kind" = h."check_kind"
-  WHERE a."check_kind" IN (` + evidenceChecksSQL() + `)
-),
-"lineage" AS (
-  -- EACH GAP, AND EVERY ANCESTOR IT CARRIES THE DEMAND FROM, with that gap's subject and mint.
-  SELECT m."gap_id" AS "gap_id", m."gap_id" AS "from_gap", m."check_kind" AS "check_kind", m."event_id" AS "minted",
-         m."about_kind" AS "about_kind", m."about_ref" AS "about_ref", m."event_id" AS "from_event"
-  FROM "mint" m
-  UNION
-  SELECT l."gap_id", cy."ancestor", l."check_kind", l."minted", cy."about_kind", cy."about_ref", cy."event_id"
-  FROM "lineage" l
-  JOIN "carries" cy ON cy."heir" = l."from_gap"
-)
-SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", l."check_kind" AS "check_kind", l."minted" AS "minted",
-       'about' AS "via", l."about_ref" AS "anchor", e."seat_id" AS "seat", l."minted" AS "reached"
-FROM "lineage" l
-JOIN "events" e ON e."id" = l."from_event"
-WHERE l."about_kind" = 'anchor'
+SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
+       'about' AS "via", a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+FROM "demand_lineage" l
+JOIN "mint" h ON h."gap_id" = l."gap_id"
+JOIN "mint" a ON a."gap_id" = l."from_gap"
+JOIN "events" e ON e."id" = a."event_id"
+WHERE a."about_kind" = 'anchor'
 UNION ALL
-SELECT l."gap_id", l."from_gap", l."check_kind", l."minted",
-       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE l."minted" END
-FROM "lineage" l
+SELECT l."gap_id", l."from_gap", h."check_kind", h."event_id",
+       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE h."event_id" END
+FROM "demand_lineage" l
+JOIN "mint" h ON h."gap_id" = l."gap_id"
 JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap";
 
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's

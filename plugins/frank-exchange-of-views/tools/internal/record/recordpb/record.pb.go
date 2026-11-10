@@ -2226,7 +2226,8 @@ type Sql struct {
 	// constraint the sharded log could not have: filing and ruling lived in different files and
 	// replay merged them by timestamp, so a ruling could replay before its filing — recorded in
 	// capitals at record/motion.go and papered over by a second pass. A foreign key makes the state
-	// unwritable rather than recoverable.
+	// unwritable rather than recoverable. On a repeated field every element must point at its row:
+	// the list table's value column carries the foreign key.
 	References *string `protobuf:"bytes,4,opt,name=references,proto3,oneof" json:"references,omitempty"`
 	// unique is a per-run uniqueness the type cannot state — a gap id minted twice is two gaps
 	// wearing one name, and every join afterwards is ambiguous.
@@ -3449,7 +3450,8 @@ type Mint struct {
 	Impact         *Grade `protobuf:"varint,18,opt,name=impact,proto3,enum=feov.record.v1.Grade,oneof" json:"impact,omitempty"`
 	ComplexityCost *Grade `protobuf:"varint,19,opt,name=complexity_cost,json=complexityCost,proto3,enum=feov.record.v1.Grade,oneof" json:"complexity_cost,omitempty"`
 	// ALWAYS PRESENT, even empty: a gap with no ancestors records an empty list, because an absent
-	// key would read as "lineage unknown" where the truth is "lineage none".
+	// key would read as "lineage unknown" where the truth is "lineage none". Each names a gap already
+	// minted: the gap's demand lineage is written at its mint, so an ancestor minted later could never join it.
 	Supersedes []string `protobuf:"bytes,20,rep,name=supersedes,proto3" json:"supersedes,omitempty"`
 	FoundBy    []string `protobuf:"bytes,21,rep,name=found_by,json=foundBy,proto3" json:"found_by,omitempty"`
 	// mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
@@ -6080,7 +6082,7 @@ type PositionHearing struct {
 	Ruling *PositionRuling        `protobuf:"varint,1,opt,name=ruling,proto3,enum=feov.record.v1.PositionRuling,oneof" json:"ruling,omitempty"`
 	// The lens an upheld ruling readies to audit its area, once.
 	Lens *string `protobuf:"bytes,2,opt,name=lens,proto3,oneof" json:"lens,omitempty"`
-	// The open gaps an upheld ruling sends back for one more exchange.
+	// The open gaps an upheld ruling sends back for one more exchange, each a gap already minted.
 	GapIds []string `protobuf:"bytes,3,rep,name=gap_ids,json=gapIds,proto3" json:"gap_ids,omitempty"`
 	// THE WORK'S DIRECTION. The dispatch hands it to the readied seats, as a remand's.
 	Direction     *string `protobuf:"bytes,4,opt,name=direction,proto3,oneof" json:"direction,omitempty"`
@@ -7815,7 +7817,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\xc2\x17\n" +
+	"\b_up_mass\"\xd5\x17\n" +
 	"\x04Mint\x12\x96\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tBz\x82\xb5\x18v\b\x01\x1apthe gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on(\x01H\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xb4\x02\n" +
@@ -7839,9 +7841,9 @@ const file_record_proto_rawDesc = "" +
 	"likelihood\x18\x11 \x01(\x0e2\x15.feov.record.v1.GradeB\x82\x01\x82\xb5\x18~\b\x01\x1azit multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungradedH\rR\n" +
 	"likelihood\x88\x01\x01\x12\xb7\x01\n" +
 	"\x06impact\x18\x12 \x01(\x0e2\x15.feov.record.v1.GradeB\x82\x01\x82\xb5\x18~\b\x01\x1azit multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungradedH\x0eR\x06impact\x88\x01\x01\x12C\n" +
-	"\x0fcomplexity_cost\x18\x13 \x01(\x0e2\x15.feov.record.v1.GradeH\x0fR\x0ecomplexityCost\x88\x01\x01\x12\x1e\n" +
+	"\x0fcomplexity_cost\x18\x13 \x01(\x0e2\x15.feov.record.v1.GradeH\x0fR\x0ecomplexityCost\x88\x01\x01\x121\n" +
 	"\n" +
-	"supersedes\x18\x14 \x03(\tR\n" +
+	"supersedes\x18\x14 \x03(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idR\n" +
 	"supersedes\x12\x19\n" +
 	"\bfound_by\x18\x15 \x03(\tR\afoundBy\x12$\n" +
 	"\vmint_reason\x18\x16 \x01(\tH\x10R\n" +
@@ -8262,11 +8264,11 @@ const file_record_proto_rawDesc = "" +
 	"\x0ePositionMotion\x12$\n" +
 	"\vposition_id\x18\x01 \x01(\tH\x00R\n" +
 	"positionId\x88\x01\x01B\x0e\n" +
-	"\f_position_id\"\xa1\b\n" +
+	"\f_position_id\"\xb4\b\n" +
 	"\x0fPositionHearing\x12\xde\x01\n" +
 	"\x06ruling\x18\x01 \x01(\x0e2\x1e.feov.record.v1.PositionRulingB\xa0\x01\x82\xb5\x18\x9b\x01\b\x01\x12\x02as\x1a\x92\x01the bench's word on the withheld PASS — upheld names the work the debate continues on, overruled sends the PASS back to the chair's next sittingH\x00R\x06ruling\x88\x01\x01\x12\x7f\n" +
-	"\x04lens\x18\x02 \x01(\tBf\x82\xb5\x18b\x12\x04lens\x1aZon an upheld ruling: the lens readied to audit its area for the defect the position arguesH\x01R\x04lens\x88\x01\x01\x12\x17\n" +
-	"\agap_ids\x18\x03 \x03(\tR\x06gapIds\x12\xd2\x01\n" +
+	"\x04lens\x18\x02 \x01(\tBf\x82\xb5\x18b\x12\x04lens\x1aZon an upheld ruling: the lens readied to audit its area for the defect the position arguesH\x01R\x04lens\x88\x01\x01\x12*\n" +
+	"\agap_ids\x18\x03 \x03(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idR\x06gapIds\x12\xd2\x01\n" +
 	"\tdirection\x18\x04 \x01(\tB\xae\x01\x82\xb5\x18\xa5\x01\x12\tdirection\x1a\x97\x01on an upheld ruling: the research the named work owes — what the lens audits for, or what each gap's one more exchange owes blue and its minting lens\xc0\xb5\x18\x01H\x02R\tdirection\x88\x01\x01:\x9b\x03\x92\xb5\x18\xba\x01\n" +
 	"?\"ruling\" = 'upheld' OR (\"lens\" IS NULL AND \"direction\" IS NULL)\x12wan overruled position names no work: --lens and --direction are an upheld ruling's, and the PASS goes back to the chair\x92\xb5\x18\xd7\x01\n" +
 	"U\"ruling\" <> 'upheld' OR coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> ''\x12~an upheld position names the work the debate continues on, and --direction is what that work owes; a blank one is no directionB\t\n" +

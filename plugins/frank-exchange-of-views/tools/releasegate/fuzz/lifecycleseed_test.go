@@ -23,7 +23,6 @@ import (
 // demand reaches them, and a lens re-checks an anchor only in a later sitting, after blue has remedied
 // it. The drive runs every arm in one sitting, opening each lens a sitting of its own wherever the
 // record keeps one check of an anchor per sitting.
-const lifecycleSeed = 19
 
 // lifecycleDriven is lifecycleStage once forcedLifecycle has driven every step.
 const lifecycleDriven = "driven"

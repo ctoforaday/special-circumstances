@@ -56,11 +56,6 @@ func (r *runner) unruledPositions() []string {
 // forced-VERIFIED run, which reaches a permitted PASS by construction; its chair withholds the first
 // one its ruling's route fits the epoch limit (withholds), and its bench rules the position the way
 // the seed names.
-const (
-	positionLensSeed      = 10
-	positionGapsSeed      = 11
-	positionOverruledSeed = 12
-)
 
 // positionFormOf is the ruling a seed's run forces its bench to: "lens" (upheld naming a lens),
 // "gaps" (upheld naming open gaps) or "overruled"; "" for a seed that forces none.

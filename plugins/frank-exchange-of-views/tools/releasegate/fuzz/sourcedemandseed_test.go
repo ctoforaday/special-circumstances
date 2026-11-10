@@ -16,7 +16,6 @@ import (
 // lens is readied on it, and the plan readies the lens only once blue has acted on the gap: blue's
 // sitting answers every engaged gap's demand (dischargeOwed) before the lens sits again, so the drawn
 // close finds the demand met. MEASURED on eb4166e16: zero such closes refused across 40 runs.
-const sourceDemandSeed = 18
 
 // sourceDemandOpen is the open question blue's half of the forced arm writes its claim after, and
 // sourceDemandClaim the claim: a sentence no other drive quotes, so neither of the arm's gaps meets

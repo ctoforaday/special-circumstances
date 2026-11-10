@@ -26,7 +26,6 @@ import (
 // benchOrdersSeed is the seed whose run is FORCED through every arm above. It is none of the forced
 // seeds before it: their runs are each shaped for one fact, and the bench's regrade reshapes the
 // grades every one of them reads.
-const benchOrdersSeed = 9
 
 // benchOrdersPct is how often a drawn run takes each arm where it can.
 const benchOrdersPct = 20
