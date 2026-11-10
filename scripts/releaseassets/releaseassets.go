@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/scripts/internal/staticproof"
 	"gopkg.in/yaml.v3"
 )
 
@@ -230,27 +229,8 @@ func DeriveConsumerTargets(workflowPath string) ([]string, error) {
 	return targets, nil
 }
 
-// IsNativeSetChange reports whether any changed file belongs to the native set.
-func IsNativeSetChange(changedFiles []string) bool {
-	for _, f := range changedFiles {
-		clean := filepath.ToSlash(f)
-		if strings.HasPrefix(clean, "plugins/frank-exchange-of-views/native/") ||
-			strings.HasPrefix(clean, "plugins/frank-exchange-of-views/tools/devcmd/nativedigest/") ||
-			strings.HasPrefix(clean, "plugins/frank-exchange-of-views/tools/internal/nativehelper/") ||
-			strings.HasPrefix(clean, "plugins/frank-exchange-of-views/tools/internal/tessocr/") ||
-			clean == "plugins/frank-exchange-of-views/tools/internal/fetchcache/pagerender.go" ||
-			strings.HasPrefix(clean, "scripts/releaseassets/") ||
-			strings.HasPrefix(clean, "scripts/internal/staticproof/") ||
-			strings.HasPrefix(clean, "scripts/staticproof/") ||
-			clean == ".github/workflows/hooks.yml" {
-			return true
-		}
-	}
-	return false
-}
-
 // DecideScope implements the decision table from plan §III.1.5.
-func DecideScope(event, ref string, changedFiles []string, allTargets []Target, testTargetNames []string, helpers []string) (*ScopeResult, error) {
+func DecideScope(event, ref string, changedFiles []string, nativeSet NativeSet, allTargets []Target, testTargetNames []string, helpers []string) (*ScopeResult, error) {
 	// Validate event against known workflow events
 	validEvents := map[string]bool{
 		"pull_request":      true,
@@ -289,12 +269,13 @@ func DecideScope(event, ref string, changedFiles []string, allTargets []Target, 
 	var selectedTargets []Target
 	var full bool
 
-	isFEOVTag := strings.HasPrefix(ref, "refs/tags/") && strings.Contains(ref, "frank-exchange-of-views--v")
+	tagPlugin, tagErr := PluginFromRef(ref)
+	isFEOVTag := tagErr == nil && tagPlugin == "frank-exchange-of-views"
 	isOtherTag := strings.HasPrefix(ref, "refs/tags/") && !isFEOVTag
 
 	switch event {
 	case "pull_request":
-		if IsNativeSetChange(changedFiles) {
+		if nativeSet.Touched(changedFiles) {
 			selectedTargets = allTargets
 			full = true
 		} else {
@@ -365,55 +346,4 @@ func DecideScope(event, ref string, changedFiles []string, allTargets []Target, 
 		Matrix:    Matrix[BuildLeg]{Include: buildLegs},
 		RunMatrix: Matrix[RunLeg]{Include: runLegs},
 	}, nil
-}
-
-// CheckDist verifies that distDir contains valid static assets.
-func CheckDist(distDir string, ref string, targets []Target, helpers []string) error {
-	entries, err := os.ReadDir(distDir)
-	if err != nil {
-		return fmt.Errorf("reading dist dir %s: %w", distDir, err)
-	}
-
-	present := map[string]os.DirEntry{}
-	for _, e := range entries {
-		if !e.IsDir() {
-			present[e.Name()] = e
-		}
-	}
-
-	isFEOV := strings.Contains(ref, "frank-exchange-of-views--v")
-
-	if isFEOV {
-		// Must have every helper for every target
-		for _, h := range helpers {
-			for _, t := range targets {
-				assetName := fmt.Sprintf("%s_%s_%s%s", h, t.OS, t.Arch, t.Ext)
-				if _, ok := present[assetName]; !ok {
-					return fmt.Errorf("dist is missing helper asset: %s", assetName)
-				}
-			}
-		}
-	}
-
-	// Run staticproof on every executable file in dist
-	provenCount := 0
-	for name := range present {
-		if strings.HasSuffix(name, ".txt") || strings.HasSuffix(name, ".sha256") || name == "SHA256SUMS" {
-			continue
-		}
-		path := filepath.Join(distDir, name)
-		artifact := name
-		if idx := strings.Index(name, "_"); idx >= 0 {
-			artifact = name[:idx]
-		}
-		if err := staticproof.Check(artifact, path); err != nil {
-			return err
-		}
-		provenCount++
-		fmt.Printf("proven static: %s (%s)\n", name, artifact)
-	}
-	if len(present) > 0 && provenCount == 0 {
-		return fmt.Errorf("no executable in dist was proven static")
-	}
-	return nil
 }

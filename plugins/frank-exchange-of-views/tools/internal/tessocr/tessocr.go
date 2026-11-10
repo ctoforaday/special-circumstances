@@ -61,21 +61,14 @@ func hashEngineSource(fsys fs.FS) string {
 //
 // It reads compiled constants only, so the cache-reuse paths that call it before any read
 // never start the helper, and it returns the same string whether or not a helper is
-// installed. A cached reading made by the same sources is reused without one.
+// installed. A cached reading made by the same sources is reused without one. Both sha256 values
+// are generated into digest_gen.go by nativedigest; TestIdentityReadsTheGeneratedPins holds each
+// to 64 hex digits, so a build without them never reaches a reading.
 func Identity() string {
-	digest := nativehelper.HelperDigest("feov-ocr")
-	digest12 := ""
-	if len(digest) >= 12 {
-		digest12 = digest[:12]
-	}
-	eng12 := ""
-	if len(nativehelper.OCREngine.EngTraineddata) >= 12 {
-		eng12 = nativehelper.OCREngine.EngTraineddata[:12]
-	}
 	return "tesseract@" + nativehelper.OCREngine.Tesseract +
 		"+leptonica@" + nativehelper.OCREngine.Leptonica +
-		"+eng@" + eng12 +
-		"+feov-ocr@" + digest12 +
+		"+eng@" + nativehelper.OCREngine.EngTraineddata[:12] +
+		"+feov-ocr@" + nativehelper.HelperDigest("feov-ocr")[:12] +
 		"+tessocr@" + engineSourceHash
 }
 

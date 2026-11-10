@@ -57,11 +57,11 @@ type PageEngine interface {
 // DefaultPageEngine is the process-wide engine. A test replaces it; production never does.
 var DefaultPageEngine PageEngine = &TessocrPageEngine{}
 
-// TessocrPageEngine is the production engine: the standalone `feov-ocr` helper
-// (statically linked tesseract + leptonica), initialized once and kept for the life of
-// the process (the CLI is one verb per process, and a TessBaseAPI init per page would
-// re-load the embedded traineddata eighty times per document). The mutex serializes
-// ReadPage because the underlying TessBaseAPI carries per-recognition state.
+// TessocrPageEngine is the production engine: a client of the standalone `feov-ocr` helper
+// (tesseract + leptonica, statically linked into the helper), started once and kept for the life of
+// the process (the CLI is one verb per process, and a helper per page would re-load the embedded
+// traineddata eighty times per document). The mutex serializes ReadPage because the helper answers
+// one request at a time and its TessBaseAPI carries per-recognition state.
 type TessocrPageEngine struct {
 	mu sync.Mutex
 	en *tessocr.Engine

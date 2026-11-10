@@ -121,7 +121,7 @@ func TestAFailedHandshakeLatches(t *testing.T) {
 	}
 }
 
-func TestHelperExitsOnStdinEOF(t *testing.T) {
+func TestCloseEndsAHelperOnStdinEOFOrKillsIt(t *testing.T) {
 	t.Setenv(EnvDir, fake(t, "d1", ProtocolVersion, ""))
 	c := fakeClient(t, "d1")
 	if err := c.Start(); err != nil {

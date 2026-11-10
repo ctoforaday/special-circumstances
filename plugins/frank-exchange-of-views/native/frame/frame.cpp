@@ -395,6 +395,7 @@ int serve(const std::string& digest, const std::vector<std::string>& assets, con
     return 2;
   }
   Capture cap;
+  bool greeted = false;
   for (;;) {
     Frame req;
     int r = read_frame(&req, &err);
@@ -403,6 +404,19 @@ int serve(const std::string& digest, const std::vector<std::string>& assets, con
       std::fprintf(stderr, "frame: %s\n", err.c_str());
       return 3;
     }
+    // A request in another protocol version cannot be answered in a frame its sender reads, and a
+    // first request that is not the handshake comes from a client that never checked this
+    // helper's digest. Both end the helper with the reason on stderr.
+    if (req.version != kVersion) {
+      std::fprintf(stderr, "frame: request in protocol version %u, this helper speaks %u\n",
+                   static_cast<unsigned>(req.version), static_cast<unsigned>(kVersion));
+      return 6;
+    }
+    if (!greeted && req.op != kHandshake) {
+      std::fprintf(stderr, "frame: the first request is op %u, not the handshake\n", static_cast<unsigned>(req.op));
+      return 7;
+    }
+    greeted = true;
     if (!cap.begin(&err)) {
       std::fprintf(stderr, "frame: %s\n", err.c_str());
       return 4;

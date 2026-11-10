@@ -21,6 +21,20 @@ const (
 	kSelftestLibc        nativehelper.Op = 23
 )
 
+// Ops is the client's op table: every feov-ocr op this package sends, by name.
+// TestEveryOpFitsTheDeadline walks it, so an op added here without a
+// largest-request case fails that test.
+var Ops = map[nativehelper.Op]string{
+	kPageTSV:             "tsv",
+	kRotatedBand:         "rot_band",
+	kGridStats:           "grid_stats",
+	kGridLines:           "grid_lines",
+	kRepairedRules:       "repaired_rules",
+	kInk:                 "ink",
+	kSelftestTraineddata: "selftest-traineddata",
+	kSelftestLibc:        "selftest-libc",
+}
+
 var (
 	defaultClientMu sync.Mutex
 	defaultClient   *nativehelper.Client
@@ -100,9 +114,18 @@ func New() (*Engine, error) {
 	return &Engine{c: c}, nil
 }
 
-// Close releases the engine handle. Safe to call twice.
-func (en *Engine) Close() {
+// Close ends the engine's helper through nativehelper's Close: stdin closes, the helper has two
+// seconds to exit, then it is killed. It reports a helper that did not exit cleanly. A later
+// engine spawns a fresh helper. Safe to call twice.
+func (en *Engine) Close() error {
+	if en.closed {
+		return nil
+	}
 	en.closed = true
+	if en.c == nil {
+		return nil
+	}
+	return en.c.Close()
 }
 
 func (en *Engine) client() (*nativehelper.Client, error) {

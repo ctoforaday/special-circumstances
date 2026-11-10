@@ -154,6 +154,17 @@ func readFixture(t *testing.T, name string) string {
 // TestIdentityReadsTheGeneratedPins verifies that Identity() begins with
 // tesseract@, leptonica@, eng@ and feov-ocr@ followed by digest_gen.go's generated values.
 func TestIdentityReadsTheGeneratedPins(t *testing.T) {
+	for what, v := range map[string]string{
+		"feov-ocr's source digest": nativehelper.HelperDigest("feov-ocr"),
+		"eng.traineddata's sha256": nativehelper.OCREngine.EngTraineddata,
+	} {
+		if !isHex(v, 64) {
+			t.Fatalf("digest_gen.go holds %s as %q, want 64 hex digits; run devcmd/nativedigest", what, v)
+		}
+	}
+	if nativehelper.OCREngine.Tesseract == "" || nativehelper.OCREngine.Leptonica == "" {
+		t.Fatalf("digest_gen.go holds no tesseract or leptonica version: %+v", nativehelper.OCREngine)
+	}
 	wantPrefix := "tesseract@" + nativehelper.OCREngine.Tesseract +
 		"+leptonica@" + nativehelper.OCREngine.Leptonica +
 		"+eng@" + nativehelper.OCREngine.EngTraineddata[:12] +

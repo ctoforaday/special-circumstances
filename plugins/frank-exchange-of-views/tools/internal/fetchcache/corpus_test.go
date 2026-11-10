@@ -31,10 +31,10 @@ import (
 // never fetched. Nothing in this module refuses an outside host — offline-ness here is the absence
 // of any other address, not a promise.
 //
-// THIS SUITE IS EXPENSIVE AND DOES NOT RIDE THE ORDINARY ONE. Eight scans at 12-24 s each is
+// THIS SUITE IS EXPENSIVE AND DOES NOT RIDE THE ORDINARY ONE. Every committed scan at 12-24 s is
 // minutes of engine time, and CI pays for it on every leg that compiles it. It runs only where
-// FEOV_OCR_CORPUS=1 is set — the `ocr-corpus` job, Linux only, since a Windows minute costs twice a
-// Linux one and a macOS minute ten times, and these pages measure the engine, not the platform.
+// FEOV_OCR_CORPUS=1 is set: the `ocr-corpus` job on linux-amd64, where the goldens are pinned, and
+// native-run on every published pair, which holds each target's helper to the same bytes.
 // The env gate is the repository's existing idiom for a costly gate (FEOV_RELEASE_GATE), and it
 // keeps the file COMPILED everywhere, so it cannot rot behind a build tag.
 //
@@ -49,8 +49,8 @@ var update = flag.Bool("update", false, "rewrite the corpus goldens and STATUS.m
 
 func TestCorpusGoldens(t *testing.T) {
 	if os.Getenv("FEOV_OCR_CORPUS") != "1" && !*update {
-		t.Skip("the corpus reads eight scans through the real engine; set FEOV_OCR_CORPUS=1 (the " +
-			"ocr-corpus job does) or pass -update")
+		t.Skip("the corpus reads every committed scan through the real engine; set FEOV_OCR_CORPUS=1 (the " +
+			"ocr-corpus and native-run jobs do) or pass -update")
 	}
 	nativehelper.Require(t, "feov-ocr")
 	cases, err := corpus.Load(corpusRoot)

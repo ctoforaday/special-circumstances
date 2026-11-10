@@ -36,8 +36,8 @@ import (
 //   - poppler's pdftotext is excellent and is a MACHINE PREREQUISITE, plus a separate pdffonts
 //     interrogation call, plus an unsandboxed subprocess parsing bytes off the open web.
 //
-// PDFium under wazero is MIT + Apache-2.0, needs no cgo and no system library, builds for all
-// six pairs this repo ships with CGO_ENABLED=0 and the release job unchanged, and reports
+// PDFium under wazero is MIT + Apache-2.0, needs no cgo and no system library, builds for every
+// published pair with CGO_ENABLED=0 and the release job unchanged, and reports
 // zero characters natively on a document with no text layer — so the emptiness test is a
 // property of the document rather than a hopeful reading of an error.
 //
