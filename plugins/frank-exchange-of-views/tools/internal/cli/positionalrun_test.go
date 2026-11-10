@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // A POSITIONAL RUN DIRECTORY IS REFUSED, NOT AUDITED AS AN EMPTY RUN.
@@ -43,5 +46,34 @@ func TestAPositionalRunDirectoryNobodyMadeIsRefused(t *testing.T) {
 				t.Errorf("%s failed for some other reason than the unresolvable run: %v", verb, err)
 			}
 		})
+	}
+}
+
+// A TRANSCRIPT DIRECTORY THAT IS NOT ONE IS REFUSED, NOT WATCHED (m40 defect 6). The dashboard reads
+// its seats and cost from the transcripts, so a guessed path rendered those tiles as zeros under
+// "watching". The refusal names the path it was given and where the right one is printed; a
+// directory that exists is accepted.
+func TestTheDashboardRefusesATranscriptDirectoryThatIsNotOne(t *testing.T) {
+	dir := recordtest.TmpRun(t)
+	file := filepath.Join(t.TempDir(), "journal.jsonl")
+	if err := os.WriteFile(file, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, transcripts := range map[string]string{
+		"missing": filepath.Join(t.TempDir(), "projects", "guessed"),
+		"a file":  file,
+	} {
+		t.Run(name, func(t *testing.T) {
+			out, err := run(t, "dashboard", dir, transcripts, "--seat-id", "operator")
+			if err == nil {
+				t.Fatalf("dashboard accepted transcript directory %s:\n%s", transcripts, out)
+			}
+			if !strings.Contains(err.Error(), transcripts) || !strings.Contains(err.Error(), "`Transcript dir:` line") {
+				t.Errorf("refusal = %v, want it to name %s and the launch result's `Transcript dir:` line", err, transcripts)
+			}
+		})
+	}
+	if out, err := run(t, "dashboard", dir, t.TempDir(), "--seat-id", "operator"); err != nil {
+		t.Errorf("dashboard refused a transcript directory that exists: %v\n%s", err, out)
 	}
 }

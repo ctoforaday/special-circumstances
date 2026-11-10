@@ -28,7 +28,7 @@ func newDashboard() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "dashboard <runDir> <transcriptDir>",
 		Short:         "render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)",
-		Long:          "dashboard renders the run's own instruments — board-mass trend, open/close rates, live seats + completion ETA, cost-so-far, judiciary analytics, the log, and this run's scorecards — into <runDir>/dashboard.html (meta-refreshes every 20s). Reads the record in-process plus the Workflow transcripts. --watch regenerates every 15s until the .run-live marker is removed. --serve <port> instead HOSTS it over HTTPS behind a per-run secret URL (rendered fresh per request, self-tears-down when the run ends) so it is reachable across the local network. Ported from render-run-dashboard.mjs.",
+		Long:          "dashboard renders the run's own instruments — board-mass trend, open/close rates, live seats + completion ETA, cost-so-far, judiciary analytics, the log, and this run's scorecards — into <runDir>/dashboard.html (meta-refreshes every 20s). Reads the record in-process plus the Workflow transcripts in <transcriptDir>, the path the Workflow launch result prints on its `Transcript dir:` line; a directory that does not exist is refused. --watch regenerates every 15s until the .run-live marker is removed. --serve <port> instead HOSTS it over HTTPS behind a per-run secret URL (rendered fresh per request, self-tears-down when the run ends) so it is reachable across the local network. Ported from render-run-dashboard.mjs.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -49,6 +49,9 @@ func newDashboard() *cobra.Command {
 			// dashboard of zeros for a path that was simply mistyped.
 			run, err := record.OpenRun(args[0])
 			if err != nil {
+				return err
+			}
+			if err := requireTranscriptDir(transcriptDir); err != nil {
 				return err
 			}
 			cfg := dashboard.Config{Model: model, JudgmentModel: judgmentModel, Lanes: lanes}
@@ -134,4 +137,22 @@ func newDashboard() *cobra.Command {
 	c.Flags().StringVar(&judgmentModel, flags.JudgmentModel, "", "judgment-tier model, for the run-config header")
 	c.Flags().StringVar(&lanes, flags.Lanes, "", "blue lane count, for the run-config header")
 	return c
+}
+
+// requireTranscriptDir refuses a transcript directory that is not a directory on disk. The
+// dashboard reads its seats and cost from the transcripts there, so a path that names nothing
+// renders those tiles as zeros under "watching" — the plausible zero of a missing input. On
+// universe-m40 the lead guessed the path; the watcher accepted it, and killing it took the lead's
+// own shell with it (Exit code 144).
+func requireTranscriptDir(dir string) error {
+	fi, err := os.Stat(dir)
+	switch {
+	case os.IsNotExist(err):
+		return feov.Errorf(feov.NotFound, "transcript directory %s does not exist. Pass the path on the `Transcript dir:` line of the Workflow launch result, as printed", dir)
+	case err != nil:
+		return feov.Errorf(feov.Validation, "transcript directory %s cannot be read: %v", dir, err)
+	case !fi.IsDir():
+		return feov.Errorf(feov.Validation, "transcript directory %s is a file, not a directory. Pass the path on the `Transcript dir:` line of the Workflow launch result, as printed", dir)
+	}
+	return nil
 }
