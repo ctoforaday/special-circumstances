@@ -169,12 +169,28 @@ func (r *runner) readCitation(seatID, anchorID, outcome string, kindless, fresh 
 		if env, ok := refusalEnvelopeIn(out); !ok || env.Code != string(feov.Validation) {
 			r.noteActErr("verify --page refused without a validation envelope: " + firstLine(out))
 		}
+	case !kindless && err != nil && r.retiredUnderTheDraw(anchorID, out):
+		// BLUE RETIRED THE CITATION BETWEEN THE DRAW AND THE READING: the refusal is the record's
+		// call on the report the reading would have landed on, and names the retire.
+		noteEither(c.args, "a reading of a citation blue retired between the draw and the reading", false)
 	case !kindless && err != nil:
 		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 	}
 	if v != nil && !paged && !kindless {
 		r.mintOnCitationReading(seatID, anchorID, v, at, fresh)
 	}
+}
+
+// retiredUnderTheDraw reports whether a refusal of a reading of anchorID is the record's for a citation
+// retired by the time the reading landed: a conflict naming the retire, and the record holds the
+// anchor retired.
+func (r *runner) retiredUnderTheDraw(anchorID, out string) bool {
+	env, ok := refusalEnvelopeIn(out)
+	if !ok || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, anchorID+" is retired") {
+		return false
+	}
+	_, retired, err := record.AnchorRetiredAt(r.run(), anchorID)
+	return err == nil && retired
 }
 
 // noteNotTheWorkUnread holds an admitted reading of a copy that is not the work to the record: the
@@ -360,6 +376,47 @@ func (r *runner) readFoundAgain(seatID, url, quote, outcome string) int64 {
 	if !ok {
 		return 0
 	}
+	_, at := r.checkReading(seatID, out, c.args)
+	return at
+}
+
+// readFoundClearing is seatID's reading of a fresh source it found for the sentence quote that
+// clears a debt of its on the sentence: `supports` on a sentence no anchor marks; `absent` on a
+// marked one, where a backing found reading is refused naming the anchor (F6 (a)) and a found page
+// silent on a cited sentence owes nothing (F7 (a)), so the reading replaces the one the debt stood
+// on. It returns the stored reading's events.id, or 0 where the reading was refused — a cite
+// marking the sentence in between, or blue's edit taking it out, each the record's call on the
+// report the reading would have landed on (noted either way) — or placed nowhere.
+func (r *runner) readFoundClearing(seatID, quote string) int64 {
+	cur, err := record.RenderRun(r.run())
+	if err != nil {
+		r.noteActErr("the report could not be rendered for a clearing found-source reading: " + err.Error())
+		return 0
+	}
+	marked, once := sentenceMarked(cur, quote)
+	if !once {
+		noteEither([]string{"verify"}, "a clearing found-source reading of a sentence the report no longer holds once", false)
+		return 0
+	}
+	outcome := "supports"
+	if marked {
+		outcome = "absent"
+	}
+	c, wantCopy, wantCopyURL := r.foundSourceReading(seatID, outcome, quote, foundSourceURL(seatID), plainAxes)
+	out, err := c.result()
+	if err != nil {
+		env, ok := refusalEnvelopeIn(out)
+		switch {
+		case ok && env.Code == string(feov.Validation) && strings.Contains(env.Error, "this sentence is marked by"):
+			noteEither(c.args, "a clearing found-source reading, refused by a cite marking the sentence in between", false)
+		case ok && env.Code == string(feov.Validation) && strings.Contains(env.Error, "was not found in report.md"):
+			noteEither(c.args, "a clearing found-source reading, refused by the report's placement under blue's edit", false)
+		default:
+			r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+		}
+		return 0
+	}
+	r.noteCopy("verify --url", out, wantCopy, wantCopyURL)
 	_, at := r.checkReading(seatID, out, c.args)
 	return at
 }
@@ -647,9 +704,9 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 		noteEither(args[:2], "a found-source mint superseding the prescribing gap, refused", false)
 	}
 	// ANOTHER LENS PRESCRIBED THE TEXT, or its gap takes no successor now: the lens's debt clears by its
-	// reading of another source for the sentence that does not find against.
-	if r.readFound(seatID, foundSourceURL(seatID), quote, "supports") != 0 {
-		r.debtDischargedBy(seatID, quote, "reread", "the lens's backing reading of another source for the prescribed sentence")
+	// reading of another source for the sentence that leaves no debt (readFoundClearing).
+	if r.readFoundClearing(seatID, quote) != 0 {
+		r.debtDischargedBy(seatID, quote, "reread", "the lens's reading of another source for the prescribed sentence")
 	}
 }
 

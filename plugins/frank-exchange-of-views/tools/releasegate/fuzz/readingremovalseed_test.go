@@ -112,6 +112,11 @@ func (r *runner) reservedDebtSubject(subject string) bool {
 	if r.forceReadingDebt && subject == r.debtChainCite && !r.debtChainMinted {
 		return true
 	}
+	// THE LIMIT SEED'S CITATION IS READ `refutes` AT THE LIMIT PLAN AND LEFT (screenAtLimit): the run
+	// must end on that debt, so neither the owner's sitting nor blue's remedy clears it.
+	if r.forceScreenUnsound && r.limitDebtCite != "" && subject == r.limitDebtCite {
+		return true
+	}
 	if !r.forceReadingRemoval || r.removal.stage != removalRead {
 		return false
 	}

@@ -764,13 +764,16 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 	// owner, in a sitting of its own, reads the citation `refutes` and mints nothing — the run ends
 	// UNVERIFIED on the debt, its reason naming it (tallyDebtsAtEnd), and the assembly screen fails
 	// on it beside the unsound computation.
+	// THE CITATION IS RESERVED BEFORE IT IS READ (reservedDebtSubject): a sitting of the owner's or
+	// blue's still running from the last plan would otherwise mint on the debt, re-read the citation
+	// as backing, or retire it, and the run would end on no debt.
 	cite := r.lifecycleCite(blue, "§ fuzz sentence", "/limit-debt", "")
-	if cite != "" && r.openSitting(citationOwner) {
-		r.readCited(citationOwner, cite, "refutes")
-	}
 	r.mu.Lock()
 	r.limitDebtCite = cmp.Or(cite, "refused")
 	r.mu.Unlock()
+	if cite != "" && r.openSitting(citationOwner) {
+		r.readCited(citationOwner, cite, "refutes")
+	}
 }
 
 // screenUnsound holds a run that ends with a live computation a standing judgement calls unsound to the

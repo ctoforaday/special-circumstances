@@ -970,7 +970,13 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 // four, the one the edit drive rewrites.
 func (r *runner) sentenceOrEdited() string {
 	if r.coin(25) {
-		return "across the whole sampled corpus"
+		// THE EDITED SENTENCE'S WORDS, while the report holds them: the edit drive rewrites that
+		// sentence, and a cite of words it took out is refused by the report's placement.
+		if cur, err := record.RenderRun(r.run()); err == nil {
+			if _, _, lerr := anchortext.LocateOnce(string(cur), "across the whole sampled corpus", anchortext.StopAtParagraph); lerr == nil {
+				return "across the whole sampled corpus"
+			}
+		}
 	}
 	return "§ fuzz sentence"
 }
@@ -2959,8 +2965,9 @@ func (r *runner) citationToVerify(seatID string) string {
 	if offered, err := anchorItemsOn(r.run(), seatID, "citation"); err == nil && len(offered) > 0 && r.coin(50) {
 		anchor = pick(r.rng, offered)
 	}
-	// THE FORCED CHAIN'S CITATION IS THE CHAIN'S TO READ while its debt stands (chainCitation).
-	if anchor == r.chainCitation() {
+	// THE FORCED CHAIN'S CITATION IS THE CHAIN'S TO READ while its debt stands (chainCitation), and
+	// the limit seed's citation is left on its debt (reservedDebtSubject).
+	if anchor == r.chainCitation() || r.reservedDebtSubject(anchor) {
 		return ""
 	}
 	return anchor

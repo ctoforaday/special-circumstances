@@ -663,11 +663,11 @@ func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 	}
 }
 
-// rereadFound is seatID's reading of another source for the sentence quote that backs it, which
-// clears its debt on the sentence.
+// rereadFound is seatID's reading of another source for the sentence quote that leaves no debt
+// (readFoundClearing), which clears its debt on the sentence.
 func (r *runner) rereadFound(seatID, quote string) {
-	if r.readFound(seatID, foundSourceURL(seatID), quote, "supports") != 0 {
-		r.debtDischargedBy(seatID, quote, "reread", "the lens's backing reading of another source for the sentence")
+	if r.readFoundClearing(seatID, quote) != 0 {
+		r.debtDischargedBy(seatID, quote, "reread", "the lens's reading of another source for the sentence")
 	}
 }
 
@@ -747,12 +747,12 @@ func (r *runner) rereadCited(seatID string, b record.Blocker) {
 // the debt names no edit, of the same url against a sentence the report holds.
 func (r *runner) rereadLost(seatID string, b record.Blocker) {
 	url, quote, seeded := foundSourceURL(seatID), b.Reworded(), false
+	cur, err := record.RenderRun(r.run())
+	if err != nil {
+		return
+	}
 	if quote == "" {
 		url, seeded = b.Detail, true
-		cur, err := record.RenderRun(r.run())
-		if err != nil {
-			return
-		}
 		for _, s := range foundSourceSentences {
 			if _, once := sentenceMarked(cur, s); once {
 				quote = s
@@ -765,9 +765,15 @@ func (r *runner) rereadLost(seatID string, b record.Blocker) {
 	}
 	at := int64(0)
 	if seeded {
-		at = r.readFoundAgain(seatID, url, quote, "supports")
+		// THE SAME URL, read again against a sentence the report holds: `supports` on a sentence no
+		// anchor marks, `absent` on a marked one (F6 (a), F7 (a)), as readFoundClearing reads.
+		outcome := "supports"
+		if m, _ := sentenceMarked(cur, quote); m {
+			outcome = "absent"
+		}
+		at = r.readFoundAgain(seatID, url, quote, outcome)
 	} else {
-		at = r.readFound(seatID, url, quote, "supports")
+		at = r.readFoundClearing(seatID, quote)
 	}
 	if at == 0 {
 		return
