@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"runtime"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 )
@@ -43,7 +44,7 @@ func New() (*ClientEmbedder, error) {
 	return &ClientEmbedder{
 		client:  client,
 		tok:     DefaultTokenizer(),
-		modelID: "gte-small-int8@" + digest,
+		modelID: ModelIDFor(digest, runtime.GOOS, runtime.GOARCH),
 	}, nil
 }
 
@@ -53,8 +54,16 @@ func NewWithClient(client *nativehelper.Client) *ClientEmbedder {
 	return &ClientEmbedder{
 		client:  client,
 		tok:     DefaultTokenizer(),
-		modelID: "gte-small-int8@" + digest,
+		modelID: ModelIDFor(digest, runtime.GOOS, runtime.GOARCH),
 	}
+}
+
+// ModelIDFor is the model id of gte-small int8 run by the feov-embed build whose digest is digest,
+// on goos-goarch. The target is part of it because each architecture loads its own export and its
+// own runtime kernels, so the same text need not embed to the same bytes on two targets, and a
+// vector cache carried between them is another model's.
+func ModelIDFor(digest, goos, goarch string) string {
+	return "gte-small-int8@" + digest + "+target@" + goos + "-" + goarch
 }
 
 // Default returns the default Embedder backed by the feov-embed native helper.
@@ -62,7 +71,7 @@ func Default() (Embedder, error) {
 	return New()
 }
 
-// ModelID returns the model identifier string.
+// ModelID is the id a vector cache is keyed by: the model, the helper build, and the target.
 func (c *ClientEmbedder) ModelID() string {
 	return c.modelID
 }

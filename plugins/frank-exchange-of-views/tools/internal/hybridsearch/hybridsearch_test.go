@@ -1,8 +1,6 @@
 package hybridsearch
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -52,88 +50,6 @@ func TestChunkSourceStrideAndPages(t *testing.T) {
 		if text[c.StartByte:c.EndByte] != c.Text {
 			t.Fatalf("chunk %d text mismatch with byte offsets", i)
 		}
-	}
-}
-
-func TestChunkReport(t *testing.T) {
-	reportMD := `# Header 1
-
-First paragraph with an anchor C-12345678.
-
-Second paragraph without an anchor.
-
-## Header 2
-
-Third paragraph under header 2.
-`
-	chunks := ChunkReport(reportMD)
-	if len(chunks) != 3 {
-		t.Fatalf("len(chunks) = %d, want 3", len(chunks))
-	}
-	if chunks[0].Heading != "# Header 1" || chunks[0].Anchor != "C-12345678" {
-		t.Fatalf("chunk 0 mismatch: heading=%q, anchor=%q", chunks[0].Heading, chunks[0].Anchor)
-	}
-	if chunks[1].Heading != "# Header 1" || chunks[1].Anchor != "" {
-		t.Fatalf("chunk 1 mismatch: heading=%q, anchor=%q", chunks[1].Heading, chunks[1].Anchor)
-	}
-	if chunks[2].Heading != "## Header 2" || chunks[2].Text != "Third paragraph under header 2." {
-		t.Fatalf("chunk 2 mismatch: heading=%q, text=%q", chunks[2].Heading, chunks[2].Text)
-	}
-}
-
-func TestCacheReadWrite(t *testing.T) {
-	tmp := t.TempDir()
-	cachePath := filepath.Join(tmp, "abc123.vec")
-	modelID := "test-model@v1"
-
-	chunks := []CachedChunk{
-		{
-			Index:     0,
-			StartByte: 10,
-			EndByte:   100,
-			Page:      1,
-			Vector:    make([]float32, 384),
-		},
-		{
-			Index:     1,
-			StartByte: 90,
-			EndByte:   200,
-			Page:      2,
-			Vector:    make([]float32, 384),
-		},
-	}
-	chunks[0].Vector[0] = 0.5
-	chunks[1].Vector[383] = 0.99
-
-	if err := WriteCache(cachePath, modelID, chunks); err != nil {
-		t.Fatalf("WriteCache failed: %v", err)
-	}
-
-	// Read with matching model
-	got, err := ReadCache(cachePath, modelID)
-	if err != nil {
-		t.Fatalf("ReadCache failed: %v", err)
-	}
-	if len(got) != 2 {
-		t.Fatalf("len(got) = %d, want 2", len(got))
-	}
-	if got[0].StartByte != 10 || got[0].Vector[0] != 0.5 {
-		t.Fatalf("chunk 0 mismatch: %+v", got[0])
-	}
-	if got[1].EndByte != 200 || got[1].Vector[383] != 0.99 {
-		t.Fatalf("chunk 1 mismatch: %+v", got[1])
-	}
-
-	// Read with different model returns ErrCacheMiss
-	_, err = ReadCache(cachePath, "other-model@v2")
-	if err != ErrCacheMiss {
-		t.Fatalf("ReadCache(different model) = %v, want ErrCacheMiss", err)
-	}
-
-	// Non-existent file returns ErrCacheMiss
-	_, err = ReadCache(filepath.Join(tmp, "nonexistent.vec"), modelID)
-	if err != ErrCacheMiss {
-		t.Fatalf("ReadCache(nonexistent) = %v, want ErrCacheMiss", err)
 	}
 }
 
@@ -205,27 +121,5 @@ func TestFuseRRFEdgeCases(t *testing.T) {
 	}
 	if res[0].Index != 0 {
 		t.Fatalf("res[0].Index = %d, want 0", res[0].Index)
-	}
-}
-
-func TestReadCacheCorrupted(t *testing.T) {
-	tmp := t.TempDir()
-
-	// 1. Corrupted magic
-	badMagic := filepath.Join(tmp, "badmagic.vec")
-	if err := os.WriteFile(badMagic, []byte("NOT_FVEC_HEADER_DATA"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ReadCache(badMagic, "m@v1"); err != ErrCacheMiss {
-		t.Fatalf("ReadCache(badMagic) = %v, want ErrCacheMiss", err)
-	}
-
-	// 2. Truncated header
-	shortFile := filepath.Join(tmp, "short.vec")
-	if err := os.WriteFile(shortFile, []byte("FV"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ReadCache(shortFile, "m@v1"); err != ErrCacheMiss {
-		t.Fatalf("ReadCache(shortFile) = %v, want ErrCacheMiss", err)
 	}
 }

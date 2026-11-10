@@ -19,14 +19,12 @@ const (
 	SearchNotice = "Ranked top-K hybrid (BM25 + vector) results; this list is cut and absence proves nothing. For an exhaustive literal match set, use --quote (or --match for a regex)."
 )
 
-// SearchScope describes the scope and truncation of a ranked hybrid search.
+// SearchScope says a ranked hybrid search's list is ranked and cut, and how much it ranked.
 type SearchScope struct {
-	RankedAndCut      bool               `json:"ranked_and_cut"`
-	Returned          int                `json:"returned"`
-	SearchedChunks    int                `json:"searched_chunks"`
-	SearchedSources   int                `json:"searched_sources,omitempty"`
-	UnsearchedSources []UnsearchedSource `json:"unsearched_sources,omitempty"`
-	Notice            string             `json:"notice"`
+	RankedAndCut   bool   `json:"ranked_and_cut"`
+	Returned       int    `json:"returned"`
+	SearchedChunks int    `json:"searched_chunks"`
+	Notice         string `json:"notice"`
 }
 
 // UnsearchedSource records a cached source that could not be searched.
@@ -118,55 +116,66 @@ func FuseRRF(items []Item, query string, queryVec []float32, topK int) ([]Scored
 	return scored, nil
 }
 
+// rankBM25 is each item's BM25 rank for query, from 1, over an in-memory FTS5 index of the items.
+// A query with no alphanumeric token has no lexical side: (nil, nil). Every SQLite or FTS5 error is
+// returned: an index that failed is no evidence that nothing matched, and a ranking that dropped its
+// lexical side would still say it is hybrid.
 func rankBM25(items []Item, query string) (map[int]int, error) {
+	matchQuery := cleanFTS5Query(query)
+	if matchQuery == "" {
+		return nil, nil
+	}
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-
-	if _, err := db.Exec("CREATE VIRTUAL TABLE chunks USING fts5(text, tokenize='porter unicode61');"); err != nil {
+	// One connection: an in-memory database is per connection, so the index and the query share it.
+	db.SetMaxOpenConns(1)
+	if err := indexBM25(db, items); err != nil {
 		return nil, err
 	}
+	return matchBM25(db, matchQuery)
+}
 
+// indexBM25 builds the FTS5 table the lexical side ranks: one row per item, rowid its Index+1.
+func indexBM25(db *sql.DB, items []Item) error {
+	if _, err := db.Exec("CREATE VIRTUAL TABLE chunks USING fts5(text, tokenize='porter unicode61');"); err != nil {
+		return err
+	}
 	stmt, err := db.Prepare("INSERT INTO chunks(rowid, text) VALUES(?, ?);")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer stmt.Close()
-
 	for _, it := range items {
 		if _, err := stmt.Exec(int64(it.Index+1), it.Text); err != nil {
-			return nil, err
+			return err
 		}
 	}
+	return nil
+}
 
-	matchQuery := cleanFTS5Query(query)
-	if matchQuery == "" {
-		return map[int]int{}, nil
-	}
-
-	rows, err := db.Query("SELECT rowid, bm25(chunks) FROM chunks WHERE chunks MATCH ? ORDER BY rank;", matchQuery)
+// matchBM25 runs matchQuery against the table indexBM25 built and ranks what it matches.
+func matchBM25(db *sql.DB, matchQuery string) (map[int]int, error) {
+	rows, err := db.Query("SELECT rowid FROM chunks WHERE chunks MATCH ? ORDER BY rank;", matchQuery)
 	if err != nil {
-		// FTS5 query syntax error or no match
-		return map[int]int{}, nil
+		return nil, err
 	}
 	defer rows.Close()
-
 	ranks := make(map[int]int)
-	rank := 1
-	for rows.Next() {
+	for rank := 1; rows.Next(); rank++ {
 		var rowid int64
-		var bm25 float64
-		if err := rows.Scan(&rowid, &bm25); err != nil {
+		if err := rows.Scan(&rowid); err != nil {
 			return nil, err
 		}
 		ranks[int(rowid-1)] = rank
-		rank++
 	}
 	return ranks, rows.Err()
 }
 
+// cleanFTS5Query is query's alphanumeric tokens, lowercased, each quoted as an FTS5 string and
+// joined by OR, so no token is read as FTS5 syntax. "" when it has none.
 func cleanFTS5Query(query string) string {
 	var terms []string
 	var cur strings.Builder
@@ -185,6 +194,9 @@ func cleanFTS5Query(query string) string {
 	}
 	if len(terms) == 0 {
 		return ""
+	}
+	for i, t := range terms {
+		terms[i] = `"` + t + `"`
 	}
 	return strings.Join(terms, " OR ")
 }

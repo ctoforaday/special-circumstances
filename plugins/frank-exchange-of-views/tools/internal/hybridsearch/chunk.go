@@ -2,9 +2,27 @@
 package hybridsearch
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
+
+// chunkWords and chunkStride are ChunkSource's window: 200 words, each chunk starting 160 words
+// after the last, so neighbours share 40.
+const (
+	chunkWords  = 200
+	chunkStride = 160
+)
+
+// SourceChunkSpec names ChunkSource's chunking in a source vector cache's header, so a file of
+// another chunker's offsets is a miss. It follows the window; any other change to how ChunkSource
+// cuts text changes it by hand.
+var SourceChunkSpec = fmt.Sprintf("w%d_s%d", chunkWords, chunkStride)
+
+// ReportChunkSpec names ChunkReport's paragraphs in the report vector cache's header.
+const ReportChunkSpec = "para_v1"
 
 // SourceChunk is one chunk of a source text.
 type SourceChunk struct {
@@ -53,10 +71,7 @@ func ChunkSource(text string, pageMap []int) []SourceChunk {
 		return nil
 	}
 
-	const chunkSize = 200
-	const stride = 160
-
-	if len(spans) <= chunkSize {
+	if len(spans) <= chunkWords {
 		startByte := spans[0].Start
 		endByte := spans[len(spans)-1].End
 		return []SourceChunk{
@@ -72,8 +87,8 @@ func ChunkSource(text string, pageMap []int) []SourceChunk {
 
 	var chunks []SourceChunk
 	idx := 0
-	for start := 0; start < len(spans); start += stride {
-		end := start + chunkSize
+	for start := 0; start < len(spans); start += chunkStride {
+		end := start + chunkWords
 		if end > len(spans) {
 			end = len(spans)
 		}
@@ -112,7 +127,8 @@ func pageForOffset(offset int, pageMap []int) int {
 	return page
 }
 
-// ReportChunk is one paragraph or logical section of the report.
+// ReportChunk is one paragraph or heading-bounded block of the report: its visible text, every
+// anchor on it, and the lines it spans.
 type ReportChunk struct {
 	Index     int     `json:"index,omitempty"`
 	Heading   string  `json:"heading"`
@@ -120,10 +136,17 @@ type ReportChunk struct {
 	EndLine   int     `json:"end_line"`
 	Text      string  `json:"text"`
 	Score     float32 `json:"score,omitempty"`
-	Anchor    string  `json:"anchor,omitempty"`
+	// Anchor is the first anchor id on the paragraph, and Anchors every one, in order.
+	Anchor  string   `json:"anchor,omitempty"`
+	Anchors []string `json:"anchors,omitempty"`
 }
 
-// ChunkReport splits markdown report into paragraphs / heading-bounded blocks.
+// ChunkReport splits a markdown report into paragraphs, each under the heading it sits beneath.
+//
+// A PARAGRAPH IS RANKED BY THE WORDS A READER SEES. Its anchor tokens — every kind the anchor table
+// holds — come out of Text before BM25 tokenises it and before it is embedded, so a tag or a hex id
+// is never a term; the ids they carry are kept in Anchors. A paragraph that is nothing but anchors
+// has no words to rank and is not a chunk.
 func ChunkReport(reportMD string) []ReportChunk {
 	lines := strings.Split(strings.ReplaceAll(reportMD, "\r\n", "\n"), "\n")
 	var chunks []ReportChunk
@@ -135,17 +158,21 @@ func ChunkReport(reportMD string) []ReportChunk {
 		if len(curLines) == 0 {
 			return
 		}
-		text := strings.TrimSpace(strings.Join(curLines, "\n"))
+		raw := strings.Join(curLines, "\n")
+		text := strings.TrimSpace(anchor.Replace(raw, func(string, string) string { return "" }))
 		if text != "" {
-			anchor := extractAnchor(text)
-			chunks = append(chunks, ReportChunk{
+			ch := ReportChunk{
 				Index:     len(chunks),
 				Heading:   curHeading,
 				StartLine: startLine,
 				EndLine:   endLine,
 				Text:      text,
-				Anchor:    anchor,
-			})
+				Anchors:   anchor.IDs(raw),
+			}
+			if len(ch.Anchors) > 0 {
+				ch.Anchor = ch.Anchors[0]
+			}
+			chunks = append(chunks, ch)
 		}
 		curLines = nil
 	}
@@ -171,19 +198,4 @@ func ChunkReport(reportMD string) []ReportChunk {
 	}
 	flush(len(lines))
 	return chunks
-}
-
-func extractAnchor(text string) string {
-	idx := strings.Index(text, "C-")
-	if idx < 0 {
-		return ""
-	}
-	end := idx + 2
-	for end < len(text) && ((text[end] >= '0' && text[end] <= '9') || (text[end] >= 'a' && text[end] <= 'f') || (text[end] >= 'A' && text[end] <= 'F')) {
-		end++
-	}
-	if end-idx >= 8 {
-		return text[idx:end]
-	}
-	return ""
 }

@@ -9,8 +9,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
 )
 
@@ -51,36 +53,17 @@ type ReportSearchJSON struct {
 }
 
 // writeReportSearch ranks the report's paragraphs against query and prints the top of the list.
-func writeReportSearch(cmd *cobra.Command, reportText, query string, asJSON bool) error {
-	chunks := hybridsearch.ChunkReport(reportText)
+func writeReportSearch(cmd *cobra.Command, run record.Run, reportText, query string, asJSON bool) error {
 	res := ReportSearchJSON{Chunks: []hybridsearch.ReportChunk{}, SearchScope: hybridsearch.SearchScope{
-		RankedAndCut: true, SearchedChunks: len(chunks), Notice: hybridsearch.SearchNotice}}
-	if len(chunks) > 0 {
+		RankedAndCut: true, Notice: hybridsearch.SearchNotice}}
+	if len(hybridsearch.ChunkReport(reportText)) > 0 {
 		emb, err := vecembed.Default()
 		if err != nil {
 			return err
 		}
 		defer emb.Close()
-		texts := make([]string, 0, len(chunks)+1)
-		for _, ch := range chunks {
-			texts = append(texts, ch.Text)
-		}
-		vecs, err := emb.Embed(append(texts, query))
-		if err != nil {
+		if res.Chunks, res.SearchScope.SearchedChunks, err = fetchcache.SearchReport(run, reportText, query, emb, reportSearchTopK); err != nil {
 			return err
-		}
-		items := make([]hybridsearch.Item, len(chunks))
-		for i, ch := range chunks {
-			items[i] = hybridsearch.Item{Index: i, Text: ch.Text, Vector: vecs[i]}
-		}
-		scored, err := hybridsearch.FuseRRF(items, query, vecs[len(chunks)], reportSearchTopK)
-		if err != nil {
-			return err
-		}
-		for _, sc := range scored {
-			ch := chunks[sc.Index]
-			ch.Score = sc.Score
-			res.Chunks = append(res.Chunks, ch)
 		}
 	}
 	res.SearchScope.Returned = len(res.Chunks)
@@ -100,7 +83,11 @@ func writeReportSearch(cmd *cobra.Command, reportText, query string, asJSON bool
 		if ch.Heading != "" {
 			fmt.Fprintln(out, ch.Heading)
 		}
-		fmt.Fprintf(out, "lines %d..%d (score %.4f):\n%s\n\n", ch.StartLine, ch.EndLine, ch.Score, ch.Text)
+		anchors := ""
+		if len(ch.Anchors) > 0 {
+			anchors = ", anchors " + strings.Join(ch.Anchors, " ")
+		}
+		fmt.Fprintf(out, "lines %d..%d (score %.4f%s):\n%s\n\n", ch.StartLine, ch.EndLine, ch.Score, anchors, ch.Text)
 	}
 	fmt.Fprintf(out, "%d of %d paragraph(s). %s\n", res.SearchScope.Returned, res.SearchScope.SearchedChunks, res.SearchScope.Notice)
 	return nil

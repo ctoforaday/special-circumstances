@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -135,10 +135,10 @@ func TestRankedSearchStatesCutAndScope(t *testing.T) {
 		rep.SearchScope.Returned != len(rep.Chunks) || rep.SearchScope.SearchedChunks < len(rep.Chunks) || len(rep.Chunks) == 0 {
 		t.Errorf("the report search's scope does not state a ranked, cut list of what it searched: %+v (%d chunks)", rep.SearchScope, len(rep.Chunks))
 	}
-	// The paragraph's text is compared with its anchors out: ChunkReport keeping them in the text is
-	// hybridsearch's to fix (plans/vector-search.md §V.3, TestChunkReportStripsAnchorsAndExtractsAllTypes).
-	if len(rep.Chunks) > 0 && (!strings.Contains(strings.ToLower(anchorComment.ReplaceAllString(rep.Chunks[0].Text, "")), "moderate and rising") || rep.Chunks[0].StartLine == 0) {
-		t.Errorf("the top-ranked paragraph is not the one holding the query's words, or carries no line: %+v", rep.Chunks[0])
+	// The paragraph is ranked by its visible words; the anchors on it are listed, not left in its text.
+	if top := rep.Chunks[0]; !strings.Contains(strings.ToLower(top.Text), "moderate and rising") || top.StartLine == 0 ||
+		strings.Contains(top.Text, "<!--") || !slices.Contains(top.Anchors, censusCiteAnchor(t, runDir)) || top.Anchor != top.Anchors[0] {
+		t.Errorf("the top-ranked paragraph is not the one holding the query's words with its anchors listed and stripped: %+v", top)
 	}
 	if bare, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--search", "moderate and rising cost"); err != nil ||
 		!strings.Contains(bare, hybridsearch.SearchNotice) {
@@ -159,8 +159,8 @@ func TestRankedSearchStatesCutAndScope(t *testing.T) {
 				TextSha    string `json:"text_sha"`
 				SourceSpan string `json:"source_span"`
 			} `json:"hits"`
-			Selection   json.RawMessage           `json:"selection"`
-			SearchScope *hybridsearch.SearchScope `json:"search_scope"`
+			Selection   json.RawMessage              `json:"selection"`
+			SearchScope *fetchcache.CrossSourceScope `json:"search_scope"`
 		}
 		if err := json.Unmarshal([]byte(out), &doc); err != nil {
 			t.Fatalf("%s: %v\n%s", strings.Join(args, " "), err, out)
@@ -255,9 +255,6 @@ func censusCiteAnchor(t *testing.T, runDir string) string {
 	}
 	return out[i : i+10]
 }
-
-// anchorComment is an anchor token as the report carries it.
-var anchorComment = regexp.MustCompile(`<!--[a-z]+:[A-Z]-[0-9a-f]+-->`)
 
 var (
 	fakeEmbedOnce sync.Once

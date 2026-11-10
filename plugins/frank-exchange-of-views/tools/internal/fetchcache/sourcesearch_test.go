@@ -203,14 +203,13 @@ func TestSearchCrossSources(t *testing.T) {
 
 // SINGLE-SOURCE RANKED HYBRID SEARCH
 func TestSearchSourceHybrid(t *testing.T) {
+	useFakeEmbedder(t)
 	run := runtest.New(t, t.TempDir())
 	e := storeTextSource(t, run, "https://ex/primes", m36Page)
 
 	got, err := SearchSourceHybrid(run, e, "factors of ninety-one", 5)
 	if err != nil {
-		// If native helper is absent in this test environment, expect appropriate error
-		t.Logf("SearchSourceHybrid returned err: %v (expected if feov-embed absent)", err)
-		return
+		t.Fatalf("SearchSourceHybrid: %v", err)
 	}
 	if !got.SearchScope.RankedAndCut {
 		t.Fatalf("expected SearchScope with ranked_and_cut=true, got %+v", got.SearchScope)

@@ -35,9 +35,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
 )
 
 // ChainFetcher is a Fetcher that can continue ONE retrieval across several requests.
@@ -846,49 +844,8 @@ func foldExtraction(run record.Run, entry *Entry, ex Extraction) error {
 		return terr
 	}
 	entry.TextSha = textSha
-	prewarmVectors(run, textSha, ex.Text, nil)
+	prewarmSourceVectors(run, *entry)
 	return nil
-}
-
-// prewarmVectors eagerly computes and caches chunk vector embeddings for text into <run>/cache/<textSha>.vec
-// when an embedder (feov-embed) is available. Best-effort: errors are ignored so extraction/OCR never fails.
-func prewarmVectors(run record.Run, textSha string, text string, pageMap []int) {
-	if textSha == "" || text == "" {
-		return
-	}
-	cachePath := VectorCachePath(run, textSha)
-	if _, err := os.Stat(cachePath); err == nil {
-		return // already cached
-	}
-	emb, err := vecembed.Default()
-	if err != nil {
-		return // helper or model absent; search will fail or lazy-embed later
-	}
-	defer emb.Close()
-
-	chunks := hybridsearch.ChunkSource(text, pageMap)
-	if len(chunks) == 0 {
-		return
-	}
-	chunkTexts := make([]string, len(chunks))
-	for i, ch := range chunks {
-		chunkTexts[i] = ch.Text
-	}
-	vecs, err := emb.Embed(chunkTexts)
-	if err != nil || len(vecs) != len(chunks) {
-		return
-	}
-	cached := make([]hybridsearch.CachedChunk, len(chunks))
-	for i, ch := range chunks {
-		cached[i] = hybridsearch.CachedChunk{
-			Index:     ch.Index,
-			StartByte: ch.StartByte,
-			EndByte:   ch.EndByte,
-			Page:      ch.Page,
-			Vector:    vecs[i],
-		}
-	}
-	_ = hybridsearch.WriteCache(cachePath, emb.ModelID(), cached)
 }
 
 // EntryFor builds the index entry for a backend's answer to url. substitution is the route that

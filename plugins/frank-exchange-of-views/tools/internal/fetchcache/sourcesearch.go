@@ -3,8 +3,6 @@ package fetchcache
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode"
@@ -13,7 +11,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed"
 )
 
 // SEARCHING A SOURCE IS A READ OF THE TEXT A CITATION IS FOUND IN, so it reads that text the way
@@ -105,8 +102,16 @@ type CrossSourceSearch struct {
 
 // RankedCrossSourceSearch is a ranked search across every cached source: the top passages, cut.
 type RankedCrossSourceSearch struct {
-	Hits        []RankedCrossSourceHit   `json:"hits"`
-	SearchScope hybridsearch.SearchScope `json:"search_scope"`
+	Hits        []RankedCrossSourceHit `json:"hits"`
+	SearchScope CrossSourceScope       `json:"search_scope"`
+}
+
+// CrossSourceScope is a ranked search's scope across sources: how many sources it ranked, and each
+// it could not, named with why.
+type CrossSourceScope struct {
+	hybridsearch.SearchScope
+	SearchedSources   int                             `json:"searched_sources"`
+	UnsearchedSources []hybridsearch.UnsearchedSource `json:"unsearched_sources,omitempty"`
 }
 
 // RankedCrossSourceHit is a CrossSourceHit with the fused rank score that placed it.
@@ -187,36 +192,14 @@ func SearchCrossSources(run record.Run, match, quote string) (CrossSourceSearch,
 	for _, e := range entries {
 		texts, origin, _, err := sourceTexts(run, e)
 		if err != nil {
-			unsearchedSources = append(unsearchedSources, hybridsearch.UnsearchedSource{
-				Sha:    e.Sha,
-				URL:    e.URL,
-				Reason: unsearchedReason(e),
-			})
+			unsearchedSources = append(unsearchedSources, unsearched(e, err))
 			continue
 		}
 		searchedSources++
-		originWord := recordpb.Word(origin)
 		for _, t := range texts {
 			f := fold(t.text, hyphenAsIs)
 			for _, m := range re.FindAllStringIndex(f.s, -1) {
-				sh := sourceHit(texts, t, f.at[m[0]], f.end[m[1]-1])
-				hits = append(hits, CrossSourceHit{
-					Sha:           e.Sha,
-					URL:           e.URL,
-					Origin:        originWord,
-					TextSha:       sh.TextSha,
-					Page:          sh.Page,
-					Matched:       sh.Matched,
-					Line:          sh.Line,
-					LastLine:      sh.LastLine,
-					Sentence:      sh.Sentence,
-					SentenceStart: sh.SentenceStart,
-					SentenceEnd:   sh.SentenceEnd,
-					SourceSpan:    sh.SourceSpan,
-					NotCiteable:   sh.NotCiteable,
-					Start:         sh.Start,
-					End:           sh.End,
-				})
+				hits = append(hits, crossSourceHit(e, origin, sourceHit(texts, t, f.at[m[0]], f.end[m[1]-1])))
 			}
 		}
 	}
@@ -230,333 +213,6 @@ func SearchCrossSources(run record.Run, match, quote string) (CrossSourceSearch,
 			UnsearchedSources: unsearchedSources,
 		},
 	}, nil
-}
-
-// SearchSourceHybrid executes ranked top-K hybrid (BM25 + dense vector RRF) retrieval over one cached source.
-func SearchSourceHybrid(run record.Run, e Entry, query string, topK int) (RankedSourceSearch, error) {
-	if strings.TrimSpace(query) == "" {
-		return RankedSourceSearch{}, errors.New("the search query is blank")
-	}
-	if topK <= 0 {
-		topK = 10
-	}
-	texts, origin, rec, err := sourceTexts(run, e)
-	if err != nil {
-		return RankedSourceSearch{}, err
-	}
-	emb, err := vecembed.Default()
-	if err != nil {
-		return RankedSourceSearch{}, err
-	}
-	defer emb.Close()
-
-	fullText, pageMap, textSha, err := fullSourceText(run, e, origin, rec, texts)
-	if err != nil {
-		return RankedSourceSearch{}, err
-	}
-
-	cachedChunks, err := loadOrComputeChunks(run, emb, textSha, fullText, pageMap)
-	if err != nil {
-		return RankedSourceSearch{}, err
-	}
-
-	qVecs, err := emb.Embed([]string{query})
-	if err != nil {
-		return RankedSourceSearch{}, err
-	}
-
-	items := make([]hybridsearch.Item, len(cachedChunks))
-	for i, c := range cachedChunks {
-		items[i] = hybridsearch.Item{
-			Index:  i,
-			Text:   fullText[c.StartByte:c.EndByte],
-			Vector: c.Vector,
-		}
-	}
-
-	scored, err := hybridsearch.FuseRRF(items, query, qVecs[0], topK)
-	if err != nil {
-		return RankedSourceSearch{}, err
-	}
-
-	out := RankedSourceSearch{
-		Sha:      e.Sha,
-		URL:      e.URL,
-		Origin:   recordpb.Word(origin),
-		TextPath: SourceTextPath(run, e, origin),
-		Hits:     make([]RankedSourceHit, 0, len(scored)),
-		SearchScope: hybridsearch.SearchScope{
-			RankedAndCut:   true,
-			Returned:       len(scored),
-			SearchedChunks: len(cachedChunks),
-			Notice:         hybridsearch.SearchNotice,
-		},
-	}
-
-	for _, sc := range scored {
-		c := cachedChunks[sc.Index]
-		chunkText := fullText[c.StartByte:c.EndByte]
-		hit := hitForChunk(texts, origin, rec, pageMap, fullText, c, chunkText, query)
-		out.Hits = append(out.Hits, RankedSourceHit{SourceHit: hit, Score: sc.Score})
-	}
-
-	return out, nil
-}
-
-// SearchCrossSourcesHybrid executes ranked top-K hybrid retrieval across all cached sources in the run.
-func SearchCrossSourcesHybrid(run record.Run, query string, topK int) (RankedCrossSourceSearch, error) {
-	if strings.TrimSpace(query) == "" {
-		return RankedCrossSourceSearch{}, errors.New("the search query is blank")
-	}
-	if topK <= 0 {
-		topK = 10
-	}
-	emb, err := vecembed.Default()
-	if err != nil {
-		return RankedCrossSourceSearch{}, err
-	}
-	defer emb.Close()
-
-	qVecs, err := emb.Embed([]string{query})
-	if err != nil {
-		return RankedCrossSourceSearch{}, err
-	}
-
-	entries, err := AllEntries(run)
-	if err != nil {
-		return RankedCrossSourceSearch{}, err
-	}
-
-	type sourceChunkRef struct {
-		entry    Entry
-		texts    []spanText
-		origin   recordpb.SourceTextOrigin
-		rec      ReadingRecord
-		pageMap  []int
-		fullText string
-		chunk    hybridsearch.CachedChunk
-	}
-
-	var allRefs []sourceChunkRef
-	var items []hybridsearch.Item
-	searchedSources := 0
-	var unsearchedSources []hybridsearch.UnsearchedSource
-
-	for _, e := range entries {
-		texts, origin, rec, err := sourceTexts(run, e)
-		if err != nil {
-			unsearchedSources = append(unsearchedSources, hybridsearch.UnsearchedSource{
-				Sha:    e.Sha,
-				URL:    e.URL,
-				Reason: unsearchedReason(e),
-			})
-			continue
-		}
-		fullText, pageMap, textSha, err := fullSourceText(run, e, origin, rec, texts)
-		if err != nil {
-			unsearchedSources = append(unsearchedSources, hybridsearch.UnsearchedSource{
-				Sha:    e.Sha,
-				URL:    e.URL,
-				Reason: err.Error(),
-			})
-			continue
-		}
-		cachedChunks, err := loadOrComputeChunks(run, emb, textSha, fullText, pageMap)
-		if err != nil {
-			unsearchedSources = append(unsearchedSources, hybridsearch.UnsearchedSource{
-				Sha:    e.Sha,
-				URL:    e.URL,
-				Reason: err.Error(),
-			})
-			continue
-		}
-		searchedSources++
-		for _, c := range cachedChunks {
-			allRefs = append(allRefs, sourceChunkRef{
-				entry:    e,
-				texts:    texts,
-				origin:   origin,
-				rec:      rec,
-				pageMap:  pageMap,
-				fullText: fullText,
-				chunk:    c,
-			})
-			items = append(items, hybridsearch.Item{
-				Index:  len(items),
-				Text:   fullText[c.StartByte:c.EndByte],
-				Vector: c.Vector,
-			})
-		}
-	}
-
-	scored, err := hybridsearch.FuseRRF(items, query, qVecs[0], topK)
-	if err != nil {
-		return RankedCrossSourceSearch{}, err
-	}
-
-	hits := make([]RankedCrossSourceHit, 0, len(scored))
-	for _, sc := range scored {
-		ref := allRefs[sc.Index]
-		chunkText := ref.fullText[ref.chunk.StartByte:ref.chunk.EndByte]
-		sh := hitForChunk(ref.texts, ref.origin, ref.rec, ref.pageMap, ref.fullText, ref.chunk, chunkText, query)
-		hits = append(hits, RankedCrossSourceHit{Score: sc.Score, CrossSourceHit: CrossSourceHit{
-			Sha:           ref.entry.Sha,
-			URL:           ref.entry.URL,
-			Origin:        recordpb.Word(ref.origin),
-			TextSha:       sh.TextSha,
-			Page:          sh.Page,
-			Matched:       sh.Matched,
-			Line:          sh.Line,
-			LastLine:      sh.LastLine,
-			Sentence:      sh.Sentence,
-			SentenceStart: sh.SentenceStart,
-			SentenceEnd:   sh.SentenceEnd,
-			SourceSpan:    sh.SourceSpan,
-			NotCiteable:   sh.NotCiteable,
-			Start:         sh.Start,
-			End:           sh.End,
-		}})
-	}
-
-	return RankedCrossSourceSearch{
-		Hits: hits,
-		SearchScope: hybridsearch.SearchScope{
-			RankedAndCut:      true,
-			Returned:          len(hits),
-			SearchedChunks:    len(items),
-			SearchedSources:   searchedSources,
-			UnsearchedSources: unsearchedSources,
-			Notice:            hybridsearch.SearchNotice,
-		},
-	}, nil
-}
-
-func fullSourceText(run record.Run, e Entry, origin recordpb.SourceTextOrigin, rec ReadingRecord, texts []spanText) (string, []int, string, error) {
-	switch origin {
-	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
-		path := OCRTextPath(run, e.Sha)
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return "", nil, "", err
-		}
-		fullText := string(b)
-		pageMap := make([]int, len(texts))
-		offset := 0
-		for i, t := range texts {
-			pageMap[i] = offset
-			offset += len(t.text) + 2 // "\n\n" separator in AssembleReading
-		}
-		return fullText, pageMap, rec.TextSha, nil
-	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED:
-		if len(texts) == 0 {
-			return "", nil, "", ErrNoText
-		}
-		return texts[0].text, nil, texts[0].sha, nil
-	default:
-		return "", nil, "", fmt.Errorf("%w: %s", ErrNoText, recordpb.Word(origin))
-	}
-}
-
-func loadOrComputeChunks(run record.Run, emb vecembed.Embedder, textSha, fullText string, pageMap []int) ([]hybridsearch.CachedChunk, error) {
-	cachePath := VectorCachePath(run, textSha)
-	cached, err := hybridsearch.ReadCache(cachePath, emb.ModelID())
-	if err == nil {
-		return cached, nil
-	}
-	chunks := hybridsearch.ChunkSource(fullText, pageMap)
-	if len(chunks) == 0 {
-		return nil, nil
-	}
-	chunkTexts := make([]string, len(chunks))
-	for i, ch := range chunks {
-		chunkTexts[i] = ch.Text
-	}
-	vecs, err := emb.Embed(chunkTexts)
-	if err != nil {
-		return nil, err
-	}
-	cached = make([]hybridsearch.CachedChunk, len(chunks))
-	for i, ch := range chunks {
-		cached[i] = hybridsearch.CachedChunk{
-			Index:     ch.Index,
-			StartByte: ch.StartByte,
-			EndByte:   ch.EndByte,
-			Page:      ch.Page,
-			Vector:    vecs[i],
-		}
-	}
-	_ = hybridsearch.WriteCache(cachePath, emb.ModelID(), cached)
-	return cached, nil
-}
-
-func hitForChunk(texts []spanText, origin recordpb.SourceTextOrigin, rec ReadingRecord, pageMap []int, fullText string, c hybridsearch.CachedChunk, chunkText, query string) SourceHit {
-	var t spanText
-	localChunkStart := c.StartByte
-	localChunkEnd := c.EndByte
-	if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR && len(texts) > 0 {
-		pageIdx := c.Page - 1
-		if pageIdx < 0 || pageIdx >= len(texts) {
-			pageIdx = 0
-		}
-		t = texts[pageIdx]
-		pageOffset := 0
-		if pageIdx < len(pageMap) {
-			pageOffset = pageMap[pageIdx]
-		}
-		localChunkStart = max(0, c.StartByte-pageOffset)
-		localChunkEnd = min(len(t.text), c.EndByte-pageOffset)
-	} else if len(texts) > 0 {
-		t = texts[0]
-	}
-
-	wordStart, wordEnd := findBestWordInChunk(t.text, localChunkStart, localChunkEnd, query)
-	return sourceHit(texts, t, wordStart, wordEnd)
-}
-
-func findBestWordInChunk(text string, chunkStart, chunkEnd int, query string) (int, int) {
-	if chunkStart < 0 {
-		chunkStart = 0
-	}
-	if chunkEnd > len(text) {
-		chunkEnd = len(text)
-	}
-	if chunkStart >= chunkEnd {
-		return chunkStart, chunkEnd
-	}
-	slice := text[chunkStart:chunkEnd]
-	words := strings.Fields(query)
-	for _, w := range words {
-		wClean := strings.TrimFunc(w, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
-		if len(wClean) < 2 {
-			continue
-		}
-		idx := strings.Index(strings.ToLower(slice), strings.ToLower(wClean))
-		if idx >= 0 {
-			start := chunkStart + idx
-			end := start + len(wClean)
-			return start, end
-		}
-	}
-	inWord := false
-	wStart := chunkStart
-	for i := chunkStart; i < chunkEnd; {
-		r, size := utf8.DecodeRuneInString(text[i:])
-		if unicode.IsSpace(r) {
-			if inWord {
-				return wStart, i
-			}
-		} else {
-			if !inWord {
-				wStart = i
-				inWord = true
-			}
-		}
-		i += size
-	}
-	if inWord {
-		return wStart, chunkEnd
-	}
-	return chunkStart, chunkEnd
 }
 
 // sourceHit is the hit at [start, end) of t, with the sentence it sits in and whether cite takes it.
@@ -590,27 +246,6 @@ func sourceHit(texts []spanText, t spanText, start, end int) SourceHit {
 		h.SourceSpan = sentence
 	}
 	return h
-}
-
-func unsearchedReason(e Entry) string {
-	if e.TextReason != "" {
-		if strings.Contains(e.TextReason, "scanned or image-only") {
-			return "image_only: no OCR reading yet; run fetch --url " + e.URL
-		}
-		return e.TextReason
-	}
-	if e.TextExtracted != nil && !*e.TextExtracted {
-		if e.ContentType == "application/pdf" {
-			return "image_only: no OCR reading yet; run fetch --url " + e.URL
-		}
-		return "no text extracted from document"
-	}
-	return "the source has no extracted text"
-}
-
-// VectorCachePath is where dense vector embeddings of textSha's chunks are cached.
-func VectorCachePath(run record.Run, textSha string) string {
-	return filepath.Join(Dir(run), textSha+".vec")
 }
 
 // searchPattern compiles a search's pattern, case-insensitive, and names it.

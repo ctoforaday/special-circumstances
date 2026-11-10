@@ -1072,7 +1072,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		// and grepped, then sed'd a line range to find the heading above the hit. This returns the
 		// same triple --anchor does (heading, text, line number) keyed on a pattern instead of an id.
 		if query != "" {
-			return writeReportSearch(cmd, string(b), query, asJSON)
+			return writeReportSearch(cmd, run, string(b), query, asJSON)
 		}
 		sel, serr := SelectorOf(cmd)
 		if serr != nil {
