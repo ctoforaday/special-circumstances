@@ -826,8 +826,15 @@ type runner struct {
 	// the lens's gap about the composed section, fateTurnInquiry the inquiry whose fate it prints,
 	// fateTurnChanged whether blue has changed that fate answering it, and fateTurnStage the last step
 	// the chain reached, which the run's error names when no fate turn was counted.
-	forceFateTurn, fateTurnChanged                bool
-	fateTurnGap, fateTurnInquiry, fateTurnStage   string
+	forceFateTurn, fateTurnChanged              bool
+	fateTurnGap, fateTurnInquiry, fateTurnStage string
+	// composedGap is the voice lens's gap about composedInquiry's account, minted from a composed
+	// source its list handed it, and composedAnswered whether blue has recorded that fate again
+	// answering it (composedsource_test.go). composedHanded, composedGaps and composedAnswers count
+	// the sources handed, those gaps and those answers; the sweep gates each at zero.
+	composedGap, composedInquiry                  string
+	composedAnswered                              bool
+	composedHanded, composedGaps, composedAnswers int
 	foundAgainstChained, foundAgainstRepeatedRead bool
 	foundAgainstStage                             string
 	foundAgainstCite, foundAgainstAnchor          string
@@ -5729,6 +5736,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.extras("blue", seatID, open)
 		// THE FORCED FATE TURN'S ANSWER comes before the sitting's other fates, so it is a fate of its own.
 		r.changeFateForTurn(seatID)
+		// THE VOICE LENS'S GAP ABOUT AN INQUIRY'S ACCOUNT is answered by recording the fate again.
+		r.answerComposedGap(seatID)
 		// EVERY OPEN INQUIRY GETS A FATE THIS SITTING: each is a blocking item on blue's work list.
 		r.settleOpenInquiries(seatID)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
@@ -5963,6 +5972,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 			}
 		}
+		r.auditComposedSources(seatID)
 		r.mintAboutFateSection(seatID)
 		r.mintHeldTrifle(seatID)
 		r.closeNamedOnTurn(seatID, engaged)
@@ -6465,6 +6475,8 @@ type outcome struct {
 	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
 	// are runner's.
 	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits, fateTurns int
+	// composedHanded, composedGaps and composedAnswers are runner's.
+	composedHanded, composedGaps, composedAnswers int
 	// lensAlone, docketsAfterAudit, docketedClosesRefused and docketedOffList are runner's.
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// hearingsAfter is runner's.
@@ -7907,6 +7919,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
 	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
 	res.fateTurns = r.fateTurns
+	res.composedHanded, res.composedGaps, res.composedAnswers = r.composedHanded, r.composedGaps, r.composedAnswers
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
@@ -9022,6 +9035,9 @@ func inquiryCheckCode(class string) feov.Code {
 // sitting the owner is readied for next: the check would judge the fate without what landed in hand,
 // and the tool refuses it.
 func (r *runner) checkInquiries(seatID string) {
+	r.mu.Lock()
+	composedBefore := r.composedGap
+	r.mu.Unlock()
 	js, ok := r.inquiryJudgements()
 	if !ok || len(js) == 0 {
 		return
@@ -9062,6 +9078,16 @@ func (r *runner) checkInquiries(seatID string) {
 			// refusal fails the run.
 			if now, ok := r.inquiryJudgement(j.ID); ok && (now.Fate != j.Fate || now.GapMint != j.GapMint || now.State() != record.InquiryUnchecked) {
 				noteEither(args, "the inquiry moved under the owner's check", false)
+				continue
+			}
+			// THE VOICE LENS'S GAP ABOUT IT LANDED BESIDE THE CHECK and left again before the re-read —
+			// superseded or closed — so the inquiry reads unchecked on both sides of a refusal that
+			// named the gap (composedsource_test.go).
+			r.mu.Lock()
+			composedBeside := r.composedInquiry == j.ID && r.composedGap != composedBefore
+			r.mu.Unlock()
+			if composedBeside {
+				noteEither(args, "the voice lens's gap about the inquiry landed beside the owner's check", false)
 				continue
 			}
 			r.noteActErr("refused, and the drive expects it admitted: " + firstLine(out) + ": " + err.Error())

@@ -1051,7 +1051,7 @@ const (
 	// REFUTED IS AN APPROACH THAT RAN AND ANSWERED NO. It is an answer, so it ships beside the
 	// confirmed inquiries; `abandoned` is left for the inquiry that produced none.
 	InquiryStatus_INQUIRY_STATUS_REFUTED  InquiryStatus = 7
-	InquiryStatus_INQUIRY_STATUS_DEFERRED InquiryStatus = 3 // a deferral with no stated reason is indistinguishable from forgetting, and this status exists to be read by a run that has not happened yet
+	InquiryStatus_INQUIRY_STATUS_DEFERRED InquiryStatus = 3 // a deferral with no stated reason is indistinguishable from forgetting, and the report prints it under Future research directions
 	// DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not. The
 	// record holds no link from a computation or a section to an inquiry, so no write can tell a declined
 	// inquiry that was run from one that was not; the fate's own meaning is where the seat is told.
@@ -5077,8 +5077,8 @@ type Inquiry struct {
 	// could not be stored either.
 	Question   *string `protobuf:"bytes,2,opt,name=question,proto3,oneof" json:"question,omitempty"`
 	Hypothesis *string `protobuf:"bytes,3,opt,name=hypothesis,proto3,oneof" json:"hypothesis,omitempty"`
-	// method is a FATE's account, as reason is: what an approach that ran actually did, what a
-	// deferred or declined one leaves a later run to do, what an abandoned one tried. A proposal holds
+	// method is a FATE's account, as reason is: what an approach that ran actually did, what would
+	// settle the question of a deferred or declined one, what an abandoned one tried. A proposal holds
 	// none (record.go's Inquiry arm refuses one), and the latest fate's method is the one printed.
 	Method *string        `protobuf:"bytes,4,opt,name=method,proto3,oneof" json:"method,omitempty"`
 	Status *InquiryStatus `protobuf:"varint,5,opt,name=status,proto3,enum=feov.record.v1.InquiryStatus,oneof" json:"status,omitempty"`
@@ -8542,14 +8542,14 @@ const file_record_proto_rawDesc = "" +
 	"\x11RERUN_UNSPECIFIED\x10\x00\x12l\n" +
 	"\x10RERUN_REPRODUCED\x10\x01\x1aV\x8a\xb5\x18Rthe bundle's re-run wrote this act's recorded output, exit and out/, byte for byte\x12\x80\x01\n" +
 	"\rRERUN_DIFFERS\x10\x02\x1am\x8a\xb5\x18ithe bundle's re-run wrote something other than this act's recorded output, exit or out/; drift names what\x12\xb1\x01\n" +
-	"\x14RERUN_CALLS_THE_TOOL\x10\x03\x1a\x96\x01\x8a\xb5\x18\x91\x01the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced\"\x04\b\x04\x10\x04*\rRERUN_NOT_RUN*\x88\x0e\n" +
+	"\x14RERUN_CALLS_THE_TOOL\x10\x03\x1a\x96\x01\x8a\xb5\x18\x91\x01the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced\"\x04\b\x04\x10\x04*\rRERUN_NOT_RUN*\xcf\x0e\n" +
 	"\rInquiryStatus\x12\x1e\n" +
 	"\x1aINQUIRY_STATUS_UNSPECIFIED\x10\x00\x12\xb2\x01\n" +
 	"\x17INQUIRY_STATUS_PROPOSED\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it\x12\xc7\x01\n" +
 	"\x17INQUIRY_STATUS_UNDERWAY\x10\x02\x1a\xa9\x01\x8a\xb5\x18\xa4\x01you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached\x12\x96\x02\n" +
 	"\x18INQUIRY_STATUS_CONFIRMED\x10\x06\x1a\xf7\x01\x8a\xb5\x18\xf2\x01you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`\x12\xc3\x02\n" +
-	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this\x12\xa7\x01\n" +
-	"\x17INQUIRY_STATUS_DEFERRED\x10\x03\x1a\x89\x01\x8a\xb5\x18\x84\x01left for a later research run, not this one — kept, not set aside. REQUIRES a reason saying what a later run should pick it up FOR\x12\xc7\x02\n" +
+	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this\x12\xee\x01\n" +
+	"\x17INQUIRY_STATUS_DEFERRED\x10\x03\x1a\xd0\x01\x8a\xb5\x18\xcb\x01left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it\x12\xc7\x02\n" +
 	"\x17INQUIRY_STATUS_DECLINED\x10\x04\x1a\xa9\x02\x8a\xb5\x18\xa4\x02you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\x84\x02\n" +
 	"\x18INQUIRY_STATUS_ABANDONED\x10\x05\x1a\xe5\x01\x8a\xb5\x18\xe0\x01you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this*\x98\x05\n" +
 	"\rMotionSubject\x12\x1e\n" +

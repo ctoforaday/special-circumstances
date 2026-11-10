@@ -193,6 +193,9 @@ type runTally struct {
 	RemandReleases                  int                       `json:"remand_releases"`
 	LensTurns                       int                       `json:"lens_turns"`
 	FateTurns                       int                       `json:"fate_turns"`
+	ComposedHanded                  int                       `json:"composed_handed"`
+	ComposedGaps                    int                       `json:"composed_gaps"`
+	ComposedAnswers                 int                       `json:"composed_answers"`
 	LensWaits                       int                       `json:"lens_waits"`
 	LensAlone                       int                       `json:"lens_alone"`
 	DocketsAfterAudit               int                       `json:"dockets_after_audit"`
@@ -270,6 +273,7 @@ func tallyOf(o outcome) runTally {
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, FateTurns: o.fateTurns, LensWaits: o.lensWaits,
+		ComposedHanded: o.composedHanded, ComposedGaps: o.composedGaps, ComposedAnswers: o.composedAnswers,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
@@ -636,6 +640,7 @@ type sweepFold struct {
 	blueRemandActs, pastLimitRemandsRefused         int
 	remandHolds, remandReleases                     int
 	lensTurns, lensWaits, fateTurns                 int
+	composedHanded, composedGaps, composedAnswers   int
 	lensAlone, docketsAfterAudit                    int
 	docketedClosesRefused, docketedOffList          int
 	benchRegrades, lockRefused, lockLifted          int
@@ -854,6 +859,9 @@ func foldRuns(runs []runTally) sweepFold {
 		f.remandReleases += r.RemandReleases
 		f.lensTurns += r.LensTurns
 		f.fateTurns += r.FateTurns
+		f.composedHanded += r.ComposedHanded
+		f.composedGaps += r.ComposedGaps
+		f.composedAnswers += r.ComposedAnswers
 		f.lensWaits += r.LensWaits
 		f.lensAlone += r.LensAlone
 		f.docketsAfterAudit += r.DocketsAfterAudit
@@ -1308,6 +1316,14 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("fate turns: %d lens engagement(s) on a gap about a section, with blue or alone, came with a fate blue changed", f.fateTurns)
 		if f.fateTurns == 0 {
 			t.Errorf("no lens turn across %d runs on a gap about a section came with a fate blue changed — the rule that a changed fate is blue's act on a gap about a section that prints it is unexercised (false green)", f.completed)
+		}
+		// THE VOICE LENS AUDITS THE TEXT THE TOOL COMPOSES (ruled by gblock 2026-11-10): its list handed
+		// it the inquiries' fates and the open gaps' rows recorded since it last sat, it minted a
+		// report_voice gap about an inquiry's account from one, and blue answered such a gap by
+		// recording the fate again.
+		t.Logf("composed sources: %d handed to the voice lens, %d report_voice gap(s) minted about an inquiry from one, %d answered by a fate recorded again", f.composedHanded, f.composedGaps, f.composedAnswers)
+		if f.composedHanded == 0 || f.composedGaps == 0 || f.composedAnswers == 0 {
+			t.Errorf("fuzz handed the voice lens %d composed source(s), minted %d report_voice gap(s) about an inquiry from one and answered %d by a fate across %d runs — the voice audit of the composed sections is unexercised on one side (false green)", f.composedHanded, f.composedGaps, f.composedAnswers, f.completed)
 		}
 		// THE LENS GOES FIRST AND THE DOCKET AFTER (ruled by gblock 2026-10-31): a plan readied a lens alone
 		// for the audit that reaches the limits, a docket followed a lens's sitting, a docketed gap's close

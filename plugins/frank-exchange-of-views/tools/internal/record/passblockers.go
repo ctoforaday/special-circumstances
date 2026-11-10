@@ -708,7 +708,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 	events := owedBlockersOf(evs, ids, win, gaps)
 	out = append(out, events...)
 	out = append(out, gradeMovementOf(evs, ids, win, openSet(gaps)).blockers()...)
-	if lg := passLensGateOf(evs, ids, win, fresh, lensOwesOf(evs, ids, win, gaps, events)); lg.cast && lg.head != 0 {
+	if lg := passLensGateOf(evs, ids, win, fresh, lensOwesOf(evs, ids, win, gaps, events), composedOwedOf(evs, ids, win, gaps)); lg.cast && lg.head != 0 {
 		for _, f := range lg.ready() {
 			out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, foldWhy: f.why})
 		}

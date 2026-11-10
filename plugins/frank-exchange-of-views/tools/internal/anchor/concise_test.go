@@ -1,4 +1,4 @@
-package report
+package anchor
 
 import (
 	"strings"
@@ -48,9 +48,9 @@ func TestConciseCutsAtABoundaryAndNeverMidWord(t *testing.T) {
 		want: strings.TrimSpace(strings.Repeat("alpha ", 16)) + "…", // 16*6=96; a 17th would cross 100
 	}} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := concise(tt.in)
+			got := Concise(tt.in)
 			if got != tt.want {
-				t.Errorf("concise():\n got %q\nwant %q", got, tt.want)
+				t.Errorf("Concise():\n got %q\nwant %q", got, tt.want)
 			}
 		})
 	}
@@ -73,26 +73,18 @@ func TestConciseInvariants(t *testing.T) {
 		"? ",
 	}
 	for _, in := range inputs {
-		got := concise(in)
+		got := Concise(in)
 		if !utf8.ValidString(got) {
-			t.Errorf("concise(%q) = %q: not valid UTF-8", in, got)
+			t.Errorf("Concise(%q) = %q: not valid UTF-8", in, got)
 		}
 		// The cut marker costs three bytes; nothing else may exceed the stated limit.
-		if n := len(strings.TrimSuffix(got, "…")); n > conciseLimit {
-			t.Errorf("concise(%q) = %q: %d bytes, over the stated limit of %d", in, got, n, conciseLimit)
+		if n := len(strings.TrimSuffix(got, "…")); n > ConciseLimit {
+			t.Errorf("Concise(%q) = %q: %d bytes, over the stated limit of %d", in, got, n, ConciseLimit)
 		}
 		// A cell that is ONLY an abbreviation's stub is the defect, restated as a property:
 		// a truncated cell must carry more than a token and a period.
 		if trimmed := strings.TrimSpace(got); len(in) > minSentence && len(trimmed) < 3 {
-			t.Errorf("concise(%q) = %q: a cut cell that says nothing", in, got)
+			t.Errorf("Concise(%q) = %q: a cut cell that says nothing", in, got)
 		}
-	}
-}
-
-// The footer STATES the limit, so a reader meets the rule at the place the rule applies
-// rather than inferring it from a row that looks unfinished.
-func TestRiskMatrixFooterStatesTheLimit(t *testing.T) {
-	if !strings.Contains(riskMatrixFooter(), "100") {
-		t.Errorf("the matrix footer does not state its truncation limit:\n%s", riskMatrixFooter())
 	}
 }
