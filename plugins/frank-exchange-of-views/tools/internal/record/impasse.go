@@ -23,7 +23,7 @@ import (
 //
 // Movement is a STATE change: the gap's grade changed, its anchored text changed (a blue edit
 // answering G with old != new, or an evidence-anchor retire answering it or taking out the anchor it
-// is about or whose reading it carries), blue placed a citation or computation as its answer (ruled
+// is about), blue placed a citation or computation as its answer (ruled
 // by gblock 2026-10-31) or changed a fate on the inquiry G is anchored on or that the section G is
 // anchored on prints (fateActsOf, ruled by gblock 2026-11-05), its lineage moved (a mint superseding
 // G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same

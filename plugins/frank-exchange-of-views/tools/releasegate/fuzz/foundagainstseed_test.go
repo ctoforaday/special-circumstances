@@ -240,7 +240,7 @@ func (r *runner) foundAgainstCitation(seatID, preferred string) (cite string, cl
 	if preferred != "" {
 		candidates = append(candidates, preferred)
 	}
-	for _, s := range record.EvidenceJSONOf(b.Events, b.At).Sources {
+	for _, s := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Sources {
 		if s.Anchor != "" && s.Anchor != preferred {
 			candidates = append(candidates, s.Anchor)
 		}

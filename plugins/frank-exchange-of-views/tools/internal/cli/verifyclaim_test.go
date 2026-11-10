@@ -120,7 +120,7 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return record.EvidenceJSONOf(b.Events, b.At).Counts.Verifications
+		return record.EvidenceJSONOf(b.Events, b.At, "", nil).Counts.Verifications
 	}
 	refused := func(t *testing.T, runDir, anchor string, wants ...string) {
 		t.Helper()

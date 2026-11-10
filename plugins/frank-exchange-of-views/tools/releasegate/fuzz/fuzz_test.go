@@ -1678,7 +1678,7 @@ func (r *runner) aboutAnchor() (kind, ref string) {
 	// (answerFailed), and one any finding or gap may name, which answers no failed check.
 	var anchors []string
 	if b, ok := r.board(); ok {
-		ev := record.EvidenceJSONOf(b.Events, b.At)
+		ev := record.EvidenceJSONOf(b.Events, b.At, "", nil)
 		for _, c := range ev.Sources {
 			anchors = append(anchors, c.Anchor)
 		}
@@ -2879,7 +2879,7 @@ func (r *runner) someCitation() string {
 	// A RETIRED CITATION IS NOT IN THE REPORT, and verify refuses it by design (it holds no sentence
 	// to read the source against); the reading drive expects its verify admitted, so it skips those.
 	var live []string
-	for _, src := range record.EvidenceJSONOf(b.Events, b.At).Sources {
+	for _, src := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Sources {
 		if _, retired, err := record.AnchorRetiredAt(r.run(), src.Anchor); err == nil && !retired {
 			live = append(live, src.Anchor)
 		}
@@ -2918,7 +2918,7 @@ func (r *runner) computationsOfBundle(name, body string) []string {
 	}
 	sha := bundleSha(name, body)
 	var out []string
-	for _, p := range record.EvidenceJSONOf(b.Events, b.At).Computations {
+	for _, p := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Computations {
 		if p.Sha256 == sha {
 			out = append(out, p.Anchor)
 		}
@@ -3373,7 +3373,7 @@ func (r *runner) unchecked() []anchorRef {
 	if !ok {
 		return nil
 	}
-	ev := record.EvidenceJSONOf(b.Events, b.At)
+	ev := record.EvidenceJSONOf(b.Events, b.At, "", nil)
 	sha := map[string]string{}
 	for _, p := range ev.Computations {
 		sha[p.Anchor] = p.Sha256
@@ -3644,7 +3644,7 @@ func (r *runner) tallyOwed(plan map[string]any) {
 	held, readied := readiedForReopened(plan)
 	computations := map[string]bool{}
 	if b, ok := r.board(); ok {
-		for _, p := range record.EvidenceJSONOf(b.Events, b.At).Computations {
+		for _, p := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Computations {
 			computations[p.Anchor] = true
 		}
 	}
@@ -3846,7 +3846,7 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, computations, ci
 	if err != nil {
 		return "anchor owner: the record does not read: " + err.Error(), 0, 0
 	}
-	ev := record.EvidenceJSONOf(fam.Events, fam.At)
+	ev := record.EvidenceJSONOf(fam.Events, fam.At, "", nil)
 	isComputation := map[string]bool{}
 	for _, p := range ev.Computations {
 		isComputation[p.Anchor] = true
@@ -9128,7 +9128,7 @@ func (r *runner) recomputeOpenComputations(seatID string) {
 		}
 	}
 	standing := map[string]bool{} // anchor -> its own comparison against its bundle's re-run reproduced
-	for _, p := range record.EvidenceJSONOf(b.Events, b.At).Computations {
+	for _, p := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Computations {
 		standing[p.Anchor] = p.Rerun == recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED)
 	}
 	for _, id := range r.openGaps() {

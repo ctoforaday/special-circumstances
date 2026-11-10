@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -29,24 +30,30 @@ func evidenceEvent(t *testing.T, round int, seat string, body proto.Message) *Ev
 // in the report gets the url it needs to re-fetch the source.
 func TestEvidence_CitationAnchorResolvesToItsSource(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
-		Label: proto.String("c-29a72fe2"), Url: proto.String("https://example.org/p"),
+		Label: proto.String("C-29a72fe2"), Url: proto.String("https://example.org/p"),
 		Title: proto.String("A Paper"), Sha256: proto.String("abc123"),
 		Location: proto.String("Seven is prime."), AccessDate: proto.String("2026-08-12"),
 	}))
 
-	got := evidenceJSONT(t, b)
+	// THE ROW IS LOCATED BY ITS TOKEN, AS THE BOARD LOCATES A QUOTE GAP (D13): `marked` with the
+	// report's sentence where the token stands in prose, `gone` with the sentence as cited where it
+	// does not.
+	got := evidenceJSONIn(t, "# One\n\nSeven is prime"+anchor.Token("C-29a72fe2")+". Eight is not.\n", b...)
 	if len(got.Sources) != 1 {
 		t.Fatalf("Sources = %d, want 1", len(got.Sources))
 	}
 	s := got.Sources[0]
-	if s.Anchor != "c-29a72fe2" {
+	if s.Anchor != "C-29a72fe2" {
 		t.Errorf("Anchor = %q, want the c- id exactly as it appears inside <!--cite:…-->", s.Anchor)
 	}
 	if s.URL != "https://example.org/p" || s.Sha256 != "abc123" {
 		t.Errorf("url/sha = %q/%q — the fields red re-fetches with are missing", s.URL, s.Sha256)
 	}
-	if s.Location != "Seven is prime." {
-		t.Errorf("Location = %q, want the sentence the anchor sits at", s.Location)
+	if s.LocationState != LocationMarked || s.Location != "Seven is prime." {
+		t.Errorf("location = %q %q, want `marked` with the report's sentence around the token, tokens stripped", s.LocationState, s.Location)
+	}
+	if s := evidenceJSONT(t, b).Sources[0]; s.LocationState != LocationGone || s.Location != "Seven is prime." {
+		t.Errorf("location in a report without the token = %q %q, want `gone` with the sentence as cited", s.LocationState, s.Location)
 	}
 }
 

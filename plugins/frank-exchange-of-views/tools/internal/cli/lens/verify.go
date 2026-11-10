@@ -473,7 +473,7 @@ func refuseMarked(report, quote string) error {
 		if anchor.Kind(marked) != "citation" {
 			act = "its evidence is that " + anchor.Kind(marked) + ", which `reproduce` checks"
 		}
-		return feov.Errorf(feov.Validation, "this sentence is marked by %s; %s. A reading of a source you found that backs a sentence mints unsourced_claim, which is true only of a sentence no citation or computation marks. Nothing is recorded",
+		return feov.Errorf(feov.Validation, "this sentence is marked by %s; %s. A reading of a source you found that backs a sentence is the ground of an unsourced_claim gap, which is true only of a sentence no citation or computation marks. Nothing is recorded",
 			anchor.Token(marked), act)
 	}
 	return nil

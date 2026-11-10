@@ -76,7 +76,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 		a := answers[g]
 		switch {
 		// A REACHING RETIRE FIRST (gblock, 2026-11-03): "NO edit answers it" would be false of this gap.
-		// Blue took out the anchor the gap is about, or whose reading it carries, so the gap's demand
+		// Blue took out the anchor the gap is about, so the gap's demand
 		// is met and only its lens can act on it now.
 		case a.metAt > read[g]:
 			say(g, fmt.Sprintf("gap %s: blue retired %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
@@ -117,7 +117,7 @@ type blueAnswer struct {
 	placedAt int64  // the latest evidence anchor — a citation or a computation — placed as its answer
 	placed   string // that anchor's id
 	// metAt is the latest reaching retire of it (WindowIndex.Reaches): a retire that took out the anchor
-	// it is about, or whose reading it carries, whatever gap the retire named. met is what it reached
+	// it is about, whatever gap the retire named. met is what it reached
 	// the gap through.
 	metAt   int64
 	met     reaching

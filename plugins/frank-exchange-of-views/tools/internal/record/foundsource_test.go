@@ -213,7 +213,8 @@ func TestNoReadingPlacesACitation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ev := EvidenceJSONOf(b.Events, b.At)
+	report, renderErr := RenderRun(run)
+	ev := EvidenceJSONOf(b.Events, b.At, report, renderErr)
 	if len(ev.Sources) != 1 || ev.Sources[0].Anchor != "C-1" {
 		t.Errorf("the evidence view's sources = %+v, want blue's C-1 alone", ev.Sources)
 	}

@@ -534,7 +534,7 @@ func uncheckedNow(t *testing.T, runDir, id string) bool {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return slices.ContainsFunc(record.EvidenceJSONOf(fam.Events, fam.At).Unchecked, func(u record.EvidenceUncheckedJSON) bool { return u.Anchor == id })
+	return slices.ContainsFunc(record.EvidenceJSONOf(fam.Events, fam.At, "", nil).Unchecked, func(u record.EvidenceUncheckedJSON) bool { return u.Anchor == id })
 }
 
 // `show evidence --help` teaches that each judgement carries the sentence it was of, and the

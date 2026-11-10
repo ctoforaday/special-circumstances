@@ -436,7 +436,8 @@ func AssemblyScreen(run record.Run) Audit {
 	if err != nil {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	ev := record.EvidenceJSONOf(fam.Events, fam.At)
+	report, renderErr := record.RenderRun(run)
+	ev := record.EvidenceJSONOf(fam.Events, fam.At, report, renderErr)
 	// THE SCREEN COUNTS EVERY EVIDENCE ANCHOR ON THE RECORD, retired ones included: the table's
 	// lists hold the live ones, and a retired anchor is one the screen has found out of the report.
 	citations, computations := ev.Counts.Sources, ev.Counts.Computations

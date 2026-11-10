@@ -208,7 +208,8 @@ func (r *runner) citationURL(anchorID string) string {
 	if !ok {
 		return ""
 	}
-	for _, s := range record.EvidenceJSONOf(b.Events, b.At).Sources {
+	// The count reads urls alone; the rows' location is not asked, so no report is rendered.
+	for _, s := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Sources {
 		if s.Anchor == anchorID {
 			return s.URL
 		}
@@ -947,7 +948,7 @@ func (r *runner) sourceRows(url string) int {
 		return -1
 	}
 	n := 0
-	for _, s := range record.EvidenceJSONOf(b.Events, b.At).Sources {
+	for _, s := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Sources {
 		if s.URL == url {
 			n++
 		}

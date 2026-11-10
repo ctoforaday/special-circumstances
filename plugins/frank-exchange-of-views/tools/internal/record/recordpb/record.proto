@@ -354,7 +354,7 @@ enum RunOutcome {
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. SOURCE and COMPUTATION are the kinds whose
 // gaps demand a live answer of their kind (recordpb.DemandClause): a citation or a computation placed
-// as the gap's answer, a retire of the anchor the gap is about or whose reading it carries, or the
+// as the gap's answer, a retire of the anchor the gap is about, or the
 // own later check of that anchor that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
 // program, and the cause was that all ten of red's checks were document probes — red could only
 // ever ask whether the report SAYS something.
@@ -464,7 +464,7 @@ enum GapClass {
   GAP_CLASS_METRIC_CONFLATION = 24 [(means) = "two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitions",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "figure_recount_fails",
     (distinguisher) = "is the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?"];
-  GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION = 25 [(means) = "a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about",
+  GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION = 25 [(means) = "a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about — minted on your own standing reading of the citation (`absent`, or a copy that is not the work)",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "unsourced_claim",
     (distinguisher) = "is a source recorded against the claim that does not back it, or is there no source behind the claim at all?"];
   GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION = 26 [(means) = "the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is dropped",
@@ -476,7 +476,7 @@ enum GapClass {
   GAP_CLASS_ARTIFACT_PRESERVATION = 28 [(means) = "an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it is",
     (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "live_source_drift",
     (distinguisher) = "is the artifact present and changed or read live, or missing or broken where the report says it is kept?"];
-  GAP_CLASS_UNSOURCED_CLAIM = 29 [(means) = "a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence is not the report's citation: the gap stands until blue cites one",
+  GAP_CLASS_UNSOURCED_CLAIM = 29 [(means) = "a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence, or says nothing of it, is not the report's citation: the gap stands until blue cites one",
     (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "citation_figure_misattribution",
     (distinguisher) = "does the report cite a source for the sentence that does not back it, or does the report cite nothing for it, whatever a lens found?"];
   GAP_CLASS_UNCLASSIFIED = 30 [(means) = "no other value fits this gap. The mint's reason names the nearest value and what it does not cover",
@@ -487,7 +487,7 @@ enum GapClass {
   GAP_CLASS_OUT_OF_SCOPE = 31 [(means) = "an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's research",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "invalid_inference",
     (distinguisher) = "does the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?"];
-  GAP_CLASS_CLAIM_CONTRADICTS_SOURCE = 32 [(means) = "a source read against the sentence — cited by blue or found by red — states otherwise than the report",
+  GAP_CLASS_CLAIM_CONTRADICTS_SOURCE = 32 [(means) = "a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quote",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "citation_figure_misattribution",
     (distinguisher) = "does the source say otherwise than the sentence, or not say it at all?"];
 }
@@ -535,12 +535,12 @@ enum Disposition {
 // a verdict no field could carry, reporting PASS over an empty file on every run.
 enum SourceOutcome {
   SOURCE_OUTCOME_UNSPECIFIED = 0;
-  SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act"];
-  SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act"];
-  SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act"];
-  SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act",
+  SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it"];
+  SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it"];
+  SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it"];
+  SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim. A reading of the work with this outcome is the ground of a `claim_contradicts_source` gap you mint — about the citation, or quoting the sentence for a source you found — and your debt until that gap stands or you read the subject again",
     (finds_against) = true];
-  SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing",
+  SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap",
     (finds_against) = true];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
   SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read"];
 }
@@ -1179,7 +1179,7 @@ enum AboutKind {
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
-  ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread"];
+  ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence"];
   reserved 4;
   reserved "ABOUT_KIND_CONTRADICTION";
 }
@@ -1644,8 +1644,9 @@ message BlueEdit {
   optional string text = 5;
 
   // applied_verbatim marks text taken unchanged from red's own --fix-new. Estoppel is enforced
-  // on it against a lens's mint: red may not open a clean slate against its own words. A reading's
-  // gap on it is not refused — a source that finds against the text is new evidence.
+  // on it against a lens's mint: red may not open a clean slate against its own words. Every
+  // --quote mint meets the guard, a found source's claim_contradicts_source included (F4 (a)), and
+  // a later edit that rewords the applied sentence ends it (F12, record/estoppel.go).
   optional bool applied_verbatim = 6;
 
   // reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
