@@ -9026,6 +9026,9 @@ func inquiryCheckCode(class string) feov.Code {
 // AN INQUIRY WHOSE FATE LANDED AFTER THE OWNER'S SITTING OPENED IS LEFT for the sitting the owner is
 // readied for next: the check would judge the fate as it stood before, and the tool refuses it.
 func (r *runner) checkInquiries(seatID string) {
+	r.mu.Lock()
+	composedBefore := r.composedGap
+	r.mu.Unlock()
 	js, ok := r.inquiryJudgements()
 	if !ok || len(js) == 0 {
 		return
@@ -9066,6 +9069,16 @@ func (r *runner) checkInquiries(seatID string) {
 			// refusal fails the run.
 			if now, ok := r.inquiryJudgement(j.ID); ok && (now.Fate != j.Fate || now.State() != record.InquiryUnchecked) {
 				noteEither(args, "the inquiry moved under the owner's check", false)
+				continue
+			}
+			// THE VOICE LENS'S GAP ABOUT IT LANDED BESIDE THE CHECK and left again before the re-read —
+			// superseded or closed — so the inquiry reads unchecked on both sides of a refusal that
+			// named the gap (composedsource_test.go).
+			r.mu.Lock()
+			composedBeside := r.composedInquiry == j.ID && r.composedGap != composedBefore
+			r.mu.Unlock()
+			if composedBeside {
+				noteEither(args, "the voice lens's gap about the inquiry landed beside the owner's check", false)
 				continue
 			}
 			r.noteActErr("refused, and the drive expects it admitted: " + firstLine(out) + ": " + err.Error())
