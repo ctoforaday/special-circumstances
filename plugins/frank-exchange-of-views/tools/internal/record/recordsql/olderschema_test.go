@@ -101,10 +101,14 @@ func TestAColumnMissingUnderAnOpenHandleIsAPlainError(t *testing.T) {
 		}
 	}
 	crows.Close()
+	// The rename re-checks every trigger, and the gap-state triggers read the views dropped above:
+	// legacy_alter_table renames the table alone.
 	for _, stmt := range []string{
 		`CREATE TABLE "blue_edit_older" AS SELECT ` + strings.Join(keep, ", ") + ` FROM "blue_edit"`,
 		`DROP TABLE "blue_edit"`,
+		`PRAGMA legacy_alter_table = ON`,
 		`ALTER TABLE "blue_edit_older" RENAME TO "blue_edit"`,
+		`PRAGMA legacy_alter_table = OFF`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)

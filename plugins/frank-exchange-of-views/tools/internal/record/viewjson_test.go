@@ -299,6 +299,14 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-chair"
 	writeShard(t, runDir, []*Event{
+		recordtest.At(t, m, m+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+			Problem: proto.String("the ancestor's problem"), Location: proto.String("§1"),
+			AcceptanceCheck: proto.String("run the check"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
 		recordtest.At(t, m, m+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("an open problem"), Location: proto.String("§1"),

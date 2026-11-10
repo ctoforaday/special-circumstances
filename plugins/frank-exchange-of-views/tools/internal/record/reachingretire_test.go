@@ -275,6 +275,45 @@ func TestTheBackingListsBothCheckVerbs(t *testing.T) {
 	}
 }
 
+// THE BACKING READS THE LEDGER'S "STANDS" (m40 defect 5): a check made before an edit changed the
+// sentence is of a sentence the report no longer carries, and the backing lists the anchor
+// unverified, as the unchecked blocker does — until a check from a sitting opened after the edit.
+func TestTheBackingListsNoCheckAnEditOutdated(t *testing.T) {
+	backing := func(run Run) GapBackingJSON {
+		t.Helper()
+		w, err := WorkOfSeat(run, "lens", evLens)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(w.Open) != 1 || len(w.Open[0].Backing) != 1 {
+			t.Fatalf("open = %+v, want G1 with C-1 its one backing", w.Open)
+		}
+		return w.Open[0].Backing[0]
+	}
+	board := func() *stage {
+		return reopenedBoard(t).mintAbout(evLens, "G1", recordpb.CheckKind_CHECK_KIND_SOURCE, "C-1")
+	}
+	if got := backing(board().seed()); got.Event == 0 || got.Outcome != "supports" {
+		t.Fatalf("before the edit the backing = %+v, want the standing reading", got)
+	}
+	edited := board().reopen("C-1").seed()
+	if got, want := backing(edited), (GapBackingJSON{Anchor: "C-1", Kind: "citation"}); got != want {
+		t.Errorf("after the edit the backing = %+v, want %+v — the reading is of the sentence the edit replaced", got, want)
+	}
+	if board, err := BoardJSONOfRun(edited); err != nil || len(board.Open) != 1 || len(board.Open[0].Backing) != 1 ||
+		board.Open[0].Backing[0] != (GapBackingJSON{Anchor: "C-1", Kind: "citation"}) {
+		t.Errorf("after the edit the board's open gaps = %+v (%v), want G1 backed by C-1 unverified, as the work list reads it", board.Open, err)
+	}
+	if rows := reopenedOf(t, edited); len(rows) != 1 || rows[0].Subject != "C-1" {
+		t.Fatalf("unchecked blockers = %+v, want C-1: the backing and the plan read one rule", rows)
+	}
+	b := board().reopen("C-1")
+	b.sit(b.at(), evLens).supports(evLens, "C-1")
+	if got := backing(b.seed()); got.Event != b.at() || got.Outcome != "supports" {
+		t.Errorf("after a later sitting's reading the backing = %+v, want that reading at event %d", got, b.at())
+	}
+}
+
 // ONE EVENT, ONE ITEM. `retire --anchor K-x --answers G1`, where G1 is about K-x, is blue's answer to
 // G1 and a reaching retire of it at once: the lens owes it once, as the retire it is.
 func TestARetireAnsweringTheGapItReachesIsOneItem(t *testing.T) {

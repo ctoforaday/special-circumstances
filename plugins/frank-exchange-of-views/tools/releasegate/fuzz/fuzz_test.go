@@ -6813,7 +6813,6 @@ func sortedKeys(m map[string]any) []string {
 // MEASURED on origin/main at 65b27a9d with no other diff: red 3 of 4 runs, failing on
 // `outcome --as UNVERIFIED`. One forced run costs one seed's worth of natural variation and
 // makes the value a fact rather than a coin flip (#637).
-const unverifiedSeed = 1
 
 // estoppelSeed is the one seed whose run is FORCED to produce the estoppel conjunction rather
 // than left to the draw. It is not unverifiedSeed: that run mints only dirDisputeLost gaps so its
@@ -6823,7 +6822,6 @@ const unverifiedSeed = 1
 // MEASURED on clean main across 13 uncached sweeps, in two worktrees at different times: 6 red,
 // all on `ZERO tool estoppel refusals`, two of them also on `blue edit --accept` never passed.
 // ~46% on a gate that a tag runs ONCE — and a green told you only that the draw went your way.
-const estoppelSeed = 2
 
 // verifiedSeed is the one seed whose run is FORCED to VERIFIED: it mints only APPLY and COUNTER
 // gaps, which the lens closes once blue has sat. It is neither of the seeds above: a
@@ -6833,7 +6831,6 @@ const estoppelSeed = 2
 // 80 and 8 of 80 runs, the estoppel seed's all-APPLY run among them each time, carrying the word by
 // accident of its drive. At that rate 38 drawn runs find none about once in fifty-five, and
 // `outcome --as VERIFIED` then fails the enum census as a missing word.
-const verifiedSeed = 3
 
 // limitSeed is the one seed whose run is FORCED to the epoch-limit exit: its config states a limit
 // of forcedEpochLimit where every other run states setup's default. Its first epoch is the last that
@@ -6848,7 +6845,6 @@ const verifiedSeed = 3
 //
 // IT IS PAST THE SIX SEEDS THE RACE VARIANT RUNS (FUZZ_N=6). A run cut to two sittings drives a
 // sixth less of everything else, and at six runs `blue retire` succeeds as few as once.
-const limitSeed = 7
 
 // forcedEpochLimit is the epoch limit limitSeed's run is set up with.
 const forcedEpochLimit = 2
@@ -6863,7 +6859,6 @@ const forcedEpochLimit = 2
 // and seed 9 alone carried it in four. A branch that drew one or two fewer numbers per cite read
 // 0, 0, 1, 0, 1, red three times; the same branch drawing those numbers and discarding them read 5,
 // 9, 2, 2, 5. The path was intact throughout; the draw moved.
-const reopenedComputationSeed = 5
 
 // reopenedComputationScript is the forced computation's script. Its sha256 is what identifies the forced computation
 // on the record (EvidenceComputationJSON.Sha256), so the chain never recovers it from report text.
@@ -6886,7 +6881,6 @@ const reopenedComputationName = "fuzz-reopened-computation.js"
 // eight-run sweep logging the blockers at every sitting minted 34 such gaps, saw blue-respond sit
 // with up to 3 unsound computations standing and the plan after it with none, and 1 of its 59 plans held
 // one.
-const unsoundComputationSeed = 6
 
 // unsoundComputationScript is the forced unsound computation's program; its bundle's identity names the
 // computation on the record (computationsOfBundle).
@@ -6905,7 +6899,6 @@ const unsoundComputationName = "fuzz-unsound-computation.js"
 // before a plan, while the owner is barren: the owner checks every unchecked computation before its
 // envelope (dischargeOwed), so only a computation blue records after it is still unchecked when the chair
 // plans. One Relocations sweep counted it zero.
-const owedComputationSeed = 4
 
 // absentSpanSeed is the seed whose run is FORCED to cite a span its source does not hold
 // (forceAbsentSpan). Left to the draw, the absent span is the third arm of a rotation counted per
@@ -6913,18 +6906,15 @@ const owedComputationSeed = 4
 // 100 of those, and only every third bogus span of a run is the absent one. About eight blue sittings
 // in a hundred draw a bogus span, so a run of fifteen draws three about one time in eight, and a
 // sweep where no run does reads ZERO.
-const absentSpanSeed = 8
 
 // bareEvidenceSeed is the seed whose run is FORCED to cut an evidenced claim, leaving its computation's
 // anchor bare (forceBareEvidence). No drawn edit cuts a sentence: every one rewrites words, so the refusal has no other
 // reach. It is none of the other forced seeds.
-const bareEvidenceSeed = 17
 
 // mintBareSeed is the seed whose run is FORCED to mint a prescription that would leave a citation bare
 // (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
 // it, so none leaves an anchor bare, and the refusal has no other reach. It is none of the forced
 // seeds before it.
-const mintBareSeed = 16
 
 func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")

@@ -53,11 +53,11 @@ func TestTheSmokesRetiresLeaveNoGapWithoutASeat(t *testing.T) {
 		})
 	}
 	full := archiveAt(t, mersenneArchive, whole, len(whole))
-	// benchClosing is the bench's ruling that closed gap: its closure_act row.
+	// benchClosing is the bench's ruling that closed gap: its last closing docket ruling.
 	benchClosing := func(gap string) int {
 		var at int
 		if err := readSnapshot(full, func(q recordsql.Querier) error {
-			return q.QueryRow(`SELECT "event_id" FROM "closure_act" WHERE "gap_id" = ? AND "arm" = 'bench'`, gap).Scan(&at)
+			return q.QueryRow(`SELECT "bench_close_event" FROM "gap" WHERE "gap_id" = ? AND "bench_close_event" IS NOT NULL`, gap).Scan(&at)
 		}); err != nil {
 			t.Fatalf("the bench's closing of %s: %v", gap, err)
 		}

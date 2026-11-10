@@ -9,7 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// AN ARCHIVED SPOT-CHECK ARRIVES STAMPED (EventSchema 69). Before the stamp, a spot-check's areas
+// AN ARCHIVED SPOT-CHECK ARRIVES STAMPED (EventSchema 71). Before the stamp, a spot-check's areas
 // carried nothing of what changed behind their pins, and its prose said what it liked. Migrated, the
 // replay stamps each area's pin and the changes to the report after it off the migrated record: each
 // pin is the one the chair's own last plan before it listed for that stale area, and the changes are

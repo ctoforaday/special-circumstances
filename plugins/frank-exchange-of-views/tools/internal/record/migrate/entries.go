@@ -49,9 +49,10 @@ func Entries() Registry {
 		// A spot-check's `none` was the seat's claim that the archive was empty; the board answers
 		// that, so the spot-check carries its ids, areas and reason and nothing else.
 		//
-		// Its pins and changes are the write's stamp, and name event ids the replay renumbers: they are
-		// not carried, and the live rule stamps them again off the record the replay has written so far
-		// (record.stampSpotCheckChanges), which refuses a spot-check that arrives with them.
+		// Its pins and changes are the write's stamp (EventSchema 71), and name event ids the replay
+		// renumbers: they are not carried, and the live rule stamps them again off the record the replay
+		// has written so far (record.stampSpotCheckChanges), which refuses a spot-check that arrives
+		// with them.
 		"spot_check": mapped("spot_check", nil, drops{
 			"none":    "whether the archive was empty is the board's count, replayed at read time; the seat's claim of it is not stored",
 			"pins":    "the write stamps each area's pin off the migrated record",

@@ -382,8 +382,8 @@ func requireInquiry(q recordsql.Querier, id, flag string) error {
 // cost nothing today and exist for the cheaper tier.
 
 // gapState answers what a gap IS, not merely whether it exists. The gap view's "open" means no
-// closing act of either arm is on the record (closure_act: a red close, or a docket ruling whose
-// disposition closes) — an unknown gap answers not-closed: requireGap owns existence.
+// closing act of either arm is on the record (a red close, a docket ruling whose disposition closes,
+// or the mint that superseded it) — an unknown gap answers not-closed: requireGap owns existence.
 func gapState(q recordsql.Querier, id string) (closed bool, err error) {
 	var open bool
 	found, err := queryRowAt(q, []any{&open}, `SELECT "open" FROM "gap" WHERE "gap_id" = ?`, id)
