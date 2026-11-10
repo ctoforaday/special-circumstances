@@ -6443,6 +6443,9 @@ type outcome struct {
 	// anchorVerifies the verify readings of a citation, anchorVerifiesWithClaim those whose `claim` is
 	// (checkSentences).
 	reproducesWithClaim, anchorVerifies, anchorVerifiesWithClaim int
+	// spotChecksNamed is the spot-checks naming a stale area, spotChecksStamped those whose stamp the
+	// record agrees with, and spotChecksWithChanges those naming a change (checkSpotCheckStamps).
+	spotChecksNamed, spotChecksStamped, spotChecksWithChanges int
 	// stalenessAnchor is the computation a stalenessSeeds run's arm left for the seam to forge;
 	// stalenessForged is 1 where the seam forged it, and stalenessReported 1 where the consistency
 	// oracle then reported it (forgeStaleness).
@@ -7784,6 +7787,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// EVERY JUDGEMENT RECORDS THE SENTENCE IT JUDGED (III.1″.6, recorded sentence).
 		judged, msg := checkSentences(oracleRun, fam)
 		res.reproducesWithClaim, res.anchorVerifies, res.anchorVerifiesWithClaim = judged.reproducesWithClaim, judged.anchorVerifies, judged.anchorVerifiesWithClaim
+		if msg != "" && res.err == "" {
+			res.err = msg
+		}
+		// THE TOOL STATES WHAT CHANGED BEHIND EACH SPOT-CHECKED PIN (checkSpotCheckStamps).
+		stamps, msg := checkSpotCheckStamps(fam)
+		res.spotChecksNamed, res.spotChecksStamped, res.spotChecksWithChanges = stamps.named, stamps.stamped, stamps.withChanges
 		if msg != "" && res.err == "" {
 			res.err = msg
 		}

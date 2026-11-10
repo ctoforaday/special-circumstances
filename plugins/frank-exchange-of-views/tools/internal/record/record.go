@@ -1555,6 +1555,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireClosedGaps(q, b.GetIds(), "--ids"); err != nil {
 			return err
 		}
+		// WHAT CHANGED BEHIND EACH AREA'S PIN IS STAMPED, never taken from the seat: every writer —
+		// the verb, the replay — gets the same stamp off the record the act lands on.
+		if err := stampSpotCheckChanges(q, b); err != nil {
+			return err
+		}
 	case *recordpb.Inquiry:
 		// EVERY INQUIRY HAS AN ID, exactly as every gap, finding and citation does. A
 		// record without one does not replay: a compatibility path for one subsystem is an

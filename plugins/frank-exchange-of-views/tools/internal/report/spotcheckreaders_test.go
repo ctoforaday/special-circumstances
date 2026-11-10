@@ -32,9 +32,9 @@ func TestASpotChecksReasonReachesTheReportAndTheTranscript(t *testing.T) {
 		mintT(t, "red-lens-logic", "G1"),
 		closeT(t, "red-lens-logic", "G1"),
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "red-chair", &recordpb.SpotCheck{Areas: []string{"red-lens-logic"}, Reason: proto.String(areasOnly)}),
+		recordtest.Event(t, "red-chair", &recordpb.SpotCheck{Areas: []string{"red-lens-logic"}, Pins: []int64{2}, Changes: []int64{3}, Reason: proto.String(areasOnly)}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "red-chair", &recordpb.SpotCheck{Areas: []string{"red-lens-logic"}, Ids: []string{"G1"}, Reason: proto.String(withIDs)}),
+		recordtest.Event(t, "red-chair", &recordpb.SpotCheck{Areas: []string{"red-lens-logic"}, Pins: []int64{2}, Changes: []int64{3}, Ids: []string{"G1"}, Reason: proto.String(withIDs)}),
 	)
 	run := runtest.Open(t, dir)
 
@@ -49,8 +49,8 @@ func TestASpotChecksReasonReachesTheReportAndTheTranscript(t *testing.T) {
 	// THE REPORT'S DOCUMENTS ESCAPE A SEAT'S `[^`, so nothing a seat wrote opens a footnote.
 	for _, file := range []string{FileDocket, FileDebate} {
 		for _, want := range []string{
-			"#2 (red-chair): read stale area(s) red-lens-logic — " + stdReaders().escapeNotes(areasOnly),
-			"#3 (red-chair): read stale area(s) red-lens-logic; re-verified G1 of 1 archived closure(s) — " + withIDs,
+			"#2 (red-chair): read stale area(s) red-lens-logic (pin 2: 1 change(s) to the report since — events 3) — " + stdReaders().escapeNotes(areasOnly),
+			"#3 (red-chair): read stale area(s) red-lens-logic (pin 2: 1 change(s) to the report since — events 3); re-verified G1 of 1 archived closure(s) — " + withIDs,
 		} {
 			if !strings.Contains(body[file], want) {
 				t.Errorf("%s does not print the spot-check %q:\n%s", file, want, body[file])
@@ -66,7 +66,7 @@ func TestASpotChecksReasonReachesTheReportAndTheTranscript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "### RED SPOT-CHECK\n#2 (red-chair): read stale area(s) red-lens-logic — " + areasOnly; !strings.Contains(string(md), want) {
+	if want := "### RED SPOT-CHECK\n#2 (red-chair): read stale area(s) red-lens-logic (pin 2: 1 change(s) to the report since — events 3) — " + areasOnly; !strings.Contains(string(md), want) {
 		t.Errorf("the debate view does not print the areas-only spot-check %q:\n%s", want, md)
 	}
 	if !strings.Contains(string(md), withIDs) {

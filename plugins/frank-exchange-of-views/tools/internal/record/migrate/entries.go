@@ -48,7 +48,16 @@ func Entries() Registry {
 		"avenue_review":  {Translate: toNoEvent},
 		// A spot-check's `none` was the seat's claim that the archive was empty; the board answers
 		// that, so the spot-check carries its ids, areas and reason and nothing else.
-		"spot_check": mapped("spot_check", nil, drops{"none": "whether the archive was empty is the board's count, replayed at read time; the seat's claim of it is not stored"}, nil),
+		//
+		// Its pins and changes are the write's stamp (EventSchema 71), and name event ids the replay
+		// renumbers: they are not carried, and the live rule stamps them again off the record the replay
+		// has written so far (record.stampSpotCheckChanges), which refuses a spot-check that arrives
+		// with them.
+		"spot_check": mapped("spot_check", nil, drops{
+			"none":    "whether the archive was empty is the board's count, replayed at read time; the seat's claim of it is not stored",
+			"pins":    "the write stamps each area's pin off the migrated record",
+			"changes": "the write stamps the changes behind the pins off the migrated record, in its own event ids",
+		}, nil),
 		// A REVISION TRANSLATES TO NO EVENT. It was a blue sitting's prose account of its change,
 		// and the change is the sitting's edits, each with its reason; nothing reads a revision's
 		// text. The manifest counts each in events_in and none in events_out.

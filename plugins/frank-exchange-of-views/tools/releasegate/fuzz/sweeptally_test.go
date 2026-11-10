@@ -181,6 +181,9 @@ type runTally struct {
 	ReproducesWithClaim             int                       `json:"reproduces_with_claim"`
 	AnchorVerifies                  int                       `json:"anchor_verifies"`
 	AnchorVerifiesWithClaim         int                       `json:"anchor_verifies_with_claim"`
+	SpotChecksNamed                 int                       `json:"spot_checks_named"`
+	SpotChecksStamped               int                       `json:"spot_checks_stamped"`
+	SpotChecksWithChanges           int                       `json:"spot_checks_with_changes"`
 	StalenessForged                 int                       `json:"staleness_forged"`
 	StalenessReported               int                       `json:"staleness_reported"`
 	SupersedeDemandRefused          int                       `json:"supersede_demand_refused"`
@@ -269,6 +272,7 @@ func tallyOf(o outcome) runTally {
 		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
 		Reproduces: o.reproduces, ReproducesWithClaim: o.reproducesWithClaim,
 		AnchorVerifies: o.anchorVerifies, AnchorVerifiesWithClaim: o.anchorVerifiesWithClaim,
+		SpotChecksNamed: o.spotChecksNamed, SpotChecksStamped: o.spotChecksStamped, SpotChecksWithChanges: o.spotChecksWithChanges,
 		StalenessForged: o.stalenessForged, StalenessReported: o.stalenessReported,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
@@ -634,6 +638,8 @@ type sweepFold struct {
 	supersedeDemandCarried, supersedeDemandRefused  int
 	reproduces, reproducesWithClaim                 int
 	anchorVerifies, anchorVerifiesWithClaim         int
+	spotChecksNamed, spotChecksStamped              int
+	spotChecksWithChanges                           int
 	stalenessForged, stalenessReported              int
 	rulerFilingsRefused                             int
 	closedRemandsRefused, trifleRemandsRouted       int
@@ -847,6 +853,9 @@ func foldRuns(runs []runTally) sweepFold {
 		f.reproducesWithClaim += r.ReproducesWithClaim
 		f.anchorVerifies += r.AnchorVerifies
 		f.anchorVerifiesWithClaim += r.AnchorVerifiesWithClaim
+		f.spotChecksNamed += r.SpotChecksNamed
+		f.spotChecksStamped += r.SpotChecksStamped
+		f.spotChecksWithChanges += r.SpotChecksWithChanges
 		f.stalenessForged += r.StalenessForged
 		f.stalenessReported += r.StalenessReported
 		f.supersedeDemandRefused += r.SupersedeDemandRefused
@@ -1219,6 +1228,15 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			if c.n == 0 || c.claimed != c.n {
 				t.Errorf("fuzz recorded %d %s check(s), %d of them carrying the sentence they judged — every one must, and some must be recorded (false green)", c.n, c.verb, c.claimed)
 			}
+		}
+		// THE TOOL STATES WHAT CHANGED BEHIND EACH SPOT-CHECKED PIN (checkSpotCheckStamps): spot-checks
+		// naming stale areas were recorded, every one carries the stamp the record agrees with, and
+		// some stamp names changes.
+		t.Logf("spot-check stamp: %d of %d spot-check(s) naming a stale area carry the record's pins and changes; %d name a change",
+			f.spotChecksStamped, f.spotChecksNamed, f.spotChecksWithChanges)
+		if f.spotChecksNamed == 0 || f.spotChecksStamped != f.spotChecksNamed || f.spotChecksWithChanges == 0 {
+			t.Errorf("fuzz recorded %d spot-check(s) naming a stale area, %d carrying the record's stamp, %d naming a change — every one must carry it, and some must name a change (false green)",
+				f.spotChecksNamed, f.spotChecksStamped, f.spotChecksWithChanges)
 		}
 		if f.stalenessForged == 0 || f.stalenessReported != f.stalenessForged {
 			t.Errorf("the seam forged %d staleness(es) and the consistency oracle reported %d — every forged debate must be reported, and one must be forged (false green)", f.stalenessForged, f.stalenessReported)
