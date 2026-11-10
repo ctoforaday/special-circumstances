@@ -456,10 +456,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				continue
 			}
 			// A SETTLED INQUIRY NO CHECK STANDS ON IS ITS OWNER'S TO JUDGE, in a sitting opened after its
-			// latest fate — a check from a sitting already open when the fate landed is refused
-			// (requireInquiryCheck), so such a sitting does not list it; the next plan readies the lens.
+			// latest fate and its latest gap — a check from a sitting already open when either landed is
+			// refused (requireInquiryCheck), so such a sitting does not list it; the next plan readies
+			// the lens.
 			if b.Kind == BlockerUncheckedInquiry {
-				if b.Owner == seatID && win.LatestSittingOf(seatID) > b.since {
+				if b.Owner == seatID && win.LatestSittingOf(seatID) > max(b.since, b.gapMint) {
 					s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
 				}
 				continue

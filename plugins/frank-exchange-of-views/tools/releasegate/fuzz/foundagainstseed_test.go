@@ -43,7 +43,6 @@ import (
 // finds against it with a --new (readRepeatedSentence) — the chain's one --new — and blue's next
 // sitting accepts that fix (acceptRepeated). Every lane records its part, so the report holds the
 // sentence twice.
-const foundAgainstSeed = 15
 
 // foundAgainstForcedRead is whether the forced run's citation owner has made both readings it is
 // held to (its chain, and its reading of the twice-held sentence), after which it mints as any lens.

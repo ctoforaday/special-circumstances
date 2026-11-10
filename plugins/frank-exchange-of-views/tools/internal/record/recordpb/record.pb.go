@@ -4849,7 +4849,7 @@ func (x *Computation) GetInvariant() string {
 // against — its own where it ran, else the standing one's — stored at
 // computations/<bundle_sha>/rerun/<rerun_sha>/, written before this event. The write refuses an act
 // that ran nothing whose `rerun_sha` is no longer the standing one's. Neither is present on a
-// reproduce migrated from a record that kept no raw re-run.
+// migrated reproduce whose re-run's output the archive holds only in part.
 //
 // NOT KEYED. A seat may judge one anchor more than once in a sitting, and its latest judgement is
 // its verdict: a check is read by the anchor's ledger (anchorchecks.go), which takes each seat's

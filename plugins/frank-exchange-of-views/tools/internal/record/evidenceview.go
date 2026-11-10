@@ -54,7 +54,7 @@ import (
 //
 // COMPUTATIONS carry the same join through `reproduce`'s `anchor`, and each act's comparison
 // through it too: `rerun: not_rerun` means nobody executed the bundle, `rerun: not_compared` that the
-// bundle was executed and nobody compared this act against it, `soundness: not_judged` that nobody
+// bundle has a standing re-run and nobody compared this act against it, `soundness: not_judged` that nobody
 // judged this sentence. Every absence in this view is a stated field, because an unaudited thing
 // and a clean thing are otherwise the same empty space.
 
@@ -185,7 +185,7 @@ type EvidenceComputationJSON struct {
 	// another lens's `sound` on another sentence over the same bundle (#1358).
 	//
 	// Rerun is THIS ACT's comparison against its bundle's standing re-run: reproduced | differs |
-	// calls_the_tool; not_compared where the bundle was executed and nobody compared this act;
+	// calls_the_tool; not_compared where the bundle has a standing re-run and nobody compared this act;
 	// not_rerun where nobody executed the bundle.
 	Rerun string `json:"rerun"`
 	// Soundness is THIS ANCHOR's sentence: sound | unsound | not_judged | reopened (an edit changed
@@ -462,7 +462,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 
 	// Red's checks of each computation: the bundle's executions by sha, each act's comparison and its
 	// sentence's verdicts by anchor, and each bundle's bases.
-	reruns, acts := bundleRerunsOf(evs), actVerdictsOf(evs)
+	reruns, acts := standingRerunsOf(evs), actVerdictsOf(evs)
 	bases := bundleBasesOf(evs)
 	// THE RETIRE THAT HOLDS EACH RETIRED ANCHOR OUT is its first (anchorChecksOf): nothing brings a
 	// retired anchor back.

@@ -120,12 +120,10 @@ func TestDualClosureBenchThenRed(t *testing.T) {
 		chairSits(t, 1),
 		mint(t, "red-chair", "G1"),
 		chairSits(t, 2),
-		// THE RULING BEFORE ITS FILING, deliberately. `motion_rule.motion_id` carries no foreign
-		// key and a seeded record can present them in this order, so the oracle must pair them in
-		// a prior pass — a single pass would find no gap here and count nothing, which reads
-		// exactly like a board with no bench closure on it.
-		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
+		// A docket ruling answers a filing already on the record: the record refuses the ruling
+		// first and the filing after (recordsql's TestADocketRulingAnswersAFilingOnTheRecord).
 		docketed(t, "red-chair", "M1", "G1"),
+		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
 		chairSits(t, 3),
 		redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)

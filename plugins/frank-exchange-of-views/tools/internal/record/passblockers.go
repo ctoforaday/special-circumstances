@@ -84,6 +84,10 @@ type Blocker struct {
 	// notes is the findings other lenses filed about an unchecked inquiry since its fate, each as
 	// "<id> (<seat>)"; nil for every other blocker.
 	notes []string
+	// gaps is the gaps minted about an unchecked inquiry since its last check (InquiryJudgement.gaps),
+	// and gapMint the latest one's events.id (Inquiry.GapMint); nil and 0 for every other blocker.
+	gaps    []string
+	gapMint int64
 	// rerun is an unchecked computation's script state (unchecked.rerun), "" for every other blocker.
 	rerun string
 	// answeredBy is the gap that carries a failed check — the gap its seat minted about the anchor —
@@ -607,7 +611,7 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%d settled inquiry(ies) have no check of their latest fate:\n  %s\n"+
 				"A settled inquiry is the report's account of research the run did or set aside, and nothing on the record has judged that account. "+
 				"The logic lens judges each: `inquiry check --id <id> --reason \"...\"` where its fate stands as the report's account of it, or the gap about it where it is wanting. "+
-				"A fate recorded again, or a material gap minted about it, leaves its check stale. PASS waits for those checks, and `--as FAIL` does not",
+				"A fate recorded again, or any gap minted about it, material or not, leaves its check stale. PASS waits for those checks, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {

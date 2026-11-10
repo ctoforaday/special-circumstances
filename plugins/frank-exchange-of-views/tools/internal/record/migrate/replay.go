@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
@@ -44,8 +45,9 @@ type Result struct {
 	ReportOrder        string                        // what became of the order of the report's text (order.go)
 	ProseRewrites      []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
 
-	computations []migratedComputation // every computation written, and where its artifact is (computations.go)
-	reruns       map[string][]string   // bundle -> the rerun_sha of each reproduce written that names one
+	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
+	reruns       map[string][]string            // bundle -> the rerun_sha of each reproduce whose source names one
+	derived      map[string][]compute.Execution // bundle -> each execution an archived reproduce that reproduced stands for (computations.go)
 
 	parts []string // each part of the report as the source wrote it, in record order
 }
@@ -72,14 +74,15 @@ const restampWhy = "the source stamped %s; the tool stamps a mint's class_materi
 // which Append's own path re-derives.
 //
 // The whole replay is one transaction (record.Replay): every act is written inside a savepoint of
-// it, and committed once at the end.
+// it, and committed once at the end. Replay holds no source run, so it derives no execution for an
+// archived reproduce (deriveExecution); Migrate does.
 func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, error) {
 	batch, err := record.BeginReplay(dst)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = batch.Rollback() }()
-	res, err := replay(src, reg, batch, dst, opt, false)
+	res, err := replay(src, "", reg, batch, dst, opt, false)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +94,9 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 
 // replay writes src's events through batch, the replay writer its caller began on dst, holds and
 // commits, each act stamped with its source event's time. With inOrder set, each part of the report
-// is written in the order its text ships in (order.go).
+// is written in the order its text ships in (order.go). fromDir is the source run, whose stored
+// outputs an archived reproduce that reproduced is derived from (derivedRerun); "" where the caller
+// holds no source run, and then none is derived.
 //
 // dst IS AN ADDRESS, NEVER A HANDLE. While the batch is open, the batch's transaction holds the
 // record's one connection, and anything that takes dst and opens the record waits on it forever. So
@@ -101,7 +106,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 // An act the write refuses is a Refusal, and the replay goes on. A failure of the batch itself
 // (record.ErrReplayFailed) is asked of the batch once, at the end — whichever append it landed on —
 // and returned: nothing the batch wrote can be kept.
-func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt Options, inOrder bool) (*Result, error) {
+func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst record.Run, opt Options, inOrder bool) (*Result, error) {
 	evs, err := src.Events()
 	if err != nil {
 		return nil, err
@@ -222,6 +227,9 @@ func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt 
 	bundleOf := map[string]string{}              // archived script sha -> the bundle_sha its computation was written with
 	standing := map[string]*recordpb.Reproduce{} // bundle_sha -> the latest reproduce written that ran it
 	res.reruns = map[string][]string{}
+	res.derived = map[string][]compute.Execution{}
+	computationOf := map[string]migratedComputation{} // computation_id -> the computation written with it
+
 	proposalMethod := map[string]string{}  // inquiry id -> the method its proposal carried (before epoch 30)
 	classMints := map[string]int{}         // archived class slug an authored row translates -> the mints written with it
 	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
@@ -300,6 +308,8 @@ func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt 
 			// A RE-RUN'S DRIFT IS THE PROGRAM'S BYTES, which are not the debate's wording: an anchor
 			// token a program printed is what it printed, so it is kept through the respelling.
 			repro, _ := body.(*recordpb.Reproduce)
+			var derived *compute.Execution // the execution this reproduce is written naming, to store
+			sourceNamed := false           // whether the source names the execution this reproduce compared against
 			// The bytes are copied, not the pointer: the respelling sets a field through the
 			// pointer it already holds, so a kept pointer would read back the respelled bytes.
 			var drift *string
@@ -320,6 +330,8 @@ func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt 
 					}
 					repro.Rerun, repro.Drift = st.Rerun, st.Drift
 				}
+				sourceNamed = repro.GetRerunSha() != ""
+				derived = deriveExecution(repro, fromDir, computationOf, standing)
 			}
 			if q, ok := body.(*recordpb.Inquiry); ok {
 				carryInquiryMethod(q, proposalMethod)
@@ -525,7 +537,7 @@ func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt 
 			}
 			if p, ok := body.(*recordpb.Computation); ok && p.GetBundleSha() != "" {
 				computationAnchors[p.GetBundleSha()] = append(computationAnchors[p.GetBundleSha()], p.GetComputationId())
-				mc := migratedComputation{id: p.GetComputationId(), bundle: p.GetBundleSha(), argv: p.GetArgv()}
+				mc := migratedComputation{id: p.GetComputationId(), bundle: p.GetBundleSha(), argv: p.GetArgv(), exit: int(p.GetExit())}
 				if old, archived := archivedSha(src); archived {
 					mc.oldSha = old
 					bundleOf[old] = p.GetBundleSha()
@@ -534,12 +546,16 @@ func replay(src Source, reg Registry, batch *record.Replay, dst record.Run, opt 
 					}
 				}
 				res.computations = append(res.computations, mc)
+				computationOf[mc.id] = mc
 			}
 			if r, ok := body.(*recordpb.Reproduce); ok {
+				if derived != nil {
+					res.derived[r.GetBundleSha()] = append(res.derived[r.GetBundleSha()], *derived)
+				}
 				if r.GetRan() {
 					standing[r.GetBundleSha()] = r
 				}
-				if r.GetRerunSha() != "" {
+				if sourceNamed {
 					res.reruns[r.GetBundleSha()] = append(res.reruns[r.GetBundleSha()], r.GetRerunSha())
 				}
 			}

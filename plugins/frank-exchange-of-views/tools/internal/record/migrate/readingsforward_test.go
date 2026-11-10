@@ -115,7 +115,7 @@ func TestAFindingAboutAnAnchorIsNoRaise(t *testing.T) {
 		t.Fatal(err)
 	}
 	dst := runtest.New(t, to)
-	res, err := replayInOrder(sliceOf(stream), Entries(), dst, Options{})
+	res, err := replayInOrder(sliceOf(stream), "", Entries(), dst, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

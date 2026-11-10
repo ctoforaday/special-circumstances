@@ -62,7 +62,7 @@ END;
 ` + evidenceCheckIndexesSQL()
 
 // evidenceCheckIndexesSQL is one index per recordsql.EvidenceTables row, on its check table's anchor
-// column and event: a seat's latest check of an anchor (the gap view's latest_check), and the checks
+// column and event: a seat's latest check of an anchor (gap_refresh's checks), and the checks
 // of the anchors one gap's demand reaches, asked per anchor.
 func evidenceCheckIndexesSQL() string {
 	var b strings.Builder

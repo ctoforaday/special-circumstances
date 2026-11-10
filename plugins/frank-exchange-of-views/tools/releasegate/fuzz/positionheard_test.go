@@ -56,11 +56,6 @@ func (r *runner) unruledPositions() []string {
 // forced-VERIFIED run, which reaches a permitted PASS by construction; its chair withholds the first
 // one its ruling's route fits the epoch limit (withholds), and its bench rules the position the way
 // the seed names.
-const (
-	positionLensSeed      = 10
-	positionGapsSeed      = 11
-	positionOverruledSeed = 12
-)
 
 // positionFormOf is the ruling a seed's run forces its bench to: "lens" (upheld naming a lens),
 // "gaps" (upheld naming open gaps) or "overruled"; "" for a seed that forces none.
@@ -463,7 +458,7 @@ func (r *runner) forcedPositionOracle() string {
 	named := slices.Clone(r.positionNamedGaps)
 	r.mu.Unlock()
 	if got[r.forcePosition] == 0 {
-		return fmt.Sprintf("forced-position oracle: the run is forced to a %s ruling on a withheld PASS, and its bench made none (rulings %v, %d PASS withheld)%s", r.forcePosition, got, r.positionsWithheld, r.positionRouteClause())
+		return fmt.Sprintf("forced-position oracle: the run is forced to a %s ruling on a withheld PASS, and its bench made none (rulings %v, %d PASS withheld)%s%s", r.forcePosition, got, r.positionsWithheld, r.positionRouteClause(), r.planTrail())
 	}
 	open := r.openGaps()
 	for _, g := range named {
@@ -498,6 +493,37 @@ func (r *runner) positionRouteClause() string {
 	}
 	if late > 0 {
 		fmt.Fprintf(&b, "; the first PASS permitted past that window, at epoch %d, was passed", late)
+	}
+	return b.String()
+}
+
+// planTrail is what each plan the record stored held, one line per chair sitting: its epoch, whether
+// it permitted the PASS, the parties it readied with their gaps, and the blockers holding the PASS
+// with their owners. A forced run reaches its permitted PASS one march after its first sitting
+// (findsFresh), and a run whose first permitted PASS comes later re-opened the march somewhere; the
+// run directory does not outlive the CI job, so the failure carries the sittings that say where.
+func (r *runner) planTrail() string {
+	board, err := record.FamilyOf(r.runHandle)
+	if err != nil {
+		return "\n  the plans could not be read: " + err.Error()
+	}
+	stored, err := record.StoredPlans(board.Events)
+	if err != nil {
+		return "\n  the plans the record stored do not read: " + err.Error()
+	}
+	var b strings.Builder
+	b.WriteString("\n  the plans, by chair sitting:")
+	for _, sp := range stored {
+		p := sp.Plan
+		parties := make([]string, 0, len(p.Parties))
+		for _, pa := range p.Parties {
+			parties = append(parties, fmt.Sprintf("%s%v", pa.SeatID, pa.GapIDs))
+		}
+		held := make([]string, 0, len(p.Blockers))
+		for _, bl := range p.Blockers {
+			held = append(held, fmt.Sprintf("%s %s (%s)", bl.Kind, bl.Subject, bl.Owner))
+		}
+		fmt.Fprintf(&b, "\n    epoch %d: pass_permitted %t; parties %v; held by %v", p.Epoch, p.PassPermitted, parties, held)
 	}
 	return b.String()
 }
@@ -865,12 +891,17 @@ func TestTheForcedPositionFailureNamesItsRoute(t *testing.T) {
 	}
 }
 
-// A RUN FORCED TO A POSITION ITS BENCH NEVER RULED fails the oracle, naming the ruling it owed.
+// A RUN FORCED TO A POSITION ITS BENCH NEVER RULED fails the oracle, naming the ruling it owed and
+// carrying every stored plan: the sitting that permitted the PASS it withheld is among them.
 func TestTheForcedPositionOracleHoldsTheRuling(t *testing.T) {
 	r, _ := converseRun(t, redClosesAndWithholds)
 	r.forcePosition = "overruled"
-	if m := r.forcedPositionOracle(); !strings.Contains(m, "overruled ruling") {
+	m := r.forcedPositionOracle()
+	if !strings.Contains(m, "overruled ruling") {
 		t.Errorf("the oracle passed a forced run whose bench ruled nothing: %q", m)
+	}
+	if !strings.Contains(m, "the plans, by chair sitting:") || !strings.Contains(m, "pass_permitted true") {
+		t.Errorf("the oracle's failure carries no plan that permitted the PASS: %q", m)
 	}
 	r.forcePosition = ""
 	if m := r.forcedPositionOracle(); m != "" {

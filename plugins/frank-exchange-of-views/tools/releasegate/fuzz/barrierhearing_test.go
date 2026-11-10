@@ -24,10 +24,6 @@ const (
 
 // THE TWO BARRIERS A DRAW MIGHT MISS ARE FORCED, ONE RUN EACH: each seed's party files a petition in
 // its first sitting, so the sweep's count of hearings at that barrier is fed by construction.
-const (
-	lensPetitionSeed = 13
-	bluePetitionSeed = 14
-)
 
 // petitionSeatOf is the party a seed's run forces a petition from; "" for a seed that forces none.
 func petitionSeatOf(seed int64) string {

@@ -29,9 +29,8 @@ import (
 // report (after the change). Each is the refusal's own code and text, or the run
 // fails at the act; the sweep gates each count at zero.
 
-// partsSeed is the seed whose run is FORCED through every part refusal above. It is none of the forced
-// seeds before it: the withheld part changes the report every one of them reads.
-const partsSeed = 10
+// partsSeed (forcedseeds_test.go) is the seed whose run is FORCED through every part refusal above. It
+// is none of the other forced seeds: the withheld part changes the report every one of them reads.
 
 // partsPct is how often a drawn run takes each part arm where it can.
 const partsPct = 15

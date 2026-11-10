@@ -423,6 +423,10 @@ type runner struct {
 	// with the code the class carries (inquiryCheckClasses). The sweep gates both at zero.
 	inquiryChecks       int
 	inquiryCheckRefused map[string]int
+	// inquiryUnseats counts the gaps below material minted about a checked inquiry after which the
+	// owner's check was owed again, its item naming the gap (unseatInquiryCheck). The sweep gates it
+	// at zero.
+	inquiryUnseats int
 	// inquiryIDErr is the first `inquiry propose` that SUCCEEDED and whose result carried no inquiry
 	// id the harness could read. It fails the run: read as "nothing to record" it would leave the
 	// record of a fate and the inquiry `--about` reference undriven behind a green sweep.
@@ -6020,6 +6024,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// EVERY SETTLED INQUIRY NO CHECK STANDS ON IS CHECKED BY ITS OWNER: its item blocks the
 				// owner's envelope. Every other lens drives the owner's refusal.
 				r.checkInquiries(seatID)
+				// A GAP BELOW MATERIAL ABOUT A CHECKED INQUIRY makes the owner's check owed again.
+				r.unseatInquiryCheck(seatID)
 				// FOUND-AGAINST SEED'S CHAIN, before the owed checks: its reading checks the citation it
 				// reads, so the owed loop below finds it read this sitting.
 				r.forcedFoundAgainstChain(seatID)
@@ -6314,9 +6320,11 @@ type outcome struct {
 	// propose-result reader going blind.
 	inquiryRecords int
 	// inquiryChecks and inquiryCheckRefused are the runner's: the owner's admitted checks, and each
-	// refusal class of `inquiry check` driven and refused with its code.
+	// refusal class of `inquiry check` driven and refused with its code. inquiryUnseats is the
+	// runner's: the checks a gap below material made owed again.
 	inquiryChecks       int
 	inquiryCheckRefused map[string]int
+	inquiryUnseats      int
 	// closingsFiled, closingsRefused, closingWaits and positionsWithheld are the runner's, as are
 	// positionsUpheldLens, positionsUpheldGaps and positionsOverruled, the bench's rulings on them.
 	closingsFiled, closingsRefused, closingWaits, positionsWithheld int
@@ -6793,7 +6801,6 @@ func sortedKeys(m map[string]any) []string {
 // MEASURED on origin/main at 65b27a9d with no other diff: red 3 of 4 runs, failing on
 // `outcome --as UNVERIFIED`. One forced run costs one seed's worth of natural variation and
 // makes the value a fact rather than a coin flip (#637).
-const unverifiedSeed = 1
 
 // estoppelSeed is the one seed whose run is FORCED to produce the estoppel conjunction rather
 // than left to the draw. It is not unverifiedSeed: that run mints only dirDisputeLost gaps so its
@@ -6803,7 +6810,6 @@ const unverifiedSeed = 1
 // MEASURED on clean main across 13 uncached sweeps, in two worktrees at different times: 6 red,
 // all on `ZERO tool estoppel refusals`, two of them also on `blue edit --accept` never passed.
 // ~46% on a gate that a tag runs ONCE — and a green told you only that the draw went your way.
-const estoppelSeed = 2
 
 // verifiedSeed is the one seed whose run is FORCED to VERIFIED: it mints only APPLY and COUNTER
 // gaps, which the lens closes once blue has sat. It is neither of the seeds above: a
@@ -6813,7 +6819,6 @@ const estoppelSeed = 2
 // 80 and 8 of 80 runs, the estoppel seed's all-APPLY run among them each time, carrying the word by
 // accident of its drive. At that rate 38 drawn runs find none about once in fifty-five, and
 // `outcome --as VERIFIED` then fails the enum census as a missing word.
-const verifiedSeed = 3
 
 // limitSeed is the one seed whose run is FORCED to the epoch-limit exit: its config states a limit
 // of forcedEpochLimit where every other run states setup's default. Its first epoch is the last that
@@ -6828,7 +6833,6 @@ const verifiedSeed = 3
 //
 // IT IS PAST THE SIX SEEDS THE RACE VARIANT RUNS (FUZZ_N=6). A run cut to two sittings drives a
 // sixth less of everything else, and at six runs `blue retire` succeeds as few as once.
-const limitSeed = 7
 
 // forcedEpochLimit is the epoch limit limitSeed's run is set up with.
 const forcedEpochLimit = 2
@@ -6843,7 +6847,6 @@ const forcedEpochLimit = 2
 // and seed 9 alone carried it in four. A branch that drew one or two fewer numbers per cite read
 // 0, 0, 1, 0, 1, red three times; the same branch drawing those numbers and discarding them read 5,
 // 9, 2, 2, 5. The path was intact throughout; the draw moved.
-const reopenedComputationSeed = 5
 
 // reopenedComputationScript is the forced computation's script. Its sha256 is what identifies the forced computation
 // on the record (EvidenceComputationJSON.Sha256), so the chain never recovers it from report text.
@@ -6866,7 +6869,6 @@ const reopenedComputationName = "fuzz-reopened-computation.js"
 // eight-run sweep logging the blockers at every sitting minted 34 such gaps, saw blue-respond sit
 // with up to 3 unsound computations standing and the plan after it with none, and 1 of its 59 plans held
 // one.
-const unsoundComputationSeed = 6
 
 // unsoundComputationScript is the forced unsound computation's program; its bundle's identity names the
 // computation on the record (computationsOfBundle).
@@ -6885,7 +6887,6 @@ const unsoundComputationName = "fuzz-unsound-computation.js"
 // before a plan, while the owner is barren: the owner checks every unchecked computation before its
 // envelope (dischargeOwed), so only a computation blue records after it is still unchecked when the chair
 // plans. One Relocations sweep counted it zero.
-const owedComputationSeed = 4
 
 // absentSpanSeed is the seed whose run is FORCED to cite a span its source does not hold
 // (forceAbsentSpan). Left to the draw, the absent span is the third arm of a rotation counted per
@@ -6893,18 +6894,15 @@ const owedComputationSeed = 4
 // 100 of those, and only every third bogus span of a run is the absent one. About eight blue sittings
 // in a hundred draw a bogus span, so a run of fifteen draws three about one time in eight, and a
 // sweep where no run does reads ZERO.
-const absentSpanSeed = 8
 
 // bareEvidenceSeed is the seed whose run is FORCED to cut an evidenced claim, leaving its computation's
 // anchor bare (forceBareEvidence). No drawn edit cuts a sentence: every one rewrites words, so the refusal has no other
 // reach. It is none of the other forced seeds.
-const bareEvidenceSeed = 17
 
 // mintBareSeed is the seed whose run is FORCED to mint a prescription that would leave a citation bare
 // (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
 // it, so none leaves an anchor bare, and the refusal has no other reach. It is none of the forced
 // seeds before it.
-const mintBareSeed = 16
 
 func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
@@ -7594,7 +7592,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 
 	// NO PASS OVER AN INQUIRY THAT IS NOT SOUND: settled, checked since its latest fate and since
-	// every gap about it that was material at its mint, and no material gap about it open. Read off
+	// every gap minted about it, material or not, and no material gap about it open. Read off
 	// the record's own tables, independently of the fold the gate reads.
 	if msg := inquirySoundOracle(oracleRun, res.verdict); msg != "" {
 		res.err = msg
@@ -7785,6 +7783,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.inquiryRecords = r.inquiryRecords
 	res.inquiryChecks = r.inquiryChecks
 	res.inquiryCheckRefused = maps.Clone(r.inquiryCheckRefused)
+	res.inquiryUnseats = r.inquiryUnseats
 	res.closingsFiled, res.closingsRefused, res.closingWaits, res.positionsWithheld = r.closingsFiled, r.closingsRefused, r.closingWaits, r.positionsWithheld
 	res.positionsUpheldLens, res.positionsUpheldGaps, res.positionsOverruled = r.positionsUpheldLens, r.positionsUpheldGaps, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
@@ -7965,13 +7964,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 
 // inquirySoundOracle holds a VERIFIED run to every inquiry being sound, and returns the first breach
 // or "". Sound is: its latest fate settles it (neither `proposed` nor `underway`), a check is
-// recorded later than that fate and than every gap about it that was material at its mint, and no
-// material gap about it is open.
+// recorded later than that fate and than every gap minted about it, whatever its materiality (ruled
+// by gblock 2026-11-10), and no material gap about it is open.
 //
 // IT READS THE RECORD'S TABLES AND VIEWS, NOT THE FOLD THE GATE READS. inquiry_state gives the latest
 // fate's place (status_seq) and the latest check's (check_seq); the gap view gives each gap about
-// the inquiry, whether it is open and material now; gap_grade's row that begins at the mint gives
-// whether it was material at its mint. record.InquiryJudgements is the code under test, so an oracle
+// the inquiry, where it was minted, and whether it is open and material now.
+// record.InquiryJudgements is the code under test, so an oracle
 // that asked it would agree with whatever it got wrong.
 //
 // A RECORD IT CANNOT READ IS A BREACH: passing over it would report an unchecked inquiry as sound.
@@ -7988,8 +7987,7 @@ func inquirySoundOracle(run record.Run, verdict string) string {
 	rows, err := db.Query(`
 SELECT s."inquiry_id", s."status", s."status_seq", s."check_seq",
        (SELECT MAX(g."minted_seq") FROM "gap" g
-          JOIN "gap_grade" gg ON gg."minted_event" = g."minted_event" AND gg."from_seq" = g."minted_event"
-          WHERE g."about_kind" = 'inquiry' AND g."about_ref" = s."inquiry_id" AND gg."material"),
+          WHERE g."about_kind" = 'inquiry' AND g."about_ref" = s."inquiry_id"),
        (SELECT count(*) FROM "gap" g
           WHERE g."about_kind" = 'inquiry' AND g."about_ref" = s."inquiry_id" AND g."open" AND g."material")
 FROM "inquiry_state" s
@@ -8000,11 +7998,11 @@ ORDER BY s."proposed_seq"`)
 	defer rows.Close()
 	for rows.Next() {
 		var (
-			id, status                       string
-			statusSeq, checkSeq, materialMnt sql.NullInt64
-			wanting                          int
+			id, status                   string
+			statusSeq, checkSeq, gapMint sql.NullInt64
+			wanting                      int
 		)
-		if err := rows.Scan(&id, &status, &statusSeq, &checkSeq, &materialMnt, &wanting); err != nil {
+		if err := rows.Scan(&id, &status, &statusSeq, &checkSeq, &gapMint, &wanting); err != nil {
 			return "inquiry oracle: a row of inquiry_state could not be read: " + err.Error()
 		}
 		switch {
@@ -8016,8 +8014,8 @@ ORDER BY s."proposed_seq"`)
 			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with inquiry %s settled at %q and never checked", id, status)
 		case checkSeq.Int64 <= statusSeq.Int64:
 			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with inquiry %s's latest check (event %d) before its latest fate (event %d)", id, checkSeq.Int64, statusSeq.Int64)
-		case materialMnt.Valid && checkSeq.Int64 <= materialMnt.Int64:
-			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with inquiry %s's latest check (event %d) before a gap about it material at its mint (event %d)", id, checkSeq.Int64, materialMnt.Int64)
+		case gapMint.Valid && checkSeq.Int64 <= gapMint.Int64:
+			return fmt.Sprintf("inquiry oracle: the run recorded VERIFIED with inquiry %s's latest check (event %d) before a gap minted about it (event %d)", id, checkSeq.Int64, gapMint.Int64)
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -9003,8 +9001,9 @@ func inquiryCheckCode(class string) feov.Code {
 // state. Any other lens drives the owner's refusal once a run: its finding or gap about an inquiry
 // is its say, and the check is not.
 //
-// AN INQUIRY WHOSE FATE LANDED AFTER THE OWNER'S SITTING OPENED IS LEFT for the sitting the owner is
-// readied for next: the check would judge the fate as it stood before, and the tool refuses it.
+// AN INQUIRY WHOSE FATE, OR A GAP ABOUT IT, LANDED AFTER THE OWNER'S SITTING OPENED IS LEFT for the
+// sitting the owner is readied for next: the check would judge the fate without what landed in hand,
+// and the tool refuses it.
 func (r *runner) checkInquiries(seatID string) {
 	js, ok := r.inquiryJudgements()
 	if !ok || len(js) == 0 {
@@ -9028,7 +9027,7 @@ func (r *runner) checkInquiries(seatID string) {
 		case record.InquirySound:
 			r.checkRefused(checkStands, seatID, j.ID, "fuzz: judged again, with another reason")
 		case record.InquiryUnchecked:
-			if j.Fate > sitting {
+			if j.Fate > sitting || j.GapMint > sitting {
 				continue
 			}
 			r.checkRefused(checkEmptyReason, seatID, j.ID, "")
@@ -9044,7 +9043,7 @@ func (r *runner) checkInquiries(seatID string) {
 			// A FATE OR A MINT ABOUT IT LANDED BESIDE THE CHECK, from a seat sitting alongside: the
 			// refusal is the record's answer to a judgement of what no longer stands. Any other
 			// refusal fails the run.
-			if now, ok := r.inquiryJudgement(j.ID); ok && (now.Fate != j.Fate || now.State() != record.InquiryUnchecked) {
+			if now, ok := r.inquiryJudgement(j.ID); ok && (now.Fate != j.Fate || now.GapMint != j.GapMint || now.State() != record.InquiryUnchecked) {
 				noteEither(args, "the inquiry moved under the owner's check", false)
 				continue
 			}

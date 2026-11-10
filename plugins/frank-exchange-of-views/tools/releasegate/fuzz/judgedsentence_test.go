@@ -28,10 +28,7 @@ import (
 //     the debate ends (runtest.DropReopened, never a seat path); the oracle must report the debate.
 //     `stalenessForged` = `stalenessReported`.
 
-// stalenessSeeds are the seeds whose runs are FORCED through the staleness arm: four consecutive
-// seeds past every other forced seed, so each of the sweep's four parts (sweepPart.owns: seed-1 mod 4)
-// runs exactly one.
-var stalenessSeeds = []int64{20, 21, 22, 23}
+// stalenessSeeds (forcedseeds_test.go) are the seeds whose runs are FORCED through the staleness arm.
 
 // stalenessClaim is the sentence the forced arm adds after sourceDemandOpen, and stalenessEdit the
 // span of it blue's edit rewrites to stalenessEdited: a sentence no other drive quotes, so no drawn act

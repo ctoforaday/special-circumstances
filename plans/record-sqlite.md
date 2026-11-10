@@ -146,9 +146,9 @@ can recover it.
 3. It requires an **UPDATE on an append-only record.** Measured: the same guard that
    protects `events` refuses it (`constraint failed: append-only`).
 
-**What was done instead.** The `gap` view carries `supersedes_count` and `found_by_count`.
-Free, derived, cannot disagree with the rows it counts, and it answers the join several
-readers were writing for themselves.
+**What was done instead.** The `gap` view carries `supersedes_count`, folded into the stored
+gap state at the mint from the rows it counts, and it answers the join several readers were
+writing for themselves. (A `found_by_count` beside it had no reader and was dropped.)
 
 **Where the fact is a CLAIM rather than a consequence,** the schema already has the right
 shape and it is a field the WRITER sets: `SpotCheck.none` — a bool with real presence,
@@ -208,9 +208,17 @@ change it. `demand_lineage` is the case: a gap's demand lineage is fixed at its 
 `mint` and `mint_supersedes` write the whole of it once, and `demand_reach` reads it with no
 recursion instead of walking the supersedes chain on every read.
 
+`gap_state` is the second, and the one that is UPDATEd: a projection, so a row replaced is not an
+edit of the record. Its rules are too large to compile into every insert on the twelve body tables
+that can change a gap, so the work is split. Each of those tables' trigger only names the gaps its
+row touches (`gap_dirty`); at the end of the append the writer asks whether any gap was named and,
+only then, inserts the one `gap_flush` row, whose trigger runs the gap view's rules over the named
+gaps (`gap_refresh`) and clears both tables. An append that touches no gap compiles one `EXISTS`.
+
 **The triggers that earn their place** are the append-only guards — on `events`,
-`report_checkpoint` and `demand_lineage` — and a stored projection's maintenance under the rule
-above. A guard refuses an unconditionally illegal state (editing a written event), and its
+`report_checkpoint` and `demand_lineage` — a stored projection's maintenance under the rule
+above, and the refusals that keep every state a projection folds one the write path reaches (a
+docket ruling with no filing behind it). A guard refuses an unconditionally illegal state (editing a written event), and its
 static message is adequate precisely because there is nothing conditional to explain: you
 cannot edit the record, and that is the whole sentence.
 
