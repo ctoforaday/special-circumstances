@@ -586,7 +586,8 @@ CREATE TABLE "motion_rule_position_gap_ids" (
   "event_id" INTEGER NOT NULL REFERENCES "motion_rule_position"("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
+  PRIMARY KEY ("event_id", "ord"),
+  FOREIGN KEY ("value") REFERENCES "mint"("gap_id")
 ) STRICT;
 
 CREATE TABLE "mint" (
@@ -624,7 +625,8 @@ CREATE TABLE "mint_supersedes" (
   "event_id" INTEGER NOT NULL REFERENCES "mint"("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
+  PRIMARY KEY ("event_id", "ord"),
+  FOREIGN KEY ("value") REFERENCES "mint"("gap_id")
 ) STRICT;
 
 CREATE TABLE "mint_found_by" (
@@ -1042,6 +1044,48 @@ CREATE INDEX "inquiry_id" ON "inquiry" ("inquiry_id");
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
 CREATE INDEX "close_gap" ON "close" ("gap_id");
+-- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
+-- (closure_act's supersede arm) and passes its demand on (the demand_lineage_supersedes trigger).
+CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
+
+CREATE TABLE "demand_lineage" (
+  "gap_id"   TEXT NOT NULL REFERENCES "mint" ("gap_id"),
+  "from_gap" TEXT NOT NULL REFERENCES "mint" ("gap_id"),
+  PRIMARY KEY ("gap_id", "from_gap")
+) STRICT, WITHOUT ROWID;
+-- The heirs of a gap: whose demand an act on the ancestor's anchors reaches.
+CREATE INDEX "demand_lineage_from" ON "demand_lineage" ("from_gap", "gap_id");
+
+CREATE TRIGGER "demand_lineage_is_append_only_update" BEFORE UPDATE ON "demand_lineage" BEGIN
+  SELECT RAISE(ABORT, 'a gap''s demand lineage is fixed at its mint: it cannot be edited after it is written');
+END;
+CREATE TRIGGER "demand_lineage_is_append_only_delete" BEFORE DELETE ON "demand_lineage" BEGIN
+  SELECT RAISE(ABORT, 'a gap''s demand lineage is fixed at its mint: it cannot be removed after it is written');
+END;
+
+-- A GAP CARRIES ITS OWN DEMAND, from its mint.
+CREATE TRIGGER "demand_lineage_mint" AFTER INSERT ON "mint" BEGIN
+  INSERT INTO "demand_lineage" ("gap_id", "from_gap") VALUES (NEW."gap_id", NEW."gap_id");
+END;
+
+-- A SUPERSESSION THAT PASSES A DEMAND ON: the first mint naming the ancestor in its supersedes, at
+-- the ancestor's check kind, one a live answer is demanded under. The heir takes the ancestor's whole
+-- lineage. It is not asked whether the ancestor was open, or its demand unmet, when the mint named
+-- it: an ancestor whose demand was met, or disposed of by the bench, before the heir's mint passes
+-- its reach on all the same, and what would have met it after the heir's mint meets the heir.
+-- OR IGNORE: two ancestors sharing an ancestor of their own (a diamond) carry it in twice.
+CREATE TRIGGER "demand_lineage_supersedes" AFTER INSERT ON "mint_supersedes" BEGIN
+  INSERT OR IGNORE INTO "demand_lineage" ("gap_id", "from_gap")
+  SELECT h."gap_id", l."from_gap"
+  FROM "mint" h
+  JOIN "mint" a ON a."gap_id" = NEW."value" AND a."check_kind" = h."check_kind"
+  JOIN "demand_lineage" l ON l."gap_id" = a."gap_id"
+  WHERE h."event_id" = NEW."event_id"
+    AND a."check_kind" IN ('source', 'computation')
+    AND NOT EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."value" = NEW."value" AND s."event_id" < NEW."event_id");
+END;
+CREATE INDEX "verify_anchor" ON "verify" ("anchor", "event_id");
+CREATE INDEX "reproduce_computation_id" ON "reproduce" ("computation_id", "event_id");
 
 -- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
 --
@@ -1451,16 +1495,10 @@ FROM "placed" p;
 -- evidence_met arms 2 and 3); this is the one statement of the reach, which the close's refusal
 -- (record.EvidenceDemandOf) and a retire's reach (record.reachingRetiresOf) read too.
 --
--- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT (ruled by gblock 2026-11-05). A mint
--- superseding an open gap of the same source or computation check kind closes it and takes its
--- demand on, so the successor's demand is met through the ancestor's anchors too: retiring the
--- citation a refuted reading read is the remedy its failed check names, and it meets the successor.
--- Transitively, through every same-kind ancestor of the chain of superseding mints. An inherited
--- row is the successor's from its mint: a retire before it had met the ancestor, which then passed no
--- demand on, and a check counts for the gap only at or after its mint. An ancestor whose demand was
--- met, or disposed of by the bench, before the successor named it passes its reach on all the same:
--- what would have met it after the successor's mint meets the successor too (plans/compute-and-show.md,
--- "Supersede demand").
+-- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
+-- ancestor it carries the demand from (demand_lineage, written at the gap's mint). An inherited row is
+-- the successor's from its mint: a retire before it had met the ancestor, which then passed no
+-- demand on, and a check counts for the gap only at or after its mint.
 --
 --   from_gap  the gap whose about or reading the row is: gap_id itself, or an ancestor it carries
 --             the demand from.
@@ -1468,40 +1506,18 @@ FROM "placed" p;
 --   reached   the event from which the anchor is in gap_id's reach: its own mint for the anchor it
 --             is about, the reading's act for a reading it carries, its mint for an inherited row.
 CREATE VIEW "demand_reach" AS
-WITH RECURSIVE "carries" AS MATERIALIZED (
-  -- EACH SUPERSESSION THAT PASSED A DEMAND ON: the first mint naming the ancestor in its supersedes,
-  -- at the ancestor's check kind, one a live answer is demanded under, with the ancestor's subject
-  -- and mint. The first naming mint is the one that closed an open ancestor (closure_act's
-  -- 'supersede' arm). It is not asked whether the ancestor was open, or its demand unmet, when the
-  -- mint named it: the gap view's closure is not this view's to read (closure_act a second time in
-  -- every statement over the gap view), and that ancestor's demand was met, or disposed of by the
-  -- bench, before the successor's mint, which the inherited rows' acts all follow.
-  SELECT h."gap_id" AS "heir", a."gap_id" AS "ancestor", a."about_kind" AS "about_kind", a."about_ref" AS "about_ref",
-         a."event_id" AS "event_id"
-  FROM (SELECT "value", MIN("event_id") AS "by" FROM "mint_supersedes" GROUP BY "value") fs
-  JOIN "mint" h ON h."event_id" = fs."by"
-  JOIN "mint" a ON a."gap_id" = fs."value" AND a."check_kind" = h."check_kind"
-  WHERE a."check_kind" IN ('source', 'computation')
-),
-"lineage" AS (
-  -- EACH GAP, AND EVERY ANCESTOR IT CARRIES THE DEMAND FROM, with that gap's subject and mint.
-  SELECT m."gap_id" AS "gap_id", m."gap_id" AS "from_gap", m."check_kind" AS "check_kind", m."event_id" AS "minted",
-         m."about_kind" AS "about_kind", m."about_ref" AS "about_ref", m."event_id" AS "from_event"
-  FROM "mint" m
-  UNION
-  SELECT l."gap_id", cy."ancestor", l."check_kind", l."minted", cy."about_kind", cy."about_ref", cy."event_id"
-  FROM "lineage" l
-  JOIN "carries" cy ON cy."heir" = l."from_gap"
-)
-SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", l."check_kind" AS "check_kind", l."minted" AS "minted",
-       'about' AS "via", l."about_ref" AS "anchor", e."seat_id" AS "seat", l."minted" AS "reached"
-FROM "lineage" l
-JOIN "events" e ON e."id" = l."from_event"
-WHERE l."about_kind" = 'anchor'
+SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
+       'about' AS "via", a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+FROM "demand_lineage" l
+JOIN "mint" h ON h."gap_id" = l."gap_id"
+JOIN "mint" a ON a."gap_id" = l."from_gap"
+JOIN "events" e ON e."id" = a."event_id"
+WHERE a."about_kind" = 'anchor'
 UNION ALL
-SELECT l."gap_id", l."from_gap", l."check_kind", l."minted",
-       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE l."minted" END
-FROM "lineage" l
+SELECT l."gap_id", l."from_gap", h."check_kind", h."event_id",
+       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE h."event_id" END
+FROM "demand_lineage" l
+JOIN "mint" h ON h."gap_id" = l."gap_id"
 JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap";
 
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's

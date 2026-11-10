@@ -239,7 +239,8 @@ message Sql {
   // constraint the sharded log could not have: filing and ruling lived in different files and
   // replay merged them by timestamp, so a ruling could replay before its filing — recorded in
   // capitals at record/motion.go and papered over by a second pass. A foreign key makes the state
-  // unwritable rather than recoverable.
+  // unwritable rather than recoverable. On a repeated field every element must point at its row:
+  // the list table's value column carries the foreign key.
   optional string references = 4;
 
   // unique is a per-run uniqueness the type cannot state — a gap id minted twice is two gaps
@@ -990,8 +991,9 @@ message Mint {
   optional Grade complexity_cost = 19;
 
   // ALWAYS PRESENT, even empty: a gap with no ancestors records an empty list, because an absent
-  // key would read as "lineage unknown" where the truth is "lineage none".
-  repeated string supersedes = 20;
+  // key would read as "lineage unknown" where the truth is "lineage none". Each names a gap already
+  // minted: the gap's demand lineage is written at its mint, so an ancestor minted later could never join it.
+  repeated string supersedes = 20 [(sql) = { references: "mint.gap_id" }];
   repeated string found_by = 21;
   // 26 is reserved: a stored mint may carry its bytes.
   reserved 26;
@@ -2085,8 +2087,8 @@ message PositionHearing {
     flag: "lens"
     why: "on an upheld ruling: the lens readied to audit its area for the defect the position argues"
   }];
-  // The open gaps an upheld ruling sends back for one more exchange.
-  repeated string gap_ids = 3;
+  // The open gaps an upheld ruling sends back for one more exchange, each a gap already minted.
+  repeated string gap_ids = 3 [(sql) = { references: "mint.gap_id" }];
   // THE WORK'S DIRECTION. The dispatch hands it to the readied seats, as a remand's.
   optional string direction = 4 [(sql) = {
     flag: "direction"

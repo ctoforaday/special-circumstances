@@ -286,6 +286,9 @@ CREATE INDEX "inquiry_id" ON "inquiry" ("inquiry_id");
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
 CREATE INDEX "close_gap" ON "close" ("gap_id");
+-- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
+-- (closure_act's supersede arm) and passes its demand on (the demand_lineage_supersedes trigger).
+CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
 `
 
 func Schema() (string, error) {
@@ -314,6 +317,7 @@ func Schema() (string, error) {
 		b.WriteString(ddl)
 	}
 	b.WriteString(QueryIndexDDL)
+	b.WriteString(DemandLineageDDL)
 	return b.String(), nil
 }
 
@@ -497,6 +501,12 @@ func column(fd protoreflect.FieldDescriptor) (col, check string, err error) {
 // than passed through so a malformed annotation fails HERE, at derivation, instead of producing a
 // schema SQLite refuses at open with a syntax error nobody can trace back to a field.
 func references(fd protoreflect.FieldDescriptor) (string, error) {
+	return referencesAs(fd, string(fd.Name()))
+}
+
+// referencesAs renders the field's foreign key on the named column: the field's own for a scalar,
+// the list table's "value" for a repeated field, whose every element must point at its row.
+func referencesAs(fd protoreflect.FieldDescriptor, column string) (string, error) {
 	ref := Opts(fd).GetReferences()
 	if ref == "" {
 		return "", nil
@@ -505,7 +515,7 @@ func references(fd protoreflect.FieldDescriptor) (string, error) {
 	if !ok || table == "" || col == "" {
 		return "", fmt.Errorf("%s declares references %q — it must be \"table.column\"", fd.FullName(), ref)
 	}
-	return fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(%q)", fd.Name(), table, col), nil
+	return fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(%q)", column, table, col), nil
 }
 
 func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
@@ -747,14 +757,21 @@ func listTableNamed(owner, references string, fd protoreflect.FieldDescriptor) (
 	if err != nil {
 		return "", err
 	}
+	fk, err := referencesAs(fd, "value")
+	if err != nil {
+		return "", err
+	}
+	if fk != "" {
+		fk = ",\n  " + fk
+	}
 	return fmt.Sprintf(`
 CREATE TABLE %q (
   "event_id" INTEGER NOT NULL REFERENCES %q("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    %-7s NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
+  PRIMARY KEY ("event_id", "ord")%s
 ) STRICT;
-`, name, references, typ), nil
+`, name, references, typ, fk), nil
 }
 
 // oneofColumns models a real oneof.
