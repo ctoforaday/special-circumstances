@@ -30,7 +30,7 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 		recordtest.Event(t, "blue-respond", seatLog("nothing in the way")),
 		recordtest.Event(t, "blue-respond", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("what the bench is asked to weigh")}),
 	})
-	s := SittingOf(b.Events, b.At.IDs(b.Events), b.At, workStatesOfFamilyT(b), "blue", "blue-respond")
+	s := SittingOf(b.Events, b.At.IDs(b.Events), b.At, workStatesOfFamilyT(b), "blue", "blue-respond", nil)
 
 	var afforded, blocking int
 	for _, it := range s.Open {

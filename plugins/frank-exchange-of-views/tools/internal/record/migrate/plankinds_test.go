@@ -13,7 +13,7 @@ import (
 )
 
 // readingBlockersTranslated is a source plan's printing with each archived reading blocker carried to
-// the failed check TranslateReadingBlockers writes for it — kind failed_check, subject the anchor the
+// the debt TranslateReadingBlockers writes for it — kind reading_debt, subject the anchor the
 // source's reading at that events.id names (anchors, sourceReadingAnchors) — or, for a reading that
 // names no anchor, dropped; re-keyed.
 func readingBlockersTranslated(t *testing.T, printed string, anchors map[int64]string) string {
@@ -36,7 +36,7 @@ func readingBlockersTranslated(t *testing.T, printed string, anchors map[int64]s
 		}
 		changed = true
 		if a != "" {
-			b.Kind, b.Subject = record.BlockerFailedCheck, a
+			b.Kind, b.Subject = record.BlockerReadingDebt, a
 			kept = append(kept, b)
 		}
 	}
@@ -85,8 +85,8 @@ func kindsTranslated(t *testing.T, printed string) string {
 // store plans printing the kind `reopened` (m28, m30, 1565, m32): every one migrates printing
 // `unchecked` in its place, re-keyed, with no archived kind word left on any migrated plan, and each
 // plan's other fields as the census tests hold them (TestAnArchivedRunStoresOnlyThePlansItStored).
-// m32's plans also print the archived reading blocker `contradiction`, which migrates as a
-// failed_check on the citation the reading read (TranslateReadingBlockers).
+// m32's plans also print the archived reading blocker `contradiction`, which migrates as the reader's
+// reading_debt on the citation the reading read (TranslateReadingBlockers).
 func TestArchivedBlockerKindsAreTranslated(t *testing.T) {
 	for _, name := range []string{"2026-10-18_is-91-prime-m28.tar.gz", "2026-10-19_is-91-prime-m30.tar.gz", "2026-10-24_is-91-prime-1565.tar.gz", "2026-10-24_is-91-prime-m32.tar.gz"} {
 		t.Run(name, func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestArchivedBlockerKindsAreTranslated(t *testing.T) {
 				if want := p.WithKey().Key; p.Key != want {
 					t.Errorf("migrated plan %d's key is %q and the plan's own is %q", i, p.Key, want)
 				}
-				translated += strings.Count(d, `"kind":"unchecked"`) + strings.Count(d, `"kind":"failed_check"`)
+				translated += strings.Count(d, `"kind":"unchecked"`) + strings.Count(d, `"kind":"failed_check"`) + strings.Count(d, `"kind":"reading_debt"`)
 			}
 			if archived == 0 {
 				t.Fatal("fixture: the archive's stored plans print no archived kind, so the translation is tested by nothing")

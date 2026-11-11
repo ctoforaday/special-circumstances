@@ -14,17 +14,18 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
-// A VERIFICATION THAT READ NOTHING SAYS WHAT IT LEFT AND WHAT IT OWES. The citation stays unread,
-// PASS is refused while the report cites it, and the lens that read nothing owes the gap about it,
-// outside its budget; the gap minted, the verb names it instead.
+// A VERIFICATION THAT READ NOTHING SAYS WHAT IT LEFT AND WHAT IT OWES: the failed check standing on
+// the citation, worded as the work list words it — the citation stays unread, PASS is refused while
+// it stands, and the lens that read nothing owes the gap about it, outside its budget; the gap minted,
+// the verb names it instead.
 func TestAnUnreadVerifySaysTheCitationStaysUnreadAndTheGapIsOwed(t *testing.T) {
 	runDir, label := citedClause(t)
 	out, err := verifyAs(t, runDir, label, "unreachable")
 	if err != nil {
 		t.Fatalf("verify --as unreachable: %v", err)
 	}
-	for _, want := range []string{"citation " + label + " stays unread", "PASS is refused while the report cites it unread",
-		"you owe a gap about it", "which takes no mint of your budget"} {
+	for _, want := range []string{"check of citation " + label, "read nothing of its source", "PASS is refused while it stands",
+		lensSeat + " owes its gap about the anchor", "which takes no mint of its budget"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the verify does not say %q:\n%s", want, out)
 		}

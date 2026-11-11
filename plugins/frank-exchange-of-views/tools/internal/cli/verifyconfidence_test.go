@@ -24,8 +24,8 @@ func TestAReadingsJSONCarriesTheConfidenceItRecords(t *testing.T) {
 		writeReport(t, runDir, fermatReport)
 		cachedCopy(t, runDir, "", "")
 		registerLensOnce(t, runDir)
-		r := jsonResult(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
-			"--quote", fermatClaim, "--as", "supports", "--confidence", "medium", "--reason", "read at the leaf"}, gapFlagArgs("unsourced_claim")...)...)
+		r := jsonResult(t, "verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
+			"--quote", fermatClaim, "--as", "supports", "--confidence", "medium", "--reason", "read at the leaf")
 		if stored := recordpb.Word(firstVerify(t, runDir).GetConfidence()); stored != "medium" || r["confidence"] != stored {
 			t.Errorf("verify --url --json confidence = %v, the record holds %q; want medium in both", r["confidence"], stored)
 		}

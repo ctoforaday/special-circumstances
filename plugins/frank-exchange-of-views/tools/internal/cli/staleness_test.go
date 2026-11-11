@@ -21,7 +21,7 @@ type stalenessArm struct {
 }
 
 // stalenessArms is every state #1647's ledger gives a check, once each: a check that holds, of
-// either kind; an `unsound` judgement; a `found_against` reading, carried by the gap it minted; and an
+// either kind; an `unsound` judgement; a reading `against` the sentence; and an
 // `unread` reading, which never stands.
 func stalenessArms() map[string]stalenessArm {
 	reproduce := func(as string) func(t *testing.T, runDir, id string) (string, error) {
@@ -34,11 +34,11 @@ func stalenessArms() map[string]stalenessArm {
 		return func(t *testing.T, runDir, id string) (string, error) { return verifyAs(t, runDir, id, as) }
 	}
 	return map[string]stalenessArm{
-		"citation holds":         {kind: "citation", state: "holds", check: verify("supports")},
-		"computation holds":      {kind: "computation", state: "holds", check: reproduce("sound")},
-		"computation unsound":    {kind: "computation", state: "unsound", check: reproduce("unsound")},
-		"citation found_against": {kind: "citation", state: "found_against", check: verify("refutes")},
-		"citation unread":        {kind: "citation", state: "", check: verify("unreachable")},
+		"citation holds":      {kind: "citation", state: "holds", check: verify("supports")},
+		"computation holds":   {kind: "computation", state: "holds", check: reproduce("sound")},
+		"computation unsound": {kind: "computation", state: "unsound", check: reproduce("unsound")},
+		"citation against":    {kind: "citation", state: "against", check: verify("refutes")},
+		"citation unread":     {kind: "citation", state: "", check: verify("unreachable")},
 	}
 }
 
@@ -149,44 +149,34 @@ func hasArm(arms map[string]stalenessArm, kind string) bool {
 	return false
 }
 
-// A READING GAP'S TOKEN AT THE CHECKED SENTENCE'S END IS NO CHANGE OF WORDING. A `found_against`
-// reading mints its gap at the sentence it read, after the check recorded that sentence; with no edit
-// the reading stands of the sentence the report carries, and the oracle reports nothing. A raw
-// comparison would read the token as a new wording.
-func TestAReadingGapTokenIsNoStaleness(t *testing.T) {
+// A GAP ABOUT THE CHECKED CITATION CHANGES NO WORDING. A refuting reading records; the gap the lens
+// mints about the citation on it places no token, so the reading stands of the sentence the report
+// carries, and the oracle reports nothing.
+func TestAGapAboutACitationIsNoStaleness(t *testing.T) {
 	runDir, id := citedClause(t)
 	sit(t, runDir, lensSeat)
 	if out, err := verifyAs(t, runDir, id, "refutes"); err != nil {
 		t.Fatalf("verify --as refutes: %v\n%s", err, out)
+	}
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat, "--about-kind", "anchor", "--about", id, "--class", "claim_contradicts_source",
+		"--problem", "the source says otherwise than the sentence", "--fix", "the fix", "--check", "the sentence states what the source says",
+		"--check-kind", "source", "--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
+		t.Fatalf("the gap on the reading: %v", err)
 	}
 	claim := firstVerify(t, runDir).GetClaim()
 	live, err := record.LiveSentence(runtest.Open(t, runDir), id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	report := readReport(t, runDir)
-	if !strings.Contains(report, "<!--gap:") {
-		t.Fatalf("the refuting reading placed no gap token in the report:\n%s", report)
-	}
-	if !strings.Contains(sentenceHolding(report, id), "<!--gap:") {
-		t.Fatalf("the reading's gap token is not in the sentence %s marks:\n%s", id, report)
+	if report := readReport(t, runDir); strings.Contains(report, "<!--gap:") {
+		t.Fatalf("a gap about the citation placed a token:\n%s", report)
 	}
 	if claim == "" || live == "" {
 		t.Fatalf("claim %q, live sentence %q", claim, live)
 	}
 	if _, stale := staleViolations(t, runDir); len(stale) != 0 {
-		t.Errorf("a gap token placed at the checked sentence reads as a change of wording: %v", stale)
+		t.Errorf("a gap about the checked citation reads as a change of wording: %v", stale)
 	}
-}
-
-// sentenceHolding is the raw line of report holding id's token, anchors included.
-func sentenceHolding(report, id string) string {
-	for _, ln := range strings.Split(report, "\n") {
-		if strings.Contains(ln, id) {
-			return ln
-		}
-	}
-	return ""
 }
 
 // A CHECK THAT RECORDED NO SENTENCE IS COUNTED, NEVER FOLDED INTO AGREEMENT. A migrated reproduce holds

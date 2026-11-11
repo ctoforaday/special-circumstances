@@ -200,27 +200,13 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		return nil, err
 	}
 	c := &Choices{SeatID: seatID, Role: seatclass.RoleOfSeat(seatID), Used: map[string]int{}}
-	// A READING'S GAP IS THE READING'S VERB. `verify` mints the gap its reading finds in its own act,
-	// writing a Mint, an Anchor and the Verify; counted by type, the Mint would report `mint` used by a
-	// seat that never typed it, and an unmet `mint` expectation would read as met. The gaps a reading
-	// of this seat's minted are read off the Verify's fields — carried_by with carrier_minted true —
-	// never from adjacency; a plain mint a later reading names (carrier_minted false) still counts.
-	minted := map[string]bool{}
-	for _, e := range m.Events {
-		if v, ok := recordpb.BodyAs[*recordpb.Verify](e); ok && e.GetSeatId() == seatID && v.GetCarrierMinted() {
-			minted[v.GetCarriedBy()] = true
-		}
-	}
 	for _, e := range m.Events {
 		if e.GetSeatId() != seatID {
 			continue
 		}
 		// AN ANCHOR IS NOT A VERB: it places the marker of the act it belongs to, whose own event
-		// names the verb — a reading's Anchor stands between its Mint and its Verify.
+		// names the verb.
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_ANCHOR {
-			continue
-		}
-		if mt, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && minted[mt.GetGapId()] {
 			continue
 		}
 		verb, ok := verbOfEvent[e.GetType()]

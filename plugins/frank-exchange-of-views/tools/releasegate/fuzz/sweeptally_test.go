@@ -2,7 +2,6 @@ package fuzz
 
 import (
 	"bytes"
-	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -108,142 +107,128 @@ func sweepPath(t *testing.T) {
 
 // runTally is what the sweep's fold reads from one run.
 type runTally struct {
-	Seed                            int64                     `json:"seed"`
-	Err                             string                    `json:"err"`
-	Verdict                         string                    `json:"verdict"`
-	Why                             string                    `json:"why"`
-	Epochs                          int                       `json:"epochs"`
-	EpochLimit                      bool                      `json:"epoch_limit"`
-	Dialectic                       map[string]int            `json:"dialectic"`
-	BlueSittings                    int                       `json:"blue_sittings"`
-	BlueAgain                       int                       `json:"blue_again"`
-	CiteAnchors                     int                       `json:"cite_anchors"`
-	CacheFiles                      int                       `json:"cache_files"`
-	EditAnswers                     int                       `json:"edit_answers"`
-	VerifiedBasis                   int                       `json:"verified_basis"`
-	FoundByMints                    int                       `json:"found_by_mints"`
-	VerbatimApplied                 int                       `json:"verbatim_applied"`
-	TypedVerbatim                   int                       `json:"typed_verbatim"`
-	EstoppelMisses                  map[string]int            `json:"estoppel_misses"`
-	ApplyMisses                     map[string]int            `json:"apply_misses"`
-	Estoppels                       int                       `json:"estoppels"`
-	InquiryRecords                  int                       `json:"inquiry_records"`
-	ClosingsFiled                   int                       `json:"closings_filed"`
-	ClosingsRefused                 int                       `json:"closings_refused"`
-	ClosingWaits                    int                       `json:"closing_waits"`
-	PositionsWithheld               int                       `json:"positions_withheld"`
-	PositionsUpheldLens             int                       `json:"positions_upheld_lens"`
-	PositionsUpheldGaps             int                       `json:"positions_upheld_gaps"`
-	PositionsOverruled              int                       `json:"positions_overruled"`
-	OrdersRefused                   int                       `json:"orders_refused"`
-	SpansRefused                    int                       `json:"spans_refused"`
-	BareEvidenceRefused             int                       `json:"bare_evidence_refused"`
-	MintBareRefused                 int                       `json:"mint_bare_refused"`
-	SourceSearches                  int                       `json:"source_searches"`
-	CopiesRead                      map[string]map[string]int `json:"copies_read"`
-	FragmentsDriven                 int                       `json:"fragments_driven"`
-	TruncationsDriven               int                       `json:"truncations_driven"`
-	LineCites                       int                       `json:"line_cites"`
-	BothRefused                     int                       `json:"both_locators_refused"`
-	NeitherRefused                  int                       `json:"no_locator_refused"`
-	PastTextRefused                 int                       `json:"lines_past_text_refused"`
-	QuotesRefused                   int                       `json:"quotes_refused"`
-	BridgesRefused                  int                       `json:"bridges_refused"`
-	BridgesNamed                    int                       `json:"bridges_named"`
-	ReopenedReadied                 int                       `json:"reopened_readied"`
-	ReopenedPlans                   int                       `json:"reopened_plans"`
-	UnsoundReadied                  int                       `json:"unsound_readied"`
-	UnsoundPlans                    int                       `json:"unsound_plans"`
-	UnsoundAnswers                  int                       `json:"unsound_answers"`
-	UnsoundRepeats                  int                       `json:"unsound_repeats"`
-	UnsoundOverOpen                 int                       `json:"unsound_over_open"`
-	ComputationReopenedReadied      map[string]int            `json:"computation_reopened_readied"`
-	OwedKept                        int                       `json:"owed_kept"`
-	ComputationOwedKept             int                       `json:"computation_owed_kept"`
-	OwedKeptBy                      map[string]int            `json:"owed_kept_by"`
-	OwnerWhys                       []string                  `json:"owner_whys,omitempty"`
-	OwnerOffered                    int                       `json:"owner_offered"`
-	CitationsOffered                int                       `json:"citations_offered"`
-	UnreadAnswers                   int                       `json:"unread_answers"`
-	UnreadRepeats                   int                       `json:"unread_repeats"`
-	UnreadRetires                   int                       `json:"unread_retires"`
-	UnreadRetiresJoined             int                       `json:"unread_retires_joined"`
-	UnreadClosesRefused             int                       `json:"unread_closes_refused"`
-	UnsoundClosesRefused            int                       `json:"unsound_closes_refused"`
-	RepeatsRefused                  int                       `json:"repeats_refused"`
-	BudgetRefused                   int                       `json:"budget_refused"`
-	OneGapRefused                   int                       `json:"one_gap_refused"`
-	OneGapFindings                  int                       `json:"one_gap_findings"`
-	UnclassifiedMinted              int                       `json:"unclassified_minted"`
-	UnclassifiedRefused             int                       `json:"unclassified_refused"`
-	SupersedeDemandCarried          int                       `json:"supersede_demand_carried"`
-	Reproduces                      int                       `json:"reproduces"`
-	ReproducesWithClaim             int                       `json:"reproduces_with_claim"`
-	AnchorVerifies                  int                       `json:"anchor_verifies"`
-	AnchorVerifiesWithClaim         int                       `json:"anchor_verifies_with_claim"`
-	SpotChecksNamed                 int                       `json:"spot_checks_named"`
-	SpotChecksStamped               int                       `json:"spot_checks_stamped"`
-	SpotChecksWithChanges           int                       `json:"spot_checks_with_changes"`
-	StalenessForged                 int                       `json:"staleness_forged"`
-	StalenessReported               int                       `json:"staleness_reported"`
-	SupersedeDemandRefused          int                       `json:"supersede_demand_refused"`
-	RulerFilingsRefused             int                       `json:"ruler_filings_refused"`
-	ClosedRemandsRefused            int                       `json:"closed_remands_refused"`
-	TrifleRemandsRouted             int                       `json:"trifle_remands_routed"`
-	BlueRemandActs                  int                       `json:"blue_remand_acts"`
-	PastLimitRemandsRefused         int                       `json:"past_limit_remands_refused"`
-	RemandHolds                     int                       `json:"remand_holds"`
-	RemandReleases                  int                       `json:"remand_releases"`
-	LensTurns                       int                       `json:"lens_turns"`
-	FateTurns                       int                       `json:"fate_turns"`
-	ComposedHanded                  int                       `json:"composed_handed"`
-	ComposedGaps                    int                       `json:"composed_gaps"`
-	ComposedAnswers                 int                       `json:"composed_answers"`
-	LensWaits                       int                       `json:"lens_waits"`
-	LensAlone                       int                       `json:"lens_alone"`
-	DocketsAfterAudit               int                       `json:"dockets_after_audit"`
-	DocketedClosesRefused           int                       `json:"docketed_closes_refused"`
-	DocketedOffList                 int                       `json:"docketed_off_list"`
-	BenchRegrades                   int                       `json:"bench_regrades"`
-	HearingsAfterChair              int                       `json:"hearings_after_chair"`
-	HearingsAfterLens               int                       `json:"hearings_after_lens"`
-	HearingsAfterBlue               int                       `json:"hearings_after_blue"`
-	LockRefused                     int                       `json:"lock_refused"`
-	LockLifted                      int                       `json:"lock_lifted"`
-	GroundsRefused                  int                       `json:"grounds_refused"`
-	GroundsAdmitted                 int                       `json:"grounds_admitted"`
-	PartRefused                     map[string]int            `json:"part_refused"`
-	PartsRecorded                   int                       `json:"parts_recorded"`
-	FoundAgainstClosesRefused       int                       `json:"found_against_closes_refused"`
-	FoundAgainstRepeats             int                       `json:"found_against_repeats"`
-	FoundAgainstEdits               int                       `json:"found_against_edits"`
-	FoundAgainstRetires             int                       `json:"found_against_retires"`
-	FoundAgainstClearedByOwnReading int                       `json:"found_against_cleared_by_own_reading"`
-	FoundAgainstStage               string                    `json:"found_against_stage"`
-	SourceClosesRefused             int                       `json:"source_closes_refused"`
-	ReadingDemandRefused            int                       `json:"reading_demand_refused"`
-	Lifecycle                       lifecycleTally            `json:"lifecycle"`
-	NotTheWorkFlagsRefused          int                       `json:"not_the_work_flags_refused"`
-	NotTheWorkReadingsUnread        int                       `json:"not_the_work_readings_unread"`
-	MarkedSentenceRefused           int                       `json:"marked_sentence_refused"`
-	FoundSourceBudgetRefused        int                       `json:"found_source_budget_refused"`
-	FoundSourceRetriesRefused       int                       `json:"found_source_retries_refused"`
-	RepeatedSentenceGaps            int                       `json:"repeated_sentence_gaps"`
-	RepeatedSentenceAccepts         int                       `json:"repeated_sentence_accepts"`
-	ReadingsOverPrescriptions       int                       `json:"readings_over_prescriptions"`
-	ReadingsMinted                  int                       `json:"readings_minted"`
-	ReadingsHeld                    int                       `json:"readings_held"`
-	FoundSourceGaps                 int                       `json:"found_source_gaps"`
-	MaxOpenPerClassSentence         int                       `json:"max_open_per_class_sentence"`
-	OneGapBreach                    string                    `json:"one_gap_breach"`
-	FinalBlockers                   map[string]int            `json:"final_blockers"`
-	FinalParties                    []string                  `json:"final_parties"`
-	OpenByFoundBy                   map[string]int            `json:"open_by_found_by"`
-	MintsByEpoch                    map[int]int               `json:"mints_by_epoch"`
-	ClosesByEpoch                   map[int]int               `json:"closes_by_epoch"`
-	InquiryChecks                   int                       `json:"inquiry_checks"`
-	InquiryCheckRefused             map[string]int            `json:"inquiry_check_refused"`
-	InquiryUnseats                  int                       `json:"inquiry_unseats"`
+	Seed                       int64                     `json:"seed"`
+	Err                        string                    `json:"err"`
+	Verdict                    string                    `json:"verdict"`
+	Why                        string                    `json:"why"`
+	Epochs                     int                       `json:"epochs"`
+	EpochLimit                 bool                      `json:"epoch_limit"`
+	Dialectic                  map[string]int            `json:"dialectic"`
+	BlueSittings               int                       `json:"blue_sittings"`
+	BlueAgain                  int                       `json:"blue_again"`
+	CiteAnchors                int                       `json:"cite_anchors"`
+	CacheFiles                 int                       `json:"cache_files"`
+	EditAnswers                int                       `json:"edit_answers"`
+	VerifiedBasis              int                       `json:"verified_basis"`
+	FoundByMints               int                       `json:"found_by_mints"`
+	VerbatimApplied            int                       `json:"verbatim_applied"`
+	TypedVerbatim              int                       `json:"typed_verbatim"`
+	EstoppelMisses             map[string]int            `json:"estoppel_misses"`
+	ApplyMisses                map[string]int            `json:"apply_misses"`
+	Estoppels                  int                       `json:"estoppels"`
+	InquiryRecords             int                       `json:"inquiry_records"`
+	ClosingsFiled              int                       `json:"closings_filed"`
+	ClosingsRefused            int                       `json:"closings_refused"`
+	ClosingWaits               int                       `json:"closing_waits"`
+	PositionsWithheld          int                       `json:"positions_withheld"`
+	PositionsUpheldLens        int                       `json:"positions_upheld_lens"`
+	PositionsUpheldGaps        int                       `json:"positions_upheld_gaps"`
+	PositionsOverruled         int                       `json:"positions_overruled"`
+	OrdersRefused              int                       `json:"orders_refused"`
+	SpansRefused               int                       `json:"spans_refused"`
+	BareEvidenceRefused        int                       `json:"bare_evidence_refused"`
+	MintBareRefused            int                       `json:"mint_bare_refused"`
+	SourceSearches             int                       `json:"source_searches"`
+	CopiesRead                 map[string]map[string]int `json:"copies_read"`
+	FragmentsDriven            int                       `json:"fragments_driven"`
+	TruncationsDriven          int                       `json:"truncations_driven"`
+	LineCites                  int                       `json:"line_cites"`
+	BothRefused                int                       `json:"both_locators_refused"`
+	NeitherRefused             int                       `json:"no_locator_refused"`
+	PastTextRefused            int                       `json:"lines_past_text_refused"`
+	QuotesRefused              int                       `json:"quotes_refused"`
+	BridgesRefused             int                       `json:"bridges_refused"`
+	BridgesNamed               int                       `json:"bridges_named"`
+	ReopenedReadied            int                       `json:"reopened_readied"`
+	ReopenedPlans              int                       `json:"reopened_plans"`
+	UnsoundReadied             int                       `json:"unsound_readied"`
+	UnsoundPlans               int                       `json:"unsound_plans"`
+	UnsoundAnswers             int                       `json:"unsound_answers"`
+	UnsoundRepeats             int                       `json:"unsound_repeats"`
+	UnsoundOverOpen            int                       `json:"unsound_over_open"`
+	ComputationReopenedReadied map[string]int            `json:"computation_reopened_readied"`
+	OwedKept                   int                       `json:"owed_kept"`
+	ComputationOwedKept        int                       `json:"computation_owed_kept"`
+	OwedKeptBy                 map[string]int            `json:"owed_kept_by"`
+	OwnerWhys                  []string                  `json:"owner_whys,omitempty"`
+	OwnerOffered               int                       `json:"owner_offered"`
+	CitationsOffered           int                       `json:"citations_offered"`
+	UnreadAnswers              int                       `json:"unread_answers"`
+	UnreadRepeats              int                       `json:"unread_repeats"`
+	UnreadRetires              int                       `json:"unread_retires"`
+	UnreadRetiresJoined        int                       `json:"unread_retires_joined"`
+	UnreadClosesRefused        int                       `json:"unread_closes_refused"`
+	UnsoundClosesRefused       int                       `json:"unsound_closes_refused"`
+	RepeatsRefused             int                       `json:"repeats_refused"`
+	BudgetRefused              int                       `json:"budget_refused"`
+	OneGapRefused              int                       `json:"one_gap_refused"`
+	OneGapFindings             int                       `json:"one_gap_findings"`
+	UnclassifiedMinted         int                       `json:"unclassified_minted"`
+	UnclassifiedRefused        int                       `json:"unclassified_refused"`
+	SupersedeDemandCarried     int                       `json:"supersede_demand_carried"`
+	Reproduces                 int                       `json:"reproduces"`
+	ReproducesWithClaim        int                       `json:"reproduces_with_claim"`
+	AnchorVerifies             int                       `json:"anchor_verifies"`
+	AnchorVerifiesWithClaim    int                       `json:"anchor_verifies_with_claim"`
+	SpotChecksNamed            int                       `json:"spot_checks_named"`
+	SpotChecksStamped          int                       `json:"spot_checks_stamped"`
+	SpotChecksWithChanges      int                       `json:"spot_checks_with_changes"`
+	StalenessForged            int                       `json:"staleness_forged"`
+	StalenessReported          int                       `json:"staleness_reported"`
+	SupersedeDemandRefused     int                       `json:"supersede_demand_refused"`
+	RulerFilingsRefused        int                       `json:"ruler_filings_refused"`
+	ClosedRemandsRefused       int                       `json:"closed_remands_refused"`
+	TrifleRemandsRouted        int                       `json:"trifle_remands_routed"`
+	BlueRemandActs             int                       `json:"blue_remand_acts"`
+	PastLimitRemandsRefused    int                       `json:"past_limit_remands_refused"`
+	RemandHolds                int                       `json:"remand_holds"`
+	RemandReleases             int                       `json:"remand_releases"`
+	LensTurns                  int                       `json:"lens_turns"`
+	FateTurns                  int                       `json:"fate_turns"`
+	ComposedHanded             int                       `json:"composed_handed"`
+	ComposedGaps               int                       `json:"composed_gaps"`
+	ComposedAnswers            int                       `json:"composed_answers"`
+	LensWaits                  int                       `json:"lens_waits"`
+	LensAlone                  int                       `json:"lens_alone"`
+	DocketsAfterAudit          int                       `json:"dockets_after_audit"`
+	DocketedClosesRefused      int                       `json:"docketed_closes_refused"`
+	DocketedOffList            int                       `json:"docketed_off_list"`
+	BenchRegrades              int                       `json:"bench_regrades"`
+	HearingsAfterChair         int                       `json:"hearings_after_chair"`
+	HearingsAfterLens          int                       `json:"hearings_after_lens"`
+	HearingsAfterBlue          int                       `json:"hearings_after_blue"`
+	LockRefused                int                       `json:"lock_refused"`
+	LockLifted                 int                       `json:"lock_lifted"`
+	GroundsRefused             int                       `json:"grounds_refused"`
+	GroundsAdmitted            int                       `json:"grounds_admitted"`
+	PartRefused                map[string]int            `json:"part_refused"`
+	PartsRecorded              int                       `json:"parts_recorded"`
+	SourceClosesRefused        int                       `json:"source_closes_refused"`
+	Lifecycle                  lifecycleTally            `json:"lifecycle"`
+	Reading                    readingTally              `json:"reading"`
+	NotTheWorkReadingsUnread   int                       `json:"not_the_work_readings_unread"`
+	MarkedSentenceRefused      int                       `json:"marked_sentence_refused"`
+	FoundSourceRetriesRefused  int                       `json:"found_source_retries_refused"`
+	MaxOpenPerClassSentence    int                       `json:"max_open_per_class_sentence"`
+	OneGapBreach               string                    `json:"one_gap_breach"`
+	FinalBlockers              map[string]int            `json:"final_blockers"`
+	FinalParties               []string                  `json:"final_parties"`
+	OpenByFoundBy              map[string]int            `json:"open_by_found_by"`
+	MintsByEpoch               map[int]int               `json:"mints_by_epoch"`
+	ClosesByEpoch              map[int]int               `json:"closes_by_epoch"`
+	InquiryChecks              int                       `json:"inquiry_checks"`
+	InquiryCheckRefused        map[string]int            `json:"inquiry_check_refused"`
+	InquiryUnseats             int                       `json:"inquiry_unseats"`
 }
 
 // tallyOf is the run's tally.
@@ -282,7 +267,7 @@ func tallyOf(o outcome) runTally {
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
-		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, SourceClosesRefused: o.sourceClosesRefused, ReadingDemandRefused: o.readingDemandRefused, Lifecycle: o.lifecycle.tally(), FoundAgainstStage: o.foundAgainstStage, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
+		SourceClosesRefused: o.sourceClosesRefused, Lifecycle: o.lifecycle.tally(), Reading: o.reading.tally(), NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
 
@@ -656,27 +641,18 @@ type sweepFold struct {
 	applyMisses, estoppelMisses                     map[string]int
 	partRefused                                     map[string]int
 	partsRecorded, multiPartRuns                    int
-	// THE READING THAT MINTS ITS GAP: each count summed over the runs, and the most open gaps of one
-	// class any run ended with in one sentence.
-	foundAgainstClosesRefused, foundAgainstRepeats int
-	foundAgainstEdits, foundAgainstRetires         int
-	foundAgainstClearedByOwnReading                int
-	// sourceClosesRefused and readingDemandRefused: closes of `source` gaps nothing answers refused
-	// by the live-answer demand, and those of them whose gap carries a reading.
-	sourceClosesRefused, readingDemandRefused int
-	// lifecycle is the anchor lifecycle's counts summed over the runs (lifecycleTally).
-	lifecycle lifecycleTally
-	// foundAgainstStage is the last step foundAgainstSeed's chain reached, from the one run forced
-	// through it.
-	foundAgainstStage                                string
-	notTheWorkFlagsRefused, notTheWorkReadingsUnread int
-	markedSentenceRefused, foundSourceBudgetRefused  int
-	foundSourceRetriesRefused                        int
-	repeatedSentenceGaps, repeatedSentenceAccepts    int
-	readingsOverPrescriptions                        int
-	readingsMinted, readingsHeld, foundSourceGaps    int
-	maxOpenPerClassSentence                          int
-	oneGapBreach                                     string
+	// sourceClosesRefused: closes of `source` gaps nothing answers refused by the live-answer demand.
+	sourceClosesRefused int
+	// lifecycle is the anchor lifecycle's counts summed over the runs (lifecycleTally); reading the
+	// reading-and-debt counts (readingTally).
+	lifecycle                 lifecycleTally
+	reading                   readingTally
+	notTheWorkReadingsUnread  int
+	markedSentenceRefused     int
+	foundSourceRetriesRefused int
+	// maxOpenPerClassSentence is the most open gaps of one class any run ended with in one sentence.
+	maxOpenPerClassSentence int
+	oneGapBreach            string
 	// WHAT HELD EACH RUN OPEN, by its verdict (PR #1642's four, F7): the final plans' blockers by
 	// kind, the seats they readied, and the gaps open at the end by what surfaced each, each summed
 	// over the runs of that verdict; and the gaps minted and closed in each epoch, over every run.
@@ -800,30 +776,12 @@ func foldRuns(runs []runTally) sweepFold {
 		f.unreadRetiresJoined += r.UnreadRetiresJoined
 		f.unreadClosesRefused += r.UnreadClosesRefused
 		f.unsoundClosesRefused += r.UnsoundClosesRefused
-		f.foundAgainstClosesRefused += r.FoundAgainstClosesRefused
-		f.foundAgainstRepeats += r.FoundAgainstRepeats
-		f.foundAgainstEdits += r.FoundAgainstEdits
-		f.foundAgainstRetires += r.FoundAgainstRetires
-		f.foundAgainstClearedByOwnReading += r.FoundAgainstClearedByOwnReading
 		f.sourceClosesRefused += r.SourceClosesRefused
-		f.readingDemandRefused += r.ReadingDemandRefused
 		f.lifecycle.add(r.Lifecycle)
-		// THE LEAST STAGE, so the fold names the same one whatever order the runs arrive in; one run
-		// in a sweep is forced through the chain.
-		if s := r.FoundAgainstStage; s != "" && (f.foundAgainstStage == "" || s < f.foundAgainstStage) {
-			f.foundAgainstStage = s
-		}
-		f.notTheWorkFlagsRefused += r.NotTheWorkFlagsRefused
+		f.reading.add(r.Reading)
 		f.notTheWorkReadingsUnread += r.NotTheWorkReadingsUnread
 		f.markedSentenceRefused += r.MarkedSentenceRefused
-		f.foundSourceBudgetRefused += r.FoundSourceBudgetRefused
 		f.foundSourceRetriesRefused += r.FoundSourceRetriesRefused
-		f.repeatedSentenceGaps += r.RepeatedSentenceGaps
-		f.repeatedSentenceAccepts += r.RepeatedSentenceAccepts
-		f.readingsOverPrescriptions += r.ReadingsOverPrescriptions
-		f.readingsMinted += r.ReadingsMinted
-		f.readingsHeld += r.ReadingsHeld
-		f.foundSourceGaps += r.FoundSourceGaps
 		f.maxOpenPerClassSentence = max(f.maxOpenPerClassSentence, r.MaxOpenPerClassSentence)
 		// THE LEAST BREACH, so the fold names the same one whatever order the runs arrive in.
 		if b := r.OneGapBreach; b != "" && (f.oneGapBreach == "" || b < f.oneGapBreach) {
@@ -1199,15 +1157,20 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.oneGapRefused == 0 || f.oneGapFindings == 0 {
 			t.Errorf("fuzz drove %d mints refused over an open gap of their class and subject and %d findings about that gap across %d runs — both must be non-zero, or the one-gap rule is unexercised (false green)", f.oneGapRefused, f.oneGapFindings, f.completed)
 		}
-		// THE READING GATES. A reading that finds a defect in its sentence mints its gap in its own act,
-		// and each path of that act — and of the failed check it leaves — is reached only by the drive
-		// built for it; a path that stopped being reached would hide behind a green sweep. Every count
-		// is taken after the record's answer was read, the minted and held ones off the stored record.
-		t.Logf("readings: %d minted their gap, %d named a standing one; %d found-source gap(s); the most open gaps of one class in one sentence at a run's end: %d",
-			f.readingsMinted, f.readingsHeld, f.foundSourceGaps, f.maxOpenPerClassSentence)
-		t.Logf("found against: %d close(s) refused, %d repeat(s) refused, %d edit(s) and %d retire(s) by blue, %d cleared by the reader's own re-read and closed; seed %d's forced chain reached: %s",
-			f.foundAgainstClosesRefused, f.foundAgainstRepeats, f.foundAgainstEdits, f.foundAgainstRetires, f.foundAgainstClearedByOwnReading, foundAgainstSeed, cmp.Or(f.foundAgainstStage, "no stage (its run is not in this tally)"))
-		t.Logf("live-answer demand: %d close(s) of a source gap refused, %d of them of a gap carrying a reading; seed %d's run is forced through both", f.sourceClosesRefused, f.readingDemandRefused, sourceDemandSeed)
+		// THE READING GATES (plans/gap-is-the-one-holder.md §V check 12). A reading records and holds
+		// nothing; the gap of the class it obliges is a mint on the lens's standing reading, and a reading
+		// that finds against is the lens's debt until that gap or a re-read. Each path — the refusal, the
+		// admitted mint in each form, the one-gap rule's arms over it, the debt on each surface and each of
+		// its discharges — is reached only by the drive built for it; a path that stopped being reached
+		// would hide behind a green sweep. Every count is taken after the record's answer was read.
+		t.Logf("readings and debts: %+v; the most open gaps of one class in one sentence at a run's end: %d; seed %d's run is forced through the debt's life on a cited source, seed %d's through the discharges no draw reaches, seed %d's ends on a standing debt",
+			f.reading, f.maxOpenPerClassSentence, readingDebtSeed, readingRemovalSeed, limitSeed)
+		t.Logf("live-answer demand: %d close(s) of a source gap refused; seed %d's run is forced through both refusals", f.sourceClosesRefused, sourceDemandSeed)
+		for _, c := range f.reading.gates() {
+			if c.n == 0 {
+				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", c.what, f.completed)
+			}
+		}
 		// THE ANCHOR LIFECYCLE'S GATES (plans/compute-and-show.md III.1′.7): each act and refusal 1a′ adds,
 		// every one driven by seed lifecycleSeed's run, and the assembly screen by limitSeed's.
 		t.Logf("anchor lifecycle: %+v; seed %d's run is forced through every arm, seed %d's ends on a live unsound computation", f.lifecycle, lifecycleSeed, limitSeed)
@@ -1245,23 +1208,10 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			n    int
 			what string
 		}{
-			{f.readingsMinted, "readings that minted their gap in their own act (carrier_minted)"},
-			{f.readingsHeld, "readings the one-gap rule refused a mint, naming the standing gap (carried_by, not carrier_minted)"},
-			{f.foundAgainstClosesRefused, "closes refused of a gap carrying a found-against check still standing"},
-			{f.foundAgainstEdits + f.foundAgainstRetires, "remedies by blue of a found-against check (an edit of its sentence, or a retire of its citation)"},
-			{f.foundAgainstClearedByOwnReading, "closes admitted after the reader's own backing re-read cleared its found-against check"},
 			{f.sourceClosesRefused, "closes of a source gap nothing answers, refused by its live-answer demand"},
-			{f.readingDemandRefused, "closes of a source gap carrying a reading nothing answers, refused by its live-answer demand"},
-			{f.foundAgainstRepeats, "repeat readings refused over the lens's own standing found-against check"},
-			{f.notTheWorkFlagsRefused, "gap flags refused on a reading of a copy that is not the work"},
 			{f.notTheWorkReadingsUnread, "readings of a copy that is not the work leaving the citation unread"},
-			{f.foundSourceGaps, "found-source readings that minted an unsourced_claim or claim_contradicts_source gap"},
 			{f.markedSentenceRefused, "backing found-source readings of a marked sentence refused"},
-			{f.foundSourceBudgetRefused, "minting found-source readings refused at the lens's cap"},
 			{f.foundSourceRetriesRefused, "identical found-source readings in one sitting refused"},
-			{f.repeatedSentenceGaps, "reading gaps placed at the copy of a twice-held sentence their citation marks"},
-			{f.repeatedSentenceAccepts, "accepts of a reading's fix applied to the cited copy of a twice-held sentence alone"},
-			{f.readingsOverPrescriptions, "reading gaps opened over text blue applied from a red --new, with no estoppel"},
 		} {
 			if c.n == 0 {
 				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", c.what, f.completed)

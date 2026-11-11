@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -571,6 +572,89 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)
 	}
+}
+
+// A REWORD ENDS ESTOPPEL AND A RE-APPLY RESTORES IT (plans/gap-is-the-one-holder.md F12), through
+// the verbs: a lens's mint quoting red's applied text is refused naming the prescribing gap; once blue
+// rewords the sentence the same mint lands, the span being blue's; once blue puts its words back and
+// accepts red's text again, the mint is refused again. record.TestARewordEndsEstoppel pins the fold;
+// this pins the refusal the mint verb gives on the record the edits wrote.
+func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
+	runDir := newRun(t)
+	prior := seedProposalApplied(t, runDir)
+	const other = "red-lens-logic"
+	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
+		t.Fatalf("register %s: %v\n%s", other, err, out)
+	}
+	// 76 characters of red's text, the sentence's end left out so the reword can extend it.
+	const quote = "Five verification approaches agree, all sharing one definition of primality"
+	// Each admitted-or-refused question is asked in a class no gap on the sentence holds, so the only
+	// refusal open to it is estoppel's: one class per subject would refuse (c)'s mint on its own.
+	mint := func(key, class string) error {
+		t.Helper()
+		_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other,
+			"--key", key, "--class", class, "--quote", quote,
+			"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
+			"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
+		return err
+	}
+	estopped := func(stage string, err error) {
+		t.Helper()
+		if err == nil {
+			t.Fatalf("%s: a mint quoting red's applied text landed", stage)
+		}
+		for _, want := range []string{"estoppel", prior} {
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("%s: the refusal does not name %q: %v", stage, want, err)
+			}
+		}
+	}
+	editAt := func(key, from, to string) {
+		t.Helper()
+		if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+			"--key", key, "--quote", from, "--new", to, "--reason", "r"); err != nil {
+			t.Fatalf("blue's edit %s: %v\n%s", key, err, readReport(t, runDir))
+		}
+	}
+	tok := "<!--gap:" + prior + "-->"
+
+	// (a) red's text applied verbatim estops.
+	estopped("(a) applied", mint("R1", "risk_coverage_omission"))
+
+	// (b) blue rewords the sentence the fix placed the gap's token in; the mint lands.
+	applied := quote + tok + "."
+	if !strings.Contains(readReport(t, runDir), applied) {
+		t.Fatalf("the applied sentence %q is not in the report:\n%s", applied, readReport(t, runDir))
+	}
+	editAt("W1", applied, quote+", on every input tried"+tok+".")
+	if err := mint("R2", "risk_coverage_omission"); err != nil {
+		t.Fatalf("(b) reworded: a mint of the text blue reworded was refused — a reword ends estoppel: %v", err)
+	}
+
+	// (c) blue puts its own words back and accepts red's text again; the mint is refused again.
+	report := readReport(t, runDir)
+	at := strings.Index(report, quote)
+	if at < 0 {
+		t.Fatalf("the reworded sentence is not in the report:\n%s", report)
+	}
+	end := strings.Index(report[at:], "\n")
+	if end < 0 {
+		t.Fatalf("the reworded sentence has no line end:\n%s", report)
+	}
+	reworded := report[at : at+end]
+	var anchors strings.Builder
+	for _, id := range anchor.IDs(reworded) {
+		anchors.WriteString(anchor.Token(id))
+	}
+	editAt("W2", reworded, "Five independent verification approaches agree"+anchors.String()+".")
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A2", "--answers", prior, "--accept", "--reason", "red's wording after all"); err != nil {
+		t.Fatalf("(c) blue's re-application of red's text: %v\n%s", err, readReport(t, runDir))
+	}
+	if !lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
+		t.Fatal("(c) the re-application is not recorded as verbatim")
+	}
+	estopped("(c) re-applied", mint("R3", "false_universal"))
 }
 
 // --- blue edit --accept: the tool supplies red's text so blue cannot mis-transcribe it -------

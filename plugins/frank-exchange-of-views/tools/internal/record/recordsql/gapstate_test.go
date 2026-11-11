@@ -139,9 +139,9 @@ func gapIs(gap, cond string) string {
 }
 
 // gapStateSteps is a record that moves every column of gap_state through every marker trigger, one
-// act per step, with the state each act leaves, including the three paths no archived run holds: a
-// reading carried by a gap, an upheld position's remand, and an evidence demand carried to an heir by
-// supersession.
+// act per step, with the state each act leaves, including the three paths no archived run holds: the
+// minter's re-read of the anchor its gap is about, an upheld position's remand, and an evidence demand
+// carried to an heir by supersession.
 func gapStateSteps(r *demandRecord) []gapStep {
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
 	supports, refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
@@ -166,12 +166,16 @@ func gapStateSteps(r *demandRecord) []gapStep {
 				gapIs("H", `"open" AND "supersedes_count" = 1 AND NOT "evidence_answered" AND "awaiting_evidence"`),
 			}
 		}},
-		// A reading carried by the ancestor, after the heir's mint, by another seat: it meets A and,
-		// through the inherited reach, H; its refutation unmeets both.
-		{func() { r.verify(other, "C1", "A", supports) }, func() []string {
+		// Another seat's reading of the ancestor's anchor meets nothing: the demand is the minter's.
+		{func() { r.verify(other, "C1", "", supports) }, func() []string {
+			return []string{gapIs("A", `NOT "evidence_answered"`), gapIs("H", `NOT "evidence_answered" AND "awaiting_evidence"`)}
+		}},
+		// The minter's re-read of the anchor, after the heir's mint: it meets A and, through the
+		// inherited reach, H; its refutation unmeets both.
+		{func() { r.verify(reader, "C1", "", supports) }, func() []string {
 			return []string{gapIs("A", `"evidence_answered"`), gapIs("H", `"evidence_answered" AND NOT "awaiting_evidence"`)}
 		}},
-		{func() { r.verify(other, "C1", "A", refutes) }, func() []string {
+		{func() { r.verify(reader, "C1", "", refutes) }, func() []string {
 			return []string{gapIs("A", `NOT "evidence_answered"`), gapIs("H", `NOT "evidence_answered" AND "awaiting_evidence"`)}
 		}},
 		// A retire of the ancestor's anchor after the heir's mint meets the heir.
@@ -261,8 +265,8 @@ func gapStateFirstClosures(t *testing.T, db *sql.DB) map[string]string {
 
 // THE STORED GAP STATE IS THE RULES', AT EVERY EVENT, ON EVERY SHAPE. Each step's act leaves the
 // state the fixture states for it, and the stored state, kept append by append through the marker
-// triggers, is the refresh asked of every gap at once: a reading carried by a gap, an upheld
-// position's remand, an evidence demand an heir carries from its ancestor, a check before its anchor,
+// triggers, is the refresh asked of every gap at once: the minter's re-read of its gap's anchor, an
+// upheld position's remand, an evidence demand an heir carries from its ancestor, a check before its anchor,
 // a failing recheck, a carry close after the answers retire, a supersession of a closed gap, an older
 // docket standing again under a remand, and a bench closure red's later close overrules.
 func TestTheStoredGapStateIsTheRules(t *testing.T) {

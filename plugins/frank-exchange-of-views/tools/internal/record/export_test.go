@@ -31,7 +31,7 @@ func OwedBlocker(kind BlockerKind, subject string) string {
 // or the lens whose check failed — carried by a gap and by none, before and after seat sat since.
 func FailedCheckReadiness(seat, owner, subject string, since func() int64) []string {
 	var out []string
-	for _, state := range []CheckState{CheckUnread, CheckUnsound, CheckFoundAgainst} {
+	for _, state := range []CheckState{CheckUnread, CheckUnsound} {
 		for _, carrier := range []string{"", "G-1"} {
 			for _, satSince := range []bool{false, true} {
 				out = append(out, failedCheckReadiness(Blocker{Kind: BlockerFailedCheck, Subject: subject, Owner: owner, state: state, since: since(), answeredBy: carrier}, seat, satSince))
@@ -54,7 +54,7 @@ func BlockerWhy(subject func(BlockerKind) string, owner, detail string, since, l
 			out = append(out, k.why(Blocker{Kind: k.kind, Subject: subject(k.kind), Owner: owner, Detail: detail, since: since(), lastCheck: lastCheck()}))
 			continue
 		}
-		for _, state := range []CheckState{CheckUnread, CheckUnsound, CheckFoundAgainst} {
+		for _, state := range []CheckState{CheckUnread, CheckUnsound} {
 			for _, carrier := range []string{"", "G-1"} {
 				out = append(out, k.why(Blocker{Kind: k.kind, Subject: subject(k.kind), Owner: owner, state: state, since: since(), answeredBy: carrier}))
 			}

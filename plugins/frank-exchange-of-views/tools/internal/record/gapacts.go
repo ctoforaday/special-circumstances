@@ -25,7 +25,7 @@ import (
 //   - blue: an edit answering it, an evidence anchor (a citation or a computation) placed as its
 //     answer, a changed fate (fateActsOf) on the inquiry it is anchored on or that the section it is
 //     anchored on prints, a closing, and a REACHING RETIRE — a retire taking out the anchor the gap is
-//     about, or the anchor of a reading it carries, whatever gap the retire named
+//     about, whatever gap the retire named
 //     (WindowIndex.Reaches). Without it a retire that meets the gap's demand leaves the lens's turn
 //     never coming, and the plan readies blue alone on a gap only its lens can close;
 //   - the lens whose check it is: a check (`verify` or `reproduce`) of an anchor placed as its answer.

@@ -24,9 +24,9 @@ const m23SourceSentence = "91 is not a prime number. It is a composite number."
 // M23'S ARCHIVED READING OF A SOURCE THE LENS FOUND HOLDS NOTHING, AND THIS BINARY REFUSES IT LIVE.
 //
 // The lens read a source that contradicts the report and quoted the source, not the report. The
-// archive records it (event 392), and the run ended UNVERIFIED by the bench's assertion. A reading's
-// PASS hold is now the gap its act mints; an archived reading carries no carried_by, migrate mints no
-// gap for it (its grades would be fabricated), and a reading of a source the lens found names no
+// archive records it (event 392), and the run ended UNVERIFIED by the bench's assertion. A reading
+// holds nothing; the gap a lens mints on it holds the PASS. Migrate mints no gap for an archived
+// reading (its grades would be fabricated), and a reading of a source the lens found names no
 // anchor for the ledger to hold — so the migrated reading holds nothing. That loss is accepted and
 // stated (gblock, 2026-10-30, GAP 2): the recorded outcome does not move, and the run's own stale
 // areas still refuse a PASS at its end.
@@ -62,9 +62,6 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 	was, _ := recordpb.BodyAs[*recordpb.Verify](fam.Events[at])
 	if was.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES || fam.Events[at].GetSeatId() != "red-lens-evidence" || was.GetAnchor() != "" {
 		t.Fatalf("event 392 is %s by %s on anchor %q, want the evidence lens's refutes of a source it found", was.GetOutcome(), fam.Events[at].GetSeatId(), was.GetAnchor())
-	}
-	if was.CarriedBy != nil || was.CarrierMinted != nil {
-		t.Errorf("the archived reading carries carried_by %q / carrier_minted %v, want neither: migrate mints no gap for it", was.GetCarriedBy(), was.CarrierMinted)
 	}
 	blockers, err := record.PassBlockers(dst)
 	if err != nil {
@@ -108,10 +105,9 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 		return [3]int{countEvents(t, dir, recordpb.EventType_EVENT_TYPE_VERIFY), countEvents(t, dir, recordpb.EventType_EVENT_TYPE_MINT), countEvents(t, dir, recordpb.EventType_EVENT_TYPE_ANCHOR)}
 	}
 	before := counts()
-	_, err = run(t, append([]string{"verify", "--run", dir, "--seat-id", "red-lens-evidence",
+	_, err = run(t, "verify", "--run", dir, "--seat-id", "red-lens-evidence",
 		"--url", was.GetUrl(), "--title", was.GetTitle(), "--quote", m23SourceSentence,
-		"--as", "refutes", "--confidence", recordpb.Word(was.GetConfidence()), "--reason", was.GetText()},
-		gapFlagArgs("claim_contradicts_source")...)...)
+		"--as", "refutes", "--confidence", recordpb.Word(was.GetConfidence()), "--reason", was.GetText())
 	if err == nil {
 		t.Fatal("this binary records m23's event 392: a refuting reading quoting the source's sentence")
 	}

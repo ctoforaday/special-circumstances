@@ -316,6 +316,22 @@ func CountsAsClaim(id string) bool { return rowOf(id).backs }
 // Backs reports whether an anchor of id's kind is evidence standing behind its sentence.
 func Backs(id string) bool { return rowOf(id).backs }
 
+// BackingMark is the first evidence anchor — one whose kind backs its sentence — whose token sits in
+// sentence, read as anchors and never searched as text; "" where none marks it. It is the ONE
+// predicate for "this sentence carries evidence": the reading guard that refuses a backing reading
+// of a marked sentence and the reading debt a found source read silent on an uncited sentence creates
+// both ask it. claimcount.BareAnchorIDs is not it — that lists anchors with no prose before them, so a
+// citation at the end of a sentence's prose would read as unmarked.
+func BackingMark(sentence string) string {
+	marked := ""
+	Each(sentence, func(_, _ int, id string) {
+		if marked == "" && Backs(id) {
+			marked = id
+		}
+	})
+	return marked
+}
+
 // Label describes an anchor by its kind and its token, so a seat is told which KIND of anchor its
 // edit would have disturbed and holds the text to carry. It names the token, never the bare id: a
 // finding id in text stands beside its lens's area (record.FindingRef), which no reader of report

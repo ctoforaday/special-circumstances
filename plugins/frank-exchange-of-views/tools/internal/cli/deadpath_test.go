@@ -613,17 +613,23 @@ func flatten(e ast.Expr, parts *[]string, leaves *[]ast.Expr) {
 	*parts = append(*parts, " ")
 }
 
-// THE CHAIR'S PASS OVER A READING'S GAP IS REFUSED NAMING IT. A lens's reading of a source it found
-// that refutes a sentence mints a claim_contradicts_source gap in its own act, material by its
-// class, and the chair's PASS is refused while it is open — driven through the chair's own tree.
+// THE CHAIR'S PASS OVER THE GAP A LENS MINTS ON ITS READING IS REFUSED NAMING IT. A lens's reading of
+// a source it found that refutes a sentence is the ground of a claim_contradicts_source gap quoting
+// the sentence, material by its class, and the chair's PASS is refused while it is open — driven
+// through the chair's own tree.
 func TestThePassRefusalOverAReadingsGapNamesIt(t *testing.T) {
 	runDir := foundSourceRun(t)
-	out, err := run(t, append([]string{"--json", "verify", "--run", runDir, "--seat-id", lensSeat,
+	out, err := run(t, "--json", "verify", "--run", runDir, "--seat-id", lensSeat,
 		"--url", "https://example.org/contradicts", "--title", "A source that disagrees",
 		"--quote", foundSentence, "--as", "refutes", "--confidence", "high",
-		"--reason", "the source says the opposite at page 9"}, gapFlagArgs("claim_contradicts_source")...)...)
+		"--reason", "the source says the opposite at page 9")
 	if err != nil {
 		t.Fatalf("verify --url --as refutes: %v\n%s", err, out)
+	}
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat, "--quote", foundSentence, "--class", "claim_contradicts_source",
+		"--problem", "the source says otherwise than the sentence", "--fix", "the fix", "--check", "the sentence states what the source says",
+		"--check-kind", "source", "--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
+		t.Fatalf("the gap on the reading: %v", err)
 	}
 	gap := lastBody(t, runDir, &recordpb.Mint{}).GetGapId()
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {

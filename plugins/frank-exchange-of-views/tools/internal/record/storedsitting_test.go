@@ -471,8 +471,15 @@ func TestTheWorkListsEpochIsTheStoredSitting(t *testing.T) {
 // evidenceJSONT is EvidenceJSONOf over evs as the write path stores them.
 func evidenceJSONT(t *testing.T, evs []*Event) EvidenceJSON {
 	t.Helper()
+	return evidenceJSONIn(t, "", evs...)
+}
+
+// evidenceJSONIn is evidenceJSONT located on report, the rendered text the rows' sentences are
+// found in; "" is a report no anchor is in, so every row reads `gone`.
+func evidenceJSONIn(t *testing.T, report string, evs ...*Event) EvidenceJSON {
+	t.Helper()
 	m := loadedT(t, evs...)
-	return EvidenceJSONOf(m.Events, m.At)
+	return EvidenceJSONOf(m.Events, m.At, report, nil)
 }
 
 // findingsJSONT is FindingsJSONOf over evs as the write path stores them.

@@ -6,7 +6,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
@@ -34,18 +33,6 @@ func repeatedRun(t *testing.T) readingBoard {
 	return b
 }
 
-// section is the text of the report section headed h.
-func section(report, h string) string {
-	_, after, ok := strings.Cut(report, "# "+h+"\n")
-	if !ok {
-		return ""
-	}
-	if i := strings.Index(after, "\n# "); i >= 0 {
-		return after[:i]
-	}
-	return after
-}
-
 // replays fails the test unless the record's report ops replay from empty to the written render.
 func replays(t *testing.T, runDir string) {
 	t.Helper()
@@ -62,46 +49,33 @@ func replays(t *testing.T, runDir string) {
 	}
 }
 
-// 25. A citation reading places its gap by the anchor's identity, never by the sentence's words (F9).
-func TestAVerifyOfARepeatedSentencePlacesItsGapByTheAnchor(t *testing.T) {
+// 25. A reading of a citation in a repeated sentence is keyed on the anchor, never on the sentence's
+// words: the gap minted about it is about the citation, and a plain mint quoting a clause-cited
+// sentence lands at its end.
+func TestAReadingOfARepeatedSentenceIsKeyedOnTheAnchor(t *testing.T) {
 	cc := "claim_contradicts_source"
-	var g string
 	b := repeatedRun(t)
-	c1, c2, c3 := b.cs[0], b.cs[1], b.cs[2]
+	c1, c2 := b.cs[0], b.cs[1]
 	t.Run("a: the second copy's citation", func(t *testing.T) {
-		r := b.mustRead(lensL, citeReading(c2, "refutes", cc)...)
-		g = mintedBy(t, b, lensL, r, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, bySentenceOf(c2))
-		rep := readReport(t, b.runDir)
-		if strings.Contains(section(rep, "One"), anchor.Token(g)) || !strings.Contains(section(rep, "Two"), "rising sharply"+anchor.Token(g)+anchor.Token(c2)+".") {
-			t.Errorf("G is not at the end of the second copy alone:\n%s", rep)
+		b.mustRead(lensL, citeReading(c2, "refutes")...)
+		g, out, err := b.mintSource(lensL, cc, about(c2)...)
+		if err != nil {
+			t.Fatalf("the gap about C-2: %v\n%s", err, out)
 		}
-		og := openGap(t, b.runDir, g)
-		if !strings.Contains(og.Passage, "More text follows") {
-			t.Errorf("the board puts G in passage %q, want the second section's", og.Passage)
-		}
-	})
-	t.Run("b: a second lens names it", func(t *testing.T) {
-		r := b.mustRead(lensM, citeReading(c2, "refutes", cc)...)
-		if r.Gap == nil || r.Gap.ID != g || r.Gap.Minted {
-			t.Errorf("a second lens's reading of C-2 = %+v, want %s named", r.Gap, g)
+		mintedAbout(t, b.runDir, g, c2)
+		if rep := readReport(t, b.runDir); strings.Contains(rep, anchor.Token(g)) {
+			t.Errorf("a gap about a citation placed a token:\n%s", rep)
 		}
 	})
-	t.Run("c: the first copy's citation mints its own", func(t *testing.T) {
-		r := b.mustRead(lensN, citeReading(c1, "refutes", cc)...)
-		if r.Gap == nil || !r.Gap.Minted || r.Gap.ID == g {
-			t.Errorf("a reading of C-1 = %+v, want a gap of its own", r.Gap)
+	t.Run("c: the first copy's citation is its own subject", func(t *testing.T) {
+		b.mustRead(lensN, citeReading(c1, "refutes")...)
+		if _, out, err := b.mintSource(lensN, cc, about(c1)...); err != nil {
+			t.Fatalf("a gap about C-1 beside the open gap about C-2: %v\n%s", err, out)
 		}
 	})
-	t.Run("d: a clause-cited sentence takes its gap at the sentence's end", func(t *testing.T) {
-		r := b.mustRead(lensP, citeReading(c3, "refutes", cc)...)
-		g3 := r.Gap.ID
-		want := "through a cold winter" + anchor.Token(g3) + "."
-		if rep := readReport(t, b.runDir); !strings.Contains(rep, want) {
-			t.Errorf("the clause-cited sentence's gap is not at its end (%q):\n%s", want, rep)
-		}
-		// A plain mint quoting the whole sentence lands at the same place.
+	t.Run("d: a plain mint quoting a clause-cited sentence lands at its end", func(t *testing.T) {
 		p := repeatedRun(t)
-		pg, err := p.plainMint(lensP, rpClause, cc)
+		pg, err := p.plainMint(lensP, rpClause, "spec_underspecification")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -109,63 +83,9 @@ func TestAVerifyOfARepeatedSentencePlacesItsGapByTheAnchor(t *testing.T) {
 			t.Errorf("the plain mint's gap lands elsewhere:\n%s", rep)
 		}
 	})
-	t.Run("e: a verified fix over the repeated sentence is accepted at the second copy", func(t *testing.T) {
-		b := repeatedRun(t)
-		c2 := b.cs[1]
-		newText := "The quarter closed with costs rising modestly" + anchor.Token(c2) + "."
-		r := b.mustRead(lensL, citeReading(c2, "refutes", cc, "--new", newText)...)
-		g := r.Gap.ID
-		if og := openGap(t, b.runDir, g); og.FixBasis != "verified" {
-			t.Errorf("fix_basis %q, want verified", og.FixBasis)
-		}
-		old, nw := boardPair(t, b.runDir, g)
-		first := section(readReport(t, b.runDir), "One")
-		if err := acceptEdit(t, b.runDir, "A", g, "--accept"); err != nil {
-			t.Fatalf("the accept: %v", err)
-		}
-		rep := readReport(t, b.runDir)
-		if section(rep, "One") != first {
-			t.Errorf("the accept moved the first copy:\n%s", rep)
-		}
-		if !strings.Contains(section(rep, "Two"), "rising modestly") {
-			t.Errorf("the accept did not apply at the second copy:\n%s", rep)
-		}
-		e := lastBody(t, b.runDir, &recordpb.BlueEdit{})
-		if !e.GetExactSpan() {
-			t.Error("the accept of a repeated span is not recorded with exact_span")
-		}
-		if e.GetOld() != old || e.GetNew() != nw {
-			t.Errorf("the accept applied %q → %q, the board serves %q → %q", e.GetOld(), e.GetNew(), old, nw)
-		}
-		replays(t, b.runDir)
-	})
-	t.Run("f: a verified fix on the clause-cited sentence moves its gap to the end", func(t *testing.T) {
-		b := repeatedRun(t)
-		c3 := b.cs[2]
-		newText := "Margins held, by the survey's count" + anchor.Token(c3) + ", through a mild winter."
-		g := b.mustRead(lensL, citeReading(c3, "refutes", cc, "--new", newText)...).Gap.ID
-		if err := acceptEdit(t, b.runDir, "A", g, "--accept"); err != nil {
-			t.Fatalf("the accept: %v", err)
-		}
-		if rep := readReport(t, b.runDir); !strings.Contains(rep, "through a mild winter"+anchor.Token(g)+".") {
-			t.Errorf("G's token is not at the end of --new:\n%s", rep)
-		}
-		replays(t, b.runDir)
-	})
-	t.Run("g: a fix the accept would refuse names the reading's subject", func(t *testing.T) {
-		b := repeatedRun(t)
-		_, err := b.verify(lensL, citeReading(b.cs[1], "refutes", cc, "--new", "Costs were flat.")...)
-		mustRefuse(t, err, "", "the sentence your --anchor's token sits in")
-		if err != nil && strings.Contains(err.Error(), "--quote") {
-			t.Errorf("a citation reading's refusal names --quote: %v", err)
-		}
-		if c := b.counts(); c != [3]int{} {
-			t.Errorf("the refusal wrote verify/mint/anchor %v", c)
-		}
-	})
 	t.Run("h: a found-source reading of the repeated words is refused as ambiguous", func(t *testing.T) {
 		b := repeatedRun(t)
-		_, err := b.verify(lensL, urlReading(rdU3, rpRepeated, "refutes", cc)...)
+		_, err := b.verify(lensL, urlReading(rdU3, rpRepeated, "refutes")...)
 		mustRefuse(t, err, "", "more than once", `"One"`, `"Two"`)
 		if c := b.counts(); c != [3]int{} {
 			t.Errorf("the refusal wrote verify/mint/anchor %v", c)
@@ -176,9 +96,11 @@ func TestAVerifyOfARepeatedSentencePlacesItsGapByTheAnchor(t *testing.T) {
 	})
 }
 
-// 26. A reading over an applied prescription mints its gap: the estoppel binds a seat re-raising a
-// prescription by its text, and a reading names a citation or reads a source (F10).
-func TestAReadingOverAnAppliedPrescriptionMintsItsGap(t *testing.T) {
+// 26. A READING OVER AN APPLIED PRESCRIPTION RECORDS, AND THE GAP ON IT MEETS THE ESTOPPEL GUARD LIKE
+// ANY GAP (F4 (a), ruled): a cited source's gap names the citation and no quote, so the guard never
+// asks of it; a found source's claim_contradicts_source is a quote mint, refused naming the
+// prescribing gap and admitted with --supersedes it.
+func TestAReadingOverAnAppliedPrescriptionRecordsAndItsGapMeetsTheGuard(t *testing.T) {
 	cc := "claim_contradicts_source"
 	applied := func(t *testing.T) (readingBoard, string, string) {
 		b := readingRun(t)
@@ -202,48 +124,44 @@ func TestAReadingOverAnAppliedPrescriptionMintsItsGap(t *testing.T) {
 		}
 		return record.EstoppelRejectionsOf(m.Events)
 	}
-	t.Run("a, b: a citation reading", func(t *testing.T) {
+	t.Run("a, b: a citation reading and the gap about the citation", func(t *testing.T) {
 		b, _, _ := applied(t)
 		if n := estoppels(t, b.runDir); n != 1 {
 			t.Fatalf("the control logged %d estoppel entries, want 1", n)
 		}
 		b.sit(lensL)
-		r := b.mustRead(lensL, citeReading(b.c1, "refutes", cc)...)
-		g1 := mintedBy(t, b, lensL, r, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, bySentenceOf(b.c1))
+		b.mustRead(lensL, citeReading(b.c1, "refutes")...)
+		g1, out, err := b.mintSource(lensL, cc, about(b.c1)...)
+		if err != nil {
+			t.Fatalf("the gap about the citation on the applied sentence: %v\n%s", err, out)
+		}
 		if n := estoppels(t, b.runDir); n != 1 {
-			t.Errorf("the reading logged an estoppel: %d entries", n)
+			t.Errorf("a gap about a citation met the estoppel guard: %d entries", n)
 		}
-		fs := failedOf(t, b.runDir, b.c1)
-		if len(fs) != 1 || fs[0].CheckState() != record.CheckFoundAgainst || fs[0].AnsweredBy() != g1 {
-			t.Errorf("C-1's failed checks = %+v, want one found_against answered by %s", fs, g1)
-		}
-		// C-2 is read, so the PASS is held by C-1's reading and its gap alone.
-		b.mustRead(lensK, citeReading(b.c2, "supports", "")...)
+		// C-2 is read, so the PASS is held by G1 alone.
+		b.mustRead(lensK, citeReading(b.c2, "supports")...)
 		if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "red-chair"); err != nil {
 			t.Fatal(err)
 		}
-		_, err := run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair", "--as", "PASS")
-		mustRefuse(t, err, "", b.c1)
+		_, err = run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair", "--as", "PASS")
+		mustRefuse(t, err, "", g1, "material gap")
 	})
-	t.Run("c: a found-source reading", func(t *testing.T) {
-		b, _, primeText := applied(t)
-		b.sit(lensM)
-		r := b.mustRead(lensM, urlReading(rdU4, primeText, "refutes", cc)...)
-		g2 := mintedBy(t, b, lensM, r, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, byLocation(primeText))
-		if n := estoppels(t, b.runDir); n != 1 {
-			t.Errorf("the reading logged an estoppel: %d entries", n)
+	t.Run("c: a found-source reading and its quote gap", func(t *testing.T) {
+		b, g0, primeText := applied(t)
+		// The prescribing lens reads: a supersession is the minter's own act.
+		b.sit(lensP)
+		b.mustRead(lensP, urlReading(rdU4, primeText, "refutes")...)
+		_, out, err := b.mintSource(lensP, cc, "--quote", primeText)
+		mustRefuse(t, err, out, "estoppel", g0)
+		if n := estoppels(t, b.runDir); n != 2 {
+			t.Errorf("the found source's quote mint logged no estoppel: %d entries", n)
+		}
+		g2, out, err := b.mintSource(lensP, cc, "--quote", primeText, "--supersedes", g0)
+		if err != nil {
+			t.Fatalf("the quote mint superseding the prescribing gap: %v\n%s", err, out)
 		}
 		if og := openGap(t, b.runDir, g2); !og.Open {
 			t.Errorf("%s is not open", g2)
 		}
-		// Both citations read from a sitting after the accept, so G2 is what holds the PASS.
-		b.sit(lensK)
-		b.mustRead(lensK, citeReading(b.c1, "supports", "")...)
-		b.mustRead(lensK, citeReading(b.c2, "supports", "")...)
-		if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "red-chair"); err != nil {
-			t.Fatal(err)
-		}
-		_, err := run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair", "--as", "PASS")
-		mustRefuse(t, err, "", g2, "material gap")
 	})
 }

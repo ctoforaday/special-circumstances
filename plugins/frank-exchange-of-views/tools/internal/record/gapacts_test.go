@@ -77,9 +77,9 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		at(lens, &recordpb.Finding{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Text: proto.String("G1 is wrong")}),
 		at(blue, &recordpb.BlueEdit{Old: proto.String("G1"), New: proto.String("b")}),
 		at(lens, &recordpb.Reproduce{ComputationId: proto.String("K-unknown")}),
-		// A READING NAMES ITS GAP IN carried_by AND MOVES NO TURN THERE: only its citation's answer does.
+		// A READING MOVES NO TURN ON A GAP: only its citation's answer does.
 		at(blue, &recordpb.Cite{Label: proto.String("C-2")}),
-		at(lens, &recordpb.Verify{Anchor: proto.String("C-2"), CarriedBy: proto.String("G1")}),
+		at(lens, &recordpb.Verify{Anchor: proto.String("C-2")}),
 		// A fate repeating its inquiry's previous record word for word.
 		at(blue, fate("I1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r")),
 	}

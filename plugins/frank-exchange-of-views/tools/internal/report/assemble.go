@@ -922,7 +922,7 @@ func provenance(g *record.Gap, findings map[string]*record.Event) string {
 // TWO PARTIES WRITE INTO THIS SECTION, which is why it is named for neither: red mints the gaps
 // and spot-checks the closures, and the bench disposes of what reaches it. Naming it for one
 // attributes the other's output to that one.
-func boardSection(fam record.Family) string {
+func boardSection(run record.Run, fam record.Family) string {
 	// Id -> the finding event it names, so a gap can quote the evidence it was minted from.
 	findings := map[string]*record.Event{}
 	for _, e := range fam.Events {
@@ -930,7 +930,7 @@ func boardSection(fam record.Family) string {
 			findings[f.GetId()] = e
 		}
 	}
-	read := readingsCarried(fam)
+	read := readingsBehind(run, fam)
 	var open, closed []string
 	for _, g := range fam.Gaps {
 		if g == nil {
@@ -1035,12 +1035,12 @@ func boardSection(fam record.Family) string {
 // readForLabel opens each line naming a source read for a gap's sentence.
 const readForLabel = "read for the sentence"
 
-// readingsCarried is, for each gap, one line per reading that names it in carried_by, in stream order:
-// the source read for the sentence — the citation's cited url for a reading of a citation, its --url
-// for a source the lens found — and whose reading it was, its outcome and its event. Read from the
-// record's Verify fields, never from the gap's text. "Read for", not "read against": a reading of a
-// source the lens found that backs an uncited sentence is not read against it.
-func readingsCarried(fam record.Family) map[string][]string {
+// readingsBehind is, for each gap of a class a reading defines, the line naming the reading it stands
+// on (record.ReadingsBehindOf): the source read for the sentence — the citation's cited url for a
+// reading of a citation, its --url for a source the lens found — and whose reading it was, its
+// outcome and its event. Read from the record's fields, never from the gap's text. A run the reading
+// cannot be read on prints the gap with no line: the board is still the board.
+func readingsBehind(run record.Run, fam record.Family) map[string][]string {
 	cited := map[string]string{}
 	for _, e := range fam.Events {
 		if c, ok := recordpb.BodyAs[*recordpb.Cite](e); ok {
@@ -1048,17 +1048,16 @@ func readingsCarried(fam record.Family) map[string][]string {
 		}
 	}
 	out := map[string][]string{}
-	for _, e := range fam.Events {
-		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
-		if !ok || v.GetCarriedBy() == "" {
-			continue
-		}
-		url := v.GetUrl()
-		if a := v.GetAnchor(); a != "" {
+	behind, err := record.ReadingsBehindOf(run, fam)
+	if err != nil {
+		return out
+	}
+	for gap, r := range behind {
+		url := r.Verify.GetUrl()
+		if a := r.Verify.GetAnchor(); a != "" {
 			url = cited[a]
 		}
-		out[v.GetCarriedBy()] = append(out[v.GetCarriedBy()], fmt.Sprintf("%s — %s's `%s` reading, event %d",
-			url, e.GetSeatId(), recordpb.Word(v.GetOutcome()), fam.At.Of(e).ID))
+		out[gap] = append(out[gap], fmt.Sprintf("%s — %s's `%s` reading, event %d", url, r.Seat, recordpb.Word(r.Verify.GetOutcome()), r.Event))
 	}
 	return out
 }
