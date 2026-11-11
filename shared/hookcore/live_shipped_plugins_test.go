@@ -8,13 +8,89 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
+// copyGhCredentials copies local GitHub CLI credentials into fakeHome if present so gh commands
+// (such as sc-doctor -fix fetching release assets) do not hit unauthenticated rate limits.
+func copyGhCredentials(fakeHome string) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	ghSrc := filepath.Join(home, ".config", "gh")
+	if info, err := os.Stat(ghSrc); err == nil && info.IsDir() {
+		ghDest := filepath.Join(fakeHome, ".config", "gh")
+		_ = copyDirOrFile(ghSrc, ghDest)
+	}
+}
+
+var (
+	hostGoCacheOnce sync.Once
+	hostGoCache     string
+	hostGoModCache  string
+)
+
+func hostGoCaches() (string, string) {
+	hostGoCacheOnce.Do(func() {
+		goBin, err := exec.LookPath("go")
+		if err != nil {
+			goBin = "/usr/local/go/bin/go"
+		}
+		out, err := exec.Command(goBin, "env", "GOCACHE", "GOMODCACHE").Output()
+		if err == nil {
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			if len(lines) >= 1 {
+				hostGoCache = strings.TrimSpace(lines[0])
+			}
+			if len(lines) >= 2 {
+				hostGoModCache = strings.TrimSpace(lines[1])
+			}
+		}
+	})
+	return hostGoCache, hostGoModCache
+}
+
+// liveTestEnv builds an isolated environment slice for tests running with a redirected fakeHome.
+// It preserves the host's GOCACHE and GOMODCACHE and enforces GOFLAGS=-modcacherw so that
+// any source builds inside fakeHome (such as sc-doctor -fix fallback compilation) write
+// writable module cache entries into the host cache rather than creating read-only entries
+// inside fakeHome that break t.TempDir() cleanup.
+func liveTestEnv(fakeHome string, extra ...string) []string {
+	var env []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") ||
+			strings.HasPrefix(e, "ANTIGRAVITY_") || strings.HasPrefix(e, "XDG_") || strings.HasPrefix(e, "PLUGIN_ROOT=") ||
+			strings.HasPrefix(e, "GOCACHE=") || strings.HasPrefix(e, "GOMODCACHE=") || strings.HasPrefix(e, "GOFLAGS=") {
+			continue
+		}
+		env = append(env, e)
+	}
+	env = append(env, "HOME="+fakeHome, "PATH="+os.Getenv("PATH"))
+	gc, gmc := hostGoCaches()
+	if gc != "" {
+		env = append(env, "GOCACHE="+gc)
+	}
+	if gmc != "" {
+		env = append(env, "GOMODCACHE="+gmc)
+	}
+	goflags := os.Getenv("GOFLAGS")
+	if goflags == "" {
+		goflags = "-modcacherw"
+	} else if !strings.Contains(goflags, "-modcacherw") {
+		goflags += " -modcacherw"
+	}
+	env = append(env, "GOFLAGS="+goflags)
+	env = append(env, extra...)
+	return env
+}
+
 // copyAgyCredentials copies local credentials so agy -p doesn't block on interactive OAuth.
 func copyAgyCredentials(t *testing.T, fakeHome string) {
 	t.Helper()
+	copyGhCredentials(fakeHome)
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Skipf("user home dir: %v", err)
@@ -161,18 +237,7 @@ func TestLiveShippedAntigravityPlugins(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	cmd.Dir = workDir
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
-			continue
-		}
-		env = append(env, e)
-	}
-	env = append(env,
-		"HOME="+fakeHome,
-		"PATH="+os.Getenv("PATH"),
-	)
-	cmd.Env = env
+	cmd.Env = liveTestEnv(fakeHome)
 
 	out, runErr := cmd.CombinedOutput()
 	output := string(out)
@@ -239,18 +304,7 @@ func TestLiveShippedAntigravitySecretsBlocking(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	cmd.Dir = workDir
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
-			continue
-		}
-		env = append(env, e)
-	}
-	env = append(env,
-		"HOME="+fakeHome,
-		"PATH="+os.Getenv("PATH"),
-	)
-	cmd.Env = env
+	cmd.Env = liveTestEnv(fakeHome)
 
 	out, _ := cmd.CombinedOutput()
 	output := string(out)
@@ -331,18 +385,7 @@ func TestLiveShippedAntigravityFetchBinSay(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	cmd.Dir = workDir
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
-			continue
-		}
-		env = append(env, e)
-	}
-	env = append(env,
-		"HOME="+fakeHome,
-		"PATH="+os.Getenv("PATH"),
-	)
-	cmd.Env = env
+	cmd.Env = liveTestEnv(fakeHome)
 
 	out, runErr := cmd.CombinedOutput()
 	output := string(out)
@@ -593,20 +636,13 @@ func TestLiveAntigravityDoctorFixReinstallsHalfUpdatedPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var baseEnv []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") || strings.HasPrefix(e, "PLUGIN_ROOT=") {
-			continue
-		}
-		baseEnv = append(baseEnv, e)
-	}
-	baseEnv = append(baseEnv,
-		"HOME="+fakeHome,
+	copyGhCredentials(fakeHome)
+
+	baseEnv := liveTestEnv(fakeHome,
 		"ANTIGRAVITY_AGENT=1",
 		"PLUGIN_ROOT="+destPlugin,
 		"SC_MARKETPLACE_REPO="+repoRoot,
 		"AGY="+agyBin,
-		"PATH="+os.Getenv("PATH"),
 	)
 
 	// 1. Plain `sc-doctor` detects the stale/half-updated plugin and downgrades READY to DEGRADED.
@@ -631,6 +667,7 @@ func TestLiveAntigravityDoctorFixReinstallsHalfUpdatedPlugin(t *testing.T) {
 	fixCmd.Env = baseEnv
 	fixOutBytes, err := fixCmd.CombinedOutput()
 	fixOut := string(fixOutBytes)
+	t.Logf("sc-doctor -fix output:\n%s", fixOut)
 	if err != nil {
 		t.Fatalf("sc-doctor -fix failed: %v\n%s", err, fixOut)
 	}
