@@ -72,12 +72,9 @@ func (r *demandRecord) retire(anchors ...string) int64 {
 	return r.add("blue-respond", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r"), Anchors: anchors})
 }
 
-func (r *demandRecord) verify(seat, anchor, carriedBy string, o recordpb.SourceOutcome) int64 {
+func (r *demandRecord) verify(seat, anchor, _ string, o recordpb.SourceOutcome) int64 {
 	v := &recordpb.Verify{Claim: proto.String("c"), Anchor: proto.String(anchor), Outcome: o.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("t")}
-	if carriedBy != "" {
-		v.CarriedBy = proto.String(carriedBy)
-	}
 	return r.add(seat, recordpb.EventType_EVENT_TYPE_VERIFY, v)
 }
 
@@ -146,18 +143,18 @@ func TestTheLiveAnswerDemandIsMetByEachOfItsArms(t *testing.T) {
 		r.wantAnswered("G-00000003", true, "the citation it is about is retired")
 		r.wantAnswered("G-00000004", true, "the computation it is about is retired")
 	})
-	t.Run("arm 3: the anchor of a reading the gap carries, retired", func(t *testing.T) {
+	t.Run("arm 3: the citation a gap on the minter's refuting reading is about, retired", func(t *testing.T) {
 		r := newDemandRecord(t)
 		r.cite("C-00000005", "")
 		r.cite("C-00000006", "")
-		r.mint(reader, "G-00000005", src, "")
-		r.verify(reader, "C-00000005", "G-00000005", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)
+		r.verify(reader, "C-00000005", "", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)
+		r.mint(reader, "G-00000005", src, "C-00000005")
 		r.verify(other, "C-00000006", "", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)
 		r.wantAnswered("G-00000005", false, "the read citation stands")
 		r.retire("C-00000006")
-		r.wantAnswered("G-00000005", false, "a retire of a citation no reading it carries read")
+		r.wantAnswered("G-00000005", false, "a retire of a citation the gap is not about")
 		r.retire("C-00000005")
-		r.wantAnswered("G-00000005", true, "the citation its reading read is retired")
+		r.wantAnswered("G-00000005", true, "the citation its reading read, which it is about, is retired")
 	})
 	t.Run("arm 4: the gap's own check again, holding", func(t *testing.T) {
 		r := newDemandRecord(t)

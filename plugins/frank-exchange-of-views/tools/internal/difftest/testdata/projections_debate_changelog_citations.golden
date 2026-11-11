@@ -48,7 +48,7 @@ $ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid
 exit 2
 stderr:
 feov-record: verify: unknown flag: --trust — not one of this verb's flags, and no verb on this surface takes it.
-This verb's flags: --access-date, --anchor, --as, --bridge, --check, --check-kind, --class, --complexity, --confidence, --fix, --impact, --likelihood, --new, --page, --problem, --quote, --reason, --severity, --title, --url.
+This verb's flags: --access-date, --anchor, --as, --bridge, --confidence, --page, --quote, --reason, --title, --url.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 

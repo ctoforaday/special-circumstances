@@ -31,19 +31,20 @@ type Options struct {
 
 // Result is what one replay did, counted where the manifest needs counts.
 type Result struct {
-	In                 map[string]int // old events per word, as read
-	Out                map[string]int // new events per word, as written
-	Refusals           []migration.Refusal
-	AcceptedLosses     map[string]string             // word -> the entry's stated reason
-	SourceHash         string                        // sha256 over the event stream AS READ — the logical record
-	IDs                map[string]string             // archived id or finding label -> the id the migrated record carries
-	Serialized         map[string]int                // archived instance seat -> events moved after instance 1 (serializeInstances)
-	StatedFills        []migration.StatedFill        // values supplied where the source predates the field
-	ClassTranslations  []migration.ClassTranslation  // the archived class slugs an authored row of gapclass.go carried, and onto what
-	SupersededOutcomes []migration.SupersededOutcome // the source outcomes a later one replaced, not written (outcomes.go)
-	GapAnchors         migration.GapPlacement        // what bringing the run's gaps onto anchors did (F-c)
-	ReportOrder        string                        // what became of the order of the report's text (order.go)
-	ProseRewrites      []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
+	In                  map[string]int // old events per word, as read
+	Out                 map[string]int // new events per word, as written
+	Refusals            []migration.Refusal
+	AcceptedLosses      map[string]string             // word -> the entry's stated reason
+	SourceHash          string                        // sha256 over the event stream AS READ — the logical record
+	IDs                 map[string]string             // archived id or finding label -> the id the migrated record carries
+	Serialized          map[string]int                // archived instance seat -> events moved after instance 1 (serializeInstances)
+	StatedFills         []migration.StatedFill        // values supplied where the source predates the field
+	ClassTranslations   []migration.ClassTranslation  // the archived class slugs an authored row of gapclass.go carried, and onto what
+	SupersededOutcomes  []migration.SupersededOutcome // the source outcomes a later one replaced, not written (outcomes.go)
+	GapAnchors          migration.GapPlacement        // what bringing the run's gaps onto anchors did (F-c)
+	ReportOrder         string                        // what became of the order of the report's text (order.go)
+	ProseRewrites       []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
+	DroppedPlanBlockers int                           // stored plans' archived reading blockers of a found source, which leave the plan (TranslateReadingBlockers)
 
 	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
 	reruns       map[string][]string            // bundle -> the rerun_sha of each reproduce whose source names one
@@ -129,14 +130,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// event; a reading that named it comes forward as a reading of the label's source. The labels and
 	// their sources are read off the SOURCE stream: the migrated Verify has no label to be found by.
 	labelled := labelSources(evs, rm)
-	// A READING'S ACT IS WRITTEN WHOLE (readingActs): a record written at this epoch holds a reading
-	// that minted its gap as three events one transaction wrote, and the write rules that read the
-	// act — the budget's admission, the reading's carrier_minted — meet it on replay as they did live.
-	acts := readingActs(evs)
-	pos := make(map[int64]int, len(evs)) // source events.id -> its place in the stream
-	for i, old := range evs {
-		pos[old.ID] = i
-	}
+	// AN IN-ACT MINT OF A CITED READING COMES FORWARD ABOUT ITS CITATION (EventSchema 71): the
+	// citation its carrying reading named is the subject the live mint names, read off the source
+	// stream, since the migrated Verify names no gap.
+	cited := citedInActMints(evs)
 	rm.archivedNotes = true
 	if sq, ok := src.(*SQLiteSource); ok {
 		if e, known := sq.SourceEpoch(); known && e >= computationEpoch {
@@ -242,34 +239,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	classMints := map[string]int{}         // archived class slug an authored row translates -> the mints written with it
 	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
 	raises := map[string]bool{}            // the ids of the archived raises written as no event
-	held := map[string][]heldMember{}      // gap -> the members of its reading act held for the act's write
-	failedActs := map[string]int64{}       // gap -> the source events.id of the member of its act that was refused
-	// actMember is the reading act's member the previous source event was, and whether its iteration
-	// held, wrote or refused it by name. A member whose iteration ended on any other refusal fails
-	// its act: each member held is refused naming it, and each still to come is refused on arrival.
-	var actMember *readingActMembers
-	var actMemberID int64
-	actMemberDone := true
-	failAct := func(act *readingActMembers, refusedID int64) {
-		failedActs[act.gap] = refusedID
-		for _, h := range held[act.gap] {
-			res.Refusals = append(res.Refusals, migration.Refusal{OldID: h.old.ID, Word: h.old.Word, Err: act.refusedWith(refusedID)})
-		}
-		delete(held, act.gap)
-	}
 	for _, old := range evs {
-		if actMember != nil && !actMemberDone {
-			failAct(actMember, actMemberID)
-		}
-		actMember, actMemberID, actMemberDone = acts[old.ID], old.ID, false
-		if actMember != nil {
-			if refusedID, failed := failedActs[actMember.gap]; failed {
-				res.In[old.Word]++
-				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: actMember.refusedWith(refusedID)})
-				actMemberDone = true
-				continue
-			}
-		}
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
 		if old.Word == correctionWord || replaces[old.Key] {
@@ -317,6 +287,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 		}
 		if bodies, err = reproduceAnchors(bodies, computationAnchors); err != nil {
+			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+			continue
+		}
+		if bodies, err = mintsAboutCitations(bodies, cited); err != nil {
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
@@ -437,7 +411,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
 			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds,
-			// and TranslateReadingBlockers carries an archived reading blocker to its failed check.
+			// and TranslateReadingBlockers carries an archived reading blocker to its reading debt.
 			if pl, ok := body.(*recordpb.Plan); ok {
 				if err := TranslatePlanParties(pl); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
@@ -447,10 +421,12 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
-				if err := TranslateReadingBlockers(pl, newID, batch.Querier()); err != nil {
+				dropped, err := TranslateReadingBlockers(pl, newID, batch.Querier())
+				if err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
+				res.DroppedPlanBlockers += dropped
 				if err := TranslatePlanIDs(pl, newID); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
@@ -462,9 +438,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 			// A RAISE IS WRITTEN AS NO EVENT (EventSchema 59): a finding about a reading that found
 			// against its sentence — decoded as about an anchor, its ref a reading's events.id rather
-			// than an anchor id — has no place in a record where that reading's gap is minted in its
-			// own act. The ref must name a reading the replay wrote, or the finding is refused: nothing
-			// but a raise is dropped. A gap's found_by naming it loses that entry, below.
+			// than an anchor id — has no place in a record where the lens mints the gap on its reading.
+			// The ref must name a reading the replay wrote, or the finding is refused: nothing but a
+			// raise is dropped. A gap's found_by naming it loses that entry, below.
 			if f, ok := body.(*recordpb.Finding); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && anchor.Kind(f.GetAboutRef()) == "" {
 				if err := raisedReading(batch.Querier(), f, newID); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
@@ -554,41 +530,6 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					res.Out[admissionWord]++
 				}
 			}
-			// A READING ACT'S MEMBERS ARE HELD UNTIL ITS READING, which writes all three whole.
-			if actMember != nil {
-				h := heldMember{old: old, body: body, at: ts, slug: translatedSlug, fill: fill}
-				if anchorAfter != nil || chained {
-					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
-						Err: fmt.Sprintf("this event is a member of the reading act of %s, which places its own gap and is no correction chain's link", actMember.gap)})
-					continue
-				}
-				if old.ID != actMember.verify {
-					held[actMember.gap] = append(held[actMember.gap], h)
-					actMemberDone = true
-					continue
-				}
-				members := append(held[actMember.gap], h)
-				delete(held, actMember.gap)
-				actMemberDone = true
-				written, err := writeReadingAct(batch, id, actMember, members, pos)
-				if err != nil {
-					for _, m := range members {
-						res.Refusals = append(res.Refusals, migration.Refusal{OldID: m.old.ID, Word: m.old.Word, Err: err.Error()})
-					}
-					continue
-				}
-				for i, w := range written {
-					res.Out[wordOf(w.Event)]++
-					newID[members[i].old.ID] = w.ID
-					if members[i].slug != "" {
-						classMints[members[i].slug]++
-					}
-					if members[i].fill != nil {
-						res.StatedFills = append(res.StatedFills, *members[i].fill)
-					}
-				}
-				continue
-			}
 			filer := id
 			if seat, ok := opinionFiler(src, body); ok {
 				filer = record.Identity{Run: dst, SeatID: seat}
@@ -647,15 +588,6 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
 				}
 			}
-		}
-	}
-	if actMember != nil && !actMemberDone {
-		failAct(actMember, actMemberID)
-	}
-	for gap, hs := range held {
-		for _, h := range hs {
-			res.Refusals = append(res.Refusals, migration.Refusal{OldID: h.old.ID, Word: h.old.Word,
-				Err: fmt.Sprintf("this event is a member of the reading act of %s, whose reading the source does not hold after it — the act is written whole or not at all", gap)})
 		}
 	}
 	// THE BATCH'S FAILURE IS ASKED ONCE, HERE. After a savepoint fails, every later append answers
@@ -915,59 +847,53 @@ func labelSources(evs []OldEvent, rm *remap) map[string]labelSource {
 	return out
 }
 
-// readingActMembers is one reading's act a record written at this epoch holds: the source events.ids
-// of its gap's Mint, the Anchor that places it and the reading.
-type readingActMembers struct {
-	gap                  string
-	mint, anchor, verify int64
-}
-
-// refusedWith is the refusal of a member of the act whose member refusedID was refused.
-func (a *readingActMembers) refusedWith(refusedID int64) string {
-	return fmt.Sprintf("this event is one act with event %d — the reading act of %s, source events %d, %d and %d — which was refused, so no member is written alone",
-		refusedID, a.gap, a.mint, a.anchor, a.verify)
-}
-
-// heldMember is one member of a reading act held, translated, until the act's reading writes it.
-type heldMember struct {
-	old  OldEvent
-	body proto.Message
-	at   time.Time
-	slug string
-	fill *migration.StatedFill
-}
-
-// readingActs pairs each reading whose own act minted its gap (carrier_minted true) with the Mint
-// whose gap_id is its carried_by and the Anchor whose id is that gap, keyed by each member's source
-// events.id. The pairing is read from the record's fields, never from adjacency.
-func readingActs(evs []OldEvent) map[int64]*readingActMembers {
-	mints, anchors := map[string]int64{}, map[string]int64{}
-	for _, old := range evs {
-		switch old.Word {
-		case "mint":
-			if g, _ := old.Fields["gap_id"].(string); g != "" {
-				mints[g] = old.ID
-			}
-		case "anchor":
-			if g, _ := old.Fields["id"].(string); g != "" {
-				anchors[g] = old.ID
-			}
-		}
-	}
-	out := map[int64]*readingActMembers{}
+// citedInActMints is each gap an archived reading of a CITATION minted in its own act, with that
+// citation: the Verify whose carried_by names the gap and whose carrier_minted is set, naming an
+// anchor (EventSchema 55–70). Read from the record's fields, never from adjacency, and keyed on the
+// source's spelling of the gap: the Mint it translates is read before the remap respells it. A
+// reading of a source the lens found names no anchor and is not here: its Mint already quotes the
+// sentence, which is the live mint of that subject.
+func citedInActMints(evs []OldEvent) map[string]string {
+	out := map[string]string{}
 	for _, old := range evs {
 		g, _ := old.Fields["carried_by"].(string)
-		if old.Word != "verify" || g == "" || !truthy(old.Fields["carrier_minted"]) {
-			continue
-		}
-		a := &readingActMembers{gap: g, mint: mints[g], anchor: anchors[g], verify: old.ID}
-		for _, id := range []int64{a.mint, a.anchor, a.verify} {
-			if id != 0 {
-				out[id] = a
-			}
+		a, _ := old.Fields["anchor"].(string)
+		if old.Word == "verify" && g != "" && a != "" && truthy(old.Fields["carrier_minted"]) {
+			out[g] = a
 		}
 	}
 	return out
+}
+
+// mintsAboutCitations is mintAboutCitation over an act's bodies; a refusal is the act's.
+func mintsAboutCitations(bodies []proto.Message, cited map[string]string) ([]proto.Message, error) {
+	for _, b := range bodies {
+		if m, ok := b.(*recordpb.Mint); ok {
+			if err := mintAboutCitation(m, cited); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return bodies, nil
+}
+
+// mintAboutCitation is the one translation of the in-act model: a Mint whose own act's reading
+// named a citation comes forward ABOUT that citation — about_kind anchor, about_ref the reading's
+// anchor, no quote — the subject a live mint of its class names (record.readingMintedClasses). Its
+// Anchor row stays: an Anchor is a report op, and the token it placed at the citation's sentence is
+// what every later edit's `old` carries. Both values are the source's; nothing is filled. A Mint that
+// already names a subject (about_kind set) is REFUSED, never overwritten: the archive then names two
+// subjects for one gap, and the tool makes neither up.
+func mintAboutCitation(m *recordpb.Mint, cited map[string]string) error {
+	a, ok := cited[m.GetGapId()]
+	if !ok {
+		return nil
+	}
+	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
+		return fmt.Errorf("gap %s was minted in the act of a reading of citation %s and is about %s %s already: the archive names two subjects for one gap, and the translation writes neither", m.GetGapId(), a, recordpb.Word(m.GetAboutKind()), m.GetAboutRef())
+	}
+	m.AboutKind, m.AboutRef, m.Location = recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), proto.String(a), nil
+	return nil
 }
 
 // truthy reads a stored bool: SQLite's 0/1, or a bool.
@@ -979,35 +905,4 @@ func truthy(v any) bool {
 		return b
 	}
 	return false
-}
-
-// writeReadingAct writes a reading's act whole (record.Replay.WriteBodies), each member under its own
-// stamp, and returns what each member wrote, in order. Its members must be the act's Mint, Anchor
-// and reading, adjacent in the stream in that order, of one seat — the act wrote them in one
-// transaction, so none of these arises from a record the write made — and a refusal names the act.
-func writeReadingAct(batch *record.Replay, id record.Identity, act *readingActMembers, members []heldMember, pos map[int64]int) ([]record.WrittenBody, error) {
-	refuse := func(why string, args ...any) error {
-		return fmt.Errorf("the reading act of %s — source events %d, %d and %d — is one act, and %s", act.gap, act.mint, act.anchor, act.verify, fmt.Sprintf(why, args...))
-	}
-	if len(members) != 3 {
-		return nil, refuse("its reading's place holds %d of its three members", len(members))
-	}
-	want := []int64{act.mint, act.anchor, act.verify}
-	for i, m := range members {
-		if m.old.ID != want[i] || (i > 0 && pos[m.old.ID] != pos[members[i-1].old.ID]+1) {
-			return nil, refuse("its members are not adjacent in the stream in the order Mint, Anchor, reading")
-		}
-		if m.old.SeatID != members[0].old.SeatID {
-			return nil, refuse("its members are not of one seat")
-		}
-	}
-	bodies := make([]record.StampedBody, len(members))
-	for i, m := range members {
-		bodies[i] = record.StampedBody{Body: m.body, At: m.at}
-	}
-	written, err := batch.WriteBodies(id, bodies)
-	if err != nil {
-		return nil, refuse("the write refuses it: %v", err)
-	}
-	return written, nil
 }

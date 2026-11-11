@@ -27,9 +27,11 @@ func TestEveryAnchorStateIsReached(t *testing.T) {
 		{"a citation whose check read nothing", func() *stage {
 			return reopenedBoard(t).cite("C-2").verify(evLens, "C-2", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
 		}, "C-2", stateUnread},
+		// A CITATION READ AGAINST HOLDS: the reading is its lens's debt (readingDebtsOf), no state of
+		// the ledger.
 		{"a citation read against", func() *stage {
 			return reopenedBoard(t).cite("C-2").verify(evLens, "C-2", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)
-		}, "C-2", stateFoundAgainst},
+		}, "C-2", stateHolds},
 		{"a computation judged sound", func() *stage {
 			return reopenedBoard(t).computation("K-1", "s1").reproduce(evLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND)
 		}, "K-1", stateHolds},

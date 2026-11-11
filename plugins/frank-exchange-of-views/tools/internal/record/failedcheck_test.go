@@ -194,7 +194,11 @@ func TestTheGapAboutAnUnsoundJudgementTakesNoMint(t *testing.T) {
 	if mb := w.Sitting.MintBudget; mb == nil || mb.Open != 3 || mb.Answering != 1 {
 		t.Errorf("mint_budget = %+v, want open 3, answering 1", mb)
 	}
+	// A second gap of the class about K-1 is one gap with the first (the one-gap rule's anchor arm,
+	// asked before the budget); a plain mint counts, and the budget admits no more.
 	_, err = Append(id, aboutComputation("G-00000006", "K-1"))
+	mustRefuse(t, err, "G-00000005", "Two defects of one class on one subject are one gap")
+	_, err = Append(id, budgetMint("G-00000007"))
 	mustRefuse(t, err, "admits no more")
 }
 
@@ -280,7 +284,7 @@ func TestTheJudgeOwesItsGapAndNoMore(t *testing.T) {
 			t.Fatal(err)
 		}
 		ids := fam.At.IDs(fam.Events)
-		debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil))
+		debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil, nil))
 		return slices.Contains(debts[compLens], "failed_check K-1")
 	}
 	before := owes(unsoundBoard(t).seed())

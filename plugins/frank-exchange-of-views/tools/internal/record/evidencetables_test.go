@@ -51,14 +51,19 @@ func TestEveryBackingKindHasAnEvidenceRow(t *testing.T) {
 		t.Errorf("the check kinds an evidence anchor answers are %v, and the check kinds that demand one are %v", checks, demanded)
 	}
 
-	// THE FAILED WORD IS THE LEDGER'S: a standing check of an anchor of the kind that does not hold
-	// leaves the anchor in exactly the row's `failed` state.
+	// A STANDING CHECK AGAINST THE SENTENCE IS A STATE OF THE LEDGER FOR A COMPUTATION ALONE: a
+	// standing unsound judgement leaves the computation unsound; a citation's standing reading that
+	// finds against leaves the citation holding (the reading is its lens's debt, readingDebtsOf).
 	for _, r := range recordsql.EvidenceTables {
 		id := idOfKind(t, r.Kind)
 		s := &anchorStanding{anchor: id, computation: r.Kind == "computation",
 			checks: []anchorCheck{{id: 1, seat: "red-lens-x", reads: true}}}
-		if got := s.state().checkState(); string(got) != r.Failed || r.Failed == "" {
-			t.Errorf("%s: a standing check against its sentence leaves the ledger state %q, and the row's failed word is %q", r.Kind, got, r.Failed)
+		want := stateHolds
+		if r.Kind == "computation" {
+			want = stateUnsound
+		}
+		if got := s.state(); got != want {
+			t.Errorf("%s: a standing check against its sentence leaves the ledger state %v, want %v", r.Kind, got, want)
 		}
 		if r.Noun == "" {
 			t.Errorf("%s: no noun — every refusal and result names the kind by it", r.Kind)

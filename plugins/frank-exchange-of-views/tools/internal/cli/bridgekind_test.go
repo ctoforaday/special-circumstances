@@ -59,8 +59,8 @@ func TestVerifyNamesWhatItBridged(t *testing.T) {
 // A READING OF A SOURCE THE LENS FOUND SHARES THE AXIS: its supports_with_bridge needs a bridge too.
 func TestAFoundSourceReadingNamesWhatItBridged(t *testing.T) {
 	runDir := foundSourceRun(t)
-	out, err := run(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--url", "https://sky/v", "--title", "Sky",
-		"--quote", foundSentence, "--as", "supports_with_bridge", "--confidence", "medium", "--reason", "read at the leaf"}, gapFlagArgs("unsourced_claim")...)...)
+	out, err := run(t, "verify", "--run", runDir, "--seat-id", lensSeat, "--url", "https://sky/v", "--title", "Sky",
+		"--quote", foundSentence, "--as", "supports_with_bridge", "--confidence", "medium", "--reason", "read at the leaf")
 	if !refusedSaying(out, err, "supports_with_bridge requires --bridge") {
 		t.Fatalf("verify --url supports_with_bridge with no --bridge: err=%v\n%s", err, out)
 	}

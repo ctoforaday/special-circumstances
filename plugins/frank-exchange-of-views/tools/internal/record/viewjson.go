@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // STRUCTURED STATE FOR THE SEATS.
@@ -156,7 +157,7 @@ type GapJSON struct {
 	AwaitingEvidence bool   `json:"awaiting_evidence"`
 	AnswerKind       string `json:"answer_kind"`
 	// EvidenceAnswered is the gap view's evidence_answered: the live-answer demand is met — a live
-	// answer of its kind, the anchor it is about or whose reading it carries retired, or its own
+	// answer of its kind, the anchor it is about retired, or its own
 	// check of that anchor made again since the mint and holding.
 	EvidenceAnswered bool `json:"evidence_answered"`
 	// AnswersRetiredEvent is, on a closed gap whose answers have all been retired, the event of the
@@ -1114,8 +1115,10 @@ type workReads struct {
 	edits               map[string][]GapEdit
 	report              *reportRender
 	gaps                []workGapRow
-	remands             map[string][]remandRow
-	budget              *budgetRead
+	// found is every located reading (locatedReadingsOn, over the one render), the reading debt's input.
+	found   []locatedReading
+	remands map[string][]remandRow
+	budget  *budgetRead
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
@@ -1181,6 +1184,21 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	r.report.src, r.report.srcErr = reportSourceAt(q, recordsql.Newest)
+	// THE DEBT'S INPUT IS LOCATED ON THE LIST'S ONE RENDER, inside its snapshot: a render that fails is
+	// the list's error, never a list with no found-source debt. A record with nothing to locate asks
+	// for no render here (locatesAnything).
+	if locatesAnything(r.evs, r.win) {
+		report, err := r.report.get()
+		if err != nil && err.Error() == reportproj.NoPart {
+			report, err = "", nil
+		}
+		if err != nil {
+			return r, err
+		}
+		if r.found, err = locatedReadingsOn(q, r.evs, r.win, report); err != nil {
+			return r, err
+		}
+	}
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1563,7 +1581,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs))}
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found}
 	var budget *MintBudgetJSON
 	var budgetLine string
 	if role == "lens" {
@@ -2206,16 +2224,14 @@ const (
 // both causes and asserts neither.
 const GoneTeaching = "the gap's anchor is not in the report — blue cut its sentence; that is not silence — judge the report as it stands"
 
-// LocationStates names each location state and what it asks of a reader; the work and board help
-// pages render it.
+// LocationStates names each location state and what it asks of a reader; the work, board and
+// evidence help pages render it.
 const LocationStates = "Each quote gap carries `location_state`: `" + LocationMarked + "` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `" +
 	LocationGone + "` — " + GoneTeaching + ", and `location` is the text as minted; `" +
 	LocationUnrendered + "` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none"
 
 // locateGap fills a quote gap's location state, location, passage and sentence from where its anchor
-// stands in report: `marked` at prose, `gone` bare (as the edit guard reads bare), retired or never
-// placed, `unrendered` when the report did not render (err). Location comes in as minted and stays so
-// unless marked.
+// stands in report (locateAnchor). Location comes in as minted and stays so unless marked.
 //
 // IT READS THE GAP'S PRESCRIBED PAIR FIRST, over the same report: FixNew comes in as recorded, and
 // the pair is located from the location AS MINTED, which the marking below replaces. The board and
@@ -2226,19 +2242,31 @@ func locateGap(l *locatedReport, g *WorkGapState) {
 	if g.Location == "" {
 		return
 	}
+	state, location, raw, passage := locateAnchor(l, g.ID, g.Location)
+	g.LocationState, g.Location = state, location
+	if state == LocationMarked {
+		g.sentence, g.Passage = raw, passage
+	}
+}
+
+// locateAnchor is where anchor id stands in l's report, as the board reads a quote gap's location:
+// `marked` at prose — location is the sentence holding the token, tokens stripped, raw that
+// sentence as the report holds it and passage its section; `gone` where the token is not in the
+// report or stands bare (as the edit guard reads bare), retired or never placed — location is
+// stored, the text as recorded; `unrendered` where the report did not render (l.err), likewise.
+// THE ONE LOCATING FUNCTION (D13, #1727): the board's quote gaps and the evidence view's source and
+// computation rows read it, so a gap and the citation on its sentence cannot locate differently.
+func locateAnchor(l *locatedReport, id, stored string) (state, location, raw, passage string) {
 	if l.err != nil {
-		g.LocationState = LocationUnrendered
-		return
+		return LocationUnrendered, stored, "", ""
 	}
-	g.LocationState = LocationGone
 	bare, sentences := l.spans()
-	sp, ok := gapSentenceIn(report, sentences, bare, g.ID)
+	sp, ok := gapSentenceIn(l.text, sentences, bare, id)
 	if !ok {
-		return
+		return LocationGone, stored, "", ""
 	}
-	g.LocationState, g.sentence = LocationMarked, report[sp[0]:sp[1]]
-	g.Location = strings.TrimSpace(claimcount.StripAnchors(g.sentence))
-	g.Passage = PassageAround(report, strings.Index(report, anchor.Token(g.ID)))
+	raw = l.text[sp[0]:sp[1]]
+	return LocationMarked, strings.TrimSpace(claimcount.StripAnchors(raw)), raw, PassageAround(l.text, strings.Index(l.text, anchor.Token(id)))
 }
 
 // gapSentenceIn is the bounds of the sentence holding gap id's anchor in report, whose sentences

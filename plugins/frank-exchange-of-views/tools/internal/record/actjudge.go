@@ -17,10 +17,10 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject, a mint past the lens's budget, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
+// a blocker, a second gap of one class on one subject (a sentence, an inquiry, a citation — or a citation and the sentence that holds it), a mint of a class a reading defines by a seat whose own reading of its subject does not stand, a mint past the lens's budget, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
-// that names no kind, a reading that names no gap to carry it, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
+// that names no kind, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
 // what a seat DID, under the rules of its day, and the replay writes it without asking them: refusing
 // it would drop a real event and call the loss a translation.
 
@@ -43,10 +43,16 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef(), "gap"); err != nil {
 			return err
 		}
-		// THE ONE-GAP RULE IS ASKED BEFORE THE BUDGET: a reading's Mint on a sentence a gap of its
-		// class already holds is not minted (readingAct.held), so it spends no mint and the cap cannot
-		// refuse it.
-		if err := requireOneGapPerClassAndSubject(w, b); err != nil {
+		// A MINT OF A CLASS A READING DEFINES STANDS ON THE SEAT'S OWN STANDING READING of its subject
+		// (standingreading.go), asked after the anchor is known live and before the one-gap rule and
+		// the budget: a mint refused for its ground is not first told about a held subject or a full
+		// budget.
+		if err := requireOwnStandingReading(w, seatID, b); err != nil {
+			return err
+		}
+		// THE ONE-GAP RULE IS ASKED BEFORE THE BUDGET: a mint refused as a duplicate is not first
+		// told about a full budget.
+		if err := requireOneGapPerClassAndSubject(w, seatID, b); err != nil {
 			return err
 		}
 		if err := requireSupersededOffDocket(q, b); err != nil {
@@ -132,7 +138,6 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE && b.Bridge == nil {
 			return fmt.Errorf("supports_with_bridge requires --bridge summary|secondary_citation|near_restatement — WHAT you bridged. A reading whose gap is none of those three (a term on another object, a condition dropped, a relation reversed) bridged nothing: the source says something else, which is refutes or weak")
 		}
-		return requireReadingNamesCarrier(b)
 	}
 	return nil
 }

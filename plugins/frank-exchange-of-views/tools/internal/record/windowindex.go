@@ -77,28 +77,26 @@ func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 	return evs, x, nil
 }
 
-// reaching is one gap a retire reaches: the gap, the retired anchor it reaches it through, whether
-// through a reading (the carrying_reading view) rather than the anchor a gap is about, and the gap
-// whose reading or about it is (from): gap itself, or an ancestor it carries the demand from.
+// reaching is one gap a retire reaches: the gap, the retired anchor it reaches it through, and the
+// gap whose about it is (from): gap itself, or an ancestor it carries the demand from.
 type reaching struct {
 	gap, anchor, from string
-	carried           bool
 }
 
 // A REACHING RETIRE IS BLUE'S ACT ON EACH GAP IT REACHES (gblock, 2026-11-03; serving Closures are
-// history and L1): a retire whose anchors hold an open gap's about_ref, or the anchor of a reading
-// the gap carries, meets that gap's demand whatever gap the retire named, and without counting it
-// as an act the lens's turn on the gap never comes. It is read here, off the record's rows, and
-// never off a retire's own `answers`: `--answers` is optional, and a claim retire takes the anchor
-// too. A gap closed before the retire is not reached — a closure is history.
+// history and L1): a retire whose anchors hold an open gap's about_ref meets that gap's demand
+// whatever gap the retire named, and without counting it as an act the lens's turn on the gap never
+// comes. It is read here, off the record's rows, and never off a retire's own `answers`: `--answers`
+// is optional, and a claim retire takes the anchor too. A gap closed before the retire is not reached
+// — a closure is history.
 //
 // The gap-to-anchor reach is read through the demand_reach view, its one statement: the anchor a
-// gap is about, the anchor of each reading it carries, and each of those of every ancestor it carries
-// the demand from, which a retire reaches from the successor's mint. The three reads are joined here
-// rather than in one statement, so a record with no retire reads the first, empty, and stops.
+// gap is about, and that of every ancestor it carries the demand from, which a retire reaches from
+// the successor's mint. The three reads are joined here rather than in one statement, so a record
+// with no retire reads the first, empty, and stops.
 const (
 	retiredAnchorsSQL = `SELECT "event_id", "value" FROM "retire_anchors" ORDER BY "event_id", "ord"`
-	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached", "via" = 'reading', "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL
+	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached", "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL
   ORDER BY "from_gap" <> "gap_id"`
 	firstClosureSQL = `SELECT "gap_id", "closed_event" FROM "gap_state"`
 )
@@ -123,13 +121,12 @@ func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
 	type target struct {
 		gap, from string
 		since     int64
-		carried   bool
 	}
-	targets := map[string][]target{} // anchor -> the gaps about it, or carrying a reading of it
+	targets := map[string][]target{} // anchor -> the gaps about it
 	if err := scanRows(q, reachedGapsSQL, func(rows *sql.Rows) error {
 		var t target
 		var a string
-		err := rows.Scan(&t.gap, &a, &t.since, &t.carried, &t.from)
+		err := rows.Scan(&t.gap, &a, &t.since, &t.from)
 		targets[a] = append(targets[a], t)
 		return err
 	}); err != nil {
@@ -154,7 +151,7 @@ func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
 			if t.since >= r.at || (isClosed && c < r.at) || slices.ContainsFunc(out[r.at], func(o reaching) bool { return o.gap == t.gap }) {
 				continue
 			}
-			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor, from: t.from, carried: t.carried})
+			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor, from: t.from})
 		}
 	}
 	for at := range out {

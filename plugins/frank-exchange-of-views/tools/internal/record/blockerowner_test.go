@@ -93,14 +93,14 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 				benchDispatch(2, []string{"G1"}).
 				benchRegister(recordpb.Occasion_OCCASION_PETITION).add(benchSeat, petitionRuling("M2"))
 		}, want{benchSeat, true, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready", nil}},
-		// A CITATION FOUND AGAINST IS BLUE'S TO CLEAR: an edit of the sentence or a retire of the
-		// citation. Its reader owes nothing for it, so it readies the reader for nothing.
-		{"a citation found against readies blue", func(b *stage) {
+		// A READING THAT FINDS AGAINST IS ITS READER'S DEBT (readingDebtsOf): the reader is readied to
+		// mint the gap on it or read again; blue is readied by the gap, never by the debt.
+		{"a reading debt readies its reader", func(b *stage) {
 			b.cite("C-1").foundAgainst(evLens, "C-1", "")
-		}, want{"blue-respond", true, nil, "blue-respond: citation C-1 stands found against — " + evLens + "'s reading at event ", nil}},
-		{"a citation found against does not ready its reader", func(b *stage) {
+		}, want{evLens, true, nil, evLens + ": lens " + evLens + "'s reading of citation C-1 at event ", nil}},
+		{"a reading debt does not ready blue", func(b *stage) {
 			b.cite("C-1").foundAgainst(evLens, "C-1", "")
-		}, want{evLens, false, nil, "", nil}},
+		}, want{"blue-respond", false, nil, "", nil}},
 		// A reopened anchor's owner owes its check, so it is not retired, and the edit moved the head.
 		{"a reopened citation readies the evidence lens", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
@@ -183,25 +183,22 @@ func petitionRuling(id string) *recordpb.MotionRule {
 		Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED}}
 }
 
-// A CITATION FOUND AGAINST IS ON BLUE'S LIST AS WHAT IT OWES, and on no lens's: its reader's reading
-// minted the gap that carries it, and what clears it is blue's edit or retire (or the reader's own
-// later backing reading, which its list offers and does not demand).
-func TestAFoundAgainstCitationIsBluesToClear(t *testing.T) {
+// A READING DEBT IS ON ITS READER'S LIST AS WHAT IT OWES, and on no other lens's or blue's: the
+// reader mints the gap on its reading or reads again, and the gap, once minted, is what blue answers.
+func TestAReadingDebtIsItsReadersToClear(t *testing.T) {
 	run := newStage(t).cast(evLens, outsideLens, "red-chair", "blue-respond", "judge").ingestCited().
-		register("red-chair").register(evLens).cite("C-1").foundAgainst(evLens, "C-1", "G-1").
+		register("red-chair").register(evLens).cite("C-1").foundAgainst(evLens, "C-1", "").
 		register("red-chair").seed()
 	blocks := func(role, seat string) bool {
 		return slices.ContainsFunc(blockingItems(sittingOfRunT(t, run, role, seat)), func(it string) bool {
 			return strings.Contains(it, "citation C-1") && strings.Contains(it, "finds the source against")
 		})
 	}
-	if !blocks("blue", "blue-respond") {
-		t.Errorf("blue's work list does not owe the found-against citation: %q", blockingItems(sittingOfRunT(t, run, "blue", "blue-respond")))
+	if !blocks("lens", evLens) {
+		t.Errorf("the reader's work list does not owe its reading debt: %q", blockingItems(sittingOfRunT(t, run, "lens", evLens)))
 	}
-	for _, seat := range []string{evLens, outsideLens} {
-		if blocks("lens", seat) {
-			t.Errorf("%s's work list owes the found-against citation: %q", seat, blockingItems(sittingOfRunT(t, run, "lens", seat)))
-		}
+	if blocks("blue", "blue-respond") || blocks("lens", outsideLens) {
+		t.Errorf("another seat's work list owes the reader's debt: blue %q, %s %q", blockingItems(sittingOfRunT(t, run, "blue", "blue-respond")), outsideLens, blockingItems(sittingOfRunT(t, run, "lens", outsideLens)))
 	}
 }
 

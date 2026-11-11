@@ -35,7 +35,8 @@ func TestARetireIsFirstAndPermanentForEveryReader(t *testing.T) {
 		}
 	}
 	retired := RetiredAnchors(fam.Events, fam.At)
-	ev := EvidenceJSONOf(fam.Events, fam.At)
+	report, renderErr := RenderRun(run)
+	ev := EvidenceJSONOf(fam.Events, fam.At, report, renderErr)
 	db, err := openRunForRead(run)
 	if err != nil {
 		t.Fatal(err)

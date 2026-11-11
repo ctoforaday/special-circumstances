@@ -44,20 +44,17 @@ type EvidenceTable struct {
 	// Verb is blue's verb that places an anchor of the kind, named by every refusal that asks for
 	// one placed as a gap's answer (`<verb> --answers G`).
 	Verb string
-	// Failed is the failed-check state word (record.CheckState) in which a check of this kind
-	// finds against its sentence.
-	Failed string
 }
 
 // EvidenceTables is every backing kind's row, in the anchor kinds table's order.
 var EvidenceTables = []EvidenceTable{
 	{
 		Kind: "citation", Table: "cite", IDColumn: "label", Check: recordpb.Word(recordpb.CheckKind_CHECK_KIND_SOURCE),
-		CheckTable: "verify", CheckIDColumn: "anchor", Reads: verifyReads, Holds: verifyHolds, Noun: "citation", Verb: "cite", Failed: "found_against",
+		CheckTable: "verify", CheckIDColumn: "anchor", Reads: verifyReads, Holds: verifyHolds, Noun: "citation", Verb: "cite",
 	},
 	{
 		Kind: "computation", Table: "computation", IDColumn: "computation_id", Check: recordpb.Word(recordpb.CheckKind_CHECK_KIND_COMPUTATION),
-		CheckTable: "reproduce", CheckIDColumn: "computation_id", Reads: reproduceReads, Holds: reproduceHolds, Noun: "computation", Verb: "compute", Failed: "unsound",
+		CheckTable: "reproduce", CheckIDColumn: "computation_id", Reads: reproduceReads, Holds: reproduceHolds, Noun: "computation", Verb: "compute",
 	},
 }
 
@@ -72,16 +69,16 @@ func EvidenceTableOf(kind string) (EvidenceTable, bool) {
 }
 
 // verifyHolds is a reading that backs its sentence: it reads the work (record.VerifyReads — an
-// outcome that read it, of a copy that is the work) and its outcome admits no gap (record.FindsAgainst
-// reads the same `gap_classes`), so `weak` backs and `refutes` and `absent` do not. The outcome list
-// is read off the enum's annotations, so a value added to SourceOutcome lands here as the ledger
-// reads it.
+// outcome that read it, of a copy that is the work) and its outcome does not find against
+// (record.FindsAgainst reads the same `finds_against` option), so `weak` backs and `refutes` and
+// `absent` do not. The outcome list is read off the enum's annotations, so a value added to
+// SourceOutcome lands here as the ledger reads it.
 func verifyHolds(alias string) string {
 	var backing []string
 	vals := recordpb.SourceOutcome(0).Descriptor().Values()
 	for i := 0; i < vals.Len(); i++ {
 		o := recordpb.SourceOutcome(vals.Get(i).Number())
-		if o == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED || o == recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE || len(recordpb.GapClassesOf(o)) > 0 {
+		if o == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED || o == recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE || recordpb.FindsAgainstOf(o) {
 			continue
 		}
 		backing = append(backing, "'"+recordpb.Word(o)+"'")

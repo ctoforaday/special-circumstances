@@ -386,7 +386,7 @@ func (RunOutcome) EnumDescriptor() ([]byte, []int) {
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. SOURCE and COMPUTATION are the kinds whose
 // gaps demand a live answer of their kind (recordpb.DemandClause): a citation or a computation placed
-// as the gap's answer, a retire of the anchor the gap is about or whose reading it carries, or the
+// as the gap's answer, a retire of the anchor the gap is about, or the
 // own later check of that anchor that holds. Neither closes on prose. Across six recorded runs no seat ever wrote a
 // program, and the cause was that all ten of red's checks were document probes — red could only
 // ever ask whether the report SAYS something.
@@ -4544,18 +4544,8 @@ type Verify struct {
 	// it is not_cached. Their reader: `show evidence`'s verification rows.
 	CopySubstitution *CopySubstitution `protobuf:"varint,18,opt,name=copy_substitution,json=copySubstitution,proto3,enum=feov.record.v1.CopySubstitution,oneof" json:"copy_substitution,omitempty"`
 	CopyUrl          *string           `protobuf:"bytes,19,opt,name=copy_url,json=copyUrl,proto3,oneof" json:"copy_url,omitempty"`
-	// THE GAP THAT CARRIES THIS READING AGAINST ITS SENTENCE, set by the tool on a reading that mints
-	// (record.ReadingGapClasses non-empty) and refused on any other: the gap the reading's act
-	// minted, or the open gap of the reading's class on that sentence that refused the mint.
-	// carrier_minted says which — true when this reading's own act minted it, false when it names a
-	// standing gap. No flag sets either. Several readings may carry one gap. Their readers: the
-	// failed check (the found-against check's carrier), the mint budget (a gap a reading of a
-	// citation minted takes no mint), the reading's result, `show evidence`'s verification row and docket.md's
-	// source line. Not `gap_id`: the idempotency key matches a field by that name first.
-	CarriedBy     *string `protobuf:"bytes,21,opt,name=carried_by,json=carriedBy,proto3,oneof" json:"carried_by,omitempty"`
-	CarrierMinted *bool   `protobuf:"varint,22,opt,name=carrier_minted,json=carrierMinted,proto3,oneof" json:"carrier_minted,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Verify) Reset() {
@@ -4691,20 +4681,6 @@ func (x *Verify) GetCopyUrl() string {
 		return *x.CopyUrl
 	}
 	return ""
-}
-
-func (x *Verify) GetCarriedBy() string {
-	if x != nil && x.CarriedBy != nil {
-		return *x.CarriedBy
-	}
-	return ""
-}
-
-func (x *Verify) GetCarrierMinted() bool {
-	if x != nil && x.CarrierMinted != nil {
-		return *x.CarrierMinted
-	}
-	return false
 }
 
 // Computation is a program blue ran twice on a bundle, and what it wrote — the citation model with
@@ -5256,8 +5232,9 @@ type BlueEdit struct {
 	New     *string                `protobuf:"bytes,4,opt,name=new,proto3,oneof" json:"new,omitempty"`
 	Text    *string                `protobuf:"bytes,5,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	// applied_verbatim marks text taken unchanged from red's own --fix-new. Estoppel is enforced
-	// on it against a lens's mint: red may not open a clean slate against its own words. A reading's
-	// gap on it is not refused — a source that finds against the text is new evidence.
+	// on it against a lens's mint: red may not open a clean slate against its own words. Every
+	// --quote mint meets the guard, a found source's claim_contradicts_source included (F4 (a)), and
+	// a later edit that rewords the applied sentence ends it (F12, record/estoppel.go).
 	AppliedVerbatim *bool `protobuf:"varint,6,opt,name=applied_verbatim,json=appliedVerbatim,proto3,oneof" json:"applied_verbatim,omitempty"`
 	// reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
 	// computations whose referent moved under them.
@@ -7555,18 +7532,10 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 	},
 	{
 		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
-		ExtensionType: ([]GapClass)(nil),
-		Field:         50014,
-		Name:          "feov.record.v1.gap_classes",
-		Tag:           "varint,50014,rep,packed,name=gap_classes,enum=feov.record.v1.GapClass",
-		Filename:      "record.proto",
-	},
-	{
-		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
-		ExtensionType: ([]GapClass)(nil),
-		Field:         50015,
-		Name:          "feov.record.v1.found_source_gap_classes",
-		Tag:           "varint,50015,rep,packed,name=found_source_gap_classes,enum=feov.record.v1.GapClass",
+		ExtensionType: (*bool)(nil),
+		Field:         50016,
+		Name:          "feov.record.v1.finds_against",
+		Tag:           "varint,50016,opt,name=finds_against",
 		Filename:      "record.proto",
 	},
 	{
@@ -7681,29 +7650,22 @@ var (
 	E_Neighbor = &file_record_proto_extTypes[9]
 	// optional string distinguisher = 50013;
 	E_Distinguisher = &file_record_proto_extTypes[10]
-	// gap_classes ARE THE GAP CLASSES A READING OF A CITATION WITH THIS OUTCOME MAY MINT ITS GAP IN,
-	// declared on the SourceOutcome values that find against a sentence (`refutes`, `absent`) and
-	// absent on every other. It says which classes an OUTCOME admits, never that a reading mints: a
-	// reading of a copy that is not the work reads nothing, whatever its outcome (record.FindsAgainst,
-	// record.ReadingGapClasses). An option, not a vocabulary facet: it is a list, and absent is its
-	// answer on a value that admits no gap.
+	// finds_against IS WHETHER A READING WITH THIS OUTCOME FINDS THE SOURCE AGAINST THE SENTENCE: the
+	// source was read and says otherwise than the sentence, or nothing of it. It is the outcome the
+	// anchor ledger reads as a reading against the sentence (record.FindsAgainst, on a copy that read
+	// the work), the outcome whose lens owes a graded gap or a re-read, and the outcome a mint of a
+	// class defined by such a reading stands on (record.readingMintedClasses). True on `refutes` and
+	// `absent`; absent on every other value, which is its answer there. An option, not a vocabulary
+	// facet: a value that does not find against declares nothing.
 	//
-	// repeated feov.record.v1.GapClass gap_classes = 50014;
-	E_GapClasses = &file_record_proto_extTypes[11]
-	// found_source_gap_classes ARE THE GAP CLASSES A READING OF A SOURCE THE LENS FOUND (a Verify with
-	// no anchor) WITH THIS OUTCOME MAY MINT ITS GAP IN. A backing outcome admits `unsourced_claim` —
-	// the source backs the sentence, and the defect is that the report cites nothing for it — and
-	// `refutes` admits `claim_contradicts_source`; `absent` and `unreachable` admit none, so such a
-	// reading is recorded and mints nothing. Read through record.ReadingGapClasses, beside gap_classes.
-	//
-	// repeated feov.record.v1.GapClass found_source_gap_classes = 50015;
-	E_FoundSourceGapClasses = &file_record_proto_extTypes[12]
+	// optional bool finds_against = 50016;
+	E_FindsAgainst = &file_record_proto_extTypes[11]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
 	// repeated feov.record.v1.SqlCheck check = 50002;
-	E_Check = &file_record_proto_extTypes[13]
+	E_Check = &file_record_proto_extTypes[12]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -8049,7 +8011,7 @@ const file_record_proto_rawDesc = "" +
 	"\t_copy_urlB\n" +
 	"\n" +
 	"\b_answersJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vR\x05claimR\x10source_text_read\"\xfb\r\n" +
+	"\x10\vR\x05claimR\x10source_text_read\"\x9e\r\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
@@ -8070,10 +8032,7 @@ const file_record_proto_rawDesc = "" +
 	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\vR\x12sourceCompleteness\x88\x01\x01\x12E\n" +
 	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\fR\x06bridge\x88\x01\x01\x12X\n" +
 	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\rR\x10copySubstitution\x88\x01\x01\x12$\n" +
-	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\acopyUrl\x88\x01\x01\x125\n" +
-	"\n" +
-	"carried_by\x18\x15 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x0fR\tcarriedBy\x88\x01\x01\x12*\n" +
-	"\x0ecarrier_minted\x18\x16 \x01(\bH\x10R\rcarrierMinted\x88\x01\x01B\b\n" +
+	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\acopyUrl\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
@@ -8089,9 +8048,8 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\t\n" +
 	"\a_bridgeB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlB\r\n" +
-	"\v_carried_byB\x11\n" +
-	"\x0f_carrier_mintedJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\v\x10\fJ\x04\b\x0f\x10\x10J\x04\b\x14\x10\x15R\treferenceR\vindependentR\x05labelR\vwork_statusR\x06sha256\"\xcd\t\n" +
+	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\v\x10\fJ\x04\b\x0f\x10\x10J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17R\treferenceR\vindependentR\x05labelR\vwork_statusR\x06sha256R\n" +
+	"carried_byR\x0ecarrier_minted\"\xcd\t\n" +
 	"\vComputation\x12*\n" +
 	"\x0ecomputation_id\x18\x01 \x01(\tH\x00R\rcomputationId\x88\x01\x01\x12 \n" +
 	"\x03key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\x03key\x88\x01\x01\x12\"\n" +
@@ -8496,7 +8454,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\xcd\x01\n" +
 	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1a\xb1\x01\x8a\xb5\x18\xac\x01every gap of this class is material, whatever its grade or the reader decision it is judged to change — the class decides it, and no ruling or holding makes it immaterial\x12\x85\x01\n" +
 	"\x14CLASS_MATERIAL_NEVER\x10\x02\x1ak\x8a\xb5\x18gno gap of this class is material, whatever its grade — it stays on the board and never holds the gate\x12m\n" +
-	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\xf1[\n" +
+	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\xee]\n" +
 	"\bGapClass\x12\x19\n" +
 	"\x15GAP_CLASS_UNSPECIFIED\x10\x00\x12\xda\x02\n" +
 	"%GAP_CLASS_CROSS_SECTION_CONTRADICTION\x10\x01\x1a\xae\x02\x8a\xb5\x18}two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for themص\x18\x01\xe2\xb5\x18\x1cclaim_contradicts_own_record\xea\xb5\x18\x84\x01are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a computation's output?\x12\xc3\x03\n" +
@@ -8523,15 +8481,15 @@ const file_record_proto_rawDesc = "" +
 	"#GAP_CLASS_UNHANDLED_DEGENERATE_CASE\x10\x15\x1a\x8c\x02\x8a\xb5\x18\xa5\x01a procedure or design the report describes breaks or is undefined at an edge input — empty, zero, one, a boundary, a duplicate — that the report does not addressص\x18\x03\xe2\xb5\x18\x0ffalse_universal\xea\xb5\x18Gis a mechanism failing at an edge input, or a claim stated too broadly?\x12\xe8\x02\n" +
 	"!GAP_CLASS_SPEC_UNDERSPECIFICATION\x10\x16\x1a\xc0\x02\x8a\xb5\x18\xc9\x01a term, rule, procedure or recommendation the report relies on is not specified enough for a reader to apply or check it — undefined, defined only by what it is not, or left as an undecided either/orص\x18\x03\xe2\xb5\x18\x19unhandled_degenerate_case\xea\xb5\x18Mis the specification missing or left open, or present and failing at an edge?\x12\xbd\x02\n" +
 	"\x1eGAP_CLASS_FIGURE_RECOUNT_FAILS\x10\x17\x1a\x98\x02\x8a\xb5\x18\x7fa figure, count or computed result the report states differs from what an independent recount, recomputation or re-run producesص\x18\x01\xe2\xb5\x18\x11metric_conflation\xea\xb5\x18xis the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?\x12\xee\x02\n" +
-	"\x1bGAP_CLASS_METRIC_CONFLATION\x10\x18\x1a\xcc\x02\x8a\xb5\x18\xaf\x01two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitionsص\x18\x01\xe2\xb5\x18\x14figure_recount_fails\xea\xb5\x18xis the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?\x12\xa8\x03\n" +
-	"(GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION\x10\x19\x1a\xf9\x02\x8a\xb5\x18\xed\x01a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not aboutص\x18\x01\xe2\xb5\x18\x0funsourced_claim\xea\xb5\x18lis a source recorded against the claim that does not back it, or is there no source behind the claim at all?\x12\xf3\x02\n" +
+	"\x1bGAP_CLASS_METRIC_CONFLATION\x10\x18\x1a\xcc\x02\x8a\xb5\x18\xaf\x01two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitionsص\x18\x01\xe2\xb5\x18\x14figure_recount_fails\xea\xb5\x18xis the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?\x12\x8b\x04\n" +
+	"(GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION\x10\x19\x1a\xdc\x03\x8a\xb5\x18\xd0\x02a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about — minted on your own standing reading of the citation (`absent`, or a copy that is not the work)ص\x18\x01\xe2\xb5\x18\x0funsourced_claim\xea\xb5\x18lis a source recorded against the claim that does not back it, or is there no source behind the claim at all?\x12\xf3\x02\n" +
 	"0GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION\x10\x1a\x1a\xbc\x02\x8a\xb5\x18\xb0\x01the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is droppedص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18]does the source state the result, under a condition the report drops, or not state it at all?\x12\xd7\x02\n" +
 	"\x1bGAP_CLASS_LIVE_SOURCE_DRIFT\x10\x1b\x1a\xb5\x02\x8a\xb5\x18\xa7\x01a claim or computation rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was writtenص\x18\x01\xe2\xb5\x18\x15artifact_preservation\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\xd3\x02\n" +
-	"\x1fGAP_CLASS_ARTIFACT_PRESERVATION\x10\x1c\x1a\xad\x02\x8a\xb5\x18\xa3\x01an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it isص\x18\x03\xe2\xb5\x18\x11live_source_drift\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\x94\x04\n" +
-	"\x19GAP_CLASS_UNSOURCED_CLAIM\x10\x1d\x1a\xf4\x03\x8a\xb5\x18\xc0\x02a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence is not the report's citation: the gap stands until blue cites oneص\x18\x03\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18\x84\x01does the report cite a source for the sentence that does not back it, or does the report cite nothing for it, whatever a lens found?\x12\x86\x01\n" +
+	"\x1fGAP_CLASS_ARTIFACT_PRESERVATION\x10\x1c\x1a\xad\x02\x8a\xb5\x18\xa3\x01an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it isص\x18\x03\xe2\xb5\x18\x11live_source_drift\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\xac\x04\n" +
+	"\x19GAP_CLASS_UNSOURCED_CLAIM\x10\x1d\x1a\x8c\x04\x8a\xb5\x18\xd8\x02a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence, or says nothing of it, is not the report's citation: the gap stands until blue cites oneص\x18\x03\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18\x84\x01does the report cite a source for the sentence that does not back it, or does the report cite nothing for it, whatever a lens found?\x12\x86\x01\n" +
 	"\x16GAP_CLASS_UNCLASSIFIED\x10\x1e\x1aj\x8a\xb5\x18bno other value fits this gap. The mint's reason names the nearest value and what it does not coverص\x18\x03\x12\xed\x02\n" +
-	"\x16GAP_CLASS_OUT_OF_SCOPE\x10\x1f\x1a\xd0\x02\x8a\xb5\x18\xb5\x01an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's researchص\x18\x01\xe2\xb5\x18\x11invalid_inference\xea\xb5\x18ydoes the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?\x12\x86\x02\n" +
-	"\"GAP_CLASS_CLAIM_CONTRADICTS_SOURCE\x10 \x1a\xdd\x01\x8a\xb5\x18ia source read against the sentence — cited by blue or found by red — states otherwise than the reportص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18Fdoes the source say otherwise than the sentence, or not say it at all?*\xdc\r\n" +
+	"\x16GAP_CLASS_OUT_OF_SCOPE\x10\x1f\x1a\xd0\x02\x8a\xb5\x18\xb5\x01an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's researchص\x18\x01\xe2\xb5\x18\x11invalid_inference\xea\xb5\x18ydoes the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?\x12\x88\x03\n" +
+	"\"GAP_CLASS_CLAIM_CONTRADICTS_SOURCE\x10 \x1a\xdf\x02\x8a\xb5\x18\xea\x01a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quoteص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18Fdoes the source say otherwise than the sentence, or not say it at all?*\xdc\r\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
 	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\xa0\x01\n" +
@@ -8541,14 +8499,14 @@ const file_record_proto_rawDesc = "" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x9c\x04\n" +
 	"\x14DISPOSITION_REMANDED\x10\a\x1a\x81\x04\x8a\xb5\x18\xf8\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xab\x10\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\x94\x13\n" +
 	"\rSourceOutcome\x12\x1e\n" +
-	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xa5\x03\n" +
-	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\x87\x03\x8a\xb5\x18\xfd\x02you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\xc9\x02\n" +
-	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1a\x9f\x02\x8a\xb5\x18\x95\x02it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\x99\x02\n" +
-	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1a\xff\x01\x8a\xb5\x18\xf5\x01it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\xb2\x01\n" +
-	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\x95\x01\x8a\xb5\x18\x85\x01you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act\xf2\xb5\x18\x02 \x1a\xfa\xb5\x18\x01 \x12\xe9\x02\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xcd\x02\x8a\xb5\x18\xc2\x02you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing\xf2\xb5\x18\x02\x19\x1a\x12\xc8\x03\n" +
+	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xaf\x03\n" +
+	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\x91\x03\x8a\xb5\x18\x8c\x03you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xd3\x02\n" +
+	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1a\xa9\x02\x8a\xb5\x18\xa4\x02it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xa3\x02\n" +
+	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1a\x89\x02\x8a\xb5\x18\x84\x02it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xc7\x02\n" +
+	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\xaa\x02\x8a\xb5\x18\xa1\x02you read the source and it CONTRADICTS the claim. A reading of the work with this outcome is the ground of a `claim_contradicts_source` gap you mint — about the citation, or quoting the sentence for a source you found — and your debt until that gap stands or you read the subject again\x80\xb6\x18\x01\x12\x9f\x04\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\x83\x04\x8a\xb5\x18\xfa\x03you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap\x80\xb6\x18\x01\x12\xc8\x03\n" +
 	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xa7\x03\x8a\xb5\x18\xa2\x03you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read*\xc6\x04\n" +
 	"\n" +
 	"BridgeKind\x12\x1b\n" +
@@ -8597,13 +8555,13 @@ const file_record_proto_rawDesc = "" +
 	"\x0ePositionRuling\x12\x1f\n" +
 	"\x1bPOSITION_RULING_UNSPECIFIED\x10\x00\x12\xae\x03\n" +
 	"\x16POSITION_RULING_UPHELD\x10\x01\x1a\x91\x03\x8a\xb5\x18\x8c\x03the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work\x12\xd9\x02\n" +
-	"\x19POSITION_RULING_OVERRULED\x10\x02\x1a\xb9\x02\x8a\xb5\x18\xb4\x02the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld*\xb5\x06\n" +
+	"\x19POSITION_RULING_OVERRULED\x10\x02\x1a\xb9\x02\x8a\xb5\x18\xb4\x02the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld*\xc1\a\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
 	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\xac\x02\n" +
 	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x93\x02\x8a\xb5\x18\x8e\x02an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor\x12v\n" +
-	"\x0eABOUT_KIND_GAP\x10\x03\x1ab\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands\x12\x94\x01\n" +
-	"\x11ABOUT_KIND_ANCHOR\x10\x05\x1a}\x8a\xb5\x18ya citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread\"\x04\b\x04\x10\x04*\x18ABOUT_KIND_CONTRADICTION*\xb3\x04\n" +
+	"\x0eABOUT_KIND_GAP\x10\x03\x1ab\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands\x12\xa0\x02\n" +
+	"\x11ABOUT_KIND_ANCHOR\x10\x05\x1a\x88\x02\x8a\xb5\x18\x83\x02a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence\"\x04\b\x04\x10\x04*\x18ABOUT_KIND_CONTRADICTION*\xb3\x04\n" +
 	"\x10SourceTextOrigin\x12\"\n" +
 	"\x1eSOURCE_TEXT_ORIGIN_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x1bSOURCE_TEXT_ORIGIN_EMBEDDED\x10\x01\x1aU\x8a\xb5\x18Qthe retrieved bytes carry the text: markup, plain text, or a PDF's own text layer\x12\xb1\x01\n" +
@@ -8685,10 +8643,8 @@ const file_record_proto_rawDesc = "" +
 	"\x04mass\x12!.google.protobuf.EnumValueOptions\x18Ն\x03 \x01(\x01R\x04mass\x88\x01\x01:p\n" +
 	"\x10material_default\x12!.google.protobuf.EnumValueOptions\x18ۆ\x03 \x01(\x0e2\x1d.feov.record.v1.ClassMaterialR\x0fmaterialDefault\x88\x01\x01:B\n" +
 	"\bneighbor\x12!.google.protobuf.EnumValueOptions\x18܆\x03 \x01(\tR\bneighbor\x88\x01\x01:L\n" +
-	"\rdistinguisher\x12!.google.protobuf.EnumValueOptions\x18݆\x03 \x01(\tR\rdistinguisher\x88\x01\x01:^\n" +
-	"\vgap_classes\x12!.google.protobuf.EnumValueOptions\x18ކ\x03 \x03(\x0e2\x18.feov.record.v1.GapClassR\n" +
-	"gapClasses:v\n" +
-	"\x18found_source_gap_classes\x12!.google.protobuf.EnumValueOptions\x18߆\x03 \x03(\x0e2\x18.feov.record.v1.GapClassR\x15foundSourceGapClasses:Q\n" +
+	"\rdistinguisher\x12!.google.protobuf.EnumValueOptions\x18݆\x03 \x01(\tR\rdistinguisher\x88\x01\x01:K\n" +
+	"\rfinds_against\x12!.google.protobuf.EnumValueOptions\x18\xe0\x86\x03 \x01(\bR\ffindsAgainst\x88\x01\x01:Q\n" +
 	"\x05check\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x03(\v2\x18.feov.record.v1.SqlCheckR\x05checkBlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
 
 var (
@@ -8900,18 +8856,15 @@ var file_record_proto_depIdxs = []int32{
 	81,  // 106: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
 	81,  // 107: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
 	81,  // 108: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	81,  // 109: feov.record.v1.gap_classes:extendee -> google.protobuf.EnumValueOptions
-	81,  // 110: feov.record.v1.found_source_gap_classes:extendee -> google.protobuf.EnumValueOptions
-	82,  // 111: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	31,  // 112: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	5,   // 113: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	6,   // 114: feov.record.v1.gap_classes:type_name -> feov.record.v1.GapClass
-	6,   // 115: feov.record.v1.found_source_gap_classes:type_name -> feov.record.v1.GapClass
-	30,  // 116: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	117, // [117:117] is the sub-list for method output_type
-	117, // [117:117] is the sub-list for method input_type
-	112, // [112:117] is the sub-list for extension type_name
-	98,  // [98:112] is the sub-list for extension extendee
+	81,  // 109: feov.record.v1.finds_against:extendee -> google.protobuf.EnumValueOptions
+	82,  // 110: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	31,  // 111: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	5,   // 112: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	30,  // 113: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	114, // [114:114] is the sub-list for method output_type
+	114, // [114:114] is the sub-list for method input_type
+	111, // [111:114] is the sub-list for extension type_name
+	98,  // [98:111] is the sub-list for extension extendee
 	0,   // [0:98] is the sub-list for field type_name
 }
 
@@ -9022,7 +8975,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      30,
 			NumMessages:   50,
-			NumExtensions: 14,
+			NumExtensions: 13,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

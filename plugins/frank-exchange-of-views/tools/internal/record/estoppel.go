@@ -28,11 +28,14 @@ import (
 // blue's authorship and red never proposed it, so nothing estops red from auditing it
 // normally. Estoppel attaches to red's own words, and to nothing else.
 //
-// A READING'S GAP IS EXEMPT (gblock, 2026-10-31: "Exempt, stated"). A lens's reading of a source
-// that finds against the sentence mints its gap in the reading's own act (AppendReading), and no
-// estoppel guard is attached there: the source's refutation is new evidence the prescription never
-// weighed, not red relitigating its own words. So a reading's gap opens also on text blue applied
-// verbatim from a red --new, nothing is logged, and EstoppelRejectionsOf counts lens mints alone.
+// EVERY `--quote` MINT MEETS THE GUARD, a found source's claim_contradicts_source included (gblock,
+// 2026-11-06, F4 (a)): red mints --supersedes the prescribing gap, as the refusal says.
+//
+// A REWORD ENDS IT (gblock, 2026-11-10, F12). An applied-verbatim prescription estops while the latest
+// edit touching its gap is the verbatim one; an edit after it that lists the gap in `reopened` —
+// the verbatim edit placed the gap's token in the fixed sentence, so an edit that rewords that
+// sentence names the gap — makes the span blue's, and a later verbatim edit of the same gap binds red
+// again (estoppingPrescriptions). Derived from BlueEdit.reopened, no new field.
 
 // minEstoppelOverlap is the shortest prescribed text that may trigger the guard, in
 // characters after whitespace collapse.
@@ -45,7 +48,8 @@ import (
 const minEstoppelOverlap = 40
 
 // appliedVerbatim maps each gap id whose concrete proposal blue applied EXACTLY to the text
-// red prescribed. Only these gaps estop red.
+// red prescribed, at any edit: what DeclineStatsOf counts as applied — an edit blue took is taken
+// whether or not it later reworded the text.
 //
 // The fact is recorded at edit time by the tool, never by a seat asserting it — TWO WAYS, and
 // the difference is one of kind. On an ordinary `blue edit` it is the outcome of comparing the
@@ -53,22 +57,45 @@ const minEstoppelOverlap = 40
 // those bytes from the mint, so it holds by construction and no transcription slip can cost it.
 // `BlueEdit.accepted` tells the two apart where that matters; estoppel does not care which.
 func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
+	return verbatimPrescriptions(evs, gaps, false)
+}
+
+// estoppingPrescriptions is the gaps whose prescription still estops red: those whose LATEST edit
+// touching the gap is a verbatim one (F12). Walking the edits in event order, an edit with
+// applied_verbatim answering gap G sets G's prescription; an edit AFTER it whose `reopened` lists G —
+// blue reworded the sentence the fix placed G's token in — deletes it (the verbatim edit's OWN
+// `reopened` lists G, since it changed the sentence, and does not count); a later verbatim edit
+// answering G sets it again. Residue, stated: a fix spanning several sentences carries the token in
+// one, so a reword of another of its sentences lists nothing and the whole prescription still estops;
+// a gap with no token is never reopened and estops as before.
+func estoppingPrescriptions(evs []*Event, gaps map[string]*Gap) map[string]string {
+	return verbatimPrescriptions(evs, gaps, true)
+}
+
+// verbatimPrescriptions is the two folds above: every verbatim application, or, with reworded true,
+// only those no later reword ended.
+func verbatimPrescriptions(evs []*Event, gaps map[string]*Gap, reworded bool) map[string]string {
 	out := map[string]string{}
 	for _, e := range evs {
 		// THE BODY IS THE FILTER. "not a blue_edit" is the same set the `e.Type != "blue_edit"`
 		// test selected, and it cannot go stale against the enum the way a second reading of the
 		// type could.
 		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
-		if !ok || !ed.GetAppliedVerbatim() {
+		if !ok {
 			continue
 		}
 		id := ed.GetAnswers()
-		g, ok := gaps[id]
-		if !ok || g.Mint == nil {
+		if ed.GetAppliedVerbatim() {
+			if g, ok := gaps[id]; ok && g.Mint != nil && g.Mint.GetFixNew() != "" {
+				out[id] = g.Mint.GetFixNew()
+			}
 			continue
 		}
-		if fixNew := g.Mint.GetFixNew(); fixNew != "" {
-			out[id] = fixNew
+		if !reworded {
+			continue
+		}
+		for _, r := range ed.GetReopened() {
+			delete(out, r)
 		}
 	}
 	return out
@@ -96,7 +123,7 @@ func EstoppelConflict(f Family, quote string) (Estoppel, bool) {
 	if len(q) == 0 {
 		return Estoppel{}, false
 	}
-	for id, fixNew := range appliedVerbatim(f.Events, GapsByID(f.Gaps)) {
+	for id, fixNew := range estoppingPrescriptions(f.Events, GapsByID(f.Gaps)) {
 		p := anchortext.Visible(fixNew)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue

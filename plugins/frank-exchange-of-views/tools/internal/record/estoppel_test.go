@@ -182,3 +182,45 @@ func TestNoRejectionsCountsZero(t *testing.T) {
 		t.Errorf("EstoppelRejections = %d, want 0", got)
 	}
 }
+
+// reword is blue's ordinary edit whose sentence change reopened the anchors named (BlueEdit.reopened):
+// a reword of the sentence red's fix placed its gap's token in lists that gap.
+func reword(t *testing.T, reopened ...string) *Event {
+	t.Helper()
+	return recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: proto.String("x"), New: proto.String("y"), Text: proto.String("r"), Reopened: reopened})
+}
+
+// A REWORD ENDS ESTOPPEL (gblock, 2026-11-10, F12; T27). An applied-verbatim prescription estops
+// while the latest edit touching its gap is the verbatim one: (i) the verbatim edit's own `reopened`
+// listing the gap does not end it; (ii) a later edit rewording the sentence — listing the gap in
+// `reopened`, keeping 40 or more characters of fix_new — ends it, and DeclineStatsOf still counts the
+// edit blue took as applied; (iii) a later verbatim edit of the same gap binds red again; (iv) a
+// reword of another sentence, listing nothing, leaves the prescription estopping (the residue, pinned).
+func TestARewordEndsEstoppel(t *testing.T) {
+	verbatim := func(t *testing.T) *Event {
+		e := edit(t, "G1", true)
+		e.GetBlueEdit().Reopened = []string{"G1"}
+		return e
+	}
+	estops := func(t *testing.T, evs ...*Event) bool {
+		t.Helper()
+		est, ok := EstoppelConflict(board(t, map[string]string{"G1": prescribed}, evs), prescribed)
+		return ok && est.Gap == "G1"
+	}
+	if !estops(t, verbatim(t)) {
+		t.Error("(i) the verbatim edit's own reopened ended its estoppel")
+	}
+	if estops(t, verbatim(t), reword(t, "G1")) {
+		t.Error("(ii) a reword of the applied sentence left red estopped from text blue now authored")
+	}
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{verbatim(t), reword(t, "G1")})
+	if _, applied, _ := DeclineStatsOf(b.Events, GapsByID(b.Gaps)); applied != 1 {
+		t.Errorf("(ii) applied = %d after the reword, want 1 — an edit blue took is taken", applied)
+	}
+	if !estops(t, verbatim(t), reword(t, "G1"), verbatim(t)) {
+		t.Error("(iii) re-applying red's text did not bind red again")
+	}
+	if !estops(t, verbatim(t), reword(t, "G2")) {
+		t.Error("(iv) a reword of another sentence ended the estoppel")
+	}
+}
