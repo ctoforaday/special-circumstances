@@ -3,6 +3,8 @@ package seat
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // THE REGISTER'S WARNINGS, and what stopped being one.
@@ -85,8 +87,18 @@ func TestASeatSeesThatTheHookIsMissingFromTheWholeRun(t *testing.T) {
 // identical on the identity alone, and telling it the whole run is broken would be a false
 // diagnosis handed to the one party positioned to report it.
 func TestAMissingIdentityAloneDoesNotAccuseTheHook(t *testing.T) {
-	h := registerResult{SeatID: "red-lens-evidence", IdentityAbsent: true, RunVia: "flag"}.Human()
-	if strings.Contains(h, "NOT ONLY YOUR IDENTITY") {
-		t.Errorf("a seat that typed --run is told the hook is absent:\n%s", h)
+	for _, c := range []struct {
+		identityAbsent bool
+		via            seatenv.RunSource
+		want           bool
+	}{
+		{true, seatenv.RunFromInference, true},
+		{true, seatenv.RunFromFlag, false},
+		{true, seatenv.RunFromEnv, false},
+		{false, seatenv.RunFromInference, false},
+	} {
+		if got := hookAbsent(c.identityAbsent, c.via); got != c.want {
+			t.Errorf("identity absent %v, run via %q: hook absent = %v, want %v", c.identityAbsent, c.via, got, c.want)
+		}
 	}
 }

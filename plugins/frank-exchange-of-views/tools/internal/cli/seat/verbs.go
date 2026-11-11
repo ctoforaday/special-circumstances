@@ -104,10 +104,15 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 	// a run directory that arrived any OTHER way means the hook declined, was never invoked,
 	// or found no marker from the payload's cwd. Inference needs the missing identity beside
 	// it to mean that, because a seat that simply typed --run looks identical from the run alone.
-	if r.IdentityAbsent && s.RunVia == seatenv.RunFromInference {
-		r.HookAbsent = true
-	}
+	r.HookAbsent = hookAbsent(r.IdentityAbsent, s.RunVia)
 	return r, nil
+}
+
+// hookAbsent is the whole-run diagnosis: the run directory reached the tool by its own search,
+// and the identity the hook injects beside it is missing. Either fact alone is not the hook's
+// absence — a seat that typed --run on a healthy run also lacks the injected identity.
+func hookAbsent(identityAbsent bool, via seatenv.RunSource) bool {
+	return identityAbsent && via == seatenv.RunFromInference
 }
 
 // Log records an entry addressed to the OPERATOR WHO CAN RETOOL THE SEAT — a defect, a request, or
