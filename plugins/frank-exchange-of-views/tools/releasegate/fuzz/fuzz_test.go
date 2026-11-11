@@ -6604,7 +6604,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 		maxEpochs = r.maxEpochs
 	}
 	if err := writeSetup(filepath.Join(r.runDir, "inputs", "run-config.json"),
-		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":3,"k":1,"kMax":2,"convergenceFraction":0.25,"maxEpochs":%d}`,
+		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":"3","k":1,"kMax":2,"convergenceFraction":0.25,"maxEpochs":%d}`,
 			maxEpochs)); err != nil {
 		return nil, err.Error()
 	}

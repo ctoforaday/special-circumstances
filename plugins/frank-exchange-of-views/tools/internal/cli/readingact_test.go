@@ -285,7 +285,7 @@ func TestTheReadingsHeldGapIsDecidedInsideItsWrite(t *testing.T) {
 
 // 24. After every reading of a citation the verb words each standing failed check of it by its state.
 func TestAReadingOfAFoundAgainstCitationIsWordedByItsState(t *testing.T) {
-	banned := []string{"stays unread", "you owe a gap", "takes no mint of your budget", "read nothing first", "cites a source a lens can read"}
+	banned := []string{"stays unread", "you owe a gap", "read nothing first", "cites a source a lens can read"}
 	check := func(t *testing.T, b readingBoard, seat string, args []string, owner, answered string, want ...string) {
 		t.Helper()
 		r := b.mustRead(seat, args...)

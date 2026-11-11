@@ -18,7 +18,8 @@ import (
 // THE TOOL LOGS EVERY REFUSAL IT GIVES A SEAT, because the seats do not.
 //
 // A seat classes its own refusals as mistakes and logs none, so the tool logs every refusal: a
-// wrong flag name, a mint past its budget, a projection read with a flag it does not take.
+// wrong flag name, a second gap of one class on one sentence, a projection read with a flag it does
+// not take.
 // The guess is the operator's signal: a flag a seat reached for is one the surface taught it to
 // expect.
 func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {

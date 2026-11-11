@@ -50,7 +50,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		maxEpochs = 4
 	}
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":1,"k":1,"kMax":2,"convergenceFraction":0.25,"maxEpochs":%d}`, maxEpochs)); err != nil {
+		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":"1","k":1,"kMax":2,"convergenceFraction":0.25,"maxEpochs":%d}`, maxEpochs)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)

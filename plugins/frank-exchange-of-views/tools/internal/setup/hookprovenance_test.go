@@ -15,14 +15,14 @@ import (
 // THE FIELD REACHES run-config.json AND COMES BACK OUT, which is a different question from whether
 // the observer works. hookprovenance's tests drive Observe directly; this one marshals the struct
 // the setup path actually writes and reads it with the reader run.md uses, so a field added to the
-// observer and never wired into runConfig — or written under a key the reader does not ask for —
+// observer and never wired into record.RunConfig — or written under a key the reader does not ask for —
 // fails here rather than shipping as a fix nobody gets.
 //
 // It asserts the SHAPE reaches the file, not what a particular machine's cache holds: the value
 // depends on the developer's install state, and a test that asserted a version would pass or fail
 // on where it ran.
 func TestRunConfigCarriesHookProvenance(t *testing.T) {
-	rc := runConfig{Topic: "t", Hooks: hookprovenance.Observe(t.TempDir(), "frank-exchange-of-views")}
+	rc := record.RunConfig{Topic: "t", Hooks: hookprovenance.Observe(t.TempDir(), "frank-exchange-of-views")}
 	b, err := json.Marshal(rc)
 	if err != nil {
 		t.Fatal(err)
@@ -105,31 +105,30 @@ func TestSetupRecordsTheHookVersionsOfThePluginCacheClaudeCodeReads(t *testing.T
 	}
 }
 
-// EVERY KEY SETUP WRITES IS ONE THE RECORD'S READER DECLARES. record.RunParams reads run-config.json
-// strictly and refuses a key it does not declare, so a field added here and not there refuses every
-// read of the run's terms. Every omitempty field is set, so each key is on the file.
-func TestTheRecordReadsEveryKeySetupWrites(t *testing.T) {
-	lanes := "2"
-	rc := runConfig{Topic: "t", RunDir: "/r", Model: "m", JudgmentModel: "j", Lanes: &lanes,
-		K: 2, KMax: 6, ConvergenceFraction: 0.25, MaxEpochs: 12, MaxSittingCalls: 40,
-		Hooks: hookprovenance.Observe(t.TempDir(), "frank-exchange-of-views"), EventSchema: record.EventSchema,
-		AllowModelSubstitution: true, Billing: BillingIdentity{ConfigDir: "/c", BillingType: "b"}}
-	b, err := marshalJSON(rc)
+// THE FILE SETUP WRITES IS THE FILE THE RECORD READS. Setup marshals record.RunConfig and the
+// record decodes it strictly, refusing a key it does not declare or anything after the object; this
+// drives the real setup and reads its file back through every record reader of it, so a key setup
+// writes outside that type, or a second write into the file, fails here rather than refusing every
+// read of the run's terms.
+func TestTheRecordReadsTheRunConfigSetupWrites(t *testing.T) {
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+	cfg.Lanes, cfg.AllowSubstitution, cfg.MaxEpochs = "2", true, 9
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("setup exit %d:\n%s", code, errb.String())
+	}
+	run, err := record.OpenRun(runDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "inputs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), b, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run, err := record.OpenRun(dir)
+	p, err := record.RunParams(run)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("the record refuses the run-config setup writes: %v", err)
 	}
-	if _, err := record.RunParams(run); err != nil {
-		t.Errorf("the record refuses the run-config setup writes: %v", err)
+	if p.MaxEpochs != 9 {
+		t.Errorf("--max-epochs 9 reads back as %d", p.MaxEpochs)
+	}
+	if n, ok := record.LanesDeclared(run); !ok || n != 2 {
+		t.Errorf("--lanes 2 reads back as (%d, %v)", n, ok)
 	}
 }

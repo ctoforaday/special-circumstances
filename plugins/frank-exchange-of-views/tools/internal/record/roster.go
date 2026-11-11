@@ -84,17 +84,14 @@ func TierClassOfSeat(run Run, seatID string) (string, error) {
 func AreaOf(seatID string) string { return seatclass.Seats[seatID].Area }
 
 // requireMinterOnRoster refuses a mint attributed to an id that is no seat: every writer asks it
-// (validate). A seat of another role is on the roster by its role; a lens is on it by its area.
+// (validate). A seat is on the roster by its role, and a lens's roster entry carries its area.
 //
 // THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER, and is refused by name
 // rather than by an area cut off its spelling — `red-lens-banana` is not the `banana` lens.
 // requireDispatchableSeat refuses such an id at `register`; a write that reaches here under one is
 // refused here.
 func requireMinterOnRoster(seatID string) error {
-	if role := seatclass.RoleOfSeat(seatID); role != "" && role != "lens" {
-		return nil
-	}
-	if AreaOf(seatID) == "" {
+	if seatclass.RoleOfSeat(seatID) == "" {
 		return feov.Errorf(feov.Validation, "%q is not a seat on the engine's roster, so it mints nothing", seatID)
 	}
 	return nil

@@ -55,9 +55,47 @@ func TestARunConfigKeyTheConfigurationDoesNotDeclareIsRefused(t *testing.T) {
 	}
 }
 
+// ONE OBJECT AND NOTHING AFTER IT. Decode stops at the end of the first value, so a second object
+// or trailing bytes would otherwise be read past — and a second object's terms with them.
+func TestARunConfigWithContentAfterItsObjectIsRefused(t *testing.T) {
+	runDir := recordtest.TmpRun(t)
+	for _, bad := range []string{`{"k":3}{"k":1}`, `{"k":3} garbage`} {
+		writeRunConfig(t, runDir, bad)
+		if _, err := RunParams(mustRun(t, runDir)); err == nil || !strings.Contains(err.Error(), "content after the run's configuration") {
+			t.Errorf("%s read as: %v", bad, err)
+		}
+	}
+	writeRunConfig(t, runDir, "{\"k\":3}\n\n")
+	if _, err := RunParams(mustRun(t, runDir)); err != nil {
+		t.Errorf("trailing whitespace is not content: %v", err)
+	}
+}
+
+// EVERY READER OF THE RUN'S CONFIGURATION READS IT STRICTLY. The consent gate and the lane count
+// decode through the same reader as the terms, so a file the terms' reader refuses is not one they
+// read as consent or a lane count.
+func TestEveryRunConfigReaderRefusesAnUndeclaredKey(t *testing.T) {
+	runDir := recordtest.TmpRun(t)
+	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true}`)
+	run := mustRun(t, runDir)
+	if !allowSubstitution(run) {
+		t.Fatal("a declared consent read as none")
+	}
+	if n, ok := LanesDeclared(run); !ok || n != 2 {
+		t.Fatalf("lanes 2 read as (%d, %v)", n, ok)
+	}
+	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true,"mintBudget":3}`)
+	if allowSubstitution(run) {
+		t.Error("a run-config holding an undeclared key read as consent to a substitution")
+	}
+	if n, ok := LanesDeclared(run); ok {
+		t.Errorf("a run-config holding an undeclared key read as %d lanes declared", n)
+	}
+}
+
 // A RUN-CONFIG THAT IS THERE AND CANNOT BE READ IS NOT A RUN WITH NO TERMS. Absent is setup's
-// defaults; unreadable is an error, because the terms it holds are what the run's budgets and
-// limits are checked against. A directory where the file stands is a read no box can make.
+// defaults; unreadable is an error, because the terms it holds are what the run's limits are
+// checked against. A directory where the file stands is a read no box can make.
 func TestAnUnreadableRunConfigIsAnErrorNotTheDefaults(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "inputs", "run-config.json"), 0o755); err != nil {

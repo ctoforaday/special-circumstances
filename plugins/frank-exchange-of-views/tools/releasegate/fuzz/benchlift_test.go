@@ -21,7 +21,7 @@ func liftRun(t *testing.T, ledger *benchOrderLedger, scenario string) (*runner, 
 	runDir := recordtest.TmpRun(t)
 	const sentence = "A § fuzz sentence to anchor findings."
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":1,"k":1,"kMax":2,"convergenceFraction":0.25,"maxEpochs":10}`)); err != nil {
+		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":"1","k":1,"kMax":2,"convergenceFraction":0.25,"maxEpochs":10}`)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)

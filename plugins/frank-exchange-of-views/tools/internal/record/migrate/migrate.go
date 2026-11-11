@@ -254,23 +254,31 @@ func copyChannels(fromDir, toDir string) error {
 var runConfigPath = filepath.Join("inputs", "run-config.json")
 
 // runConfigDrops are the keys of an archived run-config.json the run's configuration no longer
-// has, each with why. The record's reader of the file refuses a key it does not declare, so a key
-// carried verbatim would refuse the migrated run's every read of its terms.
-var runConfigDrops = map[string]string{
-	// The per-lens mint cap is gone: lens retirement and the epoch limit bound a run.
-	"mintBudget": "the run has no per-lens mint cap",
+// declares. The record's reader of the file refuses a key it does not declare, so a key carried
+// verbatim would refuse the migrated run's every read of its configuration. A set: why each key went
+// is said here, beside it, and the manifest records no per-key outcome for a channel file.
+var runConfigDrops = map[string]struct{}{
+	// A SOURCE BEFORE EPOCH 72 MAY STATE `mintBudget`, the per-lens mint cap, which went at epoch 72:
+	// lens retirement and the epoch limit bound a run.
+	"mintBudget": {},
 }
 
 // translateRunConfig copies the run-config.json at from to to without the keys runConfigDrops
-// names, every other key in its place and with its value as written.
+// names, every other key in its place and with its value as written. The file must be ONE JSON
+// object and nothing after it — the record's reader refuses anything else, so a copy that read past
+// a truncation or a second object would publish a run whose configuration does not read.
 func translateRunConfig(from, to string) error {
 	b, err := os.ReadFile(from)
 	if err != nil {
 		return err
 	}
 	dec := json.NewDecoder(bytes.NewReader(b))
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return fmt.Errorf("%s is not a JSON object: %v", from, err)
+	tok, err := dec.Token()
+	if err != nil {
+		return fmt.Errorf("%s is not a JSON object: %w", from, err)
+	}
+	if tok != json.Delim('{') {
+		return fmt.Errorf("%s is not a JSON object: it starts with %v", from, tok)
 	}
 	var out bytes.Buffer
 	out.WriteByte('{')
@@ -299,6 +307,19 @@ func translateRunConfig(from, to string) error {
 		out.Write(k)
 		out.WriteByte(':')
 		out.Write(val)
+	}
+	// The object CLOSES, and its `}` is consumed, so the read after it meets the end of the input.
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('}') {
+		if err == nil {
+			err = fmt.Errorf("found %v", tok)
+		}
+		return fmt.Errorf("%s: the object does not close: %w", from, err)
+	}
+	if tok, err := dec.Token(); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("found %v", tok)
+		}
+		return fmt.Errorf("%s holds content after its object: %w", from, err)
 	}
 	out.WriteByte('}')
 	var indented bytes.Buffer

@@ -1,10 +1,7 @@
 package record
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,33 +68,16 @@ func LaneSeatIDs(lanes int) []string {
 // which ids. The coverage audit in internal/capture had its own copy of this reader beside its own
 // copy of the lane pattern.
 func LanesDeclared(run Run) (n int, declared bool) {
-	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
-	if err != nil {
+	rc, err := readRunConfig(run.Dir())
+	if err != nil || rc == nil || rc.Lanes == nil {
 		return 0, false
 	}
-	var cfg map[string]any
-	if json.Unmarshal(b, &cfg) != nil {
+	// setup writes the flag as typed, a STRING.
+	n, err = strconv.Atoi(strings.TrimSpace(*rc.Lanes))
+	if err != nil || n <= 0 {
 		return 0, false
 	}
-	// setup writes it as a STRING (ptrOrNil over the flag), so that is what is read first; a
-	// number is accepted too rather than silently missed if the writer ever changes.
-	switch v := cfg["lanes"].(type) {
-	case string:
-		if v == "" {
-			return 0, false
-		}
-		n, err := strconv.Atoi(strings.TrimSpace(v))
-		if err != nil || n <= 0 {
-			return 0, false
-		}
-		return n, true
-	case float64:
-		if v <= 0 {
-			return 0, false
-		}
-		return int(v), true
-	}
-	return 0, false
+	return n, true
 }
 
 // LaneSeatsOf is the lane seat ids this run's CAST names, or none.

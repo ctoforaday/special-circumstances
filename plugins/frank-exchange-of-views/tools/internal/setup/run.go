@@ -310,8 +310,8 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.MaxSittingCalls > 0 {
 		maxCalls = cfg.MaxSittingCalls
 	}
-	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
-		K: terms.K, KMax: terms.KMax, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
+	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
+		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
 		MaxSittingCalls: maxCalls,
 		Hooks:           hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"),
 		Billing:         ReadBillingIdentity()}
@@ -418,71 +418,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	return 0
 }
 
-type runConfig struct {
-	Topic string `json:"topic"`
-	// RunDir is the ABSOLUTE path of this run.
-	//
-	// It is recorded because the run directory reaches a seat as a STRING each seat resolves
-	// against its own working directory, and a relative one resolves differently per invocation.
-	// Measured (#358): a seat whose shell cwd was the `tools/` directory resolved
-	// `research/<slug>/` from there and built a second blackboard — the lane's entire draft, its
-	// own shards, clock and locks — while the real run's candidates directory stayed empty. Two
-	// shards of one seat class existed in both places.
-	//
-	// A seat can no longer CREATE a run directory (RegisterSeat refuses one that does not exist),
-	// which turns that failure loud. This field is the other half: the operator and every
-	// post-hoc reader can see which absolute path the run was set up at, rather than inferring it
-	// from wherever they happen to be standing.
-	RunDir        string  `json:"runDir"`
-	Model         string  `json:"model"`
-	JudgmentModel string  `json:"judgmentModel"`
-	Lanes         *string `json:"lanes"`
-	// The run's terms, always written (record.Params reads them; see that type for what each bounds).
-	K                   int     `json:"k"`
-	KMax                int     `json:"kMax"`
-	ConvergenceFraction float64 `json:"convergenceFraction"`
-	MaxEpochs           int     `json:"maxEpochs"`
-	// MaxSittingCalls is read by the PreToolUse hook through sittingcap.Limit, not by
-	// record.Params: the hook may not link the record. The key is sittingcap.ConfigKey.
-	MaxSittingCalls int `json:"maxSittingCalls"`
-	// Hooks is what was INSTALLED on the hook side when this run was set up (#751). The record
-	// binary is baked from the working tree and the hooks come from the version-gated install
-	// cache, so the two can be days apart — and a run whose hooks were stale is otherwise
-	// byte-identical on the record to one whose hooks were current.
-	//
-	// It says what was installed, never what RAN: a cache entry on disk does not prove the
-	// harness invoked it. The liveness half is #555's. The key is hookprovenance.ConfigKey, and
-	// run.md reads it back through hookprovenance.Read.
-	Hooks hookprovenance.Provenance `json:"hooks"`
-	// EventSchema is the event-shape EPOCH this run's events were written under.
-	//
-	// A run directory is created by `setup` and does not outlive the schema that made it — but
-	// `run-archive/` does, and CLAUDE.md calls it the only part of a run that survives the
-	// container, re-read by every later audit. When the record's storage moved to a database,
-	// six archived runs became unreadable by the current binary, and nothing in them said what
-	// shape they were in — so a later reader could only guess which binary to build.
-	//
-	// It is the EPOCH and deliberately not a binary version (#597): a release number moves for
-	// reasons the event shape does not care about, so recording one would tell a future reader
-	// what shipped rather than what it can read. This is the same number the setup preflight
-	// just checked the binary against, so the file states a fact the run has already verified.
-	EventSchema int `json:"eventSchema,omitempty"`
-	// AllowModelSubstitution records that the OPERATOR accepted, before the run, an environment
-	// that may answer with a model other than the configured tier. Absent means no: a run whose
-	// config predates the field never consented, and the failing direction of a gate has to be
-	// the safe one.
-	//
-	// It is written here and read at `register` (record.allowSubstitution), which is what makes
-	// the consent a FIELD an operator set rather than a flag a seat could type for itself.
-	AllowModelSubstitution bool `json:"allowModelSubstitution,omitempty"`
-	// Billing is WHAT THIS RUN IS BILLED TO — the account, its organization and whether it is a
-	// subscription. See BillingIdentity for the measurement that put it here: a run had no way to
-	// say which bill it was on, so an isolated config silently authenticated against a different
-	// organization and spent credits for months while reporting a dollar figure that read as
-	// telemetry.
-	Billing BillingIdentity `json:"billing"`
-}
-
 // helperPreflightDetail is setup's line for a helper that did not come up: the error's name, then
 // what an operator acts on — the path looked in, both digests, the exit — and the error's detail.
 // The path is part of every case: a helper-absent line that names no path cannot be acted on.
@@ -544,7 +479,7 @@ func gitHead(git GitFunc) string {
 // deliberately isolated environment — and refusing it would break those to protect a wallet the
 // tool cannot see. What is not legitimate is doing it SILENTLY, so this makes the quiet case loud
 // and leaves the decision where it belongs.
-func reportBilling(b BillingIdentity, stdout, stderr io.Writer) {
+func reportBilling(b record.BillingIdentity, stdout, stderr io.Writer) {
 	if b.Subscription() {
 		where := "the default config"
 		if b.Isolated {

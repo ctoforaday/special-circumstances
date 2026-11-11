@@ -1,14 +1,6 @@
 package record
 
-import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-)
+import "fmt"
 
 // Params are the run's TERMS (plans/roundless.md §III.B.1, §III.B.2, §III.B.2.2): the limits the
 // dispatch verb and the write path read. They are set once, at setup, into inputs/run-config.json
@@ -94,54 +86,8 @@ func convergenceFractionIn(dir string) (float64, error) {
 	return rc.fraction()
 }
 
-// runConfig is inputs/run-config.json as setup writes it: the terms, each nil where the file does not
-// state it, and every other key setup writes, which its own reader takes (the lanes, the model tiers,
-// the sitting's call limit, the hook provenance, the event-schema epoch, the substitution consent, the
-// billing identity) and this one only admits.
-//
-// THE FILE IS READ STRICTLY: a key setup does not write is an error, never ignored. A term a reader
-// skipped would read exactly like a term the run was never given, so a key no struct field declares —
-// a term the engine no longer has, or a misspelt one — refuses the read rather than vanishing.
-type runConfig struct {
-	K                   *int     `json:"k"`
-	KMax                *int     `json:"kMax"`
-	ConvergenceFraction *float64 `json:"convergenceFraction"`
-	MaxEpochs           *int     `json:"maxEpochs"`
-
-	Topic                  json.RawMessage `json:"topic"`
-	RunDir                 json.RawMessage `json:"runDir"`
-	Model                  json.RawMessage `json:"model"`
-	JudgmentModel          json.RawMessage `json:"judgmentModel"`
-	Lanes                  json.RawMessage `json:"lanes"`
-	MaxSittingCalls        json.RawMessage `json:"maxSittingCalls"`
-	Hooks                  json.RawMessage `json:"hooks"`
-	EventSchema            json.RawMessage `json:"eventSchema"`
-	AllowModelSubstitution json.RawMessage `json:"allowModelSubstitution"`
-	Billing                json.RawMessage `json:"billing"`
-}
-
-// readRunConfig reads the terms of the run in directory dir; a run with no run-config.json has none
-// (nil, nil). A file that is there and cannot be read, or holds a key runConfig does not declare, is
-// an error, never "no terms": the terms it holds are what the run's limits are checked against.
-func readRunConfig(dir string) (*runConfig, error) {
-	b, err := os.ReadFile(filepath.Join(dir, "inputs", "run-config.json"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("inputs/run-config.json could not be read: %w", err)
-	}
-	var rc runConfig
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&rc); err != nil {
-		return nil, fmt.Errorf("inputs/run-config.json does not parse as the run's configuration: %w", err)
-	}
-	return &rc, nil
-}
-
 // fraction is the stated convergence fraction, else setup's default.
-func (rc *runConfig) fraction() (float64, error) {
+func (rc *RunConfig) fraction() (float64, error) {
 	if rc.ConvergenceFraction == nil {
 		return DefaultParams.ConvergenceFraction, nil
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // withRenderer stands in for the renderer internal/reportproj registers, for the test's duration.
@@ -29,7 +30,7 @@ func sectionMint(id string, supersedes ...string) *recordpb.Mint {
 // A seat id the engine never dispatches is refused a mint by name: it has no role and no area. The
 // refusal names the SEAT, not an area cut off it — `banana` is not an area the engine has ever heard
 // of. Driven through Append, as every writer is: skipping the roster guard in the Mint arm turns this
-// red. A lens on the roster and a seat of another role mint past it.
+// red. Every seat on the roster, a lane among them, mints past it.
 func TestAMintFromASeatOffTheRosterIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
@@ -44,7 +45,7 @@ func TestAMintFromASeatOffTheRosterIsRefused(t *testing.T) {
 	if _, err := Append(lens, sectionMint("G2")); err != nil {
 		t.Errorf("a mint from a lens on the roster was refused: %v", err)
 	}
-	for _, seat := range []string{evLens, "red-chair", "blue-respond"} {
+	for _, seat := range append(seatclass.SeatIDs(), seatclass.LaneSeatPrefix+"1") {
 		if err := requireMinterOnRoster(seat); err != nil {
 			t.Errorf("%s is on the roster and was refused: %v", seat, err)
 		}

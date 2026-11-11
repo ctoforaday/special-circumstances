@@ -34,11 +34,9 @@ package record
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -399,20 +397,12 @@ func repeatRegister(seatID string, dispatch int, h heldRegister, occ *recordpb.O
 
 // allowSubstitution reads the operator's standing decision from run-config.
 //
-// ABSENT MEANS NO. A run whose config predates the field, or whose config cannot be read, is a run
-// that never consented to a substitution — the failing direction of a gate has to be the safe one.
+// ABSENT MEANS NO. A run whose config does not state the field, or whose config cannot be read or is
+// refused by readRunConfig, is a run that never consented to a substitution — the failing direction
+// of a gate has to be the safe one.
 func allowSubstitution(run Run) bool {
-	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
-	if err != nil {
-		return false
-	}
-	var cfg struct {
-		Allow bool `json:"allowModelSubstitution"`
-	}
-	if json.Unmarshal(b, &cfg) != nil {
-		return false
-	}
-	return cfg.Allow
+	rc, err := readRunConfig(run.Dir())
+	return err == nil && rc != nil && rc.AllowModelSubstitution
 }
 
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second

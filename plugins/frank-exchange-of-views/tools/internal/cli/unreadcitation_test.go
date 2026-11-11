@@ -15,8 +15,8 @@ import (
 )
 
 // A VERIFICATION THAT READ NOTHING SAYS WHAT IT LEFT AND WHAT IT OWES. The citation stays unread,
-// PASS is refused while the report cites it, and the lens that read nothing owes the gap about it,
-// outside its budget; the gap minted, the verb names it instead.
+// PASS is refused while the report cites it, and the lens that read nothing owes the gap about it;
+// the gap minted, the verb names it instead.
 func TestAnUnreadVerifySaysTheCitationStaysUnreadAndTheGapIsOwed(t *testing.T) {
 	runDir, label := citedClause(t)
 	out, err := verifyAs(t, runDir, label, "unreachable")
