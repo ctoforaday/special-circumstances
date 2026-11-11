@@ -1,4 +1,5 @@
-// Package staticproof asserts the per-format staticness contract over binaries.
+// Package staticproof asserts the contract every published binary meets: the per-format
+// staticness below, and, for a native helper, a size bound (helperMaxBytes).
 //
 //	linux (ELF):      fully static — no interpreter, no dynamic section at all.
 //	windows (PE):     imports only allowed system libraries (KERNEL32.dll, NTDLL.dll,
@@ -14,11 +15,26 @@ import (
 	"debug/macho"
 	"debug/pe"
 	"fmt"
+	"os"
 	"strings"
 )
 
-// Check verifies that the binary at path satisfies the staticness contract for the given artifact.
+// helperMaxBytes is each native helper's size bound: about 1.25 times its largest stripped build on
+// any published target. A helper linked with its debug information is several times its stripped
+// size (feov-embed linux-amd64: 178,839,192 B with DWARF, 6,366,560 B stripped; feov-ocr
+// linux-amd64: 46,530,584 B and 9,285,672 B), so a link that stops stripping fails here, on the
+// native-build leg that made it and again on the release's dist.
+var helperMaxBytes = map[string]int64{
+	"feov-embed": 8 << 20,
+	"feov-ocr":   12 << 20,
+}
+
+// Check verifies that the binary at path satisfies the published-binary contract for the given
+// artifact: a helper's size bound, then the staticness contract of its format.
 func Check(artifact, path string) error {
+	if err := checkSize(artifact, path); err != nil {
+		return err
+	}
 	if f, err := elf.Open(path); err == nil {
 		defer f.Close()
 		return checkELF(path, f)
@@ -32,6 +48,22 @@ func Check(artifact, path string) error {
 		return checkMachO(artifact, path, f)
 	}
 	return fmt.Errorf("%s: not ELF, PE or Mach-O — nothing to prove", path)
+}
+
+// checkSize refuses a native helper larger than its bound; other artifacts carry none.
+func checkSize(artifact, path string) error {
+	bound, ok := helperMaxBytes[artifact]
+	if !ok {
+		return nil
+	}
+	fi, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if fi.Size() > bound {
+		return fmt.Errorf("%s: %s is %d bytes, over its bound of %d — a helper linked with debug information or symbols", path, artifact, fi.Size(), bound)
+	}
+	return nil
 }
 
 func checkELF(path string, f *elf.File) error {
@@ -48,6 +80,11 @@ func checkELF(path string, f *elf.File) error {
 }
 
 func checkPE(artifact, path string, f *pe.File) error {
+	// debug/pe reads a file with no MZ header as a bare COFF object, so any bytes at all, zeros
+	// included, open as a PE that imports nothing; an executable image has an optional header.
+	if f.OptionalHeader == nil {
+		return fmt.Errorf("%s: not an executable image (a PE with no optional header)", path)
+	}
 	syms, err := f.ImportedSymbols()
 	if err != nil {
 		return fmt.Errorf("%s: reading PE imports: %w", path, err)

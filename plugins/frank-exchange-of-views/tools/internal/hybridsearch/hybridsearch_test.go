@@ -1,6 +1,7 @@
 package hybridsearch
 
 import (
+	"database/sql"
 	"strings"
 	"testing"
 )
@@ -121,5 +122,70 @@ func TestFuseRRFEdgeCases(t *testing.T) {
 	}
 	if res[0].Index != 0 {
 		t.Fatalf("res[0].Index = %d, want 0", res[0].Index)
+	}
+}
+
+// AN INDEX THAT FAILED REACHES THE SEARCH'S CALLER. Two items sharing an Index share an FTS5 rowid,
+// so the index refuses the second; FuseRRF returns that error rather than a ranking that lost its
+// lexical side.
+func TestFuseRRFReturnsTheIndexError(t *testing.T) {
+	items := []Item{
+		{Index: 0, Text: "moderate and rising costs", Vector: []float32{1, 0}},
+		{Index: 0, Text: "rising harbour fees", Vector: []float32{0, 1}},
+	}
+	if scored, err := FuseRRF(items, "rising", []float32{1, 0}, 10); err == nil {
+		t.Fatalf("FuseRRF over items sharing an Index = %+v, nil; want the index's SQLite error", scored)
+	}
+}
+
+// A MATCH THAT FAILED REACHES THE CALLER. A temporary table named chunks shadows the FTS5 table the
+// index creates: the index succeeds, its rows go into the temporary table, and MATCH cannot read it.
+func TestRankBM25ReturnsTheMatchError(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec("CREATE TEMP TABLE chunks(text TEXT)"); err != nil {
+		t.Fatal(err)
+	}
+	items := []Item{{Index: 0, Text: "moderate and rising costs"}}
+	ranks, err := rankBM25In(db, items, cleanFTS5Query("rising"))
+	var indexed int
+	if qerr := db.QueryRow("SELECT count(*) FROM main.sqlite_master WHERE name = 'chunks'").Scan(&indexed); qerr != nil || indexed != 1 {
+		t.Fatalf("the FTS5 table was not created (%d, %v); the test needs the index to succeed and the match to fail", indexed, qerr)
+	}
+	if err == nil {
+		t.Errorf("rankBM25In whose MATCH fails = %v, nil; want the SQLite error", ranks)
+	}
+}
+
+// RRF'S CONSTANT DECIDES THE ORDER. Item 0 is BM25's first and the vectors' fourth; item 1 is
+// second on both. With k = 60 item 1 leads (2/62 > 1/61 + 1/64); a k as small as 1 would put item 0
+// first (1/2 + 1/5 > 2/3).
+func TestFuseRRFRanksWithKSixty(t *testing.T) {
+	items := []Item{
+		{Index: 0, Text: "harbour harbour harbour", Vector: []float32{0.7, 0.714}},
+		{Index: 1, Text: "the harbour is one of many places costs rose in the decade before", Vector: []float32{0.9, 0.436}},
+		{Index: 2, Text: "dredging", Vector: []float32{1, 0}},
+		{Index: 3, Text: "tolls", Vector: []float32{0.8, 0.6}},
+	}
+	scored, err := FuseRRF(items, "harbour", []float32{1, 0}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byIndex := map[int]ScoredItem{}
+	for _, s := range scored {
+		byIndex[s.Index] = s
+	}
+	if a, b := byIndex[0], byIndex[1]; a.BM25Rank != 1 || a.VecRank != 4 || b.BM25Rank != 2 || b.VecRank != 2 {
+		t.Fatalf("ranks = item 0 %+v, item 1 %+v; the test needs BM25 1/2 and vectors 4/2", a, b)
+	}
+	if got := []int{scored[0].Index, scored[1].Index}; got[0] != 1 || got[1] != 0 {
+		t.Errorf("top two = %v, want [1 0] (k = 60)", got)
+	}
+	if want := float32(2.0 / 62); scored[0].Score != want {
+		t.Errorf("item 1's score = %v, want 2/(60+2) = %v", scored[0].Score, want)
 	}
 }

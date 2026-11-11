@@ -6,6 +6,9 @@
 # The flatbuffers Python runtime ONNX Runtime's reduced-operator build scripts import
 # (reduce_op_kernels.py, parse_config.py): a pure-Python wheel, imported from PYTHONPATH.
 ebba5f4d5ea615af3f7fd70fc310636fbb2bbd1f566ac0a23d98dd412de50051  flatbuffers-25.2.10-py2.py3-none-any.whl  https://files.pythonhosted.org/packages/b8/25/155f9f080d5e4bc0082edfda032ea2bc2b8fab3f4d25d46c1e9dd22a1a89/flatbuffers-25.2.10-py2.py3-none-any.whl
+# Boost.MP11, which ONNX Runtime declares without a hash (build.sh ORT_UNHASHED_DEPS): the archive at
+# ORT's cmake/deps.txt URL, whose SHA1 there is 9bc9e01dffb64d9e0773b2e44d2f22c51aace063.
+81431bdc44c439a324e02c07ed067f8f556419fd86f2d8b486ff568df6aac899  boost-1.82.0.zip  https://github.com/boostorg/mp11/archive/refs/tags/boost-1.82.0.zip
 92ffbf8b97872fd1e73c9eebdf3319d9a3b24919ae438d27db903b72ee08939e  onnxruntime-1.31.1.tar.gz  https://github.com/microsoft/onnxruntime/archive/refs/tags/v1.31.1.tar.gz
 f9919347c708c08fbdd93df377717bbf282a09ef21423d1a25f9c979bd335320  gte-small.int8.amd64.ort  https://github.com/ctoforaday/special-circumstances/releases/download/model-gte-small-v1/gte-small.int8.amd64.ort
 560718670ef2497d047d210a4e08c3bffce7c471a23714526db6b8571154edf7  gte-small.int8.arm.ort  https://github.com/ctoforaday/special-circumstances/releases/download/model-gte-small-v1/gte-small.int8.arm.ort

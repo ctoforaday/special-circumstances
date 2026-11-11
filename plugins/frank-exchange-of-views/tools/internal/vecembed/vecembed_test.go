@@ -81,6 +81,25 @@ func TestTokenizerTruncation(t *testing.T) {
 	}
 }
 
+// A WORD THAT CROSSES THE LAST ID IS CUT AT IT. 509 one-piece words fill ids 1-509; the next word's
+// pieces run past id 510, the last before [SEP], and only its first piece is kept: 512 ids, never
+// the 513 or more the helper would refuse.
+func TestTokenizerTruncatesAWordThatCrossesTheLastID(t *testing.T) {
+	tok := DefaultTokenizer()
+	const crossing = "unaffordability"
+	pieces := tok.wordpiece(crossing, nil)
+	if len(pieces) < 2 {
+		t.Fatalf("%q is %d wordpieces; the test needs a word of two or more", crossing, len(pieces))
+	}
+	ids := tok.Encode(strings.Repeat("word ", 509) + crossing)
+	if len(ids) != tok.maxLen {
+		t.Fatalf("len(ids) = %d, want %d", len(ids), tok.maxLen)
+	}
+	if ids[509] != tok.Encode("word")[1] || ids[510] != pieces[0] || ids[511] != tok.sep {
+		t.Errorf("ids[509:] = %v, want [word %d [SEP]]", ids[509:], pieces[0])
+	}
+}
+
 func TestTokenizerEdgeCases(t *testing.T) {
 	tok := DefaultTokenizer()
 

@@ -134,6 +134,39 @@ ship_assets() { # copy each export into OUTDIR under its release name; install-h
 # PYTHONPATH (a pure-Python wheel imports from the zip), so no package index is consulted.
 FLATBUFFERS_WHEEL=flatbuffers-25.2.10-py2.py3-none-any.whl
 
+# ONNX Runtime's CMake fetches its dependencies from the URLs in its cmake/deps.txt, and every
+# declaration but these passes deps.txt's SHA1 as URL_HASH, which CMake checks before it extracts.
+# These are declared with no hash: each is pinned in PINS.txt and put in ORT's mirror directory
+# (<source>/mirror/<URL without https://>), which ORT reads in place of the download.
+ORT_UNHASHED_DEPS=(mp11)
+
+ort_mirror_unhashed() { # ort_mirror_unhashed <ORT source dir>
+	local src="$1" dep url file
+	for dep in "${ORT_UNHASHED_DEPS[@]}"; do
+		url="$(awk -F';' -v d="$dep" '$1 == d { print $2 }' "$src/cmake/deps.txt" | tr -d '\r')"
+		[ -n "$url" ] || die "ONNX Runtime's cmake/deps.txt names no $dep"
+		file="${url##*/}"
+		fetch_pinned "$file" "$NATIVE_DIR/$HELPER/PINS.txt" "$WORK/src"
+		mkdir -p "$src/mirror/$(dirname "${url#https://}")"
+		cp "$WORK/src/$file" "$src/mirror/${url#https://}"
+	done
+}
+
+ort_check_fetches() { # ort_check_fetches <ORT CMake build dir>: refuses a dependency fetched unverified
+	# Run after configure, before anything fetched is built or run. Each URL download CMake makes
+	# writes a download-<name>.cmake script, which holds a file(<ALGO> ...) call only when the
+	# declaration carried a hash.
+	local dir="$1" n=0 s
+	while IFS= read -r s; do
+		n=$((n + 1))
+		grep -qE '^ *file\("(SHA1|SHA224|SHA256|SHA384|SHA512|SHA3_224|SHA3_256|SHA3_384|SHA3_512)" ' "$s" ||
+			die "ONNX Runtime's build downloads a dependency it does not hash-check: $s (pin it in ORT_UNHASHED_DEPS)"
+	done < <(find "$dir" -name 'download-*.cmake')
+	[ -z "$(find "$dir" -name 'gitclone-*.cmake' -print -quit)" ] || die "ONNX Runtime's build clones a git repository, which no hash pins"
+	[ "$n" -gt 0 ] || die "no dependency download under $dir: the hash check would have checked nothing"
+	echo "native/build.sh: each of ONNX Runtime's $n dependency downloads checks its hash"
+}
+
 # Windows MSVC native helper build for feov-embed (plans/native-helpers.md §III.1.5)
 if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 	HELPER_PINS="$NATIVE_DIR/$HELPER/PINS.txt"
@@ -168,24 +201,27 @@ if [ "$HELPER" = "feov-embed" ] && [ "$OS" = "windows" ]; then
 		mkdir -p "$SRC"
 		tar -C "$SRC" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
 	fi
+	ort_mirror_unhashed "$SRC"
 
 	if [ ! -f "$WORK/build/ort/Release/onnxruntime_common.lib" ]; then
 		echo "=== Building ONNX Runtime ($TARGET) with MSVC ==="
 		XARGS=()
 		MACH=$("$PY" -c 'import platform; print(platform.machine())' | tr -d '\r')
 		[ "$VS_ARCH" = "ARM64" ] && [ "$MACH" != "ARM64" ] && XARGS+=(--arm64)
-		"$PY" "$SRC/tools/ci_build/build.py" \
-			--build_dir "$WORK/build/ort" \
+		ORT_ARGS=(--build_dir "$WORK/build/ort" \
 			--config Release \
-			--update --build --parallel "$J" \
+			--parallel "$J" \
 			--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
 			--cmake_generator "$GEN" \
 			--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
 			--include_ops_by_config "$NATIVE_DIR/feov-embed/ops.config" \
 			--enable_reduced_operator_type_support \
 			--enable_msvc_static_runtime ${XARGS[@]+"${XARGS[@]}"} \
-			--cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF onnxruntime_DISABLE_DEVICE_DISCOVERY=ON
-		cmake --build "$WORK/build/ort/Release" --config Release --target cpuinfo -j "$J" || true
+			--cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF onnxruntime_DISABLE_DEVICE_DISCOVERY=ON)
+		"$PY" "$SRC/tools/ci_build/build.py" --update "${ORT_ARGS[@]}"
+		ort_check_fetches "$WORK/build/ort/Release"
+		"$PY" "$SRC/tools/ci_build/build.py" --build "${ORT_ARGS[@]}"
+		cmake --build "$WORK/build/ort/Release" --config Release --target cpuinfo -j "$J"
 	fi
 
 	ort_find_dir="$(cygpath -u "$WORK/build/ort/Release")"
@@ -313,6 +349,12 @@ CROSS=(
 	-DCMAKE_NO_SYSTEM_FROM_IMPORTED=ON
 	-DCMAKE_C_FLAGS=-D_USE_MATH_DEFINES
 )
+# Every helper links stripped: a published helper carries no debug information or local symbol
+# table. zig's -s strips ELF and PE outright; on Mach-O it keeps the local symbols, which -x drops.
+# staticproof bounds each helper's size, so a link that ships debug information fails the build.
+STRIP_LDFLAGS=(-s)
+[ "$SYSNAME" = Darwin ] && STRIP_LDFLAGS+=(-Wl,-x)
+
 CXXFLAGS_ALL="-D_USE_MATH_DEFINES"
 [ "$SYSNAME" = Darwin ] && CXXFLAGS_ALL="$CXXFLAGS_ALL -fno-cxx-modules"
 CROSS+=(-DCMAKE_CXX_FLAGS="$CXXFLAGS_ALL")
@@ -452,7 +494,7 @@ with open('traineddata.c', 'w') as f:
 	"$CXX" "${CXXFLAGS[@]}" -c -o shim.o "$NATIVE_DIR/feov-ocr/shim.cpp"
 	"$CXX" "${CXXFLAGS[@]}" -c -o main.o "$NATIVE_DIR/feov-ocr/main.cpp"
 
-	LDFLAGS=(-L"$PREFIX/lib" -ltesseract -lleptonica -lpng16 -lz -lc++)
+	LDFLAGS=("${STRIP_LDFLAGS[@]}" -L"$PREFIX/lib" -ltesseract -lleptonica -lpng16 -lz -lc++)
 	case "$SYSNAME" in
 	Linux)
 		LDFLAGS+=(-static)
@@ -485,6 +527,7 @@ if [ "$HELPER" = "feov-embed" ]; then
 		ORT="$WORK/build/ort"
 		rm -rf "$ORT" && mkdir -p "$ORT"
 		tar -C "$ORT" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+		ort_mirror_unhashed "$ORT"
 		ort_patch() { # ort_patch <file> <sed expr>: a pattern that no longer matches the pinned source fails the build
 			local before
 			before="$(cksum < "$ORT/$1")"
@@ -565,8 +608,7 @@ EOS
 			} > "$WORK/bin/ort${tool/c++/cxx}"
 			chmod +x "$WORK/bin/ort${tool/c++/cxx}"
 		done
-		PYTHONPATH="$WORK/src/$FLATBUFFERS_WHEEL" python3 "$ORT/tools/ci_build/build.py" \
-			--cmake_path "$CMAKE" --ctest_path "$(dirname "$CMAKE")/ctest" \
+		ORT_ARGS=(--cmake_path "$CMAKE" --ctest_path "$(dirname "$CMAKE")/ctest" \
 			--build_dir "$ORT/b" \
 			--config Release \
 			--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
@@ -574,7 +616,10 @@ EOS
 			--enable_reduced_operator_type_support \
 			--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
 			--parallel "$J" \
-			--cmake_extra_defines "${ORT_DEFS[@]}"
+			--cmake_extra_defines "${ORT_DEFS[@]}")
+		PYTHONPATH="$WORK/src/$FLATBUFFERS_WHEEL" python3 "$ORT/tools/ci_build/build.py" --update "${ORT_ARGS[@]}"
+		ort_check_fetches "$ORT/b/Release"
+		PYTHONPATH="$WORK/src/$FLATBUFFERS_WHEEL" python3 "$ORT/tools/ci_build/build.py" --build "${ORT_ARGS[@]}"
 		"$CMAKE" --build "$ORT/b/Release" --config Release --target cpuinfo -j "$J"
 		ort_lib_out="$PREFIX/lib/libonnxruntime_static.a"
 		rm -f "$ort_lib_out"
@@ -635,7 +680,7 @@ EOS
 	"$CXX" "${CXXFLAGS[@]}" -c -o frame.o "$NATIVE_DIR/frame/frame.cpp"
 	"$CXX" "${CXXFLAGS[@]}" -c -o main.o "$NATIVE_DIR/feov-embed/main.cpp"
 
-	LDFLAGS=(-L"$PREFIX/lib" -lonnxruntime_static -lc++)
+	LDFLAGS=("${STRIP_LDFLAGS[@]}" -L"$PREFIX/lib" -lonnxruntime_static -lc++)
 	case "$SYSNAME" in
 	Linux)
 		LDFLAGS+=(-static)

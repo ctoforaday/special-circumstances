@@ -262,3 +262,26 @@ func TestACrossSourceSearchNamesAnImageOnlyScanUnsearched(t *testing.T) {
 		}
 	}
 }
+
+// A SOURCE'S CHUNK VECTORS ARE EMBEDDED ONCE. The second search of an unchanged text reads its .vec
+// cache and sends the embedder nothing.
+func TestASecondSearchReadsTheSourceVectorCache(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	text := strings.Repeat("Costs in the region are moderate and rising. The harbour was dredged twice. ", 60)
+	vt := vectorText{full: text, sha: Sha([]byte(text))}
+	emb := &recordingEmbedder{}
+	first, err := chunkVectors(run, emb, vt)
+	if err != nil || len(first) < 2 || len(emb.calls) != 1 {
+		t.Fatalf("the first read = %d chunks, %v, after %d embeds; want the chunks embedded once", len(first), err, len(emb.calls))
+	}
+	second, err := chunkVectors(run, emb, vt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(emb.calls) != 1 {
+		t.Errorf("the second read embedded %d more batches; want the cache read and nothing embedded", len(emb.calls)-1)
+	}
+	if len(second) != len(first) || !slices.Equal(second[0].Vector, first[0].Vector) {
+		t.Errorf("the cache returned %d chunks; want the %d embedded, with their vectors", len(second), len(first))
+	}
+}

@@ -132,6 +132,11 @@ func rankBM25(items []Item, query string) (map[int]int, error) {
 	defer db.Close()
 	// One connection: an in-memory database is per connection, so the index and the query share it.
 	db.SetMaxOpenConns(1)
+	return rankBM25In(db, items, matchQuery)
+}
+
+// rankBM25In indexes items in db and ranks what matchQuery matches; either step's error is returned.
+func rankBM25In(db *sql.DB, items []Item, matchQuery string) (map[int]int, error) {
 	if err := indexBM25(db, items); err != nil {
 		return nil, err
 	}
