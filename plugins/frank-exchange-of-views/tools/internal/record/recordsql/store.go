@@ -515,7 +515,8 @@ func openUncached(path string) (*sql.DB, error) {
 	// read taken BEFORE ensureSchema: the loser of a concurrent first-create saw no table, lost
 	// the create to another binary, and took "did not exist" as leave to skip the check below —
 	// then died on a bare "no such column" from the other binary's schema. The host cache's
-	// feov-record and a run's own .bin are two such binaries, and the repository has met the mix.
+	// feov-record and the binary a run was set up with are two such binaries, and the repository has
+	// met the mix.
 	created, err := ensureSchema(db)
 	if err != nil {
 		db.Close()

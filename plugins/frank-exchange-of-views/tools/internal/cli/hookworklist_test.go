@@ -94,7 +94,7 @@ func TestTheShippedHookWritesTheRecordsReadOverWhatTheSeatTyped(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds two binaries")
 	}
-	for _, v := range []string{seatenv.Var, seatenv.VarWrapper, seatenv.AgentVar, seatenv.TypeVar} {
+	for _, v := range []string{seatenv.Var, seatenv.AgentVar, seatenv.TypeVar} {
 		t.Setenv(v, "")
 	}
 	const lead, agent = "session-lead", "agent_read_01"

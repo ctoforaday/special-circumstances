@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// RecordBin is the record tool's name as a seat invokes it — the name its wrapper and its own
-// refusal lines carry ("feov-record: …").
+// RecordBin is the record tool's name as a seat invokes it — the name its prompt's tool path and its
+// own refusal lines carry ("feov-record: …").
 const RecordBin = "feov-record"
 
 // LimitReason is what a seat reads when a tool call is refused because its sitting is past the

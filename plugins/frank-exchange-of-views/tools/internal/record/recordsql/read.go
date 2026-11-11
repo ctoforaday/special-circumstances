@@ -409,8 +409,8 @@ type Querier interface {
 // the stale party and must be replaced by the one the run was set up with.
 //
 // MEASURED, and it cost a whole sitting. On universe-m11 a seat typed a BARE `feov-record` and
-// reached the HOST's plugin cache — version 1.72.0 but event-schema epoch 8 — instead of the run's
-// own `.bin/feov-record` at epoch 14. The write died on a raw `CHECK constraint failed: type (275)`,
+// reached the HOST's plugin cache — version 1.72.0 but event-schema epoch 8 — instead of the binary
+// the run was set up with, at epoch 14. The write died on a raw `CHECK constraint failed: type (275)`,
 // every later call was refused with "register is your first act and it has not happened", and that
 // sitting made 100 tool calls and recorded NOTHING. A plugin VERSION is not an epoch: the two
 // binaries carried the same version string.
@@ -419,8 +419,8 @@ type Querier interface {
 // mid-run. This is the check that can.
 const newerRunAdvice = "this record was written by a NEWER binary than this one, so there is nothing " +
 	"to migrate — THIS BINARY is the stale party. A plugin version is not an event-schema epoch, so a " +
-	"matching version proves nothing. Use the binary the run was set up with: `<runDir>/.bin/feov-record`, " +
-	"which every seat's prompt names, rather than whichever `feov-record` a bare command finds on PATH"
+	"matching version proves nothing. Use the binary the run was set up with: the `feov-record` at the path " +
+	"every seat's prompt names, the binDir setup printed, rather than whichever `feov-record` a bare command finds on PATH"
 
 const olderRunAdvice = "it was created by an older binary than this one, " +
 	"and a run's schema is fixed when its database is created (it is never altered in place). Migrate it: " +

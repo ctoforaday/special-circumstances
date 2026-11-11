@@ -87,8 +87,7 @@ func TestEveryLeafRefusesBothIdentityDisagreements(t *testing.T) {
 			})
 
 			t.Run(name+"/run disagrees with the dispatch", func(t *testing.T) {
-				t.Setenv(seatenv.Var, "")
-				t.Setenv(seatenv.VarWrapper, runDir)
+				t.Setenv(seatenv.Var, runDir)
 				before := len(events(t, runDir))
 				out, err := callLeaf(t, surface, path, elsewhereRun)
 				if after := len(events(t, runDir)); after != before {
