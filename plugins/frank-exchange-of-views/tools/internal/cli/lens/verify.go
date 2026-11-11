@@ -132,7 +132,7 @@ func newVerify() *cobra.Command {
 	const oneOf = "Give exactly one of --anchor (a citation blue made) and --url (a source read against a sentence that carries no citation of it: one you found, or one blue cites elsewhere)"
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the id of the citation you checked, from the report's `"+anchor.Token("C-…")+"` token — resolve it with `show evidence`. The sentence holding that token is the claim recorded. "+oneOf)
 	c.Flags().String(flags.URL, "", flags.DescURL+". The source read for the sentence --quote names. "+oneOf)
-	flags.Text(c, flags.Title, "the source's name, kept on your reading beside its url; a gap you mint on this reading names the source through it. It reaches no report text")
+	flags.Text(c, flags.Title, "with --url only, and required with it: the source's name, kept on your reading beside its url; a gap you mint on this reading names the source through it. It reaches no report text")
 	flags.Text(c, flags.Quote, flags.DescQuote+". With --url only: the REPORT's sentence your source backs or refutes, under every --as value, never the source's")
 	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page. Refused on a citation with none, and with --url")
 	c.MarkFlagsOneRequired(flags.Anchor, flags.URL)
