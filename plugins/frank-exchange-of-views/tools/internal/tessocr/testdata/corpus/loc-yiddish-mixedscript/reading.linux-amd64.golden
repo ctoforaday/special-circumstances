@@ -1,4 +1,4 @@
-loc-yiddish-mixedscript · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+feov-ocr@f4b41e93bcb2+tessocr@6f5962a288e8+target@linux-amd64 · rendered at 300.00 DPI (native 300.00), 5144x7345 px
+loc-yiddish-mixedscript · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+feov-ocr@ccca181bde49+tessocr@6f5962a288e8+target@linux-amd64 · rendered at 300.00 DPI (native 300.00), 5144x7345 px
 table: true · rules: detector · rotated: false · grid intersections: 20030 · repaired crossings: 0 · length: 3991 · ink: 15.060%
 marks: 1 columns, 1 subcolumns, 1 rows, 1 of 10 placed, psm disagreement 0.00
 fell back: reconstruction placed 1 of 10 marks, below the 0.80 placement threshold; page kept as plain text

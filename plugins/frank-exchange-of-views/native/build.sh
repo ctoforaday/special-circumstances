@@ -56,7 +56,9 @@ if [ -n "$WORK_ARG" ]; then
 else
 	# Keyed by the source digest: a work directory holds intermediate builds (ONNX Runtime, the
 	# engine libraries) that are reused when present, so one left by other sources is never linked.
-	WORK="${RUNNER_TEMP:-${XDG_CACHE_HOME:-$HOME/.cache}/sc-native}/$HELPER/$TARGET/$DIGEST"
+	# Its first 16 hex digits name it: ONNX Runtime's KleidiAI sources sit ~200 characters below
+	# the work directory, and the full 64 put them past Windows' 260-character path limit.
+	WORK="${RUNNER_TEMP:-${XDG_CACHE_HOME:-$HOME/.cache}/sc-native}/$HELPER/$TARGET/${DIGEST:0:16}"
 fi
 
 [ -n "$OUTDIR" ] || OUTDIR="$WORK/dist"
@@ -112,19 +114,19 @@ ASSET_PAIRS="$(cd "$TOOLS_DIR" && go run ./devcmd/nativedigest -assets "$HELPER"
 	die "nativedigest -assets $HELPER -arch $ARCH failed"
 
 fetch_assets() { # fetch each export ASSETS names for $ARCH from the helper's pins
-	local file export
-	while read -r file export; do
+	local file exported
+	while read -r file exported; do
 		[ -n "$file" ] || continue
-		fetch_pinned "$export" "$NATIVE_DIR/$HELPER/PINS.txt" "$WORK/src"
+		fetch_pinned "$exported" "$NATIVE_DIR/$HELPER/PINS.txt" "$WORK/src"
 	done <<<"$ASSET_PAIRS"
 }
 
 ship_assets() { # copy each export into OUTDIR under its release name; install-helpers and
 	# fetch-bin.sh install it under the ASSETS line's file name
-	local file export
-	while read -r file export; do
+	local file exported
+	while read -r file exported; do
 		[ -n "$file" ] || continue
-		cp "$WORK/src/$export" "$OUTDIR/$export"
+		cp "$WORK/src/$exported" "$OUTDIR/$exported"
 	done <<<"$ASSET_PAIRS"
 }
 
@@ -480,20 +482,100 @@ if [ "$HELPER" = "feov-embed" ]; then
 		mkdir -p "$PREFIX/lib" "$PREFIX/include"
 		fetch_pinned onnxruntime-1.31.1.tar.gz "$HELPER_PINS" "$WORK/src"
 		fetch_pinned "$FLATBUFFERS_WHEEL" "$HELPER_PINS" "$WORK/src"
-		rm -rf "$WORK/build/ort" && mkdir -p "$WORK/build/ort"
-		tar -C "$WORK/build/ort" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
-		PYTHONPATH="$WORK/src/$FLATBUFFERS_WHEEL" python3 "$WORK/build/ort/tools/ci_build/build.py" \
+		ORT="$WORK/build/ort"
+		rm -rf "$ORT" && mkdir -p "$ORT"
+		tar -C "$ORT" --strip-components=1 -xf "$WORK/src/onnxruntime-1.31.1.tar.gz"
+		ort_patch() { # ort_patch <file> <sed expr>: a pattern that no longer matches the pinned source fails the build
+			local before
+			before="$(cksum < "$ORT/$1")"
+			sed -i -e "$2" "$ORT/$1"
+			[ "$(cksum < "$ORT/$1")" != "$before" ] || die "patching $1 changed nothing: $2"
+		}
+		# mlas's q4dq command-line tool is an executable in ALL; on darwin its link asks for
+		# Foundation, which zig cannot supply. Nothing here needs the tool, and without it nothing in
+		# ALL builds cpuinfo, which is built by name below.
+		ort_patch cmake/onnxruntime_mlas.cmake 's/^  set_target_properties(onnxruntime_mlas_q4dq PROPERTIES FOLDER "ONNXRuntimeTest")$/&\n  set_target_properties(onnxruntime_mlas_q4dq PROPERTIES EXCLUDE_FROM_ALL TRUE)/'
+		ORT_CC="$WORK/bin/ortcc" ORT_CXX="$WORK/bin/ortcxx"
+		ORT_DEFS=(onnxruntime_BUILD_UNIT_TESTS=OFF CMAKE_POLICY_VERSION_MINIMUM=3.5
+			CMAKE_SYSTEM_NAME="$SYSNAME" CMAKE_SYSTEM_PROCESSOR="$PROC"
+			CMAKE_C_COMPILER="$ORT_CC" CMAKE_CXX_COMPILER="$ORT_CXX" CMAKE_ASM_COMPILER="$ORT_CC"
+			CMAKE_AR="$AR" CMAKE_RANLIB="$RANLIB"
+			CMAKE_C_COMPILER_AR="$AR" CMAKE_CXX_COMPILER_AR="$AR"
+			CMAKE_C_COMPILER_RANLIB="$RANLIB" CMAKE_CXX_COMPILER_RANLIB="$RANLIB")
+		# zig cc maps -march to a CPU name and rejects ORT's per-file -march=armv8.2-a+bf16 (and
+		# the CMakeLists.txt probe of it) and KleidiAI's plain -march=armv8-a; the same request
+		# spelled as zig CPU features is -mcpu=generic+v8_2a+bf16, where fp16 is "fullfp16".
+		cat > "$WORK/bin/marchfix" <<'EOS'
+for a; do shift; case $a in
+  -march=armv8-a*) r=$(printf '%s' "${a#-march=armv8-a}" | sed 's/+fp16/+fullfp16/g'); set -- "$@" "-mcpu=generic$r" ;;
+  -march=armv8.[0-9]-a*) v=${a#-march=armv8.}; n=${v%%-a*}; r=$(printf '%s' "${v#*-a}" | sed 's/+fp16/+fullfp16/g'); set -- "$@" "-mcpu=generic+v8_${n}a$r" ;;
+  *) set -- "$@" "$a" ;; esac; done
+EOS
+		ORT_INC=""
+		if [ "$SYSNAME" = Darwin ]; then
+			# The Apple log sink is Objective-C++ over Foundation (NSLog); zig carries no macOS SDK
+			# and Foundation is outside the darwin allowlist, so the portable clog sink is used and
+			# device discovery (IOKit) is off.
+			ort_patch cmake/onnxruntime_common.cmake '/core\/platform\/apple\/logging\/\*\.h"/,/core\/platform\/apple\/logging\/\*\.mm"/d'
+			ort_patch onnxruntime/core/platform/logging/make_platform_default_log_sink.cc 's/^#elif defined(__APPLE__)$/#elif defined(__APPLE__) \&\& 0/'
+			# abseil's cctz asks CoreFoundation for the local zone name on __APPLE__: the six
+			# declarations it uses, with Apple's signatures; the link resolves them against
+			# CoreFoundation. ORT's posix env.cc includes <sys/syscall.h>, which zig's macOS headers
+			# lack, and uses it only on Linux.
+			ORT_INC="$WORK/ortinc"
+			mkdir -p "$ORT_INC/CoreFoundation" "$ORT_INC/sys"
+			cat > "$ORT_INC/CoreFoundation/CFTimeZone.h" <<'EOS'
+#pragma once
+#include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef const struct __CFTimeZone *CFTimeZoneRef;
+typedef const struct __CFString *CFStringRef;
+typedef const void *CFTypeRef;
+typedef long CFIndex;
+typedef uint32_t CFStringEncoding;
+typedef unsigned char Boolean;
+enum { kCFStringEncodingUTF8 = 0x08000100 };
+CFTimeZoneRef CFTimeZoneCopyDefault(void);
+CFStringRef CFTimeZoneGetName(CFTimeZoneRef tz);
+CFIndex CFStringGetLength(CFStringRef theString);
+CFIndex CFStringGetMaximumSizeForEncoding(CFIndex length, CFStringEncoding encoding);
+Boolean CFStringGetCString(CFStringRef theString, char *buffer, CFIndex bufferSize, CFStringEncoding encoding);
+void CFRelease(CFTypeRef cf);
+#ifdef __cplusplus
+}
+#endif
+EOS
+			printf '#pragma once\n' > "$ORT_INC/sys/syscall.h"
+			# ORT links Iconv on every non-Windows target and calls none of it; macOS keeps iconv
+			# outside libSystem and zig has no SDK to find it in. mlas and the platform probe pick
+			# kernels by CMAKE_OSX_ARCHITECTURES on Apple; unset, they pick the host's (x86).
+			ORT_DEFS+=(onnxruntime_DISABLE_DEVICE_DISCOVERY=ON Iconv_IS_BUILT_IN=TRUE CMAKE_OSX_ARCHITECTURES="$PROC")
+		fi
+		for tool in cc c++; do
+			{
+				printf '#!/bin/sh\n'
+				cat "$WORK/bin/marchfix"
+				if [ -n "$ORT_INC" ]; then
+					printf 'exec %q %s -target %s -isystem %q "$@"\n' "$ZIG" "$tool" "$TRIPLE" "$ORT_INC"
+				else
+					printf 'exec %q %s -target %s "$@"\n' "$ZIG" "$tool" "$TRIPLE"
+				fi
+			} > "$WORK/bin/ort${tool/c++/cxx}"
+			chmod +x "$WORK/bin/ort${tool/c++/cxx}"
+		done
+		PYTHONPATH="$WORK/src/$FLATBUFFERS_WHEEL" python3 "$ORT/tools/ci_build/build.py" \
 			--cmake_path "$CMAKE" --ctest_path "$(dirname "$CMAKE")/ctest" \
-			--build_dir "$WORK/build/ort/b" \
+			--build_dir "$ORT/b" \
 			--config Release \
 			--minimal_build --disable_exceptions --disable_rtti --disable_ml_ops \
 			--include_ops_by_config "$NATIVE_DIR/feov-embed/ops.config" \
 			--enable_reduced_operator_type_support \
 			--skip_tests --skip_submodule_sync --compile_no_warning_as_error \
 			--parallel "$J" \
-			--cmake_extra_defines CMAKE_SYSTEM_NAME="$SYSNAME" CMAKE_SYSTEM_PROCESSOR="$PROC" \
-				CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX" \
-				CMAKE_AR="$AR" CMAKE_RANLIB="$RANLIB"
+			--cmake_extra_defines "${ORT_DEFS[@]}"
+		"$CMAKE" --build "$ORT/b/Release" --config Release --target cpuinfo -j "$J"
 		ort_lib_out="$PREFIX/lib/libonnxruntime_static.a"
 		rm -f "$ort_lib_out"
 		libs=()
@@ -513,9 +595,13 @@ if [ "$HELPER" = "feov-embed" ]; then
 	Darwin)
 		GOSRC="$(go env GOROOT)/src"
 		tbd_target="$PROC-macos"
-		dyn_syms() {
-			grep -rhoE "//go:cgo_import_dynamic [^ ]+ [^ ]+ \"[^\"]*$1\"" "$GOSRC" |
-				awk '{ print "_" $3 }' | sort -u | paste -sd, - | sed 's/,/, /g'
+		dyn_syms() { # dyn_syms <library> [symbol...]: what Go imports from it, and the symbols named
+			local lib="$1"
+			shift
+			{
+				grep -rhoE "//go:cgo_import_dynamic [^ ]+ [^ ]+ \"[^\"]*$lib\"" "$GOSRC" | awk '{ print "_" $3 }'
+				[ $# -eq 0 ] || printf '%s\n' "$@"
+			} | sort -u | paste -sd, - | sed 's/,/, /g'
 		}
 		write_tbd() {
 			mkdir -p "$(dirname "$1")"
@@ -525,7 +611,9 @@ if [ "$HELPER" = "feov-embed" ]; then
 				printf -- '...\n'
 			} > "$1"
 		}
-		cf_syms="$(dyn_syms CoreFoundation)"
+		# abseil cctz, inside ONNX Runtime, calls these six CoreFoundation functions.
+		cf_syms="$(dyn_syms CoreFoundation _CFTimeZoneCopyDefault _CFTimeZoneGetName _CFStringGetLength \
+			_CFStringGetMaximumSizeForEncoding _CFStringGetCString _CFRelease)"
 		sec_syms="$(dyn_syms Security)"
 		write_tbd "$PREFIX/lib/libresolv.tbd" '/usr/lib/libresolv.9.dylib'
 		write_tbd "$PREFIX/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" \

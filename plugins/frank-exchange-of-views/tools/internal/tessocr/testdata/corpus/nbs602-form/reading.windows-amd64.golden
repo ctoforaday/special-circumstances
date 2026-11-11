@@ -1,4 +1,4 @@
-nbs602-form · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+feov-ocr@f4b41e93bcb2+tessocr@6f5962a288e8+target@windows-amd64 · rendered at 350.37 DPI (native 350.37), 2645x3526 px
+nbs602-form · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+feov-ocr@ccca181bde49+tessocr@6f5962a288e8+target@windows-amd64 · rendered at 350.37 DPI (native 350.37), 2645x3526 px
 table: true · rules: detector · rotated: false · grid intersections: 351 · repaired crossings: 0 · length: 2573 · ink: 7.365%
 marks: 1 columns, 1 subcolumns, 3 rows, 2 of 5 placed, psm disagreement 0.00
 text cells: 1 tables, 11 bands, 18 rows, 2 columns, 15 cells, 353 words placed, 353 read
