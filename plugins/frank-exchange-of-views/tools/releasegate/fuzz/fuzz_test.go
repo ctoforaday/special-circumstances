@@ -536,12 +536,10 @@ type runner struct {
 	// debtLeft marks each seat whose sitting in progress leaves its reading debts standing (leaveDebt):
 	// its envelope is refused over them and the sitting ends without one (envelopeEnds).
 	debtLeft map[string]bool
-	// crossArmRuns is how many times the cross-arm drive ran this run (crossArmMints), oneURLDone whether
-	// the one-url drive did (oneURLTwoSentences), and reword the estoppel reword pair's state
-	// (rewordAppliedText).
+	// crossArmRuns is how many times the cross-arm drive ran this run (crossArmMints), and oneURLDone
+	// whether the one-url drive did (oneURLTwoSentences).
 	crossArmRuns int
 	oneURLDone   bool
-	reword       estoppelReword
 	// notTheWorkCite is blue's cite of the copy that is not the work, and notTheWorkTried whether the
 	// run's one try at it ran (citeNotTheWork).
 	notTheWorkCite                string
@@ -1744,9 +1742,7 @@ func (r *runner) noteVerbatimGap(gapID, fixNew string) {
 
 // aVerbatimGap returns one gap/text pair blue applied verbatim whose prescription STILL ESTOPS red
 // (stillEstops) and whose applied text is ON THE PAGE, or "" with why none is — none has landed yet,
-// every one was since reworded, or every one that still estops has lost its words. The reword pair's
-// gap is returned through its stages whatever its standing: the pair drives the reword that ends the
-// estoppel and the re-apply that restores it (mintRewordedText).
+// every one was since reworded, or every one that still estops has lost its words.
 //
 // THE WORDS, NOT ONLY THE STANDING. A gap whose token a retire took out is never reopened, so it
 // estops as long as the run lasts (record.estoppingPrescriptions' residue) while blue's edits of the
@@ -1756,14 +1752,7 @@ func (r *runner) noteVerbatimGap(gapID, fixNew string) {
 func (r *runner) aVerbatimGap() (gapID, fixNew, miss string) {
 	r.mu.Lock()
 	ids := slices.Sorted(maps.Keys(r.verbatimGaps))
-	paired, pairedFix := "", ""
-	if r.reword.stage == rewordReworded || r.reword.stage == rewordLanded || r.reword.stage == rewordRestored {
-		paired, pairedFix = r.reword.gap, r.verbatimGaps[r.reword.gap]
-	}
 	r.mu.Unlock()
-	if paired != "" {
-		return paired, pairedFix, ""
-	}
 	if len(ids) == 0 {
 		return "", "", "nothing applied verbatim yet when the drive fired"
 	}
@@ -1813,7 +1802,7 @@ func (r *runner) stillEstops(gapID string) bool {
 	}
 	estops := false
 	for i := range b.Events {
-		ed, isE := lastBlueEdit(b, i)
+		ed, isE := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
 		if !isE {
 			continue
 		}
@@ -4606,11 +4595,6 @@ func (r *runner) mintEstopped(seatID string) {
 			"the 40-char overlap the guard requires")
 		return
 	}
-	// THE REWORD PAIR TAKES THE MINT while it stands (mintRewordedText): a reword ends estoppel, a
-	// re-application restores it.
-	if r.mintRewordedText(seatID, gapID, sentence) {
-		return
-	}
 	probe := []string{"--json", "mint", "--seat-id", seatID, "--class", "spec_underspecification",
 		"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
 		"--check", "acc", "--fix", "reword it", "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
@@ -4642,6 +4626,29 @@ func (r *runner) mintEstopped(seatID string) {
 	// where the tool's own `log --type estoppel` entry either exists or does not — a driver that
 	// counted its own error would report the guard as firing on any refusal at all, including one
 	// for a quote that simply was not on the page.
+}
+
+// gapIDOf is the gap id a mint's --json result names, or "".
+func gapIDOf(out string) string {
+	var env struct {
+		Result struct {
+			GapID string `json:"gap_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil {
+		return ""
+	}
+	return env.Result.GapID
+}
+
+// noteReadingMintLandedPlain notes an admitted plain mint's gap as seatID's (a find, spending its
+// stock), and returns the gap id.
+func (r *runner) noteReadingMintLandedPlain(seatID, out string) string {
+	id := gapIDOf(out)
+	if id != "" {
+		r.noteMint(seatID, id)
+	}
+	return id
 }
 
 // someFinding returns the id of a random lens finding on the record, or "" if none — feeds mint's
@@ -5845,8 +5852,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// looked at what red had actually asked for.
 		r.presented.add(open...)
 		r.blueRespondTo(seatID, open)
-		// THE REWORD PAIR, in estoppelSeed's run: red's applied text reworded, then re-applied.
-		r.rewordAppliedText(seatID)
 		r.maybePetition(seatID)
 		r.dischargeOwed(seatID)
 		env := map[string]any{}
@@ -9037,9 +9042,9 @@ func (r *runner) anchorsLeftFor(claim string) (id string, left bool) {
 	}
 	// THE ESTOPPEL SEED KEEPS ITS APPLIED GAPS' TOKENS. A retire naming a gap's token takes it out of
 	// the report for good, and a gap with no token is never reopened: it estops to the run's end while
-	// blue's later edits of its sentence name nothing, so the reword pair (rewordAppliedText) could
-	// neither end its estoppel nor re-apply its text by token. The other runs drive the retire of a
-	// gap token; this one holds its precondition.
+	// blue's later edits of its sentence name nothing and swap its words away, so aVerbatimGap finds
+	// no applied text on the page and mintEstopped drives nothing (CI run 42935559070). The other runs
+	// drive the retire of a gap token; this one holds its precondition.
 	keeps := func(id string) bool { return !(r.forceEstoppel && r.isVerbatimGap(id)) }
 	for i := len(b.Events) - 1; i >= 0; i-- {
 		be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
@@ -9413,9 +9418,9 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// from the page they were minted on, so the first applied makes every sibling's pair
 			// stale, and a counter-edit answering the sibling swaps the phrase straight back: the
 			// edit lists the applied gap reopened, its estoppel ends inside the sitting that began
-			// it (F12), and the reword pair (rewordAppliedText) finds no prescription standing at
-			// every sitting of the run. The stale pair is counted above; the sibling waits for a
-			// page its pair fits, and the other runs degrade to the counter-edit.
+			// it (F12), and mintEstopped finds no prescription standing at every sitting of the run.
+			// The stale pair is counted above; the sibling waits for a page its pair fits, and the
+			// other runs degrade to the counter-edit.
 			if r.forceEstoppel {
 				continue
 			}

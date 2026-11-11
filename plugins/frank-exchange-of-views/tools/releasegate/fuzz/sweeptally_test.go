@@ -1163,8 +1163,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// admitted mint in each form, the one-gap rule's arms over it, the debt on each surface and each of
 		// its discharges — is reached only by the drive built for it; a path that stopped being reached
 		// would hide behind a green sweep. Every count is taken after the record's answer was read.
-		t.Logf("readings and debts: %+v; the most open gaps of one class in one sentence at a run's end: %d; seed %d's run is forced through the debt's life on a cited source, seed %d's through the discharges no draw reaches, seed %d's through the estoppel reword pair, seed %d's ends on a standing debt",
-			f.reading, f.maxOpenPerClassSentence, readingDebtSeed, readingRemovalSeed, estoppelSeed, limitSeed)
+		t.Logf("readings and debts: %+v; the most open gaps of one class in one sentence at a run's end: %d; seed %d's run is forced through the debt's life on a cited source, seed %d's through the discharges no draw reaches, seed %d's ends on a standing debt",
+			f.reading, f.maxOpenPerClassSentence, readingDebtSeed, readingRemovalSeed, limitSeed)
 		t.Logf("live-answer demand: %d close(s) of a source gap refused; seed %d's run is forced through both refusals", f.sourceClosesRefused, sourceDemandSeed)
 		for _, c := range f.reading.gates() {
 			if c.n == 0 {

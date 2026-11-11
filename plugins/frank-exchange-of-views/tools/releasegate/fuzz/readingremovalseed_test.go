@@ -550,7 +550,7 @@ func TestTheReadingTallyGatesEveryKey(t *testing.T) {
 		c.mintsRefused[classContradicts], c.mintsRefused[classMisattribution] = 1, 1
 		c.secondMintsRefused, c.foundSourceMintsEstopped, c.envelopesRefusedOnDebt, c.passRefusedOnDebt = 1, 1, 1, 1
 		c.foundAbsentOnMarkedNoDebt, c.debtReadied, c.lostQuoteReread, c.oneURLTwoSentences = 1, 1, 1, 1
-		c.estoppelEndedByReword, c.estoppelRestored, c.debtsStandingAtEnd = 1, 1, 1
+		c.debtsStandingAtEnd = 1
 	})
 	for _, g := range r.reading.tally().gates() {
 		if g.n == 0 {
@@ -583,4 +583,18 @@ func TestEveryReadingMintedClassHasItsGates(t *testing.T) {
 			t.Errorf("the drive mints %s on a reading, and the record's table has no such row", class)
 		}
 	}
+}
+
+// lastEditVerbatim reports whether seatID's latest edit on the record applied red's text verbatim.
+func (r *runner) lastEditVerbatim(seatID string) bool {
+	b, ok := r.board()
+	if !ok {
+		return false
+	}
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		if e, isE := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i]); isE && b.Events[i].GetSeatId() == seatID {
+			return e.GetAppliedVerbatim()
+		}
+	}
+	return false
 }

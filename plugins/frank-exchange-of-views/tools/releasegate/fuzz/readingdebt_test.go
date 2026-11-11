@@ -73,12 +73,6 @@ type readingCounts struct {
 	// oneURLTwoSentences: one url read against two sentences by one lens in one sitting, each
 	// reading admitted, each debt discharged by its own quote mint.
 	oneURLTwoSentences int
-	// estoppelEndedByReword: a red mint of applied text blue has since reworded, admitted (F12);
-	// estoppelRestored: red's mint of it refused again once blue re-applied red's text.
-	estoppelEndedByReword, estoppelRestored int
-	// rewordPairDeclined: why the reword pair's blue half declined at a sitting of the estoppel
-	// seed's run (rewordAppliedText), by reason — the zero of the two counts above names its cause.
-	rewordPairDeclined map[string]int
 	// debtsStandingAtEnd: a run that ends with a reading debt standing, the outcome naming it.
 	debtsStandingAtEnd int
 }
@@ -112,9 +106,6 @@ type readingTally struct {
 	DebtReadied               int            `json:"reading_debt_readied"`
 	LostQuoteReread           int            `json:"reading_debt_lost_quote_reread"`
 	OneURLTwoSentences        int            `json:"one_url_two_sentences"`
-	EstoppelEndedByReword     int            `json:"estoppel_ended_by_reword"`
-	EstoppelRestored          int            `json:"estoppel_restored"`
-	RewordPairDeclined        map[string]int `json:"reword_pair_declined"`
 	DebtsStandingAtEnd        int            `json:"reading_debts_standing_at_end"`
 }
 
@@ -126,8 +117,7 @@ func (c readingCounts) tally() readingTally {
 		PassRefusedOnDebt: c.passRefusedOnDebt, DebtsDischarged: cloneCounts(c.debtsDischarged),
 		FoundAbsentOnMarkedNoDebt: c.foundAbsentOnMarkedNoDebt, DebtReadied: c.debtReadied,
 		LostQuoteReread: c.lostQuoteReread, OneURLTwoSentences: c.oneURLTwoSentences,
-		EstoppelEndedByReword: c.estoppelEndedByReword, EstoppelRestored: c.estoppelRestored,
-		RewordPairDeclined: cloneCounts(c.rewordPairDeclined), DebtsStandingAtEnd: c.debtsStandingAtEnd,
+		DebtsStandingAtEnd: c.debtsStandingAtEnd,
 	}
 }
 
@@ -154,9 +144,6 @@ func (t *readingTally) add(o readingTally) {
 	t.DebtReadied += o.DebtReadied
 	t.LostQuoteReread += o.LostQuoteReread
 	t.OneURLTwoSentences += o.OneURLTwoSentences
-	t.EstoppelEndedByReword += o.EstoppelEndedByReword
-	t.EstoppelRestored += o.EstoppelRestored
-	t.RewordPairDeclined = addCounts(t.RewordPairDeclined, o.RewordPairDeclined)
 	t.DebtsStandingAtEnd += o.DebtsStandingAtEnd
 }
 
@@ -196,8 +183,6 @@ func (t readingTally) gates() []struct {
 	add(t.DebtReadied, "plans readying a lens for its reading debt")
 	add(t.LostQuoteReread, "lost-quote reading debts cleared by the lens's reading of the sentence the edit left")
 	add(t.OneURLTwoSentences, "one url read against two sentences, two debts, two quote mints admitted")
-	add(t.EstoppelEndedByReword, "red mints of applied text blue reworded, admitted (a reword ends estoppel)")
-	add(t.EstoppelRestored, "red mints refused again once blue re-applied its text")
 	add(t.DebtsStandingAtEnd, "runs ending with a reading debt standing, the outcome naming it")
 	return out
 }
@@ -208,7 +193,6 @@ func (r *runner) countReading(f func(c *readingCounts)) {
 	if r.reading.mintsRefused == nil {
 		r.reading.mintsRefused, r.reading.mintsLanded = map[string]int{}, map[string]int{}
 		r.reading.crossArmMintsRefused, r.reading.debtsDischarged = map[string]int{}, map[string]int{}
-		r.reading.rewordPairDeclined = map[string]int{}
 	}
 	f(&r.reading)
 }
