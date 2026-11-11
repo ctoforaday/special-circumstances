@@ -10,13 +10,14 @@ import (
 
 // THE DEBT WHOSE SENTENCE A SUB-BOUND EDIT TOOK OUT: the drawn edit swaps a 16-character phrasing
 // of lane 2's sentence, under the lost-quote lookup's floor (F10), so a lens's found reading of that
-// sentence is lost with no edit named — the item keeps the located wording, and the plan's residue
-// clears it by the lens's reading of the SAME url against a sentence the report holds. The drive
-// reads the same url rather than quoting words the report no longer holds, in the sitting after the
-// edit and in the sitting the reading was made in (the retry key admits another sentence).
-func TestASubBoundEditLeavesTheDebtTheSameURLClears(t *testing.T) {
+// sentence is lost with no edit named — and the sentence the edit left is still the debt's: the
+// item names it, and the lens clears the debt by reading a source against it, in the sitting after
+// the edit and in the sitting the reading was made in (a fresh url against the reworded sentence is
+// no retry).
+func TestASubBoundEditLeavesTheDebtTheCurrentSentenceClears(t *testing.T) {
 	const blue, lens = "blue-respond", "red-lens-voice"
 	line := "The cost is rising over time across the whole sampled corpus."
+	const left = "The cost is climbing sharply across the whole sampled corpus"
 	stage := func(t *testing.T) (*runner, string) {
 		r := stagedRunner(t)
 		if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
@@ -33,8 +34,8 @@ func TestASubBoundEditLeavesTheDebtTheSameURLClears(t *testing.T) {
 			t.Fatalf("blue's edit: %s", r.actErr)
 		}
 		b, stands := r.debtOf(lens, line)
-		if !stands || b.Lost() != 0 || b.Reworded() != "" || !strings.Contains(b.WorkItem(), "finds the source against its sentence") {
-			t.Fatalf("after the sub-bound edit the debt stands %v, lost %d, reworded %q: want standing, no edit named, the located wording", stands, b.Lost(), b.Reworded())
+		if !stands || b.Lost() != 0 || b.Reworded() != left || !strings.Contains(b.WorkItem(), "changed that sentence to \""+left+"\"") || strings.Contains(b.WorkItem(), "blue's edit at event") {
+			t.Fatalf("after the sub-bound edit the debt stands %v, lost %d, reworded %q: want standing, no edit named, the item naming %q\n%s", stands, b.Lost(), b.Reworded(), left, b.WorkItem())
 		}
 		if r.heldOnce(line) {
 			t.Fatal("the report still holds the reading's sentence once")
@@ -52,25 +53,32 @@ func TestASubBoundEditLeavesTheDebtTheSameURLClears(t *testing.T) {
 				r.sit("lens", lens)
 			}
 			r.answerReadingDebt(lens)
-			if r.actErr != "" || len(r.readingDebts()) != 0 || r.reading.debtsDischarged["reread"] != 1 {
-				t.Fatalf("after the lens's answer: %d debts, reread %d (%s)", len(r.readingDebts()), r.reading.debtsDischarged["reread"], r.actErr)
+			if r.actErr != "" || len(r.readingDebts()) != 0 || r.reading.debtsDischarged["reread"] != 1 || r.reading.lostQuoteReread != 1 {
+				t.Fatalf("after the lens's answer: %d debts, reread %d, lost-quote reread %d (%s)", len(r.readingDebts()), r.reading.debtsDischarged["reread"], r.reading.lostQuoteReread, r.actErr)
 			}
 			if ref, err := record.EnvelopeRefusal(r.run(), lens); err != nil || ref != "" {
 				t.Errorf("the envelope after the answer: %q (%v)", ref, err)
 			}
-			// THE SAME URL, another sentence: the one identity the residue leaves the reading.
+			// THE SENTENCE THE EDIT LEFT, read against a fresh source: the lost url is read once.
 			b, ok := r.board()
 			if !ok {
 				t.Fatal("the board did not read")
 			}
-			reads := 0
+			reads, against := 0, 0
 			for _, e := range b.Events {
-				if v, isV := recordpb.BodyAs[*recordpb.Verify](e); isV && v.GetUrl() == url && e.GetSeatId() == lens {
+				v, isV := recordpb.BodyAs[*recordpb.Verify](e)
+				if !isV || e.GetSeatId() != lens {
+					continue
+				}
+				if v.GetUrl() == url {
 					reads++
 				}
+				if strings.TrimSuffix(v.GetClaim(), ".") == left {
+					against++
+				}
 			}
-			if reads != 2 {
-				t.Errorf("readings of %s by the lens: %d, want the lost one and its re-read", url, reads)
+			if reads != 1 || against != 1 {
+				t.Errorf("the lens's readings: %d of %s and %d against %q, want one and one", reads, url, against, left)
 			}
 		})
 	}

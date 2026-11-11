@@ -102,9 +102,12 @@ type Blocker struct {
 	outcome recordpb.SourceOutcome
 	// lost is the edit that took a found-source reading's claim out of its sentence (a reading debt
 	// standing on a lost quote), 0 while the claim locates or no edit is named; reworded is the
-	// sentence that edit left at the place, "" where it names none.
-	lost     int64
-	reworded string
+	// sentence the report now holds at the place, named edit or not, "" where the claim locates or the
+	// sentence's fate is unknown; unlocated is whether the claim no longer locates on the report as it
+	// stands.
+	lost      int64
+	reworded  string
+	unlocated bool
 	// awaited is a closing blocker whose party has sat through no sitting opened since the
 	// docketing (ClosingAwaited); false for a missing one, whose party sat and filed none.
 	awaited bool
@@ -140,9 +143,14 @@ func (b Blocker) Outcome() recordpb.SourceOutcome { return b.outcome }
 // claim locates or no edit is named — and for every other kind.
 func (b Blocker) Lost() int64 { return b.lost }
 
-// Reworded is the sentence the edit Lost names left at the place of a found-source reading debt's
-// sentence, "" where it names none — and for every other kind.
+// Reworded is the sentence the report now holds at the place of a found-source reading debt's
+// sentence — the edit Lost names left it, or an edit under the floor that is named by none — "" where
+// the claim locates or the sentence's fate is unknown, and for every other kind.
 func (b Blocker) Reworded() string { return b.reworded }
+
+// Unlocated reports whether a found-source reading debt's claim no longer locates on the report as it
+// stands; false for every other kind.
+func (b Blocker) Unlocated() bool { return b.unlocated }
 
 // ChairOwned reports whether the chair clears it in its own sitting.
 func (b Blocker) ChairOwned() bool { return b.Owner == chairSeat }
@@ -981,13 +989,20 @@ func readingDebtFact(b Blocker) string {
 		}
 		return fmt.Sprintf("lens %s's reading of %s at event %d read it against %q and %s, and blue's edit at event %d changed that sentence to %s", ownerOr(b, failedChecker), b.Detail, b.since, b.Subject, how, b.lost, to)
 	}
+	if b.reworded != "" {
+		return fmt.Sprintf("lens %s's reading of %s at event %d read it against %q and %s, and blue's edit of a phrase inside it changed that sentence to %q", ownerOr(b, failedChecker), b.Detail, b.since, b.Subject, how, b.reworded)
+	}
+	if b.unlocated {
+		return fmt.Sprintf("lens %s's reading of %s at event %d read it against %q and %s, and the report no longer holds that sentence once", ownerOr(b, failedChecker), b.Detail, b.since, b.Subject, how)
+	}
 	return fmt.Sprintf("lens %s's reading of %s at event %d %s %q", ownerOr(b, failedChecker), b.Detail, b.since, how, b.Subject)
 }
 
 // readingDebtClears is what clears a reading debt, stated by every wording of it: the lens's gap of
-// the class on its reading, or its re-read of the subject; for a found source read silent on an
-// uncited sentence, any seat's unsourced_claim gap or blue's cite of the sentence as well; and blue's
-// act that ends it — an edit of a cited sentence or a retire of its citation, and of a sentence a
+// the class on its reading, or its re-read of the subject — the sentence as it now stands for a lost
+// quote whose sentence is known, the same url against any sentence where it is not; for a found
+// source read silent on an uncited sentence, any seat's unsourced_claim gap or blue's cite of the
+// sentence as well; and blue's act that ends it — an edit of a cited sentence or a retire of its citation, and of a sentence a
 // found source was read against only an edit that removes it or applies red's text verbatim
 // (the estoppel discharge), as the lens's constitution and the help state it.
 func readingDebtClears(b Blocker) string {
@@ -996,8 +1011,10 @@ func readingDebtClears(b Blocker) string {
 	switch {
 	case readingDebtCited(b):
 		return fmt.Sprintf("%s clears it by minting that gap about the citation on this reading, graded as it judges, or by reading the citation again at its next sitting; blue's edit of the sentence or retire of the citation ends it", who)
-	case b.lost != 0:
+	case b.lost != 0 || b.reworded != "":
 		return fmt.Sprintf("%s clears it by reading a source against the sentence as it now stands, or by minting a %s gap on a reading of it; blue's edit that removes the sentence, or applies red's text verbatim, ends it", who, class)
+	case b.unlocated:
+		return fmt.Sprintf("%s clears it by reading %s again against a sentence the report holds; a reading there that finds against owes its %s gap on that sentence", who, b.Detail, class)
 	case readingDebtClass(b) == recordpb.GapClass_GAP_CLASS_UNSOURCED_CLAIM:
 		return fmt.Sprintf("%s clears it by minting that gap quoting the sentence, as any seat may, or by reading another source for the sentence; blue's cite of the sentence, or edit that removes it, ends it", who)
 	}

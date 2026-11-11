@@ -716,13 +716,14 @@ func (r *runner) rereadFound(seatID, quote string) {
 // or read again as backing; a found source read `refutes` is minted on quoting the sentence, or
 // another source is read for it; one read `absent` has its unsourced_claim minted, or another source
 // read; a debt whose quote blue's edit reworded is cleared by reading a source against the sentence
-// the edit left (lostQuoteReread). A debt whose sentence the report no longer holds once and which
-// names no edit — blue's edit of the sentence met no F10 bound (the drawn edit swaps a 16-character
-// phrasing, under the floor), or the words now occur twice — is the plan's stated residue: it names
-// the reading alone, and clears by the lens's reading of the SAME url against a sentence the report
-// holds (rereadLost). Quoting the lost words would place nothing, so neither the mint nor a fresh
-// source is tried on it. One time in ten the lens first tries to end with the debt standing, and
-// its envelope is refused naming the reading.
+// the edit left (lostQuoteReread) — named, or under the F10 floor and named by none (the drawn edit
+// swaps a 16-character phrasing; the item names the sentence it left all the same). A debt whose
+// sentence the report no longer holds once and whose current sentence the record does not know —
+// the words now occur twice — is the plan's stated residue: it names the reading alone, and clears
+// by the lens's reading of the SAME url against a sentence the report holds (rereadLost). Quoting
+// the lost words would place nothing, so neither the mint nor a fresh source is tried on it. One
+// time in ten the lens first tries to end with the debt standing, and its envelope is refused
+// naming the reading.
 func (r *runner) answerReadingDebt(seatID string) {
 	if r.debtLeftBy(seatID) {
 		return
@@ -805,9 +806,10 @@ func sameURLSentences() []string {
 }
 
 // rereadLost clears seatID's debt on a reading whose quote blue's edit took out of its sentence: by
-// a reading of a source against the sentence the edit left (the lost-quote item names it), or, where
-// the debt names no edit, of the same url against a sentence the report holds — the one identity the
-// plan leaves such a reading (§III.4, the lost quote's residue). A report holding none of the
+// a reading of a source against the sentence the edit left (the lost-quote item names it, whether or
+// not it names the edit), or, where the record knows no current sentence, of the same url against a
+// sentence the report holds — the one identity the plan leaves such a reading (§III.4, the lost
+// quote's residue). A report holding none of the
 // candidate sentences once leaves the debt, and the run fails on the envelope naming it.
 func (r *runner) rereadLost(seatID string, b record.Blocker) {
 	url, quote, seeded := foundSourceURL(seatID), b.Reworded(), false

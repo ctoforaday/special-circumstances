@@ -1,6 +1,7 @@
 package record
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -362,12 +363,63 @@ func TestALostQuoteDebtStands(t *testing.T) {
 		b := debtBoard(t).readFound(evLens, dbURL, dbFirst, refutes).blueEdit(old, "holds on the measured figures from every month", false, "")
 		lost(t, b, b.at(), reworded)
 	})
-	t.Run("a sub-bound old names no edit, verbatim or not", func(t *testing.T) {
-		b := debtBoard(t).readFound(evLens, dbURL, dbFirst, refutes).blueEdit("first claim", "chief claim", true, "")
-		d := lost(t, b, 0, "")
-		if d.lost != 0 {
-			t.Errorf("a %d-character old named edit %d", len("first claim"), d.lost)
+	// A SUB-FLOOR EDIT IS FOLLOWED AND CREDITED WITH NOTHING: the item names no edit and its
+	// applied_verbatim estops nothing (F10), and the sentence it left is the debt's current sentence
+	// all the same — the lens's gap on the reading before the edit discharges, a gap quoting the
+	// sentence as it now stands discharges, and the lens's reading of that sentence, any url, replaces
+	// the reading; the same url against another sentence is another subject.
+	const chief = "The chief claim stands on the measured figures from every month of the quarter."
+	subFloor := func(t *testing.T, verbatim bool) *stage {
+		t.Helper()
+		if len("first claim") >= minEstoppelOverlap {
+			t.Fatal("fixture: the phrase is at the floor")
 		}
+		return debtBoard(t).readFound(evLens, dbURL, dbFirst, refutes).blueEdit("first claim", "chief claim", verbatim, "")
+	}
+	t.Run("a sub-bound old names no edit, verbatim or not", func(t *testing.T) {
+		for _, verbatim := range []bool{false, true} {
+			// The debt standing under a verbatim edit is the estoppel not applying (lost asserts one).
+			d := lost(t, subFloor(t, verbatim), 0, chief)
+			if d.lost != 0 {
+				t.Errorf("verbatim %v: a %d-character old named edit %d", verbatim, len("first claim"), d.lost)
+			}
+			if strings.Contains(d.WorkItem(), "at event") && strings.Contains(d.WorkItem(), "blue's edit at event") {
+				t.Errorf("the item names the sub-floor edit: %s", d.WorkItem())
+			}
+		}
+	})
+	t.Run("a sub-bound old, the gap minted before it discharges", func(t *testing.T) {
+		b := debtBoard(t).readFound(evLens, dbURL, dbFirst, refutes).quoteGap(evLens, "G-00000001", dbFirst, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE)
+		b.blueEdit("first claim", "chief claim", false, "")
+		wantDebts(t, runOf(b.register("red-chair")))
+	})
+	t.Run("a sub-bound old, then a gap quoting the current sentence", func(t *testing.T) {
+		b := subFloor(t, false).register(otherLens).quoteGap(otherLens, "G-00000002", chief, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE)
+		wantDebts(t, runOf(b.register("red-chair")))
+	})
+	t.Run("a sub-bound old, then the re-read of the current sentence", func(t *testing.T) {
+		b := subFloor(t, false).readFound(evLens, dbURL, chief, supports)
+		wantDebts(t, runOf(b.register("red-chair")))
+		b = subFloor(t, false).readFound(evLens, "https://found.example/two", chief, supports)
+		wantDebts(t, runOf(b.register("red-chair")))
+		b = subFloor(t, false).readFound(evLens, dbURL, chief, refutes)
+		fresh := wantDebts(t, runOf(b.register("red-chair")), evLens+":"+chief)
+		if len(fresh) == 1 && (fresh[0].lost != 0 || fresh[0].reworded != "" || fresh[0].unlocated) {
+			t.Errorf("the fresh debt = %+v, want one located on the current sentence", fresh[0])
+		}
+		b.quoteGap(evLens, "G-00000001", chief, recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE)
+		wantDebts(t, runOf(b.register("red-chair")))
+	})
+	t.Run("a sub-bound old, the same url against another sentence is another subject", func(t *testing.T) {
+		b := subFloor(t, false).readFound(evLens, dbURL, dbSecond, supports)
+		d := wantDebts(t, runOf(b.register("red-chair")), evLens+":"+dbFirst)
+		if len(d) == 1 && !strings.Contains(d[0].WorkItem(), "changed that sentence to "+fmt.Sprintf("%q", anchortext.Visible(chief))) {
+			t.Errorf("the item does not name the sentence the report holds: %s", d[0].WorkItem())
+		}
+	})
+	t.Run("a sub-bound old, then the cut", func(t *testing.T) {
+		b := subFloor(t, false).blueEdit(chief+" ", "", false, "")
+		wantDebts(t, runOf(b.register("red-chair")))
 	})
 	t.Run("the re-read of the new sentence", func(t *testing.T) {
 		b := debtBoard(t).readFound(evLens, dbURL, dbFirst, refutes).blueEdit(dbFirst, reworded, false, "")

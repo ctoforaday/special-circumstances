@@ -176,3 +176,71 @@ func TestAFoundSourceRetryIsKeyedOnTheSentence(t *testing.T) {
 		t.Errorf("the same url read against another sentence after the first was cut: %v", err)
 	}
 }
+
+// T22, the sub-floor edit, through the verbs: blue swaps a phrase shorter than the estoppel floor
+// inside the sentence a found source was read against. The debt stands naming no edit and the
+// sentence the report now holds; a 32 quoting that sentence is refused until the lens reads it; the
+// lens's `supports` of the same url against it clears the debt; its `refutes` is a fresh debt located
+// on it, which the 32 quoting it clears.
+func TestASubFloorEditLeavesADebtTheCurrentSentenceClears(t *testing.T) {
+	const cc = "claim_contradicts_source"
+	const phrase, swapped = "recovered later", "recovered much later"
+	const current = "Volume recovered much later in the year."
+	if len(phrase) >= 40 {
+		t.Fatal("fixture: the phrase is at the estoppel floor")
+	}
+	debts := func(b readingBoard) []record.Blocker {
+		t.Helper()
+		bs, err := record.PassBlockers(runtest.Open(t, b.runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []record.Blocker
+		for _, bl := range bs {
+			if bl.Kind == record.BlockerReadingDebt && bl.Owner == lensL {
+				out = append(out, bl)
+			}
+		}
+		return out
+	}
+	stage := func(t *testing.T) readingBoard {
+		t.Helper()
+		b := readingRun(t)
+		b.mustRead(lensL, urlReading(rdU3, rdFree1, "refutes")...)
+		if _, err := run(t, "edit", "--run", b.runDir, "--seat-id", blueSeat, "--quote", phrase, "--new", swapped, "--reason", "a phrase sharpened"); err != nil {
+			t.Fatal(err)
+		}
+		ds := debts(b)
+		if len(ds) != 1 || ds[0].Subject != rdFree1 || ds[0].Lost() != 0 || ds[0].Reworded() != strings.TrimSuffix(current, ".") || !ds[0].Unlocated() {
+			t.Fatalf("after the sub-floor edit the debts = %+v, want one on %q naming no edit and the sentence %q", ds, rdFree1, current)
+		}
+		if item := ds[0].WorkItem(); !strings.Contains(item, fmt.Sprintf("changed that sentence to %q", strings.TrimSuffix(current, "."))) || !strings.Contains(item, "against the sentence as it now stands") {
+			t.Errorf("the item: %s", item)
+		}
+		_, out, err := b.mintSource(lensL, cc, "--quote", current)
+		mustRefuse(t, err, out, standingRefusal)
+		b.sit(lensL)
+		return b
+	}
+	t.Run("supports clears", func(t *testing.T) {
+		b := stage(t)
+		b.mustRead(lensL, urlReading(rdU3, current, "supports")...)
+		if ds := debts(b); len(ds) != 0 {
+			t.Errorf("after the supports of the current sentence the debts = %+v", ds)
+		}
+	})
+	t.Run("refutes is a fresh debt its gap clears", func(t *testing.T) {
+		b := stage(t)
+		b.mustRead(lensL, urlReading(rdU3, current, "refutes")...)
+		ds := debts(b)
+		if len(ds) != 1 || ds[0].Subject != current || ds[0].Lost() != 0 || ds[0].Reworded() != "" || ds[0].Unlocated() {
+			t.Fatalf("after the refutes of the current sentence the debts = %+v, want one located on %q", ds, current)
+		}
+		if _, out, err := b.mintSource(lensL, cc, "--quote", current); err != nil {
+			t.Fatalf("the mint on the re-read: %v\n%s", err, out)
+		}
+		if ds := debts(b); len(ds) != 0 {
+			t.Errorf("after the gap quoting the current sentence the debts = %+v", ds)
+		}
+	})
+}

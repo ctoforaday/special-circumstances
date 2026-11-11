@@ -213,15 +213,17 @@ type locatedReading struct {
 	gapsIn, citesIn []string
 	marked          bool
 	// lost is the BlueEdit events.id that took a found reading's claim out (lostQuoteEdit), 0 while
-	// the claim locates or no edit meets the bound.
+	// the claim locates or the edit that took it out meets no bound (F10: a sub-floor `old` names no
+	// edit), or none is found.
 	lost int64
-	// removed is whether the reword chain from that edit (rewordChainOf) ends in a REMOVAL of the
-	// sentence (rewordedTo found none at the place, or several); reworded is the sentence the chain's
-	// last link left, visible text — the sentence the report now holds — for a reword.
+	// removed is whether the reword chain from the edit that took the claim out (rewordChainOf) ends
+	// in a REMOVAL of the sentence (rewordedTo found none at the place, or several); reworded is the
+	// sentence the chain's last link left, visible text — the sentence the report now holds — for a
+	// reword, named or not.
 	removed  bool
 	reworded string
-	// estopped is whether the chain's last edit applied red's prescription verbatim: red wrote the
-	// sentence the report now holds.
+	// estopped is whether the chain's last edit applied red's prescription verbatim over a span that
+	// meets the estoppel floor: red wrote the sentence the report now holds.
 	estopped bool
 }
 
@@ -413,6 +415,14 @@ func editsOf(evs []*Event, win WindowIndex) []editAt {
 // later verbatim re-apply restores it. Keyed on the first link alone, a debt whose sentence was
 // reworded twice stood against a sentence the report no longer held, and nothing the lens did cleared
 // it.
+//
+// THE CHAIN IS FOLLOWED THROUGH A SUB-FLOOR EDIT TOO; the F10 bound governs what the edit is CREDITED
+// with, never whether the sentence is followed. An edit of a phrase shorter than the estoppel floor
+// names no edit (lost stays 0) and estops nothing, and the sentence it left is still the debt's
+// current sentence: the gap minted on the reading before the edit is joined where the claim last
+// located, and the reading of the sentence as it now stands replaces the reading. Joined as of the
+// reading's own event alone, the lens's own 32 — minted on this reading, before blue's eleven-character
+// edit — did not discharge the debt, and nothing but a reading of the same url did.
 func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win WindowIndex, edits []editAt, report string) (locatedReading, error) {
 	w := win.Of(e)
 	l := locatedReading{ev: e, v: v, id: w.ID, seat: e.GetSeatId(), sitting: w.SittingID}
@@ -439,14 +449,16 @@ func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win Window
 	if err != nil || len(links) == 0 {
 		return l, err
 	}
-	l.lost = links[0].m.id
+	if links[0].bounded {
+		l.lost = links[0].m.id
+	}
 	for _, k := range links {
 		// The report before this link: an anchor placed between the reading and the edit — a gap's
 		// token — is on it.
 		if at, ok := sentenceByWords(k.before, words); ok {
 			l.joinSentence(k.before, at)
 		}
-		l.reworded, l.removed, l.estopped = k.reworded, k.removed, k.m.ed.GetAppliedVerbatim()
+		l.reworded, l.removed, l.estopped = k.reworded, k.removed, k.bounded && k.m.ed.GetAppliedVerbatim()
 		words = k.reworded
 	}
 	if !l.removed {
@@ -458,12 +470,14 @@ func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win Window
 }
 
 // rewordLink is one link of a reword chain: blue's edit, the report as of the event before it (where
-// its `old` is located), and the sentence it left — or removed.
+// its `old` is located), the sentence it left — or removed — and whether its `old` meets the F10
+// bound (meetsEstoppelFloor): the link that may be named and may estop.
 type rewordLink struct {
 	m        editAt
 	before   string
 	reworded string
 	removed  bool
+	bounded  bool
 }
 
 // rewordChainOf is the chain of blue's edits after events.id `after` that took a sentence out of the
@@ -478,7 +492,7 @@ func rewordChainOf(q recordsql.Querier, edits []editAt, after int64, words strin
 		if err != nil || !found {
 			return out, err
 		}
-		k := rewordLink{m: m}
+		k := rewordLink{m: m, bounded: meetsEstoppelFloor(anchortext.Visible(m.ed.GetOld()), words)}
 		if k.before, err = renderSource(reportSourceAt(q, m.id-1)); err != nil {
 			return out, err
 		}
@@ -526,15 +540,17 @@ func (l *locatedReading) joinSentence(report string, at [2]int) {
 	l.marked = l.marked || j.marked
 }
 
-// lostQuoteEdit is the first blue edit after events.id `after` that took a sentence out of the report
-// — BOUNDED (F10, ruled): the edit's `old` LOCATES against that sentence, on visible text — the whole
-// sentence occurs in `old` (a whole-sentence or paragraph edit), or `old` occurs in the sentence and
-// is at least minEstoppelOverlap characters (the estoppel guard's own floor, one constant) — AND the
-// sentence is gone from the report as of the edit (gone, read on the report rendered as of it). An
-// unrelated short `old` that happens to occur in the claim names no edit, so its applied_verbatim
-// discharges nothing; nor does a paragraph edit whose `old` carries the sentence through unchanged —
-// named, it discharged a debt it never touched, and reported the paragraph's other sentence as the
-// reword.
+// lostQuoteEdit is the first blue edit after events.id `after` that took a sentence out of the report:
+// the edit's `old` overlaps that sentence on visible text — the whole sentence occurs in `old` (a
+// whole-sentence or paragraph edit), or `old` occurs in the sentence (a phrase inside it, of any
+// length; the edit landed, so the phrase occurs once in the report and that once is here) — AND the
+// sentence is gone from the report as of the edit (gone, read on the report rendered as of it). A
+// paragraph edit whose `old` carries the sentence through unchanged is no link — named, it discharged
+// a debt it never touched, and reported the paragraph's other sentence as the reword. What the link is
+// CREDITED with is bounded (F10, ruled; meetsEstoppelFloor): only an `old` at the estoppel floor names
+// the edit on the item and estops by its applied_verbatim — a short phrase swapped names no edit, so a
+// short prescription applied verbatim discharges nothing, as the estoppel guard itself holds no short
+// prescription against red.
 func lostQuoteEdit(q recordsql.Querier, edits []editAt, after int64, sentence string, gone func(after string) bool) (editAt, bool, error) {
 	for _, m := range edits {
 		if m.id <= after {
@@ -544,7 +560,7 @@ func lostQuoteEdit(q recordsql.Querier, edits []editAt, after int64, sentence st
 		if old == "" {
 			continue
 		}
-		if !strings.Contains(old, sentence) && !(len(old) >= minEstoppelOverlap && strings.Contains(sentence, old)) {
+		if !strings.Contains(old, sentence) && !strings.Contains(sentence, old) {
 			continue
 		}
 		after, err := renderSource(reportSourceAt(q, m.id))
@@ -556,6 +572,13 @@ func lostQuoteEdit(q recordsql.Querier, edits []editAt, after int64, sentence st
 		}
 	}
 	return editAt{}, false, nil
+}
+
+// meetsEstoppelFloor is the F10 bound on a reword link's `old` against the sentence it took out, both
+// visible text: the whole sentence occurs in `old`, or `old` occurs in the sentence and is at least
+// minEstoppelOverlap characters — the estoppel guard's own floor, one constant, not a twin.
+func meetsEstoppelFloor(old, sentence string) bool {
+	return strings.Contains(old, sentence) || len(old) >= minEstoppelOverlap && strings.Contains(sentence, old)
 }
 
 // rewordedTo is what edit m left at the place of its `old` (F11, ruled; the stand-in for the
@@ -867,7 +890,8 @@ func debtBound(sitting, id int64) int64 {
 // A LOST found reading — its claim taken out by blue's edit — stands as a debt (F1), unless the edit
 // removed the sentence (F8 (a), F11) or applied red's text verbatim (estoppel discharge); its gap is
 // joined as of the report before the loss. It clears by the lens's later reading located in the
-// sentence the edit left, or, where no edit is named, of the same url.
+// sentence the edit left — named or, for a sub-floor edit, unnamed — or, where no edit is found at
+// all, of the same url.
 func readingDebtsOf(evs []*Event, win WindowIndex, open map[string]bool, found []locatedReading) []Blocker {
 	mints, byGap := mintRowsOf(evs, win)
 	discharged := func(class recordpb.GapClass, bound int64, gapsIn, citesIn []string) bool {
@@ -944,21 +968,22 @@ func readingDebtsOf(evs []*Event, win WindowIndex, open map[string]bool, found [
 		if discharged(class, debtBound(l.sitting, l.id), l.gapsIn, l.citesIn) {
 			continue
 		}
-		out = append(out, Blocker{Kind: BlockerReadingDebt, Subject: l.words, Owner: l.seat, Detail: l.v.GetUrl(), since: l.id, outcome: l.v.GetOutcome(), lost: l.lost, reworded: l.reworded})
+		out = append(out, Blocker{Kind: BlockerReadingDebt, Subject: l.words, Owner: l.seat, Detail: l.v.GetUrl(), since: l.id, outcome: l.v.GetOutcome(), lost: l.lost, reworded: l.reworded, unlocated: !l.located})
 	}
 	return out
 }
 
 // lostReadingReplaced reports whether the lens has read the lost reading's subject again: a later
-// found-source reading of its own located in the sentence the edit left (reworded), or, where no edit
-// is named, of the same url — the one identity left to it.
+// found-source reading of its own located in the sentence the edit left (reworded, whether or not the
+// edit is named), or, where no edit is found and the sentence the report now holds is unknown, of the
+// same url — the one identity left to it.
 func lostReadingReplaced(found []locatedReading, lost locatedReading) bool {
 	for _, l := range found {
 		if l.anchor != "" || l.seat != lost.seat || l.id <= lost.id {
 			continue
 		}
 		switch {
-		case lost.lost == 0 && l.v.GetUrl() == lost.v.GetUrl():
+		case lost.reworded == "" && l.v.GetUrl() == lost.v.GetUrl():
 			return true
 		case lost.reworded != "" && l.located && anchortext.Visible(l.words) == lost.reworded:
 			return true

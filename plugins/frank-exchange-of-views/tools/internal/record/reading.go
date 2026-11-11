@@ -52,8 +52,8 @@ func readingSentenceIn(report string, v *recordpb.Verify) ([2]int, bool) {
 // outcome. The sentence is keyed as the reading debt keys it (ruled 2026-11-10): the stored reading's
 // sentence as of its event is the new claim's sentence on the report the act lands on — equal
 // (bluedoc.SameSentence), or reworded to it by the chain of edits since the stored reading
-// (rewordChainOf, each link through the F10-bounded lookup). Where the stored sentence was removed, or the new claim locates in another
-// sentence, there is no retry and the reading is recorded. The refusal names the stored reading's
+// (rewordChainOf, a sub-floor phrase swap among the links). Where the stored sentence was removed, or
+// the new claim locates in another sentence, there is no retry and the reading is recorded. The refusal names the stored reading's
 // event, its outcome and, where reworded, the edit that changed the sentence — which is how a
 // crash-retried reading learns its first write landed. "This sitting" is the equality
 // oncePerSittingSQL asks. It stays on under replay, as the key collision it stands in for did.

@@ -523,10 +523,17 @@ sentence, with its own mint route). **Estoppel discharge:** where the edit at M 
 `applied_verbatim` (whatever gap it `answers`, whichever red seat minted it — red is the party bound,
 `estoppel.go:82–87`), the debt is discharged: red wrote the new sentence, so red holds no unfinished
 promise against it. X may still re-read; a finds-against re-read creates a fresh debt, whose mint route is
-the estopped one — a 32 `--supersedes` the prescribing gap (D10). Residue: where no edit meets the bound
-(the report re-ingested whole; the claim now occurs twice; a sub-bound `old`), `lost` is 0, the item names
-the reading alone, the gap join is made as of the reading's own event, and the debt otherwise clears by
-X's later found-source reading of the same url — the one identity left to it — that does not find against.
+the estopped one — a 32 `--supersedes` the prescribing gap (D10). The bound governs what the edit is
+CREDITED with, not whether the sentence is followed: a sub-bound `old` that took the claim out is followed
+to the sentence it left like any link — the gap join is made where the claim last located, a 32 quoting
+the sentence as it now stands discharges, X's reading located in it replaces the reading — while `lost`
+stays 0 (the item names the sentence and no edit) and its `applied_verbatim` estops nothing (joined as of
+the reading's own event alone, the lens's 32 minted before an eleven-character edit did not discharge, and
+nothing but a reading of the same url did). Residue: where no edit is found at all (the report re-ingested
+whole; the claim now occurs twice), `lost` is 0, the item names the reading alone and says the report no
+longer holds its sentence once, the gap join is made as of the reading's own event, and the debt otherwise
+clears by X's later found-source reading of the same url — the one identity left to it — that does not
+find against.
 
 **Removal versus reword (F8 (a), RULED "deletion discharges"; the predicate F11, RULED).** The test is
 the SENTENCE-LEVEL one `edit` already makes for reopened anchors (`bluedoc.ReopenedAnchors`,
