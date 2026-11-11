@@ -677,8 +677,13 @@ func (r *runner) rereadFound(seatID, quote string) {
 // or read again as backing; a found source read `refutes` is minted on quoting the sentence, or
 // another source is read for it; one read `absent` has its unsourced_claim minted, or another source
 // read; a debt whose quote blue's edit reworded is cleared by reading a source against the sentence
-// the edit left (lostQuoteReread). One time in ten the lens first tries to end with the debt
-// standing, and its envelope is refused naming the reading.
+// the edit left (lostQuoteReread). A debt whose sentence the report no longer holds once and which
+// names no edit — blue's edit of the sentence met no F10 bound (the drawn edit swaps a 16-character
+// phrasing, under the floor), or the words now occur twice — is the plan's stated residue: it names
+// the reading alone, and clears by the lens's reading of the SAME url against a sentence the report
+// holds (rereadLost). Quoting the lost words would place nothing, so neither the mint nor a fresh
+// source is tried on it. One time in ten the lens first tries to end with the debt standing, and
+// its envelope is refused naming the reading.
 func (r *runner) answerReadingDebt(seatID string) {
 	if r.debtLeftBy(seatID) {
 		return
@@ -702,7 +707,7 @@ func (r *runner) answerReadingDebt(seatID string) {
 			}
 		case cited:
 			r.rereadCited(seatID, b)
-		case b.Lost() != 0:
+		case b.Lost() != 0 || !r.heldOnce(b.Subject):
 			r.rereadLost(seatID, b)
 		case class == classUnsourced:
 			// A FRESH 29 IS A FRESH GAP: past the lens's stock, or in a run forced to a verdict, the
@@ -742,9 +747,29 @@ func (r *runner) rereadCited(seatID string, b record.Blocker) {
 	}
 }
 
+// heldOnce reports whether the report as it stands holds the sentence subject once, where a reading
+// quoting it would place; false where the report does not render.
+func (r *runner) heldOnce(subject string) bool {
+	cur, err := record.RenderRun(r.run())
+	if err != nil {
+		return false
+	}
+	_, once := sentenceMarked(cur, subject)
+	return once
+}
+
+// sameURLSentences are the sentences a lost reading's url is read again against, in the order tried:
+// the found-source sentences, then the lanes' closing sentences. The first the report holds once that
+// is not the lost sentence itself is read.
+func sameURLSentences() []string {
+	return append(append([]string{}, foundSourceSentences...), laneCloseSentences[0], laneCloseSentences[1])
+}
+
 // rereadLost clears seatID's debt on a reading whose quote blue's edit took out of its sentence: by
 // a reading of a source against the sentence the edit left (the lost-quote item names it), or, where
-// the debt names no edit, of the same url against a sentence the report holds.
+// the debt names no edit, of the same url against a sentence the report holds — the one identity the
+// plan leaves such a reading (§III.4, the lost quote's residue). A report holding none of the
+// candidate sentences once leaves the debt, and the run fails on the envelope naming it.
 func (r *runner) rereadLost(seatID string, b record.Blocker) {
 	url, quote, seeded := foundSourceURL(seatID), b.Reworded(), false
 	cur, err := record.RenderRun(r.run())
@@ -753,13 +778,14 @@ func (r *runner) rereadLost(seatID string, b record.Blocker) {
 	}
 	if quote == "" {
 		url, seeded = b.Detail, true
-		for _, s := range foundSourceSentences {
-			if _, once := sentenceMarked(cur, s); once {
+		for _, s := range sameURLSentences() {
+			if _, once := sentenceMarked(cur, s); once && !sameDebtSubject(b.Subject, s) {
 				quote = s
 				break
 			}
 		}
 		if quote == "" {
+			noteEither([]string{"verify"}, "a lost reading's url read again: no sentence the report holds once to read it against", false)
 			return
 		}
 	}
@@ -778,7 +804,11 @@ func (r *runner) rereadLost(seatID string, b record.Blocker) {
 	if at == 0 {
 		return
 	}
-	if r.debtDischargedBy(seatID, b.Subject, "reread", "the lens's reading of a source against the sentence blue's edit left") && b.Reworded() != "" {
+	how := "the lens's reading of a source against the sentence blue's edit left"
+	if seeded {
+		how = "the lens's reading of the same url against a sentence the report holds, its own sentence no longer located"
+	}
+	if r.debtDischargedBy(seatID, b.Subject, "reread", how) && b.Reworded() != "" {
 		r.countReading(func(c *readingCounts) { c.lostQuoteReread++ })
 	}
 }
