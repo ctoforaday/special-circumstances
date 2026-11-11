@@ -35,6 +35,9 @@ fi
 STATE=
 [ -n "$ROOT" ] && STATE="$ROOT/.fetch"
 BASE_URL=${SC_RELEASE_BASE_URL:-https://github.com/ctoforaday/special-circumstances/releases/download}
+# An ASSETS line read from a CRLF checkout ends in a carriage return; fetch strips it, so the last
+# arch field names the release asset, not the asset plus \r. up_to_date reads only the first field.
+CR=$(printf '\r')
 EVENT=
 DISPLAYING=0
 
@@ -284,6 +287,7 @@ fetch() {
 			printf '1 %s %s %s\n' "${h}_${os}_${arch}${ext}" "$h$ext" "$h" >>"$TMP/tasks"
 		fi
 		while read -r file rest || [ -n "$file" ]; do
+			file=${file%"$CR"} rest=${rest%"$CR"}
 			[ -n "$file" ] || continue
 			case "$file" in \#*) continue ;; esac
 			arch_asset=

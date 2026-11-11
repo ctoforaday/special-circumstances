@@ -324,8 +324,10 @@ func (r *runner) readCitation(seatID, anchorID, outcome string, kindless bool, a
 		}
 	}
 	// A COPY THAT IS NOT THE WORK READS NOTHING: by coin the lens passes the gap flags a negative
-	// reading would take, and the record refuses them naming the copy.
-	if notTheWork && !paged && !kindless && r.coin(50) {
+	// reading would take, and the record refuses them naming the copy. An unreachable reading takes
+	// no gap flags at all, and the record refuses them for that before it reaches the copy, so it is
+	// not this case.
+	if notTheWork && !paged && !kindless && r.coin(50) && outcome != "unreachable" {
 		r.notTheWorkReading(seatID, anchorID, outcome, c)
 		return
 	}

@@ -613,7 +613,7 @@ A sitting's occasion is what it was convened to do — the question put to the s
 
 ## inquiry
 
-An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with the fate that says what became of it — judged open while its fate is proposed or underway, which holds the PASS until blue settles it; wanting while an open material gap is about it; unchecked once settled with no check standing, which holds the PASS until the logic lens checks its latest fate; and sound while that check stands, which a new fate or a material gap minted about it unseats.
+An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with the fate that says what became of it — judged open while its fate is proposed or underway, which holds the PASS until blue settles it; wanting while an open material gap is about it; unchecked once settled with no check standing, which holds the PASS until the logic lens checks its latest fate; and sound while that check stands, which a new fate or any gap minted about it, material or not, unseats.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 

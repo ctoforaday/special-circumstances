@@ -23,6 +23,9 @@
 //	"status-7"     answer with status byte 7
 //	"ignore-eof"   keep running after stdin closes
 //
+// and "crash-on-helper-op" exits 3 on any op from nativehelper.FirstHelperOp on, after a good
+// handshake: a helper that comes up and then dies on a page.
+//
 // FAKEHELPER_START_LOG, when set, names a file it appends its pid to at each start.
 package main
 
@@ -119,6 +122,10 @@ func idShift(op nativehelper.Op) uint32 {
 // when the mode writes something other than a frame.
 func answer(req nativehelper.Frame, diag *os.File) [][]byte {
 	status, result := byte(nativehelper.StatusOK), [][]byte{}
+	if mode == "crash-on-helper-op" && req.Op >= nativehelper.FirstHelperOp {
+		fmt.Fprintln(diag, "fakehelper: crashing on a helper op as built to")
+		os.Exit(3)
+	}
 	misbehave := req.Op == nativehelper.OpSelftestStdout || req.Op == nativehelper.OpSelftestSleep
 	if misbehave {
 		switch mode {

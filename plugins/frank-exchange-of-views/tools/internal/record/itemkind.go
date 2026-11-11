@@ -54,6 +54,10 @@ const (
 	// ItemKeptGrade is a gap whose lens kept its grade on re-audit, with what its check still finds
 	// failing, on blue's list.
 	ItemKeptGrade ItemKind = "kept_grade"
+	// ItemComposedSource is a record whose text a composed section prints — an inquiry's latest fate,
+	// an open gap's problem and fix — that the voice lens has not had since it was recorded
+	// (composedsource.go).
+	ItemComposedSource ItemKind = "composed_source"
 	// ItemNothingOwed is the statement that a seat's list is complete, not empty.
 	ItemNothingOwed ItemKind = "nothing_owed"
 )
@@ -61,13 +65,13 @@ const (
 // ItemKinds is every kind an item can carry: the PASS blockers' kinds, in table order, then the
 // kinds above.
 func ItemKinds() []ItemKind {
-	out := make([]ItemKind, 0, len(blockerKinds)+19)
+	out := make([]ItemKind, 0, len(blockerKinds)+20)
 	for _, r := range blockerKinds {
 		out = append(out, ItemKind(r.kind))
 	}
 	return append(out, ItemAudit, ItemReaudit, ItemRegradeOwed, ItemFindingOnGap, ItemNews, ItemLog,
 		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
-		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemNothingOwed)
+		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed)
 }
 
 // SubjectKind is what kind of thing an item is about.

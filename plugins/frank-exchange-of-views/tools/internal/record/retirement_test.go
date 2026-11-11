@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -438,6 +439,69 @@ func TestSpotCheckAreasValidatedAgainstCast(t *testing.T) {
 	}
 	if _, err := Append(chair, &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("r")}); err != nil {
 		t.Errorf("spot-check --areas %s, a cast lens, is refused: %v", evLens, err)
+	}
+}
+
+// THE TOOL STATES WHAT CHANGED BEHIND THE PIN (gblock, 2026-11-10). m40's chair wrote "Changes since
+// 260: 42 edits" over a record holding 4; the write now stamps each area's pin and the id of every
+// change to the report after it, read here off the record independently of the stamp.
+func TestASpotCheckStampsTheChangesBehindEachPin(t *testing.T) {
+	b, pin := retiredBehindHead(t)
+	run := b.register("red-chair").seed()
+	var want []int64
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
+		rows, err := q.Query(`SELECT "id" FROM "events" WHERE "type" IN ('blue_edit', 'report_part') AND "id" > ? ORDER BY "id"`, pin)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			want = append(want, id)
+		}
+		return rows.Err()
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(want) == 0 {
+		t.Fatalf("the fixture holds no change after pin %d, so the stamp is asserted over nothing", pin)
+	}
+	body := &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("the edits keep the argument whole")}
+	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, body); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(body.GetPins(), []int64{pin}) || !slices.Equal(body.GetChanges(), want) {
+		t.Fatalf("stamped pins %v and changes %v; the record holds pin %d and changes %v", body.GetPins(), body.GetChanges(), pin, want)
+	}
+	// THE STORED EVENT CARRIES THE STAMP, and every reader renders it from there.
+	fam, err := FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checks := SpotChecks(fam)
+	if len(checks) != 1 || len(checks[0].Areas) != 1 || !slices.Equal(checks[0].Areas[0].Changes, want) {
+		t.Fatalf("the stored spot-check does not carry the stamped changes %v: %+v", want, checks)
+	}
+	if d := checks[0].Describe(); !strings.Contains(d, fmt.Sprintf("pin %d: %d change(s) to the report since", pin, len(want))) {
+		t.Errorf("Describe() does not state the record's count: %q", d)
+	}
+}
+
+// A SEAT CANNOT SUPPLY THE STAMP: a spot-check arriving with pins or changes is refused, so no writer
+// can state a count the record does not hold.
+func TestASpotCheckArrivingWithItsChangesIsRefused(t *testing.T) {
+	for _, body := range []*recordpb.SpotCheck{
+		{Areas: []string{evLens}, Pins: []int64{1}, Reason: proto.String("r")},
+		{Areas: []string{evLens}, Changes: []int64{42}, Reason: proto.String("r")},
+	} {
+		b, _ := retiredBehindHead(t)
+		run := b.register("red-chair").seed()
+		if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, body); err == nil || !strings.Contains(err.Error(), "stamped by the tool") {
+			t.Errorf("a spot-check supplying %v / %v is not refused as the tool's stamp: %v", body.GetPins(), body.GetChanges(), err)
+		}
 	}
 }
 

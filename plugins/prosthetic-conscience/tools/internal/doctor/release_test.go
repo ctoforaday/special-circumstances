@@ -12,7 +12,7 @@ import (
 // exact confusion fetchRelease's own comment says it exists to prevent — so an
 // unpinnable binary must be refused, not fetched from wherever.
 func TestDownloadArgsRefusesUnpinnable(t *testing.T) {
-	pinned := binStatus{Name: "sc-doctor", Plugin: "prosthetic-conscience", Version: "0.9.0"}
+	pinned := binStatus{Kind: "go", Name: "sc-doctor", Plugin: "prosthetic-conscience", Version: "0.9.0"}
 	args, err := downloadArgs(pinned, "sc-doctor_linux_amd64", "/tmp/x")
 	if err != nil {
 		t.Fatalf("a pinnable binary must resolve: %v", err)
@@ -25,9 +25,9 @@ func TestDownloadArgsRefusesUnpinnable(t *testing.T) {
 	}
 
 	for _, b := range []binStatus{
-		{Name: "sc-doctor", Plugin: "", Version: "0.9.0"},
-		{Name: "sc-doctor", Plugin: "prosthetic-conscience", Version: ""},
-		{Name: "sc-doctor"},
+		{Kind: "go", Name: "sc-doctor", Plugin: "", Version: "0.9.0"},
+		{Kind: "go", Name: "sc-doctor", Plugin: "prosthetic-conscience", Version: ""},
+		{Kind: "go", Name: "sc-doctor"},
 	} {
 		args, err := downloadArgs(b, "sc-doctor_linux_amd64", "/tmp/x")
 		if err == nil {
@@ -75,7 +75,7 @@ func TestAnUnrecognisedFetchFailureIsReportedVerbatim(t *testing.T) {
 // The tag in the argv and the tag in the failure message come from one function, so they
 // cannot disagree about what was asked for.
 func TestTheReportedTagIsTheTagRequested(t *testing.T) {
-	b := binStatus{Name: "sc-doctor", Plugin: "gray-area", Version: "0.8.0"}
+	b := binStatus{Kind: "go", Name: "sc-doctor", Plugin: "gray-area", Version: "0.8.0"}
 	args, err := downloadArgs(b, "asset", "/tmp/x")
 	if err != nil {
 		t.Fatal(err)

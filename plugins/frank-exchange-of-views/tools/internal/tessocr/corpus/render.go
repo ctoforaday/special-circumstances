@@ -76,9 +76,10 @@ type Result struct {
 // against the reading, never from a field somebody set by hand: a hand-set status survives the fix
 // that makes it false, and then the number counts pages that already work.
 //
-// It is written by the corpus runner with the `feov-ocr` helper, which is what reads the pages. The
-// default gate can check that it names exactly the corpus's slugs, and cannot re-establish
-// the verdicts — that is stated here so the weaker check is not mistaken for the stronger one.
+// It is written by the corpus runner with the `feov-ocr` helper on ReferenceTarget, where the expect
+// blocks are measured; every target is held to its own goldens. The default gate can check that it
+// names exactly the corpus's slugs, and cannot re-establish the verdicts — that is stated here so
+// the weaker check is not mistaken for the stronger one.
 func Status(results []Result) string {
 	rs := append([]Result(nil), results...)
 	sort.Slice(rs, func(i, j int) bool { return rs[i].Slug < rs[j].Slug })
@@ -91,8 +92,8 @@ func Status(results []Result) string {
 	var b strings.Builder
 	b.WriteString("# Corpus status\n\n")
 	fmt.Fprintf(&b, "**%d of %d pages do not yet read as they should.**\n\n", broken, len(rs))
-	b.WriteString("Derived from each page's `expect` block, checked against the reading by the corpus\n")
-	b.WriteString("runner with the helper. GENERATED — edit a record or fix the reader, not this file.\n\n")
+	b.WriteString("Derived from each page's `expect` block, checked against the " + ReferenceTarget + " reading by the corpus\n")
+	b.WriteString("runner with the helper; every other target is held to its own golden set. GENERATED — edit a\nrecord or fix the reader, not this file.\n\n")
 	b.WriteString("| page | reads correctly | what still fails |\n|---|---|---|\n")
 	for _, r := range rs {
 		if len(r.Failed) == 0 {

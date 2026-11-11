@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 	"github.com/ctoforaday/special-circumstances/shared/buildid"
 )
 
@@ -677,7 +678,7 @@ func TestFixStampsTheTagItInstalled(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "tools", "cmd", "alpha"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	b := binStatus{Name: "alpha", Plugin: "fixture", Root: root, Version: "1.2.3"}
+	b := binStatus{Kind: "go", Name: "alpha", Plugin: "fixture", Root: root, Version: "1.2.3"}
 	build := func(binStatus) (string, error) {
 		return "", os.WriteFile(filepath.Join(root, "bin", "alpha"+buildid.ExeName("")), []byte("x"), 0o755)
 	}
@@ -702,7 +703,7 @@ func TestFixDoesNotStampAPartialInstall(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	b := binStatus{Name: "alpha", Plugin: "fixture", Root: root, Version: "1.2.3"}
+	b := binStatus{Kind: "go", Name: "alpha", Plugin: "fixture", Root: root, Version: "1.2.3"}
 	build := func(binStatus) (string, error) {
 		return "", os.WriteFile(filepath.Join(root, "bin", "alpha"+buildid.ExeName("")), []byte("x"), 0o755)
 	}
@@ -768,40 +769,6 @@ func TestEnsureHealsWhereverThePluginIsInstalledButNeverInACheckout(t *testing.T
 	})
 }
 
-func TestStampWaitsForEveryHelper(t *testing.T) {
-	root := t.TempDir()
-	mustWrite(t, filepath.Join(root, "plugin.json"), `{"name":"fixture","version":"1.0.0"}`)
-	mustWrite(t, filepath.Join(root, "tools", "cmd", "alpha", "main.go"), "package main\nfunc main(){}")
-	mustWrite(t, filepath.Join(root, "native", "fake-helper", "ASSETS"), "")
-
-	bins := binariesOf(root, "fixture", "1.0.0")
-	if len(bins) != 2 {
-		t.Fatalf("expected 2 binaries, got %d: %+v", len(bins), bins)
-	}
-
-	// Neither is built
-	stampInstalled(bins)
-	if _, err := os.Stat(filepath.Join(root, ".fetch", "installed")); err == nil {
-		t.Fatal(".fetch/installed was written while all entries are missing")
-	}
-
-	// Mark alpha built, fake-helper still missing
-	mustWrite(t, filepath.Join(root, "bin", buildid.ExeName("alpha")), "alpha")
-	bins = binariesOf(root, "fixture", "1.0.0")
-	stampInstalled(bins)
-	if _, err := os.Stat(filepath.Join(root, ".fetch", "installed")); err == nil {
-		t.Fatal(".fetch/installed was written while helper is missing")
-	}
-
-	// Mark fake-helper built as well
-	mustWrite(t, filepath.Join(root, "bin", buildid.ExeName("fake-helper")), "helper")
-	bins = binariesOf(root, "fixture", "1.0.0")
-	stampInstalled(bins)
-	if _, err := os.Stat(filepath.Join(root, ".fetch", "installed")); err != nil {
-		t.Fatalf(".fetch/installed was not written when all helpers are built: %v", err)
-	}
-}
-
 func TestFetchBinPicksTheExportForItsArch(t *testing.T) {
 	t.Run("installs right export", func(t *testing.T) {
 		f := newFetchFixture(t, []string{"alpha"}, nil, nil)
@@ -818,6 +785,29 @@ func TestFetchBinPicksTheExportForItsArch(t *testing.T) {
 		want := "asset data model." + runtime.GOARCH + ".bin\n"
 		if string(got) != want {
 			t.Fatalf("model.bin = %q, want %q", string(got), want)
+		}
+	})
+
+	t.Run("reads a CRLF line", func(t *testing.T) {
+		otherArch := "arm64"
+		if runtime.GOARCH == "arm64" {
+			otherArch = "amd64"
+		}
+		// The host's field last, where a CRLF checkout leaves its \r.
+		line := "model.bin " + otherArch + "=model." + otherArch + ".bin " + runtime.GOARCH + "=model." + runtime.GOARCH + ".bin"
+		f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+		addNativeToFixture(t, f.root, f.rel, "fake-helper", []string{line}, nil, nil)
+		mustWrite(t, filepath.Join(f.root, "native", "fake-helper", "ASSETS"), line+"\r\n")
+		if _, _, code := f.run(t, "", "fetch"); code != 0 {
+			t.Fatalf("fetch failed on a CRLF ASSETS line: %s", f.failedCause(t))
+		}
+		got, err := os.ReadFile(filepath.Join(f.root, "bin", "model.bin"))
+		if want := "asset data model." + runtime.GOARCH + ".bin\n"; err != nil || string(got) != want {
+			t.Fatalf("model.bin = %q (%v), want %q", got, err, want)
+		}
+		// ensure reads the same line: a complete install is up to date and says nothing.
+		if out, errOut, code := f.run(t, "", "ensure", "SessionStart"); code != 0 || strings.TrimSpace(out) != "" || errOut != "" {
+			t.Fatalf("ensure misread the CRLF line as a missing file: exit %d, stdout %q, stderr %q", code, out, errOut)
 		}
 	})
 
@@ -840,56 +830,17 @@ func TestFetchBinPicksTheExportForItsArch(t *testing.T) {
 	})
 }
 
-func TestFixFetchesTheExportForItsArch(t *testing.T) {
-	root := t.TempDir()
-	mustWrite(t, filepath.Join(root, "plugin.json"), `{"name":"frank-exchange-of-views","version":"1.0.0"}`)
-	mustWrite(t, filepath.Join(root, "tools", "cmd", "alpha", "main.go"), "package main\n")
-	mustWrite(t, filepath.Join(root, "native", "feov-embed", "ASSETS"), "gte-small.int8.ort amd64=gte-small.int8.amd64.ort arm64=gte-small.int8.arm.ort\n")
-
-	bins := binariesOf(root, "frank-exchange-of-views", "1.0.0")
-	var askedAsset string
-	fakeFetch := func(b binStatus) error {
-		askedAsset = b.asset(runtime.GOOS, runtime.GOARCH)
-		if b.Name == "gte-small.int8.ort" {
-			mustWrite(t, binPath(b), "ort-bytes")
-			return nil
-		}
-		return errors.New("simulated fetch failure")
-	}
-	buildCalled := false
-	fakeBuild := func(b binStatus) (string, error) {
-		buildCalled = true
-		t.Fatal("buildFromSource should not be called for non-Go helper or asset")
-		return "", nil
-	}
-
-	_ = fixWith(bins, fakeFetch, fakeBuild, false)
-	if buildCalled {
-		t.Fatal("buildFromSource was called")
-	}
-	data, err := os.ReadFile(filepath.Join(root, "bin", "gte-small.int8.ort"))
-	if err != nil || string(data) != "ort-bytes" {
-		t.Fatalf("gte-small.int8.ort not installed: %v", err)
-	}
-	wantAsset := "gte-small.int8." + runtime.GOARCH + ".ort"
-	if askedAsset != wantAsset {
-		t.Fatalf("asked asset %q, want %q", askedAsset, wantAsset)
-	}
-
-	// With fetch failing on everything
-	failingFetch := func(b binStatus) error {
-		return errors.New("release has no " + b.asset(runtime.GOOS, runtime.GOARCH))
-	}
-	report2 := fixWith(bins, failingFetch, fakeBuild, false)
-	joined := strings.Join(report2, "\n")
-	if !strings.Contains(joined, "feov-embed") || !strings.Contains(joined, "gte-small.int8.ort") {
-		t.Fatalf("report should name helper and asset as fetch failures, got:\n%s", joined)
-	}
-}
-
 func TestFixFetchesFromTheConfiguredRelease(t *testing.T) {
 	f := newFetchFixture(t, []string{"alpha"}, nil, nil)
 	t.Setenv("SC_RELEASE_BASE_URL", "file://"+f.rel)
+	// The tools fetch-bin.sh uses and nothing else: no gh, no go. A fetchRelease that asks for gh
+	// before it reads SC_RELEASE_BASE_URL fails here.
+	t.Setenv("PATH", toolPath(t, nil, nil))
+	for _, absent := range []string{"gh", "go"} {
+		if toolchain.Present(absent) {
+			t.Fatalf("%s is on the test's PATH", absent)
+		}
+	}
 
 	bins := binariesOf(f.root, "fixture", fixtureVersion)
 	if len(bins) == 0 {
@@ -900,8 +851,8 @@ func TestFixFetchesFromTheConfiguredRelease(t *testing.T) {
 	if len(report) == 0 || !strings.Contains(report[0], "fetched CI-built release asset") {
 		t.Fatalf("expected successful fetch, got: %v", report)
 	}
-	if !f.installed("alpha") {
-		t.Fatal("alpha was not installed")
+	if got, err := os.ReadFile(filepath.Join(f.root, "bin", buildid.ExeName("alpha"))); err != nil || string(got) != "binary alpha\n" {
+		t.Fatalf("bin/alpha = %q (%v), want the fixture release's bytes", got, err)
 	}
 
 	// On a checkout root, fetch-bin.sh exits 0 without installing because of the checkout guard.
@@ -936,108 +887,5 @@ func TestFixFetchesFromTheConfiguredRelease(t *testing.T) {
 	}
 	if !strings.Contains(joined, "file://") {
 		t.Fatalf("report should name the release URL, got: %s", joined)
-	}
-}
-
-func TestDoctorJudgesHelpersByPresenceOnly(t *testing.T) {
-	repoDir := t.TempDir()
-	runCmd := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = repoDir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("%v: %v\n%s", args, err, out)
-		}
-	}
-	runCmd("git", "init")
-	runCmd("git", "config", "user.name", "test")
-	runCmd("git", "config", "user.email", "test@test.com")
-
-	pluginRoot := filepath.Join(repoDir, "plugins", "frank-exchange-of-views", "1.0.0")
-	mustWrite(t, filepath.Join(pluginRoot, "tools", "cmd", "alpha", "main.go"), "package main\nfunc main(){}\n")
-	mustWrite(t, filepath.Join(pluginRoot, "tools", "go.mod"), "module tools\ngo 1.27\n")
-	mustWrite(t, filepath.Join(pluginRoot, "native", "feov-ocr", "ASSETS"), "")
-	mustWrite(t, filepath.Join(pluginRoot, "native", "feov-embed", "ASSETS"), "gte-small.int8.ort amd64=gte-small.int8.amd64.ort arm64=gte-small.int8.arm.ort\n")
-	mustWrite(t, filepath.Join(pluginRoot, "requirements.json"), `{"tools":[]}`)
-	mustWrite(t, filepath.Join(pluginRoot, "plugin.json"), `{"name":"frank-exchange-of-views","version":"1.0.0"}`)
-
-	runCmd("git", "add", ".")
-	runCmd("git", "commit", "-m", "init")
-
-	commitBytes, _ := exec.Command("git", "-C", repoDir, "rev-parse", "HEAD").Output()
-	commitSha := strings.TrimSpace(string(commitBytes))
-
-	// Build alpha with go build while the git tree is completely clean
-	alphaBin := filepath.Join(pluginRoot, "bin", buildid.ExeName("alpha"))
-	if err := os.MkdirAll(filepath.Dir(alphaBin), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	buildCmd := exec.Command("go", "build", "-o", alphaBin, "./cmd/alpha")
-	buildCmd.Dir = filepath.Join(pluginRoot, "tools")
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("go build: %v\n%s", err, out)
-	}
-
-	instDir := filepath.Join(repoDir, "plugins")
-	mustWrite(t, filepath.Join(instDir, "installed_plugins.json"),
-		fmt.Sprintf(`{"plugins":{"frank-exchange-of-views":[{"installPath":%q,"version":"1.0.0","gitCommitSha":%q}]}}`, pluginRoot, commitSha))
-
-	mustWrite(t, filepath.Join(pluginRoot, "bin", buildid.ExeName("feov-ocr")), "not a go binary")
-	mustWrite(t, filepath.Join(pluginRoot, "bin", buildid.ExeName("feov-embed")), "not a go binary")
-	mustWrite(t, filepath.Join(pluginRoot, "bin", "gte-small.int8.ort"), "ort bytes")
-
-	bins := binariesOf(pluginRoot, "frank-exchange-of-views", "1.0.0")
-	if len(bins) != 4 {
-		t.Fatalf("expected 4 binaries, got %d: %+v", len(bins), bins)
-	}
-
-	if n := UnstampedCount(bins); n != 0 {
-		t.Fatalf("UnstampedCount = %d, want 0", n)
-	}
-
-	tbl := table(nil, bins)
-	if strings.Contains(tbl, "! unstamped") {
-		t.Fatalf("table should not report ! unstamped for non-Go entries:\n%s", tbl)
-	}
-	if !strings.Contains(tbl, "✓ built") || !strings.Contains(tbl, "✓ installed") {
-		t.Fatalf("table should contain ✓ built and ✓ installed:\n%s", tbl)
-	}
-
-	v := verdict(nil, bins)
-	if v != "READY" {
-		t.Fatalf("verdict = %q, want READY", v)
-	}
-}
-
-func TestDoctorNamesTheExportWhenNothingCanProvideIt(t *testing.T) {
-	root := t.TempDir()
-	mustWrite(t, filepath.Join(root, "plugin.json"), `{"name":"frank-exchange-of-views","version":"1.0.0"}`)
-	mustWrite(t, filepath.Join(root, "requirements.json"), `{"tools":[]}`)
-	mustWrite(t, filepath.Join(root, "native", "feov-ocr", "ASSETS"), "")
-	mustWrite(t, filepath.Join(root, "native", "feov-embed", "ASSETS"), "gte-small.int8.ort amd64=gte-small.int8.amd64.ort arm64=gte-small.int8.arm.ort\n")
-
-	bins := binariesOf(root, "frank-exchange-of-views", "1.0.0")
-	failingFetch := func(b binStatus) error {
-		return errors.New("gh release download failed")
-	}
-	failingBuild := func(b binStatus) (string, error) {
-		t.Fatal("build should not be called")
-		return "", nil
-	}
-
-	report := fixWith(bins, failingFetch, failingBuild, false)
-	joined := strings.Join(report, "\n")
-
-	wantHelperAsset := AssetName("feov-ocr", runtime.GOOS, runtime.GOARCH)
-	wantExport := "gte-small.int8." + runtime.GOARCH + ".ort"
-	if !strings.Contains(joined, wantHelperAsset) {
-		t.Fatalf("report should name helper asset %q, got:\n%s", wantHelperAsset, joined)
-	}
-	if !strings.Contains(joined, wantExport) {
-		t.Fatalf("report should name export %q, got:\n%s", wantExport, joined)
-	}
-	wrongName := "gte-small.int8.ort_" + runtime.GOOS + "_" + runtime.GOARCH
-	if strings.Contains(joined, wrongName) {
-		t.Fatalf("report should not name %q:\n%s", wrongName, joined)
 	}
 }

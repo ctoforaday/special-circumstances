@@ -435,54 +435,56 @@ PY
 
         local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/sc-universe/native/$helper/$digest"
         local helper_bin_name="${helper}_${host_os}_${host_arch}${ext}"
-        if [ -f "$cache_dir/$helper_bin_name" ]; then
+        # The files this helper puts in the release: its binary, and each ASSETS line's export for
+        # this arch. A line naming none for this arch fails here, as fetch-bin.sh would.
+        local wanted=("$helper_bin_name") exports=() line export_name field
+        while read -r line || [ -n "$line" ]; do
+          line="${line%$'\r'}"
+          [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+          export_name=""
+          for field in $line; do
+            case "$field" in "${host_arch}="*) export_name="${field#*=}" ;; esac
+          done
+          [ -n "$export_name" ] || die "$assets_file: '${line%% *}' names no export for $host_arch"
+          exports+=("$export_name")
+          wanted+=("$export_name")
+        done < "$assets_file"
+
+        local f complete=1
+        for f in "${wanted[@]}"; do [ -f "$cache_dir/$f" ] || complete=0; done
+        if [ "$complete" = 1 ]; then
           log "reusing cached helper $helper ($digest)"
-          cp "$cache_dir"/* "$tag_dir/" 2>/dev/null || true
         else
-          for tool in zig cmake; do
-            command -v "$tool" >/dev/null 2>&1 || die "$helper needs $tool on PATH to build from source"
+          # native/build.sh fetches its own pinned zig and cmake; these are what it runs on the host.
+          # On any host but linux-x86_64 it needs ZIG and CMAKE set, as it says itself.
+          for tool in go curl tar xz sha256sum flock make python3; do
+            command -v "$tool" >/dev/null 2>&1 || die "$helper: native/build.sh needs $tool on PATH"
           done
           local tmp_cache="${cache_dir}.tmp.$$"
           rm -rf "$tmp_cache"
           mkdir -p "$tmp_cache"
-          local build_sh="$native_root/build.sh"
-          if [ -f "$build_sh" ]; then
-            "$build_sh" "$helper" "${host_os}-${host_arch}" "$tmp_cache" || die "building helper $helper failed"
-          fi
-          while read -r line || [ -n "$line" ]; do
-            [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
-            local export_name=""
-            for field in $line; do
-              case "$field" in
-                "${host_arch}="*) export_name="${field#*=}" ;;
-              esac
-            done
-            if [ -n "$export_name" ]; then
-              if [ -f "$helper_dir/PINS.txt" ]; then
-                local dl_url="" dl_sha=""
-                while read -r pline || [ -n "$pline" ]; do
-                  [[ "$pline" =~ ^[[:space:]]*(#|$) ]] && continue
-                  if echo "$pline" | grep -q "^${export_name}[[:space:]]"; then
-                    dl_sha="$(echo "$pline" | awk '{print $2}')"
-                    dl_url="$(echo "$pline" | awk '{print $3}')"
-                  fi
-                done < "$helper_dir/PINS.txt"
-                if [ -n "$dl_url" ]; then
-                  curl -fsSL "$dl_url" -o "$tmp_cache/$export_name" || die "failed downloading $export_name"
-                  if [ -n "$dl_sha" ]; then
-                    local actual_sha
-                    actual_sha="$( ( sha256sum "$tmp_cache/$export_name" 2>/dev/null || shasum -a 256 "$tmp_cache/$export_name" ) | awk '{print $1}')"
-                    [ "$actual_sha" = "$dl_sha" ] || die "sha256 mismatch on $export_name: got $actual_sha, want $dl_sha"
-                  fi
-                fi
-              fi
-            fi
-          done < "$assets_file"
-
+          "$native_root/build.sh" "$helper" "${host_os}-${host_arch}" "$tmp_cache" || die "building helper $helper failed"
+          [ -f "$tmp_cache/$helper_bin_name" ] || die "native/build.sh wrote no $helper_bin_name"
+          local pin dl_sha dl_url actual_sha
+          for export_name in "${exports[@]}"; do
+            # PINS.txt records are <sha256> <file> <url>.
+            pin="$(awk -v f="$export_name" '$0 !~ /^[[:space:]]*#/ && $2 == f { sub(/\r$/, ""); print $1, $3 }' "$helper_dir/PINS.txt" 2>/dev/null)"
+            dl_sha="${pin%% *}"; dl_url="${pin#* }"
+            [ -n "$pin" ] && [ -n "$dl_sha" ] && [ -n "$dl_url" ] && [ "$dl_url" != "$pin" ] \
+              || die "$helper: the export $export_name has no pin in $helper_dir/PINS.txt"
+            curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 --max-time 600 "$dl_url" -o "$tmp_cache/$export_name" \
+              || die "could not download $export_name from $dl_url"
+            actual_sha="$( ( sha256sum "$tmp_cache/$export_name" 2>/dev/null || shasum -a 256 "$tmp_cache/$export_name" ) | awk '{print $1}')"
+            [ "$actual_sha" = "$dl_sha" ] || die "sha256 mismatch on $export_name: got $actual_sha, want $dl_sha"
+          done
+          # Only a complete entry is renamed into place, so a killed or failed build leaves none.
+          rm -rf "$cache_dir"
           mkdir -p "$(dirname "$cache_dir")"
           mv "$tmp_cache" "$cache_dir"
-          cp "$cache_dir"/* "$tag_dir/" 2>/dev/null || true
         fi
+        for f in "${wanted[@]}"; do
+          cp "$cache_dir/$f" "$tag_dir/$f" || die "could not copy $f into the local release"
+        done
       done
     fi
 

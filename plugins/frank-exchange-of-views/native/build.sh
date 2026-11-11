@@ -76,7 +76,9 @@ fetch_pinned() { # fetch_pinned <file> <manifest> <destdir>
 	[ -n "$sha" ] && [ -n "$url" ] || die "$file is not pinned in $manifest"
 	if [ ! -f "$dest" ]; then
 		echo "fetching $file"
-		curl -fsSL -o "$dest.part" "$url" && mv "$dest.part" "$dest"
+		curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 --max-time 600 -o "$dest.part" "$url" ||
+			die "downloading $file from $url failed"
+		mv "$dest.part" "$dest"
 	fi
 	echo "$sha  $dest" | sha256sum -c --quiet - || die "$file does not match its pin"
 }
@@ -141,8 +143,29 @@ CROSS+=(-DCMAKE_CXX_FLAGS="$CXXFLAGS_ALL")
 # ---- Build dependencies -------------------------------------------------------------
 HELPER_PINS="$NATIVE_DIR/$HELPER/PINS.txt"
 
+stack_pin() { # stack_pin <library>: the file of the one <library>-<version>.tar.gz record in HELPER_PINS
+	local files n
+	files="$(awk -v n="$1" '$0 !~ /^#/ && index($2, n "-") == 1 && $2 ~ /\.tar\.gz$/ { v = substr($2, length(n) + 2); if (v ~ /^[0-9]/) print $2 }' "$HELPER_PINS")"
+	n="$(printf '%s' "$files" | grep -c . || true)"
+	[ "$n" = 1 ] || die "$HELPER_PINS holds $n $1-<version>.tar.gz records, want exactly one"
+	echo "$files"
+}
+pin_version() { # pin_version <library> <file>
+	local v="${2#"$1"-}"
+	echo "${v%.tar.gz}"
+}
+
 if [ "$HELPER" = "feov-ocr" ]; then
-	for f in zlib-1.3.2.tar.gz libpng-1.6.58.tar.gz leptonica-1.87.0.tar.gz tesseract-5.5.3.tar.gz; do
+	ZLIB_TAR="$(stack_pin zlib)"
+	LIBPNG_TAR="$(stack_pin libpng)"
+	LEPTONICA_TAR="$(stack_pin leptonica)"
+	TESSERACT_TAR="$(stack_pin tesseract)"
+	LEPTONICA_VERSION="$(pin_version leptonica "$LEPTONICA_TAR")"
+	TESSERACT_VERSION="$(pin_version tesseract "$TESSERACT_TAR")"
+	# tesseract names its Windows static library after its major and minor version: 5.5.3 builds
+	# libtesseract55.a.
+	TESSERACT_ABI="$(echo "$TESSERACT_VERSION" | cut -d. -f1,2 | tr -d .)"
+	for f in "$ZLIB_TAR" "$LIBPNG_TAR" "$LEPTONICA_TAR" "$TESSERACT_TAR"; do
 		fetch_pinned "$f" "$HELPER_PINS" "$WORK/src"
 	done
 
@@ -152,7 +175,7 @@ if [ "$HELPER" = "feov-ocr" ]; then
 	if [ ! -f "$PREFIX/lib/libz.a" ] && [ ! -f "$PREFIX/lib/libzlibstatic.a" ] && [ ! -f "$PREFIX/lib/libzs.a" ]; then
 		echo "=== Building zlib ($TARGET) ==="
 		rm -rf zlib && mkdir zlib
-		tar -C zlib --strip-components=1 -xf "$WORK/src/zlib-1.3.2.tar.gz"
+		tar -C zlib --strip-components=1 -xf "$WORK/src/$ZLIB_TAR"
 		"$CMAKE" -S zlib -B zlib/b "${CROSS[@]}" \
 			-DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
 			-DZLIB_BUILD_TESTING=OFF -DZLIB_BUILD_SHARED=OFF -DZLIB_BUILD_STATIC=ON \
@@ -169,7 +192,7 @@ if [ "$HELPER" = "feov-ocr" ]; then
 	if [ ! -f "$PREFIX/lib/libpng16.a" ] && [ ! -f "$PREFIX/lib/libpng.a" ]; then
 		echo "=== Building libpng ($TARGET) ==="
 		rm -rf libpng && mkdir libpng
-		tar -C libpng --strip-components=1 -xf "$WORK/src/libpng-1.6.58.tar.gz"
+		tar -C libpng --strip-components=1 -xf "$WORK/src/$LIBPNG_TAR"
 		"$CMAKE" -S libpng -B libpng/b "${CROSS[@]}" \
 			-DPNG_SHARED=OFF -DPNG_STATIC=ON -DPNG_TESTS=OFF -DPNG_TOOLS=OFF \
 			-DPNG_FRAMEWORK=OFF -DPNG_DEBUG=OFF \
@@ -179,10 +202,10 @@ if [ "$HELPER" = "feov-ocr" ]; then
 	fi
 
 	# leptonica
-	if [ ! -f "$PREFIX/lib/libleptonica.a" ] && [ ! -f "$PREFIX/lib/libleptonica-1.87.0.dll" ] && [ ! -f "$PREFIX/lib/liblept.a" ]; then
+	if [ ! -f "$PREFIX/lib/libleptonica.a" ] && [ ! -f "$PREFIX/lib/libleptonica-${LEPTONICA_VERSION}.dll" ] && [ ! -f "$PREFIX/lib/liblept.a" ]; then
 		echo "=== Building leptonica ($TARGET) ==="
 		rm -rf leptonica && mkdir leptonica
-		tar -C leptonica --strip-components=1 -xf "$WORK/src/leptonica-1.87.0.tar.gz"
+		tar -C leptonica --strip-components=1 -xf "$WORK/src/$LEPTONICA_TAR"
 		"$CMAKE" -S leptonica -B leptonica/b "${CROSS[@]}" \
 			-DCMAKE_PREFIX_PATH="$PREFIX" \
 			-DBUILD_SHARED_LIBS=OFF -DBUILD_PROG=OFF \
@@ -195,10 +218,10 @@ if [ "$HELPER" = "feov-ocr" ]; then
 	fi
 
 	# tesseract
-	if [ ! -f "$PREFIX/lib/libtesseract.a" ] && [ ! -f "$PREFIX/lib/libtesseract55.a" ]; then
+	if [ ! -f "$PREFIX/lib/libtesseract.a" ] && [ ! -f "$PREFIX/lib/libtesseract${TESSERACT_ABI}.a" ]; then
 		echo "=== Building tesseract ($TARGET) ==="
 		rm -rf tesseract && mkdir tesseract
-		tar -C tesseract --strip-components=1 -xf "$WORK/src/tesseract-5.5.3.tar.gz"
+		tar -C tesseract --strip-components=1 -xf "$WORK/src/$TESSERACT_TAR"
 		sed -i 's/set(LIB_Ws2_32 Ws2_32)/set(LIB_Ws2_32 ws2_32)/' tesseract/CMakeLists.txt
 		"$CMAKE" -S tesseract -B tesseract/b "${CROSS[@]}" \
 			-DCMAKE_PREFIX_PATH="$PREFIX" \
@@ -219,31 +242,8 @@ if [ "$HELPER" = "feov-ocr" ]; then
 		alias_lib() { if [ -e "$1" ] && [ ! -e "$2" ]; then ln -sf "$1" "$2"; fi; }
 		alias_lib libzs.a libz.a
 		alias_lib libzlibstatic.a libz.a
-		alias_lib libleptonica-1.87.0.dll libleptonica.a
-		alias_lib libtesseract55.a libtesseract.a
-		;;
-	Darwin)
-		GOSRC="$(go env GOROOT)/src"
-		tbd_target="$PROC-macos"
-		dyn_syms() {
-			grep -rhoE "//go:cgo_import_dynamic [^ ]+ [^ ]+ \"[^\"]*$1\"" "$GOSRC" |
-				awk '{ print "_" $3 }' | sort -u | paste -sd, - | sed 's/,/, /g'
-		}
-		write_tbd() {
-			mkdir -p "$(dirname "$1")"
-			{
-				printf -- "--- !tapi-tbd\ntbd-version: 4\ntargets: [ %s ]\ninstall-name: '%s'\ncurrent-version: 1.0\n" "$tbd_target" "$2"
-				[ -n "${3:-}" ] && printf -- "exports:\n  - targets: [ %s ]\n    symbols: [ %s ]\n" "$tbd_target" "$3"
-				printf -- '...\n'
-			} > "$1"
-		}
-		cf_syms="$(dyn_syms CoreFoundation)"
-		sec_syms="$(dyn_syms Security)"
-		write_tbd "$PREFIX/lib/libresolv.tbd" '/usr/lib/libresolv.9.dylib'
-		write_tbd "$PREFIX/Frameworks/CoreFoundation.framework/CoreFoundation.tbd" \
-			'/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation' "$cf_syms"
-		write_tbd "$PREFIX/Frameworks/Security.framework/Security.tbd" \
-			'/System/Library/Frameworks/Security.framework/Versions/A/Security' "$sec_syms"
+		alias_lib "libleptonica-${LEPTONICA_VERSION}.dll" libleptonica.a
+		alias_lib "libtesseract${TESSERACT_ABI}.a" libtesseract.a
 		;;
 	esac
 
@@ -283,9 +283,6 @@ with open('traineddata.c', 'w') as f:
 	Windows)
 		LDFLAGS+=(-static -lws2_32)
 		;;
-	Darwin)
-		LDFLAGS+=(-F"$PREFIX/Frameworks" -framework CoreFoundation -framework Security -lresolv)
-		;;
 	esac
 
 	OUT_NAME="${HELPER}_${OS}_${ARCH}${EXT}"
@@ -297,6 +294,5 @@ with open('traineddata.c', 'w') as f:
 	fi
 
 	cp "$OUT_NAME" "$OUTDIR/$OUT_NAME"
-	cp "$OUT_NAME" "$OUTDIR/${HELPER}${EXT}"
 	echo "native/build.sh: $OUTDIR/$OUT_NAME ready"
 fi

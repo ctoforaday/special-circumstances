@@ -90,11 +90,18 @@ func TestSetupProceedsAndNamesAMissingHelper(t *testing.T) {
 
 	stdout := out.String()
 	for _, h := range nativehelper.Helpers() {
-		want := fmt.Sprintf("%s: helper-absent", h)
+		want := fmt.Sprintf("%s: helper-absent, no executable at %s", h, filepath.Join(cfg.BinDir, exeName(h)))
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
+}
+
+func exeName(h string) string {
+	if runtime.GOOS == "windows" {
+		return h + ".exe"
+	}
+	return h
 }
 
 func TestSetupNamesAMismatchedHelper(t *testing.T) {
@@ -128,7 +135,8 @@ func TestSetupNamesAMismatchedHelper(t *testing.T) {
 
 	stdout := out.String()
 	for _, h := range nativehelper.Helpers() {
-		want := fmt.Sprintf("%s: helper-digest-mismatch", h)
+		want := fmt.Sprintf("%s: helper-digest-mismatch, source digest at %s reports mismatched-digest, this binary was built for %s",
+			h, filepath.Join(cfg.BinDir, exeName(h)), nativehelper.HelperDigest(h))
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout missing %q:\n%s", want, stdout)
 		}

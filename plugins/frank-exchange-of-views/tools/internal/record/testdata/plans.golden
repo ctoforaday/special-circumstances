@@ -1557,8 +1557,16 @@
 -- INSERT INTO "spot_check_areas" ("event_id", "ord", "value") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 6bd23aa77681
+-- INSERT INTO "spot_check_changes" ("event_id", "ord", "value") VALUES (?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt ca7917a4df41
 -- INSERT INTO "spot_check_ids" ("event_id", "ord", "value") VALUES (?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 90a4a50ca26d
+-- INSERT INTO "spot_check_pins" ("event_id", "ord", "value") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 6497d73529d2
@@ -1575,6 +1583,22 @@
 
 == stmt a19b3b92e02a
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 7bce27bdb182
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 06e66922a3d3
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt f6cadfb99760
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt d0096b45f286
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt f20f0f91bddb
@@ -1609,6 +1633,30 @@
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness") VALUES (?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt ef36353eff7a
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 7cb80207a8e6
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt f0a0bac5c328
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 1bf53d649130
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt f119c74a2aaf
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt e414243f64dc
+-- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt c32821ea6e5e
 -- INSERT INTO "verify" ("event_id", "claim", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1633,6 +1681,10 @@
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt c0ce8c641796
+-- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 811bfdb8419e
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "anchor", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1651,6 +1703,10 @@
 
 == stmt fb535608e683
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 773f9e090053
+-- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 2461111cc4e9
@@ -1807,6 +1863,19 @@
       UNION ALL
         SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id>? AND event_id<?)
   SCAN report_op
+  USE TEMP B-TREE FOR ORDER BY
+
+== stmt 5db0579b06c0
+-- SELECT "event_id", "seat_id", "sitting", "epoch", "answers", "old", "new", "delta", "reason", "applied_verbatim", "accepted", "retired" FROM "change" WHERE ? = '' OR "answers" = ? ORDER BY "event_id"
+  CO-ROUTINE x
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SCAN b
+      UNION ALL
+        SCAN ra USING COVERING INDEX retire_anchors_value
+        SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+  SCAN x
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
 == stmt 179f570c06e4
@@ -2056,19 +2125,6 @@
 -- SELECT "seat_id" FROM "sittings" ORDER BY "id"
   SCAN e
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-
-== stmt e5a94815fabd
--- SELECT "seat_id", "sitting", "epoch", "answers", "old", "new", "delta", "reason", "applied_verbatim", "accepted", "retired" FROM "change" WHERE ? = '' OR "answers" = ? ORDER BY "event_id"
-  CO-ROUTINE x
-    COMPOUND QUERY
-      LEFT-MOST SUBQUERY
-        SCAN b
-      UNION ALL
-        SCAN ra USING COVERING INDEX retire_anchors_value
-        SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
-  SCAN x
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  USE TEMP B-TREE FOR ORDER BY
 
 == stmt 6799aad63552
 -- SELECT "seat_id", "ts", "type" FROM "events" WHERE "id" = ?
@@ -2539,9 +2595,17 @@
 -- SELECT l."event_id", l."value" FROM "spot_check_areas" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_spot_check_areas_1 (event_id>?)
 
+== stmt 18424c3bcdef
+-- SELECT l."event_id", l."value" FROM "spot_check_changes" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
+  SEARCH l USING INDEX sqlite_autoindex_spot_check_changes_1 (event_id>?)
+
 == stmt 33244ddb23e0
 -- SELECT l."event_id", l."value" FROM "spot_check_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_spot_check_ids_1 (event_id>?)
+
+== stmt 9c6348b55750
+-- SELECT l."event_id", l."value" FROM "spot_check_pins" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
+  SEARCH l USING INDEX sqlite_autoindex_spot_check_pins_1 (event_id>?)
 
 == stmt 0cc0d378325f
 -- SELECT m."check_kind", COALESCE(g."evidence_answered", 0), COALESCE(g."awaiting_evidence", 0) FROM "mint" m JOIN "gap" g ON g."gap_id" = m."gap_id" WHERE m."gap_id" = ?

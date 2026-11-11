@@ -342,9 +342,9 @@ func pagedClaim(b Board, claim string) (PagedClaim, bool) {
 
 // readScan fetches the scanned fixture so its OCR reading exists before the cite quotes it.
 //
-// WHETHER THE BINARY HAS AN ENGINE IS READ FROM A FIELD. The same Build runs in-process with a
-// fake engine, through a tag-less binary, and through a tagged one; it never swaps the engine
-// itself. A summary saying the engine is absent makes the board NOT BUILT (ErrEngineRequired); a
+// WHETHER THE BINARY REACHES AN ENGINE IS READ FROM A FIELD. The same Build runs in-process with a
+// fake engine, through a binary with no feov-ocr helper, and through one with the helper present;
+// it never swaps the engine itself. A summary saying the engine is absent makes the board NOT BUILT (ErrEngineRequired); a
 // summary saying neither that nor that the text was read is a loud failure, so a missing field
 // never folds into a skip.
 func readScan(run record.Run, exec Exec, url string) error {

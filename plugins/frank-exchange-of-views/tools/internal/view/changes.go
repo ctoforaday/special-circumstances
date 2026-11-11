@@ -70,8 +70,8 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 		if id := ed.Answers; id != "" {
 			answers = "answers **" + id + "**"
 		}
-		out = append(out, fmt.Sprintf("- **#%d** `%s` %s · %s — %s",
-			n, ed.Seat, answers, what(ed), ed.Reason))
+		out = append(out, fmt.Sprintf("- **#%d** (event %d) `%s` %s · %s — %s",
+			n, ed.EventID, ed.Seat, answers, what(ed), ed.Reason))
 	}
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past

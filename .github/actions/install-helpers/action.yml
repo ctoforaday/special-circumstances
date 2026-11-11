@@ -1,0 +1,48 @@
+---
+# INSTALLS DOWNLOADED native-build ARTIFACTS UNDER THE NAMES A CLIENT LOOKS UP. An artifact holds
+# one helper under its release asset name, <helper>_<os>_<arch>[.exe], exactly as the release
+# publishes it; internal/nativehelper looks for <helper>[.exe] in NATIVE_HELPER_DIR, as fetch-bin.sh
+# installs it into bin/. Each file in `from` ending in `_<os>_<arch><ext>` is copied to `to` without
+# that suffix, made executable, and named in the log. A `from` with no such file fails.
+name: install-helpers
+description: Install native helper artifacts under their lookup names
+inputs:
+  from:
+    description: directory the artifacts were downloaded into
+    required: true
+  to:
+    description: directory NATIVE_HELPER_DIR names
+    required: true
+  os:
+    description: the target's GOOS
+    required: true
+  arch:
+    description: the target's GOARCH
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        FROM: ${{ inputs.from }}
+        TO: ${{ inputs.to }}
+        HOS: ${{ inputs.os }}
+        HARCH: ${{ inputs.arch }}
+      run: |
+        ext=""
+        [ "$HOS" = "windows" ] && ext=".exe"
+        suffix="_${HOS}_${HARCH}${ext}"
+        mkdir -p "$TO"
+        n=0
+        for f in "$FROM"/*"$suffix"; do
+          [ -f "$f" ] || continue
+          name="$(basename "$f" "$suffix")${ext}"
+          cp "$f" "$TO/$name"
+          chmod +x "$TO/$name"
+          echo "installed $(basename "$f") as $TO/$name"
+          n=$((n + 1))
+        done
+        if [ "$n" -eq 0 ]; then
+          echo "::error::$FROM holds no helper for ${HOS}/${HARCH}"
+          exit 1
+        fi

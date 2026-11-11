@@ -424,6 +424,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// reads the undocketed gaps: a docket motion standing unruled on the gap holds it off the list
 		// until the bench rules, as every other item on a docketed gap is held.
 		s.Open = append(s.Open, answersRetiredItems(evs, ids, win, gaps, seatID)...)
+		// THE COMPOSED SOURCES THE VOICE LENS HAS NOT HAD (composedsource.go): not blocking, as the audit
+		// is not — finding nothing in them is a legitimate audit — and listed until it sits through a
+		// sitting opened after each, which is when the debt that readied it ends. A docketed gap is the
+		// bench's until it rules, and composedSourcesOf leaves it out.
+		s.Open = append(s.Open, composedItemsOf(evs, ids, win, blockerGapsOfStates(all), seatID)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
 			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the
@@ -444,10 +449,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				continue
 			}
 			// A SETTLED INQUIRY NO CHECK STANDS ON IS ITS OWNER'S TO JUDGE, in a sitting opened after its
-			// latest fate — a check from a sitting already open when the fate landed is refused
-			// (requireInquiryCheck), so such a sitting does not list it; the next plan readies the lens.
+			// latest fate and its latest gap — a check from a sitting already open when either landed is
+			// refused (requireInquiryCheck), so such a sitting does not list it; the next plan readies
+			// the lens.
 			if b.Kind == BlockerUncheckedInquiry {
-				if b.Owner == seatID && win.LatestSittingOf(seatID) > b.since {
+				if b.Owner == seatID && win.LatestSittingOf(seatID) > max(b.since, b.gapMint) {
 					s.Open = append(s.Open, b.asItem(b.WorkItem(), true))
 				}
 				continue

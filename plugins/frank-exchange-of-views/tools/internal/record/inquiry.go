@@ -38,7 +38,7 @@ type Inquiry struct {
 	Status     string
 	Reason     string // the reason attached to the CURRENT status
 	// Method is the CURRENT fate's, exactly as Reason is: what an approach that ran actually did,
-	// what a deferred or declined one leaves a later run to do, what an abandoned one tried. A
+	// what would settle the question of a deferred or declined one, what an abandoned one tried. A
 	// proposal holds none — it is written before any research, and a method printed beside the
 	// question from then reads as what was consulted, with nothing to check it against.
 	Method  string
@@ -61,9 +61,9 @@ type Inquiry struct {
 	// LastCheck the events.id of its latest check whether or not it stands, 0 where it has none.
 	Check     *InquiryCheckStep
 	LastCheck int64
-	// MaterialMint is the events.id of the latest gap minted about the inquiry that was material at its
-	// mint, 0 where none was: a check before it judged an inquiry the record has since found wanting.
-	MaterialMint int64
+	// GapMint is the events.id of the latest gap minted about the inquiry, 0 where none was: a check
+	// before it judged the inquiry without that gap in hand.
+	GapMint int64
 }
 
 // InquiryStep is one record of an inquiry's fate, as that record gave it.
@@ -150,15 +150,17 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 				a.LastCheck = w.ID
 			}
 		case *recordpb.Mint:
-			// A GAP ABOUT THE INQUIRY THAT WAS MATERIAL AT ITS MINT puts every earlier check in
-			// question: the lens that minted it found the inquiry wanting. Its materiality is read off
-			// the mint as the gap view reads it at that turn (mintedMaterial), so a later regrade
-			// does not move which checks it unseated.
+			// ANY GAP ABOUT THE INQUIRY puts every earlier check in question, whatever its materiality
+			// (ruled by gblock 2026-11-10): the lens that minted it says the inquiry falls short, and
+			// the owner judges the fate again with the gap in hand. The class still decides whether the
+			// gap holds the inquiry wanting. A later regrade unseats nothing: it moves how much the gap
+			// weighs, not what a check after its mint had in hand, and while it holds the inquiry
+			// wanting no check is admitted.
 			if t.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY {
 				continue
 			}
-			if a, ok := byID[t.GetAboutRef()]; ok && mintedMaterial(t) {
-				a.MaterialMint = w.ID
+			if a, ok := byID[t.GetAboutRef()]; ok {
+				a.GapMint = w.ID
 			}
 		}
 	}

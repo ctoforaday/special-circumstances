@@ -128,13 +128,13 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Mani
 	if err != nil {
 		return nil, err
 	}
-	res, err := replayInOrder(src, reg, dst, opt)
+	res, err := replayInOrder(src, fromDir, reg, dst, opt)
 	if err != nil {
 		return nil, err
 	}
 	// THE STORE IS BUILT FROM THE RECORD replay wrote: each computation's bundle and its own output,
 	// and each re-run a reproduce names (computations.go).
-	missing, err := writeStore(fromDir, toDir, res.computations, res.reruns)
+	missing, err := writeStore(fromDir, toDir, res.computations, res.reruns, res.derived)
 	if err != nil {
 		return nil, err
 	}

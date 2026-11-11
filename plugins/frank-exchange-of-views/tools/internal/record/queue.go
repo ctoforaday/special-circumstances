@@ -50,7 +50,9 @@ type QueueEntry struct {
 //  3. each open gap the dispatch readies the seat on (your_turn) — material first, then by mass, then
 //     in mint order — with the non-blocking items about it folded in;
 //  4. each accepted grade motion owed a regrade, and each finding about the seat's own gap, not
-//     already folded into a readied gap.
+//     already folded into a readied gap;
+//  5. the composed sources the voice lens has not had (composedItemsOf), all of them as one entry,
+//     while nothing above is queued.
 //
 // Everything else on the list is not queued: the log channel, the law, the statement that nothing
 // is owed, news of a closure, an anchor no check can reach, and every gap that is not the seat's to
@@ -132,6 +134,21 @@ func QueueOf(w WorkJSON) []QueueEntry {
 		if !used[i] && (it.Kind == ItemRegradeOwed || it.Kind == ItemFindingOnGap) {
 			single(i)
 		}
+	}
+	// THE COMPOSED SOURCES ARE ONE ENTRY, QUEUED ONLY WHEN NOTHING ELSE IS. Each stays on the list until
+	// the sitting is sat through (composedItemsOf), so no act discharges one, and a current item stays
+	// current until it leaves the queue: queued singly, the first would hold every later one in the
+	// index, and queued behind other work, it would hold an item arriving after it out of `current`.
+	// Alone in the queue it is handed whole and stays current while the lens audits it; work arriving
+	// then takes the queue, the entry leaves it for the delivery's notes, and the new item is handed.
+	composed := QueueEntry{Kind: ItemComposedSource}
+	for i, it := range w.Sitting.Open {
+		if !used[i] && it.Kind == ItemComposedSource {
+			composed.Items = append(composed.Items, it)
+		}
+	}
+	if len(composed.Items) > 0 && len(out) == 0 {
+		add(composed)
 	}
 	return out
 }

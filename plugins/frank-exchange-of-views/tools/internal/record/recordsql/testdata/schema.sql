@@ -421,7 +421,7 @@ CREATE TABLE "enum_inquiry_status" (
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('abandoned', 'you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('confirmed', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'left for a later research run, not this one — kept, not set aside. REQUIRES a reason saying what a later run should pick it up FOR');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject''s terms, what the question still leaves unsettled; the method says what would settle it');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('refuted', 'you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('underway', 'you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached');
@@ -706,6 +706,20 @@ CREATE TABLE "spot_check_areas" (
   "event_id" INTEGER NOT NULL REFERENCES "spot_check"("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
+CREATE TABLE "spot_check_pins" (
+  "event_id" INTEGER NOT NULL REFERENCES "spot_check"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    INTEGER NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
+CREATE TABLE "spot_check_changes" (
+  "event_id" INTEGER NOT NULL REFERENCES "spot_check"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    INTEGER NOT NULL,
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 

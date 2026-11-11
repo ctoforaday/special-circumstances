@@ -23,7 +23,7 @@ import (
 //	sound      a check stands on it
 //
 // A CHECK STANDS WHILE WHAT IT JUDGED IS UNCHANGED: it is later than the inquiry's latest fate and
-// than the latest gap about it that was material at its mint (inquiryCheckStands), as an anchor's
+// than the latest gap minted about it, material or not (inquiryCheckStands), as an anchor's
 // check stands while it is later than the edit of its sentence. A report edit does not unseat it: the
 // record holds no link from an inquiry to a sentence, and an edit that answers a gap about it is
 // answered through that gap.
@@ -47,24 +47,11 @@ const (
 	InquirySound     = "sound"
 )
 
-// mintedMaterial reports whether a gap was material at its mint, as the gap view reads it at the
-// mint's turn: its class always is, or its class goes by grade and its severity is at or above the
-// floor GRADE_MEDIUM names.
-func mintedMaterial(m *recordpb.Mint) bool {
-	switch m.GetClassMaterial() {
-	case recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS:
-		return true
-	case recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE:
-		return recordpb.GradeMass(m.GetSeverity()) >= recordpb.GradeMass(recordpb.Grade_GRADE_MEDIUM)
-	}
-	return false
-}
-
 // inquiryCheckStands reports whether a check at events.id at stands on a: it is later than the
-// inquiry's latest fate, whose reason and method are what it judged, and than the latest gap about
-// it that was material at its mint.
+// inquiry's latest fate, whose reason and method are what it judged, and than the latest gap minted
+// about it, material or not.
 func inquiryCheckStands(a *Inquiry, at int64) bool {
-	return at > a.Fate && at > a.MaterialMint
+	return at > a.Fate && at > a.GapMint
 }
 
 // InquiryJudgement is one inquiry with its judged state's inputs: the open material gaps about it,
@@ -80,6 +67,9 @@ type InquiryJudgement struct {
 	cause int64
 	// findings is each finding another seat filed about it since its latest fate, as "<id> (<seat>)".
 	findings []string
+	// gaps is each gap minted about it since its latest check — every one where it has none — as
+	// "<id> (<seat>)": what put that check in question, which the owner judges the fate with in hand.
+	gaps []string
 }
 
 // State is the judged state. WANTING WINS: an inquiry that is also open owes blue's fate as well,
@@ -139,6 +129,9 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 			if i, ok := byID[t.GetAboutRef()]; ok {
 				about[t.GetGapId()] = i
 				out[i].cause = max(out[i].cause, ids[k])
+				if ids[k] > out[i].LastCheck {
+					out[i].gaps = append(out[i].gaps, t.GetGapId()+" ("+e.GetSeatId()+")")
+				}
 			}
 		case *recordpb.Regrade:
 			moved(t.GetGapId(), ids[k])
@@ -172,7 +165,7 @@ func inquiryBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blocke
 			out = append(out, Blocker{Kind: BlockerOpenInquiry, Subject: j.ID, Owner: blueRespondSeat, Detail: j.Status, since: j.Fate})
 		case len(j.Wanting) == 0 && j.Check == nil:
 			out = append(out, Blocker{Kind: BlockerUncheckedInquiry, Subject: j.ID, Owner: inquiryOwner, Detail: j.Status,
-				since: j.Fate, placed: j.cause, lastCheck: j.LastCheck, notes: j.findings})
+				since: j.Fate, placed: j.cause, lastCheck: j.LastCheck, notes: j.findings, gaps: j.gaps, gapMint: j.GapMint})
 		}
 	}
 	return out
@@ -211,18 +204,26 @@ func inquiryJudgementsAt(q recordsql.Querier) ([]InquiryJudgement, error) {
 func uncheckedInquiryFact(b Blocker) string {
 	s := fmt.Sprintf("inquiry %s is settled at %q (its fate recorded at event %d) and no check of it stands", b.Subject, b.Detail, b.since)
 	if b.lastCheck > 0 {
-		s += fmt.Sprintf(" — its last check, event %d, came before that fate or before a material gap about it", b.lastCheck)
+		s += fmt.Sprintf(" — its last check, event %d, came before that fate or before a gap minted about it", b.lastCheck)
 	}
 	return s
 }
 
 // uncheckedInquiryAct is how an unchecked inquiry is judged, with the findings other lenses filed
-// about it since its fate, so the owner's judgement is not blind to them.
+// about it since its fate and the gaps minted about it since its last check, so the owner's
+// judgement is not blind to them.
 func uncheckedInquiryAct(b Blocker) string {
 	s := fmt.Sprintf("%s owes the judgement: read its row (`show inquiries`) and the report's account of the research it names, then `inquiry check --id %s --reason \"<why its fate stands as the report's account of it>\"` where it is sound, or mint the gap about it (`mint --about-kind inquiry --about %s`) where it is wanting — class out_of_scope where it asks a question this run was not asked",
 		ownerOr(b, inquiryOwner), b.Subject, b.Subject)
 	if len(b.notes) > 0 {
 		s += ". Findings other lenses filed about it since its fate: " + strings.Join(b.notes, ", ")
+	}
+	if len(b.gaps) > 0 {
+		since := "since its last check, which they put in question"
+		if b.lastCheck == 0 {
+			since = "while it stood unchecked"
+		}
+		s += ". Gaps minted about it " + since + ", whatever their grade: " + strings.Join(b.gaps, ", ") + " — judge its fate with each in hand"
 	}
 	return s
 }
@@ -304,8 +305,11 @@ func requireInquiryCheck(w writeView, seatID string, b *recordpb.InquiryCheck) e
 	if sitting := win.LatestSittingOf(seatID); sitting < j.Fate {
 		return feov.Errorf(feov.Conflict, "inquiry %s's fate was recorded at event %d, after your sitting opened at event %d, so this check would judge the fate as it stood before. Nothing is recorded. Read it as it now stands (`show inquiries`); the sitting you are readied for next lists it", id, j.Fate, sitting)
 	}
+	if sitting := win.LatestSittingOf(seatID); sitting < j.GapMint {
+		return feov.Errorf(feov.Conflict, "a gap was minted about inquiry %s at event %d, after your sitting opened at event %d, so this check would judge its fate without that gap in hand. Nothing is recorded. The sitting you are readied for next lists it with the gap", id, j.GapMint, sitting)
+	}
 	if j.Check != nil {
-		return feov.Errorf(feov.Conflict, "a check of inquiry %s stands — event %d, by %s — and neither its fate nor a material gap about it has moved since. Nothing is recorded: a fate recorded again, or a material gap about it, leaves that check stale, and the inquiry is then owed a new one", id, j.Check.ID, j.Check.SeatID)
+		return feov.Errorf(feov.Conflict, "a check of inquiry %s stands — event %d, by %s — and neither its fate nor any gap about it has moved since. Nothing is recorded: a fate recorded again, or any gap minted about it, leaves that check stale, and the inquiry is then owed a new one", id, j.Check.ID, j.Check.SeatID)
 	}
 	return nil
 }

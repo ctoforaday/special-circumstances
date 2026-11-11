@@ -1555,6 +1555,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireClosedGaps(q, b.GetIds(), "--ids"); err != nil {
 			return err
 		}
+		// WHAT CHANGED BEHIND EACH AREA'S PIN IS STAMPED, never taken from the seat: every writer —
+		// the verb, the replay — gets the same stamp off the record the act lands on.
+		if err := stampSpotCheckChanges(q, b); err != nil {
+			return err
+		}
 	case *recordpb.Inquiry:
 		// EVERY INQUIRY HAS AN ID, exactly as every gap, finding and citation does. A
 		// record without one does not replay: a compatibility path for one subsystem is an
@@ -1569,8 +1574,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetInquiryId() == "" {
 			return fmt.Errorf("an inquiry requires an id — the tool assigns one on a proposal and --id names it when its fate is recorded; an inquiry with no identity has no lifecycle and cannot be checked or revisited")
 		}
-		// A PROPOSAL HOLDS NO METHOD. A method is the account of a fate — what was done, or what a
-		// later run should do — and one written at proposal is written before any research, printed
+		// A PROPOSAL HOLDS NO METHOD. A method is the account of a fate — what was done, or what would
+		// settle the question — and one written at proposal is written before any research, printed
 		// on the row as if it were what the research did, with nothing that can check or change it.
 		if b.SupersedesStatus == nil && b.GetMethod() != "" {
 			return fmt.Errorf("a proposal holds no method — the method is the account of a fate: give it with `inquiry record` when you record what became of this inquiry")
@@ -1597,7 +1602,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			st != recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY &&
 			st != recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED && b.GetReason() == "" {
 			if st == recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED {
-				return fmt.Errorf("a deferred inquiry requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
+				return fmt.Errorf("a deferred inquiry requires --reason — what the question still leaves unsettled, in the subject's terms; the method says what would settle it. A deferral with no stated reason is indistinguishable from forgetting, and the report prints it under Future research directions")
 			}
 			if st == recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED || st == recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED {
 				return fmt.Errorf("a %s inquiry requires --reason — what the approach found, in the subject's terms. It is printed in the report on the inquiry's row, and an approach that ran with nothing said about what it found reads as one that was dropped", recordpb.Word(st))

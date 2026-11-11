@@ -22,13 +22,13 @@ import (
 	"strings"
 )
 
-// The four files every case directory holds, and nothing else. An orphan beside them is a fixture
-// nothing reads or a record nothing pins, and CheckTree refuses both.
+// The three files every case directory holds, beside one golden per target, and nothing else. An
+// orphan beside them is a fixture nothing reads or a record nothing pins, and CheckTree refuses
+// both.
 const (
 	FilePage     = "page.pdf.gz"
 	FileRecord   = "provenance.json"
 	FileREADME   = "README.md"
-	FileGolden   = "reading.golden"
 	FileStatus   = "STATUS.md"
 	FileRefs     = "references.json"
 	FileRefsDoc  = "REFERENCES.md"
@@ -212,10 +212,39 @@ func Load(root string) ([]Case, error) {
 	return cases, nil
 }
 
+// ReferenceTarget is the target whose goldens every case holds: the ocr-corpus job's, where the
+// expect blocks and STATUS.md are measured.
+const ReferenceTarget = "linux-amd64"
+
+// GoldenFile is a case's golden for one target, an os-arch pair as tessocr.Target names it. The
+// same sources read a page differently on different targets, so each target pins its own reading
+// and none is ever compared against another's.
+func GoldenFile(target string) string { return "reading." + target + ".golden" }
+
+// goldenTarget is the target a file named GoldenFile(target) is for. A target is goos-goarch, two
+// non-empty lowercase words.
+func goldenTarget(name string) (string, bool) {
+	rest, ok := strings.CutPrefix(name, "reading.")
+	if !ok {
+		return "", false
+	}
+	target, ok := strings.CutSuffix(rest, ".golden")
+	if !ok {
+		return "", false
+	}
+	goos, goarch, ok := strings.Cut(target, "-")
+	if !ok || goos == "" || goarch == "" || strings.ContainsAny(goarch, "-.") || strings.ToLower(target) != target {
+		return "", false
+	}
+	return target, GoldenFile(target) == name
+}
+
 // CheckTree refuses anything under root that no gate accounts for: a case directory missing one of
-// its four files, and any other file or directory at either level.
+// its three files or the reference target's golden, a case whose golden targets differ from
+// another case's, and any other file or directory at either level.
 func CheckTree(root string) error {
-	want := map[string]bool{FilePage: true, FileRecord: true, FileREADME: true, FileGolden: true}
+	want := map[string]bool{FilePage: true, FileRecord: true, FileREADME: true, GoldenFile(ReferenceTarget): true}
+	var targets []string
 	top := map[string]bool{FileStatus: true, FileRefs: true, FileRefsDoc: true, FileCorpusMD: true}
 	ents, err := os.ReadDir(root)
 	if err != nil {
@@ -234,12 +263,26 @@ func CheckTree(root string) error {
 		if ierr != nil {
 			return ierr
 		}
+		var caseTargets []string
 		for _, f := range inner {
-			if !want[f.Name()] {
-				bad = append(bad, fmt.Sprintf("%s/%s is an orphan — no gate reads it", e.Name(), f.Name()))
+			if target, ok := goldenTarget(f.Name()); ok {
+				caseTargets = append(caseTargets, target)
+			}
+			if want[f.Name()] {
+				seen[f.Name()] = true
 				continue
 			}
-			seen[f.Name()] = true
+			if _, ok := goldenTarget(f.Name()); !ok {
+				bad = append(bad, fmt.Sprintf("%s/%s is an orphan — no gate reads it", e.Name(), f.Name()))
+			}
+		}
+		sort.Strings(caseTargets)
+		switch got := strings.Join(caseTargets, " "); {
+		case targets == nil:
+			targets = caseTargets
+		case got != strings.Join(targets, " "):
+			bad = append(bad, fmt.Sprintf("%s holds goldens for [%s], another case for [%s]: every case pins the same targets",
+				e.Name(), got, strings.Join(targets, " ")))
 		}
 		for name := range want {
 			if !seen[name] {

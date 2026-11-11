@@ -64,6 +64,7 @@ type lensFold struct {
 	sittings int      // sittings it sat through
 	pin      int64    // the head of its latest report read in a sitting it sat through (pinOf); 0 when it has none
 	owes     []string // what it owes (lensOwesOf), each named
+	composed []string // the composed sources it has not had (composedOwedOf), each named: owes holds them too
 	ready    bool
 	why      string
 }
@@ -98,6 +99,15 @@ func (f lensFold) readiness(head int64, short string) (bool, string) {
 		return true, fmt.Sprintf("%s: never sat — audits the report at head %d", f.seat, head)
 	case head > f.pin:
 		why := fmt.Sprintf("%s: %s, behind head %d — audits the report (%d sitting(s) in a row with no fresh material mint; %s)", f.seat, servedClause(f.pin), head, f.barren, f.retiresWhy())
+		if short != "" {
+			why += "; " + short
+		}
+		return true, why
+	// A COMPOSED SOURCE READIES THE VOICE LENS AT AN UNMOVED HEAD (composedsource.go): an inquiry's fate
+	// and a gap's mint move no report head, so the pin alone would never send it to their text.
+	case len(f.composed) > 0:
+		why := fmt.Sprintf("%s: %s, at the head — audits the text the tool composes from the record that changed since the last sitting it sat through: %s",
+			f.seat, servedClause(f.pin), strings.Join(f.composed, ", "))
 		if short != "" {
 			why += "; " + short
 		}
@@ -143,6 +153,9 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 //     computation it owns with no check of the sentence the report carries, a check of its that read
 //     nothing or judged a computation unsound and that no gap of its carries yet. A found-against
 //     check never holds its reader: its gap was minted by its reading.
+//   - FOR THE VOICE LENS, A COMPOSED SOURCE IT HAS NOT HAD (composedOwedOf): an inquiry's latest fate
+//     and an open gap's mint, whose text a section the tool composes prints — each owed until it sits
+//     through a sitting opened after the record, which readies it (lensFold.readiness).
 //
 // The work list keeps offering an item after the lens has sat on it; only the debt ends there.
 func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
@@ -172,6 +185,11 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 		if b.Owner != "" {
 			out[b.Owner] = append(out[b.Owner], owedBlocker(b))
 		}
+	}
+	// A COMPOSED SOURCE THE VOICE LENS HAS NOT HAD IS ITS DEBT (composedsource.go), once per cause, as
+	// a blocker's is its owner's.
+	for seat, srcs := range composedOwedOf(evs, ids, win, gaps) {
+		out[seat] = append(out[seat], composedNames(srcs)...)
 	}
 	return out
 }
@@ -241,8 +259,8 @@ type StaleArea struct {
 
 // lensStates folds every cast lens, in cast order. ids are the events' row ids, aligned with evs;
 // head is the report head (0: nothing ingested); fresh is the set of gap ids minted fresh and
-// material now; owes is lensOwesOf.
-func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool, owes map[string][]string) []lensFold {
+// material now; owes is lensOwesOf, and composed composedOwedOf.
+func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool, owes map[string][]string, composed map[string][]composedSource) []lensFold {
 	cast := castOfEvents(evs)
 	ds, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
@@ -252,7 +270,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 		if seatclass.RoleOfSeat(seat) != "lens" {
 			continue
 		}
-		f := lensFold{seat: seat, owes: owes[seat], pin: pinOf(reads[seat], ends, seat, math.MaxInt64)}
+		f := lensFold{seat: seat, owes: owes[seat], composed: composedNames(composed[seat]), pin: pinOf(reads[seat], ends, seat, math.MaxInt64)}
 		sat := map[int64]bool{}
 		var sittings []int64
 		var short string // why the sitting of its latest dispatch is not one it sat through; "" when it is
@@ -377,12 +395,12 @@ type passLensGate struct {
 	covered map[string]bool // areas a spot-check in the chair's current sitting named
 }
 
-func passLensGateOf(evs []*Event, ids []int64, win WindowIndex, fresh map[string]bool, owes map[string][]string) passLensGate {
+func passLensGateOf(evs []*Event, ids []int64, win WindowIndex, fresh map[string]bool, owes map[string][]string, composed map[string][]composedSource) passLensGate {
 	g := passLensGate{cast: castOfEvents(evs) != nil, head: reportHeadOf(evs, ids), covered: map[string]bool{}}
 	if !g.cast {
 		return g
 	}
-	g.lenses = lensStates(evs, ids, win, g.head, fresh, owes)
+	g.lenses = lensStates(evs, ids, win, g.head, fresh, owes, composed)
 	g.stale = staleAreasOf(g.lenses, g.head)
 	// THIS SITTING is the chair's latest sitting as the write path stored it: its spot-checks in that
 	// sitting — the same window the work list reads (thisSitting). A spot-check filed between the
@@ -443,7 +461,7 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 	}
 	ids := r.win.IDs(r.evs)
 	owes := lensOwesOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil)))
-	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes), true, nil
+	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes, composedOwedOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil))), true, nil
 }
 
 // LastReadJSON is a lens's pin as its work view carries it, as of now: the head the whole report was

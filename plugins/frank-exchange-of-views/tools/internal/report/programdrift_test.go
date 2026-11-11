@@ -89,7 +89,7 @@ func TestTheToolsOwnDriftsOpenNothingInTheEvidenceDocument(t *testing.T) {
 		k := record.Computation{
 			Label: id, SHA: res.Bundle, Argv: res.Argv, Basis: "variant", Reason: "counts",
 			ToolchainPath: res.ToolchainPath, ToolchainSha256: res.ToolchainSha256,
-			Drift: res.Drift, Invariant: "a file is written", Executed: true,
+			Drift: res.Drift, Invariant: "a file is written",
 			Rerun: &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, RerunSha: staged.Sha, Drift: c.Drift},
 		}
 		return resolveMarks(evidenceDoc(runtest.Open(t, runDir), []record.Computation{k}, nil, nil))
