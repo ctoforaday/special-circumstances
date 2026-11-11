@@ -1743,10 +1743,17 @@ func (r *runner) noteVerbatimGap(gapID, fixNew string) {
 }
 
 // aVerbatimGap returns one gap/text pair blue applied verbatim whose prescription STILL ESTOPS red
-// (stillEstops), or "" where none does — none has landed yet, or every one was since reworded. The
-// reword pair's gap is returned through its stages whatever its standing: the pair drives the reword
-// that ends the estoppel and the re-apply that restores it (mintRewordedText).
-func (r *runner) aVerbatimGap() (string, string) {
+// (stillEstops) and whose applied text is ON THE PAGE, or "" with why none is — none has landed yet,
+// every one was since reworded, or every one that still estops has lost its words. The reword pair's
+// gap is returned through its stages whatever its standing: the pair drives the reword that ends the
+// estoppel and the re-apply that restores it (mintRewordedText).
+//
+// THE WORDS, NOT ONLY THE STANDING. A gap whose token a retire took out is never reopened, so it
+// estops as long as the run lasts (record.estoppingPrescriptions' residue) while blue's edits of the
+// sentence, which can no longer name it, swap its words away; taken first by id, it held the drive
+// on one gap whose text was gone for 36 sittings of the estoppel seed's run (CI run 42935559070), the
+// run's four later verbatim applications behind it, and the seed drove no estoppel at all.
+func (r *runner) aVerbatimGap() (gapID, fixNew, miss string) {
 	r.mu.Lock()
 	ids := slices.Sorted(maps.Keys(r.verbatimGaps))
 	paired, pairedFix := "", ""
@@ -1755,24 +1762,41 @@ func (r *runner) aVerbatimGap() (string, string) {
 	}
 	r.mu.Unlock()
 	if paired != "" {
-		return paired, pairedFix
+		return paired, pairedFix, ""
 	}
+	if len(ids) == 0 {
+		return "", "", "nothing applied verbatim yet when the drive fired"
+	}
+	cur, err := record.RenderRun(r.run())
+	if err != nil {
+		return "", "", "could not render the report to find the applied text"
+	}
+	visible := anchortext.Visible(cur)
+	estopping := 0
 	for _, id := range ids {
-		if r.stillEstops(id) {
-			r.mu.Lock()
-			fn := r.verbatimGaps[id]
-			r.mu.Unlock()
-			return id, fn
+		if !r.stillEstops(id) {
+			continue
+		}
+		estopping++
+		r.mu.Lock()
+		fn := r.verbatimGaps[id]
+		r.mu.Unlock()
+		if strings.Contains(visible, anchortext.Visible(fn)) {
+			return id, fn, ""
 		}
 	}
-	return "", ""
+	if estopping == 0 {
+		return "", "", "every prescription blue applied verbatim was since reworded by blue, which ends its estoppel (F12)"
+	}
+	return "", "", "every prescription that still estops has lost its words: its gap's token left with a retire, so no edit of the sentence names it reopened, and an edit since swapped the applied text away"
 }
 
-// verbatimGapNoted reports whether blue has applied any prescription verbatim in this run.
-func (r *runner) verbatimGapNoted() bool {
+// isVerbatimGap reports whether blue applied gapID's prescription verbatim in this run.
+func (r *runner) isVerbatimGap(gapID string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return len(r.verbatimGaps) > 0
+	_, ok := r.verbatimGaps[gapID]
+	return ok
 }
 
 // stillEstops reports whether gapID's applied prescription still estops red, as the record folds it
@@ -4538,17 +4562,14 @@ func (r *runner) mintOverOpen(seatID string) {
 // still counted — the two numbers together say whether the guard is quiet or gone. A drive that
 // merely called `log --type estoppel` would have satisfied the gate while proving neither.
 func (r *runner) mintEstopped(seatID string) {
-	gapID, fixNew := r.aVerbatimGap()
+	gapID, fixNew, miss := r.aVerbatimGap()
 	if gapID == "" {
-		// The precondition genuinely does not hold: nothing has been applied verbatim YET, or
-		// blue has since reworded every applied sentence, which ends the estoppel (F12). Said
-		// out loud, because "the guard is gone" and "the drive never had its input" are the two
-		// readings of estoppels=0 and they want opposite fixes.
-		if r.verbatimGapNoted() {
-			r.noteEstoppelMiss("every prescription blue applied verbatim was since reworded by blue, which ends its estoppel (F12)")
-			return
-		}
-		r.noteEstoppelMiss("nothing applied verbatim yet when the drive fired")
+		// The precondition genuinely does not hold: nothing has been applied verbatim YET, blue
+		// has since reworded every applied sentence, which ends the estoppel (F12), or every
+		// prescription that still estops has lost its words. Said out loud, because "the guard is
+		// gone" and "the drive never had its input" are the two readings of estoppels=0 and they
+		// want opposite fixes.
+		r.noteEstoppelMiss(miss)
 		return
 	}
 	// THE QUOTE IS THE WHOLE SENTENCE, AND IT HAS TO BE — the guard's skip is an AND:
@@ -9014,18 +9035,30 @@ func (r *runner) anchorsLeftFor(claim string) (id string, left bool) {
 	if err != nil {
 		return "", false
 	}
+	// THE ESTOPPEL SEED KEEPS ITS APPLIED GAPS' TOKENS. A retire naming a gap's token takes it out of
+	// the report for good, and a gap with no token is never reopened: it estops to the run's end while
+	// blue's later edits of its sentence name nothing, so the reword pair (rewordAppliedText) could
+	// neither end its estoppel nor re-apply its text by token. The other runs drive the retire of a
+	// gap token; this one holds its precondition.
+	keeps := func(id string) bool { return !(r.forceEstoppel && r.isVerbatimGap(id)) }
 	for i := len(b.Events) - 1; i >= 0; i-- {
 		be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
 		if !ok || be.GetOld() != claim {
 			continue
 		}
 		for _, id := range anchor.IDs(be.GetNew()) {
-			if strings.Contains(string(cur), anchor.Token(id)) {
+			if strings.Contains(string(cur), anchor.Token(id)) && keeps(id) {
 				return id, true
 			}
 		}
 	}
-	if ids := anchor.IDs(string(cur)); len(ids) > 0 {
+	var ids []string
+	for _, id := range anchor.IDs(string(cur)) {
+		if keeps(id) {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) > 0 {
 		return ids[r.rng.Intn(len(ids))], false
 	}
 	return "", false
@@ -9375,6 +9408,17 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				}
 			}
 			// No applicable pair — degrade to a counter-edit rather than fake one.
+			//
+			// NOT IN THE ESTOPPEL SEED'S RUN. Its gaps all prescribe the one swap of lane 2's phrase
+			// from the page they were minted on, so the first applied makes every sibling's pair
+			// stale, and a counter-edit answering the sibling swaps the phrase straight back: the
+			// edit lists the applied gap reopened, its estoppel ends inside the sitting that began
+			// it (F12), and the reword pair (rewordAppliedText) finds no prescription standing at
+			// every sitting of the run. The stale pair is counted above; the sibling waits for a
+			// page its pair fits, and the other runs degrade to the counter-edit.
+			if r.forceEstoppel {
+				continue
+			}
 			fallthrough
 		case dirCounter:
 			r.counterEdit(seatID, id)

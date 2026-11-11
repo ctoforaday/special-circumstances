@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -46,7 +47,8 @@ const (
 )
 
 // estoppelReword is the pair's state: the gap whose prescription was applied, reworded and re-applied,
-// and its prescription's pair as the mint recorded it.
+// and its prescription's pair as the reword found it — read for its visible phrases alone, since the
+// anchor run it carries is stale once another mint lands on the sentence (rewordAppliedText).
 type estoppelReword struct {
 	stage          int
 	gap, old, new_ string
@@ -71,27 +73,51 @@ const (
 // prescription has been applied verbatim, the reword of its sentence (rewordReworded); once red's
 // mint of the reworded text has landed, the restore of red's words and the re-application of its
 // text by --accept, or typed where the accept no longer applies (rewordRestored). It draws nothing
-// from the run's RNG.
+// from the run's RNG, and every sitting it declines says why (rewordPairDeclined): the pair's two
+// counts are gated at zero across the sweep, and a zero with no cause is the shape this drive exists
+// to refuse.
+//
+// THE PAIR IS READ OFF THE RECORD AT EACH SITTING, never off the pair's own memory of it. The
+// proposal's pair carries the anchor run after the phrase, and every mint on the sentence since
+// prepends a token to that run, so the pair the reword recorded is stale by blue's next sitting;
+// proposalFor is the record's live pair, located by the gap's token. The restore of blue's words
+// swaps the bare visible phrases and leaves the run standing, as edgeRun's other arm does.
 func (r *runner) rewordAppliedText(seatID string) {
 	if !r.forceEstoppel || seatID != "blue-respond" {
 		return
 	}
+	declined := func(why string) { r.countReading(func(c *readingCounts) { c.rewordPairDeclined[why]++ }) }
 	switch r.estoppelRewordStage() {
 	case rewordIdle:
-		gap, _ := r.aVerbatimGap()
+		gap, _, miss := r.aVerbatimGap()
 		if gap == "" {
+			declined(miss)
 			return
 		}
 		cur, err := record.RenderRun(r.run())
 		if err != nil {
+			declined("could not render the report")
+			return
+		}
+		if !strings.Contains(cur, anchor.Token(gap)) {
+			declined("the applied gap's token has left the page, so no edit of its sentence names it reopened")
 			return
 		}
 		gid, old, new_ := r.proposalFor(gap, cur)
-		if gid == "" || strings.Count(cur, rewordTail) != 1 || !strings.Contains(anchortext.Visible(cur), anchortext.Visible(new_)) {
+		switch {
+		case gid == "":
+			declined("the applied gap carries no proposal")
+			return
+		case strings.Count(cur, rewordTail) != 1:
+			declined("the report does not hold the reword's phrase exactly once")
+			return
+		case !strings.Contains(anchortext.Visible(cur), anchortext.Visible(new_)):
+			declined("the applied text is not on the page")
 			return
 		}
 		if _, ok := r.do("edit", seatID).set("--quote", rewordTail).set("--new", rewordedTail).
 			set("--reason", "fuzz: the sentence red's text was applied to, reworded in blue's own words").admit(); !ok {
+			declined("the reword edit was refused")
 			return
 		}
 		if !r.lastEditReopened(seatID, gap) {
@@ -107,19 +133,34 @@ func (r *runner) rewordAppliedText(seatID string) {
 		r.mu.Unlock()
 		cur, err := record.RenderRun(r.run())
 		if err != nil {
+			declined("could not render the report")
 			return
 		}
-		// RED'S WORDS ARE PUT BACK where the applied text still stands, so the accept applies again.
-		if vis := anchortext.Visible(cur); !strings.Contains(vis, anchortext.Visible(old)) && strings.Contains(vis, anchortext.Visible(new_)) {
-			if _, ok := r.do("edit", seatID).set("--quote", new_).set("--new", old).
+		// RED'S WORDS ARE PUT BACK where the applied text still stands, so the accept applies again:
+		// the bare phrases swap, and the anchor run after them stays where it is.
+		oldVis, newVis := anchortext.Visible(old), anchortext.Visible(new_)
+		if vis := anchortext.Visible(cur); !strings.Contains(vis, oldVis) && strings.Contains(vis, newVis) {
+			if _, ok := r.do("edit", seatID).set("--quote", newVis).set("--new", oldVis).
 				set("--reason", "fuzz: blue's words again, before red's are re-applied").admit(); !ok {
+				declined("the restoring edit was refused")
 				return
 			}
 		}
 		if _, err := r.do("edit", seatID).set("--answers", gap).bare("--accept").
 			set("--reason", "fuzz: accepting red's prescribed fix on "+gap+" again").result(); err != nil {
-			if _, ok := r.do("edit", seatID).set("--answers", gap).set("--quote", old).set("--new", new_).
+			cur, rerr := record.RenderRun(r.run())
+			if rerr != nil {
+				declined("could not render the report")
+				return
+			}
+			gid, liveOld, liveNew := r.proposalFor(gap, cur)
+			if gid == "" {
+				declined("the pair's gap carries no proposal to type")
+				return
+			}
+			if _, ok := r.do("edit", seatID).set("--answers", gap).set("--quote", liveOld).set("--new", liveNew).
 				set("--reason", "fuzz: applying red's proposed text verbatim again").admit(); !ok {
+				declined("the re-application was refused by both arms")
 				return
 			}
 		}
@@ -178,6 +219,9 @@ func (r *runner) mintRewordedText(seatID, gapID, sentence string) bool {
 			"--problem", "fuzz: raising a defect against text blue reworded", "--check-kind", "document",
 			"--check", "acc", "--fix", dirCounter, "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
 			"--quote", sentence, "--reason", "fuzz: the reworded text is blue's, not red's prescription on " + gapID}
+		// A POOL CLASS NO OPEN GAP HOLDS ON THE SENTENCE, so the one-gap rule is not what answers
+		// the mint: the estoppel seed's lenses mint their own gaps on this sentence under free classes.
+		r.freeClass(args)
 		out, err := r.exec(args...)
 		switch {
 		case err == nil:
@@ -250,7 +294,7 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 	if r.actErr != "" {
 		t.Fatalf("blue's verbatim apply: %s", r.actErr)
 	}
-	if g, _ := r.aVerbatimGap(); g != gap {
+	if g, _, _ := r.aVerbatimGap(); g != gap {
 		t.Fatalf("blue applied %q verbatim, want %s", g, gap)
 	}
 	r.sit("lens", other)

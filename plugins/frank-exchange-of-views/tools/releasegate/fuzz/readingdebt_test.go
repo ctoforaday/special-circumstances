@@ -76,6 +76,9 @@ type readingCounts struct {
 	// estoppelEndedByReword: a red mint of applied text blue has since reworded, admitted (F12);
 	// estoppelRestored: red's mint of it refused again once blue re-applied red's text.
 	estoppelEndedByReword, estoppelRestored int
+	// rewordPairDeclined: why the reword pair's blue half declined at a sitting of the estoppel
+	// seed's run (rewordAppliedText), by reason — the zero of the two counts above names its cause.
+	rewordPairDeclined map[string]int
 	// debtsStandingAtEnd: a run that ends with a reading debt standing, the outcome naming it.
 	debtsStandingAtEnd int
 }
@@ -111,6 +114,7 @@ type readingTally struct {
 	OneURLTwoSentences        int            `json:"one_url_two_sentences"`
 	EstoppelEndedByReword     int            `json:"estoppel_ended_by_reword"`
 	EstoppelRestored          int            `json:"estoppel_restored"`
+	RewordPairDeclined        map[string]int `json:"reword_pair_declined"`
 	DebtsStandingAtEnd        int            `json:"reading_debts_standing_at_end"`
 }
 
@@ -123,7 +127,7 @@ func (c readingCounts) tally() readingTally {
 		FoundAbsentOnMarkedNoDebt: c.foundAbsentOnMarkedNoDebt, DebtReadied: c.debtReadied,
 		LostQuoteReread: c.lostQuoteReread, OneURLTwoSentences: c.oneURLTwoSentences,
 		EstoppelEndedByReword: c.estoppelEndedByReword, EstoppelRestored: c.estoppelRestored,
-		DebtsStandingAtEnd: c.debtsStandingAtEnd,
+		RewordPairDeclined: cloneCounts(c.rewordPairDeclined), DebtsStandingAtEnd: c.debtsStandingAtEnd,
 	}
 }
 
@@ -152,6 +156,7 @@ func (t *readingTally) add(o readingTally) {
 	t.OneURLTwoSentences += o.OneURLTwoSentences
 	t.EstoppelEndedByReword += o.EstoppelEndedByReword
 	t.EstoppelRestored += o.EstoppelRestored
+	t.RewordPairDeclined = addCounts(t.RewordPairDeclined, o.RewordPairDeclined)
 	t.DebtsStandingAtEnd += o.DebtsStandingAtEnd
 }
 
@@ -203,6 +208,7 @@ func (r *runner) countReading(f func(c *readingCounts)) {
 	if r.reading.mintsRefused == nil {
 		r.reading.mintsRefused, r.reading.mintsLanded = map[string]int{}, map[string]int{}
 		r.reading.crossArmMintsRefused, r.reading.debtsDischarged = map[string]int{}, map[string]int{}
+		r.reading.rewordPairDeclined = map[string]int{}
 	}
 	f(&r.reading)
 }
