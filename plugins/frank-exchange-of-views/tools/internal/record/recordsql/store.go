@@ -534,9 +534,9 @@ func openUncached(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// openBusyBudget is how long a contended lock is waited for, in the DSN's pragma and in retryBusy
-// alike — one figure, because retryBusy exists to give the open path the wait the pragma itself
-// cannot give it. A variable so a test can shorten it.
+// openBusyBudget is how long a contended lock is waited for, in the DSN's pragma and in connect's
+// retry alike — one figure, because connect exists to give the connect-time pragmas the wait the
+// pragma itself cannot give them. A variable so a test can shorten it.
 //
 // SIXTY SECONDS, BECAUSE A SEAT'S WRITE HOLDS THE LOCK THROUGH ITS VALIDATION AND FOLD. The write
 // transaction is open from seat.Places to Landing.Report (landing.go), so a waiter queues behind
@@ -546,7 +546,7 @@ func openUncached(path string) (*sql.DB, error) {
 //
 // SIBLING COPY: gray-area's catalogue/open.go carries the same mechanism — openBusyBudget and
 // isBusy under the same names — on the same 60s budget, set by hand there. Its backoff is a named function,
-// busyBackoff, on a different schedule (5ms doubling to 160ms); retryBusy below has its own
+// busyBackoff, on a different schedule (5ms doubling to 160ms); connect below inlines its own
 // (1ms doubling to 50ms). Both are jittered. It is a separate module and cannot import this one,
 // so a fix here is swept there by hand.
 var openBusyBudget = 60 * time.Second
@@ -560,7 +560,7 @@ func SetBusyBudgetForTest(d time.Duration) (restore func()) {
 	return func() { openBusyBudget = was }
 }
 
-// connect opens the pool's one connection, waiting out SQLITE_BUSY through retryBusy and failing on
+// connect opens the pool's one connection, waiting out SQLITE_BUSY for openBusyBudget and failing on
 // anything else at once.
 //
 // THE CONNECT-TIME PRAGMAS RUN WITH NO BUSY HANDLER THAT CAN HELP THEM. The driver applies the
@@ -573,45 +573,26 @@ func SetBusyBudgetForTest(d time.Duration) (restore func()) {
 //
 // This is the wait the swallow used to provide by accident. hasEvents answered "no" to a failed
 // read, ensureSchema re-asked on a second connection attempt, and Begin made a third; three
-// implicit retries hid the busy along with every other read error. The retries are kept, in
-// retryBusy, for the one error that is transient; every other error the connect or a read returns
-// is this open's.
+// implicit retries hid the busy along with every other read error. The retries are kept, HERE, for
+// the one error that is transient; every other error the connect or a read returns is this open's.
 //
 // Once the database is WAL the pragma is a no-op on every later connection, so this is a
 // first-open concern — which is exactly when several seats create the record at once (#630).
 func connect(db *sql.DB) error {
-	if err := retryBusy(db.Ping); err != nil {
-		return fmt.Errorf("connecting to the record: %w", err)
-	}
-	return nil
-}
-
-// retryBusy runs fn until it returns anything but SQLITE_BUSY, for at most openBusyBudget, and
-// returns fn's last error. It is the open path's one busy wait: connect's ping and the two
-// lock-free reads after it (hasEvents, requireThisEpoch's epoch read) all go through it.
-//
-// THE READS GO THROUGH IT AS WELL AS THE CONNECT. Neither runs inside a transaction this open
-// holds, and any error either returns fails the open, so a busy there is a failed open where the
-// same busy at connect is a wait. Measured on Linux, racing openers of a fresh file meet
-// SQLITE_BUSY only at the ping (7,600 opens: 95 busy pings, no busy read); the reads are held to
-// the same wait because nothing makes a WAL reader immune to a refusal the busy handler does not
-// cover — a file another opener is converting or recovering, on Windows' mandatory locks among
-// others — and the open path has one answer to busy, not one per statement (#881, #1167).
-//
-// Each call has its own budget, as each statement has its own busy_timeout: the open waits out one
-// contended step at a time rather than sharing one clock across them.
-func retryBusy(fn func() error) error {
 	deadline := time.Now().Add(openBusyBudget)
 	delay := time.Millisecond
 	for {
-		err := fn()
-		if err == nil || !isBusy(err) {
-			return err
+		err := db.Ping()
+		if err == nil {
+			return nil
+		}
+		if !isBusy(err) {
+			return fmt.Errorf("connecting to the record: %w", err)
 		}
 		if time.Now().After(deadline) {
 			// An exhausted wait reads differently from an immediate refusal: the budget is
 			// named, so a reader can tell the two apart.
-			return fmt.Errorf("still busy after %v: %w", openBusyBudget, err)
+			return fmt.Errorf("connecting to the record: still busy after %v: %w", openBusyBudget, err)
 		}
 		// Jittered, unlike SQLite's own fixed schedule: waiters released together should not
 		// wake together and collide again.
@@ -637,12 +618,8 @@ func isBusy(err error) bool {
 //
 // A record that states no epoch predates the field, and is an older run.
 func requireThisEpoch(db *sql.DB) error {
-	var epoch int
-	var ok bool
-	if err := retryBusy(func() (err error) {
-		epoch, ok, err = recordEpoch(db)
-		return err
-	}); err != nil {
+	epoch, ok, err := recordEpoch(db)
+	if err != nil {
 		return err
 	}
 	if !ok {
@@ -719,9 +696,7 @@ func ensureSchema(db *sql.DB) (created bool, err error) {
 // binary cannot read into the create path.
 func hasEvents(db *sql.DB) (bool, error) {
 	var n int
-	if err := retryBusy(func() error {
-		return db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'`).Scan(&n)
-	}); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'`).Scan(&n); err != nil {
 		return false, fmt.Errorf("asking whether the record has its events table: %w", err)
 	}
 	return n > 0, nil
