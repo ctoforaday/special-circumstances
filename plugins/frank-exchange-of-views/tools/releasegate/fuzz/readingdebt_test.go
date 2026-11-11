@@ -371,7 +371,16 @@ func (r *runner) oneGapOnReading(seatID, class, out string, args []string, form 
 		}
 	}
 	if standing == nil {
-		r.noteActErr("a reading's mint was refused as a second gap of its class on its subject, naming no open gap of that class on the board: " + firstLine(out))
+		// THE GAP NAMED CLOSED BETWEEN THE REFUSAL AND THIS READ — its minter's close, or the bench's,
+		// landing under the drive: the record's call, noted. A refusal naming no gap of the class on the
+		// board at all fails the run.
+		for _, g := range bj.Closed {
+			if g.Class == class && strings.Contains(out, g.ID) {
+				noteEither(args[:2], "a reading's mint refused over "+g.ID+", which closed under the drive before the board was read", false)
+				return
+			}
+		}
+		r.noteActErr("a reading's mint was refused as a second gap of its class on its subject, naming no gap of that class on the board: " + firstLine(out))
 		return
 	}
 	standingForm := "quote"
@@ -392,12 +401,42 @@ func (r *runner) oneGapOnReading(seatID, class, out string, args []string, form 
 	default:
 		r.oneGapAnswered(seatID, out, args)
 	}
+	// THE GAP NAMED IS READ AGAIN WITH THE DEBT: the refusal and the debt are two reads of the record,
+	// and a sibling's close of the gap — or the bench's — can land between them. A debt standing over
+	// a gap no longer open is the record's call (a gap minted before the reading's sitting discharges
+	// only while open); one standing over a gap still open fails the run, naming where the record
+	// places that gap beside the debt's sentence.
+	discharge := func(key, how string) {
+		if _, stands := r.debtOf(seatID, subject); stands {
+			g, open := r.gapOnBoard(standing.ID)
+			if !open {
+				noteEither(args[:2], "a reading's mint refused over "+standing.ID+", which closed under the drive before the debt was read", false)
+				return
+			}
+			how += fmt.Sprintf(" (the record places %s %s at %q)", standing.ID, g.LocationState, g.Location)
+		}
+		r.debtDischargedBy(seatID, subject, key, how)
+	}
 	switch {
 	case form != standingForm:
-		r.debtDischargedBy(seatID, subject, "cross_form", "the open "+class+" gap "+standing.ID+" in the other form")
+		discharge("cross_form", "the open "+class+" gap "+standing.ID+" in the other form")
 	case standing.MintedBy != seatID:
-		r.debtDischargedBy(seatID, subject, "other_seat_gap", "another seat's open "+class+" gap "+standing.ID)
+		discharge("other_seat_gap", "another seat's open "+class+" gap "+standing.ID)
 	}
+}
+
+// gapOnBoard is gap id as the board shows it now, and whether it is open.
+func (r *runner) gapOnBoard(id string) (record.GapJSON, bool) {
+	bj, err := record.BoardJSONOfRun(r.runHandle)
+	if err != nil {
+		return record.GapJSON{}, false
+	}
+	for _, g := range bj.Open {
+		if g.ID == id {
+			return g, true
+		}
+	}
+	return record.GapJSON{}, false
 }
 
 // readingDebts is every reading debt standing on the record, or nil and a noted error.

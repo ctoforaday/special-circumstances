@@ -75,3 +75,55 @@ func TestASubBoundEditLeavesTheDebtTheSameURLClears(t *testing.T) {
 		})
 	}
 }
+
+// THE ONE-GAP REFUSAL OVER A GAP THAT CLOSED UNDER THE DRIVE: the refusal names a sibling's open gap
+// of the class on the sentence, and the board and the debt are read after it; a close landing between
+// — the minter's own, in its parallel sitting, or the bench's — leaves the debt standing by the
+// record's rule (a gap minted before the reading's sitting discharges only while open), which the
+// drive notes rather than fails. The gap still open and the debt standing is the failure, naming
+// where the record places the gap.
+func TestAOneGapRefusalOverAGapClosedUnderTheDriveIsNoted(t *testing.T) {
+	r := stagedRunner(t)
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
+		t.Fatalf("record the lanes' parts: %v", err)
+	}
+	const a, b = "red-lens-architecture", "red-lens-logic"
+	s := foundSourceSentences[0]
+	r.sit("lens", b)
+	if r.readFound(b, foundSourceURL(b), s, "refutes") == 0 {
+		t.Fatalf("b's reading: %s", r.actErr)
+	}
+	g := r.mintOnReading(b, classContradicts, quoteArgs(s), 0, "quote").gap
+	if g == "" || r.actErr != "" {
+		t.Fatalf("b's mint: %q (%s)", g, r.actErr)
+	}
+	r.sit("lens", a)
+	if r.readFound(a, foundSourceURL(a), s, "refutes") == 0 {
+		t.Fatalf("a's reading: %s", r.actErr)
+	}
+	if _, stands := r.debtOf(a, s); stands {
+		t.Fatal("a's debt stands over b's open gap on the sentence")
+	}
+	args := append(readingMintArgs(a, classContradicts), quoteArgs(s)...)
+	out, err := r.exec(args...)
+	if err == nil || !strings.Contains(out, oneGapWords) || !strings.Contains(out, g) {
+		t.Fatalf("a's mint over b's gap: %v %s", err, firstLine(out))
+	}
+	// THE OPEN GAP: the debt is discharged, and the refusal is read as the other seat's gap.
+	r.oneGapOnReading(a, classContradicts, out, args, "quote")
+	if r.actErr != "" || r.reading.debtsDischarged["other_seat_gap"] != 1 {
+		t.Fatalf("over the open gap: discharged %d (%s)", r.reading.debtsDischarged["other_seat_gap"], r.actErr)
+	}
+	// THE GAP CLOSED BETWEEN THE REFUSAL AND THE READ: a's debt stands, and the drive notes it.
+	r.closeGap(b, g, false)
+	if r.actErr != "" {
+		t.Fatalf("b's close of %s: %s", g, r.actErr)
+	}
+	if _, stands := r.debtOf(a, s); !stands {
+		t.Fatal("a's debt does not stand once b's gap, minted before a's sitting, is closed")
+	}
+	r.oneGapOnReading(a, classContradicts, out, args, "quote")
+	if r.actErr != "" || r.reading.debtsDischarged["other_seat_gap"] != 1 {
+		t.Fatalf("over the closed gap: discharged %d (%s)", r.reading.debtsDischarged["other_seat_gap"], r.actErr)
+	}
+}
