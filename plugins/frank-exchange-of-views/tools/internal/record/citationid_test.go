@@ -29,15 +29,22 @@ func TestNewID_Shape(t *testing.T) {
 }
 
 func TestNewID_Unguessable(t *testing.T) {
-	// Distinct across a batch — the id is random, not a sequence a seat could continue
-	// (the L6-F8..F16 failure id.go documents). Collision at 4 bytes is ~1 in 4e9
-	// per pair; 1000 draws is a comfortable non-flaky margin.
+	// Distinct across a batch. A generator that repeats — a constant, a clock read too coarsely, a
+	// few bits of entropy — collides inside 64 draws: at one byte of entropy the chance it does NOT
+	// is e^(−2016/256) ≈ 4e-4. A counter is distinct and passes; what this pins is that ids do not
+	// repeat, not that they cannot be predicted.
+	//
+	// THE DRAW COUNT IS THE FALSE-FAILURE RATE. For the real generator, 4 random bytes, a collision
+	// is the birthday bound: 64·63/2 = 2016 pairs over 2³² values ≈ 4.7e-7 per kind, ≈ 3.3e-6 per
+	// run across the seven kinds — about 1 in 300,000. At 1000 draws it is n²/2N ≈ 1.2e-4 per
+	// kind, about 1 in 1,200 runs of this suite.
+	const draws = 64
 	for kind := range idLetters {
 		seen := map[string]bool{}
-		for i := 0; i < 1000; i++ {
+		for range draws {
 			id := NewID(kind)
 			if seen[id] {
-				t.Fatalf("NewID(%q) collided on %q within 1000 draws", kind, id)
+				t.Fatalf("NewID(%q) collided on %q within %d draws", kind, id, draws)
 			}
 			seen[id] = true
 		}
