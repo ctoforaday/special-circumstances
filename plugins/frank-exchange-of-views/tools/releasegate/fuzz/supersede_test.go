@@ -34,9 +34,7 @@ func (r *runner) holdClosing(id string, on bool) {
 // last reason alone, the ones refuseDroppedDemand drives the refusal on; carries is each gap in out
 // that awaits a live answer, whose successor then does.
 //
-// THE FORCED FATE-TURN GAP IS NOT SUPERSEDABLE until its turn is counted (fateTurnHeld): its minter
-// drew it here and superseded it in the sitting that minted it, so blue never sat engaged on it and
-// fateTurnSeed's run failed on a chain the drive itself had cut.
+// A GAP A FORCED CHAIN HOLDS IS NOT SUPERSEDABLE while the chain still acts on it (heldByForcedChain).
 func (r *runner) supersedable(seatID, kind string) (out, owing []string, carries map[string]bool) {
 	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
 	if err != nil {
@@ -48,7 +46,7 @@ func (r *runner) supersedable(seatID, kind string) (out, owing []string, carries
 	carries = map[string]bool{}
 	for _, g := range w.Open {
 		switch {
-		case !g.YoursToClose || r.closingNow[g.ID] || r.fateTurnHeld(g.ID):
+		case !g.YoursToClose || r.closingNow[g.ID] || r.heldByForcedChain(g.ID):
 		case g.AwaitingEvidence && g.CheckKind != kind:
 			owing = append(owing, g.ID)
 		default:
@@ -57,6 +55,28 @@ func (r *runner) supersedable(seatID, kind string) (out, owing []string, carries
 		}
 	}
 	return out, owing, carries
+}
+
+// heldByForcedChain reports whether id is a gap a forced run's chain minted and still acts on by its
+// id at a later sitting: a mint superseding it closes it, and the chain's act is then refused naming
+// the successor. The caller holds r.mu.
+//
+//   - the fate-turn gap until its turn is counted (fateTurnHeld): its minter drew it and superseded
+//     it in the sitting that minted it, so blue never sat engaged on it;
+//   - the reading-debt chain's gap until the owner's close lands: seed 15's owner superseded it
+//     between blue's retire and the close (CI run 42956027162), and the close was refused;
+//   - the removal seed's prescribing gap until blue's accept of it, at the blue sitting after the
+//     lens's.
+func (r *runner) heldByForcedChain(id string) bool {
+	switch {
+	case r.fateTurnHeld(id):
+		return true
+	case r.forceReadingDebt && id == r.debtChainGap && !r.debtChainDone:
+		return true
+	case r.forceReadingRemoval && id == r.removal.estoppedGap && (r.removal.stage == removalAdded || r.removal.stage == removalRead):
+		return true
+	}
+	return false
 }
 
 // refuseDroppedDemand drives seatID's mint of a successor at check kind kind over ancestor, an open

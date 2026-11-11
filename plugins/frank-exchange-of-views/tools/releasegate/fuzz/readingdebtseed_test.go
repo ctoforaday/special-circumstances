@@ -161,6 +161,13 @@ func (r *runner) forcedDebtChain(seatID string) {
 		}
 		r.reachedDebtChainStage(debtChainMinted)
 	case debtChainRetired:
+		// THE RECORD SAYS WHETHER THE GAP IS STILL THE OWNER'S TO CLOSE, asked at the act: a gap the
+		// chain holds is never drawn to be superseded (heldByForcedChain), so one closed here was closed
+		// by an act the drive does not expect, and the chain names it rather than issue a refused close.
+		if !slices.Contains(r.openGaps(), gap) {
+			r.reachedDebtChainStage("the owner's gap " + gap + " was closed before the owner's close: " + r.closedHow(gap))
+			return
+		}
 		if _, ok := r.admitFresh(gap, "close", "--seat-id", seatID, "--id", gap, "--as", "repaired", "--reason", "fuzz: the citation left the sentence",
 			"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); !ok {
 			return
@@ -392,4 +399,22 @@ func TestAForcedChainsFirstPlanReadiesItsOwnerAndNotBlue(t *testing.T) {
 			}
 		})
 	}
+}
+
+// closedHow is how the record says gap id closed: its closure reason, and the successor carrying it
+// forward where one does.
+func (r *runner) closedHow(id string) string {
+	b, ok := r.board()
+	if !ok {
+		return "the record could not be read to say how"
+	}
+	g := record.GapsByID(b.Gaps)[id]
+	if g == nil {
+		return "the record holds no such gap"
+	}
+	how := "closed " + g.ClosureReason()
+	if s := g.Successor(); s != "" {
+		how += ", carried forward by " + s
+	}
+	return how
 }
