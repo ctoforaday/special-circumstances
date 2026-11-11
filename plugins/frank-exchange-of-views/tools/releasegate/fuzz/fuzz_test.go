@@ -747,6 +747,11 @@ type runner struct {
 	positionNamedGaps          []string
 	positionNamedAt            map[string]string
 	positionForced, heldTrifle bool
+	// trifleRefusals is each refusal of the gaps run's held-trifle mint (mintHeldTrifle), which the
+	// forced-position oracle's failure names when no trifle landed; mintRefusal is, by lens, the
+	// first line of its last mint the record refused.
+	trifleRefusals []string
+	mintRefusal    map[string]string
 	// positionWithheldAt is the epoch whose chair sitting withheld the forced run's PASS, and
 	// positionRuledAtEpoch the epoch of the chair sitting the bench's ruling on it followed;
 	// positionPassedLate is the first epoch whose permitted PASS came past the route's window
@@ -2798,8 +2803,10 @@ const fuzzLensStock = 2
 // on one run directory on purpose. A forced run needs a BOUND, and the bound is structural.
 //
 // Minted at the first sitting only — where every lens sits, never having sat — the forced run's
-// gaps all start their march together, and the run ends one march after its first sitting on
-// every interleaving. A drawn run mints at every sitting.
+// gaps all start their march together, and no late mint buys the run another. The march is still
+// not one exchange long on every interleaving: a gap blue counters reaches the bench at the fuzz's
+// kMax and comes back on remand (positionEpochLimit has the measured spread). A drawn run mints at
+// every sitting.
 func (r *runner) findsFresh() bool {
 	if !r.forceUnverified && !r.forceVerified {
 		return true
@@ -4217,6 +4224,14 @@ func (r *runner) mintWith(seatID, class string) string {
 		}
 	}
 	out, err := r.exec(args...)
+	if err != nil {
+		r.mu.Lock()
+		if r.mintRefusal == nil {
+			r.mintRefusal = map[string]string{}
+		}
+		r.mintRefusal[seatID] = firstLine(out)
+		r.mu.Unlock()
+	}
 	if err != nil && strings.Contains(out, oneGapWords) {
 		r.oneGapAnswered(seatID, out, args)
 		return ""
@@ -6968,6 +6983,18 @@ func sortedKeys(m map[string]any) []string {
 // forcedEpochLimit is the epoch limit limitSeed's run is set up with.
 const forcedEpochLimit = 2
 
+// runEpochLimit is the epoch limit seed's run is set up with: limitSeed's forcedEpochLimit, a
+// position seed's positionEpochLimit, and setup's default (0) for every other run.
+func runEpochLimit(seed int64) int {
+	switch {
+	case seed == limitSeed:
+		return forcedEpochLimit
+	case positionFormOf(seed) != "":
+		return positionEpochLimit
+	}
+	return 0
+}
+
 // reopenedComputationSeed is the seed whose run is FORCED through a reopened computation; the sweep gates a plan
 // readying the computation owner for one.
 //
@@ -7093,8 +7120,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
 	r.benchOrders = sweepBenchOrders
+	r.maxEpochs = runEpochLimit(seed)
 	if seed == limitSeed {
-		r.maxEpochs = forcedEpochLimit
 		r.forceScreenUnsound = true
 	}
 
