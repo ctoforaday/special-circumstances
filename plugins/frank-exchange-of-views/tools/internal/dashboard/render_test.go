@@ -189,7 +189,7 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 	// run-config on disk; CLI overrides lanes.
 	_ = os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"t","model":"haiku","judgmentModel":"haiku","maxRounds":"6","lanes":"2"}`), 0o644)
+		[]byte(`{"topic":"t","model":"haiku","judgmentModel":"haiku","lanes":"2"}`), 0o644)
 	// one agent transcript with a usage record.
 	_ = os.WriteFile(filepath.Join(tr, "agent-a.jsonl"),
 		[]byte(`{"message":{"model":"claude-haiku-4-5","usage":{"input_tokens":1000,"output_tokens":500}}}`+"\n"), 0o644)

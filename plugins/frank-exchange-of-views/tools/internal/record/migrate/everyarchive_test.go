@@ -24,12 +24,19 @@ import (
 // EVERY MIGRATED RUN'S TERMS READ. The record reads inputs/run-config.json strictly, refusing a key
 // the run's configuration does not declare, so an archived key the configuration no longer has —
 // the mint cap's `mintBudget` — refuses the migrated run's terms unless the channel copy drops it.
+// And the epoch the file states is the one the migrated record is written at.
 func TestEveryArchivedRunMigrates(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
 	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
+	configs := 0
+	t.Cleanup(func() {
+		if configs == 0 && !t.Failed() {
+			t.Error("no archived run carries a run-config.json, so no migrated configuration's epoch was checked")
+		}
+	})
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
@@ -39,6 +46,17 @@ func TestEveryArchivedRunMigrates(t *testing.T) {
 			}
 			if _, err := record.RunParams(run); err != nil {
 				t.Errorf("%s: the migrated run's terms do not read: %v", name, err)
+			}
+			// THE MIGRATED CONFIGURATION STATES THE EPOCH ITS RECORD IS AT, not the source's. An
+			// archive from before run-config.json existed has none to state it.
+			rc, err := record.ReadRunConfig(run)
+			if err != nil {
+				t.Errorf("%s: the migrated run-config does not read: %v", name, err)
+			} else if rc != nil {
+				configs++
+				if rc.EventSchema != record.EventSchema {
+					t.Errorf("%s: the migrated run-config states epoch %d, the record is at %d", name, rc.EventSchema, record.EventSchema)
+				}
 			}
 			merged, err := record.MergedEvents(run)
 			if err != nil {

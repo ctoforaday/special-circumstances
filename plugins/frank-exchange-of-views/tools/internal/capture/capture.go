@@ -1176,7 +1176,10 @@ func recordTierFindings(run record.Run, model, judgmentModel string) (findings [
 }
 
 func ModelTierAudit(run record.Run, transcripts []record.Transcript) Audit {
-	model, judgmentModel := cost.TierConfig(run)
+	model, judgmentModel, cerr := cost.TierConfig(run)
+	if cerr != nil {
+		return Audit{Check: "model-tier", Verdict: "FAIL", Detail: "could not read the run's configuration: " + cerr.Error()}
+	}
 	if model == "" && judgmentModel == "" {
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "the run config names no models, so there is no configured tier to check the served one against"}
 	}

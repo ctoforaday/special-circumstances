@@ -55,7 +55,10 @@ func newShowTiers() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rep := tierReport(run, fam)
+			rep, err := tierReport(run, fam)
+			if err != nil {
+				return err
+			}
 			out := cmd.OutOrStdout()
 			switch format {
 			case "json":
@@ -112,8 +115,16 @@ type TierReport struct {
 	Substituted     int       `json:"substituted"`
 }
 
-func tierReport(run record.Run, b record.Family) TierReport {
-	bulk, judgment := modeltier.Config(run.Dir())
+func tierReport(run record.Run, b record.Family) (TierReport, error) {
+	// A configuration that does not read is refused, never shown as a run that configured no tier.
+	var bulk, judgment string
+	rc, err := record.ReadRunConfig(run)
+	if err != nil {
+		return TierReport{}, fmt.Errorf("could not read the run's configuration: %w", err)
+	}
+	if rc != nil {
+		bulk, judgment = rc.Model, rc.JudgmentModel
+	}
 	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment}
 	for _, sm := range record.SeatModels(run, b) {
 		if sm.Class == "" {
@@ -139,7 +150,7 @@ func tierReport(run record.Run, b record.Family) TierReport {
 		rep.Seats = append(rep.Seats, row)
 	}
 	sort.Slice(rep.Seats, func(i, j int) bool { return rep.Seats[i].SeatID < rep.Seats[j].SeatID })
-	return rep
+	return rep, nil
 }
 
 func renderTiers(r TierReport) string {

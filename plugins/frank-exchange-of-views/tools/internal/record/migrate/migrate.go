@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
@@ -264,25 +265,55 @@ var runConfigDrops = map[string]struct{}{
 }
 
 // translateRunConfig copies the run-config.json at from to to without the keys runConfigDrops
-// names, every other key in its place and with its value as written. The file must be ONE JSON
-// object and nothing after it — the record's reader refuses anything else, so a copy that read past
-// a truncation or a second object would publish a run whose configuration does not read.
+// names, every other key in its place and with its value as written — except `eventSchema`, which
+// states the epoch the migrated record is written at (record.EventSchema), added at the end where the
+// source states none: the record beside the file is at that epoch, and a file still naming the
+// source's would say the run was set up under a shape it is no longer in. The file must be ONE JSON
+// object and nothing after it — the record's reader (record.ReadRunConfig) refuses anything else, so
+// a copy that read past a truncation or a second object, or carried a `null` through, would publish
+// a run whose configuration does not read.
 func translateRunConfig(from, to string) error {
 	b, err := os.ReadFile(from)
 	if err != nil {
 		return err
 	}
-	dec := json.NewDecoder(bytes.NewReader(b))
-	tok, err := dec.Token()
-	if err != nil {
+	whole := json.NewDecoder(bytes.NewReader(b))
+	var raw json.RawMessage
+	if err := whole.Decode(&raw); err != nil {
 		return fmt.Errorf("%s is not a JSON object: %w", from, err)
 	}
-	if tok != json.Delim('{') {
-		return fmt.Errorf("%s is not a JSON object: it starts with %v", from, tok)
+	if tok, err := whole.Token(); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("found %v", tok)
+		}
+		return fmt.Errorf("%s holds content after its object: %w", from, err)
+	}
+	if raw[0] != '{' {
+		return fmt.Errorf("%s is not a JSON object: it holds %s", from, record.JSONKind(raw))
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if _, err := dec.Token(); err != nil { // the object's `{`, checked above
+		return fmt.Errorf("%s: %w", from, err)
 	}
 	var out bytes.Buffer
 	out.WriteByte('{')
 	first := true
+	put := func(key string, val []byte) error {
+		if !first {
+			out.WriteByte(',')
+		}
+		first = false
+		k, err := json.Marshal(key)
+		if err != nil {
+			return err
+		}
+		out.Write(k)
+		out.WriteByte(':')
+		out.Write(val)
+		return nil
+	}
+	epoch := []byte(strconv.Itoa(record.EventSchema))
+	statedEpoch := false
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
@@ -296,30 +327,17 @@ func translateRunConfig(from, to string) error {
 		if _, drop := runConfigDrops[key]; drop {
 			continue
 		}
-		if !first {
-			out.WriteByte(',')
+		if key == runConfigEpochKey {
+			val, statedEpoch = epoch, true
 		}
-		first = false
-		k, err := json.Marshal(key)
-		if err != nil {
+		if err := put(key, val); err != nil {
 			return err
 		}
-		out.Write(k)
-		out.WriteByte(':')
-		out.Write(val)
 	}
-	// The object CLOSES, and its `}` is consumed, so the read after it meets the end of the input.
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('}') {
-		if err == nil {
-			err = fmt.Errorf("found %v", tok)
+	if !statedEpoch {
+		if err := put(runConfigEpochKey, epoch); err != nil {
+			return err
 		}
-		return fmt.Errorf("%s: the object does not close: %w", from, err)
-	}
-	if tok, err := dec.Token(); err != io.EOF {
-		if err == nil {
-			err = fmt.Errorf("found %v", tok)
-		}
-		return fmt.Errorf("%s holds content after its object: %w", from, err)
 	}
 	out.WriteByte('}')
 	var indented bytes.Buffer
@@ -332,6 +350,9 @@ func translateRunConfig(from, to string) error {
 	}
 	return os.WriteFile(to, indented.Bytes(), 0o644)
 }
+
+// runConfigEpochKey is record.RunConfig.EventSchema's key in the file.
+const runConfigEpochKey = "eventSchema"
 
 func copyFile(from, to string) error {
 	in, err := os.Open(from)

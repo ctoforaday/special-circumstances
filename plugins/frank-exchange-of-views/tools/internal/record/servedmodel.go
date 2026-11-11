@@ -60,9 +60,18 @@ func (s SeatModel) Substituted() bool { return s.Requested != "" && s.Requested 
 // SUBSTITUTION IS DETECTED HERE, NOT AT REGISTER. `run` supplies the configured tier per class;
 // pass an empty Run to skip the comparison and report only what answered.
 func SeatModels(run Run, f Family) []SeatModel {
+	// THE CONFIGURED TIERS, OR WHY THERE ARE NONE TO JUDGE AGAINST. A configuration that does not
+	// read is not one that declared no tier: each tier-bound row says it was not judged, and why.
 	model, judgmentModel := "", ""
+	var cfgErr error
 	if run.Dir() != "" {
-		model, judgmentModel = modeltier.Config(run.Dir())
+		rc, err := readRunConfig(run.Dir())
+		switch {
+		case err != nil:
+			cfgErr = err
+		case rc != nil:
+			model, judgmentModel = rc.Model, rc.JudgmentModel
+		}
 	}
 	order := []string{}
 	bySeat := map[string]*SeatModel{}
@@ -127,6 +136,9 @@ func SeatModels(run Run, f Family) []SeatModel {
 			configured = judgmentModel
 		}
 		row.Substitution = TierSubstitution(run, configured, obs)
+		if cfgErr != nil && row.Class != "" {
+			row.Substitution = "NOT JUDGED — the run's configuration could not be read: " + cfgErr.Error()
+		}
 	}
 	out := make([]SeatModel, 0, len(order))
 	for _, s := range order {

@@ -9,18 +9,24 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 )
 
 // RunConfig is inputs/run-config.json: the ONE type setup marshals and every reader in the record
 // decodes, through readRunConfig. One type, so a key setup writes is a key the record declares by
 // construction rather than by a second hand-kept copy.
 //
-// THE FILE IS READ STRICTLY: a key RunConfig does not declare, or content after the object, is an
-// error, never ignored. A term a reader skipped would read exactly like a term the run was never
-// given, so a key no field declares — a term the engine no longer has, or a misspelt one — refuses
-// the read rather than vanishing.
+// THE FILE IS READ STRICTLY: anything but one JSON object, a key RunConfig does not declare, or
+// content after the object, is an error, never ignored. A term a reader skipped would read exactly
+// like a term the run was never given, so a key no field declares — a term the engine no longer
+// has, or a misspelt one — refuses the read rather than vanishing.
+//
+// A VALUE IS TYPED HERE ONLY WHERE THE RECORD OWNS ITS SHAPE. The record's epoch gate
+// (EventSchema, feov-migrate) is what keeps an archived run readable when a shape moves, and it
+// covers only shapes the record declares. A value whose shape another package owns — `hooks`,
+// hookprovenance.Provenance, which moves with no epoch bump — is held as raw JSON and decoded by its
+// owner (hookprovenance.Read): typed here, a change in that package would refuse every archived
+// run's configuration with no migration able to bring it forward. The TOP-LEVEL key set stays
+// strict either way; `billing` is BillingIdentity, which the record declares, so it is typed.
 type RunConfig struct {
 	Topic string `json:"topic"`
 	// RunDir is the ABSOLUTE path of this run.
@@ -57,8 +63,9 @@ type RunConfig struct {
 	//
 	// It says what was installed, never what RAN: a cache entry on disk does not prove the
 	// harness invoked it. The liveness half is #555's. The key is hookprovenance.ConfigKey, and
-	// run.md reads it back through hookprovenance.Read.
-	Hooks hookprovenance.Provenance `json:"hooks"`
+	// run.md reads it back through hookprovenance.Read. RAW, because hookprovenance owns its shape
+	// (see the type's comment): setup marshals hookprovenance.Provenance into it.
+	Hooks json.RawMessage `json:"hooks"`
 	// EventSchema is the event-shape EPOCH this run's events were written under.
 	//
 	// A run directory is created by `setup` and does not outlive the schema that made it — but
@@ -131,10 +138,16 @@ func (b BillingIdentity) Subscription() bool {
 	return b.BillingType == "stripe_subscription" || b.SubscriptionType != ""
 }
 
+// ReadRunConfig is the configuration of run, read strictly (readRunConfig): nil and no error for a
+// run with no run-config.json, an error for one that is there and does not read. It is the reader
+// for a caller outside the record that shows or checks the run's configuration.
+func ReadRunConfig(run Run) (*RunConfig, error) { return readRunConfig(run.Dir()) }
+
 // readRunConfig reads the configuration of the run in directory dir; a run with no run-config.json
-// has none (nil, nil). A file that is there and cannot be read, holds a key RunConfig does not
-// declare, or holds anything after its one object, is an error, never "no configuration": the terms
-// it holds are what the run's limits are checked against.
+// has none (nil, nil). A file that is there and cannot be read, holds anything but one JSON object,
+// holds a key RunConfig does not declare, or holds anything after its object, is an error, never "no
+// configuration": the terms it holds are what the run's limits are checked against. feov-migrate's
+// copy of the file (translateRunConfig) refuses the same files.
 func readRunConfig(dir string) (*RunConfig, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "inputs", "run-config.json"))
 	if errors.Is(err, fs.ErrNotExist) {
@@ -143,10 +156,9 @@ func readRunConfig(dir string) (*RunConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("inputs/run-config.json could not be read: %w", err)
 	}
-	var rc RunConfig
 	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&rc); err != nil {
+	var raw json.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("inputs/run-config.json does not parse as the run's configuration: %w", err)
 	}
 	// ONE OBJECT AND NOTHING AFTER IT. Decode stops at the end of the first value, so a second
@@ -158,5 +170,35 @@ func readRunConfig(dir string) (*RunConfig, error) {
 		}
 		return nil, fmt.Errorf("inputs/run-config.json holds content after the run's configuration: %w", err)
 	}
+	// AN OBJECT, NOT ANY VALUE. `null` decodes into a struct as no terms at all, without an error,
+	// and would read exactly like a run that stated none.
+	if raw[0] != '{' {
+		return nil, fmt.Errorf("inputs/run-config.json is not a JSON object: it holds %s", JSONKind(raw))
+	}
+	var rc RunConfig
+	strict := json.NewDecoder(bytes.NewReader(raw))
+	strict.DisallowUnknownFields()
+	if err := strict.Decode(&rc); err != nil {
+		return nil, fmt.Errorf("inputs/run-config.json does not parse as the run's configuration: %w", err)
+	}
 	return &rc, nil
+}
+
+// JSONKind names the kind of the JSON value raw holds, for a refusal: "null", "an array", "a
+// string", "a number", "a boolean" or "an object". raw is one valid value, as a decoder returns it.
+func JSONKind(raw []byte) string {
+	switch raw[0] {
+	case '{':
+		return "an object"
+	case '[':
+		return "an array"
+	case '"':
+		return "a string"
+	case 'n':
+		return "null"
+	case 't', 'f':
+		return "a boolean"
+	default:
+		return "a number"
+	}
 }

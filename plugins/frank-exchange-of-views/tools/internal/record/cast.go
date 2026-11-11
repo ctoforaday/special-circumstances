@@ -60,24 +60,30 @@ func LaneSeatIDs(lanes int) []string {
 
 // LanesDeclared is the lane count the run's config declares, and whether it declares one.
 //
-// THE THREE ANSWERS ARE KEPT APART: a declared count, a run that declared none (`--lanes` is
-// optional), and a config that could not be read at all. Only the first can be checked, and the
-// other two must not read as agreement — which is why this returns a second value rather than 0.
+// THE THREE ANSWERS ARE KEPT APART: a declared count (n, true, nil), a run that declared none
+// (0, false, nil — `--lanes` is optional), and a config that could not be read at all (a non-nil
+// error). Only the first can be checked, and the other two must not read as agreement, nor as each
+// other: "the operator named no lane count" and "nobody could read what the operator named" are
+// different facts, and a caller that folds the error into the second reports an unread file as a
+// choice the operator made.
 //
 // It lives beside LaneSeatIDs because the two are one question: how many lanes, and therefore
 // which ids. The coverage audit in internal/capture had its own copy of this reader beside its own
 // copy of the lane pattern.
-func LanesDeclared(run Run) (n int, declared bool) {
+func LanesDeclared(run Run) (n int, declared bool, err error) {
 	rc, err := readRunConfig(run.Dir())
-	if err != nil || rc == nil || rc.Lanes == nil {
-		return 0, false
+	if err != nil {
+		return 0, false, err
+	}
+	if rc == nil || rc.Lanes == nil {
+		return 0, false, nil
 	}
 	// setup writes the flag as typed, a STRING.
-	n, err = strconv.Atoi(strings.TrimSpace(*rc.Lanes))
-	if err != nil || n <= 0 {
-		return 0, false
+	n, aerr := strconv.Atoi(strings.TrimSpace(*rc.Lanes))
+	if aerr != nil || n <= 0 {
+		return 0, false, nil
 	}
-	return n, true
+	return n, true, nil
 }
 
 // LaneSeatsOf is the lane seat ids this run's CAST names, or none.

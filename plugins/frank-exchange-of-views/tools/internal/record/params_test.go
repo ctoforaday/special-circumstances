@@ -81,15 +81,20 @@ func TestEveryRunConfigReaderRefusesAnUndeclaredKey(t *testing.T) {
 	if !allowSubstitution(run) {
 		t.Fatal("a declared consent read as none")
 	}
-	if n, ok := LanesDeclared(run); !ok || n != 2 {
-		t.Fatalf("lanes 2 read as (%d, %v)", n, ok)
+	if n, ok, err := LanesDeclared(run); !ok || n != 2 || err != nil {
+		t.Fatalf("lanes 2 read as (%d, %v, %v)", n, ok, err)
 	}
 	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true,"mintBudget":3}`)
 	if allowSubstitution(run) {
 		t.Error("a run-config holding an undeclared key read as consent to a substitution")
 	}
-	if n, ok := LanesDeclared(run); ok {
-		t.Errorf("a run-config holding an undeclared key read as %d lanes declared", n)
+	if n, ok, err := LanesDeclared(run); ok || err == nil {
+		t.Errorf("a run-config holding an undeclared key read as (%d, %v, %v), want the read error", n, ok, err)
+	}
+	// Declared none is no error: `--lanes` is optional.
+	writeRunConfig(t, runDir, `{}`)
+	if n, ok, err := LanesDeclared(run); ok || err != nil {
+		t.Errorf("a run-config naming no lanes read as (%d, %v, %v), want declared none and no error", n, ok, err)
 	}
 }
 
@@ -107,7 +112,35 @@ func TestAnUnreadableRunConfigIsAnErrorNotTheDefaults(t *testing.T) {
 	if _, err := convergenceFractionIn(dir); err == nil {
 		t.Error("convergenceFractionIn over an unreadable run-config answered the default")
 	}
+	// ONE OBJECT, AND NOTHING ELSE IS A CONFIGURATION: `null` decodes into a struct as no terms at
+	// all, which would read as a run that stated none. migrate's copy refuses the same files.
+	for body, want := range map[string]string{`null`: "it holds null", `[]`: "it holds an array", `"x"`: "it holds a string", `3`: "it holds a number", `true`: "it holds a boolean"} {
+		odd := t.TempDir()
+		writeRunConfig(t, odd, body)
+		if rc, err := readRunConfig(odd); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("run-config %s read as (%v, %v), want a refusal naming %q", body, rc, err, want)
+		}
+	}
 	if rc, err := readRunConfig(t.TempDir()); rc != nil || err != nil {
 		t.Errorf("a run with no run-config = (%v, %v), want no terms and no error", rc, err)
+	}
+}
+
+// A VALUE ANOTHER PACKAGE OWNS IS NOT THE RECORD'S TO REFUSE. `hooks` is hookprovenance's shape, which
+// moves with no epoch bump, so a key that package adds or drops must not refuse the run's
+// configuration; the top-level key set stays strict, and `billing`, which the record owns, is typed.
+func TestTheRunConfigHoldsAnotherPackagesValueRaw(t *testing.T) {
+	dir := t.TempDir()
+	writeRunConfig(t, dir, `{"k":2,"hooks":{"aFieldHookprovenanceMayAdd":1,"state":"x"}}`)
+	rc, err := readRunConfig(dir)
+	if err != nil {
+		t.Fatalf("a hooks value with a key the record does not declare refused the run's configuration: %v", err)
+	}
+	if !strings.Contains(string(rc.Hooks), "aFieldHookprovenanceMayAdd") {
+		t.Errorf("hooks read back as %s, want the value as written", rc.Hooks)
+	}
+	writeRunConfig(t, dir, `{"k":2,"billing":{"isolated":false,"notABillingField":1}}`)
+	if _, err := readRunConfig(dir); err == nil {
+		t.Error("a billing value with a key BillingIdentity does not declare read as a configuration")
 	}
 }

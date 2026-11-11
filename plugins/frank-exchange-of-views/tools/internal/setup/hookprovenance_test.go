@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
@@ -22,7 +23,11 @@ import (
 // depends on the developer's install state, and a test that asserted a version would pass or fail
 // on where it ran.
 func TestRunConfigCarriesHookProvenance(t *testing.T) {
-	rc := record.RunConfig{Topic: "t", Hooks: hookprovenance.Observe(t.TempDir(), "frank-exchange-of-views")}
+	hooks, err := json.Marshal(hookprovenance.Observe(t.TempDir(), "frank-exchange-of-views"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rc := record.RunConfig{Topic: "t", Hooks: hooks}
 	b, err := json.Marshal(rc)
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +133,32 @@ func TestTheRecordReadsTheRunConfigSetupWrites(t *testing.T) {
 	if p.MaxEpochs != 9 {
 		t.Errorf("--max-epochs 9 reads back as %d", p.MaxEpochs)
 	}
-	if n, ok := record.LanesDeclared(run); !ok || n != 2 {
-		t.Errorf("--lanes 2 reads back as (%d, %v)", n, ok)
+	if n, ok, err := record.LanesDeclared(run); !ok || n != 2 || err != nil {
+		t.Errorf("--lanes 2 reads back as (%d, %v, %v)", n, ok, err)
+	}
+	// `hooks` is held raw by the record and decoded by its owner.
+	if _, ok, err := hookprovenance.Read(runDir); !ok || err != nil {
+		t.Errorf("the provenance setup writes reads back as (%v, %v)", ok, err)
+	}
+}
+
+// SETUP FAILS WHEN THE RUN'S CONFIGURATION CANNOT BE WRITTEN. Every record reader of the run's terms
+// reads that file, so a setup that carried on past the failed write would launch a run on defaults
+// nobody chose. A directory standing where the file goes is a write no box can make.
+func TestSetupFailsWhenItCannotWriteTheRunConfig(t *testing.T) {
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+	if err := os.MkdirAll(filepath.Join(runDir, "inputs", "run-config.json"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	code := Run(cfg, &out, &errb)
+	if code == 0 {
+		t.Fatalf("setup exited 0 over an unwritable run-config:\n%s", errb.String())
+	}
+	if !strings.Contains(errb.String(), "could not write the run's configuration") {
+		t.Errorf("the failure does not name the run's configuration:\n%s", errb.String())
+	}
+	if _, err := os.Stat(filepath.Join(cfg.Cwd, ".claude", "run-live.json")); err == nil {
+		t.Error("setup wrote the live-run marker for a run with no configuration")
 	}
 }

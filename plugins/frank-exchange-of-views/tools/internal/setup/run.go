@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
@@ -310,13 +311,29 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.MaxSittingCalls > 0 {
 		maxCalls = cfg.MaxSittingCalls
 	}
+	// THE RUN'S CONFIGURATION IS WRITTEN OR SETUP FAILS: every record reader of the run's terms, its
+	// lane count and its consent reads this file, and a run set up without it would run on defaults
+	// nobody chose. The live-run marker is not written yet, so a failure here leaves no live run.
+	failConfig := func(err error) int {
+		fmt.Fprintf(stderr, "run-setup: could not write the run's configuration (inputs/run-config.json): %v\n", err)
+		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
+		return 2
+	}
+	hooks, err := json.Marshal(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
+	if err != nil {
+		return failConfig(err)
+	}
 	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
 		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
 		MaxSittingCalls: maxCalls,
-		Hooks:           hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"),
+		Hooks:           hooks,
 		Billing:         ReadBillingIdentity()}
-	if b, err := marshalJSON(rc); err == nil {
-		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
+	b, err := marshalJSON(rc)
+	if err != nil {
+		return failConfig(err)
+	}
+	if err := os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644); err != nil {
+		return failConfig(err)
 	}
 	reportBilling(rc.Billing, stdout, stderr)
 

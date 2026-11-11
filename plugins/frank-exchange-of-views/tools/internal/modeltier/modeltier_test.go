@@ -1,10 +1,6 @@
 package modeltier
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
+import "testing"
 
 func TestOfPicksTheTierBySubstring(t *testing.T) {
 	for model, want := range map[string]string{
@@ -49,25 +45,5 @@ func TestDearerFollowsTheLadder(t *testing.T) {
 	// A tier off the ladder ranks dearest, matching Of's over-report-never-under-report fallback.
 	if !Dearer("unheard-of", "fable") {
 		t.Error("an unknown tier must rank dearest")
-	}
-}
-
-func TestConfigReadsTheRunsDeclaredTiers(t *testing.T) {
-	run := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(run, "inputs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	m, j := Config(run)
-	if m != "claude-fable-5" || j != "claude-sonnet-5" {
-		t.Fatalf("got %q/%q", m, j)
-	}
-	// An absent or unparseable config yields two empty strings, and the caller decides what that
-	// means — here it means "declared no tier", never "declared haiku".
-	if m, j := Config(t.TempDir()); m != "" || j != "" {
-		t.Errorf("absent config: got %q/%q", m, j)
 	}
 }

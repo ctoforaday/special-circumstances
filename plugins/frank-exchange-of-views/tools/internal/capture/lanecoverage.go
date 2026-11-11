@@ -84,7 +84,11 @@ func partless(lanes []string, sat, parted map[string]bool) []string {
 // LaneCoverageAudit joins the declared lane count to the lane seats that actually registered, and
 // each lane that registered to the part it recorded.
 func LaneCoverageAudit(run record.Run) Audit {
-	want, declared := record.LanesDeclared(run)
+	want, declared, cerr := record.LanesDeclared(run)
+	if cerr != nil {
+		return Audit{Check: "lane-coverage", Verdict: "SKIP",
+			Detail: fmt.Sprintf("could not read the run's configuration: %v — so the lane count it asked for is unknown, NOT a run whose lanes were checked", cerr)}
+	}
 	if !declared {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: "this run declared no lane count in run-config, so there is nothing to hold its lanes to — NOT a run whose lanes were checked"}

@@ -228,7 +228,10 @@ func RenderHTML(m Model) string {
 	}
 	w(`<p class="muted">generated ` + esc(m.Generated) + ` · auto-refreshes every 20s · dollars are list-rate estimates</p>` + "\n")
 
-	if m.Config.Model != "" || m.Config.JudgmentModel != "" || m.Config.Lanes != "" {
+	if m.ConfigUnread != "" {
+		w("<h2>Run configuration</h2>\n")
+		w(`<p class="stale">the run's configuration could not be read: ` + esc(m.ConfigUnread) + "</p>\n")
+	} else if m.Config.Model != "" || m.Config.JudgmentModel != "" || m.Config.Lanes != "" {
 		w("<h2>Run configuration</h2>\n<table>\n")
 		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.Model, "session default")) + "</b></td></tr>\n")
 		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.JudgmentModel, "session default")) + "</b></td></tr>\n")

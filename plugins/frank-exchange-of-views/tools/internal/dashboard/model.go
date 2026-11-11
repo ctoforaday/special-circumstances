@@ -18,12 +18,13 @@ import (
 )
 
 // Config carries the run's launch parameters the dashboard displays. File values (setup's
-// inputs/run-config.json) are overridden by any non-empty CLI flag — the JS merge order.
+// inputs/run-config.json, read through record.ReadRunConfig) are overridden by any non-empty CLI
+// flag — the JS merge order.
 type Config struct {
-	Topic         string `json:"topic"`
-	Model         string `json:"model"`
-	JudgmentModel string `json:"judgmentModel"`
-	Lanes         string `json:"lanes"`
+	Topic         string
+	Model         string
+	JudgmentModel string
+	Lanes         string
 }
 
 // LogTile is the log tile's data: how many log entries the record holds, of every type, and the
@@ -102,12 +103,16 @@ type Model struct {
 	Shards    Shards
 	// BlueClaims is the report's claim count, COUNTED FROM THE REPORT ON THE RECORD (blueClaimsOf)
 	// — what `count-claims` prints. Nil is "not measured": the record holds no report to count.
-	BlueClaims      *int
-	Steps           []Step
-	Rates           []Rate
-	Judiciary       Judiciary
-	Eta             Eta
-	Config          Config
+	BlueClaims *int
+	Steps      []Step
+	Rates      []Rate
+	Judiciary  Judiciary
+	Eta        Eta
+	Config     Config
+	// ConfigUnread is why the run's configuration could not be read, or "" where it was read or the
+	// run has none. A configuration that does not read shows its refusal, never values: an empty
+	// board configuration would read as a run that configured nothing.
+	ConfigUnread    string
 	TerminalVerdict string
 	Terminal        bool
 	// Live is the run's PULL-BASED liveness — see record.Liveness. The board used to answer
@@ -155,10 +160,17 @@ func blueClaimsOf(run record.Run) *int {
 // IN-PROCESS (package record's JSON views) rather than spawning the tool; nowMs is injected
 // (the CLI defaults it to the real clock) so tests are deterministic.
 func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64) Model {
-	// Config: file (setup) then non-empty CLI overrides.
+	// Config: file (setup), through the record's one reader of it, then non-empty CLI overrides.
 	var fileCfg Config
-	if b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json")); err == nil {
-		_ = json.Unmarshal(b, &fileCfg)
+	configUnread := ""
+	switch rc, err := record.ReadRunConfig(run); {
+	case err != nil:
+		configUnread = err.Error()
+	case rc != nil:
+		fileCfg = Config{Topic: rc.Topic, Model: rc.Model, JudgmentModel: rc.JudgmentModel}
+		if rc.Lanes != nil {
+			fileCfg.Lanes = *rc.Lanes
+		}
 	}
 	merged := fileCfg
 	if cfg.Topic != "" {
@@ -393,7 +405,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		Run: run, Telemetry: telemetry, Latest: latest, Seats: seats,
 		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Log: logTile,
 		Shards: shards, BlueClaims: blueClaims, Steps: steps, Rates: rates,
-		Judiciary: jud, Eta: eta, Config: merged,
+		Judiciary: jud, Eta: eta, Config: merged, ConfigUnread: configUnread,
 		// ONE READ, TWO USES, so the pair cannot disagree — and Terminal now answers from the
 		// record like its neighbour instead of from a filename.
 		//

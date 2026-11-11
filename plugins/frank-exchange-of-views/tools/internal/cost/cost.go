@@ -342,11 +342,17 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 	return out
 }
 
-// TierConfig reads the run's configured model tiers from inputs/run-config.json (empty strings if
-// absent). The keys are read in ONE place and it is modeltier.Config — record needs them too, at
-// register, and two readers of the same bare keys is how one of them comes to read a key that was
-// renamed.
-func TierConfig(run record.Run) (model, judgmentModel string) { return modeltier.Config(run.Dir()) }
+// TierConfig is the run's configured model tiers, read through the record's one reader of the
+// run's configuration (record.ReadRunConfig): empty strings where the run has no configuration or
+// names no tier, and an error — never two empty strings — where the configuration does not read, so
+// an unread file is not reported as a run that declared no tier.
+func TierConfig(run record.Run) (model, judgmentModel string, err error) {
+	rc, err := record.ReadRunConfig(run)
+	if err != nil || rc == nil {
+		return "", "", err
+	}
+	return rc.Model, rc.JudgmentModel, nil
+}
 
 // DedupTierFindings drops duplicate findings keyed on (seat|epoch|verdict|actual). TierMismatch
 // can emit repeats, and both the cost report and the capture model-tier audit dedup on this same
@@ -586,9 +592,13 @@ func durationOrDash(ms *int64) string {
 }
 
 func reportTierCheck(run record.Run, rows []Row, p func(string)) {
-	model, judgmentModel := TierConfig(run)
-	findings := DedupTierFindings(TierMismatch(rows, model, judgmentModel))
 	p("\n## Tier check\n")
+	model, judgmentModel, err := TierConfig(run)
+	if err != nil {
+		p(fmt.Sprintf("- NOT CHECKED — could not read the run's configuration: %v", err))
+		return
+	}
+	findings := DedupTierFindings(TierMismatch(rows, model, judgmentModel))
 	if len(findings) == 0 {
 		mDisp, jDisp := model, judgmentModel
 		if mDisp == "" {

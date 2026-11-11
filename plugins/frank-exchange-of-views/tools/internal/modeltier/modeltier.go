@@ -1,5 +1,6 @@
 // Package modeltier is the model-tier vocabulary: which price row a model string belongs to,
-// which of two rows is dearer, and what tiers a run was CONFIGURED to use.
+// and which of two rows is dearer. What tiers a run was CONFIGURED to use is the run's configuration,
+// read through the record (record.ReadRunConfig).
 //
 // # Why it is not in internal/cost
 //
@@ -8,7 +9,7 @@
 // Importing cost from there is a cycle.
 //
 // The alternative was to let `record` re-derive the tier: another `strings.Contains(m, "opus")`
-// ladder and another pair of bare `model` / `judgmentModel` keys read out of run-config.json.
+// ladder.
 // That is the defect this repository names most often — one fact, two hand-kept readers, drifting
 // silently — and the tier ladder is exactly the kind that drifts: it is a substring scan whose
 // miss returns the DEAREST row, so a copy that falls behind a new model name reports a plausible
@@ -19,9 +20,6 @@
 package modeltier
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -68,19 +66,3 @@ func Rank(tier string) int {
 
 // Dearer reports whether tier a costs more than tier b.
 func Dearer(a, b string) bool { return Rank(a) > Rank(b) }
-
-// Config reads the run's configured model tiers from inputs/run-config.json (empty strings if
-// absent) — the ONE place the run-config tier keys are read as bare strings.
-func Config(runDir string) (model, judgmentModel string) {
-	b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
-	if err != nil {
-		return "", ""
-	}
-	var cfg map[string]any
-	if json.Unmarshal(b, &cfg) != nil {
-		return "", ""
-	}
-	model, _ = cfg["model"].(string)
-	judgmentModel, _ = cfg["judgmentModel"].(string)
-	return model, judgmentModel
-}

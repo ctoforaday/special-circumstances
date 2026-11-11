@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/servedmodel"
@@ -41,7 +40,11 @@ func runWithTiers(t *testing.T, cfg string) string {
 // TierSubstitution with the same input the read path builds.
 func configuredFor(t *testing.T, run string, seatID string) string {
 	t.Helper()
-	model, judgment := modeltier.Config(run)
+	rc, err := readRunConfig(run)
+	if err != nil || rc == nil {
+		t.Fatalf("the run's configuration does not read: (%v, %v)", rc, err)
+	}
+	model, judgment := rc.Model, rc.JudgmentModel
 	r := mustRun(t, run)
 	if tierClassOfSeat(t, r, seatID) == "judgment" {
 		return judgment
