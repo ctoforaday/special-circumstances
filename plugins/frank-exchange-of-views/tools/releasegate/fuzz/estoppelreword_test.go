@@ -127,10 +127,16 @@ func (r *runner) rewordAppliedText(seatID string) {
 		r.mu.Lock()
 		r.reword = estoppelReword{stage: rewordReworded, gap: gap, old: old, new_: new_}
 		r.mu.Unlock()
-	case rewordLanded:
+	case rewordLanded, rewordRestored:
 		r.mu.Lock()
-		gap, old, new_ := r.reword.gap, r.reword.old, r.reword.new_
+		gap, old, new_, stage := r.reword.gap, r.reword.old, r.reword.new_, r.reword.stage
 		r.mu.Unlock()
+		// RESTORED, AND STILL ESTOPPING: nothing to do. Restored and ended — this sitting's response,
+		// or another blue sitting's, edited the sentence since — blue applies red's text again, so
+		// every sitting of blue's ends with the pair's estoppel standing for the lenses' mint.
+		if stage == rewordRestored && r.stillEstops(gap) {
+			return
+		}
 		cur, err := record.RenderRun(r.run())
 		if err != nil {
 			declined("could not render the report")
@@ -212,9 +218,33 @@ func (r *runner) lastEditVerbatim(seatID string) bool {
 // or is refused by the one-gap rule over a sibling's landed one, never by estoppel; once blue
 // re-applied red's text, it is refused by estoppel again (estoppel_restored). It reports whether the
 // pair took the mint; false leaves it to mintEstopped's ordinary refusal.
+//
+// ONE MINT OF THE REWORDED TEXT. Once one has landed, the lenses wait for blue's re-application and
+// mint nothing more on the sentence: each such mint is a gap blue counter-edits, and a counter-edit of
+// the sentence lists the pair's gap reopened, ending the re-application's estoppel (F12) before a lens
+// mints over it.
+//
+// EVERY ESTOPPEL EXPECTATION IS ASKED OF THE RECORD AT THE MINT (stillEstops), never of the pair's
+// stage: blue sits while the lenses do, an edit of the sentence that is not a verbatim one ends the
+// pair's estoppel, and blue's ordinary response can apply the pair's prescription, or a sibling's
+// prescribing the same words, verbatim again. The estoppel guard is asked in the write before the act
+// judgements (record.appendAct), so while the pair's gap estops, no refusal but estoppel's can answer
+// the restored mint; while it does not, the mint is not the pair's to count. An estoppel refusal counts
+// for the pair only when it names the pair's gap: the guard answers with whichever applied prescription
+// the quote holds. CI run 42943412612 (seed 2) minted over a re-application a later edit had already
+// ended, expected estoppel, and met the one-gap rule.
 func (r *runner) mintRewordedText(seatID, gapID, sentence string) bool {
 	switch r.estoppelRewordStage() {
-	case rewordReworded, rewordLanded:
+	case rewordLanded:
+		r.noteEstoppelMiss("the reword pair's mint of the reworded text has landed; the lenses wait for blue's re-application")
+		return true
+	case rewordReworded:
+		if r.stillEstops(gapID) {
+			// BLUE'S ORDINARY RESPONSE APPLIED THE PAIR'S PRESCRIPTION AGAIN: the text is red's once
+			// more, and this sitting's mint is mintEstopped's.
+			r.noteEstoppelMiss("blue applied the reword pair's prescription verbatim again before a lens minted over the reworded text")
+			return false
+		}
 		args := []string{"--json", "mint", "--seat-id", seatID, "--class", "spec_underspecification",
 			"--problem", "fuzz: raising a defect against text blue reworded", "--check-kind", "document",
 			"--check", "acc", "--fix", dirCounter, "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
@@ -237,31 +267,68 @@ func (r *runner) mintRewordedText(seatID, gapID, sentence string) bool {
 			}
 		case strings.Contains(out, oneGapWords):
 			noteEither(args[:2], "a mint of reworded text over a sibling's landed one, refused by the one-gap rule", false)
-		case strings.Contains(out, estoppelWords):
+		case strings.Contains(out, estoppelWords) && strings.Contains(out, gapID) && !r.stillEstops(gapID):
 			r.noteActErr("a mint quoting applied text blue has since reworded was refused by estoppel; a reword ends it (F12): " + firstLine(out))
+		case strings.Contains(out, estoppelWords):
+			// ANOTHER APPLIED PRESCRIPTION THE SENTENCE HOLDS, or the pair's own applied again between
+			// the check and the write: the guard's answer on the record the mint landed on.
+			noteEither(args[:2], "a mint of reworded text, refused by estoppel over a prescription applied since", false)
 		default:
 			noteEither(args[:2], "a mint of reworded text, refused by another rule", false)
 		}
 		return true
 	case rewordRestored:
-		r.mu.Lock()
-		r.reword.stage = rewordDone
-		r.mu.Unlock()
-		out, err := r.exec("--json", "mint", "--seat-id", seatID, "--class", "spec_underspecification",
+		if !r.stillEstops(gapID) {
+			r.rewordBackToReapply("blue edited the re-applied sentence again before a lens minted over it, which ends the estoppel (F12)")
+			return true
+		}
+		args := []string{"--json", "mint", "--seat-id", seatID, "--class", "spec_underspecification",
 			"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
 			"--check", "acc", "--fix", "reword it", "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
-			"--quote", sentence, "--reason", "fuzz: estoppel probe — this quotes red's re-applied prescription on "+gapID)
+			"--quote", sentence, "--reason", "fuzz: estoppel probe — this quotes red's re-applied prescription on " + gapID}
+		// A CLASS NO OPEN GAP HOLDS ON THE SENTENCE, so a mint that blue's edit between the check
+		// above and the write leaves unestopped lands rather than meeting the one-gap rule.
+		r.freeClass(args)
+		out, err := r.exec(args...)
 		switch {
+		case err != nil && strings.Contains(out, estoppelWords) && strings.Contains(out, gapID):
+			r.mu.Lock()
+			r.reword.stage = rewordDone
+			r.mu.Unlock()
+			r.countReading(func(c *readingCounts) { c.estoppelRestored++ })
+		case err != nil && strings.Contains(out, estoppelWords):
+			// THE GUARD NAMED ANOTHER APPLIED PRESCRIPTION THE SENTENCE HOLDS: a refusal, and not
+			// proof of the pair's. The pair stays restored for the next lens's mint.
+			noteEither(args[:2], "the reword pair's restored mint, refused by estoppel over another applied prescription", false)
+		case !r.stillEstops(gapID):
+			// BLUE EDITED THE SENTENCE BETWEEN THE CHECK AND THE WRITE: the record's call on the
+			// report the mint landed on, and the pair re-applies.
+			noteEither(args[:2], "the reword pair's restored mint, blue having edited the sentence under it (F12)", err == nil)
+			if err == nil {
+				if g := r.noteReadingMintLandedPlain(seatID, out); g != "" {
+					r.checkOneGap(g, args)
+				}
+			}
+			r.rewordBackToReapply("blue edited the re-applied sentence while a lens minted over it, which ends the estoppel (F12)")
 		case err == nil:
 			r.noteActErr("a mint quoting red's text blue re-applied verbatim was admitted; the re-application estops again (F12): " + firstLine(out))
-		case !strings.Contains(out, estoppelWords):
-			r.noteActErr("a mint quoting red's re-applied text was refused, and not by estoppel: " + firstLine(out))
 		default:
-			r.countReading(func(c *readingCounts) { c.estoppelRestored++ })
+			r.noteActErr("a mint quoting red's re-applied text, its estoppel standing, was refused, and not by estoppel: " + firstLine(out))
 		}
 		return true
 	}
 	return false
+}
+
+// rewordBackToReapply returns the pair to blue's re-application, a later edit having ended its
+// estoppel before a lens's mint over it, and counts why.
+func (r *runner) rewordBackToReapply(why string) {
+	r.mu.Lock()
+	if r.reword.stage == rewordRestored {
+		r.reword.stage = rewordLanded
+	}
+	r.mu.Unlock()
+	r.noteEstoppelMiss(why)
 }
 
 // noteReadingMintLandedPlain notes an admitted plain mint's gap as seatID's (a find, spending its
