@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/capture"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
@@ -760,20 +761,129 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 	if k != "" && r.openSitting(computationOwner) {
 		r.lifecycleJudge(computationOwner, k, "unsound")
 	}
-	// AND A READING DEBT STANDS AT THE RUN'S END: blue cites the fuzz sentence, and the citation
+	// AND A READING DEBT STANDS AT THE RUN'S END: blue cites a sentence of the report, and the citation
 	// owner, in a sitting of its own, reads the citation `refutes` and mints nothing — the run ends
 	// UNVERIFIED on the debt, its reason naming it (tallyDebtsAtEnd), and the assembly screen fails
 	// on it beside the unsound computation.
 	// THE CITATION IS RESERVED BEFORE IT IS READ (reservedDebtSubject): a sitting of the owner's or
 	// blue's still running from the last plan would otherwise mint on the debt, re-read the citation
 	// as backing, or retire it, and the run would end on no debt.
-	cite := r.lifecycleCite(blue, "§ fuzz sentence", "/limit-debt", "")
-	r.mu.Lock()
-	r.limitDebtCite = cmp.Or(cite, "refused")
-	r.mu.Unlock()
-	if cite != "" && r.openSitting(citationOwner) {
-		r.readCited(citationOwner, cite, "refutes")
+	// THE SENTENCE CITED HOLDS NO OPEN claim_contradicts_source GAP (limitDebtSentence): a gap of the
+	// class on the sentence, quoting it or about a citation it holds, discharges the owner's debt the
+	// moment the reading lands (F9, `open now`), and the run would end on none — the lenses' drawn
+	// sittings mint that gap quoting lane 1's sentence (oneURLChain, a found reading's mint).
+	quote, sentence := r.limitDebtSentence()
+	if quote == "" {
+		r.mu.Lock()
+		r.limitDebtCite = "refused"
+		r.mu.Unlock()
+		r.noteActErr("the limit plan found no sentence to cite for the reading debt: every candidate holds an open claim_contradicts_source gap or is not held once")
+		return
 	}
+	cite := r.lifecycleCite(blue, quote, "/limit-debt", "")
+	r.mu.Lock()
+	r.limitDebtCite, r.limitDebtSentenceCited = cmp.Or(cite, "refused"), sentence
+	r.mu.Unlock()
+	if cite == "" || !r.openSitting(citationOwner) {
+		return
+	}
+	at := r.readCited(citationOwner, cite, "refutes")
+	r.mu.Lock()
+	r.limitDebtRead = at
+	r.mu.Unlock()
+	if at == 0 {
+		return
+	}
+	// THE DEBT IS READ BACK AT ONCE: a reading that leaves none names, from the record, what discharged
+	// it, so the run fails here with the cause rather than at its end with the absence.
+	if _, stands := r.debtOf(citationOwner, cite); !stands {
+		r.noteActErr(fmt.Sprintf("the owner's refuting reading of %s at the limit plan (event %d) left no reading debt: %s", cite, at, r.limitDebtDischarge()))
+	}
+}
+
+// limitDebtCandidates are the sentences the limit plan's citation may sit in, with the span blue
+// cites, in the order tried: lane 1's anchor sentence, lane 3's, then the lanes' closing sentences.
+var limitDebtCandidates = []struct{ quote, sentence string }{
+	{"§ fuzz sentence", "A § fuzz sentence to anchor findings."},
+	{strings.TrimSuffix(foundSourceSentences[0], "."), foundSourceSentences[0]},
+	{strings.TrimSuffix(laneCloseSentences[0], "."), laneCloseSentences[0]},
+	{strings.TrimSuffix(laneCloseSentences[1], "."), laneCloseSentences[1]},
+}
+
+// limitDebtSentence is the first of limitDebtCandidates the report holds once with no open
+// claim_contradicts_source gap on it — quoting it, or about a citation it holds (sameClassAndSubject,
+// both arms) — and the span blue cites in it; "" where none qualifies.
+func (r *runner) limitDebtSentence() (quote, sentence string) {
+	cur, err := record.RenderRun(r.run())
+	if err != nil {
+		return "", ""
+	}
+	for _, c := range limitDebtCandidates {
+		if _, once := sentenceMarked(cur, c.sentence); !once {
+			continue
+		}
+		if open, _ := r.sameClassAndSubject(classContradicts, quoteArgs(c.sentence)); len(open) > 0 {
+			continue
+		}
+		return c.quote, c.sentence
+	}
+	return "", ""
+}
+
+// limitDebtDischarge is what the record holds against the limit plan's reading debt (limitDebtCite,
+// read at limitDebtRead): every act after the reading that names the citation — the owner's later
+// reading of it, blue's retire of it, blue's edit reopening it, a claim_contradicts_source mint
+// about it or quoting the sentence it sits in — and every open gap of that class on its sentence.
+// Named so a run ending on no debt says which discharge the record holds, never a guess.
+func (r *runner) limitDebtDischarge() string {
+	r.mu.Lock()
+	cite, at, sentence := r.limitDebtCite, r.limitDebtRead, r.limitDebtSentenceCited
+	r.mu.Unlock()
+	b, ok := r.board()
+	if !ok {
+		return "the board did not read"
+	}
+	var found []string
+	for _, e := range b.Events {
+		id := b.At.Of(e).ID
+		if id <= at {
+			continue
+		}
+		switch body := e.GetBody().(type) {
+		case *recordpb.Event_Verify:
+			if body.Verify.GetAnchor() == cite && e.GetSeatId() == citationOwner {
+				found = append(found, fmt.Sprintf("the owner read %s again at event %d (%s)", cite, id, recordpb.Word(body.Verify.GetOutcome())))
+			}
+		case *recordpb.Event_Retire:
+			if slices.Contains(body.Retire.GetAnchors(), cite) {
+				found = append(found, fmt.Sprintf("%s retired %s at event %d", e.GetSeatId(), cite, id))
+			}
+		case *recordpb.Event_BlueEdit:
+			if slices.Contains(body.BlueEdit.GetReopened(), cite) {
+				found = append(found, fmt.Sprintf("%s's edit at event %d reopened %s", e.GetSeatId(), id, cite))
+			}
+		case *recordpb.Event_Mint:
+			m := body.Mint
+			if recordpb.Word(m.GetClass()) != classContradicts {
+				continue
+			}
+			switch {
+			case m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && m.GetAboutRef() == cite:
+				found = append(found, fmt.Sprintf("%s minted %s about %s at event %d", e.GetSeatId(), m.GetGapId(), cite, id))
+			case strings.TrimSpace(m.GetLocation()) != "" && sameDebtSubject(sentence, m.GetLocation()):
+				found = append(found, fmt.Sprintf("%s minted %s quoting the citation's sentence at event %d", e.GetSeatId(), m.GetGapId(), id))
+			}
+		}
+	}
+	if open, _ := r.sameClassAndSubject(classContradicts, quoteArgs(sentence)); len(open) > 0 {
+		for _, g := range open {
+			found = append(found, fmt.Sprintf("open %s gap %s (minted by %s) is on the sentence: about %s %s, at %q", classContradicts, g.ID, g.MintedBy, g.AboutKind, g.AboutRef, g.Location))
+		}
+	}
+	if len(found) == 0 {
+		return fmt.Sprintf("no act after event %d names %s and no open %s gap is on its sentence %q", at, cite, classContradicts, sentence)
+	}
+	return strings.Join(found, "; ")
 }
 
 // screenUnsound holds a run that ends with a live computation a standing judgement calls unsound to the
@@ -976,4 +1086,46 @@ func itemAbout(it record.Item, g, a string) bool {
 		return a != "" && it.Subject.ID == a
 	}
 	return false
+}
+
+// THE LIMIT PLAN CITES A SENTENCE FREE OF THE CLASS'S GAP: an open claim_contradicts_source gap on
+// lane 1's sentence — a lens's quote mint on its own found reading — would discharge the owner's
+// debt the moment it is read (F9), so the limit debt sits on the next candidate, and stands; and
+// a run ending on no debt names, from the record, what discharged it.
+func TestTheLimitDebtSitsOnASentenceFreeOfTheClassGap(t *testing.T) {
+	r := stagedSynthesizedRunner(t)
+	r.forceScreenUnsound = true
+	const other = "red-lens-dark-side"
+	r.register("lens", other)
+	if r.readFound(other, foundSourceURL(other), "A § fuzz sentence to anchor findings.", "refutes") == 0 {
+		t.Fatalf("the other lens's reading: %s", r.actErr)
+	}
+	g := r.mintOnReading(other, classContradicts, quoteArgs("A § fuzz sentence to anchor findings."), 0, "quote").gap
+	if g == "" || r.actErr != "" {
+		t.Fatalf("the other lens's mint quoting lane 1's sentence: %q (%s)", g, r.actErr)
+	}
+	r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+	if r.actErr != "" || !strings.HasPrefix(r.limitDebtCite, anchorPrefix["citation"]) || r.limitDebtRead == 0 {
+		t.Fatalf("the limit plan's cite %q read at %d (%s)", r.limitDebtCite, r.limitDebtRead, r.actErr)
+	}
+	if r.limitDebtSentenceCited != foundSourceSentences[0] {
+		t.Errorf("the limit debt sits on %q, want lane 3's sentence with lane 1's holding %s", r.limitDebtSentenceCited, g)
+	}
+	if _, stands := r.debtOf(citationOwner, r.limitDebtCite); !stands {
+		t.Fatalf("the owner's debt on %s does not stand: %s", r.limitDebtCite, r.limitDebtDischarge())
+	}
+	if got := r.limitDebtDischarge(); !strings.HasPrefix(got, "no act after event") {
+		t.Errorf("the record holds a discharge while the debt stands: %s", got)
+	}
+	// THE OWNER'S LATER BACKING READ, named by the oracle as the discharge.
+	r.register("lens", citationOwner)
+	if r.readCited(citationOwner, r.limitDebtCite, "supports") == 0 {
+		t.Fatalf("the owner's re-read: %s", r.actErr)
+	}
+	if _, stands := r.debtOf(citationOwner, r.limitDebtCite); stands {
+		t.Fatal("the owner's backing re-read left the debt")
+	}
+	if got := r.limitDebtDischarge(); !strings.Contains(got, "the owner read "+r.limitDebtCite+" again") || !strings.Contains(got, "(supports)") {
+		t.Errorf("the oracle names %q, want the owner's re-read", got)
+	}
 }

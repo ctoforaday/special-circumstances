@@ -864,7 +864,10 @@ type runner struct {
 	screenUnsoundComputation string
 	// limitDebtCite is the citation the citation owner reads `refutes` at the limit plan, so the run
 	// ends on a reading debt (screenAtLimit); "refused" where blue's cite was, "" until the limit plan.
-	limitDebtCite string
+	// limitDebtSentenceCited is the sentence it sits in, and limitDebtRead the owner's reading's
+	// events.id, 0 until it lands — what limitDebtDischarge reads the record from.
+	limitDebtCite, limitDebtSentenceCited string
+	limitDebtRead                         int64
 	// provedExpectedError fires the --expect-error drive once per run. A computation whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering computation beside it, and the sweep had never passed the flag that says so.
@@ -7949,6 +7952,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.forceScreenUnsound && r.reading.debtsStandingAtEnd == 0 && res.err == "" {
 		res.err = fmt.Sprintf("forced epoch limit: seed %d's run did not end with a reading debt standing (the owner's reading at the limit plan: %q)", limitSeed, r.limitDebtCite)
+		if r.limitDebtRead != 0 {
+			r.mu.Unlock()
+			res.err += "; the record holds: " + r.limitDebtDischarge()
+			r.mu.Lock()
+		}
 	}
 	if msg := r.fateTurnForcedErr(); msg != "" && res.err == "" {
 		res.err = msg
