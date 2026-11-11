@@ -123,8 +123,9 @@ func (r *runner) forcedDebtChain(seatID string) {
 			return
 		}
 		// THE OWNER'S ENVELOPE IS REFUSED NAMING THE READING, and its sitting ends without one.
-		r.envelopeRefusedEarly(seatID, "reading of citation "+cite)
-		r.countReading(func(c *readingCounts) { c.envelopesRefusedOnDebt++ })
+		if r.envelopeRefusedEarly(seatID, "reading of citation "+cite) {
+			r.countReading(func(c *readingCounts) { c.envelopesRefusedOnDebt++ })
+		}
 		r.leaveDebt(seatID)
 		r.reachedDebtChainStage(debtChainRead)
 	case debtChainRead:

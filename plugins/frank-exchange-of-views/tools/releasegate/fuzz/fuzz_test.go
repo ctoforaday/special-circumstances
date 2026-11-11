@@ -10001,16 +10001,67 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 
 // envelopeRefusedEarly drives a seat's envelope while an item it owes stands: the record must refuse
 // it (record.EnvelopeRefusal — the PreToolUse hook denies the envelope call with it), naming the item.
-func (r *runner) envelopeRefusedEarly(seatID, standing string) {
+// It reports whether the drive ran: the item stood and the refusal named it.
+//
+// WHETHER THE ITEM STANDS IS ASKED OF THE RECORD, AT THE CHECK, on both sides of it (owesNaming) —
+// never of what the caller read earlier. Other seats sit while this one does: blue's verbatim
+// re-application of red's text ends a lens's reading debt on the sentence by estoppel, blue's cite,
+// edit or retire ends others, a sibling's gap discharges one. CI run 42952536058 (seed 2) drove a
+// lens's envelope off a reading-debt list read before the loop's earlier acts and blue's concurrent
+// ones, and the record, with no debt left, admitted it. An item the record no longer lists before the
+// check, or no longer lists after a refusal that did not name it, was cleared by another act: the
+// drive did not run, and nothing is counted. One listed on both sides and not named is a defect.
+func (r *runner) envelopeRefusedEarly(seatID, standing string) bool {
+	before, err := r.owesNaming(seatID, standing)
+	if err != nil {
+		r.noteActErr(seatID + "'s work list could not be read before its envelope: " + err.Error())
+		return false
+	}
+	if !before {
+		// THE WORK LIST AND THE PASS LIST READ ONE BLOCKER SET (passBlockersOf): a reading debt of the
+		// seat's on the second and not owed on the first is the product's disagreement, not a race.
+		for _, b := range r.readingDebts() {
+			if b.Owner == seatID && strings.Contains(b.WorkItem(), standing) {
+				r.noteActErr(fmt.Sprintf("%s's reading debt stands on the PASS list and its work list owes no item naming %q: %s", seatID, standing, b.WorkItem()))
+				return false
+			}
+		}
+		noteEnvelope(seatID, "not driven early: the record owed no item naming "+strings.TrimSpace(standing))
+		return false
+	}
 	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
+	if err != nil {
+		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
+		return false
+	}
+	if strings.Contains(refusal, standing) {
+		noteEnvelope(seatID, "refused, driven before its last item was cleared")
+		return true
+	}
+	after, err := r.owesNaming(seatID, standing)
 	switch {
 	case err != nil:
-		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
-	case !strings.Contains(refusal, standing):
-		r.noteActErr(fmt.Sprintf("%s's envelope with %q standing was not refused naming it: %q", seatID, standing, refusal))
+		r.noteActErr(seatID + "'s work list could not be read after its envelope: " + err.Error())
+	case !after:
+		noteEnvelope(seatID, "not driven early: another seat's act cleared the item during the check")
 	default:
-		noteEnvelope(seatID, "refused, driven before its last item was cleared")
+		r.noteActErr(fmt.Sprintf("%s's envelope with %q owed on its work list before and after the check was not refused naming it: %q", seatID, standing, refusal))
 	}
+	return false
+}
+
+// owesNaming reports whether seatID's work list, read now, holds a blocking item the seat's own act
+// clears whose wording holds standing — the items record.EnvelopeRefusal names, by the same reads.
+func (r *runner) owesNaming(seatID, standing string) (bool, error) {
+	w, err := record.WorkOfSeat(r.run(), seatclass.RoleOfSeat(seatID), seatID)
+	if err != nil {
+		return false, err
+	}
+	if w.Sitting.HoldsPass() {
+		return false, nil
+	}
+	owed, _ := w.Sitting.Owed()
+	return slices.ContainsFunc(owed, func(it record.Item) bool { return strings.Contains(it.What, standing) }), nil
 }
 
 // envelopeEnds is every seat's envelope at the end of its drive: a seat's sitting ends only once

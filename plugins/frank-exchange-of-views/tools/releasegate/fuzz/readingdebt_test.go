@@ -271,6 +271,11 @@ func (r *runner) mintOnReading(seatID, class string, subject []string, at int64,
 		case strings.Contains(out, estoppelWords):
 			res.refusedBy = "estoppel"
 			noteEither(args[:2], "a mint on a reading, refused by estoppel over text blue applied from a red --new", false)
+		case (strings.Contains(out, standingReadingWords) || strings.Contains(out, citedDefectWords)) && at != 0 && !r.debtStandsSince(seatID, at):
+			// THE RECORD, ASKED NOW, HOLDS NO DEBT ON THE READING: another seat's act — blue's verbatim
+			// re-application of red's text, its edit, cite or retire — ended it after the drive read it.
+			res.refusedBy = "standing"
+			noteEither(args[:2], "a mint on a reading another seat's act discharged after the drive read it", false)
 		case strings.Contains(out, standingReadingWords), strings.Contains(out, citedDefectWords):
 			res.refusedBy = "standing"
 			r.noteActErr(fmt.Sprintf("%s's %s mint on its reading at event %d was refused for want of a standing reading: %s", seatID, class, at, firstLine(out)))
@@ -485,6 +490,12 @@ func (r *runner) debtOf(seatID, subject string) (record.Blocker, bool) {
 		}
 	}
 	return record.Blocker{}, false
+}
+
+// debtStandsSince reports whether the record, read now, holds seatID's reading debt on its reading at
+// event at.
+func (r *runner) debtStandsSince(seatID string, at int64) bool {
+	return slices.ContainsFunc(r.readingDebts(), func(b record.Blocker) bool { return b.Owner == seatID && b.Since() == at })
 }
 
 // debtDischargedBy holds seatID's reading debt on subject gone after how, and counts the discharge
@@ -738,8 +749,12 @@ func (r *runner) answerReadingDebt(seatID string) {
 		if b.Owner != seatID || r.reservedDebtSubject(b.Subject) {
 			continue
 		}
-		if r.coin(10) {
-			r.envelopeRefusedEarly(seatID, "reading of ")
+		// EACH DEBT IS ASKED OF THE RECORD AGAIN BEFORE IT IS ANSWERED: an earlier debt's act in this
+		// loop, or another seat's sitting alongside, may have ended it since the list was read.
+		if !r.debtStandsSince(seatID, b.Since()) {
+			continue
+		}
+		if r.coin(10) && r.envelopeRefusedEarly(seatID, "reading of ") {
 			r.countReading(func(c *readingCounts) { c.envelopesRefusedOnDebt++ })
 		}
 		cited := anchor.Kind(b.Subject) == "citation"
@@ -895,11 +910,15 @@ func (r *runner) passRefusedOnReadingDebt(seatID string, plan map[string]any) {
 		return
 	}
 	blockers, _ := planBlockersAndParties(plan)
-	if blockers[string(record.BlockerReadingDebt)] == 0 {
+	// THE PLAN SAYS WHY THE CHAIR SITS; THE RECORD, ASKED NOW, SAYS WHETHER A DEBT STILL HOLDS: blue's
+	// acts in a sitting alongside end debts after the plan was read.
+	if blockers[string(record.BlockerReadingDebt)] == 0 || len(r.readingDebts()) == 0 {
 		return
 	}
 	out, err := r.exec("--json", "verdict", "--seat-id", seatID, "--as", "PASS")
 	switch {
+	case err == nil && len(r.readingDebts()) == 0:
+		noteEither([]string{"verdict"}, "a PASS over a reading debt another seat's act ended between the check and the verdict", true)
 	case err == nil:
 		r.noteActErr("the chair's PASS was admitted while a lens's reading debt holds it: " + firstLine(out))
 	case !strings.Contains(out, "find a source against its sentence with no gap"):

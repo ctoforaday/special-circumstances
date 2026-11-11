@@ -234,11 +234,13 @@ func (r *runner) readRemovalSentences() string {
 			return "no reading debt stands on " + subject + " after the lens's reading"
 		}
 	}
-	r.envelopeRefusedEarly(lens, "reading of ")
+	driven := r.envelopeRefusedEarly(lens, "reading of ")
 	if r.actErr != "" {
 		return "the lens's envelope over its debts: " + r.actErr
 	}
-	r.countReading(func(c *readingCounts) { c.envelopesRefusedOnDebt++ })
+	if driven {
+		r.countReading(func(c *readingCounts) { c.envelopesRefusedOnDebt++ })
+	}
 	return removalRead
 }
 

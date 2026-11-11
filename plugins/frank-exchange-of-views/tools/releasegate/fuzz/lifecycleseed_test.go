@@ -294,7 +294,16 @@ func (r *runner) lifecycleCompute(seat, claim, name, gap, cites string) string {
 }
 
 // lifecycleRetire is blue's retire of evidence anchor id alone, answering gap where it is set.
+//
+// A CITATION'S RETIRE ASKS THE RECORD FIRST which live computations apply it (retireCitingFirst):
+// blue's drawn `compute --cites` takes any live citation off the record (someCitation), a seed's own
+// among them, and which one it took depends on the order the run's sittings drew the RNG in. The
+// record refuses the citation's retire while one stands (L6), so the drive retires those first. CI run
+// 42952536058 (seed 25) retired the reading-removal seed's citation a drawn computation applied.
 func (r *runner) lifecycleRetire(seat, id, gap string) bool {
+	if strings.HasPrefix(id, anchorPrefix["citation"]) && !r.retireCitingFirst(seat, id) {
+		return false
+	}
 	c := r.do("retire", seat).set("--anchor", id).set("--reason", "fuzz: the evidence leaves its sentence")
 	if gap != "" {
 		c.set("--answers", gap)
