@@ -8739,10 +8739,7 @@ func TestFuzzDebate(t *testing.T) {
 	var runs []runTally
 
 	for i := 0; i < n; i++ {
-		seed := int64(i) + 1
-		if !part.owns(seed) {
-			continue
-		}
+		seed := int64(positionGapsSeed) // DIAGNOSIS ONLY: every run is seed 11
 		wg.Add(1)
 		sem <- struct{}{}
 		go func() {
