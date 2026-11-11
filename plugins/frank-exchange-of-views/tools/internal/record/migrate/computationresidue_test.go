@@ -312,9 +312,11 @@ func reproducesOf(bodies []any) []*recordpb.Reproduce {
 // reproduce before epoch 28 carried to a second anchor on its script (reproduceanchor_test.go). A
 // native archive writes the act as `ran` = false on its bundle's re-run, and it comes through so.
 //
-// NO MIGRATED REPRODUCE HOLDS A SENTENCE (Reproduce.claim, ruling L5): the report an archived judgement
-// saw is not re-derivable at its event, so migrate reads none back into it, and each archive's count of
-// judgements with no recorded sentence is logged once for the plan's residue.
+// A MIGRATED REPRODUCE HOLDS THE SENTENCE ITS ARCHIVE RECORDED, AND NO OTHER (Reproduce.claim, ruling
+// L5): the report an archived judgement saw is not re-derivable at its event, so migrate reads none back
+// into a judgement that recorded none, and each archive's count of judgements with no recorded sentence
+// is logged once for the plan's residue. An archive written after the field carries its sentences
+// through unchanged.
 func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	notRun := map[string]int{
 		"2026-10-17_is-91-prime-final.tar.gz": 3,
@@ -348,14 +350,19 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	ranNothing := map[string]int{
 		"2026-10-30_mersenne-31-prime-sum.tar.gz": 10,
 		"2026-11-04_eiffel-tower-height.tar.gz":   8,
+		"2026-11-11_eiffel-tower-height.tar.gz":   3,
 	}
-	ledger, native, unsentenced := 0, 0, 0
+	ledger, native, unsentenced, sentenced := 0, 0, 0, 0
 	for _, name := range archivedRuns(t) {
 		proofs := proofStage(t, name)
 		archived, wrote := 0, 0
+		recorded := map[string]int{}
 		for _, e := range sourceEvents(t, name) {
 			if e.Word != "reproduce" {
 				continue
+			}
+			if s, ok := e.Fields["claim"].(string); ok && s != "" {
+				recorded[s]++
 			}
 			if e.Fields["rerun"] == "not_run" {
 				archived++
@@ -375,15 +382,27 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 		standing := map[string]*recordpb.Reproduce{}
 		stood := 0
 		rs := reproducesOf(bodies)
+		none := 0
 		for _, r := range rs {
-			if r.Claim != nil {
-				t.Errorf("%s: migrated reproduce of %s holds the sentence %q; an archived judgement recorded none", name, r.GetComputationId(), r.GetClaim())
+			switch {
+			case r.Claim == nil:
+				none++
+			case recorded[r.GetClaim()] == 0:
+				t.Errorf("%s: migrated reproduce of %s holds the sentence %q; its archived judgement recorded none", name, r.GetComputationId(), r.GetClaim())
+			default:
+				recorded[r.GetClaim()]--
+				sentenced++
 			}
 		}
-		if len(rs) > 0 {
-			t.Logf("%s: %d reproduce(s) with no recorded sentence", name, len(rs))
+		for s, n := range recorded {
+			if n > 0 {
+				t.Errorf("%s: %d archived judgement(s) recorded the sentence %q and no migrated reproduce holds it", name, n, s)
+			}
 		}
-		unsentenced += len(rs)
+		if none > 0 {
+			t.Logf("%s: %d reproduce(s) with no recorded sentence", name, none)
+		}
+		unsentenced += none
 		for _, r := range rs {
 			if r.GetRan() {
 				standing[r.GetBundleSha()] = r
@@ -417,6 +436,9 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	}
 	if unsentenced == 0 {
 		t.Error("no archive migrated a reproduce — the no-sentence assertion checked nothing")
+	}
+	if sentenced == 0 {
+		t.Error("no archive carried a recorded sentence — the carried-sentence assertion checked nothing")
 	}
 }
 
@@ -594,11 +616,12 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 			runs++
 		}
 	}
-	// Measured over the 35 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
-	// over 30, before 1565, m35, m36, mersenne-31-prime-sum (11 acts on 3 bundles) and
-	// eiffel-tower-height (4 acts on 2 bundles) were archived.
-	if acts != 173 || bundles != 44 || runs != 28 {
-		t.Errorf("%d acts share %d bundles in %d runs, want 173, 44, 28", acts, bundles, runs)
+	// Measured over the 36 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
+	// over 30, before 1565, m35, m36, mersenne-31-prime-sum (11 acts on 3 bundles),
+	// 2026-11-04_eiffel-tower-height (4 acts on 2 bundles) and 2026-11-11_eiffel-tower-height (3 acts
+	// on 1 bundle) were archived.
+	if acts != 176 || bundles != 45 || runs != 29 {
+		t.Errorf("%d acts share %d bundles in %d runs, want 176, 45, 29", acts, bundles, runs)
 	}
 }
 
