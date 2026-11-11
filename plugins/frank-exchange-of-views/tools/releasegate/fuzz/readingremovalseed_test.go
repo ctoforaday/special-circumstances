@@ -105,7 +105,8 @@ func (r *runner) forcedReadingRemoval(seatID string) {
 }
 
 // reservedDebtSubject reports whether a reading debt on subject is a forced drive's to clear: the
-// reading-debt chain's citation, and readingRemovalSeed's subjects while its lens's debts stand.
+// reading-debt chain's citation, and readingRemovalSeed's subjects while its lens's debts stand —
+// from the lens's reading until its driven sitting (driveRemovalMints), which clears them itself.
 func (r *runner) reservedDebtSubject(subject string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -117,7 +118,7 @@ func (r *runner) reservedDebtSubject(subject string) bool {
 	if r.forceScreenUnsound && r.limitDebtCite != "" && subject == r.limitDebtCite {
 		return true
 	}
-	if !r.forceReadingRemoval || r.removal.stage != removalRead {
+	if !r.forceReadingRemoval || !removalDebtsStand(r.removal.stage) {
 		return false
 	}
 	s := removalSentences
@@ -129,12 +130,22 @@ func (r *runner) reservedDebtSubject(subject string) bool {
 	return false
 }
 
+// removalDebtsStand reports whether the forced run's lens holds debts the drive reserves at stage:
+// from its reading (removalRead) through blue's remedies (removalRemedied), until its driven sitting
+// clears what the remedies left — the lost-quote debt on the reworded sentence, the re-read and
+// absent citations' — which driveRemovalMints drives itself. Left unreserved past the remedy, the
+// lens's drawn sitting between blue's two sittings answered the lost-quote debt by its own re-read,
+// and the driven sitting found it gone.
+func removalDebtsStand(stage string) bool {
+	return stage == removalRead || stage == removalRemedied
+}
+
 // removalLensLeaves is whether the forced run's lens leaves its debts standing at this sitting: from
-// its reading until blue's remedy, every sitting of its ends with the debts standing.
+// its reading until its driven sitting, every drawn sitting of its ends with the debts standing.
 func (r *runner) removalLensLeaves(seatID string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.forceReadingRemoval && seatID == removalLens && r.removal.stage == removalRead
+	return r.forceReadingRemoval && seatID == removalLens && removalDebtsStand(r.removal.stage)
 }
 
 // addRemovalSentences is blue's first step: the sentences added after the open question, and three
@@ -419,35 +430,56 @@ func TestTheReadingRemovalSeedDrivesEveryArm(t *testing.T) {
 	})
 }
 
-// THE LENS'S DRAWN SITTING LEAVES THE FORCED DEBTS: while readingRemovalSeed's lens's debts stand, its
-// sitting-end drive clears none of them, and the reserved subjects are no drawn remedy's.
-func TestTheRemovalLensLeavesItsDebtsUntilBlueRemedies(t *testing.T) {
+// THE LENS'S DRAWN SITTING LEAVES THE FORCED DEBTS: while readingRemovalSeed's lens's debts stand —
+// after its reading, and after blue's remedies until its driven sitting — its sitting-end drive clears
+// none of them, and the reserved subjects are no drawn remedy's. Past the remedy the lost-quote debt is
+// what the driven sitting clears, so a drawn sitting in between leaves it too.
+func TestTheRemovalLensLeavesItsDebtsUntilItsDrivenSitting(t *testing.T) {
 	r := stagedSynthesizedRunner(t)
 	r.forceReadingRemoval = true
 	r.register("blue", "blue-respond")
+	for _, stage := range []string{removalRead, removalRemedied} {
+		for r.removal.stage != stage && r.actErr == "" {
+			r.forcedReadingRemoval("blue-respond")
+		}
+		if r.removal.stage != stage || r.actErr != "" {
+			t.Fatalf("the forced arm reached %q, want %q (%s)", r.removal.stage, stage, r.actErr)
+		}
+		debts := len(r.readingDebts())
+		if debts == 0 {
+			t.Fatalf("no debt stands at stage %s", stage)
+		}
+		if !r.removalLensLeaves(removalLens) || !r.reservedDebtSubject(removalSentences.reworded) || r.reservedDebtSubject(laneCloseSentences[0]) {
+			t.Fatalf("at stage %s the lens does not leave its debts, or the reserved subjects are not reserved", stage)
+		}
+		r.sit("lens", removalLens)
+		if r.removalLensLeaves(removalLens) {
+			r.leaveDebt(removalLens)
+		}
+		r.answerReadingDebt(removalLens)
+		r.remedyReadingDebts("blue-respond")
+		if n := len(r.readingDebts()); n != debts || r.actErr != "" {
+			t.Errorf("at stage %s the drawn drives left %d of %d debts (%s)", stage, n, debts, r.actErr)
+		}
+		if !r.leftDebtOnly(removalLens) {
+			t.Errorf("at stage %s the lens's envelope does not stand refused over its left debts alone", stage)
+		}
+		if r.debtLeftBy(removalLens) {
+			t.Errorf("at stage %s leftDebtOnly did not spend the mark", stage)
+		}
+		if stage == removalRemedied {
+			if b, stands := r.debtOf(removalLens, removalSentences.reworded); !stands || b.Lost() == 0 {
+				t.Errorf("the lost-quote debt on the reworded sentence does not stand for the driven sitting (stands %v)", stands)
+			}
+		}
+	}
+	r.register("blue", "blue-respond")
 	r.forcedReadingRemoval("blue-respond")
-	r.forcedReadingRemoval("blue-respond")
-	if r.removal.stage != removalRead || r.actErr != "" {
-		t.Fatalf("the forced arm reached %q (%s)", r.removal.stage, r.actErr)
+	if r.removal.stage != removalDriven || r.actErr != "" {
+		t.Fatalf("the driven sitting reached %q (%s)", r.removal.stage, r.actErr)
 	}
-	debts := len(r.readingDebts())
-	if !r.removalLensLeaves(removalLens) || !r.reservedDebtSubject(removalSentences.cut) || r.reservedDebtSubject(laneCloseSentences[0]) {
-		t.Fatal("the lens does not leave its debts, or the reserved subjects are not reserved")
-	}
-	r.sit("lens", removalLens)
-	if r.removalLensLeaves(removalLens) {
-		r.leaveDebt(removalLens)
-	}
-	r.answerReadingDebt(removalLens)
-	r.remedyReadingDebts("blue-respond")
-	if n := len(r.readingDebts()); n != debts || r.actErr != "" {
-		t.Errorf("the drawn drives left %d of %d debts (%s)", n, debts, r.actErr)
-	}
-	if !r.leftDebtOnly(removalLens) {
-		t.Error("the lens's envelope does not stand refused over its left debts alone")
-	}
-	if r.debtLeftBy(removalLens) {
-		t.Error("leftDebtOnly did not spend the mark")
+	if r.reservedDebtSubject(removalSentences.reworded) {
+		t.Error("the subjects stay reserved after the driven sitting")
 	}
 }
 
