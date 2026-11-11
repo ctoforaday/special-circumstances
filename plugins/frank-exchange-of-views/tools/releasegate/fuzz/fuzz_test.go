@@ -9413,17 +9413,6 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				}
 			}
 			// No applicable pair — degrade to a counter-edit rather than fake one.
-			//
-			// NOT IN THE ESTOPPEL SEED'S RUN. Its gaps all prescribe the one swap of lane 2's phrase
-			// from the page they were minted on, so the first applied makes every sibling's pair
-			// stale, and a counter-edit answering the sibling swaps the phrase straight back: the
-			// edit lists the applied gap reopened, its estoppel ends inside the sitting that began
-			// it (F12), and mintEstopped finds no prescription standing at every sitting of the run.
-			// The stale pair is counted above; the sibling waits for a page its pair fits, and the
-			// other runs degrade to the counter-edit.
-			if r.forceEstoppel {
-				continue
-			}
 			fallthrough
 		case dirCounter:
 			r.counterEdit(seatID, id)

@@ -710,24 +710,6 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 	}
 }
 
-// estoppelEntries is the tool's estoppel log entries on the record written under seatID — the seat
-// whose mint the tool refused. The lenses sit concurrently and each lens's estopped mint writes one
-// (mintEstopped), so a count over every seat moves with whichever sibling lands inside the window.
-func (r *runner) estoppelEntries(seatID string) int {
-	b, ok := r.board()
-	if !ok {
-		return -1
-	}
-	n := 0
-	for _, e := range b.Events {
-		if l, isL := recordpb.BodyAs[*recordpb.Log](e); isL && e.GetSeatId() == seatID &&
-			l.GetType() == recordpb.LogType_LOG_TYPE_ESTOPPEL && l.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL {
-			n++
-		}
-	}
-	return n
-}
-
 // readNotTheWorkFound is a lens's reading of the copy that is not the work as a source it found: it
 // is recorded, reads nothing, and the report's sources gain no row for it.
 func (r *runner) readNotTheWorkFound(seatID, quote, outcome string, axes func(string, *cmd) *cmd) {

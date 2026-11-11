@@ -526,9 +526,9 @@ func TestTheReadingTallyGatesEveryKey(t *testing.T) {
 		t.Errorf("the fold did not sum: %+v", a)
 	}
 	gates := (readingTally{}).gates()
-	want := 2 + len(readingMintForms) + 1 + len(crossArmDirections) + len(readingDischarges) + 10
+	want := 2 + len(readingMintForms) + 1 + len(crossArmDirections) + len(readingDischarges) + 8
 	if len(gates) != want {
-		t.Errorf("%d gates, want %d: one per class refused, per mint form, per cross-arm direction, per discharge, and ten counts", len(gates), want)
+		t.Errorf("%d gates, want %d: one per class refused, per mint form, per cross-arm direction, per discharge, and eight counts", len(gates), want)
 	}
 	for _, g := range gates {
 		if g.n != 0 {
