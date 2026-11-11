@@ -350,10 +350,10 @@ CROSS=(
 	-DCMAKE_C_FLAGS=-D_USE_MATH_DEFINES
 )
 # Every helper links stripped: a published helper carries no debug information or local symbol
-# table. zig's -s strips ELF and PE outright; on Mach-O it keeps the local symbols, which -x drops.
+# table. zig's -s strips ELF and PE outright; on Mach-O it keeps the local symbols, which the linker's -x drops.
 # staticproof bounds each helper's size, so a link that ships debug information fails the build.
 STRIP_LDFLAGS=(-s)
-[ "$SYSNAME" = Darwin ] && STRIP_LDFLAGS+=(-Wl,-x)
+[ "$SYSNAME" = Darwin ] && STRIP_LDFLAGS+=(-Xlinker -x)
 
 CXXFLAGS_ALL="-D_USE_MATH_DEFINES"
 [ "$SYSNAME" = Darwin ] && CXXFLAGS_ALL="$CXXFLAGS_ALL -fno-cxx-modules"

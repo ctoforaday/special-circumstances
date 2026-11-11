@@ -19,8 +19,9 @@ import (
 	"strings"
 )
 
-// helperMaxBytes is each native helper's size bound: about 1.25 times its largest stripped build on
-// any published target. A helper linked with its debug information is several times its stripped
+// helperMaxBytes is each native helper's size bound: about 1.3 times its largest stripped build on
+// any published target (feov-embed: 6,366,304 B on linux-amd64; feov-ocr: 9,762,360 B on
+// darwin-arm64). A helper linked with its debug information is several times its stripped
 // size (feov-embed linux-amd64: 178,839,192 B with DWARF, 6,366,560 B stripped; feov-ocr
 // linux-amd64: 46,530,584 B and 9,285,672 B), so a link that stops stripping fails here, on the
 // native-build leg that made it and again on the release's dist.
