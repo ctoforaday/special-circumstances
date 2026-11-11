@@ -61,8 +61,8 @@ func LaneSeatIDs(lanes int) []string {
 // LanesDeclared is the lane count the run's config declares, and whether it declares one.
 //
 // THE THREE ANSWERS ARE KEPT APART: a declared count (n, true, nil), a run that declared none
-// (0, false, nil — `--lanes` is optional), and a config that could not be read at all (a non-nil
-// error). Only the first can be checked, and the other two must not read as agreement, nor as each
+// (0, false, nil — `--lanes` is optional), and a config that could not be read, or whose lane count
+// is not a positive whole number (a non-nil error). Only the first can be checked, and the other two must not read as agreement, nor as each
 // other: "the operator named no lane count" and "nobody could read what the operator named" are
 // different facts, and a caller that folds the error into the second reports an unread file as a
 // choice the operator made.
@@ -78,12 +78,22 @@ func LanesDeclared(run Run) (n int, declared bool, err error) {
 	if rc == nil || rc.Lanes == nil {
 		return 0, false, nil
 	}
-	// setup writes the flag as typed, a STRING.
-	n, aerr := strconv.Atoi(strings.TrimSpace(*rc.Lanes))
-	if aerr != nil || n <= 0 {
-		return 0, false, nil
+	n, err = ParseLanes(*rc.Lanes)
+	if err != nil {
+		return 0, false, fmt.Errorf("run-config.json: %w", err)
 	}
 	return n, true, nil
+}
+
+// ParseLanes reads a lane count as setup's `--lanes` flag takes it and run-config stores it: a
+// positive integer, as a string. setup refuses anything else before the run exists, so a stored
+// value that fails here is a damaged config, never a run that declared no lanes.
+func ParseLanes(s string) (int, error) {
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil || n <= 0 {
+		return 0, fmt.Errorf("lanes %q is not a positive whole number", s)
+	}
+	return n, nil
 }
 
 // LaneSeatsOf is the lane seat ids this run's CAST names, or none.

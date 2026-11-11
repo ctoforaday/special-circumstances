@@ -1,7 +1,6 @@
 package setup
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
@@ -17,7 +16,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -66,7 +64,7 @@ type Config struct {
 }
 
 // Run reproduces the mjs main(): the fail-fast gates (runDir→1; model tiers, launching session,
-// epoch limit, another live run, a decided run uncaptured, pin miss, record-binary and client preflights→2),
+// lane count, epoch limit, another live run, a decided run uncaptured, pin miss, record-binary and client preflights→2),
 // then the run-dir build + mirrors + marker, then the summary. Returns the process exit code; writes to the given streams.
 func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.Git == nil {
@@ -101,6 +99,16 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "  the engine does not guess a tier or inherit the session model. Pass both, e.g.")
 		fmt.Fprintln(stderr, "  --model sonnet --judgment-model sonnet   (a smoke run passes --model haiku --judgment-model haiku)")
 		return 2
+	}
+
+	// Gate: a lane count, when given, is a positive whole number — before the run dir exists. The
+	// cast and every reader of run-config take it as one; "two" or "0" stored as typed would cast
+	// no lanes while the config claims some.
+	if cfg.Lanes != "" {
+		if _, err := record.ParseLanes(cfg.Lanes); err != nil {
+			fmt.Fprintf(stderr, "run-setup: --lanes: %v — refusing to create the run\n", err)
+			return 2
+		}
 	}
 
 	// Gate: a launching session, before the run dir exists. The run's members are the agents of the
@@ -267,33 +275,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "run-setup: %v\n", err)
 		return 2
 	}
-	// THE CAST IS WRITTEN FIRST, under the harness, before any seat registers: the run's admissible
-	// seats, derived from the areas selected and the lane count. Every register and every dispatch
-	// is checked against it from here on (plans/roundless.md §III.B.1).
-	lanesN, _ := strconv.Atoi(cfg.Lanes)
-	// THE LANES ARE NAMED, NOT LEFT TO BE RECOGNISED. Every other seat's role and tier come from the
-	// static roster; a lane's cannot, because how many a run seats is a run parameter. setup is the
-	// one process that knows, so it says so here rather than leaving a pattern to guess later.
-	seats, laneSeats := record.CastFor(lanesN)
-	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat},
-		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}); err != nil {
-		fmt.Fprintf(stderr, "run-setup: could not write the cast: %v\n", err)
-		return 2
-	}
-	// Setup holds no record handle past this write: the seats open their own.
-	_ = recordsql.Close(filepath.Join(run.Records(), "record.db"))
-
 	BuildSkeleton(run)
-	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
-		// LOUD, not folded into the zero: a purge that could not resolve its own directory has
-		// not checked anything, and reporting that as "0 removed" is the same line a clean
-		// board prints.
-		fmt.Fprintf(stderr, "  mirror purge: NOT RUN — %v\n", mErr)
-	} else if n := record.PurgeStaleMirrors(mirrorRoot, cfg.Now, 30); n > 0 {
-		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", n)
-	}
-	pinned := BuildPinned(run, head, cfg.Cites)
-
 	terms := record.DefaultParams
 	if cfg.K > 0 {
 		terms.K = cfg.K
@@ -313,13 +295,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	// THE RUN'S CONFIGURATION IS WRITTEN OR SETUP FAILS: every record reader of the run's terms, its
 	// lane count and its consent reads this file, and a run set up without it would run on defaults
-	// nobody chose. The live-run marker is not written yet, so a failure here leaves no live run.
+	// nobody chose. It is written BEFORE the cast, which is written once: a failure here leaves no cast and
+	// no live-run marker, so re-running setup on the same directory succeeds.
 	failConfig := func(err error) int {
 		fmt.Fprintf(stderr, "run-setup: could not write the run's configuration (inputs/run-config.json): %v\n", err)
 		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
 		return 2
 	}
-	hooks, err := json.Marshal(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
+	hooks, err := marshalJSON(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
 	if err != nil {
 		return failConfig(err)
 	}
@@ -336,6 +319,34 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return failConfig(err)
 	}
 	reportBilling(rc.Billing, stdout, stderr)
+	// THE CAST IS WRITTEN under the harness, before any seat registers: the run's admissible
+	// seats, derived from the areas selected and the lane count. Every register and every dispatch
+	// is checked against it from here on (plans/roundless.md §III.B.1).
+	lanesN := 0
+	if cfg.Lanes != "" {
+		lanesN, _ = record.ParseLanes(cfg.Lanes) // refused above when malformed
+	}
+	// THE LANES ARE NAMED, NOT LEFT TO BE RECOGNISED. Every other seat's role and tier come from the
+	// static roster; a lane's cannot, because how many a run seats is a run parameter. setup is the
+	// one process that knows, so it says so here rather than leaving a pattern to guess later.
+	seats, laneSeats := record.CastFor(lanesN)
+	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}); err != nil {
+		fmt.Fprintf(stderr, "run-setup: could not write the cast: %v\n", err)
+		return 2
+	}
+	// Setup holds no record handle past this write: the seats open their own.
+	_ = recordsql.Close(filepath.Join(run.Records(), "record.db"))
+
+	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
+		// LOUD, not folded into the zero: a purge that could not resolve its own directory has
+		// not checked anything, and reporting that as "0 removed" is the same line a clean
+		// board prints.
+		fmt.Fprintf(stderr, "  mirror purge: NOT RUN — %v\n", mErr)
+	} else if n := record.PurgeStaleMirrors(mirrorRoot, cfg.Now, 30); n > 0 {
+		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", n)
+	}
+	pinned := BuildPinned(run, head, cfg.Cites)
 
 	law := MirrorLaw(filepath.Join(cfg.Cwd, "law"), run)
 	pinnedPaths := []string{}

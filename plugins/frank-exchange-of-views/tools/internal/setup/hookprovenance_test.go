@@ -161,4 +161,33 @@ func TestSetupFailsWhenItCannotWriteTheRunConfig(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(cfg.Cwd, ".claude", "run-live.json")); err == nil {
 		t.Error("setup wrote the live-run marker for a run with no configuration")
 	}
+	// THE REMEDY WORKS: the cast is written once, after the configuration, so a failed write leaves
+	// none and setup re-run on the same directory succeeds.
+	if _, err := os.Stat(filepath.Join(runDir, "records", "record.db")); err == nil {
+		t.Error("setup wrote the cast for a run whose configuration it could not write")
+	}
+	if err := os.Remove(filepath.Join(runDir, "inputs", "run-config.json")); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	errb.Reset()
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("setup re-run after the remedy exited %d:\n%s", code, errb.String())
+	}
+}
+
+// A LANE COUNT THAT IS NOT A COUNT IS REFUSED BEFORE THE RUN EXISTS. Stored as typed, "two" would
+// cast no lanes while the configuration claimed some.
+func TestSetupRefusesALaneCountThatIsNotACount(t *testing.T) {
+	for _, bad := range []string{"two", "0", "-1"} {
+		cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+		cfg.Lanes = bad
+		var out, errb bytes.Buffer
+		if code := Run(cfg, &out, &errb); code == 0 || !strings.Contains(errb.String(), "--lanes") {
+			t.Errorf("--lanes %q: exit %d\n%s", bad, code, errb.String())
+		}
+		if _, err := os.Stat(filepath.Join(runDir, "inputs")); err == nil {
+			t.Errorf("--lanes %q: setup laid down the run directory before refusing", bad)
+		}
+	}
 }

@@ -86,7 +86,7 @@ func partless(lanes []string, sat, parted map[string]bool) []string {
 func LaneCoverageAudit(run record.Run) Audit {
 	want, declared, cerr := record.LanesDeclared(run)
 	if cerr != nil {
-		return Audit{Check: "lane-coverage", Verdict: "SKIP",
+		return Audit{Check: "lane-coverage", Verdict: "FAIL",
 			Detail: fmt.Sprintf("could not read the run's configuration: %v — so the lane count it asked for is unknown, NOT a run whose lanes were checked", cerr)}
 	}
 	if !declared {

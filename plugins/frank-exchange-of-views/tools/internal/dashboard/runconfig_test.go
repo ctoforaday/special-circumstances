@@ -40,4 +40,11 @@ func TestTheBoardShowsAnUnreadableConfigurationAsUnread(t *testing.T) {
 	if strings.Contains(html, "claude-fable-5") {
 		t.Errorf("the board shows a value from a configuration that does not read")
 	}
+
+	// The flags the board was given are the operator's own statement, and still show.
+	m = BuildModel(runtest.Open(t, dir), t.TempDir(), Config{Model: "operator-bulk", Lanes: "4"}, 0)
+	html = RenderHTML(m)
+	if m.ConfigUnread == "" || !strings.Contains(html, "operator-bulk") || !strings.Contains(html, ">4<") {
+		t.Errorf("the board dropped the flags it was given beside an unread configuration (unread %q)", m.ConfigUnread)
+	}
 }

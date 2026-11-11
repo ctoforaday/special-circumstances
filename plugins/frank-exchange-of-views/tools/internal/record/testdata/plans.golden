@@ -1866,12 +1866,6 @@
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 3dfa77959b1f
--- SELECT "gap_id" FROM "gap" WHERE "minted_by" = ? AND "class" = ?
-  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
-
 == stmt 3ffe1b1290cb
 -- SELECT "gap_id" FROM "mint"
   SCAN mint USING COVERING INDEX sqlite_autoindex_mint_1

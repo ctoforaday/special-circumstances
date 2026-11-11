@@ -91,6 +91,14 @@ func TestEveryRunConfigReaderRefusesAnUndeclaredKey(t *testing.T) {
 	if n, ok, err := LanesDeclared(run); ok || err == nil {
 		t.Errorf("a run-config holding an undeclared key read as (%d, %v, %v), want the read error", n, ok, err)
 	}
+	// A lane count that is not a positive whole number is a damaged config, not a run that declared
+	// none: setup refuses each of these before the run exists.
+	for _, bad := range []string{"two", "0", "-1", "2.5"} {
+		writeRunConfig(t, runDir, `{"lanes":"`+bad+`"}`)
+		if n, ok, err := LanesDeclared(run); ok || err == nil || !strings.Contains(err.Error(), "not a positive whole number") {
+			t.Errorf("lanes %q read as (%d, %v, %v), want the refusal", bad, n, ok, err)
+		}
+	}
 	// Declared none is no error: `--lanes` is optional.
 	writeRunConfig(t, runDir, `{}`)
 	if n, ok, err := LanesDeclared(run); ok || err != nil {
