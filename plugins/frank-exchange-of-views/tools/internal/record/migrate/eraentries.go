@@ -329,10 +329,12 @@ func inquiryEntry(renames ren) Entry {
 // `independent` restated the empty anchor, and a labelled corroboration's label, its retraction
 // stamp and the copy it read were its footnote (replay drops the label's anchor and token).
 var verifyEra = mapped("verify", ren{"reason": "text"}, drops{
-	"independent": "a corroboration is the verification that names no anchor; the bool restated the empty anchor, and every archived row that set it has none",
-	"label":       "the footnote a backing corroboration minted; no reading mints one",
-	"work_status": "the footnote a backing corroboration minted; no reading mints one",
-	"sha256":      "the footnote a backing corroboration minted; no reading mints one",
+	"independent":    "a corroboration is the verification that names no anchor; the bool restated the empty anchor, and every archived row that set it has none",
+	"label":          "the footnote a backing corroboration minted; no reading mints one",
+	"work_status":    "the footnote a backing corroboration minted; no reading mints one",
+	"sha256":         "the footnote a backing corroboration minted; no reading mints one",
+	"carried_by":     "the gap a reading minted in its own act, or the open gap that held its sentence; a reading holds nothing, and a gap stands on its minter's reading by the subject the mint names",
+	"carrier_minted": "whether the reading's own act minted the gap it named; no reading mints",
 }, nil)
 
 // verifyEntry: a verification is kept word for word, and one from before epoch 41 is stamped with

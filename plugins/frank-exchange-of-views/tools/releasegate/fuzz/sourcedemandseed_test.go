@@ -9,8 +9,8 @@ import (
 )
 
 // sourceDemandSeed is the seed whose run is FORCED to close a `source` gap nothing answers, and a
-// `source` gap carrying a refuting reading nothing answers, each refused by the live-answer demand
-// (forceSourceDemand). It is none of the other forced seeds.
+// `source` gap minted about a citation on the lens's refuting reading, nothing answering it, each
+// refused by the live-answer demand (forceSourceDemand). It is none of the other forced seeds.
 //
 // Left to the draw, closeGap tries a source gap's close unanswered on a coin, but only after the gap's
 // lens is readied on it, and the plan readies the lens only once blue has acted on the gap: blue's
@@ -31,8 +31,9 @@ const sourceDemandDriven = "driven"
 // forcedSourceDemand is sourceDemandSeed's arm, at the citation owner's first sitting, before any act
 // of its own: blue adds sourceDemandClaim; the lens mints a `source` gap on it and closes it with nothing
 // answering, which the live-answer demand refuses; blue cites the claim as the gap's answer and the
-// close is admitted; the lens reads that citation as refuted, minting a `source` gap carrying the
-// reading, whose close with nothing answering is refused the same way. That gap is left to the drive.
+// close is admitted; the lens reads that citation as refuted and mints its `source` gap about the
+// citation on the reading, whose close with nothing answering is refused the same way. That gap is
+// left to the drive.
 // It draws from the run's RNG only where the drawn drives it calls do.
 func (r *runner) forcedSourceDemand(seatID string) {
 	r.mu.Lock()
@@ -74,7 +75,7 @@ func (r *runner) driveSourceDemand(seatID string) string {
 	id := minted.Result.GapID
 	r.noteMint(seatID, id)
 
-	if !r.demandRefused(seatID, id, false) {
+	if !r.demandRefused(seatID, id) {
 		return "the close of source gap " + id + " with nothing answering it was not refused by its live-answer demand"
 	}
 	cited, ok := r.do("cite", blue).set("--quote", sourceDemandClaim).set("--url", sourceURL("/blue-shared")).set("--title", sourceTitle).
@@ -94,41 +95,26 @@ func (r *runner) driveSourceDemand(seatID string) string {
 	}
 
 	anchorID := label.Result.Label
-	r.firstThisSitting(seatID, anchorID)
-	classes, _ := r.readingClasses(r.citationURL(anchorID), "refutes", true)
-	if len(classes) == 0 {
-		return "a refuting reading of citation " + anchorID + " admits no gap class"
+	g, ok := r.lifecycleRead(seatID, anchorID, "refutes")
+	if !ok || g == "" {
+		return "the refuting reading of citation " + anchorID + ", or the source gap minted about it on the reading, was refused: " + r.actErr
 	}
-	gap, _ := r.readingGapArgs(classes)
-	setArg(gap, "--check-kind", "source")
-	c := r.do("verify", seatID).set("--anchor", anchorID).set("--as", "refutes").set("--confidence", "high").
-		set("--reason", "fuzz: the source says otherwise than the claim").bare("--json")
-	c.args = append(c.args, gap...)
-	read, err := c.result()
-	if err != nil {
-		return "the refuting reading of citation " + anchorID + " was refused: " + firstLine(read)
-	}
-	v := r.checkReading(seatID, read, c.args)
-	if v == nil || v.GetCarriedBy() == "" {
-		return "the refuting reading of citation " + anchorID + " is carried by no gap"
-	}
-	if !r.demandRefused(r.minterOf(v.GetCarriedBy()), v.GetCarriedBy(), true) {
-		return "the close of source gap " + v.GetCarriedBy() + ", carrying the reading, with nothing answering it was not refused by its live-answer demand"
+	if !r.demandRefused(seatID, g) {
+		return "the close of source gap " + g + ", minted about the citation on the reading, with nothing answering it was not refused by its live-answer demand"
 	}
 	return sourceDemandDriven
 }
 
 // demandRefused is whether closer's close of gap id, driven by demandCloseRefused, was counted as
-// refused by the live-answer demand — and, where reading is set, as the close of a gap carrying a
-// reading.
-func (r *runner) demandRefused(closer, id string, reading bool) bool {
+// refused by the live-answer demand.
+func (r *runner) demandRefused(closer, id string) bool {
 	r.mu.Lock()
-	closes, readings := r.sourceClosesRefused, r.readingDemandRefused
+	closes := r.sourceClosesRefused
 	r.mu.Unlock()
 	r.demandCloseRefused(closer, id)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.sourceClosesRefused > closes && (r.readingDemandRefused > readings) == reading
+	return r.sourceClosesRefused > closes
 }
 
 // sourceDemandForcedErr is why sourceDemandSeed's run failed its arm, or "" where it drove it or is not
@@ -145,8 +131,8 @@ func (r *runner) sourceDemandForcedErr() string {
 
 // THE FORCED LIVE-ANSWER DEMAND RUN DRIVES BOTH REFUSALS at the citation owner's first sitting, as the
 // sweep's sitting drives it (envelopeFor): the close of a `source` gap nothing answers, then, once blue's
-// citation answers it and the close is admitted, the close of the `source` gap a refuting reading of that
-// citation mints. With the run not forced, none of it is driven and the run owes nothing.
+// citation answers it and the close is admitted, the close of the `source` gap the lens mints about that
+// citation on its refuting reading. With the run not forced, none of it is driven and the run owes nothing.
 func TestTheSourceDemandSeedDrivesBothRefusals(t *testing.T) {
 	stage := func(t *testing.T, force bool) *runner {
 		t.Helper()
@@ -171,10 +157,10 @@ func TestTheSourceDemandSeedDrivesBothRefusals(t *testing.T) {
 		r.mu.Unlock()
 		r.envelopeFor(citationOwner, "")
 		r.mu.Lock()
-		msg, closes, readings := r.sourceDemandForcedErr(), r.sourceClosesRefused, r.readingDemandRefused
+		msg, closes, minted := r.sourceDemandForcedErr(), r.sourceClosesRefused, r.reading.mintsLanded[classContradicts+"/about"]
 		r.mu.Unlock()
-		if msg != "" || closes < 2 || readings < 1 || r.actErr != "" {
-			t.Fatalf("the forced arm reached %q: %d close(s) refused, %d of a gap carrying a reading — want both driven (%s)", msg, closes, readings, r.actErr)
+		if msg != "" || closes < 2 || minted != 1 || r.actErr != "" {
+			t.Fatalf("the forced arm reached %q: %d close(s) refused, %d gap(s) minted about the citation on the reading — want both refusals driven (%s)", msg, closes, minted, r.actErr)
 		}
 		// THE FIRST GAP CLOSED once blue's citation answered it.
 		closed := r.closedGapIDs()

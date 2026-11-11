@@ -166,44 +166,30 @@ func (b readingBoard) sit(seat string) {
 	}
 }
 
-// citeReading is a reading of citation anchor with outcome as; class != "" gives the gap flags.
-func citeReading(anchor, as, class string, extra ...string) []string {
+// citeReading is a reading of citation anchor with outcome as.
+func citeReading(anchor, as string, extra ...string) []string {
 	a := []string{"--anchor", anchor, "--as", as, "--confidence", "high", "--reason", "read at the leaf"}
-	if class != "" {
-		a = append(a, gapFlagArgs(class)...)
-	}
 	return append(a, extra...)
 }
 
-// urlReading is a reading of url, a source the lens found, against quote; class != "" gives the gap flags.
-func urlReading(url, quote, as, class string, extra ...string) []string {
+// urlReading is a reading of url, a source the lens found, against quote.
+func urlReading(url, quote, as string, extra ...string) []string {
 	a := []string{"--url", url, "--title", "Found " + url[len(url)-3:], "--quote", quote, "--as", as, "--confidence", "high", "--reason", "read at the leaf"}
-	if class != "" {
-		a = append(a, gapFlagArgs(class)...)
-	}
 	return append(a, extra...)
 }
 
 // readingJSON is verify's --json result, as a test reads it.
 type readingJSON struct {
+	Event              int64  `json:"event"`
 	Anchor             string `json:"anchor"`
 	URL                string `json:"url"`
 	Outcome            string `json:"outcome"`
 	Claim              string `json:"claim"`
 	SourceCompleteness string `json:"source_completeness"`
-	Gap                *struct {
-		ID         string   `json:"id"`
-		Class      string   `json:"class"`
-		Minted     bool     `json:"minted"`
-		Check      string   `json:"acceptance_check"`
-		VoiceTells []string `json:"voice_tells"`
-	} `json:"gap"`
-	FailedChecks []struct {
-		State      string `json:"state"`
-		Owner      string `json:"owner"`
-		Since      int64  `json:"since"`
-		AnsweredBy string `json:"answered_by"`
-	} `json:"failed_checks"`
+	// Debt is the reading debt this reading raised, worded as the work list words it; Blockers every
+	// PASS blocker standing on the citation read.
+	Debt     string   `json:"debt"`
+	Blockers []string `json:"blockers"`
 }
 
 // verify runs seat's verify with args and returns its human text.
@@ -262,31 +248,11 @@ func storedOf[T proto.Message](t *testing.T, runDir string) []readingEvent {
 	return out
 }
 
-func verifysOf(t *testing.T, runDir string) []*recordpb.Verify {
-	var out []*recordpb.Verify
-	for _, e := range storedOf[*recordpb.Verify](t, runDir) {
-		v, _ := recordpb.BodyAs[*recordpb.Verify](e.Ev)
-		out = append(out, v)
-	}
-	return out
-}
-
 func mintsOf(t *testing.T, runDir string) []*recordpb.Mint {
 	var out []*recordpb.Mint
 	for _, e := range storedOf[*recordpb.Mint](t, runDir) {
 		m, _ := recordpb.BodyAs[*recordpb.Mint](e.Ev)
 		out = append(out, m)
-	}
-	return out
-}
-
-// anchorsOfGap is every stored Anchor whose id is gap.
-func anchorsOfGap(t *testing.T, runDir, gap string) []*recordpb.Anchor {
-	var out []*recordpb.Anchor
-	for _, e := range storedOf[*recordpb.Anchor](t, runDir) {
-		if a, _ := recordpb.BodyAs[*recordpb.Anchor](e.Ev); a.GetId() == gap {
-			out = append(out, a)
-		}
 	}
 	return out
 }
@@ -299,22 +265,6 @@ func mintOf(t *testing.T, runDir, gap string) *recordpb.Mint {
 		}
 	}
 	return nil
-}
-
-// openOf is how many gaps seat minted that its work list shows open.
-func (b readingBoard) openOf(seat string) int {
-	b.t.Helper()
-	w, err := record.WorkOfSeat(runtest.Open(b.t, b.runDir), "lens", seat)
-	if err != nil {
-		b.t.Fatal(err)
-	}
-	n := 0
-	for _, g := range w.Open {
-		if g.MintedBy == seat {
-			n++
-		}
-	}
-	return n
 }
 
 // rdFillers are sentences of a third section a test mints plain gaps on.
@@ -341,16 +291,6 @@ func (b readingBoard) plainMint(seat, quote, class string, extra ...string) (str
 		return "", err
 	}
 	return gapID(out), nil
-}
-
-// fill plain-mints a gap on every one of rdFillers as seat.
-func (b readingBoard) fill(seat string) {
-	b.t.Helper()
-	for _, s := range rdFillers {
-		if _, err := b.plainMint(seat, s, "spec_underspecification"); err != nil {
-			b.t.Fatalf("%s's mint on %q: %v", seat, s, err)
-		}
-	}
 }
 
 // counts is how many Verify, Mint and Anchor events the record holds beyond the fixture's.

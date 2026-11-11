@@ -1,7 +1,6 @@
 package fuzz
 
 import (
-	"maps"
 	"slices"
 	"testing"
 )
@@ -63,48 +62,5 @@ func TestAForcedRunLeavesNoInquiryOpen(t *testing.T) {
 				t.Fatalf("a forced run's proposal recorded %q first, which leaves it open", st)
 			}
 		}
-	}
-}
-
-// TestTheForcedFoundAgainstOwnerReadsNoRepeatCopyUnreachable holds foundAgainstSeed's bound at the two
-// copies of the twice-held sentence: in the forced run, the owed check of either copy and a drawn
-// unreachable reading of one read backing, and every other citation keeps its draw; a drawn run keeps
-// every draw over the copies too, as does the forced run once the owner has made both readings it is
-// held to. An unreachable reading of a copy has blue retire it, after which the chain's reading of the
-// sentence reads nothing for the rest of the run.
-func TestTheForcedFoundAgainstOwnerReadsNoRepeatCopyUnreachable(t *testing.T) {
-	for _, c := range []struct {
-		name         string
-		forced, read bool
-	}{{"forced found-against", true, false}, {"forced found-against, both readings made", true, true}, {"drawn", false, false}} {
-		t.Run(c.name, func(t *testing.T) {
-			r := &runner{rng: newLockedRand(1), forceFoundAgainst: c.forced, repeatedCites: [2]string{"c-1", "c-2"},
-				foundAgainstChained: c.read, foundAgainstRepeatedRead: c.read}
-			for _, anchorID := range []string{"c-1", "c-2", "c-3", ""} {
-				copy := c.forced && !c.read && (anchorID == "c-1" || anchorID == "c-2")
-				owed := map[string]bool{}
-				for range 2000 {
-					owed[r.owedReadingOf(anchorID)] = true
-				}
-				want := map[string]bool{"supports": true}
-				if !copy {
-					want["unreachable"] = true
-				}
-				if !maps.Equal(owed, want) {
-					t.Errorf("%q: owed checks read %v, want %v", anchorID, owed, want)
-				}
-				for _, drawn := range verifyOutcomes {
-					for _, fresh := range []bool{true, false} {
-						want := r.citationReading(drawn, fresh)
-						if copy && drawn == "unreachable" {
-							want = "supports"
-						}
-						if got := r.citationReadingOf(anchorID, drawn, fresh); got != want {
-							t.Errorf("%q: drew %q (fresh %v), read %q, want %q", anchorID, drawn, fresh, got, want)
-						}
-					}
-				}
-			}
-		})
 	}
 }

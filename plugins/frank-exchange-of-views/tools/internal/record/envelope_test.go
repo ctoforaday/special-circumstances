@@ -331,21 +331,21 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 	})
 }
 
-// A CITATION FOUND AGAINST NEVER HOLDS ITS READER'S ENVELOPE. Its reading minted the gap that carries
-// it in the same act; a reading no gap carries — an archived one — owes nothing the reader can mint,
-// since what clears the check is blue's edit or retire, or the reader's own later backing reading. Either
-// way the reader's list offers it, and nothing it lists holds the envelope.
-func TestAFoundAgainstCitationNeverHoldsItsReader(t *testing.T) {
-	for name, gap := range map[string]string{"carried by its gap": "G-1", "carried by none": ""} {
+// A READING THAT FINDS AGAINST HOLDS ITS READER'S ENVELOPE UNTIL A GAP OF ITS CLASS STANDS ON THE
+// SUBJECT (readingDebtsOf): with no gap the debt blocks and the envelope is refused naming it; with the
+// reader's gap about the citation on it, nothing of the reading holds the list.
+func TestAReadingDebtHoldsItsReadersEnvelopeUntilItsGap(t *testing.T) {
+	for name, gap := range map[string]string{"with its gap": "G-00000001", "with none": ""} {
 		t.Run(name, func(t *testing.T) {
 			run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().
 				register("red-chair").register(evLens).cite("C-1").foundAgainst(evLens, "C-1", gap).seed()
-			if r := refusalOf(t, run, evLens); r != "" {
-				t.Errorf("the reader's envelope is refused over the citation its reading found against: %q", r)
+			r := refusalOf(t, run, evLens)
+			blocking, _ := itemsOn(t, run, "lens", evLens, "reading of citation C-1")
+			if gap == "" && (r == "" || !strings.Contains(r, "reading of citation C-1") || len(blocking) != 1) {
+				t.Errorf("with no gap: the reader's envelope = %q, blocking %+v — want it refused over the debt", r, blocking)
 			}
-			blocking, open := itemsOn(t, run, "lens", evLens, "C-1")
-			if len(blocking) != 0 || len(open) != 1 {
-				t.Errorf("the reader's list holds C-1 as %d blocking and %d open item(s), want one, not blocking: %+v %+v", len(blocking), len(open), blocking, open)
+			if gap != "" && (r != "" || len(blocking) != 0) {
+				t.Errorf("with its gap: the reader's envelope = %q, blocking %+v — want it admitted", r, blocking)
 			}
 		})
 	}

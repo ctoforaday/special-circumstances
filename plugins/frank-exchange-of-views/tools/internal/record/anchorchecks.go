@@ -1,9 +1,7 @@
 package record
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // THIS ANCHOR'S STANDING CHECK, REOPENED BY AN EDIT — one reader for every check of a sentence.
@@ -18,7 +16,7 @@ import (
 //   - what does the record say of a computation's sentence — sound, unsound, not yet judged? (the
 //     evidence view, the report's computations section, the work list);
 //   - does a reading of a citation find its source against the sentence as it stands? (the
-//     found-against failed check).
+//     reading debt its lens owes a gap for, readingDebtsOf).
 //
 // The re-run's fold was keyed by the computation's SHA, so one lens's `unsound` on one sentence was
 // overwritten by another lens's `sound` on another sentence over the same script. A check is of
@@ -110,9 +108,9 @@ func (s *anchorStanding) standing() []anchorCheck {
 }
 
 // holds reports whether the record says this anchor's sentence stands up: a check of it stands, and
-// every one that stands holds. It is a computation's `sound` and a citation's backing — one reading,
-// so a lens's standing `refutes` keeps a citation found against exactly as its standing `unsound`
-// keeps a computation unsound.
+// every one that stands holds. It is a computation's `sound` and a citation's backing — one reading
+// (the demand's "check again that holds", the evidence view's `holds`); a citation's ledger STATE
+// reads no standing `refutes`, which is its lens's debt, not a state of the anchor.
 func (s *anchorStanding) holds() bool {
 	standing := s.standing()
 	for _, c := range standing {
@@ -129,9 +127,11 @@ func (s *anchorStanding) holds() bool {
 // A CITATION THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25): "the doc is flawed, and red
 // should demand the citation withdrawn or text changed or *something. Blocks lens and pass. Citation
 // checking isn't optional. Ever." So every state but holding and retired holds the PASS: unchecked is
-// the owner lens's to check (the unchecked blocker), and unread, unsound and found against are the
-// failed check (the failed_check blocker): an unread or unsound one its reader or judge carries to
-// blue by a gap about the anchor, a found-against one the gap its reading minted.
+// the owner lens's to check (the unchecked blocker), and unread and unsound are the failed check (the
+// failed_check blocker), which its reader or judge carries to blue by a gap about the anchor. A
+// citation whose standing readings read the work HOLDS whatever they found: a reading that finds
+// against is its lens's debt (readingDebtsOf), and the gap it mints on that reading is what holds the
+// PASS — a gap is the one PASS-holder for a defect (gblock, 2026-11-06).
 type anchorState int
 
 const (
@@ -147,24 +147,7 @@ const (
 	stateUnread
 	// stateUnsound: a computation whose sentence a lens's standing judgement calls unsound.
 	stateUnsound
-	// stateFoundAgainst: a citation a standing reading finds against (FindsAgainst): it read the
-	// work, and the source says otherwise than the sentence, or not at all.
-	stateFoundAgainst
 )
-
-// checkState is the failed-check state word of a state that is a failed check, "" for every other:
-// the word recordsql.EvidenceTables' `failed` column names a kind's finding-against state by.
-func (st anchorState) checkState() CheckState {
-	switch st {
-	case stateUnread:
-		return CheckUnread
-	case stateUnsound:
-		return CheckUnsound
-	case stateFoundAgainst:
-		return CheckFoundAgainst
-	}
-	return ""
-}
 
 // sinceEdit reports whether c is of the sentence the report carries: from a sitting opened after the
 // latest edit that changed it, or any check at all when no edit has.
@@ -188,14 +171,12 @@ func (s *anchorStanding) state() anchorState {
 	case !read:
 		return stateUnread
 	}
-	for _, c := range s.standing() {
-		if c.holds {
-			continue
+	if s.computation {
+		for _, c := range s.standing() {
+			if !c.holds {
+				return stateUnsound
+			}
 		}
-		if s.computation {
-			return stateUnsound
-		}
-		return stateFoundAgainst
 	}
 	return stateHolds
 }
@@ -307,8 +288,7 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 
 // VerifyReads reports whether a verify is a reading of the sentence against its source: an outcome
 // that read it, of a copy that is the work. `refutes` and `absent` are readings: the sentence as it
-// now stands was read, and one that finds against it is a found-against failed check, carried by
-// the gap the reading minted.
+// now stands was read, and one that finds against it is its lens's debt until a gap stands on it.
 // `unreachable` is not — nothing was verified — and neither is the zero, which no verb writes. Nor is
 // any outcome of a copy the tool stamped not_the_work (a sign-in page, a sales page): what was read
 // there is not the cited work, whatever the seat says it found in it.
@@ -319,42 +299,6 @@ func VerifyReads(v *recordpb.Verify) bool {
 		v.GetSourceCompleteness() != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK
 }
 
-// CitationsFoundAgainst is each citation red finds against NOW, in the order the record placed
-// them: a check of the sentence as the report carries it stands (anchorStanding.stands) and does
-// not hold — a standing `refutes` or `absent`. win supplies each event's events.id and sitting.
-//
-// IT IS THE STANDING, NOT THE HISTORY. A reading of a sentence an edit has since replaced is not a
-// finding against the sentence the report carries, and a retired anchor is no longer cited; both
-// are answered by the ledger, which is the one fold of a check's standing. The question is keyed by
-// the citation's anchor, never its url: two citations of one url back two sentences, and one of
-// them refuted says nothing of the other.
-func CitationsFoundAgainst(evs []*Event, win WindowIndex) []string {
-	var out []string
-	for _, s := range anchorChecksOf(evs, win).order {
-		if s.state() == stateFoundAgainst {
-			out = append(out, s.anchor)
-		}
-	}
-	return out
-}
-
-// FailingAnchors is each live evidence anchor a check finds against NOW, in the order the record
-// placed them: its ledger state is its kind's row's `failed` word (recordsql.EvidenceTables) — a
-// citation found against, a computation judged unsound. The two states stay two; "this check fails"
-// is the one predicate, read through the row, so a kind added to the table is screened with no
-// change here. A retired anchor is in no document and is never listed. win supplies each event's
-// events.id and sitting.
-func FailingAnchors(evs []*Event, win WindowIndex) []string {
-	var out []string
-	for _, s := range anchorChecksOf(evs, win).order {
-		row, ok := recordsql.EvidenceTableOf(anchor.Kind(s.anchor))
-		if ok && row.Failed != "" && string(s.state().checkState()) == row.Failed {
-			out = append(out, s.anchor)
-		}
-	}
-	return out
-}
-
 // StandingCheck is one check that stands (anchorStanding.stands), as a reader outside the ledger
 // holds it.
 type StandingCheck struct {
@@ -363,8 +307,8 @@ type StandingCheck struct {
 	Anchor string
 	Event  int64
 	Seat   string
-	// Holds is whether the check backs its sentence; one that stands and does not hold is its kind's
-	// failed check (recordsql.EvidenceTables' `failed`).
+	// Holds is whether the check backs its sentence; a standing judgement that does not hold is the
+	// computation's unsound failed check, a standing reading that does not hold its lens's debt.
 	Holds bool
 	// Sentence is the sentence the check recorded it judged; "" for a migrated reproduce, which
 	// recorded none.

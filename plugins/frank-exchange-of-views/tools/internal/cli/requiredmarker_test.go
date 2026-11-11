@@ -115,8 +115,8 @@ func requiredProbes() map[string]requiredProbe {
 		// requires are in the set and each omission is refused naming its flag. The backing path, which
 		// refuses them, is driven by TestABackingReadingWithGapFlagsIsRefused.
 		args: func(v actVars) []string {
-			return append([]string{"verify", "--anchor", v["anchor"],
-				"--as", "refutes", "--confidence", "high", "--reason", "r"}, gapFlagArgs("claim_contradicts_source")...)
+			return []string{"verify", "--anchor", v["anchor"],
+				"--as", "refutes", "--confidence", "high", "--reason", "r"}
 		}}
 	probes["blue edit"] = requiredProbe{seat: "blue-respond", args: fixed("edit",
 		"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r")}

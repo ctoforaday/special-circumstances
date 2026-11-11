@@ -259,7 +259,7 @@ var runConfigPath = filepath.Join("inputs", "run-config.json")
 // verbatim would refuse the migrated run's every read of its configuration. A set: why each key went
 // is said here, beside it, and the manifest records no per-key outcome for a channel file.
 var runConfigDrops = map[string]struct{}{
-	// A SOURCE BEFORE EPOCH 72 MAY STATE `mintBudget`, the per-lens mint cap, which went at epoch 72:
+	// A SOURCE BEFORE EPOCH 73 MAY STATE `mintBudget`, the per-lens mint cap, which went at epoch 73:
 	// lens retirement and the epoch limit bound a run.
 	"mintBudget": {},
 }

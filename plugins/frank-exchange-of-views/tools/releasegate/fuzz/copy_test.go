@@ -61,7 +61,7 @@ func (r *runner) citationCopy(anchor string) (word, copyURL string, ok bool) {
 	if !bok {
 		return "", "", false
 	}
-	for _, s := range record.EvidenceJSONOf(b.Events, b.At).Sources {
+	for _, s := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Sources {
 		if s.Anchor == anchor {
 			return s.CopySubstitution, s.CopyURL, true
 		}

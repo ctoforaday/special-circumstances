@@ -159,9 +159,8 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   A cite or a computation moves no report head, so dispatch readies the owner for the anchor itself, once
   per cause — the act that placed it, or the edit that reopened it: a citation blue places after its
   owner has sat is not left for a head move that may never come.
-- **A failed check holds the PASS, in one of three states.** A `failed_check` PASS blocker, which
-  no bench ruling clears, is a citation `unread`, a computation `unsound`, or a citation
-  `found_against`.
+- **A failed check holds the PASS, in one of two states.** A `failed_check` PASS blocker, which
+  no bench ruling clears, is a citation `unread` or a computation `unsound`.
   - *Unread*: a `verify` `unreachable`, or any outcome on a copy stamped `not_the_work`, reads
     nothing. The first lens whose reading read nothing since the sentence last changed owes a gap
     about the anchor (`--about-kind anchor`). It clears when any lens's
@@ -171,21 +170,30 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   - *Unsound*: a computation judged unsound owes its judging lens's gap the same way, and clears
     when that lens's own later judgement calls it sound, an edit changes the sentence, or blue
     retires the computation.
-  - *Found against*: a `verify --anchor` that reads the work and finds the source against the
-    sentence (`refutes`, `absent`) mints its gap in the same act, at the end of the sentence the
-    citation's token sits in, with the mint's judgement flags and its `--reason` as the gap's
-    argument. It clears when the same lens's later reading of the sentence
-    as it stands backs it, an edit changes the sentence, or blue retires the citation; another
-    lens's backing reading is a disagreement and clears nothing.
 
-  In every state the seat's close of the gap that carries the check is refused while the check
-  stands; a closing ruling of the bench closes
-  the gap, and the check still holds the PASS. Whatever cleared the check, a gap whose check kind is
-  `source` or `computation` closes — under every disposition, a close naming a successor included —
-  only on a live answer of its kind placed as its answer, once the anchor it is about or whose
-  reading it carries is retired, or once the seat whose check it carries checks that anchor again
-  after the mint and the check holds. A lens's mint superseding such a gap while nothing answers it
-  carries the same check kind, and the demand moves to the successor.
+  In either state the seat's close of the gap that carries the check is refused while the check
+  stands; a closing ruling of the bench closes the gap, and the check still holds the PASS. Whatever
+  cleared the check, a gap whose check kind is `source` or `computation` closes — under every
+  disposition, a close naming a successor included — only on a live answer of its kind placed as its
+  answer, once the anchor it is about is retired, or once the seat whose check it carries checks that
+  anchor again after the mint and the check holds. A lens's mint superseding such a gap while nothing
+  answers it carries the same check kind, and the demand moves to the successor.
+- **A reading that finds the source against its sentence is its lens's debt.** A `verify --anchor`
+  that reads the work and finds the cited source against the sentence (`refutes`, `absent`), or a
+  `verify --url` that reads the work and `refutes` the sentence it quotes, records the reading and
+  nothing else: a `reading_debt` PASS blocker stands on the chair's list with the lens named, the
+  lens's envelope is refused while it stands, and the lens clears it by minting the gap on that
+  reading — `claim_contradicts_source` or `citation_figure_misattribution` `--about-kind anchor` for
+  a cited source (the subject the reading is keyed on), `claim_contradicts_source --quote` for a
+  found source — or by reading the subject again and finding it backed. The mint is refused where
+  the lens holds no standing reading of the subject that says what the class states: its latest
+  reading of the citation since the sentence last changed, or the latest source it read against the
+  sentence as it now stands. From the mint on, the gap's grade alone holds the PASS, and the gap takes
+  no mint while open. Blue's edit of the cited sentence or retire of the citation discharges a debt
+  on a citation; of a sentence a found source was read against, an edit that removes the sentence,
+  or applies red's text verbatim, discharges it, and a reword leaves it standing — the lens reads
+  the sentence as it now stands. An `absent` reading of a found source is a debt only on a sentence
+  no citation or computation marks, where it obliges `unsourced_claim`.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it
@@ -193,8 +201,8 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
 Red fetches the cited url, a cache hit on blue's exact bytes, and records a reading with
 `lens verify`: `--anchor` for a check of blue's citation, or `--url` with `--title` and `--quote`
 for a source red found itself, read against the report's sentence. The outcome vocabulary has a
-negative half — a reading of the work that finds the source against the sentence mints its gap in
-the same act, and a reading that reads nothing mints none.
+negative half — `refutes`, `absent` — and a reading records what the source did and nothing else:
+the gap red mints on it is the finding, and until red mints it the reading is red's debt.
 
 - **`absent` is refused** on a copy recorded as abstract or not the work: an abstract's silence is
   not the work's.
@@ -207,15 +215,18 @@ the same act, and a reading that reads nothing mints none.
   `not_cached`: red read it outside the tool, or the cache is gone. The verb prints a copy that is
   not the url's own, and `show evidence` carries it on each verification row.
 - **A source red found places no citation.** A `--url` reading of the work that backs a sentence
-  no citation or computation marks mints an `unsourced_claim` gap; one that refutes the sentence
-  mints `claim_contradicts_source`; an `absent` mints nothing. The source reaches the report only by
-  blue's cite, which a lens then reads; its reading names the gap it carries (`carried_by`) in
-  `show evidence`, and `docket.md` names the source beside the gap.
+  no citation or computation marks, or says nothing of it, grounds an `unsourced_claim` gap red
+  mints quoting the sentence; one that refutes the sentence grounds a `claim_contradicts_source`
+  gap, red's debt until it is minted. The source reaches the report only by blue's cite, which a
+  lens then reads; `docket.md`'s `read for the sentence` line names the source under the gap, and
+  under `show evidence`'s `independent` the row whose seat and claim are the gap's minter and
+  sentence is that reading.
 
 The **evidence view** (`show evidence`) is red's lookup table. It lists each anchor with the
-source's url, hash, title and quoted sentence, the stamped facts, and red's readings, each naming
-the gap that carries it, plus red's readings of sources it found and the citations and computations
-with no check of the sentence the report carries.
+source's url, hash, title and quoted sentence, the stamped facts, and red's readings, plus red's
+readings of sources it found and the citations and computations with no check of the sentence the
+report carries. Each source and computation row is located by its token as a quote gap is:
+`location_state` is `marked` with the live sentence, `gone` with the stored text, or `unrendered`.
 
 ## 4. Assembly — what the reader sees
 

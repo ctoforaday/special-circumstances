@@ -199,8 +199,8 @@ func TestAVerifyOfASourceTheCacheNoLongerHoldsIsNotCached(t *testing.T) {
 func TestAFoundSourceReadingRecordsTheCopyItsReadingWasMadeAgainst(t *testing.T) {
 	read := func(t *testing.T, runDir string) string {
 		t.Helper()
-		out, err := run(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
-			"--quote", fermatClaim, "--as", "supports", "--confidence", "high", "--reason", "read at the leaf"}, gapFlagArgs("unsourced_claim")...)...)
+		out, err := run(t, "verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
+			"--quote", fermatClaim, "--as", "supports", "--confidence", "high", "--reason", "read at the leaf")
 		if err != nil {
 			t.Fatalf("verify --url: %v\n%s", err, out)
 		}

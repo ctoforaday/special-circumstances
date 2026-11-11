@@ -45,20 +45,12 @@ func TestEveryDemandCarrierRendersTheDemandClause(t *testing.T) {
 		}
 		placeAnswer(t, runDir, "computation", rdFree1, "", g)
 	}
-	// readingGap is lensL's refuting reading of the board's first citation, minting its gap under check.
+	// readingGap is lensL's refuting reading of the board's first citation and the gap it mints about
+	// the citation on it, under check.
 	readingGap := func(t *testing.T, b readingBoard, check string) string {
 		t.Helper()
-		args := citeReading(b.c1, "refutes", "claim_contradicts_source")
-		for i, a := range args {
-			if a == "--check-kind" {
-				args[i+1] = check
-			}
-		}
-		r := b.mustRead(lensL, args...)
-		if r.Gap == nil || r.Gap.ID == "" {
-			t.Fatalf("the refuting reading minted no gap: %+v", r)
-		}
-		return r.Gap.ID
+		b.mustRead(lensL, citeReading(b.c1, "refutes")...)
+		return demandGap(t, b.runDir, "reading", check, "--about-kind", "anchor", "--about", b.c1)
 	}
 	// unsoundComputation is a computation on rdFree2 that lensL judges unsound.
 	unsoundComputation := func(t *testing.T, b readingBoard) string {
@@ -81,15 +73,15 @@ func TestEveryDemandCarrierRendersTheDemandClause(t *testing.T) {
 			g := demandGap(t, b.runDir, "about", check, "--about-kind", "anchor", "--about", b.c1)
 			holds(t, "the close refusal of a "+check+" gap about an anchor", refusal(t, "about "+check, lensClose(t, b.runDir, lensL, g, "repaired")))
 		})
-		t.Run("requireEvidenceAnswered through close, gap carrying a reading, "+check, func(t *testing.T) {
+		t.Run("requireEvidenceAnswered through close, gap on a reading, "+check, func(t *testing.T) {
 			b := readingRun(t)
 			g := readingGap(t, b, check)
-			holds(t, "the close refusal of a "+check+" gap carrying a reading", refusal(t, "reading "+check, lensClose(t, b.runDir, lensL, g, "repaired")))
+			holds(t, "the close refusal of a "+check+" gap on a reading", refusal(t, "reading "+check, lensClose(t, b.runDir, lensL, g, "repaired")))
 		})
 
 		t.Run("requireFailedCheckAnswered through close, unread, "+check, func(t *testing.T) {
 			b := readingRun(t)
-			b.mustRead(lensL, citeReading(b.c1, "unreachable", "")...)
+			b.mustRead(lensL, citeReading(b.c1, "unreachable")...)
 			g := demandGap(t, b.runDir, "unread", check, "--about-kind", "anchor", "--about", b.c1)
 			answer(t, b.runDir, check, g)
 			msg := refusal(t, "unread "+check, lensClose(t, b.runDir, lensL, g, "repaired"))
@@ -108,16 +100,6 @@ func TestEveryDemandCarrierRendersTheDemandClause(t *testing.T) {
 				t.Fatalf("the close was refused, but not by the unsound check:\n%s", msg)
 			}
 			holds(t, "the unsound failed-check close refusal of a "+check+" gap", msg)
-		})
-		t.Run("requireFailedCheckAnswered through close, found_against, "+check, func(t *testing.T) {
-			b := readingRun(t)
-			g := readingGap(t, b, check)
-			answer(t, b.runDir, check, g)
-			msg := refusal(t, "found_against "+check, lensClose(t, b.runDir, lensL, g, "repaired"))
-			if !strings.Contains(msg, "finds the source against") {
-				t.Fatalf("the close was refused, but not by the found-against check:\n%s", msg)
-			}
-			holds(t, "the found-against failed-check close refusal of a "+check+" gap", msg)
 		})
 
 		t.Run("blue's sitting debt line through show work, "+check, func(t *testing.T) {

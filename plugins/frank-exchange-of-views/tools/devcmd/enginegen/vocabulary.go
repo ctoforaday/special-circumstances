@@ -46,6 +46,10 @@ type vocabulary struct {
 	// and benchHearings the occasions the engine hears, in order (record.BenchHearings).
 	read          []record.PlanField
 	benchHearings []string
+
+	// standing is record.StandingClauses: the kinds a run's termination reason names, each with its
+	// clause, rendered as STANDING_CLAUSES for the engine's reason to fold as the record's does.
+	standing []record.StandingClause
 }
 
 func vocabularyFromTheRecord() (vocabulary, error) {
@@ -57,6 +61,7 @@ func vocabularyFromTheRecord() (vocabulary, error) {
 		lens:          record.LensEnvelopeFields(),
 		read:          record.RecordReadFields(),
 		benchHearings: record.BenchHearings(),
+		standing:      record.StandingClauses(),
 	}
 	var err error
 	if v.outcomes, err = eventEnum("outcome", "verdict"); err != nil {
@@ -113,6 +118,20 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 	// A GAP ID IS ANCHOR'S SHAPE, generated from its one matcher, so an envelope that relays gap ids
 	// refuses prose where an id belongs instead of the engine finding no row for it.
 	fmt.Fprintf(&b, "const GAP_ID = %s\n", object(prop{"type", js("string")}, prop{"pattern", text("^" + anchor.IDPattern("gap") + "$")}))
+	// THE KINDS THE TERMINATION REASON NAMES ARE THE RECORD'S TABLE (record.StandingClauses), each a
+	// kind the plan's blockers carry: a clause naming a kind the record never produces would name
+	// nothing on every run.
+	if len(v.standing) == 0 {
+		return nil, fmt.Errorf("the record names no blocker kind a termination reason states")
+	}
+	var clauses []string
+	for _, c := range v.standing {
+		if !slices.Contains(record.BlockerKinds(), c.Kind) {
+			return nil, fmt.Errorf("the termination reason names %q, which is no blocker kind of the record", c.Kind)
+		}
+		clauses = append(clauses, object(prop{"kind", js(string(c.Kind))}, prop{"clause", js(c.Clause)}))
+	}
+	fmt.Fprintf(&b, "const STANDING_CLAUSES = [%s]\n", strings.Join(clauses, ", "))
 
 	if err := v.renderPlan(&b); err != nil {
 		return nil, err

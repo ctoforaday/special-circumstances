@@ -173,8 +173,8 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 			if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
 				t.Fatal(err)
 			}
-			_, err := run(t, append([]string{"verify", "--run", runDir, "--seat-id", "red-lens-evidence", "--url", "https://m/2", "--title", "M",
-				"--quote", "Method", "--as", "supports", "--confidence", "high", "--reason", "r"}, gapFlagArgs("unsourced_claim")...)...)
+			_, err := run(t, "verify", "--run", runDir, "--seat-id", "red-lens-evidence", "--url", "https://m/2", "--title", "M",
+				"--quote", "Method", "--as", "supports", "--confidence", "high", "--reason", "r")
 			return err
 		}},
 	} {

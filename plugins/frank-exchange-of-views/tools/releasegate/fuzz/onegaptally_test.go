@@ -50,7 +50,7 @@ func TestTheOneGapTallyAdmitsASuccessorOverItsAncestor(t *testing.T) {
 		t.Fatalf("of %s and %s, %v stand open, want the successor alone: its mint closed the ancestor", ancestor, successor, open)
 	}
 	res := outcome{seed: 99}
-	readingTally(&res, b, r.run())
+	gapTally(&res, b, r.run())
 	if res.maxOpenPerClassSentence != 1 || res.oneGapBreach != "" {
 		t.Errorf("the tally read %d open gaps of %s in one sentence (%q) — a successor over its ancestor is one", res.maxOpenPerClassSentence, class, res.oneGapBreach)
 	}

@@ -656,7 +656,7 @@ func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards .
 // appendOwn writes bodies, in order, in one transaction of its own, the guards asked with the first:
 // each body is one appendAct over the same transaction. It returns the first body's event.
 func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
-	evs, err := appendBodies(id, bodies, guards, nil)
+	evs, err := appendBodies(id, bodies, guards)
 	if len(evs) == 0 {
 		return nil, err
 	}
@@ -664,11 +664,8 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 }
 
 // appendBodies is appendOwn returning every event it wrote, in order; on a refusal, the events
-// written before it (rolled back) and the refused body's. act is the reading's act (readingAct) when
-// these bodies are one, nil otherwise: where the one-gap rule finds the reading's sentence already
-// held by an open gap of its class, the Mint and the Anchor are dropped and the reading is written
-// alone, naming that gap — decided here, under the write lock, never before it.
-func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *readingAct) ([]*Event, error) {
+// written before it (rolled back) and the refused body's.
+func appendBodies(id Identity, bodies []proto.Message, guards []Guard) ([]*Event, error) {
 	var tx *recordsql.Tx
 	defer func() {
 		if tx != nil {
@@ -693,17 +690,7 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard, act *read
 		if i > 0 {
 			g = nil
 		}
-		ev, err := appendAct(id, body, begin, g, liveWrite, act)
-		if err != nil && i == 0 && act != nil && act.held != "" {
-			// THE READING'S SENTENCE IS HELD: its Mint was refused by the one-gap rule inside this
-			// transaction, nothing of it written, and the reading lands alone carrying the held gap.
-			act.verify.CarriedBy, act.verify.CarrierMinted = proto.String(act.held), proto.Bool(false)
-			ev, err = appendAct(id, act.verify, begin, nil, liveWrite, act)
-			if err != nil {
-				return []*Event{ev}, err
-			}
-			return []*Event{ev}, tx.Commit()
-		}
+		ev, err := appendAct(id, body, begin, g, liveWrite)
 		out = append(out, ev)
 		if err != nil {
 			return out, err
@@ -732,9 +719,7 @@ var liveWrite = writeMode{stamp: stamp, judge: true}
 //
 // begin is called only once the checks before it have passed, so a refused act opens nothing, and
 // a write that names no run is refused by name before any handle is asked for.
-//
-// act is the reading's act this body is a member of (readingAct), nil for every other write.
-func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, mode writeMode, act *readingAct) (*Event, error) {
+func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, mode writeMode) (*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -764,7 +749,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, err
 	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
 		return ev, err
 	}
-	if err := guardsAt(writeView{q: tx, files: files, act: act}, guards, false); err != nil {
+	if err := guardsAt(writeView{q: tx, files: files}, guards, false); err != nil {
 		return ev, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
@@ -772,7 +757,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, err
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
 	if err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
-		w := writeView{q: tx, files: files, act: act}
+		w := writeView{q: tx, files: files}
 		if err := validate(w, seatID, typ, body); err != nil {
 			return err
 		}
@@ -1707,15 +1692,12 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		// A RETRY IS REFUSED FIRST, then a repeat: a lens re-recording a reading of this sitting is
-		// told of the stored one; a lens re-recording its own standing reading of an earlier sitting
-		// is told of the gap that carries it, whatever carrier fields its write named.
-		if err := requireNotARetriedReading(q, seatID, b); err != nil {
+		// told of the stored one; a lens re-recording a check that read nothing of an unread citation
+		// whose gap of its stands is told of that gap.
+		if err := requireNotARetriedReading(w, seatID, b); err != nil {
 			return err
 		}
 		if err := requireNotARepeatReading(q, seatID, b); err != nil {
-			return err
-		}
-		if err := requireReadingCarrier(w, b); err != nil {
 			return err
 		}
 	}

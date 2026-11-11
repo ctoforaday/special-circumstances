@@ -59,6 +59,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [reopened](#reopened) | lens, chair, blue, lane, operator |
 | [unchecked](#unchecked) | lens, chair, blue, lane, operator |
 | [failed check](#failed-check) | lens, chair, blue, lane, bench, operator |
+| [reading debt](#reading-debt) | lens, chair, blue, lane, bench, operator |
 | [superseded](#superseded) | lens, chair, blue, bench, operator |
 
 ## the report
@@ -468,7 +469,7 @@ A lens's current item is the one entry of its queue it is handed in full — an 
 
 ## reading
 
-A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and one that reads the work and finds the source against the sentence mints the gap that carries it in the same act or names the open gap of that class the sentence already holds, and one of a source the lens found that backs an uncited sentence mints the gap that asks blue to cite it, except an `absent` on a source the lens found, which mints nothing.
+A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the finding — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -636,7 +637,13 @@ A citation or computation is unchecked when no check of the sentence the report 
 
 ## failed check
 
-A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, every reading of the citation since its sentence last changed read nothing of the cited work, or a lens's standing reading found the cited source against the sentence and, in the same act, minted the gap that carries it or named the open gap that already does — which holds the PASS and is cleared by no bench ruling; an unread or unsound check obliges the seat whose check failed to mint a gap about the anchor; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation or a found-against citation by the checking lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about or whose reading it carries and the later check of that anchor by the seat whose check the gap carries that holds.
+A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work — which holds the PASS and is cleared by no bench ruling; it obliges the seat whose check failed to mint a gap about the anchor; a seat's close of the gap that carries a failed check is refused while the check stands, and a closing ruling of the bench closes that gap while the check still holds the PASS; and the check clears when an edit changes its sentence, when blue retires the anchor, or when the anchor is checked and holds — for a computation by the judging lens's own later check, since another lens's check beside it is a disagreement, and for an unread citation by any lens's reading of the work; and the check clearing admits the close of a gap whose check kind is source or computation only under its live-answer demand, which a live answer of that kind placed as its answer meets, as do the retire of the anchor the gap is about and the later check of that anchor by the seat whose check the gap carries that holds.
+
+**Delivered to:** lens, chair, blue, lane, bench, operator
+
+## reading debt
+
+A reading debt is a lens's standing reading that finds a source against its sentence — a citation's source that refutes the sentence or says nothing of it, or a source the lens found that refutes the sentence it was read against — with no gap of its class on the subject: the lens's unfinished promise, a PASS blocker on the chair's list with the lens named, which the lens clears by minting that gap on the reading or by reading the subject again, and which blue's edit of the cited sentence, retire of the citation, or removal of the sentence a found source was read against discharges; from the mint on the gap's grade alone holds the PASS.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 

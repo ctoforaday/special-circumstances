@@ -948,7 +948,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000003"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
 		},
 	}
-	got := boardSection(board.famT(t))
+	got := boardSection(record.Run{}, board.famT(t))
 	if !strings.Contains(got, "Lens findings no gap was minted from (1)") {
 		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
 	}
@@ -1006,7 +1006,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			}),
 		},
 	}
-	got := boardSection(board.famT(t))
+	got := boardSection(record.Run{}, board.famT(t))
 	if !strings.Contains(got, "what red actually observed at the leaf") {
 		t.Errorf("the minted finding's own words are absent — the gap cites F-f0000001 and nothing defines it:\n%s", got)
 	}
@@ -1040,7 +1040,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 		},
 		Events: board.Events,
 	}
-	if got := boardSection(closedBoard.famT(t)); !strings.Contains(got, "what red actually observed at the leaf") {
+	if got := boardSection(record.Run{}, closedBoard.famT(t)); !strings.Contains(got, "what red actually observed at the leaf") {
 		t.Errorf("a CLOSED gap dropped the evidence it was minted from, and nothing else renders it:\n%s", got)
 	}
 }
@@ -1103,7 +1103,7 @@ func TestTheOpenGapRowNamesItsClassWord(t *testing.T) {
 		"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum(),
 			Problem: proto.String("a universal claim a case contradicts")}},
 	}}
-	got := boardSection(board.fam())
+	got := boardSection(record.Run{}, board.fam())
 	if !strings.Contains(got, "class false_universal") || strings.Contains(got, "class —") {
 		t.Errorf("the open gap's row must carry `class false_universal`:\n%s", got)
 	}

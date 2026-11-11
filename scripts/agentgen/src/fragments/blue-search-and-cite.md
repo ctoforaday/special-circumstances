@@ -27,27 +27,30 @@
   for a computation. A check by any lens from a sitting opened after the edit clears it, and a PASS
   waits until one does.
 - **A CHECK THAT FAILED HOLDS THE PASS, AND THE ANCHOR IS YOURS TO FIX OR RETIRE.** While a lens's
-  judgement that a computation does not establish its sentence stands, while no reading of a citation
-  has read the work it cites, or while a lens's reading finds a citation's source against its
-  sentence, no PASS can be recorded, and you are readied for it — no bench ruling clears it. Fix a
+  judgement that a computation does not establish its sentence stands, or while no reading of a
+  citation has read the work it cites, no PASS can be recorded, and you are readied for it — no
+  bench ruling clears it. Fix a
   computation with an edit that makes the sentence say what the program shows, which reopens it for a
   fresh judgement, or by retiring the old computation as the answer to the gap and computing again on
   the kept sentence as that gap's answer, or retire the claim. Fix a citation no reading could read by
   citing a source a lens can read and retiring the dead citation, or by retiring the citation and
-  letting the sentence stand on what else backs it, or by editing the sentence. Fix a citation found
-  against by editing its sentence to say what the source says, or by retiring or replacing the
-  citation. The gap that carries the check states the defect and its fix.
+  letting the sentence stand on what else backs it, or by editing the sentence. The gap that carries
+  the check states the defect and its fix. A source a lens read against a sentence and found to say otherwise than
+  it — your citation's, or one the lens found — is the lens's debt until it mints the gap on that
+  reading, which is the gap you answer: about the citation, or quoting the sentence; the debt readies
+  the lens, never you.
 - **A GAP THAT ASKS FOR A SOURCE OR A PROGRAM CLOSES ONLY ON A LIVE ANSWER OF ITS KIND.** A gap whose
   check kind is `source` or `computation` is closed by its lens only once a citation or computation of
   that kind, placed as that gap's answer, is still in the report; or once you retire the anchor the
-  gap is about, or whose reading it carries; or once the lens whose check the gap carries checks that
-  anchor again and the check holds. Prose never meets it, and neither does a check clearing: an edit
+  gap is about; or once the lens whose check the gap carries checks that anchor again and the check
+  holds. Prose never meets it, and neither does a check clearing: an edit
   that fixes the sentence leaves the gap owed until one of those stands.
-- **A GAP A LENS'S OWN SOURCE CARRIES IS ANSWERED WITH A CITATION.** A source a lens found and read
-  against a sentence places no citation: where it backs a sentence the report cites nothing for, its
-  gap asks you to cite a source for that sentence, and where it refutes the sentence, its gap says the
-  source states otherwise. The evidence on the record names the source the lens read for the gap;
-  answer by citing a source on the sentence as that gap's answer, and a lens reads your citation.
+- **A GAP A LENS MINTS ON A SOURCE IT FOUND IS ANSWERED WITH A CITATION.** A source a lens found and
+  read against a sentence places no citation, and names no gap: where it backs a sentence the report
+  cites nothing for, the gap the lens mints on that reading asks you to cite a source for that
+  sentence, and where it refutes the sentence, the gap says the source states otherwise. The docket's
+  line under the gap names the source the lens read for the sentence; answer by citing a source on
+  the sentence as that gap's answer, and a lens reads your citation.
   Where the source refutes the sentence, edit the sentence to say what the source says, then cite on
   the edited sentence as that gap's answer: an edit alone leaves the gap unanswered, and its lens
   cannot close it until the citation placed as its answer stands.

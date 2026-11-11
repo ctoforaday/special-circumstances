@@ -144,7 +144,7 @@ func gapMarkers() []gapMarker {
 		// Placing an anchor answers the gap it names, and is the anchor every reaching gap's check reads.
 		m = append(m, gapMarker{t.Table, `SELECT NEW."answers" WHERE NEW."answers" IS NOT NULL
       UNION ` + reachingSQL(`NEW."`+t.IDColumn+`"`)})
-		// A check of an anchor meets or unmeets the demand of every gap reaching it, the reading's carrier among them.
+		// A check of an anchor meets or unmeets the demand of every gap reaching it.
 		m = append(m, gapMarker{t.CheckTable, reachingSQL(`NEW."` + t.CheckIDColumn + `"`)})
 	}
 	return m
@@ -256,8 +256,8 @@ WITH "d" AS MATERIALIZED (
 "met" AS MATERIALIZED (
   -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause):
   --   1. a live evidence anchor of the gap's check kind was placed as its answer;
-  --   2. an anchor the demand reaches is retired: one the gap is about or carries a reading of, or
-  --      one an ancestor it carries the demand from reaches, retired since the heir's mint;
+  --   2. an anchor the demand reaches is retired: the one the gap is about, or one an ancestor it
+  --      carries the demand from reaches, retired since the heir's mint;
   --   3. for a live anchor the demand reaches, that row's seat's latest check of the gap's kind that
   --      read it is at or after the gap's mint and holds. Another seat's check meets nothing.
   SELECT "gap_id" FROM "answered" WHERE "live" > 0

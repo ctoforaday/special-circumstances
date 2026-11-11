@@ -111,16 +111,10 @@ var enforcedElsewhere = map[string]string{
 	// pflag.Value, so a bad grade is refused BEFORE the payload is built, and both the
 	// help and the refusal are generated from recordpb.GradeWords(). A second enforcement in
 	// the table would be the two-readers-of-one-rule mistake required.go warns about.
-	"mint --severity":   gradeParseTime,
-	"verify --severity": gradeParseTime,
-	// A READING'S GAP FLAGS. `verify` writes a Verify, and the Mint its reading mints carries the gap
-	// flags' values: no EnumFields row keyed "verify" declares them, because a Verify holds no such
-	// field.
-	"verify --class":      "the reading's Mint's class, parsed by enumhelp.Flag over record.ReadingClassField; a Verify has no class field",
-	"verify --check-kind": "the reading's Mint's check kind, parsed by enumhelp.Flag over record.MustEnum(\"mint\", \"check_kind\"); a Verify has no check_kind field",
-	"finding --severity":  gradeParseTime,
-	"regrade --severity":  gradeParseTime,
-	"motion --proposed":   gradeParseTime,
+	"mint --severity":    gradeParseTime,
+	"finding --severity": gradeParseTime,
+	"regrade --severity": gradeParseTime,
+	"motion --proposed":  gradeParseTime,
 
 	// The two filing sets, keyed on (SUBJECT, key) exactly as the verdicts are: one `motion` event
 	// carries a grade `dimension` or a petition `class` depending on what it is about, and

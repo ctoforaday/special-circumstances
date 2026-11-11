@@ -25,10 +25,6 @@
       SCAN events USING COVERING INDEX events_sitting
   SCAN board_counts
 
-== view carrying_reading
-  SEARCH v USING INDEX verify_carried_by (carried_by>?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-
 == view change
   CO-ROUTINE x
     COMPOUND QUERY
@@ -88,19 +84,10 @@
   SCAN convergence_at
 
 == view demand_reach
-  CO-ROUTINE demand_reach
-    COMPOUND QUERY
-      LEFT-MOST SUBQUERY
-        SEARCH a USING INDEX mint_about (about_kind=?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-        SEARCH l USING COVERING INDEX demand_lineage_from (from_gap=?)
-        SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-      UNION ALL
-        SEARCH v USING INDEX verify_carried_by (carried_by>?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-        SEARCH l USING COVERING INDEX demand_lineage_from (from_gap=?)
-        SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SCAN demand_reach
+  SEARCH a USING INDEX mint_about (about_kind=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH l USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
 
 == view evidence_anchor
   COMPOUND QUERY
@@ -201,19 +188,11 @@
         MERGE (UNION ALL)
           LEFT
             MATERIALIZE reach
-              COMPOUND QUERY
-                LEFT-MOST SUBQUERY
-                  SCAN d
-                  SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-                  SEARCH l USING PRIMARY KEY (gap_id=?)
-                  SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-                UNION ALL
-                  SCAN d
-                  SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-                  SEARCH l USING PRIMARY KEY (gap_id=?)
-                  SEARCH v USING INDEX verify_carried_by (carried_by=?)
-                  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SCAN d
+              SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+              SEARCH l USING PRIMARY KEY (gap_id=?)
+              SEARCH a USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
             SEARCH x USING COVERING INDEX cite_label (label>?)
             BLOOM FILTER ON r (anchor=?)
             SEARCH r USING AUTOMATIC COVERING INDEX (anchor=?)
@@ -470,6 +449,14 @@
 
 == stmt cbc039c4501a
 -- INSERT INTO "blue_edit" ("event_id", "old", "new", "text") VALUES (?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 7f5ab19c2ac2
+-- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "applied_verbatim") VALUES (?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt d83c26fd5f6c
+-- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "exact_span") VALUES (?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 5496d2cf1194
@@ -789,7 +776,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -806,7 +792,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -823,7 +808,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -840,7 +824,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -857,7 +840,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -874,7 +856,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -891,7 +872,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -908,7 +888,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -925,7 +904,22 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
+  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
+  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SCAN motion_rule_position_gap_ids
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
+  SCAN motion_grade
+
+== stmt adb6edc10b80
+-- INSERT INTO "mint" ("event_id", "gap_id", "class", "location", "problem", "fix_new", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -942,7 +936,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -959,7 +952,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -976,7 +968,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -993,7 +984,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1010,7 +1000,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1027,7 +1016,22 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
+  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
+  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SCAN motion_rule_position_gap_ids
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
+  SCAN motion_grade
+
+== stmt 3abbc6722d49
+-- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "about_kind", "about_ref", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN stale
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1044,7 +1048,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1061,7 +1064,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1078,7 +1080,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1095,7 +1096,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1112,7 +1112,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1129,7 +1128,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1146,7 +1144,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1163,7 +1160,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1180,7 +1176,6 @@
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
   SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
   SCAN stale
-  SEARCH verify USING COVERING INDEX verify_carried_by (carried_by=?)
   SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
   SCAN closing
   SCAN close
@@ -1609,20 +1604,8 @@
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 846a8baf812f
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "carried_by") VALUES (?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt c3725ae3a915
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt 3cd94978f40a
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 284ecbd23d18
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt affcff7bbbd6
@@ -1645,16 +1628,8 @@
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 1bf53d649130
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt f119c74a2aaf
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt e414243f64dc
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt c32821ea6e5e
@@ -1681,10 +1656,6 @@
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt c0ce8c641796
--- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt 811bfdb8419e
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "anchor", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1693,20 +1664,16 @@
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 7b20f8198a93
--- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "bridge", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 836b13ba47ce
+-- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt d632037fc5ac
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt fb535608e683
--- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "copy_substitution", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 773f9e090053
--- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url", "carried_by", "carrier_minted") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 6fa06a046f11
+-- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 2461111cc4e9
@@ -1787,21 +1754,12 @@
   SCAN seat_metrics
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt 7fa385b231e1
--- SELECT "anchor", "seat", "from_gap", "via" = 'about' FROM "demand_reach" WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id", "via", "reached"
-  CO-ROUTINE demand_reach
-    COMPOUND QUERY
-      LEFT-MOST SUBQUERY
-        SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-        SEARCH a USING INDEX mint_about (about_kind=? AND about_ref>?)
-        SEARCH l USING PRIMARY KEY (gap_id=? AND from_gap=?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      UNION ALL
-        SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-        SEARCH l USING PRIMARY KEY (gap_id=?)
-        SEARCH v USING INDEX verify_carried_by (carried_by=?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  SCAN demand_reach
+== stmt bf6217e98619
+-- SELECT "anchor", "seat", "from_gap" FROM "demand_reach" WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id", "reached"
+  SEARCH h USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+  SEARCH a USING INDEX mint_about (about_kind=? AND about_ref>?)
+  SEARCH l USING PRIMARY KEY (gap_id=? AND from_gap=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
 == stmt 8dba93e02a86
@@ -1908,31 +1866,22 @@
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 82cc4d12574a
--- SELECT "gap_id" FROM "gap" WHERE "open"
-  SCAN s USING INDEX gap_state_open
+== stmt 3dfa77959b1f
+-- SELECT "gap_id" FROM "gap" WHERE "minted_by" = ? AND "class" = ?
+  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
+  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 3ffe1b1290cb
 -- SELECT "gap_id" FROM "mint"
   SCAN mint USING COVERING INDEX sqlite_autoindex_mint_1
 
-== stmt 8f3a18ff0c4b
--- SELECT "gap_id", "anchor", "reached", "via" = 'reading', "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id"
-  CO-ROUTINE demand_reach
-    COMPOUND QUERY
-      LEFT-MOST SUBQUERY
-        SEARCH a USING INDEX mint_about (about_kind=? AND about_ref>?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-        SEARCH l USING COVERING INDEX demand_lineage_from (from_gap=?)
-        SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-      UNION ALL
-        SEARCH v USING INDEX verify_carried_by (carried_by>?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-        SEARCH l USING COVERING INDEX demand_lineage_from (from_gap=?)
-        SEARCH h USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SCAN demand_reach
+== stmt 48c975ca52c2
+-- SELECT "gap_id", "anchor", "reached", "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id"
+  SEARCH a USING INDEX mint_about (about_kind=? AND about_ref>?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH l USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH h USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
   USE TEMP B-TREE FOR ORDER BY
 
 == stmt 3230a8fd0efc
@@ -1982,19 +1931,16 @@
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt c80eb1aa2f4b
--- SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", '') FROM "gap" WHERE "open" AND "class" = ? AND "about_kind" = ? AND "about_ref" = ? ORDER BY "minted_seq"
-  SEARCH m USING INDEX mint_about (about_kind=? AND about_ref=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  USE TEMP B-TREE FOR ORDER BY
-
-== stmt e418d8bdc023
--- SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", '') FROM "gap" WHERE "open" AND "class" = ? AND COALESCE("location", '') <> '' ORDER BY "minted_seq"
+== stmt 0cd405f346b6
+-- SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", ''), COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '') FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"
   SCAN m
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
+
+== stmt 11d9c6cf1af4
+-- SELECT "id" FROM "events" WHERE "key" = ?
+  SEARCH events USING COVERING INDEX events_key (key=?)
 
 == stmt 81ccbd9a5d0d
 -- SELECT "id", "type" FROM "events" WHERE "seat_id" = ? AND "sitting_id" = ? AND "id" > ? ORDER BY "id" LIMIT 1
@@ -2203,12 +2149,6 @@
         UNION ALL
           SEARCH x USING COVERING INDEX computation_id (computation_id=?)
 
-== stmt e232412c2186
--- SELECT COALESCE("class", ''), "open" FROM "gap" WHERE "gap_id" = ?
-  SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-
 == stmt 5092371cdcdd
 -- SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?
   SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
@@ -2310,10 +2250,6 @@
         UNION ALL
           SCAN ra USING COVERING INDEX retire_anchors_value
     SCAN report_op
-
-== stmt dce7e8f4b4bd
--- SELECT MAX("id") FROM "events"
-  SEARCH events
 
 == stmt 85c0a2e22afc
 -- SELECT a."event_id" FROM "envelope_admitted" a WHERE a."agent_id" = ? AND a."event_id" > COALESCE((SELECT MAX(o."event_id") FROM "sitting_open" o WHERE o."agent_id" = ?), 0) LIMIT 1
@@ -2440,8 +2376,8 @@
   SEARCH e USING INDEX events_sitting (sitting_id=?)
   SEARCH c USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt ff3f532ecb85
--- SELECT e."id", COALESCE(v."claim", ''), COALESCE(v."outcome", ''), COALESCE(v."carried_by", '') FROM "verify" v JOIN "events" e ON e."id" = v."event_id" WHERE e."seat_id" = ?1 AND COALESCE(v."anchor", '') = '' AND COALESCE(v."url", '') = ?2 AND e."sitting_id" IS ?3 ORDER BY e."id"
+== stmt 003df71d24fd
+-- SELECT e."id", COALESCE(v."claim", ''), COALESCE(v."outcome", '') FROM "verify" v JOIN "events" e ON e."id" = v."event_id" WHERE e."seat_id" = ?1 AND COALESCE(v."anchor", '') = '' AND COALESCE(v."url", '') = ?2 AND e."sitting_id" IS ?3 ORDER BY e."id"
   SEARCH e USING INDEX events_sitting (sitting_id=?)
   SEARCH v USING INTEGER PRIMARY KEY (rowid=?)
 
@@ -2716,8 +2652,8 @@
 -- SELECT t."event_id", t."claim", t."reason", t."superseded_by", t."removal_basis", t."claim_kept", t."answers" FROM "retire" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 1d033afa08c5
--- SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url", t."carried_by", t."carrier_minted" FROM "verify" t WHERE t."event_id" > ?
+== stmt 544c7c0fe7d5
+-- SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url" FROM "verify" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 375b76fe5f12

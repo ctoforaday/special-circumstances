@@ -29,26 +29,25 @@ func (b *stage) supports(seat, anchor string) *stage {
 	return b.verify(seat, anchor, recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)
 }
 
-// foundAgainst is lens's `refutes` reading of citation anchorID and, with gap named, the gap its act
-// mints: the Mint (claim_contradicts_source, on ingestCited's sentence), the Anchor placing its
-// marker at the end of the sentence anchorID's token sits in, and the Verify carried_by it. gap ""
-// is a reading no gap carries, as an archived one is.
+// foundAgainst is lens's `refutes` reading of citation anchorID and, with gap named, the
+// claim_contradicts_source gap the lens mints ABOUT the citation on that reading (readingGap). gap ""
+// is a reading no gap answers: the lens's reading debt.
 func (b *stage) foundAgainst(lens, anchorID, gap string) *stage {
 	v := &recordpb.Verify{Anchor: proto.String(anchorID), Claim: proto.String("the claim " + anchorID + " backs"),
 		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("the source says otherwise")}
+	b.add(lens, v)
 	if gap != "" {
-		b.add(lens, readingGap(gap))
-		b.add(lens, &recordpb.Anchor{Id: proto.String(gap), SentenceOf: proto.String(anchorID)})
-		v.CarriedBy, v.CarrierMinted = proto.String(gap), proto.Bool(true)
+		b.add(lens, readingGap(gap, anchorID))
 	}
-	return b.add(lens, v)
+	return b
 }
 
-// readingGap is the Mint of a reading's gap on ingestCited's sentence.
-func readingGap(gap string) *recordpb.Mint {
+// readingGap is the Mint of a claim_contradicts_source gap about citation anchorID, the gap a lens
+// mints on its refuting reading of it.
+func readingGap(gap, anchorID string) *recordpb.Mint {
 	return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE.Enum(),
-		Location: proto.String("The claim stands before."), Problem: proto.String("the source says otherwise"),
+		AboutKind: recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), AboutRef: proto.String(anchorID), Problem: proto.String("the source says otherwise"),
 		AcceptanceCheck: proto.String("the sentence says what the source says"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Severity: recordpb.Grade_GRADE_HIGH.Enum(), Likelihood: recordpb.Grade_GRADE_HIGH.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}
 }
@@ -293,9 +292,6 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 		}
 		if read := !states[CheckUnread]; read != want {
 			t.Errorf("a later sitting's verify %s reads the source = %v, want %v", o, read, want)
-		}
-		if against := FindsAgainst(&recordpb.Verify{Outcome: &o}); states[CheckFoundAgainst] != against {
-			t.Errorf("a later sitting's verify %s leaves C-1 found against = %v, want %v", o, states[CheckFoundAgainst], against)
 		}
 	}
 	// A READING OF A COPY THE TOOL STAMPED not_the_work reads nothing, whatever it found there.
@@ -570,6 +566,13 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 		reopen("C-1").register("red-chair")
 	if got := why(withReopened, "2"); got != term+"; unchecked: C-1"+coverage {
 		t.Errorf("reason = %q, want the term's reason naming C-1 and not the material gap", got)
+	}
+	// T26: a standing reading debt names its subject under its own clause (StandingClauses), and
+	// nothing else.
+	withDebt := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").cite("C-1").foundAgainst(evLens, "C-1", "").register("red-chair")
+	if got := why(withDebt, "2"); got != term+"; on a reading debt: C-1"+coverage {
+		t.Errorf("reason = %q, want the term's reason naming the reading debt on C-1 and not the material gap", got)
 	}
 }
 

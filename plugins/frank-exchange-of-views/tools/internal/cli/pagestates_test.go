@@ -125,7 +125,7 @@ func TestTheEvidencePageSaysWhereAComputationsVerdictLives(t *testing.T) {
 		}
 	}
 	// AND THE PATHS IT NAMES ARE THE SHAPE'S, read off the field tree the same page generates.
-	for _, shape := range []string{"computations:[{anchor,sha256,argv:[string],basis,cites,drift,invariant,seat_id,epoch,bundle_bases:[string],rerun,soundness,verified,checks:[{rerun,ran,soundness,standing,", "counts:{sources,computations,computations_unverified,"} {
+	for _, shape := range []string{"computations:[{anchor,sha256,argv:[string],basis,cites,drift,invariant,location,location_state,seat_id,epoch,bundle_bases:[string],rerun,soundness,verified,checks:[{rerun,ran,soundness,standing,", "counts:{sources,computations,computations_unverified,"} {
 		if !strings.Contains(page, shape) {
 			t.Errorf("the page names a path its own field tree does not hold (%q)", shape)
 		}

@@ -397,3 +397,25 @@ func latestSittingAt(q recordsql.Querier, seatID string) (open sql.NullInt64, ra
 	}
 	return open, rank, nil
 }
+
+// EventID is the events.id of e, an event a write returned, read by the key the write stamped on it
+// (envelope; the key is unique across the record). A verb that names its own act by event — a
+// reading's result, whose debt and blockers the record keys by events.id — asks it after the write.
+func EventID(run Run, e *Event) (int64, error) {
+	if e.GetKey() == "" {
+		return 0, fmt.Errorf("this %s event carries no key, so its events.id cannot be read back", e.GetType())
+	}
+	db, err := openRunForRead(run)
+	if err != nil {
+		return 0, err
+	}
+	var id int64
+	found, err := queryRowAt(db, []any{&id}, `SELECT "id" FROM "events" WHERE "key" = ?`, e.GetKey())
+	if err != nil {
+		return 0, err
+	}
+	if !found {
+		return 0, fmt.Errorf("no event on the record carries key %q, so the %s event's id cannot be read back", e.GetKey(), e.GetType())
+	}
+	return id, nil
+}

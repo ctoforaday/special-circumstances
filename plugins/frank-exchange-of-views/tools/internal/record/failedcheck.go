@@ -1,19 +1,17 @@
 package record
 
 import (
-	"slices"
-	"strings"
-
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// A FAILED CHECK IS A PASS BLOCKER. Three states of the anchor ledger (anchorchecks.go) are a check
-// that was made and failed: a computation whose sentence a lens's standing judgement calls unsound, a
-// citation whose every check since its sentence last changed read nothing — its source was
-// unreachable, or the copy read was not the work — and a citation a lens's standing reading finds
-// against: it read the work and the source says otherwise than the sentence, or not at all.
+// A FAILED CHECK IS A PASS BLOCKER. Two states of the anchor ledger (anchorchecks.go) are a check
+// that was made and failed: a computation whose sentence a lens's standing judgement calls unsound, and
+// a citation whose every check since its sentence last changed read nothing — its source was
+// unreachable, or the copy read was not the work. A citation a lens's reading finds against is no
+// state of the ledger: the reading is its lens's debt (readingDebtsOf) until the gap it mints on it
+// stands, and the gap's materiality then holds the PASS (gblock, 2026-11-06, #1727).
 //
 // THE COMPUTATION RULING (gblock, 2026-10-24): "The judging lens is readied to mint its gap, and blue to
 // fix or retire the proof. It clears when the proof is re-run sound or retired." universe-m32 ended
@@ -36,25 +34,13 @@ import (
 // anchor it carries. No bench ruling clears it either: the record's state of the anchor is not a
 // dispute.
 //
-// A FOUND-AGAINST CHECK OWES NOTHING OF ITS READER (gblock, 2026-10-30, F4 and F8). Its gap is
-// minted in the reading's own act and named by the reading's `carried_by` (AppendReading), followed
-// through its successors; one standing reading is one check, so an anchor read against by two lenses
-// holds two. It readies blue alone. It clears by the ledger's rule — its reader's own later reading
-// of the sentence as it stands that backs it, blue's edit of the sentence, or blue's retire of the
-// citation; another lens's backing reading beside it is a disagreement and clears nothing. The close
-// of a gap that carries it is refused while it stands; a closing ruling of the bench closes that gap
-// and the check still holds the PASS. Where no gap carries it — a migrated archived reading — nothing
-// is owed either.
-
 // CheckState is which failed check a failed_check blocker is: a citation whose source no check read,
-// a computation a standing judgement calls unsound, or a citation a standing reading finds against.
-// Owed-ness and every printed sentence key on it, never on whether a gap carries the check.
+// or a computation a standing judgement calls unsound. Every printed sentence keys on it.
 type CheckState string
 
 const (
-	CheckUnread       CheckState = "unread"
-	CheckUnsound      CheckState = "unsound"
-	CheckFoundAgainst CheckState = "found_against"
+	CheckUnread  CheckState = "unread"
+	CheckUnsound CheckState = "unsound"
 )
 
 // failedCheck is one standing failed check of one anchor.
@@ -66,56 +52,36 @@ type failedCheck struct {
 	// state is which failed check this is.
 	state CheckState
 	// owner is the seat whose check failed — a computation's judge, a citation's first reader since the
-	// edit, the reader of a found-against reading — and since that check's events.id.
+	// edit — and since that check's events.id.
 	owner string
 	since int64
-	// outcome is a found-against reading's outcome; UNSPECIFIED for the other states.
-	outcome recordpb.SourceOutcome
-	// answeredBy is the one gap that carries the check, "" while none does; answeredAt is that gap's
-	// mint's events.id. For unread and unsound it is the first gap owner minted about this anchor from
-	// the check's sitting on; for found_against, the OPEN gap of answers minted last, else the gap of
-	// answers minted last.
+	// answeredBy is the one gap that carries the check, "" while none does — the first gap owner
+	// minted about this anchor from the check's sitting on; answeredAt is that gap's mint's events.id.
 	answeredBy string
 	answeredAt int64
-	// answers is every gap that carries the check: for unread and unsound, every gap owner minted
-	// about this anchor from the check's sitting on, in record order; for found_against, the reading's
-	// carried_by and every gap on its successor tree (carrierTree).
+	// answers is every gap that carries the check: every gap owner minted about this anchor from the
+	// check's sitting on, in record order.
 	answers []string
 }
 
+// owed reports whether the check's own seat owes a gap for it: a check no gap carries.
+func (f failedCheck) owed() bool { return f.answeredBy == "" }
+
 // failedChecksOf is every standing failed check on the record, in the order the record placed the
 // anchors and, within an anchor, its standing failing checks. win supplies each event's events.id and
-// sitting; open is the gap view's open set, read in the same snapshot as evs — a closing ruling of
-// the bench closes a gap and writes no Close, so open-ness is never read off Close events.
-func failedChecksOf(evs []*Event, win WindowIndex, open map[string]bool) []failedCheck {
+// sitting.
+func failedChecksOf(evs []*Event, win WindowIndex) []failedCheck {
 	type aboutMint struct {
 		gap, seat string
 		at        int64
 	}
 	mints := map[string][]aboutMint{}
-	mintAt := map[string]int64{}
 	for _, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
-			mintAt[m.GetGapId()] = win.Of(e).ID
-			if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
-				mints[m.GetAboutRef()] = append(mints[m.GetAboutRef()], aboutMint{gap: m.GetGapId(), seat: e.GetSeatId(), at: win.Of(e).ID})
-			}
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
+			mints[m.GetAboutRef()] = append(mints[m.GetAboutRef()], aboutMint{gap: m.GetGapId(), seat: e.GetSeatId(), at: win.Of(e).ID})
 		}
 	}
-	var succ map[string][]string
 	var out []failedCheck
-	addFoundAgainst := func(s *anchorStanding, c anchorCheck) {
-		v, _ := recordpb.BodyAs[*recordpb.Verify](c.ev)
-		f := failedCheck{anchor: s.anchor, state: CheckFoundAgainst, owner: c.seat, since: c.id, outcome: v.GetOutcome()}
-		if g := v.GetCarriedBy(); g != "" {
-			if succ == nil {
-				succ = successorsOf(evs)
-			}
-			f.answers, f.answeredBy = carrierTree(g, succ, mintAt, open)
-			f.answeredAt = mintAt[f.answeredBy]
-		}
-		out = append(out, f)
-	}
 	add := func(s *anchorStanding, c anchorCheck) {
 		f := failedCheck{anchor: s.anchor, computation: s.computation, sha: s.sha, state: CheckUnread, owner: c.seat, since: c.id}
 		if s.computation {
@@ -153,83 +119,32 @@ func failedChecksOf(evs []*Event, win WindowIndex, open map[string]bool) []faile
 					break
 				}
 			}
-		case stateFoundAgainst:
-			for _, c := range s.standing() {
-				if !c.holds {
-					addFoundAgainst(s, c)
-				}
-			}
 		}
 	}
 	return out
 }
 
-// carrierTree is the gaps that carry a reading whose carried_by is g: g and every gap on its
-// successor tree — each gap's close's successor and every gap whose mint supersedes it
-// (successorsOf), transitively, each visited once — and the one that names the check: the OPEN gap of
-// them minted last, else the gap of them minted last. A carrier closed into a successor hands the
-// check to it, so no successor closes out from under a reading that stands.
-func carrierTree(g string, succ map[string][]string, mintAt map[string]int64, open map[string]bool) (answers []string, by string) {
-	seen := map[string]bool{g: true}
-	answers = []string{g}
-	for i := 0; i < len(answers); i++ {
-		for _, s := range succ[answers[i]] {
-			if !seen[s] {
-				seen[s] = true
-				answers = append(answers, s)
-			}
-		}
-	}
-	last := func(only bool) string {
-		pick := ""
-		for _, a := range answers {
-			if only && !open[a] {
-				continue
-			}
-			if pick == "" || mintAt[a] > mintAt[pick] {
-				pick = a
-			}
-		}
-		return pick
-	}
-	if by = last(true); by == "" {
-		by = last(false)
-	}
-	return answers, by
-}
-
-// openGapIDsAt is the gap view's open set, asked of q.
-func openGapIDsAt(q recordsql.Querier) (map[string]bool, error) {
-	out := map[string]bool{}
-	if noRecord(q) {
-		return out, nil
-	}
-	rows, err := q.Query(`SELECT "gap_id" FROM "gap" WHERE "open"`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var g string
-		if err := rows.Scan(&g); err != nil {
-			return nil, err
-		}
-		out[g] = true
-	}
-	return out, rows.Err()
-}
-
-// failedChecksAt is failedChecksOf asked of q: the stream and the gap view's open set on one snapshot.
+// failedChecksAt is failedChecksOf asked of q.
 func failedChecksAt(q recordsql.Querier) ([]failedCheck, error) {
 	evs, win, err := eventsAt(q)
 	if err != nil {
 		return nil, err
 	}
-	open, err := openGapIDsAt(q)
-	if err != nil {
-		return nil, err
+	return failedChecksOf(evs, win), nil
+}
+
+// answersOwnFailedCheck is the anchor a mint by seatID about kind/ref answers: seatID's own standing
+// unread or unsound check of that anchor, which no gap answers yet. "" where it answers none.
+func answersOwnFailedCheck(fs []failedCheck, seatID string, kind recordpb.AboutKind, ref string) string {
+	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
+		return ""
 	}
-	return failedChecksOf(evs, win, open), nil
+	for _, f := range fs {
+		if f.anchor == ref && f.owner == seatID && f.owed() {
+			return f.anchor
+		}
+	}
+	return ""
 }
 
 // A REPEAT FAILED CHECK IS REFUSED (gblock, 2026-10-24, for the computation): a lens whose failed check of
@@ -252,7 +167,7 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 		return feov.Wrap(feov.Conflict, err, "the record's checks could not be read, so whether %s already stands as a failed check by %s cannot be told: %v", anchor, seatID, err)
 	}
 	for _, f := range fs {
-		if f.anchor != anchor || f.owner != seatID || f.state == CheckFoundAgainst {
+		if f.anchor != anchor || f.owner != seatID {
 			continue
 		}
 		for _, g := range f.answers {
@@ -281,80 +196,14 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 	return nil
 }
 
-// requireNotARepeatReading refuses a reading that repeats one of the seat's own: over a citation, a
-// reading that reads nothing meets the unread arm (requireNotARepeatFailedCheck); a reading that
-// mints (ReadingGapClasses non-empty) by the same lens, of the same sentence from the same source —
-// the anchor for `verify --anchor`, the url and claim for `verify --url` — with the same outcome as
-// an earlier such reading of its own, the sentence unchanged, while a gap of that earlier reading's
-// carrier tree is open, is refused, naming the earlier reading's event and its gap. A reading with a
-// different outcome is not a repeat. Within one sitting requireNotARetriedReading answers a
-// found-source retry first.
+// requireNotARepeatReading refuses a reading of a citation that reads nothing (an unread check) where
+// the seat's own such check stands with its gap open: the unread arm (requireNotARepeatFailedCheck).
+// A reading that reads the work is recorded: a repeated finds-against reading replaces the seat's
+// standing check, and the same debt stands (readingDebtsOf, one per standing reading per seat).
+// Within one sitting requireNotARetriedReading answers a found-source retry first.
 func requireNotARepeatReading(q recordsql.Querier, seatID string, v *recordpb.Verify) error {
 	if v.GetAnchor() != "" && !VerifyReads(v) {
 		return requireNotARepeatFailedCheck(q, seatID, v.GetAnchor(), true)
-	}
-	if len(ReadingGapClasses(v)) == 0 {
-		return nil
-	}
-	evs, win, err := eventsAt(q)
-	if err == nil {
-		var open map[string]bool
-		if open, err = openGapIDsAt(q); err == nil {
-			return repeatReadingRefusal(evs, win, open, seatID, v)
-		}
-	}
-	return feov.Wrap(feov.Conflict, err, "the record's readings could not be read, so whether %s already stands on this sentence cannot be told: %v", seatID, err)
-}
-
-// repeatReadingRefusal is requireNotARepeatReading's fold, nil where v repeats nothing. Its refusal is
-// worded by form: a reading of a citation finds the source against the sentence; a reading of a
-// source the lens found may back it, so it says only that the gap carries it.
-func repeatReadingRefusal(evs []*Event, win WindowIndex, open map[string]bool, seatID string, v *recordpb.Verify) error {
-	refuse := func(what string, at int64, gap string) error {
-		return feov.Errorf(feov.Conflict,
-			"your reading of %s at event %d finds the source against this sentence (%s), the sentence has not changed, and gap %s carries that reading and is open — nothing is recorded; the reading and its gap stand. "+
-				"A reading of yours with another outcome is recorded",
-			what, at, recordpb.Word(v.GetOutcome()), gap)
-	}
-	refuseFound := func(url string, at int64, gap string) error {
-		return feov.Errorf(feov.Conflict,
-			"your reading of %s for this sentence at event %d (%s) stands, gap %s carries it and is open, and the sentence has not changed — nothing is recorded; the reading and its gap stand. "+
-				"A reading of yours with another outcome is recorded",
-			url, at, recordpb.Word(v.GetOutcome()), gap)
-	}
-	if v.GetAnchor() != "" {
-		for _, f := range failedChecksOf(evs, win, open) {
-			if f.state != CheckFoundAgainst || f.anchor != v.GetAnchor() || f.owner != seatID || f.outcome != v.GetOutcome() {
-				continue
-			}
-			if slices.ContainsFunc(f.answers, func(g string) bool { return open[g] }) {
-				return refuse("citation "+f.anchor, f.since, f.answeredBy)
-			}
-		}
-		return nil
-	}
-	mintAt := map[string]int64{}
-	for _, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
-			mintAt[m.GetGapId()] = win.Of(e).ID
-		}
-	}
-	var succ map[string][]string
-	claim := strings.TrimSpace(v.GetClaim())
-	for _, e := range evs {
-		prev, ok := recordpb.BodyAs[*recordpb.Verify](e)
-		if !ok || e.GetSeatId() != seatID || prev.GetAnchor() != "" || prev.GetCarriedBy() == "" ||
-			strings.TrimSpace(prev.GetClaim()) != claim || prev.GetUrl() != v.GetUrl() ||
-			prev.GetOutcome() != v.GetOutcome() || len(ReadingGapClasses(prev)) == 0 {
-			continue
-		}
-		if succ == nil {
-			succ = successorsOf(evs)
-		}
-		answers, by := carrierTree(prev.GetCarriedBy(), succ, mintAt, open)
-		if slices.ContainsFunc(answers, func(g string) bool { return open[g] }) {
-			return refuseFound(v.GetUrl(), win.Of(e).ID, by)
-		}
 	}
 	return nil
 }
@@ -366,10 +215,9 @@ const demandAfterClear = "The check clearing admits the close only under the gap
 
 // requireFailedCheckAnswered refuses the close of a gap that carries a failed check still standing
 // (failedChecksOf): the gap is the failure's carrier to blue, and a closure — repaired, accepted, not
-// a defect — while the record still holds the anchor unread, unsound or found against would say the
-// defect left the report when it did not. b6's G3 closed repaired over two dead anchors the report
-// still cited. A found-against check's carriers are every gap of its reading's carrier tree, so no
-// branch closes out from under it. A successor minted superseding the gap moves the defect rather
+// a defect — while the record still holds the anchor unread or unsound would say the defect left the
+// report when it did not. b6's G3 closed repaired over two dead anchors the report still cited. A
+// successor minted superseding the gap moves the defect rather
 // than ending it, and closes the gap in that act (supersession.go).
 func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 	if b.CarriedFrom != nil {
@@ -383,12 +231,6 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 		for _, g := range f.answers {
 			if g != b.GetGapId() {
 				continue
-			}
-			if f.state == CheckFoundAgainst {
-				return feov.Errorf(feov.Conflict,
-					"gap %s carries citation %s, which %s's reading at event %d finds the source against, and the report still carries that sentence — the defect has not left the report, so this close is refused. Nothing is recorded. "+
-						"The check clears once %s's own later reading of the sentence as it stands backs it, blue edits the sentence, or blue retires the citation; another lens's backing reading is a disagreement and clears nothing. %s; a gap that carries the defect on is minted with --supersedes naming this one, which closes it, and while nothing answers this one's `source` or `computation` demand the successor carries its check kind and the demand with it, and a retire of the anchor, or its own seat's check of it again that holds, made after the successor's mint, meets the successor's demand",
-					g, f.anchor, ownerOrSeat(f.owner), f.since, ownerOrSeat(f.owner), demandAfterClear)
 			}
 			if f.computation {
 				return feov.Errorf(feov.Conflict,
@@ -405,10 +247,15 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 	return nil
 }
 
-// ownerOrSeat is a failed check's reader, or the fallback where the record names none.
-func ownerOrSeat(owner string) string {
-	if owner == "" {
-		return failedChecker
+// answersOwnFailedCheckAt is the anchor a mint by seatID answers — its own standing failed check of
+// the anchor the mint is about, which no gap answers yet — or "" where it answers none.
+func answersOwnFailedCheckAt(q recordsql.Querier, seatID string, m *recordpb.Mint) (string, error) {
+	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
+		return "", nil
 	}
-	return owner
+	fs, err := failedChecksAt(q)
+	if err != nil {
+		return "", err
+	}
+	return answersOwnFailedCheck(fs, seatID, m.GetAboutKind(), m.GetAboutRef()), nil
 }

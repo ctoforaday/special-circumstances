@@ -363,16 +363,6 @@ LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
 LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
 LEFT JOIN "enum_grade" gs ON gs."value" = g."severity";
 
--- THE READINGS A GAP CARRIES: each verify whose carried_by names the gap, with the anchor it read
--- and the seat that read it. EVERY reader of the reading-to-gap link reads it here and nowhere
--- else (demand_reach, and through it gap_refresh's evidence_answered, among them), so the day the link is stated
--- from the gap's side instead of the reading's this view is the one statement that changes.
-CREATE VIEW "carrying_reading" AS
-SELECT v."carried_by" AS "gap_id", v."anchor" AS "anchor", e."seat_id" AS "seat_id", v."event_id" AS "event_id"
-FROM "verify" v
-JOIN "events" e ON e."id" = v."event_id"
-WHERE v."carried_by" IS NOT NULL;
-
 -- EVERY EVIDENCE ANCHOR ON THE RECORD, ONE ROW EACH: a citation or a computation, the check kind
 -- a live one answers, the gap it was placed as the answer to, the act that placed it and the
 -- retire that took it out (NULL while it stands). One arm per recordsql.EvidenceTables row,
@@ -390,21 +380,24 @@ SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "chec
 FROM "placed" p;
 
 -- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap
--- is about, checked by its minter, and the anchor of each reading it carries, checked by that
--- reading's seat. A retire of one, or that seat's check of it again, meets the demand (gap_refresh's
--- met arms 2 and 3); this is the one statement of the reach, which the close's refusal
--- (record.EvidenceDemandOf) and a retire's reach (record.reachingRetiresOf) read too.
+-- is about, checked by its minter — a cited source's claim_contradicts_source or
+-- citation_figure_misattribution gap is about the citation its minter's reading found against, so the
+-- reader's own backing re-read of it meets the demand here. A retire of one, or that seat's check of
+-- it again, meets the demand (gap_refresh's met arms 2 and 3); this is the one statement of the
+-- reach, which the close's refusal (record.EvidenceDemandOf) and a retire's reach
+-- (record.reachingRetiresOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
+-- by blue's cite placed as its answer alone.
 --
 -- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
 -- ancestor it carries the demand from (demand_lineage, written at the gap's mint). An inherited row is
 -- the successor's from its mint: a retire before it had met the ancestor, which then passed no
 -- demand on, and a check counts for the gap only at or after its mint.
 --
---   from_gap  the gap whose about or reading the row is: gap_id itself, or an ancestor it carries
---             the demand from.
+--   from_gap  the gap whose about the row is: gap_id itself, or an ancestor it carries the demand
+--             from.
 --   minted    gap_id's mint event: a check of the anchor counts for gap_id at or after it.
 --   reached   the event from which the anchor is in gap_id's reach: its own mint for the anchor it
---             is about, the reading's act for a reading it carries, its mint for an inherited row.
+--             is about, its mint for an inherited row.
 CREATE VIEW "demand_reach" AS
 ` + demandReachSQL(`"demand_lineage" l`) + `;
 
@@ -732,24 +725,18 @@ func evidenceAnchorArmsSQL() string {
 	return strings.Join(arms, "\n  UNION ALL\n")
 }
 
-// demandReachSQL is the demand_reach view's two arms over lineage, an SQL FROM term aliasing the
+// demandReachSQL is the demand_reach view's body over lineage, an SQL FROM term aliasing the
 // demand lineage l: the view reads all of demand_lineage, and gap_refresh the lineage of the gaps it
 // refreshes, driven from them (a CROSS JOIN fixes the order: from the anchor's side the planner
 // walks every mint about an anchor).
 func demandReachSQL(lineage string) string {
 	return `SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
-       'about' AS "via", a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+       a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
 FROM ` + lineage + `
 JOIN "mint" h ON h."gap_id" = l."gap_id"
 JOIN "mint" a ON a."gap_id" = l."from_gap"
 JOIN "events" e ON e."id" = a."event_id"
-WHERE a."about_kind" = 'anchor'
-UNION ALL
-SELECT l."gap_id", l."from_gap", h."check_kind", h."event_id",
-       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE h."event_id" END
-FROM ` + lineage + `
-JOIN "mint" h ON h."gap_id" = l."gap_id"
-JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap"`
+WHERE a."about_kind" = 'anchor'`
 }
 
 // evidenceChecksSQL is every EvidenceTables row's check kind, as quoted words, comma-separated: the

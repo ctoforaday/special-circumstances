@@ -258,19 +258,21 @@ test('CEILING: the run at its epoch limit — the stamp says so and names no dea
   assert.ok(!/deadlock/i.test(asm) || /not a judged/i.test(asm), 'deadlock is per gap and on the record, not a run-level stamp')
 })
 
-// A CEILING over an unchecked citation or computation, or one on a failed check, names it in the reason the
-// run ends on, and names no other blocker; with none standing, each reason is the sentence it is
-// without the rule. The record's derived reason carries the same clause (TestACeilingReasonNamesOnlyAStandingReopenedAnchor).
-test('CEILING: the reason names each unchecked citation or computation and each on a failed check, and only those', async () => {
+// A CEILING over a subject that holds the PASS by its own state — an unchecked citation or computation,
+// one on a failed check, a lens's reading debt, an inquiry open or unchecked — names it in the reason
+// the run ends on, one clause per kind of the record's STANDING_CLAUSES in its order, and names no
+// other blocker; with none standing, each reason is the sentence it is without the rule. The record's
+// derived reason carries the same clause (TestACeilingReasonNamesOnlyAStandingReopenedAnchor).
+test('CEILING: the reason names each kind of STANDING_CLAUSES once, in table order, and only those', async () => {
   const ended = async (chair) => {
     const world = makeWorld(makeResponder({ chair }))
     await world.run(script, ARGS)
     return world.logs.find((m) => m.startsWith('debate ended: CEILING')).replace(/^.*? chair sitting\(s\) — /, '')
   }
-  const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('C-706fda63', 'red-lens-evidence', 'unchecked'), blocker('K-cd9f4c5a', 'red-lens-evidence', 'unchecked'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'failed_check'), blocker('C-0b0e0d0a', 'blue-respond', 'failed_check')] }
+  const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('Q-0a1b2c3d', 'blue-respond', 'open_inquiry'), blocker('Q-4e5f6a7b', 'red-lens-logic', 'unchecked_inquiry'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'reading_debt'), blocker('C-706fda63', 'red-lens-evidence', 'unchecked'), blocker('K-cd9f4c5a', 'red-lens-evidence', 'unchecked'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'failed_check'), blocker('C-0b0e0d0a', 'blue-respond', 'failed_check')] }
   const none = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }
   const term = "epoch limit 4 reached — the run's term on chair sittings; the parties the board still readied were not dispatched"
-  const clause = '; unchecked: C-706fda63, K-cd9f4c5a; on a failed check: C-0b0e0d0a'
+  const clause = '; unchecked: C-706fda63, K-cd9f4c5a; on a failed check: C-0b0e0d0a; on a reading debt: C-0b0e0d0a; inquiries open: Q-0a1b2c3d; inquiries unchecked: Q-4e5f6a7b'
   assert.equal(await ended(toTheLimit(limitPlan(none))), term)
   assert.equal(await ended(toTheLimit(limitPlan(standing))), term + clause)
 })

@@ -46,8 +46,8 @@ func (r *demandRecord) demandLineageOf(gap string) string {
 // THE STORED DEMAND LINEAGE IS EACH GAP'S ANCESTORS BY ITS DEMAND, ON THE SHAPES NO ARCHIVED RUN HOLDS.
 // No archived run carries a demand from an ancestor; these fixtures do: a chain of same-kind
 // supersessions, a second mint naming an ancestor already named, a supersession across check kinds, a
-// non-evidence chain, an ancestor listed twice by one mint, a mint naming itself, and a reading
-// carried by an ancestor before and after its heir's mint.
+// non-evidence chain, an ancestor listed twice by one mint, a mint naming itself, and readings of
+// the anchor an ancestor is about before and after its heir's mint.
 func TestTheStoredDemandLineageIsEachGapsAncestry(t *testing.T) {
 	r := newDemandRecord(t)
 	src, comp, doc := recordpb.CheckKind_CHECK_KIND_SOURCE, recordpb.CheckKind_CHECK_KIND_COMPUTATION, recordpb.CheckKind_CHECK_KIND_DOCUMENT
@@ -85,19 +85,19 @@ func TestTheStoredDemandLineageIsEachGapsAncestry(t *testing.T) {
 			t.Errorf("gap %s carries the demand from %q, want %q", gap, got, want)
 		}
 	}
-	// A reading carried by the ancestor reaches the heir from the heir's mint, whether the reading came
-	// before the heir's mint (reader's) or after it (other's).
+	// The anchor the ancestor is about reaches the heir from the heir's mint, checked by the ancestor's
+	// minter; the readings of it, before and after the heir's mint, reach nothing of their own.
 	var n int
 	if err := r.db.QueryRow(`SELECT count(*) FROM "demand_reach" d JOIN "mint" m ON m."gap_id" = d."gap_id"
-	    WHERE d."gap_id" = 'C' AND d."from_gap" = 'A' AND d."via" = 'reading' AND d."reached" = m."event_id"`).Scan(&n); err != nil {
+	    WHERE d."gap_id" = 'C' AND d."from_gap" = 'A' AND d."anchor" = 'C1' AND d."seat" = ? AND d."reached" = m."event_id"`, reader).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if n != 2 {
-		t.Errorf("C reaches %d of A's two carried readings from its own mint, want 2", n)
+	if n != 1 {
+		t.Errorf("C reaches A's anchor %d time(s) from its own mint, want 1", n)
 	}
-	// THE WHOLE REACH: each gap's own about and readings reached at their own acts, and every row it
-	// inherits reached at its own mint ("mint" below); a gap about a section reaches nothing of its own.
-	rows, err := r.db.Query(`SELECT d."gap_id" || ' ' || d."from_gap" || ' ' || d."via" || ' ' || d."anchor" || ' ' || d."seat" || ' ' ||
+	// THE WHOLE REACH: each gap's own about reached at its mint, and every row it inherits reached at
+	// its own mint ("mint" below); a gap about a section reaches nothing of its own.
+	rows, err := r.db.Query(`SELECT d."gap_id" || ' ' || d."from_gap" || ' ' || d."anchor" || ' ' || d."seat" || ' ' ||
 	    CASE WHEN d."reached" = d."minted" THEN 'mint' ELSE (SELECT e."type" FROM "events" e WHERE e."id" = d."reached") END
 	  FROM "demand_reach" d ORDER BY 1`)
 	if err != nil {
@@ -113,17 +113,11 @@ func TestTheStoredDemandLineageIsEachGapsAncestry(t *testing.T) {
 		reach = append(reach, row)
 	}
 	want := []string{
-		"A A about C1 " + reader + " mint",
-		"A A reading C1 " + reader + " verify",
-		"A A reading C1 " + other + " verify",
-		"B A about C1 " + reader + " mint",
-		"B A reading C1 " + reader + " mint",
-		"B A reading C1 " + other + " mint",
-		"C A about C1 " + reader + " mint",
-		"C A reading C1 " + reader + " mint",
-		"C A reading C1 " + other + " mint",
-		"K K about K1 " + reader + " mint",
-		"L K about K1 " + reader + " mint",
+		"A A C1 " + reader + " mint",
+		"B A C1 " + reader + " mint",
+		"C A C1 " + reader + " mint",
+		"K K K1 " + reader + " mint",
+		"L K K1 " + reader + " mint",
 	}
 	if got, w := strings.Join(reach, "\n"), strings.Join(want, "\n"); got != w {
 		t.Errorf("demand_reach holds\n%s\nwant\n%s", got, w)

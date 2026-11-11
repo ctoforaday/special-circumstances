@@ -14,8 +14,8 @@ import (
 // EvidenceDemand is a gap's live-answer demand as the close verb states it: the anchor kind owed
 // (the EvidenceTables row whose check is the gap's check kind; "" for a gap no row answers, which
 // owes no demand), whether the gap view's evidence_answered holds, and the evidence anchors the
-// demand reaches (the demand_reach view) — whose retire, or whose check again by the seat whose
-// check it is, would meet it.
+// demand reaches (the demand_reach view) — the anchor the gap, or an ancestor it carries the demand
+// from, is about — whose retire, or whose check again by the minter, would meet it.
 type EvidenceDemand struct {
 	CheckKind, AnswerKind string
 	// AnswerNoun and AnswerVerb are the owed kind's row's noun and placing verb.
@@ -29,11 +29,9 @@ type EvidenceDemand struct {
 }
 
 // Reach is one evidence anchor a gap's demand reaches: the anchor From is about, checked by its
-// minter Seat, or the anchor of a reading From carries, read by Seat. From is the gap itself, or an
-// ancestor it carries the demand from.
+// minter Seat. From is the gap itself, or an ancestor it carries the demand from.
 type Reach struct {
 	Anchor, Seat, From string
-	About              bool
 }
 
 // Unmet reports whether the demand is owed and nothing meets it.
@@ -80,19 +78,19 @@ func evidenceDemandAt(q recordsql.Querier, gapID string) (EvidenceDemand, error)
 	if !d.Unmet() {
 		return d, nil
 	}
-	rows, err := q.Query(`SELECT "anchor", "seat", "from_gap", "via" = 'about' FROM "demand_reach"
-		 WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id", "via", "reached"`, gapID)
+	rows, err := q.Query(`SELECT "anchor", "seat", "from_gap" FROM "demand_reach"
+		 WHERE "gap_id" = ? AND "anchor" IS NOT NULL ORDER BY "from_gap" <> "gap_id", "reached"`, gapID)
 	if err != nil {
 		return EvidenceDemand{}, fmt.Errorf("asking the record: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var r Reach
-		if err := rows.Scan(&r.Anchor, &r.Seat, &r.From, &r.About); err != nil {
+		if err := rows.Scan(&r.Anchor, &r.Seat, &r.From); err != nil {
 			return EvidenceDemand{}, fmt.Errorf("asking the record: %w", err)
 		}
 		// A gap about an anchor of a kind that backs nothing reaches no evidence anchor.
-		if r.About && !anchor.Backs(r.Anchor) {
+		if !anchor.Backs(r.Anchor) {
 			continue
 		}
 		d.Reach = append(d.Reach, r)
@@ -123,16 +121,9 @@ func DemandRefusal(gapID string, d EvidenceDemand) error {
 	ways := []string{fmt.Sprintf("blue's `%s --answers %s`, a %s placed on the sentence as its answer (after a reword, on the reworded sentence)", d.AnswerVerb, gapID, d.AnswerNoun)}
 	var retire, again []string
 	for _, r := range d.Reach {
-		var whose string
-		switch {
-		case r.About && r.From == gapID:
-			whose = fmt.Sprintf("the %s it is about", anchor.Kind(r.Anchor))
-		case r.About:
+		whose := fmt.Sprintf("the %s it is about", anchor.Kind(r.Anchor))
+		if r.From != gapID {
 			whose = fmt.Sprintf("the %s %s was about, whose demand this gap carries", anchor.Kind(r.Anchor), r.From)
-		case r.From == gapID:
-			whose = fmt.Sprintf("the citation whose reading by %s it carries", r.Seat)
-		default:
-			whose = fmt.Sprintf("the citation whose reading by %s %s carries, whose demand this gap carries", r.Seat, r.From)
 		}
 		retire = appendNew(retire, fmt.Sprintf("blue's `retire --anchor %s`, %s", r.Anchor, whose))
 		// THE CHECK AGAIN, BY ITS OWN SEAT, SINCE THE MINT, of an anchor of the demanded kind: a reading

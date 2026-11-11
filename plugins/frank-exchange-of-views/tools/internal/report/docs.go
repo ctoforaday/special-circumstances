@@ -249,7 +249,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	// backs in the report and every judgement of it; a reference to a computation that is not on the record is still stated (it
 	// is a defect, and a silent drop reads as clean). The live citations follow the computations, each
 	// with every reading of it.
-	ev := record.EvidenceJSONOf(fam.Events, fam.At)
+	ev := record.EvidenceJSONOf(fam.Events, fam.At, blue, nil)
 	var labels []string
 	for _, c := range computations {
 		labels = append(labels, c.Label)

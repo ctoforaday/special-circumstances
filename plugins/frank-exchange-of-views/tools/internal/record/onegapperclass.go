@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -21,13 +20,24 @@ import (
 //   - a quote gap's subject is the sentence its anchor sits in (gapSentenceIn), the sentence the
 //     board shows; the new gap's anchor is placed on the report the mint lands on, and two anchors
 //     in one sentence span are on one sentence whatever span of it each quoted;
-//   - an inquiry gap's subject is the inquiry id it names (about_kind inquiry, about_ref).
+//   - an inquiry gap's subject is the inquiry id it names (about_kind inquiry, about_ref);
+//   - an anchor gap's subject is the anchor it names (about_kind anchor, about_ref), for EVERY class
+//     (ruled by gblock 2026-11-06, F5 (a)) — with one exception, the gap a seat's own owed unread or
+//     unsound check obliges (answersOwnFailedCheckAt): refused here, the lens would owe a gap the
+//     record turns away, and a finding does not answer the check. The exception admits that gap over
+//     any open gap of its class, in either form below.
 //
-// A section, a gap or an anchor named by --about is not such a subject: a section holds many
-// sentences, and a gap about a gap or an anchor is a dispute the record answers in its own terms. The
-// rule does not apply there — so never to the gap a failed check obliges, which is about the anchor
-// and, at the CLI, names no quote: refused here, the lens would owe a gap the record turns away, and a
-// finding does not answer the check.
+// A GAP ABOUT CITATION C AND A GAP QUOTING THE SENTENCE THAT HOLDS C ARE ONE SUBJECT per class (ruled
+// by gblock 2026-11-06/10, F9: "if they were truly different we'd assign a different class"), so the
+// rule has a cross-arm in both directions: a `--quote` mint is refused while an open gap of its class
+// is about a citation whose token its sentence holds, and an `--about-kind anchor` mint is refused
+// while an open quote gap of its class sits in the citation's sentence. Each refusal names the standing
+// gap in the form it has. A sentence holding two citations: a quote gap on it is refused by an open
+// gap about either; a gap about one citation is not refused by an open gap about the other. A
+// computation's token pairs with nothing: a gap about a computation is the computation ruling's.
+//
+// A section or a gap named by --about is not such a subject: a section holds many sentences, and a
+// gap about a gap is a dispute the record answers in its own terms. The rule does not apply there.
 //
 // MEASURED (universe-m35): the parallel first-wave lenses minted five pairs, each pair 25 s to 2 min
 // apart, each second minter having read the board before its sibling minted. Four of the five are
@@ -37,26 +47,26 @@ import (
 // WHAT THE RECORD PROVES IS ANOTHER RELATION IS ADMITTED: a gap the mint names in --supersedes does
 // not block it, since a successor states its ancestor's subject by design.
 //
-// A READING'S MINT IS NOT REFUSED, IT IS HELD (readingAct): where the sentence a reading finds
-// against already holds an open gap of the Mint's class, the rule names that gap to the act (held)
-// and the act writes the reading alone, carrying it. Its Mint is placed by the act's own Anchor —
-// at the end of the sentence another anchor's token sits in, for a sentence_of Anchor — and a
-// placement that fails there is a refusal, never a pass.
-//
 // A closed gap does not block: a defect that recurs after its gap closed is a new gap.
+//
+// ONE QUERY FEEDS EVERY ARM (openGapsOfClassAt): the open gaps of the class with their subject
+// columns, and the arms fold over that one set.
 //
 // AN ACT JUDGEMENT (judgeAct): archived records hold such pairs, and an archived mint is what a seat
 // did.
-func requireOneGapPerClassAndSubject(w writeView, m *recordpb.Mint) error {
-	quote := m.GetLocation()
-	inquiry := ""
-	if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {
+func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Mint) error {
+	quote := strings.TrimSpace(m.GetLocation())
+	inquiry, about := "", ""
+	switch m.GetAboutKind() {
+	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 		inquiry = m.GetAboutRef()
+	case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
+		about = m.GetAboutRef()
 	}
-	if strings.TrimSpace(quote) == "" && inquiry == "" {
+	if quote == "" && inquiry == "" && about == "" {
 		return nil
 	}
-	held, err := openGapsOfClassAt(w.q, m.GetClass(), inquiry)
+	held, err := openGapsOfClassAt(w.q, m.GetClass())
 	if err != nil {
 		return fmt.Errorf("the board's open gaps could not be read, so whether one of class %s already stands on this subject cannot be told: %w", recordpb.Word(m.GetClass()), err)
 	}
@@ -65,68 +75,111 @@ func requireOneGapPerClassAndSubject(w writeView, m *recordpb.Mint) error {
 		return nil
 	}
 	if inquiry != "" {
-		return oneGapRefusal(m, held[0], "inquiry "+inquiry)
-	}
-	report, err := w.report()
-	if err != nil {
-		return fmt.Errorf("the report does not render, so the sentence this gap quotes cannot be found to ask whether an open gap of class %s stands on it: %w", recordpb.Word(m.GetClass()), err)
-	}
-	var placed string
-	if of := pairedSentenceOf(w, m); of != "" {
-		if placed, err = anchortext.AttachToSentenceOf(report, m.GetGapId(), of); err != nil {
-			return fmt.Errorf("gap %s is placed at the end of the sentence %s sits in, and the report this act lands on refuses that placement: %w", m.GetGapId(), anchor.Token(of), err)
+		for _, g := range held {
+			if g.about(recordpb.AboutKind_ABOUT_KIND_INQUIRY, inquiry) {
+				return oneGapRefusal(m, g, "inquiry "+inquiry)
+			}
 		}
-	} else if placed, err = anchortext.Attach(report, m.GetGapId(), quote); err != nil {
-		// A quote the report does not hold once places nothing: the anchor's own placement refuses it,
-		// in its own words, after this check.
+	}
+	// The exception, read once and only where an anchor-side arm finds a gap standing.
+	exempt, asked := false, false
+	obliged := func() (bool, error) {
+		if !asked {
+			own, err := answersOwnFailedCheckAt(w.q, seatID, m)
+			if err != nil {
+				return false, feov.Wrap(feov.Conflict, err, "the record's checks could not be read, so whether this mint answers a failed check %s made cannot be told: %v", seatID, err)
+			}
+			exempt, asked = own != "", true
+		}
+		return exempt, nil
+	}
+	if about != "" {
+		// The anchor arm.
+		for _, g := range held {
+			if !g.about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, about) {
+				continue
+			}
+			if ok, err := obliged(); err != nil || ok {
+				return err
+			}
+			return oneGapRefusal(m, g, EvidenceNoun(about)+" "+about)
+		}
+		// The cross-arm, about over quote: an open quote gap of the class in the citation's sentence.
+		if anchor.Kind(about) == "citation" {
+			report, err := w.report()
+			if err != nil {
+				return fmt.Errorf("the report does not render, so the sentence citation %s sits in cannot be found to ask whether an open gap of class %s quotes it: %w", about, recordpb.Word(m.GetClass()), err)
+			}
+			spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
+			if at, ok := gapSentenceIn(report, spans, bare, about); ok {
+				for _, g := range held {
+					if g.location == "" {
+						continue
+					}
+					if sp, ok := gapSentenceIn(report, spans, bare, g.id); ok && sp == at {
+						if ok, err := obliged(); err != nil || ok {
+							return err
+						}
+						return oneGapRefusal(m, g, "the sentence "+sentenceWords(report, at)+", which holds citation "+about)
+					}
+				}
+			}
+		}
+	}
+	if quote == "" {
 		return nil
 	}
-	spans, bare := anchor.Sentences(placed), claimcount.BareAnchorIDs(placed)
-	at, ok := gapSentenceIn(placed, spans, bare, m.GetGapId())
-	if !ok {
+	ms, err := mintSentenceAt(w, m)
+	if err != nil {
+		return err
+	}
+	if !ms.ok {
 		return nil
 	}
 	for _, g := range held {
-		if sp, ok := gapSentenceIn(placed, spans, bare, g.id); ok && sp == at {
-			if w.act.pairs(m) {
-				w.act.held = g.id
-				return errReadingHeld
+		if g.location == "" {
+			continue
+		}
+		if sp, ok := gapSentenceIn(ms.placed, ms.spans, ms.bare, g.id); ok && sp == ms.at {
+			return oneGapRefusal(m, g, "the sentence "+sentenceWords(ms.placed, ms.at))
+		}
+	}
+	// The cross-arm, quote over about: an open gap of the class about a citation the sentence holds.
+	for _, c := range anchor.IDs(ms.placed[ms.at[0]:ms.at[1]]) {
+		if anchor.Kind(c) != "citation" {
+			continue
+		}
+		for _, g := range held {
+			if g.about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, c) {
+				return oneGapRefusal(m, g, "citation "+c+", which the sentence "+sentenceWords(ms.placed, ms.at)+" holds")
 			}
-			return oneGapRefusal(m, g, "the sentence "+fmt.Sprintf("%q", strings.Join(strings.Fields(claimcount.StripAnchors(placed[at[0]:at[1]])), " ")))
 		}
 	}
 	return nil
 }
 
-// pairedSentenceOf is the anchor whose sentence m's marker ends, where m is a reading's Mint placed by
-// its act's sentence_of Anchor; "" for every other mint.
-func pairedSentenceOf(w writeView, m *recordpb.Mint) string {
-	if !w.act.pairs(m) || w.act.anchor == nil {
-		return ""
-	}
-	return w.act.anchor.GetSentenceOf()
-}
-
-// heldGap is an open gap as the one-gap rule names it: its id, who minted it and what it says is wrong.
+// heldGap is an open gap as the one-gap rule names it: its id, who minted it, what it says is wrong,
+// and its subject columns — what it is about, and the quote it was placed by.
 type heldGap struct {
 	id, mintedBy, problem string
+	aboutKind, aboutRef   string
+	location              string
 }
 
-// openGapsOfClassAt is the open gaps of class on the gap view, in mint order: those about inquiry
-// where inquiry is not empty, else those with a quote, whose sentence the caller reads.
-func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass, inquiry string) ([]heldGap, error) {
+// about reports whether g is about ref of kind.
+func (g heldGap) about(kind recordpb.AboutKind, ref string) bool {
+	return g.aboutKind == recordpb.Word(kind) && g.aboutRef == ref
+}
+
+// openGapsOfClassAt is the open gaps of class on the gap view, in mint order, with the subject
+// columns every arm of the one-gap rule folds over.
+func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap, error) {
 	if noRecord(q) {
 		return nil, nil
 	}
-	query := `SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", '') FROM "gap"
-	           WHERE "open" AND "class" = ? AND COALESCE("location", '') <> '' ORDER BY "minted_seq"`
-	args := []any{recordpb.Word(class)}
-	if inquiry != "" {
-		query = `SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", '') FROM "gap"
-		          WHERE "open" AND "class" = ? AND "about_kind" = ? AND "about_ref" = ? ORDER BY "minted_seq"`
-		args = append(args, recordpb.Word(recordpb.AboutKind_ABOUT_KIND_INQUIRY), inquiry)
-	}
-	rows, err := q.Query(query, args...)
+	rows, err := q.Query(`SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", ''),
+	           COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '')
+	           FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"`, recordpb.Word(class))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +187,7 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass, inquiry str
 	var out []heldGap
 	for rows.Next() {
 		var g heldGap
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.problem); err != nil {
+		if err := rows.Scan(&g.id, &g.mintedBy, &g.problem, &g.aboutKind, &g.aboutRef, &g.location); err != nil {
 			return nil, err
 		}
 		out = append(out, g)

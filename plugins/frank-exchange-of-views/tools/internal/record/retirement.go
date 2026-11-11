@@ -151,8 +151,9 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 //     which ready nobody and which blue never answers, and sat after every edit to the epoch limit.
 //   - A blocker on the stream whose owner it is (events is eventBlockersOf): a citation or
 //     computation it owns with no check of the sentence the report carries, a check of its that read
-//     nothing or judged a computation unsound and that no gap of its carries yet. A found-against
-//     check never holds its reader: its gap was minted by its reading.
+//     nothing or judged a computation unsound and that no gap of its carries yet, a reading of its
+//     that finds a source against its sentence with no gap of that class standing on it (the reading
+//     debt, readingDebtsOf).
 //   - FOR THE VOICE LENS, A COMPOSED SOURCE IT HAS NOT HAD (composedOwedOf): an inquiry's latest fate
 //     and an open gap's mint, whose text a section the tool composes prints — each owed until it sits
 //     through a sitting opened after the record, which readies it (lensFold.readiness).
@@ -178,7 +179,7 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 	for _, b := range events {
 		// AN UNREAD OR UNSOUND CHECK OF ITS IS OWED UNTIL ITS GAP IS MINTED: from then the gap carries
 		// it to blue, and what clears the blocker is blue's remedy, which the lens cannot make. A
-		// FOUND-AGAINST CHECK IS NEVER OWED by its reader, carried or not.
+		// reading debt is owed while it stands — the debt IS the owing (Blocker.owed).
 		if b.Kind == BlockerFailedCheck && !b.owed() {
 			continue
 		}
@@ -460,7 +461,7 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 		return passLensGate{}, false, err
 	}
 	ids := r.win.IDs(r.evs)
-	owes := lensOwesOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil)))
+	owes := lensOwesOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil), r.found))
 	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes, composedOwedOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil))), true, nil
 }
 
