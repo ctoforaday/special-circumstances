@@ -747,6 +747,11 @@ type runner struct {
 	positionNamedGaps          []string
 	positionNamedAt            map[string]string
 	positionForced, heldTrifle bool
+	// trifleRefusals is each refusal of the gaps run's held-trifle mint (mintHeldTrifle), which the
+	// forced-position oracle's failure names when no trifle landed; mintRefusal is, by lens, the
+	// first line of its last mint the record refused.
+	trifleRefusals []string
+	mintRefusal    map[string]string
 	// positionWithheldAt is the epoch whose chair sitting withheld the forced run's PASS, and
 	// positionRuledAtEpoch the epoch of the chair sitting the bench's ruling on it followed;
 	// positionPassedLate is the first epoch whose permitted PASS came past the route's window
@@ -1694,7 +1699,9 @@ func (r *runner) aboutAnchor() (kind, ref string) {
 	if b, ok := r.board(); ok {
 		ev := record.EvidenceJSONOf(b.Events, b.At, "", nil)
 		for _, c := range ev.Sources {
-			anchors = append(anchors, c.Anchor)
+			if !r.forcedChainCitation(c.Anchor) {
+				anchors = append(anchors, c.Anchor)
+			}
 		}
 		for _, p := range ev.Computations {
 			anchors = append(anchors, p.Anchor)
@@ -2798,8 +2805,10 @@ const fuzzLensStock = 2
 // on one run directory on purpose. A forced run needs a BOUND, and the bound is structural.
 //
 // Minted at the first sitting only — where every lens sits, never having sat — the forced run's
-// gaps all start their march together, and the run ends one march after its first sitting on
-// every interleaving. A drawn run mints at every sitting.
+// gaps all start their march together, and no late mint buys the run another. The march is still
+// not one exchange long on every interleaving: a gap blue counters reaches the bench at the fuzz's
+// kMax and comes back on remand (positionEpochLimit has the measured spread). A drawn run mints at
+// every sitting.
 func (r *runner) findsFresh() bool {
 	if !r.forceUnverified && !r.forceVerified {
 		return true
@@ -2958,8 +2967,12 @@ func (r *runner) someCitation() string {
 	}
 	// A RETIRED CITATION IS NOT IN THE REPORT, and verify refuses it by design (it holds no sentence
 	// to read the source against); the reading drive expects its verify admitted, so it skips those.
+	// A FORCED CHAIN'S CITATION IS THE CHAIN'S (forcedChainCitation).
 	var live []string
 	for _, src := range record.EvidenceJSONOf(b.Events, b.At, "", nil).Sources {
+		if r.forcedChainCitation(src.Anchor) {
+			continue
+		}
 		if _, retired, err := record.AnchorRetiredAt(r.run(), src.Anchor); err == nil && !retired {
 			live = append(live, src.Anchor)
 		}
@@ -2981,9 +2994,9 @@ func (r *runner) citationToVerify(seatID string) string {
 	if offered, err := anchorItemsOn(r.run(), seatID, "citation"); err == nil && len(offered) > 0 && r.coin(50) {
 		anchor = pick(r.rng, offered)
 	}
-	// THE FORCED CHAIN'S CITATION IS THE CHAIN'S TO READ while its debt stands (chainCitation), and
-	// the limit seed's citation is left on its debt (reservedDebtSubject).
-	if anchor == r.chainCitation() || r.reservedDebtSubject(anchor) {
+	// A FORCED CHAIN'S CITATION IS THE CHAIN'S TO READ (forcedChainCitation), and the limit seed's
+	// citation is left on its debt (reservedDebtSubject).
+	if r.forcedChainCitation(anchor) || r.reservedDebtSubject(anchor) {
 		return ""
 	}
 	return anchor
@@ -3087,6 +3100,30 @@ func (r *runner) computeToReopen(seatID string) {
 func (r *runner) forcedChainComputation(anchor string) bool {
 	return r.forceReopenedComputation && slices.Contains(r.forcedComputations(), anchor) ||
 		r.forceUnsoundComputation && slices.Contains(r.computationsOfBundle(unsoundComputationName, unsoundComputationScript), anchor)
+}
+
+// forcedChainCitation is whether anchor is a citation a forced chain placed and still acts on by its id
+// at a later sitting: the reading-debt chain's (chainCitation), and readingRemovalSeed's five until its
+// lens's driven sitting (driveRemovalMints). The drawn drives leave such a citation alone — no drawn
+// reading or `--cites` takes it (someCitation, citationToVerify), no drawn gap names it (aboutAnchor),
+// no drawn retire names it (anchorsLeftFor), and its owed check reads it `supports`, never
+// `unreachable` — since each of those can end with blue retiring it or a gap standing about it, and
+// the chain's act on it is then refused or finds no sentence to read. CI runs 42987990503 and
+// 42986903879 (seed 25): the anchor arm found its citation retired before the lens's driven sitting.
+func (r *runner) forcedChainCitation(anchor string) bool {
+	if anchor == "" {
+		return false
+	}
+	if anchor == r.chainCitation() {
+		return true
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.forceReadingRemoval || r.removal.stage == removalDriven {
+		return false
+	}
+	m := r.removal
+	return slices.Contains([]string{m.retiredCite, m.rereadCite, m.absentCite, m.anchoredCite, m.quoted}, anchor)
 }
 
 // judgeToReopen is the owner's half of the forced chain: it judges every forced computation its work list
@@ -4217,6 +4254,14 @@ func (r *runner) mintWith(seatID, class string) string {
 		}
 	}
 	out, err := r.exec(args...)
+	if err != nil {
+		r.mu.Lock()
+		if r.mintRefusal == nil {
+			r.mintRefusal = map[string]string{}
+		}
+		r.mintRefusal[seatID] = firstLine(out)
+		r.mu.Unlock()
+	}
 	if err != nil && strings.Contains(out, oneGapWords) {
 		r.oneGapAnswered(seatID, out, args)
 		return ""
@@ -6201,7 +6246,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 							// THE COPY THAT IS NOT THE WORK IS READ AND READS NOTHING (readNotTheWork).
 							r.readNotTheWork(seatID, it.Anchor)
 						} else {
-							as := r.owedCitationReading()
+							// A FORCED CHAIN'S CITATION IS READ AND STANDS (forcedChainCitation): an
+							// `unreachable` reading leaves it on a failed check, and blue's remedy
+							// (fixFailed) retires it under the chain.
+							as := "supports"
+							if !r.forcedChainCitation(it.Anchor) {
+								as = r.owedCitationReading()
+							}
 							r.do("verify", seatID).set("--anchor", it.Anchor).
 								set("--as", as).set("--confidence", pick(r.rng, verifyConfidence)).
 								set("--reason", "fuzz: read the sentence as it now stands against its source").admit()
@@ -6968,6 +7019,18 @@ func sortedKeys(m map[string]any) []string {
 // forcedEpochLimit is the epoch limit limitSeed's run is set up with.
 const forcedEpochLimit = 2
 
+// runEpochLimit is the epoch limit seed's run is set up with: limitSeed's forcedEpochLimit, a
+// position seed's positionEpochLimit, and setup's default (0) for every other run.
+func runEpochLimit(seed int64) int {
+	switch {
+	case seed == limitSeed:
+		return forcedEpochLimit
+	case positionFormOf(seed) != "":
+		return positionEpochLimit
+	}
+	return 0
+}
+
 // reopenedComputationSeed is the seed whose run is FORCED through a reopened computation; the sweep gates a plan
 // readying the computation owner for one.
 //
@@ -7093,8 +7156,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
 	r.benchOrders = sweepBenchOrders
+	r.maxEpochs = runEpochLimit(seed)
 	if seed == limitSeed {
-		r.maxEpochs = forcedEpochLimit
 		r.forceScreenUnsound = true
 	}
 
@@ -9045,7 +9108,8 @@ func (r *runner) anchorsLeftFor(claim string) (id string, left bool) {
 	// blue's later edits of its sentence name nothing and swap its words away, so aVerbatimGap finds
 	// no applied text on the page and mintEstopped drives nothing (CI run 42935559070). The other runs
 	// drive the retire of a gap token; this one holds its precondition.
-	keeps := func(id string) bool { return !(r.forceEstoppel && r.isVerbatimGap(id)) }
+	// A FORCED CHAIN'S CITATION IS NEVER THE DRAWN RETIRE'S (forcedChainCitation).
+	keeps := func(id string) bool { return !(r.forceEstoppel && r.isVerbatimGap(id)) && !r.forcedChainCitation(id) }
 	for i := len(b.Events) - 1; i >= 0; i-- {
 		be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
 		if !ok || be.GetOld() != claim {

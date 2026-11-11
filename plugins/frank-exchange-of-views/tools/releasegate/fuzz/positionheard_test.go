@@ -198,12 +198,27 @@ func (r *runner) mintHeldTrifle(seatID string) {
 		r.noteActErr("the gap class vocabulary holds no class that is never material, so the gaps run has no gap to hold open for the bench to name")
 		return
 	}
-	if r.mintWith(seatID, class) == "" {
+	// THE MINT IS RETRIED IN THE SITTING. The lenses of an epoch sit concurrently, and the first to
+	// reach here holds the others off, so one refused draw — a subject a gap of the class already
+	// stands on, say — would cost the whole epoch; where the PASS is permitted at the next chair
+	// sitting no lens sits again, and the chair passes it with nothing open for the bench to name.
+	// Each try draws the mint afresh, and each refusal is kept for the oracle to name.
+	for range trifleMintTries {
+		if r.mintWith(seatID, class) != "" {
+			return
+		}
 		r.mu.Lock()
-		r.heldTrifle = false
+		r.trifleRefusals = append(r.trifleRefusals, fmt.Sprintf("%s: %s", seatID, r.mintRefusal[seatID]))
 		r.mu.Unlock()
 	}
+	r.mu.Lock()
+	r.heldTrifle = false
+	r.mu.Unlock()
 }
+
+// trifleMintTries is the draws of the held trifle's mint one lens sitting makes before it leaves the
+// mint to the next sitting.
+const trifleMintTries = 3
 
 // closeNamedOnTurn is the minting lens's turn on a gap the bench named upholding a position: once
 // blue has answered it, the lens audits the answer and closes it as any satisfied gap is closed. A
@@ -458,7 +473,7 @@ func (r *runner) forcedPositionOracle() string {
 	named := slices.Clone(r.positionNamedGaps)
 	r.mu.Unlock()
 	if got[r.forcePosition] == 0 {
-		return fmt.Sprintf("forced-position oracle: the run is forced to a %s ruling on a withheld PASS, and its bench made none (rulings %v, %d PASS withheld)%s%s", r.forcePosition, got, r.positionsWithheld, r.positionRouteClause(), r.planTrail())
+		return fmt.Sprintf("forced-position oracle: the run is forced to a %s ruling on a withheld PASS, and its bench made none (rulings %v, %d PASS withheld)%s%s%s", r.forcePosition, got, r.positionsWithheld, r.positionRouteClause(), r.trifleClause(), r.planTrail())
 	}
 	open := r.openGaps()
 	for _, g := range named {
@@ -496,6 +511,30 @@ func (r *runner) positionRouteClause() string {
 	}
 	return b.String()
 }
+
+// trifleClause is what a gaps run's failure says about the gap its lens holds open for the bench to
+// name: that none landed, with each refusal of its mint. "" in any other run, or once one landed.
+func (r *runner) trifleClause() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.forcePosition != "gaps" || r.heldTrifle {
+		return ""
+	}
+	if len(r.trifleRefusals) == 0 {
+		return "; no lens sitting after the first minted the held trifle"
+	}
+	return fmt.Sprintf("; the held trifle never landed, its mint refused %d time(s): %s", len(r.trifleRefusals), strings.Join(r.trifleRefusals, " | "))
+}
+
+// positionEpochLimit is the epoch limit a position seed's run is set up with: past setup's default,
+// so the window its ruling's route fits (lastWithholdEpoch) holds the first permitted PASS of every
+// interleaving. A forced run mints its stock at its first sitting (findsFresh), but a gap blue
+// counters goes to the bench at the fuzz's kMax of two and comes back on remand, so the march to a
+// permitted PASS is not one exchange long: MEASURED on 120 runs of positionGapsSeed under the limit
+// of twelve, the first permitted PASS came at epoch 5 in most, and at epoch 10 in three — past the
+// gaps window of 9, where the chair passes it and the bench rules nothing. Sixteen leaves the gaps
+// route a window to 13.
+const positionEpochLimit = 16
 
 // planTrail is what each plan the record stored held, one line per chair sitting: its epoch, whether
 // it permitted the PASS, the parties it readied with their gaps, and the blockers holding the PASS
@@ -906,5 +945,43 @@ func TestTheForcedPositionOracleHoldsTheRuling(t *testing.T) {
 	r.forcePosition = ""
 	if m := r.forcedPositionOracle(); m != "" {
 		t.Errorf("the oracle fired on a run forced to no position: %s", m)
+	}
+}
+
+// A POSITION SEED'S RUN IS SET UP PAST SETUP'S LIMIT, so the window its ruling's route fits holds the
+// latest first permitted PASS the sweep has measured (epoch 10); limitSeed keeps its own, and every
+// other run setup's default.
+func TestAPositionSeedsRunHasTheWindowItsRouteNeeds(t *testing.T) {
+	for _, seed := range []int64{positionLensSeed, positionGapsSeed, positionOverruledSeed} {
+		limit := runEpochLimit(seed)
+		if last := lastWithholdEpoch(positionFormOf(seed), limit); last < 10 {
+			t.Errorf("seed %d runs under the epoch limit %d, whose %s window ends at epoch %d, short of the measured 10", seed, limit, positionFormOf(seed), last)
+		}
+	}
+	if got := runEpochLimit(limitSeed); got != forcedEpochLimit {
+		t.Errorf("limitSeed's run is set up with the limit %d, want %d", got, forcedEpochLimit)
+	}
+	if got := runEpochLimit(verifiedSeed); got != 0 {
+		t.Errorf("a run forced to no position or limit is set up with the limit %d, want setup's default (0)", got)
+	}
+}
+
+// A GAPS RUN WHOSE HELD TRIFLE NEVER LANDED says so, with each refusal of its mint; one whose trifle
+// landed, and a run forced to another ruling, say nothing of it.
+func TestTheTrifleClauseNamesEachRefusedMint(t *testing.T) {
+	r := &runner{forcePosition: "gaps"}
+	if got := r.trifleClause(); !strings.Contains(got, "no lens sitting after the first minted") {
+		t.Errorf("a gaps run that never tried the trifle: %q", got)
+	}
+	r.trifleRefusals = []string{"red-lens-logic: refused one", "red-lens-logic: refused two"}
+	if got := r.trifleClause(); !strings.Contains(got, "refused 2 time(s)") || !strings.Contains(got, "refused two") {
+		t.Errorf("a gaps run whose trifle mint was refused twice: %q", got)
+	}
+	r.heldTrifle = true
+	if got := r.trifleClause(); got != "" {
+		t.Errorf("a gaps run holding its trifle: %q", got)
+	}
+	if got := (&runner{forcePosition: "lens"}).trifleClause(); got != "" {
+		t.Errorf("a lens run: %q", got)
 	}
 }
