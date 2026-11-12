@@ -245,3 +245,35 @@ func TestTheLensTurnOracleReadsANoTurnLensSittingAsTheRecordDoes(t *testing.T) {
 		})
 	}
 }
+
+// A DOCKET MOTION FILED AFTER THE LAST PLAN IS THE ASSEMBLY'S TO RULE, and only that one. Blue, sitting
+// on the plan's gap, files the docket motion itself; a stop then landing mid-turn convenes no terminal
+// sitting for it, because the plan's blockers predate it. Once a plan is stored after it, that plan's
+// blockers name it and the terminal sitting rules it, so the assembly leaves it alone.
+func TestTheAssemblyRulesOnlyTheDocketsFiledAfterTheLastPlan(t *testing.T) {
+	r, gap := blueEngagedRun(t)
+	r.dispatchSits("blue", "blue-respond")
+	out, ok := r.do("motion docket file", "blue-respond").set("--id", gap).set("--reason", "fuzz: blue escalates "+gap).bare("--json").admit()
+	if !ok {
+		t.Fatalf("blue's docket filing: %s", r.actErr)
+	}
+	var filed struct {
+		Result struct {
+			MotionID string `json:"motion_id"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &filed); err != nil || filed.Result.MotionID == "" {
+		t.Fatalf("the filing names no motion (%v): %s", err, out)
+	}
+	if got := r.docketsSinceTheLastPlan(); !slices.Equal(got, []string{filed.Result.MotionID}) {
+		t.Fatalf("after blue's filing the assembly would rule %v, want [%s]", got, filed.Result.MotionID)
+	}
+	r.dispatchReturns("blue-respond", true)
+	chairPlan(t, r)
+	if got := r.docketsSinceTheLastPlan(); len(got) != 0 {
+		t.Fatalf("a plan stored after the filing names it, and the assembly would still rule %v", got)
+	}
+	if r.actErr != "" {
+		t.Fatal(r.actErr)
+	}
+}

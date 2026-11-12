@@ -6042,6 +6042,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		//
 		// A PETITION FILED AFTER THE LAST PLAN has had no sitting, and `bench outcome` refuses while
 		// it stands; the assembling bench holds the gavel, so it rules it first, as the refusal says.
+		// So with a DOCKET MOTION FILED AFTER THE LAST PLAN: a stop that lands mid-turn (blue's failed
+		// sittings in a row, debate.js seatStop) follows a seat that filed one after the plan whose
+		// blockers convene the terminal sitting, so no sitting was convened for it.
 		// A RESUMED ASSEMBLY SITTING FINDS THE OUTCOME ITS FAILED ONE STAMPED, and goes on to
 		// assemble: the record is closed to seat acts once the outcome stands, so neither the ruling
 		// nor the outcome is driven again.
@@ -6052,6 +6055,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if stamped == "" {
 			if !r.forceHalt {
 				r.rulePending(seatID, "assemble")
+				for _, id := range r.docketsSinceTheLastPlan() {
+					r.ruleDocketAtExit(seatID, id)
+				}
 			}
 			r.admit(oargs...)
 		}
@@ -10234,12 +10240,52 @@ func (r *runner) ruleStandingDockets(seatID string) {
 		if m.Subject != "docket" || m.Ruled {
 			continue
 		}
-		disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
-		r.admit("motion", "docket", "rule", "--seat-id", seatID, "--id", m.ID,
-			"--as", disp, "--final", "--principle", "correctness", "--tension", "cost",
-			"--review-flag", "none: the run's term ended with this motion standing", "--settled", settledByFuzzBench,
-			"--reason", "fuzz: ruled at the exit, where nothing can be remanded")
+		r.ruleDocketAtExit(seatID, m.ID)
 	}
+}
+
+// ruleDocketAtExit is the bench ruling one standing docket motion at the run's exit, with a
+// disposition that ends it: nothing can be remanded, there being no next sitting to remand it to.
+func (r *runner) ruleDocketAtExit(seatID, motionID string) {
+	disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
+	r.admit("motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
+		"--as", disp, "--final", "--principle", "correctness", "--tension", "cost",
+		"--review-flag", "none: the run's term ended with this motion standing", "--settled", settledByFuzzBench,
+		"--reason", "fuzz: ruled at the exit, where nothing can be remanded")
+}
+
+// docketsSinceTheLastPlan is each docket motion standing unruled that was filed after the last plan
+// the record stored. Only a stop that lands mid-turn leaves one: a seat sat after the plan and filed
+// it, so the plan's blockers, which convene the terminal sitting, never named it. A standing docket
+// the last plan does name is the terminal sitting's to rule, and is not among these.
+func (r *runner) docketsSinceTheLastPlan() []string {
+	b, ok := r.board()
+	if !ok {
+		r.noteActErr("the assembly could not read the record for the docket motions filed after the last plan")
+		return nil
+	}
+	stored, err := record.StoredPlans(b.Events)
+	if err != nil {
+		r.noteActErr("the assembly could not read the stored plans: " + err.Error())
+		return nil
+	}
+	last := -1
+	if n := len(stored); n > 0 {
+		last = stored[n-1].At
+	}
+	ruled := map[string]bool{}
+	for _, e := range b.Events {
+		if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok {
+			ruled[m.GetMotionId()] = true
+		}
+	}
+	var out []string
+	for i, e := range b.Events {
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && i > last && m.GetDocket().GetGapId() != "" && !ruled[m.GetMotionId()] {
+			out = append(out, m.GetMotionId())
+		}
+	}
+	return out
 }
 
 // lastPlanWhy gives a run its exit reason from the plan the chair's last sitting stored, where nothing
