@@ -689,10 +689,25 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 		noteEither(args[:2], "a found-source mint over a prescription, refused by the one-gap rule over a sibling's gap on the sentence", false)
 		r.oneGapOnReading(seatID, classContradicts, mout, args, "quote")
 		return
-	case !strings.Contains(mout, estoppelWords) || !strings.Contains(mout, prescribing):
+	case !strings.Contains(mout, estoppelWords):
 		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused, and not as the estoppel against " + prescribing + ": " + firstLine(mout))
 		return
 	}
+	// THE GUARD NAMES ONE PRESCRIPTION THE SENTENCE HOLDS, and this drive's prescription is one text:
+	// two gaps whose fix blue applied verbatim can both estop the sentence, and the refusal names
+	// either. It must name one of them, and the debt clears against the one it names.
+	named := ""
+	for _, g := range r.appliedVerbatimGaps() {
+		if strings.Contains(mout, g) && r.stillEstops(g) {
+			named = g
+			break
+		}
+	}
+	if named == "" {
+		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused as an estoppel naming no gap whose applied prescription still estops it (the drive's: " + prescribing + "): " + firstLine(mout))
+		return
+	}
+	prescribing = named
 	r.countReading(func(c *readingCounts) { c.foundSourceMintsEstopped++ })
 	if r.minterOf(prescribing) == seatID {
 		sout, serr := r.exec(append(args, "--supersedes", prescribing)...)
@@ -708,6 +723,21 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 	if r.readFoundClearing(seatID, quote) != 0 {
 		r.debtDischargedBy(seatID, quote, "reread", "the lens's reading of another source for the prescribed sentence")
 	}
+}
+
+// appliedVerbatimGaps is each gap a blue edit applied red's prescription for verbatim, in record order.
+func (r *runner) appliedVerbatimGaps() []string {
+	b, ok := r.board()
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, e := range b.Events {
+		if ed, isE := recordpb.BodyAs[*recordpb.BlueEdit](e); isE && ed.GetAppliedVerbatim() && !slices.Contains(out, ed.GetAnswers()) {
+			out = append(out, ed.GetAnswers())
+		}
+	}
+	return out
 }
 
 // readNotTheWorkFound is a lens's reading of the copy that is not the work as a source it found: it

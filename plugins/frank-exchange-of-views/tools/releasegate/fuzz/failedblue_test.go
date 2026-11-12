@@ -133,14 +133,13 @@ func chairPlan(t *testing.T, r *runner) record.Plan {
 // blueFailsForcedErr is the run's error where blueFailsSeed's run did not end on blue's failed-sitting
 // bound: every blue sitting in it ends without its envelope, so the engine stops the debate UNVERIFIED
 // at the third, naming blue (debate.js seatStop), and nothing else may end the run first. result is the
-// settled debate's return.
+// settled debate's return. runOne asks it holding r.mu, as it asks the other forced runs' errors, so
+// it reads the runner's counts without taking the lock.
 func (r *runner) blueFailsForcedErr(result map[string]any) string {
 	if !r.forceBlueFails {
 		return ""
 	}
-	r.mu.Lock()
 	sat := r.blueSittings
-	r.mu.Unlock()
 	term, _ := result["termination"].(map[string]any)
 	stop, _ := term["seat_stop"].(map[string]any)
 	failures, _ := stop["failures"].(int64)
