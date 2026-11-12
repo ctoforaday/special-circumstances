@@ -48,13 +48,11 @@ func TestAReachingRetireIsBluesActOnTheGap(t *testing.T) {
 		{"source gap about a citation", "C-y", "which G1 is about", true, func(b *stage) *stage {
 			return b.cite("C-y").mintAbout(evLens, "G1", recordpb.CheckKind_CHECK_KIND_SOURCE, "C-y")
 		}},
-		{"source reading gap carried by a reading", "C-z", "whose reading G1 carries", true, func(b *stage) *stage {
-			b.cite("C-z")
-			g := readingGap("G1")
+		{"source gap about a citation the minter's reading refutes", "C-z", "which G1 is about", true, func(b *stage) *stage {
+			b.cite("C-z").foundAgainst(evLens, "C-z", "")
+			g := readingGap("G1", "C-z")
 			g.CheckKind = recordpb.CheckKind_CHECK_KIND_SOURCE.Enum()
-			b.add(evLens, g).add(evLens, &recordpb.Anchor{Id: proto.String("G1"), SentenceOf: proto.String("C-z")})
-			return b.add(evLens, &recordpb.Verify{Anchor: proto.String("C-z"), Claim: proto.String("the claim C-z backs"), Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES.Enum(),
-				Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("the source says otherwise"), CarriedBy: proto.String("G1"), CarrierMinted: proto.Bool(true)})
+			return b.add(evLens, g)
 		}},
 		{"document gap about a computation", "K-w", "which G1 is about", false, func(b *stage) *stage {
 			return b.computation("K-w", "s1").mintAbout(evLens, "G1", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "K-w")

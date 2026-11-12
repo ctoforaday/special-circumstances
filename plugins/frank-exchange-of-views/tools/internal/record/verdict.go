@@ -137,37 +137,44 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing" + standing, false, nil
 }
 
-// anchorsStanding is the outcome reason's clause naming each citation or computation that holds the PASS by
-// its own state — unchecked, or on a failed check — and each inquiry open or unchecked, or "" where
-// none does.
+// StandingClause is one kind of blocker that holds a PASS by its own state, and the clause the outcome
+// reason names it with.
+type StandingClause struct {
+	Kind   BlockerKind
+	Clause string
+}
+
+// StandingClauses is the ONE table of the kinds a run that ends names in its reason — the citation or
+// computation nobody checked, the failed check, the lens's reading debt, the inquiry open or
+// unchecked — in kind-table order, each with its clause. anchorsStanding folds it for the record's
+// derived reason, and enginegen renders it into debate.js's generated vocabulary as STANDING_CLAUSES,
+// which the engine's termination reason folds: two carriers, one declaration, so the record's reason
+// and the engine's cannot name different kinds.
+func StandingClauses() []StandingClause {
+	return []StandingClause{
+		{BlockerUnchecked, "unchecked"},
+		{BlockerFailedCheck, "on a failed check"},
+		{BlockerReadingDebt, "on a reading debt"},
+		{BlockerOpenInquiry, "inquiries open"},
+		{BlockerUncheckedInquiry, "inquiries unchecked"},
+	}
+}
+
+// anchorsStanding is the outcome reason's clause naming each subject that holds the PASS by its own
+// state — one clause per kind of StandingClauses, its subjects deduplicated, in table order — or ""
+// where none does.
 func anchorsStanding(bs []PlanBlocker) string {
-	var unchecked, failed, open, uncheckedInquiries []string
-	for _, b := range bs {
-		switch b.Kind {
-		case BlockerUnchecked:
-			unchecked = append(unchecked, b.Subject)
-		case BlockerFailedCheck:
-			if !slices.Contains(failed, b.Subject) {
-				failed = append(failed, b.Subject)
-			}
-		case BlockerOpenInquiry:
-			open = append(open, b.Subject)
-		case BlockerUncheckedInquiry:
-			uncheckedInquiries = append(uncheckedInquiries, b.Subject)
-		}
-	}
 	out := ""
-	if len(unchecked) > 0 {
-		out += "; unchecked: " + strings.Join(unchecked, ", ")
-	}
-	if len(failed) > 0 {
-		out += "; on a failed check: " + strings.Join(failed, ", ")
-	}
-	if len(open) > 0 {
-		out += "; inquiries open: " + strings.Join(open, ", ")
-	}
-	if len(uncheckedInquiries) > 0 {
-		out += "; inquiries unchecked: " + strings.Join(uncheckedInquiries, ", ")
+	for _, c := range StandingClauses() {
+		var subjects []string
+		for _, b := range bs {
+			if b.Kind == c.Kind && !slices.Contains(subjects, b.Subject) {
+				subjects = append(subjects, b.Subject)
+			}
+		}
+		if len(subjects) > 0 {
+			out += "; " + c.Clause + ": " + strings.Join(subjects, ", ")
+		}
 	}
 	return out
 }

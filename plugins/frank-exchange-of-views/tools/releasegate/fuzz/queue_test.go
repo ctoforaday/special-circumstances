@@ -92,6 +92,29 @@ func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[str
 			current, handed = d.Current.Key, true
 		}
 	}
+	// queued was read before the writer ran, and a seat sitting beside this one (blue fating an
+	// inquiry, a sibling's gap) can take the item off the queue in between: the writer then rightly
+	// hands the next one. The item counts as still queued only if the queue read AFTER the writer
+	// holds it too.
+	stillQueued := func(key string) bool {
+		if !queued[key] {
+			return false
+		}
+		w, err := record.WorkOfSeat(r.run(), "lens", seatID)
+		if err != nil {
+			return true
+		}
+		for _, e := range record.QueueOf(w) {
+			if e.Key == key {
+				return true
+			}
+		}
+		return false
+	}
+	r.mu.Lock()
+	prevHead := r.lensHead[sitting]
+	r.mu.Unlock()
+	prevQueued := prevHead != "" && stillQueued(prevHead)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.lensHead == nil {
@@ -99,7 +122,7 @@ func (r *runner) headMovesOnlyOnDischarge(seatID, sitting string, queued map[str
 	}
 	prev, had := r.lensHead[sitting]
 	if handed {
-		if had && prev != "" && queued[prev] && current != prev {
+		if had && prev != "" && prev == prevHead && prevQueued && current != prev {
 			if r.actErr == "" {
 				r.actErr = fmt.Sprintf("queue oracle: %s was handed %s as current while %s, the item it was working, is still queued", seatID, current, prev)
 			}

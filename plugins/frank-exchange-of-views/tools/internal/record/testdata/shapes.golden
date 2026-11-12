@@ -7,6 +7,7 @@
 # holds one. The record suite's TestMain fails on a finding not listed here and on a line here that
 # no longer occurs. UPDATE_GOLDENS=1 writes only what the baseline already holds, less what the
 # fix removed; a new line takes PLANGUARD_ACCEPT_VIEW_COST=1 as well, and shows in the diff.
+stmt 0cd405f346b6 | constrained-scan | mint | x1 | via gap
 stmt 5292bd746d5b | constrained-scan | anchor | x2 | via report_op
 stmt 5292bd746d5b | constrained-scan | blue_edit | x1 | via report_op
 stmt 5292bd746d5b | constrained-scan | report_part | x1 | via report_op
@@ -25,7 +26,6 @@ stmt afa3d2ec318a | correlated-scan | blue_edit | x1 | via report_op
 stmt afa3d2ec318a | correlated-scan | report_op | x1 | via report_op
 stmt afa3d2ec318a | correlated-scan | report_part | x1 | via report_op
 stmt d8f359712b4d | constrained-scan | gap_state | x1 | via gap
-stmt e418d8bdc023 | constrained-scan | mint | x1 | via gap
 view convergence_at | automatic-index | board (seq=?) | x1 | via convergence_at
 view convergence_at | automatic-index | held (minted_event=?) | x1 | via convergence_at
 view gap_refresh | automatic-index | answered (gap_id=?) | x1 | via gap_refresh

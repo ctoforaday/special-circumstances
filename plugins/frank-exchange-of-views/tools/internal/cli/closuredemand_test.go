@@ -247,13 +247,16 @@ func TestEveryEvidenceRowNamesABlueVerbThatPlacesIt(t *testing.T) {
 // `source` gap G, carried by the reading. Each row of the source reading-gap table, on its own board.
 func TestTheDemandOnAReadingsSourceGap(t *testing.T) {
 	const edited = "Costs rose steeply in the first quarter."
+	// reading is lensL's refuting reading of the first citation and its contradiction gap about it,
+	// minted on that reading.
 	reading := func(t *testing.T) (readingBoard, string) {
 		b := readingRun(t)
-		r := b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...)
-		if r.Gap == nil || r.Gap.ID == "" {
-			t.Fatalf("the refuting reading minted no gap: %+v", r)
+		b.mustRead(lensL, citeReading(b.c1, "refutes")...)
+		g, out, err := b.mintSource(lensL, "claim_contradicts_source", about(b.c1)...)
+		if err != nil {
+			t.Fatalf("the gap on the refuting reading: %v\n%s", err, out)
 		}
-		return b, r.Gap.ID
+		return b, g
 	}
 	edit := func(t *testing.T, b readingBoard) {
 		if _, err := run(t, "edit", "--run", b.runDir, "--seat-id", blueSeat, "--quote", "Costs rose sharply", "--new", "Costs rose steeply",
@@ -263,7 +266,7 @@ func TestTheDemandOnAReadingsSourceGap(t *testing.T) {
 	}
 	reread := func(t *testing.T, b readingBoard, seat string) {
 		b.sit(seat)
-		b.mustRead(seat, citeReading(b.c1, "supports", "")...)
+		b.mustRead(seat, citeReading(b.c1, "supports")...)
 	}
 	for _, c := range []struct {
 		name    string
@@ -285,7 +288,7 @@ func TestTheDemandOnAReadingsSourceGap(t *testing.T) {
 		}, nil},
 		{"the reader's backing re-read, no edit: met, arm 4", func(t *testing.T, b readingBoard, _ string) { reread(t, b, lensL) }, nil},
 		{"another lens's backing reading: refused by the demand", func(t *testing.T, b readingBoard, _ string) { reread(t, b, lensM) },
-			[]string{"blue's `retire --anchor %c1`, the citation whose reading by " + lensL + " it carries"}},
+			[]string{"blue's `retire --anchor %c1`, the citation it is about"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b, g := reading(t)
@@ -312,14 +315,14 @@ func TestTheDemandOnAGapOwedAboutAnAnchor(t *testing.T) {
 	t.Run("unread citation, source", func(t *testing.T) {
 		for _, own := range []bool{true, false} {
 			b := readingRun(t)
-			b.mustRead(lensL, citeReading(b.c1, "unreachable", "")...)
+			b.mustRead(lensL, citeReading(b.c1, "unreachable")...)
 			g := demandGap(t, b.runDir, "unread", "source", "--about-kind", "anchor", "--about", b.c1)
 			seat := lensM
 			if own {
 				seat = lensL
 			}
 			b.sit(seat)
-			b.mustRead(seat, citeReading(b.c1, "supports", "")...)
+			b.mustRead(seat, citeReading(b.c1, "supports")...)
 			err := lensClose(t, b.runDir, lensL, g, "repaired")
 			if own && err != nil {
 				t.Errorf("after the reader's own backing reading the close of %s was refused: %v", g, err)
@@ -400,7 +403,7 @@ func TestARetireOfTheOnlyAnswerRacingTheCloseRefusesIt(t *testing.T) {
 func TestTheSuccessorIsMetThroughItsAncestorsReach(t *testing.T) {
 	reread := func(t *testing.T, b readingBoard, seat string) {
 		b.sit(seat)
-		b.mustRead(seat, citeReading(b.c1, "supports", "")...)
+		b.mustRead(seat, citeReading(b.c1, "supports")...)
 	}
 	for _, c := range []struct {
 		name string
@@ -413,18 +416,18 @@ func TestTheSuccessorIsMetThroughItsAncestorsReach(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := readingRun(t)
-			r := b.mustRead(lensL, citeReading(b.c1, "refutes", "claim_contradicts_source")...)
-			if r.Gap == nil || r.Gap.ID == "" {
-				t.Fatalf("the refuting reading minted no gap: %+v", r)
+			b.mustRead(lensL, citeReading(b.c1, "refutes")...)
+			g1, out, err := b.mintSource(lensL, "claim_contradicts_source", about(b.c1)...)
+			if err != nil {
+				t.Fatalf("the gap on the refuting reading: %v\n%s", err, out)
 			}
-			g1 := r.Gap.ID
 			g2 := demandGap(t, b.runDir, "succ", "source", "--supersedes", g1)
 			if open, answered, awaiting := gapRow(t, b.runDir, g2); !open || answered || !awaiting {
 				t.Fatalf("successor %s: open %v answered %v awaiting %v, want open and awaiting the demand it carries", g2, open, answered, awaiting)
 			}
 			c.act(t, b)
 			_, answered, _ := gapRow(t, b.runDir, g2)
-			err := lensClose(t, b.runDir, lensL, g2, "repaired")
+			err = lensClose(t, b.runDir, lensL, g2, "repaired")
 			if c.met {
 				if !answered || err != nil {
 					t.Fatalf("successor %s: evidence_answered %v, close %v; want its ancestor's reach to meet it", g2, answered, err)
@@ -434,7 +437,7 @@ func TestTheSuccessorIsMetThroughItsAncestorsReach(t *testing.T) {
 			if answered {
 				t.Errorf("another lens's re-read met successor %s's demand", g2)
 			}
-			wantDemandRefusal(t, err, g2, "source", "blue's `retire --anchor "+b.c1+"`, the citation whose reading by "+lensL+" "+g1+" carries, whose demand this gap carries",
+			wantDemandRefusal(t, err, g2, "source", "blue's `retire --anchor "+b.c1+"`, the citation "+g1+" was about, whose demand this gap carries",
 				"a reading of "+b.c1+" by "+lensL)
 		})
 	}

@@ -1495,9 +1495,7 @@ func (t *verifyTable) load(q Querier, after int64) error {
 		var c12 sql.NullString
 		var c13 sql.NullString
 		var c14 sql.NullString
-		var c15 sql.NullString
-		var c16 sql.NullInt64
-		if err := scanRows(q, "verify", `SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url", t."carried_by", t."carrier_minted" FROM "verify" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16}, func() {
+		if err := scanRows(q, "verify", `SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url" FROM "verify" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14}, func() {
 			m := &recordpb.Verify{}
 			if c0.Valid {
 				m.Claim = ref(c0.String)
@@ -1563,12 +1561,6 @@ func (t *verifyTable) load(q Querier, after int64) error {
 			}
 			if c14.Valid {
 				m.CopyUrl = ref(c14.String)
-			}
-			if c15.Valid {
-				m.CarriedBy = ref(c15.String)
-			}
-			if c16.Valid {
-				m.CarrierMinted = ref(c16.Int64 != 0)
 			}
 			t.rows[id] = m
 		}); err != nil {

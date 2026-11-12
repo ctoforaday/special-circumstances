@@ -15,12 +15,12 @@ Research that survives an adversary.
 
 - **The bibliography is blue's citations.** A source red goes and finds for a claim blue made is
   read against that sentence and places no anchor, footnote or Bibliography entry: where it backs
-  a sentence the report cites nothing for, the reading records a gap asking blue to cite a source,
-  and where it refutes the sentence, a gap that the source states otherwise. Blue answers with a
-  citation, and a lens reads blue's citation. A `refutes` or `absent` reading of a citation is not
-  a reference backing the sentence and is never spliced: it is red finding the text unsupported,
-  which is a defect, and the reading records its gap on the sentence in the same act — the gap
-  and the citation's failed check hold the PASS.
+  a sentence the report cites nothing for, the lens mints a gap asking blue to cite a source, and
+  where it refutes the sentence, a gap quoting the sentence that the source states otherwise. Blue
+  answers with a citation, and a lens reads blue's citation. A `refutes` or `absent` reading of a
+  citation is not a reference backing the sentence and is never spliced: it is red finding the text
+  unsupported, which is a defect, and the lens mints the gap about the citation on that reading —
+  until it does, the reading is the lens's debt and holds the PASS; from the mint on, the gap does.
 
 ## The exchange is TOOL-MEDIATED
 

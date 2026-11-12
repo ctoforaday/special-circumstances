@@ -3,6 +3,8 @@ package seat
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // THE REGISTER'S WARNINGS, and what stopped being one.
@@ -72,7 +74,7 @@ func TestASeatSeesThatTheHookIsMissingFromTheWholeRun(t *testing.T) {
 		"YOUR IDENTITY DID NOT REACH THE TOOL", // the seat's own consequence still comes first
 		"THE ENGINE'S HOOK IS NOT REACHING THIS RUN",
 		"EVERY seat in it is affected",
-		"the tool's own search for the run marker", // WHICH carrier stood in, so the operator can tell the two shapes apart
+		"the tool's own search for the run marker", // how the run arrived instead
 		"ONCE in the log",                          // the one channel that carries it out of the run
 	} {
 		if !strings.Contains(h, want) {
@@ -81,37 +83,22 @@ func TestASeatSeesThatTheHookIsMissingFromTheWholeRun(t *testing.T) {
 	}
 }
 
-// UNDER A WRAPPER THE SAME FACT IS READABLE ON ITS OWN, and it must not read as alarming.
-//
-// setup bakes the run into <runDir>/.bin/feov-record, and the hook — when it fires — sets
-// FEOV_RUN, which outranks it. So resolving by WRAPPER says the hook did not inject, with no
-// pairing needed. The seat's work is fine in that state: the run directory is correct, which is
-// the whole point of the wrapper, and telling a seat otherwise would spend a round on a
-// non-problem.
-func TestUnderAWrapperTheHookAbsenceIsStatedWithoutAlarm(t *testing.T) {
-	h := registerResult{SeatID: "blue-lane-1", IdentityAbsent: true, RunVia: "wrapper", HookAbsent: true}.Human()
-	for _, want := range []string{
-		"THE ENGINE'S HOOK IS NOT REACHING THIS RUN",
-		"this run's own wrapper",
-		"YOUR WORK IS NOT AT RISK",
-		"ONCE in the log",
-	} {
-		if !strings.Contains(h, want) {
-			t.Errorf("the advisory does not carry %q:\n%s", want, h)
-		}
-	}
-	// It must not tell a wrapped seat the tool went looking for the marker — it did not.
-	if strings.Contains(h, "own search for the run marker") {
-		t.Errorf("a wrapped seat is told the run was inferred:\n%s", h)
-	}
-}
-
 // A MISSING IDENTITY ALONE IS NOT A MISSING HOOK. A seat that typed --run on a healthy run looks
 // identical on the identity alone, and telling it the whole run is broken would be a false
 // diagnosis handed to the one party positioned to report it.
 func TestAMissingIdentityAloneDoesNotAccuseTheHook(t *testing.T) {
-	h := registerResult{SeatID: "red-lens-evidence", IdentityAbsent: true, RunVia: "flag"}.Human()
-	if strings.Contains(h, "NOT ONLY YOUR IDENTITY") {
-		t.Errorf("a seat that typed --run is told the hook is absent:\n%s", h)
+	for _, c := range []struct {
+		identityAbsent bool
+		via            seatenv.RunSource
+		want           bool
+	}{
+		{true, seatenv.RunFromInference, true},
+		{true, seatenv.RunFromFlag, false},
+		{true, seatenv.RunFromEnv, false},
+		{false, seatenv.RunFromInference, false},
+	} {
+		if got := hookAbsent(c.identityAbsent, c.via); got != c.want {
+			t.Errorf("identity absent %v, run via %q: hook absent = %v, want %v", c.identityAbsent, c.via, got, c.want)
+		}
 	}
 }

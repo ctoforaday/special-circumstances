@@ -88,23 +88,23 @@ func TestAUniformRunStatesItsBuildsAndHooksInOneLine(t *testing.T) {
 }
 
 // SEATS THAT DISAGREE ARE NAMED, with what differs in bold — the diagnosis #751 had to make by
-// tabulating the database by hand. A mixed binary, a seat no hook reached and a seat that found the
-// run by inference are each a line, and setup's "installed" beside an unstamped registration is
+// tabulating the database by hand. A mixed binary, a seat no hook reached that typed its --run, and a seat
+// that found the run by inference are each a line, and setup's "installed" beside an unstamped registration is
 // called out as the contradiction it is.
 func TestSeatsThatDisagreeOnTheirStampAreNamed(t *testing.T) {
 	got := buildsLine(t, stampedRun(t, installedOne,
 		stamped{"blue-lane-1", "abc1234", "def5678", "injected"},
 		stamped{"red-chair", "abc1234", "def5678", "injected"},
 		stamped{"red-lens-evidence", "9999999", "def5678", "injected"},
-		stamped{"blue-lane-2", "abc1234", "", "wrapper"},
+		stamped{"blue-lane-2", "abc1234", "", "flag"},
 		stamped{"red-lens-logic", "abc1234", "0000000", "inferred"},
 		stamped{"red-lens-logic", "abc1234", "0000000", "inferred"},
 	))
 	for _, want := range []string{
 		"**Builds and hooks — NOT UNIFORM.** 2 of 6 registrations carry the run's most common stamp: feov-record build `abc1234`, hook build `def5678`, run directory from the hook.",
 		"- `red-lens-evidence`: **feov-record build `9999999`**, hook build `def5678`, run directory from the hook",
-		"- `blue-lane-2`: feov-record build `abc1234`, **no hook stamp — no hook served the seat, or one too old to stamp it**, **run directory from the per-run wrapper — no hook reached the seat**",
-		"- `red-lens-logic` (2 registrations): feov-record build `abc1234`, **hook build `0000000`**, **run directory found by inference — neither the hook nor the wrapper supplied it**",
+		"- `blue-lane-2`: feov-record build `abc1234`, **no hook stamp — no hook served the seat, or one too old to stamp it**, **run directory from a `--run` the seat typed**",
+		"- `red-lens-logic` (2 registrations): feov-record build `abc1234`, **hook build `0000000`**, **run directory found by inference — the hook did not supply it**",
 		"**Yet 1 of 6 registrations carry no hook stamp.**",
 	} {
 		if !strings.Contains(got, want) {

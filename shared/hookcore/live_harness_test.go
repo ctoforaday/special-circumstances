@@ -266,18 +266,7 @@ func TestLiveClaudeContract(t *testing.T) {
 		"--dangerously-skip-permissions",
 	)
 	cmd.Dir = workDir
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
-			continue
-		}
-		env = append(env, e)
-	}
-	env = append(env,
-		"HOME="+fakeHome,
-		"PATH="+os.Getenv("PATH"),
-	)
-	cmd.Env = env
+	cmd.Env = liveTestEnv(fakeHome)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -443,18 +432,7 @@ func TestLiveAntigravityContract(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 	)
 	cmd.Dir = workDir
-	var env []string
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
-			continue
-		}
-		env = append(env, e)
-	}
-	env = append(env,
-		"HOME="+fakeHome,
-		"PATH="+os.Getenv("PATH"),
-	)
-	cmd.Env = env
+	cmd.Env = liveTestEnv(fakeHome)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out

@@ -201,9 +201,9 @@ CREATE TABLE "enum_gap_class" (
   "material_default" TEXT NOT NULL REFERENCES "enum_class_material"("value")
 ) STRICT;
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('artifact_preservation', 'an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it is', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('citation_figure_misattribution', 'a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('citation_figure_misattribution', 'a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about — minted on your own standing reading of the citation (`absent`, or a copy that is not the work)', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_own_record', 'the report and the run''s own record disagree: the report states what the record contradicts — an inquiry''s fate, method or reason, an edit, a computation''s result — or a record entry contradicts what the report shows was done', 'always');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_source', 'a source read against the sentence — cited by blue or found by red — states otherwise than the report', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_source', 'a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quote', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('cross_section_contradiction', 'two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for them', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('derivation_status_overclaim', 'a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shown', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('doctrine_vs_implementation', 'what a system, method or report says it does differs from what its implementation does — a stated rule its code, script or procedure does not follow', 'by_grade');
@@ -227,7 +227,7 @@ INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('spe
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('structure_noncompliance', 'the report''s structure does not carry its argument: material a reader has to take in order is present only as unordered prose, or a part of the answer has no place in it. The report''s sections are its author''s to name and order, and a heading the report does not have is not this', 'never');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unclassified', 'no other value fits this gap. The mint''s reason names the nearest value and what it does not cover', 'by_grade');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unhandled_degenerate_case', 'a procedure or design the report describes breaks or is undefined at an edge input — empty, zero, one, a boundary, a duplicate — that the report does not address', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unsourced_claim', 'a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence is not the report''s citation: the gap stands until blue cites one', 'by_grade');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unsourced_claim', 'a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence, or says nothing of it, is not the report''s citation: the gap stands until blue cites one', 'by_grade');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('unverified_composition', 'a property of a whole is claimed because its parts were each checked, and the combination itself was never checked', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('verification_scope_blindspot', 'a check, experiment or computation covers less than the claim it is credited with — a read test cited for a write path, one artifact''s check credited to its siblings, a proof that establishes half its sentence', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('vote_laundering', 'agreement among sources, programs or reviewers is counted as independent corroboration when they share an origin, so the count overstates the evidence', 'by_grade');
@@ -312,7 +312,7 @@ CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('anchor', 'a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('anchor', 'a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source''s defect names the citation, never the sentence');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s text or a computation contradicts. The steelman duty''s own anchor');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
@@ -321,9 +321,9 @@ CREATE TABLE "enum_check_kind" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING something settles it. The demand on its close: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind');
+INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING something settles it. The demand on its close: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('document', 'reading a shipped artifact settles it — the check is answered by prose that quotes what is there');
-INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it: the claim stands or falls on what the cited material says. The demand on its close: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or whose reading it carries, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it');
+INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it: the claim stands or falls on what the cited material says. The demand on its close: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it');
 
 CREATE TABLE "enum_source_text_origin" (
   "value" TEXT PRIMARY KEY,
@@ -370,12 +370,12 @@ CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('absent', 'you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing');
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('refutes', 'you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act');
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports', 'you read the source and it says what the claim says. Where the run''s copy of it is only the work''s abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act');
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports_with_bridge', 'it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('absent', 'you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('refutes', 'you read the source and it CONTRADICTS the claim. A reading of the work with this outcome is the ground of a `claim_contradicts_source` gap you mint — about the citation, or quoting the sentence for a source you found — and your debt until that gap stands or you read the subject again');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports', 'you read the source and it says what the claim says. Where the run''s copy of it is only the work''s abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports_with_bridge', 'it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('unreachable', 'you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read');
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('weak', 'it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('weak', 'it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it');
 
 CREATE TABLE "enum_confidence" (
   "value" TEXT PRIMARY KEY,
@@ -803,15 +803,11 @@ CREATE TABLE "verify" (
   "bridge" TEXT,
   "copy_substitution" TEXT,
   "copy_url" TEXT,
-  "carried_by" TEXT,
-  "carrier_minted" INTEGER,
-  CHECK ("carrier_minted" IS NULL OR "carrier_minted" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value"),
   FOREIGN KEY ("bridge") REFERENCES "enum_bridge_kind"("value"),
-  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value"),
-  FOREIGN KEY ("carried_by") REFERENCES "mint"("gap_id")
+  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value")
 ) STRICT;
 
 CREATE TABLE "computation" (
@@ -1028,9 +1024,6 @@ CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
 -- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
--- The readings a gap carries (carrying_reading), asked per gap by the gap's demand
--- (record.EvidenceDemandOf). Partial: a reading that carries no gap is never asked this way.
-CREATE INDEX "verify_carried_by" ON "verify" ("carried_by") WHERE "carried_by" IS NOT NULL;
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
 CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");
@@ -1548,16 +1541,6 @@ LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
 LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
 LEFT JOIN "enum_grade" gs ON gs."value" = g."severity";
 
--- THE READINGS A GAP CARRIES: each verify whose carried_by names the gap, with the anchor it read
--- and the seat that read it. EVERY reader of the reading-to-gap link reads it here and nowhere
--- else (demand_reach, and through it gap_refresh's evidence_answered, among them), so the day the link is stated
--- from the gap's side instead of the reading's this view is the one statement that changes.
-CREATE VIEW "carrying_reading" AS
-SELECT v."carried_by" AS "gap_id", v."anchor" AS "anchor", e."seat_id" AS "seat_id", v."event_id" AS "event_id"
-FROM "verify" v
-JOIN "events" e ON e."id" = v."event_id"
-WHERE v."carried_by" IS NOT NULL;
-
 -- EVERY EVIDENCE ANCHOR ON THE RECORD, ONE ROW EACH: a citation or a computation, the check kind
 -- a live one answers, the gap it was placed as the answer to, the act that placed it and the
 -- retire that took it out (NULL while it stands). One arm per recordsql.EvidenceTables row,
@@ -1583,35 +1566,32 @@ SELECT p."anchor_id" AS "anchor_id", p."kind" AS "kind", p."check_kind" AS "chec
 FROM "placed" p;
 
 -- THE ANCHORS A GAP'S LIVE-ANSWER DEMAND REACHES, and whose check of each it is: the anchor the gap
--- is about, checked by its minter, and the anchor of each reading it carries, checked by that
--- reading's seat. A retire of one, or that seat's check of it again, meets the demand (gap_refresh's
--- met arms 2 and 3); this is the one statement of the reach, which the close's refusal
--- (record.EvidenceDemandOf) and a retire's reach (record.reachingRetiresOf) read too.
+-- is about, checked by its minter — a cited source's claim_contradicts_source or
+-- citation_figure_misattribution gap is about the citation its minter's reading found against, so the
+-- reader's own backing re-read of it meets the demand here. A retire of one, or that seat's check of
+-- it again, meets the demand (gap_refresh's met arms 2 and 3); this is the one statement of the
+-- reach, which the close's refusal (record.EvidenceDemandOf) and a retire's reach
+-- (record.reachingRetiresOf) read too. A gap quoting a sentence reaches no anchor: its demand is met
+-- by blue's cite placed as its answer alone.
 --
 -- THE DEMAND MOVES TO THE SUCCESSOR, AND ITS REACH WITH IT: each gap reaches the anchors of every
 -- ancestor it carries the demand from (demand_lineage, written at the gap's mint). An inherited row is
 -- the successor's from its mint: a retire before it had met the ancestor, which then passed no
 -- demand on, and a check counts for the gap only at or after its mint.
 --
---   from_gap  the gap whose about or reading the row is: gap_id itself, or an ancestor it carries
---             the demand from.
+--   from_gap  the gap whose about the row is: gap_id itself, or an ancestor it carries the demand
+--             from.
 --   minted    gap_id's mint event: a check of the anchor counts for gap_id at or after it.
 --   reached   the event from which the anchor is in gap_id's reach: its own mint for the anchor it
---             is about, the reading's act for a reading it carries, its mint for an inherited row.
+--             is about, its mint for an inherited row.
 CREATE VIEW "demand_reach" AS
 SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
-       'about' AS "via", a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+       a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
 FROM "demand_lineage" l
 JOIN "mint" h ON h."gap_id" = l."gap_id"
 JOIN "mint" a ON a."gap_id" = l."from_gap"
 JOIN "events" e ON e."id" = a."event_id"
-WHERE a."about_kind" = 'anchor'
-UNION ALL
-SELECT l."gap_id", l."from_gap", h."check_kind", h."event_id",
-       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE h."event_id" END
-FROM "demand_lineage" l
-JOIN "mint" h ON h."gap_id" = l."gap_id"
-JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap";
+WHERE a."about_kind" = 'anchor';
 
 -- THE GAP: its mint, its mint's event, and its stored state (gap_state, maintained per append by the
 -- triggers recordsql.GapStateDDL holds, through the rules gap_refresh states). One row per gap.
@@ -1960,18 +1940,12 @@ WITH "d" AS MATERIALIZED (
 "reach" AS MATERIALIZED (
   -- THE ANCHORS EACH NAMED GAP'S DEMAND REACHES: demand_reach's arms, over the named gaps' lineage.
   SELECT l."gap_id" AS "gap_id", l."from_gap" AS "from_gap", h."check_kind" AS "check_kind", h."event_id" AS "minted",
-       'about' AS "via", a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
+       a."about_ref" AS "anchor", e."seat_id" AS "seat", h."event_id" AS "reached"
 FROM "d" CROSS JOIN "demand_lineage" l ON l."gap_id" = "d"."gap_id"
 JOIN "mint" h ON h."gap_id" = l."gap_id"
 JOIN "mint" a ON a."gap_id" = l."from_gap"
 JOIN "events" e ON e."id" = a."event_id"
 WHERE a."about_kind" = 'anchor'
-UNION ALL
-SELECT l."gap_id", l."from_gap", h."check_kind", h."event_id",
-       'reading', cr."anchor", cr."seat_id", CASE WHEN l."from_gap" = l."gap_id" THEN cr."event_id" ELSE h."event_id" END
-FROM "d" CROSS JOIN "demand_lineage" l ON l."gap_id" = "d"."gap_id"
-JOIN "mint" h ON h."gap_id" = l."gap_id"
-JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap"
 ),
 "answered" AS MATERIALIZED (
   -- THE EVIDENCE ANCHORS PLACED AS EACH NAMED GAP'S ANSWER: how many, how many retired and the last
@@ -2002,8 +1976,8 @@ JOIN "carrying_reading" cr ON cr."gap_id" = l."from_gap"
 "met" AS MATERIALIZED (
   -- THE LIVE-ANSWER DEMAND, MET (recordpb.DemandClause):
   --   1. a live evidence anchor of the gap's check kind was placed as its answer;
-  --   2. an anchor the demand reaches is retired: one the gap is about or carries a reading of, or
-  --      one an ancestor it carries the demand from reaches, retired since the heir's mint;
+  --   2. an anchor the demand reaches is retired: the one the gap is about, or one an ancestor it
+  --      carries the demand from reaches, retired since the heir's mint;
   --   3. for a live anchor the demand reaches, that row's seat's latest check of the gap's kind that
   --      read it is at or after the gap's mint and holds. Another seat's check meets nothing.
   SELECT "gap_id" FROM "answered" WHERE "live" > 0

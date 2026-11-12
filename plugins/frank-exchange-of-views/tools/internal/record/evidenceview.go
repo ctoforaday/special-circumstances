@@ -7,6 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // THE EVIDENCE VIEW — what backs the report, and what has been checked of it.
@@ -67,14 +68,18 @@ type EvidenceSourceJSON struct {
 	Title      string `json:"title"`
 	Sha256     string `json:"sha256"`
 	AccessDate string `json:"access_date"`
-	// Location is the sentence the anchor sits at — what the source is offered as backing for.
+	// Location is the sentence the anchor sits at — what the source is offered as backing for — in
+	// the report as it stands where LocationState is `marked`, located by the token as the board
+	// locates a quote gap (locateAnchor); the sentence as cited where `gone` (the anchor bare,
+	// retired or absent) or `unrendered`.
 	//
 	// It is also the ONLY copy of that sentence. A cite carried it twice — `claim` re-quoted
 	// what `location` already held to place the anchor — and Cite reserves field 8 to keep the
 	// second spelling from coming back. There is no `claim` on a source here because there is
 	// no second span to render; `Verify.claim` is a different field and is still on a
 	// verification below.
-	Location string `json:"location"`
+	Location      string `json:"location"`
+	LocationState string `json:"location_state"`
 	// BlueReason is blue's argument for the citation — why this source backs that sentence — from
 	// `cite --reason`: BLUE'S WORDS ABOUT THE SOURCE, never the source's, and named so. A reason
 	// that paraphrases a definition reads like the definition, and a lens that took one for the
@@ -167,8 +172,13 @@ type EvidenceComputationJSON struct {
 	// stated holds across them; both are empty on a reproducible computation.
 	Drift     string `json:"drift"`
 	Invariant string `json:"invariant"`
-	SeatID    string `json:"seat_id"`
-	Epoch     int    `json:"epoch"`
+	// Location is the sentence the computation backs, located by its K- token as a source's is
+	// (locateAnchor): the report's sentence where LocationState is `marked`, the sentence as recorded
+	// where `gone` or `unrendered`.
+	Location      string `json:"location"`
+	LocationState string `json:"location_state"`
+	SeatID        string `json:"seat_id"`
+	Epoch         int    `json:"epoch"`
 	// BundleBases is every basis the acts on this row's bundle were recorded with, where they differ:
 	// one bundle, run twice by two acts, can move for one and not the other, and a reader judging
 	// this act's comparison reads that the bundle's output is not settled. Absent where every act on
@@ -264,11 +274,6 @@ type EvidenceVerificationJSON struct {
 	// fuller copy is a verdict on that copy.
 	CopySubstitution string `json:"copy_substitution,omitempty"`
 	CopyURL          string `json:"copy_url,omitempty"`
-	// CarriedBy is the gap that carries this reading — the one its act minted, or the open gap of its
-	// class the sentence already held — read off the stored reading's carried_by, never off the gap's
-	// text; omitted on a reading no gap carries. Under `independent` it is how blue finds the source a
-	// lens found for a gap it answers.
-	CarriedBy string `json:"carried_by,omitempty"`
 	// Standing is whether this reading stands on its citation, by the anchor ledger's one rule for
 	// every check of an anchor (anchorStanding.stands), the rule a reproduce's `standing` is read by:
 	// the reading READ the source (one that read nothing — unreachable, not the work — neither stands
@@ -282,8 +287,8 @@ type EvidenceVerificationJSON struct {
 // the row's outcome and the completeness of the copy it read, so a `refutes` of a copy the tool
 // stamped not_the_work, which read nothing, is not one. A named predicate rather than a string
 // comparison at each call site: every reader of one reading must agree on what "found against"
-// means, and they agree by calling this. Whether it STANDS is the anchor ledger's
-// (CitationsFoundAgainst), which counts.sources_refuted reads.
+// means, and they agree by calling this. Whether it STANDS is the anchor ledger's, and a standing one
+// is its lens's reading debt until a gap stands on it (readingDebtsOf).
 func (v EvidenceVerificationJSON) FindsAgainst() bool {
 	r := &recordpb.Verify{}
 	if vd, ok := recordpb.BySpelling(recordpb.SourceOutcome(0).Descriptor(), v.Outcome); ok {
@@ -333,13 +338,7 @@ type EvidenceJSON struct {
 		// SourcesUnverified is its citation twin: cited, and no reading of the sentence the report
 		// carries has reached it — unchecked, or checked and nothing read (anchorStanding.state).
 		SourcesUnverified int `json:"sources_unverified"`
-		// SourcesRefuted counts the citations red finds against NOW: a standing `refutes` or
-		// `absent` check of the sentence the report carries (CitationsFoundAgainst, the anchor
-		// ledger's fold). One count, one meaning: the assembly screen fails on the same set, so a
-		// refutation of a sentence an edit replaced and a re-check backed is not counted (gblock,
-		// 2026-10-19; m30's C-4f4b8cfa).
-		SourcesRefuted int `json:"sources_refuted"`
-		Verifications  int `json:"verifications"`
+		Verifications     int `json:"verifications"`
 	} `json:"counts"`
 }
 
@@ -392,7 +391,10 @@ type EvidenceUncheckedJSON struct {
 }
 
 // EvidenceJSONOf projects the record's evidence layer in event order.
-func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
+// report is the report as it stands, with the error of rendering it, which locates each source's
+// and computation's sentence (locateAnchor): a caller renders it once (RenderAt, RenderRun).
+func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr error) EvidenceJSON {
+	located := newLocatedReport(report, renderErr)
 	out := EvidenceJSON{
 		Sources:      []EvidenceSourceJSON{},
 		Computations: []EvidenceComputationJSON{},
@@ -449,7 +451,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			Title:      vf.GetTitle(),
 			AccessDate: vf.GetAccessDate(),
 			SeatID:     e.GetSeatId(),
-			CarriedBy:  vf.GetCarriedBy(),
 			Epoch:      w.Epoch,
 
 			Page:             vf.GetPage(),
@@ -520,7 +521,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				Title:      bd.GetTitle(),
 				Sha256:     bd.GetSha256(),
 				AccessDate: bd.GetAccessDate(),
-				Location:   bd.GetLocation(),
 				BlueReason: proto.String(bd.GetText()),
 				SeatID:     e.GetSeatId(),
 				Epoch:      w.Epoch,
@@ -536,6 +536,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				OCREngine:          bd.GetOcrEngine(),
 				OCRTextSha:         bd.GetOcrTextSha(),
 			}
+			row.LocationState, row.Location, _, _ = locateAnchor(located, label, bd.GetLocation())
 			if retired(label) {
 				out.Retired = append(out.Retired, EvidenceRetiredRow{Source: &row, Retired: retiredBy[label]})
 				continue
@@ -585,6 +586,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				Verified:  v.verified(),
 				Checks:    checks,
 			}
+			row.LocationState, row.Location, _, _ = locateAnchor(located, row.Anchor, bd.GetLocation())
 			if retired(row.Anchor) {
 				out.Retired = append(out.Retired, EvidenceRetiredRow{Computation: &row, Retired: retiredBy[row.Anchor]})
 				continue
@@ -606,14 +608,17 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			out.Counts.SourcesUnverified++
 		}
 	}
-	out.Counts.SourcesRefuted = len(CitationsFoundAgainst(evs, win))
 	return out
 }
 
 // evidenceView is the evidence read from the record: the sources, computations and their checks,
 // and the edits that change an anchor's sentence with the retires that take one out of the report
 // (unchecked).
-var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf),
+var evidenceView = declareNarrowedView("evidence", func(q recordsql.Querier, evs []*Event, win WindowIndex) (EvidenceJSON, error) {
+	// ONE RENDER PER READ, through the checkpointed path, shared by every row's location.
+	report, err := RenderAt(q)
+	return EvidenceJSONOf(evs, win, report, err), nil
+},
 	recordpb.EventType_EVENT_TYPE_CITE,
 	recordpb.EventType_EVENT_TYPE_VERIFY,
 	recordpb.EventType_EVENT_TYPE_COMPUTATION,

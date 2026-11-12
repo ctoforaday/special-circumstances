@@ -146,7 +146,7 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 
 // A REFUSED RESOLUTION IS CARRIED, NEVER RETURNED AS A RUN DIRECTORY OR AS AN EMPTY ONE.
 //
-// MEASURED on the first real exercise of the wrapper (#526): `show board --run "<typo>"` printed
+// MEASURED on #526's smoke run: `show board --run "<typo>"` printed
 // a board. Of() handed back the flag's own value when resolution failed, so every READ verb
 // silently obeyed a contradicted --run — the 2026-08-05 failure the whole mechanism exists to
 // prevent, still live because only Begin honoured the refusal.
@@ -157,8 +157,7 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 // "you were refused" is two states in one byte with the healthy one winning by default.
 func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {
 	run := recordtest.TmpRun(t)
-	t.Setenv(seatenv.Var, "")
-	t.Setenv(seatenv.VarWrapper, run)
+	t.Setenv(seatenv.Var, run)
 
 	c := &cobra.Command{Use: "show"}
 	c.Flags().String(flags.Run, "", "")

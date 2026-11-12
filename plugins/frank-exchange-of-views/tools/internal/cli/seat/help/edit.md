@@ -10,7 +10,9 @@ TAKING RED'S FIX AS IT STANDS. Where red prescribed concrete replacement text on
 apply that text instead of retyping it. Your argument for the change is still required.
 
 Retyping it is the same act only if every byte matches: a stray space or a re-wrapped line records
-that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words — a lens's reading of a source that finds against that text still mints its gap.
+that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words. The estoppel lasts while your verbatim application is the latest edit of that sentence: rewording it afterwards makes the text yours, and red audits it normally; applying red's text again binds red again.
+
+A LENS'S READING THAT FINDS A SOURCE AGAINST A SENTENCE IS THAT LENS'S DEBT, which holds the PASS until the lens mints the gap on it or reads the sentence again. Your edit of the sentence a citation backs, or your retire of the citation, discharges the debt on that citation. Of a sentence a source the lens found was read against, an edit that REWORDS it leaves the debt standing — the lens reads the sentence as it now stands — and one that removes the sentence, or applies red's text verbatim, discharges it.
 
 You are never obliged to accept. Writing your own replacement is your right to disagree and is
 recorded as one.

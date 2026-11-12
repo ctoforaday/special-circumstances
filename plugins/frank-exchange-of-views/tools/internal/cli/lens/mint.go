@@ -152,10 +152,9 @@ func newMint() *cobra.Command {
 		// own words. The refusal is decided under the write lock; the log entry
 		// that records it is written after, as its own act.
 		//
-		// `verify` ATTACHES NO SUCH GUARD (gblock, 2026-10-31: "Exempt, stated"). A reading's gap is
-		// minted by a source read against the sentence, and a source that finds against text blue
-		// applied from a red --new is new evidence the prescription never weighed, not red
-		// relitigating its own words; the reading's act checks nothing and logs nothing here.
+		// A FOUND-SOURCE 32 IS A QUOTE MINT AND MEETS THE GUARD LIKE ANY GAP (gblock, 2026-11-06, F4
+		// (a)): red mints --supersedes the prescribing gap, as the refusal says. A reword of the applied
+		// text by blue ends the estoppel (record.estoppingPrescriptions).
 		guards = append(guards, record.Check(func(l *record.Landing) error {
 			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.Value())
 		}))
@@ -214,7 +213,7 @@ func newMint() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject, --reason, --supersedes or --found-by — is refused: a handle names one gap")
-	gf.register(c, mintSubject)
+	gf.register(c)
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
@@ -233,45 +232,19 @@ func newMint() *cobra.Command {
 }
 
 // gapFlags is the judgment a gap is minted with — its class, problem, fix, proposal, acceptance check
-// and grades — as ONE registration and ONE fill, shared by `mint` and `verify` (whose reading mints
-// its gap in its own act), so the two cannot drift: the same flag names, the same descriptions where
-// the description is true on both pages, and one code path from the flags to the Mint's fields.
+// and grades — as ONE registration and ONE fill: `mint`'s alone, since a reading records and mints
+// nothing (record.readingMintedClasses: a gap of a class a reading defines is minted here, on the
+// seat's standing reading of its subject).
 type gapFlags struct {
 	severity, likelihood, impact, cx flags.GradeValue
 }
 
-// gapSubject is what differs between the pages the gap flags are registered on: the class set the
-// verb admits, how its --class is described, and the text its --new replaces, named as that page's
-// subject.
-type gapSubject struct {
-	class      record.EnumField
-	classUsage string
-	span       string
-}
-
-var (
-	// mintSubject is `mint`'s: any class, the gap at the end of --quote.
-	mintSubject = gapSubject{
-		class:      record.MustEnum("mint", "class"),
-		classUsage: "the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover",
-		span:       "--quote",
-	}
-	// readingSubject is `verify`'s: the classes a reading's gap may take (no reading admits
-	// unclassified), the gap at the end of the sentence the reading read — the one its --anchor's token
-	// sits in, or its --quote.
-	readingSubject = gapSubject{
-		class:      record.ReadingClassField(),
-		classUsage: "the KIND of defect this reading finds, from the values below",
-		span:       "the sentence your --anchor's token sits in, or your --quote,",
-	}
-)
-
-// register registers the ten gap flags on c, each described as it is true on c's page.
-func (g *gapFlags) register(c *cobra.Command, subject gapSubject) {
-	enumhelp.Flag(c, flags.Class, subject.class, subject.classUsage)
+// register registers the ten gap flags on c.
+func (g *gapFlags) register(c *cobra.Command) {
+	enumhelp.Flag(c, flags.Class, record.MustEnum("mint", "class"), "the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover")
 	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
-	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text %s should become. A replacement more than %d characters longer than the span, counting words and not the anchor tokens it keeps, is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", subject.span, bluedoc.MaxProposalGrowth))
+	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text %s should become. A replacement more than %d characters longer than the span, counting words and not the anchor tokens it keeps, is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", "--quote", bluedoc.MaxProposalGrowth))
 	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition")
 	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check"))
 	c.Flags().Var(&g.severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
@@ -425,12 +398,6 @@ type gapPlace struct {
 // quotePlace is a gap placed at the end of --quote.
 func quotePlace(quote string) gapPlace { return gapPlace{quote: quote, subject: "--quote"} }
 
-// sentenceOfPlace is a reading's gap placed at the end of the sentence citation of's token sits in,
-// whose words are quote.
-func sentenceOfPlace(quote, of string) gapPlace {
-	return gapPlace{quote: quote, of: of, subject: "the sentence your --anchor's token sits in"}
-}
-
 // placed is report with gapID's anchor standing where at puts it.
 func (at gapPlace) placed(report, gapID string) (string, error) {
 	if at.of != "" {
@@ -570,9 +537,8 @@ type familyReader interface {
 // requireNotEstopped refuses a mint whose location is text a red seat prescribed and blue applied
 // verbatim, unless the mint supersedes that gap — and refuses any mint whose record could not be
 // read to ask: a gap opened because the estoppel question could not be asked is one the tool
-// admitted on nothing. It guards `mint` alone: a reading's gap, minted in `verify`'s act, is exempt
-// (record.AppendReading), its source's finding being new evidence rather than a prescription
-// relitigated.
+// admitted on nothing. Every `--quote` mint meets it, a found source's claim_contradicts_source
+// included (gblock, 2026-11-06, F4 (a)).
 func requireNotEstopped(l familyReader, quote string, supersedes []string) error {
 	fam, err := l.Family()
 	if err != nil {

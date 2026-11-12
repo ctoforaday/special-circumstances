@@ -164,8 +164,8 @@ var layout = []Section{
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
 		From:    "the gaps and findings on the record and the chair's spot-checks",
-		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, as a lens's `verify` does where its reading mints a gap, and the lens's `close` and `regrade` move them; the chair's `spot-check` adds a spot-check.",
-		compose: func(a *assembly, _ Section) string { return boardSection(a.fam) }},
+		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, and the lens's `close` and `regrade` move them; the chair's `spot-check` adds a spot-check.",
+		compose: func(a *assembly, _ Section) string { return boardSection(a.run, a.fam) }},
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts, spot-checks and rulings on the record, sitting by sitting",
 		Path:    "The chair's `position`, `verdict` and `spot-check`, the lens's and blue's `closing` on a docketed gap, a lens's `regrade` that keeps a gap's grade, and the bench's rulings and `certify`.",

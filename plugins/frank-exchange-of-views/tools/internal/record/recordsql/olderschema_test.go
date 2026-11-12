@@ -155,7 +155,7 @@ func TestTheEpochsDecideWhichPartyIsStale(t *testing.T) {
 			// the replayer is the thing that is behind.
 			name:       "record ahead of the binary",
 			epoch:      recordpb.EventSchema + 1,
-			wants:      []string{"NEWER binary", "THIS BINARY is the stale party", "/.bin/feov-record"},
+			wants:      []string{"NEWER binary", "THIS BINARY is the stale party", "the path every seat's prompt names"},
 			mustNotSay: "Migrate it",
 		},
 		{

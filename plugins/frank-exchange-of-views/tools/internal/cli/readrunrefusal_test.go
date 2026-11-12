@@ -34,8 +34,7 @@ func TestAReadHonoursARefusedRunInsteadOfInferringOne(t *testing.T) {
 	if err := os.MkdirAll(elsewhere, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv(seatenv.Var, "")
-	t.Setenv(seatenv.VarWrapper, dispatched)
+	t.Setenv(seatenv.Var, dispatched)
 
 	// THE VERB IS THE OPERATOR'S, and the run it was dispatched into binds it as it binds a seat:
 	// the contradiction is refused whoever reads.

@@ -23,37 +23,28 @@ Two measurements set the shape, and both are quoted in the code that answers the
   receipts and produced a false bug report, because a hand-typed path is an unmediated fact and
   nothing could refuse it ([[facts-are-fields]]).
 
-## Two carriers, and a gate between them
+## The hook, then the tool's own inference
 
-The run directory reaches a seat twice, by independent routes. That is deliberate: #500's
-mid-run marker move (run 3's `assemble` wrote a foreign VERIFIED into a live run) was invisible
-while there was one carrier and it was the one that had moved.
+The run directory reaches a seat's call through the PreToolUse hook, which rewrites every Bash
+command in a live run the caller's session leads to carry `export FEOV_RUN='<runDir>';`, re-derived
+per call from `run-live.json` (below). When the hook does not fire, the tool finds the run itself:
+`runlive.InferRunDir` over the live rows the calling session (`CLAUDE_CODE_SESSION_ID`) leads. With
+neither, a seat verb is refused with *"--run <runDir> is required"*; nothing else binds a run.
 
-**1. The per-run wrapper — primary.** `setup` writes `<runDir>/.bin/feov-record` (and `.cmd`),
-which execs the real binary with `FEOV_RUN_FROM_WRAPPER` set to this run, and prints that
-directory as the `binDir` the workflow hands every seat (`internal/setup/wrapper.go`,
-`WriteRunWrapper`; `WrapperDir = ".bin"`). The prompt already interpolates
-`"${binDir}/feov-record"`, so a seat runs the wrapper without knowing it exists. The dispatcher
-bakes the run in **before the run starts**; a mistyped wrapper path fails at the shell, where a
-mistyped `--run` is well-formed and files the seat's work against nothing. Pointing `--bin-dir`
-at a previous run's `.bin` is refused rather than wrapped.
+`binDir`, which the workflow interpolates into every seat's prompt as `"${binDir}/feov-record"`, is
+the absolute directory of the binary `setup`'s preflight checked (`internal/setup/run.go`). A seat
+runs that binary by path and never types the run.
 
-**2. The PreToolUse hook — second.** It rewrites the seat's Bash command to carry
-`export FEOV_RUN='<the live marker's runDir>';`, re-derived per call from `run-live.json`.
+**#500's cross-run hazard is refused upstream.** Run 3's `assemble` wrote a foreign VERIFIED into a
+live run after the singleton marker moved. A marker cannot move under a live run now: one live run
+per project (#1385), setup refuses while a decided run is uncaptured (#1535), and a run's members are
+its lead session's agents (#1582). The window that remains: a seat that outlives its run's capture,
+in a session that has since set up a new run, is injected the new run. `register`-first refuses its
+other writes there; its `register` succeeds.
 
-**The gate.** The two disagreeing is refused as *"the engine's live-run marker has moved since
-this run started"* (`internal/seatenv/seatenv.go:122`) — exactly the #500 incident. On a healthy
-run the wrapper is invisible: the hook sets `FEOV_RUN`, which outranks it.
-
-**Why two variables rather than one.** `FEOV_RUN_FROM_WRAPPER` is distinct from `FEOV_RUN` so
-that `run_via` stays a precise hook-absence detector (#512): if the wrapper set `FEOV_RUN` too,
-every register would read "injected" and the hook-absence signal would go blind — the defect
-that issue exists to end, reintroduced by the fix for its sibling. Neither variable appears on
-any `--help` surface: a seat never types them, and documenting one would invite exactly the
-hand-typed path this removes.
-
-Measured on a live smoke run after #526: **249 commands through the wrapper, 0 containing
-`--run`, 13/13 seats identified.**
+**`run_via` records which path supplied the run** (`injected` | `flag` | `inferred`). A hook that
+did not fire leaves `inferred` or `flag` and no `hook_version` stamp, which is the hook-absence
+signal #512 asked for.
 
 ## The hook half — `hookgate.PreOutcome`
 

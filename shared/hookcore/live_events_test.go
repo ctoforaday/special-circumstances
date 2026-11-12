@@ -39,14 +39,7 @@ func newAgyWorld(t *testing.T) *agyWorld {
 	if err := os.WriteFile(settings, []byte(`{"toolPermission":"always-proceed"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") ||
-			strings.HasPrefix(e, "ANTIGRAVITY_") || strings.HasPrefix(e, "XDG_") {
-			continue
-		}
-		w.env = append(w.env, e)
-	}
-	w.env = append(w.env, "HOME="+w.home)
+	w.env = liveTestEnv(w.home)
 	return w
 }
 

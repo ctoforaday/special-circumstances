@@ -62,6 +62,7 @@ var argumentResidue = map[string]struct {
 	"2026-10-29_is-91-prime-m36":            {0, 0, "", "not_owed=8"},
 	"2026-10-30_mersenne-31-prime-sum":      {2, 0, "blue:filed=4,lens:filed=4", "not_owed=12"},
 	"2026-11-04_eiffel-tower-height":        {0, 0, "blue:filed=3,lens:filed=3", "not_owed=12"},
+	"2026-11-11_eiffel-tower-height":        {0, 0, "blue:filed=1,lens:filed=1", "not_owed=12"},
 }
 
 // EVERY ARCHIVED RUN'S REFUSED ARGUMENTS ARE WRITTEN AS NO EVENT, AND ONLY THEY. Per run, the

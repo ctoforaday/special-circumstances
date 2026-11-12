@@ -1,119 +1,50 @@
 package fuzz
 
 import (
-	"encoding/json"
-	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// A lens at its cap reads a second source for a sentence whose first reading a sibling's gap held;
-// the sibling closes that gap between the drive's read of the board and the act, so the reading mints
-// and the cap refuses it. The drive tallies that refusal rather than failing the run on it; with the
-// gap still standing, the reading is held by it and admitted.
-func TestASecondSourceRefusedForBudgetOnceItsHoldingGapClosedIsTallied(t *testing.T) {
+// A SECOND LENS'S READING OF A SENTENCE ANOTHER LENS'S GAP STANDS ON OWES NOTHING, AND ITS MINT IS
+// REFUSED: the sibling's reading of a source it found refutes the sentence and its
+// claim_contradicts_source mint quoting the sentence lands on that reading; the lens's own refuting
+// reading of another source for the sentence is recorded with no debt — the open gap of the class
+// on the sentence discharges it (other_seat_gap) — and the lens's mint quoting the sentence is
+// refused by the one-gap rule naming the sibling's gap, its point filed as a finding about it. Run
+// outside the release gate, on the drive's own sittings.
+func TestASecondLenssReadingIsDischargedByTheFirstsGap(t *testing.T) {
 	const (
 		sentence = "A § fuzz sentence to anchor findings."
 		lens     = "red-lens-logic"
 		sibling  = "red-lens-adversary"
-		class    = "claim_contradicts_source"
 	)
-	for _, closed := range []bool{true, false} {
-		t.Run(map[bool]string{true: "closed in between", false: "still standing"}[closed], func(t *testing.T) {
-			bin := buildBinary(t)
-			runDir := recordtest.TmpRun(t)
-			if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-				[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":1,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25,"maxEpochs":10}`)); err != nil {
-				t.Fatal(err)
-			}
-			stageRun, err := record.NewRun(runDir)
-			if err != nil {
-				t.Fatal(err)
-			}
-			cast, lanes := record.CastFor(1)
-			if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
-				t.Fatal(err)
-			}
-			r := newRunner(bin, runDir, newLockedRand(7))
-			if err := r.stagePart(lanePartText("blue-lane-1")); err != nil {
-				t.Fatal(err)
-			}
-			mint := func(seat, quote, class string) string {
-				t.Helper()
-				out, ok := r.admit("--json", "mint", "--seat-id", seat, "--quote", quote, "--class", class,
-					"--problem", "fuzz: the sentence overstates the trend", "--check-kind", "document", "--check", "acc",
-					"--fix", dirIgnore, "--severity", "high", "--impact", "high", "--likelihood", "high", "--reason", "fuzz reason")
-				var env struct {
-					Result struct {
-						GapID string `json:"gap_id"`
-					} `json:"result"`
-				}
-				if !ok || json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.GapID == "" {
-					t.Fatalf("%s's mint: %s (%s)", seat, out, r.actErr)
-				}
-				r.noteMint(seat, env.Result.GapID)
-				return env.Result.GapID
-			}
-			r.sit("lens", sibling)
-			g := mint(sibling, sentence, class)
-			r.sit("lens", lens)
-			// THE LENS AT ITS CAP: its own mints on the other sentence, a class each.
-			for _, c := range []string{"spec_underspecification", "unsourced_claim", "invalid_inference", "false_universal"} {
-				if left, ok := r.mintsLeft(lens); !ok {
-					t.Fatalf("%s's budget is not measured", lens)
-				} else if left == 0 {
-					break
-				}
-				mint(lens, repeatedSentenceSeeds[0], c)
-			}
-			if left, _ := r.mintsLeft(lens); left != 0 {
-				t.Fatalf("%s has %d mints left; the fixture needs it at its cap", lens, left)
-			}
-			axes := func(outcome string, c *cmd) *cmd {
-				return c.set("--as", outcome).set("--confidence", "high").set("--reason", "fuzz: what the source actually says")
-			}
-			first, _, _, _ := r.foundSourceReading(lens, "refutes", sentence, "https://fuzz.invalid/"+lens+"/first", axes)
-			setArg(first.args, "--class", class)
-			out, ok := first.admit()
-			if v := r.checkReading(lens, out, first.args); !ok || v == nil || v.GetCarriedBy() != g || v.GetCarrierMinted() {
-				t.Fatalf("at the cap, the first reading was not held by %s: %s (%s)", g, out, r.actErr)
-			}
-			if closed {
-				r.betweenSecondSourceReadAndAct = func(id string) {
-					r.admit("close", "--seat-id", sibling, "--id", id, "--as", "repaired", "--reason", "fuzz close as repaired",
-						"--verified-by", sibling, "--verified-with", "fuzz", "--verified-against", "rec")
-					r.betweenSecondSourceReadAndAct = nil
-				}
-			}
-			before := eitherCount(t, "a second found-source reading whose holding gap closed in between, at the cap")
-			r.readAnotherSource(lens, "refutes", sentence, class, g, axes)
-			if r.actErr != "" {
-				t.Fatalf("the drive failed the run: %s", r.actErr)
-			}
-			tallied := eitherCount(t, "a second found-source reading whose holding gap closed in between, at the cap") - before
-			if want := map[bool]int{true: 1, false: 0}[closed]; tallied != want {
-				t.Errorf("refusals tallied = %d, want %d", tallied, want)
-			}
-		})
+	r := stagedRunner(t)
+	if err := r.stagePart(lanePartText("blue-lane-1")); err != nil {
+		t.Fatal(err)
 	}
-}
-
-// eitherCount is how many acts the either tally holds refused for why.
-func eitherCount(t *testing.T, why string) int {
-	t.Helper()
-	eitherMu.Lock()
-	defer eitherMu.Unlock()
-	n := 0
-	for k, row := range eitherRow {
-		if strings.HasSuffix(k, " — "+why) {
-			n += row[1]
-		}
+	r.sit("lens", sibling)
+	at := r.readFound(sibling, foundSourceURL(sibling), sentence, "refutes")
+	if at == 0 {
+		t.Fatalf("the sibling's reading: %s", r.actErr)
 	}
-	return n
+	res := r.mintOnReading(sibling, classContradicts, quoteArgs(sentence), at, "quote")
+	if res.gap == "" || !r.debtDischargedBy(sibling, sentence, "mint", "the sibling's mint on its reading") {
+		t.Fatalf("the sibling's mint on its reading: %q (%s)", res.out, r.actErr)
+	}
+	r.sit("lens", lens)
+	if r.readFound(lens, foundSourceURL(lens), sentence, "refutes") == 0 {
+		t.Fatalf("the lens's reading: %s", r.actErr)
+	}
+	if b, stands := r.debtOf(lens, sentence); stands {
+		t.Fatalf("the lens's reading left a debt over the sibling's open gap %s: %s", res.gap, b.WorkItem())
+	}
+	second := r.mintOnReading(lens, classContradicts, quoteArgs(sentence), 0, "quote")
+	if second.refusedBy != "one_gap" || !strings.Contains(second.out, res.gap) || r.actErr != "" {
+		t.Fatalf("the lens's mint over the sibling's gap: refused by %q, naming %s %v (%s)", second.refusedBy, res.gap, strings.Contains(second.out, res.gap), r.actErr)
+	}
+	if r.oneGapRefused != 1 || r.oneGapFindings != 1 || r.reading.debtsDischarged["other_seat_gap"] != 1 {
+		t.Errorf("one-gap refused %d, findings %d, debts discharged by another seat's gap %d — want 1 each", r.oneGapRefused, r.oneGapFindings, r.reading.debtsDischarged["other_seat_gap"])
+	}
 }
 
 // The RUNSTAT line, which the job log keeps, names a refused act's cause: the envelope exec puts on

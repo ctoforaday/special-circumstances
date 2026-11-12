@@ -78,6 +78,11 @@ type Manifest struct {
 	// the archive's golden list is read from it.
 	Rewritten  []ProseRewrite `json:"-"`
 	Serialized map[string]int `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
+	// DroppedPlanBlockers is how many archived reading blockers of a stored plan named a reading of a
+	// source its lens found and left the plan: a found source's debt is keyed on a sentence the stored
+	// plan does not hold (migrate's planids.go). A stated zero: an absent count and a migration that
+	// dropped none would otherwise be the same bytes.
+	DroppedPlanBlockers int `json:"dropped_plan_blockers"`
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`

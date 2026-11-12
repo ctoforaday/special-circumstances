@@ -46,7 +46,7 @@ func newSpotCheck() *cobra.Command {
 		return spotCheckResultOf(body), nil
 	})
 
-	c.Flags().Var(ids, flags.IDs, "comma-separated archived closures you re-verified this sitting")
+	c.Flags().Var(ids, flags.IDs, "comma-separated gap ids (G-…) of the closed gaps whose closures you re-verified this sitting")
 	c.Flags().Var(&areas, flags.Areas, "comma-separated lens seats from the plan's stale_areas whose changes since the pin you judged against the area's duties this sitting — the tool states each pin and the changes behind it; a PASS is refused until a spot-check this sitting names every stale area; what you found goes in --reason")
 	// ONE PROSE CHANNEL, ALWAYS REQUIRED: what the spot-check found, or why it names nothing — the
 	// board says how much the archive held, and the reason says why none of it was re-read.

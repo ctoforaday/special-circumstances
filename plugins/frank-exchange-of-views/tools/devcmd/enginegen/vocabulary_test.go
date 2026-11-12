@@ -20,6 +20,7 @@ func sampleVocabulary() vocabulary {
 		benchSeat: "judge", lensOrBlue: []string{"blue-respond", "red-lens-evidence"},
 		party:         party,
 		benchHearings: []string{"petition"},
+		standing:      []record.StandingClause{{Kind: record.BlockerUnchecked, Clause: "unchecked"}, {Kind: record.BlockerReadingDebt, Clause: "on a reading debt"}},
 		read:          []record.PlanField{{Name: "Event", JSON: "event", Type: "integer", Min: &zero, Desc: "where it was read"}},
 		plan: []record.PlanField{
 			{Name: "Head", JSON: "head", Type: "integer", Min: &zero, Desc: "the report's head"},
@@ -53,6 +54,7 @@ const DISPUTE_DIMENSION = { type: 'string', enum: ['severity'] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED'] }
 const BENCH_HEARINGS = ['petition']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
+const STANDING_CLAUSES = [{ kind: 'unchecked', clause: 'unchecked' }, { kind: 'reading_debt', clause: 'on a reading debt' }]
 const BENCH_PARTY = {
   type: 'object',
   required: ['seat_id', 'gap_ids'],
@@ -124,6 +126,8 @@ func TestAVocabularyAHarnessCouldNotValidateAgainstIsRefused(t *testing.T) {
 		{"an empty set", func(v *vocabulary) { v.outcomes = nil }, "no word for the run's outcomes"},
 		{"no party seat", func(v *vocabulary) { v.lensOrBlue = nil }, "no seat a plan's party can be"},
 		{"no hearing a filing convenes", func(v *vocabulary) { v.benchHearings = nil }, "no occasion a filing convenes"},
+		{"no kind a termination reason states", func(v *vocabulary) { v.standing = nil }, "no blocker kind a termination reason states"},
+		{"a clause naming no kind of the record", func(v *vocabulary) { v.standing[0].Kind = "orphan" }, `names "orphan", which is no blocker kind`},
 		{"a read field no schema can carry", func(v *vocabulary) { v.read[0].Defect = "no set" }, "record.RecordRead's event cannot be carried"},
 		{"a plan with no parties", func(v *vocabulary) { v.plan = v.plan[:1] }, "no list of parties"},
 		{"a party with no gaps", func(v *vocabulary) { v.plan[1].Items = v.plan[1].Items[:1] }, "no field GapIDs"},

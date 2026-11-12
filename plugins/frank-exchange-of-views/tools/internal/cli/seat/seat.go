@@ -134,7 +134,7 @@ type Context struct {
 
 	// RunErr is the resolution's REFUSAL, carried rather than encoded as an empty RunDir.
 	//
-	// MEASURED, on the first real exercise of the wrapper (#526). Of() returned the flag's own
+	// MEASURED, on #526's smoke run. Of() returned the flag's own
 	// value when resolution failed, so `show board --run "<typo>"` printed a board for a
 	// directory nobody had dispatched — the 2026-08-05 failure this whole mechanism exists to
 	// prevent, still live on every READ verb because only Begin honoured the refusal.
@@ -1079,7 +1079,7 @@ var ReasonIs = map[string]string{
 	"compute":    "the computation note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
 	"log":        "the entry: what you concluded about the tooling",
 	"position":   "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
-	"verify":     "what the source says, in your words, or, where it could not be read, what you tried. Where this reading mints a gap, the same text is that gap's argument, the case blue answers and a bench weighs; where an open gap of its class already carries the sentence, it stays on your reading alone and that gap keeps its own. " + flags.ReasonNotProcess,
+	"verify":     "what the source says, in your words, or, where it could not be read, what you tried. It stays on the reading: a gap you mint on this reading carries its own argument, the case blue answers and a bench weighs. " + flags.ReasonNotProcess,
 	"mint":       "your argument for the gap — why it is worth one, the case blue answers and a bench weighs; the report never prints it. Under unclassified it is REQUIRED: name the nearest class and what it does not cover. " + flags.ReasonNotProcess,
 	"closing":    "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"spot-check": "your judgement of the changes behind each stale area's pin against that area's duties, and of any closure you re-verified, a defect included — printed with the spot-check, beside the changes the tool states, in the report's board and in the debate transcript; the count and ids of the changes are the tool's, never yours. " + flags.ReasonNotProcess,

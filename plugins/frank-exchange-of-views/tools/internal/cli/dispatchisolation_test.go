@@ -21,7 +21,7 @@ import (
 // another worktree, reporting a conflict that read like a test bug. The shared TestMains clear the
 // variables; this test is what notices if that stops happening.
 func TestTheSuiteIsIsolatedFromAnyLiveDispatch(t *testing.T) {
-	for _, v := range []string{seatenv.Var, seatenv.VarWrapper, seatenv.AgentVar, seatenv.TypeVar} {
+	for _, v := range []string{seatenv.Var, seatenv.AgentVar, seatenv.TypeVar} {
 		if got := os.Getenv(v); got != "" {
 			t.Errorf("%s is set to %q inside the suite — a run open anywhere in the project would "+
 				"make every test that passes --run fail against it", v, got)
