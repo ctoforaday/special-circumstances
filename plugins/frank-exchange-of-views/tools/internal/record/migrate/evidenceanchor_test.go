@@ -3,13 +3,16 @@ package migrate_test
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
@@ -19,8 +22,8 @@ import (
 // a prose id skipped. On every archive, every `anchor` row whose id is of a backing kind, and every
 // token of a backing kind in the migrated report, names an anchor of evidence_anchor.
 //
-// THE MIGRATION ADDS NO ANSWER AND MOVES NO CLOSURE. No archived cite holds `answers` (the field is
-// newer than every archive), and each gap's openness and closing acts, as the gap view states them,
+// THE MIGRATION ADDS NO ANSWER AND MOVES NO CLOSURE. A migrated cite holds `answers` exactly where its
+// archived cite did — none before the field, every one after it — and each gap's openness and closing acts, as the gap view states them,
 // are the closing acts the record holds: the live-answer demand is asked in the close verb,
 // which no replay passes, so no archived gap moves open or closed.
 func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
@@ -63,8 +66,15 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 					t.Errorf("%s: the %s has no placing row in evidence_anchor", name, n)
 				}
 			}
-			if got := column(t, db, `SELECT "label" FROM "cite" WHERE "answers" IS NOT NULL`); len(got) != 0 {
-				t.Errorf("%s: archived citations %v hold an answer, which no archived cite carried", name, got)
+			const answered = `SELECT "label" FROM "cite" WHERE "answers" IS NOT NULL ORDER BY "label"`
+			var archived []string
+			if src := recordtest.RequireArchive(t, name); fileExists(filepath.Join(src, "records", "record.db")) {
+				if sdb := openRO(t, src); slices.Contains(columnsOf(t, sdb, "cite"), "answers") {
+					archived = column(t, sdb, answered)
+				}
+			}
+			if got := column(t, db, answered); !slices.Equal(got, archived) {
+				t.Errorf("%s: migrated citations %v hold an answer; the archived ones that did are %v", name, got, archived)
 			}
 			// THE CLOSURE COLUMNS ARE THE CLOSING ACTS: open is no closing act, and the last close and
 			// closing docket ruling are the latest of each arm, read off the bodies.
@@ -106,6 +116,12 @@ func TestEveryMigratedEvidenceAnchorHasAPlacingRow(t *testing.T) {
 	if total != 7 || fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("the archived lens closes of unanswered source gaps, replayed unrefused: %v (total %d), want %v (total 7)", sourceCloses, total, want)
 	}
+}
+
+// fileExists reports whether path names a file.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // openMigrated is the migrated record under dir, opened read-only.

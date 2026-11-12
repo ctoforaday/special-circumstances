@@ -515,6 +515,42 @@ func TestARunEndingOnAReadingDebtNamesIt(t *testing.T) {
 	}
 }
 
+// A FORCED CHAIN'S CITATIONS ARE THE CHAIN'S (forcedChainCitation): the removal seed's five from blue's
+// cite until the lens's driven sitting, and the reading-debt chain's until its mint; no other
+// citation, and none in a run forced through neither.
+func TestAForcedChainsCitationsAreTheChains(t *testing.T) {
+	removal := readingRemoval{retiredCite: "C-ret", rereadCite: "C-rer", absentCite: "C-abs", anchoredCite: "C-anc", quoted: "C-quo"}
+	five := []string{"C-ret", "C-rer", "C-abs", "C-anc", "C-quo"}
+	for _, stage := range []string{removalAdded, removalRead, removalRemedied} {
+		removal.stage = stage
+		r := &runner{forceReadingRemoval: true, removal: removal}
+		for _, c := range five {
+			if !r.forcedChainCitation(c) {
+				t.Errorf("at stage %s the removal seed's citation %s is left to the drawn drives", stage, c)
+			}
+		}
+		if r.forcedChainCitation("C-other") || r.forcedChainCitation("") {
+			t.Errorf("at stage %s a citation no chain placed is held", stage)
+		}
+	}
+	removal.stage = removalDriven
+	if r := (&runner{forceReadingRemoval: true, removal: removal}); r.forcedChainCitation("C-anc") {
+		t.Error("the removal seed's citation is held past the lens's driven sitting")
+	}
+	removal.stage = removalAdded
+	if r := (&runner{removal: removal}); r.forcedChainCitation("C-anc") {
+		t.Error("a run not forced through the removal holds its citation")
+	}
+	debt := &runner{forceReadingDebt: true, debtChainCite: "C-debt"}
+	if !debt.forcedChainCitation("C-debt") {
+		t.Error("the reading-debt chain's citation is left to the drawn drives before its mint")
+	}
+	debt.debtChainMinted = true
+	if debt.forcedChainCitation("C-debt") {
+		t.Error("the reading-debt chain's citation is held past its mint")
+	}
+}
+
 // THE READING TALLY'S GATES COVER EVERY KEY: each discharge, each cross-arm direction and each
 // mint form is a gate of its own, and a fold of two tallies sums each.
 func TestTheReadingTallyGatesEveryKey(t *testing.T) {
