@@ -336,10 +336,15 @@ func bestChunkSentence(segs []segment, query string) (segment, int, int) {
 	return best, bestA, bestZ
 }
 
-// nextWord is the offset of the first non-space character at or after i, or len(text).
+// nextWord is the offset of the first character at or after i that is neither whitespace nor in a
+// table rule (ruleTokenAt), or len(text).
 func nextWord(text string, i int) int {
 	for i < len(text) {
 		r, n := utf8.DecodeRuneInString(text[i:])
+		if z, ok := ruleTokenAt(text, i); ok {
+			i = z
+			continue
+		}
 		if !unicode.IsSpace(r) {
 			return i
 		}

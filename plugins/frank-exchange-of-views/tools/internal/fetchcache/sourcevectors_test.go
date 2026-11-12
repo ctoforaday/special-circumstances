@@ -285,3 +285,42 @@ func TestASecondSearchReadsTheSourceVectorCache(t *testing.T) {
 		t.Errorf("the cache returned %d chunks; want the %d embedded, with their vectors", len(second), len(first))
 	}
 }
+
+// A TABLE RULE DOES NOT START THE SENTENCE A RANKED HIT OFFERS. The page is the smoke run's OCR of a
+// 1964 routing sheet, its ruled column read as a bar at a line's end: "Rinmascita. |" then "The
+// writer, …". The best sentence starts at "The", the source's text holds it at the offsets the hit
+// states, and cite's locator places it.
+func TestARankedHitsSentenceStartsAfterATableRule(t *testing.T) {
+	vecembedtest.UseFake(t)
+	page := "be of intere to you, appeared in|\nthe 7 March igsue of the. Italian .\n\n" +
+		"Communist Party ‘weekly. Rinmascita. |\nThe writer, Gianfranco Corsini, has\n" +
+		"been on and off. US- correspondent —\n_ for the Italian Communist: ‘P¥6SSo\n"
+	run, e := storeScanned(t, 1)
+	rd := fakeRender(t, run, e.Sha, [][]byte{[]byte("p1")}, tessocr.RenderDPI)
+	withEngine(t, textEngine(func(int) (string, error) { return page, nil }))
+	if _, err := ReadRenderedPages(run, e.Sha, rd); err != nil {
+		t.Fatal(err)
+	}
+	const want = "The writer, Gianfranco Corsini, has been on and off."
+	res, err := SearchSourceHybrid(run, e, "the writer Gianfranco Corsini", 3)
+	if err != nil || len(res.Hits) != 1 {
+		t.Fatalf("hits %+v, %v; want one", res.Hits, err)
+	}
+	h := res.Hits[0].SourceHit
+	if h.SourceSpan != want || h.Sentence != want || !strings.HasPrefix(page[h.SentenceStart:h.SentenceEnd], "The writer,") {
+		t.Errorf("the hit offers %q (sentence %q, source [%d,%d) %q); want %q", h.SourceSpan, h.Sentence,
+			h.SentenceStart, h.SentenceEnd, page[h.SentenceStart:h.SentenceEnd], want)
+	}
+	if _, err := LocateSourceSpan(run, e, want); err != nil {
+		t.Errorf("cite's locator refuses the sentence after the rule: %v", err)
+	}
+	// The rule is passed over, not erased: the sentence before it still ends where it did.
+	if _, err := LocateSourceSpan(run, e, "Communist Party ‘weekly."); err != nil {
+		t.Errorf("cite's locator refuses the sentence before the rule: %v", err)
+	}
+	// A rule opening a page leaves the page's start a start, whatever the case after it.
+	run2, e2 := ocrSource(t, map[int]string{1: "| continued from the sheet before.", 2: "Nothing else."})
+	if _, err := LocateSourceSpan(run2, e2, "continued from the sheet before."); err != nil {
+		t.Errorf("a page opening with a rule: %v", err)
+	}
+}
