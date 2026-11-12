@@ -139,9 +139,12 @@ func SeatModels(run Run, f Family) []SeatModel {
 		if row.Class == "judgment" {
 			configured = judgmentModel
 		}
-		if cfgErr != nil && row.Class != "" {
+		// A seat that rides no tier has no configured tier to be judged against.
+		switch {
+		case row.Class == "":
+		case cfgErr != nil:
 			row.NotJudged = "the run's configuration could not be read: " + cfgErr.Error()
-		} else {
+		default:
 			row.Substitution = TierSubstitution(allow, configured, obs)
 		}
 	}

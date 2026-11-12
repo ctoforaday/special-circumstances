@@ -143,3 +143,29 @@ func TestTiersListsWhatServedBesideAnUnreadConfiguration(t *testing.T) {
 		}
 	}
 }
+
+// THE CONSENT IS READ WHERE THE ROWS ARE BUILT: SeatModels reads the run's configuration once and
+// marks a substitution the operator allowed. Without the field the same substitution is reported
+// unconsented.
+func TestSeatModelsMarksTheSubstitutionTheConfigurationAllows(t *testing.T) {
+	run, b := tierFixture(t)
+	lane := func() string {
+		for _, sm := range record.SeatModels(runtest.Open(t, run), b) {
+			if sm.SeatID == "blue-lane-1" {
+				return sm.Substitution
+			}
+		}
+		t.Fatal("blue-lane-1 has no row")
+		return ""
+	}
+	if got := lane(); got == "" || strings.HasPrefix(got, "ALLOWED") {
+		t.Fatalf("an unconsented substitution reads %q", got)
+	}
+	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
+		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5","allowModelSubstitution":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := lane(); !strings.HasPrefix(got, "ALLOWED BY THIS RUN'S CONFIG") {
+		t.Errorf("a consented substitution reads %q", got)
+	}
+}

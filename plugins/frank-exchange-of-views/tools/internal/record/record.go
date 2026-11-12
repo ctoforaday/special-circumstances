@@ -395,16 +395,6 @@ func repeatRegister(seatID string, dispatch int, h heldRegister, occ *recordpb.O
 		seatID, held, first, seatID)
 }
 
-// allowSubstitution reads the operator's standing decision from run-config.
-//
-// ABSENT MEANS NO. A run whose config does not state the field, or whose config cannot be read or is
-// refused by readRunConfig, is a run that never consented to a substitution — the failing direction
-// of a gate has to be the safe one.
-func allowSubstitution(run Run) bool {
-	rc, err := readRunConfig(run.Dir())
-	return err == nil && rc != nil && rc.AllowModelSubstitution
-}
-
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
 // write path cannot come to exist that forgets one.
 //

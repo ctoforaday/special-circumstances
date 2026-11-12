@@ -24,7 +24,7 @@ import (
 // (EventSchema, feov-migrate) is what keeps an archived run readable when a shape moves, and it
 // covers only shapes the record declares. A value whose shape another package owns — `hooks`,
 // hookprovenance.Provenance, which moves with no epoch bump — is held as raw JSON and decoded by its
-// owner (hookprovenance.Read): typed here, a change in that package would refuse every archived
+// owner (hookprovenance.Decode): typed here, a change in that package would refuse every archived
 // run's configuration with no migration able to bring it forward. The TOP-LEVEL key set stays
 // strict either way; `billing` is BillingIdentity, which the record declares, so it is typed.
 type RunConfig struct {
@@ -63,7 +63,7 @@ type RunConfig struct {
 	//
 	// It says what was installed, never what RAN: a cache entry on disk does not prove the
 	// harness invoked it. The liveness half is #555's. The key is hookprovenance.ConfigKey, and
-	// run.md reads it back through hookprovenance.Read. RAW, because hookprovenance owns its shape
+	// run.md reads it back through hookprovenance.Decode. RAW, because hookprovenance owns its shape
 	// (see the type's comment): setup marshals hookprovenance.Provenance into it.
 	Hooks json.RawMessage `json:"hooks"`
 	// EventSchema is the event-shape EPOCH this run's events were written under.
@@ -83,8 +83,8 @@ type RunConfig struct {
 	// config does not state it never consented, and the failing direction of a gate has to be the
 	// safe one.
 	//
-	// It is written by setup and read at `register` (allowSubstitution), which is what makes the
-	// consent a FIELD an operator set rather than a flag a seat could type for itself.
+	// It is written by setup and read by SeatModels, which marks a substitution it allows, which is
+	// what makes the consent a FIELD an operator set rather than a flag a seat could type for itself.
 	AllowModelSubstitution bool `json:"allowModelSubstitution,omitempty"`
 	// Billing is WHAT THIS RUN IS BILLED TO — the account, its organization and whether it is a
 	// subscription. See BillingIdentity for the measurement that put it here.

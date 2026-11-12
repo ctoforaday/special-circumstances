@@ -78,14 +78,14 @@ func TestEveryRunConfigReaderRefusesAnUndeclaredKey(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true}`)
 	run := mustRun(t, runDir)
-	if !allowSubstitution(run) {
+	if !consentIn(t, runDir) {
 		t.Fatal("a declared consent read as none")
 	}
 	if n, ok, err := LanesDeclared(run); !ok || n != 2 || err != nil {
 		t.Fatalf("lanes 2 read as (%d, %v, %v)", n, ok, err)
 	}
 	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true,"mintBudget":3}`)
-	if allowSubstitution(run) {
+	if consentIn(t, runDir) {
 		t.Error("a run-config holding an undeclared key read as consent to a substitution")
 	}
 	if n, ok, err := LanesDeclared(run); ok || err == nil {
