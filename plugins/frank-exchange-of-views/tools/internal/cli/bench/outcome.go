@@ -111,7 +111,7 @@ func newOutcome() *cobra.Command {
 // crossCheck derives the run's verdict from the record the outcome lands on, refuses an --as that
 // contradicts it, and records on body how the verdict was reached.
 func crossCheck(l *record.Landing, verdict string, body *recordpb.Outcome) error {
-	basis, basisWhy := record.VerdictAsserted, ""
+	basis := record.VerdictAsserted
 	derived, why, ok, err := l.Verdict()
 	if err != nil {
 		// Not a refusal of the verdict: the record could not be read to derive one, so the
@@ -124,7 +124,7 @@ func crossCheck(l *record.Landing, verdict string, body *recordpb.Outcome) error
 			"--as %s contradicts the record, which says %s (%s). The verdict is DERIVED, not claimed — if the record is wrong the fix is on the record, not in this flag",
 			verdict, derived, why)
 	case ok:
-		basis, basisWhy = record.VerdictDerived, why
+		basis = record.VerdictDerived
 	case verdict != "UNVERIFIED":
 		// THE ONLY WORD THE BENCH MAY ASSERT. When the record holds no terminal state — no
 		// halt, no PASS, no board at its ceiling — the run ended before it reached one, and
@@ -135,11 +135,13 @@ func crossCheck(l *record.Landing, verdict string, body *recordpb.Outcome) error
 			verdict, why)
 	}
 	body.VerdictBasis = proto.String(basis)
-	// THE DERIVATION'S OWN REASONING, recorded rather than discarded. It was computed on
-	// every call and used only to phrase an error, so the report stamped a verdict and
-	// could never say why it was that one.
-	if basisWhy != "" {
-		body.VerdictWhy = proto.String(basisWhy)
+	// THE DERIVATION'S OWN REASONING, recorded rather than discarded, on an asserted UNVERIFIED as on
+	// a derived verdict. Over a record with no terminal state it states that none was reached and
+	// names each subject still holding the PASS by its own state (anchorsStanding) — a reading debt
+	// among them — which is how the outcome names what the run ended on; the bench's --reason stays
+	// its own account of why the run stopped.
+	if why != "" {
+		body.VerdictWhy = proto.String(why)
 	}
 	return nil
 }
