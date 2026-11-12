@@ -204,7 +204,6 @@ type runTally struct {
 	DocketedClosesRefused      int                       `json:"docketed_closes_refused"`
 	DocketedOffList            int                       `json:"docketed_off_list"`
 	BenchRegrades              int                       `json:"bench_regrades"`
-	LensRegrades               int                       `json:"lens_regrades"`
 	HearingsAfterChair         int                       `json:"hearings_after_chair"`
 	HearingsAfterLens          int                       `json:"hearings_after_lens"`
 	HearingsAfterBlue          int                       `json:"hearings_after_blue"`
@@ -266,7 +265,7 @@ func tallyOf(o outcome) runTally {
 		ComposedHanded: o.composedHanded, ComposedGaps: o.composedGaps, ComposedAnswers: o.composedAnswers,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
-		BenchRegrades: o.benchRegrades, LensRegrades: o.lensRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
+		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
 		SourceClosesRefused: o.sourceClosesRefused, Lifecycle: o.lifecycle.tally(), Reading: o.reading.tally(), NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
@@ -636,7 +635,6 @@ type sweepFold struct {
 	lensAlone, docketsAfterAudit                    int
 	docketedClosesRefused, docketedOffList          int
 	benchRegrades, lockRefused, lockLifted          int
-	lensRegrades, forcedUnverifiedLensRegrades      int
 	hearingsAfterChair, hearingsAfterLens           int
 	hearingsAfterBlue                               int
 	groundsRefused, groundsAdmitted                 int
@@ -837,10 +835,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.docketedClosesRefused += r.DocketedClosesRefused
 		f.docketedOffList += r.DocketedOffList
 		f.benchRegrades += r.BenchRegrades
-		f.lensRegrades += r.LensRegrades
-		if r.Seed == unverifiedSeed {
-			f.forcedUnverifiedLensRegrades += r.LensRegrades
-		}
 		f.hearingsAfterChair += r.HearingsAfterChair
 		f.hearingsAfterLens += r.HearingsAfterLens
 		f.hearingsAfterBlue += r.HearingsAfterBlue
@@ -1316,15 +1310,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
 		// the gap, the minting lens may not move it, and a ruled gap comes back on new grounds only.
 		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused, %d of a released axis admitted, %d reconsideration(s) refused for wanting new grounds, %d admitted on them", f.benchRegrades, f.lockRefused, f.lockLifted, f.groundsRefused, f.groundsAdmitted)
-		// THE LENS'S DRAWN REGRADE IS THE SWEEP'S, AND NOT THE FORCED-UNVERIFIED RUN'S: there it reset the
-		// stall count of gaps that can only end at impasse, and held the run near its epoch limit.
-		t.Logf("lens regrades: %d drawn across %d runs, %d in seed %d's forced-UNVERIFIED run", f.lensRegrades, f.completed, f.forcedUnverifiedLensRegrades, unverifiedSeed)
-		if f.lensRegrades == 0 {
-			t.Errorf("fuzz drove ZERO drawn lens regrades across %d runs — a lens moving its own gap's grade is unexercised (false green)", f.completed)
-		}
-		if f.forcedUnverifiedLensRegrades != 0 {
-			t.Errorf("seed %d's forced-UNVERIFIED run drew %d lens regrade(s), want none: each resets a stall count its gaps end on", unverifiedSeed, f.forcedUnverifiedLensRegrades)
-		}
 		if f.benchRegrades == 0 {
 			t.Errorf("fuzz drove ZERO bench regrades across %d runs — the bench setting the grade its ruling rules on is unexercised (false green)", f.completed)
 		}

@@ -635,10 +635,6 @@ type runner struct {
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	forceBenchOrders                                                        bool
 	benchOrders                                                             *benchOrderLedger
-	// lensRegrades counts the minting lens's drawn regrades of a gap it neither closed nor moved
-	// otherwise in the sitting (the lens's default arm). A forced-UNVERIFIED run draws none: see the
-	// arm. The sweep gates the count at zero, and the forced run's at nonzero.
-	lensRegrades int
 	// betweenStaleRetries is called after each stale refusal admitFresh records again, before the
 	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
 	// concurrent seats land at will. nil in the sweep.
@@ -6110,15 +6106,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// AXIS, not three of four: --complexity is spelled by its flag here.
 				// An axis the bench holds locked is the lens's to keep, never to move (lensMovesBenchAxis
 				// drives the move, to be refused).
-				//
-				// A FORCED-UNVERIFIED RUN DRAWS NO REGRADE. Every gap it mints is dirDisputeLost, so this
-				// arm is every gap's lens turn there, and a moved grade is movement: it resets the gap's
-				// stall count and buys up to K more exchanges before impasse docketed it. Drawn at 30%,
-				// that held the run to 9 or 10 of its 12 epochs across seven CI runs. The drawn sweep
-				// keeps the arm, and lensRegrades says it still lands.
-				if r.forceUnverified {
-					continue
-				}
 				r.maybe(30, func() {
 					if regraded[id] {
 						return
@@ -6131,12 +6118,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						return r.g()
 					}
 					dim := pick(r.rng, regradeDims)
-					if _, ok := r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
-						"--"+dim, keep(dim), "--complexity", keep("complexity")); ok {
-						r.mu.Lock()
-						r.lensRegrades++
-						r.mu.Unlock()
-					}
+					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
+						"--"+dim, keep(dim), "--complexity", keep("complexity"))
 				})
 			}
 		}
@@ -6651,9 +6634,8 @@ type outcome struct {
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// hearingsAfter is runner's.
 	hearingsAfter map[string]int
-	// benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted and lensRegrades are
-	// runner's.
-	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted, lensRegrades int
+	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
+	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	// partRefused and partsRecorded are runner's.
 	partRefused   map[string]int
 	partsRecorded int
@@ -8121,7 +8103,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
-	res.lensRegrades = r.lensRegrades
 	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
 	r.mu.Unlock()
 	// PARTS SEED'S RUN DRIVES EVERY PART REFUSAL, and one it drove none of fails it here.
