@@ -1830,6 +1830,22 @@ func (r *runner) stillEstops(gapID string) bool {
 	return estops
 }
 
+// estoppingGaps is every gap stillEstops holds, in the order blue applied their prescriptions: the
+// gaps an estoppel refusal can name.
+func (r *runner) estoppingGaps() []string {
+	b, ok := r.board()
+	if !ok {
+		return nil
+	}
+	var applied []string
+	for i := range b.Events {
+		if ed, isE := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i]); isE && ed.GetAppliedVerbatim() && !slices.Contains(applied, ed.GetAnswers()) {
+			applied = append(applied, ed.GetAnswers())
+		}
+	}
+	return slices.DeleteFunc(applied, func(g string) bool { return !r.stillEstops(g) })
+}
+
 // noteApplyMiss records WHY the verbatim-apply branch declined, so the estoppel precondition's
 // count of zero arrives with a cause rather than inviting the reader to guess one.
 func (r *runner) noteApplyMiss(why string) {

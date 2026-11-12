@@ -689,10 +689,25 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 		noteEither(args[:2], "a found-source mint over a prescription, refused by the one-gap rule over a sibling's gap on the sentence", false)
 		r.oneGapOnReading(seatID, classContradicts, mout, args, "quote")
 		return
-	case !strings.Contains(mout, estoppelWords) || !strings.Contains(mout, prescribing):
-		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused, and not as the estoppel against " + prescribing + ": " + firstLine(mout))
+	case !strings.Contains(mout, estoppelWords):
+		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused, and not as an estoppel: " + firstLine(mout))
 		return
 	}
+	// THE GUARD NAMES ONE PRESCRIPTION THE SENTENCE HOLDS, and the sentence can hold two: another
+	// gap's text applied verbatim into the same line estops the mint as well, and the refusal may
+	// name that one. The debt is then that gap's to answer.
+	named := ""
+	for _, g := range r.estoppingGaps() {
+		if strings.Contains(mout, g) {
+			named = g
+			break
+		}
+	}
+	if named == "" {
+		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused as an estoppel naming no prescription that still estops (the drive drew " + prescribing + "): " + firstLine(mout))
+		return
+	}
+	prescribing = named
 	r.countReading(func(c *readingCounts) { c.foundSourceMintsEstopped++ })
 	if r.minterOf(prescribing) == seatID {
 		sout, serr := r.exec(append(args, "--supersedes", prescribing)...)
