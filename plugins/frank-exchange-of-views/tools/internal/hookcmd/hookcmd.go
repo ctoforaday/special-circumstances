@@ -43,7 +43,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittinghook"
 	"github.com/ctoforaday/special-circumstances/shared/buildid"
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
@@ -55,7 +54,6 @@ import (
 const (
 	StagePanic     hookfailures.Stage = "hook-panic"
 	StageError     hookfailures.Stage = "hook-error"
-	StageTurnLimit hookfailures.Stage = "turn-limit"
 	StageInput     hookfailures.Stage = "pretooluse-input"
 	StageToolInput hookfailures.Stage = "tool-input"
 	StageDeliver   hookfailures.Stage = "deliver"
@@ -170,17 +168,17 @@ func respond(req hookcore.Request, stdout io.Writer, doc []byte, msg string) err
 
 // Pre injects the run directory and the calling agent's id into a Bash call made inside a live
 // run, so a seat never mistypes the path and never loses the identity that binds it to its seat on
-// the record — and it refuses two things: any tool call but the envelope's past the seat's
-// per-sitting call limit (enforceLimit), and a tool command carrying a backtick the shell would run,
-// which would rewrite the seat's prose before the tool saw it (hookgate/substitution.go). The call
-// returning a seat's envelope goes to the record instead (gateEnvelope).
+// the record — and it refuses two things: a tool command carrying a backtick the shell would run,
+// which would rewrite the seat's prose before the tool saw it (hookgate/substitution.go), and a
+// seat's Read of the assembled report, which it reads through the tool. The call returning a seat's
+// envelope goes to the record instead (gateEnvelope).
 func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	req := hookcore.Read("PreToolUse", stdin)
 	if !req.Parsed {
 		// Not "nothing to do": the client always sends a payload, and one this hook cannot read
-		// means no turn limit counted and no run directory injected for this call. The sitting
-		// hooks record the same failure; this path, which carries both of those, did not.
-		rec.Fail(StageInput, "cannot read or parse the PreToolUse payload — the turn limit and run-directory injection did not run for this call")
+		// means no run directory injected and no envelope checked for this call. The sitting hooks
+		// record the same failure; this path did not.
+		rec.Fail(StageInput, "cannot read or parse the PreToolUse payload — run-directory injection and the envelope check did not run for this call")
 		return nil
 	}
 	rec.OK(StageInput)
@@ -197,23 +195,8 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	}
 	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
 	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).
-	// IT GOES BEFORE THE TURN LIMIT, which neither counts nor refuses it: the limit's refusal tells
-	// the seat to return its envelope, and this is that call. The record's own refusal still stands.
 	if in.ToolName == envelopeTool {
 		gateEnvelope(in, cwd, stdout, rec, req)
-		return nil
-	}
-	// THE TURN LIMIT covers every other tool, and comes before the injection: a refused call runs
-	// nothing, so it needs nothing injected. A counting fault goes to stderr and the call proceeds.
-	denied, err := enforceLimit(in, cwd, stdout, rec, req)
-	if err != nil {
-		// The seat is still refused when it should be — enforcement survives — but the record's
-		// account of WHY does not, and that used to be a stderr line nobody read.
-		rec.Fail(StageTurnLimit, "turn limit: "+err.Error())
-	} else {
-		rec.OK(StageTurnLimit)
-	}
-	if denied {
 		return nil
 	}
 	// The gate says which calls it acts on — every Bash call, and a Read of the report file — so
@@ -249,46 +232,9 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	return nil
 }
 
-// enforceLimit counts this call against the calling seat's sitting and refuses it when the sitting
-// is past the run's per-sitting tool-call limit (internal/sittingcap).
-//
-// THE SEAT IS FOUND THE SAME WAY UNDER EITHER ENGINE. A Workflow seat is a subagent, and its
-// payload carries agent_id. A seat run as the main session of a headless `claude -p` process has
-// no agent_id on the payload; its identity and run are in the process environment this hook
-// inherits, so those are read when the payload has none. An agent that never registered as a
-// seat has no sitting open and is never counted — the main session, an operator, anything else.
-//
-// Two calls get through a limited sitting. The envelope's never reaches this count: Pre hands it to
-// gateEnvelope first, because returning the envelope is what the limit's refusal tells the seat to
-// do. A register is counted and let through (hookgate.InvokesRegister), because it opens the next
-// sitting's count.
-func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder, req ...hookcore.Request) (denied bool, err error) {
-	caller := callerAgent(in)
-	agentID := caller.ID
-	if agentID == "" {
-		return false, nil
-	}
-	runDir := seatRunDir(cwd, caller, rec)
-	d, counted, err := sittingcap.Count(runDir, agentID)
-	if err != nil || !counted || !d.Over || hookgate.InvokesRegister(in) {
-		return false, err
-	}
-	if d.MarkErr != nil {
-		// The seat is still refused below. What is lost is the record of the sitting reaching its
-		// limit, which only the first refused call writes — and a marker that cannot be created
-		// means no call ever counts as first.
-		err = fmt.Errorf("cannot mark %s's sitting %d as limited, so its limit is not on the record: %w", agentID, d.Sitting, d.MarkErr)
-	}
-	if d.First {
-		err = recordLimit(runDir, agentID, d.Sitting, d.Limit)
-	}
-	emitPreDeny(stdout, hookgate.LimitReason(d.Count, d.Limit), req...)
-	return true, err
-}
-
 // seatRunDir is the run a seat's call belongs to: the marker its working directory finds, else the
 // run the engine put in the process environment. One resolution for every hook that attributes a
-// seat's call, so the turn limit and the failure log cannot disagree about which run it was in.
+// seat's call, so the envelope gate and the failure log cannot disagree about which run it was in.
 func seatRunDir(cwd string, caller runlive.Caller, rec *hookfailures.Recorder) string {
 	inferred := runlive.InferRunDir(cwd, caller)
 	noteInference(inferred, rec)
@@ -301,8 +247,7 @@ func seatRunDir(cwd string, caller runlive.Caller, rec *hookfailures.Recorder) s
 }
 
 // callerAgent is the agent a call is made by: the payload's, else the one a headless seat carries in
-// its environment — the same identity enforceLimit counts against — with the configuration it was
-// dispatched under, which decides whether a decided run is still live for it (runlive.StateOf).
+// its environment, with the configuration it was dispatched under, which decides whether a decided run is still live for it (runlive.StateOf).
 func callerAgent(in hookgate.Input) runlive.Caller {
 	return callerOf(in.AgentID, in.AgentType, in.SessionID)
 }
@@ -423,11 +368,8 @@ func envelopeReadRefusal(err error) string {
 		". An envelope nothing checked is not admitted; return it again"
 }
 
-// envelopeAnswer is a variable for the reason recordLimit is.
+// envelopeAnswer is a variable so the hook's handoff can be tested without a built writer on disk.
 var envelopeAnswer = sittinghook.Envelope
-
-// recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
-var recordLimit = sittinghook.Limit
 
 // recordRefusal, recordFailure, recordAdmission and handNextItem are variables for the same reason.
 var (

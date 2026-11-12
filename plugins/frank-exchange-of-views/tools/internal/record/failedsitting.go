@@ -77,34 +77,21 @@ func FailedSittingsOf(evs []*Event, win WindowIndex) []FailedSitting {
 }
 
 // seatSitting is one sitting by its seat and the seat's own sitting number — the ordinal stored on
-// the opening's row (events.sitting), which the hook's call count is keyed by (sittingcap).
+// the opening's row (events.sitting).
 type seatSitting struct {
 	seat    string
 	sitting int
 }
 
-// limitedSittingsOf is each sitting a sitting_limit names: stopped at the run's per-sitting
-// tool-call limit.
-func limitedSittingsOf(evs []*Event) map[seatSitting]bool {
-	out := map[seatSitting]bool{}
-	for _, e := range evs {
-		if b, ok := recordpb.BodyAs[*recordpb.SittingLimit](e); ok {
-			out[seatSitting{b.GetSeatId(), int(b.GetSitting())}] = true
-		}
-	}
-	return out
-}
-
 // noTurnSittingsOf is each sitting that did not finish what it was dispatched for, as the record holds
-// it: a failed sitting (FailedSittingsOf), which closed with no envelope admitted, and one a
-// sitting_limit names, which the PreToolUse hook cut short at the call limit — the limit stops its
-// work whether or not the call returning its envelope is let through after it. Neither is a turn in
-// an exchange (gapSittingsOf): its silence on a gap is no judgement on it (ruled by gblock
-// 2026-11-11). What bounds a seat whose sittings keep failing is
-// the failed-sitting bound — a lens retires, and the engine stops the run on blue's or the chair's
+// it: a failed sitting (FailedSittingsOf), which closed with no envelope admitted — a seat stopped at
+// its agent definition's maxTurns among them, since the client ends it before the call returning its
+// envelope. It is not a turn in an exchange (gapSittingsOf): its silence on a gap is no judgement on
+// it (ruled by gblock 2026-11-11). What bounds a seat whose sittings keep failing is the
+// failed-sitting bound — a lens retires, and the engine stops the run on blue's or the chair's
 // failures in a row — never the gap's limits.
 func noTurnSittingsOf(evs []*Event, win WindowIndex) map[seatSitting]bool {
-	out := limitedSittingsOf(evs)
+	out := map[seatSitting]bool{}
 	for _, f := range FailedSittingsOf(evs, win) {
 		out[seatSitting{f.SeatID, f.Sitting}] = true
 	}

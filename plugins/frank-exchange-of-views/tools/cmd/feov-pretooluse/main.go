@@ -1,6 +1,6 @@
 // Command feov-pretooluse is the PreToolUse hook backend: the run and identity injection into a
-// seat's Bash calls, the per-sitting tool-call limit on every tool but the call returning a seat's
-// envelope, and the record's gate on that call. It reads the hook event on stdin and writes its
+// seat's Bash calls, the refusal of a Read of the assembled report, and the record's gate on the
+// call returning a seat's envelope. It reads the hook event on stdin and writes its
 // decision to stdout.
 //
 // A DEDICATED BINARY, NOT A VERB. See internal/hookcmd for why: a hook has no seat identity, and

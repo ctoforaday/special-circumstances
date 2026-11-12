@@ -37,10 +37,9 @@ func TestDiagnosticsReadsASeatSeatedByItsBracketAlone(t *testing.T) {
 	}
 }
 
-// THE CALL COUNT IS KEYED BY THE STORED SITTING, so the limit the hook hands the writer is one the
-// record holds. A register under the agent its bracket seated joins that sitting rather than
-// opening one, a second is refused, and the count stays the sitting's.
-func TestASecondRegisterInABracketedSittingCountsInThatSitting(t *testing.T) {
+// A REGISTER UNDER THE AGENT ITS BRACKET SEATED JOINS THAT SITTING rather than opening one, and a
+// second in the same sitting is refused: the seat has one stored sitting.
+func TestASecondRegisterInABracketedSittingIsRefusedAndOpensNone(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.Var, runDir)
 	t.Setenv(seatenv.AgentVar, "agent_bracketed")
@@ -60,14 +59,7 @@ func TestASecondRegisterInABracketedSittingCountsInThatSitting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, ok := header(t, runDir, "agent_bracketed")
-	if !ok {
-		t.Fatal("register opened no count")
-	}
-	if sittings != 1 || h.Sitting != sittings {
-		t.Errorf("the count is for sitting %d and the seat has %d stored sitting(s), want both 1 — the bracket opened the sitting and the register joined it", h.Sitting, sittings)
-	}
-	if err := sittingwrite.WriteLimit(runDir, "agent_bracketed", h.Sitting, 150); err != nil {
-		t.Errorf("the limit of the sitting the count was keyed to was refused: %v", err)
+	if sittings != 1 {
+		t.Errorf("the seat has %d stored sitting(s), want 1 — the bracket opened the sitting and the register joined it", sittings)
 	}
 }

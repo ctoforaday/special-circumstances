@@ -16,7 +16,7 @@ import (
 // door that never opens reports green forever, so this drives the whole PreToolUse path from a payload
 // in a live run, which is the only place the door is.
 func TestTheHookRefusesASeatsReadOfTheReportFile(t *testing.T) {
-	cwd, runDir, _ := limitRun(t, 1000)
+	cwd, runDir := hookRun(t)
 	// THE DENIAL IS LOGGED AS A REFUSAL, the tool's entry for the seat it refused — the one refusal
 	// a seat meets outside every verb.
 	var logged []string

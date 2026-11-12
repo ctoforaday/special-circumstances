@@ -436,7 +436,7 @@ It also OPENS THE SITTING where nothing else did, and a sitting is every time yo
 
 NAME WHAT THIS SITTING IS FOR. You are one seat asked four different questions — rule the docket, hear a petition, dispose of what stands at the exit, assemble the report — and your seat id is the same for all four. Your prompt says which of them this sitting is; say so here. It is required of you and refused for every other seat, whose id already answers it. Once the run is archived this is the only thing that tells your sittings apart: without it they read as four identical registrations, and a reader cannot tell the sitting that assembled the report from the one that ruled a gap.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent,turn_limit_unarmed},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -1174,7 +1174,7 @@ A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispat
 
 It also OPENS THE SITTING where nothing else did, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. Where the harness brackets your dispatch and your agent type seats one seat, that bracket opens the sitting, the record counts you as having sat whether or not you register, and your register joins that sitting. Where the bracket names no seat — an agent type that seats several, as blue's researcher does (the frontier, the lanes and the responding seat) — or there is no bracket — a resumed dispatch carries none — the record sees no sitting until you register, and a dispatched seat is readied again until one exists. Your work list says when one is owed.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent,turn_limit_unarmed},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 ========
@@ -1769,7 +1769,7 @@ A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispat
 
 It also OPENS THE SITTING where nothing else did, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. Where the harness brackets your dispatch and your agent type seats one seat, that bracket opens the sitting, the record counts you as having sat whether or not you register, and your register joins that sitting. Where the bracket names no seat — an agent type that seats several, as blue's researcher does (the frontier, the lanes and the responding seat) — or there is no bracket — a resumed dispatch carries none — the record sees no sitting until you register, and a dispatched seat is readied again until one exists. Your work list says when one is owed.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent,turn_limit_unarmed},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 ========
@@ -1993,7 +1993,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A lens's current item is the one entry of its queue it is handed in full — an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the lens's work list after an act, and the next item is handed then.
   - A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the finding — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
   - To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.
-  - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no check it owns, no gap owed about a check of its that failed — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
+  - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no check it owns, no gap owed about a check of its that failed — and a head move does not ready a retired lens; a sitting that never closed is not one it sat through and counts neither way.
   - A stale area is the area of a retired lens whose pin is behind the report head, which the chair reads and names in a spot-check before a PASS.
   - A report read is the record's evidence that the tool served a lens the whole report at a head, written by the report's whole read and by no read at an anchor or a selection; it says the text was served, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
@@ -2256,7 +2256,6 @@ Flags:
       --k-max int                    total exchanges on one gap — blue's answer and its lens's audit of it — before it is at impasse regardless of movement (default 6; a smoke run passes 2)
       --lanes string                 the frontier lane count (recorded in run-config.json)
       --max-epochs int               the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default 12; recorded in run-config.json)
-      --max-sitting-calls int        the tool calls one seat may make in one sitting; past it the hook refuses every call but a register and the one returning the seat's envelope, and the record says which seat and sitting stopped (default 150; recorded in run-config.json)
       --mint-budget int              the FLOOR of the gaps one lens may hold open at once — a gap that closes frees a mint, and a gap about an anchor whose check of that lens's failed takes none; each lens's budget is the larger of this and its area's rate over what the area audits, read off the record at each mint — evidence 3 mints for every 2 of the citations on the record; logic 1 mint for every 1 of the claims in the current report; dark-side 3 mints for every 5 of the prose paragraphs in the current report; voice 3 mints for every 5 of the prose paragraphs in the current report; computation 3 mints for every 2 of the computations on the record; adversary 3 mints for every 5 of the prose paragraphs in the current report; architecture 3 mints for every 5 of the prose paragraphs in the current report (default 15; a smoke run passes 3)
       --model string                 the bulk tier (frontier, blue lanes, red lenses, blue responses)
       --run-id string                the orchestrator's run id, recorded in the .run-live marker so a run found STALE can be resumed rather than only noticed

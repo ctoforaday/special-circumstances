@@ -18,7 +18,7 @@ import (
 //
 //   - the lens has sat through a sitting opened after the retire (satThrough, as lensOwesOf's `owe`
 //     reads it): it is listed for the whole of that sitting, so the sitting that clears it is one that
-//     read it, and a sitting stopped at the call limit, or never closed, does not clear it;
+//     read it, and a sitting that never closed does not clear it;
 //   - the lens has minted a gap naming it in `supersedes` after the retire;
 //   - a closing act other than a carry follows the retire: the column is then NULL.
 //

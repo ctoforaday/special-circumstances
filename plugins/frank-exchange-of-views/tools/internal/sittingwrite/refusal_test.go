@@ -12,9 +12,21 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 
 	"google.golang.org/protobuf/proto"
 )
+
+// registerAs registers seat under agent, as the hook-injected register does.
+func registerAs(t *testing.T, run, agent, seat string) {
+	t.Helper()
+	t.Setenv(seatenv.AgentVar, agent)
+	t.Setenv(seatenv.TypeVar, "")
+	if _, _, err := record.RegisterSeat(record.Identity{Run: mustRun(t, run), SeatID: seat}, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(seatenv.AgentVar, "")
+}
 
 // A CALL THE HOOK DENIED, OR ONE THAT FAILED, IS LOGGED AS THE SEAT'S — under the seat the record binds the
 // agent to, as the tool's entry — and an agent the record binds to no seat is no seat, so nothing is written.
@@ -94,17 +106,17 @@ func TestAHookEntryIsWrittenAfterTheOutcome(t *testing.T) {
 		}
 	}
 	// The harness's own fact about the sitting lands too: it is no seat's act.
-	if err := WriteLimit(runDir, "agent-1", 1, 150); err != nil {
-		t.Fatalf("the harness's sitting limit after the outcome was refused: %v", err)
+	if err := Write(Sitting{RunDir: runDir, Phase: Close, AgentID: "agent-1", AgentType: "frank-exchange-of-views:red-lens-adversary"}, nil); err != nil {
+		t.Fatalf("the harness's sitting close after the outcome was refused: %v", err)
 	}
-	if limits, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_SITTING_LIMIT); err != nil || len(limits) != 1 {
-		t.Errorf("the harness's sitting limit after the outcome: %d event(s), err %v; want 1", len(limits), err)
+	if closes, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_SITTING_CLOSE); err != nil || len(closes) != 1 {
+		t.Errorf("the harness's sitting close after the outcome: %d event(s), err %v; want 1", len(closes), err)
 	}
 }
 
 // A CAPTURED RUN TAKES NO HOOK ENTRY, AND SAYS SO. Once capture has marked the run captured
 // (record.MarkCaptured, which capture calls at its close), the hook's entry is refused loudly — the
-// error names the captured run — and nothing is written; so is the harness's sitting limit.
+// error names the captured run — and nothing is written; so is the harness's sitting close.
 func TestAHookEntryIsRefusedOnceTheRunIsCaptured(t *testing.T) {
 	runDir := newRun(t)
 	registerAs(t, runDir, "agent-1", "red-lens-adversary")
@@ -114,8 +126,8 @@ func TestAHookEntryIsRefusedOnceTheRunIsCaptured(t *testing.T) {
 	if err := WriteToolEntry(runDir, Failure, "agent-1", "`Read` failed on `/x`: File does not exist"); !errors.Is(err, record.ErrRunCaptured) {
 		t.Errorf("a hook entry on a captured run = %v, want the captured run's refusal", err)
 	}
-	if err := WriteLimit(runDir, "agent-1", 1, 150); !errors.Is(err, record.ErrRunCaptured) {
-		t.Errorf("the harness's sitting limit on a captured run = %v, want the captured run's refusal", err)
+	if err := Write(Sitting{RunDir: runDir, Phase: Close, AgentID: "agent-1", AgentType: "frank-exchange-of-views:red-lens-adversary"}, nil); !errors.Is(err, record.ErrRunCaptured) {
+		t.Errorf("the harness's sitting close on a captured run = %v, want the captured run's refusal", err)
 	}
 	if evs, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_LOG); err != nil || len(evs) != 0 {
 		t.Errorf("the captured run took %d log entr(ies) (err %v)", len(evs), err)

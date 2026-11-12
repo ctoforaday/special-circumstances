@@ -88,7 +88,7 @@ func TestAChainedCallsFailureIsNotGivenToItsFirstCommand(t *testing.T) {
 
 // THE HOOK HANDS A SEAT'S FAILURE TO THE WRITER, and only a seat's, only in a run, never an interrupt.
 func TestTheFailureHookLogsOnlyASeatsOwnFailures(t *testing.T) {
-	cwd, runDir, _ := limitRun(t, 1000)
+	cwd, runDir := hookRun(t)
 	var logged []string
 	prev := recordFailure
 	recordFailure = func(dir, agent, text string) error {

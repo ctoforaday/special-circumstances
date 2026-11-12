@@ -281,7 +281,6 @@ const (
 	KMax                = "k-max"
 	MintBudget          = "mint-budget"
 	ConvergenceFraction = "convergence-fraction"
-	MaxSittingCalls     = "max-sitting-calls"
 	MaxEpochs           = "max-epochs"
 	BinDir              = "bin-dir"
 	RunID               = "run-id"
@@ -335,7 +334,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,
 		Method,
-		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
+		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
 		Card, Watch, Now, Serve,
 		Sha, DPI, Force, OCR,
 	}

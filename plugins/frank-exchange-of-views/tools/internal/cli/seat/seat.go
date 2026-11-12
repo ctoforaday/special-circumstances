@@ -246,8 +246,8 @@ func (c Context) Identity() record.Identity {
 //
 // AND WHERE THE TOOL CAN ESTABLISH THE BINDING ITSELF, IT DOES, INSTEAD OF REFUSING — see
 // autoRegisters. The refusal was asking most seats to state a fact the tool already held, and the
-// register it asked for is also what arms the per-sitting call cap, so an agent allowed to write
-// without one ran uncapped.
+// register it asked for is also where the seat is checked against the roster, the cast and its
+// attested configuration, so an agent allowed to write without one wrote past every identity gate.
 //
 // COBRA ANSWERS --help WITHOUT REACHING RunE, so reading a surface is structurally exempt and needs
 // no arm here: an unregistered seat can still discover what it is about to register for.
@@ -257,8 +257,9 @@ func requireBound(cmd *cobra.Command, s Context) error {
 		return nil
 	}
 	// THE STRICT LOOKUP, not SeatOfAgent: the harness bracket answers who a seat IS, and that is a
-	// read. What gates a write is whether a REGISTER exists, because a register opens the sitting the
-	// per-call cap counts in. Accepting the bracket here made a bracket-bound seat uncapped.
+	// read. What gates a write is whether a REGISTER exists, because the register is the act the
+	// identity gates run on and the first event `verify` requires of every seat. Accepting the
+	// bracket here let a bracket-bound seat write unchecked.
 	bound, found, err := record.RegisteredSeatOfAgent(s.handle(), agent)
 	if err != nil {
 		return err
@@ -314,10 +315,8 @@ func autoRegisters(cmd *cobra.Command) bool {
 // already had. Measured on universe-m11 and m12: 17 of one run's calls were registers, and 8 of 9
 // sittings with nothing owed registered anyway — the tool's answer rather than the seat's.
 //
-// IT MUST DO EVERYTHING THE VERB DOES, which is why it calls the same handler rather than only the
-// record write. The sitting's tool-call cap is armed BY register (sittingcap keys on its header), so
-// a silent register that skipped that would buy back the call and lose the cap — the exact hole this
-// change closes.
+// IT CALLS THE VERB'S OWN HANDLER rather than the record write, so whatever a register does, the
+// silent one does too, and the two cannot drift apart.
 func autoRegister(cmd *cobra.Command, s Context) error {
 	if _, err := register(s, cmd); err != nil {
 		return fmt.Errorf("registering %s for its first act: %w", s.SeatID, err)

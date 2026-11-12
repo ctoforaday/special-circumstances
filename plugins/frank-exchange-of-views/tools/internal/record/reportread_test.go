@@ -64,15 +64,15 @@ func TestALensRetiredWithoutBeingServedTheHeadLeavesItsAreaToTheSpotCheck(t *tes
 	}
 }
 
-// A READ IN A SITTING THE LENS DID NOT SIT THROUGH IS NO PIN: stopped at the call limit, the sitting
-// is not one it sat (satThrough), and nothing it was served there is its audit.
-func TestAReadInASittingStoppedAtTheLimitMovesNoPin(t *testing.T) {
+// A READ IN A SITTING THE LENS DID NOT SIT THROUGH IS NO PIN: never closed, the sitting is not one
+// it sat (satThrough), and nothing it was served there is its audit.
+func TestAReadInASittingThatNeverClosedMovesNoPin(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).ingest()
 	h := b.head()
 	b.sitHooked(h, evLens, "a1", false)
-	b.limit(evLens, 2).stop("a1").register("red-chair")
+	b.bracket(evLens, "a2").register("red-chair")
 	if f := lensStateOf(t, b.seed()); f.pin != 2 || !f.ready {
-		t.Fatalf("a read in a sitting stopped at the limit moved the pin: %+v", f)
+		t.Fatalf("a read in a sitting that never closed moved the pin: %+v", f)
 	}
 }
 

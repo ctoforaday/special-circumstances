@@ -17,7 +17,7 @@ func LensReadiness(seat string, head, pin int64, sittings, barren int, owes []st
 var UnsatSitting = unsatSitting
 
 // SittingShortReasons is every reason satThrough gives for a sitting its seat did not sit through.
-var SittingShortReasons = []string{shortCallLimit, shortNeverClosed, shortNotClosed}
+var SittingShortReasons = []string{shortNeverClosed, shortNotClosed}
 
 // RetiresAfter is the count of barren sittings that retires a lens.
 const RetiresAfter = retiresAfter

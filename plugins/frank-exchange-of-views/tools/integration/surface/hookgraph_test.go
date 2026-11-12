@@ -60,20 +60,16 @@ var hookBinaries = []string{
 var hookLocalPackages = map[string][]string{
 	"./cmd/feov-pretooluse": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		// sittingcap counts a seat's tool calls per sitting so the hook can refuse the calls past
-		// the run's limit; standard library only. sittinghook hands the first refusal to
-		// feov-sitting-write, which writes the record; it links runlive and nothing else. Both run
-		// on every tool call a registered seat makes, which is what a per-call limit costs.
-		"internal/sittingcap", "internal/sittinghook",
+		// sittinghook hands the envelope and a refused call to feov-sitting-write, which writes the
+		// record; it links runlive and nothing else.
+		"internal/sittinghook",
 	},
-	// The sitting hooks link sittingcap transitively through hookcmd, whose Run they use.
-	// Listed because this allowlist is per-binary and states each graph as its own claim.
 	// feov-posttoolusefailure fires on EVERY failed tool call in every session, so it is held to the
 	// same graph as the tool-call hook. It hands a seat's failure to feov-sitting-write, which carries
 	// the record, through sittinghook; everything else is what hookcmd.Run already links.
 	"./cmd/feov-posttoolusefailure": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		"internal/sittinghook", "internal/sittingcap",
+		"internal/sittinghook",
 	},
 	// feov-posttooluse is matched to the envelope tool and to Bash, so it fires on every Bash call in
 	// every session, and is held to the failure hook's graph for the same reason: it hands the
@@ -81,15 +77,15 @@ var hookLocalPackages = map[string][]string{
 	// sittinghook — and decides which calls are a lens's without the roster (runlive.IsLensAgentType).
 	"./cmd/feov-posttooluse": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		"internal/sittinghook", "internal/sittingcap",
+		"internal/sittinghook",
 	},
 	"./cmd/feov-subagentstart": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		"internal/sittinghook", "internal/sittingcap",
+		"internal/sittinghook",
 	},
 	"./cmd/feov-subagentstop": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
-		"internal/sittinghook", "internal/sittingcap",
+		"internal/sittinghook",
 	},
 }
 

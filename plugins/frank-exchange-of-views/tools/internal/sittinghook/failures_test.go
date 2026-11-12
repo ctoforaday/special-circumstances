@@ -69,8 +69,7 @@ func TestAnUnparsablePayloadIsRecorded(t *testing.T) {
 	}
 }
 
-// A MISSING WRITER DURING A LIVE RUN: every sitting of the run lost, and the span ends said nothing
-// where Limit, on the same missing writer, always did.
+// A MISSING WRITER DURING A LIVE RUN: every sitting of the run lost, and the span ends said nothing.
 func TestAMissingWriterIsRecordedAndClearsWhenItArrives(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	cwd, _ := liveRun(t)

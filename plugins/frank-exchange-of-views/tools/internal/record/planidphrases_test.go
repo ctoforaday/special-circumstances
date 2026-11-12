@@ -30,11 +30,11 @@ func translated(t *testing.T, head int64, why []string, newID map[int64]int64) r
 }
 
 // A LENS'S SITTING THAT DID NOT COUNT NAMES THE EVENT IT OPENED AT, AND MIGRATE CARRIES IT. The line
-// is the lens fold's for a lens whose only sitting was stopped at the call limit: head 620, the
-// sitting opened at 640, each moved by one.
+// is the lens fold's for a lens whose only sitting never closed: head 620, the sitting opened at
+// 640, each moved by one.
 func TestTheOpenedAtLineCrossesARenumbering(t *testing.T) {
 	line := record.LensReadiness("red-lens-logic", 620, 0, 0, 0, nil, record.UnsatSitting(640, record.SittingShortReasons[0]))
-	const want = "red-lens-logic: has sat through no sitting — its sitting opened at 640 was stopped at the per-sitting tool-call limit, so it counts neither as sat nor toward retirement — audits the report at head 620"
+	const want = "red-lens-logic: has sat through no sitting — its sitting opened at 640 never closed — its agent's stop is not on the record, so it counts neither as sat nor toward retirement — audits the report at head 620"
 	if line != want {
 		t.Fatalf("the fold prints\n %q\nwant\n %q", line, want)
 	}

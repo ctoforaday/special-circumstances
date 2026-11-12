@@ -133,10 +133,6 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.Dispatch, true
 		}
-	case *Event_SittingLimit:
-		if b != nil {
-			return b.SittingLimit, true
-		}
 	case *Event_Plan:
 		if b != nil {
 			return b.Plan, true

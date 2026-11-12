@@ -40,7 +40,6 @@ var bodyTables = map[string]func() bodyTable{
 	"sitting_close":     func() bodyTable { return &sittingCloseTable{} },
 	"cast":              func() bodyTable { return &castTable{} },
 	"dispatch":          func() bodyTable { return &dispatchTable{} },
-	"sitting_limit":     func() bodyTable { return &sittingLimitTable{} },
 	"plan":              func() bodyTable { return &planTable{} },
 	"stale":             func() bodyTable { return &staleTable{} },
 	"report_read":       func() bodyTable { return &reportReadTable{} },
@@ -2218,50 +2217,6 @@ func (t *dispatchTable) attach(ev *recordpb.Event, id int64) error {
 		return err
 	}
 	ev.Body = &recordpb.Event_Dispatch{Dispatch: m}
-	return nil
-}
-
-// sittingLimitTable reads the "sitting_limit" table's rows past an event id, with its lists and oneof arms, keyed by event.
-type sittingLimitTable struct {
-	rows map[int64]*recordpb.SittingLimit
-	bad  map[int64]error
-}
-
-func (t *sittingLimitTable) load(q Querier, after int64) error {
-	t.rows = map[int64]*recordpb.SittingLimit{}
-	{
-		var id int64
-		var c0 sql.NullString
-		var c1 sql.NullInt64
-		var c2 sql.NullInt64
-		if err := scanRows(q, "sitting_limit", `SELECT t."event_id", t."seat_id", t."sitting", t."limit" FROM "sitting_limit" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2}, func() {
-			m := &recordpb.SittingLimit{}
-			if c0.Valid {
-				m.SeatId = ref(c0.String)
-			}
-			if c1.Valid {
-				m.Sitting = ref(int32(c1.Int64))
-			}
-			if c2.Valid {
-				m.Limit = ref(int32(c2.Int64))
-			}
-			t.rows[id] = m
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (t *sittingLimitTable) attach(ev *recordpb.Event, id int64) error {
-	m := t.rows[id]
-	if m == nil {
-		return noBody(id, "sitting_limit")
-	}
-	if err := t.bad[id]; err != nil {
-		return err
-	}
-	ev.Body = &recordpb.Event_SittingLimit{SittingLimit: m}
 	return nil
 }
 
