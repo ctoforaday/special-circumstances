@@ -165,3 +165,8 @@ turn ends in one measured session, separated by agent_type with zero exceptions 
 event with no agent_type is not a sitting and is dropped. The bootstrap guard mirrors every other
 hook here: a fresh plugin-cache version ships without binaries and an unguarded hook would
 crash-storm the window; the guard hands the missing binary to hooks/fetch-bin.sh, which says nothing on this event.
+
+NOTHING DOWNSTREAM REFUSES A MISSING CLOSE: a sitting with no close has not failed, so it reads as
+neither sat through nor failed, and a run whose every close vanished reads zero failed sittings while
+no lens retires. `capture`'s sitting-closes audit reads the record for it: it FAILS a run whose
+sittings ended (their seat sat again) with not one close, and names each ended sitting with no close.
