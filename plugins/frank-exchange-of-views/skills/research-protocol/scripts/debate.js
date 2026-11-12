@@ -1053,7 +1053,8 @@ while (!stopped() && !seatStop) {
     log(`epoch ${epoch}: blue responded${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''}`)
     await hearOwed([readOf('blue-respond', blueEnv2)])
   }
-  if (seatStop) break
+  // A STOP ON BLUE'S FAILURES STILL SEATS THIS EPOCH'S BENCH: the plan that readied blue docketed it, and
+  // a docket motion left standing is one `bench outcome` refuses. The loop's condition ends the debate.
   for (const p of benches) {
     if (stopped()) break
     log(`epoch ${epoch}: the bench sits on ${p.gap_ids.join(', ')}`)

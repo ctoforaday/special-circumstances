@@ -95,11 +95,12 @@ func limitedSittingsOf(evs []*Event) map[seatSitting]bool {
 	return out
 }
 
-// noTurnSittingsOf is each sitting that produced no admitted envelope, as the record holds it: a
-// failed sitting (FailedSittingsOf), and one stopped at the call limit, whose every call after the
-// limit — the envelope's included — the PreToolUse hook refuses. Neither is a turn in an exchange
-// (gapSittingsOf): the seat did not finish what it was dispatched for, so its silence on a gap is
-// no judgement on it (ruled by gblock 2026-11-11). What bounds a seat whose sittings keep failing is
+// noTurnSittingsOf is each sitting that did not finish what it was dispatched for, as the record holds
+// it: a failed sitting (FailedSittingsOf), which closed with no envelope admitted, and one a
+// sitting_limit names, which the PreToolUse hook cut short at the call limit — the limit stops its
+// work whether or not the call returning its envelope is let through after it. Neither is a turn in
+// an exchange (gapSittingsOf): its silence on a gap is no judgement on it (ruled by gblock
+// 2026-11-11). What bounds a seat whose sittings keep failing is
 // the failed-sitting bound — a lens retires, and the engine stops the run on blue's or the chair's
 // failures in a row — never the gap's limits.
 func noTurnSittingsOf(evs []*Event, win WindowIndex) map[seatSitting]bool {

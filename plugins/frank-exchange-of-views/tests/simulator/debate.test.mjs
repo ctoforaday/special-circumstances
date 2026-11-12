@@ -146,6 +146,19 @@ test('three blue failures in a row stop the run UNVERIFIED, naming blue', async 
   assert.ok(/ended UNVERIFIED — the engine stopped the debate on a seat that kept failing: seat failure: blue-respond failed 3 sittings in a row/.test(assembly), `the stamp names blue: ${assembly.slice(0, 600)}`)
 })
 
+// THE EPOCH THAT STOPS ON BLUE STILL SEATS ITS BENCH: the plan that readied blue a third time also
+// docketed a gap, and a docket motion left standing is one the assembly's outcome is refused over.
+test('the epoch whose blue failure stops the run still seats the bench it docketed', async () => {
+  const docketing = chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000002')], { head: 4, docket: ['G-00000002'] }) })
+  const world = makeWorld(failing('blue-respond', 3, 'returns null', makeResponder({ chair: [movingPlan(2), movingPlan(3), docketing, passChair()] })))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'UNVERIFIED')
+  assert.deepEqual(out.termination.seat_stop, { seat: 'blue-respond', failures: NO_PROGRESS_EPOCHS })
+  assert.equal(labelsOf(world, 'judge #').length, 1, 'the bench sat on the docket of the stopping epoch')
+  assert.ok(world.logs.some((l) => l.includes(`epoch ${NO_PROGRESS_EPOCHS}: the bench sits on G-00000002`)), 'in the stopping epoch')
+  assert.equal(labelsOf(world, 'red-chair').length, NO_PROGRESS_EPOCHS, 'no chair sits after the stop')
+})
+
 test('blue failures not in a row stop nothing', async () => {
   const seats = makeResponder({ chair: [movingPlan(2), movingPlan(3), movingPlan(4), movingPlan(5), passChair()] })
   let n = 0

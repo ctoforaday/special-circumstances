@@ -9824,7 +9824,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 		t.Fatalf("unverified run did not settle cleanly: %s", settledErr)
 	}
 	if v, _ := result["verdict"].(string); v != "UNVERIFIED" {
-		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run", v)
+		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run; %s", v, forcedTrajectory(t, runDir, result))
 	}
 	// AND THE RECORD SAYS SO, not just the returned map. This is the assertion the enum gate
 	// actually depends on: `outcome --as UNVERIFIED` has to be a value the tool WROTE.
@@ -9855,6 +9855,38 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	if basis != record.VerdictAsserted {
 		t.Fatalf("outcome verdict_basis %q, expected %q — UNVERIFIED was reached, but not as the asserted word this path drives", basis, record.VerdictAsserted)
 	}
+}
+
+// forcedTrajectory is what a forced drive that missed its verdict leaves to read: the settled return's
+// epochs and termination, each plan the record stored with whom it readied and what it docketed, and
+// each failed sitting. The log of a part prints a test's failure and nothing of the run behind it.
+func forcedTrajectory(t *testing.T, runDir string, result map[string]any) string {
+	t.Helper()
+	board, err := record.FamilyOf(runtest.Open(t, runDir))
+	if err != nil {
+		return "the record does not read: " + err.Error()
+	}
+	stored, err := record.StoredPlans(board.Events)
+	if err != nil {
+		return "the stored plans do not read: " + err.Error()
+	}
+	var plans []string
+	for _, sp := range stored {
+		p := sp.Plan
+		var parties, blockers []string
+		for _, pa := range p.Parties {
+			parties = append(parties, pa.SeatID+strings.Join(pa.GapIDs, ","))
+		}
+		for _, b := range p.Blockers {
+			blockers = append(blockers, string(b.Kind)+":"+b.Subject)
+		}
+		plans = append(plans, fmt.Sprintf("epoch %d parties[%s] docket%v blockers[%s] pass %v", p.Epoch, strings.Join(parties, " "), p.Docket, strings.Join(blockers, " "), p.PassPermitted))
+	}
+	var failed []string
+	for _, f := range record.FailedSittingsOf(board.Events, board.At) {
+		failed = append(failed, fmt.Sprintf("%s#%d@epoch%d", f.SeatID, f.Sitting, f.Epoch))
+	}
+	return fmt.Sprintf("epochs %v, termination %v; failed sittings %v; plans: %s", result["epochs"], result["termination"], failed, strings.Join(plans, " | "))
 }
 
 // TestFuzzVerifiedPath drives verifiedSeed's forced-VERIFIED run alone, through runOne, the call

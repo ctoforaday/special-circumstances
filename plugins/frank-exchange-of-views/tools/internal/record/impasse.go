@@ -19,9 +19,9 @@ import (
 // lens engaged on G, opened with its turn come (lensTurnOn), ends. A sitting that closes having
 // recorded nothing on G is a NULL TURN: silence is a turn taken, and the exchange still counts. Where
 // blue's sitting leaves nothing to audit the lens's turn never comes, so the exchange ends with blue's
-// sitting, and a gap blue never acts on reaches impasse with no lens readied on it. A sitting that
-// produced no admitted envelope — failed, or stopped at the call limit — is NO TURN (ruled by gblock
-// 2026-11-11, gapSittingsOf): its seat did not finish, so its silence judges nothing.
+// sitting, and a gap blue never acts on reaches impasse with no lens readied on it. A sitting that did
+// not finish — failed (no envelope admitted), or cut short at the call limit — is NO TURN (ruled by
+// gblock 2026-11-11, gapSittingsOf): its silence judges nothing.
 //
 // Movement is a STATE change: the gap's grade changed, its anchored text changed (a blue edit
 // answering G with old != new, or an evidence-anchor retire answering it or taking out the anchor it
@@ -224,8 +224,8 @@ func auditSpent(x *GapExchanges, p Params) bool {
 // sittingCloser says — by facts about THAT seat alone, so no rule enforced at another seat's write
 // path can decide what this read reports. Two rows answered by one sitting are that one sitting.
 //
-// A SITTING THAT PRODUCED NO ADMITTED ENVELOPE IS NO TURN (noTurnSittingsOf): a failed sitting, or
-// one stopped at the call limit, is not among them. Its seat stays engaged, and the next sitting it
+// A SITTING THAT DID NOT FINISH IS NO TURN (noTurnSittingsOf): a failed sitting, or one cut short at
+// the call limit, is not among them. Its seat stays engaged, and the next sitting it
 // opens is the one that answers. The acts it recorded before it ended stay on the record, and the
 // round they fall in reads them as movement like any other.
 func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, minted map[string]string) map[string][]partySitting {

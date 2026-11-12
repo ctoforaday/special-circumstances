@@ -176,3 +176,72 @@ func TestBlueFailsForcedErrReadsTheSeatStop(t *testing.T) {
 		t.Error("an unforced run is held to blue's stop")
 	}
 }
+
+// THE LENS-TURN ORACLE READS A LENS SITTING THAT DID NOT FINISH AS NO TURN, as the record does
+// (ruled by gblock 2026-11-11). Blue answers the gap, and the plan readies its lens to audit the answer.
+// A lens sitting that returns its envelope in silence takes the turn: the next plan engages nobody on
+// the gap. One that fails, or is stopped at the call limit, audited nothing: the next plan readies the
+// lens on blue's answer again, and the oracle holds that plan to the same rule without firing.
+func TestTheLensTurnOracleReadsANoTurnLensSittingAsTheRecordDoes(t *testing.T) {
+	const lens, blue = "red-lens-logic", "blue-respond"
+	for _, c := range []struct {
+		name     string
+		admitted bool
+		limited  bool
+		readied  bool
+	}{
+		{"the lens returns its envelope: a null turn", true, false, false},
+		{"the lens ends without its envelope: no turn", false, false, true},
+		{"the lens is stopped at the call limit: no turn", true, true, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r, gap := blueEngagedRun(t)
+			r.dispatchSits("blue", blue)
+			if _, ok := r.do("edit", blue).set("--quote", "fuzz sentence").set("--new", "fuzz sentences").
+				set("--answers", gap).set("--reason", "fuzz: blue's answer to the gap").admit(); !ok {
+				t.Fatalf("blue's edit: %s", r.actErr)
+			}
+			r.dispatchReturns(blue, true)
+			if plan := chairPlan(t, r); !slices.ContainsFunc(plan.Parties, func(p record.Party) bool { return p.SeatID == lens && slices.Contains(p.GapIDs, gap) }) {
+				t.Fatalf("after blue's answer the plan does not ready %s on %s: parties %+v, why %q", lens, gap, plan.Parties, plan.Why)
+			}
+			r.dispatchSits("lens", lens)
+			if c.limited {
+				r.mu.Lock()
+				agent := r.sittingAgent[lens]
+				r.mu.Unlock()
+				sittings, err := record.AgentSittings(r.run())
+				if err != nil {
+					t.Fatal(err)
+				}
+				i := slices.IndexFunc(sittings, func(s record.AgentSitting) bool { return s.AgentID == agent })
+				if agent == "" || i < 0 {
+					t.Fatalf("the lens's sitting carries no agent (%q) the record joins", agent)
+				}
+				if !r.hookWrites("-phase", "limit", "-agent-id", agent, "-sitting", fmt.Sprint(sittings[i].Sitting), "-limit", "1") {
+					t.Fatalf("the limit write: %s", r.actErr)
+				}
+			}
+			r.dispatchReturns(lens, c.admitted)
+			if r.actErr != "" {
+				t.Fatalf("the lens's return: %s", r.actErr)
+			}
+			plan := chairPlan(t, r)
+			if readied := slices.ContainsFunc(plan.Parties, func(p record.Party) bool { return p.SeatID == lens && slices.Contains(p.GapIDs, gap) }); readied != c.readied {
+				t.Fatalf("after the lens's sitting the plan readies %s on %s: %v, want %v (parties %+v, why %q)", lens, gap, readied, c.readied, plan.Parties, plan.Why)
+			}
+			raw, err := json.Marshal(plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var relayed map[string]any
+			if err := json.Unmarshal(raw, &relayed); err != nil {
+				t.Fatal(err)
+			}
+			r.tallyLensTurns(relayed)
+			if r.actErr != "" {
+				t.Fatalf("the oracle reads the plan as breaking the lens-turn rule: %s", r.actErr)
+			}
+		})
+	}
+}
