@@ -44,10 +44,12 @@ hookcmd.Run rather than documented on a leaf.
 ## PreToolUse
 
 NO MATCHER: every tool. The run and identity injection above is Bash-only and the binary returns at
-once for any other tool that no seat made. The PER-SITTING TURN LIMIT covers every tool: a seat that
-has made more than the run's maxSittingCalls tool calls (inputs/run-config.json, setup
+once for any other tool that no seat made. The PER-SITTING TURN LIMIT covers every tool but
+`StructuredOutput`, the call returning the seat's envelope, which it neither counts nor refuses: a
+seat that has made more than the run's maxSittingCalls tool calls (inputs/run-config.json, setup
 --max-sitting-calls, default 150) since its register is refused every further call except a
-register, with the reason `turn limit reached — return your envelope now`, and the first refusal
+register and its envelope, with the reason `turn limit reached — return your envelope now`, and the
+envelope it then returns goes to the envelope gate below like any other. The first refusal
 writes a sitting_limit event naming the seat, the sitting and the limit. The count lives in
 <runDir>/.sitting-calls, opened by register and keyed by agent id and sitting. An agent that never
 registered as a seat (the main session, an operator) is never counted. Under a headless `claude -p`

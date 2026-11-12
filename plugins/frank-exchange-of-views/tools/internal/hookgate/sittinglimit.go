@@ -15,7 +15,8 @@ const RecordBin = "feov-record"
 // run's call limit. The first clause is the instruction; the rest is the fact behind it.
 func LimitReason(count, limit int) string {
 	return fmt.Sprintf("turn limit reached — return your envelope now. This sitting has made %d tool "+
-		"calls against the run's limit of %d, and no further tool call runs in it.", count, limit)
+		"calls against the run's limit of %d, and no further tool call runs in it but the one returning "+
+		"your envelope.", count, limit)
 }
 
 // InvokesRegister reports whether a Bash call invokes the record tool's `register` verb.

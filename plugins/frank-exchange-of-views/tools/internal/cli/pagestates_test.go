@@ -61,9 +61,10 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	usage := func(name string) string { return report.Flags().Lookup(name).Usage }
 	for name, says := range map[string]string{
 		"window": "ONLY with --anchor, and refused without it",
-		"anchor": "--match and --quote are each refused with it",
-		"match":  "Refused beside --anchor",
-		"quote":  "Refused beside --anchor",
+		"anchor": "--match, --quote and --search are each refused with it",
+		"match":  "Refused beside --anchor and --search",
+		"quote":  "Refused beside --anchor and --search",
+		"search": "Refused beside --anchor, --match and --quote",
 	} {
 		if !strings.Contains(usage(name), says) {
 			t.Errorf("show report --%s does not say %q:\n%s", name, says, usage(name))

@@ -108,7 +108,7 @@ func TestShowSourceRefusesAnUnknownSourceAndAnEmptyPattern(t *testing.T) {
 		want string
 	}{
 		{[]string{"--sha", strings.Repeat("0", 64), "--match", "liar"}, "no source with sha256"},
-		{[]string{"--match", "liar"}, "name the source to search"},
+		{[]string{"--search", "liar", "--match", "liar"}, "--search cannot be combined with --quote or --match"},
 		{[]string{"--sha", sha}, "name what to find"},
 		{[]string{"--sha", sha, "--match", ""}, "name what to find"},
 		{[]string{"--sha", sha, "--match", "x*"}, "matches the empty string"},

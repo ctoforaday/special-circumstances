@@ -1,11 +1,16 @@
 ---
 # INSTALLS DOWNLOADED native-build ARTIFACTS UNDER THE NAMES A CLIENT LOOKS UP. An artifact holds
-# one helper under its release asset name, <helper>_<os>_<arch>[.exe], exactly as the release
-# publishes it; internal/nativehelper looks for <helper>[.exe] in NATIVE_HELPER_DIR, as fetch-bin.sh
-# installs it into bin/. Each file in `from` ending in `_<os>_<arch><ext>` is copied to `to` without
-# that suffix, made executable, and named in the log. A `from` with no such file fails.
+# one helper under its release asset name, <helper>_<os>_<arch>[.exe], and each of its ASSETS
+# exports for that arch under the export's release name, exactly as the release publishes them;
+# internal/nativehelper looks for <helper>[.exe] and each ASSETS line's installed file in
+# NATIVE_HELPER_DIR, as fetch-bin.sh installs them into bin/. Each file in `from` ending in
+# `_<os>_<arch><ext>` is copied to `to` without that suffix and made executable; for each such
+# helper, every `<installed file> <export>` pair nativedigest -assets prints for the arch is copied
+# from `from`/<export> to `to`/<installed file>. Each copy is named in the log. A `from` with no
+# helper, or missing an export its helper's ASSETS names for the arch, fails. Go must be set up:
+# nativedigest is the one reader of ASSETS.
 name: install-helpers
-description: Install native helper artifacts under their lookup names
+description: Install native helper artifacts and their ASSETS exports under their lookup names
 inputs:
   from:
     description: directory the artifacts were downloaded into
@@ -36,11 +41,24 @@ runs:
         n=0
         for f in "$FROM"/*"$suffix"; do
           [ -f "$f" ] || continue
-          name="$(basename "$f" "$suffix")${ext}"
-          cp "$f" "$TO/$name"
-          chmod +x "$TO/$name"
-          echo "installed $(basename "$f") as $TO/$name"
+          helper="$(basename "$f" "$suffix")"
+          cp "$f" "$TO/$helper$ext"
+          chmod +x "$TO/$helper$ext"
+          echo "installed $(basename "$f") as $TO/$helper$ext"
           n=$((n + 1))
+          pairs="$(go -C plugins/frank-exchange-of-views/tools run ./devcmd/nativedigest -assets "$helper" -arch "$HARCH")" || {
+            echo "::error::nativedigest -assets $helper -arch $HARCH failed"
+            exit 1
+          }
+          while read -r file export; do
+            [ -n "$file" ] || continue
+            if [ ! -f "$FROM/$export" ]; then
+              echo "::error::$FROM holds no $export, the $HARCH export $helper loads as $file"
+              exit 1
+            fi
+            cp "$FROM/$export" "$TO/$file"
+            echo "installed $export as $TO/$file"
+          done <<<"$pairs"
         done
         if [ "$n" -eq 0 ]; then
           echo "::error::$FROM holds no helper for ${HOS}/${HARCH}"

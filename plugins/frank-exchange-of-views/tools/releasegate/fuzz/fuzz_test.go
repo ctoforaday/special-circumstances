@@ -1201,6 +1201,10 @@ func (r *runner) sourceSearchCited(seatID, citeOut, span string) {
 		if !ok {
 			return
 		}
+		// A RANKED SEARCH IS NOT A SELECTOR, from each seat that reads the source. The sweep has no
+		// embedding helper to admit --search with, so it drives the refusal beside --quote.
+		r.refuse(feov.Validation, append(append([]string{"show", "source", "--seat-id", read.seat}, read.by...),
+			"--search", "source body", "--quote", "source body for")...)
 		if first == "" {
 			first = out
 		} else if out != first {
@@ -7381,6 +7385,18 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			// view that is JSON by name the flag is the same bytes; so every view that carries the pair
 			// answers with a selection block, and one that does not is a failure rather than a skip. A
 			// view whose page carries no pair is not driven with one.
+			// A RANKED SEARCH IS NOT A SELECTOR, on every role's view that takes one. The sweep has no
+			// embedding helper to admit --search with, so it drives the refusal the view owes beside
+			// --match, which returns every match where --search returns a cut list.
+			if viewSearches(role, group, v) {
+				sargs := []string{group, v, "--run", runDir, "--seat-id", sid, "--json", "--search", "source body", "--match", "."}
+				out, err := drive(bin, sargs...)
+				if env, ok := refusalEnvelopeIn(string(out)); err == nil || !ok || env.Code != string(feov.Validation) {
+					res.err = fmt.Sprintf("%s %s %s --search beside --match was not refused as %s:\n%s",
+						role, group, v, feov.Validation, truncate(string(out)))
+					return res
+				}
+			}
 			if !viewSelects(role, group, v) {
 				continue
 			}
@@ -8763,14 +8779,20 @@ func reportTextLines(bin, group, runDir, sid string) (int, error) {
 }
 
 // viewSelects reports whether the view's page, in this role's tree, carries the selector pair.
-func viewSelects(role, group, view string) bool {
+func viewSelects(role, group, view string) bool { return viewTakes(role, group, view, "match") }
+
+// viewSearches asks the real command tree whether this role's view takes --search.
+func viewSearches(role, group, view string) bool { return viewTakes(role, group, view, "search") }
+
+// viewTakes asks the real command tree whether this role's view under group takes flag.
+func viewTakes(role, group, view, flag string) bool {
 	for _, c := range seat.RoleVerbs(role) {
 		if c.Name() != group {
 			continue
 		}
 		for _, sub := range c.Commands() {
 			if sub.Name() == view {
-				return sub.Flags().Lookup("match") != nil
+				return sub.Flags().Lookup(flag) != nil
 			}
 		}
 	}

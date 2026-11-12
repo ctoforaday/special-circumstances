@@ -897,8 +897,8 @@ func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
 //
 //   - STOPPED AT THE CALL LIMIT: a sitting_limit names it — by the seat and the sitting number the
 //     hook's count was keyed by, which is the opening's stored sitting ordinal (sittingcap). The
-//     seat was refused every further call, so what it was dispatched for stopped where the limit
-//     fell, not where its judgement did.
+//     seat was refused every further call but its envelope, so what it was dispatched for stopped
+//     where the limit fell, not where its judgement did.
 //   - NEVER CLOSED: its opening carries an agent, no sitting_close of that agent follows it, and the
 //     seat has opened a later sitting. The SubagentStop hook writes the close when the agent
 //     returns, so a sitting without one ended some other way.

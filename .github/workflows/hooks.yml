@@ -402,6 +402,12 @@ jobs:
         TestTextCellTableKeepsItsRowsThroughTheEngine
         TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine
         TestReleaseLayoutFindsItsHelper
+        TestEmbedWithBuiltHelper
+        TestTokenizerParity400
+        TestEmbedLoadsTheExportForItsArch
+        TestEmbedFidelityMeetsS5
+        TestEmbedSpeedMeetsS6
+        TestEveryEmbedOpFitsTheDeadline
       # The target-scoped names: selftest-libc runs on the Linux legs only.
       NATIVE_RUN_MUST_PASS_LINUX: TestSelftestLibc
     steps:
@@ -814,18 +820,12 @@ jobs:
           # request can write is a cache a release build would read.
           package-manager-cache: false
           node-version: "24"
-      - name: Download feov-ocr helper (Linux)
-        if: runner.os == 'Linux'
+      - name: Download helper artifacts
         uses: actions/download-artifact@v4
         with:
-          name: native-feov-ocr-linux-amd64
+          pattern: native-*-${{ runner.os == 'Windows' && 'windows' || 'linux' }}-amd64
           path: ${{ runner.temp }}/native
-      - name: Download feov-ocr helper (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/download-artifact@v4
-        with:
-          name: native-feov-ocr-windows-amd64
-          path: ${{ runner.temp }}/native
+          merge-multiple: true
       - uses: ./.github/actions/install-helpers
         with:
           from: ${{ runner.temp }}/native
@@ -1708,6 +1708,7 @@ jobs:
           # base from local refs — so the token has no reason to persist into .git/config.
           persist-credentials: false
           fetch-depth: 0
+      - uses: ./.github/actions/qlty-cache
       # Pinned to a commit, not a tag: a tag is mutable, and this action runs with the
       # workflow's token. v2.3.0.
       - uses: qltysh/qlty-action/install@ebcd284bf32e36a030afe15f1e136c7be08b9506

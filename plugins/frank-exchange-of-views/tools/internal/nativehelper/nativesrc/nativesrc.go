@@ -29,10 +29,12 @@ type Helper struct {
 	Assets []Asset
 }
 
-// Asset is one ASSETS line: the installed file and its sha256 per arch, in the line's order.
+// Asset is one ASSETS line: the installed file, and per arch, in the line's order, the pinned
+// export the build fetches and the release publishes for it, and that export's sha256.
 type Asset struct {
 	File   string
 	Arches []string
+	Export map[string]string
 	SHA256 map[string]string
 }
 
@@ -179,7 +181,7 @@ func Assets(native, helper string) ([]Asset, error) {
 				return nil, err
 			}
 		}
-		a := Asset{File: f[0], SHA256: map[string]string{}}
+		a := Asset{File: f[0], Export: map[string]string{}, SHA256: map[string]string{}}
 		for _, kv := range f[1:] {
 			arch, asset, ok := strings.Cut(kv, "=")
 			if !ok || arch == "" || asset == "" {
@@ -193,6 +195,7 @@ func Assets(native, helper string) ([]Asset, error) {
 				return nil, err
 			}
 			a.Arches = append(a.Arches, arch)
+			a.Export[arch] = asset
 			a.SHA256[arch] = p.sha
 		}
 		out = append(out, a)
