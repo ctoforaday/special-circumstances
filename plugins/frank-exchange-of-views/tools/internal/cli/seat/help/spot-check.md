@@ -8,4 +8,4 @@ A SPOT-CHECK IS OWED BEFORE A PASS, AND AT NO OTHER TIME. The plan's `stale_area
 
 THE TOOL STATES WHAT THERE WAS TO JUDGE; YOUR PROSE STATES WHAT YOU FOUND. The write stamps each area's pin and the event id of every change to the report after it, and prints them back: the count and the ids are the record's, and every reader of the spot-check prints them beside your prose. Your prose is your judgement of those changes against each area's duties — what holds, what is wrong, and why. It does not count the changes, list their ids or recount what you read: the record holds the first two, and nothing on it can confirm the third.
 
-Any archived closure you re-verified is named beside the areas. The archive's size when you sat is replayed from the board, and the report shows its reader each spot-check beside it: what you named, out of how much, and what your prose says you found.
+Any archived closure you re-verified is named beside the areas, by its gap id. The archive's size when you sat is replayed from the board, and the report shows its reader each spot-check beside it: what you named, out of how much, and what your prose says you found.
