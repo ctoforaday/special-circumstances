@@ -239,7 +239,7 @@ func scenarios() []scenario {
 				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",
-					"--title", "https://example.invalid/paper", "--trust", "high", "--access-date", "2026-07-18"),
+					"--title", "https://example.invalid/paper", "--trust", "high"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
 				// THE BENCH'S DISPOSITION IS TWO COMMANDS: red docksets the gap it cannot settle,
 				// the bench rules on that filing. The differential drives both because the
@@ -385,7 +385,7 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",
-					"--title", "https://example.invalid/a", "--trust", "high", "--access-date", "2026-07-18"),
+					"--title", "https://example.invalid/a", "--trust", "high"),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "high", "--quote", "A claim sits under S2.", "--reason", "citation does not support"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-logic"),

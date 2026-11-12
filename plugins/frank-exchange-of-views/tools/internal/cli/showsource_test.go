@@ -21,7 +21,7 @@ func viewReader(t *testing.T, runDir, view string) (group, who string, args []st
 	case seat.GroupOf(view) == "inquest":
 		return "inquest", "judge", []string{view}
 	case view == "source":
-		e, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{URL: "https://ex/view-reader", ContentType: "text/plain"},
+		e, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{FetchedAt: storedAt, URL: "https://ex/view-reader", ContentType: "text/plain"},
 			[]byte("A source the view tests read. It holds one word twice: word, and word.\n"))
 		if err != nil {
 			t.Fatal(err)

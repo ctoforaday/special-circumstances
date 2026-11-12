@@ -19,7 +19,7 @@ func storeScanned(t *testing.T, pages int) (record.Run, Entry) {
 	run := runtest.New(t, t.TempDir())
 	no := false
 	e, err := Store(run, Entry{
-		URL: "https://ex/scan.pdf", ContentType: "application/pdf",
+		FetchedAt: storedAt, URL: "https://ex/scan.pdf", ContentType: "application/pdf",
 		TextExtracted: &no, TextReason: "no text layer", Pages: pages,
 	}, pdfWithNoTextLayer())
 	if err != nil {
@@ -156,7 +156,7 @@ func TestReadScannedRefusesANonPDF(t *testing.T) {
 	withEngine(t, textEngine(func(int) (string, error) { return "x", nil }))
 	run := runtest.New(t, t.TempDir())
 	no := false
-	e, err := Store(run, Entry{URL: "https://ex/a", ContentType: "text/html", TextExtracted: &no}, []byte("hi"))
+	e, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/a", ContentType: "text/html", TextExtracted: &no}, []byte("hi"))
 	if err != nil {
 		t.Fatal(err)
 	}

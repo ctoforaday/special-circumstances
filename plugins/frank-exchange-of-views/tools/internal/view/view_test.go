@@ -723,7 +723,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 		}),
 	})
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, lens, lens+":verify:https://x", &recordpb.Verify{Claim: proto.String("the source says so"), Anchor: proto.String("C-00000abc"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String("read at the leaf"), AccessDate: proto.String("2026-07-18")}),
+		recordtest.At(t, lens, lens+":verify:https://x", &recordpb.Verify{Claim: proto.String("the source says so"), Anchor: proto.String("C-00000abc"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String("read at the leaf")}),
 		recordtest.At(t, lens, lens+":verify:https://y", &recordpb.Verify{Claim: proto.String("a second claim"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_LOW), Text: proto.String("thin support")}),
 	})
 

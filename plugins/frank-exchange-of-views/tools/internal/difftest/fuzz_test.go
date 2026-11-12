@@ -70,9 +70,28 @@ func rankTimestamps(evs []map[string]any) []map[string]any {
 		if _, ok := c["ts"]; ok {
 			c["ts"] = i
 		}
+		fetchedAtPresent(c)
 		out[i] = c
 	}
 	return out
+}
+
+// fetchedAtPresent replaces a cite's fetched_at — the clock at the fetch, which differs between two
+// runs of one sequence as ts does — with a marker that it is present. A cite that lost it still
+// differs: absent is not the marker.
+func fetchedAtPresent(ev map[string]any) {
+	cite, ok := ev["cite"].(map[string]any)
+	if !ok {
+		return
+	}
+	if v, ok := cite["fetched_at"].(string); ok && v != "" {
+		c := make(map[string]any, len(cite))
+		for key, val := range cite {
+			c[key] = val
+		}
+		c["fetched_at"] = "{FETCHED_AT}"
+		ev["cite"] = c
+	}
 }
 
 const (

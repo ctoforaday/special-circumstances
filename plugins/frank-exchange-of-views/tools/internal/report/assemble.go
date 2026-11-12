@@ -150,7 +150,7 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "%s: %s%s%s%s%s%s\n", citationNote(n), escapeNotesInLine(plain(citationTitle(s))+locator+". "), plainURL(s.URL), accessed(s.AccessDate),
+		fmt.Fprintf(&out, "%s: %s%s%s%s%s%s\n", citationNote(n), escapeNotesInLine(plain(citationTitle(s))+locator+". "), plainURL(s.URL), accessed(record.AccessedOn(s.FetchedAt)),
 			copyNote(s.CopySubstitution, s.CopyURL), retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true
@@ -166,7 +166,7 @@ func weaveCitations(md string, sources []record.Source) string {
 
 // bibliographyEntry is a URL's one Bibliography line, never with a page. ONE LINE PER URL, the
 // URL being what a reader follows: its title is the first cite's for that URL, and its date the
-// earliest any cite of it records — read over every source on the record, so the line does not
+// earliest day any cite of it records its copy fetched — read over every source on the record, so the line does not
 // depend on which label the text happened to reference first.
 func bibliographyEntry(url string, sources []record.Source) string {
 	var pick record.Source
@@ -193,7 +193,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 			seenCopy[note] = true
 			copies = append(copies, note)
 		}
-		date = earliest(date, src.AccessDate)
+		date = earliest(date, record.AccessedOn(src.FetchedAt))
 		if src.WorkStatus == recordpb.WorkStatus_WORK_STATUS_RETRACTED {
 			status = src.WorkStatus
 		}

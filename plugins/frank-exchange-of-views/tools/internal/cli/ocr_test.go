@@ -66,6 +66,7 @@ func cacheScan(t *testing.T, textExtracted *bool, contentType string) (string, s
 	dir := t.TempDir()
 	run := runtest.New(t, dir)
 	e, err := fetchcache.Store(run, fetchcache.Entry{
+		FetchedAt:     storedAt,
 		URL:           "https://ex/scan.pdf",
 		ContentType:   contentType,
 		TextExtracted: textExtracted,

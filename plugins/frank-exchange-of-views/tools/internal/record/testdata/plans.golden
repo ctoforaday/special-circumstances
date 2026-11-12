@@ -487,6 +487,10 @@
 -- INSERT INTO "cite" ("event_id", "label", "source_text_origin", "work_status", "source_completeness") VALUES (?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
+== stmt eead04ec1847
+-- INSERT INTO "cite" ("event_id", "label", "url") VALUES (?, ?, ?)
+  SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
+
 == stmt 0434d0d88938
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "answers") VALUES (?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
@@ -499,44 +503,44 @@
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "location", "text", "source_text_origin", "work_status", "source_completeness") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt 87a55b410fde
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 7fe4438a226b
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt 9527365685d4
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 1f193318ddf6
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt c8348cafeca0
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 0918b77b7170
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt fbab20e6c3f2
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 79deed983854
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt 50b84a201e01
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "copy_url", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt d5d489634d3c
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "copy_url", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt 3448604157a2
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 66c9df8faf08
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "text", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt f69358748aaf
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "source_text_origin", "work_status", "source_completeness") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 894f7c74da3d
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt bf30a1a818c4
--- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 511d5c78efae
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "source_text_origin", "work_status", "source_completeness", "fetched_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
 == stmt ece348fea96c
 -- INSERT INTO "cite" ("event_id", "label", "url", "source_text_origin", "work_status", "source_completeness") VALUES (?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt 9d17b9dff982
--- INSERT INTO "cite" ("event_id", "label", "url", "title", "cite_key", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_matched", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 762cbe3e25c5
+-- INSERT INTO "cite" ("event_id", "label", "url", "title", "cite_key", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_matched", "work_status", "source_completeness", "copy_substitution", "fetched_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
 == stmt f14b06b2a0f9
@@ -1584,34 +1588,6 @@
 -- INSERT INTO "stale" ("event_id", "gap_id", "through") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 271cb22a3ad1
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 524b6260db2b
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt a19b3b92e02a
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 7bce27bdb182
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 06e66922a3d3
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt f6cadfb99760
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt d0096b45f286
--- INSERT INTO "verify" ("event_id", "claim", "anchor", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt f20f0f91bddb
 -- INSERT INTO "verify" ("event_id", "claim", "anchor", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1660,18 +1636,6 @@
 -- INSERT INTO "verify" ("event_id", "claim", "url", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 5de8d8ae1f0a
--- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 11e83bbc2944
--- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 03277ee9a052
--- INSERT INTO "verify" ("event_id", "claim", "url", "title", "access_date", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt 811bfdb8419e
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "anchor", "outcome", "confidence", "text") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -1686,6 +1650,14 @@
 
 == stmt d632037fc5ac
 -- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt c58db911fea4
+-- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "source_completeness", "bridge", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 44adb5c71035
+-- INSERT INTO "verify" ("event_id", "claim", "url", "title", "outcome", "confidence", "text", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 6fa06a046f11
@@ -1780,7 +1752,7 @@
 
 == stmt 8dba93e02a86
 -- SELECT "bundle_sha" FROM "computation" WHERE "computation_id" = ? ORDER BY "event_id" LIMIT 1
-  SEARCH computation USING INDEX computation_id (computation_id=?)
+  SEARCH computation USING INDEX sqlite_autoindex_computation_1 (computation_id=?)
 
 == stmt 59a3e1e11433
 -- SELECT "class" FROM "position" WHERE "position_id" = ?
@@ -2134,9 +2106,9 @@
 -- SELECT 1 FROM "evidence_anchor" WHERE "anchor_id" = ? LIMIT 1
   COMPOUND QUERY
     LEFT-MOST SUBQUERY
-      SEARCH x USING COVERING INDEX cite_label (label=?)
+      SEARCH x USING COVERING INDEX sqlite_autoindex_cite_1 (label=?)
     UNION ALL
-      SEARCH x USING COVERING INDEX computation_id (computation_id=?)
+      SEARCH x USING COVERING INDEX sqlite_autoindex_computation_1 (computation_id=?)
 
 == stmt eb9baf832d41
 -- SELECT 1 FROM "finding" WHERE "id" = ? LIMIT 1
@@ -2178,9 +2150,9 @@
     UNION ALL
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
-          SEARCH x USING COVERING INDEX cite_label (label=?)
+          SEARCH x USING COVERING INDEX sqlite_autoindex_cite_1 (label=?)
         UNION ALL
-          SEARCH x USING COVERING INDEX computation_id (computation_id=?)
+          SEARCH x USING COVERING INDEX sqlite_autoindex_computation_1 (computation_id=?)
 
 == stmt 5092371cdcdd
 -- SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?
@@ -2399,10 +2371,10 @@
       UNION ALL
         COMPOUND QUERY
           LEFT-MOST SUBQUERY
-            SEARCH x USING INDEX cite_label (label=?)
+            SEARCH x USING INDEX sqlite_autoindex_cite_1 (label=?)
             SEARCH c USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
           UNION ALL
-            SEARCH x USING INDEX computation_id (computation_id=?)
+            SEARCH x USING INDEX sqlite_autoindex_computation_1 (computation_id=?)
             SEARCH c USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SCAN (subquery)
   USE TEMP B-TREE FOR ORDER BY
@@ -2698,8 +2670,8 @@
 -- SELECT t."event_id", t."claim", t."reason", t."superseded_by", t."removal_basis", t."claim_kept", t."answers" FROM "retire" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 544c7c0fe7d5
--- SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url" FROM "verify" t WHERE t."event_id" > ?
+== stmt 038e7569d922
+-- SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url" FROM "verify" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 375b76fe5f12
@@ -2770,8 +2742,8 @@
 -- SELECT t."event_id", t."inquiry_id", t."reason" FROM "inquiry_check" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 09f83aa82b53
--- SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."access_date", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."answers" FROM "cite" t WHERE t."event_id" > ?
+== stmt 113c188b6b5b
+-- SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."fetched_at", t."answers" FROM "cite" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 8da850344d9a

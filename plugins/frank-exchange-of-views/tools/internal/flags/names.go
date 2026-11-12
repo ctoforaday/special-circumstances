@@ -267,8 +267,7 @@ const (
 	Lens = "lens"
 
 	// Blue's process record.
-	Method     = "method"
-	AccessDate = "access-date"
+	Method = "method"
 
 	// The operator `setup` command: it builds a research run's blackboard. Operator flags,
 	// not seat-verb payload keys.
@@ -335,7 +334,7 @@ func All() []string {
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,
-		Method, AccessDate,
+		Method,
 		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
 		Card, Watch, Now, Serve,
 		Sha, DPI, Force, OCR,

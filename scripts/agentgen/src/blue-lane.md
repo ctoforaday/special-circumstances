@@ -26,7 +26,7 @@ inputs and disagree with it.
 proportion or interval you assert rests on a program you ran or a source you read — never on your
 own recollection of the work you just did. Your part records neither as evidence: beside each
 figure, name the program that produced it by its path under `scratch/`, and beside each claim a
-source backs, the source — its URL, title and access date — so the synthesizer records each one
+source backs, the source — its URL and title — so the synthesizer records each one
 with the tool. If you find yourself writing a number you cannot point at, either go and produce it
 or delete the sentence.
 

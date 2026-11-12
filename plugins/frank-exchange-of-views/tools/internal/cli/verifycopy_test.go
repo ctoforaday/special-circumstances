@@ -34,7 +34,7 @@ func cachedCopy(t *testing.T, runDir, substitution, copyURL string) {
 		return nil, nil
 	}))
 	run := runtest.Open(t, runDir)
-	entry := fetchcache.EntryFor(run, fermatURL, &fetchcache.Attempt{Body: []byte(fermatPage), ContentType: "text/html",
+	entry := fetchcache.EntryFor(run, fermatURL, &fetchcache.Attempt{FetchedAt: fetchcache.FetchTime(), Body: []byte(fermatPage), ContentType: "text/html",
 		TextRetrieved: true, URL: copyURL}, substitution)
 	if _, err := fetchcache.Store(run, entry, []byte(fermatPage)); err != nil {
 		t.Fatal(err)
@@ -261,7 +261,7 @@ func TestAbsentIsRefusedOnACitationWhoseCopyIsOnlyTheAbstract(t *testing.T) {
 		return nil, nil
 	}))
 	run := runtest.Open(t, runDir)
-	entry := fetchcache.EntryFor(run, fermatURL, &fetchcache.Attempt{Body: []byte(fermatPage), ContentType: "text/html", TextRetrieved: true}, "")
+	entry := fetchcache.EntryFor(run, fermatURL, &fetchcache.Attempt{FetchedAt: fetchcache.FetchTime(), Body: []byte(fermatPage), ContentType: "text/html", TextRetrieved: true}, "")
 	entry.Completeness, entry.CompletenessReason = fetchcache.CompletenessAbstract, "the platform printed its paywall in place of the body"
 	if _, err := fetchcache.Store(run, entry, []byte(fermatPage)); err != nil {
 		t.Fatal(err)

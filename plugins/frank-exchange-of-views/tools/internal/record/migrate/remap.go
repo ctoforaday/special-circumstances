@@ -129,7 +129,7 @@ var (
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding`)
 	dataFields = fieldSet(`Anchor.location ReportPart.text BlueEdit.edit_key
-		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key Cite.copy_url
+		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.cite_key Cite.copy_url Cite.fetched_at
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
 		Close.anchor_seat Close.carried_from DocketMotion.grounds_quote
@@ -141,7 +141,7 @@ var (
 		Reproduce.bundle_sha Reproduce.claim Reproduce.drift Reproduce.rerun_sha Retire.claim
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
 		SittingClose.agent_transcript_path SittingLimit.seat_id SittingOpen.agent_id
-		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.copy_url Verify.page_render_sha
+		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.claim Verify.copy_url Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
 		"Computation.computation_id": "computation", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion",

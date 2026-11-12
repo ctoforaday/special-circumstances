@@ -75,7 +75,7 @@ func TestASpanStartsWhereTheSourceStartsASentenceOrAClause(t *testing.T) {
 func TestAMidClauseSpanIsRefusedWithTheSentenceItSitsIn(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	yes := true
-	e, err := Store(run, Entry{URL: "https://ex/fermat-test", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+m31Fermat+"</html>"))
+	e, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/fermat-test", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+m31Fermat+"</html>"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestASpanCutBeforeItsClauseEndsIsRefusedWithTheSentence(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	yes := true
 	text := "Trial division\n\nThis method divides n by each integer from 2 up to the square root of n. Any such integer proves it.\n"
-	e, err := Store(run, Entry{URL: "https://ex/trial", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+text+"</html>"))
+	e, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/trial", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+text+"</html>"))
 	if err != nil {
 		t.Fatal(err)
 	}

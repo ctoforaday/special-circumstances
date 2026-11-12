@@ -198,8 +198,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 		// anchor to name. `absent` on a found source mints nothing, so no gap flags ride along.
 		_, err := run(t, "verify", "--run", runDir, "--seat-id", "red-lens-evidence",
 			"--quote", claim, "--url", url, "--title", title,
-			"--as", "absent", "--confidence", "high", "--reason", "read at the leaf",
-			"--access-date", "2026-07-24")
+			"--as", "absent", "--confidence", "high", "--reason", "read at the leaf")
 		return err
 	}
 	for _, c := range cites {

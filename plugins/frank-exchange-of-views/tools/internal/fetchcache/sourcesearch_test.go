@@ -21,7 +21,7 @@ const m36Page = "Prime numbers\n\nA prime number is a natural number greater tha
 func storeTextSource(t *testing.T, run record.Run, url, text string) Entry {
 	t.Helper()
 	yes := true
-	e, err := Store(run, Entry{URL: url, ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+text+"</html>"))
+	e, err := Store(run, Entry{FetchedAt: storedAt, URL: url, ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+text+"</html>"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestASourceSearchRefusesAnEmptyPatternAndATextlessSource(t *testing.T) {
 		}
 	}
 	no := false
-	img, err := Store(run, Entry{URL: "https://ex/fig.png", ContentType: "image/png", TextExtracted: &no}, []byte("\x89PNG"))
+	img, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/fig.png", ContentType: "image/png", TextExtracted: &no}, []byte("\x89PNG"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestSearchCrossSources(t *testing.T) {
 	e1 := storeTextSource(t, run, "https://ex/doc1", "First document mentioning primality.")
 	e2 := storeTextSource(t, run, "https://ex/doc2", "Second document also discussing primality.")
 	no := false
-	_, err := Store(run, Entry{URL: "https://ex/scan.pdf", ContentType: "application/pdf", TextExtracted: &no}, []byte("%PDF-scan"))
+	_, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/scan.pdf", ContentType: "application/pdf", TextExtracted: &no}, []byte("%PDF-scan"))
 	if err != nil {
 		t.Fatal(err)
 	}

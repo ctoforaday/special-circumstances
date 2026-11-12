@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -22,12 +23,14 @@ import (
 // Source is one cited source, drawn from a blue `cite` event — the composer input for the
 // assembled bibliography and the hash a reader verifies the cached bytes against.
 type Source struct {
-	Label      string
-	URL        string
-	Sha256     string
-	Title      string
-	AccessDate string
-	Location   string
+	Label    string
+	URL      string
+	Sha256   string
+	Title    string
+	Location string
+	// FetchedAt is when the run's fetch took the cited copy, RFC 3339 UTC, as the cite carries it:
+	// the source's "accessed" date (AccessedOn). Empty on a cite migrated from before the field.
+	FetchedAt string
 	// Pages are the PDF pages an OCR span was found on, from blue's cite. Assembly prints them in
 	// the source's note, never in the Bibliography.
 	Pages []int32
@@ -61,8 +64,8 @@ func citedSource(body proto.Message) (Source, bool) {
 		URL:        b.GetUrl(),
 		Sha256:     b.GetSha256(),
 		Title:      b.GetTitle(),
-		AccessDate: b.GetAccessDate(),
 		Location:   b.GetLocation(),
+		FetchedAt:  b.GetFetchedAt(),
 		Pages:      b.GetPages(),
 		WorkStatus: b.GetWorkStatus(),
 
@@ -70,6 +73,17 @@ func citedSource(body proto.Message) (Source, bool) {
 		CopySubstitution:   b.GetCopySubstitution(),
 		CopyURL:            b.GetCopyUrl(),
 	}, true
+}
+
+// AccessedOn is the date a source was accessed — the UTC day its copy was fetched — from a cite's
+// fetched_at, or "" where the cite holds none. validate admits only an RFC 3339 fetched_at, so a
+// value that does not parse is not on any record this reads.
+func AccessedOn(fetchedAt string) string {
+	t, err := time.Parse(time.RFC3339, fetchedAt)
+	if err != nil {
+		return ""
+	}
+	return t.UTC().Format(time.DateOnly)
 }
 
 // CitedSources returns the distinct cited sources — one per blue `cite` label, in
@@ -185,7 +199,7 @@ func ExistingCiteByKey(run Run, seatID, key string) (*recordpb.Cite, error) {
 // TWO KINDS OF `cite` EVENT SHARE ONE TYPE — and conflating them inflates red's audit metric.
 //
 // `lens cite` records RED VERIFYING a source (a citation-ledger row: claim / reference /
-// confidence / access_date). `blue cite` records BLUE AUTHORING one (label / url / sha256 /
+// confidence). `blue cite` records BLUE AUTHORING one (label / url / sha256 /
 // title / location, plus an anchor in the report). Only blue's carries `label`, which
 // is what distinguishes them — the same discriminator CitedSources and CitationLabels use.
 //

@@ -68,7 +68,7 @@ func TestACiteRecordsTheCopyItRead(t *testing.T) {
 				return nil, nil
 			}))
 			run := runtest.Open(t, runDir)
-			entry := fetchcache.EntryFor(run, fermatURL, &fetchcache.Attempt{Body: []byte(fermatPage), ContentType: "text/html",
+			entry := fetchcache.EntryFor(run, fermatURL, &fetchcache.Attempt{FetchedAt: fetchcache.FetchTime(), Body: []byte(fermatPage), ContentType: "text/html",
 				TextRetrieved: true, URL: tc.copyURL}, tc.substitution)
 			if _, err := fetchcache.Store(run, entry, []byte(fermatPage)); err != nil {
 				t.Fatal(err)

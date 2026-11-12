@@ -218,6 +218,11 @@ func citeEntry(old OldEvent) ([]proto.Message, error) {
 	for k, v := range old.Fields {
 		switch k {
 		case "source_text_read":
+		// AN ARCHIVED CITE'S access_date IS NOT CARRIED (EventSchema 73). It was the cite's own clock
+		// reading, and a source's accessed date is when its copy was fetched, which the fetch index
+		// knew and run-archive does not keep. A migrated cite holds no fetched_at and prints no
+		// accessed date: that is the residue.
+		case "access_date":
 		case "ocr_quote":
 			fields["source_span"] = v
 		default:

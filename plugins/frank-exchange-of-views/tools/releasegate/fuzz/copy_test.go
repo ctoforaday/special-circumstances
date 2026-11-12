@@ -33,7 +33,7 @@ func (r *runner) seedCopy(url string) (word, copyURL string) {
 		return s.word, ""
 	}
 	body := []byte(sourceBody(url))
-	entry := fetchcache.EntryFor(r.run(), url, &fetchcache.Attempt{Body: body, ContentType: "text/plain", TextRetrieved: true, URL: s.copyURL}, s.substitution)
+	entry := fetchcache.EntryFor(r.run(), url, &fetchcache.Attempt{FetchedAt: fetchcache.FetchTime(), Body: body, ContentType: "text/plain", TextRetrieved: true, URL: s.copyURL}, s.substitution)
 	if _, err := fetchcache.Store(r.run(), entry, body); err != nil {
 		r.noteActErr("seeding the cache for " + url + ": " + err.Error())
 	}

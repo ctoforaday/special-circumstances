@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
@@ -241,32 +240,3 @@ func ComputationAnchor() *ShapedValue {
 	return &ShapedValue{kind: "computation-anchor", re: computationShape(), unwrapsAnchor: true,
 		hint: "a computation anchor is a `" + anchor.Token("K-…") + "` token in the report or the bare id inside one (" + BareID("K-…") + ") — paste either — while `C-` is a citation, `F-` a finding and `G-` a gap; `show evidence` lists every computation by anchor"}
 }
-
-// DateValue refuses a date that is not YYYY-MM-DD, and one that is not a real day.
-//
-// `--access-date` drives the staleness re-fetch trigger: a claim verified at high confidence
-// stays verified unless more than two epochs have elapsed or the recorded date suggests drift. A
-// date nothing can parse silently disables that trigger for the row, which is the quiet failure
-// this whole sweep is about — the reader gets a value, believes it, and computes nothing.
-type DateValue struct {
-	val string
-	set bool
-}
-
-func (v *DateValue) String() string {
-	if v == nil || !v.set {
-		return ""
-	}
-	return v.val
-}
-
-func (v *DateValue) Set(s string) error {
-	t := strings.TrimSpace(s)
-	if _, err := time.Parse("2006-01-02", t); err != nil {
-		return fmt.Errorf("%q is not a date — use YYYY-MM-DD, the day you actually fetched it (it drives the staleness re-fetch trigger, so a value nothing can parse turns that check off for this row)", s)
-	}
-	v.val, v.set = t, true
-	return nil
-}
-
-func (v *DateValue) Type() string { return "YYYY-MM-DD" }

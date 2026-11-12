@@ -18,8 +18,8 @@ import (
 func TestWeaveCitationsNumbersInOrderAndComposesBibliography(t *testing.T) {
 	md := "Alpha holds<!--cite:C-00000001-->. Beta holds<!--cite:C-00000002-->. Alpha again<!--cite:C-00000001-->."
 	sources := []record.Source{
-		{Label: "C-00000001", URL: "https://a", Title: "Source A", AccessDate: "2026-08-03"},
-		{Label: "C-00000002", URL: "https://b", Title: "Source B", AccessDate: "2026-08-03"},
+		{Label: "C-00000001", URL: "https://a", Title: "Source A", FetchedAt: "2026-08-03T12:00:00Z"},
+		{Label: "C-00000002", URL: "https://b", Title: "Source B", FetchedAt: "2026-08-03T12:00:00Z"},
 	}
 	got := weaveCitations(md, sources)
 
@@ -91,11 +91,11 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 	cite := &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
-		Label:      proto.String("C-00000001"),
-		Url:        proto.String("https://ex/coherence"),
-		Sha256:     proto.String("deadbeef"),
-		Title:      proto.String("Coherence Computation"),
-		AccessDate: proto.String("2026-08-03"),
+		Label:     proto.String("C-00000001"),
+		Url:       proto.String("https://ex/coherence"),
+		Sha256:    proto.String("deadbeef"),
+		Title:     proto.String("Coherence Computation"),
+		FetchedAt: proto.String("2026-08-03T12:00:00Z"),
 	}
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synth-r0"}, cite); err != nil {
 		t.Fatal(err)
@@ -147,9 +147,9 @@ func TestClaimCountIsAnchorBasedNotFootnoteBased(t *testing.T) {
 // never scroll to the Bibliography, and one scanning the Bibliography never sees the note.
 func TestARetractedSourceIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
 	sources := []record.Source{
-		{Label: "C-00000001", URL: "https://ex/withdrawn", Title: "The Withdrawn Study", AccessDate: "2026-08-03",
+		{Label: "C-00000001", URL: "https://ex/withdrawn", Title: "The Withdrawn Study", FetchedAt: "2026-08-03T12:00:00Z",
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
-		{Label: "C-00000002", URL: "https://ex/sound", Title: "A Sound Study", AccessDate: "2026-08-03",
+		{Label: "C-00000002", URL: "https://ex/sound", Title: "A Sound Study", FetchedAt: "2026-08-03T12:00:00Z",
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING},
 	}
 	got := weaveCitations("Claim one<!--cite:C-00000001-->. Claim two<!--cite:C-00000002-->.", sources)
@@ -176,10 +176,10 @@ func TestARetractedSourceIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
 func TestARetractionOnAnyCitationOfAUrlReachesItsBibliographyLine(t *testing.T) {
 	sources := []record.Source{
 		// The first cite wins the title and predates the stamp (an older run, migrated).
-		{Label: "C-00000001", URL: "https://ex/p", Title: "Blue's Title", AccessDate: "2026-08-03",
+		{Label: "C-00000001", URL: "https://ex/p", Title: "Blue's Title", FetchedAt: "2026-08-03T12:00:00Z",
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_NOT_RECORDED},
 		// A later cite of the same url, when the index had the answer.
-		{Label: "C-00000002", URL: "https://ex/p", Title: "A Later Title", AccessDate: "2026-09-01",
+		{Label: "C-00000002", URL: "https://ex/p", Title: "A Later Title", FetchedAt: "2026-09-01T12:00:00Z",
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
 	}
 	got := weaveCitations("A claim<!--cite:C-00000001-->. The same source again<!--cite:C-00000002-->.", sources)
@@ -195,10 +195,10 @@ func TestAnAbstractOnlyCitationIsMarkedInBothTheNoteAndTheBibliography(t *testin
 	abs := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT
 	full := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL
 	sources := []record.Source{
-		{Label: "C-00000001", URL: "https://ex/abs", Title: "Read As An Abstract", AccessDate: "2026-08-03", SourceCompleteness: abs},
-		{Label: "C-00000002", URL: "https://ex/full", Title: "Read In Full", AccessDate: "2026-08-03", SourceCompleteness: full},
+		{Label: "C-00000001", URL: "https://ex/abs", Title: "Read As An Abstract", FetchedAt: "2026-08-03T12:00:00Z", SourceCompleteness: abs},
+		{Label: "C-00000002", URL: "https://ex/full", Title: "Read In Full", FetchedAt: "2026-08-03T12:00:00Z", SourceCompleteness: full},
 		// A retracted work read only as its abstract carries both marks.
-		{Label: "C-00000003", URL: "https://ex/both", Title: "Withdrawn", AccessDate: "2026-08-03", SourceCompleteness: abs,
+		{Label: "C-00000003", URL: "https://ex/both", Title: "Withdrawn", FetchedAt: "2026-08-03T12:00:00Z", SourceCompleteness: abs,
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
 	}
 	got := weaveCitations("One<!--cite:C-00000001-->. Two<!--cite:C-00000002-->. Three<!--cite:C-00000003-->.", sources)
@@ -221,9 +221,9 @@ func TestAnAbstractOnlyCitationIsMarkedInBothTheNoteAndTheBibliography(t *testin
 // them rest on the abstract. Each footnote still speaks for its own copy.
 func TestTheBibliographyMarksAWorkOnlyWhenEveryCitationOfItIsTheAbstract(t *testing.T) {
 	sources := []record.Source{
-		{Label: "C-00000001", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-08-03",
+		{Label: "C-00000001", URL: "https://ex/p", Title: "The Study", FetchedAt: "2026-08-03T12:00:00Z",
 			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT},
-		{Label: "C-00000002", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-09-01",
+		{Label: "C-00000002", URL: "https://ex/p", Title: "The Study", FetchedAt: "2026-09-01T12:00:00Z",
 			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNVERIFIED},
 	}
 	got := weaveCitations("A claim<!--cite:C-00000001-->. Another<!--cite:C-00000002-->.", sources)
@@ -240,19 +240,19 @@ func TestTheBibliographyMarksAWorkOnlyWhenEveryCitationOfItIsTheAbstract(t *test
 // it is not what was read. The url's own bytes, and a citation from before the field, print nothing.
 func TestASubstitutedCopyIsNamedInBothTheNoteAndTheBibliography(t *testing.T) {
 	sources := []record.Source{
-		{Label: "C-00000001", URL: "https://ex/landing", Title: "Followed", AccessDate: "2026-08-03",
+		{Label: "C-00000001", URL: "https://ex/landing", Title: "Followed", FetchedAt: "2026-08-03T12:00:00Z",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, CopyURL: "https://ex/landing/full"},
-		{Label: "C-00000002", URL: "https://ex/refused", Title: "Recovered", AccessDate: "2026-08-03",
+		{Label: "C-00000002", URL: "https://ex/refused", Title: "Recovered", FetchedAt: "2026-08-03T12:00:00Z",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://web.archive.org/web/2019id_/https://ex/refused"},
-		{Label: "C-00000003", URL: "https://ex/abs", Title: "Fuller", AccessDate: "2026-08-03",
+		{Label: "C-00000003", URL: "https://ex/abs", Title: "Fuller", FetchedAt: "2026-08-03T12:00:00Z",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY, CopyURL: "https://repo.example/open.pdf"},
-		{Label: "C-00000004", URL: "https://ex/named", Title: "Named", AccessDate: "2026-08-03",
+		{Label: "C-00000004", URL: "https://ex/named", Title: "Named", FetchedAt: "2026-08-03T12:00:00Z",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NAMED_BACKEND, CopyURL: "https://arxiv.org/pdf/2101.00001"},
-		{Label: "C-00000005", URL: "https://ex/statement", Title: "Statement", AccessDate: "2026-08-03",
+		{Label: "C-00000005", URL: "https://ex/statement", Title: "Statement", FetchedAt: "2026-08-03T12:00:00Z",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED},
-		{Label: "C-00000006", URL: "https://ex/own", Title: "Own", AccessDate: "2026-08-03",
+		{Label: "C-00000006", URL: "https://ex/own", Title: "Own", FetchedAt: "2026-08-03T12:00:00Z",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE},
-		{Label: "C-00000007", URL: "https://ex/old", Title: "Old", AccessDate: "2026-08-03",
+		{Label: "C-00000007", URL: "https://ex/old", Title: "Old", FetchedAt: "2026-08-03T12:00:00Z",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED},
 	}
 	got := weaveCitations("1<!--cite:C-00000001-->. 2<!--cite:C-00000002-->. 3<!--cite:C-00000003-->. "+
@@ -291,7 +291,7 @@ func TestALongTitlesCitationIsWovenIntoTheQuestionLine(t *testing.T) {
 		&recordpb.ReportPart{Text: proto.String(blue)},
 		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 			Label: proto.String("C-00000001"), Url: proto.String("https://ex/coherence"), Sha256: proto.String("deadbeef"),
-			Title: proto.String("Coherence Computation"), AccessDate: proto.String("2026-08-03")},
+			Title: proto.String("Coherence Computation"), FetchedAt: proto.String("2026-08-03T12:00:00Z")},
 	} {
 		if _, err := record.Append(id, body); err != nil {
 			t.Fatalf("append %T: %v", body, err)
