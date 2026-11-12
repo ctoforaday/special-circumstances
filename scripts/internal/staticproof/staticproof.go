@@ -1,5 +1,6 @@
 // Package staticproof asserts the contract every published binary meets: the per-format
-// staticness below, and, for a native helper, a size bound (helperMaxBytes).
+// staticness below, and, for a native helper, that it is stripped and within a size bound
+// (helperMaxBytes).
 //
 //	linux (ELF):      fully static — no interpreter, no dynamic section at all.
 //	windows (PE):     imports only allowed system libraries (KERNEL32.dll, NTDLL.dll,
@@ -21,24 +22,27 @@ import (
 
 // helperMaxBytes is each native helper's size bound: about 1.3 times its largest stripped build on
 // any published target (feov-embed: 6,366,304 B on linux-amd64; feov-ocr: 9,762,360 B on
-// darwin-arm64). A helper linked with its debug information is several times its stripped
-// size (feov-embed linux-amd64: 178,839,192 B with DWARF, 6,366,560 B stripped; feov-ocr
-// linux-amd64: 46,530,584 B and 9,285,672 B), so a link that stops stripping fails here, on the
-// native-build leg that made it and again on the release's dist.
+// darwin-arm64). It is the backstop behind the strip checks, not the strip check: an unstripped
+// feov-ocr is 5 times its stripped size on linux-amd64 (46,530,584 B against 9,285,672 B) but
+// only 1.13 times on darwin-arm64 (10,993,848 B against 9,762,360 B), inside the bound.
 var helperMaxBytes = map[string]int64{
 	"feov-embed": 8 << 20,
 	"feov-ocr":   12 << 20,
 }
 
 // Check verifies that the binary at path satisfies the published-binary contract for the given
-// artifact: a helper's size bound, then the staticness contract of its format.
+// artifact: a helper's size bound, then the staticness contract of its format, then a helper's
+// strip.
 func Check(artifact, path string) error {
 	if err := checkSize(artifact, path); err != nil {
 		return err
 	}
 	if f, err := elf.Open(path); err == nil {
 		defer f.Close()
-		return checkELF(path, f)
+		if err := checkELF(path, f); err != nil {
+			return err
+		}
+		return checkELFStripped(artifact, path, f)
 	}
 	if f, err := pe.Open(path); err == nil {
 		defer f.Close()
@@ -46,7 +50,10 @@ func Check(artifact, path string) error {
 	}
 	if f, err := macho.Open(path); err == nil {
 		defer f.Close()
-		return checkMachO(artifact, path, f)
+		if err := checkMachO(artifact, path, f); err != nil {
+			return err
+		}
+		return checkMachOStripped(artifact, path, f)
 	}
 	return fmt.Errorf("%s: not ELF, PE or Mach-O — nothing to prove", path)
 }
@@ -63,6 +70,45 @@ func checkSize(artifact, path string) error {
 	}
 	if fi.Size() > bound {
 		return fmt.Errorf("%s: %s is %d bytes, over its bound of %d — a helper linked with debug information or symbols", path, artifact, fi.Size(), bound)
+	}
+	return nil
+}
+
+// machOMaxLocalSyms is the most local symbols a stripped helper's Mach-O keeps: the stripped
+// darwin-arm64 helpers keep 232 (feov-embed) and 253 (feov-ocr), the unstripped ones 47,633 and
+// 96,852.
+const machOMaxLocalSyms = 2000
+
+// A native helper linked with its symbols or debug information is refused: an ELF that keeps a
+// .symtab or any .debug_* section, or a Mach-O that keeps more than machOMaxLocalSyms local
+// symbols or a __DWARF segment. A PE needs no rule: neither the zig nor the MSVC link writes COFF symbols, so a
+// stripped and an unstripped helper both carry none, and the size bound is its only check. Other
+// artifacts are Go commands, stripped by their own build's -s -w.
+
+func checkELFStripped(artifact, path string, f *elf.File) error {
+	if _, helper := helperMaxBytes[artifact]; !helper {
+		return nil
+	}
+	for _, s := range f.Sections {
+		if s.Name == ".symtab" || strings.HasPrefix(s.Name, ".debug_") {
+			return fmt.Errorf("%s: %s keeps its %s section — a helper linked without stripping", path, artifact, s.Name)
+		}
+	}
+	return nil
+}
+
+func checkMachOStripped(artifact, path string, f *macho.File) error {
+	if _, helper := helperMaxBytes[artifact]; !helper {
+		return nil
+	}
+	if f.Dysymtab == nil {
+		return fmt.Errorf("%s: %s has no LC_DYSYMTAB — its local symbols cannot be counted", path, artifact)
+	}
+	if n := f.Dysymtab.Nlocalsym; n > machOMaxLocalSyms {
+		return fmt.Errorf("%s: %s keeps %d local symbols, over %d — a helper linked without stripping", path, artifact, n, machOMaxLocalSyms)
+	}
+	if f.Segment("__DWARF") != nil {
+		return fmt.Errorf("%s: %s keeps its __DWARF segment — a helper linked without stripping", path, artifact)
 	}
 	return nil
 }

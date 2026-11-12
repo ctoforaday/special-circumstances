@@ -100,6 +100,26 @@ func TestTokenizerTruncatesAWordThatCrossesTheLastID(t *testing.T) {
 	}
 }
 
+// ENCODE STOPS WORDPIECING AT THE LAST ID: the words past it are split into words but never into
+// pieces. Each costly word past the limit takes thousands of allocations to piece (every candidate
+// substring of a 99-letter word) and one to split, so the allocations the tail adds tell the two
+// apart without a clock.
+func TestEncodeStopsPiecingAtTheLastID(t *testing.T) {
+	tok := DefaultTokenizer()
+	head := strings.Repeat("word ", tok.maxLen)
+	costly := strings.Repeat("q", tok.maxCharsPerWord-1)
+	if n := testing.AllocsPerRun(1, func() { tok.wordpiece(costly, nil) }); n < 1000 {
+		t.Fatalf("piecing %q takes %v allocations; the test needs a word that takes 1000 or more", costly, n)
+	}
+	const tail = 50
+	full := head + strings.Repeat(costly+" ", tail)
+	base := testing.AllocsPerRun(3, func() { tok.Encode(head) })
+	withTail := testing.AllocsPerRun(3, func() { tok.Encode(full) })
+	if added := withTail - base; added > 4*tail {
+		t.Errorf("%d words past the last ID add %v allocations, want at most %d: Encode pieces past its limit", tail, added, 4*tail)
+	}
+}
+
 func TestTokenizerEdgeCases(t *testing.T) {
 	tok := DefaultTokenizer()
 

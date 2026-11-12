@@ -88,7 +88,7 @@ func TestEmbedFidelityMeetsS5(t *testing.T) {
 		}
 	}
 	mean := sum / float64(len(got))
-	t.Logf("S5 target=%s n=%d mean=%.6f min=%.6f min_text=%d bar_mean=%.3f bar_min=%.3f", target(), len(got), mean, lo, at, s5MeanCosine, s5MinCosine)
+	t.Logf("S5 target=%s n=%d mean=%.6f min=%.6f min_text=%d bar_mean=%.3f bar_min=%.3f %s", target(), len(got), mean, lo, at, s5MeanCosine, s5MinCosine, cpuDesc())
 	if mean < s5MeanCosine {
 		t.Errorf("mean cosine %.6f, under %.3f", mean, s5MeanCosine)
 	}
@@ -121,8 +121,8 @@ func TestEmbedSpeedMeetsS6(t *testing.T) {
 	}
 	rate := float64(len(chunks)) / d.Seconds()
 	held := s6Targets[target()]
-	t.Logf("S6 target=%s chunks=%d secs=%.2f chunks_per_s=%.2f cold_query_ms=%d held=%v bar_chunks_per_s=%.1f bar_cold_ms=%d",
-		target(), len(chunks), d.Seconds(), rate, cold.Milliseconds(), held, s6ChunksPerS, s6ColdQuery.Milliseconds())
+	t.Logf("S6 target=%s chunks=%d secs=%.2f chunks_per_s=%.2f cold_query_ms=%d held=%v bar_chunks_per_s=%.1f bar_cold_ms=%d %s",
+		target(), len(chunks), d.Seconds(), rate, cold.Milliseconds(), held, s6ChunksPerS, s6ColdQuery.Milliseconds(), cpuDesc())
 	if !held {
 		return
 	}

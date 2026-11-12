@@ -153,9 +153,13 @@ ort_mirror_unhashed() { # ort_mirror_unhashed <ORT source dir>
 }
 
 ort_check_fetches() { # ort_check_fetches <ORT CMake build dir>: refuses a dependency fetched unverified
-	# Run after configure, before anything fetched is built or run. Each URL download CMake makes
-	# writes a download-<name>.cmake script, which holds a file(<ALGO> ...) call only when the
-	# declaration carried a hash.
+	# Run between configure and build. Configure has already downloaded and extracted every
+	# dependency and add_subdirectory'd it, so an unhashed one's CMake code has run by now; none is
+	# compiled or linked until the build, which this refusal stops. It cannot refuse earlier:
+	# FetchContent.cmake has no include guard, so ORT's include(FetchContent) replaces any override
+	# of FetchContent_Declare, and a dependency provider never sees ORT's FetchContent_Populate
+	# calls. Each URL download CMake makes writes a download-<name>.cmake script, which holds a
+	# file(<ALGO> ...) call only when the declaration carried a hash.
 	local dir="$1" n=0 s
 	while IFS= read -r s; do
 		n=$((n + 1))
