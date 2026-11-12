@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -275,4 +276,70 @@ func TestTheAssemblyRulesOnlyTheDocketsFiledAfterTheLastPlan(t *testing.T) {
 	if r.actErr != "" {
 		t.Fatal(r.actErr)
 	}
+}
+
+// THE FORCED-UNVERIFIED RUN'S SEVERITIES ARE THE RECORD'S MATERIAL ONES. For each pool class, a run
+// mints a gap of it at each grade, one lens and one sentence to a grade, and reads back the record's
+// materiality of each: material exactly at the grades materialGrades lists. A list that named one grade too low would
+// let that run draw a gap the PASS ignores.
+func TestTheMaterialGradesAreTheRecordsMaterialGrades(t *testing.T) {
+	lenses := []string{"red-lens-logic", "red-lens-evidence", "red-lens-voice", "red-lens-adversary", "red-lens-architecture"}
+	sentence := func(i int) string { return fmt.Sprintf("A § fuzz sentence number %d to anchor findings.", i) }
+	var part strings.Builder
+	for i := range grades {
+		part.WriteString(sentence(i) + "\n\n")
+	}
+	if len(lenses) < len(grades) {
+		t.Fatalf("%d lenses for %d grades: each grade needs a lens of its own", len(lenses), len(grades))
+	}
+	bin := buildBinary(t)
+	for _, class := range mintPoolClasses {
+		t.Run(class, func(t *testing.T) {
+			runDir := recordtest.TmpRun(t)
+			stageRun, err := record.NewRun(runDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat},
+				&recordpb.Cast{SeatIds: append(slices.Clone(lenses), "red-chair", "blue-lane-1", "blue-synthesize", "blue-respond", "judge"), LaneSeatIds: []string{"blue-lane-1"}}); err != nil {
+				t.Fatal(err)
+			}
+			r := newRunner(bin, runDir, newLockedRand(7))
+			if err := r.stagePart(part.String()); err != nil {
+				t.Fatalf("record the lane's part: %v", err)
+			}
+			for i, grade := range grades {
+				lens := lenses[i]
+				r.sit("lens", lens)
+				out, err := r.exec("--json", "--seat-id", lens, "mint", "--quote", sentence(i), "--class", class, "--check-kind", "document",
+					"--check", "acc", "--problem", "fuzz problem at "+grade, "--fix", "fuzz fix",
+					"--severity", grade, "--impact", "high", "--likelihood", "high", "--reason", "fuzz reason")
+				if err != nil {
+					t.Fatalf("mint at %s: %v\n%s", grade, err, out)
+				}
+				gap := mintedGapOf(t, out)
+				b, ok := r.board()
+				if !ok || b.Gap(gap) == nil {
+					t.Fatalf("the board does not read %s", gap)
+				}
+				if got, want := b.Gap(gap).Material, slices.Contains(materialGrades, grade); got != want {
+					t.Errorf("a %s gap at severity %s reads material %v, and materialGrades says %v", class, grade, got, want)
+				}
+			}
+		})
+	}
+}
+
+// mintedGapOf is the gap id a `--json mint` printed.
+func mintedGapOf(t *testing.T, out string) string {
+	t.Helper()
+	var env struct {
+		Result struct {
+			GapID string `json:"gap_id"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.GapID == "" {
+		t.Fatalf("the mint names no gap (%v): %s", err, out)
+	}
+	return env.Result.GapID
 }

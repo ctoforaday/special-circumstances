@@ -772,7 +772,9 @@ type runner struct {
 	// sweep failed on `outcome --as UNVERIFIED` at N=40 having passed at N=60 on luck, which is a
 	// flake either way. So it is driven the way HALTED is — deterministically, by a dedicated
 	// test — rather than exempted. coverage_test.go says why an exemption is the wrong answer
-	// here, and it is right.
+	// here, and it is right. Its gaps are all disputes (mintWith), every severity it types is
+	// material (severityGrade), and its first-epoch lenses each mint, so the PASS is held by
+	// construction rather than by the grade draw.
 	forceUnverified bool
 	// forceEstoppel drives the ORDERED PAIR the estoppel guard needs — red prescribes concrete
 	// text, blue applies it verbatim, red then mints against that same text — on one dedicated
@@ -2881,6 +2883,52 @@ var grades = []string{"low", "low_medium", "medium", "medium_high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 
+// materialGrades are the severities at which a gap of a `by_grade` class — every class of the mint
+// pool — is material: medium and above (recordsql's materialSQL, the record's one materiality rule).
+// TestTheMaterialGradesAreTheRecordsMaterialGrades holds this list to the record.
+var materialGrades = grades[slices.Index(grades, "medium"):]
+
+// A FORCED-UNVERIFIED RUN'S GAPS HOLD THE PASS BY CONSTRUCTION. Its exit is blue's grade motions on
+// gaps it disputes, which the chair leaves unruled, and blue is engaged only on a material gap: a run
+// whose gaps all drew a grade below material permitted a PASS at its third epoch and ended VERIFIED.
+// So every severity a drive types in that run — at a mint, and at any regrade — is a material one,
+// and every other run draws exactly as before.
+//
+// severityGrade is the severity a drawn mint types.
+func (r *runner) severityGrade() string {
+	if r.forceUnverified {
+		return pick(r.rng, materialGrades)
+	}
+	return r.g()
+}
+
+// severityOr is the severity a mint that types a fixed grade types: that grade, except in a
+// forced-UNVERIFIED run, where it is a material one.
+func (r *runner) severityOr(fixed string) string {
+	if r.forceUnverified {
+		return pick(r.rng, materialGrades)
+	}
+	return fixed
+}
+
+// gradeOn is the grade a drawn regrade moves dim to: any grade on another axis, and on severity in a
+// forced-UNVERIFIED run a material one.
+func (r *runner) gradeOn(dim string) string {
+	if r.forceUnverified && dim == "severity" {
+		return pick(r.rng, materialGrades)
+	}
+	return r.g()
+}
+
+// gradeOnOtherThan is gradeOn, never cur: a regrade that moves the axis.
+func (r *runner) gradeOnOtherThan(dim, cur string) string {
+	if !r.forceUnverified || dim != "severity" {
+		return r.gradeOtherThan(cur)
+	}
+	others := slices.DeleteFunc(slices.Clone(materialGrades), func(g string) bool { return g == cur })
+	return pick(r.rng, others)
+}
+
 // currentGrade reads the gap's grade at one axis, in the words a seat types. Empty when the board
 // cannot be read or the axis is unknown — the caller treats that as "no constraint".
 func (r *runner) currentGrade(gapID, dim string) string {
@@ -3674,7 +3722,7 @@ func (r *runner) answerFailed(seatID string) {
 		args := []string{"--json", "mint", "--seat-id", seatID,
 			"--problem", problem,
 			"--check-kind", "document", "--check", check, "--fix", pick(r.rng, []string{dirApply, dirCounter}),
-			"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--class", pick(r.rng, mintPoolClasses),
+			"--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(), "--class", pick(r.rng, mintPoolClasses),
 			"--about-kind", "anchor", "--about", b.Subject, "--reason", "fuzz: carrying a failed check to blue"}
 		overOpen := r.ownOpenGapAbout(seatID, b.Subject)
 		out, err := r.exec(args...)
@@ -4105,7 +4153,7 @@ func (r *runner) mintWith(seatID, class string) string {
 		kind = "computation"
 	}
 	args := []string{"--json", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
-		"--check", "acc", "--fix", directive, "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--check", "acc", "--fix", directive, "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		// --quote is the anchor ESTOPPEL keys on and the sweep never passed it; --key is
 		// mint's crash-retry idempotency
 		// handle; --reason is the prose channel. Four fields on the most consequential verb in
@@ -4472,7 +4520,7 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	// file their findings about one gap concurrently, and each is a change since every sibling's read
 	// point, so a lens may meet a refusal for each of them (admitFresh).
 	if _, ok := r.admitFresh(held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
-		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
+		"--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
 		return
 	}
 	r.mu.Lock()
@@ -4561,7 +4609,7 @@ func (r *runner) mintOverOpen(seatID string) {
 	}
 	pick := others[r.rng.Intn(len(others))]
 	args := []string{"--json", "mint", "--seat-id", seatID, "--class", pick.Class, "--problem", "fuzz: the defect another lens holds",
-		"--check-kind", "document", "--check", "acc", "--fix", dirApply, "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--check-kind", "document", "--check", "acc", "--fix", dirApply, "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		"--reason", "fuzz: minted over an open gap of its class"}
 	if pick.AboutKind == "inquiry" {
 		args = append(args, "--about-kind", "inquiry", "--about", pick.AboutRef)
@@ -4653,7 +4701,7 @@ func (r *runner) mintEstopped(seatID string) {
 	}
 	probe := []string{"--json", "mint", "--seat-id", seatID, "--class", "spec_underspecification",
 		"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
-		"--check", "acc", "--fix", "reword it", "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--check", "acc", "--fix", "reword it", "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		"--quote", sentence,
 		"--reason", "fuzz: estoppel probe — this quotes red's own prescription on " + gapID}
 	out, err := r.exec(probe...)
@@ -6132,7 +6180,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						if g, ok := held[dim]; ok {
 							return g
 						}
-						return r.g()
+						return r.gradeOn(dim)
 					}
 					dim := pick(r.rng, regradeDims)
 					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
@@ -6147,6 +6195,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		fresh := r.rng.Intn(3)
 		if len(engaged) > 0 {
 			fresh = r.rng.Intn(2) // an engaged sitting mostly works its own gaps
+		}
+		// A FORCED-UNVERIFIED RUN'S FIRST-EPOCH LENSES EACH MINT, so its board holds a gap blue disputes
+		// whatever the draw: a run that minted nothing would have nothing to hold the PASS.
+		if r.forceUnverified {
+			fresh = max(fresh, 1)
 		}
 		for range fresh {
 			// A LENS RUNS OUT OF DEFECTS, AND THE DRIVER HAS TO SAY SO. The budget caps what a lens
