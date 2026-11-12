@@ -4,7 +4,6 @@ package universetest
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -362,11 +361,40 @@ func (f *testFixture) addFakeHelper(t *testing.T, buildSh, digest string) {
 	f.commit(t, "add native helper fixture")
 }
 
-// writeDigest makes the stub nativedigest print d.
+// writeDigest makes the stub nativedigest print d for -print. For -assets it prints the
+// `<installed file> <export>` pairs writeAssets gave it (none by default), or, when writeAssets
+// gave it a refusal, prints that and exits 1, as the real one refuses an unpinned export.
 func (f *testFixture) writeDigest(t *testing.T, d string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(f.binDir, "nativedigest"), []byte(fmt.Sprintf("#!/bin/sh\necho %q\n", d)), 0o755); err != nil {
+	stub := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = -assets ]; then
+  d="$(dirname "$0")"
+  if [ -f "$d/nativedigest.refusal" ]; then cat "$d/nativedigest.refusal" >&2; exit 1; fi
+  [ -f "$d/nativedigest.assets" ] && cat "$d/nativedigest.assets"
+  exit 0
+fi
+echo %q
+`, d)
+	if err := os.WriteFile(filepath.Join(f.binDir, "nativedigest"), []byte(stub), 0o755); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// writeAssets sets what the stub nativedigest answers -assets with: pairs, or refusal when it is
+// not empty.
+func (f *testFixture) writeAssets(t *testing.T, pairs, refusal string) {
+	t.Helper()
+	for name, content := range map[string]string{"nativedigest.assets": pairs, "nativedigest.refusal": refusal} {
+		p := filepath.Join(f.binDir, name)
+		if content == "" {
+			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+			continue
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -988,35 +1016,29 @@ echo "fake-helper-binary" > "$outdir/${helper}_${host_os}_${host_arch}${ext}"
 	}
 }
 
-func TestBuildFetchesTheHelpersPinnedExport(t *testing.T) {
+// TestBuildReleasesTheExportBuildShStaged: the export a helper's ASSETS names for the host arch,
+// as nativedigest -assets resolves it, is what native/build.sh stages beside the binary (fetched
+// from its pin); universe puts it in the cache entry and the local release, and fetch-bin.sh
+// installs it under the ASSETS line's file name. A build.sh that stages no export, or an export
+// nativedigest refuses, fails the build and writes no cache entry.
+func TestBuildReleasesTheExportBuildShStaged(t *testing.T) {
 	f := newTestFixture(t)
 	f.addFakeHelper(t, `#!/usr/bin/env bash
 set -e
 target="$2"
 echo "call" >> "$STUB_DIR/helper_build.log"
 echo "fake-helper-binary" > "$3/${1}_${target%%-*}_${target##*-}"
+[ -n "${STUB_NO_EXPORT:-}" ] || echo "model weights for ${target##*-}" > "$3/model.${target##*-}.bin"
 `, "digest-export-1")
 
-	// The export's source, served by the curl shim from a file:// URL, and its pin in the helper's
-	// PINS.txt as native/build.sh reads it: <sha256> <file> <url>.
 	arch := runtime.GOARCH
 	export := "model." + arch + ".bin"
-	src := filepath.Join(f.scratch, "upstream", export)
 	body := "model weights for " + arch + "\n"
-	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(src, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	native := filepath.Join(f.repoDir, "plugins", "prosthetic-conscience", "native", "fake")
 	if err := os.WriteFile(filepath.Join(native, "ASSETS"), []byte("model.bin amd64=model.amd64.bin arm64=model.arm64.bin\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	pins := fmt.Sprintf("# <sha256>  <file>  <url>\n%x  %s  file://%s\n", sha256.Sum256([]byte(body)), export, src)
-	if err := os.WriteFile(filepath.Join(native, "PINS.txt"), []byte(pins), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	f.writeAssets(t, "model.bin "+export+"\n", "")
 	f.commit(t, "the fake helper ships an export")
 
 	relDir := "wd/"
@@ -1034,22 +1056,33 @@ echo "fake-helper-binary" > "$3/${1}_${target%%-*}_${target##*-}"
 		filepath.Join(entry("digest-export-1"), export),
 	} {
 		if got, err := os.ReadFile(p); err != nil || string(got) != body {
-			t.Errorf("%s = %q (%v), want the pinned export's bytes", p, got, err)
+			t.Errorf("%s = %q (%v), want the staged export's bytes", p, got, err)
 		}
 	}
 
-	// An export with no pin fails the build naming it, and no cache entry is written without it.
-	if err := os.WriteFile(filepath.Join(native, "PINS.txt"), []byte("# <sha256>  <file>  <url>\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	// A build.sh that stages no export fails the build naming it, and writes no cache entry.
 	f.writeDigest(t, "digest-export-2")
-	f.commit(t, "the export loses its pin")
-	out, code := f.runUniverse(t, nil, cacheEnv, "build", "--dir="+relDir)
-	if code == 0 || !strings.Contains(out, "the export "+export+" has no pin") {
-		t.Fatalf("expected the build to fail naming the unpinned %s; exit %d:\n%s", export, code, out)
+	out, code := f.runUniverse(t, nil, append(cacheEnv, "STUB_NO_EXPORT=1"), "build", "--dir="+relDir)
+	if code == 0 || !strings.Contains(out, "native/build.sh wrote no "+export) {
+		t.Fatalf("expected the build to fail naming the unstaged %s; exit %d:\n%s", export, code, out)
 	}
 	if _, err := os.Stat(entry("digest-export-2")); err == nil {
 		t.Fatalf("a cache entry was written without its export: %s", entry("digest-export-2"))
+	}
+
+	// An export nativedigest refuses (no pin) fails the build naming the helper, before build.sh.
+	f.writeDigest(t, "digest-export-3")
+	f.writeAssets(t, "", "the export "+export+" has no pin")
+	calls := countCalls(t, filepath.Join(f.stubDir, "helper_build.log"))
+	out, code = f.runUniverse(t, nil, cacheEnv, "build", "--dir="+relDir)
+	if code == 0 || !strings.Contains(out, "the export "+export+" has no pin") || !strings.Contains(out, "nativedigest -assets fake") {
+		t.Fatalf("expected the build to fail on nativedigest's refusal; exit %d:\n%s", code, out)
+	}
+	if n := countCalls(t, filepath.Join(f.stubDir, "helper_build.log")); n != calls {
+		t.Errorf("build.sh ran after nativedigest refused the export (%d calls, was %d)", n, calls)
+	}
+	if _, err := os.Stat(entry("digest-export-3")); err == nil {
+		t.Fatalf("a cache entry was written for a refused export: %s", entry("digest-export-3"))
 	}
 }
 

@@ -1,0 +1,15 @@
+---
+name: Qlty cache
+description: Cache Qlty plugins and tool runtimes
+runs:
+  using: composite
+  steps:
+    - name: Restore/save Qlty tools and runtimes
+      uses: actions/cache@v4  # zizmor: ignore[cache-poisoning]
+      with:
+        path: |
+          ~/.qlty/cache
+          ~/.cache/qlty
+        key: qlty-${{ runner.os }}-${{ hashFiles('.qlty/qlty.toml') }}
+        restore-keys: |
+          qlty-${{ runner.os }}-

@@ -186,7 +186,8 @@ func TestTheAssetPinsAreReadPerArch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(a) != 1 || a[0].File != "gte-small.int8.ort" || a[0].SHA256["amd64"] != shaB || a[0].SHA256["arm64"] != shaC {
+	if len(a) != 1 || a[0].File != "gte-small.int8.ort" || a[0].SHA256["amd64"] != shaB || a[0].SHA256["arm64"] != shaC ||
+		a[0].Export["amd64"] != "gte-small.int8.amd64.ort" || a[0].Export["arm64"] != "gte-small.int8.arm.ort" {
 		t.Fatalf("feov-embed's assets = %+v", a)
 	}
 	if a, err := Assets(native, "feov-ocr"); err != nil || len(a) != 0 {

@@ -231,6 +231,7 @@ func renderAndReadPages(run record.Run, sha string, body []byte, dpis []NativeDP
 	if err := writeReplacing(readingRecordPath(run, sha), append(b, '\n')); err != nil {
 		return ReadingRecord{}, err
 	}
+	prewarmReadingVectors(run, sha)
 	return out, nil
 }
 

@@ -1,37 +1,18 @@
 package nativehelper
 
 import (
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper/nativehelpertest"
 )
 
 // fakeName is the helper name the tests' clients look up.
 const fakeName = "fake-helper"
-
-var (
-	fakeRoot  string
-	fakeMu    sync.Mutex
-	fakeBuilt = map[string]string{}
-)
-
-func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "nativehelper-fakes-")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	fakeRoot = dir
-	code := m.Run()
-	os.RemoveAll(dir)
-	os.Exit(code)
-}
 
 func exe(name string) string {
 	if runtime.GOOS == "windows" {
@@ -40,24 +21,12 @@ func exe(name string) string {
 	return name
 }
 
-// fake builds testdata/fakehelper with a digest, a protocol version, a misbehaviour and the asset
-// sha256 its handshake reports, once per combination, and returns the directory holding it as
-// fake-helper.
+// fake installs nativehelpertest's fake with a digest, a protocol version, a misbehaviour and the
+// asset sha256 its handshake reports, and returns a fresh directory holding it as fake-helper.
 func fake(t *testing.T, digest string, version uint16, mode string, assets ...string) string {
 	t.Helper()
-	key := fmt.Sprintf("%s-%d-%s-%s", digest, version, mode, strings.Join(assets, "+"))
-	fakeMu.Lock()
-	defer fakeMu.Unlock()
-	if dir, ok := fakeBuilt[key]; ok {
-		return dir
-	}
-	dir := filepath.Join(fakeRoot, key)
-	ldflags := fmt.Sprintf("-X main.digest=%s -X main.protocol=%d -X main.mode=%s -X main.assets=%s", digest, version, mode, strings.Join(assets, ","))
-	cmd := exec.Command("go", "build", "-o", filepath.Join(dir, exe(fakeName)), "-ldflags", ldflags, "./testdata/fakehelper")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("building the fake helper: %v\n%s", err, out)
-	}
-	fakeBuilt[key] = dir
+	dir := t.TempDir()
+	nativehelpertest.Install(t, dir, fakeName, nativehelpertest.Spec{Digest: digest, Protocol: strconv.Itoa(int(version)), Mode: mode, Assets: assets})
 	return dir
 }
 

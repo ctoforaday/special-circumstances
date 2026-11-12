@@ -5,8 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hybridsearch"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/vecembed/vecembedtest"
 )
 
 // m36Page is a cached page of the kind m36's seats searched: a definition of primality with 91's
@@ -153,5 +155,73 @@ func TestASourceSearchRefusesAnEmptyPatternAndATextlessSource(t *testing.T) {
 	}
 	if _, err := SearchSource(run, img, "prime", ""); !errors.Is(err, ErrNoText) {
 		t.Errorf("a source with no text: got %v, want ErrNoText", err)
+	}
+}
+
+// A SEARCH ACROSS SOURCES IS EXHAUSTIVE, BY REGEX OR BY LITERAL, and names the source it could not
+// search rather than skipping it in silence.
+func TestSearchCrossSources(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	e1 := storeTextSource(t, run, "https://ex/doc1", "First document mentioning primality.")
+	e2 := storeTextSource(t, run, "https://ex/doc2", "Second document also discussing primality.")
+	no := false
+	_, err := Store(run, Entry{URL: "https://ex/scan.pdf", ContentType: "application/pdf", TextExtracted: &no}, []byte("%PDF-scan"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := SearchCrossSources(run, "", "primality")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rx, err := SearchCrossSources(run, `prim\w+ty`, ""); err != nil || len(rx.Hits) != 2 || rx.Selection.Criterion != "/prim\\w+ty/" {
+		t.Errorf("a regex across sources = %+v, %v; want both hits under the pattern's criterion", rx, err)
+	}
+	if _, err := SearchCrossSources(run, "x*", ""); !errors.Is(err, ErrPatternMatchesEmpty) {
+		t.Errorf("a pattern matching the empty string across sources = %v, want ErrPatternMatchesEmpty", err)
+	}
+	if len(got.Hits) != 2 || got.Selection.Matched != 2 {
+		t.Fatalf("want 2 hits across sources; got %d hits, selection %+v", len(got.Hits), got.Selection)
+	}
+	if got.Selection.SearchedSources != 2 {
+		t.Errorf("searched sources = %d, want 2", got.Selection.SearchedSources)
+	}
+	if len(got.Selection.UnsearchedSources) != 1 || got.Selection.UnsearchedSources[0].URL != "https://ex/scan.pdf" {
+		t.Errorf("unsearched sources = %+v, want scan.pdf", got.Selection.UnsearchedSources)
+	}
+	if got.Hits[0].Sha != e1.Sha || got.Hits[1].Sha != e2.Sha {
+		t.Errorf("hits Shas = [%s, %s], want [%s, %s]", got.Hits[0].Sha, got.Hits[1].Sha, e1.Sha, e2.Sha)
+	}
+	for _, h := range got.Hits {
+		if h.Line != 1 || h.LastLine != 1 {
+			t.Errorf("hit lines = %d..%d, want 1..1 — the lines cite --source-lines takes", h.Line, h.LastLine)
+		}
+		if h.SourceSpan == "" {
+			t.Errorf("hit is not citeable: %+v", h)
+		}
+	}
+}
+
+// SINGLE-SOURCE RANKED HYBRID SEARCH
+func TestSearchSourceHybrid(t *testing.T) {
+	vecembedtest.UseFake(t)
+	run := runtest.New(t, t.TempDir())
+	e := storeTextSource(t, run, "https://ex/primes", m36Page)
+
+	got, err := SearchSourceHybrid(run, e, "factors of ninety-one", 5)
+	if err != nil {
+		t.Fatalf("SearchSourceHybrid: %v", err)
+	}
+	if !got.SearchScope.RankedAndCut {
+		t.Fatalf("expected SearchScope with ranked_and_cut=true, got %+v", got.SearchScope)
+	}
+	if got.SearchScope.Notice != hybridsearch.SearchNotice {
+		t.Errorf("unexpected notice: %q", got.SearchScope.Notice)
+	}
+	if len(got.Hits) == 0 {
+		t.Fatal("expected hits for ninety-one in primes text")
+	}
+	if got.Hits[0].Score <= 0 {
+		t.Errorf("hit score = %f, want > 0", got.Hits[0].Score)
 	}
 }

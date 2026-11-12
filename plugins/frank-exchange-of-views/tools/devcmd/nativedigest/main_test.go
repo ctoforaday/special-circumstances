@@ -72,3 +72,37 @@ func capture(t *testing.T, f func() error) string {
 	}
 	return string(b)
 }
+
+// TestEveryArm64TargetStagesThePinnedArmExport: build.sh stages what -assets prints, and every
+// arm64 target (linux-arm64, windows-arm64, darwin-arm64) stages the one arm export pinned in
+// native/feov-embed/PINS.txt, never a name composed from the target's arch.
+func TestEveryArm64TargetStagesThePinnedArmExport(t *testing.T) {
+	for arch, want := range map[string]string{
+		"arm64": "gte-small.int8.ort gte-small.int8.arm.ort",
+		"amd64": "gte-small.int8.ort gte-small.int8.amd64.ort",
+	} {
+		got := capture(t, func() error { return run([]string{"-assets", "feov-embed", "-arch", arch}) })
+		if strings.TrimSpace(got) != want {
+			t.Errorf("-assets feov-embed -arch %s = %q, want %q", arch, got, want)
+		}
+	}
+	if got := capture(t, func() error { return run([]string{"-assets", "feov-ocr", "-arch", "arm64"}) }); got != "" {
+		t.Errorf("feov-ocr stages %q; its ASSETS file is empty", got)
+	}
+}
+
+// TestAnArchWithoutAnExportIsRefused: a build for an arch an ASSETS line names no export for
+// fails, rather than staging nothing.
+func TestAnArchWithoutAnExportIsRefused(t *testing.T) {
+	native := filepath.Join(t.TempDir(), "native")
+	writeFile(t, filepath.Join(native, "PINS.txt"), "")
+	writeFile(t, filepath.Join(native, "build.sh"), "#!/bin/sh\n")
+	writeFile(t, filepath.Join(native, "feov-x", "ASSETS"), "m.ort amd64=m.amd64.ort\n")
+	writeFile(t, filepath.Join(native, "feov-x", "PINS.txt"), strings.Repeat("a", 64)+"  m.amd64.ort  https://example.invalid/m\n")
+	if err := run([]string{"-native", native, "-assets", "feov-x", "-arch", "arm64"}); err == nil || !strings.Contains(err.Error(), "arm64") {
+		t.Errorf("-assets for an arch with no export = %v, want a refusal naming arm64", err)
+	}
+	if err := run([]string{"-native", native, "-assets", "feov-x"}); err == nil {
+		t.Errorf("-assets without -arch is accepted")
+	}
+}

@@ -237,6 +237,11 @@ const (
 	// MISS means rather than on what the value is called.
 	Match = "match"
 
+	// Search is ranked top-K hybrid (BM25 + dense vector) retrieval, on the report and the cached
+	// sources only. It is not a third selector: --match and --quote return every matching entry,
+	// --search returns a cut ranked list, so it is refused beside either.
+	Search = "search"
+
 	// The bench's vocabulary. Binds is the addressee of granted relief — set on a RULING,
 	// never on the filing. What a petitioner asks for and what the bench orders are different
 	// facts, and only the second binds anyone.
@@ -327,7 +332,7 @@ func All() []string {
 		Class,
 		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
-		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match,
+		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,
 		Method, AccessDate,

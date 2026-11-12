@@ -14,7 +14,7 @@ import (
 // returns the same string, so the cache-reuse paths that call it never start a helper.
 func TestIdentityNeverSpawns(t *testing.T) {
 	dir := t.TempDir()
-	nativehelpertest.Fake(t, dir, "feov-ocr", nativehelper.HelperDigest("feov-ocr"), "")
+	nativehelpertest.Install(t, dir, "feov-ocr", nativehelpertest.Spec{Digest: nativehelper.HelperDigest("feov-ocr")})
 	starts := filepath.Join(t.TempDir(), "starts")
 	t.Setenv("FAKEHELPER_START_LOG", starts)
 	t.Setenv(nativehelper.EnvDir, dir)

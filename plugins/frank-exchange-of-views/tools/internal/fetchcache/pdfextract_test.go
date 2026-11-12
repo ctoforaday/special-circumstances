@@ -114,10 +114,12 @@ func TestPDFExtractorStatesWhyAScanHasNoText(t *testing.T) {
 	}
 	// The reason must name the REMEDY, not merely the symptom: "no text" leaves a reader to
 	// guess between a broken tool and an image-only document, and those call for opposite acts.
-	for _, want := range []string{"no text layer", "recognition"} {
-		if !strings.Contains(got.Reason, want) {
-			t.Errorf("Reason = %q, want it to mention %q", got.Reason, want)
-		}
+	// It is pinned whole because it is stored on the cache entry and printed as text_reason, so
+	// a seat reads it beside a build that does run optical recognition.
+	const want = "no text layer: 1 pages, all empty — this is a scanned or image-only document, " +
+		"whose text comes only from optical recognition of its page images"
+	if got.Reason != want {
+		t.Errorf("Reason = %q, want %q", got.Reason, want)
 	}
 	if got.Pages != 1 {
 		t.Errorf("Pages = %d, want 1 — page count is known even when text is not", got.Pages)

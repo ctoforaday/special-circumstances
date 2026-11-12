@@ -31,11 +31,11 @@ import (
 	"fmt"
 	neturl "net/url"
 	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"path/filepath"
-	"strings"
 )
 
 // ChainFetcher is a Fetcher that can continue ONE retrieval across several requests.
@@ -778,6 +778,36 @@ func LookupSha(run record.Run, sha string) (Entry, bool, error) {
 	return Entry{}, false, sc.Err()
 }
 
+// AllEntries returns every distinct Entry recorded in the cache index, in first-seen order.
+// When multiple index lines share a Sha, only the first entry is returned.
+func AllEntries(run record.Run) ([]Entry, error) {
+	f, err := os.Open(indexPath(run))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	var out []Entry
+	seen := make(map[string]bool)
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for sc.Scan() {
+		var e Entry
+		if json.Unmarshal(sc.Bytes(), &e) != nil {
+			continue
+		}
+		if e.Sha == "" || seen[e.Sha] {
+			continue
+		}
+		seen[e.Sha] = true
+		out = append(out, e)
+	}
+	return out, sc.Err()
+}
+
 // EntryFor builds the index record for one backend attempt: every field the Attempt carries, the
 // classification of its bytes, and the withdrawal that follows from it.
 //
@@ -814,6 +844,7 @@ func foldExtraction(run record.Run, entry *Entry, ex Extraction) error {
 		return terr
 	}
 	entry.TextSha = textSha
+	prewarmSourceVectors(run, *entry)
 	return nil
 }
 
