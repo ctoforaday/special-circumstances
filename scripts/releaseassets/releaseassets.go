@@ -173,7 +173,7 @@ func DeriveConsumerTargets(workflowPath string) ([]string, error) {
 
 	targetSet := map[string]bool{}
 	// Look for native-*-<target> artifact downloads in consumer jobs
-	reDownload := regexp.MustCompile(`native-[a-zA-Z0-9_-]+-([a-z0-9]+-[a-z0-9]+)`)
+	reDownload := regexp.MustCompile(`native-(?:\*|[a-zA-Z0-9_-]+)-([a-z0-9]+-[a-z0-9]+)`)
 
 	for jobName, job := range wf.Jobs {
 		if jobName == "native-run" || jobName == "release" || jobName == "native-scope" || jobName == "native-build" {
@@ -200,13 +200,18 @@ func DeriveConsumerTargets(workflowPath string) ([]string, error) {
 			var stepMap map[string]any
 			if err := step.Decode(&stepMap); err == nil {
 				if with, ok := stepMap["with"].(map[string]any); ok {
-					if name, ok := with["name"].(string); ok {
-						for _, m := range reDownload.FindAllStringSubmatch(name, -1) {
-							targetSet[m[1]] = true
+					for _, key := range []string{"name", "pattern"} {
+						v, ok := with[key].(string)
+						if !ok || !strings.HasPrefix(v, "native-") {
+							continue
 						}
-					}
-					if pattern, ok := with["pattern"].(string); ok {
-						for _, m := range reDownload.FindAllStringSubmatch(pattern, -1) {
+						ms := reDownload.FindAllStringSubmatch(v, -1)
+						// A native download whose target this cannot read is a target a push
+						// would not build: the consumer's job then finds no helper.
+						if len(ms) == 0 || strings.Contains(v, "${{") {
+							return nil, fmt.Errorf("%s: job %s downloads %s %q, which names no literal target; write one download step per target", workflowPath, jobName, key, v)
+						}
+						for _, m := range ms {
 							targetSet[m[1]] = true
 						}
 					}
