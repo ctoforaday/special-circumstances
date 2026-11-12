@@ -396,28 +396,49 @@ func (r *runner) oneGapOnReading(seatID, class, out string, args []string, form 
 	default:
 		r.oneGapAnswered(seatID, out, args)
 	}
-	// THE GAP NAMED IS READ AGAIN WITH THE DEBT: the refusal and the debt are two reads of the record,
-	// and a sibling's close of the gap — or the bench's — can land between them. A debt standing over
-	// a gap no longer open is the record's call (a gap minted before the reading's sitting discharges
-	// only while open); one standing over a gap still open fails the run, naming where the record
-	// places that gap beside the debt's sentence.
-	discharge := func(key, how string) {
-		if _, stands := r.debtOf(seatID, subject); stands {
-			g, open := r.gapOnBoard(standing.ID)
-			if !open {
-				noteEither(args[:2], "a reading's mint refused over "+standing.ID+", which closed under the drive before the debt was read", false)
-				return
-			}
-			how += fmt.Sprintf(" (the record places %s %s at %q)", standing.ID, g.LocationState, g.Location)
-		}
-		r.debtDischargedBy(seatID, subject, key, how)
-	}
 	switch {
 	case form != standingForm:
-		discharge("cross_form", "the open "+class+" gap "+standing.ID+" in the other form")
+		r.debtDischargedByOpenGap(seatID, subject, standing.ID, args, "cross_form", "the open "+class+" gap "+standing.ID+" in the other form")
 	case standing.MintedBy != seatID:
-		discharge("other_seat_gap", "another seat's open "+class+" gap "+standing.ID)
+		r.debtDischargedByOpenGap(seatID, subject, standing.ID, args, "other_seat_gap", "another seat's open "+class+" gap "+standing.ID)
 	}
+}
+
+// debtDischargedByOpenGap holds seatID's reading debt on subject gone while gap — a gap of the class
+// the drive did not mint in this act, named by a one-gap refusal — stands open, and counts the
+// discharge under key. THE DEBT IS READ ONCE, THEN THE GAP: the refusal, the debt and the board are
+// separate reads of the record, and a sibling's close of the gap — or the bench's — can land between
+// any two of them. A gap minted before the reading's sitting discharges only while open (debtBound),
+// so its close brings the debt back; a debt standing over a gap no longer open is the record's call,
+// noted. One standing over a gap still open fails the run, naming where the record places that gap
+// beside the debt's sentence. A second read of the debt after the gap's would race the same close.
+func (r *runner) debtDischargedByOpenGap(seatID, subject, gap string, args []string, key, how string) bool {
+	b, stands := r.debtOf(seatID, subject)
+	if !stands {
+		r.countReading(func(c *readingCounts) { c.debtsDischarged[key]++ })
+		return true
+	}
+	g, open := r.gapOnBoard(gap)
+	if !open {
+		noteEither(args[:2], "a reading's debt read over "+gap+", which closed under the drive before the debt was read", false)
+		return false
+	}
+	r.noteActErr(fmt.Sprintf("%s's reading debt on %s stands after %s (the record places %s %s at %q): %s", seatID, subject, how, gap, g.LocationState, g.Location, b.WorkItem()))
+	return false
+}
+
+// openGapNamedIn is the open gap of class whose id out names — a one-gap refusal's standing gap — or "".
+func (r *runner) openGapNamedIn(class, out string) string {
+	bj, err := record.BoardJSONOfRun(r.runHandle)
+	if err != nil {
+		return ""
+	}
+	for _, g := range bj.Open {
+		if g.Class == class && strings.Contains(out, g.ID) {
+			return g.ID
+		}
+	}
+	return ""
 }
 
 // gapOnBoard is gap id as the board shows it now, and whether it is open.
@@ -691,7 +712,12 @@ func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 		r.debtDischargedBy(seatID, quote, classUnsourced, "the lens's own unsourced_claim mint quoting the sentence")
 	case strings.Contains(out, oneGapWords):
 		r.oneGapAnswered(seatID, out, args)
-		r.debtDischargedBy(seatID, quote, classUnsourced, "the open unsourced_claim gap on the sentence")
+		gap := r.openGapNamedIn(classUnsourced, out)
+		if gap == "" {
+			noteEither(args[:2], "an unsourced_claim mint refused over a gap that closed under the drive before the board was read", false)
+			return
+		}
+		r.debtDischargedByOpenGap(seatID, quote, gap, args, classUnsourced, "the open unsourced_claim gap "+gap+" on the sentence")
 	case strings.Contains(out, "its mint budget admits no more"):
 		r.mu.Lock()
 		r.budgetRefused++

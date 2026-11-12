@@ -124,6 +124,29 @@ func TestAReadingDebtHoldsThePassUntilItsGap(t *testing.T) {
 	}
 }
 
+// A RUN THAT ENDS UNVERIFIED OVER A READING DEBT NAMES IT (K1, T20): the record holds no terminal
+// state, the bench asserts UNVERIFIED, and the outcome's verdict_why — the derivation's own account,
+// not the bench's prose — carries the debt's clause. Every citation is read, so the debt is the only
+// subject the clause can name.
+func TestAnUnverifiedEndNamesTheReadingDebtStanding(t *testing.T) {
+	b := readingRunCast(t, rdReport, 0, rdCited, rdBacked)
+	b.mustRead(lensL, citeReading(b.c1, "refutes")...)
+	b.mustRead(lensK, citeReading(b.c2, "supports")...)
+	if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run(t, "outcome", "--run", b.runDir, "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "the debate stopped with nobody ready"); err != nil {
+		t.Fatalf("the outcome: %v\n%s", err, out)
+	}
+	verdict, basis, why := outcomeOf(t, b.runDir)
+	if verdict != "UNVERIFIED" || basis != record.VerdictAsserted {
+		t.Fatalf("the outcome = (%q, %q), want UNVERIFIED asserted", verdict, basis)
+	}
+	if want := "; on a reading debt: " + b.c1; !strings.HasSuffix(why, want) {
+		t.Errorf("verdict_why = %q, want it to end %q", why, want)
+	}
+}
+
 // T22/T23's mint halves: a found-source reading whose sentence blue reworded stands behind no mint
 // until the lens reads the new sentence; a found source refuting text blue applied from a red fix is
 // estopped, and mints with --supersedes.
