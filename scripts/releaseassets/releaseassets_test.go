@@ -379,6 +379,74 @@ jobs:
 	}
 }
 
+// TestAMainPushBuildsWhatFeovRecordInstalls: feov-record runs on Linux and Windows and installs
+// every helper for its runner's target, and a push to main builds only the targets a consumer's
+// download names. So main's build matrix holds every helper for linux-amd64 and windows-amd64.
+func TestAMainPushBuildsWhatFeovRecordInstalls(t *testing.T) {
+	wfPath := filepath.Join("..", "..", ".github", "workflows", "hooks.yml")
+	pairs, err := ReadReleasePairs(wfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targets, err := ParseTargets(pairs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	consumers, err := DeriveConsumerTargets(wfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	helpers, err := FindHelpers(filepath.Join("..", "..", "plugins", "frank-exchange-of-views", "native"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope, err := DecideScope("push", "refs/heads/main", nil, repoNativeSet(t), targets, consumers, helpers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	built := map[string]bool{}
+	for _, leg := range scope.Matrix.Include {
+		built[leg.Helper+" "+leg.Target] = true
+	}
+	for _, h := range helpers {
+		for _, target := range []string{"linux-amd64", "windows-amd64"} {
+			if !built[h+" "+target] {
+				t.Errorf("a push to main builds no %s for %s, which feov-record installs there; matrix %v", h, target, scope.Matrix.Include)
+			}
+		}
+	}
+}
+
+// TestADownloadNamingNoTargetIsRefused: a consumer's native download is read for its target, a
+// wildcard helper included; one whose target is an expression names no target and is refused,
+// never read as no download at all.
+func TestADownloadNamingNoTargetIsRefused(t *testing.T) {
+	wf := func(pattern string) string {
+		p := filepath.Join(t.TempDir(), "hooks.yml")
+		body := `
+jobs:
+  feov-record:
+    needs: [native-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ` + pattern + `
+`
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	got, err := DeriveConsumerTargets(wf("native-*-windows-amd64"))
+	if err != nil || !slices.Equal(got, []string{"windows-amd64"}) {
+		t.Fatalf("a wildcard helper pattern: got %v, %v; want [windows-amd64]", got, err)
+	}
+	_, err = DeriveConsumerTargets(wf(`"native-*-${{ runner.os == 'Windows' && 'windows' || 'linux' }}-amd64"`))
+	if err == nil || !strings.Contains(err.Error(), "feov-record") {
+		t.Fatalf("an expression in place of the target was not refused naming its job: %v", err)
+	}
+}
+
 func TestNoNativeJobSkipsAtTheJobLevel(t *testing.T) {
 	wfPath := filepath.Join("..", "..", ".github", "workflows", "hooks.yml")
 	if _, err := os.Stat(wfPath); err != nil {
