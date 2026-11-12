@@ -10,7 +10,7 @@ import (
 
 // THE HOOK SAYS WHICH BUILD IT IS, because nothing else can (#751).
 //
-// `run_via` already separates a hook-injected run from a wrapper fallback, so hook PRESENCE was
+// `run_via` already separates a hook-injected run from the tool's own inference, so hook PRESENCE was
 // answerable. Its VERSION was not — and the two halves of a run come from different places: setup
 // bakes the record binary from the working tree while hooks arrive through the version-gated
 // install cache. Measured 2026-08-23: tool_version 0.72.0, a version no release carried until

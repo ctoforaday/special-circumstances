@@ -200,8 +200,7 @@ var realHome, realHomeSet = os.LookupEnv(homeKey())
 // than keeping a second copy of this list.
 func ClearDispatch() {
 	for _, v := range []string{
-		seatenv.Var,        // FEOV_RUN — the dispatched run
-		seatenv.VarWrapper, // FEOV_RUN_FROM_WRAPPER — the run baked at setup
+		seatenv.Var, // FEOV_RUN — the dispatched run
 		seatenv.VarHookVersion,
 		seatenv.AgentVar, // FEOV_AGENT_ID — whose seat the caller is
 		seatenv.TypeVar,

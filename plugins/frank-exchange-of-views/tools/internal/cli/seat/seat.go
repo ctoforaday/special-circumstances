@@ -134,7 +134,7 @@ type Context struct {
 
 	// RunErr is the resolution's REFUSAL, carried rather than encoded as an empty RunDir.
 	//
-	// MEASURED, on the first real exercise of the wrapper (#526). Of() returned the flag's own
+	// MEASURED, on #526's smoke run. Of() returned the flag's own
 	// value when resolution failed, so `show board --run "<typo>"` printed a board for a
 	// directory nobody had dispatched — the 2026-08-05 failure this whole mechanism exists to
 	// prevent, still live on every READ verb because only Begin honoured the refusal.

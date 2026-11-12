@@ -97,7 +97,7 @@ func TestALensCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 		return doc.HookSpecificOutput.AdditionalContext, &out
 	}
 
-	got, _ := post(lens, `"$FEOV_RUN/.bin/feov-record" lens close --gap G-1`)
+	got, _ := post(lens, `"/plugin/bin/feov-record" lens close --gap G-1`)
 	if len(asked) != 1 || asked[0] != runDir+" | a7cc47571ab8b015d | "+lens || got != text {
 		t.Fatalf("asked %q, handed %q — want the lens's run, agent and type asked once, and the answer handed on", asked, got)
 	}

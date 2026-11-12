@@ -25,6 +25,11 @@
 > seats identified. On a healthy run the wrapper is invisible — the hook sets `FEOV_RUN`, which
 > outranks it.
 
+> **SUPERSEDED AGAIN, 2026-11-11.** The per-run wrapper, `FEOV_RUN_FROM_WRAPPER`, the hook/wrapper
+> disagreement gate and the `wrapper` run source are deleted. `binDir` is the directory of the binary
+> setup preflighted; the run reaches a seat by the hook's `FEOV_RUN`, else the tool's session-scoped
+> inference, else a refusal. #500's moved marker is refused upstream (#1385, #1535, #1582).
+
 > **Rev 6.** Rev 1/2 failed on scope; rev 3 failed on nine specifics. Fixed here: the goal is
 > restated to what this scope can deliver, the version surface is decided, the census is
 > re-run against the **real** API (`PreDecision`, not the `Decide` I named without checking),

@@ -134,7 +134,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		{kind: "no register", seat: bench, env: []string{"FEOV_AGENT_ID=agent_that_never_registered"},
 			args: []string{"log", "--type", "defect", "--reason", "x"},
 			verb: "log", path: "log", role: "bench", code: "validation", logged: true},
-		{kind: "run disagrees with the dispatch", seat: lens, env: []string{"FEOV_RUN_FROM_WRAPPER=" + elsewhere},
+		{kind: "run disagrees with the dispatch", seat: lens, env: []string{"FEOV_RUN=" + elsewhere},
 			args: []string{"show", "board"},
 			verb: "board", path: "show board", role: "lens", code: "conflict"},
 		{kind: "no seat named", seat: "", args: []string{"finding", "--quote", "q"},

@@ -39,8 +39,7 @@ import (
 )
 
 // writerName is the binary that owns the write. It sits beside this hook in the plugin's bin
-// directory, which is how it is found — the run's own wrapper would work too, but it exists only
-// once `setup` has run, and a hook must behave the same before and after that.
+// directory, which is how it is found: a hook behaves the same before `setup` has run and after.
 const writerName = "feov-sitting-write"
 
 // THE PHASE STRINGS ARE REPEATED HERE RATHER THAN IMPORTED, and that is deliberate in a way worth
