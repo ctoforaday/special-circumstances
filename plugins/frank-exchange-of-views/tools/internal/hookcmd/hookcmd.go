@@ -170,9 +170,10 @@ func respond(req hookcore.Request, stdout io.Writer, doc []byte, msg string) err
 
 // Pre injects the run directory and the calling agent's id into a Bash call made inside a live
 // run, so a seat never mistypes the path and never loses the identity that binds it to its seat on
-// the record — and it refuses two things: any tool call past the seat's per-sitting call limit
-// (enforceLimit), and a tool command carrying a backtick the shell would run, which would rewrite
-// the seat's prose before the tool saw it (hookgate/substitution.go).
+// the record — and it refuses two things: any tool call but the envelope's past the seat's
+// per-sitting call limit (enforceLimit), and a tool command carrying a backtick the shell would run,
+// which would rewrite the seat's prose before the tool saw it (hookgate/substitution.go). The call
+// returning a seat's envelope goes to the record instead (gateEnvelope).
 func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	req := hookcore.Read("PreToolUse", stdin)
 	if !req.Parsed {
@@ -194,8 +195,16 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	if cwd == "" {
 		cwd = cwdOf(req.Raw)
 	}
-	// THE TURN LIMIT COMES FIRST, and covers every tool: a refused call runs nothing, so it needs
-	// nothing injected. A counting fault goes to stderr and the call proceeds.
+	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
+	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).
+	// IT GOES BEFORE THE TURN LIMIT, which neither counts nor refuses it: the limit's refusal tells
+	// the seat to return its envelope, and this is that call. The record's own refusal still stands.
+	if in.ToolName == envelopeTool {
+		gateEnvelope(in, cwd, stdout, rec, req)
+		return nil
+	}
+	// THE TURN LIMIT covers every other tool, and comes before the injection: a refused call runs
+	// nothing, so it needs nothing injected. A counting fault goes to stderr and the call proceeds.
 	denied, err := enforceLimit(in, cwd, stdout, rec, req)
 	if err != nil {
 		// The seat is still refused when it should be — enforcement survives — but the record's
@@ -205,12 +214,6 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 		rec.OK(StageTurnLimit)
 	}
 	if denied {
-		return nil
-	}
-	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
-	// refuses it, and otherwise what it says now, which the hook writes onto the call (gateEnvelope).
-	if in.ToolName == envelopeTool {
-		gateEnvelope(in, cwd, stdout, rec, req)
 		return nil
 	}
 	// The gate says which calls it acts on — every Bash call, and a Read of the report file — so
@@ -255,8 +258,10 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 // inherits, so those are read when the payload has none. An agent that never registered as a
 // seat has no sitting open and is never counted — the main session, an operator, anything else.
 //
-// The one call a limited sitting lets through is a register (hookgate.InvokesRegister), because
-// that is what opens the next sitting's count.
+// Two calls get through a limited sitting. The envelope's never reaches this count: Pre hands it to
+// gateEnvelope first, because returning the envelope is what the limit's refusal tells the seat to
+// do. A register is counted and let through (hookgate.InvokesRegister), because it opens the next
+// sitting's count.
 func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder, req ...hookcore.Request) (denied bool, err error) {
 	caller := callerAgent(in)
 	agentID := caller.ID
