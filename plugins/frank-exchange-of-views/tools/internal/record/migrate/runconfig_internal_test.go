@@ -45,12 +45,14 @@ func TestTranslateRunConfig(t *testing.T) {
 	for _, tc := range []struct{ name, body, want string }{
 		{"truncated", `{"topic":"t"`, "unexpected EOF"},
 		{"truncated before its close", `{"topic":"t",`, "unexpected EOF"},
-		{"a second object", `{"k":2}{"k":1}`, "content after its object"},
-		{"trailing bytes", `{"k":2} garbage`, "content after its object"},
+		{"a second object", `{"k":2}{"k":1}`, "content after the run's configuration"},
+		{"trailing bytes", `{"k":2} garbage`, "content after the run's configuration"},
 		{"not an object", `["k"]`, "it holds an array"},
 		{"null", `null`, "it holds null"},
 		{"a number", ` 3 `, "it holds a number"},
-		{"empty", ``, "is not a JSON object: EOF"},
+		{"empty", ``, "does not parse as the run's configuration: EOF"},
+		{"a key the configuration does not declare", `{"k":2,"rounds":3}`, "unknown field"},
+		{"lanes as a number", `{"lanes":3}`, "the migrated configuration does not parse"},
 	} {
 		write(tc.body)
 		err := translateRunConfig(from, to)

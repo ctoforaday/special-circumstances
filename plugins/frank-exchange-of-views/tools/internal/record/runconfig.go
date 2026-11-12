@@ -156,10 +156,37 @@ func readRunConfig(dir string) (*RunConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("inputs/run-config.json could not be read: %w", err)
 	}
+	rc, err := DecodeRunConfig(b)
+	if err != nil {
+		return nil, fmt.Errorf("inputs/run-config.json %w", err)
+	}
+	return rc, nil
+}
+
+// DecodeRunConfig is the one reading of run-config.json's bytes: one object, nothing after it, and
+// no key RunConfig does not declare. readRunConfig reads a run's file through it, and migrate holds
+// the file it writes to it, so the two cannot disagree on what a configuration is.
+func DecodeRunConfig(b []byte) (*RunConfig, error) {
+	raw, err := RunConfigObject(b)
+	if err != nil {
+		return nil, err
+	}
+	var rc RunConfig
+	strict := json.NewDecoder(bytes.NewReader(raw))
+	strict.DisallowUnknownFields()
+	if err := strict.Decode(&rc); err != nil {
+		return nil, fmt.Errorf("does not parse as the run's configuration: %w", err)
+	}
+	return &rc, nil
+}
+
+// RunConfigObject is b's one JSON object, refused when b holds anything else: migrate walks an
+// archived file's keys from it before the keys the record no longer declares are dropped.
+func RunConfigObject(b []byte) (json.RawMessage, error) {
 	dec := json.NewDecoder(bytes.NewReader(b))
 	var raw json.RawMessage
 	if err := dec.Decode(&raw); err != nil {
-		return nil, fmt.Errorf("inputs/run-config.json does not parse as the run's configuration: %w", err)
+		return nil, fmt.Errorf("does not parse as the run's configuration: %w", err)
 	}
 	// ONE OBJECT AND NOTHING AFTER IT. Decode stops at the end of the first value, so a second
 	// object — a concatenation, a half-applied rewrite — would otherwise be read past, and its terms
@@ -168,25 +195,19 @@ func readRunConfig(dir string) (*RunConfig, error) {
 		if err == nil {
 			err = fmt.Errorf("found %v", tok)
 		}
-		return nil, fmt.Errorf("inputs/run-config.json holds content after the run's configuration: %w", err)
+		return nil, fmt.Errorf("holds content after the run's configuration: %w", err)
 	}
 	// AN OBJECT, NOT ANY VALUE. `null` decodes into a struct as no terms at all, without an error,
 	// and would read exactly like a run that stated none.
 	if raw[0] != '{' {
-		return nil, fmt.Errorf("inputs/run-config.json is not a JSON object: it holds %s", JSONKind(raw))
+		return nil, fmt.Errorf("is not a JSON object: it holds %s", jsonKind(raw))
 	}
-	var rc RunConfig
-	strict := json.NewDecoder(bytes.NewReader(raw))
-	strict.DisallowUnknownFields()
-	if err := strict.Decode(&rc); err != nil {
-		return nil, fmt.Errorf("inputs/run-config.json does not parse as the run's configuration: %w", err)
-	}
-	return &rc, nil
+	return raw, nil
 }
 
-// JSONKind names the kind of the JSON value raw holds, for a refusal: "null", "an array", "a
+// jsonKind names the kind of the JSON value raw holds, for a refusal: "null", "an array", "a
 // string", "a number", "a boolean" or "an object". raw is one valid value, as a decoder returns it.
-func JSONKind(raw []byte) string {
+func jsonKind(raw []byte) string {
 	switch raw[0] {
 	case '{':
 		return "an object"

@@ -51,10 +51,7 @@ func tierFixture(t *testing.T) (string, record.Family) {
 
 func TestTiersJoinsTheRequestAgainstTheService(t *testing.T) {
 	run, b := tierFixture(t)
-	r, err := tierReport(runtest.Open(t, run), b)
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := tierReport(runtest.Open(t, run), b)
 	if r.TierBound != 3 || r.Measured != 2 || r.Substituted != 1 {
 		t.Fatalf("bound/measured/substituted = %d/%d/%d, want 3/2/1", r.TierBound, r.Measured, r.Substituted)
 	}
@@ -80,10 +77,7 @@ func TestTiersJoinsTheRequestAgainstTheService(t *testing.T) {
 
 func TestTiersRendersNotMeasuredRatherThanABlank(t *testing.T) {
 	run, b := tierFixture(t)
-	rep, err := tierReport(runtest.Open(t, run), b)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rep := tierReport(runtest.Open(t, run), b)
 	md := renderTiers(rep)
 	for _, want := range []string{"| judge | judgment | claude-sonnet-5 | **NOT MEASURED** — the event that opened this seat's sitting carries no agent id", "substitution declared by the harness", "served measured on 2 of 3"} {
 		if !strings.Contains(md, want) {
@@ -109,10 +103,7 @@ func TestTiersSaysWhenNothingLookedAtAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rep, err := tierReport(runtest.Open(t, run), b)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rep := tierReport(runtest.Open(t, run), b)
 	md := renderTiers(rep)
 	if !strings.Contains(md, "NOTHING LOOKED") {
 		t.Errorf("a run where nothing was measured must say so as a run, not only per row; got:\n%s", md)
@@ -132,14 +123,23 @@ func castWithOneLane(t *testing.T) *recordpb.Event {
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }
 
-// A CONFIGURATION THAT DOES NOT READ IS REFUSED, not shown as a run that configured no tier: the
-// report would otherwise print every seat against an empty configured tier.
-func TestTiersRefusesAnUnreadableConfiguration(t *testing.T) {
+// A CONFIGURATION THAT DOES NOT READ IS SAID, AND THE SERVED ROWS STILL LIST: what answered each
+// seat does not depend on the configuration, and no seat is judged against a tier nobody could read.
+func TestTiersListsWhatServedBesideAnUnreadConfiguration(t *testing.T) {
 	run, b := tierFixture(t)
-	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"), []byte(`{"model":"claude-fable-5","mintBudget":3}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"), []byte(`{"model":"claude-haiku-4-5","rounds":3}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := tierReport(runtest.Open(t, run), b); err == nil || !strings.Contains(err.Error(), "could not read the run's configuration") {
-		t.Errorf("tierReport over an unreadable configuration = %v, want the read error", err)
+	rep := tierReport(runtest.Open(t, run), b)
+	if !strings.Contains(rep.ConfigUnread, "rounds") || len(rep.Seats) == 0 || rep.Substituted != 0 {
+		t.Fatalf("an unread configuration reported as %+v", rep)
+	}
+	if md := renderTiers(rep); !strings.Contains(md, "**NOT READ**") {
+		t.Errorf("the rendering does not say the configuration was not read:\n%s", md)
+	}
+	for _, sm := range record.SeatModels(runtest.Open(t, run), b) {
+		if sm.Class != "" && sm.Measured() && (sm.NotJudged == "" || sm.Substitution != "") {
+			t.Errorf("seat %s beside an unread configuration: notJudged %q, substitution %q", sm.SeatID, sm.NotJudged, sm.Substitution)
+		}
 	}
 }

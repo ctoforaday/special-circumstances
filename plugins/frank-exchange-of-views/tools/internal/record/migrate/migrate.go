@@ -268,28 +268,17 @@ var runConfigDrops = map[string]struct{}{
 // names, every other key in its place and with its value as written — except `eventSchema`, which
 // states the epoch the migrated record is written at (record.EventSchema), added at the end where the
 // source states none: the record beside the file is at that epoch, and a file still naming the
-// source's would say the run was set up under a shape it is no longer in. The file must be ONE JSON
-// object and nothing after it — the record's reader (record.ReadRunConfig) refuses anything else, so
-// a copy that read past a truncation or a second object, or carried a `null` through, would publish
-// a run whose configuration does not read.
+// source's would say the run was set up under a shape it is no longer in. The source must be ONE
+// JSON object and nothing after it (record.RunConfigObject), and the copy must read through
+// record.DecodeRunConfig, the record's own reader, or nothing is written.
 func translateRunConfig(from, to string) error {
 	b, err := os.ReadFile(from)
 	if err != nil {
 		return err
 	}
-	whole := json.NewDecoder(bytes.NewReader(b))
-	var raw json.RawMessage
-	if err := whole.Decode(&raw); err != nil {
-		return fmt.Errorf("%s is not a JSON object: %w", from, err)
-	}
-	if tok, err := whole.Token(); err != io.EOF {
-		if err == nil {
-			err = fmt.Errorf("found %v", tok)
-		}
-		return fmt.Errorf("%s holds content after its object: %w", from, err)
-	}
-	if raw[0] != '{' {
-		return fmt.Errorf("%s is not a JSON object: it holds %s", from, record.JSONKind(raw))
+	raw, err := record.RunConfigObject(b)
+	if err != nil {
+		return fmt.Errorf("%s %w", from, err)
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	if _, err := dec.Token(); err != nil { // the object's `{`, checked above
@@ -345,6 +334,11 @@ func translateRunConfig(from, to string) error {
 		return fmt.Errorf("%s: %w", from, err)
 	}
 	indented.WriteByte('\n')
+	// THE COPY IS HELD TO THE RECORD'S OWN READER: a key no drop names, or a value of the wrong
+	// type, would publish a run whose every read of its configuration is refused.
+	if _, err := record.DecodeRunConfig(indented.Bytes()); err != nil {
+		return fmt.Errorf("%s: the migrated configuration %w", from, err)
+	}
 	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 		return err
 	}

@@ -295,8 +295,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	// THE RUN'S CONFIGURATION IS WRITTEN OR SETUP FAILS: every record reader of the run's terms, its
 	// lane count and its consent reads this file, and a run set up without it would run on defaults
-	// nobody chose. It is written BEFORE the cast, which is written once: a failure here leaves no cast and
-	// no live-run marker, so re-running setup on the same directory succeeds.
+	// nobody chose.
 	failConfig := func(err error) int {
 		fmt.Fprintf(stderr, "run-setup: could not write the run's configuration (inputs/run-config.json): %v\n", err)
 		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
@@ -315,10 +314,15 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if err != nil {
 		return failConfig(err)
 	}
-	if err := os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644); err != nil {
+	// STAGED, THEN PUT IN PLACE ONLY ONCE THE CAST LANDS. The cast is written once, so it is what
+	// refuses a directory that already holds a run; writing the configuration in place first would
+	// overwrite that run's terms before the refusal. A staging write that fails leaves no cast, so
+	// re-running setup succeeds.
+	cfgPath := filepath.Join(run.Dir(), "inputs", "run-config.json")
+	staged := cfgPath + ".setup"
+	if err := os.WriteFile(staged, b, 0o644); err != nil {
 		return failConfig(err)
 	}
-	reportBilling(rc.Billing, stdout, stderr)
 	// THE CAST IS WRITTEN under the harness, before any seat registers: the run's admissible
 	// seats, derived from the areas selected and the lane count. Every register and every dispatch
 	// is checked against it from here on (plans/roundless.md §III.B.1).
@@ -330,13 +334,21 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// static roster; a lane's cannot, because how many a run seats is a run parameter. setup is the
 	// one process that knows, so it says so here rather than leaving a pattern to guess later.
 	seats, laneSeats := record.CastFor(lanesN)
-	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat},
-		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}); err != nil {
-		fmt.Fprintf(stderr, "run-setup: could not write the cast: %v\n", err)
+	_, castErr := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
+	// Setup holds no record handle past this write, refused or not: the seats open their own.
+	_ = recordsql.Close(filepath.Join(run.Records(), "record.db"))
+	if castErr != nil {
+		_ = os.Remove(staged)
+		fmt.Fprintf(stderr, "run-setup: could not write the cast: %v\n", castErr)
 		return 2
 	}
-	// Setup holds no record handle past this write: the seats open their own.
-	_ = recordsql.Close(filepath.Join(run.Records(), "record.db"))
+	if err := os.Rename(staged, cfgPath); err != nil {
+		fmt.Fprintf(stderr, "run-setup: could not put the run's configuration in place (inputs/run-config.json): %v\n", err)
+		fmt.Fprintln(stderr, "  The cast is written and the hooks cannot find this run, so do not launch it. remedy: set up a fresh run directory")
+		return 2
+	}
+	reportBilling(rc.Billing, stdout, stderr)
 
 	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
 		// LOUD, not folded into the zero: a purge that could not resolve its own directory has

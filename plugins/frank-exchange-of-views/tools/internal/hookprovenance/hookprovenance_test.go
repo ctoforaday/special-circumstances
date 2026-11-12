@@ -115,37 +115,22 @@ func TestEveryCachedVersionIsRecordedBecauseNothingHereKnowsWhichRan(t *testing.
 	}
 }
 
-// A RUN-CONFIG WITHOUT THE KEY IS NOT AN OBSERVATION. Read answers ok=false for an absent file
-// or key, and an error for one that does not decode, so the run's documents can say "setup
-// recorded nothing" rather than render a zero Provenance as if setup had looked.
-func TestReadTellsAnAbsentProvenanceFromAnUnreadableOne(t *testing.T) {
-	write := func(t *testing.T, body string) string {
-		t.Helper()
-		dir := t.TempDir()
-		if body == "" {
-			return dir
-		}
-		if err := os.MkdirAll(filepath.Join(dir, "inputs"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		return dir
-	}
+// A RUN-CONFIG WITHOUT THE KEY IS NOT AN OBSERVATION. Decode answers ok=false for an absent key and
+// an error for a value that does not decode, so the run's documents can say "setup recorded
+// nothing" rather than render a zero Provenance as if setup had looked. The file itself is read by
+// the record's one reader of it, which refuses a file that does not decode.
+func TestDecodeTellsAnAbsentProvenanceFromAnUnreadableOne(t *testing.T) {
 	for name, c := range map[string]struct {
-		body   string
+		raw    string
 		ok     bool
 		failed bool
 	}{
-		"no file":           {"", false, false},
-		"no key":            {`{"topic":"t"}`, false, false},
-		"does not decode":   {`{"topic":`, false, true},
-		"key does not fit":  {`{"` + ConfigKey + `":"installed"}`, false, true},
-		"the key, recorded": {`{"` + ConfigKey + `":{"state":"absent","why":"none cached"}}`, true, false},
+		"no key":            {"", false, false},
+		"key does not fit":  {`"installed"`, false, true},
+		"the key, recorded": {`{"state":"absent","why":"none cached"}`, true, false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			p, ok, err := Read(write(t, c.body))
+			p, ok, err := Decode(json.RawMessage(c.raw))
 			if ok != c.ok || (err != nil) != c.failed {
 				t.Fatalf("ok = %v, err = %v; want ok = %v, failed = %v", ok, err, c.ok, c.failed)
 			}

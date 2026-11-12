@@ -55,10 +55,7 @@ func newShowTiers() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rep, err := tierReport(run, fam)
-			if err != nil {
-				return err
-			}
+			rep := tierReport(run, fam)
 			out := cmd.OutOrStdout()
 			switch format {
 			case "json":
@@ -106,26 +103,28 @@ type TierRow struct {
 
 // TierReport is the run's whole answer, request and service together.
 type TierReport struct {
-	RunDir          string    `json:"runDir"`
-	ConfiguredBulk  string    `json:"configuredBulk,omitempty"`
-	ConfiguredJudge string    `json:"configuredJudgment,omitempty"`
-	Seats           []TierRow `json:"seats"`
-	TierBound       int       `json:"tierBound"`
-	Measured        int       `json:"measured"`
-	Substituted     int       `json:"substituted"`
+	RunDir          string `json:"runDir"`
+	ConfiguredBulk  string `json:"configuredBulk,omitempty"`
+	ConfiguredJudge string `json:"configuredJudgment,omitempty"`
+	// ConfigUnread is why the run's configuration could not be read, or "". The served rows still
+	// list — what answered each seat does not depend on the configuration — and none is judged.
+	ConfigUnread string    `json:"configUnread,omitempty"`
+	Seats        []TierRow `json:"seats"`
+	TierBound    int       `json:"tierBound"`
+	Measured     int       `json:"measured"`
+	Substituted  int       `json:"substituted"`
 }
 
-func tierReport(run record.Run, b record.Family) (TierReport, error) {
-	// A configuration that does not read is refused, never shown as a run that configured no tier.
-	var bulk, judgment string
-	rc, err := record.ReadRunConfig(run)
-	if err != nil {
-		return TierReport{}, fmt.Errorf("could not read the run's configuration: %w", err)
-	}
-	if rc != nil {
+func tierReport(run record.Run, b record.Family) TierReport {
+	// A configuration that does not read is said, never shown as a run that configured no tier.
+	var bulk, judgment, unread string
+	switch rc, err := record.ReadRunConfig(run); {
+	case err != nil:
+		unread = err.Error()
+	case rc != nil:
 		bulk, judgment = rc.Model, rc.JudgmentModel
 	}
-	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment}
+	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment, ConfigUnread: unread}
 	for _, sm := range record.SeatModels(run, b) {
 		if sm.Class == "" {
 			continue // the operator and anything off the roster ride no tier
@@ -150,13 +149,17 @@ func tierReport(run record.Run, b record.Family) (TierReport, error) {
 		rep.Seats = append(rep.Seats, row)
 	}
 	sort.Slice(rep.Seats, func(i, j int) bool { return rep.Seats[i].SeatID < rep.Seats[j].SeatID })
-	return rep, nil
+	return rep
 }
 
 func renderTiers(r TierReport) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# model tiers — requested and served\n\n")
-	fmt.Fprintf(&sb, "configured: bulk=%s · judgment=%s\n\n", orUnset(r.ConfiguredBulk), orUnset(r.ConfiguredJudge))
+	if r.ConfigUnread != "" {
+		fmt.Fprintf(&sb, "configured: **NOT READ** — %s; no seat below is judged against a tier\n\n", r.ConfigUnread)
+	} else {
+		fmt.Fprintf(&sb, "configured: bulk=%s · judgment=%s\n\n", orUnset(r.ConfiguredBulk), orUnset(r.ConfiguredJudge))
+	}
 	fmt.Fprintf(&sb, "| seat | class | configured | served |\n|---|---|---|---|\n")
 	for _, s := range r.Seats {
 		served := s.Served

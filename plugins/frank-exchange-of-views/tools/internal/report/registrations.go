@@ -172,7 +172,12 @@ func hookSide(run record.Run, stamped, total int) (string, bool) {
 	if run.Dir() == "" {
 		return "", false
 	}
-	p, ok, err := hookprovenance.Read(run.Dir())
+	rc, err := record.ReadRunConfig(run)
+	var p hookprovenance.Provenance
+	ok := false
+	if err == nil && rc != nil {
+		p, ok, err = hookprovenance.Decode(rc.Hooks)
+	}
 	if err != nil {
 		return "**Setup's account of the installed hooks cannot be read:** " + err.Error() + ".", true
 	}

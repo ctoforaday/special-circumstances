@@ -40,6 +40,9 @@ type SeatModel struct {
 	// Substitution, when the tier served differs from the tier this seat's class was configured
 	// for. Detected on READ because that is when the serving model can be known at all.
 	Substitution string `json:"substitution,omitempty"`
+	// NotJudged says why a tier-bound seat's service was not compared with its configured tier: the
+	// run's configuration could not be read. It is set instead of Substitution, never folded into it.
+	NotJudged string `json:"notJudged,omitempty"`
 }
 
 // Measured reports whether anything actually observed this seat's serving model.
@@ -63,6 +66,7 @@ func SeatModels(run Run, f Family) []SeatModel {
 	// THE CONFIGURED TIERS, OR WHY THERE ARE NONE TO JUDGE AGAINST. A configuration that does not
 	// read is not one that declared no tier: each tier-bound row says it was not judged, and why.
 	model, judgmentModel := "", ""
+	allow := false
 	var cfgErr error
 	if run.Dir() != "" {
 		rc, err := readRunConfig(run.Dir())
@@ -70,7 +74,7 @@ func SeatModels(run Run, f Family) []SeatModel {
 		case err != nil:
 			cfgErr = err
 		case rc != nil:
-			model, judgmentModel = rc.Model, rc.JudgmentModel
+			model, judgmentModel, allow = rc.Model, rc.JudgmentModel, rc.AllowModelSubstitution
 		}
 	}
 	order := []string{}
@@ -135,9 +139,10 @@ func SeatModels(run Run, f Family) []SeatModel {
 		if row.Class == "judgment" {
 			configured = judgmentModel
 		}
-		row.Substitution = TierSubstitution(run, configured, obs)
 		if cfgErr != nil && row.Class != "" {
-			row.Substitution = "NOT JUDGED — the run's configuration could not be read: " + cfgErr.Error()
+			row.NotJudged = "the run's configuration could not be read: " + cfgErr.Error()
+		} else {
+			row.Substitution = TierSubstitution(allow, configured, obs)
 		}
 	}
 	out := make([]SeatModel, 0, len(order))
@@ -209,7 +214,7 @@ func servedOnRecord(run Run) map[string]string {
 // That decision is theirs and is made ONCE, at setup, written to run-config as a field. It is
 // deliberately not a flag on a seat's verb: a seat typing --allow-substitution would be the party
 // under test excusing itself.
-func TierSubstitution(run Run, configured string, o servedmodel.Observation) string {
+func TierSubstitution(allow bool, configured string, o servedmodel.Observation) string {
 	if o.Served == "" || configured == "" {
 		return "" // NOT MEASURED, or a run that declared no tier for this class
 	}
@@ -222,7 +227,7 @@ func TierSubstitution(run Run, configured string, o servedmodel.Observation) str
 		declared = " The harness declared the substitution itself: " + o.Requested + " -> " + o.Served + "."
 	}
 	msg := "configured " + configured + " (" + want + " tier), served " + o.Served + " (" + got + " tier)." + declared
-	if run.Dir() != "" && allowSubstitution(run) {
+	if allow {
 		return "ALLOWED BY THIS RUN'S CONFIG — " + msg
 	}
 	return msg

@@ -3,6 +3,7 @@ package setup
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -39,7 +40,7 @@ func TestRunConfigCarriesHookProvenance(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), b, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	back, ok, err := hookprovenance.Read(dir)
+	back, ok, err := readProvenance(t, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +99,7 @@ func TestSetupRecordsTheHookVersionsOfThePluginCacheClaudeCodeReads(t *testing.T
 			if code := Run(cfg, &out, &errb); code != 0 {
 				t.Fatalf("setup exit %d:\n%s", code, errb.String())
 			}
-			p, ok, err := hookprovenance.Read(runDir)
+			p, ok, err := readProvenance(t, runDir)
 			if err != nil || !ok {
 				t.Fatalf("run-config.json carries no provenance (ok=%v, err=%v)", ok, err)
 			}
@@ -137,7 +138,7 @@ func TestTheRecordReadsTheRunConfigSetupWrites(t *testing.T) {
 		t.Errorf("--lanes 2 reads back as (%d, %v, %v)", n, ok, err)
 	}
 	// `hooks` is held raw by the record and decoded by its owner.
-	if _, ok, err := hookprovenance.Read(runDir); !ok || err != nil {
+	if _, ok, err := readProvenance(t, runDir); !ok || err != nil {
 		t.Errorf("the provenance setup writes reads back as (%v, %v)", ok, err)
 	}
 }
@@ -147,7 +148,7 @@ func TestTheRecordReadsTheRunConfigSetupWrites(t *testing.T) {
 // nobody chose. A directory standing where the file goes is a write no box can make.
 func TestSetupFailsWhenItCannotWriteTheRunConfig(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	if err := os.MkdirAll(filepath.Join(runDir, "inputs", "run-config.json"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(runDir, "inputs", "run-config.json.setup"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	var out, errb bytes.Buffer
@@ -166,13 +167,39 @@ func TestSetupFailsWhenItCannotWriteTheRunConfig(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(runDir, "records", "record.db")); err == nil {
 		t.Error("setup wrote the cast for a run whose configuration it could not write")
 	}
-	if err := os.Remove(filepath.Join(runDir, "inputs", "run-config.json")); err != nil {
+	if err := os.Remove(filepath.Join(runDir, "inputs", "run-config.json.setup")); err != nil {
 		t.Fatal(err)
 	}
 	out.Reset()
 	errb.Reset()
 	if code := Run(cfg, &out, &errb); code != 0 {
 		t.Fatalf("setup re-run after the remedy exited %d:\n%s", code, errb.String())
+	}
+
+	// A SETUP OVER A DIRECTORY THAT ALREADY HOLDS A RUN IS REFUSED AT THE CAST AND LEAVES THAT RUN'S
+	// CONFIGURATION AS IT WAS: the terms are put in place only after the cast lands.
+	before, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(cfg.Cwd, ".claude", "run-live.json")); err != nil {
+		t.Fatal(err)
+	}
+	cfg.KMax = 3
+	out.Reset()
+	errb.Reset()
+	if code := Run(cfg, &out, &errb); code == 0 || !strings.Contains(errb.String(), "could not write the cast") {
+		t.Fatalf("a second setup over a set-up run: exit %d\n%s", code, errb.String())
+	}
+	after, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("a refused second setup rewrote the run's configuration:\nbefore %s\nafter %s", before, after)
+	}
+	if _, err := os.Stat(filepath.Join(runDir, "inputs", "run-config.json.setup")); err == nil {
+		t.Error("a refused setup left its staged configuration behind")
 	}
 }
 
@@ -190,4 +217,15 @@ func TestSetupRefusesALaneCountThatIsNotACount(t *testing.T) {
 			t.Errorf("--lanes %q: setup laid down the run directory before refusing", bad)
 		}
 	}
+}
+
+// readProvenance reads the provenance as the report does: through the record's one reader of the
+// run's configuration.
+func readProvenance(t *testing.T, dir string) (hookprovenance.Provenance, bool, error) {
+	t.Helper()
+	rc, err := record.ReadRunConfig(runtest.Open(t, dir))
+	if err != nil || rc == nil {
+		return hookprovenance.Provenance{}, false, err
+	}
+	return hookprovenance.Decode(rc.Hooks)
 }

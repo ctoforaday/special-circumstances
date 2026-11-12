@@ -528,7 +528,11 @@ type runner struct {
 	// notTheWorkReadingsUnread the readings of a copy that is not the work that left the citation unread;
 	// markedSentenceRefused a backing found-source reading of a marked sentence refused;
 	// foundSourceRetriesRefused the identical found-source reading in one sitting refused.
-	reading                   readingCounts
+	reading readingCounts
+	// afterDebtRead runs after each read of the reading debts (readingDebts), nil in a drive: a test's
+	// way to land a sibling's act between the oracle's read and anything after it, as a concurrent
+	// seat does.
+	afterDebtRead             func()
 	sourceClosesRefused       int
 	notTheWorkReadingsUnread  int
 	markedSentenceRefused     int
@@ -4423,10 +4427,9 @@ func (r *runner) sameClassAndSubject(class string, args []string) (open, all []r
 
 // oneGapAnswered is a lens's answer to the one-gap refusal of the mint args stated: the refusal must
 // name a gap of the mint's class on its subject, and the lens files its point as a finding about that
-// gap. A refusal naming no such gap fails the run.
-func (r *runner) oneGapAnswered(seatID, out string, args []string) {
+// gap. held is the gap the refusal named, "" where it named none — which fails the run.
+func (r *runner) oneGapAnswered(seatID, out string, args []string) (held string) {
 	_, all := r.sameClassAndSubject(argOf(args, "--class"), args)
-	held := ""
 	for _, g := range all {
 		if strings.Contains(out, g.ID) {
 			held = g.ID
@@ -4434,7 +4437,7 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	}
 	if held == "" {
 		r.noteActErr("a mint was refused as a second gap of its class on its subject, naming no gap of that class on that subject on the board: " + firstLine(out))
-		return
+		return ""
 	}
 	r.mu.Lock()
 	r.oneGapRefused++
@@ -4445,11 +4448,12 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	// point, so a lens may meet a refusal for each of them (admitFresh).
 	if _, ok := r.admitFresh(held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
 		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
-		return
+		return held
 	}
 	r.mu.Lock()
 	r.oneGapFindings++
 	r.mu.Unlock()
+	return held
 }
 
 // freeClass replaces the --class args state, where an open gap of that class stands on the mint's
