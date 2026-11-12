@@ -285,7 +285,7 @@ share_credentials() {
 # handed, and makes every test in this tree fail in a way that reads like a code defect. Measured:
 # a full gate run failed a refusal assertion for exactly this reason and cost an afternoon.
 clear_seat_env() {
-  unset FEOV_RUN FEOV_RUN_FROM_WRAPPER FEOV_AGENT_ID FEOV_AGENT_TYPE FEOV_HOOK_VERSION
+  unset FEOV_RUN FEOV_AGENT_ID FEOV_AGENT_TYPE FEOV_HOOK_VERSION
   unset CLAUDE_PROJECT_DIR
   hermetic_path
 }
@@ -296,18 +296,17 @@ clear_seat_env() {
 # nothing about what is already reachable by name.
 #
 # MEASURED, and it cost universe-m11 an entire sitting. A blue seat typed a BARE `feov-record`
-# instead of the run's `$RUN/.bin/feov-record`, and PATH handed it
+# instead of the path its prompt names, and PATH handed it
 # ~/.claude/plugins/cache/.../frank-exchange-of-views/1.72.0/bin/feov-record — the SAME plugin
 # version as the universe's, at event-schema epoch 8 against the run's epoch 14. Its write died on a
 # raw `CHECK constraint failed: type (275)`, every call after it was refused with "`register` is your
 # first act and it has not happened", and that sitting made 100 tool calls and recorded NOTHING. A
 # plugin version is not an epoch, so the matching version made the two look interchangeable.
 #
-# REMOVED RATHER THAN SHADOWED. Prepending the run's .bin would make a bare invocation work, and a
-# bare invocation working is what let this happen unnoticed for a whole run: the seat's prompt names
-# the binary by path, so the honest outcome for a name lookup is "command not found" — loud, local to
-# the call, and it sends the seat to the path it was given. Shadowing would also be impossible to do
-# correctly here, because the run directory does not exist until `setup` runs inside the universe.
+# REMOVED RATHER THAN SHADOWED. Prepending the universe's own plugin bin would make a bare invocation
+# work, and a bare invocation working is what let this happen unnoticed for a whole run: the seat's
+# prompt names the binary by path, so the honest outcome for a name lookup is "command not found" —
+# loud, local to the call, and it sends the seat to the path it was given.
 #
 hermetic_path() {
   local host_cache="$HOME/.claude/plugins/cache" out="" p dropped=0

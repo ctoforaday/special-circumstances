@@ -288,7 +288,7 @@ handed, and the failure reads exactly like a code defect. Measured: a full gate 
 assertion for this reason and the diagnosis cost an afternoon.
 
 ```sh
-env -u FEOV_RUN -u FEOV_RUN_FROM_WRAPPER -u FEOV_AGENT_ID -u FEOV_AGENT_TYPE -u FEOV_HOOK_VERSION …
+env -u FEOV_RUN -u FEOV_AGENT_ID -u FEOV_AGENT_TYPE -u FEOV_HOOK_VERSION …
 ```
 
 `universe.sh` does this itself. Do it by hand for `go -C scripts run ./check` and for any

@@ -132,10 +132,9 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// ONE LIVE RUN PER PROJECT (#1255), WHATEVER SESSION LEADS IT. Rows that are no longer live are
 	// pruned and named first; another LIVE run refuses this one, before any run state exists.
 	//
-	// The wrapper (#526) carries a seat's run into its own calls, but the HOOKS cannot use it: a
-	// hook's payload names no run, so they find one through this project's marker, among the rows its
-	// session leads — and with two of those live they bracket no sitting, count no call and inject no
-	// run for either. Every seat of both runs then acts unbracketed and uncapped.
+	// A hook's payload names no run, so the hooks find one through this project's marker, among the
+	// rows its session leads — and with two of those live they bracket no sitting, count no call and
+	// inject no run for either. Every seat of both runs then acts unbracketed and uncapped.
 	//
 	// Two runs led by DIFFERENT sessions are told apart by the hooks, and are still refused: they share
 	// the project's other state. Two setups of one research/<date>_<slug> both pass this unlocked check
@@ -247,6 +246,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "  %s\n", pre.Reason)
 		fmt.Fprintf(stderr, "  remedy: %s\n", pre.Remedy)
 		fmt.Fprintln(stderr, "  (failing here costs a re-run; failing mid-run costs a seat its whole record)")
+		return 2
+	}
+	// The seats run the preflighted binary from their own working directories, so the directory
+	// setup prints for them is absolute.
+	binDir, err := filepath.Abs(filepath.Dir(recordBin))
+	if err != nil {
+		fmt.Fprintln(stderr, "run-setup: RECORD BINARY PREFLIGHT FAILED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  the record binary's directory cannot be made absolute: %v\n", err)
 		return 2
 	}
 	floor, err := clientFloor(recordBin)
@@ -375,11 +382,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "  remedy: make .claude/ writable, then re-run setup with the same arguments — setup is idempotent for its own run")
 		return 1
 	}
-	// Written AFTER the marker deliberately: the wrapper is the carrier that does not move when
-	// the marker does, and writing it second makes the ordering obvious to anyone reading for
-	// which of the two is derived from the other. Neither is — that is the point.
-	wrapper := WriteRunWrapper(run, recordBin)
-
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
 	fmt.Fprintln(stdout, "  skeleton: directories only — blue/candidates/<lane>.md is each lane's to write, report.md the assembler's")
 	// "red-merge-born" was true when the chair wrote those files. It stopped being true, and the
@@ -441,20 +443,11 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
 	// LOUD, AND ACTIONABLE PER RUN. A notice that only said "something else is open" would be
 	// the skimmable version of the refusal it replaces; each row names its own capture command.
-	// THE binDir LINE IS AN INSTRUCTION, not a report, so it says what to do with the path.
-	// Handing the workflow the raw binary directory instead of this one is silent: the run
-	// works, and every seat is back to typing --run.
-	if wrapper.BinDir != "" {
-		fmt.Fprintln(stdout, `  binDir arg: pass THIS path as the workflow's "binDir" arg (not the record binary's directory)`)
-		fmt.Fprintf(stdout, "    %s\n", wrapper.BinDir)
-		fmt.Fprintln(stdout, "    It wraps the binary with this run baked in, so no seat types --run and a mistyped")
-		fmt.Fprintln(stdout, "    path fails at the shell instead of filing work against nothing.")
-	} else {
-		// NOT SILENT ON THE MISS. Without this line the summary looks identical to a healthy
-		// one and the operator hands over the raw directory believing it is the wrapper.
-		fmt.Fprintf(stdout, "  binDir arg: NO WRAPPER WRITTEN — %s\n", wrapper.Skipped)
-		fmt.Fprintln(stdout, "    Pass the record binary's own directory, and expect seats to carry --run themselves.")
-	}
+	// THE binDir LINE IS AN INSTRUCTION, not a report, so it says what to do with the path. It is
+	// the directory of the binary the preflight above checked, absolute because every seat runs it
+	// from its own working directory.
+	fmt.Fprintln(stdout, `  binDir arg: pass THIS path as the workflow's "binDir" arg`)
+	fmt.Fprintf(stdout, "    %s\n", binDir)
 	return 0
 }
 

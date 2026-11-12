@@ -287,7 +287,7 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 func seatRunDir(cwd string, caller runlive.Caller, rec *hookfailures.Recorder) string {
 	inferred := runlive.InferRunDir(cwd, caller)
 	noteInference(inferred, rec)
-	for _, dir := range []string{inferred.Dir, os.Getenv(seatenv.Var), os.Getenv(seatenv.VarWrapper)} {
+	for _, dir := range []string{inferred.Dir, os.Getenv(seatenv.Var)} {
 		if dir != "" {
 			return dir
 		}

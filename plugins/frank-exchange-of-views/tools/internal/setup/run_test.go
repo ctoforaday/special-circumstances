@@ -321,8 +321,7 @@ func TestSetupReadsNoFeovMemory(t *testing.T) {
 // A SECOND LIVE RUN FOR ONE SESSION IS REFUSED, NAMING THE FIRST AND HOW TO CLOSE IT (#1255). Driven
 // end to end.
 //
-// The wrapper carries a seat's run into its own calls, but the hooks find a seat's run through this
-// project's marker, among the runs its session leads, and with two of those they bracket no sitting
+// The hooks find a seat's run through this project's marker, among the runs its session leads, and with two of those they bracket no sitting
 // and count no call for either. The live run here is the same session's; another session's is
 // TestSetupRefusesBesideAnotherSessionsLiveRun.
 // Setup used to open the second run with a notice; every seat of both runs then sat unrecorded.

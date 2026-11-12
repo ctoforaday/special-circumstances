@@ -19,7 +19,7 @@ import (
 // the path that supplied the run directory (run_via). They exist so a run with mixed binaries,
 // stale hooks, or seats resolving the run by inference says so in its own record — and until this
 // rendered them, saying so took a person reading the database: #751's diagnosis tabulated
-// `run_via: wrapper (29/29)` by hand to show the identity hook never fired.
+// `run_via` across 29 registrations by hand to show the identity hook never fired.
 //
 // A UNIFORM RUN IS ONE LINE, AND A DISAGREEMENT IS NAMED SEAT BY SEAT. The run's stamp is the one
 // most registrations carry; every registration that differs is listed with the differing parts in
@@ -152,10 +152,8 @@ func viaPhrase(via string) string {
 		return "run directory from the hook"
 	case seatenv.RunFromFlag:
 		return "run directory from a `--run` the seat typed"
-	case seatenv.RunFromWrapper:
-		return "run directory from the per-run wrapper — no hook reached the seat"
 	case seatenv.RunFromInference:
-		return "run directory found by inference — neither the hook nor the wrapper supplied it"
+		return "run directory found by inference — the hook did not supply it"
 	case seatenv.RunUnresolved:
 		return "no run directory resolved"
 	case "":

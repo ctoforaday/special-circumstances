@@ -503,8 +503,16 @@
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
+== stmt c8348cafeca0
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
+
 == stmt fbab20e6c3f2
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "copy_url") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
+
+== stmt 50b84a201e01
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "access_date", "cite_key", "text", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_before", "source_matched", "source_after", "work_status", "source_completeness", "copy_substitution", "copy_url", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
 == stmt 3448604157a2
@@ -1470,6 +1478,10 @@
 
 == stmt 5905bc9addb9
 -- INSERT INTO "reproduce" ("event_id", "bundle_sha", "soundness", "note", "computation_id", "rerun", "ran", "rerun_exit", "rerun_sha") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 03ef0b9a114f
+-- INSERT INTO "reproduce" ("event_id", "bundle_sha", "soundness", "note", "computation_id", "rerun", "ran", "rerun_exit", "rerun_sha", "claim") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 41c5dc8bd93e

@@ -102,17 +102,17 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 	// THE HOOK IS NOT REACHING THIS RUN — a bigger fact than a missing identity, and one the
 	// hook itself records nowhere. It injects FEOV_RUN on every Bash call in a live run, so
 	// a run directory that arrived any OTHER way means the hook declined, was never invoked,
-	// or found no marker from the payload's cwd.
-	//
-	// THE WRAPPER MAKES THIS A CLEAN READING ON ITS OWN. `setup` bakes the run into
-	// <runDir>/.bin/feov-record, and the hook — when it fires — sets FEOV_RUN, which
-	// outranks it. So resolving by WRAPPER is a direct statement that the hook did not
-	// inject, needing no pairing with a missing identity to mean it. Inference still needs
-	// the pair, because a seat that simply typed --run looks identical from the run alone.
-	if s.RunVia == seatenv.RunFromWrapper || (r.IdentityAbsent && s.RunVia == seatenv.RunFromInference) {
-		r.HookAbsent = true
-	}
+	// or found no marker from the payload's cwd. Inference needs the missing identity beside
+	// it to mean that, because a seat that simply typed --run looks identical from the run alone.
+	r.HookAbsent = hookAbsent(r.IdentityAbsent, s.RunVia)
 	return r, nil
+}
+
+// hookAbsent is the whole-run diagnosis: the run directory reached the tool by its own search,
+// and the identity the hook injects beside it is missing. Either fact alone is not the hook's
+// absence — a seat that typed --run on a healthy run also lacks the injected identity.
+func hookAbsent(identityAbsent bool, via seatenv.RunSource) bool {
+	return identityAbsent && via == seatenv.RunFromInference
 }
 
 // Log records an entry addressed to the OPERATOR WHO CAN RETOOL THE SEAT — a defect, a request, or
@@ -1231,7 +1231,7 @@ type registerResult struct {
 	// IdentityAbsent is true when a DISPATCHED seat registered with no agent id — the hook did
 	// not reach this call, so nothing on the record can bind this agent to this seat.
 	IdentityAbsent bool `json:"identity_absent,omitempty"`
-	// RunVia says which path supplied the run directory: injected | flag | wrapper | inferred.
+	// RunVia says which path supplied the run directory: injected | flag | inferred.
 	RunVia string `json:"run_via,omitempty"`
 	// HookAbsent says the hook is not reaching the RUN, rather than only the identity being
 	// missing — every seat in it is affected, not just this one.
@@ -1239,16 +1239,6 @@ type registerResult struct {
 	// TurnLimitUnarmed is why this sitting's tool calls are not being counted, when the count
 	// could not be opened. Empty when it was.
 	TurnLimitUnarmed string `json:"turn_limit_unarmed,omitempty"`
-}
-
-// hookAbsentSource names the carrier that stood in for the hook, so the operator reading a
-// log entry knows which of the two shapes this run was in — a wrapper doing its job, or
-// nothing but the marker and a lucky cwd.
-func (r registerResult) hookAbsentSource() string {
-	if r.RunVia == string(seatenv.RunFromWrapper) {
-		return "this run's own wrapper, which setup baked the run into"
-	}
-	return "the tool's own search for the run marker"
 }
 
 func (r registerResult) Human() string {
@@ -1275,10 +1265,9 @@ func (r registerResult) Human() string {
 			"append-only and keeps both sittings."
 	}
 	if r.HookAbsent {
-		// SEPARATE FROM THE IDENTITY BLOCK, and readable without it: under a wrapper this fires
-		// on its own, and the seat reading it may have no other symptom at all.
+		// SEPARATE FROM THE IDENTITY BLOCK: that one is about this seat, this one about the run.
 		out += "\n\nTHE ENGINE'S HOOK IS NOT REACHING THIS RUN, so EVERY seat in it is affected, not " +
-			"just you. The run directory reached this tool from " + r.hookAbsentSource() + ", and not " +
+			"just you. The run directory reached this tool from the tool's own search for the run marker, and not " +
 			"from the hook — which injects it on every call when it is working.\n\n" +
 			"YOUR WORK IS NOT AT RISK FROM THIS. The run directory is correct and your events are " +
 			"recorded against it. What is lost is the identity binding, and the fix for that is " +

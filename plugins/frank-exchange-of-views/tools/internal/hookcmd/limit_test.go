@@ -29,7 +29,7 @@ type limitHandoff struct {
 // of identity so only the payload speaks. It returns the cwd a payload carries.
 func limitRun(t *testing.T, limit int) (cwd, runDir string, handoffs *[]limitHandoff) {
 	t.Helper()
-	for _, v := range []string{seatenv.Var, seatenv.VarWrapper, seatenv.AgentVar, seatenv.TypeVar} {
+	for _, v := range []string{seatenv.Var, seatenv.AgentVar, seatenv.TypeVar} {
 		t.Setenv(v, "")
 	}
 	cwd = t.TempDir()
@@ -144,7 +144,7 @@ func TestAWarmSessionRegistersThroughTheLimitAndStartsAtZero(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		call(t, cwd, "agent_01", "Read", "")
 	}
-	register := `"` + runDir + `/.bin/feov-record" register`
+	register := `"` + filepath.Join(cwd, "bin", "feov-record") + `" register`
 	if d, _ := call(t, cwd, "agent_01", "Bash", register); d == "deny" {
 		t.Fatal("the register that opens the next sitting was refused")
 	}

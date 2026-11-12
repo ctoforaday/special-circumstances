@@ -32,38 +32,10 @@ import (
 // by hand — which is the hand-typed path this exists to remove.
 const Var = "FEOV_RUN"
 
-// VarWrapper is the run directory as the PER-RUN WRAPPER supplies it.
-//
-// `setup` writes <runDir>/.bin/feov-record, which execs the real binary with this variable
-// set, and prints that directory as the `binDir` to hand the workflow. The prompt already
-// interpolates "${binDir}/feov-record", so a seat runs the wrapper without knowing it exists
-// and without retyping anything.
-//
-// WHY A SEPARATE VARIABLE FROM Var, which would have been one line shorter. Two reasons, and
-// the second is the one that matters:
-//
-//  1. The hook sets Var. If the wrapper set it too, `run_via` would read "injected" on every
-//     register and the hook-absence signal built for #512 would go blind — the exact defect
-//     that issue exists to end, reintroduced by the fix for its sibling. Distinct variables
-//     keep "wrapper" a PRECISE hook-absence detector on its own: the hook, when it fires,
-//     sets Var, and Var wins. No identity pairing needed.
-//  2. Two independent carriers of one fact, with a gate between them. #500 wanted that and
-//     could only get it by making seats type --run again — reviving the dropped-flag class
-//     (10 of 55 tool-call errors on the first live run). The wrapper types it instead, so the
-//     gate below costs nothing and finally fires on the real bug: a marker that moved
-//     mid-run, which is how run 3's `assemble` wrote a foreign VERIFIED into a live run.
-//
-// It is absent from every --help surface for the same reason Var is: a seat never types it.
-const VarWrapper = "FEOV_RUN_FROM_WRAPPER"
-
-// WrapperDir is the directory under a run that holds its generated wrapper: setup writes it, and the
-// PreToolUse gate refuses a seat's file edit inside it.
-const WrapperDir = ".bin"
-
 // VarHookVersion is the hook's OWN build, exported when it fires (#751).
 //
-// `run_via` already separates "the hook injected" from "the wrapper did", so hook PRESENCE is
-// answerable. Its VERSION was not, and the two halves of a run come from different places: setup
+// `run_via` already separates "the hook injected" from the tool's own inference, so hook PRESENCE
+// is answerable. Its VERSION was not, and the two halves of a run come from different places: setup
 // bakes the record binary from the working tree while hooks are served from the version-gated
 // install cache. Measured 2026-08-23 — tool_version 0.72.0, a version no release carried until
 // three days later, under hooks from a release tagged six days earlier that did not contain
@@ -71,9 +43,9 @@ const WrapperDir = ".bin"
 //
 // THE HOOK IS THE ONLY PARTY THAT KNOWS THIS, which is why it is exported here rather than
 // observed from outside. A hook that is absent exports nothing — and that absence is already
-// legible, because the wrapper's variable wins and `run_via` reads "wrapper".
+// legible, because `run_via` then reads "inferred" or "flag", never "injected".
 //
-// Absent from every --help surface, like the other two: a seat never types it.
+// Absent from every --help surface, like Var: a seat never types it.
 const VarHookVersion = "FEOV_HOOK_VERSION"
 
 // VarComputeRerun names a file, and its presence says the process is a computation's script running under
@@ -130,12 +102,8 @@ const (
 	RunFromEnv RunSource = "injected"
 	// RunFromFlag — the seat typed --run. Legitimate, and the operator path.
 	RunFromFlag RunSource = "flag"
-	// RunFromWrapper — the per-run wrapper supplied it. The run directory is right (the
-	// dispatcher baked it in at setup) and the HOOK IS NOT REACHING THIS RUN, because the hook
-	// sets Var and Var wins. A run whose seats all report this is healthy and unhooked.
-	RunFromWrapper RunSource = "wrapper"
-	// RunFromInference — the TOOL found the marker itself. The seat's call worked, and neither
-	// the hook nor a wrapper supplied it, which is the state worth seeing.
+	// RunFromInference — the TOOL found the marker itself. The seat's call worked, and the hook
+	// did not supply it, which is the state worth seeing.
 	RunFromInference RunSource = "inferred"
 	// RunUnresolved — nothing supplied one. The caller raises its own "--run is required".
 	RunUnresolved RunSource = "unresolved"
@@ -143,30 +111,7 @@ const (
 
 // ResolveWithSource is Resolve, and says which path won.
 func ResolveWithSource(flagRun string, infer func() string) (string, RunSource, error) {
-	env, wrapper := os.Getenv(Var), os.Getenv(VarWrapper)
-
-	// THE HOOK AND THE WRAPPER DISAGREEING IS THE FAILURE THIS PAIR EXISTS TO CATCH, and it is
-	// checked FIRST because neither is the seat's doing — a seat cannot cause or fix it, so
-	// reporting it as though the seat typed something wrong would send it looking in the wrong
-	// place. The wrapper is baked at setup and cannot move; Var is re-derived per call from a
-	// marker that can. They differ exactly when the marker moved under a live run, which is how
-	// run 3's `assemble` came to write a foreign VERIFIED into a different run's record (#500).
-	if env != "" && wrapper != "" && !sameDir(env, wrapper) {
-		return "", RunUnresolved, feov.Errorf(feov.Conflict,
-			"the run directory injected into this call (%q) disagrees with the run this seat was "+
-				"dispatched into (%q). You did not cause this and cannot fix it by changing your command: "+
-				"the engine's live-run marker has moved since this run started, which means another run "+
-				"claimed it. STOP and record it in the log, as a defect — continuing would file this seat's "+
-				"work against the wrong run",
-			env, wrapper)
-	}
-
-	// The dispatched run, whichever carrier delivered it. Below here a --run that disagrees is
-	// the seat's own typo, and is refused on the same terms either way.
-	dispatched, via := env, RunFromEnv
-	if dispatched == "" {
-		dispatched, via = wrapper, RunFromWrapper
-	}
+	dispatched := os.Getenv(Var)
 	if dispatched != "" && flagRun != "" && !sameDir(dispatched, flagRun) {
 		// Conflict, not Validation: the value is well-formed, it simply contradicts the
 		// dispatch. A consumer branching on the code should treat it as "two sources
@@ -179,7 +124,7 @@ func ResolveWithSource(flagRun string, infer func() string) (string, RunSource, 
 			flagRun, dispatched)
 	}
 	if dispatched != "" {
-		return dispatched, via, nil
+		return dispatched, RunFromEnv, nil
 	}
 	if flagRun != "" {
 		return flagRun, RunFromFlag, nil
