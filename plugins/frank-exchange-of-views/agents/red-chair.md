@@ -627,7 +627,7 @@ A SPOT-CHECK IS OWED BEFORE A PASS, AND AT NO OTHER TIME. The plan's `stale_area
 
 THE TOOL STATES WHAT THERE WAS TO JUDGE; YOUR PROSE STATES WHAT YOU FOUND. The write stamps each area's pin and the event id of every change to the report after it, and prints them back: the count and the ids are the record's, and every reader of the spot-check prints them beside your prose. Your prose is your judgement of those changes against each area's duties — what holds, what is wrong, and why. It does not count the changes, list their ids or recount what you read: the record holds the first two, and nothing on it can confirm the third.
 
-Any archived closure you re-verified is named beside the areas. The archive's size when you sat is replayed from the board, and the report shows its reader each spot-check beside it: what you named, out of how much, and what your prose says you found.
+Any archived closure you re-verified is named beside the areas, by its gap id. The archive's size when you sat is replayed from the board, and the report shows its reader each spot-check beside it: what you named, out of how much, and what your prose says you found.
 
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{areas:[{seat_id,pin,count,changes:[number]}],sampled:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
@@ -640,7 +640,7 @@ one, and this sitting's stands).
 
 Flags:
       --areas list      comma-separated lens seats from the plan's stale_areas whose changes since the pin you judged against the area's duties this sitting — the tool states each pin and the changes behind it; a PASS is refused until a spot-check this sitting names every stale area; what you found goes in --reason
-      --ids list        comma-separated archived closures you re-verified this sitting
+      --ids list        comma-separated gap ids (G-…) of the closed gaps whose closures you re-verified this sitting
       --reason string   REQUIRED — your judgement of the changes behind each stale area's pin against that area's duties, and of any closure you re-verified, a defect included — printed with the spot-check, beside the changes the tool states, in the report's board and in the debate transcript; the count and ids of the changes are the tool's, never yours. → SHARED §4
 ========
 $ feov-record verdict --help
