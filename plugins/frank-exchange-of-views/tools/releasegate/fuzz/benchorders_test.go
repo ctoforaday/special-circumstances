@@ -121,7 +121,7 @@ func (r *runner) benchSetsGrade(seatID, gapID string) {
 // benchMoves is the bench's regrade moving gapID's dim, and the drive's model of the lock after it: an
 // axis the bench held is released to the lens (benchLifted), any other is the bench's (benchSet).
 func (r *runner) benchMoves(seatID, gapID, dim string) bool {
-	grade := r.gradeOtherThan(r.currentGrade(gapID, dim))
+	grade := r.gradeOnOtherThan(dim, r.currentGrade(gapID, dim))
 	if _, ok := r.admitFresh(gapID, "regrade", "--seat-id", seatID, "--id", gapID, "--"+dim, grade,
 		"--reason", "fuzz: the bench holds "+gapID+"'s "+dim+" is "+grade+", and rules on that grade"); !ok {
 		return false
@@ -207,7 +207,7 @@ func (r *runner) lensMovesBenchAxis(seatID string) string {
 		}
 		slices.Sort(dims)
 		dim := pick(r.rng, dims)
-		args := []string{"--json", "regrade", "--seat-id", seatID, "--id", id, "--" + dim, r.gradeOtherThan(held[dim]),
+		args := []string{"--json", "regrade", "--seat-id", seatID, "--id", id, "--" + dim, r.gradeOnOtherThan(dim, held[dim]),
 			"--reason", "fuzz: the lens moving an axis the bench set"}
 		// RECORDED AGAIN WHILE EACH STALE REFUSAL MOVES THE READ POINT, as admitFresh records an act.
 		for {
@@ -257,7 +257,7 @@ func (r *runner) lensMovesFreeAxis(seatID, gapID string, held map[string]string)
 		free = released
 	}
 	dim := pick(r.rng, free)
-	_, ok := r.admitFresh(gapID, "regrade", "--seat-id", seatID, "--id", gapID, "--"+dim, r.gradeOtherThan(r.currentGrade(gapID, dim)),
+	_, ok := r.admitFresh(gapID, "regrade", "--seat-id", seatID, "--id", gapID, "--"+dim, r.gradeOnOtherThan(dim, r.currentGrade(gapID, dim)),
 		"--reason", "fuzz: the lens moving an axis the bench does not hold")
 	if ok && len(released) > 0 {
 		r.mu.Lock()
@@ -288,7 +288,7 @@ func (r *runner) lensMovesReleasedAxis(seatID, skip string) string {
 		}
 		slices.Sort(dims)
 		dim := pick(r.rng, dims)
-		if _, ok := r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--"+dim, r.gradeOtherThan(r.currentGrade(id, dim)),
+		if _, ok := r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--"+dim, r.gradeOnOtherThan(dim, r.currentGrade(id, dim)),
 			"--reason", "fuzz: the lens moving an axis the bench released"); !ok {
 			return ""
 		}

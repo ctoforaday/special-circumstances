@@ -695,9 +695,12 @@ function readOf(seat, env) {
 // dies on an API error. Either is one seat's failed sitting, and universe-m35 died of one at epoch 6.
 // sit() is every awaited single dispatch, and it turns both into a logged null: the record still
 // holds what the seat owes, so the plan readies it again in the next epoch with its items listed, and
-// the run reaches its outcome or its ceiling. Repetition is bounded by the record's epoch limit, the
-// no-progress valve, and — for the chair, which relays the plan — NO_PROGRESS_EPOCHS failures in a
-// row. A lens or a lane already sits under parallel(), where a throw is a null.
+// the run reaches its outcome or its ceiling. A failed sitting is no turn in an exchange (ruled by
+// gblock 2026-11-11; record.noTurnSittingsOf), so the gap's limits do not bound a seat that keeps
+// failing. Repetition is bounded by the record's epoch limit, the no-progress valve, a lens's
+// retirement, and — for the chair, which relays the plan, and for blue, the one seat answering the
+// gaps — NO_PROGRESS_EPOCHS failures in a row (seatStop). A lens or a lane already sits under
+// parallel(), where a throw is a null.
 //
 // THE RECORD HOLDS THE FAILURE, NOT THIS LOG: a sitting that closed with no admitted envelope is a
 // failed sitting on the record (record.FailedSittings), which capture reads. This sandbox writes
@@ -935,6 +938,11 @@ const labelFor = (seat) => { sittings[seat] = (sittings[seat] || 0) + 1; return 
 // the next. NO_PROGRESS_EPOCHS failures in a row stop the debate (seatStop) UNVERIFIED, naming the chair:
 // without the chair nothing is dispatched, so the loop would only spend.
 let chairFailures = 0
+// BLUE'S FAILED SITTINGS IN A ROW ARE COUNTED ACROSS EPOCHS, as the chair's are: a sitting that returns
+// its envelope ends the row, and NO_PROGRESS_EPOCHS of them stop the debate (seatStop) UNVERIFIED,
+// naming blue. Each failed sitting answered nothing and counted toward no gap's impasse, so nothing on
+// the record bounds a blue that never returns but the epoch limit.
+let blueFailures = 0
 while (!stopped() && !seatStop) {
   epoch++
   const chairEnv = await sit((o) => agent(chairPrompt(), o), { ...dispatchAs('red-chair'), label: labelFor('red-chair'), phase: 'Red', schema: CHAIR_ENVELOPE })
@@ -1014,9 +1022,16 @@ while (!stopped() && !seatStop) {
     // A FAILED BLUE SITTING ANSWERED NOTHING the engine can read; what it owes stays on its work list,
     // and the plan readies it again in the next epoch.
     if (!blueEnv2) {
-      log(`epoch ${epoch}: blue's sitting failed${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''} — the plan readies it again while it owes them`)
+      blueFailures++
+      if (blueFailures >= NO_PROGRESS_EPOCHS) {
+        seatStop = { seat: 'blue-respond', failures: blueFailures }
+        log(`epoch ${epoch}: blue failed ${blueFailures} sittings in a row (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) — the debate stops rather than dispatch it again`)
+        break
+      }
+      log(`epoch ${epoch}: blue's sitting failed${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''} (${blueFailures} failed sitting(s) in a row) — the plan readies it again while it owes them`)
       continue
     }
+    blueFailures = 0
     const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
     const open = p.gap_ids.filter((g) => !foundClosed.has(g))
     const successors = [...new Set(Array.isArray(blueEnv2.successors) ? blueEnv2.successors : [])]
@@ -1038,6 +1053,8 @@ while (!stopped() && !seatStop) {
     log(`epoch ${epoch}: blue responded${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''}`)
     await hearOwed([readOf('blue-respond', blueEnv2)])
   }
+  // A STOP ON BLUE'S FAILURES STILL SEATS THIS EPOCH'S BENCH: the plan that readied blue docketed it, and
+  // a docket motion left standing is one `bench outcome` refuses. The loop's condition ends the debate.
   for (const p of benches) {
     if (stopped()) break
     log(`epoch ${epoch}: the bench sits on ${p.gap_ids.join(', ')}`)

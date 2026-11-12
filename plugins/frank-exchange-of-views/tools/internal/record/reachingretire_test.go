@@ -71,7 +71,7 @@ func TestAReachingRetireIsBluesActOnTheGap(t *testing.T) {
 			}
 			more := st.more()
 			run := more.blueRetiresIn("G1", c.anchor).register("red-chair").seed()
-			retiredAt := int64(len(st.evs) + len(more.evs) - 2) // the retire, before the stop and the chair's register
+			retiredAt := int64(len(st.evs) + len(more.evs) - 3) // the retire, before blue's admission, its stop and the chair's register
 
 			after, err := PlanDispatch(run)
 			if err != nil {

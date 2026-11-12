@@ -64,3 +64,37 @@ func TestAForcedRunLeavesNoInquiryOpen(t *testing.T) {
 		}
 	}
 }
+
+// TestAForcedUnverifiedRunTypesOnlyMaterialSeverities: every severity a forced-UNVERIFIED run's drives
+// type — a drawn mint's, a fixed one's, a regrade's — is a material grade, and a regrade still moves
+// the axis. On other axes, and in a drawn run, the grade is any grade.
+func TestAForcedUnverifiedRunTypesOnlyMaterialSeverities(t *testing.T) {
+	forced := &runner{rng: newLockedRand(1), forceUnverified: true}
+	drawn := &runner{rng: newLockedRand(1)}
+	seen := map[string]bool{}
+	for range 500 {
+		for name, g := range map[string]string{
+			"a drawn mint":             forced.severityGrade(),
+			"a fixed mint":             forced.severityOr("low"),
+			"a regrade":                forced.gradeOn("severity"),
+			"a regrade off the medium": forced.gradeOnOtherThan("severity", "medium"),
+		} {
+			if !slices.Contains(materialGrades, g) {
+				t.Fatalf("%s typed severity %q, which is not material", name, g)
+			}
+			if name == "a regrade off the medium" && g == "medium" {
+				t.Fatal("a regrade typed the grade it moves from")
+			}
+		}
+		seen[forced.gradeOn("impact")] = true
+		seen[drawn.severityGrade()] = true
+	}
+	if drawn.severityOr("low") != "low" {
+		t.Error("a drawn run's fixed severity is not the fixed one")
+	}
+	for _, g := range grades {
+		if !seen[g] {
+			t.Errorf("no draw typed %q on another axis or in a drawn run: those keep every grade", g)
+		}
+	}
+}

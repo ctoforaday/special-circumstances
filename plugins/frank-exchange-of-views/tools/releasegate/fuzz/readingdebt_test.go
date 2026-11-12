@@ -695,7 +695,7 @@ func (r *runner) mintOnFoundReading(seatID, quote string, v *recordpb.Verify, at
 func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 	args := append([]string{"--json", "mint", "--seat-id", seatID, "--class", classUnsourced,
 		"--problem", "fuzz: no source backs the sentence", "--check-kind", "document", "--check", "a citation backs the sentence",
-		"--fix", r.readingDirective(), "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--fix", r.readingDirective(), "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		"--reason", "fuzz: the source the lens found says nothing of the sentence"}, quoteArgs(quote)...)
 	out, err := r.exec(args...)
 	switch {
