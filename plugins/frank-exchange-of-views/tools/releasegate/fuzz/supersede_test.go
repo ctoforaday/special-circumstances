@@ -90,7 +90,7 @@ func (r *runner) heldByForcedChain(id string) bool {
 func (r *runner) refuseDroppedDemand(seatID, ancestor, kind string) {
 	out, err := r.exec("--json", "mint", "--seat-id", seatID, "--quote", "A § fuzz sentence to anchor findings.",
 		"--class", mintPoolClasses[0], "--problem", "fuzz: a successor that drops its ancestor's demand", "--check-kind", kind,
-		"--check", "acc", "--fix", dirIgnore, "--severity", "low", "--likelihood", "low", "--impact", "low",
+		"--check", "acc", "--fix", dirIgnore, "--severity", r.severityOr("low"), "--likelihood", "low", "--impact", "low",
 		"--reason", "fuzz: the ancestor awaits a live answer of another kind", "--supersedes", ancestor)
 	env, ok := refusalEnvelopeIn(out)
 	switch {

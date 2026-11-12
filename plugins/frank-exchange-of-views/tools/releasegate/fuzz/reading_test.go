@@ -690,21 +690,21 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 		r.oneGapOnReading(seatID, classContradicts, mout, args, "quote")
 		return
 	case !strings.Contains(mout, estoppelWords):
-		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused, and not as an estoppel: " + firstLine(mout))
+		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused, and not as the estoppel against " + prescribing + ": " + firstLine(mout))
 		return
 	}
-	// THE GUARD NAMES ONE PRESCRIPTION THE SENTENCE HOLDS, and the sentence can hold two: another
-	// gap's text applied verbatim into the same line estops the mint as well, and the refusal may
-	// name that one. The debt is then that gap's to answer.
+	// THE GUARD NAMES ONE PRESCRIPTION THE SENTENCE HOLDS, and this drive's prescription is one text:
+	// two gaps whose fix blue applied verbatim can both estop the sentence, and the refusal names
+	// either. It must name one of them, and the debt clears against the one it names.
 	named := ""
-	for _, g := range r.estoppingGaps() {
-		if strings.Contains(mout, g) {
+	for _, g := range r.appliedVerbatimGaps() {
+		if strings.Contains(mout, g) && r.stillEstops(g) {
 			named = g
 			break
 		}
 	}
 	if named == "" {
-		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused as an estoppel naming no prescription that still estops (the drive drew " + prescribing + "): " + firstLine(mout))
+		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was refused as an estoppel naming no gap whose applied prescription still estops it (the drive's: " + prescribing + "): " + firstLine(mout))
 		return
 	}
 	prescribing = named
@@ -723,6 +723,21 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 	if r.readFoundClearing(seatID, quote) != 0 {
 		r.debtDischargedBy(seatID, quote, "reread", "the lens's reading of another source for the prescribed sentence")
 	}
+}
+
+// appliedVerbatimGaps is each gap a blue edit applied red's prescription for verbatim, in record order.
+func (r *runner) appliedVerbatimGaps() []string {
+	b, ok := r.board()
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, e := range b.Events {
+		if ed, isE := recordpb.BodyAs[*recordpb.BlueEdit](e); isE && ed.GetAppliedVerbatim() && !slices.Contains(out, ed.GetAnswers()) {
+			out = append(out, ed.GetAnswers())
+		}
+	}
+	return out
 }
 
 // readNotTheWorkFound is a lens's reading of the copy that is not the work as a source it found: it

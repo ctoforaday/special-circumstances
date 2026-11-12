@@ -184,7 +184,11 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 
 // turnsOnGaps is acts with what else ends or begins a lens's turn: blue's edit of a sentence a gap is
 // anchored on, under whatever name it answers (the record's `reopened`), and the opening of each closed
-// sitting a lens was dispatched onto the gap for. A sitting nothing has closed yet is no turn taken.
+// sitting a lens was dispatched onto the gap for. A sitting nothing has closed yet is no turn taken, and
+// nor is one that did not finish (ruled by gblock 2026-11-11): a failed sitting (record.FailedSittingsOf,
+// the record's one answer to whether a sitting failed, which runOne holds to the drive's own count), and
+// one a sitting_limit names, cut short at the call limit. Its silence on the gap audited nothing, and the
+// lens's turn stands.
 func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turns, sittings gapActs) {
 	turns, sittings = gapActs{}, gapActs{}
 	for g, as := range acts {
@@ -198,10 +202,21 @@ func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turn
 			}{seat, i})
 		}
 	}
+	type seatSitting struct {
+		seat    string
+		sitting int
+	}
+	noTurn := map[seatSitting]bool{}
+	for _, f := range record.FailedSittingsOf(evs, at) {
+		noTurn[seatSitting{f.SeatID, f.Sitting}] = true
+	}
 	openings := map[string][]int{}
 	agentOf := map[int]string{}
 	stops := map[string][]int{}
 	for i, e := range evs {
+		if b, ok := recordpb.BodyAs[*recordpb.SittingLimit](e); ok {
+			noTurn[seatSitting{b.GetSeatId(), int(b.GetSitting())}] = true
+		}
 		if seat, opens := at.Opens(e); opens {
 			openings[seat] = append(openings[seat], i)
 		}
@@ -238,7 +253,7 @@ func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turn
 		}
 		// A LENS'S SITTING ONLY: a sitting of blue's opens nothing to audit. Its acts do, and they are read
 		// as acts.
-		if closed && seatclass.RoleOfSeat(d.GetSeatId()) == "lens" {
+		if closed && seatclass.RoleOfSeat(d.GetSeatId()) == "lens" && !noTurn[seatSitting{d.GetSeatId(), at.Of(evs[start]).Sitting}] {
 			add(sittings, d.GetSeatId(), start, d.GetGapIds()...)
 			add(turns, d.GetSeatId(), start, d.GetGapIds()...)
 		}
