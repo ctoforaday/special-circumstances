@@ -36,6 +36,6 @@ func SittingLimitAudit(run record.Run) Audit {
 		return Audit{Check: "sitting-limit", Verdict: "PASS", Detail: fmt.Sprintf("no sitting reached the per-sitting tool-call limit of %d", limit)}
 	}
 	return Audit{Check: "sitting-limit", Verdict: "WARN", Detail: fmt.Sprintf(
-		"%d sitting(s) stopped at the per-sitting tool-call limit: %s. Each seat was refused every further call and returned; read those sittings' acts as cut short",
+		"%d sitting(s) stopped at the per-sitting tool-call limit: %s. Each seat was refused every further call but its envelope; read those sittings' acts as cut short",
 		len(stopped), strings.Join(stopped, "; "))}
 }
