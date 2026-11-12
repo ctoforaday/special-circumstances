@@ -113,7 +113,7 @@ bumps and about 11 PRs. It buys a VERIFIED stamp that cannot be printed over an 
 
 ```
 P0 (archive fixture) ── first, alone
-#1828 (72) ── #1824 (73) ── #1695 fold ── slimming bump ─┬─ P6 (I) ── P7 (K, certify) ── P9 (voice)
+#1828 (72) ── #1824 (73) ── #1695 fold ── slimming bump ─┬─ P7 (K, certify) ── P9 (voice)   [P6 (I): deferred to #1695's redesign]
                                                           ├─ P8 (H, close served head) ← P3
 P1 (defects 8, 9; no schema) ── independent               ├─ P10 (M option) ← slimming 5e
 P2 (G; no schema) ── independent                          │
@@ -129,8 +129,8 @@ P3 (F) ── P4 (D + L) ──────────────────�
 | **P3** | F: the report is served on the work list; the delivery is the read; productive sitting widened | `ReportRead` gains `section`/`of` (bump) | P0 | medium-large |
 | **P4** | D + L: own-anchor re-ready; the chair's bearing per stale change; logic's checks re-owed as of the edit | `SpotCheck` gains `bearings` (bump) | P3, #1824 | medium |
 | **P5** | E + J: question parts, coverage, checks, QUALIFIED | new events + enum value + gap class + about kind (bump) | #1824 | large |
-| **P6** | I: aggregate judgement before PASS | new event + blocker kind (bump) | #1695's gate, P4 | medium |
-| **P7** | K + defect 11: basis block; certify counts composed where they render; layout is the one source | none, or `Certify.subjects` if F7(a) (bump) | P5, P6 | medium |
+| **P6** | I: aggregate judgement before PASS — DEFERRED to #1695's redesign | — | #1695 redesign | — |
+| **P7** | K + defect 11: basis block; certify counts composed where they render; layout is the one source | none, or `Certify.subjects` if F7(a) (bump) | P5 (the basis block lists open non-material gaps as they stand; when #1695's redesign lands I, its judgement joins the block) | medium |
 | **P8** | H + defect 7: close stamps `own_prescription` and `served_head` | `Close` fields (bump) | #1824, P3 | small-medium |
 | **P9** | Defect 10 / ruling P: a voice closure judges its section | none (or key rule, F5) | P3, P7 | small |
 | **P10** | M option: archive capture time on `cite` | `Cite` field (bump) | slimming 5e | small |
@@ -461,6 +461,11 @@ kind, none of which an archived record holds.
 
 ### III.6 P6 — I: the chair judges open non-material gaps together before a PASS
 
+> **DEFERRED (gblock 2026-11-12: "1695 is being redesigned for being overly complicated").** P6 is not built from this
+> plan. The ruling stands — the chair weighs open non-material gaps together before a PASS — but its route to the bench
+> is designed in #1695's redesign, not against #1695's current plan. The design below is kept only as the input that
+> redesign must answer: what a group is, who judges it, and how a material group reaches the bench. F4 and F8 move there.
+
 **Today.** red-chair.md:14 asks the PASS to list every open non-material gap by class with one line each; `Gate` holds
 only `verdict`. Only material gaps hold a PASS, and nothing weighs non-material gaps together. After #1695 every former
 finding is a non-material gap.
@@ -766,21 +771,13 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     run: none re-sat.
 - **F3 — the qualified outcome's shape (E).** (a) **Recommended.** A new value, QUALIFIED. (b) VERIFIED plus a
   `qualified` field — a reader that ignores the field prints plain VERIFIED.
-- **F4 — I's route to the bench (held for gblock).** The ruling is #1695's regrade motions; three seams (§III.6).
-  - (a) **Recommended.** The chair's aggregate filing is a regrade motion per gap of the group (to a material grade),
-    exempt from 1695-R:31's one-exchange precondition because the chair is a third-party filer acting before a PASS,
-    with the minter's window first. Cost: one motion per gap; the exemption is a second rule about filing.
-  - (b) One chair `position` naming the group (FORKS:328: position is the chair's for what is not about one gap), heard
-    by the bench whether or not the plan permitted the PASS (`positionheard.go` changes). Departs from the 11-11 route.
-  - (c) The chair mints nothing and files nothing: a material group is reported as `CEILING`-blocking. Rejected here:
-    the chair holds no PASS-holding instrument by ruling.
+- **F4 — I's route to the bench.** Moved to #1695's redesign (gblock 2026-11-12); not asked here.
 - **F5 — voice closures (defect 10).** (a) **Recommended.** One open report_voice gap per section. (b) Duty only.
 - **F6 — M: stamp an archived copy's capture time.** (a) **Recommended.** Yes, beside slimming's fetch time. (b) No.
 - **F7 — K: the bench's asks.** (a) `Certify.subjects`: ids the bench names (`--subject`, a new flag: mint's `--about`
   has a different shape), rendered in the basis table. (b) **Recommended.** Point to judgments.md, where the bench's
   statement already renders; fix lead-judge.md:128-129 to say so. No new field, and the statement keeps one home.
-- **F8 — singleton groups (I).** (a) **Recommended.** A singleton is a group: one rule, one duty shape. (b) Groups of two
-  or more only; a lone non-material gap needs no aggregate.
+- **F8 — singleton groups (I).** Moved to #1695's redesign with F4.
 - **F9 — defects 7, 8, 9 and 11: split out or keep bundled.** (a) **Recommended.** Split: 8 and 9 (P1) are standalone
   PRs now; 11 becomes a small render-only PR; 7 stays in P8, because `served_head` needs P3. (b) Keep all in this plan's
   sequence.
