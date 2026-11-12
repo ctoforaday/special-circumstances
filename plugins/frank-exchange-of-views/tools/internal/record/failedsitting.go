@@ -76,6 +76,40 @@ func FailedSittingsOf(evs []*Event, win WindowIndex) []FailedSitting {
 	return out
 }
 
+// seatSitting is one sitting by its seat and the seat's own sitting number — the ordinal stored on
+// the opening's row (events.sitting), which the hook's call count is keyed by (sittingcap).
+type seatSitting struct {
+	seat    string
+	sitting int
+}
+
+// limitedSittingsOf is each sitting a sitting_limit names: stopped at the run's per-sitting
+// tool-call limit.
+func limitedSittingsOf(evs []*Event) map[seatSitting]bool {
+	out := map[seatSitting]bool{}
+	for _, e := range evs {
+		if b, ok := recordpb.BodyAs[*recordpb.SittingLimit](e); ok {
+			out[seatSitting{b.GetSeatId(), int(b.GetSitting())}] = true
+		}
+	}
+	return out
+}
+
+// noTurnSittingsOf is each sitting that produced no admitted envelope, as the record holds it: a
+// failed sitting (FailedSittingsOf), and one stopped at the call limit, whose every call after the
+// limit — the envelope's included — the PreToolUse hook refuses. Neither is a turn in an exchange
+// (gapSittingsOf): the seat did not finish what it was dispatched for, so its silence on a gap is
+// no judgement on it (ruled by gblock 2026-11-11). What bounds a seat whose sittings keep failing is
+// the failed-sitting bound — a lens retires, and the engine stops the run on blue's or the chair's
+// failures in a row — never the gap's limits.
+func noTurnSittingsOf(evs []*Event, win WindowIndex) map[seatSitting]bool {
+	out := limitedSittingsOf(evs)
+	for _, f := range FailedSittingsOf(evs, win) {
+		out[seatSitting{f.SeatID, f.Sitting}] = true
+	}
+	return out
+}
+
 // AgentSitting is a sitting whose opening carries an agent, with what the record holds of its end.
 type AgentSitting struct {
 	SeatID string `json:"seat_id"`

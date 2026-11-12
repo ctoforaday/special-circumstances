@@ -359,6 +359,9 @@ type runner struct {
 	// endWithoutEnvelope is how many of the next agent-bearing sittings' dispatches end without their
 	// envelope (endsWithoutEnvelope), for a test that drives that shape on no draw.
 	endWithoutEnvelope int
+	// forceBlueFails drives blueFailsSeed's run (failedblue_test.go): every blue-respond sitting opens
+	// under an agent and ends without its envelope, until the engine stops the run on it.
+	forceBlueFails bool
 	// failedSittings counts the sittings dispatchReturns closed with no admission written, of a
 	// seat whose work arrives as items: the sittings the record must read as failed
 	// (record.FailedSittingsOf), which runOne compares with what the record does read.
@@ -2405,7 +2408,7 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	// from retiring — needs all three.
 	case r.forceOwedComputation && seatID == computationOwner:
 		r.admit(registerArgs(seatID, occ)...)
-	case r.openUnderAgent || r.coin(25):
+	case r.openUnderAgent || r.forceBlueFails && seatID == "blue-respond" || r.coin(25):
 		agent = r.registerTwice(seatID, occ)
 	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
 		agent = r.lookThenRegister(seatID)
@@ -2489,11 +2492,15 @@ func (r *runner) unreturnedDispatches() string {
 func (r *runner) endsWithoutEnvelope(seatID string) bool {
 	r.mu.Lock()
 	agent := r.sittingAgent[seatID]
+	forced := agent != "" && r.forceBlueFails && seatID == "blue-respond"
 	arranged := agent != "" && r.endWithoutEnvelope > 0
 	if arranged {
 		r.endWithoutEnvelope--
 	}
 	r.mu.Unlock()
+	if forced {
+		return true
+	}
 	if agent == "" {
 		return false
 	}
@@ -7149,6 +7156,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceReadingRemoval = seed == readingRemovalSeed
 	r.forceBareEvidence = seed == bareEvidenceSeed
 	r.forceFateTurn = seed == fateTurnSeed
+	r.forceBlueFails = seed == blueFailsSeed
 	r.forceMintBare = seed == mintBareSeed
 	r.forceSourceDemand = seed == sourceDemandSeed
 	r.forceLifecycle = seed == lifecycleSeed
@@ -8050,6 +8058,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if msg := r.fateTurnForcedErr(); msg != "" && res.err == "" {
 		res.err = msg
 	}
+	if msg := r.blueFailsForcedErr(result); msg != "" && res.err == "" {
+		res.err = msg
+	}
 	if r.forceAbsentSpan && r.spansRefused == 0 && res.err == "" {
 		res.err = "forced absent span: no cite of a span its source does not hold was refused"
 		if !r.absentSpanDriven {
@@ -8483,7 +8494,7 @@ var reportExemptions = map[string]string{
 	// THE HOOKS' FACTS ABOUT A SITTING'S END. Both are written by feov-sitting-write, about a seat
 	// and not by it, and carry no prose; their readers are the record's own folds.
 	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting), record.sittingCloserOf (where a sitting ended), record.FailedSittingsOf (whether it failed), record.registeredSitting (the repeat-register refusal), record.OneCloseASitting (its own write guard), record.TranscriptOf (behind record.SeatModels' served model and show diagnostics), record.TranscriptsOf (capture's transcript list), and migrate's replay (migrate/replay.go) and admissionBefore (migrate/admission.go: the sitting an older source's close ends, which it admits), carrying no prose, never rendered",
-	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports, record.OneAdmissionASitting (its own write guard) and migrate's admissionBefore (migrate/admission.go: whether a sitting an older source closed is admitted already), carrying no prose, never rendered",
+	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports and the exchange fold reads (record.noTurnSittingsOf: a failed sitting is no turn), record.OneAdmissionASitting (its own write guard) and migrate's admissionBefore (migrate/admission.go: whether a sitting an older source closed is admitted already), carrying no prose, never rendered",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the computation either way (#343).
 	"reproduce":   "reason",

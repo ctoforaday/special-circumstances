@@ -42,6 +42,7 @@ const (
 	lifecycleSeed           = 19 // the anchor lifecycle's acts and refusals (lifecycleseed_test.go)
 	readingRemovalSeed      = 25 // the reading debt's discharges no draw reaches (readingremovalseed_test.go)
 	partsSeed               = 24 // every part refusal (parts_test.go)
+	blueFailsSeed           = 26 // blue's failed sittings in a row stop the run (failedblue_test.go)
 	fateTurnSeed            = 27 // a lens's turn a changed fate brought (fateturnseed_test.go)
 )
 

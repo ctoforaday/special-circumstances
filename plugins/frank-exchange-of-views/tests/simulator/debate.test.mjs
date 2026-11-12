@@ -129,6 +129,36 @@ test('three chair failures in a row stop the run UNVERIFIED, naming the chair', 
   assert.ok(/it is UNVERIFIED, ended UNVERIFIED — the engine stopped the debate on a seat that kept failing: seat failure: red-chair failed 3 sittings in a row/.test(assembly), `the stamp names the chair: ${assembly.slice(0, 600)}`)
 })
 
+// BLUE'S FAILED SITTING IS NO TURN ON A GAP (ruled by gblock 2026-11-11), so the gaps' limits never
+// bound a blue that keeps failing: NO_PROGRESS_EPOCHS of its failures in a row stop the debate
+// UNVERIFIED, naming blue, and the assembly sitting stamps that reason. Each plan here moves the head,
+// so the no-progress valve does not fire first.
+const movingPlan = (head) => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')], { head }) })
+test('three blue failures in a row stop the run UNVERIFIED, naming blue', async () => {
+  const world = makeWorld(failing('blue-respond', 3, 'returns null', makeResponder({ chair: [movingPlan(2), movingPlan(3), movingPlan(4), movingPlan(5), passChair()] })))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'UNVERIFIED')
+  assert.equal(labelsOf(world, 'blue-respond').length, NO_PROGRESS_EPOCHS)
+  assert.equal(labelsOf(world, 'red-chair').length, NO_PROGRESS_EPOCHS, 'no chair sits after the stop')
+  assert.deepEqual(out.termination.seat_stop, { seat: 'blue-respond', failures: NO_PROGRESS_EPOCHS })
+  assert.equal(out.termination.no_progress, null)
+  const assembly = firstPrompt(world, 'judge · assemble')
+  assert.ok(/ended UNVERIFIED — the engine stopped the debate on a seat that kept failing: seat failure: blue-respond failed 3 sittings in a row/.test(assembly), `the stamp names blue: ${assembly.slice(0, 600)}`)
+})
+
+test('blue failures not in a row stop nothing', async () => {
+  const seats = makeResponder({ chair: [movingPlan(2), movingPlan(3), movingPlan(4), movingPlan(5), passChair()] })
+  let n = 0
+  const world = makeWorld((p, o) => {
+    if (o.label.startsWith('blue-respond') && [1, 2, 4].includes(++n)) throw new Error(NUDGE_ERROR)
+    return seats(p, o)
+  })
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'VERIFIED')
+  assert.equal(labelsOf(world, 'blue-respond').length, 4, 'fail, fail, answer, fail')
+  assert.equal(out.termination.seat_stop, null)
+})
+
 // THE SYNTHESIS AND THE ASSEMBLY HAVE NO EPOCH TO BE RE-DISPATCHED IN, so each is sat again in place.
 test('a failed synthesis is sat again in place; three in a row stop the debate before it opens, UNVERIFIED', async () => {
   const once = makeWorld(failing('blue-synthesize', 1, 'returns null', makeResponder()))

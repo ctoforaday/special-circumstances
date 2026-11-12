@@ -209,7 +209,8 @@ func lensReadAt(turns []gapAct, lens string, minted, floor, upto int64) int64 {
 //   - THE OPENING OF A CLOSED SITTING OF THE LENS ENGAGED ON THE GAP, whether or not it acted: silence
 //     is a turn taken, so a null turn does not leave the turn standing for the next epoch. Its opening
 //     and not its end, so an act of blue's inside the window still counts as unread. A sitting the
-//     record cannot close is no turn taken.
+//     record cannot close is no turn taken, and nor is one that produced no admitted envelope, which
+//     gapSittingsOf does not hold.
 func lensTurnActsOf(evs []*Event, ids []int64, acts map[string][]gapAct, sittings map[string][]partySitting, minted map[string]string) map[string][]gapAct {
 	out := make(map[string][]gapAct, len(acts))
 	for g, as := range acts {

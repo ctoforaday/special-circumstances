@@ -928,11 +928,7 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 	agentOf := map[int64]string{} // an opening's place -> the agent it carries
 	ordinal := map[int64]int{}    // an opening's place -> its stored sitting ordinal for its seat
 	stops := map[string][]int64{} // agent -> the places of its sitting_close events, ascending
-	type limited struct {
-		seat    string
-		sitting int
-	}
-	limits := map[limited]bool{}
+	limits := limitedSittingsOf(evs)
 	for i, e := range evs {
 		if _, opens := win.Opens(e); opens {
 			agentOf[seq[i]] = recordpb.AgentOpening(e)
@@ -940,9 +936,6 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
 			stops[b.GetAgentId()] = append(stops[b.GetAgentId()], seq[i])
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.SittingLimit](e); ok {
-			limits[limited{b.GetSeatId(), int(b.GetSitting())}] = true
 		}
 	}
 	out := satThrough{through: map[string][]int64{}, short: map[int64]string{}}
@@ -955,7 +948,7 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 			agent := agentOf[o]
 			stop, stopped := firstAfter(stops[agent], o)
 			switch {
-			case limits[limited{seat, ordinal[o]}]:
+			case limits[seatSitting{seat, ordinal[o]}]:
 				out.short[o] = shortCallLimit
 			case agent == "" || (stopped && (!later || stop < next)):
 				out.through[seat] = append(out.through[seat], o)
