@@ -435,7 +435,7 @@ func (r *runner) readCited(seatID, anchorID, outcome string) int64 {
 	return at
 }
 
-// plainAxes sets a reading's outcome, confidence and reason, with no bridge and no access date.
+// plainAxes sets a reading's outcome, confidence and reason, with no bridge.
 func plainAxes(outcome string, c *cmd) *cmd {
 	return c.set("--as", outcome).set("--confidence", "high").set("--reason", "fuzz: what the source actually says")
 }
@@ -573,7 +573,7 @@ func (r *runner) citeNotTheWork(seatID string) {
 		return
 	}
 	body := []byte(sourceBody(notTheWorkSource))
-	e := fetchcache.EntryFor(r.run(), notTheWorkSource, &fetchcache.Attempt{Body: body, ContentType: "text/plain", TextRetrieved: true}, "")
+	e := fetchcache.EntryFor(r.run(), notTheWorkSource, &fetchcache.Attempt{FetchedAt: fetchcache.FetchTime(), Body: body, ContentType: "text/plain", TextRetrieved: true}, "")
 	e.Completeness, e.CompletenessReason = fetchcache.CompletenessNotTheWork, "fuzz: the source answered with its sign-in page"
 	if _, err := fetchcache.Store(r.run(), e, body); err != nil {
 		r.noteActErr("seeding the cache with a copy that is not the work: " + err.Error())

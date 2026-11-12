@@ -208,7 +208,7 @@ func TestRenderPagesDoesNotItselfRefuseADocumentThatHasText(t *testing.T) {
 func TestLookupShaFindsAnEntryAndReportsAnHonestMiss(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	yes := true
-	stored, err := Store(run, Entry{URL: "https://ex/a.pdf", ContentType: "application/pdf", TextExtracted: &yes}, []byte("body"))
+	stored, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/a.pdf", ContentType: "application/pdf", TextExtracted: &yes}, []byte("body"))
 	if err != nil {
 		t.Fatal(err)
 	}

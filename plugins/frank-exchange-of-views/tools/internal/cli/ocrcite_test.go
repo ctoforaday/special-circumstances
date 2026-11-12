@@ -335,7 +335,7 @@ func TestRenderPageRefusesWhatItCannotDraw(t *testing.T) {
 		mustRefuse(t, err, out, "page "+p+" of a 3-page document")
 	}
 
-	html, serr := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{URL: "https://ex/h", ContentType: "text/html"}, []byte("<html>x</html>"))
+	html, serr := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{FetchedAt: storedAt, URL: "https://ex/h", ContentType: "text/html"}, []byte("<html>x</html>"))
 	if serr != nil {
 		t.Fatal(serr)
 	}

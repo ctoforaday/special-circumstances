@@ -27,7 +27,7 @@ func FuzzWeaveCitations(f *testing.F) {
 		var sources []record.Source
 		for _, l := range strings.Split(labels, "|") {
 			if l = strings.TrimSpace(l); l != "" {
-				sources = append(sources, record.Source{Label: l, URL: "https://u/" + l, Title: "T " + l, AccessDate: "2026-08-03"})
+				sources = append(sources, record.Source{Label: l, URL: "https://u/" + l, Title: "T " + l, FetchedAt: "2026-08-03T12:00:00Z"})
 			}
 		}
 		out := weaveCitations(md, sources) // must not panic

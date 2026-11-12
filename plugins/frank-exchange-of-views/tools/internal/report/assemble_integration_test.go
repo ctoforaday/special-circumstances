@@ -411,14 +411,14 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-00000001"), Url: proto.String("https://ex/coherence"),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Coherence Computation"),
-		AccessDate: proto.String("2026-08-03"),
+		FetchedAt: proto.String("2026-08-03T12:00:00Z"),
 	})
 	// A SECOND source, cited only from red's board — so its reference lands in docket.md and
 	// nowhere else. This is the case a global weave gets wrong and a per-file weave gets right.
 	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-00000002"), Url: proto.String("https://ex/eviction"),
 		Sha256: proto.String("beefcafe"), Title: proto.String("Eviction Under Contention"),
-		AccessDate: proto.String("2026-08-04"),
+		FetchedAt: proto.String("2026-08-04T12:00:00Z"),
 	})
 	add("blue-synthesize", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 		ComputationId: proto.String("K-00000001"), BundleSha: proto.String(sha),

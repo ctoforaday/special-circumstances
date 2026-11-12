@@ -78,7 +78,7 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_INQUIRY", Means: "an inquiry: its question, its hypothesis and each fate recorded on it"},
 	{Name: "EVENT_TYPE_BLUE_EDIT", Means: "a change to the report, recorded as old and new so the edit itself is auditable"},
 	{Name: "EVENT_TYPE_CERTIFY", Means: "a seat's signed statement about its own work — what it asserts on the record"},
-	{Name: "EVENT_TYPE_CITE", Means: "a source brought into the debate, with the hash and access date that make it re-checkable"},
+	{Name: "EVENT_TYPE_CITE", Means: "a source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable"},
 	{Name: "EVENT_TYPE_CLOSE", Means: "red closing a gap on a verified repair — red's half of the closing vocabulary"},
 	{Name: "EVENT_TYPE_CLOSING", Means: "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"},
 	{Name: "EVENT_TYPE_DECLARE", Means: "the bench stating a holding that later sittings are expected to apply"},

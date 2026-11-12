@@ -112,7 +112,7 @@ func TestRankedSearchStatesCutAndScope(t *testing.T) {
 	runDir, sha := searchRun(t)
 	// An image-only PDF holds no text to rank; the cross-source search names it rather than drop it.
 	no := false
-	if _, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{URL: "https://census/scan.pdf", ContentType: "application/pdf", TextExtracted: &no}, []byte("%PDF-scan")); err != nil {
+	if _, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{FetchedAt: storedAt, URL: "https://census/scan.pdf", ContentType: "application/pdf", TextExtracted: &no}, []byte("%PDF-scan")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -228,7 +228,7 @@ const searchSourceText = "Costs in the region are moderate and rising, as the se
 func searchRun(t *testing.T) (string, string) {
 	t.Helper()
 	runDir := censusRun(t)
-	e, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{URL: "https://census/text", ContentType: "text/plain"}, []byte(searchSourceText))
+	e, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{FetchedAt: storedAt, URL: "https://census/text", ContentType: "text/plain"}, []byte(searchSourceText))
 	if err != nil {
 		t.Fatal(err)
 	}

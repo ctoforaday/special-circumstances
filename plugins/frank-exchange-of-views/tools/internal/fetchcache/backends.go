@@ -99,6 +99,9 @@ type Attempt struct {
 	// bytes records it as its copy_url; Via is a sentence for a seat, and nothing reads a url
 	// back out of it.
 	URL string
+	// FetchedAt is when the backend's answer arrived, stamped by Recover (FetchTime). The entry
+	// built from this attempt carries it.
+	FetchedAt string
 }
 
 // ---------- identifiers ----------
@@ -921,7 +924,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 		if a == nil {
 			return nil
 		}
-		a.Backend, a.DOI = name, doi
+		a.Backend, a.DOI, a.FetchedAt = name, doi, FetchTime()
 		if a.Facts == (WorkFacts{}) && doi != "" {
 			if !asked {
 				facts, _, _ = openAlexWork(f, doi)

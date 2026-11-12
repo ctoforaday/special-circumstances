@@ -1647,6 +1647,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := copyProvenance("cite", b.GetCopySubstitution(), b.CopyUrl); err != nil {
 			return err
 		}
+		// WHEN THE COPY WAS FETCHED IS A TIME, as the fetch index stamped it: a value no reader can
+		// parse would print no accessed date and say nothing of why.
+		if b.FetchedAt != nil && AccessedOn(b.GetFetchedAt()) == "" {
+			return fmt.Errorf("cite carries fetched_at %q, which is not an RFC 3339 time — the tool stamps it from the fetch index's record of when the copy was fetched", b.GetFetchedAt())
+		}
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
 		// none. The span, its place and the text around it are one fact: a span without the source's
 		// own bytes around it is blue's word for what the source says, which is what this exists to

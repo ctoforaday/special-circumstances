@@ -100,8 +100,9 @@ non-200 are rejected, and one is taken with the raw-bytes modifier. Metadata is 
 a pdf's text layer, or an html page's readable text (parsed as a browser parses it; markup,
 comments, scripts, styles, the no-script fallback and the head left out, entities decoded, a line
 break per block; `extractor: feov-html-text@2`) — and the index
-maps url → entry, first match winning. A second fetch of a url is a cache hit, so red audits the
-exact bytes blue cited, never a page that drifted since. When the same bytes are cached for two
+maps url → entry, first match winning. Each entry records `fetched_at`, the time the fetch took
+its bytes. A second fetch of a url is a cache hit, so red audits the exact bytes blue cited, never a
+page that drifted since, and the entry's `fetched_at` stays the first fetch's. When the same bytes are cached for two
 urls that do not name one resource, fetch prints `shared_body_with`: that is the shape of a wall,
 and the hash then certifies the blockade. Two spellings of one url — `%7E` for `~`, a host's case,
 a default port, a fragment — are one resource under RFC 3986's normalisation (`SameResource`) and
@@ -234,9 +235,11 @@ Assembly weaves citations **per document** of the report set, because a footnote
 cross a file boundary. Finding markers are stripped; citation markers are resolved:
 
 - Each anchor becomes `[^N]`, numbered by first appearance. Each note reads `Title, PDF p. N. url
-  (accessed date)`: the page locator appears only for OCR quotes, and the date is the record's clock.
+  (accessed date)`: the page locator appears only for OCR quotes, and the date is the day the run's
+  fetch took the cited copy, which the fetch index records and the cite carries as `fetched_at`. A
+  cache hit does not move it. A citation migrated from a run before the field prints no date.
 - `## Bibliography` has **one line per url**. Its title comes from a blue cite where one exists,
-  and its access date is the earliest recorded.
+  and its accessed date is the earliest any citation of it carries.
 - **Marks**, in the note and in the Bibliography, because a reader following one may never see the
   other:
   - `**[RETRACTED]**`: a fact about the work, so any citation of the url that carries it marks the

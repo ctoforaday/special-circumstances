@@ -55,6 +55,11 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 			recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, "https://web.archive.org/x"), ""},
 		{"a recovery read from no url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
 			recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, ""), ""},
+		// AND THE FIFTH: when the copy was fetched, which is the source's accessed date. A cite that
+		// lost it prints none, and one carrying something else prints nothing anyone can read.
+		{"no fetch time", unfetched(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()}, nil), "carries no fetched_at"},
+		{"a fetch time that is a date", unfetched(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			proto.String("2026-11-12")), "not an RFC 3339 time"},
 	} {
 		err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CITE, tc.body)
 		switch {
@@ -70,6 +75,14 @@ func stamped(c *recordpb.Cite) *recordpb.Cite {
 	c.WorkStatus = recordpb.WorkStatus_WORK_STATUS_STANDING.Enum()
 	c.SourceCompleteness = recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum()
 	c.CopySubstitution = recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum()
+	c.FetchedAt = proto.String("2026-11-12T00:00:00Z")
+	return c
+}
+
+// unfetched is stamped with fetched_at as given: nil leaves it unstamped.
+func unfetched(c *recordpb.Cite, fetchedAt *string) *recordpb.Cite {
+	stamped(c)
+	c.FetchedAt = fetchedAt
 	return c
 }
 

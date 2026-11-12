@@ -762,7 +762,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 	for _, w := range []string{
 		"reason", "run", "seat-id", "json", "help", "id", "as",
 		"quote", "new", "question", "hypothesis", "method", "problem", "fix", "check",
-		"superseded-by", "supersedes", "ids", "none", "cites", "access-date", "relief", "class",
+		"superseded-by", "supersedes", "ids", "none", "cites", "relief", "class",
 	} {
 		known[w] = true
 	}

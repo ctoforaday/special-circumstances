@@ -19,7 +19,8 @@ import (
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
 // a blocker, a second gap of one class on one subject (a sentence, an inquiry, a citation — or a citation and the sentence that holds it), a mint of a class a reading defines by a seat whose own reading of its subject does not stand, a mint past the lens's budget, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
-// grant that states no order, a cite of a text-bearing source the tool located no span in, a bridge
+// grant that states no order, a cite of a text-bearing source the tool located no span in, a cite that
+// does not say when its copy was fetched, a bridge
 // that names no kind, a reproduce that names no execution or not the standing one. Each is the act's to answer at the moment it is written. An archived act is
 // what a seat DID, under the rules of its day, and the replay writes it without asking them: refusing
 // it would drop a real event and call the loss a translation.
@@ -126,6 +127,11 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// writes that retire as it was made.
 		return requireCitationUncited(q, b.GetAnchors())
 	case *recordpb.Cite:
+		// WHEN THE COPY WAS FETCHED IS STAMPED FROM THE FETCH INDEX: it is the source's accessed date,
+		// and a citation that lost it prints none. An archived cite predates the field.
+		if b.GetFetchedAt() == "" {
+			return fmt.Errorf("cite carries no fetched_at — the tool stamps when the run's fetch took the cited copy, from the fetch index, before it writes, and this write skipped that")
+		}
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT: the tool finds the span in the
 		// cached text before it writes.
 		switch origin := b.GetSourceTextOrigin(); origin {

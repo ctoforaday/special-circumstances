@@ -40,8 +40,8 @@ func citationsSection(ev record.EvidenceJSON, live map[string]string) string {
 		}
 		fmt.Fprintf(&b, "### %s\n\n", firstNonEmpty(plain(s.Title), plainURL(s.URL)))
 		fmt.Fprintf(&b, "- **source**: %s", plainURL(s.URL))
-		if s.AccessDate != "" {
-			fmt.Fprintf(&b, ", accessed %s", s.AccessDate)
+		if on := record.AccessedOn(s.FetchedAt); on != "" {
+			fmt.Fprintf(&b, ", accessed %s", on)
 		}
 		b.WriteString("\n")
 		if loc := plain(backs); loc != "" {

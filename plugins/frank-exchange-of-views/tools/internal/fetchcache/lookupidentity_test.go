@@ -17,7 +17,7 @@ func TestLookupServesOnlyTheURLItWasAsked(t *testing.T) {
 		{"https://ex/one", "the first document"},
 		{"https://ex/two", "the second document"},
 	} {
-		if _, err := Store(run, Entry{URL: s.url, ContentType: "text/plain"}, []byte(s.body)); err != nil {
+		if _, err := Store(run, Entry{FetchedAt: storedAt, URL: s.url, ContentType: "text/plain"}, []byte(s.body)); err != nil {
 			t.Fatal(err)
 		}
 	}

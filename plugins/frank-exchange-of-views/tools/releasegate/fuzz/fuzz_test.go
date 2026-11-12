@@ -6325,8 +6325,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					}
 					return c.set("--as", outcome).
 						set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
-						set("--reason", "fuzz: what the source actually says").
-						on(60, "--access-date", "2026-07-24")
+						set("--reason", "fuzz: what the source actually says")
 				}
 				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
 					r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, fresh, axes)

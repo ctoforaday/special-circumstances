@@ -81,7 +81,7 @@ func (s *shapeSource) anchor(seat, id, quote string) {
 // cite and proof are the acts as the archive holds them: recorded, and anchored by nothing else.
 func (s *shapeSource) cite(id, quote string) *record.Event {
 	s.t.Helper()
-	ev, err := record.Append(record.Identity{Run: s.run, SeatID: shapeBlue}, &recordpb.Cite{Label: proto.String(id), Location: proto.String(quote),
+	ev, err := record.Append(record.Identity{Run: s.run, SeatID: shapeBlue}, &recordpb.Cite{Label: proto.String(id), FetchedAt: proto.String("2026-11-12T00:00:00Z"), Location: proto.String(quote),
 		Url: proto.String("https://example.org/" + id), Title: proto.String("S"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"),
 		WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum()})
 	if err != nil {

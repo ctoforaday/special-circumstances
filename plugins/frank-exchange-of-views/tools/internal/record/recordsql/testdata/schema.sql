@@ -129,7 +129,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'a marker pla
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'red closing a gap on a verified repair — red''s half of the closing vocabulary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a party''s argument to the bench on one docketed gap — its minting lens''s or blue-respond''s');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('computation', 'a program blue ran twice on a bundle, with the bundle''s hash, its exit and its basis — the answer a computation check demands');
@@ -750,12 +750,11 @@ CREATE TABLE "anchor" (
 
 CREATE TABLE "cite" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "label" TEXT,
+  "label" TEXT UNIQUE,
   "url" TEXT,
   "sha256" TEXT,
   "title" TEXT,
   "location" TEXT,
-  "access_date" TEXT,
   "cite_key" TEXT,
   "text" TEXT,
   "source_text_origin" TEXT,
@@ -772,6 +771,7 @@ CREATE TABLE "cite" (
   "source_completeness" TEXT,
   "copy_substitution" TEXT,
   "copy_url" TEXT,
+  "fetched_at" TEXT,
   "answers" TEXT,
   FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
@@ -792,7 +792,6 @@ CREATE TABLE "verify" (
   "url" TEXT,
   "title" TEXT,
   "anchor" TEXT,
-  "access_date" TEXT,
   "outcome" TEXT NOT NULL,
   "confidence" TEXT NOT NULL,
   "text" TEXT NOT NULL,
@@ -812,7 +811,7 @@ CREATE TABLE "verify" (
 
 CREATE TABLE "computation" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "computation_id" TEXT,
+  "computation_id" TEXT UNIQUE,
   "key" TEXT,
   "bundle_sha" TEXT,
   "answers" TEXT,

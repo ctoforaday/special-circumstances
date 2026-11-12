@@ -329,3 +329,7 @@ func (r refusingFetcher) Fetch(u string) (*fetchcache.Response, error) {
 	}
 	return r.inner.Fetch(u)
 }
+
+// storedAt is the fetch time a test stamps on an entry it stores by hand, standing in for the fetch
+// that would have taken the bytes: Store refuses an entry without one.
+const storedAt = "2026-11-12T00:00:00Z"

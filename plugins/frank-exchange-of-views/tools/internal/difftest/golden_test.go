@@ -98,6 +98,7 @@ func TestGolden(t *testing.T) {
 				if _, ok := ev["ts"]; ok {
 					ev["ts"] = i
 				}
+				fetchedAtPresent(ev)
 				b, _ := json.Marshal(ev)
 				transcript.Write(b)
 				transcript.WriteString("\n")

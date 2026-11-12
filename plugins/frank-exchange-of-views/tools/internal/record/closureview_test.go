@@ -358,7 +358,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 		Title:      proto.String("e"),
 		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("the source says nothing of it")})
-	app(blue, &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Label: proto.String("c-1"), Url: proto.String("https://example.org"),
+	app(blue, &recordpb.Cite{FetchedAt: proto.String("2026-11-12T00:00:00Z"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Label: proto.String("c-1"), Url: proto.String("https://example.org"),
 		Title: proto.String("t"), CiteKey: proto.String("k1")})
 
 	bj, err := BoardJSONOfRun(run)

@@ -113,7 +113,7 @@ func TestPrewarmMatchesFullSourceTextSha(t *testing.T) {
 			case "embedded":
 				yes := true
 				var err error
-				if e, err = Store(run, Entry{URL: "https://ex/a.html", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+text+"</html>")); err != nil {
+				if e, err = Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/a.html", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+text+"</html>")); err != nil {
 					t.Fatal(err)
 				}
 				if err := foldExtraction(run, &e, Extraction{Attempted: true, Text: text, ExtractorID: htmlExtractorID}); err != nil {

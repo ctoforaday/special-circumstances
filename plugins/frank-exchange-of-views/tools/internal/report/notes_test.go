@@ -66,7 +66,7 @@ func TestOnlyWhatAssemblyComposesIsEscaped(t *testing.T) {
 // those words open no second note inside it.
 func TestTheWeavesNoteEscapesTheTitleItCarries(t *testing.T) {
 	got := weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{
-		{Label: "C-00000001", URL: "https://example.invalid/re", Title: "Negated classes: [^a-z] and friends", AccessDate: "2026-10-12"},
+		{Label: "C-00000001", URL: "https://example.invalid/re", Title: "Negated classes: [^a-z] and friends", FetchedAt: "2026-10-12T12:00:00Z"},
 	})
 	if !strings.Contains(got, "Claim[^1].") || !strings.Contains(got, `[^1]: Negated classes: \[^a-z] and friends`) {
 		t.Errorf("the note does not carry its own label unescaped and the title's bracket escaped:\n%s", got)
@@ -95,7 +95,7 @@ func TestACitationsLineIsEscapedWhole(t *testing.T) {
 		// reads the attribute and the text.
 		links [][2]string
 	}{
-		{record.Source{URL: "doi:10.1/a[^1]b", Title: "T", AccessDate: "2026-10-12",
+		{record.Source{URL: "doi:10.1/a[^1]b", Title: "T", FetchedAt: "2026-10-12T12:00:00Z",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://copy.invalid/c[^1]d"},
 			"T. doi:10.1/a\\[^1\\]b (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: [https://copy.invalid/c\\[^1\\]d](https://copy.invalid/c%5B%5E1%5Dd)]**",
 			[][2]string{{"https://copy.invalid/c%5B%5E1%5Dd", "https://copy.invalid/c[^1]d"}}},

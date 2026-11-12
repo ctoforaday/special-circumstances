@@ -17,7 +17,7 @@ func TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine(t *testing.T) {
 	nativehelper.Require(t, "feov-ocr")
 	run := runtest.New(t, t.TempDir())
 	no := false
-	e, err := fetchcache.Store(run, fetchcache.Entry{URL: "https://probe/scan.pdf", ContentType: "application/pdf", TextExtracted: &no, Pages: 1}, scannedFixture)
+	e, err := fetchcache.Store(run, fetchcache.Entry{FetchedAt: "2026-11-12T00:00:00Z", URL: "https://probe/scan.pdf", ContentType: "application/pdf", TextExtracted: &no, Pages: 1}, scannedFixture)
 	if err != nil {
 		t.Fatal(err)
 	}
