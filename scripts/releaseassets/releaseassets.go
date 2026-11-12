@@ -155,7 +155,10 @@ func BuilderFor(helper string, target Target) string {
 }
 
 // DeriveConsumerTargets finds which targets are downloaded by jobs in hooks.yml that need native-build
-// (excluding native-run and release).
+// (excluding native-run and release). A push to main builds only these targets, so a download whose
+// name or pattern names a native artifact this reader cannot resolve to one target (an expression
+// in place of the target, say) is refused, naming its job: read as nothing, it would drop that
+// target from main's build and leave the job with no helper to install.
 func DeriveConsumerTargets(workflowPath string) ([]string, error) {
 	b, err := os.ReadFile(workflowPath)
 	if err != nil {
@@ -174,6 +177,8 @@ func DeriveConsumerTargets(workflowPath string) ([]string, error) {
 	targetSet := map[string]bool{}
 	// Look for native-*-<target> artifact downloads in consumer jobs
 	reDownload := regexp.MustCompile(`native-[a-zA-Z0-9_-]+-([a-z0-9]+-[a-z0-9]+)`)
+	// A download's whole name or pattern: native-<helper or *>-<os>-<arch>.
+	reArtifact := regexp.MustCompile(`^native-[a-zA-Z0-9_*-]+-([a-z0-9]+-[a-z0-9]+)$`)
 
 	for jobName, job := range wf.Jobs {
 		if jobName == "native-run" || jobName == "release" || jobName == "native-scope" || jobName == "native-build" {
@@ -200,15 +205,16 @@ func DeriveConsumerTargets(workflowPath string) ([]string, error) {
 			var stepMap map[string]any
 			if err := step.Decode(&stepMap); err == nil {
 				if with, ok := stepMap["with"].(map[string]any); ok {
-					if name, ok := with["name"].(string); ok {
-						for _, m := range reDownload.FindAllStringSubmatch(name, -1) {
-							targetSet[m[1]] = true
+					for _, key := range []string{"name", "pattern"} {
+						v, ok := with[key].(string)
+						if !ok || !strings.HasPrefix(v, "native-") {
+							continue
 						}
-					}
-					if pattern, ok := with["pattern"].(string); ok {
-						for _, m := range reDownload.FindAllStringSubmatch(pattern, -1) {
-							targetSet[m[1]] = true
+						m := reArtifact.FindStringSubmatch(v)
+						if m == nil {
+							return nil, fmt.Errorf("%s: job %s downloads %s %q, which names no <os>-<arch> target: name each target literally, one download per target", workflowPath, jobName, key, v)
 						}
+						targetSet[m[1]] = true
 					}
 				}
 				// Also check env or run commands if applicable
