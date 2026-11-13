@@ -1,7 +1,8 @@
 # Constitution gaps from the auditing-standards run — question coverage, the report on the work list, retired lenses, lane fates, the PASS basis
 
-> **Status: DRAFT r2 for gblock's forks (§VI) and the auditor gate.** r1 failed the gate (8 gaps, 11 notes).
-> r2 applies the rulings "after plan-audit r1" in `~/.claude/scratch/universe-research-audit/RULINGS.md`, the
+> **Status: DRAFT r3 for gblock's forks (§VI) and the auditor gate.** r1 failed the gate (8 gaps, 11 notes).
+> r3 applies gblock's 2026-11-13 ruling on F (F1, F2; §III.3) and the whole-read value measurement
+> (`f-invest/WHOLE-READ-VALUE.md`) that replaces r2's F investigation. r2 applied the rulings "after plan-audit r1" in `~/.claude/scratch/universe-research-audit/RULINGS.md`, the
 > cross-check against the peer workstreams (#1695 findings fold, FEOV slimming, #1824, #1828), and the F
 > investigation (§III.3). Written 2026-11-11 on `plan/constitution-gaps`; `main` is at EventSchema **71**
 > (`recordpb/schema_gen.go`, ce709761a). The option text quoted in the rulings is agent wording; gblock's own
@@ -25,21 +26,22 @@ builds gblock's rulings so that each one becomes a record fact the tool composes
 | **E** + **J** | The question is split into **question parts** on the record. Each part carries a coverage state (`covered`, `not_obtained`, `excluded`) and a reason. Blue records it; the logic lens checks it, as it checks inquiries. A PASS over a part that is not covered derives the new outcome **QUALIFIED**. VERIFIED's meaning and derivation are made to agree. The tool composes the sentence for a part not covered from the cause field. | P5 |
 | **K** | A **basis block** under the outcome stamp in report.md: coverage in subject voice, and a metadata table composed from record fields. The report layout table (`report/layout.go`) becomes the one source the agent-facing descriptions of report.md are generated from. | P7 |
 | **D** | Two mechanisms. (1) A retired lens is re-readied when an edit since its pin reopens an anchor of a gap it minted, open or closed. (2) The chair's stale-area check is kept and redesigned: the tool serves the chair each change since a retired lens's pin, as its old and new text, and the chair records a **bearing** on each — a field the tool refuses the PASS without. This completes #1805's stamps. | P4 |
-| **F** | **The report reaches a lens through its work list.** The tool serves the report as section items on the one-item-at-a-time chain, changes since the pin first; the record of what the chain delivered is the report read, and the pin moves when every section at the head was delivered in the sitting. The seat records nothing about its reading. A sitting that closed, checked, reproduced or verified is productive for retirement. | P3 |
+| **F** | **The report reaches a lens through its work list** (ruled 2026-11-13). A lens's first sitting is served the whole report as section items on the one-item-at-a-time chain; every later sitting, the paragraphs changed since its pin (old and new) and its own gap passages, open and closed. Each lens owes one **full re-read** — the whole report served once more — and the PASS is refused while any lens that has sat owes it. The record of what the chain delivered is the report read; the pin moves when a sitting's delivery at a head is complete. The seat records nothing about its reading. A sitting that closed, checked, reproduced or verified is productive for retirement. | P3 |
 | **G** | A lane's settled inquiry fate that contradicts another lane's settled fate on the same inquiry is refused; the lane records the inquiry `underway`, and the synthesizer settles every inquiry the lanes left open. | P2 |
 | **I** | Before a PASS, the chair records an **aggregate** judgement for each group of open non-material gaps that share a subject. A missing one blocks the PASS. A group the chair finds material reaches the bench through #1695's one mechanism, as regrade motions on the group's gaps (the route's open seams are fork F4). | P6 |
 | **L** | An edit made while logic was retired, as computed over the events before that edit, unseats every standing inquiry check, which re-owes it. This joins #1806's re-owe through `inquiryCheckStands`. | P4 |
 | **H** | The tool stamps `own_prescription` on a close, derived from the estoppel record. Seats type nothing. | P8 |
 | **M** (option) | If gblock rules yes (§VI F6), `cite` stamps the archive capture time of a copy the tool took from a web archive, beside slimming's fetch time. | P10 |
-| AUDIT defects without a ruling | `show work` stops counting the previous sitting's refusals as this one's (8). The sonnet price row is corrected against the bill (9). Certify's counts are composed where they render (11). A close carries the head its sitting was served the whole report at (7). A voice closure judges its section (10, gblock's P ruling). | P1, P7, P8, P9 |
+| AUDIT defects without a ruling | `show work` stops counting the previous sitting's refusals as this one's (8). The sonnet price row is corrected against the bill (9). Certify's counts are composed where they render (11). A close carries the head its sitting was served the whole report at, when it was (7). A voice closure judges its section (10, gblock's P ruling). | P1, P7, P8, P9 |
 | Fixture | The archive this plan's migrate tests read is committed, and a missing archive fails the test. | P0 |
 
 **Success criteria (quantitative, checked in §V):**
 1. On a re-run of the same topic, every part of the question the frontier lists has a coverage state and a standing
    check at the PASS. A part that is not covered derives QUALIFIED, and report.md's basis block names it in subject
    voice. `grep -c 'HTTP 4' report.md` returns 0.
-2. For every pin move, the lens's own transcript holds the hook-injected text of every section item of that head
-   (an independent source: the client's transcript, not the record's delivery rows). Zero exceptions.
+2. For every pin move, the lens's own transcript holds the hook-injected text of every item of the delivery that moved
+   it (an independent source: the client's transcript, not the record's delivery rows). Zero exceptions. At the PASS,
+   every lens that sat has a complete whole delivery in a sitting after its first (its full re-read).
 3. At the PASS, every change after each retired lens's pin carries a bearing, or re-readied the lens through its own
    reopened anchor. Every re-ready names, on the lens's item, the change (old and new text) that caused it.
 4. No inquiry ends the base phase with two different settled lane fates.
@@ -103,9 +105,10 @@ bumps and about 11 PRs. It buys a VERIFIED stamp that cannot be printed over an 
   The tool never makes anything up. Acts do not self-attest to record facts (m40 C). Logs are operator-only.
   Tool-written report text is subject-only (m30). Every field needs a report destination or an inter-seat purpose.
   Archived verdicts are carried as history (FORKS:345). No archaeology, no compatibility path. Migration cost is not
-  a reason. Regexes are questioned. The work list's pins are navigation, not the audit surface (#1769,
+  a reason. Regexes are questioned. The work list's pins were navigation, not the audit surface (#1769,
   `record/sitting.go:182-200`; adversarial-audit SKILL "a change-summary is a navigation hint, never the audit
-  surface; decontextualized diffs mislead").
+  surface; decontextualized diffs mislead"); for a lens's later sittings gblock's 2026-11-13 F ruling replaces that
+  with the changed paragraphs served whole, old and new, plus its own gap passages and one full re-read (§III.3, §VII).
 
 ## III. Proposed Changes
 
@@ -126,7 +129,7 @@ P3 (F) ── P4 (D + L) ──────────────────�
 | **P0** | Commit the archive; a missing archive fails | none | — | small |
 | **P1** | Engine defects 8 (refusal notice scope) and 9 (price) | none | — | small |
 | **P2** | G: lane fates cannot contradict; the synthesizer settles what the lanes leave open | none | — | small |
-| **P3** | F: the report is served on the work list; the delivery is the read; productive sitting widened | `ReportRead` gains `section`/`of` (bump) | P0 | medium-large |
+| **P3** | F: the work list serves the whole report at a lens's first sitting and its one full re-read, and the changes since its pin plus its own gap passages at every other sitting; the delivery is the read; the PASS waits on every full re-read; productive sitting widened | `ReportRead` gains `item`/`of`/`whole` (bump) | P0 | medium-large |
 | **P4** | D + L: own-anchor re-ready; the chair's bearing per stale change; logic's checks re-owed as of the edit | `SpotCheck` gains `bearings` (bump) | P3, #1824 | medium |
 | **P5** | E + J: question parts, coverage, checks, QUALIFIED | new events + enum value + gap class + about kind (bump) | #1824 | large |
 | **P6** | I: aggregate judgement before PASS — DEFERRED to #1695's redesign | — | #1695 redesign | — |
@@ -209,121 +212,186 @@ them. Nine gaps at e1 followed, two of them duplicate pairs.
 
 ### III.3 P3 — F: the report reaches a lens through its work list
 
+> **Ruled by gblock 2026-11-13** (F1, F2; `RULINGS.md`, last section; the picked option is agent wording). A lens's
+> first sitting is served the whole report on its work list. A later sitting's work list carries the paragraphs
+> changed since the lens's pin, old side and new side, and the passages of the lens's own gaps, open and closed — no
+> neighbouring sections. The lens owes ONE **full re-read** before a PASS can stand: the tool serves the whole report
+> on its work list once more, and the record of every item of it delivered at a head is the read. A recurring audit of
+> the whole read's value (paragraph-id facts per serve, edit and mint, matched in capture) is not built (gblock: "I'm
+> not sure what we're getting out of that kind of complexity").
+
 #### III.3.1 The investigation (gblock: "I think we should be asking ourselves if reviewing diffs and gaps is actually enough here and is we should just treat this as a work list problem")
 
-Method. On a copy of the run directory, the report text at every head was rebuilt by replaying each `blue_edit`'s
-`old`→`new` over `report_checkpoint` text (`scripts/replay.py`). With anchors stripped, the replay equals every one of
-the 19 checkpoints after ev53. Pins are read as:
+**Method** (`f-invest/WHOLE-READ-VALUE.md`, scripts and outputs in `f-invest/wr/`). On a copy of the run directory, the
+report text at every head was rebuilt by replaying each `blue_edit`'s `old`→`new` over `report_checkpoint` text
+(`scripts/replay.py`); with anchors stripped, the replay equals every one of the 19 checkpoints after ev53. A lens's pin
+at a sitting is the head of its last `report_read` before the sitting opened. What entered a sitting's context is
+every tool result in its seat transcript (`trajectories/agent-transcripts.tar.gz`), markers stripped: a report line
+counts as seen when its first 70 characters occur in some result (over-counts truncated reads, never under-counts).
+Coverage bands: whole ≥ 0.9, partial 0.3–0.9, targeted < 0.3.
 
-```sql
--- a lens's pin at a sitting = the head of its last report_read before the sitting opened
-SELECT max(r.head) FROM report_read r JOIN events e ON e.id = r.event_id
- WHERE e.seat_id = :seat AND r.event_id < :sitting_open;
--- the gaps a lens minted after its first sitting
-SELECT m.event_id, e.seat_id, m.gap_id, m.location, m.about_kind, m.about_ref FROM mint m
-  JOIN events e ON e.id = m.event_id
- WHERE e.sitting_id <> (SELECT min(s.event_id) FROM sitting_open s WHERE s.seat_id = e.seat_id);
-```
+**Q1. What each later gap was.** 37 gaps were minted; 26 in each lens's first sitting, 11 after it, all material and
+all closed `repaired`.
 
-**Q1. Where was each later gap's defective text?** 37 gaps were minted; 26 in each lens's first sitting, 11 after it.
-All 11 are material and all 11 closed `repaired`. For each, `scripts/locate.py` asks whether the minted location lies on
-a line changed between the pin and the head (a line diff of the replayed texts), and whether it shares a paragraph with
-an anchor of a gap the same lens minted earlier (`<!--gap:G-…-->` in the anchored text):
-
-| Where the defect was | Count | Gaps (event, lens) |
+| Class | Count | Gaps (event) |
 |---|---|---|
-| Inside the changes since the pin, and nothing else needed | **1** | G-0be19c1f (ev750, evidence): a table row edit put a Constitutional AI citation on a row that says it is unsourced |
-| Inside the changes, but finding it needed text outside them | **2** | G-38bc8d18 (ev760, dark-side): an edited scope sentence excludes PCAOB documentation standards while AS 1215 is compared elsewhere. G-4f446eb4 (ev833, adversary): an edited TL;DR credits a separation of duties the body contradicts |
-| Unchanged since the pin, in a paragraph anchoring one of the lens's own CLOSED gaps | **3** | G-8dec60e6 (ev640), G-79ca8784 (ev888), G-ae4408f4 (ev890), all voice: siblings of a phrase-fixed closure (G-f1e82828, G-1606eaab, G-7a1103be) |
-| Unchanged since the pin, and outside every anchor of the lens's own | **5** | G-8e10f6e7 (ev573, voice), G-75741085 (ev580) and G-fffd64f8 (ev582, dark-side), G-486d9081 (ev577, architecture: the analysis is written out three times), G-2b8d7d4e (ev637, adversary: an omitted attack in the failure-mode section) |
+| Created by an edit since the lens's last sitting | **2** | ev750 (evidence; ev697, blue answering adversary's G-2b8d7d4e), ev760 (dark-side; ev700, answering voice's G-8dec60e6) |
+| Created by an earlier edit | **4** | ev577 (architecture; ev384/394, answering voice's G-1606eaab), ev582 (dark-side; ev387, the same), ev888 and ev890 (voice; residue of its own repairs ev526, ev525) |
+| First-read miss: the defect was in the text at head 97 | **5** | ev573 (voice), ev580 (dark-side, a contradiction 18 sections from any change), ev637 (adversary, an omission), ev640 (voice), ev833 (adversary, inside one TL;DR paragraph) |
 
-Two of the five (ev573, ev580) were in the text at the lens's first sitting; ev582's sentence arrived in e2's 43
-edits, which dark-side was served in its second sitting and minted nothing on; ev577 and ev637 judge whole sections
-that did not change after e2 (a repetition across the report, an omitted attack). All five were found in the lens's third
-or fourth sitting: four by sittings that read a whole-report dump through `Read` (calls.jsonl: 32–43 KB results), one
-(ev573) by a whole-report `--match` sweep for its class. No lens minted on unchanged, unanchored text after e4,
-across 21 later sittings that read the report whole.
+Every edit-caused defect lies **inside** the edit that created it. Four of the six are **cross-lens regressions**:
+blue's repair of one lens's gap made a defect of another lens's class.
 
-**Conclusion of Q1.** Diffs plus open gaps would have found **1 of 11** later material gaps outright, and 3 with help
-from text outside the diff. 8 of 11 were in text that had not changed since the lens's pin. The work list today carries
-only open gaps' passages (rendered at ev606, ev733, ev815, ev871 with `scripts/truncate.sh`), so the 3 voice siblings
-were outside it too. This agrees with the duty #1769 wrote into the work list and adversarial-audit already states
-("decontextualized diffs mislead"), and with ev883, where a closer checked one region against a contradiction at line
-239 elsewhere.
+**Q2. Recognition, not exposure.** For **8 of the 11**, the defect text was in the lens's context at an earlier sitting
+that minted nothing on it (`q2_seen.json`): ev833 at four sittings; ev582 at the sitting where dark-side closed its own
+gap on the same rewritten item; ev888 at the sitting where voice closed the gap whose repair created it. Only ev577,
+ev750 and ev760 were minted at the first sitting that had them in context after they were created.
 
-**Q2. The changes since the pin against the 9,000-character budget** (`scripts/diffsize.py`, 43 later lens sittings;
-`diffsize.txt`). Two measures: the sum of each edit's `old` + `new` (what `edited_since` carries per gap), and the
-changed paragraphs whole, old side plus new side:
+**Q3. What the ruled delivery serves** (`q3_gaps.json`, `q3_cost.json`). Changed text since the pin plus the lens's own
+gap passages, open and closed, with no neighbouring sections (N=0):
+- **all 6 edit-caused defects**, each at the first sitting after the edit that created it — one or more sittings
+  earlier than they were minted;
+- 2 of the 5 first-read misses as well: ev640 through the lens's own-gap paragraph, ev833 through an edited paragraph.
+  ev637 needs one neighbouring section. ev573 was found by the voice lens's own pattern search, which stays available.
+  **ev580 is the one gap only a whole read served.** N=2 serves nothing N=1 does not.
 
-| Measure | Median | Max | Sittings over 9,000 | Items at 9,000 (all sittings) |
-|---|---|---|---|---|
-| Edit old + new | 1,157 | 28,653 (adversary ev545, pin 97) | 10 of 43 | 68 |
-| Changed paragraphs, both sides | 2,738 | 48,672 (e2) | 21 of 43 | 102 |
+Cost over the 43 later sittings with a pin, in items at the 9,000-character budget (unpacked sections, 30 per
+sitting for the whole report):
 
-A single edit is at most 6,407 characters (one of 112), so every change fits one item; the chain carries a large diff as
-up to 4 items (7 at a 6,000 item budget, `chainitems.txt`). One sitting (voice ev366) had no change.
+| Delivery | Items | Share of whole every sitting |
+|---|---|---|
+| Whole report every sitting | 1,290 | 100% |
+| Changed sections + own gaps as paragraphs (N=0) | 383 | 30% |
+| Changed sections + own gaps as their sections (N=0) | 446 | 35% |
+| Changed sections + own gap sections ±1 | 763 | 59% |
 
-**Q3. What a lens's first sitting needs.** The whole report: 26 of 37 gaps were minted there, at a head every section
-of which was new to the lens. By section it is 23 items; packed to the budget, about 10.
+The measurement served changed **sections** whole; the ruling serves changed **paragraphs**, old and new, so these
+shares are upper bounds for the changes' part. The changed paragraphs alone, both sides, are 102 items over all 43
+sittings at the budget (median 2,738 characters a sitting; max 48,672 at e2; 21 of 43 sittings over 9,000;
+`diffsize.txt`). A single edit is at most 6,407 characters. Cost concentrates at the big-rewrite epochs: at e3 the
+N=0 delivery is already 19 of 30 items per sitting; at e4, e5, e9 and e11 it is 2–4.
 
-**Q4. What the work list carries today.** Rendered with the run's tool at four cut points: an `audit` item stating the
-pin and the head only ("the pins are here to show you WHAT changed, not to narrow what you audit"), never the changed
-text; each OPEN gap on the board with its `location`, its `passage` (991–6,246 characters here) and `edited_since`
-(each edit's epoch, editor, old and new); `unchecked` items for reopened citations; the budget item (gone after #1828).
-It carries no closed gap and no report text outside open gaps' passages.
+**Q4. What whole reads after the first sitting yielded.** Of 36 lens sittings numbered #3 or later, 6 took in ≥ 90% of
+the report and minted 6 gaps (1.0 per sitting, against 0.29 per partial and 0.13 per targeted sitting). Beyond what the
+N=0 delivery would have served at that sitting, they added ev580 and ev637: **a second draw on text already seen**,
+not first exposure. After e4, 27 later sittings carry a `report_read`; **5** of them took in ≥ 90% (ev610, 731, 871,
+919, 922) and **3 of those minted** (ev637, 760, 888/890).
 
-**What it needs to carry, from Q1–Q4:** the whole report, every sitting, as text in context; the changes since the pin as
-navigation inside it (old and new, at their section); and the lens's own gaps' passages where an edit touched them.
-"Diffs and gaps" is the navigation, not the audit surface.
+**Q5. `report_read` records a serve, not a read.** 40 later sittings carry one; **25 took in under 30%** of the report.
+Several sent the serve to `/dev/null` or to a file they never opened; a `show report` printed to stdout came back as a
+2 KB preview of a ~79 KB persisted file (sittings 609 and 673 consumed only that and ended). Three closures cite a
+whole read that coverage contradicts (sittings 451, 671, 817 at 0.39, 0.35, 0.08).
+
+**Q6. What the work list carries today** (rendered with the run's tool at ev606, ev733, ev815, ev871,
+`scripts/truncate.sh`): an `audit` item stating the pin and the head only, never the changed text; each open gap with
+its `location`, its `passage` (the gap's section, `PassageAround`, trimmed at 6,000 characters around the anchor) and
+`edited_since`; `unchecked` items for reopened citations. No closed gap, and no report text outside open gaps'
+passages.
+
+**Conclusion.** One run, 11 gaps: the direction is clear and the rates are not estimates.
+- **Edit-caused defects (6 of 11)** are served by the changes plus own gap passages at N=0, at about a third of the
+  whole-every-sitting delivery. Four were found late only because the sitting after the edit read 12–39% of the report,
+  or because the lens closed the very repair that created the defect.
+- **First-read misses (5 of 11)** are not served by it in general, and raising N does not fix that. The lens had the
+  text and did not see the defect; what the evidence argues for is a bounded, deliberate second whole read, not a whole
+  read at every sitting.
+- **The read must be a delivery the tool records**, because a serve through stdout reached the seat in fewer than half
+  of the later sittings that carry one.
 
 #### III.3.2 The design: the work list serves the report
 
-- [MODIFY] `record/queue.go` (`QueueOf`) and `record/sitting.go`: a lens's queue opens with **report items** at its
-  dispatch head. The report is cut by the tool into items of at most `DeliveryBudget` less the delivery's header:
-  whole `## ` sections, packed in report order; a section over the budget is split at `anchor.Sentences` block
-  boundaries, so no item cuts a sentence and a 2,172-character line is never truncated. Order:
-  1. **sections holding a change since the lens's pin**, each with its changes marked inline as old → new at their
-     sentence (the locator is the text, never an id);
-  2. **sections holding an anchor of one of the lens's own gaps, open or closed, that an edit touched since the pin**;
-  3. every other section, in report order.
-  The first sitting has no pin, so every section is in group 3. The `audit` item's prose is replaced: it states how many
-  report items the sitting holds and that they are the report. `last_read` reports `served`/`behind`/`first` from the
-  delivery rows below.
-- [MODIFY] `sittingwrite/next.go` and `delivery.go`: a report item is **discharged by its delivery**. The next item is
+**Three deliveries, all on the one-item-at-a-time chain.** Item kinds are new (`report_section`, `report_change`,
+`own_gap_passage`; 0 hits each across the Go tree, debate.js, `agents/` and `skills/`):
+
+1. **The whole report** (`report_section` items) at the lens's **first sitting**, and once more as its **full re-read**
+   (below). Cut by the tool into items of at most `DeliveryBudget` less the delivery's header: whole `## ` sections,
+   packed in report order; a section over the budget is split at `anchor.Sentences` block boundaries, so no item cuts a
+   sentence and a 2,172-character line is never truncated. ~10 items at this run's size.
+2. **The changes since the pin** (`report_change` items) at **every later sitting**: each paragraph that differs
+   between the report at the lens's pin and at the dispatch head, as an `anchor.Blocks` block diff of the two texts,
+   served whole with its section heading — the old side and the new side; an inserted paragraph has only a new side, a
+   deleted one only an old side. The text at the pin is rebuilt by replaying `blue_edit` `old`→`new` from the latest
+   `report_checkpoint` at or before it (the replay above reproduced all 19 checkpoints). The locator is the text,
+   never an id. Packed to the budget in report order; a paragraph over it is split at sentence boundaries.
+3. **The lens's own gap passages** (`own_gap_passage` items) at **every later sitting**: for each gap the lens minted,
+   open or closed, its passage at the head — `PassageAround` as today, except that a `report_voice` gap's passage is
+   its **whole section**, split at sentence boundaries over the budget and never trimmed (P9 judges the section). A
+   passage already carried whole by a change item or by the gap's own open-gap item is not served again. A gap whose
+   anchor is gone from the report has no passage; its item says so.
+
+No neighbouring section is served (N=0). Any other text a lens wants it reads through the report's selector reads
+(anchor, quote, match, window), which record nothing.
+
+- [MODIFY] `record/queue.go` (`QueueOf`) and `record/sitting.go`: a lens's queue opens with its delivery at the dispatch
+  head — whole at a first sitting or a full re-read; else changes, then own gap passages — before its gap and check
+  items. The `audit` item's prose is replaced: it states which delivery the sitting holds and how many items it is.
+  `last_read` reports `served`/`behind`/`first` from the delivery rows below. [NEW] `ItemReportSection`,
+  `ItemReportChange`, `ItemOwnGapPassage` in `record/itemkind.go`.
+- [MODIFY] `sittingwrite/next.go` and `delivery.go`: a delivery item is **discharged by its delivery**. The next item is
   handed after the lens's next call to the record, as today. The delivery writer (the hook process that already writes
-  `sitting_open` and `envelope_admitted`) appends a `ReportRead{head, section, of}` event for each report item it hands:
-  `section` is the item's 1-based index at `head`, `of` the count at that head. Both are tool-computed from the text it
-  served; the client reports nothing and the seat types nothing.
-- [MODIFY] `record/reportread.go`: `pinOf` moves a lens's pin to `head` when the sitting's `ReportRead` rows at that head
-  cover `1..of`. If the head moves mid-sitting (blue edits concurrently), the items re-key, the changed sections are
-  handed again marked `changed_since_delivered` (existing mechanism), and the pin moves to the latest head whose items
-  were all delivered. `requireReportReadAt` (`reportread.go:97-108`) is deleted with the seat-side read it guarded.
+  `sitting_open` and `envelope_admitted`) appends a `ReportRead{head, item, of, whole}` event for each delivery item it
+  hands: `item` is its 1-based index in the sitting's delivery at `head`, `of` the delivery's count at that head, `whole`
+  true for a `report_section` delivery. All tool-computed from what it served; the client reports nothing and the seat
+  types nothing.
+- [MODIFY] `record/reportread.go`: **the pin** is the latest head at which a sitting the lens sat through holds
+  `ReportRead` rows covering `1..of` — whole or changes. A complete changes delivery at head H puts every change between
+  the old pin and H in front of the lens, so the pin means "the head through which every change was delivered to it".
+  If the head moves mid-sitting (blue edits concurrently), the paragraphs changed between the two heads are handed as
+  further `report_change` items (the existing `changed_since_delivered` mechanism), and the pin moves to the latest head
+  whose delivery was complete. `requireReportReadAt` (`reportread.go:97-108`) is deleted with the seat-side read it
+  guarded; `ServedPinNote` and `servedClause` (`retirement.go`) state the new pin.
+- **The full re-read.** Owed by every lens that has sat through its first sitting, **once per lens per run**, retired
+  or not. It is discharged only by `ReportRead` rows with `whole` true covering `1..of` at one head, in a sitting after
+  the lens's first. It is a **verify act the tool records**: the delivery is the read, and no seat field says what was
+  read (reading is a recorded act, gblock 2026-11-11).
+  - [NEW] `BlockerFullRereadOwed` (`full_reread_owed`; owner and subject the lens) in `record/passblockers.go`, standing
+    while the lens owes it. **The board does not permit the chair's PASS while any lens that has sat still owes it.** It
+    is computed from the lens fold beside `lens_ready`, not by `owedBlockersOf`, so it does not un-retire its owner
+    before it is due.
+  - **When it is served** (fork F11; this is the recommendation): it falls due when the board holds no blocker but
+    `full_reread_owed` and the chair's `stale_area` — the round before a PASS would otherwise be permitted. [MODIFY]
+    `lensFold.readiness`: a new arm, before the `retired()` case, readies a lens whose re-read is due, at an unmoved
+    head and whether or not it is retired, and its sitting's delivery is the whole report (computed over the board
+    without this arm, so the arm never reads its own `lens_ready`). A lens retired before the round is re-seated for
+    that sitting; afterwards it retires again by the existing rule when it owes nothing.
+  - **Edits after the re-read** reach the lens through the changes delivery at its later sittings; the re-read is never
+    owed again in the run.
+  - A re-read sitting that ends with items undelivered leaves the debt standing; the arm readies the lens again only
+    after a head move, so an undeliverable re-read cannot loop at one head (§IV R2).
 - [DELETE] `record.ServeReport` and its caller in `cli/seat/verbs.go:978-991`. `show report` serves text and records
   nothing in every form; the `--anchor`/`--quote`/`--match`/`--window` reads are unchanged.
-- [MODIFY] `record/recordpb/record.proto` `ReportRead`: add `int32 section = 2` and `int32 of = 3`, required on new
-  writes; the comment says "the tool delivered this section of the report at this head on the seat's work list".
-  **Epoch bump.** `migrate`: an archived `report_read` was a serve of the whole report, so it translates to
-  `{head, section: 1, of: 1}`, keeping archived pins where they were. Residue, stated in the migrate comment: archived
-  pins record serves through stdout, not deliveries.
-- **Cost, measured from this run.** ~10 packed report items per sitting; each after the first needs one call to the
-  record, so about +9 turns per sitting against today's 5.4, at ~100k cache-read tokens a turn (~$0.02) plus ~$0.05 to
-  write the report into the cache once. About $0.25 per sitting, ~$12.5 over 50 sittings, against the lenses' $13.64.
-  Wall clock rises about 9 × 3 s per sitting. The chain does not reach a seat under Antigravity (§IV R2). This is the
-  shape r1 called "chunked", now ordered by the work list; the two other mechanisms are fork F1.
+- [MODIFY] `record/recordpb/record.proto` `ReportRead`: add `int32 item = 2`, `int32 of = 3`, `bool whole = 4`, required
+  on new writes; the comment and `EVENT_TYPE_REPORT_READ`'s `means` say "the tool delivered this item of the lens's
+  report delivery at this head on its work list: the whole report, or the changes since its pin with its own gap
+  passages". **Epoch bump.** `migrate`: an archived `report_read` was a serve of the whole report through stdout, so it
+  translates to `{head, item: 1, of: 1, whole: true}`, keeping archived pins where they were and counting an archived
+  later serve as the full re-read. Residue, stated in the migrate comment: archived pins and re-reads record serves
+  through stdout, not deliveries.
+- **Cost, measured from this run, an upper bound.** A whole delivery is ~10 items; each after the first needs one call to
+  the record, so ~+9 turns at ~100k cache-read tokens a turn (~$0.02) plus ~$0.05 to write the report into the cache:
+  about $0.25. Whole every sitting would be ~$12.5 over 50 sittings. The ruled design is 7 first sittings + 7 full
+  re-reads ≈ $3.5, plus 43 later sittings at 30–35% of a whole delivery (Q3, counting changed sections whole) ≈
+  $3.2–3.8: **about $7 against $12.5**, beside the lenses' $13.64. Wall clock rises about 9 × 3 s per whole delivery.
+  The chain does not reach a seat under Antigravity (§IV R2).
 - **Productive sitting (retirement).** [MODIFY] `record/retirement.go:300-322`: a sitting is productive when it minted
   a fresh gap that is material now, **or** recorded a close, a `verify`, a `reproduce`, an `inquiry check` (and, after
   P5, a question-part check), by the existing sitting rule. The word stays "productive". On this run 17 of 50 lens
   sittings had no mint and one of these acts (ev450–456, 605, 671–674, 730, 816–818, 869, 921), which would have
   delayed the computation and logic retirements by about one sitting each.
-- **The bound** (the cross-check's question). A lens sits at most once per head move: readiness needs the head past its
-  pin (unretired), or an owed item that only an edit creates (D's arm, L's re-owe, a chair `re_ready` bearing). Head
+- **The bound** (the cross-check's question). A lens sits at most once per head move, plus once for its full re-read:
+  readiness needs the head past its pin (unretired), an owed item that only an edit creates (D's arm, L's re-owe, a
+  chair `re_ready` bearing), or a due re-read, which readies it at most once per head and is never owed twice. Head
   moves come only from blue's sittings, at most one blue-respond dispatch per epoch, and `maxEpochs` caps epochs. So
-  lens sittings ≤ 7 × `maxEpochs`, and the run ends at PASS or CEILING. A widened "productive" can keep a lens
+  lens sittings ≤ 7 × (`maxEpochs` + 1), and the run ends at PASS or CEILING. A widened "productive" can keep a lens
   unretired longer; it cannot add a sitting without a head move.
-- Constitution and help: `fragments/lens-duties.md`, `register`/`show report` help and adversarial-audit say the report
-  arrives on the work list and the tool records what it delivered. The full-re-read MUST stays, now with a carrier the
-  record sees. debate.js `lastReadClause` (debate.js:881) and `reportIsReadThroughTheTool` (`hookgate/hookgate.go:122`)
-  say the same in present tense.
+- **Constitution and help.** `fragments/lens-duties.md`, the adversarial-audit SKILL source (:25, generated SKILL.md:45: "THE FULL RE-READ IS THE
+  TOOL'S WHOLE-DOCUMENT READ … when the document HAS moved, the full re-read stands exactly as written"), `register`
+  and `show report` help, and the research-protocol SKILL source (:48) say, in present tense: the report arrives on the
+  work list; the first sitting and the one full re-read are the whole report; every other sitting is the changed
+  paragraphs, old and new, and the lens's own gap passages; the tool records what it delivered; context outside them is
+  read through the selector reads and judged there. debate.js `lastReadClause` (debate.js:876-902),
+  `reportIsReadThroughTheTool` (`hookgate/hookgate.go:122`), `view/changes.go:18-52` and `record/passage.go:18` say
+  the same. The pin's definition is restated wherever it is written (§III.11).
 
 ### III.4 P4 — D and L
 
@@ -338,10 +406,11 @@ evidence was re-readied by them at e7. **What it does not do:** a `G-` anchor st
 - [MODIFY] `record/retirement.go` `lensOwesOf`: one new arm. For each edit after the lens's pin that reopened an anchor
   of a gap this lens minted, open or closed, the lens owes `owedItem{kind: "reopened_own_anchor", subject: <gap id>}`.
   **The debt clears only on a real read** (GAP 5): when a sitting opened after the edit has `ReportRead` rows covering
-  `1..of` at a head at or after the edit (P3). An empty sitting, or one whose report items were not all delivered,
-  clears nothing.
+  `1..of` at a head at or after the edit (P3) — a whole delivery, or a changes delivery, which at a later sitting
+  carries the reopening edit as a changed paragraph (the edit lies between the pin and the head) and the gap's passage
+  as an own gap passage. An empty sitting, or one whose delivery was not complete, clears nothing.
 - [MODIFY] the delivered item for the debt carries the gap id, its location, and the reopening change as old → new text.
-  No event id is printed.
+  No event id is printed. Its passage is not served twice (§III.3.2's deduplication).
 
 #### D(2): the chair's bearing on each stale change (completes #1805)
 
@@ -362,7 +431,8 @@ and `changes` stamps stay. What changes is what discharges the blocker.
   archived spot-check shows its stamped changes without bearings.
 - [MODIFY] `passblockers.go`: `BlockerStaleArea` for a lens stands until every change after its pin carries a bearing or
   re-readied it. A `re_ready` bearing makes the lens owe `owedItem{kind: "chair_re_ready", subject: <seat>}`, cleared by
-  a real read as in D(1).
+  a real read as in D(1): its next sitting's changes delivery carries every change after its pin, the borne one
+  included.
 - Name grep: "bearing" appears only in ordinary English ("load-bearing", terms.json:741 "bearing on the reader's
   question"). The terms entry "change bearing" carries the note. "disposition" is taken (`enum_disposition`, the
   bench's docket fates).
@@ -539,23 +609,29 @@ record holds the rest (`estoppel.go:55-75 appliedVerbatim`, `minterOf` at :112).
 - [MODIFY] `fragments/lens-duties.md`: one sentence stating the ancestor route (mint `--supersedes`).
 
 **Defect 7: closures claim reads they did not make** (ev685, ev692, ev744, ev828).
-- [NEW] `Close.served_head` (int64, **stamped**): the head at which the closer's sitting had been delivered every report
-  item (P3), or 0. It renders on the closure line as "the whole report was served at head N this sitting" or "the whole
-  report was not served this sitting". (Named for the act it records; `read_at` collides with `lensReadAt`,
+- [NEW] `Close.served_head` (int64, **stamped**): the head at which the closer's sitting had been delivered every item
+  of a whole delivery (`ReportRead.whole`, P3), or 0. Under P3 that happens only at a lens's first sitting and at its
+  full re-read, so most closes, which fall in later sittings, carry 0. The closure line renders "the whole report was
+  served at head N this sitting" when it is set; otherwise it is composed from the sitting's `report_read` rows, with
+  no further field: "the changes since head P and the closer's own gap passages were served at head N this sitting",
+  or "no delivery was complete this sitting". (Named for the act it records; `read_at` collides with `lensReadAt`,
   `gapacts.go:190`, and fetchcache's `read_at`, `pageread.go:211`.)
 - Left out: ev685's `--quote` read records nothing by design; ev883's omitted counter-evidence is a judgement.
 - **Epoch bump**, one migrate translation: archived closes get `own_prescription` restamped from archived edits, and
-  `served_head` from the migrated `report_read` rows (P3).
+  `served_head` from the migrated `report_read` rows (P3), each of which migrates as a whole delivery.
 
 ### III.9 P9 — voice closures judge the section (defect 10; ruling P)
 
 **Cause.** Fourteen report_voice gaps took ~75 edits; checks named phrases, blue fixed phrases, closers grepped phrases.
-§III.3.1 measured the result: three later voice gaps (ev640, 888, 890) were siblings in the paragraphs of closed voice
-gaps. `internal/reportvoice` is a pattern list and not a fix.
+§III.3.1 measured the result: two later voice gaps (ev888, 890) were residue of the repairs of voice's own gaps,
+minted by a later sitting after the sitting that closed those gaps had the defect text in context; a third (ev640) sat
+in the paragraph of a closed voice gap. `internal/reportvoice` is a pattern list and not a fix.
 - **(a) Structural plus duty** (F5, recommended): for `report_voice` only, the one-gap subject key is the section. A
   second voice gap in a section while one is open is refused, naming the open gap; the route is `mint --supersedes`.
-  The voice constitution says a check names the section and the class, and the close judges the whole section, which
-  P3 puts in context. `close` help says the same.
+  The voice constitution says a check names the section and the class, and the close judges the whole section. P3 puts
+  that section in context at every later sitting: a `report_voice` gap's own gap passage is its whole section, split at
+  sentence boundaries over the budget and never trimmed (§III.3.2), under (a) and (b) alike. `close` help says the
+  same.
 - **(b) Duty only.**
 
 ### III.10 P10 — M, an option: the archive capture time of a copy
@@ -583,23 +659,43 @@ agentgen `red-chair.md`, debate.js's chair paragraph, `docs/local-development.md
 chair boards, `releasegate/fuzz/{spotcheckstamp,coverage,fuzz}_test.go` (the stamp drive gains bearings), and goldens.
 `tessocr/page.go` is a false hit.
 
-**F (P3).** `grep -rln 'ServeReport\|servedOf\|pinOf\|ReportRead\|report_read\|ServedLine\|ServedPinNote\|LastReadJSON\|requireReportReadAt' tools ../../scripts skills agents`
-returns: `record/{reportread,retirement,spotcheck,sitting,viewjson,itemkind,outcomeclosed,positionheard,record,required_gen,queue}.go`,
-`recordpb` and `recordsql` generated files, `migrate/replay.go`; `cli/seat/verbs.go` (writer deleted),
-`sittingwrite/{delivery,next,write}.go` (writer added), `view/view.go`, `report/assemble.go`; tests
-`hookgate/deadreport_test.go`, `capture/dispatchparity_test.go`, `cli/{epochlimitexit,integration,lookregisters,registeronce,reportread,vocabulary}_test.go`,
+**F (P3).** Re-run 2026-11-13 on this worktree (`census-F-20261113.txt`, 40 paths).
+`grep -rln 'ServeReport\|servedOf\|pinOf\|ReportRead\|report_read\|ServedLine\|ServedPinNote\|LastReadJSON\|requireReportReadAt' tools ../../scripts skills agents`
+returns: `record/{reportread,retirement,spotcheck,sitting,viewjson,itemkind,outcomeclosed,positionheard,record,required_gen}.go`,
+`record/testdata/plans.golden`, `recordpb/{record.proto,record.pb.go,body_gen.go}`,
+`recordsql/{decode_gen.go,testdata/schema.sql}`, `migrate/replay.go`; `cli/seat/verbs.go` (writer deleted),
+`sittingwrite/delivery.go` (writer added, with `next.go` and `write.go`, which do not hit yet), `view/view.go`,
+`report/assemble.go`; tests `hookgate/deadreport_test.go`, `capture/dispatchparity_test.go`,
+`cli/{epochlimitexit,integration,lookregisters,registeronce,reportread,vocabulary}_test.go`,
 `record/{narrowedview,plansweep,queue,reportread,retirement}_test.go`, `migrate/{reportread,spotcheckchanges}_test.go`,
 `report/reportread_test.go`, `recordpb/correspondence_test.go`, `integration/surface/chairrefusal_test.go`,
-`releasegate/fuzz/fuzz_test.go`. **The fuzz moves pins through `show report`**: its drive switches to the delivery
-writer (`sittingwrite.WriteNextItem` / the dispatch delivery), and a gate asserts no pin moves without full delivery.
-Prose carriers of "the report is read through `show report`": debate.js:881 `lastReadClause`, `hookgate/hookgate.go:122`,
-terms.json "the report" (line 4), `hooks/README.md:86` (unchanged: the matcher stays `StructuredOutput|Bash`; it is
-listed because F1(b) would change it), adversarial-audit SKILL source :25, `fragments/lens-duties.md`.
-**hooks.json is unchanged under the design.** Under F1(b) its readers are: `scripts/fetchbingen`,
-`scripts/validatejson/{main,hooks}.go`, `scripts/marketplacegen/main.go`, `scripts/rulesweep/sweep.go`,
-`pluginparity/harness_load_test.go`, universetest, `hookcmd/{hookcmd,post}.go`, `sittinghook/sitting.go`,
-`hookprovenance/hookprovenance.go`, prosthetic-conscience's hookinvocation tests and FEOV
-`releasegate/fuzz/hookinvocation_test.go`, and the CI guard in `hooks.yml`.
+`releasegate/fuzz/fuzz_test.go`. `record/queue.go` does not hit and changes (the delivery opens the queue). **The fuzz
+moves pins through `show report`**: its drive switches to the delivery writer (`sittingwrite.WriteNextItem` / the
+dispatch delivery), and a gate asserts no pin moves without a complete delivery.
+
+**The pin's definition and the full re-read in prose.**
+`grep -rln -i 'full re-read\|full-re-read\|re-reads the full\|whole-report read\|whole report' tools/internal skills ../../scripts/agentgen/src hooks docs`
+(generated `agents/` excluded; they regenerate) returns, beyond the files above: `record/{dispatch,passage,passblockers}.go`
+(`dispatch.go:21, :303` and `passblockers.go:456` define the pin as "the head the whole report was last served to it
+at"; `passage.go:18` says `show report` is the full re-read), `cli/seat/help/dispatch.md:13` (the same definition;
+`help_gen.go` and the difftest `manual` golden regenerate), `view/changes.go:18-52` ("the audit is a full re-read"),
+`record/sitting.go:101, :188`, `retirement.go` `servedClause`, `record.proto` `EVENT_TYPE_REPORT_READ` `means`
+(`annotations_gen.go` regenerates), debate.js:394 (the enginegen region rendering `dispatch.go:21`'s `desc`) and
+:876-902 (`lastReadClause`), agentgen `red-chair.md:12, :14`, `fragments/lens-duties.md`, the adversarial-audit SKILL
+source :25 (generated SKILL.md:45), the research-protocol SKILL source :48 (generated :50),
+`references/report_template.md:8` ("re-reads the full report each sitting"), `hookgate/hookgate.go:122`
+(`reportIsReadThroughTheTool`), and terms.json "the report" and "report read" (`docs/vocabulary.md` and
+`definitions_gen.go` regenerate). Each states the new pin and delivery. False hits: `cli/blue/verify.go:10`, `cli/ocr.go`,
+`cost/cost.go:444` (a historical cost note on lens reads; read at implementation), `migrate/planids.go` and
+`migrate/testdata/prose-rewrites.golden` (archived plan prose, history), `docs/seat-command-triggers.md:127` (a cut verb).
+**hooks.json is unchanged** (F1 ruled (a)); `hooks/README.md` needs no change.
+
+**The new blocker and item kinds.** `full_reread_owed` joins the blocker kinds where `closing_owed` is enumerated:
+`grep -rln 'BlockerClosingOwed\|closing_owed' tools skills ../../scripts/agentgen/src | grep -v _test | grep -v golden` →
+`record/{closingowed,sitting,dispatch,passblockers}.go`, debate.js (enginegen region); `verdict` help's
+`{{.PassBlockerKinds}}` renders it. The three item kinds join where `composed_source` is enumerated:
+`grep -rln 'ItemComposedSource\|composed_source' tools/internal skills | grep -v _test | grep -v golden` →
+`record/{composedsource,itemkind,queue}.go`; `sittingwrite/delivery.go` renders items by kind.
 Productive sitting: `grep -rn 'productive\[' tools/internal --include=*.go` → `retirement.go:307, :319`.
 
 **L (P4).** `grep -rn 'inquiryCheckStands\|GapMint' tools/internal --include=*.go | grep -v _test` →
@@ -635,8 +731,14 @@ on #1695's tree; the motion-filing sites come from #1695's own census.
 - **Release fuzz (`releasegate/fuzz/`)**, CI only (gblock, relayed 2026-10-29): 4 shards plus the tally; logic PRs wait
   for a full pass.
   - P2: two lanes with different settled fates. Gate: refused; no lane settles after a disagreement.
-  - P3: a lens whose sitting ends with some report items undelivered. Gate: no pin move. All delivered: pin move. A head
-    move mid-sitting: pin at the last fully delivered head.
+  - P3: a lens whose sitting ends with some delivery items undelivered. Gate: no pin move. All delivered: pin move. A
+    head move mid-sitting: pin at the last fully delivered head. A lens's later sitting. Gate: its delivery holds only
+    `report_change` items for paragraphs changed since its pin and `own_gap_passage` items for its own gaps, open and
+    closed, and no `report_section`. A board whose only other blockers are cleared while a lens that has sat owes its full
+    re-read. Gate: the PASS is refused with `full_reread_owed`, and the lens is readied, retired or not, with a whole
+    delivery. The re-read delivered complete. Gate: the blocker is gone and the PASS is permitted; a later edit readies
+    the lens with a changes delivery, never a second re-read. A re-read sitting that ends undelivered. Gate: the PASS
+    stays refused and the lens is not readied again at the same head.
   - P4: an edit reopening a closed gap of a retired lens (re-readied; an empty sitting does not clear it). A stale
     change with no bearing (PASS refused). A `re_ready` bearing (lens owes). An edit while logic is retired (check
     unseated).
@@ -644,10 +746,13 @@ on #1695's tree; the motion-filing sites come from #1695's own census.
   - P6: two non-material gaps on one key. Gate: PASS refused until the aggregate; a new gap re-opens the blocker.
   - P8: a close on own verbatim text (stamped; a reword drops it).
 - **Simulator (`internal/seatprobe`, `devcmd/seatprobe`).** Boards for the question split and cover, question check,
-  aggregate, the chair's stale-change bearings, the re-readied retired lens, and a lens sitting reading report items.
-- **Terms (`terms.json` → `vocabdoc`).** [NEW] "question part", "coverage" (collision notes against
+  aggregate, the chair's stale-change bearings, the re-readied retired lens, a lens's first sitting reading the whole report's items, a later sitting reading its
+  changed paragraphs and own gap passages, and the full re-read round before a PASS.
+- **Terms (`terms.json` → `vocabdoc`).** [NEW] "full re-read" (the second whole delivery, once per lens, before a PASS; no entry today), "question part", "coverage" (collision notes against
   `partial_control_coverage` and lane coverage), "aggregate judgement", "change bearing". [MODIFY] "outcome",
-  "lens retirement", "report read" (a delivery on the work list), "the report", "inquiry" (lanes disagree; re-owed while
+  "lens retirement", "report read" (a delivery on the work list: the whole report, or the changes and own gap
+  passages; its `pin (a dispatch's)` collision restates a lens's pin as the head through which every change was
+  delivered), "the report", "inquiry" (lanes disagree; re-owed while
   retired), "stale area" (discharged by bearings), "blocker".
 - **Goldens** regenerate at `-count=1` and are read line by line.
 
@@ -655,15 +760,16 @@ on #1695's tree; the motion-filing sites come from #1695's own census.
 
 | # | Risk | L × I × C | Mitigation (step) |
 |---|---|---|---|
-| R1 | P3's report items cost ~+9 turns per sitting (~$12.5 on this run) | H × M × L | Measured, stated, and F1 offers the cheaper hook-observed Read with its own risks. The order (changes first) keeps the navigation value of the diff |
-| R2 | Under Antigravity no PostToolUse result reaches the agent, so the chain hands nothing after the first item and no pin moves | M × M × M | The lens stays ready and retires barren, stated as agy residue in the help and in #1746's thread. Verify on one agy smoke |
-| R3 | A head move mid-sitting re-hands changed sections, adding turns | M × L × L | Only changed sections are re-handed (existing `changed_since_delivered`); the pin moves to the last fully delivered head |
+| R1 | P3's deliveries add turns: ~+9 per whole delivery (a lens's first sitting and its full re-read) and a few per later sitting — about $7 on this run against $12.5 for the whole report every sitting, beside the lenses' $13.64 | H × M × L | Measured and stated as an upper bound (§III.3.2: the later-sitting share counts changed sections whole; the ruling serves paragraphs). Cost concentrates at the big-rewrite epochs (e3: 19 of 30 items a sitting); the acceptance run (§V 9.2) reports the delivered items per sitting |
+| R1a | A later sitting sees only the changes and its own gap passages, so a first-read miss far from any change (ev580) or the unchanged far side of a cross-section contradiction (ev760's AS 1215 side, measured only at section granularity) waits for the full re-read | M × M × M | The ruled trade (gblock 2026-11-13). The full re-read is the second draw the evidence argues for; the selector reads stay open for context; the acceptance run counts gaps minted at full re-reads against later sittings |
+| R2 | Under Antigravity no PostToolUse result reaches the agent, so the chain hands nothing after the first item: no pin moves, and no full re-read completes, so **no PASS is ever permitted** | M × H × M | The lens stays ready and retires barren; the due re-read readies it once per head and holds the PASS, so an agy run ends at CEILING, never at a PASS it did not earn. Stated as agy residue in the help and in #1746's thread. Verify on one agy smoke |
+| R3 | A head move mid-sitting re-hands changed paragraphs, adding turns | M × L × L | Only the paragraphs changed between the two heads are handed (existing `changed_since_delivered`); the pin moves to the last fully delivered head |
 | R4 | L makes logic sit after edits made while retired | H × L × L | ~5 sittings / ~$1.4 here; the ruled behaviour |
 | R5 | QUALIFIED changes every consumer keyed on "VERIFIED" | M × M × L | §III.5 census; archived outcomes untouched (history) |
 | R6 | Blue splits the question too coarsely or finely; `coverage_misstated` churns | M × M × M | Always material, so a dispute is a #1695 motion; §V 9.1 measures churn |
 | R7 | The lane refusal strands a base phase | L × M × L | The open-inquiry blocker holds the PASS with blue as owner; fuzz gate |
 | R8 | The chair records `none` on a change it should not have | M × M × M | The tool guarantees every change is served as text and borne; the judgement stays the chair's. 167 bearings / 8 items at ev945 |
-| R9 | Widened "productive" keeps lenses unretired longer | M × L × L | Bounded at one sitting per head move and `maxEpochs` (§III.3.2) |
+| R9 | Widened "productive" keeps lenses unretired longer, and the full re-read re-seats a retired lens once | M × L × L | Bounded at one sitting per head move plus one re-read per lens, and `maxEpochs` (§III.3.2) |
 | R10 | Section keying of voice gaps refuses a legitimate second gap | M × L × L | The successor mint carries both; F5(b) |
 | R11 | The price correction is wrong again | L × L × L | Published rates first, verified on two runs |
 | R12 | Rebasing across #1828 / #1824 / #1695 / slimming changes signatures | H × L × M | Each part rebases on current main, regenerates goldens, re-runs its census |
@@ -682,8 +788,9 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
    then read every changed golden line and each affected `--help` before and after. Re-armed by: help, plan or report
    template changes.
 5. `go -C plugins/frank-exchange-of-views/tools test -count=1 -run 'TestEveryArchivedRunMigrates|<part's migrate test>' ./internal/record/migrate/`
-   on the committed archive (P0; a missing tarball now fails). Expected: P3 archived `report_read` → `{head, 1, 1}`,
-   pins unchanged; P4 no translation, ev945's stamps intact and bearings empty; P5 the stored VERIFIED unchanged; P8
+   on the committed archive (P0; a missing tarball now fails). Expected: P3 archived `report_read` →
+   `{head, item 1, of 1, whole true}`, pins unchanged, and a lens with an archived serve in a later sitting owes no full
+   re-read; P4 no translation, ev945's stamps intact and bearings empty; P5 the stored VERIFIED unchanged; P8
    G-7a1103be/G-1606eaab closes stamped `own_prescription`. Re-armed by: any `record.proto` change or epoch bump.
 6. `go -C scripts run ./vocabdoc` then `go test -count=1 -run TestVocabularyProse ./...` (FEOV module). Re-armed by:
    terms.json.
@@ -708,10 +815,24 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
       debate, Constitutional AI), or a `coverage_misstated` gap put a missing one back; every part has coverage and a
       standing check at the PASS; VERIFIED only if every part is covered, else QUALIFIED with `verdict_why` naming the
       parts; `grep -c 'HTTP 4\|not retrieved' report.md` = 0.
-   2. **F:** for each pin move, `SELECT e.sitting_id, r.head, count(*), max(r.of) FROM report_read r JOIN events e ON e.id=r.event_id GROUP BY 1,2`
+   2. **F:** for each pin move, `SELECT e.sitting_id, r.head, r.whole, count(*), max(r.of) FROM report_read r JOIN events e ON e.id=r.event_id GROUP BY 1,2,3`
       has `count = of`; and independently, each such sitting's subagent transcript holds the hook `additionalContext`
-      for every section index `1..of` at that head (criterion 2). Every retirement's plan reason shows 3 sittings with
-      no mint, close, check, verify or reproduce.
+      for every item `1..of` at that head (criterion 2). Each lens's first sitting has `whole` rows; every later
+      sitting's rows are `whole = 0` except exactly one sitting per lens (its full re-read), and no lens that sat lacks
+      that sitting before the PASS:
+      ```sql
+      -- every lens that sat has a complete whole delivery in a sitting after its first, before the gate (expect 0 rows)
+      WITH firsts AS (SELECT seat_id, min(event_id) AS first FROM sitting_open GROUP BY seat_id),
+           whole AS (SELECT e.seat_id, e.sitting_id FROM report_read r JOIN events e ON e.id = r.event_id
+                      WHERE r.whole GROUP BY e.seat_id, e.sitting_id, r.head HAVING count(*) = max(r.of))
+      SELECT f.seat_id FROM firsts f WHERE f.seat_id IN (/* the cast lenses */)
+         AND NOT EXISTS (SELECT 1 FROM whole w WHERE w.seat_id = f.seat_id AND w.sitting_id > f.first
+                                                 AND w.sitting_id < (SELECT event_id FROM gate));
+      ```
+      Every later sitting's rendered work list holds only `report_change`
+      items for paragraphs that differ between its pin and head and `own_gap_passage` items for its own gaps. Every
+      retirement's plan reason shows 3 sittings with no mint, close, check, verify or reproduce. Reported, not gated:
+      delivered items per sitting by kind, and the gaps minted at full re-reads against those minted at later sittings.
    3. **D:**
       ```sql
       -- every change after a stale lens's pin carries a bearing at the PASS (expect 0 rows)
@@ -750,25 +871,17 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
 
 ## VI. Forks (gblock's; recommendation first)
 
-- **F1 — how the report text reaches a lens (F).** The investigation (§III.3.1) found that diffs and gaps alone would
-  have found 1 of 11 later material gaps, so every option below delivers the whole report.
-  - (a) **Recommended. The work list serves it** as ~10 section items, changes first (§III.3.2). The delivery is the
-    read; no seat act, no hooks.json change, no client spike. Cost ~+9 turns per sitting, ~$12.5 on this run (about
-    +90% of lens cost). Does not reach a seat under Antigravity.
-  - (b) The hook observes the client's `Read` of a report copy the tool writes per sitting; the pin moves when the
-    `Read` ranges cover it. Cost +1–2 turns per sitting, ~$3.7 here. Needs a hooks.json matcher change (`|Read`, the
-    readers in §III.11), a spike to confirm `tool_response` carries the line range on the pinned client, and it records
-    the seat's own tool act as the read.
-  - (c) Keep `show report` as the read and refuse a serve when stdout is not the client's capture. Cheapest; unproven
-    (the tool cannot tell a pipe to `head` from the client's own capture without a measurement), and it is r0's hole.
-- **F2 — whole report every sitting, or the changes since the pin and the lens's own gaps.**
-  - (a) **Recommended. Whole report**, changes first as navigation. Evidence: 8 of 11 later material gaps were in text
-    unchanged since the pin; 5 of them outside every anchor of the lens's own; the SKILL and #1769 already say so.
-  - (b) Changes since the pin, the changed sections whole, and the lens's own gaps' passages open and closed. Cheaper
-    (median 1,157 characters of change per sitting); here it would have found 4 of 11 (750, 640, 888, 890) and needed
-    the far side of a contradiction for 2 more.
-  - (c) (b) for a lens re-readied after retiring, (a) while unretired. No evidence either way for retired lenses on this
-    run: none re-sat.
+- **F1 — how the report text reaches a lens (F). RULED by gblock 2026-11-13** (RULINGS.md, last section; the picked
+  option is agent wording, not his): the work list serves it, and the tool's record of what the chain delivered is the
+  read (§III.3.2). No seat act, no hooks.json change, no client spike. The hook-observed `Read` and the stdout-guarded
+  `show report` are not built.
+- **F2 — whole report every sitting, or the changes since the pin and the lens's own gaps. RULED by gblock 2026-11-13**
+  (same source; agent wording): the first sitting is served the whole report; every later sitting, the paragraphs
+  changed since the pin, old and new, and the lens's own gap passages, open and closed, with no neighbouring sections;
+  each lens owes one full re-read, the whole report delivered once more, before a PASS can stand. Evidence
+  (§III.3.1): that delivery serves all 6 edit-caused later gaps at about a third of the whole-every-sitting cost; the 5
+  first-read misses argue for one deliberate second whole read, not a whole read every sitting. A recurring audit of the
+  whole read's value is not built (gblock: "I'm not sure what we're getting out of that kind of complexity").
 - **F3 — the qualified outcome's shape (E).** (a) **Recommended.** A new value, QUALIFIED. (b) VERIFIED plus a
   `qualified` field — a reader that ignores the field prints plain VERIFIED.
 - **F4 — I's route to the bench.** Moved to #1695's redesign (gblock 2026-11-12); not asked here.
@@ -784,6 +897,19 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
 - **F10 — E migrate (held for gblock's confirmation).** (a) **Recommended.** Carry archived outcomes as history
   (FORKS:345); residue: an archived VERIFIED means the old thing. (b) Rewrite archived VERIFIED to QUALIFIED with
   `verdict_why` "no question-coverage record" — contradicts FORKS:345.
+- **F11 — when the full re-read is served (new; the ruling fixes once per lens, after its first sitting, and before a
+  PASS, but not the sitting).**
+  - (a) **Recommended. In the round before a PASS:** the debt falls due when the board holds no blocker but
+    `full_reread_owed` and the chair's `stale_area`, and readies each lens that owes it, retired or not (§III.3.2). The
+    re-read is of the report as it is about to pass, after the big-rewrite epochs; a retired lens re-read here leaves no
+    stale area for the chair to bear. Costs one readiness arm computed over the board without itself, and one more round
+    of lens sittings when the run would otherwise PASS.
+  - (b) At the lens's second sitting: owed from the end of the first and readying at once, as an `owedItem`. Simplest
+    (no new readiness arm), but early: the report is still moving most then (at e3 the ruled changes delivery is
+    already 19 of 30 items a sitting), and this run's first-read misses were minted at sittings #3–#7, on text the
+    lens had already had.
+  - (c) When the lens would retire: its third barren later sitting is served the whole report. Ties the re-read to the
+    retirement it guards, but a lens that never retires is never re-read, so the PASS needs (a)'s arm anyway.
 
 **Lead defaults, disclosed (reversible; say if wrong):** blue's frontier splits the question at e0 and logic checks the
 parts; coverage is recorded by the synthesizer and blue-respond, never lanes; L's re-owe also covers question-part
@@ -791,12 +917,21 @@ checks; a chair bearing is per change per stale lens, packed per lens; the basis
 
 ## VII. In the rulings: contradictions, limits and what is left out
 
-1. **F's question has an evidence answer, and it is "not enough".** Diffs plus gaps would have found 1 of 11 later
-   material gaps (§III.3.1). The design keeps gblock's direction — the work list carries the report, and the read is
-   the tool's record of what it delivered — and serves the whole report on it, changes first.
+1. **F, as ruled 2026-11-13.** The work list carries the report and the read is the tool's record of what it delivered:
+   the whole report at a lens's first sitting and at its one full re-read before a PASS; the changed paragraphs, old and
+   new, and the lens's own gap passages at every other sitting (§III.3). The evidence is one run and 11 gaps: changes
+   plus own gaps serve all 6 edit-caused gaps; the 5 first-read misses were recognition failures on text already in
+   context, which the full re-read answers as a second draw. **Against the adversarial-audit SKILL** ("a change-summary
+   is a navigation hint, never the audit surface; decontextualized diffs mislead") and #1769: reconciled in the SKILL
+   source by the ruling — a changed paragraph is served whole, old side and new, with its section heading, never as a
+   hunk; context outside it is read through the selector reads; and the full re-read MUST stands as the two whole
+   deliveries. **Limit:** the measurement served changed sections, the ruling serves changed paragraphs; ev760's far
+   side was in a changed section, and whether it lay in a changed paragraph is not measured.
 2. **D, both halves.** The own-anchor re-ready reaches only anchored text: edit 698 and the 43 unanchored edits reach a
    retired lens through the chair's bearings, never through D(1). The bearing is a judgement the tool cannot check;
-   the tool guarantees each change was served and borne.
+   the tool guarantees each change was served and borne. Under F11(a) a retired lens's full re-read moves its pin to
+   the head of the round before the PASS, so the chair bears only changes made after it; ev945's 167 changes are the
+   count without a re-read.
 3. **K against lead-judge.md:129** ("You author no sentence into report.md"). Reconciled: the basis block holds no
    bench sentence; its table links to judgments.md.
 4. **I against #1695's ONE MECHANISM**: three seams (F4).
@@ -806,9 +941,12 @@ checks; a chair bearing is per change per stale lens, packed per lens; the basis
 **Left out, with the reason:**
 - O (reopen) and N (#1827): out of scope by instruction.
 - AUDIT defect 12 (hook provenance reports binaries missing): marked "verify".
-- AUDIT defect 5's unretired case: readied by the head move and served the whole report. The retired case is D.
+- AUDIT defect 5's unretired case: readied by the head move and served the changes since its pin and its own gap
+  passages, and the whole report at its full re-read. The retired case is D.
 - ev685 (a `--quote` read claimed): selection reads record nothing by design.
-- ev883 (a closer omitted its own counter-evidence): a judgement; P3 puts the counter-evidence in its context.
+- ev883 (a closer omitted its own counter-evidence): a judgement. The counter-evidence (line 239, elsewhere in the
+  report) is in context at the lens's first sitting and its full re-read, and at a later sitting only where it changed
+  or lies in one of its own gap passages.
 - FINDINGS row 15: no ruling, not in AUDIT's list.
 - The #1805 census follow-ups F1–F12 not touched above: their own issue.
 - FINDINGS row 4's general case: a dispute between lenses is a #1695 motion.
