@@ -32,7 +32,9 @@ func newSendCmd(env *Env) *cobra.Command {
 		Long: `Delivers a message to another running agent session on this box, whichever
 harness runs it. The id is a session id or any unique prefix of one; "-" reads the
 message from stdin. The message arrives prefixed with who sent it and the command
-that replies.
+that replies. When the recipient is an Antigravity conversation with a local annotation
+file, its current title is printed beside the id in the delivery report (display only;
+titles are never accepted as targets).
 
 WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
 
@@ -86,13 +88,19 @@ its own session, so sending to one is refused there.`,
 				return fmt.Errorf("%s session %s: %w", target.harness, target.id, err)
 			}
 			out := cmd.OutOrStdout()
+			agyTitleSuffix := ""
+			if target.harness == "antigravity" {
+				if t := env.agyTitle(target.id); t != "" {
+					agyTitleSuffix = fmt.Sprintf(" (%q)", t)
+				}
+			}
 			switch d.Route {
 			case peer.RouteClaudeSocket:
 				fmt.Fprintf(out, "delivered to claude session %s over its inbox socket %s\n", target.id, d.Via)
 			case peer.RouteAgyServer:
-				fmt.Fprintf(out, "delivered to antigravity conversation %s through its language server at %s; it wakes if idle\n", target.id, d.Via)
+				fmt.Fprintf(out, "delivered to antigravity conversation %s%s through its language server at %s; it wakes if idle\n", target.id, agyTitleSuffix, d.Via)
 			case peer.RouteAgyMailbox:
-				fmt.Fprintf(out, "QUEUED for antigravity conversation %s in its mailbox (%s); it is read at the conversation's next turn and nothing wakes it\n", target.id, d.Via)
+				fmt.Fprintf(out, "QUEUED for antigravity conversation %s%s in its mailbox (%s); it is read at the conversation's next turn and nothing wakes it\n", target.id, agyTitleSuffix, d.Via)
 				fmt.Fprintf(out, "  not delivered live: %s\n", d.NotWoken)
 			}
 			return nil
