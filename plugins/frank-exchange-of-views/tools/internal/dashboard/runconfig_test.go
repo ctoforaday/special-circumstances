@@ -26,11 +26,11 @@ func TestTheBoardShowsAnUnreadableConfigurationAsUnread(t *testing.T) {
 		t.Fatalf("a readable configuration read as %+v (unread %q)", m.Config, m.ConfigUnread)
 	}
 
-	if err := os.WriteFile(cfg, []byte(`{"model":"claude-fable-5","mintBudget":3}`), 0o644); err != nil {
+	if err := os.WriteFile(cfg, []byte(`{"model":"claude-fable-5","noSuchKey":3}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	m = BuildModel(runtest.Open(t, dir), t.TempDir(), Config{}, 0)
-	if !strings.Contains(m.ConfigUnread, "mintBudget") {
+	if !strings.Contains(m.ConfigUnread, "noSuchKey") {
 		t.Errorf("an unreadable configuration read as unread=%q", m.ConfigUnread)
 	}
 	html := RenderHTML(m)

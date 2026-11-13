@@ -84,7 +84,7 @@ func TestEveryRunConfigReaderRefusesAnUndeclaredKey(t *testing.T) {
 	if n, ok, err := LanesDeclared(run); !ok || n != 2 || err != nil {
 		t.Fatalf("lanes 2 read as (%d, %v, %v)", n, ok, err)
 	}
-	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true,"mintBudget":3}`)
+	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true,"noSuchKey":3}`)
 	if consentIn(t, runDir) {
 		t.Error("a run-config holding an undeclared key read as consent to a substitution")
 	}

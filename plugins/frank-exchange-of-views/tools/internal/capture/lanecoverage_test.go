@@ -134,7 +134,7 @@ func TestLaneCoverageWillNotReportAnUncheckedRunAsAClearOne(t *testing.T) {
 		{"no lanes declared", `{}`, "SKIP", "declared no lane count"},
 		{"empty string", `{"lanes":""}`, "FAIL", "not a positive whole number"},
 		{"unparseable config", `{ not json`, "FAIL", "could not read the run's configuration"},
-		{"undeclared key", `{"lanes":"2","mintBudget":3}`, "FAIL", "could not read the run's configuration"},
+		{"undeclared key", `{"lanes":"2","noSuchKey":3}`, "FAIL", "could not read the run's configuration"},
 		{"a word", `{"lanes":"two"}`, "FAIL", "not a positive whole number"},
 		{"zero", `{"lanes":"0"}`, "FAIL", "not a positive whole number"},
 		{"negative", `{"lanes":"-1"}`, "FAIL", "not a positive whole number"},
