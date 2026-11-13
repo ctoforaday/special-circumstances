@@ -212,7 +212,7 @@ var layout = []Section{
 	{File: FileChangelog, Heading: "Superseded bench statements", Composer: Tool,
 		From:    "the bench's statements that a later one replaced",
 		Path:    "The bench's `certify`: its last statement is the one the debate carries, and each earlier one is listed here.",
-		compose: func(a *assembly, _ Section) string { return supersededAsks(a.fam.Events) }},
+		compose: func(a *assembly, _ Section) string { return supersededAsks(a.fam) }},
 	{File: FileChangelog, Heading: "Edits to the report", Composer: Tool,
 		From:    "the edits on the record, grouped by the sitting that made each: the gap it answers, blue's reason, and the span it replaced beside the text that replaced it",
 		Path:    "Blue's `edit`, which records the span it replaces, the new text and why.",
