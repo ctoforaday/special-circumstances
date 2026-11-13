@@ -278,6 +278,10 @@ var runConfigDrops = map[string]struct{}{
 	// A SOURCE BEFORE EPOCH 75 MAY STATE `mintBudget`, the per-lens mint cap, which went at epoch 75:
 	// lens retirement and the epoch limit bound a run.
 	"mintBudget": {},
+	// A SOURCE BEFORE EPOCH 75 MAY STATE `allowModelSubstitution`, the operator's consent to a
+	// served model other than the configured tier, which went at epoch 75: nothing read it, and
+	// capture's tier audit fails a substitution in either direction.
+	"allowModelSubstitution": {},
 }
 
 // translateRunConfig copies the run-config.json at from to to without the keys runConfigDrops

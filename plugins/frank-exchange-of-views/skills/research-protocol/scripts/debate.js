@@ -30,15 +30,12 @@ export const meta = {
 //   KNOWN TRADEOFF (retrospective §3 row 16b): red LENSES ride the bulk tier — on a cheap-model
 //   dev/smoke run, treat lens-sourced gap grades with a confidence discount. For keeper runs,
 //   name a STRONG model for BOTH tiers so the adversary and the bench run at full strength.
-//   THE TIER YOU NAME IS NOT NECESSARILY THE TIER THAT ANSWERS, and until #589 nothing in the
-//   loop could tell. Both 2026-08-23 runs asked for `claude-fable-5` on the bulk tier and were
-//   answered by `claude-opus-4-8` on all 44 bulk seats, for ~$379: the configured research tier
-//   never ran, and one run's certified report described the pairing it had asked for rather than
-//   the one that argued it. These opts are a REQUEST. `register` now measures what actually
-//   replied — the harness declares a swap on the seat's own first turn — records it on the
-//   register event, and REFUSES the sitting on a mismatch in either direction, so the run stops
-//   at its first seat rather than at capture. An operator who accepts the environment's
-//   substitution says so once, at `setup`, and the run proceeds with it on the record.
+//   THE TIER YOU NAME IS NOT NECESSARILY THE TIER THAT ANSWERS. Both 2026-08-23 runs asked for
+//   `claude-fable-5` on the bulk tier and were answered by `claude-opus-4-8` on all 44 bulk seats,
+//   for ~$379: the configured research tier never ran, and one run's certified report described
+//   the pairing it had asked for rather than the one that argued it. These opts are a REQUEST.
+//   Each seat's trajectory names the model that answered it; `show tiers` lists configured beside
+//   served, and capture's tier audit FAILS a mismatch in either direction.
 // TERMINATION IS JUDGED, AND THE STANDING PRACTICE IS STOP-AND-RESUME (run-4 report §1.4-1.5):
 //   the operator stops the run and resumes it — Workflow({scriptPath, resumeFromRunId}) with the
 //   SAME args — and the agent cache replays every completed sitting at ~$0; only what had not run

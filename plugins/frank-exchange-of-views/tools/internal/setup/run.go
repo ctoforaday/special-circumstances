@@ -43,10 +43,6 @@ type Config struct {
 	// know them leaves them empty, and the marker omits the fields rather than carrying "".
 	RunID      string
 	ScriptPath string
-	// AllowSubstitution is the operator's standing consent to a served model that is not the
-	// configured tier. It is recorded on the run rather than passed per seat: the seat is the
-	// party whose adversary strength is in question, so the decision cannot be its to make.
-	AllowSubstitution bool
 	// Session is the launching session's id (seatenv.Session), recorded on the run's live-run row
 	// as its lead: the hooks attribute a payload to the run only when its session_id is this one.
 	// Required — a run no session leads is a run none of whose seats can be attributed.
@@ -292,9 +288,8 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.MaxEpochs > 0 {
 		terms.MaxEpochs = cfg.MaxEpochs
 	}
-	// THE RUN'S CONFIGURATION IS WRITTEN OR SETUP FAILS: every record reader of the run's terms, its
-	// lane count and its consent reads this file, and a run set up without it would run on defaults
-	// nobody chose.
+	// THE RUN'S CONFIGURATION IS WRITTEN OR SETUP FAILS: every record reader of the run's terms and its
+	// lane count reads this file, and a run set up without it would run on defaults nobody chose.
 	failConfig := func(err error) int {
 		fmt.Fprintf(stderr, "run-setup: could not write the run's configuration (inputs/run-config.json): %v\n", err)
 		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
@@ -311,7 +306,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if err != nil {
 		return failEncode(err)
 	}
-	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
+	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect,
 		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
 		Hooks:   hooks,
 		Billing: ReadBillingIdentity()}

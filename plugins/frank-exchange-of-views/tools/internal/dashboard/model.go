@@ -296,7 +296,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		// MESSAGE at its own `model` field; cost.ScanTranscript picks one model per FILE and
 		// prices that file's totals at that tier. For a single-model transcript — every ordinary
 		// seat — the two agree exactly. For a transcript carrying more than one model, which is
-		// what `setup --allow-substitution` exists to permit, they do not, and the page would
+		// what a harness substitution produces, they do not, and the page would
 		// show a total that did not equal the breakdown printed under it. The breakdown's
 		// definition wins because it is the one cost.md already uses; a dashboard and a cost
 		// report disagreeing about one run is the two-readers defect this codebase keeps finding.

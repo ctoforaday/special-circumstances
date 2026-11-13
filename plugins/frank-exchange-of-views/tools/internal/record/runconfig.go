@@ -75,14 +75,6 @@ type RunConfig struct {
 	// what shipped rather than what it can read. This is the same number the setup preflight
 	// just checked the binary against, so the file states a fact the run has already verified.
 	EventSchema int `json:"eventSchema,omitempty"`
-	// AllowModelSubstitution records that the OPERATOR accepted, before the run, an environment
-	// that may answer with a model other than the configured tier. Absent means no: a run whose
-	// config does not state it never consented, and the failing direction of a gate has to be the
-	// safe one.
-	//
-	// It is written by setup and read by JudgeTiers, which marks a substitution it allows, which is
-	// what makes the consent a FIELD an operator set rather than a flag a seat could type for itself.
-	AllowModelSubstitution bool `json:"allowModelSubstitution,omitempty"`
 	// Billing is WHAT THIS RUN IS BILLED TO — the account, its organization and whether it is a
 	// subscription. See BillingIdentity for the measurement that put it here.
 	Billing BillingIdentity `json:"billing"`

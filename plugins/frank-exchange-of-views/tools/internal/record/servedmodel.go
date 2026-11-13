@@ -1,7 +1,6 @@
 package record
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/servedmodel"
 )
@@ -37,13 +36,6 @@ type SeatModel struct {
 	// is the shape that let a run with no measurement read like a run that matched: absent and
 	// agreeing are the same bytes unless the absence carries its reason.
 	NotMeasured string `json:"notMeasured,omitempty"`
-	// Substitution, when the tier served differs from the tier this seat's class was configured
-	// for. Detected on READ because that is when the serving model can be known at all; set by
-	// JudgeTiers, never by SeatModels.
-	Substitution string `json:"substitution,omitempty"`
-	// NotJudged says why a tier-bound seat's service was not compared with its configured tier: the
-	// run's configuration could not be read. It is set instead of Substitution, never folded into it.
-	NotJudged string `json:"notJudged,omitempty"`
 }
 
 // Measured reports whether anything actually observed this seat's serving model.
@@ -62,9 +54,9 @@ func (s SeatModel) Substituted() bool { return s.Requested != "" && s.Requested 
 // agent of that sitting. A seat re-dispatched into a substituted environment must not be masked by
 // its first, clean dispatch.
 // IT READS NO CONFIGURATION: what answered a seat does not depend on what was configured, and a
-// report that judges the rows reads the run's configuration once and hands that read to JudgeTiers,
-// so the rows and the report's own statement of the configured tiers are one read, never two that
-// can disagree.
+// report that compares the rows with the configured tiers reads the run's configuration once, so
+// the rows and the report's own statement of the configured tiers are one read, never two that can
+// disagree.
 func SeatModels(run Run, f Family) []SeatModel {
 	order := []string{}
 	bySeat := map[string]*SeatModel{}
@@ -132,35 +124,6 @@ func SeatModels(run Run, f Family) []SeatModel {
 	return out
 }
 
-// JudgeTiers sets, on each measured tier-bound row, the substitution against the tier its class was
-// configured for — rc and rcErr are one ReadRunConfig's answer. A configuration that does not read
-// is not one that declared no tier: each such row says it was not judged, and why. rc nil with no
-// error is a run with no configuration, which holds no seat to a tier.
-func JudgeTiers(rows []SeatModel, rc *RunConfig, rcErr error) {
-	model, judgmentModel, allow := "", "", false
-	if rc != nil {
-		model, judgmentModel, allow = rc.Model, rc.JudgmentModel, rc.AllowModelSubstitution
-	}
-	for i := range rows {
-		row := &rows[i]
-		// A seat that rides no tier has no configured tier to be judged against, and a seat nothing
-		// measured has no service to judge.
-		if row.Class == "" || !row.Measured() {
-			continue
-		}
-		if rcErr != nil {
-			row.NotJudged = "the run's configuration could not be read: " + rcErr.Error()
-			continue
-		}
-		configured := model
-		if row.Class == "judgment" {
-			configured = judgmentModel
-		}
-		row.Substitution = TierSubstitution(allow, configured, servedmodel.Observation{
-			Served: row.Served, Requested: row.Requested, Declared: row.Requested != ""}) // Requested is set only where declared
-	}
-}
-
 // servedOnRecord is the model each agent's FIRST recorded turn names, from seat_turn — the turn
 // servedmodel.Read takes from a trajectory. A run with no seat_turn table, or a record that cannot
 // be read, answers nothing, and each seat then states its trajectory's reason.
@@ -189,55 +152,4 @@ func servedOnRecord(run Run) map[string]string {
 		}
 	}
 	return out
-}
-
-// TierSubstitution reports a seat answered by a tier other than the one its class was configured
-// for, or "" when there is nothing to report.
-//
-// # Why it reports in BOTH directions
-//
-// The post-hoc audit graded a dearer-than-configured seat FAIL ("the fable trap") and a cheaper
-// one WARN, and capture exited 2 only on a FAIL. The measured incident was CHEAPER —
-// `claude-fable-5` configured, `claude-opus-4-8` served — so the one check that noticed it graded
-// it a warning and capture exited 0. The framing was wrong: the question a research debate asks of
-// its tier is not "did this cost more than budgeted" but "did the adversary run at the strength the
-// run claims", and a weaker adversary silently substituted is the worse failure of the two.
-//
-// # Why it reports and no longer refuses
-//
-// It was a gate at `register`, which is the one moment the answer cannot be known: a fresh
-// trajectory has no assistant turn yet, so the observation it judged was empty on all 45 registers
-// of a full run. Nine tests passed over it the whole time, because every one supplied the
-// observation the gate never received. A refusal that cannot fire is worse than none — it reads as
-// enforcement to anyone auditing the surface — so the comparison moved to the read path, where the
-// trajectory has an answer, and it states rather than blocks.
-//
-// WHAT THAT COSTS IS REAL AND IS NOT MADE UP HERE: nothing now stops a substituted sitting while it
-// runs. Nothing did before either, but the honest way to get it back is a check on a seat's SECOND
-// act — the first moment a model has answered — and that is a change to when every seat is measured
-// rather than to where one number is read.
-//
-// # Why the override is not a flag
-//
-// An operator who knows the environment will not serve the configured tier may still want the run.
-// That decision is theirs and is made ONCE, at setup, written to run-config as a field. It is
-// deliberately not a flag on a seat's verb: a seat typing --allow-substitution would be the party
-// under test excusing itself.
-func TierSubstitution(allow bool, configured string, o servedmodel.Observation) string {
-	if o.Served == "" || configured == "" {
-		return "" // NOT MEASURED, or a run that declared no tier for this class
-	}
-	want, got := modeltier.Of(configured), modeltier.Of(o.Served)
-	if want == got && !o.Substituted() {
-		return ""
-	}
-	declared := ""
-	if o.Substituted() {
-		declared = " The harness declared the substitution itself: " + o.Requested + " -> " + o.Served + "."
-	}
-	msg := "configured " + configured + " (" + want + " tier), served " + o.Served + " (" + got + " tier)." + declared
-	if allow {
-		return "ALLOWED BY THIS RUN'S CONFIG — " + msg
-	}
-	return msg
 }

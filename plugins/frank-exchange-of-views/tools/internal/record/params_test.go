@@ -71,25 +71,24 @@ func TestARunConfigWithContentAfterItsObjectIsRefused(t *testing.T) {
 	}
 }
 
-// EVERY READER OF THE RUN'S CONFIGURATION READS IT STRICTLY. The consent gate and the lane count
-// decode through the same reader as the terms, so a file the terms' reader refuses is not one they
-// read as consent or a lane count.
+// EVERY READER OF THE RUN'S CONFIGURATION READS IT STRICTLY. The lane count decodes through the
+// same reader as the terms, so a file the terms' reader refuses is not one it reads a lane count
+// from. `allowModelSubstitution` is a key the configuration does not declare.
 func TestEveryRunConfigReaderRefusesAnUndeclaredKey(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true}`)
+	writeRunConfig(t, runDir, `{"lanes":"2"}`)
 	run := mustRun(t, runDir)
-	if !consentIn(t, runDir) {
-		t.Fatal("a declared consent read as none")
-	}
 	if n, ok, err := LanesDeclared(run); !ok || n != 2 || err != nil {
 		t.Fatalf("lanes 2 read as (%d, %v, %v)", n, ok, err)
 	}
-	writeRunConfig(t, runDir, `{"lanes":"2","allowModelSubstitution":true,"noSuchKey":3}`)
-	if consentIn(t, runDir) {
-		t.Error("a run-config holding an undeclared key read as consent to a substitution")
-	}
-	if n, ok, err := LanesDeclared(run); ok || err == nil {
-		t.Errorf("a run-config holding an undeclared key read as (%d, %v, %v), want the read error", n, ok, err)
+	for _, undeclared := range []string{`"noSuchKey":3`, `"allowModelSubstitution":true`} {
+		writeRunConfig(t, runDir, `{"lanes":"2",`+undeclared+`}`)
+		if n, ok, err := LanesDeclared(run); ok || err == nil || !strings.Contains(err.Error(), "unknown field") {
+			t.Errorf("a run-config holding %s read as (%d, %v, %v), want the read error", undeclared, n, ok, err)
+		}
+		if rc, err := readRunConfig(runDir); rc != nil || err == nil || !strings.Contains(err.Error(), "unknown field") {
+			t.Errorf("a run-config holding %s read as (%+v, %v), want the read error", undeclared, rc, err)
+		}
 	}
 	// A lane count that is not a positive whole number is a damaged config, not a run that declared
 	// none: setup refuses each of these before the run exists.

@@ -2247,7 +2247,6 @@ Usage:
   feov-record setup <runDir> [flags]
 
 Flags:
-      --allow-substitution           accept a run whose environment answers with a model other than the configured tier — recorded on the run, so every seat's register stops refusing it and the substitution stays visible on the record
       --bin-dir string               where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss
       --cite stringArray             a cited path, optionally pinned: <path>[@<commit>] (repeatable)
       --convergence-fraction float   fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)

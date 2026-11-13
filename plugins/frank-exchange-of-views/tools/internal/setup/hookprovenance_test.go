@@ -119,7 +119,7 @@ func TestSetupRecordsTheHookVersionsOfThePluginCacheClaudeCodeReads(t *testing.T
 // read of the run's terms.
 func TestTheRecordReadsTheRunConfigSetupWrites(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	cfg.Lanes, cfg.AllowSubstitution, cfg.MaxEpochs = "2", true, 9
+	cfg.Lanes, cfg.MaxEpochs = "2", 9
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {
 		t.Fatalf("setup exit %d:\n%s", code, errb.String())
