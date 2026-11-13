@@ -6,7 +6,7 @@
 > with a full re-read owed (§III.3.2), a read row only for text that reached the seat (§III.3.2), the consumers of
 > "served since X" (§III.3.2, §III.11), delivery keyed on pin state (§III.3.2), and P6 deferred cleanly (§III.6).
 > Forks F3, F5, F6, F7, F9 and F10 were ruled 2026-11-12 and the body is built to them. Antigravity is NOT ruled:
-> gblock's words, "Prove Antigravity lacks support."; an investigation runs separately, and the outcome is fork F12.
+> F12 is ruled: the agy delivery mechanism belongs to the Antigravity native-workflow session (#1827); gblock's words, "I told the agy session we support this in jetski and it should go through the source for options".
 > r3 applied gblock's 2026-11-13 ruling on F (F1, F2; §III.3) and the whole-read value measurement
 > (`f-invest/WHOLE-READ-VALUE.md`). r2 applied the rulings "after plan-audit r1" in `~/.claude/scratch/universe-research-audit/RULINGS.md`, the
 > cross-check against the peer workstreams (#1695 findings fold, FEOV slimming, #1824, #1828), and the F
@@ -106,8 +106,8 @@ bumps (P3, P4, P5, P8, P10) and about 12 PRs. It buys a VERIFIED stamp that cann
     (`audit/usage.txt`). The lenses cost $13.64 at feov's price table.
   - **Under Antigravity**, FEOV's hook answers a PostToolUse with an empty document (`hookcmd/hookcmd.go:140-146`;
     the claim at `hookcmd/post.go:74-76`), so nothing it hands reaches an agy seat today. Whether agy offers any path
-    by which hook text reaches the agent is NOT established: gblock's words, "Prove Antigravity lacks support." The
-    investigation runs separately; this plan states the property it needs and leaves the agy outcome to fork F12.
+    by which hook text reaches the agent belongs to the Antigravity native-workflow session (#1827, fork F12 ruled);
+    this plan states the property it needs and builds no agy mechanism.
 - **Constraints from standing rulings, not reopened:** a reading only records and the gap is the one PASS-holder
   (#1727). Reading itself is a recorded act, tool-generated if anything; a seat never records what it read
   (gblock 2026-11-11). Seat-facing text names no event id: "we do this by working locators" (gblock, FORKS:368).
@@ -897,7 +897,7 @@ those noted.
 |---|---|---|---|
 | R1 | P3's deliveries add turns: ~+9 per whole delivery (a lens's first sitting and its full re-read) and a few per later sitting — about $7 on this run against $12.5 for the whole report every sitting, beside the lenses' $13.64. Blocking delivery items make those turns unskippable | H × M × L | Measured and stated as an estimate (§III.3.2: the later-sitting share is an unpacked ratio applied to the packed whole delivery). Cost concentrates at the big-rewrite epochs (e3: 19 of 30 items a sitting); the acceptance run (§V 9.2) reports the delivered items per sitting |
 | R1a | A later sitting sees only the changes and its own gap passages, so a first-read miss far from any change (ev580) or the unchanged far side of a cross-section contradiction (ev760's AS 1215 side, measured only at section granularity) waits for the full re-read | M × M × M | The ruled trade (gblock 2026-11-13). The full re-read is the second draw the evidence argues for; the selector reads stay open for context; the acceptance run counts gaps minted at full re-reads against later sittings |
-| R2 | A harness whose hook `additionalContext` does not reach the seat writes no `report_read` row (the property, §III.3.2), so no pin moves and no full re-read completes there, and with delivery items blocking the envelope its lens sittings cannot return one. FEOV's hook answers PostToolUse with an empty document under Antigravity today (`hookcmd.go:140-146`) | M × H × M | **The agy outcome is PENDING** the investigation gblock asked for ("Prove Antigravity lacks support."), fork F12. Whatever it decides, the property stands: a row only for text that reached the seat, so an undelivered read never moves a pin or permits a PASS. Under the property alone an agy run cannot PASS; it ends at the engine's seat-failure or no-progress stop, UNVERIFIED, with the reason stated |
+| R2 | A harness whose hook `additionalContext` does not reach the seat writes no `report_read` row (the property, §III.3.2), so no pin moves and no full re-read completes there, and with delivery items blocking the envelope its lens sittings cannot return one. FEOV's hook answers PostToolUse with an empty document under Antigravity today (`hookcmd.go:140-146`) | M × H × M | **F12 ruled:** the agy delivery mechanism is #1827's (the Antigravity native-workflow session); the property stands: a row only for text that reached the seat, so an undelivered read never moves a pin or permits a PASS. Under the property alone an agy run cannot PASS; it ends at the engine's seat-failure or no-progress stop, UNVERIFIED, with the reason stated |
 | R3 | A head move mid-sitting re-hands changed paragraphs, adding turns; the re-read under F11 falls early (mostly e2), when the report is still moving | M × L × L | Only the paragraphs changed between the two heads are handed (existing `changed_since_delivered`); the pin moves to the last fully delivered head. The early re-read is the ruled timing (F11); edits after it reach the lens through its changes deliveries |
 | R4 | L makes logic sit after edits made while retired | H × L × L | ~5 sittings / ~$1.4 here; the ruled behaviour |
 | R5 | QUALIFIED changes every consumer keyed on "VERIFIED" | M × M × L | §III.5 census; archived outcomes untouched (history) |
@@ -1013,7 +1013,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
    10. **P10:** every `cite` whose copy came from a web archive carries `copy_captured_at` equal to the CDX timestamp
        in the cache; a live copy carries none.
 10. **Auditor gate:** `/prosthetic-conscience:plan-audit plans/constitution-gaps.md` → PASS, or gblock's approval once
-    F12 is ruled and every remaining gap is local.
+    every remaining gap is local.
 
 ## VI. Forks (gblock's; recommendation first)
 
@@ -1046,23 +1046,13 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
   whole-report delivery at the lens's next sitting after its first complete whole delivery; undelivered, the next
   sitting serves the whole report again, at any head; the PASS is refused while any lens that has sat still owes it
   (§III.3.2). The "round before a PASS" design and its "readies again only after a head move" rule are not built.
-- **F12 — Antigravity: the report read where hook text does not reach the seat. PENDING** the investigation gblock
-  asked for (his words: "Prove Antigravity lacks support."): whether a PostToolUse (or SubagentStart)
-  `additionalContext` delivery can reach an agy seat. The property is not in question: a `report_read` row only for
-  text that reached the seat (§III.3.2). What is open is the agy outcome, and no option is recommended until the
-  investigation reports:
-  - (a) **Accept the residue.** An agy run writes no row, so no pin moves and no full re-read completes; with delivery
-    items blocking the envelope, its lens sittings cannot end, and the run stops UNVERIFIED at the engine's
-    seat-failure or no-progress stop. It cannot PASS. Stated in `register` and `show report` help and in #1746's
-    thread.
-  - (b) **Build an agy delivery path** that puts each item's full text into the agy seat's context and lets the writer
-    observe that it did, so the property holds there and a row is written. Its shape depends on what the
-    investigation finds agy supports.
-
-**Lead defaults, disclosed (reversible; say if wrong):** blue's frontier splits the question at e0 and logic checks the
-parts; coverage is recorded by the synthesizer and blue-respond, never lanes; L's re-owe also covers question-part
-checks; a chair bearing is per change per stale lens, packed per lens; the basis block's table links rather than quotes.
-
+- **F12 — Antigravity: the report read where hook text does not reach the seat. RULED 2026-11-13:** gblock's words, "I told the agy session we support this in jetski and it should go through the source for options".
+  Measured (agy 1.5.8, `~/.claude/scratch/agy-probe/`): a PostToolUse `additionalContext` reply is refused by agy's
+  parser (`unknown field "additionalContext"`) and reaches no model; `overwrite_result`, the one PostToolUse result
+  field, had no effect; text queued at PostToolUse and returned by the next PreInvocation hook as `injectSteps` did
+  reach the model. The evidence was sent to that session (31aafaf1). This plan holds the property — a `report_read`
+  row only for text that reached the seat (§III.3.2) — and builds no agy mechanism; until #1827 lands one, an agy run
+  writes no row and cannot PASS (R2).
 ## VII. In the rulings: contradictions, limits and what is left out
 
 1. **F, as ruled 2026-11-13.** The work list carries the report and the read is the tool's record of what it delivered
@@ -1084,8 +1074,8 @@ checks; a chair bearing is per change per stale lens, packed per lens; the basis
 3. **K against lead-judge.md:129** ("You author no sentence into report.md"). Reconciled: the basis block holds no
    bench sentence; its table links to judgments.md.
 4. **I**: deferred to #1695's redesign (gblock 2026-11-12); this plan designs nothing against #1695's current plan.
-5. **Antigravity**: not ruled (F12). The property — a read row only for text that reached the seat — is fixed here;
-   the agy outcome waits on the investigation gblock asked for.
+5. **Antigravity** (F12, ruled): the property — a read row only for text that reached the seat — is fixed here; the
+   agy delivery mechanism is the Antigravity native-workflow session's (#1827).
 6. **L as ruled is computable**: "retired as of the edit" is `retired()` over the events before it (§III.4).
 7. **VERIFIED's definition and derivation**: neither was wholly right (§III.5).
 
