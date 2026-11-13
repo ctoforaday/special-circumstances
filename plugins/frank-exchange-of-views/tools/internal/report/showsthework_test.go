@@ -56,7 +56,7 @@ func TestEvidenceShowsEveryReadingOfEachCitation(t *testing.T) {
 	)
 	cite := func(label, title, loc string) *record.Event {
 		return recordtest.Event(t, "blue-synthesize", &recordpb.Cite{Label: proto.String(label), Url: proto.String("https://ex/" + label),
-			Title: proto.String(title), AccessDate: proto.String("2026-10-18"), Location: proto.String(loc)})
+			Title: proto.String(title), FetchedAt: proto.String("2026-10-18T12:00:00Z"), Location: proto.String(loc)})
 	}
 	doc := docOf(t, FileEvidence,
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),

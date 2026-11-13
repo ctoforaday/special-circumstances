@@ -695,9 +695,12 @@ function readOf(seat, env) {
 // dies on an API error. Either is one seat's failed sitting, and universe-m35 died of one at epoch 6.
 // sit() is every awaited single dispatch, and it turns both into a logged null: the record still
 // holds what the seat owes, so the plan readies it again in the next epoch with its items listed, and
-// the run reaches its outcome or its ceiling. Repetition is bounded by the record's epoch limit, the
-// no-progress valve, and — for the chair, which relays the plan — NO_PROGRESS_EPOCHS failures in a
-// row. A lens or a lane already sits under parallel(), where a throw is a null.
+// the run reaches its outcome or its ceiling. A failed sitting is no turn in an exchange (ruled by
+// gblock 2026-11-11; record.noTurnSittingsOf), so the gap's limits do not bound a seat that keeps
+// failing. Repetition is bounded by the record's epoch limit, the no-progress valve, a lens's
+// retirement, and — for the chair, which relays the plan, and for blue, the one seat answering the
+// gaps — NO_PROGRESS_EPOCHS failures in a row (seatStop). A lens or a lane already sits under
+// parallel(), where a throw is a null.
 //
 // THE RECORD HOLDS THE FAILURE, NOT THIS LOG: a sitting that closed with no admitted envelope is a
 // failed sitting on the record (record.FailedSittings), which capture reads. This sandbox writes
@@ -800,7 +803,7 @@ await sit((o) => agent(
 // ---- Blue: best-of-N lanes with method diversity, then additive synthesis ----
 phase('Blue')
 await parallel(Array.from({ length: lanes }, (_, i) => () => agent(
-  `Blue lane ${i + 1} of ${lanes} for topic: "${topic}". Read the frontier hypotheses from the RECORD — the \`inquiries\` projection — where each carries an id and its hypothesis. Research your assigned slice to saturation per your constitution (spend at least one search in five on disconfirming evidence; note each source inline with its URL, title, and access date). Your assigned METHOD: ${LANE_METHODS[i % LANE_METHODS.length]} — work primarily through this method's source class; take hypothesis ${i + 1} first, then breadth. YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date), and the program behind each figure by its path under scratch/, so the synthesizer can record each once with the tool. Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing. YOUR PART HOLDS THE REPORT'S OWN SECTIONS ONLY, each under a \`## \` heading of its own: no title, no TL;DR, Catechism or open questions, and no list of sources — the synthesizer writes those, and a part carrying one is refused. Write your part of the report, in full, to ${runDir}/blue/candidates/${laneSeat(i + 1)}.md, then record it — the act your seat's help lists for your part of the report, which takes that file and no other. Record it ONCE; where it refuses, the file stands for you to fix and record again. What the synthesizer makes of it is the synthesizer's: once your part is recorded, your sitting is done.${inquiryClause}${speedClause}${recordClause(laneSeat(i + 1))}`,
+  `Blue lane ${i + 1} of ${lanes} for topic: "${topic}". Read the frontier hypotheses from the RECORD — the \`inquiries\` projection — where each carries an id and its hypothesis. Research your assigned slice to saturation per your constitution (spend at least one search in five on disconfirming evidence; note each source inline with its URL and title). Your assigned METHOD: ${LANE_METHODS[i % LANE_METHODS.length]} — work primarily through this method's source class; take hypothesis ${i + 1} first, then breadth. YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL and title), and the program behind each figure by its path under scratch/, so the synthesizer can record each once with the tool. Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing. YOUR PART HOLDS THE REPORT'S OWN SECTIONS ONLY, each under a \`## \` heading of its own: no title, no TL;DR, Catechism or open questions, and no list of sources — the synthesizer writes those, and a part carrying one is refused. Write your part of the report, in full, to ${runDir}/blue/candidates/${laneSeat(i + 1)}.md, then record it — the act your seat's help lists for your part of the report, which takes that file and no other. Record it ONCE; where it refuses, the file stands for you to fix and record again. What the synthesizer makes of it is the synthesizer's: once your part is recorded, your sitting is done.${inquiryClause}${speedClause}${recordClause(laneSeat(i + 1))}`,
   { ...laneDispatch(), label: `${laneSeat(i + 1)} · ${slug}`, phase: 'Blue' })))
 
 // THE SYNTHESIS IS SAT AGAIN, IN PLACE, WHEN IT FAILS — there is no epoch before the debate to
@@ -867,7 +870,7 @@ let epoch = 0
 let lastPlan = null
 let limitHeldTheHearing = false // the last epoch's close reported a hearing its relayed plan did not hold the limit for
 
-const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at. Read it FIRST. A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since. A claim blue COMPUTED resolves to its re-run and verdict; an unjudged one looks clean until checked. A citation whose evidence entry lists pages is OCR text — a machine's reading of page images, which can misread: check it against one page's image and record which page. Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most. WHAT NOT TO RE-CHECK, because it is the sitting's whole economy: a claim verified at HIGH confidence in a prior sitting STAYS verified — do not re-fetch it UNLESS your work list says its sentence changed since, OR more than 2 epochs have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats). RECORD every claim you verify. A SOURCE READ AGAINST A SENTENCE THAT CARRIES NO CITATION OF IT — one you found, or one blue cites elsewhere — asks whether the claim is true in the WORLD; where it refutes the sentence, you mint the gap on that reading — yours, your debt until you do; where it backs an uncited sentence or says nothing of it, you mint the gap asking for a citation. VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source. Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim through the run's cached read, so every seat after you reads the same bytes (an issue thread through \`gh issue view <n> --comments\`), and read it. WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation. If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.`
+const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at. Read it FIRST. A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since. A claim blue COMPUTED resolves to its re-run and verdict; an unjudged one looks clean until checked. A citation whose evidence entry lists pages is OCR text — a machine's reading of page images, which can misread: check it against one page's image and record which page. Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most. WHAT NOT TO RE-CHECK, because it is the sitting's whole economy: a claim verified at HIGH confidence in a prior sitting STAYS verified — do not re-fetch it UNLESS your work list says its sentence changed since, OR more than 2 epochs have elapsed since it was last verified, OR its fetch time and the source's volatility suggest drift (living documents, issue trackers, README stats). RECORD every claim you verify. A SOURCE READ AGAINST A SENTENCE THAT CARRIES NO CITATION OF IT — one you found, or one blue cites elsewhere — asks whether the claim is true in the WORLD; where it refutes the sentence, you mint the gap on that reading — yours, your debt until you do; where it backs an uncited sentence or says nothing of it, you mint the gap asking for a citation. VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source. Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim through the run's cached read, so every seat after you reads the same bytes (an issue thread through \`gh issue view <n> --comments\`), and read it. WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation. If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.`
 // THE LENS: it audits its area and puts what it finds on the board ITSELF (plans/roundless.md
 // §III.B.3). The duties of the seat that mints — asking for the answer to be PRODUCED, classing
 // the probe, reading the program, keeping lineage — sit here, with the minter.
@@ -935,6 +938,11 @@ const labelFor = (seat) => { sittings[seat] = (sittings[seat] || 0) + 1; return 
 // the next. NO_PROGRESS_EPOCHS failures in a row stop the debate (seatStop) UNVERIFIED, naming the chair:
 // without the chair nothing is dispatched, so the loop would only spend.
 let chairFailures = 0
+// BLUE'S FAILED SITTINGS IN A ROW ARE COUNTED ACROSS EPOCHS, as the chair's are: a sitting that returns
+// its envelope ends the row, and NO_PROGRESS_EPOCHS of them stop the debate (seatStop) UNVERIFIED,
+// naming blue. Each failed sitting answered nothing and counted toward no gap's impasse, so nothing on
+// the record bounds a blue that never returns but the epoch limit.
+let blueFailures = 0
 while (!stopped() && !seatStop) {
   epoch++
   const chairEnv = await sit((o) => agent(chairPrompt(), o), { ...dispatchAs('red-chair'), label: labelFor('red-chair'), phase: 'Red', schema: CHAIR_ENVELOPE })
@@ -1014,9 +1022,16 @@ while (!stopped() && !seatStop) {
     // A FAILED BLUE SITTING ANSWERED NOTHING the engine can read; what it owes stays on its work list,
     // and the plan readies it again in the next epoch.
     if (!blueEnv2) {
-      log(`epoch ${epoch}: blue's sitting failed${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''} — the plan readies it again while it owes them`)
+      blueFailures++
+      if (blueFailures >= NO_PROGRESS_EPOCHS) {
+        seatStop = { seat: 'blue-respond', failures: blueFailures }
+        log(`epoch ${epoch}: blue failed ${blueFailures} sittings in a row (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) — the debate stops rather than dispatch it again`)
+        break
+      }
+      log(`epoch ${epoch}: blue's sitting failed${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''} (${blueFailures} failed sitting(s) in a row) — the plan readies it again while it owes them`)
       continue
     }
+    blueFailures = 0
     const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
     const open = p.gap_ids.filter((g) => !foundClosed.has(g))
     const successors = [...new Set(Array.isArray(blueEnv2.successors) ? blueEnv2.successors : [])]
@@ -1038,6 +1053,8 @@ while (!stopped() && !seatStop) {
     log(`epoch ${epoch}: blue responded${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''}`)
     await hearOwed([readOf('blue-respond', blueEnv2)])
   }
+  // A STOP ON BLUE'S FAILURES STILL SEATS THIS EPOCH'S BENCH: the plan that readied blue docketed it, and
+  // a docket motion left standing is one `bench outcome` refuses. The loop's condition ends the debate.
   for (const p of benches) {
     if (stopped()) break
     log(`epoch ${epoch}: the bench sits on ${p.gap_ids.join(', ')}`)

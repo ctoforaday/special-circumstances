@@ -31,11 +31,12 @@ import (
 	"fmt"
 	neturl "net/url"
 	"os"
+	"path/filepath"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"path/filepath"
-	"strings"
 )
 
 // ChainFetcher is a Fetcher that can continue ONE retrieval across several requests.
@@ -148,6 +149,12 @@ func indexPath(run record.Run) string { return filepath.Join(Dir(run), "index") 
 type Entry struct {
 	Sha string `json:"sha"`
 	URL string `json:"url"`
+	// FetchedAt is when this run's fetch took the cached bytes: the tool's clock, read as the
+	// answer arrived (FetchTime), in RFC 3339 UTC. It is the source's "accessed" date wherever one
+	// prints, carried onto the citation that rests on these bytes. A cache hit returns the entry as
+	// stored, so a later read never moves it. Store refuses an entry without one; a refusal's index
+	// line (Resolve) holds no bytes and none.
+	FetchedAt string `json:"fetched_at,omitempty"`
 	// ContentType is the bare media type from the response header ("application/pdf"), or ""
 	// where the header was absent or unparseable.
 	ContentType string `json:"content_type,omitempty"`
@@ -378,6 +385,10 @@ func Sha(b []byte) string {
 	return hex.EncodeToString(s[:])
 }
 
+// FetchTime is the fetch's clock reading, taken where an answer's bytes arrive: the record's clock
+// (record.Now, which the golden harness pins), in RFC 3339 UTC to the second.
+func FetchTime() string { return record.Now().UTC().Format(time.RFC3339) }
+
 // Read returns the cached bytes for a content hash.
 func Read(run record.Run, sha string) ([]byte, error) { return os.ReadFile(Path(run, sha)) }
 
@@ -415,6 +426,9 @@ func Lookup(run record.Run, url string) (e Entry, b []byte, ok bool, err error) 
 // returns the completed entry. The content write is atomic (temp + rename) and dedups on the
 // hash; the index line is appended only if that exact line is not already present.
 func Store(run record.Run, e Entry, b []byte) (Entry, error) {
+	if e.FetchedAt == "" {
+		return Entry{}, fmt.Errorf("the cache entry for %s carries no fetch time: the fetch that took its bytes stamps one (FetchTime)", e.URL)
+	}
 	if err := os.MkdirAll(Dir(run), 0o755); err != nil {
 		return Entry{}, err
 	}
@@ -530,6 +544,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		return got, cached, true, nil
 	}
 	resp, ferr := f.Fetch(url)
+	fetchedAt := FetchTime()
 	if ferr != nil {
 		// A REFUSAL IS EVIDENCE, and it used to have nowhere to live. The index now carries the
 		// attempt — url, status, and who refused — so a later reader can tell a source that does
@@ -613,7 +628,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		if herr != nil || len(hop.Body) <= len(resp.Body) {
 			break
 		}
-		resp = hop
+		resp, fetchedAt = hop, FetchTime()
 		copyURL = fullText
 		if b, berr := neturl.Parse(firstNonEmptyStr(hop.FinalURL, fullText)); berr == nil {
 			base = b
@@ -624,7 +639,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		}
 	}
 
-	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body), DOI: DOIOf(url)}
+	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body), DOI: DOIOf(url), FetchedAt: fetchedAt}
 	entry.Sha = Sha(resp.Body)
 	// THE HOP IS PROVENANCE, NOT A RECOVERY. RetrievedVia means "these bytes did not come from
 	// the url you asked for and may be a different artifact" — an archive snapshot, another
@@ -778,6 +793,36 @@ func LookupSha(run record.Run, sha string) (Entry, bool, error) {
 	return Entry{}, false, sc.Err()
 }
 
+// AllEntries returns every distinct Entry recorded in the cache index, in first-seen order.
+// When multiple index lines share a Sha, only the first entry is returned.
+func AllEntries(run record.Run) ([]Entry, error) {
+	f, err := os.Open(indexPath(run))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	var out []Entry
+	seen := make(map[string]bool)
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for sc.Scan() {
+		var e Entry
+		if json.Unmarshal(sc.Bytes(), &e) != nil {
+			continue
+		}
+		if e.Sha == "" || seen[e.Sha] {
+			continue
+		}
+		seen[e.Sha] = true
+		out = append(out, e)
+	}
+	return out, sc.Err()
+}
+
 // EntryFor builds the index record for one backend attempt: every field the Attempt carries, the
 // classification of its bytes, and the withdrawal that follows from it.
 //
@@ -814,6 +859,7 @@ func foldExtraction(run record.Run, entry *Entry, ex Extraction) error {
 		return terr
 	}
 	entry.TextSha = textSha
+	prewarmSourceVectors(run, *entry)
 	return nil
 }
 
@@ -824,7 +870,7 @@ func EntryFor(run record.Run, url string, att *Attempt, substitution string) Ent
 	entry := Entry{
 		URL: url, ContentType: att.ContentType, Substitution: substitution, CopyURL: att.URL,
 		RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
-		CopyVersion: att.Version, CopyLicense: att.License, DOI: att.DOI,
+		CopyVersion: att.Version, CopyLicense: att.License, DOI: att.DOI, FetchedAt: att.FetchedAt,
 	}
 	if att.Facts != (WorkFacts{}) {
 		facts := att.Facts

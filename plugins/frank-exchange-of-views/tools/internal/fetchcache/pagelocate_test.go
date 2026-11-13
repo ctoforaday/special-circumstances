@@ -66,6 +66,7 @@ func TestTextOriginNeedsEvidenceBeforeItSaysEmbedded(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			run := runtest.New(t, t.TempDir())
 			tc.entry.URL = "https://ex/" + tc.name
+			tc.entry.FetchedAt = storedAt
 			e, err := Store(run, tc.entry, []byte(tc.name))
 			if err != nil {
 				t.Fatal(err)
@@ -132,7 +133,7 @@ func TestASpanInAPagesTextIsFoundOnceWithTheTextAroundIt(t *testing.T) {
 	body := strings.Repeat("Filler words before. ", 30) +
 		"An odd composite n for which a^(n-1) is 1 mod n is a Fermat pseudo-\nprime to base a, and a is a Fermat liar. " +
 		"Twice said. Twice said. " + strings.Repeat("Filler words after. ", 30)
-	e, err := Store(run, Entry{URL: "https://ex/fermat", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+body+"</html>"))
+	e, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/fermat", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+body+"</html>"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +161,7 @@ func TestASpanInAPagesTextIsFoundOnceWithTheTextAroundIt(t *testing.T) {
 	if !errors.Is(err, ErrSpanAbsent) || !strings.Contains(err.Error(), TextPath(run, e.Sha)) {
 		t.Errorf("a span the text does not hold: %v, want ErrSpanAbsent naming %s", err, TextPath(run, e.Sha))
 	}
-	img, err := Store(run, Entry{URL: "https://ex/figure", ContentType: "image/png"}, []byte("png"))
+	img, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/figure", ContentType: "image/png"}, []byte("png"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +236,7 @@ func TestATypographicPagesSpanIsStoredAsThePagesOwnBytes(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	yes := true
 	body := "Before \u201cthe sieve\u201d. Fermat\u2019s test \u2014 the \ufb01rst one \u2014 holds for 10\u00a0bases\u2026 After\u2019s end."
-	e, err := Store(run, Entry{URL: "https://ex/typo", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+body+"</html>"))
+	e, err := Store(run, Entry{FetchedAt: storedAt, URL: "https://ex/typo", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+body+"</html>"))
 	if err != nil {
 		t.Fatal(err)
 	}

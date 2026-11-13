@@ -97,11 +97,11 @@ func TestResolveFailureCachesNothing(t *testing.T) {
 func TestStoreDedupsOnContent(t *testing.T) {
 	run := t.TempDir()
 	body := []byte("identical bytes")
-	se1, err := Store(runtest.Open(t, run), Entry{URL: "https://a"}, body)
+	se1, err := Store(runtest.Open(t, run), Entry{FetchedAt: storedAt, URL: "https://a"}, body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	se2, err := Store(runtest.Open(t, run), Entry{URL: "https://b"}, body) // different URL, same bytes
+	se2, err := Store(runtest.Open(t, run), Entry{FetchedAt: storedAt, URL: "https://b"}, body) // different URL, same bytes
 	if err != nil {
 		t.Fatal(err)
 	}

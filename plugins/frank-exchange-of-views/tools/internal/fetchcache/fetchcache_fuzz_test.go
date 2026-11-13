@@ -25,7 +25,7 @@ func FuzzStoreRoundTrips(f *testing.F) {
 		}
 		run := t.TempDir()
 
-		stored, err := Store(runtest.Open(t, run), Entry{URL: url}, body)
+		stored, err := Store(runtest.Open(t, run), Entry{FetchedAt: storedAt, URL: url}, body)
 		if err != nil {
 			t.Fatalf("Store: %v", err)
 		}
@@ -34,7 +34,7 @@ func FuzzStoreRoundTrips(f *testing.F) {
 		}
 
 		// Dedup: storing the same bytes again yields the same hash and no error.
-		if again, err := Store(runtest.Open(t, run), Entry{URL: url}, body); err != nil || again.Sha != stored.Sha {
+		if again, err := Store(runtest.Open(t, run), Entry{FetchedAt: storedAt, URL: url}, body); err != nil || again.Sha != stored.Sha {
 			t.Fatalf("re-Store: sha=%s err=%v, want stable %s", again.Sha, err, stored.Sha)
 		}
 

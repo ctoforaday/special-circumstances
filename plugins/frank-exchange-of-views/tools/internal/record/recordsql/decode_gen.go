@@ -1342,9 +1342,9 @@ func (t *citeTable) load(q Querier, after int64) error {
 		var c8 sql.NullString
 		var c9 sql.NullString
 		var c10 sql.NullString
-		var c11 sql.NullString
+		var c11 sql.NullInt64
 		var c12 sql.NullInt64
-		var c13 sql.NullInt64
+		var c13 sql.NullString
 		var c14 sql.NullString
 		var c15 sql.NullString
 		var c16 sql.NullString
@@ -1354,7 +1354,7 @@ func (t *citeTable) load(q Querier, after int64) error {
 		var c20 sql.NullString
 		var c21 sql.NullString
 		var c22 sql.NullString
-		if err := scanRows(q, "cite", `SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."access_date", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."answers" FROM "cite" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17, &c18, &c19, &c20, &c21, &c22}, func() {
+		if err := scanRows(q, "cite", `SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."fetched_at", t."answers" FROM "cite" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14, &c15, &c16, &c17, &c18, &c19, &c20, &c21, &c22}, func() {
 			m := &recordpb.Cite{}
 			if c0.Valid {
 				m.Label = ref(c0.String)
@@ -1372,71 +1372,71 @@ func (t *citeTable) load(q Querier, after int64) error {
 				m.Location = ref(c4.String)
 			}
 			if c5.Valid {
-				m.AccessDate = ref(c5.String)
+				m.CiteKey = ref(c5.String)
 			}
 			if c6.Valid {
-				m.CiteKey = ref(c6.String)
+				m.Text = ref(c6.String)
 			}
 			if c7.Valid {
-				m.Text = ref(c7.String)
-			}
-			if c8.Valid {
-				if v, err := wordOf[recordpb.SourceTextOrigin]("cite.source_text_origin", c8.String); err != nil {
+				if v, err := wordOf[recordpb.SourceTextOrigin]("cite.source_text_origin", c7.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.SourceTextOrigin = ref(v)
 				}
 			}
+			if c8.Valid {
+				m.SourceSpan = ref(c8.String)
+			}
 			if c9.Valid {
-				m.SourceSpan = ref(c9.String)
+				m.OcrEngine = ref(c9.String)
 			}
 			if c10.Valid {
-				m.OcrEngine = ref(c10.String)
+				m.OcrTextSha = ref(c10.String)
 			}
 			if c11.Valid {
-				m.OcrTextSha = ref(c11.String)
+				m.SpanStart = ref(int32(c11.Int64))
 			}
 			if c12.Valid {
-				m.SpanStart = ref(int32(c12.Int64))
+				m.SpanEnd = ref(int32(c12.Int64))
 			}
 			if c13.Valid {
-				m.SpanEnd = ref(int32(c13.Int64))
+				m.SpanTextSha = ref(c13.String)
 			}
 			if c14.Valid {
-				m.SpanTextSha = ref(c14.String)
+				m.SourceBefore = ref(c14.String)
 			}
 			if c15.Valid {
-				m.SourceBefore = ref(c15.String)
+				m.SourceMatched = ref(c15.String)
 			}
 			if c16.Valid {
-				m.SourceMatched = ref(c16.String)
+				m.SourceAfter = ref(c16.String)
 			}
 			if c17.Valid {
-				m.SourceAfter = ref(c17.String)
-			}
-			if c18.Valid {
-				if v, err := wordOf[recordpb.WorkStatus]("cite.work_status", c18.String); err != nil {
+				if v, err := wordOf[recordpb.WorkStatus]("cite.work_status", c17.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.WorkStatus = ref(v)
 				}
 			}
-			if c19.Valid {
-				if v, err := wordOf[recordpb.SourceCompleteness]("cite.source_completeness", c19.String); err != nil {
+			if c18.Valid {
+				if v, err := wordOf[recordpb.SourceCompleteness]("cite.source_completeness", c18.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.SourceCompleteness = ref(v)
 				}
 			}
-			if c20.Valid {
-				if v, err := wordOf[recordpb.CopySubstitution]("cite.copy_substitution", c20.String); err != nil {
+			if c19.Valid {
+				if v, err := wordOf[recordpb.CopySubstitution]("cite.copy_substitution", c19.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.CopySubstitution = ref(v)
 				}
 			}
+			if c20.Valid {
+				m.CopyUrl = ref(c20.String)
+			}
 			if c21.Valid {
-				m.CopyUrl = ref(c21.String)
+				m.FetchedAt = ref(c21.String)
 			}
 			if c22.Valid {
 				m.Answers = ref(c22.String)
@@ -1487,15 +1487,14 @@ func (t *verifyTable) load(q Querier, after int64) error {
 		var c4 sql.NullString
 		var c5 sql.NullString
 		var c6 sql.NullString
-		var c7 sql.NullString
-		var c8 sql.NullInt64
+		var c7 sql.NullInt64
+		var c8 sql.NullString
 		var c9 sql.NullString
 		var c10 sql.NullString
 		var c11 sql.NullString
 		var c12 sql.NullString
 		var c13 sql.NullString
-		var c14 sql.NullString
-		if err := scanRows(q, "verify", `SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."access_date", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url" FROM "verify" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13, &c14}, func() {
+		if err := scanRows(q, "verify", `SELECT t."event_id", t."claim", t."url", t."title", t."anchor", t."outcome", t."confidence", t."text", t."page", t."page_render_sha", t."reading_render_sha", t."source_completeness", t."bridge", t."copy_substitution", t."copy_url" FROM "verify" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12, &c13}, func() {
 			m := &recordpb.Verify{}
 			if c0.Valid {
 				m.Claim = ref(c0.String)
@@ -1510,57 +1509,54 @@ func (t *verifyTable) load(q Querier, after int64) error {
 				m.Anchor = ref(c3.String)
 			}
 			if c4.Valid {
-				m.AccessDate = ref(c4.String)
-			}
-			if c5.Valid {
-				if v, err := wordOf[recordpb.SourceOutcome]("verify.outcome", c5.String); err != nil {
+				if v, err := wordOf[recordpb.SourceOutcome]("verify.outcome", c4.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.Outcome = ref(v)
 				}
 			}
-			if c6.Valid {
-				if v, err := wordOf[recordpb.Confidence]("verify.confidence", c6.String); err != nil {
+			if c5.Valid {
+				if v, err := wordOf[recordpb.Confidence]("verify.confidence", c5.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.Confidence = ref(v)
 				}
 			}
+			if c6.Valid {
+				m.Text = ref(c6.String)
+			}
 			if c7.Valid {
-				m.Text = ref(c7.String)
+				m.Page = ref(int32(c7.Int64))
 			}
 			if c8.Valid {
-				m.Page = ref(int32(c8.Int64))
+				m.PageRenderSha = ref(c8.String)
 			}
 			if c9.Valid {
-				m.PageRenderSha = ref(c9.String)
+				m.ReadingRenderSha = ref(c9.String)
 			}
 			if c10.Valid {
-				m.ReadingRenderSha = ref(c10.String)
-			}
-			if c11.Valid {
-				if v, err := wordOf[recordpb.SourceCompleteness]("verify.source_completeness", c11.String); err != nil {
+				if v, err := wordOf[recordpb.SourceCompleteness]("verify.source_completeness", c10.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.SourceCompleteness = ref(v)
 				}
 			}
-			if c12.Valid {
-				if v, err := wordOf[recordpb.BridgeKind]("verify.bridge", c12.String); err != nil {
+			if c11.Valid {
+				if v, err := wordOf[recordpb.BridgeKind]("verify.bridge", c11.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.Bridge = ref(v)
 				}
 			}
-			if c13.Valid {
-				if v, err := wordOf[recordpb.CopySubstitution]("verify.copy_substitution", c13.String); err != nil {
+			if c12.Valid {
+				if v, err := wordOf[recordpb.CopySubstitution]("verify.copy_substitution", c12.String); err != nil {
 					t.bad = refuse(t.bad, id, err)
 				} else {
 					m.CopySubstitution = ref(v)
 				}
 			}
-			if c14.Valid {
-				m.CopyUrl = ref(c14.String)
+			if c13.Valid {
+				m.CopyUrl = ref(c13.String)
 			}
 			t.rows[id] = m
 		}); err != nil {

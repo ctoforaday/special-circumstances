@@ -60,7 +60,7 @@ updates:
   # The workflows, and the composite action hooks.yml's jobs share, whose actions/cache pin
   # moves with the workflows' own.
   - package-ecosystem: github-actions
-    directories: ["/", "/.github/actions/go-cache"]
+    directories: ["/", "/.github/actions/go-cache", "/.github/actions/qlty-cache"]
     schedule:
       interval: weekly
     groups:

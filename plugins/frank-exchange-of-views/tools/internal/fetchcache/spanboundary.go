@@ -16,7 +16,7 @@ var ErrSpanMidClause = errors.New("span cuts into a clause")
 // and the mid-clause refusal both render, beside SpanNormalisation.
 const SpanBoundary = "a span starts and ends at a boundary; a clause mark is a comma, semicolon or colon followed by whitespace, or a dash (a hyphen counts when spaced or doubled). " +
 	"A span STARTS at the start of the text (or of an OCR page); with an opening bracket or quote; just after a clause mark, an opening bracket or quote, or a list marker (- * or • opening a line); " +
-	"or just after one of these when its first character is not a lowercase letter: a sentence end (. ! ? or …, closers and reference marks such as [12] allowed, then whitespace), a blank line, or a markup tag. " +
+	"or just after one of these when its first character is not a lowercase letter: a sentence end (. ! ? or …, closers and reference marks such as [12] allowed, then whitespace), a blank line, or a markup tag — a table rule between (a run of | _ = or box-drawing characters standing alone between spaces) is passed over. " +
 	"It ENDS at the end of the text (or of an OCR page), or before a blank line, a markup tag or a list marker; with a clause mark or a closing bracket or quote; just before a clause mark, a closing bracket or quote, or a spaced opening bracket ( or [; " +
 	"or on or just before a sentence end: . ! ? or … (closers and reference marks allowed), then whitespace and a character that is not a lowercase letter. " +
 	"In «" + spanExample + "» the spans «" + spanExampleWhole + "» and «" + spanExampleClause + "» are accepted; «" + spanExampleCutStart + "» is refused (it starts mid-clause), as is «" + spanExampleCutEnd + "» (it ends mid-clause). " +
@@ -71,6 +71,9 @@ func spanStartsAtBoundary(text string, start int) bool {
 		return true
 	}
 	if clauseMarkEnds(text, j, start) || opensUnit(text, j) || listMarkerEnds(text, j, start) {
+		return true
+	}
+	if j, blank = prevPastRules(text, start); j < 0 {
 		return true
 	}
 	return (blank || terminatorEnds(text, j, start) || closesTag(text, j)) && notLower(text, start)
@@ -297,13 +300,66 @@ func sentenceBounds(text string, start, end int) (a, z int, cutA, cutZ bool) {
 // punctuation for that long is a table or a list, and the refusal shows a window of it.
 const spanReach = 2 * SpanWindow
 
-// sentenceStarts reports whether a sentence starts at the non-space character text[i].
+// sentenceStarts reports whether a sentence starts at the non-space character text[i], a table
+// rule before it passed over.
 func sentenceStarts(text string, i int) bool {
 	j, blank := prevNonSpace(text, i)
 	if j >= 0 && listMarkerEnds(text, j, i) {
 		return true
 	}
+	j, blank = prevPastRules(text, i)
 	return (j < 0 || blank || terminatorEnds(text, j, i) || closesTag(text, j)) && notLower(text, i)
+}
+
+// A TABLE RULE IS NOT A WORD. OCR of a form reads its ruled lines as a run of | or _ standing
+// alone between spaces, and a sentence end then a rule then the next sentence — "Rinascita. |" at
+// a line's end, "The writer, …" opening the next — would start that sentence at the rule. A rule
+// is passed over where a sentence's start is looked for and where a ranked hit looks for its next
+// sentence (nextWord), so the sentence and a span quoting it start at the word, and the source's
+// text still holds the span as written.
+
+// isRuleRune reports whether r draws a table rule: a vertical bar, an underscore, an equals sign
+// or a box-drawing character.
+func isRuleRune(r rune) bool {
+	switch r {
+	case '|', '¦', '‖', '_', '=':
+		return true
+	}
+	return r >= 0x2500 && r <= 0x257F
+}
+
+// ruleTokenAt reports whether text[i] opens a table rule — a run of rule characters with
+// whitespace or the text's edge on both sides — and where the run ends.
+func ruleTokenAt(text string, i int) (int, bool) {
+	if i >= len(text) || (i > 0 && !unicode.IsSpace(runeBefore(text, i))) {
+		return i, false
+	}
+	z := i
+	for z < len(text) && isRuleRune(runeAt(text, z)) {
+		z += utf8.RuneLen(runeAt(text, z))
+	}
+	return z, z > i && (z == len(text) || unicode.IsSpace(runeAt(text, z)))
+}
+
+// prevPastRules is prevNonSpace with the table rules before i passed over, and whether the
+// whitespace it crossed holds a blank line.
+func prevPastRules(text string, i int) (int, bool) {
+	blankSeen := false
+	for {
+		j, blank := prevNonSpace(text, i)
+		blankSeen = blankSeen || blank
+		if j < 0 {
+			return j, blankSeen
+		}
+		a := j
+		for a > 0 && isRuleRune(runeBefore(text, a)) {
+			a -= utf8.RuneLen(runeBefore(text, a))
+		}
+		if z, ok := ruleTokenAt(text, a); !ok || z != j+utf8.RuneLen(runeAt(text, j)) {
+			return j, blankSeen
+		}
+		i = a
+	}
 }
 
 // sentenceEndsAt reports whether a sentence ends just before text[z]: a terminator run and its

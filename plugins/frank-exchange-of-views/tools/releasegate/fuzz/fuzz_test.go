@@ -359,6 +359,9 @@ type runner struct {
 	// endWithoutEnvelope is how many of the next agent-bearing sittings' dispatches end without their
 	// envelope (endsWithoutEnvelope), for a test that drives that shape on no draw.
 	endWithoutEnvelope int
+	// forceBlueFails drives blueFailsSeed's run (failedblue_test.go): every blue-respond sitting opens
+	// under an agent and ends without its envelope, until the engine stops the run on it.
+	forceBlueFails bool
 	// failedSittings counts the sittings dispatchReturns closed with no admission written, of a
 	// seat whose work arrives as items: the sittings the record must read as failed
 	// (record.FailedSittingsOf), which runOne compares with what the record does read.
@@ -528,11 +531,7 @@ type runner struct {
 	// notTheWorkReadingsUnread the readings of a copy that is not the work that left the citation unread;
 	// markedSentenceRefused a backing found-source reading of a marked sentence refused;
 	// foundSourceRetriesRefused the identical found-source reading in one sitting refused.
-	reading readingCounts
-	// afterDebtRead runs after each read of the reading debts (readingDebts), nil in a drive: a test's
-	// way to land a sibling's act between the oracle's read and anything after it, as a concurrent
-	// seat does.
-	afterDebtRead             func()
+	reading                   readingCounts
 	sourceClosesRefused       int
 	notTheWorkReadingsUnread  int
 	markedSentenceRefused     int
@@ -769,7 +768,9 @@ type runner struct {
 	// sweep failed on `outcome --as UNVERIFIED` at N=40 having passed at N=60 on luck, which is a
 	// flake either way. So it is driven the way HALTED is — deterministically, by a dedicated
 	// test — rather than exempted. coverage_test.go says why an exemption is the wrong answer
-	// here, and it is right.
+	// here, and it is right. Its gaps are all disputes (mintWith), every severity it types is
+	// material (severityGrade), and its first-epoch lenses each mint, so the PASS is held by
+	// construction rather than by the grade draw.
 	forceUnverified bool
 	// forceEstoppel drives the ORDERED PAIR the estoppel guard needs — red prescribes concrete
 	// text, blue applies it verbatim, red then mints against that same text — on one dedicated
@@ -1198,6 +1199,10 @@ func (r *runner) sourceSearchCited(seatID, citeOut, span string) {
 		if !ok {
 			return
 		}
+		// A RANKED SEARCH IS NOT A SELECTOR, from each seat that reads the source. The sweep has no
+		// embedding helper to admit --search with, so it drives the refusal beside --quote.
+		r.refuse(feov.Validation, append(append([]string{"show", "source", "--seat-id", read.seat}, read.by...),
+			"--search", "source body", "--quote", "source body for")...)
 		if first == "" {
 			first = out
 		} else if out != first {
@@ -2405,7 +2410,7 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	// from retiring — needs all three.
 	case r.forceOwedComputation && seatID == computationOwner:
 		r.admit(registerArgs(seatID, occ)...)
-	case r.openUnderAgent || r.coin(25):
+	case r.openUnderAgent || r.forceBlueFails && seatID == "blue-respond" || r.coin(25):
 		agent = r.registerTwice(seatID, occ)
 	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
 		agent = r.lookThenRegister(seatID)
@@ -2489,11 +2494,15 @@ func (r *runner) unreturnedDispatches() string {
 func (r *runner) endsWithoutEnvelope(seatID string) bool {
 	r.mu.Lock()
 	agent := r.sittingAgent[seatID]
+	forced := agent != "" && r.forceBlueFails && seatID == "blue-respond"
 	arranged := agent != "" && r.endWithoutEnvelope > 0
 	if arranged {
 		r.endWithoutEnvelope--
 	}
 	r.mu.Unlock()
+	if forced {
+		return true
+	}
 	if agent == "" {
 		return false
 	}
@@ -2866,6 +2875,52 @@ func (r *runner) noteMint(seatID, gapID string) {
 var grades = []string{"low", "low_medium", "medium", "medium_high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
+
+// materialGrades are the severities at which a gap of a `by_grade` class — every class of the mint
+// pool — is material: medium and above (recordsql's materialSQL, the record's one materiality rule).
+// TestTheMaterialGradesAreTheRecordsMaterialGrades holds this list to the record.
+var materialGrades = grades[slices.Index(grades, "medium"):]
+
+// A FORCED-UNVERIFIED RUN'S GAPS HOLD THE PASS BY CONSTRUCTION. Its exit is blue's grade motions on
+// gaps it disputes, which the chair leaves unruled, and blue is engaged only on a material gap: a run
+// whose gaps all drew a grade below material permitted a PASS at its third epoch and ended VERIFIED.
+// So every severity a drive types in that run — at a mint, and at any regrade — is a material one,
+// and every other run draws exactly as before.
+//
+// severityGrade is the severity a drawn mint types.
+func (r *runner) severityGrade() string {
+	if r.forceUnverified {
+		return pick(r.rng, materialGrades)
+	}
+	return r.g()
+}
+
+// severityOr is the severity a mint that types a fixed grade types: that grade, except in a
+// forced-UNVERIFIED run, where it is a material one.
+func (r *runner) severityOr(fixed string) string {
+	if r.forceUnverified {
+		return pick(r.rng, materialGrades)
+	}
+	return fixed
+}
+
+// gradeOn is the grade a drawn regrade moves dim to: any grade on another axis, and on severity in a
+// forced-UNVERIFIED run a material one.
+func (r *runner) gradeOn(dim string) string {
+	if r.forceUnverified && dim == "severity" {
+		return pick(r.rng, materialGrades)
+	}
+	return r.g()
+}
+
+// gradeOnOtherThan is gradeOn, never cur: a regrade that moves the axis.
+func (r *runner) gradeOnOtherThan(dim, cur string) string {
+	if !r.forceUnverified || dim != "severity" {
+		return r.gradeOtherThan(cur)
+	}
+	others := slices.DeleteFunc(slices.Clone(materialGrades), func(g string) bool { return g == cur })
+	return pick(r.rng, others)
+}
 
 // currentGrade reads the gap's grade at one axis, in the words a seat types. Empty when the board
 // cannot be read or the axis is unknown — the caller treats that as "no constraint".
@@ -3658,7 +3713,7 @@ func (r *runner) answerFailed(seatID string) {
 		args := []string{"--json", "mint", "--seat-id", seatID,
 			"--problem", problem,
 			"--check-kind", "document", "--check", check, "--fix", pick(r.rng, []string{dirApply, dirCounter}),
-			"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--class", pick(r.rng, mintPoolClasses),
+			"--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(), "--class", pick(r.rng, mintPoolClasses),
 			"--about-kind", "anchor", "--about", b.Subject, "--reason", "fuzz: carrying a failed check to blue"}
 		overOpen := r.ownOpenGapAbout(seatID, b.Subject)
 		out, err := r.exec(args...)
@@ -4086,7 +4141,7 @@ func (r *runner) mintWith(seatID, class string) string {
 		kind = "computation"
 	}
 	args := []string{"--json", "mint", "--seat-id", seatID, "--problem", "fuzz problem", "--check-kind", kind,
-		"--check", "acc", "--fix", directive, "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--check", "acc", "--fix", directive, "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		// --quote is the anchor ESTOPPEL keys on and the sweep never passed it; --key is
 		// mint's crash-retry idempotency
 		// handle; --reason is the prose channel. Four fields on the most consequential verb in
@@ -4427,9 +4482,10 @@ func (r *runner) sameClassAndSubject(class string, args []string) (open, all []r
 
 // oneGapAnswered is a lens's answer to the one-gap refusal of the mint args stated: the refusal must
 // name a gap of the mint's class on its subject, and the lens files its point as a finding about that
-// gap. held is the gap the refusal named, "" where it named none — which fails the run.
-func (r *runner) oneGapAnswered(seatID, out string, args []string) (held string) {
+// gap. A refusal naming no such gap fails the run.
+func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	_, all := r.sameClassAndSubject(argOf(args, "--class"), args)
+	held := ""
 	for _, g := range all {
 		if strings.Contains(out, g.ID) {
 			held = g.ID
@@ -4437,7 +4493,7 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) (held string)
 	}
 	if held == "" {
 		r.noteActErr("a mint was refused as a second gap of its class on its subject, naming no gap of that class on that subject on the board: " + firstLine(out))
-		return ""
+		return
 	}
 	r.mu.Lock()
 	r.oneGapRefused++
@@ -4447,13 +4503,12 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) (held string)
 	// file their findings about one gap concurrently, and each is a change since every sibling's read
 	// point, so a lens may meet a refusal for each of them (admitFresh).
 	if _, ok := r.admitFresh(held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
-		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
-		return held
+		"--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
+		return
 	}
 	r.mu.Lock()
 	r.oneGapFindings++
 	r.mu.Unlock()
-	return held
 }
 
 // freeClass replaces the --class args state, where an open gap of that class stands on the mint's
@@ -4537,7 +4592,7 @@ func (r *runner) mintOverOpen(seatID string) {
 	}
 	pick := others[r.rng.Intn(len(others))]
 	args := []string{"--json", "mint", "--seat-id", seatID, "--class", pick.Class, "--problem", "fuzz: the defect another lens holds",
-		"--check-kind", "document", "--check", "acc", "--fix", dirApply, "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--check-kind", "document", "--check", "acc", "--fix", dirApply, "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		"--reason", "fuzz: minted over an open gap of its class"}
 	if pick.AboutKind == "inquiry" {
 		args = append(args, "--about-kind", "inquiry", "--about", pick.AboutRef)
@@ -4629,7 +4684,7 @@ func (r *runner) mintEstopped(seatID string) {
 	}
 	probe := []string{"--json", "mint", "--seat-id", seatID, "--class", "spec_underspecification",
 		"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
-		"--check", "acc", "--fix", "reword it", "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--check", "acc", "--fix", "reword it", "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		"--quote", sentence,
 		"--reason", "fuzz: estoppel probe — this quotes red's own prescription on " + gapID}
 	out, err := r.exec(probe...)
@@ -6019,6 +6074,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		//
 		// A PETITION FILED AFTER THE LAST PLAN has had no sitting, and `bench outcome` refuses while
 		// it stands; the assembling bench holds the gavel, so it rules it first, as the refusal says.
+		// So with a DOCKET MOTION FILED AFTER THE LAST PLAN: a stop that lands mid-turn (blue's failed
+		// sittings in a row, debate.js seatStop) follows a seat that filed one after the plan whose
+		// blockers convene the terminal sitting, so no sitting was convened for it.
 		// A RESUMED ASSEMBLY SITTING FINDS THE OUTCOME ITS FAILED ONE STAMPED, and goes on to
 		// assemble: the record is closed to seat acts once the outcome stands, so neither the ruling
 		// nor the outcome is driven again.
@@ -6029,6 +6087,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if stamped == "" {
 			if !r.forceHalt {
 				r.rulePending(seatID, "assemble")
+				for _, id := range r.docketsSinceTheLastPlan() {
+					r.ruleDocketAtExit(seatID, id)
+				}
 			}
 			r.admit(oargs...)
 		}
@@ -6099,7 +6160,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						if g, ok := held[dim]; ok {
 							return g
 						}
-						return r.g()
+						return r.gradeOn(dim)
 					}
 					dim := pick(r.rng, regradeDims)
 					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
@@ -6114,6 +6175,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		fresh := r.rng.Intn(3)
 		if len(engaged) > 0 {
 			fresh = r.rng.Intn(2) // an engaged sitting mostly works its own gaps
+		}
+		// A FORCED-UNVERIFIED RUN'S FIRST-EPOCH LENSES EACH MINT, so its board holds a gap blue disputes
+		// whatever the draw: a run that minted nothing would have nothing to hold the PASS.
+		if r.forceUnverified {
+			fresh = max(fresh, 1)
 		}
 		for range fresh {
 			// A LENS RUNS OUT OF DEFECTS, AND THE DRIVER HAS TO SAY SO. A lens that draws fresh mints
@@ -6302,8 +6368,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					}
 					return c.set("--as", outcome).
 						set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
-						set("--reason", "fuzz: what the source actually says").
-						on(60, "--access-date", "2026-07-24")
+						set("--reason", "fuzz: what the source actually says")
 				}
 				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
 					r.readCitation(seatID, anchor, r.citationReading(outcome, fresh), kindless, fresh, axes)
@@ -7125,6 +7190,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceReadingRemoval = seed == readingRemovalSeed
 	r.forceBareEvidence = seed == bareEvidenceSeed
 	r.forceFateTurn = seed == fateTurnSeed
+	r.forceBlueFails = seed == blueFailsSeed
 	r.forceMintBare = seed == mintBareSeed
 	r.forceSourceDemand = seed == sourceDemandSeed
 	r.forceLifecycle = seed == lifecycleSeed
@@ -7343,6 +7409,18 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			// view that is JSON by name the flag is the same bytes; so every view that carries the pair
 			// answers with a selection block, and one that does not is a failure rather than a skip. A
 			// view whose page carries no pair is not driven with one.
+			// A RANKED SEARCH IS NOT A SELECTOR, on every role's view that takes one. The sweep has no
+			// embedding helper to admit --search with, so it drives the refusal the view owes beside
+			// --match, which returns every match where --search returns a cut list.
+			if viewSearches(role, group, v) {
+				sargs := []string{group, v, "--run", runDir, "--seat-id", sid, "--json", "--search", "source body", "--match", "."}
+				out, err := drive(bin, sargs...)
+				if env, ok := refusalEnvelopeIn(string(out)); err == nil || !ok || env.Code != string(feov.Validation) {
+					res.err = fmt.Sprintf("%s %s %s --search beside --match was not refused as %s:\n%s",
+						role, group, v, feov.Validation, truncate(string(out)))
+					return res
+				}
+			}
 			if !viewSelects(role, group, v) {
 				continue
 			}
@@ -8026,6 +8104,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if msg := r.fateTurnForcedErr(); msg != "" && res.err == "" {
 		res.err = msg
 	}
+	if msg := r.blueFailsForcedErr(result); msg != "" && res.err == "" {
+		res.err = msg
+	}
 	if r.forceAbsentSpan && r.spansRefused == 0 && res.err == "" {
 		res.err = "forced absent span: no cite of a span its source does not hold was refused"
 		if !r.absentSpanDriven {
@@ -8458,7 +8539,7 @@ var reportExemptions = map[string]string{
 	// THE HOOKS' FACTS ABOUT A SITTING'S END. Both are written by feov-sitting-write, about a seat
 	// and not by it, and carry no prose; their readers are the record's own folds.
 	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting), record.sittingCloserOf (where a sitting ended), record.FailedSittingsOf (whether it failed), record.registeredSitting (the repeat-register refusal), record.OneCloseASitting (its own write guard), record.TranscriptOf (behind record.SeatModels' served model and show diagnostics), record.TranscriptsOf (capture's transcript list), and migrate's replay (migrate/replay.go) and admissionBefore (migrate/admission.go: the sitting an older source's close ends, which it admits), carrying no prose, never rendered",
-	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports, record.OneAdmissionASitting (its own write guard) and migrate's admissionBefore (migrate/admission.go: whether a sitting an older source closed is admitted already), carrying no prose, never rendered",
+	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports and the exchange fold reads (record.noTurnSittingsOf: a failed sitting is no turn), record.OneAdmissionASitting (its own write guard) and migrate's admissionBefore (migrate/admission.go: whether a sitting an older source closed is admitted already), carrying no prose, never rendered",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the computation either way (#343).
 	"reproduce":   "reason",
@@ -8721,14 +8802,20 @@ func reportTextLines(bin, group, runDir, sid string) (int, error) {
 }
 
 // viewSelects reports whether the view's page, in this role's tree, carries the selector pair.
-func viewSelects(role, group, view string) bool {
+func viewSelects(role, group, view string) bool { return viewTakes(role, group, view, "match") }
+
+// viewSearches asks the real command tree whether this role's view takes --search.
+func viewSearches(role, group, view string) bool { return viewTakes(role, group, view, "search") }
+
+// viewTakes asks the real command tree whether this role's view under group takes flag.
+func viewTakes(role, group, view, flag string) bool {
 	for _, c := range seat.RoleVerbs(role) {
 		if c.Name() != group {
 			continue
 		}
 		for _, sub := range c.Commands() {
 			if sub.Name() == view {
-				return sub.Flags().Lookup("match") != nil
+				return sub.Flags().Lookup(flag) != nil
 			}
 		}
 	}
@@ -9788,7 +9875,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 		t.Fatalf("unverified run did not settle cleanly: %s", settledErr)
 	}
 	if v, _ := result["verdict"].(string); v != "UNVERIFIED" {
-		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run", v)
+		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run; %s", v, forcedTrajectory(t, runDir, result))
 	}
 	// AND THE RECORD SAYS SO, not just the returned map. This is the assertion the enum gate
 	// actually depends on: `outcome --as UNVERIFIED` has to be a value the tool WROTE.
@@ -9819,6 +9906,38 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	if basis != record.VerdictAsserted {
 		t.Fatalf("outcome verdict_basis %q, expected %q — UNVERIFIED was reached, but not as the asserted word this path drives", basis, record.VerdictAsserted)
 	}
+}
+
+// forcedTrajectory is what a forced drive that missed its verdict leaves to read: the settled return's
+// epochs and termination, each plan the record stored with whom it readied and what it docketed, and
+// each failed sitting. The log of a part prints a test's failure and nothing of the run behind it.
+func forcedTrajectory(t *testing.T, runDir string, result map[string]any) string {
+	t.Helper()
+	board, err := record.FamilyOf(runtest.Open(t, runDir))
+	if err != nil {
+		return "the record does not read: " + err.Error()
+	}
+	stored, err := record.StoredPlans(board.Events)
+	if err != nil {
+		return "the stored plans do not read: " + err.Error()
+	}
+	var plans []string
+	for _, sp := range stored {
+		p := sp.Plan
+		var parties, blockers []string
+		for _, pa := range p.Parties {
+			parties = append(parties, pa.SeatID+strings.Join(pa.GapIDs, ","))
+		}
+		for _, b := range p.Blockers {
+			blockers = append(blockers, string(b.Kind)+":"+b.Subject)
+		}
+		plans = append(plans, fmt.Sprintf("epoch %d parties[%s] docket%v blockers[%s] pass %v", p.Epoch, strings.Join(parties, " "), p.Docket, strings.Join(blockers, " "), p.PassPermitted))
+	}
+	var failed []string
+	for _, f := range record.FailedSittingsOf(board.Events, board.At) {
+		failed = append(failed, fmt.Sprintf("%s#%d@epoch%d", f.SeatID, f.Sitting, f.Epoch))
+	}
+	return fmt.Sprintf("epochs %v, termination %v; failed sittings %v; plans: %s", result["epochs"], result["termination"], failed, strings.Join(plans, " | "))
 }
 
 // TestFuzzVerifiedPath drives verifiedSeed's forced-VERIFIED run alone, through runOne, the call
@@ -10166,12 +10285,52 @@ func (r *runner) ruleStandingDockets(seatID string) {
 		if m.Subject != "docket" || m.Ruled {
 			continue
 		}
-		disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
-		r.admit("motion", "docket", "rule", "--seat-id", seatID, "--id", m.ID,
-			"--as", disp, "--final", "--principle", "correctness", "--tension", "cost",
-			"--review-flag", "none: the run's term ended with this motion standing", "--settled", settledByFuzzBench,
-			"--reason", "fuzz: ruled at the exit, where nothing can be remanded")
+		r.ruleDocketAtExit(seatID, m.ID)
 	}
+}
+
+// ruleDocketAtExit is the bench ruling one standing docket motion at the run's exit, with a
+// disposition that ends it: nothing can be remanded, there being no next sitting to remand it to.
+func (r *runner) ruleDocketAtExit(seatID, motionID string) {
+	disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
+	r.admit("motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
+		"--as", disp, "--final", "--principle", "correctness", "--tension", "cost",
+		"--review-flag", "none: the run's term ended with this motion standing", "--settled", settledByFuzzBench,
+		"--reason", "fuzz: ruled at the exit, where nothing can be remanded")
+}
+
+// docketsSinceTheLastPlan is each docket motion standing unruled that was filed after the last plan
+// the record stored. Only a stop that lands mid-turn leaves one: a seat sat after the plan and filed
+// it, so the plan's blockers, which convene the terminal sitting, never named it. A standing docket
+// the last plan does name is the terminal sitting's to rule, and is not among these.
+func (r *runner) docketsSinceTheLastPlan() []string {
+	b, ok := r.board()
+	if !ok {
+		r.noteActErr("the assembly could not read the record for the docket motions filed after the last plan")
+		return nil
+	}
+	stored, err := record.StoredPlans(b.Events)
+	if err != nil {
+		r.noteActErr("the assembly could not read the stored plans: " + err.Error())
+		return nil
+	}
+	last := -1
+	if n := len(stored); n > 0 {
+		last = stored[n-1].At
+	}
+	ruled := map[string]bool{}
+	for _, e := range b.Events {
+		if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok {
+			ruled[m.GetMotionId()] = true
+		}
+	}
+	var out []string
+	for i, e := range b.Events {
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && i > last && m.GetDocket().GetGapId() != "" && !ruled[m.GetMotionId()] {
+			out = append(out, m.GetMotionId())
+		}
+	}
+	return out
 }
 
 // lastPlanWhy gives a run its exit reason from the plan the chair's last sitting stored, where nothing

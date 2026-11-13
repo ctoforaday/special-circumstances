@@ -20,7 +20,7 @@ import (
 //
 // Measured, in a seat's own words when asked what it could do next: "blocked by missing
 // information (what does `c-29a72fe2` point to?)". The tool holds that citation's url, title,
-// sha256, access date and the cached bytes themselves, and handed the seat an id.
+// sha256, fetch time and the cached bytes themselves, and handed the seat an id.
 //
 // It is worse than an inconvenience for RED, whose terminal duty is verification at the leaf.
 // The constitution tells red to re-read the exact bytes blue cited (`fetch --url <the cited
@@ -63,11 +63,13 @@ import (
 type EvidenceSourceJSON struct {
 	// Anchor is the c-<hex> exactly as it appears inside `<!--cite:…-->`. It is the lookup key
 	// a seat holds when it reads the report, which is the whole reason this view exists.
-	Anchor     string `json:"anchor"`
-	URL        string `json:"url"`
-	Title      string `json:"title"`
-	Sha256     string `json:"sha256"`
-	AccessDate string `json:"access_date"`
+	Anchor string `json:"anchor"`
+	URL    string `json:"url"`
+	Title  string `json:"title"`
+	Sha256 string `json:"sha256"`
+	// FetchedAt is when the run's fetch took the copy sha256 names, RFC 3339 UTC: the source's
+	// accessed date. Empty on a cite migrated from before the field.
+	FetchedAt string `json:"fetched_at"`
 	// Location is the sentence the anchor sits at — what the source is offered as backing for — in
 	// the report as it stands where LocationState is `marked`, located by the token as the board
 	// locates a quote gap (locateAnchor); the sentence as cited where `gone` (the anchor bare,
@@ -253,11 +255,10 @@ type EvidenceVerificationJSON struct {
 	Text string `json:"text"`
 	// URL and Title name the source a reading of a source red found read, by url + title as a
 	// cite names one.
-	URL        string `json:"url"`
-	Title      string `json:"title"`
-	AccessDate string `json:"access_date"`
-	SeatID     string `json:"seat_id"`
-	Epoch      int    `json:"epoch"`
+	URL    string `json:"url"`
+	Title  string `json:"title"`
+	SeatID string `json:"seat_id"`
+	Epoch  int    `json:"epoch"`
 	// Page is the page image red checked for a citation with pages; PageRenderSha is that image's
 	// sha256 and ReadingRenderSha the render the reading was made from. Equal hashes mean red
 	// looked at the very pixels the reading came from.
@@ -449,7 +450,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 			Text:       vf.GetText(),
 			URL:        vf.GetUrl(),
 			Title:      vf.GetTitle(),
-			AccessDate: vf.GetAccessDate(),
 			SeatID:     e.GetSeatId(),
 			Epoch:      w.Epoch,
 
@@ -520,7 +520,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex, report string, renderErr erro
 				URL:        bd.GetUrl(),
 				Title:      bd.GetTitle(),
 				Sha256:     bd.GetSha256(),
-				AccessDate: bd.GetAccessDate(),
+				FetchedAt:  bd.GetFetchedAt(),
 				BlueReason: proto.String(bd.GetText()),
 				SeatID:     e.GetSeatId(),
 				Epoch:      w.Epoch,

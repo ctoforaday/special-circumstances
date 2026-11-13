@@ -16,9 +16,16 @@ func (b *stage) registerAs(seat, agent string) *stage {
 	return b.add(seat, &recordpb.Register{AgentId: proto.String(agent)})
 }
 
-// stop is the sitting_close the SubagentStop hook writes when that agent returns: attributed to the
-// harness, naming the agent and its configuration and no seat.
+// stop is that agent returning with its envelope: the PostToolUse hook's envelope_admitted on the
+// call that ended the sitting, then the sitting_close the SubagentStop hook writes — both attributed
+// to the harness, naming the agent and no seat.
 func (b *stage) stop(agent string) *stage {
+	return b.add(HarnessSeat, &recordpb.EnvelopeAdmitted{AgentId: proto.String(agent)}).fails(agent)
+}
+
+// fails is that agent returning WITHOUT its envelope: the sitting_close alone, which is a failed
+// sitting (FailedSittingsOf).
+func (b *stage) fails(agent string) *stage {
 	return b.add(HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(agent)})
 }
 

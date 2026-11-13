@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -83,8 +84,50 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 		t.Errorf("cite event payload wrong: label=%q url=%q sha=%q title=%q",
 			ev.GetLabel(), ev.GetUrl(), ev.GetSha256(), ev.GetTitle())
 	}
-	if ev.GetAccessDate() == "" {
-		t.Error("cite event missing engine-supplied access_date")
+	entry, _, _, err := fetchcache.Lookup(runtest.Open(t, runDir), "https://sky/1")
+	if err != nil || entry.FetchedAt == "" || ev.GetFetchedAt() != entry.FetchedAt {
+		t.Errorf("the cite carries fetched_at %q, the fetch index %q (%v): the citation's accessed date is the fetch's", ev.GetFetchedAt(), entry.FetchedAt, err)
+	}
+}
+
+// ACCESSED IS WHEN THE FETCH TOOK THE COPY, not when blue cited it: a source fetched late one day and
+// cited the next was accessed on the first, and a second read served from the cache moves nothing.
+func TestTheCitationsAccessedDateIsWhenItsCopyWasFetched(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# Findings\n\nThe sky is blue and the grass is green.\n")
+	registerBlue(t, runDir)
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://sky/1": []byte("<html>a source that says the sky is blue</html>")}})
+	was := record.Now
+	t.Cleanup(func() { record.Now = was })
+	at := func(stamp string) {
+		ts, err := time.Parse(time.RFC3339, stamp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		record.Now = func() time.Time { return ts }
+	}
+
+	at("2030-01-01T23:59:00Z")
+	if out, err := run(t, "fetch", "--run", runDir, "--seat-id", citeSeat, "--url", "https://sky/1"); err != nil {
+		t.Fatalf("fetch: %v (out %q)", err, out)
+	}
+	at("2030-01-02T10:00:00Z")
+	if out, err := run(t, "fetch", "--run", runDir, "--seat-id", citeSeat, "--url", "https://sky/1"); err != nil {
+		t.Fatalf("second fetch: %v (out %q)", err, out)
+	}
+	if out, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
+		"--quote", "The sky is blue and the grass is green.", "--url", "https://sky/1", "--title", "Sky Facts"); err != nil {
+		t.Fatalf("blue cite: %v (out %q)", err, out)
+	}
+	ev := firstCiteEvent(t, runDir)
+	if ev == nil {
+		t.Fatal("no cite event recorded")
+	}
+	if got := ev.GetFetchedAt(); got != "2030-01-01T23:59:00Z" {
+		t.Errorf("the cite carries fetched_at %q; the copy was fetched at 2030-01-01T23:59:00Z, read again from the cache and cited a day later", got)
+	}
+	if got := record.AccessedOn(ev.GetFetchedAt()); got != "2030-01-01" {
+		t.Errorf("accessed on %q, want the fetch's day 2030-01-01", got)
 	}
 }
 

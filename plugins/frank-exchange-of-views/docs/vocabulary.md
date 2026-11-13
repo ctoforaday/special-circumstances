@@ -165,7 +165,7 @@ A sitting is one seat's dispatch, from the prompt the engine hands it to the env
 
 ## failed sitting
 
-A failed sitting is a sitting of a seat whose work arrives as items that closed with no envelope admitted: the call returning its envelope never succeeded, because the envelope gate refused it or its schema rejected it until the harness gave up, or its agent died; the engine dispatches the seat again while it owes its items, and capture names each one.
+A failed sitting is a sitting of a seat whose work arrives as items that closed with no envelope admitted: the call returning its envelope never succeeded, because the envelope gate refused it or its schema rejected it until the harness gave up, or its agent died; it is no turn in any gap's exchange, the engine dispatches the seat again while it owes its items, and capture names each one.
 
 **Delivered to:** operator
 
@@ -361,7 +361,7 @@ A source span is the words of the source's own cached text a citation rests on, 
 
 ## source search
 
-A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries its lines, the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
+A source search is a read of cached sources' text for a regular expression, literal text, or a ranked hybrid query (BM25 and dense vectors), scoped to one source or across all cached sources in the run; each hit carries the source's sentence and whether a citation can quote that sentence as printed; a search across sources names each hit's source by URL and SHA256, a search of one source names it once for all its hits, and the search records nothing.
 
 **Delivered to:** lens, blue, lane
 

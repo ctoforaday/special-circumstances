@@ -44,11 +44,11 @@ stdout:
 motion MOTION001 filed (grade)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid/paper --trust high --access-date 2026-07-18
+$ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid/paper --trust high
 exit 2
 stderr:
 feov-record: verify: unknown flag: --trust — not one of this verb's flags, and no verb on this surface takes it.
-This verb's flags: --access-date, --anchor, --as, --bridge, --confidence, --page, --quote, --reason, --title, --url.
+This verb's flags: --anchor, --as, --bridge, --confidence, --page, --quote, --reason, --title, --url.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 

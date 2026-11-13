@@ -12,7 +12,7 @@ import (
 // THE LENS WAS NEVER TOLD ABOUT AN UNVERIFIED CITATION.
 //
 // The first reader of "a citation nobody checked" joined on `cite_key`, falling back to `key`. A
-// `cite` event carries neither — its keys are access_date, claim, label, location, sha256, title,
+// `cite` event carries neither — its keys are claim, label, location, sha256, title,
 // url — so the lookup always missed and the affordance returned empty on every board in the tool's
 // lifetime. "Nothing outstanding" and "the join key is not on the event" are the same bytes. The
 // reader now is the anchor ledger's unchecked state (uncheckedAnchors).

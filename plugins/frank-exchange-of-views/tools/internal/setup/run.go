@@ -35,7 +35,8 @@ type Config struct {
 	K, KMax             int
 	ConvergenceFraction float64
 	// MaxSittingCalls is the tool calls one seat may make in one sitting before the PreToolUse
-	// hook refuses the rest (internal/sittingcap). Zero means sittingcap.DefaultMaxCalls.
+	// hook refuses the rest but its envelope (internal/sittingcap). Zero means
+	// sittingcap.DefaultMaxCalls.
 	MaxSittingCalls int
 	// MaxEpochs is the run's epoch limit; zero is setup's default unless MaxEpochsSet says the
 	// operator passed it, and a value the operator passed below 1 is refused.

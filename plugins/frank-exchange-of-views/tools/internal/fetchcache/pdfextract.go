@@ -295,8 +295,11 @@ func (PDFExtractor) Extract(cacheDir, mediaType string, body []byte) Extraction 
 		case pc.PageCount == 0:
 			out.Reason = "the document reports zero pages"
 		default:
+			// The extractor reads a text layer and nothing else; a page with none has text only in
+			// its pixels, which fetch reads by optical recognition after this returns
+			// (readScanIfApplicable). The reason states that condition, not a capability.
 			out.Reason = fmt.Sprintf("no text layer: %d pages, all empty — this is a scanned or "+
-				"image-only document and needs optical recognition, which this build does not do", pc.PageCount)
+				"image-only document, whose text comes only from optical recognition of its page images", pc.PageCount)
 		}
 	}
 	return out

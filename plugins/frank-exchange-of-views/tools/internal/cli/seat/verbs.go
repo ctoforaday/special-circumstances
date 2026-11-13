@@ -320,7 +320,7 @@ var views = []struct {
 		"An `unchecked` ROW IS A CITATION OR COMPUTATION WITH NO CHECK OF THE SENTENCE THE REPORT CARRIES: nobody has checked it, or an edit changed its sentence and no sitting opened since has checked it. `edit` and `last_check` are event ids: the edit (0 where none changed the sentence), and the anchor's latest check (0 where it has none), which does not clear it. A `verify` of the citation that reads its source, or a `reproduce` naming the computation's anchor — from a sitting opened after `edit`, where there is one — removes the row, whichever lens records it. A verify `--as unreachable`, or one of a copy the tool stamped not_the_work, reads nothing: it removes the row and leaves the citation on a failed check, which holds the PASS as the row did. Its owning lens owes that check and is the seat readied for it: a citation is the evidence lens's; a computation is the computation lens's. A PASS waits while a row stands.\n\nTO READ ONE ENTRY IN FULL, add --anchor <id>. On a computation's `" + anchor.Token("K-…") + "` id that is the computation's row WITH THE COMPUTATION ITSELF: `files` is the stored bundle, each file by its `path` with its `body` — the bytes the lens's `reproduce` executes with the row's `argv` — and `output` is what this computation's run printed. The table carries no program, so THIS IS HOW A PROGRAM IS READ BEFORE IT IS JUDGED. A bundle or output the computation store does not hold is refused, never shown empty. On a source's `" + anchor.Token("C-…") + "` id it is that source's one row. Either carries the anchor's `unchecked` row while one stands.\n\nA retired anchor is in no document, and in none of these lists or counts: `sources` and `computations` hold the citations and computations the report carries. Read at its id with --anchor, a retired one is still its row, with `retired`: the `event` of the retire that took it out and its `reason`.\n\nTHIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. " +
 		"`retires` IS EVERY RETIRE ON THE RECORD, in record order: the claim as it stood, blue's `reason`, what `superseded_by` it, and the `anchors` it took out. `claim_kept` true is a citation or computation taken off a sentence that stays; false is a claim that left the report, and `removal_basis` says how far the record shows it leaving — `verified` (the claim is in the old span of a recorded edit) or `asserted` (it is absent now, and nothing on the record shows it was ever present). " +
 		"Written by blue's `cite`, `compute` and `retire`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
-	{"source", "WHERE ONE CACHED SOURCE'S TEXT SAYS SOMETHING — every place a pattern matches the text, each with the source's sentence around it and whether blue's `cite --source-span` takes that sentence. Read from the run's source cache, which `fetch` fills", sourceLong, "", true, fetchcache.SourceSearch{}, false},
+	{"source", "WHERE THE CACHED SOURCES' TEXT SAYS SOMETHING — every place a pattern matches one source's text or every source's, or the passages a query ranks highest, each with the source's sentence around it and whether blue's `cite --source-span` takes that sentence. Read from the run's source cache, which `fetch` fills", sourceLong, "", true, fetchcache.SourceSearch{}, false},
 	{"inquiries", "WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate, the reason for it, and the check that stands on it. Written by blue's `inquiry propose` and `inquiry record` and the logic lens's `inquiry check`", "the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question, its hypothesis and the fates recorded on it. The fate is the `status` key, one of " + strings.Join(record.Names(record.MustEnum("inquiry", "status").Values), ", ") + " — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with its epoch, seat, reason and method) and the check that stands on it with its reason, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `reason` and `method` are the latest fate's, `epoch` its epoch, `history` each fate recorded on it, in order, as {`epoch`, `status`, `reason`, `method`, `seat_id`}, `seat_id` the seat that recorded the latest, `state` its judged state — " + record.InquiryOpen + " (proposed or underway: blue owes a fate that settles it), " + record.InquiryWanting + " (an open material gap is about it, listed in `wanting`), " + record.InquiryUnchecked + " (settled, and no check stands on it) or " + record.InquirySound + " (a check stands) — and `check` and `checked_by` the reason and the seat of the check that stands, empty while none does. A check stands until a fate is recorded on the inquiry again or a material gap is minted about it. Written by blue's `inquiry propose` and `inquiry record` and the logic lens's `inquiry check`", "", false, record.InquiriesJSON{}, false},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape(), true},
 }
@@ -371,13 +371,14 @@ type scopedPara struct {
 }
 
 // reportLong is the report's page for every seat.
-var reportLong = "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("K-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.\n\n" + report.ReportTextNote
+var reportLong = "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE. TO LOOK ONE UP: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("K-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. --search is not a selector: it RANKS the report's paragraphs by hybrid lexical and vector relevance to a query and returns the top few — a cut list, in which absence proves nothing — for when you do not know the report's wording. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. Under --search, --json gives the ranked paragraphs instead, each `text` with its anchors out, and `search_scope` says the list is ranked and cut, how many it returned and of how many paragraphs: " + jsonshape.Tree(ReportSearchJSON{}) + ". The bare call is the form to READ; this is the form to select from.\n\n" + report.ReportTextNote
 
 // reportPage is the report's page: every seat's, and the lens's paragraph on what its whole read
 // records (record.ServeReport).
 var reportPage = []scopedPara{
 	{text: reportLong},
-	{roles: []string{"lens"}, text: "A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote and --assembled serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat."},
+	{roles: []string{"blue"}, text: "YOUR `edit` REFUSES AN EDIT THAT DROPS AN ANCHOR, so a token inside the span you are replacing is yours to carry into --new."},
+	{roles: []string{"lens"}, text: "A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote and --search serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat."},
 }
 
 // scopedPages are the projections whose page is scoped by role, by name.
@@ -698,12 +699,13 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 			// without --anchor twice, each a refused call. The refusals below (renderView) say the
 			// same things at the call.
 			sub.Flags().Var(flags.AnchorID(), flags.Anchor,
-				"read the report AT one anchor `id` (F-…, C-…, K-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --match and --quote are each refused with it")
+				"read the report AT one anchor `id` (F-…, C-…, K-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --match, --quote and --search are each refused with it")
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
 				"ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted)")
 			for _, name := range []string{flags.Match, flags.Quote} {
 				sub.Flags().Lookup(name).Usage += reportSelectorBound
 			}
+			flags.Text(sub, flags.Search, reportSearchUsage)
 		}
 		// ONE ENTRY, BY THE TOKEN THE SEAT IS HOLDING. The same flag `report` takes for the same
 		// id — one declaration (flags.AnchorID), so both refuse a malformed id in the same words
@@ -732,8 +734,8 @@ func atAnchorShapeSuffix(name string) string {
 }
 
 // reportSelectorBound closes --match and --quote on the report's page with what each combines
-// with there: the pair is every view's, and only this view has an anchor read.
-const reportSelectorBound = ". Refused beside --anchor"
+// with there: the pair is every view's, and only this view has an anchor read and a ranked search.
+const reportSelectorBound = ". Refused beside --anchor and --search"
 
 // markdownSelectorBound qualifies what --match and --quote select on a view whose bare form is
 // markdown: the markdown has no entries, so the selection is printed in the --json form.
@@ -966,9 +968,13 @@ func renderView(cmd *cobra.Command, want string) error {
 	// what `edit` holds a seat responsible for carrying across an edit.
 	if want == "report" {
 		// BOTH FORMS ARE ONE READ AND ONE SELECTION. The JSON takes the text and its head off one
-		// snapshot; what --anchor, --match and --quote choose is decided once, below, and each form
-		// prints it.
+		// snapshot; what --anchor, --match, --quote and --search choose is decided once, below, and
+		// each form prints it.
 		asJSON, _ := cmd.Flags().GetBool(flags.JSON)
+		query, qerr := searchOf(cmd)
+		if qerr != nil {
+			return qerr
+		}
 		var b []byte
 		var head int64
 		// THE WHOLE REPORT SERVED TO A LENS IS RECORDED, and it is the lens's pin (record.ServeReport):
@@ -981,7 +987,9 @@ func renderView(cmd *cobra.Command, want string) error {
 			if serr != nil {
 				return serr
 			}
-			serve = !sel.Active()
+			// A RANKED SEARCH SERVES A CUT LIST OF PARAGRAPHS, not the report: it is no whole read
+			// and does not move the lens's pin.
+			serve = !sel.Active() && query == ""
 		}
 		if serve {
 			s, err := Begin(cmd)
@@ -1020,6 +1028,9 @@ func renderView(cmd *cobra.Command, want string) error {
 				return serr
 			} else if sel.Active() {
 				return feov.Errorf(feov.Validation, "--anchor reads the report at one anchor, and --match/--quote select lines from the whole report — pass one or the other")
+			}
+			if query != "" {
+				return feov.Errorf(feov.Validation, "--anchor reads the report at one anchor, and --search ranks paragraphs of the whole report — pass one or the other")
 			}
 			// AN ANCHOR THAT LEFT WITH ITS CLAIM IS NOT STALE. `retire` takes a bare anchor out
 			// of the report on the record; saying "stale reference or another run" of it would send
@@ -1061,6 +1072,9 @@ func renderView(cmd *cobra.Command, want string) error {
 		// no anchor to read at — that is what makes it undiscovered — so it rendered the whole report
 		// and grepped, then sed'd a line range to find the heading above the hit. This returns the
 		// same triple --anchor does (heading, text, line number) keyed on a pattern instead of an id.
+		if query != "" {
+			return writeReportSearch(cmd, run, string(b), query, asJSON)
+		}
 		sel, serr := SelectorOf(cmd)
 		if serr != nil {
 			return serr

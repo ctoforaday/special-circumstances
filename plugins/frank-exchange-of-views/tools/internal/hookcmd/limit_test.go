@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
@@ -159,6 +160,59 @@ func TestAWarmSessionRegistersThroughTheLimitAndStartsAtZero(t *testing.T) {
 	}
 	if d, _ := call(t, cwd, "agent_01", "Read", ""); d != "deny" {
 		t.Error("sitting 2 was not limited in its own right")
+	}
+}
+
+// THE ENVELOPE IS WHAT THE LIMIT TELLS THE SEAT TO RETURN, so the limit neither refuses nor counts the
+// call returning it: past the limit a Bash call is refused, and the envelope call still reaches the
+// record's gate (gateEnvelope), which admits it — or refuses it on the record's own terms. At the
+// limit and not past it, the envelope call leaves the count where it was.
+func TestALimitedSeatReturnsItsEnvelopeThroughTheRecordsGate(t *testing.T) {
+	cwd, runDir, got := limitRun(t, 2)
+	sit(t, runDir, "agent_01", "red-lens-evidence-L1", 1)
+	refusal := ""
+	var asked []string
+	prev := envelopeAnswer
+	envelopeAnswer = func(dir, agent string, _ []byte) (hookgate.EnvelopeAnswer, error) {
+		asked = append(asked, dir+" | "+agent)
+		return hookgate.EnvelopeAnswer{Refusal: refusal, Read: json.RawMessage(`{"event":7}`)}, nil
+	}
+	t.Cleanup(func() { envelopeAnswer = prev })
+
+	for i := 0; i < 2; i++ {
+		if d, _ := call(t, cwd, "agent_01", "Bash", "ls"); d == "deny" {
+			t.Fatalf("call %d of 2 was refused", i+1)
+		}
+	}
+	// AT THE LIMIT: the envelope call is the seat's third call and is not counted, so it is not
+	// past the limit, and neither is a second one.
+	for i := 0; i < 2; i++ {
+		if d, reason := call(t, cwd, "agent_01", envelopeTool, ""); d != "allow" {
+			t.Fatalf("envelope call %d at the limit: decision %q (%s), want the record's allow", i+1, d, reason)
+		}
+	}
+	if len(*got) != 0 {
+		t.Fatalf("the envelope call was counted: the sitting reached its limit at %+v", *got)
+	}
+	// PAST THE LIMIT: Bash is refused with the instruction to return the envelope, and the envelope
+	// call returning it reaches the record and is admitted.
+	if d, reason := call(t, cwd, "agent_01", "Bash", "ls"); d != "deny" || !strings.HasPrefix(reason, "turn limit reached — return your envelope now") {
+		t.Fatalf("the Bash call past the limit: decision %q, reason %q, want the limit refusal", d, reason)
+	}
+	asked = nil
+	if d, reason := call(t, cwd, "agent_01", envelopeTool, ""); d != "allow" {
+		t.Fatalf("the limited seat's envelope call: decision %q, reason %q, want it admitted by the record's gate", d, reason)
+	}
+	if len(asked) != 1 || asked[0] != runDir+" | agent_01" {
+		t.Errorf("the record was asked about %q, want the limited seat's run and agent once", asked)
+	}
+	// THE RECORD'S REFUSAL STILL STANDS on a limited seat's envelope.
+	refusal = "your envelope is refused: 1 blocking item(s) on your work list stand"
+	if d, reason := call(t, cwd, "agent_01", envelopeTool, ""); d != "deny" || reason != refusal {
+		t.Errorf("an envelope the record refuses, from a limited seat: decision %q, reason %q, want the record's refusal", d, reason)
+	}
+	if len(*got) != 1 {
+		t.Errorf("the limit was handed to the record %d times, want once (at the refused Bash call)", len(*got))
 	}
 }
 

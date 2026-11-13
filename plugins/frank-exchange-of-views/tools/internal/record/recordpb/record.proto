@@ -260,7 +260,7 @@ enum EventType {
   EVENT_TYPE_INQUIRY = 3 [(means) = "an inquiry: its question, its hypothesis and each fate recorded on it"];
   EVENT_TYPE_BLUE_EDIT = 4 [(means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
-  EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
+  EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable"];
   EVENT_TYPE_CLOSE = 8 [(means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
   EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
@@ -304,7 +304,7 @@ enum EventType {
   EVENT_TYPE_SITTING_CLOSE = 35 [(means) = "the harness's agent returning — the other end of that span"];
   EVENT_TYPE_CAST = 36 [(means) = "the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against"];
   EVENT_TYPE_DISPATCH = 37 [(means) = "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"];
-  EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
+  EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it but the one returning the seat's envelope, and this records which seat, which sitting and the limit"];
   EVENT_TYPE_PLAN = 40 [(means) = "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"];
   EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
   EVENT_TYPE_REPORT_READ = 43 [(means) = "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"];
@@ -1314,18 +1314,16 @@ enum CopySubstitution {
   COPY_SUBSTITUTION_NOT_CACHED = 7 [(means) = "a reading only: this run's fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records"];
 }
 
-// Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
-// seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
-// disable that check for the row.
+// Cite records a source.
 message Cite {
-  optional string label = 1;
+  // label is the citation's id, minted by the tool (record.NewID): one citation, one row.
+  optional string label = 1 [(sql) = {unique: true}];
   optional string url = 2;
   optional string sha256 = 3;
   // title is the Bibliography entry and text the argument for the source — the seat's own wording.
-  // The label, url, hash, location and access date identify the source and place its marker.
+  // The label, url, hash and location identify the source and place its marker.
   optional string title = 4 [(prose) = true];
   optional string location = 5 [(prose) = false, (sql) = { flag: "quote" }];
-  optional string access_date = 6;
   // cite_key is typed --key: the flag word is declared so a refusal names what a seat can type.
   optional string cite_key = 7 [(sql) = { flag: "key" }];
   optional string text = 9 [(prose) = true, (sql) = { flag: "reason" }];
@@ -1377,6 +1375,12 @@ message Cite {
   optional CopySubstitution copy_substitution = 24 [(prose) = false];
   optional string copy_url = 25 [(prose) = false];
 
+  // WHEN THE COPY WAS FETCHED, stamped from the fetch index like the four above: the time the run's
+  // fetch took the bytes sha256 names, RFC 3339 UTC. It is the source's "accessed" date in the
+  // report and in `show evidence`. On the event because run-archive keeps no cache; a live cite
+  // without it is refused (judgeAct), and a cite migrated from before the field holds none.
+  optional string fetched_at = 27 [(prose) = false];
+
   // answers is the gap this citation is placed as the answer to, typed --answers: the citation half
   // of an evidence anchor's answer (Computation.answers is the other), read through the
   // evidence_anchor view by the gap's live-answer demand.
@@ -1384,9 +1388,11 @@ message Cite {
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field. `source_text_read` was the seat's assertion of how much of the
-  // source it read, which nothing read back.
-  reserved 8, 10;
-  reserved "claim", "source_text_read";
+  // source it read, which nothing read back. `access_date` was the cite's own clock reading, a
+  // second read of the time the event already carries; when the source was accessed is when its
+  // copy was fetched, `fetched_at`.
+  reserved 6, 8, 10;
+  reserved "access_date", "claim", "source_text_read";
 }
 
 // Verify is red reading a source at the leaf.
@@ -1406,7 +1412,6 @@ message Verify {
   // (`verify --url`) names none: the empty anchor IS that form, and every reader splits on it.
   optional string anchor = 3;
 
-  optional string access_date = 5;
   optional SourceOutcome outcome = 6 [(sql) = {
     required: true
     flag: "as"
@@ -1454,8 +1459,10 @@ message Verify {
   // `carried_by` and `carrier_minted` named the gap a reading minted in its own act, or the open gap
   // of its class that held its sentence: a reading records and holds nothing, and a gap stands on
   // its minter's reading by the subject the mint names, so no field links the two.
-  reserved 2, 4, 11, 15, 20, 21, 22;
-  reserved "reference", "independent", "label", "work_status", "sha256", "carried_by", "carrier_minted";
+  // `access_date` was a date the seat typed for its own reading: when a source was accessed is when
+  // its copy was fetched, which the citation carries.
+  reserved 2, 4, 5, 11, 15, 20, 21, 22;
+  reserved "reference", "independent", "label", "work_status", "sha256", "carried_by", "carrier_minted", "access_date";
 }
 
 // Computation is a program blue ran twice on a bundle, and what it wrote — the citation model with
@@ -1476,7 +1483,8 @@ message Computation {
     why: "a VARIANT computation states what moved between its two runs and what holds across them; a REPRODUCIBLE one wrote the same bytes twice, so it carries neither"
   };
 
-  optional string computation_id = 1;
+  // computation_id is the act's id, minted by the tool (record.NewID): one computation, one row.
+  optional string computation_id = 1 [(sql) = {unique: true}];
   // key is typed --key: the flag word is declared so a refusal names what a seat can type.
   optional string key = 2 [(sql) = { flag: "key" }];
   // bundle_sha is the bundle's identity: sha256 over its argv and its files, each length-prefixed

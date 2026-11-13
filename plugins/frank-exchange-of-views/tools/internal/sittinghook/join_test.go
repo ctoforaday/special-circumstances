@@ -56,7 +56,9 @@ func TestAStopTheHookRecordsClosesTheSittingItsAgentRegistered(t *testing.T) {
 	}
 
 	// sit is one sitting as a hook-reached seat has it: the PreToolUse rewrite sets its identity,
-	// it registers, acts, and returns — and SubagentStop fires with the same payload agent_id.
+	// it registers, acts, and returns its envelope — the PostToolUse hook's admission — and
+	// SubagentStop fires with the same payload agent_id. A sitting with no admission is a failed one,
+	// which is no turn in the exchange (record.noTurnSittingsOf).
 	sit := func(seat, agentID, agentType string, acts func(record.Identity), stops bool) {
 		t.Helper()
 		identityFromTheRewrite(t, runDir, agentID, agentType)
@@ -68,6 +70,9 @@ func TestAStopTheHookRecordsClosesTheSittingItsAgentRegistered(t *testing.T) {
 			acts(id)
 		}
 		if stops {
+			if err := sittingwrite.WriteAdmission(runDir, agentID); err != nil {
+				t.Fatalf("the admission of %s's envelope: %v", agentID, err)
+			}
 			if err := Stop(payload(t, agentID, agentType, cwd), &bytes.Buffer{}, testRecorder()); err != nil {
 				t.Fatal(err)
 			}

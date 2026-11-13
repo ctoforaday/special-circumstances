@@ -46,7 +46,7 @@ func TestATwinSpellingIsNotASharedBody(t *testing.T) {
 	tilde := "https://sites.math.rutgers.edu/~sdmiller/Lecture%2014.pdf"
 	escaped := "https://sites.math.rutgers.edu/%7Esdmiller/Lecture%2014.pdf"
 	for _, u := range []string{tilde, escaped} {
-		if _, err := Store(run, Entry{URL: u}, body); err != nil {
+		if _, err := Store(run, Entry{FetchedAt: storedAt, URL: u}, body); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -54,7 +54,7 @@ func TestATwinSpellingIsNotASharedBody(t *testing.T) {
 		t.Fatalf("a twin spelling was named as a shared body: %v (err %v)", shared, err)
 	}
 	other := "https://www.jstor.org/stable/1"
-	if _, err := Store(run, Entry{URL: other}, body); err != nil {
+	if _, err := Store(run, Entry{FetchedAt: storedAt, URL: other}, body); err != nil {
 		t.Fatal(err)
 	}
 	shared, err := URLsSharingBody(run, Sha(body), escaped)

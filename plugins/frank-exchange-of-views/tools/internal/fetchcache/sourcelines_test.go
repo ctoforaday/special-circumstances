@@ -40,7 +40,7 @@ func m39BFile(t *testing.T) []byte {
 // storePlainSource caches body as a text type a reader reads as-is, as a fetch of a .txt does.
 func storePlainSource(t *testing.T, run record.Run, url string, body []byte) Entry {
 	t.Helper()
-	e, err := Store(run, Entry{URL: url, ContentType: "text/plain; charset=utf-8"}, body)
+	e, err := Store(run, Entry{FetchedAt: storedAt, URL: url, ContentType: "text/plain; charset=utf-8"}, body)
 	if err != nil {
 		t.Fatal(err)
 	}

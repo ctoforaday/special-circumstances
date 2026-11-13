@@ -424,30 +424,28 @@ PY
         [ -f "$assets_file" ] || continue
         local helper_dir; helper_dir="$(dirname "$assets_file")"
         local helper; helper="$(basename "$helper_dir")"
-        local digest=""
+        local nd=()
         if command -v nativedigest >/dev/null 2>&1; then
-          digest="$(nativedigest -print "$helper" 2>/dev/null)"
+          nd=(nativedigest)
         elif [ -d "$tools" ]; then
-          digest="$(go -C "$tools" run ./devcmd/nativedigest -print "$helper" 2>/dev/null)"
+          nd=(go -C "$tools" run ./devcmd/nativedigest)
         fi
+        local digest=""
+        [ "${#nd[@]}" -gt 0 ] && digest="$("${nd[@]}" -print "$helper" 2>/dev/null)"
         [ -n "$digest" ] || die "could not compute digest for $helper"
 
         local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/sc-universe/native/$helper/$digest"
         local helper_bin_name="${helper}_${host_os}_${host_arch}${ext}"
-        # The files this helper puts in the release: its binary, and each ASSETS line's export for
-        # this arch. A line naming none for this arch fails here, as fetch-bin.sh would.
-        local wanted=("$helper_bin_name") exports=() line export_name field
-        while read -r line || [ -n "$line" ]; do
-          line="${line%$'\r'}"
-          [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
-          export_name=""
-          for field in $line; do
-            case "$field" in "${host_arch}="*) export_name="${field#*=}" ;; esac
-          done
-          [ -n "$export_name" ] || die "$assets_file: '${line%% *}' names no export for $host_arch"
-          exports+=("$export_name")
+        # The files this helper puts in the release: its binary, and each ASSETS line's pinned
+        # export for this arch, as nativedigest -assets resolves them (the one reader of ASSETS and
+        # PINS.txt); it refuses a line naming no export for this arch, or an export with no pin.
+        local wanted=("$helper_bin_name") pairs installed_name export_name
+        pairs="$("${nd[@]}" -assets "$helper" -arch "$host_arch")" \
+          || die "$helper: nativedigest -assets $helper -arch $host_arch failed"
+        while read -r installed_name export_name; do
+          [ -n "$installed_name" ] || continue
           wanted+=("$export_name")
-        done < "$assets_file"
+        done <<<"$pairs"
 
         local f complete=1
         for f in "${wanted[@]}"; do [ -f "$cache_dir/$f" ] || complete=0; done
@@ -463,18 +461,10 @@ PY
           rm -rf "$tmp_cache"
           mkdir -p "$tmp_cache"
           "$native_root/build.sh" "$helper" "${host_os}-${host_arch}" "$tmp_cache" || die "building helper $helper failed"
-          [ -f "$tmp_cache/$helper_bin_name" ] || die "native/build.sh wrote no $helper_bin_name"
-          local pin dl_sha dl_url actual_sha
-          for export_name in "${exports[@]}"; do
-            # PINS.txt records are <sha256> <file> <url>.
-            pin="$(awk -v f="$export_name" '$0 !~ /^[[:space:]]*#/ && $2 == f { sub(/\r$/, ""); print $1, $3 }' "$helper_dir/PINS.txt" 2>/dev/null)"
-            dl_sha="${pin%% *}"; dl_url="${pin#* }"
-            [ -n "$pin" ] && [ -n "$dl_sha" ] && [ -n "$dl_url" ] && [ "$dl_url" != "$pin" ] \
-              || die "$helper: the export $export_name has no pin in $helper_dir/PINS.txt"
-            curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 --max-time 600 "$dl_url" -o "$tmp_cache/$export_name" \
-              || die "could not download $export_name from $dl_url"
-            actual_sha="$( ( sha256sum "$tmp_cache/$export_name" 2>/dev/null || shasum -a 256 "$tmp_cache/$export_name" ) | awk '{print $1}')"
-            [ "$actual_sha" = "$dl_sha" ] || die "sha256 mismatch on $export_name: got $actual_sha, want $dl_sha"
+          # build.sh fetches each export from its pin (retried, sha256-checked) and stages it under
+          # its release name beside the binary.
+          for f in "${wanted[@]}"; do
+            [ -f "$tmp_cache/$f" ] || die "native/build.sh wrote no $f"
           done
           # Only a complete entry is renamed into place, so a killed or failed build leaves none.
           rm -rf "$cache_dir"

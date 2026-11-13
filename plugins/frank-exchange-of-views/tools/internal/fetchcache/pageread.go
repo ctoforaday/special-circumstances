@@ -533,6 +533,7 @@ func ReadRenderedPages(run record.Run, sha string, rd RenderRecord) (ReadingReco
 	if err := writeReplacing(readingRecordPath(run, sha), append(b, '\n')); err != nil {
 		return ReadingRecord{}, err
 	}
+	prewarmReadingVectors(run, sha)
 	return out, nil
 }
 

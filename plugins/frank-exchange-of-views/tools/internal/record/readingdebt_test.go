@@ -205,6 +205,25 @@ func TestAReadingDebtIsDischarged(t *testing.T) {
 		{"found: X's 32 quoting S", func(b *stage) {
 			b.readFound(evLens, dbURL, dbFirst, refutes).quoteGap(evLens, "G-00000001", dbFirst, cc)
 		}, nil},
+		// ANOTHER SEAT'S QUOTE GAP ON S, the shape the release fuzz's one-gap arm reads: Y's gap,
+		// quoting the whole sentence or a span inside it, minted before X's sitting opened, discharges
+		// X's found-source debt while it is open; its close brings the debt back, since a gap minted
+		// before the reading's sitting discharges only while open (debtBound).
+		{"found: Y's open 32 quoting S, minted before X's sitting", func(b *stage) {
+			b.register(otherLens).readFound(otherLens, dbURL2, dbFirst, refutes).quoteGap(otherLens, "G-00000001", dbFirst, cc).
+				dispatch(2, evLens).register(evLens).readFound(evLens, dbURL, dbFirst, refutes)
+		}, nil},
+		{"found: Y's open 32 quoting a span inside S, minted before X's sitting", func(b *stage) {
+			b.register(otherLens).readFound(otherLens, dbURL2, dbFirst, refutes).quoteGap(otherLens, "G-00000001", "the measured figures from every month", cc).
+				dispatch(2, evLens).register(evLens).readFound(evLens, dbURL, dbFirst, refutes)
+		}, nil},
+		{"found: Y's 32 quoting S, minted before X's sitting, closed after X's reading", func(b *stage) {
+			b.register(otherLens).readFound(otherLens, dbURL2, dbFirst, refutes).quoteGap(otherLens, "G-00000001", dbFirst, cc).
+				dispatch(2, evLens).register(evLens).readFound(evLens, dbURL, dbFirst, refutes).closeGap(otherLens, "G-00000001")
+		}, []string{evLens + ":" + dbFirst}},
+		{"found: Y's 32 quoting S, minted in X's sitting after its reading, closed since", func(b *stage) {
+			b.readFound(evLens, dbURL, dbFirst, refutes).quoteGap(otherLens, "G-00000001", dbFirst, cc).closeGap(otherLens, "G-00000001")
+		}, nil},
 		{"found: X's later reading of another url for S, supports", func(b *stage) {
 			b.readFound(evLens, dbURL, dbFirst, refutes).readFound(evLens, dbURL2, dbFirst, supports)
 		}, nil},

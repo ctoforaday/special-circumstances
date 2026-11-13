@@ -27,7 +27,7 @@ func TestWeaveNoteCarriesThePDFPage(t *testing.T) {
 	}
 	for _, tc := range cases {
 		got := weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{
-			{Label: "C-00000001", URL: pdfURL, Title: "IEEE 1012", AccessDate: "2026-09-15", Pages: tc.pages},
+			{Label: "C-00000001", URL: pdfURL, Title: "IEEE 1012", FetchedAt: "2026-09-15T12:00:00Z", Pages: tc.pages},
 		})
 		if !strings.Contains(got, tc.note) {
 			t.Errorf("pages %v: note is not %q:\n%s", tc.pages, tc.note, got)
@@ -41,7 +41,7 @@ func TestWeaveNoteCarriesThePDFPage(t *testing.T) {
 
 func TestWeaveKeysNotesOnURLAndPages(t *testing.T) {
 	src := func(label string, pages ...int32) record.Source {
-		return record.Source{Label: label, URL: pdfURL, Title: "IEEE 1012", AccessDate: "2026-09-15", Pages: pages}
+		return record.Source{Label: label, URL: pdfURL, Title: "IEEE 1012", FetchedAt: "2026-09-15T12:00:00Z", Pages: pages}
 	}
 	t.Run("different pages are different notes", func(t *testing.T) {
 		got := weaveCitations("A<!--cite:C-00000001-->. B<!--cite:C-00000002-->.\n", []record.Source{src("C-00000001", 10), src("C-00000002", 34)})
@@ -59,7 +59,7 @@ func TestWeaveKeysNotesOnURLAndPages(t *testing.T) {
 		}
 	})
 	t.Run("a pageless neighbour folds into the paged note", func(t *testing.T) {
-		corr := record.Source{Label: "C-0000000f", URL: pdfURL, Title: "1012", AccessDate: "2026-09-14"}
+		corr := record.Source{Label: "C-0000000f", URL: pdfURL, Title: "1012", FetchedAt: "2026-09-14T12:00:00Z"}
 		got := weaveCitations("A<!--cite:C-00000001--><!--cite:C-0000000f-->. Later<!--cite:C-0000000f-->.\n", []record.Source{src("C-00000001", 10), corr})
 		if !strings.Contains(got, "A[^1]. Later[^2].") {
 			t.Errorf("adjacent pageless anchor did not read as the paged note, or the lone one did not keep its own:\n%s", got)
@@ -73,7 +73,7 @@ func TestWeaveKeysNotesOnURLAndPages(t *testing.T) {
 		}
 	})
 	t.Run("a pageless cite alone keeps its own title", func(t *testing.T) {
-		corr := record.Source{Label: "C-0000000f", URL: pdfURL, Title: "1012", AccessDate: "2026-09-14"}
+		corr := record.Source{Label: "C-0000000f", URL: pdfURL, Title: "1012", FetchedAt: "2026-09-14T12:00:00Z"}
 		got := weaveCitations("A<!--cite:C-0000000f-->.\n", []record.Source{corr})
 		if !strings.Contains(got, "- 1012. "+pdfLink) {
 			t.Errorf("a lone pageless cite's line does not carry its title:\n%s", got)

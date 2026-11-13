@@ -229,7 +229,7 @@ func (r *runner) readingDirective() string {
 type readingMintResult struct {
 	gap string
 	// refusedBy is "" where the mint landed; else one_gap (the one-gap rule, any arm), estoppel,
-	// standing (the standing-reading check), budget, or other.
+	// standing (the standing-reading check), or other.
 	refusedBy string
 	out       string
 }
@@ -395,62 +395,66 @@ func (r *runner) oneGapOnReading(seatID, class, out string, args []string, form 
 	}
 	switch {
 	case form != standingForm:
-		r.debtDischargedByOpenGap(seatID, subject, standing.ID, "cross_form", "the open "+class+" gap "+standing.ID+" in the other form", args)
+		r.debtDischargedByOpenGap(seatID, subject, standing.ID, args, "cross_form", "the open "+class+" gap "+standing.ID+" in the other form")
 	case standing.MintedBy != seatID:
-		r.debtDischargedByOpenGap(seatID, subject, standing.ID, "other_seat_gap", "another seat's open "+class+" gap "+standing.ID, args)
+		r.debtDischargedByOpenGap(seatID, subject, standing.ID, args, "other_seat_gap", "another seat's open "+class+" gap "+standing.ID)
 	}
 }
 
-// debtDischargedByOpenGap holds seatID's reading debt on subject discharged by gapID, an open gap the
-// record named, and counts the discharge under key; a debt standing over gapID still open fails the
-// run, naming how and where the record places the gap beside the debt's sentence.
-//
-// THE DEBT IS READ ONCE, AND THE GAP AFTER IT. A gap minted before the reading's sitting discharges
-// only while open, and its minter's close, or the bench's, can land under the drive at any point:
-// the debt it discharged then stands again, as the record's rule says it does. A gap that is open
-// after the debt is read was open when it was read, so a debt standing beside it is the record's
-// defect; a gap closed by then is the record's call, noted. A second read of the debt would judge it
-// against a record the gap's read never saw.
-func (r *runner) debtDischargedByOpenGap(seatID, subject, gapID, key, how string, args []string) {
+// debtDischargedByOpenGap holds seatID's reading debt on subject gone while gap — a gap of the class
+// the drive did not mint in this act, named by a one-gap refusal — stands open, and counts the
+// discharge under key. THE DEBT IS READ ONCE, THEN THE GAP: the refusal, the debt and the board are
+// separate reads of the record, and a sibling's close of the gap — or the bench's — can land between
+// any two of them. A gap minted before the reading's sitting discharges only while open (debtBound),
+// so its close brings the debt back; a debt standing over a gap no longer open is the record's call,
+// noted. One standing over a gap still open fails the run, naming where the record places that gap
+// beside the debt's sentence. A second read of the debt after the gap's would race the same close.
+func (r *runner) debtDischargedByOpenGap(seatID, subject, gap string, args []string, key, how string) bool {
 	b, stands := r.debtOf(seatID, subject)
 	if !stands {
 		r.countReading(func(c *readingCounts) { c.debtsDischarged[key]++ })
-		return
+		return true
 	}
-	g, open, err := r.gapOnBoard(gapID)
-	if err != nil {
-		r.noteActErr("the board could not be read for " + gapID + " beside a standing reading debt: " + err.Error())
-		return
-	}
+	g, open := r.gapOnBoard(gap)
 	if !open {
-		noteEither(args[:2], "a reading's mint refused over "+gapID+", which closed under the drive before the debt was read", false)
-		return
+		noteEither(args[:2], "a reading's debt read over "+gap+", which closed under the drive before the debt was read", false)
+		return false
 	}
-	r.noteActErr(fmt.Sprintf("%s's reading debt on %s stands after %s (the record places %s %s at %q): %s",
-		seatID, subject, how, gapID, g.LocationState, g.Location, b.WorkItem()))
+	r.noteActErr(fmt.Sprintf("%s's reading debt on %s stands after %s (the record places %s %s at %q): %s", seatID, subject, how, gap, g.LocationState, g.Location, b.WorkItem()))
+	return false
 }
 
-// gapOnBoard is gap id as the board shows it now, and whether it is open; err is a board that could
-// not be read, never folded into "not open".
-func (r *runner) gapOnBoard(id string) (record.GapJSON, bool, error) {
+// openGapNamedIn is the open gap of class whose id out names — a one-gap refusal's standing gap — or "".
+func (r *runner) openGapNamedIn(class, out string) string {
 	bj, err := record.BoardJSONOfRun(r.runHandle)
 	if err != nil {
-		return record.GapJSON{}, false, err
+		return ""
+	}
+	for _, g := range bj.Open {
+		if g.Class == class && strings.Contains(out, g.ID) {
+			return g.ID
+		}
+	}
+	return ""
+}
+
+// gapOnBoard is gap id as the board shows it now, and whether it is open.
+func (r *runner) gapOnBoard(id string) (record.GapJSON, bool) {
+	bj, err := record.BoardJSONOfRun(r.runHandle)
+	if err != nil {
+		return record.GapJSON{}, false
 	}
 	for _, g := range bj.Open {
 		if g.ID == id {
-			return g, true, nil
+			return g, true
 		}
 	}
-	return record.GapJSON{}, false, nil
+	return record.GapJSON{}, false
 }
 
 // readingDebts is every reading debt standing on the record, or nil and a noted error.
 func (r *runner) readingDebts() []record.Blocker {
 	bs, err := record.PassBlockers(r.run())
-	if r.afterDebtRead != nil {
-		r.afterDebtRead()
-	}
 	if err != nil {
 		r.noteActErr("the blockers could not be read for the reading debts: " + err.Error())
 		return nil
@@ -683,12 +687,11 @@ func (r *runner) mintOnFoundReading(seatID, quote string, v *recordpb.Verify, at
 
 // mintUnsourcedOnDebt is seatID's plain unsourced_claim mint quoting the uncited sentence a found
 // source of its was read `absent` for: admitted, or refused as a second on the sentence — either way
-// the open gap discharges the debt (F7 (a)). Refused for budget, the lens reads another source for
-// the sentence instead.
+// the open gap discharges the debt (F7 (a)).
 func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 	args := append([]string{"--json", "mint", "--seat-id", seatID, "--class", classUnsourced,
 		"--problem", "fuzz: no source backs the sentence", "--check-kind", "document", "--check", "a citation backs the sentence",
-		"--fix", r.readingDirective(), "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--fix", r.readingDirective(), "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		"--reason", "fuzz: the source the lens found says nothing of the sentence"}, quoteArgs(quote)...)
 	out, err := r.exec(args...)
 	switch {
@@ -704,9 +707,13 @@ func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 		}
 		r.debtDischargedBy(seatID, quote, classUnsourced, "the lens's own unsourced_claim mint quoting the sentence")
 	case strings.Contains(out, oneGapWords):
-		if held := r.oneGapAnswered(seatID, out, args); held != "" {
-			r.debtDischargedByOpenGap(seatID, quote, held, classUnsourced, "the open unsourced_claim gap "+held+" on the sentence", args)
+		r.oneGapAnswered(seatID, out, args)
+		gap := r.openGapNamedIn(classUnsourced, out)
+		if gap == "" {
+			noteEither(args[:2], "an unsourced_claim mint refused over a gap that closed under the drive before the board was read", false)
+			return
 		}
+		r.debtDischargedByOpenGap(seatID, quote, gap, args, classUnsourced, "the open unsourced_claim gap "+gap+" on the sentence")
 	default:
 		noteEither(args[:2], "an unsourced_claim mint on an absent found reading, refused by another rule", false)
 		r.rereadFound(seatID, quote)

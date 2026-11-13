@@ -61,7 +61,7 @@ func newCite() *cobra.Command {
 		}
 
 		// THE TITLE IS THE ONE SEAT-TYPED STRING THE REPORT PRINTS for a cite — in its note and its
-		// Bibliography entry, "<title>. <url> (accessed <date>)" (report/assemble.go); the quote is text the
+		// Bibliography entry, "<title>. <url> (accessed <date>)" (report/assemble.go), the date being the fetch's; the quote is text the
 		// report already holds and the rest is the tool's. So the title meets the voice advisory.
 		// ADVISORY, COMPUTED BEFORE ANY RETURN so an idempotent retry carries it; it refuses
 		// nothing — a real source's own title can legitimately carry a tell.
@@ -125,12 +125,12 @@ func newCite() *cobra.Command {
 		// its Anchor land on — a mis-quote or in-fence quote is refused and nothing recorded.
 		label := record.NewID("citation")
 
-		// access_date is engine-supplied from the record clock (pinned under the golden harness),
-		// not typed by the seat.
 		body := &recordpb.Cite{
-			Label:      proto.String(label),
-			Sha256:     proto.String(entry.Sha),
-			AccessDate: proto.String(record.Now().Format("2006-01-02")),
+			Label:  proto.String(label),
+			Sha256: proto.String(entry.Sha),
+			// WHEN THE SOURCE WAS ACCESSED IS WHEN ITS COPY WAS FETCHED: the time the fetch index
+			// recorded for these bytes, not this act's clock. A cache hit carries the first fetch's.
+			FetchedAt: proto.String(entry.FetchedAt),
 
 			SourceTextOrigin: at.origin.Enum(),
 			Pages:            at.pages(),

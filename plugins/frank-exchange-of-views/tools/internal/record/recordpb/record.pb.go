@@ -4243,19 +4243,17 @@ func (x *Anchor) GetSentenceOf() string {
 	return ""
 }
 
-// Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
-// seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
-// disable that check for the row.
+// Cite records a source.
 type Cite struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Label  *string                `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	Url    *string                `protobuf:"bytes,2,opt,name=url,proto3,oneof" json:"url,omitempty"`
-	Sha256 *string                `protobuf:"bytes,3,opt,name=sha256,proto3,oneof" json:"sha256,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// label is the citation's id, minted by the tool (record.NewID): one citation, one row.
+	Label  *string `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	Url    *string `protobuf:"bytes,2,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	Sha256 *string `protobuf:"bytes,3,opt,name=sha256,proto3,oneof" json:"sha256,omitempty"`
 	// title is the Bibliography entry and text the argument for the source — the seat's own wording.
-	// The label, url, hash, location and access date identify the source and place its marker.
-	Title      *string `protobuf:"bytes,4,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	Location   *string `protobuf:"bytes,5,opt,name=location,proto3,oneof" json:"location,omitempty"`
-	AccessDate *string `protobuf:"bytes,6,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
+	// The label, url, hash and location identify the source and place its marker.
+	Title    *string `protobuf:"bytes,4,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Location *string `protobuf:"bytes,5,opt,name=location,proto3,oneof" json:"location,omitempty"`
 	// cite_key is typed --key: the flag word is declared so a refusal names what a seat can type.
 	CiteKey *string `protobuf:"bytes,7,opt,name=cite_key,json=citeKey,proto3,oneof" json:"cite_key,omitempty"`
 	Text    *string `protobuf:"bytes,9,opt,name=text,proto3,oneof" json:"text,omitempty"`
@@ -4301,6 +4299,11 @@ type Cite struct {
 	// substitution is not NONE and the bytes were fetched from somewhere.
 	CopySubstitution *CopySubstitution `protobuf:"varint,24,opt,name=copy_substitution,json=copySubstitution,proto3,enum=feov.record.v1.CopySubstitution,oneof" json:"copy_substitution,omitempty"`
 	CopyUrl          *string           `protobuf:"bytes,25,opt,name=copy_url,json=copyUrl,proto3,oneof" json:"copy_url,omitempty"`
+	// WHEN THE COPY WAS FETCHED, stamped from the fetch index like the four above: the time the run's
+	// fetch took the bytes sha256 names, RFC 3339 UTC. It is the source's "accessed" date in the
+	// report and in `show evidence`. On the event because run-archive keeps no cache; a live cite
+	// without it is refused (judgeAct), and a cite migrated from before the field holds none.
+	FetchedAt *string `protobuf:"bytes,27,opt,name=fetched_at,json=fetchedAt,proto3,oneof" json:"fetched_at,omitempty"`
 	// answers is the gap this citation is placed as the answer to, typed --answers: the citation half
 	// of an evidence anchor's answer (Computation.answers is the other), read through the
 	// evidence_anchor view by the gap's live-answer demand.
@@ -4370,13 +4373,6 @@ func (x *Cite) GetTitle() string {
 func (x *Cite) GetLocation() string {
 	if x != nil && x.Location != nil {
 		return *x.Location
-	}
-	return ""
-}
-
-func (x *Cite) GetAccessDate() string {
-	if x != nil && x.AccessDate != nil {
-		return *x.AccessDate
 	}
 	return ""
 }
@@ -4500,6 +4496,13 @@ func (x *Cite) GetCopyUrl() string {
 	return ""
 }
 
+func (x *Cite) GetFetchedAt() string {
+	if x != nil && x.FetchedAt != nil {
+		return *x.FetchedAt
+	}
+	return ""
+}
+
 func (x *Cite) GetAnswers() string {
 	if x != nil && x.Answers != nil {
 		return *x.Answers
@@ -4518,7 +4521,6 @@ type Verify struct {
 	// anchor names the citation read (`verify --anchor`). A reading of a source the lens found
 	// (`verify --url`) names none: the empty anchor IS that form, and every reader splits on it.
 	Anchor     *string        `protobuf:"bytes,3,opt,name=anchor,proto3,oneof" json:"anchor,omitempty"`
-	AccessDate *string        `protobuf:"bytes,5,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
 	Outcome    *SourceOutcome `protobuf:"varint,6,opt,name=outcome,proto3,enum=feov.record.v1.SourceOutcome,oneof" json:"outcome,omitempty"`
 	Confidence *Confidence    `protobuf:"varint,7,opt,name=confidence,proto3,enum=feov.record.v1.Confidence,oneof" json:"confidence,omitempty"`
 	Text       *string        `protobuf:"bytes,8,opt,name=text,proto3,oneof" json:"text,omitempty"`
@@ -4606,13 +4608,6 @@ func (x *Verify) GetAnchor() string {
 	return ""
 }
 
-func (x *Verify) GetAccessDate() string {
-	if x != nil && x.AccessDate != nil {
-		return *x.AccessDate
-	}
-	return ""
-}
-
 func (x *Verify) GetOutcome() SourceOutcome {
 	if x != nil && x.Outcome != nil {
 		return *x.Outcome
@@ -4696,8 +4691,9 @@ func (x *Verify) GetCopyUrl() string {
 // and this act's output under `computations/<bundle_sha>/acts/<computation_id>/`; the record holds
 // what ran (`argv`, `bundle_sha`), its exit and its basis, which is what a reader refuses on.
 type Computation struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ComputationId *string                `protobuf:"bytes,1,opt,name=computation_id,json=computationId,proto3,oneof" json:"computation_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// computation_id is the act's id, minted by the tool (record.NewID): one computation, one row.
+	ComputationId *string `protobuf:"bytes,1,opt,name=computation_id,json=computationId,proto3,oneof" json:"computation_id,omitempty"`
 	// key is typed --key: the flag word is declared so a refusal names what a seat can type.
 	Key *string `protobuf:"bytes,2,opt,name=key,proto3,oneof" json:"key,omitempty"`
 	// bundle_sha is the bundle's identity: sha256 over its argv and its files, each length-prefixed
@@ -7954,45 +7950,44 @@ const file_record_proto_rawDesc = "" +
 	"\x03_idB\v\n" +
 	"\t_locationB\x0e\n" +
 	"\f_sentence_ofJ\x04\b\x03\x10\aR\n" +
-	"finding_idR\vfinding_keyR\x05labelR\x04text\"\xf5\v\n" +
-	"\x04Cite\x12\x19\n" +
-	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x15\n" +
+	"finding_idR\vfinding_keyR\x05labelR\x04text\"\x93\f\n" +
+	"\x04Cite\x12!\n" +
+	"\x05label\x18\x01 \x01(\tB\x06\x82\xb5\x18\x02(\x01H\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
 	"\x06sha256\x18\x03 \x01(\tH\x02R\x06sha256\x88\x01\x01\x12\x1f\n" +
 	"\x05title\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x03R\x05title\x88\x01\x01\x120\n" +
-	"\blocation\x18\x05 \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\x04R\blocation\x88\x01\x01\x12$\n" +
-	"\vaccess_date\x18\x06 \x01(\tH\x05R\n" +
-	"accessDate\x88\x01\x01\x12)\n" +
-	"\bcite_key\x18\a \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x06R\aciteKey\x88\x01\x01\x12)\n" +
-	"\x04text\x18\t \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12Y\n" +
-	"\x12source_text_origin\x18\v \x01(\x0e2 .feov.record.v1.SourceTextOriginB\x04\xc0\xb5\x18\x00H\bR\x10sourceTextOrigin\x88\x01\x01\x12*\n" +
-	"\vsource_span\x18\f \x01(\tB\x04\xc0\xb5\x18\x00H\tR\n" +
+	"\blocation\x18\x05 \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\x04R\blocation\x88\x01\x01\x12)\n" +
+	"\bcite_key\x18\a \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x05R\aciteKey\x88\x01\x01\x12)\n" +
+	"\x04text\x18\t \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x06R\x04text\x88\x01\x01\x12Y\n" +
+	"\x12source_text_origin\x18\v \x01(\x0e2 .feov.record.v1.SourceTextOriginB\x04\xc0\xb5\x18\x00H\aR\x10sourceTextOrigin\x88\x01\x01\x12*\n" +
+	"\vsource_span\x18\f \x01(\tB\x04\xc0\xb5\x18\x00H\bR\n" +
 	"sourceSpan\x88\x01\x01\x12\x1a\n" +
 	"\x05pages\x18\r \x03(\x05B\x04\xc0\xb5\x18\x00R\x05pages\x12(\n" +
 	"\n" +
-	"ocr_engine\x18\x0e \x01(\tB\x04\xc0\xb5\x18\x00H\n" +
-	"R\tocrEngine\x88\x01\x01\x12+\n" +
-	"\focr_text_sha\x18\x0f \x01(\tB\x04\xc0\xb5\x18\x00H\vR\n" +
+	"ocr_engine\x18\x0e \x01(\tB\x04\xc0\xb5\x18\x00H\tR\tocrEngine\x88\x01\x01\x12+\n" +
+	"\focr_text_sha\x18\x0f \x01(\tB\x04\xc0\xb5\x18\x00H\n" +
+	"R\n" +
 	"ocrTextSha\x88\x01\x01\x12(\n" +
 	"\n" +
-	"span_start\x18\x12 \x01(\x05B\x04\xc0\xb5\x18\x00H\fR\tspanStart\x88\x01\x01\x12$\n" +
-	"\bspan_end\x18\x13 \x01(\x05B\x04\xc0\xb5\x18\x00H\rR\aspanEnd\x88\x01\x01\x12-\n" +
-	"\rspan_text_sha\x18\x14 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\vspanTextSha\x88\x01\x01\x12.\n" +
-	"\rsource_before\x18\x15 \x01(\tB\x04\xc0\xb5\x18\x00H\x0fR\fsourceBefore\x88\x01\x01\x120\n" +
-	"\x0esource_matched\x18\x16 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\rsourceMatched\x88\x01\x01\x12,\n" +
-	"\fsource_after\x18\x17 \x01(\tB\x04\xc0\xb5\x18\x00H\x11R\vsourceAfter\x88\x01\x01\x12F\n" +
-	"\vwork_status\x18\x10 \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\x12R\n" +
+	"span_start\x18\x12 \x01(\x05B\x04\xc0\xb5\x18\x00H\vR\tspanStart\x88\x01\x01\x12$\n" +
+	"\bspan_end\x18\x13 \x01(\x05B\x04\xc0\xb5\x18\x00H\fR\aspanEnd\x88\x01\x01\x12-\n" +
+	"\rspan_text_sha\x18\x14 \x01(\tB\x04\xc0\xb5\x18\x00H\rR\vspanTextSha\x88\x01\x01\x12.\n" +
+	"\rsource_before\x18\x15 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\fsourceBefore\x88\x01\x01\x120\n" +
+	"\x0esource_matched\x18\x16 \x01(\tB\x04\xc0\xb5\x18\x00H\x0fR\rsourceMatched\x88\x01\x01\x12,\n" +
+	"\fsource_after\x18\x17 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\vsourceAfter\x88\x01\x01\x12F\n" +
+	"\vwork_status\x18\x10 \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\x11R\n" +
 	"workStatus\x88\x01\x01\x12^\n" +
-	"\x13source_completeness\x18\x11 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\x13R\x12sourceCompleteness\x88\x01\x01\x12X\n" +
-	"\x11copy_substitution\x18\x18 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x14R\x10copySubstitution\x88\x01\x01\x12$\n" +
-	"\bcopy_url\x18\x19 \x01(\tB\x04\xc0\xb5\x18\x00H\x15R\acopyUrl\x88\x01\x01\x12\x1d\n" +
+	"\x13source_completeness\x18\x11 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\x12R\x12sourceCompleteness\x88\x01\x01\x12X\n" +
+	"\x11copy_substitution\x18\x18 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x13R\x10copySubstitution\x88\x01\x01\x12$\n" +
+	"\bcopy_url\x18\x19 \x01(\tB\x04\xc0\xb5\x18\x00H\x14R\acopyUrl\x88\x01\x01\x12(\n" +
+	"\n" +
+	"fetched_at\x18\x1b \x01(\tB\x04\xc0\xb5\x18\x00H\x15R\tfetchedAt\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x1a \x01(\tH\x16R\aanswers\x88\x01\x01B\b\n" +
 	"\x06_labelB\x06\n" +
 	"\x04_urlB\t\n" +
 	"\a_sha256B\b\n" +
 	"\x06_titleB\v\n" +
-	"\t_locationB\x0e\n" +
-	"\f_access_dateB\v\n" +
+	"\t_locationB\v\n" +
 	"\t_cite_keyB\a\n" +
 	"\x05_textB\x15\n" +
 	"\x13_source_text_originB\x0e\n" +
@@ -8008,36 +8003,34 @@ const file_record_proto_rawDesc = "" +
 	"\f_work_statusB\x16\n" +
 	"\x14_source_completenessB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlB\n" +
+	"\t_copy_urlB\r\n" +
+	"\v_fetched_atB\n" +
 	"\n" +
-	"\b_answersJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vR\x05claimR\x10source_text_read\"\x9e\r\n" +
+	"\b_answersJ\x04\b\x06\x10\aJ\x04\b\b\x10\tJ\x04\b\n" +
+	"\x10\vR\vaccess_dateR\x05claimR\x10source_text_read\"\xfb\f\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
 	"\x05title\x18\n" +
 	" \x01(\tH\x02R\x05title\x88\x01\x01\x12\x1b\n" +
-	"\x06anchor\x18\x03 \x01(\tH\x03R\x06anchor\x88\x01\x01\x12$\n" +
-	"\vaccess_date\x18\x05 \x01(\tH\x04R\n" +
-	"accessDate\x88\x01\x01\x12\xc5\x01\n" +
-	"\aoutcome\x18\x06 \x01(\x0e2\x1d.feov.record.v1.SourceOutcomeB\x86\x01\x82\xb5\x18\x81\x01\b\x01\x12\x02as\x1aywhat the source ACTUALLY DID for the claim — the negative half is the point, and until 0.60.0 there was no field for itH\x05R\aoutcome\x88\x01\x01\x12\x81\x02\n" +
+	"\x06anchor\x18\x03 \x01(\tH\x03R\x06anchor\x88\x01\x01\x12\xc5\x01\n" +
+	"\aoutcome\x18\x06 \x01(\x0e2\x1d.feov.record.v1.SourceOutcomeB\x86\x01\x82\xb5\x18\x81\x01\b\x01\x12\x02as\x1aywhat the source ACTUALLY DID for the claim — the negative half is the point, and until 0.60.0 there was no field for itH\x04R\aoutcome\x88\x01\x01\x12\x81\x02\n" +
 	"\n" +
-	"confidence\x18\a \x01(\x0e2\x1a.feov.record.v1.ConfidenceB\xbf\x01\x82\xb5\x18\xba\x01\b\x01\x1a\xb5\x01how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different factsH\x06R\n" +
+	"confidence\x18\a \x01(\x0e2\x1a.feov.record.v1.ConfidenceB\xbf\x01\x82\xb5\x18\xba\x01\b\x01\x1a\xb5\x01how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different factsH\x05R\n" +
 	"confidence\x88\x01\x01\x12\xa3\x01\n" +
-	"\x04text\x18\b \x01(\tB\x89\x01\x82\xb5\x18\x84\x01\b\x01\x12\x06reason\x1axwhat the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replaceH\aR\x04text\x88\x01\x01\x12\x17\n" +
-	"\x04page\x18\f \x01(\x05H\bR\x04page\x88\x01\x01\x12+\n" +
-	"\x0fpage_render_sha\x18\r \x01(\tH\tR\rpageRenderSha\x88\x01\x01\x121\n" +
-	"\x12reading_render_sha\x18\x0e \x01(\tH\n" +
-	"R\x10readingRenderSha\x88\x01\x01\x12^\n" +
-	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\vR\x12sourceCompleteness\x88\x01\x01\x12E\n" +
-	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\fR\x06bridge\x88\x01\x01\x12X\n" +
-	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\rR\x10copySubstitution\x88\x01\x01\x12$\n" +
-	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\acopyUrl\x88\x01\x01B\b\n" +
+	"\x04text\x18\b \x01(\tB\x89\x01\x82\xb5\x18\x84\x01\b\x01\x12\x06reason\x1axwhat the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replaceH\x06R\x04text\x88\x01\x01\x12\x17\n" +
+	"\x04page\x18\f \x01(\x05H\aR\x04page\x88\x01\x01\x12+\n" +
+	"\x0fpage_render_sha\x18\r \x01(\tH\bR\rpageRenderSha\x88\x01\x01\x121\n" +
+	"\x12reading_render_sha\x18\x0e \x01(\tH\tR\x10readingRenderSha\x88\x01\x01\x12^\n" +
+	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\n" +
+	"R\x12sourceCompleteness\x88\x01\x01\x12E\n" +
+	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\vR\x06bridge\x88\x01\x01\x12X\n" +
+	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\fR\x10copySubstitution\x88\x01\x01\x12$\n" +
+	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\rR\acopyUrl\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
-	"\a_anchorB\x0e\n" +
-	"\f_access_dateB\n" +
+	"\a_anchorB\n" +
 	"\n" +
 	"\b_outcomeB\r\n" +
 	"\v_confidenceB\a\n" +
@@ -8048,10 +8041,10 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\t\n" +
 	"\a_bridgeB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\v\x10\fJ\x04\b\x0f\x10\x10J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17R\treferenceR\vindependentR\x05labelR\vwork_statusR\x06sha256R\n" +
-	"carried_byR\x0ecarrier_minted\"\xcd\t\n" +
-	"\vComputation\x12*\n" +
-	"\x0ecomputation_id\x18\x01 \x01(\tH\x00R\rcomputationId\x88\x01\x01\x12 \n" +
+	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\x0f\x10\x10J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17R\treferenceR\vindependentR\x05labelR\vwork_statusR\x06sha256R\n" +
+	"carried_byR\x0ecarrier_mintedR\vaccess_date\"\xd5\t\n" +
+	"\vComputation\x122\n" +
+	"\x0ecomputation_id\x18\x01 \x01(\tB\x06\x82\xb5\x18\x02(\x01H\x00R\rcomputationId\x88\x01\x01\x12 \n" +
 	"\x03key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\x03key\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"bundle_sha\x18\x03 \x01(\tH\x02R\tbundleSha\x88\x01\x01\x12\x1d\n" +
@@ -8384,15 +8377,15 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\xe6'\n" +
+	"\b_holding*\xb2(\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
 	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1a!\x8a\xb5\x18\x1da marker placed in the report\x12a\n" +
 	"\x12EVENT_TYPE_INQUIRY\x10\x03\x1aI\x8a\xb5\x18Ean inquiry: its question, its hypothesis and each fate recorded on it\x12m\n" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aS\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\x12j\n" +
-	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aR\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\x12r\n" +
-	"\x0fEVENT_TYPE_CITE\x10\x06\x1a]\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\x12i\n" +
+	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aR\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\x12\x93\x01\n" +
+	"\x0fEVENT_TYPE_CITE\x10\x06\x1a~\x8a\xb5\x18za source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable\x12i\n" +
 	"\x10EVENT_TYPE_CLOSE\x10\b\x1aS\x8a\xb5\x18Ored closing a gap on a verified repair — red's half of the closing vocabulary\x12x\n" +
 	"\x12EVENT_TYPE_CLOSING\x10\t\x1a`\x8a\xb5\x18\\a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's\x12a\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
@@ -8416,8 +8409,8 @@ const file_record_proto_rawDesc = "" +
 	"\x17EVENT_TYPE_SITTING_OPEN\x10\"\x1av\x8a\xb5\x18rthe harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat\x12^\n" +
 	"\x18EVENT_TYPE_SITTING_CLOSE\x10#\x1a@\x8a\xb5\x18<the harness's agent returning — the other end of that span\x12\xa6\x01\n" +
 	"\x0fEVENT_TYPE_CAST\x10$\x1a\x90\x01\x8a\xb5\x18\x8b\x01the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against\x12\xbf\x01\n" +
-	"\x13EVENT_TYPE_DISPATCH\x10%\x1a\xa5\x01\x8a\xb5\x18\xa0\x01the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch\x12\xcd\x01\n" +
-	"\x18EVENT_TYPE_SITTING_LIMIT\x10&\x1a\xae\x01\x8a\xb5\x18\xa9\x01a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit\x12\xa5\x01\n" +
+	"\x13EVENT_TYPE_DISPATCH\x10%\x1a\xa5\x01\x8a\xb5\x18\xa0\x01the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch\x12\xf7\x01\n" +
+	"\x18EVENT_TYPE_SITTING_LIMIT\x10&\x1a\xd8\x01\x8a\xb5\x18\xd3\x01a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it but the one returning the seat's envelope, and this records which seat, which sitting and the limit\x12\xa5\x01\n" +
 	"\x0fEVENT_TYPE_PLAN\x10(\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none\x12\xd8\x01\n" +
 	"\x10EVENT_TYPE_STALE\x10)\x1a\xc1\x01\x8a\xb5\x18\xbc\x01the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here\x12\xca\x01\n" +
 	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xad\x01\x8a\xb5\x18\xa8\x01the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin\x12\xbe\x02\n" +

@@ -1943,6 +1943,8 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		SittingLimitAudit(run),
 		// Which sittings closed with no admitted envelope. See failedsittings.go.
 		FailedSittingsAudit(run),
+		// Which ended sittings the SubagentStop hook never closed. See sittingcloses.go.
+		SittingClosesAudit(run),
 		BackfillAudit(run),
 		AttestationAudit(run, transcripts, 5),
 		ModelTierAudit(run, transcripts),

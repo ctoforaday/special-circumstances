@@ -91,34 +91,31 @@ func TestVerbPayloads(t *testing.T) {
 		says string
 	}{
 		{
-			name: "lens verify --url records the access date under its payload name",
+			name: "lens verify --url records its reading under the payload names",
 			path: []string{"verify"}, seatID: "red-lens-evidence",
 			// THE QUOTE IS A REAL SPAN of the seeded report: a reading's quote is held to the live
 			// document — the same rule blue's cite is held to. `"the claim"` was a placeholder and is
 			// now refused.
 			args: []string{"--quote", "the parser accepts an empty body in this line.",
 				"--url", "https://example.test/a", "--title", "Example A",
-				"--as", "absent", "--confidence", "high", "--reason", "read at the leaf",
-				"--access-date", "2026-07-18"},
+				"--as", "absent", "--confidence", "high", "--reason", "read at the leaf"},
 			typ: recordpb.EventType_EVENT_TYPE_VERIFY,
-			// The flag is --access-date; the payload key is access_date, and the
-			// citation render reads the payload key. --as lands under `outcome`.
+			// --as lands under `outcome`.
 			want: map[string]string{"claim": "the parser accepts an empty body in this line.", "url": "https://example.test/a", "title": "Example A",
 				// `text`, not `reason`: --reason is the flag, and a verify stores its reading as
 				// `text`. The old key named a field Verify does not carry, so the row asserted
 				// nothing until fieldText started failing on an unknown name.
-				"outcome": "absent", "confidence": "high", "text": "read at the leaf", "access_date": "2026-07-18"},
+				"outcome": "absent", "confidence": "high", "text": "read at the leaf"},
 			says: "source Example A (https://example.test/a) does NOT contain the claim",
 		},
 		{
-			name: "lens verify --url without an access date leaves the key absent",
+			name: "lens verify --url records a refuting reading",
 			path: []string{"verify"}, seatID: "red-lens-evidence",
 			args: []string{"--quote", "§1 first — a finding sits in sec 1 here.", "--url", "https://example.test/b", "--title", "Example B",
 				"--as", "refutes", "--confidence", "low", "--reason", "it says otherwise"},
-			typ:    recordpb.EventType_EVENT_TYPE_VERIFY,
-			want:   map[string]string{"url": "https://example.test/b", "title": "Example B", "outcome": "refutes", "confidence": "low"},
-			absent: []string{"access_date"},
-			says:   "source Example B (https://example.test/b) REFUTES the claim",
+			typ:  recordpb.EventType_EVENT_TYPE_VERIFY,
+			want: map[string]string{"url": "https://example.test/b", "title": "Example B", "outcome": "refutes", "confidence": "low"},
+			says: "source Example B (https://example.test/b) REFUTES the claim",
 		},
 		{
 			name: "motion grade rule records the chair's answer",

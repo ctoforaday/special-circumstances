@@ -1,6 +1,8 @@
-// Package nativehelpertest builds nativehelper's Go fake helper under a real helper's name, for
-// tests outside nativehelper that drive a client or a built binary against a helper that
-// misbehaves on purpose. It needs Go, so no test using it belongs on native-run's must-pass list.
+// Package nativehelpertest builds nativehelper's Go fake helper (testdata/fakehelper) under a real
+// helper's name, for tests that drive a client or a built binary against a helper without the
+// native build, or against one that misbehaves on purpose. It is the one builder of the fake: every
+// test package that needs one goes through it. It needs Go, so no test using it belongs on
+// native-run's must-pass list. It imports no nativehelper, so nativehelper's own tests use it too.
 package nativehelpertest
 
 import (
@@ -9,56 +11,74 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 )
+
+// Spec is what the fake is built to be: the digest and asset sha256s its handshake reports, the
+// protocol version it speaks ("" for nativehelper.ProtocolVersion), and its misbehaviour
+// (testdata/fakehelper's mode list; "" for none).
+type Spec struct {
+	Digest   string
+	Protocol string
+	Mode     string
+	Assets   []string
+}
 
 var (
 	mu    sync.Mutex
 	built = map[string]string{}
 )
 
-// Fake writes the fake helper into dir as name[.exe], built to report digest at its handshake and
-// to misbehave as mode says (testdata/fakehelper's mode list), and returns its path. Each
-// digest and mode builds once per test binary.
-func Fake(t testing.TB, dir, name, digest, mode string) string {
+// Build compiles the fake for spec once per test binary and returns the built file's path.
+func Build(t testing.TB, spec Spec) string {
 	t.Helper()
-	exe := name
-	if runtime.GOOS == "windows" {
-		exe += ".exe"
-	}
-	key := digest + "\x00" + mode
+	key := strings.Join([]string{spec.Digest, spec.Protocol, spec.Mode, strings.Join(spec.Assets, ",")}, "\x00")
 	mu.Lock()
-	src, ok := built[key]
-	if !ok {
-		_, here, _, ok := runtime.Caller(0)
-		if !ok {
-			mu.Unlock()
-			t.Fatal("nativehelpertest: cannot find this package's source")
-		}
-		out, err := os.MkdirTemp("", "nativehelpertest-")
-		if err != nil {
-			mu.Unlock()
-			t.Fatal(err)
-		}
-		src = filepath.Join(out, exe)
-		cmd := exec.Command("go", "build", "-o", src,
-			"-ldflags", fmt.Sprintf("-X main.digest=%s -X main.mode=%s", digest, mode),
-			filepath.Join(filepath.Dir(here), "..", "testdata", "fakehelper"))
-		if b, err := cmd.CombinedOutput(); err != nil {
-			mu.Unlock()
-			t.Fatalf("building the fake helper: %v\n%s", err, b)
-		}
-		built[key] = src
+	defer mu.Unlock()
+	if src, ok := built[key]; ok {
+		return src
 	}
-	mu.Unlock()
-	b, err := os.ReadFile(src)
+	_, here, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("nativehelpertest: cannot find this package's source")
+	}
+	out, err := os.MkdirTemp("", "nativehelpertest-")
 	if err != nil {
 		t.Fatal(err)
 	}
-	dst := filepath.Join(dir, exe)
+	src := filepath.Join(out, exe("fakehelper"))
+	ldflags := fmt.Sprintf("-X main.digest=%s -X main.mode=%s -X main.assets=%s", spec.Digest, spec.Mode, strings.Join(spec.Assets, ","))
+	if spec.Protocol != "" {
+		ldflags += " -X main.protocol=" + spec.Protocol
+	}
+	cmd := exec.Command("go", "build", "-o", src, "-ldflags", ldflags,
+		filepath.Join(filepath.Dir(here), "..", "testdata", "fakehelper"))
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("building the fake helper: %v\n%s", err, b)
+	}
+	built[key] = src
+	return src
+}
+
+// Install writes the fake built for spec into dir as name[.exe] and returns its path.
+func Install(t testing.TB, dir, name string, spec Spec) string {
+	t.Helper()
+	b, err := os.ReadFile(Build(t, spec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(dir, exe(name))
 	if err := os.WriteFile(dst, b, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return dst
+}
+
+func exe(name string) string {
+	if runtime.GOOS == "windows" {
+		return name + ".exe"
+	}
+	return name
 }

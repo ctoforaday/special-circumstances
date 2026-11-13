@@ -23,7 +23,7 @@ func (b readingBoard) cacheAs(url, c string) {
 		b.t.Fatal(err)
 	} else if !held {
 		body := []byte("<html>a copy of " + url + "</html>")
-		entry := fetchcache.EntryFor(run, url, &fetchcache.Attempt{Body: body, ContentType: "text/html", TextRetrieved: true}, "")
+		entry := fetchcache.EntryFor(run, url, &fetchcache.Attempt{FetchedAt: fetchcache.FetchTime(), Body: body, ContentType: "text/html", TextRetrieved: true}, "")
 		if _, err := fetchcache.Store(run, entry, body); err != nil {
 			b.t.Fatal(err)
 		}

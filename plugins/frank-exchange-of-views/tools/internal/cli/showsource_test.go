@@ -21,7 +21,7 @@ func viewReader(t *testing.T, runDir, view string) (group, who string, args []st
 	case seat.GroupOf(view) == "inquest":
 		return "inquest", "judge", []string{view}
 	case view == "source":
-		e, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{URL: "https://ex/view-reader", ContentType: "text/plain"},
+		e, err := fetchcache.Store(runtest.Open(t, runDir), fetchcache.Entry{FetchedAt: storedAt, URL: "https://ex/view-reader", ContentType: "text/plain"},
 			[]byte("A source the view tests read. It holds one word twice: word, and word.\n"))
 		if err != nil {
 			t.Fatal(err)
@@ -108,7 +108,7 @@ func TestShowSourceRefusesAnUnknownSourceAndAnEmptyPattern(t *testing.T) {
 		want string
 	}{
 		{[]string{"--sha", strings.Repeat("0", 64), "--match", "liar"}, "no source with sha256"},
-		{[]string{"--match", "liar"}, "name the source to search"},
+		{[]string{"--search", "liar", "--match", "liar"}, "--search cannot be combined with --quote or --match"},
 		{[]string{"--sha", sha}, "name what to find"},
 		{[]string{"--sha", sha, "--match", ""}, "name what to find"},
 		{[]string{"--sha", sha, "--match", "x*"}, "matches the empty string"},

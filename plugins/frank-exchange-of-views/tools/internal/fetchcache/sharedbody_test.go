@@ -23,7 +23,7 @@ func TestTheSameBodyServedForTwoSourcesIsNamed(t *testing.T) {
 		"https://www.jstor.org/stable/2971099",  // Heaton
 		"https://www.jstor.org/stable/27966220",
 	} {
-		if _, err := Store(run, Entry{URL: u}, wall); err != nil {
+		if _, err := Store(run, Entry{FetchedAt: storedAt, URL: u}, wall); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -51,7 +51,7 @@ func TestAnOrdinaryDocumentNamesNoSharers(t *testing.T) {
 	body := []byte("On the quadratic formula.\n")
 	url := "https://example.org/paper.html"
 	for i := 0; i < 2; i++ { // fetched twice: same url, same bytes
-		if _, err := Store(run, Entry{URL: url}, body); err != nil {
+		if _, err := Store(run, Entry{FetchedAt: storedAt, URL: url}, body); err != nil {
 			t.Fatal(err)
 		}
 	}

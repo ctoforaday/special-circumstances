@@ -259,13 +259,11 @@ func pageList(pages []int32) string {
 	return "pp. " + strings.Join(parts, ", ")
 }
 
-// verifyAxes are the flags every reading takes: what the source DID, how sure red is of that, and
-// when it was read.
+// verifyAxes are the flags every reading takes: what the source DID, and how sure red is of that.
 func verifyAxes(c *cobra.Command) {
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half — refutes and absent — recorded here, not left as prose: a reading of the work that finds the source against its sentence is the ground of the gap you mint on it, and your debt until that gap stands. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work")
 	enumhelp.Flag(c, flags.Bridge, record.MustEnum("verify", "bridge"), "WHAT a supports_with_bridge reading bridged — required with that outcome, refused with any other. A reading that needed a term moved to another object, a condition dropped or a relation reversed bridged nothing — record refutes or weak")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as")
-	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
 }
 
 // writeVerify records a reading. The caller has put the subject into the payload: an anchor and the
@@ -276,11 +274,6 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, sour
 	if err != nil {
 		return nil, err
 	}
-	// ABSENT IS NOT EMPTY. Set unconditionally, an unpassed --access-date landed as "" and read
-	// as "the seat dated this source to nothing" rather than "the seat did not date it" — the
-	// same defect that made `lens close` write `successor = ''` and fail every closure once the
-	// reference existed. Here nothing refuses it, so it simply reached every reader as a fact.
-	body.AccessDate = seat.OptStr(cmd, flags.AccessDate)
 	// THE COPY THIS RUN HOLDS OF THE SOURCE, read once from the index and never fetched: a write verb
 	// reaching the network would turn an unreachable host into a refused reading. Every fact below
 	// about the copy — whether it can establish absence, which part of the work it is, whose bytes it

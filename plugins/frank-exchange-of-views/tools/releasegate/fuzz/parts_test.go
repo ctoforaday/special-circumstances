@@ -213,6 +213,11 @@ func (r *runner) laneResearches(seatID string) {
 		return
 	}
 	r.admit("show", "source", "--seat-id", seatID, "--sha", sum.Sha256, "--match", ".")
+	// A RANKED SEARCH IS NOT A SELECTOR. The sweep has no embedding helper to admit --search with,
+	// so it drives the refusal every view that takes it owes: beside --quote or --match, which
+	// return every match where --search returns a cut list.
+	r.refuse(feov.Validation, "show", "source", "--seat-id", seatID, "--sha", sum.Sha256, "--search", "source body", "--quote", "source")
+	r.refuse(feov.Validation, "show", "report", "--seat-id", seatID, "--search", "source body", "--match", ".")
 }
 
 // laneReadsTheReport is a lane reading the projections once its part is recorded, drawn as the

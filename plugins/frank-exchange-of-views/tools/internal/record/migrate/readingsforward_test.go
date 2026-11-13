@@ -240,8 +240,8 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 					dropped[sp] = s
 				}
 			}
-			// A migrated reading is paired with its source by its claim (every token taken out) and
-			// access date: the replay serialises sittings, so stream order is not the record's.
+			// A migrated reading is paired with its source by its claim (every token taken out), url and
+			// title: the replay serialises sittings, so stream order is not the record's.
 			var srcVerify []OldEvent
 			citeURLs := map[string]bool{}
 			for _, old := range src {
@@ -256,7 +256,7 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 			if in["verify"] != out["verify"] || in["blue_edit"] != out["blue_edit"] {
 				t.Fatalf("verify in %d out %d, blue_edit in %d out %d: each comes forward", in["verify"], out["verify"], in["blue_edit"], out["blue_edit"])
 			}
-			type readingKey struct{ claim, date string }
+			type readingKey struct{ claim string }
 			verifies := map[readingKey][]*recordpb.Verify{}
 			var edits []*recordpb.BlueEdit
 			cites := map[string]bool{}
@@ -267,7 +267,7 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 				}
 				switch b := body.(type) {
 				case *recordpb.Verify:
-					k := readingKey{strings.TrimSpace(anyID.ReplaceAllString(b.GetClaim(), "")), b.GetAccessDate()}
+					k := readingKey{strings.TrimSpace(anyID.ReplaceAllString(b.GetClaim(), ""))}
 					verifies[k] = append(verifies[k], b)
 				case *recordpb.BlueEdit:
 					edits = append(edits, b)
@@ -296,8 +296,7 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 					reReadings++
 				}
 				claim, _ := old.Fields["claim"].(string)
-				date, _ := old.Fields["access_date"].(string)
-				k := readingKey{strings.TrimSpace(anyID.ReplaceAllString(claim, "")), date}
+				k := readingKey{strings.TrimSpace(anyID.ReplaceAllString(claim, ""))}
 				var match *recordpb.Verify
 				for _, v := range verifies[k] {
 					if v.GetAnchor() == "" && v.GetUrl() == s.url && v.GetTitle() == s.title {

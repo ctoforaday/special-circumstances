@@ -169,12 +169,15 @@ func TestScopeBuildsEveryConsumersTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	helpers := []string{"feov-ocr"}
+	helpers := []string{"feov-embed", "feov-ocr"}
 	nativeSet := repoNativeSet(t)
 
-	// Must derive consumers dynamically
-	if len(consumers) == 0 {
-		t.Fatal("no consumer targets derived from workflow")
+	// feov-record runs on ubuntu-latest and windows-latest, and each leg installs its target's
+	// helpers: a push that builds only one of them leaves the other leg with no helper.
+	for _, want := range []string{"linux-amd64", "windows-amd64"} {
+		if !slices.Contains(consumers, want) {
+			t.Errorf("consumer targets %v miss %s, which feov-record's leg installs", consumers, want)
+		}
 	}
 
 	testCases := []struct {
@@ -428,5 +431,35 @@ func TestNoNativeJobSkipsAtTheJobLevel(t *testing.T) {
 				t.Errorf("job %s has a job-level if: %q — native jobs must have no job-level if", name, body.Content[j+1].Value)
 			}
 		}
+	}
+}
+
+// TestAConsumerDownloadItCannotReadIsRefused pins the loud miss: a native download whose
+// pattern is an expression names a target a push would not build.
+func TestAConsumerDownloadItCannotReadIsRefused(t *testing.T) {
+	wf := filepath.Join(t.TempDir(), "hooks.yml")
+	body := `jobs:
+  native-build:
+    runs-on: ubuntu-latest
+  feov-record:
+    needs: [native-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*-${{ runner.os == 'Windows' && 'windows' || 'linux' }}-amd64
+`
+	if err := os.WriteFile(wf, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := DeriveConsumerTargets(wf); err == nil {
+		t.Fatalf("an expression pattern was read as targets %v; want a refusal", got)
+	}
+	literal := strings.Replace(body, "${{ runner.os == 'Windows' && 'windows' || 'linux' }}", "windows", 1)
+	if err := os.WriteFile(wf, []byte(literal), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := DeriveConsumerTargets(wf)
+	if err != nil || !slices.Contains(got, "windows-amd64") {
+		t.Fatalf("literal pattern: got %v, %v; want windows-amd64", got, err)
 	}
 }

@@ -128,7 +128,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'a marker pla
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'red closing a gap on a verified repair — red''s half of the closing vocabulary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a party''s argument to the bench on one docketed gap — its minting lens''s or blue-respond''s');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('computation', 'a program blue ran twice on a bundle, with the bundle''s hash, its exit and its basis — the answer a computation check demands');
@@ -153,7 +153,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_read', 'the too
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'red checking a recorded computation against its bundle''s re-run, and whether what it computes is sound');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_limit', 'a seat''s sitting stopped at the run''s per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_limit', 'a seat''s sitting stopped at the run''s per-sitting tool-call limit — the hook refuses every further call in it but the one returning the seat''s envelope, and this records which seat, which sitting and the limit');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('stale', 'the tool refusing a seat''s act on a gap that changed since the seat''s sitting opened, having shown the seat what changed — the seat''s next act on that gap in this sitting reads from here');
@@ -749,12 +749,11 @@ CREATE TABLE "anchor" (
 
 CREATE TABLE "cite" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "label" TEXT,
+  "label" TEXT UNIQUE,
   "url" TEXT,
   "sha256" TEXT,
   "title" TEXT,
   "location" TEXT,
-  "access_date" TEXT,
   "cite_key" TEXT,
   "text" TEXT,
   "source_text_origin" TEXT,
@@ -771,6 +770,7 @@ CREATE TABLE "cite" (
   "source_completeness" TEXT,
   "copy_substitution" TEXT,
   "copy_url" TEXT,
+  "fetched_at" TEXT,
   "answers" TEXT,
   FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
@@ -791,7 +791,6 @@ CREATE TABLE "verify" (
   "url" TEXT,
   "title" TEXT,
   "anchor" TEXT,
-  "access_date" TEXT,
   "outcome" TEXT NOT NULL,
   "confidence" TEXT NOT NULL,
   "text" TEXT NOT NULL,
@@ -811,7 +810,7 @@ CREATE TABLE "verify" (
 
 CREATE TABLE "computation" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "computation_id" TEXT,
+  "computation_id" TEXT UNIQUE,
   "key" TEXT,
   "bundle_sha" TEXT,
   "answers" TEXT,

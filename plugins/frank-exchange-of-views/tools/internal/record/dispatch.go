@@ -897,8 +897,8 @@ func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
 //
 //   - STOPPED AT THE CALL LIMIT: a sitting_limit names it — by the seat and the sitting number the
 //     hook's count was keyed by, which is the opening's stored sitting ordinal (sittingcap). The
-//     seat was refused every further call, so what it was dispatched for stopped where the limit
-//     fell, not where its judgement did.
+//     seat was refused every further call but its envelope, so what it was dispatched for stopped
+//     where the limit fell, not where its judgement did.
 //   - NEVER CLOSED: its opening carries an agent, no sitting_close of that agent follows it, and the
 //     seat has opened a later sitting. The SubagentStop hook writes the close when the agent
 //     returns, so a sitting without one ended some other way.
@@ -928,11 +928,7 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 	agentOf := map[int64]string{} // an opening's place -> the agent it carries
 	ordinal := map[int64]int{}    // an opening's place -> its stored sitting ordinal for its seat
 	stops := map[string][]int64{} // agent -> the places of its sitting_close events, ascending
-	type limited struct {
-		seat    string
-		sitting int
-	}
-	limits := map[limited]bool{}
+	limits := limitedSittingsOf(evs)
 	for i, e := range evs {
 		if _, opens := win.Opens(e); opens {
 			agentOf[seq[i]] = recordpb.AgentOpening(e)
@@ -940,9 +936,6 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
 			stops[b.GetAgentId()] = append(stops[b.GetAgentId()], seq[i])
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.SittingLimit](e); ok {
-			limits[limited{b.GetSeatId(), int(b.GetSitting())}] = true
 		}
 	}
 	out := satThrough{through: map[string][]int64{}, short: map[int64]string{}}
@@ -955,7 +948,7 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 			agent := agentOf[o]
 			stop, stopped := firstAfter(stops[agent], o)
 			switch {
-			case limits[limited{seat, ordinal[o]}]:
+			case limits[seatSitting{seat, ordinal[o]}]:
 				out.short[o] = shortCallLimit
 			case agent == "" || (stopped && (!later || stop < next)):
 				out.through[seat] = append(out.through[seat], o)

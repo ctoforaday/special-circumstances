@@ -32,7 +32,7 @@ func TestEvidence_CitationAnchorResolvesToItsSource(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
 		Label: proto.String("C-29a72fe2"), Url: proto.String("https://example.org/p"),
 		Title: proto.String("A Paper"), Sha256: proto.String("abc123"),
-		Location: proto.String("Seven is prime."), AccessDate: proto.String("2026-08-12"),
+		Location: proto.String("Seven is prime."), FetchedAt: proto.String("2026-08-12T12:00:00Z"),
 	}))
 
 	// THE ROW IS LOCATED BY ITS TOKEN, AS THE BOARD LOCATES A QUOTE GAP (D13): `marked` with the
