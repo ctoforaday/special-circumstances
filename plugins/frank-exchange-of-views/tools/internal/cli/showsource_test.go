@@ -124,3 +124,30 @@ func TestShowSourceRefusesAnUnknownSourceAndAnEmptyPattern(t *testing.T) {
 		t.Errorf("the chair reads no source, and its tree holds `show source`:\n%s", out)
 	}
 }
+
+// A WORD JOINER IS NOT A WORD. smoke-1854's Wikipedia sources set U+2060 either side of a math token
+// (`\u2060n\u2060`), so a quote typed as the page reads — no joiner — answered `matched: 0` on text the source
+// holds, and blue's `--source-span` of the same words was refused. Both read through one fold.
+func TestAQuoteTypedWithoutTheSourcesWordJoinersIsFoundAndCited(t *testing.T) {
+	const (
+		page   = "<html><body><p>A Fermat liar is a base a that is relatively prime to \u2060n\u2060. It passes the test.</p></body></html>"
+		quoted = "a base a that is relatively prime to n."
+		span   = "A Fermat liar is a base a that is relatively prime to n."
+	)
+	runDir := newRun(t)
+	writeReport(t, runDir, fermatReport)
+	registerBlue(t, runDir)
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{fermatURL: []byte(page)}, contentType: "text/html"})
+	sha := fetchedSha(t, runDir)
+
+	got := sourceSearch(t, citeSeat, runDir, "--sha", sha, "--quote", quoted)
+	if got.Selection.Matched != 1 || len(got.Hits) != 1 || got.Hits[0].Matched != "a base a that is relatively prime to \u2060n\u2060." {
+		t.Fatalf("--quote typed without the joiners: want the one hit in the source's own bytes, got %+v", got)
+	}
+	if out, err := fermatCite(t, runDir, "--source-span", span); err != nil {
+		t.Fatalf("cite of the span typed without the joiners is refused: %v\n%s", err, out)
+	}
+	if m := firstCiteEvent(t, runDir).GetSourceMatched(); m != "A Fermat liar is a base a that is relatively prime to \u2060n\u2060." {
+		t.Errorf("the citation records %q, want the source's own bytes, joiners included", m)
+	}
+}

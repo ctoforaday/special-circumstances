@@ -193,6 +193,14 @@ func TestATypographicCharacterIsFoundAsItsKeyboardFormBothWays(t *testing.T) {
 		{"horizontal bar", "the test\u2015a weak one", "the test-a weak one"},
 		{"ellipsis", "and so on\u2026 until n", "and so on... until n"},
 		{"soft hyphen", "pseudo\u00adprime to base a", "pseudoprime to base a"},
+		{"word joiner", "relatively prime to \u2060n\u2060 here", "relatively prime to n here"},
+		{"zero-width space", "pseudo\u200bprime to base a", "pseudoprime to base a"},
+		{"zero-width non-joiner", "pseudo\u200cprime to base a", "pseudoprime to base a"},
+		{"zero-width joiner", "pseudo\u200dprime to base a", "pseudoprime to base a"},
+		{"byte-order mark", "pseudo\ufeffprime to base a", "pseudoprime to base a"},
+		{"left-to-right mark", "base a\u200e holds", "base a holds"},
+		{"invisible times", "then 2\u2062n is even", "then 2n is even"},
+		{"first strong isolate", "the \u2068sieve\u2069 test", "the sieve test"},
 		{"ff ligature", "the e\ufb00ect holds", "the effect holds"},
 		{"fi ligature", "the \ufb01rst base", "the first base"},
 		{"fl ligature", "a \ufb02oor of n", "a floor of n"},
@@ -210,6 +218,17 @@ func TestATypographicCharacterIsFoundAsItsKeyboardFormBothWays(t *testing.T) {
 		page = "Before it. " + tc.keyboard + ". After it."
 		if got, ok := locateIn(page, tc.typographic); !ok || got != tc.keyboard {
 			t.Errorf("%s: typographic span %q in a keyboard page matched %q (%v), want the page's %q", tc.class, tc.typographic, got, ok, tc.keyboard)
+		}
+	}
+	// A FORMAT CHARACTER THE READER SEES IS KEPT: a prepended concatenation mark is drawn across the
+	// digits after it, and tag characters spell which flag an emoji tag sequence is.
+	for _, tc := range []struct{ class, page, span string }{
+		{"end of ayah", "verse \u06dd12 ends", "verse 12 ends"},
+		{"Arabic number sign", "page \u0600123 here", "page 123 here"},
+		{"tag sequence", "the flag \U0001F3F4\U000E0067\U000E0062\U000E0073\U000E0063\U000E0074\U000E007F here", "the flag \U0001F3F4 here"},
+	} {
+		if got, ok := locateIn(tc.page, tc.span); ok {
+			t.Errorf("%s: %q folded away and %q matched %q", tc.class, tc.page, tc.span, got)
 		}
 	}
 	// A soft hyphen at a line end breaks a word: it reads joined, never as a compound.

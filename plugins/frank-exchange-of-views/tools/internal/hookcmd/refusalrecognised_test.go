@@ -35,12 +35,15 @@ func TestTheHookRecognisesTheRecordToolsOwnRefusal(t *testing.T) {
 			if _, err := cli.Invoke(root, argv, ""); err == nil {
 				t.Fatal("the call was not refused, so there is nothing for the hook to recognise")
 			}
-			seen := stdout.String() + stderr.String()
-			// The harness names the tool as the seat invoked it; a test binary is named otherwise.
-			seen = strings.Replace(seen, root.Name()+": ", "feov-record: ", 1)
-			input, _ := json.Marshal(map[string]string{"command": "feov-record " + strings.Join(argv, " ")})
-			if entry, logs := hookcmd.FailureEntry("", "Bash", input, "Exit code 2\n"+seen); logs {
-				t.Errorf("the record tool's own refusal is logged a second time, as a failure: %s\n\nthe tool wrote:\n%.300s", entry, seen)
+			// UNDER --json BOTH STREAMS CARRY THE REFUSAL — the envelope on stdout, its diagnosis on
+			// stderr — and the harness's error text may hold them in either order.
+			for _, seen := range []string{stdout.String() + stderr.String(), stderr.String() + stdout.String()} {
+				// The harness names the tool as the seat invoked it; a test binary is named otherwise.
+				seen = strings.ReplaceAll(seen, root.Name()+": ", "feov-record: ")
+				input, _ := json.Marshal(map[string]string{"command": "feov-record " + strings.Join(argv, " ")})
+				if entry, logs := hookcmd.FailureEntry("", "Bash", input, "Exit code 2\n"+seen); logs {
+					t.Errorf("the record tool's own refusal is logged a second time, as a failure: %s\n\nthe tool wrote:\n%.300s", entry, seen)
+				}
 			}
 		})
 	}

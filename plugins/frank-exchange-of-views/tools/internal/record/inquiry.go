@@ -244,16 +244,20 @@ type InquiryJSON struct {
 	// the method that record gave: a superseded fate's account is what makes it auditable — m39's
 	// Q-d7df3d8c was abandoned at e0 and refuted at e2, and with the path as bare words no check
 	// could read why it had been set aside.
-	History []InquiryStepJSON `json:"history,omitempty"`
+	History []InquiryStepJSON `json:"history"`
 	SeatID  string            `json:"seat_id"`
 	// State is the inquiry's judged state (InquiryStates): open, unchecked, wanting or sound.
 	State string `json:"state"`
 	// Check is the reason of the check that stands on it and CheckedBy its seat, both empty while
 	// none stands.
-	Check     string `json:"check,omitempty"`
-	CheckedBy string `json:"checked_by,omitempty"`
+	//
+	// EVERY KEY THE PAGE SHOWS IS PRESENT, a list as [] and a text as "" when it holds nothing. The
+	// page's OUTPUT prints `wanting:[string]` with no mark that the key can be absent, and smoke-1854's
+	// dark-side lens failed on `.wanting|join(",")` against an absent key; its chair read `null`.
+	Check     string `json:"check"`
+	CheckedBy string `json:"checked_by"`
 	// Wanting is the open material gaps about it, which hold it wanting.
-	Wanting []string `json:"wanting,omitempty"`
+	Wanting []string `json:"wanting"`
 }
 
 // InquiryStepJSON is one record of an inquiry's fate on the wire (InquiryStep).
@@ -284,7 +288,8 @@ func InquiriesJSONOf(run Run) (InquiriesJSON, error) {
 		row := InquiryJSON{
 			ID: a.ID, Question: a.Question, Hypothesis: a.Hypothesis, Method: a.Method,
 			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch,
-			SeatID: a.SeatID, State: j.State(), Wanting: j.Wanting,
+			SeatID: a.SeatID, State: j.State(), Wanting: append([]string{}, j.Wanting...),
+			History: []InquiryStepJSON{},
 		}
 		for _, s := range a.Steps {
 			row.History = append(row.History, InquiryStepJSON{Epoch: s.Epoch, Status: s.Status, Reason: s.Reason, Method: s.Method, SeatID: s.SeatID})
