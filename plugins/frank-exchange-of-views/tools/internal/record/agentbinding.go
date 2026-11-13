@@ -124,18 +124,6 @@ func RegisteredSeatOfAgent(run Run, agentID string) (string, bool, error) {
 	return seat, true, nil
 }
 
-// SittingsOf is how many sittings a seat has opened — its own registers AND the harness brackets
-// that name it, less the registers that repair a sitting rather than open one: the rank stored on
-// its latest opening (events.sitting), 0 for a seat that never sat.
-func SittingsOf(run Run, seatID string) (int, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return 0, err
-	}
-	_, n, err := latestSittingAt(db, seatID)
-	return int(n), err
-}
-
 // DiscardedForSeat IS NOT PORTED, and its absence is the honest answer rather than an omission.
 //
 // It reported the event keys a PREVIOUS sitting of this seat wrote and replay had since dropped,

@@ -7,7 +7,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
@@ -51,15 +51,7 @@ func TestASecondRegisterInABracketedSittingIsRefusedAndOpensNone(t *testing.T) {
 	if _, err := run(t, "register", "--seat-id", bracketedSeat); err == nil || feov.CodeOf(err) != string(feov.Conflict) {
 		t.Fatalf("the second register in the sitting = %v; want it refused", err)
 	}
-	r, err := record.NewRun(runDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sittings, err := record.SittingsOf(r, bracketedSeat)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sittings != 1 {
+	if sittings := runtest.SittingsOpened(t, runtest.Open(t, runDir), bracketedSeat); sittings != 1 {
 		t.Errorf("the seat has %d stored sitting(s), want 1 — the bracket opened the sitting and the register joined it", sittings)
 	}
 }
