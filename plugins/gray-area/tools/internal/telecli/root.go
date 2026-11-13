@@ -36,11 +36,12 @@ import (
 // written against "however long ago that was in real time". Defaults come from Defaults(); a test
 // supplies a fixture corpus and a frozen clock, and then exercises the SAME code path a user gets.
 type Env struct {
-	Store       string   // the catalogue database
-	ProjectsDir string   // ~/.claude/projects — the transcripts, which we read and never write
-	SessionsDir string   // ~/.claude/sessions — the client's liveness advertisements
-	BrainDirs   []string // Antigravity brain directories
-	Now         func() time.Time
+	Store           string   // the catalogue database
+	ProjectsDir     string   // ~/.claude/projects — the transcripts, which we read and never write
+	SessionsDir     string   // ~/.claude/sessions — the client's liveness advertisements
+	BrainDirs       []string // Antigravity brain directories
+	AnnotationsDirs []string // ~/.gemini/antigravity-cli/annotations — Antigravity conversation titles
+	Now             func() time.Time
 	// Boot is when the host last booted, in Unix seconds, and whether that could be measured —
 	// injected for the same reason Now is: no golden may depend on when the test host booted, or on
 	// its platform. A NIL Boot reads as "not measurable", never a panic, and it is called only after
@@ -64,7 +65,22 @@ func Defaults() Env {
 		e.SessionsDir = filepath.Join(home, ".claude", "sessions")
 	}
 	e.BrainDirs = catalogue.DefaultAntigravityBrainDirs()
+	e.AnnotationsDirs = peer.DefaultAntigravityAnnotationsDirs()
 	return e
+}
+
+// agyTitle reads the Antigravity conversation's current title at display time from its .pbtxt
+// annotation file. Returns "" for Claude sessions or when no annotation file exists.
+func (e *Env) agyTitle(id string) string {
+	dirs := e.AnnotationsDirs
+	if len(dirs) == 0 && len(e.BrainDirs) > 0 {
+		for _, b := range e.BrainDirs {
+			if b != "" {
+				dirs = append(dirs, filepath.Join(filepath.Dir(b), "annotations"))
+			}
+		}
+	}
+	return peer.ReadAgyTitle(dirs, id)
 }
 
 const longDescription = `telepathy — what every agent on this box did, said and thought

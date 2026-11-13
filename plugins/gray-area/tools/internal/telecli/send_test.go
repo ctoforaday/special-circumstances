@@ -246,3 +246,23 @@ func TestLinkReportsWhatItFound(t *testing.T) {
 		t.Errorf("no runtime dir: exit %d, stderr %q", code, errOut)
 	}
 }
+
+func TestSendShowsAgyTitleInReportAndRejectsTitleAsTarget(t *testing.T) {
+	w := newSendWorld(t)
+	annDir := t.TempDir()
+	w.env.AnnotationsDirs = []string{annDir}
+	if err := os.WriteFile(filepath.Join(annDir, agyPeer+".pbtxt"), []byte(`title:"Cross Platform Plugin Configuration"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, errOut, code := w.run(t, "send", "a9e0", "hello")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, `QUEUED for antigravity conversation `+agyPeer+` ("Cross Platform Plugin Configuration") in its mailbox`) {
+		t.Errorf("stdout = %q", out)
+	}
+	// Display only: a title is never accepted as a target.
+	if _, _, code := w.run(t, "send", "Cross Platform Plugin Configuration", "hello"); code == 0 {
+		t.Errorf("send accepted title as target")
+	}
+}

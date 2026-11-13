@@ -3,6 +3,8 @@ package telecli
 import (
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -126,5 +128,32 @@ func TestAgentsRefusesABadWindowOrBoot(t *testing.T) {
 		if _, _, code := h.run(t, args...); code != 2 {
 			t.Errorf("%v exited %d, want 2", args, code)
 		}
+	}
+}
+
+func TestAgyTitlesDisplayOnlyInSessionAndAgents(t *testing.T) {
+	h := newHarness(t)
+	annDir := t.TempDir()
+	h.env.AnnotationsDirs = []string{annDir}
+	if err := os.WriteFile(filepath.Join(annDir, alphaID+".pbtxt"), []byte(`title:"Cross Platform Plugin Configuration"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, errOut, code := h.run(t, "agents")
+	if code != 0 {
+		t.Fatalf("agents exited %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "TITLE") || !strings.Contains(out, "Cross Platform Plugin Configuration") {
+		t.Errorf("agents missing agy title:\n%s", out)
+	}
+	out, errOut, code = h.run(t, "session", alphaID[:8])
+	if code != 0 {
+		t.Fatalf("session exited %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, `session `+alphaID[:8]+`  "Cross Platform Plugin Configuration"`) {
+		t.Errorf("session missing agy title:\n%s", out)
+	}
+	// Display only: a title is never accepted as a session target.
+	if _, _, code := h.run(t, "session", "Cross Platform Plugin Configuration"); code == 0 {
+		t.Errorf("session accepted title as target")
 	}
 }

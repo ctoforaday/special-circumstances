@@ -13,7 +13,9 @@ func newSessionCmd(env *Env) *cobra.Command {
 	return &cobra.Command{
 		Use:   "session <id>",
 		Short: "one session's shape: calls and errors by tool",
-		Long: `Summarises what one session did, by tool, with its error count beside each.
+		Long: `Summarises what one session did, by tool, with its error count beside each. When an
+Antigravity conversation has a local annotation file, its current title prints beside
+the id (display only; the id stays the sole address).
 
 The id may be the full session id or any prefix naming exactly one session, so
 the eight characters agents and search print are enough; a prefix naming several
@@ -47,7 +49,11 @@ store looks once a UTC day and at every backfill.`,
 			if s.ClosedAt.Valid {
 				state = "closed " + env.ago(s.ClosedAt.Int64)
 			}
-			fmt.Fprintf(out, "session %s  (%s)\n  %s\n\n", catalogue.Short(s.SessionID), state, s.ProjectDir)
+			if title := env.agyTitle(s.SessionID); title != "" {
+				fmt.Fprintf(out, "session %s  %q  (%s)\n  %s\n\n", catalogue.Short(s.SessionID), title, state, s.ProjectDir)
+			} else {
+				fmt.Fprintf(out, "session %s  (%s)\n  %s\n\n", catalogue.Short(s.SessionID), state, s.ProjectDir)
+			}
 			tools := make([]string, 0, len(s.ByTool))
 			for k := range s.ByTool {
 				tools = append(tools, k)
