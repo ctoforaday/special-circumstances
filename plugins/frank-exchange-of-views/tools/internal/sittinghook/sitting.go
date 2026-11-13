@@ -31,7 +31,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -58,28 +57,12 @@ const writerName = "feov-sitting-write"
 const (
 	phaseOpen      = "open"
 	phaseClose     = "close"
-	phaseLimit     = "limit"
 	phaseRefusal   = "refusal"
 	phaseFailure   = "failure"
 	phaseEnvelope  = "envelope"
 	phaseAdmission = "admission"
 	phaseNext      = "next"
 )
-
-// Limit hands a sitting that has reached the run's tool-call limit to the writer, which puts it on
-// the record. The PreToolUse hook calls it once per such sitting (sittingcap decides which call).
-//
-// UNLIKE THE SPAN ENDS, A MISSING WRITER IS REPORTED. The seat is being refused either way; what a
-// missing writer loses is the record's account of why, and that absence should reach the hook log
-// rather than read as a sitting that never hit the limit.
-func Limit(runDir, agentID string, sitting, limit int) error {
-	writer := writerPath()
-	if writer == "" {
-		return fmt.Errorf("%s is not beside this hook, so %s sitting %d reaching the limit of %d is not on the record",
-			writerName, agentID, sitting, limit)
-	}
-	return spawnLimit(writer, runDir, agentID, sitting, limit)
-}
 
 // Refusal hands a call the PreToolUse hook denied a seat to the writer, and Failure a call of the
 // seat's that failed; the writer logs each as the tool's entry under the seat the record binds the
@@ -165,21 +148,6 @@ func toolEntry(runDir, phase, agentID, text string) error {
 	return nil
 }
 
-// spawnLimit is a variable for the reason spawn is.
-var spawnLimit = func(writer, runDir, agentID string, sitting, limit int) error {
-	args := []string{
-		"-run", runDir,
-		"-phase", phaseLimit,
-		"-agent-id", agentID,
-		"-sitting", strconv.Itoa(sitting),
-		"-limit", strconv.Itoa(limit),
-	}
-	if out, err := exec.Command(writer, args...).CombinedOutput(); err != nil {
-		return fmt.Errorf("%s: %v: %s", writerName, err, out)
-	}
-	return nil
-}
-
 // sittingInput is the subset of the SubagentStart/SubagentStop payload this needs.
 type sittingInput struct {
 	AgentID   string `json:"agent_id"`
@@ -227,7 +195,7 @@ func Stop(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 // The stages a sitting hook can fail at. NEITHER of its events displays anything TO A HUMAN, which
 // is a different question from whether either may speak to the SEAT: SubagentStart may and
 // SubagentStop may not. A failure here therefore waits on the record for FEOV's only displaying
-// event — PreToolUse — which a seat's very next tool call fires.
+// event — PreToolUse — which a seat's next Bash, Read or envelope call fires.
 const (
 	StageInput         hookfailures.Stage = "sitting-input"
 	StageWriterMissing hookfailures.Stage = "sitting-writer-missing"
@@ -293,8 +261,7 @@ func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Re
 	}
 	writer := writerPath()
 	if writer == "" {
-		// Limit already reported this case; the span ends did not, and every sitting of the run
-		// was lost with nothing said. It is the bootstrap window only until the fetch lands, and
+		// A missing writer used to lose every sitting of the run with nothing said. It is the bootstrap window only until the fetch lands, and
 		// the entry clears on the first sitting written after that — so a transient miss is shown
 		// once, and a permanent one keeps showing.
 		rec.Fail(StageWriterMissing, writerName+" is not beside this hook, so "+in.AgentID+"'s sitting is not on the record")
@@ -353,9 +320,8 @@ var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) (
 	//
 	// ITS OUTPUT IS KEPT. This comment used to say the child's failure "reports to stderr" — and
 	// Run() leaves exec.Cmd.Stderr nil, which Go connects to os.DevNull, so everything the writer
-	// said was destroyed. The sibling Limit path always used CombinedOutput and kept it; the two
-	// disagreed about whether the same writer's failure was worth reading. It is: the caller records
-	// it, and the hook still writes nothing to its own stdout.
+	// said was destroyed. The writer's failure is worth reading: the caller records it, and the
+	// hook still writes nothing to its own stdout.
 	args := []string{
 		"-run", runDir,
 		"-phase", phase,

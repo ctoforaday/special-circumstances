@@ -49,10 +49,6 @@ type Phase string
 const (
 	Open  Phase = "open"
 	Close Phase = "close"
-	// Limit is not an end of the span: it is a sitting stopped at the run's tool-call limit,
-	// written by WriteLimit. It is a phase so the one writer binary carries every harness-observed
-	// fact about a sitting.
-	Limit Phase = "limit"
 	// Refusal is a call the PreToolUse hook DENIED a seat — a Read of the assembled report — and
 	// Failure a call of the seat's that FAILED, from the PostToolUseFailure hook. Both are written by
 	// WriteToolEntry as log entries the TOOL wrote: the harness saw them, and no verb did.
@@ -162,40 +158,6 @@ func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 		Type:   typ.Enum(),
 		Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum(),
 	})
-	return err
-}
-
-// WriteLimit records that a seat's sitting reached the run's per-sitting tool-call limit and was
-// stopped by the PreToolUse hook.
-//
-// THE SEAT IS RESOLVED ON THE RECORD, by the agent's binding (record.SeatOfAgent: its latest
-// register, or the bracket that named its seat). The sitting is the number the hook's count was
-// keyed by — the seat's stored sitting count when `register` started it — so it names a sitting the
-// record already holds, and nothing here counts sittings a second way.
-func WriteLimit(runDir, agentID string, sitting, limit int) error {
-	if agentID == "" {
-		return fmt.Errorf("sittingwrite: refusing a sitting limit with no agent id")
-	}
-	if sitting < 1 || limit < 1 {
-		return fmt.Errorf("sittingwrite: a sitting limit needs a sitting and a limit from 1, got %d/%d", sitting, limit)
-	}
-	run, err := record.NewRun(runDir)
-	if err != nil {
-		return err
-	}
-	seat, found, err := record.SeatOfAgent(run, agentID)
-	if err != nil {
-		return err
-	}
-	if !found {
-		return fmt.Errorf("sittingwrite: agent %s is bound to no seat on this record, so no sitting of it was counted", agentID)
-	}
-	body := &recordpb.SittingLimit{
-		SeatId:  proto.String(seat),
-		Sitting: proto.Int32(int32(sitting)),
-		Limit:   proto.Int32(int32(limit)),
-	}
-	_, err = record.Append(record.Identity{Run: run, SeatID: HookSeat}, body)
 	return err
 }
 

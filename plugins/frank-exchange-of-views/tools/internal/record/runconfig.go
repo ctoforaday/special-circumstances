@@ -53,9 +53,6 @@ type RunConfig struct {
 	KMax                *int     `json:"kMax"`
 	ConvergenceFraction *float64 `json:"convergenceFraction"`
 	MaxEpochs           *int     `json:"maxEpochs"`
-	// MaxSittingCalls is read by the PreToolUse hook through sittingcap.Limit, not by the record:
-	// the hook may not link the record. The key is sittingcap.ConfigKey.
-	MaxSittingCalls int `json:"maxSittingCalls"`
 	// Hooks is what was INSTALLED on the hook side when this run was set up (#751). The record
 	// binary is baked from the working tree and the hooks come from the version-gated install
 	// cache, so the two can be days apart — and a run whose hooks were stale is otherwise

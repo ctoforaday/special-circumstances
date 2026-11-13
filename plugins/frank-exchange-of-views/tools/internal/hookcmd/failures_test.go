@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
@@ -64,12 +63,12 @@ func TestADecisionCarriesTheMessage(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	out := runEntry(t, "PreToolUse", func(_ io.Reader, w io.Writer, rec *hookfailures.Recorder) error {
 		rec.Fail("hook-error", "something broke")
-		emitPreDeny(w, "past the sitting limit")
+		emitPreDeny(w, "refused for the test")
 		return nil
 	})
 	doc, msg := messageOf(t, out)
 	hso, _ := doc["hookSpecificOutput"].(map[string]any)
-	if hso["permissionDecision"] != "deny" || hso["permissionDecisionReason"] != "past the sitting limit" {
+	if hso["permissionDecision"] != "deny" || hso["permissionDecisionReason"] != "refused for the test" {
 		t.Fatalf("the decision did not survive: %q", out)
 	}
 	if !strings.Contains(msg, "something broke") {
@@ -228,60 +227,27 @@ func jsonString(s string) string {
 	return string(b)
 }
 
-// THE TURN-LIMIT FAULT. The seat is still refused — enforcement survives — but a limit the record
-// could not be told about used to be a stderr line nobody read. Recorded now, and said.
-func TestATurnLimitTheRecordCannotHoldIsSaid(t *testing.T) {
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	cwd, runDir, _ := limitRun(t, 1)
-	sit(t, runDir, "agent_x", "red-lens-evidence", 1)
-	recordLimit = func(string, string, int, int) error {
-		return errors.New("feov-sitting-write is not beside this hook, so agent_x sitting 1 reaching the limit of 1 is not on the record")
-	}
-
-	pre := func() (map[string]any, string) {
-		p, _ := json.Marshal(map[string]any{
-			"tool_name": "Read", "tool_input": map[string]string{"file_path": "/x"}, "cwd": cwd,
-			"session_id": testLead, "agent_id": "agent_x", "agent_type": "frank-exchange-of-views:red-lens-evidence",
-		})
-		var out bytes.Buffer
-		Run("feov-pretooluse", "PreToolUse", Pre, bytes.NewReader(p), &out)
-		return messageOf(t, out.String())
-	}
-	var doc map[string]any
-	var msg string
-	for i := 0; i < 3 && msg == ""; i++ { // the first call is under the limit; a later one is refused
-		doc, msg = pre()
-	}
-	hso, _ := doc["hookSpecificOutput"].(map[string]any)
-	if hso["permissionDecision"] != "deny" {
-		t.Fatalf("the seat past its limit was not refused: %v", doc)
-	}
-	if !strings.Contains(msg, "- turn-limit:") || !strings.Contains(msg, "not on the record") {
-		t.Fatalf("the limit the record could not hold was not said: %q", msg)
-	}
-}
-
 // EVERY FAILURE RUN RECORDS IS CLEARED BY THE NEXT CALL THAT DOES NOT HAVE IT. Seeded, then driven
 // clean; asserted against the record FILE, because an entry already shown is held back by the
 // 10-minute throttle whether it was cleared or not.
 func TestACleanCallClearsWhatRunRecorded(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	seed := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "PreToolUse", time.Now(), io.Discard)
-	for _, s := range []hookfailures.Stage{StagePanic, StageError, StageTurnLimit} {
+	for _, s := range []hookfailures.Stage{StagePanic, StageError} {
 		seed.Fail(s, "seeded")
 	}
 	seed.Settle()
 
 	var out bytes.Buffer
 	Run("feov-pretooluse", "PreToolUse", Pre, strings.NewReader(`{"tool_name":"Read","tool_input":{"file_path":"/x"}}`), &out)
-	for _, s := range []hookfailures.Stage{StagePanic, StageError, StageTurnLimit} {
+	for _, s := range []hookfailures.Stage{StagePanic, StageError} {
 		if onRecord(t, string(s), "") {
 			t.Errorf("a clean call left %s on the record", s)
 		}
 	}
 }
 
-// A PAYLOAD PRETOOLUSE CANNOT READ: no turn limit counted, no run directory injected, for this call.
+// A PAYLOAD PRETOOLUSE CANNOT READ: no run directory injected, no envelope checked, for this call.
 func TestAnUnreadablePreToolUsePayloadIsSaidAndClears(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	var out bytes.Buffer
@@ -300,7 +266,7 @@ func TestAnUnreadablePreToolUsePayloadIsSaidAndClears(t *testing.T) {
 // document is written for it, exactly as before, because changing decisions is outside this work.
 func TestAnUnparsableToolInputIsRecordedWithoutADecision(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	cwd, _, _ := limitRun(t, 100)
+	cwd, _ := hookRun(t)
 	payload := `{"session_id":"session-lead-under-test","tool_name":"Bash","tool_input":"not an object","cwd":` + jsonString(cwd) + `}`
 	var out bytes.Buffer
 	Run("feov-pretooluse", "PreToolUse", Pre, strings.NewReader(payload), &out)
@@ -339,47 +305,6 @@ func TestAnUndeliveredResponseIsRecordedAndClears(t *testing.T) {
 	}
 }
 
-// THE LIMIT MARKER CANNOT BE CREATED. That folded silently into "a sibling call got there first", so
-// no call ever counted as first and the sitting's limit never reached the record. It is recorded now
-// — and the seat is STILL REFUSED, because the refusal is enforcement and the marker is bookkeeping.
-func TestAnUncreatableLimitMarkerIsRecordedAndTheSeatIsStillRefused(t *testing.T) {
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	cwd, runDir, handoffs := limitRun(t, 1)
-	sit(t, runDir, "agent_m", "red-lens-evidence", 1)
-	if d, _ := call(t, cwd, "agent_m", "Read", ""); d != "" { // under the limit: counted, and .calls now exists
-		t.Fatalf("setup: the first call was refused (%q)", d)
-	}
-	counters := filepath.Join(runDir, sittingcap.Dir)
-	if err := os.Chmod(counters, 0o500); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(counters, 0o755) })
-	// A CAPABILITY probe, not a uid check: skip only if the directory is still writable.
-	if f, err := os.CreateTemp(counters, "probe-"); err == nil {
-		f.Close()
-		_ = os.Remove(f.Name())
-		t.Skip("chmod 0500 did not stop this process creating files in the counters directory")
-	}
-
-	p, _ := json.Marshal(map[string]any{
-		"tool_name": "Read", "tool_input": map[string]string{"file_path": "/x"}, "cwd": cwd,
-		"session_id": testLead, "agent_id": "agent_m", "agent_type": "frank-exchange-of-views:red-lens-evidence",
-	})
-	var out bytes.Buffer
-	Run("feov-pretooluse", "PreToolUse", Pre, bytes.NewReader(p), &out)
-	doc, msg := messageOf(t, out.String())
-	hso, _ := doc["hookSpecificOutput"].(map[string]any)
-	if hso["permissionDecision"] != "deny" {
-		t.Fatalf("the seat past its limit was NOT refused — bookkeeping must never weaken enforcement: %q", out.String())
-	}
-	if !strings.Contains(msg, "- turn-limit:") || !strings.Contains(msg, "cannot mark") {
-		t.Fatalf("the uncreatable marker was not said: %q", msg)
-	}
-	if len(*handoffs) != 0 {
-		t.Errorf("the limit was handed to the record although no call counted as first: %v", *handoffs)
-	}
-}
-
 // EVERY OUTCOME CLEARS AN UNPARSABLE TOOL_INPUT — a rewrite, a deny, and a call with nothing to do
 // all mean the next tool_input parsed. Seeded, driven down each path, asserted against the record.
 func TestEachOutcomeClearsAToolInputFailure(t *testing.T) {
@@ -397,7 +322,7 @@ func TestEachOutcomeClearsAToolInputFailure(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("XDG_STATE_HOME", t.TempDir())
-			cwd, _, _ := limitRun(t, 100)
+			cwd, _ := hookRun(t)
 			seed := hookfailures.New("frank-exchange-of-views", "feov-pretooluse", "PreToolUse", time.Now(), io.Discard)
 			seed.Fail(StageToolInput, "seeded")
 			seed.Persist()

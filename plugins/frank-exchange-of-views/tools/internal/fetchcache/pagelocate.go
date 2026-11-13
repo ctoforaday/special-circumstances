@@ -313,7 +313,7 @@ const (
 // SpanNormalisation is LocateSourceSpan's normalisation in a seat's words: the one statement of it
 // that cite's --help and the not-found refusal both render.
 const SpanNormalisation = "runs of whitespace (non-breaking and thin spaces included) compare as one space; a line-end hyphen may be typed joined or kept; " +
-	"curly quotes ‘ ’ “ ” compare as ' and \", en and em dashes – — as -, an ellipsis … as ..., the ligatures ﬀ ﬁ ﬂ ﬃ ﬄ as their letters, and a soft hyphen as nothing; " +
+	"curly quotes ‘ ’ “ ” compare as ' and \", en and em dashes – — as -, an ellipsis … as ..., the ligatures ﬀ ﬁ ﬂ ﬃ ﬄ as their letters, and an invisible format character — a soft hyphen, a zero-width space or joiner, a word joiner, a byte-order mark, a direction mark — as nothing; " +
 	"case, letters and every other punctuation mark must match"
 
 // folded is a text in fold's normalisation and, for each of its bytes, the source bytes it came
@@ -325,10 +325,13 @@ type folded struct {
 }
 
 // typoFold is the typographic half of the normalisation: the keyboard text a typographic
-// character reads as, and whether r is one. A soft hyphen reads as nothing. Spaces need no row
-// here: non-breaking, thin, narrow and figure spaces are unicode.IsSpace, which fold already
-// reads as a separator.
+// character reads as, and whether r is one. An invisible format character reads as nothing
+// (invisibleFormat). Spaces need no row here: non-breaking, thin, narrow and figure spaces are
+// unicode.IsSpace, which fold already reads as a separator.
 func typoFold(r rune) (string, bool) {
+	if invisibleFormat(r) {
+		return "", true
+	}
 	switch r {
 	case '\u2018', '\u2019', '\u201a', '\u201b': // ‘ ’ ‚ ‛
 		return "'", true
@@ -338,8 +341,6 @@ func typoFold(r rune) (string, bool) {
 		return "-", true
 	case '\u2026': // …
 		return "...", true
-	case '\u00ad': // soft hyphen
-		return "", true
 	case '\ufb00':
 		return "ff", true
 	case '\ufb01':
@@ -353,6 +354,33 @@ func typoFold(r rune) (string, bool) {
 	}
 	return "", false
 }
+
+// invisibleFormat reports whether r is a format character the page does not show: the class
+// unicode.Cf — the soft hyphen, the zero-width space, non-joiner and joiner, the word joiner and the
+// invisible mathematical operators, the byte-order mark, the direction marks, embeddings and
+// isolates, and the layout controls of hieroglyphs, shorthand and musical notation — less the two
+// kinds whose presence a reader sees.
+//
+// THE CLASS, NOT A LIST OF ROWS. smoke-1854's Wikipedia sources set a word joiner either side of a
+// math token (`\u2060n\u2060`) 374 times in one page, and one held about 25 zero-width spaces, joiners and
+// byte-order marks besides. Only the soft hyphen had a row, so a span typed as the page reads missed
+// text the source holds, and `show source --quote` answered `matched: 0` — a plausible zero. A seat
+// cannot type what the page does not show, so every such character folds, and the next one a
+// source carries is already covered.
+//
+// TWO KINDS ARE NOT INVISIBLE, and fold keeps them:
+//   - a prepended concatenation mark (the Arabic number sign, end of ayah ۝, the Syriac abbreviation
+//     mark, the Kaithi number signs) is DRAWN, spanning the digits after it — dropping it would
+//     match a numbered verse to the bare number;
+//   - a tag character spells the region of an emoji tag sequence — the flags of England, Scotland
+//     and Wales are one black flag and different tags — so dropping the tags would match one flag
+//     to another.
+func invisibleFormat(r rune) bool {
+	return unicode.Is(unicode.Cf, r) && !unicode.Is(unicode.Prepended_Concatenation_Mark, r) && !isTag(r)
+}
+
+// isTag reports whether r is in the Tags block: U+E0001 LANGUAGE TAG and U+E0020–U+E007F.
+func isTag(r rune) bool { return r >= 0xE0000 && r <= 0xE007F }
 
 // fold normalises text for LocateSourceSpan: each run of whitespace becomes one space, leading
 // and trailing whitespace goes, a typographic character reads as typoFold says, and a line-end

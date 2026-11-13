@@ -41,9 +41,6 @@ func TestAColumnNoReaderReadIsNotCarried(t *testing.T) {
 		{"sitting_close", map[string]any{"agent_id": "a1", "agent_type": "frank-exchange-of-views:red-chair",
 			"agent_transcript_path": "/t/agent-a1.jsonl", "session_id": "s1", "prompt_id": "p1"},
 			&recordpb.SittingClose{AgentId: proto.String("a1"), AgentTranscriptPath: proto.String("/t/agent-a1.jsonl")}},
-		{"sitting_limit", map[string]any{"agent_id": "a1", "agent_type": "frank-exchange-of-views:red-chair",
-			"seat_id": "red-chair", "sitting": int64(2), "limit": int64(150)},
-			&recordpb.SittingLimit{SeatId: proto.String("red-chair"), Sitting: proto.Int32(2), Limit: proto.Int32(150)}},
 	} {
 		t.Run(tc.word, func(t *testing.T) {
 			bodies, err := Entries().Translate(OldEvent{ID: 5, SeatID: "s", Word: tc.word, Fields: tc.fields})
@@ -61,8 +58,8 @@ func TestAColumnNoReaderReadIsNotCarried(t *testing.T) {
 // bool is not carried because the empty anchor already says it: the census reads every archive and
 // fails on a source row where the two disagree — an independent verification naming an anchor, or an
 // anchorless one not marked independent — because then the bool carried a fact and dropping it would
-// lose it. It also fails on a migrated record holding a different number of verifications, cites,
-// sitting ends or limits than its source, or a different number of corroborations than the source's
+// lose it. It also fails on a migrated record holding a different number of verifications, cites
+// or sitting ends than its source, or a different number of corroborations than the source's
 // independent rows and its readings of a citation a labelled corroboration placed (each comes forward
 // as a reading of the label's source, EventSchema 59), and on an archive set holding no independent
 // row at all, which would leave the translation tested by nothing.
@@ -91,7 +88,7 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 			reReadings := 0
 			for _, old := range evs {
 				switch old.Word {
-				case "verify", "cite", "sitting_open", "sitting_close", "sitting_limit":
+				case "verify", "cite", "sitting_open", "sitting_close":
 					want[old.Word]++
 				default:
 					continue
@@ -140,8 +137,6 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 					got["sitting_open"]++
 				case e.GetSittingClose() != nil:
 					got["sitting_close"]++
-				case e.GetSittingLimit() != nil:
-					got["sitting_limit"]++
 				}
 			}
 			for w, n := range want {

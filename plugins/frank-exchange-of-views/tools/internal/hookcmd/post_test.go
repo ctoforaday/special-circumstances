@@ -12,7 +12,7 @@ import (
 // the whole PostToolUse path, for the seat's run and agent, and for that call only. A call from no
 // seat writes nothing, and an admission the writer could not record goes on the hook record.
 func TestASucceededEnvelopeCallIsAdmitted(t *testing.T) {
-	cwd, runDir, _ := limitRun(t, 1000)
+	cwd, runDir := hookRun(t)
 	var admitted []string
 	var writeErr error
 	prev := recordAdmission
@@ -65,7 +65,7 @@ func TestASucceededEnvelopeCallIsAdmitted(t *testing.T) {
 // else spawns the writer: another seat's call, a lens's call that does not reach the record, a call
 // from no seat. A writer that fails is said to the lens, never silence.
 func TestALensCallToTheRecordIsHandedItsNextItem(t *testing.T) {
-	cwd, runDir, _ := limitRun(t, 1000)
+	cwd, runDir := hookRun(t)
 	var asked []string
 	text, writeErr := "YOUR NEXT ITEM: …", error(nil)
 	prev := handNextItem

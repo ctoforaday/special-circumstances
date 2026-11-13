@@ -534,8 +534,8 @@ func foldPlan(params Params, r planReads) Plan {
 	// readies never acts: the run ended UNVERIFIED with the one seat that could clear it never asked
 	// (#1202, #1203). Each owner is readied ONCE PER CAUSE: an owner that has sat since the blocker
 	// arose and left it is not readied again — for a lens, sat through (satThrough), so a sitting
-	// stopped at the call limit or never closed readies it again, the reason says so, and the blocker still holds the
-	// PASS — the precedent benchSatFor set for the docket.
+	// that never closed readies it again, the reason says so, and the blocker still holds the PASS —
+	// the precedent benchSatFor set for the docket.
 	//
 	// A CITATION OR COMPUTATION WITH NO CHECK OF ITS SENTENCE AS IT STANDS READIES ITS OWNER, once per
 	// cause: the edit that changed its sentence, or the act that placed it. Its owner owes the check,
@@ -893,15 +893,10 @@ func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
 // satThrough IS THE ONE ANSWER TO "DID THIS LENS SIT THROUGH THAT SITTING", which is a different
 // question from sittingFor's. A sitting OPENS when the hook brackets it or the seat registers, and
 // that satisfies the dispatch: the seat sitting now is not owed its own sitting. Whether the seat
-// then did what it was dispatched for is decided at the sitting's END, and two ends say it did not:
-//
-//   - STOPPED AT THE CALL LIMIT: a sitting_limit names it — by the seat and the sitting number the
-//     hook's count was keyed by, which is the opening's stored sitting ordinal (sittingcap). The
-//     seat was refused every further call but its envelope, so what it was dispatched for stopped
-//     where the limit fell, not where its judgement did.
-//   - NEVER CLOSED: its opening carries an agent, no sitting_close of that agent follows it, and the
-//     seat has opened a later sitting. The SubagentStop hook writes the close when the agent
-//     returns, so a sitting without one ended some other way.
+// then did what it was dispatched for is decided at the sitting's END, and one end says it did not:
+// NEVER CLOSED — its opening carries an agent, no sitting_close of that agent follows it, and the seat
+// has opened a later sitting. The SubagentStop hook writes the close when the agent returns, so a
+// sitting without one ended some other way.
 //
 // A SITTING STILL OPEN IS NOT ONE IT SAT THROUGH, AND NOT ONE IT FAILED. The seat's latest sitting
 // with no close may be in flight — a lens reading its own work list is in one — so it is reported
@@ -926,13 +921,10 @@ type satThrough struct {
 // dispatchLedger's, so the places compare with the dispatches and the openings it read.
 func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[string][]int64) satThrough {
 	agentOf := map[int64]string{} // an opening's place -> the agent it carries
-	ordinal := map[int64]int{}    // an opening's place -> its stored sitting ordinal for its seat
 	stops := map[string][]int64{} // agent -> the places of its sitting_close events, ascending
-	limits := limitedSittingsOf(evs)
 	for i, e := range evs {
 		if _, opens := win.Opens(e); opens {
 			agentOf[seq[i]] = recordpb.AgentOpening(e)
-			ordinal[seq[i]] = win.Of(e).Sitting
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
 			stops[b.GetAgentId()] = append(stops[b.GetAgentId()], seq[i])
@@ -948,8 +940,6 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 			agent := agentOf[o]
 			stop, stopped := firstAfter(stops[agent], o)
 			switch {
-			case limits[seatSitting{seat, ordinal[o]}]:
-				out.short[o] = shortCallLimit
 			case agent == "" || (stopped && (!later || stop < next)):
 				out.through[seat] = append(out.through[seat], o)
 			case later:
@@ -964,7 +954,6 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 
 // satThrough's reasons a sitting is not one its seat sat through.
 const (
-	shortCallLimit   = "was stopped at the per-sitting tool-call limit"
 	shortNeverClosed = "never closed — its agent's stop is not on the record"
 	shortNotClosed   = "has not closed yet"
 )

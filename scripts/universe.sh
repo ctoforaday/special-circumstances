@@ -9,9 +9,7 @@
 # every difference cost a day:
 #
 #   - Seats spawned as TOP-LEVEL processes never fire SubagentStart/SubagentStop, so no sitting
-#     span was ever written and `gray-area` capture had no transcript to bind. The per-sitting
-#     tool-call cap survived only because sittingcap keys on the register event, which the author
-#     chose for exactly this reason.
+#     span was ever written and `gray-area` capture had no transcript to bind.
 #   - The harness pasted each seat's JSON schema into the prompt and then accepted any parseable
 #     object. The real harness enforces it. An arm died twelve sittings in on a relayed plan
 #     missing a field the tool always writes, and the defect was in the instrument.

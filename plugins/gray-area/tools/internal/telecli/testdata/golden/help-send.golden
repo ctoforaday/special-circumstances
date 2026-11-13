@@ -1,7 +1,9 @@
 Delivers a message to another running agent session on this box, whichever
 harness runs it. The id is a session id or any unique prefix of one; "-" reads the
 message from stdin. The message arrives prefixed with who sent it and the command
-that replies.
+that replies. When the recipient is an Antigravity conversation with a local annotation
+file, its current title is printed beside the id in the delivery report (display only;
+titles are never accepted as targets).
 
 WHICH ROUTE CARRIED IT IS PRINTED, because the routes promise different things:
 

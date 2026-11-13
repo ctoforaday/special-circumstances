@@ -272,7 +272,10 @@ var runConfigPath = filepath.Join("inputs", "run-config.json")
 // verbatim would refuse the migrated run's every read of its configuration. Why each key went is
 // said here, beside it; the manifest's run_config records each key dropped with its value.
 var runConfigDrops = map[string]struct{}{
-	// A SOURCE BEFORE EPOCH 74 MAY STATE `mintBudget`, the per-lens mint cap, which went at epoch 74:
+	// A SOURCE BEFORE EPOCH 74 MAY STATE `maxSittingCalls`, the per-sitting tool-call limit, which
+	// went at epoch 74: the agent definition's maxTurns bounds a sitting.
+	"maxSittingCalls": {},
+	// A SOURCE BEFORE EPOCH 75 MAY STATE `mintBudget`, the per-lens mint cap, which went at epoch 75:
 	// lens retirement and the epoch limit bound a run.
 	"mintBudget": {},
 }

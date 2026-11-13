@@ -8358,9 +8358,6 @@ var verbsWithEvents = []string{
 	// the close through the same writer at a dispatch's return (dispatchReturns); the opening is
 	// exempted below, because the drive opens a sitting by register.
 	"sitting_open", "sitting_close",
-	// A sitting stopped at the tool-call limit: written by feov-sitting-write when the PreToolUse
-	// hook first refuses a call past the limit. No verb writes it either.
-	"sitting_limit",
 	// The envelope's admission: written by feov-sitting-write when the PostToolUse hook sees the
 	// call returning a seat's envelope succeed, and by the sweep at a dispatch's return.
 	"envelope_admitted",
@@ -8388,10 +8385,6 @@ var coverExempt = map[string]bool{
 	// does not, and that neither hook writes to stdout. Named rather than dropped, so "the sweep
 	// does not cover this" stays a line somebody reads.
 	"sitting_open": true,
-	// Written by the hook-spawned writer when a sitting passes the tool-call limit, which no seed
-	// reaches. Driven in internal/hookcmd/limit_test.go (the handoff) and
-	// internal/sittingwrite/write_test.go (the event).
-	"sitting_limit": true,
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,

@@ -1075,8 +1075,8 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// The run's TERMS. Read at READ time by the dispatch verb, the write path, sittingcap, the
-	// tier report and cost — so an archive without them cannot operate on the record it keeps.
+	// The run's TERMS. Read at READ time by the dispatch verb, the write path, the tier report and
+	// cost — so an archive without them cannot operate on the record it keeps.
 	if err := os.MkdirAll(filepath.Join(run, "inputs"), 0o755); err != nil {
 		t.Fatal(err)
 	}

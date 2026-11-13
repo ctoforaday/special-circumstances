@@ -43,18 +43,16 @@ hookcmd.Run rather than documented on a leaf.
 
 ## PreToolUse
 
-NO MATCHER: every tool. The run and identity injection above is Bash-only and the binary returns at
-once for any other tool that no seat made. The PER-SITTING TURN LIMIT covers every tool but
-`StructuredOutput`, the call returning the seat's envelope, which it neither counts nor refuses: a
-seat that has made more than the run's maxSittingCalls tool calls (inputs/run-config.json, setup
---max-sitting-calls, default 150) since its register is refused every further call except a
-register and its envelope, with the reason `turn limit reached — return your envelope now`, and the
-envelope it then returns goes to the envelope gate below like any other. The first refusal
-writes a sitting_limit event naming the seat, the sitting and the limit. The count lives in
-<runDir>/.sitting-calls, opened by register and keyed by agent id and sitting. An agent that never
-registered as a seat (the main session, an operator) is never counted. Under a headless `claude -p`
-seat the payload carries no agent_id, so the identity and run come from FEOV_AGENT_ID and FEOV_RUN in
-the environment the hook inherits.
+MATCHER `Bash|Read|StructuredOutput`, ONE ENTRY: the three tools the binary acts on. A Bash call gets
+the run and identity injection above, and is refused when a command naming `feov-record` carries a
+backtick the shell would run. A Read of the assembled report (`report.md` or `report.html` under the
+run directory) by a seat is refused: the report is read through the tool. `StructuredOutput` goes to
+the envelope gate below. Every other tool reaches no decision in the binary, so it is not spawned for
+one. Under Antigravity the manifest matches every tool, because its tool names are not these.
+
+The length of a sitting is the client's to bound, not this hook's: every agent definition carries
+`maxTurns` (written by `scripts/agentgen`), and a seat that reaches it ends without its envelope —
+an ordinary failed sitting.
 
 THE ENVELOPE GATE covers `StructuredOutput`, the call a seat returns its envelope with and that ends
 its sitting. The hook asks feov-sitting-write (`-phase envelope`) whether the record refuses it: while
@@ -132,7 +130,8 @@ rendered by the writer, so a seat that owes nothing can end its turn having run 
 It is the projection's bytes, not a second author of the seat's duties.
 
 FAILURE IS A DIFFERENT CHANNEL FROM INJECTION. This event displays nothing to a HUMAN, so a failure
-to record the span goes on the hook record and is read out by the seat's next tool call (PreToolUse).
+to record the span goes on the hook record and is read out by the seat's next Bash, Read or
+`StructuredOutput` call (PreToolUse).
 A work list that could not be read says so in the injected text instead — "I could not tell" and
 "nothing engages you" must never be the same bytes.
 

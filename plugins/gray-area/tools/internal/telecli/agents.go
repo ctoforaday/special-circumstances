@@ -31,6 +31,8 @@ func newAgentsCmd(env *Env) *cobra.Command {
 		Short: "who is running, in which worktree, doing what — and after a restart, what it cut off",
 		Long: `Lists every session the client currently advertises, with its liveness, how much it
 has done and what it did last — and below them, the sessions the last restart cut off.
+When an Antigravity conversation has an annotation file, its current title is shown
+beside its id (display only; Claude rows leave it blank).
 
 Liveness comes from the client's session files and /proc, never from the store: a
 transcript cannot say whether the process that wrote it is still there. 'live',
@@ -148,15 +150,52 @@ func printAgents(out io.Writer, env *Env, rows []catalogue.Agent, rep catalogue.
 		fmt.Fprintf(out, "%d session file(s) are advertised and none is live — each was cut off by the restart and is listed below as lost\n", len(rows))
 	}
 	if len(shown) > 0 || len(rep.Lost) > 0 {
-		fmt.Fprintf(out, "%-10s %-8s %7s  %-14s %s\n", "SESSION", "STATE", "ACTS", "LAST", "CWD")
-	}
-	for _, a := range shown {
-		fmt.Fprintf(out, "%-10s %-8s %7d  %-14s %s\n",
-			catalogue.Short(a.SessionID), a.Liveness, a.Acts, env.last(a.LastTool, a.LastAt), a.CWD)
-	}
-	for _, l := range rep.Lost {
-		fmt.Fprintf(out, "%-10s %-8s %7d  %-14s %s\n",
-			catalogue.Short(l.SessionID), "lost", l.Acts, env.last(l.LastTool, l.LastToolAt), resumeFrom(l))
+		titles := map[string]string{}
+		hasTitles := false
+		for _, a := range shown {
+			if t := env.agyTitle(a.SessionID); t != "" {
+				titles[a.SessionID] = t
+				hasTitles = true
+			}
+		}
+		for _, l := range rep.Lost {
+			if t := env.agyTitle(l.SessionID); t != "" {
+				titles[l.SessionID] = t
+				hasTitles = true
+			}
+		}
+		titleWidth := len("TITLE")
+		for _, t := range titles {
+			if n := len([]rune(t)); n > titleWidth {
+				titleWidth = n
+			}
+		}
+		if titleWidth > 48 {
+			titleWidth = 48
+		}
+		if hasTitles {
+			fmt.Fprintf(out, "%-10s %-8s %7s  %-14s %-*s  %s\n", "SESSION", "STATE", "ACTS", "LAST", titleWidth, "TITLE", "CWD")
+		} else {
+			fmt.Fprintf(out, "%-10s %-8s %7s  %-14s %s\n", "SESSION", "STATE", "ACTS", "LAST", "CWD")
+		}
+		for _, a := range shown {
+			if hasTitles {
+				fmt.Fprintf(out, "%-10s %-8s %7d  %-14s %-*s  %s\n",
+					catalogue.Short(a.SessionID), a.Liveness, a.Acts, env.last(a.LastTool, a.LastAt), titleWidth, formatAgentTitle(titles[a.SessionID], titleWidth), a.CWD)
+			} else {
+				fmt.Fprintf(out, "%-10s %-8s %7d  %-14s %s\n",
+					catalogue.Short(a.SessionID), a.Liveness, a.Acts, env.last(a.LastTool, a.LastAt), a.CWD)
+			}
+		}
+		for _, l := range rep.Lost {
+			if hasTitles {
+				fmt.Fprintf(out, "%-10s %-8s %7d  %-14s %-*s  %s\n",
+					catalogue.Short(l.SessionID), "lost", l.Acts, env.last(l.LastTool, l.LastToolAt), titleWidth, formatAgentTitle(titles[l.SessionID], titleWidth), resumeFrom(l))
+			} else {
+				fmt.Fprintf(out, "%-10s %-8s %7d  %-14s %s\n",
+					catalogue.Short(l.SessionID), "lost", l.Acts, env.last(l.LastTool, l.LastToolAt), resumeFrom(l))
+			}
+		}
 	}
 	for _, a := range shown {
 		if a.Liveness == catalogue.Unknown {
@@ -172,6 +211,19 @@ func printAgents(out io.Writer, env *Env, rows []catalogue.Agent, rep catalogue.
 	if !measured {
 		fmt.Fprintf(out, "\n  %v to list the sessions a restart cut off.\n", errBootUnmeasured)
 	}
+}
+
+// formatAgentTitle formats an Antigravity conversation title for the agents table,
+// truncating with "..." if it exceeds width.
+func formatAgentTitle(title string, width int) string {
+	if title == "" {
+		return ""
+	}
+	r := []rune(title)
+	if len(r) <= width {
+		return title
+	}
+	return string(r[:width-3]) + "..."
 }
 
 // printLost is --lost: the boot and its source, the bring-back arithmetic the restart-recovery

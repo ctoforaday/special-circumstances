@@ -15,7 +15,7 @@ import (
 // PreToolUse path, and only that call: a seat's sitting cannot end while a blocking item on its own
 // work list stands, and the harness re-asks a seat whose envelope call is refused.
 func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
-	cwd, runDir, _ := limitRun(t, 1000)
+	cwd, runDir := hookRun(t)
 	refusal, checkErr := "", error(nil)
 	var asked []string
 	prev := envelopeAnswer
@@ -80,7 +80,7 @@ func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 // record's read written onto it: this is the one way the stored plan reaches the workflow script, whose
 // only surface is a seat's envelope. Nothing the seat stated survives but what the record returned.
 func TestTheHookWritesTheEnvelopeTheRecordSupplies(t *testing.T) {
-	cwd, _, _ := limitRun(t, 1000)
+	cwd, _ := hookRun(t)
 	var stated string
 	prev := envelopeAnswer
 	const read = `{"event":7,"bench_owed":[],"halted":false}`
@@ -137,7 +137,7 @@ func TestTheAntigravityHookOverwritesWithTheRecordsEnvelope(t *testing.T) {
 // run or keep it going. An input that does not parse cannot carry a read, and is refused rather than
 // returned with none; a call the record has no seat for is left alone.
 func TestTheHookWritesTheRecordsReadOverAnythingTyped(t *testing.T) {
-	cwd, _, _ := limitRun(t, 1000)
+	cwd, _ := hookRun(t)
 	const read = `{"event":7,"bench_owed":["petition"],"halted":false}`
 	answer := hookgate.EnvelopeAnswer{Read: json.RawMessage(read)}
 	prev := envelopeAnswer

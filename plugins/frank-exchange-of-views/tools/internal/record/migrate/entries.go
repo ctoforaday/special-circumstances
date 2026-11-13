@@ -21,8 +21,8 @@ func Entries() Registry {
 		"opinion":       {Translate: opinionEntry},
 		"cite":          {Translate: citeEntry},
 		"register":      {Translate: registerEntry},
-		// A SITTING'S ENDS AND ITS LIMIT KEEP WHAT THE RECORD READS. A source before epoch 32 copied
-		// the hook payload onto them; the copies are not carried.
+		// A SITTING'S ENDS KEEP WHAT THE RECORD READS. A source before epoch 32 copied the hook payload
+		// onto them; the copies are not carried.
 		"sitting_open": mapped("sitting_open", nil, drops{
 			"session_id": "the conversation id was a copy of the hook payload that no reader joins on",
 			"prompt_id":  "the dispatch id was a copy of the hook payload that no reader joins on",
@@ -32,10 +32,12 @@ func Entries() Registry {
 			"session_id": "the conversation id was a copy of the hook payload that no reader joins on",
 			"prompt_id":  "the dispatch id was a copy of the hook payload that no reader joins on",
 		}, nil),
-		"sitting_limit": mapped("sitting_limit", nil, drops{
-			"agent_id":   "the agent is the input the seat was resolved from; the limit names the seat",
-			"agent_type": "the configuration is the opening end's; the limit names the seat",
-		}, nil),
+		// A SITTING LIMIT TRANSLATES TO NO EVENT (EventSchema 74). It was the PreToolUse hook's record
+		// of a sitting stopped at the run's per-sitting tool-call count; a sitting's length is bounded
+		// by the agent definition's maxTurns, and a seat stopped there is a failed sitting, which the
+		// record derives from the sitting's ends. No archived run holds one. The manifest counts each in
+		// events_in and none in events_out.
+		"sitting_limit": {Translate: toNoEvent},
 		// The inquiry, under the word an archive recorded it with: the columns are the current ones but
 		// the proposal's text, which the record calls its question.
 		"avenue": inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),

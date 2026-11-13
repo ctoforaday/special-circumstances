@@ -1939,8 +1939,6 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		// Which dispatches engaged a lens before blue had answered it. See lensturn.go.
 		LensTurnAudit(run),
 		DocketOrderAudit(run),
-		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
-		SittingLimitAudit(run),
 		// Which sittings closed with no admitted envelope. See failedsittings.go.
 		FailedSittingsAudit(run),
 		// Which ended sittings the SubagentStop hook never closed. See sittingcloses.go.
@@ -2133,9 +2131,8 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
 	// time by a dozen packages: record.RunParams hands k-max, max-epochs and the
-	// convergence fraction to the dispatch verb AND the write path; sittingcap reads the
-	// per-sitting call limit; modeltier and cost read the configured tiers; capture's own lane
-	// coverage reads the declared lane count. Measured on an archived run against the same run
+	// convergence fraction to the dispatch verb AND the write path; modeltier and cost read the
+	// configured tiers; capture's own lane coverage reads the declared lane count. Measured on an archived run against the same run
 	// live: `ops tiers` printed configuredBulk and configuredJudgment from the live directory and
 	// simply OMITTED both from the archive — so a run whose configuration was thrown away reads
 	// exactly like a run that had none.

@@ -16,7 +16,8 @@ import (
 // ONE RENDERER FOR EVERY REFUSAL. A handler's error, the record's, cobra's own (an unknown flag, a
 // missing required flag, a bad value, wrong arguments, a flag group), a wrong identity and a command
 // that is not on the surface all leave the tool through RenderRefusal, in one of two forms picked
-// by the argv: the JSON envelope on stdout, or one line under the tool's name on stderr.
+// by the argv: the JSON envelope on stdout with the diagnosis line on stderr, or that line with the
+// help page under it on stderr.
 //
 // WHO IS REFUSED AND AT WHAT COMES FROM THE COMMAND, NEVER FROM THE SENTENCE. The role is the
 // tree's annotation, the verb and the path are the resolved command's own, and the code is the
@@ -104,20 +105,29 @@ func EnvelopeOf(leaf *cobra.Command, err error) feov.RefusalEnvelope {
 	return env
 }
 
-// RenderRefusal writes a refusal in the form the argv asked for: the envelope on stdout under
-// --json, otherwise `<tool>: <path>: <diagnosis>` on stderr, the path printed once and left out
-// when no command resolved.
+// RenderRefusal writes a refusal in the form the argv asked for: under --json the envelope on
+// stdout and `<tool>: <path>: <diagnosis>` on stderr, otherwise that line with the help page under
+// it on stderr — the path printed once and left out when no command resolved.
+//
+// UNDER --json THE DIAGNOSIS IS ON STDERR AS WELL, because the envelope alone is a plausible zero.
+// A filter written for the success shape reads the envelope as an empty answer: smoke-1854's seats
+// piped `show source --json` into `jq '.hits[]?'` and `jq '.hits|length'`, printed nothing and 0
+// for five refused calls, and logged frictions about output the tool never gave. On stderr the
+// line reaches the terminal past a `| jq`, and under `2>&1 | jq` it fails the parse instead of
+// folding into the data. The failure hook decodes the FIRST line of the output, which stays the
+// envelope.
 func RenderRefusal(stdout, stderr io.Writer, leaf *cobra.Command, argv []string, err error) {
-	if JSONRequested(argv) {
-		_ = json.NewEncoder(stdout).Encode(EnvelopeOf(leaf, err))
-		return
-	}
 	head := "feov-record"
 	if leaf != nil {
 		head = leaf.Root().Name()
 	}
 	if p := PathOf(leaf); p != "" {
 		head += ": " + p
+	}
+	if JSONRequested(argv) {
+		_ = json.NewEncoder(stdout).Encode(EnvelopeOf(leaf, err))
+		fmt.Fprintf(stderr, "%s: %s\n", head, Diagnosis(err))
+		return
 	}
 	fmt.Fprintf(stderr, "%s: %v\n", head, err)
 }

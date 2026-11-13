@@ -186,9 +186,8 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 // anchored on, under whatever name it answers (the record's `reopened`), and the opening of each closed
 // sitting a lens was dispatched onto the gap for. A sitting nothing has closed yet is no turn taken, and
 // nor is one that did not finish (ruled by gblock 2026-11-11): a failed sitting (record.FailedSittingsOf,
-// the record's one answer to whether a sitting failed, which runOne holds to the drive's own count), and
-// one a sitting_limit names, cut short at the call limit. Its silence on the gap audited nothing, and the
-// lens's turn stands.
+// the record's one answer to whether a sitting failed, which runOne holds to the drive's own count). Its
+// silence on the gap audited nothing, and the lens's turn stands.
 func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turns, sittings gapActs) {
 	turns, sittings = gapActs{}, gapActs{}
 	for g, as := range acts {
@@ -214,9 +213,6 @@ func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turn
 	agentOf := map[int]string{}
 	stops := map[string][]int{}
 	for i, e := range evs {
-		if b, ok := recordpb.BodyAs[*recordpb.SittingLimit](e); ok {
-			noTurn[seatSitting{b.GetSeatId(), int(b.GetSitting())}] = true
-		}
 		if seat, opens := at.Opens(e); opens {
 			openings[seat] = append(openings[seat], i)
 		}

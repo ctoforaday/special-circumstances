@@ -322,12 +322,12 @@ func TestAReadingDebtReadiesItsLensOncePerCause(t *testing.T) {
 			}
 		}
 	}
-	// A sitting stopped at the call limit is not sat through: the lens is readied again.
+	// A sitting that never closed is not sat through: the lens is readied again.
 	c := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().register("red-chair").cite("C-00000001").
 		dispatch(2, evLens).registerAs(evLens, "a1").served(evLens, 2).verify(evLens, "C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES).stop("a1").
-		register("red-chair").dispatch(2, evLens).registerAs(evLens, "a2").served(evLens, 2).limit(evLens, 2).stop("a2").register("red-chair")
+		register("red-chair").dispatch(2, evLens).registerAs(evLens, "a2").served(evLens, 2).registerAs(evLens, "a3").register("red-chair")
 	if again := planOfRun(c); !lensReady(again) || !strings.Contains(whyOf(again), "to mint the gap or read again") {
-		t.Errorf("after a sitting stopped at the call limit: parties %+v, why %q — want the lens readied again", again.Parties, again.Why)
+		t.Errorf("after a sitting that never closed: parties %+v, why %q — want the lens readied again", again.Parties, again.Why)
 	}
 }
 

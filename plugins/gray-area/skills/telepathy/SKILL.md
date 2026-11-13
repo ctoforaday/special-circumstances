@@ -100,12 +100,15 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
 
 ## What it cannot tell you
 
-- **A session's app title is not in the record.** The name the app shows is held by the cloud and
-  never written to that session's transcript, so `search <title>` cannot return the titled session —
-  only sessions that printed a session list, or wrote the name down. BEFORE acting on a session the
-  human names, YOU MUST find it by something that was SAID in it, and YOU MUST NOT take a name→id
-  mapping from another session's `assistant` row: that is its claim, and a reattach to the wrong id
-  connects cleanly and says nothing.
+- **Claude session app titles are not in the record; Antigravity titles are display-only.**
+  For Claude Code sessions, the name the app shows is held by the cloud and never written to the
+  transcript, so `search <title>` cannot return the titled session — only sessions that printed a
+  session list, or wrote the name down. For Antigravity conversations, `agents`, `session`, and
+  `send` read the current title from `~/.gemini/antigravity-cli/annotations/<id>.pbtxt` at display
+  time and print it beside the id (display only: ids remain the sole address). BEFORE acting on a
+  session the human names, YOU MUST find it by something that was SAID in it, and YOU MUST NOT take a
+  name→id mapping from another session's `assistant` row: that is its claim, and a reattach to the
+  wrong id connects cleanly and says nothing.
 - **`unknown` liveness is not `ended`.** Liveness is exact on Linux only, and a session from
   another pid namespace is not ours to judge. YOU MUST NOT read `unknown` as "gone".
 - **`lost` is inferred, not measured.** `agents` lists, below the advertised sessions, each session

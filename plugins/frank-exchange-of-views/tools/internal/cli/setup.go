@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 )
 
 // newSetup is the operator command that builds a research run's blackboard — the
@@ -28,7 +26,6 @@ func newSetup() *cobra.Command {
 		topic, model, judgmentModel string
 		lanes                       string
 		k, kMax                     int
-		maxSittingCalls             int
 		maxEpochs                   int
 		convergenceFraction         float64
 		binDir                      string
@@ -60,7 +57,6 @@ func newSetup() *cobra.Command {
 				K:                   k,
 				KMax:                kMax,
 				ConvergenceFraction: convergenceFraction,
-				MaxSittingCalls:     maxSittingCalls,
 				MaxEpochs:           maxEpochs,
 				MaxEpochsSet:        cmd.Flags().Changed(flags.MaxEpochs),
 				BinDir:              binDir,
@@ -85,7 +81,6 @@ func newSetup() *cobra.Command {
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")
 	f.IntVar(&k, flags.K, 0, "consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)")
 	f.IntVar(&kMax, flags.KMax, 0, "total exchanges on one gap — blue's answer and its lens's audit of it — before it is at impasse regardless of movement (default 6; a smoke run passes 2)")
-	f.IntVar(&maxSittingCalls, flags.MaxSittingCalls, 0, "the tool calls one seat may make in one sitting; past it the hook refuses every call but a register and the one returning the seat's envelope, and the record says which seat and sitting stopped (default "+strconv.Itoa(sittingcap.DefaultMaxCalls)+"; recorded in run-config.json)")
 	f.Float64Var(&convergenceFraction, flags.ConvergenceFraction, 0, "fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)")
 	f.IntVar(&maxEpochs, flags.MaxEpochs, 0, fmt.Sprintf("the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default %d; recorded in run-config.json)", record.DefaultParams.MaxEpochs))
 	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")

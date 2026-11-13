@@ -413,3 +413,72 @@ func TestTheMethodIsTheLatestFatesAccount(t *testing.T) {
 		t.Errorf("the superseded underway record does not print its reason and method on its step:\n%s", out)
 	}
 }
+
+// THE INQUIRIES FILTER MATCHES WHAT THE VIEW PRINTS, decoded: a quote holding characters the JSON
+// encoder escapes (& < > " and a line break) is found, a superseded fate's words still select the
+// inquiry because its history is printed, and a key name selects nothing. Every key the page shows
+// is present on an inquiry with nothing in it: `wanting` and `history` as [], `check` and
+// `checked_by` as "".
+func TestTheInquiriesFilterMatchesTheDecodedValuesAndEveryKeyIsPresent(t *testing.T) {
+	runDir := newRun(t)
+	registerChairOnce(t, runDir)
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "whether 91 & 7 share a factor < 10", "--hypothesis", "7 divides 91"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
+		"--id", "Q1", "--as", "underway", "--reason", "the cached copy of the \"factor table\" lists it"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
+		"--id", "Q1", "--as", "confirmed", "--reason", "7 x 13 = 91"); err != nil {
+		t.Fatal(err)
+	}
+	selected := func(args ...string) int {
+		t.Helper()
+		out, err := run(t, append([]string{"show", "--run", runDir, "--seat-id", seat, "inquiries"}, args...)...)
+		if err != nil {
+			t.Fatalf("show inquiries %v: %v\n%s", args, err, out)
+		}
+		var got record.InquiriesJSON
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatalf("show inquiries %v: %v\n%s", args, err, out)
+		}
+		return len(got.Inquiries)
+	}
+	for _, tc := range []struct {
+		args []string
+		want int
+		why  string
+	}{
+		{[]string{"--quote", "91 & 7 share a factor < 10"}, 1, "a quote holding & and < is the question as printed"},
+		{[]string{"--quote", `the "factor table"`}, 1, "a quote holding \" is a superseded fate's reason, and the history is printed"},
+		{[]string{"--match", "^status$"}, 0, "a key name is not text the entry holds"},
+		{[]string{"--match", "^seat_id$"}, 0, "a key name is not text the entry holds"},
+		{[]string{"--quote", "confirmed"}, 1, "the fate is a value"},
+	} {
+		if got := selected(tc.args...); got != tc.want {
+			t.Errorf("show inquiries %v selected %d, want %d: %s", tc.args, got, tc.want, tc.why)
+		}
+	}
+
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "inquiries", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw struct {
+		Inquiries []map[string]json.RawMessage `json:"inquiries"`
+	}
+	if err := json.Unmarshal([]byte(out), &raw); err != nil || len(raw.Inquiries) != 1 {
+		t.Fatalf("show inquiries --json: %v\n%s", err, out)
+	}
+	for key, want := range map[string]string{"wanting": "[]", "check": `""`, "checked_by": `""`} {
+		if got := string(raw.Inquiries[0][key]); got != want {
+			t.Errorf("%s is %q, want %s — the page shows the key, so it is always there\n%s", key, got, want, out)
+		}
+	}
+	if h := string(raw.Inquiries[0]["history"]); !strings.HasPrefix(h, "[") {
+		t.Errorf("history is %q, want a list\n%s", h, out)
+	}
+}

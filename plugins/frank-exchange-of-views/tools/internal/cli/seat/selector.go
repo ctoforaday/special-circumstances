@@ -173,10 +173,13 @@ func visibleText(s string) string {
 // the behaviour again per command is what those gates exist to prevent.
 func AddSelectorFlags(c *cobra.Command, what string) {
 	flags.Text(c, flags.Match,
-		"select only the "+what+" matching this `regex` (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut")
+		"select only the "+what+" matching this `regex` (RE2, case-insensitive) — "+selectorReads+" An alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut")
 	flags.Text(c, flags.Quote,
-		"select only the "+what+" containing this `text` LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else")
+		"select only the "+what+" containing this `text` LITERALLY (case-insensitive) — "+selectorReads+" Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else")
 }
+
+// selectorReads is what the pair is matched against, on every view that carries it.
+const selectorReads = "it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next."
 
 // SelectorOf reads the pair, refusing the two ways a seat can get a wrong answer quietly: asking
 // with both, and asking with a regex that does not compile.
@@ -283,10 +286,16 @@ func reportJSON(head int64, lines []record.ReportLineJSON, selection map[string]
 // defect this surface keeps removing. Every top-level array is a collection of entries, and "which of
 // these is about X" is the same question whichever view asked it.
 //
-// IT MATCHES THE ENTRY'S WHOLE JSON, deliberately: a seat hunting a class, a phrase in a problem, a
+// IT MATCHES EVERY VALUE OF THE ENTRY, deliberately: a seat hunting a class, a phrase in a problem, a
 // seat id in found_by or a word in an acceptance check is asking one question — "which of these is
 // about this?" — and a per-field selector would make it ask once per field, which is the round-trip
 // tax this exists to remove.
+//
+// THE DECODED VALUES, NOT THE ENTRY'S BYTES (entryHits). Matched as encoded JSON, every key name
+// was text — `--match status` selected every inquiry — and a quote holding & < > " or a line break
+// could never match, because the encoder spells them \u0026, \", \n. smoke-1854's voice lens read a
+// `show inquiries --quote` hit as a claim of the latest fate when the words were in a superseded
+// step of its history; the history is printed, so it still matches, and the page now says so.
 //
 // THE COUNTS GO INSIDE THE DOCUMENT, under `selection`. They were on stderr, on the argument that a
 // count folded into the JSON changes the shape a consumer parses — and the seats settle it: measured
@@ -313,7 +322,7 @@ func selectJSONArrays(body []byte, sel Selector) (out []byte, ok bool) {
 		hit := []json.RawMessage{}
 		for _, it := range items {
 			of++
-			if sel.Hits(string(it)) {
+			if entryHits(sel, it) {
 				hit = append(hit, it)
 				kept++
 			}
@@ -338,6 +347,42 @@ func selectJSONArrays(body []byte, sel Selector) (out []byte, ok bool) {
 		return nil, false
 	}
 	return append(b, '\n'), true
+}
+
+// entryHits reports whether the selector hits any value of one entry as its JSON decodes it: each
+// string and number, nested objects and lists included, each matched on its own. Key names, true,
+// false and null are structure, not text, and select nothing.
+func entryHits(sel Selector, raw json.RawMessage) bool {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var v any
+	if dec.Decode(&v) != nil {
+		return false
+	}
+	return valueHits(sel, v)
+}
+
+// valueHits walks one decoded value for a leaf the selector hits.
+func valueHits(sel Selector, v any) bool {
+	switch x := v.(type) {
+	case string:
+		return sel.Hits(x)
+	case json.Number:
+		return sel.Hits(x.String())
+	case []any:
+		for _, e := range x {
+			if valueHits(sel, e) {
+				return true
+			}
+		}
+	case map[string]any:
+		for _, e := range x {
+			if valueHits(sel, e) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // WriteSelected is the ONE way a projection's JSON leaves this package.

@@ -21,8 +21,8 @@ import (
 const Next Phase = "next"
 
 // deliveryDir holds, per lens sitting, what the lens was last handed: the current item's key and
-// digest, and the keys queued beside it. It lives under the run directory beside .sitting-calls,
-// keyed the same way — the agent and its sitting — and it holds identities only, never content.
+// digest, and the keys queued beside it. It lives under the run directory, keyed by the agent and
+// its sitting, and it holds identities only, never content.
 const deliveryDir = ".work-delivery"
 
 // delivered is what a lens sitting was last handed.

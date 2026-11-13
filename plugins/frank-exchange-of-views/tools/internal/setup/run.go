@@ -12,7 +12,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"io"
 	"os"
 	"path/filepath"
@@ -34,10 +33,6 @@ type Config struct {
 	// states what bound the run.
 	K, KMax             int
 	ConvergenceFraction float64
-	// MaxSittingCalls is the tool calls one seat may make in one sitting before the PreToolUse
-	// hook refuses the rest but its envelope (internal/sittingcap). Zero means
-	// sittingcap.DefaultMaxCalls.
-	MaxSittingCalls int
 	// MaxEpochs is the run's epoch limit; zero is setup's default unless MaxEpochsSet says the
 	// operator passed it, and a value the operator passed below 1 is refused.
 	MaxEpochs    int
@@ -297,10 +292,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.MaxEpochs > 0 {
 		terms.MaxEpochs = cfg.MaxEpochs
 	}
-	maxCalls := sittingcap.DefaultMaxCalls
-	if cfg.MaxSittingCalls > 0 {
-		maxCalls = cfg.MaxSittingCalls
-	}
 	// THE RUN'S CONFIGURATION IS WRITTEN OR SETUP FAILS: every record reader of the run's terms, its
 	// lane count and its consent reads this file, and a run set up without it would run on defaults
 	// nobody chose.
@@ -322,9 +313,8 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
 		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
-		MaxSittingCalls: maxCalls,
-		Hooks:           hooks,
-		Billing:         ReadBillingIdentity()}
+		Hooks:   hooks,
+		Billing: ReadBillingIdentity()}
 	b, err := marshalJSON(rc)
 	if err != nil {
 		return failEncode(err)

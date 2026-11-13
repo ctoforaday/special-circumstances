@@ -23,7 +23,7 @@ import (
 //
 // EVERY MIGRATED RUN'S TERMS READ. The record reads inputs/run-config.json strictly, refusing a key
 // the run's configuration does not declare, so an archived key the configuration no longer has —
-// the mint cap's `mintBudget` — refuses the migrated run's terms unless the channel copy drops it.
+// the mint cap's `mintBudget`, the call limit's `maxSittingCalls` — refuses the migrated run's terms unless the channel copy drops it.
 // And the epoch the file states is the one the migrated record is written at.
 func TestEveryArchivedRunMigrates(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
