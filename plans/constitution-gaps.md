@@ -404,13 +404,14 @@ sense, so the chair's kind is not named after it):
 3. **Gap passages** (`gap_passage`): for a lens, each gap it minted, open or closed; for the bench, each gap a convened
    motion is about — its passage in the delivery's text, `PassageAround` as today, except that a `report_voice` gap's
    passage is its **whole section**, split as in 1 and never trimmed (P9 judges the section). A gap whose anchor is
-   gone from the report has no passage; its item says so.
+   gone from the report has no passage; in a changes delivery its item says so, and a whole delivery serves no item
+   for it (the whole report holds no text of it).
    - **Deduplication (r3 GAP 2).** A gap's passage is left out of a delivery only when another **rowed** item of the
      same (sitting, `as_of`) delivery — a `report_change` item, or an earlier `gap_passage` item — carries every
      character of it. The gap's own open-gap item (the `reaudit` entry, whose passage `fitted()`/`clipPassage` clip,
      `delivery.go:196-312`, and `PassageAround` trims at 6,000 characters, and which gets no row) **never counts**: it is
      navigation, not delivery. A fuzz invariant fails any complete delivery in which a gap passage is neither served
-     nor contained whole in its rowed items.
+     nor contained whole in its rowed items (a gap whose anchor is gone has no passage and is exempt).
 4. **Area changes** (`area_change`, the chair): for one stale area, each change after that lens's pin and up to the delivery's text that carries no bearing yet, as section heading and
    old → new text, packed to the budget per area; the item names the area. A change already borne is never served
    again. The tool binds each item to the changes it carried; those are what a bearing on it is recorded against.
@@ -482,10 +483,13 @@ delivery serves no old side; the pin moves to its head.
   depends on, at a head at or after the latest change to it:
   - [MODIFY] `close` (`record.go` Close arm): the gap's passage, from its whole-report delivery, a `report_change` item
     holding the paragraph, or its `gap_passage` item. Refused otherwise, naming that the passage arrives on the work list.
+    **A gap whose anchor is gone from the report** (blue retired its claim) depends on no report text, so its close is
+    not gated: there is no text to deliver, and a whole delivery — a first sitting or a full re-read — holds none for
+    it. The same holds for a bench ruling on a motion about such a gap.
   - [MODIFY] `spot-check` (§III.4 D(2)): the bearings are recorded against the current `area_change` item, which must be
     rowed in this sitting.
   - [MODIFY] the bench's ruling on a motion about gaps (`motion … rule`; docket, remand, grade): every `gap_passage`
-    item for the gaps the motion is about, rowed in this sitting.
+    item for the gaps the motion is about whose anchor stands in the report, rowed in this sitting.
   - Under Antigravity no row is written, so none of these acts is accepted and an agy run cannot PASS (R2).
 - [MODIFY] `record/reportread.go`: [NEW] `deliveriesOf` replaces `servedOf`: per seat, per sitting, per `as_of`, the
   rows, `head`, `of`, the kinds, and **complete** (rows cover `1..of`). **The pin** (a lens's) is the latest head at
@@ -512,10 +516,11 @@ delivery serves no old side; the pin moves to its head.
   and the engine's own stops bound the repeats.
 - **A delivery that cannot advance fails the sitting at once, with its reason** (ruled by gblock 2026-11-13). A
   delivery cannot advance when the writer cannot hand the next report-text item: the record cannot be read or written,
-  the lock is not taken within `lockWait`, the row is refused at the write, a render is over the budget (a cutter
+  the delivery file cannot be written, the row is refused at the write, a render is over the budget (a cutter
   defect its test forbids), or **the engine delivers no hook text into the seat** (Antigravity today: the reason is
   "this harness delivers no hook text into the seat", so an agy sitting with a report-text item fails at its first
-  one rather than holding its envelope refused until `maxTurns`). Then the writer hands nothing for the item and writes no row, and:
+  one rather than holding its envelope refused until `maxTurns`). A lock not taken within `lockWait` is not one of
+  these: another call of the same seat holds it and is handing the item, so this call hands nothing, as today. Then the writer hands nothing for the item and writes no row, and:
   - [NEW] it appends `DeliveryStopped{kind, item, of, as_of, reason}` (`delivery_stopped`, 0 hits) under the seat's id
     in the open sitting, with the cause in `reason`, when the record can still be written; and a `hookfailures`
     failure (`StageNextItem`) in every case, as `nextItem` does today;
@@ -535,7 +540,8 @@ delivery serves no old side; the pin moves to its head.
     the chair's and blue's failures stop the debate at `NO_PROGRESS_EPOCHS` (`seatStop`, debate.js:951-953,
     :1026-1028), UNVERIFIED, naming the seat.
   - **Measured before it is relied on:** whether a PostToolUse `continue: false` ends a Workflow seat's turn is not
-    measured. P3's PR measures it on its universe smoke (§V 11) before merge. If it does not, the PreToolUse refusal
+    measured. P3's PR measures it on its universe smoke (§V 11) before merge. For a report-text item handed at
+    SubagentStart there is no PostToolUse to carry the stop; the PreToolUse refusal is the stop there. If it does not, the PreToolUse refusal
     is the stop, and the turns a seat spends before it ends (it can neither call the record nor return its envelope)
     are reported to gblock, not designed around.
   - A sitting in flight when the outcome is recorded (HALT, or the outcome stamp) is stopped this way: with the
@@ -594,8 +600,10 @@ it — never VERIFIED and never "nobody ready" over a debt.
 
 - [DELETE] `record.ServeReport` and its caller in `cli/seat/verbs.go:966-991`. `show report` serves text and records
   nothing in every form; the `--anchor`/`--quote`/`--match`/`--window` reads are unchanged.
-- [MODIFY] `record/recordpb/record.proto` `ReportRead`: add `int32 item = 2`, `int32 of = 3`, `string kind = 4`
-  (the item kind, refused unless a report-text kind), `int64 as_of = 5`, required on new writes; [NEW] `message
+- [MODIFY] `record/recordpb/record.proto` `ReportRead`: add `int32 item = 2`, `int32 of = 3`, `ReportItemKind kind = 4`,
+  `int64 as_of = 5`, required on new writes; [NEW] `enum ReportItemKind {REPORT_ITEM_KIND_UNSPECIFIED, REPORT_SECTION,
+  REPORT_CHANGE, GAP_PASSAGE, AREA_CHANGE}` with `means` text (0 hits for the name), so its `enum_report_item_kind`
+  table's foreign key refuses a value that is no report-text kind at the write; [NEW] `message
   DeliveryStopped` (event type next free). The comment and `EVENT_TYPE_REPORT_READ`'s `means` say "the tool handed this
   report-text item's full text into the seat's context on its work list". **Epoch bump.** `migrate`: an archived
   `report_read` was a serve of the whole report through stdout, so it translates to `{head, item: 1, of: 1, kind:
@@ -1071,12 +1079,13 @@ those noted.
       `report_section`. At an unmoved head with no own gap: exactly one item, stating the text is unchanged.
     - **Invariants over every board the fuzz reaches:** every `report_read` row's item rendered by
       `reportItemDelivery` is ≤ `DeliveryBudget` bytes and carries no `_clipped`/`_omitted` field; the report text of a
-      whole delivery's items, concatenated, equals the report as of its `as_of`; **every complete delivery's gap
-      passages are each either served as a `gap_passage` item or contained whole in another rowed item of the same
+      whole delivery's items, concatenated, equals the report as of its `as_of`; **every complete changes delivery's
+      gap passages (each own gap whose anchor stands) are each either served as a `gap_passage` item or contained whole in another rowed item of the same
       (sitting, `as_of`) delivery** (r3 GAP 2: a passage left out because the gap's clipped open-gap item carried it
       fails); no row is written for a seat whose role does not hold its kind.
     - **A delivery that cannot advance.** Three drives: the writer's record write fails (fault injected in the
-      writer); the row is refused at the write (a repeated `item` forced into the same delivery); the engine is
+      writer); the row is refused at the write (a repeated `item` forced into the same delivery through a test seam in the
+      writer, `sittingwrite`'s internal test hook, since no live path repeats one); the engine is
       Antigravity. Gate for each: no row for the item; a `delivery_stopped` row naming it and the cause (the first
       two where the record can be written; the third always); the seat's next call to the record and its envelope are
       refused with that reason; the sitting closes unadmitted and `FailedSittingsOf` gives the reason; the next plan's
@@ -1275,7 +1284,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     ```
     export WORKDIR=~/.claude/scratch/universe-p3
     scripts/universe.sh build
-    grep -rl 'report_section' "$WORKDIR.marketplace/plugins/frank-exchange-of-views/"   # non-empty: the installed copy carries P3
+    grep -l 'unmoved head' "$WORKDIR.marketplace/plugins/frank-exchange-of-views/agents/red-chair.md"   # the loaded copy carries P3's agent text
+    scripts/universe.sh doctor                     # feov-record's schema epoch is P3's and its build is the PR's commit
     scripts/universe.sh run "<a short topic>"      # SMOKE=1 is the default
     scripts/universe.sh watch                      # second shell
     ```
@@ -1283,8 +1293,8 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     each lens — was handed its items one at a time (the `.work-delivery` files and the transcripts' hook
     `additionalContext`); each lens's first sitting has a complete whole delivery; every `report_read` row's text is
     in its seat's transcript, unclipped; no envelope was returned with a report-text item unhanded. **The stop is
-    measured here:** one sitting's delivery is failed by hand (the run directory's `.work-delivery` lock held past
-    `lockWait`), and the transcript shows whether the PostToolUse `continue: false` ended the seat's turn; the result
+    measured here:** one sitting's delivery is failed by hand — its `.work-delivery` directory made unwritable, so
+    `lockDelivery`'s `O_CREATE` fails with EACCES (a real writer error, with no timing in it) — and the transcript shows whether the PostToolUse `continue: false` ended the seat's turn; the result
     goes in the PR body and, if the stop did not hold, to gblock (R14). Re-armed by: any change to `sittingwrite/`,
     `hookcmd/`, `hookgate/`, `shared/hookcore` or `hooks.json`.
 
