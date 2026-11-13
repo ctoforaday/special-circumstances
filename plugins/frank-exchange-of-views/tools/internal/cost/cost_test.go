@@ -172,6 +172,44 @@ func TestPriceReproducesTheClientsBill(t *testing.T) {
 	}
 }
 
+// THE SONNET 5.5 ROW, ONE CASE PER TOKEN CLASS, then the client's bill for all of them together.
+// The total is the 2026-11-10 development run's modelUsage for claude-sonnet-5-5 from the stream's
+// result event (costBasis: list; every cache write five-minute). A cache read is the class that
+// carries the run: 53M tokens of it against 354K of output.
+func TestSonnetFivePointFiveIsPricedPerTokenClass(t *testing.T) {
+	const m = 1_000_000
+	for _, c := range []struct {
+		class string
+		turn  seatturn.Turn
+		want  float64
+	}{
+		{"uncached input", seatturn.Turn{Input: m}, 2},
+		{"output", seatturn.Turn{Output: m}, 10},
+		{"cache read", seatturn.Turn{CacheRead: m}, 0.10},
+		{"five-minute cache write", seatturn.Turn{CacheCreation: m}, 2.50},
+		{"one-hour cache write", seatturn.Turn{CacheCreation: m, CacheCreation1h: m}, 4},
+	} {
+		got, ok := Price(c.turn, "claude-sonnet-5-5")
+		if !ok || math.Abs(got-c.want) > 1e-9 {
+			t.Errorf("1M tokens of %s = $%v (priced=%v), want $%v", c.class, got, ok, c.want)
+		}
+	}
+	run := seatturn.Turn{Input: 1001, Output: 354300, CacheRead: 53255246, CacheCreation: 4415339}
+	got, ok := Price(run, "claude-sonnet-5-5")
+	if !ok || math.Abs(got-19.9088741) > 1e-7 {
+		t.Errorf("Sonnet 5.5 = $%.7f (priced=%v), want the client's $19.9088741", got, ok)
+	}
+}
+
+// SONNET 5 KEEPS ITS OWN CACHE-READ RATE. The two Sonnet rows differ in that one figure, and a row
+// copied from its neighbour is how the 5.5 row came to be wrong.
+func TestSonnetFiveReadsItsCacheAtItsOwnRate(t *testing.T) {
+	got, ok := Price(seatturn.Turn{CacheRead: 1_000_000}, "claude-sonnet-5")
+	if !ok || math.Abs(got-0.20) > 1e-9 {
+		t.Errorf("1M cache-read tokens on Sonnet 5 = $%v (priced=%v), want $0.20", got, ok)
+	}
+}
+
 // A HAIKU 5.5 PROMPT OVER 100K TOKENS PAYS THE LONG CARD, and the threshold is the PROMPT — uncached
 // input, cache read and cache write — not any one of them.
 func TestHaikuFivePointFiveHasTwoRateCards(t *testing.T) {

@@ -61,11 +61,15 @@ func (c Card) rateFor(prompt int) Rate {
 // rates: $2.41 for what the client billed at $0.29.
 //
 // The rows are Anthropic's published first-party rates. Cache reads are 0.1x input except where a
-// row says otherwise (Opus 5.5 0.05x, Fable 5.1 0.025x); a five-minute write is 1.25x input and a
-// one-hour write 2x. Checked against the client's own costUSD on the 2026-10-17 smoke: the seats'
-// Haiku 5.5 requests priced here, plus the client's own small Haiku calls and two web searches,
-// come to $0.3169418 against the client's $0.3169418; the lead session's Opus 5.5 usage to
-// $0.4910016 against $0.4910016.
+// row says otherwise (Opus 5.5 and Sonnet 5.5 0.05x, Fable 5.1 0.025x); a five-minute write is
+// 1.25x input and a one-hour write 2x. Checked against the client's own costUSD on the 2026-10-17
+// smoke: the seats' Haiku 5.5 requests priced here, plus the client's own small Haiku calls and two
+// web searches, come to $0.3169418 against the client's $0.3169418; the lead session's Opus 5.5
+// usage to $0.4910016 against $0.4910016. Sonnet 5.5 is checked on the 2026-11-10 development run:
+// the client's token counts for the model, which the run's seat_turn rows sum to exactly, priced
+// here come to $19.9088741 against its $19.9088741. That run wrote no one-hour cache, so the Sonnet
+// 5.5 one-hour rate is the published 2x alone. A row with no such check is the published rate and
+// nothing more.
 var Prices = map[string]Card{
 	"claude-fable-5-1":  {Rate: Rate{10, 50, 0.25, 12.50, 20}, Window: 1_000_000},
 	"claude-fable-5":    {Rate: Rate{10, 50, 1.00, 12.50, 20}, Window: 1_000_000},
@@ -74,7 +78,7 @@ var Prices = map[string]Card{
 	"claude-opus-4-8":   {Rate: Rate{5, 25, 0.50, 6.25, 10}, Window: 1_000_000},
 	"claude-opus-4-7":   {Rate: Rate{5, 25, 0.50, 6.25, 10}, Window: 1_000_000},
 	"claude-opus-4-6":   {Rate: Rate{5, 25, 0.50, 6.25, 10}, Window: 1_000_000},
-	"claude-sonnet-5-5": {Rate: Rate{2, 10, 0.20, 2.50, 4}, Window: 1_000_000},
+	"claude-sonnet-5-5": {Rate: Rate{2, 10, 0.10, 2.50, 4}, Window: 1_000_000},
 	"claude-sonnet-5":   {Rate: Rate{2, 10, 0.20, 2.50, 4}, Window: 1_000_000},
 	"claude-sonnet-4-6": {Rate: Rate{3, 15, 0.30, 3.75, 6}, Window: 1_000_000},
 	"claude-haiku-5-5": {
