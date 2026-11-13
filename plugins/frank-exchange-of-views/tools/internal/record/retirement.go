@@ -144,7 +144,7 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 //     (blueAnswersOf), a retire that reached it (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
 //     remand of it, another seat's finding about it (findingsAboutGapsOf) — each owed until the lens
 //     sits through a sitting opened after it arrived (satThrough), whether or not that sitting acts
-//     on it. A sitting stopped at the call limit, or one that never closed, does not end the debt. A gap it holds with
+//     on it. A sitting that never closed does not end the debt. A gap it holds with
 //     nothing new on it owes nothing: every act a lens has on its own gap waits on another seat's act,
 //     or is a judgement it could make at mint, so a later sitting with nothing new gives it nothing to
 //     act on. universe-m28's architecture and voice lenses held their own gaps that are not material,
@@ -482,8 +482,8 @@ type LastReadJSON struct {
 // would tell a lens halfway through the audit it was just served that it has nothing to audit. D is
 // the latest dispatch naming the seat (the one it sits for, or owes); the pin before this sitting is
 // its reads in sittings that opened before D and that it sat through (satThrough), so a sitting
-// stopped at the call limit or never closed is not a read of the report it was served; this sitting
-// is the one it opened for D (sittingFor).
+// that never closed is not a read of the report it was served; this sitting is the one it opened
+// for D (sittingFor).
 func lastReadOf(evs []*Event, ids []int64, win WindowIndex, seatID string) LastReadJSON {
 	ds, openings := dispatchLedger(evs, ids, win)
 	var cur *dispatchRow

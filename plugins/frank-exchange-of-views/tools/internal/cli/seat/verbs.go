@@ -24,7 +24,6 @@ import (
 	// Places renders the report through the renderer reportproj registers with the record.
 	_ "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -66,20 +65,6 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 		return nil, err
 	}
 	r := registerResult{SeatID: s.SeatID, Dispatch: dispatch, RunVia: string(s.RunVia)}
-	// THE SITTING'S TOOL-CALL COUNT STARTS HERE, keyed by the sitting this register opened or
-	// joined: the seat's stored sitting count, the number every `#N` on the record reads. A register
-	// that opens a sitting starts a fresh count; one that joins its bracket's sitting, or a second
-	// register in one sitting, keeps counting in that sitting. An operator is never limited; an
-	// agent with no id cannot be counted.
-	if agent := seatenv.AgentID(); agent != "" && s.SeatID != record.OperatorRole {
-		sitting, err := record.SittingsOf(s.Identity().Run, s.SeatID)
-		if err == nil {
-			err = sittingcap.Open(s.Identity().Run.Dir(), agent, sittingcap.Header{SeatID: s.SeatID, Sitting: sitting})
-		}
-		if err != nil {
-			r.TurnLimitUnarmed = err.Error()
-		}
-	}
 	// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
 	//
 	// register is where the seat writes its own agent->seat binding, so it is also the first and
@@ -1251,9 +1236,6 @@ type registerResult struct {
 	// HookAbsent says the hook is not reaching the RUN, rather than only the identity being
 	// missing — every seat in it is affected, not just this one.
 	HookAbsent bool `json:"hook_absent,omitempty"`
-	// TurnLimitUnarmed is why this sitting's tool calls are not being counted, when the count
-	// could not be opened. Empty when it was.
-	TurnLimitUnarmed string `json:"turn_limit_unarmed,omitempty"`
 }
 
 func (r registerResult) Human() string {
@@ -1288,10 +1270,6 @@ func (r registerResult) Human() string {
 			"recorded against it. What is lost is the identity binding, and the fix for that is " +
 			"above. Record the hook's absence ONCE in the log — you are the first party " +
 			"that can see it, and the run leaves no other trace of it."
-	}
-	if r.TurnLimitUnarmed != "" {
-		out += "\n\nThis sitting's tool calls are not being counted against the run's limit (" +
-			r.TurnLimitUnarmed + "). Record it once in the log."
 	}
 	return out
 }

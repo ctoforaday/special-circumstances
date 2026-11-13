@@ -222,7 +222,7 @@ func (x WindowIndex) LatestSittingOf(seat string) int64 {
 
 // CurrentEpoch is the epoch the debate's work has reached: the stored epoch of the last event in
 // evs that is work. A register is not, and neither is anything the harness wrote — its sitting
-// brackets, its tool-call limits, the cast (HarnessSeat on the envelope) — nor a stored plan, the
+// brackets, the cast (HarnessSeat on the envelope) — nor a stored plan, the
 // record's copy of what `dispatch next` printed: a chair that has just sat opens a new epoch on the
 // record, and its hook's own bookkeeping lands in it, but until something is done in it the current
 // one is still the last with work in it — which is what "stale since the current epoch" has to mean

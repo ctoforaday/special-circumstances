@@ -160,9 +160,6 @@ func TestThePhaseStringsMatchTheWriters(t *testing.T) {
 	if phaseClose != string(sittingwrite.Close) {
 		t.Errorf("the hook sends phase %q and the writer parses %q — every close end would be refused", phaseClose, sittingwrite.Close)
 	}
-	if phaseLimit != string(sittingwrite.Limit) {
-		t.Errorf("the hook sends phase %q and the writer parses %q — no sitting limit would reach the record", phaseLimit, sittingwrite.Limit)
-	}
 	if phaseEnvelope != string(sittingwrite.Envelope) {
 		t.Errorf("the hook sends phase %q and the writer parses %q — no envelope would be checked against the record", phaseEnvelope, sittingwrite.Envelope)
 	}

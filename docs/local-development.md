@@ -15,8 +15,7 @@ A scratch harness that reimplements the Workflow tool over a pool of `claude -p`
 equivalent and is not. Measured, each of these cost a day:
 
 - **Seats spawned as top-level processes never fire `SubagentStart`/`SubagentStop`.** No sitting
-  span is written, and `gray-area` capture has no transcript to bind. (The per-sitting tool-call cap
-  survives only because `sittingcap` keys on the register event — its package comment says why.)
+  span is written, and `gray-area` capture has no transcript to bind.
 - **A harness that pastes each seat's JSON schema into the prompt and then accepts any parseable
   object is not enforcing it.** The real harness enforces it. An arm died twelve sittings in on a
   relayed plan missing a field the tool always writes; the defect was in the instrument.

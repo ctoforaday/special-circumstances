@@ -49,9 +49,15 @@ func TestABracketedSeatsSittingsAreNumberedWithoutRegisters(t *testing.T) {
 		add(HarnessSeat, open("agent-1")).
 		add(HarnessSeat, open("agent-2")).seed()
 
-	n, err := SittingsOf(run, evLens)
+	m, err := MergedEvents(run)
 	if err != nil {
-		t.Fatalf("SittingsOf: %v", err)
+		t.Fatal(err)
+	}
+	n := 0
+	for _, e := range m.Events {
+		if s, opens := m.At.Opens(e); opens && s == evLens {
+			n++
+		}
 	}
 	if n != 2 {
 		t.Errorf("a seat bracketed twice has had %d sitting(s), want 2 — the ordinal counts what "+

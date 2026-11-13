@@ -101,11 +101,14 @@ func SeatBindings(run Run) (map[string]SeatBinding, error) {
 // THE TWO QUESTIONS ARE DIFFERENT AND ONE OF THEM GATES A WRITE. "Which seat is this agent" is
 // answered as generously as the record allows, because naming a seat after the fact is better than
 // reporting none — that is SeatOfAgent, and capture wants it. "May this agent write" is a narrower
-// question, because a register event does something a bracket cannot: it opens the sitting the
-// per-call cap counts in (sittingcap keys on the register header). An agent bound only by a bracket
-// that is allowed to write is therefore an UNCAPPED sitting — measured on universe-m12, where one
-// lens ran three sittings and 125 turns with no counter file at all, and the only party that
-// noticed was `verify`, reporting a failed invariant on a run the engine called VERIFIED.
+// question, because a register event does what a bracket cannot: RegisterSeat holds the seat id
+// to the roster, the run's cast and the agent's attested configuration, and refuses a run
+// directory that does not exist, and the event records which path supplied the run directory
+// (run_via), which is how a run the hook is not reaching shows on the record. `verify`'s
+// register-before-append holds every seat's first event to be that register. An agent bound only
+// by a bracket and allowed to write passes none of those gates and fails that invariant — measured
+// on universe-m12, where three seats wrote before registering and `verify` reported the failed
+// invariant on a run the engine called VERIFIED.
 func RegisteredSeatOfAgent(run Run, agentID string) (string, bool, error) {
 	if agentID == "" {
 		return "", false, nil
@@ -119,18 +122,6 @@ func RegisteredSeatOfAgent(run Run, agentID string) (string, bool, error) {
 		return "", false, err
 	}
 	return seat, true, nil
-}
-
-// SittingsOf is how many sittings a seat has opened — its own registers AND the harness brackets
-// that name it, less the registers that repair a sitting rather than open one: the rank stored on
-// its latest opening (events.sitting), 0 for a seat that never sat.
-func SittingsOf(run Run, seatID string) (int, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return 0, err
-	}
-	_, n, err := latestSittingAt(db, seatID)
-	return int(n), err
 }
 
 // DiscardedForSeat IS NOT PORTED, and its absence is the honest answer rather than an omission.

@@ -372,7 +372,6 @@ func TestAWindowIndexTheLoaderDidNotBuildPanics(t *testing.T) {
 // THE CURRENT EPOCH IS THE LAST ONE WITH WORK IN IT, and nothing the harness writes is work. A chair
 // that registers and stops leaves its register, its hook bracket and its hook's stop in the new
 // epoch; none of them is an act of the debate, so an inquiry whose fate was recorded in the previous epoch is not stale
-// yet. A limit the hook stopped a sitting at is the same: the harness's word, not a seat's.
 func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
 	m := loadedT(t,
 		recordtest.Event(t, "red-chair", &recordpb.Register{AgentId: proto.String("C1")}),
@@ -382,8 +381,6 @@ func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
 		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("C2"),
 			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{AgentId: proto.String("C2")}),
-		recordtest.Event(t, HarnessSeat, &recordpb.SittingLimit{
-			SeatId: proto.String("red-chair"), Sitting: proto.Int32(2), Limit: proto.Int32(40)}),
 		recordtest.Event(t, HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("C2")}),
 	)
 	if got := m.At.LastEpoch(m.Events); got != 2 {

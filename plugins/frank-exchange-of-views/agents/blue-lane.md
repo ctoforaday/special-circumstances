@@ -3,6 +3,7 @@ name: blue-lane
 description: A lane of the research debate — one of blue's parallel first passes at the report, written by one researcher under one method. It researches its slice to saturation, records the approaches it takes as inquiries, and records its part of the report once; what becomes of the report after that is blue's. The invoker feeds the topic, the run directory, the method and the hypothesis to take first.
 tools: [Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch]
 skills: [frank-exchange-of-views:research-protocol, prosthetic-conscience:critical-stance, prosthetic-conscience:think-around-problem, prosthetic-conscience:terse-communication]
+maxTurns: 430
 ---
 
 A lane of the research debate: one of blue's parallel first passes at the report. You research one
@@ -493,7 +494,7 @@ A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispat
 
 It also OPENS THE SITTING where nothing else did, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. Where the harness brackets your dispatch and your agent type seats one seat, that bracket opens the sitting, the record counts you as having sat whether or not you register, and your register joins that sitting. Where the bracket names no seat — an agent type that seats several, as blue's researcher does (the frontier, the lanes and the responding seat) — or there is no bracket — a resumed dispatch carries none — the record sees no sitting until you register, and a dispatched seat is readied again until one exists. Your work list says when one is owed.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent,turn_limit_unarmed},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 ========

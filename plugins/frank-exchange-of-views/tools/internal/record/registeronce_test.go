@@ -17,6 +17,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
@@ -85,8 +86,8 @@ func TestARepeatedRegisterIsRefusedAndWritesNothing(t *testing.T) {
 	if n := registersOf(t, run, "red-chair"); n != 12 {
 		t.Errorf("twelve sittings hold %d registers", n)
 	}
-	if n, err := record.SittingsOf(run, "red-chair"); err != nil || n != 12 {
-		t.Errorf("SittingsOf = %d, %v; want 12", n, err)
+	if n := runtest.SittingsOpened(t, run, "red-chair"); n != 12 {
+		t.Errorf("the chair opened %d sittings; want 12", n)
 	}
 }
 
@@ -116,8 +117,8 @@ func TestARepeatedRegisterOpensNoSecondSitting(t *testing.T) {
 	}
 	_, _, err := record.RegisterSeat(blue, "", "")
 	refusedRepeat(t, err, "dispatch 1")
-	if n, err := record.SittingsOf(run, "blue-respond"); err != nil || n != 1 {
-		t.Errorf("SittingsOf = %d, %v; want 1", n, err)
+	if n := runtest.SittingsOpened(t, run, "blue-respond"); n != 1 {
+		t.Errorf("blue opened %d sittings; want 1", n)
 	}
 	if n := registersOf(t, run, "blue-respond"); n != 1 {
 		t.Errorf("%d registers on the record", n)

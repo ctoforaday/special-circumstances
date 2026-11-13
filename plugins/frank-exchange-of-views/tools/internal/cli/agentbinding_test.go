@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,7 +9,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -168,11 +164,6 @@ func applyExports(t *testing.T, payload string) {
 // nothing else, which is a fact the tool already holds, so the refusal asked the seat to tell the
 // tool what the tool knew. Measured on universe-m11: 8 of 9 sittings with nothing owed registered
 // anyway, and on universe-m12, 17 of the run's calls were registers.
-//
-// AND THE SITTING'S CAP IS ARMED BY IT, which is the half that makes this a defect fix rather than
-// a convenience. sittingcap keys its counter on the register header, so an agent permitted to write
-// without one is an UNCAPPED sitting — m12's red-lens-evidence ran three sittings and 125 turns
-// with no counter file at all.
 func TestAnAgentActingFirstIsRegisteredForIt(t *testing.T) {
 	runDir := seatRun(t)
 	const agent = "agent_that_never_registered"
@@ -192,40 +183,23 @@ func TestAnAgentActingFirstIsRegisteredForIt(t *testing.T) {
 	}
 	if !found || seat != "red-lens-evidence" {
 		t.Errorf("after acting, the agent resolves to %q/%v by REGISTER — a silent registration that "+
-			"leaves no register event arms no cap and vouches for no identity", seat, found)
-	}
-
-	// AND THE COUNTER EXISTS. This is the assertion the defect was invisible without: the header is
-	// what Count reads, and its absence is not an error anywhere — an agent with no header is simply
-	// never limited, so the hole reported nothing at all.
-	header := filepath.Join(runDir, sittingcap.Dir, agent+".json")
-	b, err := os.ReadFile(header)
-	if err != nil {
-		t.Fatalf("no per-sitting counter for an agent that acted: %v — the sitting is uncapped, and "+
-			"nothing downstream says so", err)
-	}
-	var h sittingcap.Header
-	if err := json.Unmarshal(b, &h); err != nil {
-		t.Fatal(err)
-	}
-	if h.SeatID != "red-lens-evidence" || h.Sitting < 1 {
-		t.Errorf("the counter names %q sitting %d, so the calls would be counted against the wrong window", h.SeatID, h.Sitting)
+			"leaves no register event passes no identity gate and vouches for no identity", seat, found)
 	}
 }
 
-// A BRACKETED SEAT THAT ACTS IS REGISTERED AND CAPPED — the case between the two the design already
-// had, and the one universe-m12 lost a lens in.
+// A BRACKETED SEAT THAT ACTS IS REGISTERED — the case between the two the design already had, and
+// the one universe-m12 lost a lens in.
 //
 // The free sitting (#1089) is deliberate: a woken seat with nothing owed runs ZERO commands, because
 // the harness bracket satisfies the dispatch and names the seat. Nothing here touches that — a seat
 // that makes no calls has nothing to register FOR. What the bracket must not do is stand in for a
-// register once the seat starts WRITING, because the per-sitting call cap keys on the register
-// header: on m12, red-lens-evidence was bracket-bound, never registered, and ran three sittings and
-// 125 turns with no counter file at all.
+// register once the seat starts WRITING, because the register is where the identity gates run and
+// the first event `verify` requires of a seat: on m12, red-lens-evidence was bracket-bound, never
+// registered, and wrote for three sittings past every one of them.
 //
 // So the bracket answers "who is this" (a read, and the free sitting needs it) and does not answer
-// "may this write" (a gate, and the cap depends on it).
-func TestABracketBoundSeatThatActsIsRegisteredAndCapped(t *testing.T) {
+// "may this write" (a gate).
+func TestABracketBoundSeatThatActsIsRegistered(t *testing.T) {
 	runDir := seatRun(t)
 	rec := runtest.Open(t, runDir)
 	const agent = "agent_bracketed_and_never_registered"
@@ -250,19 +224,14 @@ func TestABracketBoundSeatThatActsIsRegisteredAndCapped(t *testing.T) {
 			"unreachable and every seat registers anyway.", err)
 	}
 
-	// AN ACT IS DIFFERENT, and after it the counter exists.
+	// AN ACT IS DIFFERENT, and after it the register exists.
 	if _, err := run(t, "log", "--run", runDir, "--type", "defect", "--reason", "acting on a bracket alone"); err != nil {
 		t.Fatalf("a bracket-bound seat's act was refused: %v", err)
 	}
 	if _, found, err := record.RegisteredSeatOfAgent(rec, agent); err != nil {
 		t.Fatal(err)
 	} else if !found {
-		t.Error("the bracket stood in for a register, so nothing opened the sitting the cap counts in")
-	}
-	if _, err := os.Stat(filepath.Join(runDir, sittingcap.Dir, agent+".json")); err != nil {
-		t.Errorf("a bracket-bound seat wrote to the record with no per-sitting counter: %v\n\n"+
-			"sittingcap.Count reads this header and treats its absence as \"not a seat, never limited\", so "+
-			"the sitting runs uncapped and no surface reports it.", err)
+		t.Error("the bracket stood in for a register, so the seat wrote past every identity gate")
 	}
 }
 

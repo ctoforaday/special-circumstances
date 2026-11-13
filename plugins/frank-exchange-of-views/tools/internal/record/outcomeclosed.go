@@ -20,8 +20,7 @@ import (
 //
 // WHAT STILL LANDS, and each is a writer the run's end does not close:
 //   - the harness (HarnessSeat): the cast, the sitting spans its hooks write as a seat stops — the
-//     assembly sitting's own close is after the outcome — a sitting's tool-call limit, and the
-//     engine's stop (cli/enginestopped.go), which records a stop after the outcome on purpose. The
+//     assembly sitting's own close is after the outcome — and the engine's stop (cli/enginestopped.go), which records a stop after the outcome on purpose. The
 //     operator's verbs write under it (setup, engine-stopped) or write no event (capture's seat
 //     turns are a table of their own), so no event is the operator's to exempt;
 //   - every log entry: the channel friction travels on, the tool's refusal entries included, so the

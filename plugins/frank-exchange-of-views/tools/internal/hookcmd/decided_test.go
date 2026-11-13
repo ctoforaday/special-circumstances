@@ -21,7 +21,7 @@ import (
 // the hook binary runs it, from a payload in a project whose run holds the outcome mark: the run
 // directory is injected for a bench agent, not for a lens, and for no one once the run is captured.
 func TestAfterTheOutcomeTheHookBindsTheBenchAlone(t *testing.T) {
-	cwd, runDir, _ := limitRun(t, 1000)
+	cwd, runDir := hookRun(t)
 	if err := runlive.WriteOutcomeMark(runDir, "a0r1g1na1000000001"); err != nil {
 		t.Fatal(err)
 	}

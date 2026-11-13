@@ -269,14 +269,14 @@ func TestARefusalBeforeTheSeatsFirstSittingIsLogged(t *testing.T) {
 		t.Fatalf("want the one refusal logged under blue-lane-1, got %q", got)
 	}
 	// THE ENTRY OPENS NO SITTING: the lane's register opens its first.
-	if n, err := record.SittingsOf(runtest.Open(t, runDir), "blue-lane-1"); err != nil || n != 0 {
-		t.Fatalf("the refusal's entry opened %d sitting(s) for the lane (%v), want none", n, err)
+	if n := runtest.SittingsOpened(t, runtest.Open(t, runDir), "blue-lane-1"); n != 0 {
+		t.Fatalf("the refusal's entry opened %d sitting(s) for the lane, want none", n)
 	}
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-lane-1"); err != nil {
 		t.Fatalf("the lane's register after its logged refusal was refused: %v", err)
 	}
-	if n, err := record.SittingsOf(runtest.Open(t, runDir), "blue-lane-1"); err != nil || n != 1 {
-		t.Fatalf("after its register the lane has %d sitting(s) (%v), want 1", n, err)
+	if n := runtest.SittingsOpened(t, runtest.Open(t, runDir), "blue-lane-1"); n != 1 {
+		t.Fatalf("after its register the lane has %d sitting(s), want 1", n)
 	}
 	t.Setenv(seatenv.AgentVar, "")
 	out, _ := run(t, "verify", "--run", runDir, "--seat-id", record.OperatorRole)

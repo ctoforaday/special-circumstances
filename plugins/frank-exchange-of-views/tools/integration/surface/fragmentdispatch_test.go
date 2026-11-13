@@ -355,7 +355,7 @@ func (d duties) mustMatch(t *testing.T, rel, path string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := normalizeWS(generatedSkillHeader.ReplaceAllString(withoutGeneratedSurface(string(b)), ""))
+	got := normalizeWS(generatedSkillHeader.ReplaceAllString(withoutGeneratedSurface(withoutTurnCap(string(b))), ""))
 	if want := normalizeWS(d.expand(t, rel, 0)); got != want {
 		at := 0
 		for at < len(got) && at < len(want) && got[at] == want[at] {
@@ -366,6 +366,27 @@ func (d duties) mustMatch(t *testing.T, rel, path string) {
 			"agentgen's have parted and every count below would be of a text no seat is handed.",
 			rel, path, want[at:min(at+80, len(want))])
 	}
+}
+
+// withoutTurnCap drops the `maxTurns` line from a definition's frontmatter. agentgen writes it from
+// one constant into every definition and never from a source, so no source expands to it;
+// scripts/agentgen's own tests hold its value. A document with no frontmatter is returned whole.
+func withoutTurnCap(doc string) string {
+	rest, ok := strings.CutPrefix(doc, "---\n")
+	if !ok {
+		return doc
+	}
+	block, body, ok := strings.Cut(rest, "\n---\n")
+	if !ok {
+		return doc
+	}
+	var kept []string
+	for _, line := range strings.Split(block, "\n") {
+		if !strings.HasPrefix(line, "maxTurns: ") {
+			kept = append(kept, line)
+		}
+	}
+	return "---\n" + strings.Join(kept, "\n") + "\n---\n" + body
 }
 
 // withoutFrontmatter drops a document's opening `---` block. A document with none is returned whole.

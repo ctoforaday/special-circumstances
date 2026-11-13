@@ -140,7 +140,7 @@ var (
 		Register.hook_version Register.run_via Register.tool_version
 		Reproduce.bundle_sha Reproduce.claim Reproduce.drift Reproduce.rerun_sha Retire.claim
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
-		SittingClose.agent_transcript_path SittingLimit.seat_id SittingOpen.agent_id
+		SittingClose.agent_transcript_path SittingOpen.agent_id
 		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.claim Verify.copy_url Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",

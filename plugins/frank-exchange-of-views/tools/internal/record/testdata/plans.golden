@@ -1552,10 +1552,6 @@
 -- INSERT INTO "sitting_close" ("event_id", "agent_id", "agent_transcript_path") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt e0a1b98666a7
--- INSERT INTO "sitting_limit" ("event_id", "seat_id", "sitting", "limit") VALUES (?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt 064fb63ae0d3
 -- INSERT INTO "sitting_open" ("event_id", "agent_id", "agent_type") VALUES (?, ?, ?)
   (no plan rows: the statement reads no table)
@@ -2776,10 +2772,6 @@
 
 == stmt af680390057e
 -- SELECT t."event_id", t."ruling", t."lens", t."direction" FROM "motion_rule_position" t WHERE t."event_id" > ?
-  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
-
-== stmt 448d6783d611
--- SELECT t."event_id", t."seat_id", t."sitting", t."limit" FROM "sitting_limit" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 017200de3796

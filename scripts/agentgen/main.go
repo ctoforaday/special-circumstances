@@ -40,6 +40,13 @@
 // whatever fragment text it carries, so each skill with a source under src/skills/<name>/SKILL.md
 // is expanded through the same `@include` and written to the plugin, with a comment naming its
 // source. A fragment no source includes is refused: it reaches no seat.
+//
+// # Every definition carries the turn cap
+//
+// The client ends a subagent at its definition's `maxTurns`, and that is the only bound on the
+// length of one sitting: every bound the record holds counts epochs, exchanges or sittings, and a
+// sitting that never ends advances none of them. The value is one constant, maxTurns, written into
+// every definition's frontmatter here and never in a source.
 package main
 
 import (
@@ -63,6 +70,18 @@ const (
 	beginMark = "<!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->"
 	endMark   = "<!-- END GENERATED SURFACE -->"
 )
+
+// maxTurns is the model turns one sitting may take before the client ends it — an API round trip,
+// however many tool calls it carries, and the call returning the envelope is a turn of its own. A
+// seat stopped there returns no envelope, which the record reads as a failed sitting.
+//
+// MEASURED, 2026-11-12, over the seat_turn rows (one per API round trip) of 3,216 agents in 23
+// archived runs and 39 smoke universes: p50 9, p90 34, p99 74. The longest is 143 turns, one
+// continuous sitting (no gap between turns over 156 s) of red-lens-evidence on the 2026-09-10 B3
+// run, opus-5; the longest since the one-item work list (2026-10-17) is 61. The cap is about three
+// times the longest, so it ends a sitting that is looping and leaves every observed one untouched.
+// Per-seat values would rest on a handful of sittings each; one value holds them all.
+const maxTurns = 430
 
 // surfaceOf names, per agent definition, the role whose surface it carries and a seat the tool will
 // accept to render it. The seat is a RENDERING HANDLE, not the definition's identity: the header
@@ -122,11 +141,7 @@ func main() {
 	// output from here on: a source expanded, written when it differs, reported when -check finds it stale.
 	want := map[string][]byte{}
 	for name, s := range surfaceOf {
-		authored, err := expand(srcRoot, name+".md", 0)
-		if err != nil {
-			fail(fmt.Errorf("%s: %w", name, err))
-		}
-		out, err := splice(authored, byRole[s.role])
+		out, err := renderDefinition(srcRoot, name, byRole[s.role])
 		if err != nil {
 			fail(fmt.Errorf("%s: %w", name, err))
 		}
@@ -396,6 +411,42 @@ func deadFragments(srcRoot string, roots []string) ([]string, error) {
 	}
 	sort.Strings(dead)
 	return dead, nil
+}
+
+// renderDefinition is one agent definition: its source expanded, maxTurns written into its
+// frontmatter, and its role's surface spliced in.
+func renderDefinition(srcRoot, name string, surface []byte) ([]byte, error) {
+	authored, err := expand(srcRoot, name+".md", 0)
+	if err != nil {
+		return nil, err
+	}
+	capped, err := withMaxTurns(authored)
+	if err != nil {
+		return nil, err
+	}
+	return splice(capped, surface)
+}
+
+// withMaxTurns writes `maxTurns: <maxTurns>` as the last line of a definition's frontmatter. A source
+// that states its own is refused: the constant is the one place the value is set.
+func withMaxTurns(def []byte) ([]byte, error) {
+	const fence = "---\n"
+	if !bytes.HasPrefix(def, []byte(fence)) {
+		return nil, fmt.Errorf("the definition opens with no frontmatter block, so it has nowhere to carry maxTurns")
+	}
+	end := bytes.Index(def[len(fence):], []byte("\n"+fence))
+	if end < 0 {
+		return nil, fmt.Errorf("the definition's frontmatter block never closes")
+	}
+	end += len(fence) + 1 // the closing fence's first byte
+	for _, line := range strings.Split(string(def[:end]), "\n") {
+		if strings.HasPrefix(line, "maxTurns:") {
+			return nil, fmt.Errorf("the source states its own maxTurns; agentgen writes it from one constant")
+		}
+	}
+	out := append([]byte{}, def[:end]...)
+	out = append(out, fmt.Sprintf("maxTurns: %d\n", maxTurns)...)
+	return append(out, def[end:]...), nil
 }
 
 // splice replaces the generated block, or appends one when the definition has none yet.

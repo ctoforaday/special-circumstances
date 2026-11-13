@@ -1,12 +1,13 @@
 // Command feov-sitting-write appends a harness-observed fact about a sitting to a run's record:
-// one end of its span, that it reached the run's tool-call limit, a call of its that a hook saw
-// denied or failing, or the call returning its envelope succeeding.
+// one end of its span, a call of its that a hook saw denied or failing, or the call returning its
+// envelope succeeding.
 //
 // NOT A HOOK AND NOT A SEAT VERB. It is spawned by the SubagentStart/SubagentStop hooks once they
-// have established there is a live run and a real seat, by the PreToolUse hook once per sitting
-// that reaches the limit and for each envelope it checks, by the PostToolUseFailure hook for a
-// seat's failed call, and by the PostToolUse hook for a seat's envelope the harness accepted and for a lens's call that went to the record — see internal/sittingwrite for why the write is a separate process, which
-// is a frequency argument rather than a structural one.
+// have established there is a live run and a real seat, by the PreToolUse hook for each envelope it
+// checks, by the PostToolUseFailure hook for a seat's failed call, and by the PostToolUse hook for a
+// seat's envelope the harness accepted and for a lens's call that went to the record — see
+// internal/sittingwrite for why the write is a separate process, which is a frequency argument
+// rather than a structural one.
 package main
 
 import (
@@ -22,19 +23,15 @@ import (
 func main() {
 	gcpolicy.Short()
 	run := flag.String("run", "", "the run directory whose record to append to")
-	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call), failure (a call failed), envelope (the record's answer to the call returning the seat's envelope, printed; the call's arguments on stdin), admission (the call returning the seat's envelope succeeded, recorded as admitted) or next (a lens's call went to the record: what it is handed next, printed)")
+	phase := flag.String("phase", "", "open or close (an end of the span), refusal (the PreToolUse hook denied a call), failure (a call failed), envelope (the record's answer to the call returning the seat's envelope, printed; the call's arguments on stdin), admission (the call returning the seat's envelope succeeded, recorded as admitted) or next (a lens's call went to the record: what it is handed next, printed)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as (open, close and next)")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
-	sitting := flag.Int("sitting", 0, "the seat's sitting that reached the limit (limit only)")
-	limit := flag.Int("limit", 0, "the per-sitting tool-call limit it reached (limit only)")
 	entry := flag.String("entry", "", "what a hook saw happen to the seat's call — refused, or failed (refusal and failure only)")
 	flag.Parse()
 
 	var err error
 	switch sittingwrite.Phase(*phase) {
-	case sittingwrite.Limit:
-		err = sittingwrite.WriteLimit(*run, *agentID, *sitting, *limit)
 	case sittingwrite.Envelope:
 		// STDIN IS THE CALL'S ARGUMENTS: what the seat stated, which the answer turns on.
 		var input []byte
