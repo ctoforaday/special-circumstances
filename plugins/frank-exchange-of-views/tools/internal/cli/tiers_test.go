@@ -134,23 +134,48 @@ func TestTiersListsWhatServedBesideAnUnreadConfiguration(t *testing.T) {
 	if !strings.Contains(rep.ConfigUnread, "rounds") || len(rep.Seats) == 0 || rep.Substituted != 0 {
 		t.Fatalf("an unread configuration reported as %+v", rep)
 	}
-	if md := renderTiers(rep); !strings.Contains(md, "**NOT READ**") {
+	md := renderTiers(rep)
+	if !strings.Contains(md, "**NOT READ**") {
 		t.Errorf("the rendering does not say the configuration was not read:\n%s", md)
 	}
-	for _, sm := range record.SeatModels(runtest.Open(t, run), b) {
+	// NO ROW CONTRADICTS THE HEADER: a configured cell says the configuration was not read, never
+	// that it declared nothing, and a served model is not marked a mismatch against it.
+	for _, want := range []string{"| red-chair | judgment | (not read) | claude-sonnet-5 |", "none judged against a configured tier"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("the rendering under an unread configuration must carry %q; got:\n%s", want, md)
+		}
+	}
+	for _, bad := range []string{"(not declared)", "**claude-sonnet-5**", "answered by a model other than"} {
+		if strings.Contains(md, bad) {
+			t.Errorf("the rendering under an unread configuration carries %q:\n%s", bad, md)
+		}
+	}
+	rc, rcErr := record.ReadRunConfig(runtest.Open(t, run))
+	rows := record.SeatModels(runtest.Open(t, run), b)
+	// SEATMODELS READS NO CONFIGURATION: a report reads it once and judges its rows with that read.
+	for _, sm := range rows {
+		if sm.NotJudged != "" || sm.Substitution != "" {
+			t.Errorf("seat %s was judged by SeatModels itself: notJudged %q, substitution %q", sm.SeatID, sm.NotJudged, sm.Substitution)
+		}
+	}
+	record.JudgeTiers(rows, rc, rcErr)
+	for _, sm := range rows {
 		if sm.Class != "" && sm.Measured() && (sm.NotJudged == "" || sm.Substitution != "") {
 			t.Errorf("seat %s beside an unread configuration: notJudged %q, substitution %q", sm.SeatID, sm.NotJudged, sm.Substitution)
 		}
 	}
 }
 
-// THE CONSENT IS READ WHERE THE ROWS ARE BUILT: SeatModels reads the run's configuration once and
-// marks a substitution the operator allowed. Without the field the same substitution is reported
-// unconsented.
-func TestSeatModelsMarksTheSubstitutionTheConfigurationAllows(t *testing.T) {
+// THE CONSENT IS READ WHERE THE ROWS ARE JUDGED: JudgeTiers takes the run's configuration as one
+// read returned it and marks a substitution the operator allowed. Without the field the same
+// substitution is reported unconsented.
+func TestJudgeTiersMarksTheSubstitutionTheConfigurationAllows(t *testing.T) {
 	run, b := tierFixture(t)
 	lane := func() string {
-		for _, sm := range record.SeatModels(runtest.Open(t, run), b) {
+		rc, rcErr := record.ReadRunConfig(runtest.Open(t, run))
+		rows := record.SeatModels(runtest.Open(t, run), b)
+		record.JudgeTiers(rows, rc, rcErr)
+		for _, sm := range rows {
 			if sm.SeatID == "blue-lane-1" {
 				return sm.Substitution
 			}

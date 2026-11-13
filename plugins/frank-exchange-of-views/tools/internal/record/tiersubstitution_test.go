@@ -36,7 +36,7 @@ func runWithTiers(t *testing.T, cfg string) string {
 	return run
 }
 
-// configuredFor is the class -> configured-model join SeatModels makes, so these tests drive
+// configuredFor is the class -> configured-model join JudgeTiers makes, so these tests drive
 // TierSubstitution with the same input the read path builds.
 func configuredFor(t *testing.T, run string, seatID string) string {
 	t.Helper()
@@ -180,7 +180,7 @@ func tierClassOfSeat(t *testing.T, run Run, seatID string) string {
 	return c
 }
 
-// consentIn is the run's consent as SeatModels reads it: the field of a configuration that reads,
+// consentIn is the run's consent as JudgeTiers reads it: the field of a configuration that reads,
 // and no consent where none reads.
 func consentIn(t *testing.T, dir string) bool {
 	t.Helper()

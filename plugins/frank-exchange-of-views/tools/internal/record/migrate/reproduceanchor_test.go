@@ -210,7 +210,7 @@ func TestARaiseOnARenumberedArchiveIsWrittenAsNoEvent(t *testing.T) {
 		t.Helper()
 		// The run's channels, as Migrate stages them before a replay.
 		to := recordtest.TmpRun(t)
-		if err := copyChannels(from, to); err != nil {
+		if _, err := copyChannels(from, to); err != nil {
 			t.Fatal(err)
 		}
 		dst := runtest.New(t, to)

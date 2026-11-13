@@ -38,7 +38,8 @@ type SeatModel struct {
 	// agreeing are the same bytes unless the absence carries its reason.
 	NotMeasured string `json:"notMeasured,omitempty"`
 	// Substitution, when the tier served differs from the tier this seat's class was configured
-	// for. Detected on READ because that is when the serving model can be known at all.
+	// for. Detected on READ because that is when the serving model can be known at all; set by
+	// JudgeTiers, never by SeatModels.
 	Substitution string `json:"substitution,omitempty"`
 	// NotJudged says why a tier-bound seat's service was not compared with its configured tier: the
 	// run's configuration could not be read. It is set instead of Substitution, never folded into it.
@@ -60,23 +61,11 @@ func (s SeatModel) Substituted() bool { return s.Requested != "" && s.Requested 
 // THE LATEST SITTING WINS: a re-dispatched seat opens a fresh sitting, and its opening names the
 // agent of that sitting. A seat re-dispatched into a substituted environment must not be masked by
 // its first, clean dispatch.
-// SUBSTITUTION IS DETECTED HERE, NOT AT REGISTER. `run` supplies the configured tier per class;
-// pass an empty Run to skip the comparison and report only what answered.
+// IT READS NO CONFIGURATION: what answered a seat does not depend on what was configured, and a
+// report that judges the rows reads the run's configuration once and hands that read to JudgeTiers,
+// so the rows and the report's own statement of the configured tiers are one read, never two that
+// can disagree.
 func SeatModels(run Run, f Family) []SeatModel {
-	// THE CONFIGURED TIERS, OR WHY THERE ARE NONE TO JUDGE AGAINST. A configuration that does not
-	// read is not one that declared no tier: each tier-bound row says it was not judged, and why.
-	model, judgmentModel := "", ""
-	allow := false
-	var cfgErr error
-	if run.Dir() != "" {
-		rc, err := readRunConfig(run.Dir())
-		switch {
-		case err != nil:
-			cfgErr = err
-		case rc != nil:
-			model, judgmentModel, allow = rc.Model, rc.JudgmentModel, rc.AllowModelSubstitution
-		}
-	}
 	order := []string{}
 	bySeat := map[string]*SeatModel{}
 	classErr := map[string]error{}
@@ -135,24 +124,41 @@ func SeatModels(run Run, f Family) []SeatModel {
 			obs = servedmodel.Observation{Served: m}
 		}
 		row.Served, row.Requested, row.NotMeasured = obs.Served, obs.Requested, ""
-		configured := model
-		if row.Class == "judgment" {
-			configured = judgmentModel
-		}
-		// A seat that rides no tier has no configured tier to be judged against.
-		switch {
-		case row.Class == "":
-		case cfgErr != nil:
-			row.NotJudged = "the run's configuration could not be read: " + cfgErr.Error()
-		default:
-			row.Substitution = TierSubstitution(allow, configured, obs)
-		}
 	}
 	out := make([]SeatModel, 0, len(order))
 	for _, s := range order {
 		out = append(out, *bySeat[s])
 	}
 	return out
+}
+
+// JudgeTiers sets, on each measured tier-bound row, the substitution against the tier its class was
+// configured for — rc and rcErr are one ReadRunConfig's answer. A configuration that does not read
+// is not one that declared no tier: each such row says it was not judged, and why. rc nil with no
+// error is a run with no configuration, which holds no seat to a tier.
+func JudgeTiers(rows []SeatModel, rc *RunConfig, rcErr error) {
+	model, judgmentModel, allow := "", "", false
+	if rc != nil {
+		model, judgmentModel, allow = rc.Model, rc.JudgmentModel, rc.AllowModelSubstitution
+	}
+	for i := range rows {
+		row := &rows[i]
+		// A seat that rides no tier has no configured tier to be judged against, and a seat nothing
+		// measured has no service to judge.
+		if row.Class == "" || !row.Measured() {
+			continue
+		}
+		if rcErr != nil {
+			row.NotJudged = "the run's configuration could not be read: " + rcErr.Error()
+			continue
+		}
+		configured := model
+		if row.Class == "judgment" {
+			configured = judgmentModel
+		}
+		row.Substitution = TierSubstitution(allow, configured, servedmodel.Observation{
+			Served: row.Served, Requested: row.Requested, Declared: row.Requested != ""}) // Requested is set only where declared
+	}
 }
 
 // servedOnRecord is the model each agent's FIRST recorded turn names, from seat_turn — the turn

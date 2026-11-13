@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,15 +24,23 @@ func TestTranslateRunConfig(t *testing.T) {
 		}
 	}
 	// THE EPOCH THE FILE STATES IS THE ONE THE MIGRATED RECORD IS AT: rewritten in its place where
-	// the source states one, added at the end where it states none.
-	for _, tc := range []struct{ name, body, want string }{
+	// the source states one, added at the end where it states none. WHAT WAS CHANGED IS RETURNED FOR
+	// THE MANIFEST with the values the source wrote: a source record may state no epoch of its own,
+	// and then the file's is the only statement of it.
+	for _, tc := range []struct{ name, body, want, translation string }{
 		{"states its epoch", `{"topic":"t","eventSchema":5,"mintBudget":3,"k":2}` + "\n",
-			fmt.Sprintf("{\n  \"topic\": \"t\",\n  \"eventSchema\": %d,\n  \"k\": 2\n}\n", record.EventSchema)},
+			fmt.Sprintf("{\n  \"topic\": \"t\",\n  \"eventSchema\": %d,\n  \"k\": 2\n}\n", record.EventSchema),
+			`{"dropped":{"mintBudget":3},"source_event_schema":5}`},
 		{"states none", `{"topic":"t","mintBudget":3,"k":2}` + "\n",
-			fmt.Sprintf("{\n  \"topic\": \"t\",\n  \"k\": 2,\n  \"eventSchema\": %d\n}\n", record.EventSchema)},
+			fmt.Sprintf("{\n  \"topic\": \"t\",\n  \"k\": 2,\n  \"eventSchema\": %d\n}\n", record.EventSchema),
+			`{"dropped":{"mintBudget":3}}`},
+		{"drops nothing", `{"topic":"t","eventSchema":73}` + "\n",
+			fmt.Sprintf("{\n  \"topic\": \"t\",\n  \"eventSchema\": %d\n}\n", record.EventSchema),
+			`{"dropped":{},"source_event_schema":73}`},
 	} {
 		write(tc.body)
-		if err := translateRunConfig(from, to); err != nil {
+		tr, err := translateRunConfig(from, to)
+		if err != nil {
 			t.Fatal(err)
 		}
 		got, err := os.ReadFile(to)
@@ -40,6 +49,9 @@ func TestTranslateRunConfig(t *testing.T) {
 		}
 		if string(got) != tc.want {
 			t.Errorf("%s: translated run-config =\n%s\nwant\n%s", tc.name, got, tc.want)
+		}
+		if b, err := json.Marshal(tr); err != nil || string(b) != tc.translation {
+			t.Errorf("%s: the translation reads %s (%v), want %s", tc.name, b, err, tc.translation)
 		}
 	}
 	for _, tc := range []struct{ name, body, want string }{
@@ -55,7 +67,7 @@ func TestTranslateRunConfig(t *testing.T) {
 		{"lanes as a number", `{"lanes":3}`, "the migrated configuration does not parse"},
 	} {
 		write(tc.body)
-		err := translateRunConfig(from, to)
+		_, err := translateRunConfig(from, to)
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s (%q): %v, want an error naming %q", tc.name, tc.body, err, tc.want)
 		}

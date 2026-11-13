@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -145,10 +146,13 @@ func TestTheRecordReadsTheRunConfigSetupWrites(t *testing.T) {
 
 // SETUP FAILS WHEN THE RUN'S CONFIGURATION CANNOT BE WRITTEN. Every record reader of the run's terms
 // reads that file, so a setup that carried on past the failed write would launch a run on defaults
-// nobody chose. A directory standing where the file goes is a write no box can make.
+// nobody chose. A file standing where inputs/ goes is a write no box can make.
 func TestSetupFailsWhenItCannotWriteTheRunConfig(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	if err := os.MkdirAll(filepath.Join(runDir, "inputs", "run-config.json.setup"), 0o755); err != nil {
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "inputs"), []byte("not a directory"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var out, errb bytes.Buffer
@@ -167,7 +171,7 @@ func TestSetupFailsWhenItCannotWriteTheRunConfig(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(runDir, "records", "record.db")); err == nil {
 		t.Error("setup wrote the cast for a run whose configuration it could not write")
 	}
-	if err := os.Remove(filepath.Join(runDir, "inputs", "run-config.json.setup")); err != nil {
+	if err := os.Remove(filepath.Join(runDir, "inputs")); err != nil {
 		t.Fatal(err)
 	}
 	out.Reset()
@@ -198,8 +202,65 @@ func TestSetupFailsWhenItCannotWriteTheRunConfig(t *testing.T) {
 	if !bytes.Equal(before, after) {
 		t.Errorf("a refused second setup rewrote the run's configuration:\nbefore %s\nafter %s", before, after)
 	}
-	if _, err := os.Stat(filepath.Join(runDir, "inputs", "run-config.json.setup")); err == nil {
-		t.Error("a refused setup left its staged configuration behind")
+	requireNoStagedConfig(t, runDir, "a refused setup")
+}
+
+// requireNoStagedConfig fails when inputs/ holds a staged configuration setup left behind.
+func requireNoStagedConfig(t *testing.T, runDir, after string) {
+	t.Helper()
+	left, err := filepath.Glob(filepath.Join(runDir, "inputs", "run-config.json.setup-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(left) != 0 {
+		t.Errorf("%s left its staged configuration behind: %v", after, left)
+	}
+}
+
+// EACH SETUP STAGES ITS CONFIGURATION UNDER A NAME OF ITS OWN: two setups of one directory never
+// write one staged file, so whatever another left in inputs/ does not stand in this one's way, and
+// a setup that lands leaves nothing staged.
+func TestSetupStagesItsConfigurationUnderItsOwnName(t *testing.T) {
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+	if err := os.MkdirAll(filepath.Join(runDir, "inputs", "run-config.json.setup"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("setup beside another setup's staging exited %d:\n%s", code, errb.String())
+	}
+	requireNoStagedConfig(t, runDir, "a setup that landed")
+}
+
+// A CONFIGURATION THAT CANNOT BE PUT IN PLACE LEAVES NOTHING STAGED. A directory standing where
+// inputs/run-config.json goes refuses the rename after the cast lands.
+func TestSetupRemovesItsStagedConfigurationWhenItCannotPutItInPlace(t *testing.T) {
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+	if err := os.MkdirAll(filepath.Join(runDir, "inputs", "run-config.json", "occupied"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code == 0 || !strings.Contains(errb.String(), "could not put the run's configuration in place") {
+		t.Fatalf("setup over an occupied run-config path: exit %d\n%s", code, errb.String())
+	}
+	requireNoStagedConfig(t, runDir, "a setup that could not put its configuration in place")
+}
+
+// A CONFIGURATION THAT CANNOT BE ENCODED IS SAID TO BE ONE, with a remedy that fixes it: making the
+// directory writable would not. JSON holds no infinite number, which --convergence-fraction parses
+// from "inf".
+func TestSetupSaysAConfigurationItCannotEncode(t *testing.T) {
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+	cfg.ConvergenceFraction = math.Inf(1)
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code == 0 {
+		t.Fatalf("setup exited 0 over a configuration JSON cannot hold:\n%s", errb.String())
+	}
+	if msg := errb.String(); !strings.Contains(msg, "could not encode the run's configuration") || strings.Contains(msg, "writable") {
+		t.Errorf("the failure does not say the configuration could not be encoded, or gives the directory's remedy:\n%s", msg)
+	}
+	if _, err := os.Stat(filepath.Join(runDir, "records", "record.db")); err == nil {
+		t.Error("setup wrote the cast for a run whose configuration it could not encode")
 	}
 }
 

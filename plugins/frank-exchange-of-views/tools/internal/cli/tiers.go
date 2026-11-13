@@ -161,6 +161,11 @@ func renderTiers(r TierReport) string {
 		fmt.Fprintf(&sb, "configured: bulk=%s · judgment=%s\n\n", orUnset(r.ConfiguredBulk), orUnset(r.ConfiguredJudge))
 	}
 	fmt.Fprintf(&sb, "| seat | class | configured | served |\n|---|---|---|---|\n")
+	// UNDER A CONFIGURATION NOT READ, NO ROW IS JUDGED: its configured cell says the configuration
+	// was not read rather than that it declared nothing, and a served model is not marked a
+	// mismatch against a tier nobody could read. A declared substitution is the harness's own
+	// statement and is marked either way.
+	unread := r.ConfigUnread != ""
 	for _, s := range r.Seats {
 		served := s.Served
 		switch {
@@ -168,13 +173,22 @@ func renderTiers(r TierReport) string {
 			served = "**NOT MEASURED** — " + s.NotMeasured
 		case s.Declared:
 			served = "**" + s.Served + "** (substitution declared by the harness)"
-		case !s.Matches:
+		case !s.Matches && !unread:
 			served = "**" + s.Served + "**"
 		}
-		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n", s.SeatID, s.Class, orUnset(s.Configured), served)
+		configured := orUnset(s.Configured)
+		if unread {
+			configured = "(not read)"
+		}
+		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n", s.SeatID, s.Class, configured, served)
 	}
-	fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); %d answered by a model other than the configured tier\n",
-		r.Measured, r.TierBound, r.Substituted)
+	if unread {
+		fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); none judged against a configured tier, which was not read\n",
+			r.Measured, r.TierBound)
+	} else {
+		fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); %d answered by a model other than the configured tier\n",
+			r.Measured, r.TierBound, r.Substituted)
+	}
 	if r.TierBound > 0 && r.Measured == 0 {
 		fmt.Fprintf(&sb, "\nNOTHING LOOKED. This run predates the served-model field or its seats' trajectories were unreadable, which is NOT the same as a run that matched its configuration.\n")
 	}

@@ -83,7 +83,7 @@ type RunConfig struct {
 	// config does not state it never consented, and the failing direction of a gate has to be the
 	// safe one.
 	//
-	// It is written by setup and read by SeatModels, which marks a substitution it allows, which is
+	// It is written by setup and read by JudgeTiers, which marks a substitution it allows, which is
 	// what makes the consent a FIELD an operator set rather than a flag a seat could type for itself.
 	AllowModelSubstitution bool `json:"allowModelSubstitution,omitempty"`
 	// Billing is WHAT THIS RUN IS BILLED TO — the account, its organization and whether it is a

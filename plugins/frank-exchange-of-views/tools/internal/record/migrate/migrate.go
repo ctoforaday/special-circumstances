@@ -32,8 +32,10 @@ import (
 // The channel copy comes FIRST: validation consults the run's own inputs (inputs/run-config.json,
 // the run's terms), and an act replayed into a run without them refuses, taking every later
 // reference to it down in a cascade. Everything except the database file set, an archived class
-// registry and the computation store copies verbatim; the record is what replay rebuilds, and the
-// store is rebuilt from it.
+// registry, the computation store and inputs/run-config.json copies verbatim; the record is what
+// replay rebuilds, and the store is rebuilt from it. The run's configuration is translated
+// (translateRunConfig): the keys it no longer declares are dropped and its epoch is the migrated
+// record's, and the manifest's run_config records both with the values the source wrote.
 //
 // A refusal publishes the run and its manifest and returns the manifest with an error. A failure
 // before the rename removes the build; a failed rename keeps it, complete and synced, and names it.
@@ -88,7 +90,8 @@ func refusedError(n int, manifest string) error {
 // fill builds the migrated run in the build directory and writes its manifest there.
 func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Manifest, error) {
 	toDir := b.dir
-	if err := copyChannels(fromDir, toDir); err != nil {
+	runConfig, err := copyChannels(fromDir, toDir)
+	if err != nil {
 		return nil, err
 	}
 	// The record's format picks the adapter: a database if one exists, else the era of
@@ -180,6 +183,7 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Mani
 	m.MissingArtifacts = missing
 	m.SeatTurns = carried
 	m.SourceEpoch = sourceEpoch
+	m.RunConfig = runConfig
 	if err := m.Write(toDir); err != nil {
 		return nil, err
 	}
@@ -203,8 +207,11 @@ func carryCapturedMark(fromDir, toDir string) error {
 // copyChannels copies the run directory verbatim, EXCEPT the record itself — the database
 // file set and the era's event shards. Replay rebuilds the record, and a stale copy beside
 // the fresh one would be two records claiming one run. The capture mark waits for the replay
-// (carryCapturedMark): beside the record before it, it refuses every event replay appends.
-func copyChannels(fromDir, toDir string) error {
+// (carryCapturedMark): beside the record before it, it refuses every event replay appends. The run's
+// configuration is translated, not copied, and what the translation did is returned — nil when the
+// source holds no configuration.
+func copyChannels(fromDir, toDir string) (*migration.RunConfigTranslation, error) {
+	var runConfig *migration.RunConfigTranslation
 	skip := map[string]bool{filepath.Join(fromDir, runlive.CapturedMark): true}
 	for _, n := range dbSiblings {
 		skip[filepath.Join(fromDir, "records", n)] = true
@@ -215,7 +222,7 @@ func copyChannels(fromDir, toDir string) error {
 	// THE COMPUTATION STORE IS REBUILT FROM THE RECORD (writeStore): an archived proofs/ is the old
 	// layout, and computations/ holds staging and directories no event names, which are not copied.
 	skipTree := map[string]bool{filepath.Join(fromDir, "proofs"): true, filepath.Join(fromDir, compute.StoreDir): true}
-	return filepath.WalkDir(fromDir, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(fromDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -245,10 +252,16 @@ func copyChannels(fromDir, toDir string) error {
 			return fmt.Errorf("%s is not a regular file — a run channel copy does not know what it would mean", path)
 		}
 		if rel == runConfigPath {
-			return translateRunConfig(path, dst)
+			tr, err := translateRunConfig(path, dst)
+			runConfig = tr
+			return err
 		}
 		return copyFile(path, dst)
 	})
+	if err != nil {
+		return nil, err
+	}
+	return runConfig, nil
 }
 
 // runConfigPath is the run's terms file, relative to the run directory.
@@ -256,8 +269,8 @@ var runConfigPath = filepath.Join("inputs", "run-config.json")
 
 // runConfigDrops are the keys of an archived run-config.json the run's configuration no longer
 // declares. The record's reader of the file refuses a key it does not declare, so a key carried
-// verbatim would refuse the migrated run's every read of its configuration. A set: why each key went
-// is said here, beside it, and the manifest records no per-key outcome for a channel file.
+// verbatim would refuse the migrated run's every read of its configuration. Why each key went is
+// said here, beside it; the manifest's run_config records each key dropped with its value.
 var runConfigDrops = map[string]struct{}{
 	// A SOURCE BEFORE EPOCH 74 MAY STATE `mintBudget`, the per-lens mint cap, which went at epoch 74:
 	// lens retirement and the epoch limit bound a run.
@@ -270,20 +283,23 @@ var runConfigDrops = map[string]struct{}{
 // source states none: the record beside the file is at that epoch, and a file still naming the
 // source's would say the run was set up under a shape it is no longer in. The source must be ONE
 // JSON object and nothing after it (record.RunConfigObject), and the copy must read through
-// record.DecodeRunConfig, the record's own reader, or nothing is written.
-func translateRunConfig(from, to string) error {
+// record.DecodeRunConfig, the record's own reader, or nothing is written. What it did — each key
+// dropped and the epoch the source stated, with the values the source wrote — is returned for the
+// manifest.
+func translateRunConfig(from, to string) (*migration.RunConfigTranslation, error) {
 	b, err := os.ReadFile(from)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	raw, err := record.RunConfigObject(b)
 	if err != nil {
-		return fmt.Errorf("%s %w", from, err)
+		return nil, fmt.Errorf("%s %w", from, err)
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	if _, err := dec.Token(); err != nil { // the object's `{`, checked above
-		return fmt.Errorf("%s: %w", from, err)
+		return nil, fmt.Errorf("%s: %w", from, err)
 	}
+	tr := &migration.RunConfigTranslation{Dropped: map[string]json.RawMessage{}}
 	var out bytes.Buffer
 	out.WriteByte('{')
 	first := true
@@ -306,43 +322,48 @@ func translateRunConfig(from, to string) error {
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
-			return fmt.Errorf("%s: %w", from, err)
+			return nil, fmt.Errorf("%s: %w", from, err)
 		}
 		key, _ := tok.(string)
 		var val json.RawMessage
 		if err := dec.Decode(&val); err != nil {
-			return fmt.Errorf("%s: key %q: %w", from, key, err)
+			return nil, fmt.Errorf("%s: key %q: %w", from, key, err)
 		}
 		if _, drop := runConfigDrops[key]; drop {
+			tr.Dropped[key] = val
 			continue
 		}
 		if key == runConfigEpochKey {
+			tr.SourceEventSchema = val
 			val, statedEpoch = epoch, true
 		}
 		if err := put(key, val); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if !statedEpoch {
 		if err := put(runConfigEpochKey, epoch); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	out.WriteByte('}')
 	var indented bytes.Buffer
 	if err := json.Indent(&indented, out.Bytes(), "", "  "); err != nil {
-		return fmt.Errorf("%s: %w", from, err)
+		return nil, fmt.Errorf("%s: %w", from, err)
 	}
 	indented.WriteByte('\n')
 	// THE COPY IS HELD TO THE RECORD'S OWN READER: a key no drop names, or a value of the wrong
 	// type, would publish a run whose every read of its configuration is refused.
 	if _, err := record.DecodeRunConfig(indented.Bytes()); err != nil {
-		return fmt.Errorf("%s: the migrated configuration %w", from, err)
+		return nil, fmt.Errorf("%s: the migrated configuration %w", from, err)
 	}
 	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
-		return err
+		return nil, err
 	}
-	return os.WriteFile(to, indented.Bytes(), 0o644)
+	if err := os.WriteFile(to, indented.Bytes(), 0o644); err != nil {
+		return nil, err
+	}
+	return tr, nil
 }
 
 // runConfigEpochKey is record.RunConfig.EventSchema's key in the file.

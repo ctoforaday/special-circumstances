@@ -125,9 +125,11 @@ func TestDecodeTellsAnAbsentProvenanceFromAnUnreadableOne(t *testing.T) {
 		ok     bool
 		failed bool
 	}{
-		"no key":            {"", false, false},
-		"key does not fit":  {`"installed"`, false, true},
-		"the key, recorded": {`{"state":"absent","why":"none cached"}`, true, false},
+		"no key":             {"", false, false},
+		"key does not fit":   {`"installed"`, false, true},
+		"key is null":        {`null`, false, true},
+		"key states nothing": {`{}`, false, true},
+		"the key, recorded":  {`{"state":"absent","why":"none cached"}`, true, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			p, ok, err := Decode(json.RawMessage(c.raw))

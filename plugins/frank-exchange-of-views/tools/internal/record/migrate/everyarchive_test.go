@@ -57,6 +57,12 @@ func TestEveryArchivedRunMigrates(t *testing.T) {
 				if rc.EventSchema != record.EventSchema {
 					t.Errorf("%s: the migrated run-config states epoch %d, the record is at %d", name, rc.EventSchema, record.EventSchema)
 				}
+				// THE MANIFEST SAYS WHAT THE TRANSLATION CHANGED, the one channel file not copied verbatim.
+				if res.RunConfig == nil || res.RunConfig.Dropped == nil {
+					t.Errorf("%s: the manifest does not record the run-config translation: %+v", name, res.RunConfig)
+				}
+			} else if res.RunConfig != nil {
+				t.Errorf("%s: the manifest records a run-config translation for a run with no run-config: %+v", name, res.RunConfig)
 			}
 			merged, err := record.MergedEvents(run)
 			if err != nil {

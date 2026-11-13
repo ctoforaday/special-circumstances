@@ -309,9 +309,16 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
 		return 2
 	}
+	// AN ENCODING FAILURE IS NOT A DIRECTORY'S: nothing was written, and a writable directory would
+	// fail the same way. JSON holds no infinite or NaN number, which a float flag parses from "inf".
+	failEncode := func(err error) int {
+		fmt.Fprintf(stderr, "run-setup: could not encode the run's configuration (inputs/run-config.json): %v\n", err)
+		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: pass each flag a value JSON can hold (a finite number), then re-run setup")
+		return 2
+	}
 	hooks, err := marshalJSON(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
 	if err != nil {
-		return failConfig(err)
+		return failEncode(err)
 	}
 	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
 		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
@@ -320,15 +327,16 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		Billing:         ReadBillingIdentity()}
 	b, err := marshalJSON(rc)
 	if err != nil {
-		return failConfig(err)
+		return failEncode(err)
 	}
 	// STAGED, THEN PUT IN PLACE ONLY ONCE THE CAST LANDS. The cast is written once, so it is what
 	// refuses a directory that already holds a run; writing the configuration in place first would
 	// overwrite that run's terms before the refusal. A staging write that fails leaves no cast, so
-	// re-running setup succeeds.
+	// re-running setup succeeds. The staged file's name is this setup's own, so two setups of one
+	// directory never write one staged file.
 	cfgPath := filepath.Join(run.Dir(), "inputs", "run-config.json")
-	staged := cfgPath + ".setup"
-	if err := os.WriteFile(staged, b, 0o644); err != nil {
+	staged, err := stageFile(filepath.Dir(cfgPath), "run-config.json.setup-*", b)
+	if err != nil {
 		return failConfig(err)
 	}
 	// THE CAST IS WRITTEN under the harness, before any seat registers: the run's admissible
@@ -352,6 +360,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if err := os.Rename(staged, cfgPath); err != nil {
+		_ = os.Remove(staged)
 		fmt.Fprintf(stderr, "run-setup: could not put the run's configuration in place (inputs/run-config.json): %v\n", err)
 		fmt.Fprintln(stderr, "  The cast is written and the hooks cannot find this run, so do not launch it. remedy: set up a fresh run directory")
 		return 2

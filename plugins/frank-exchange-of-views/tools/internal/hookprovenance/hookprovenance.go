@@ -228,13 +228,17 @@ const ConfigKey = "hooks"
 // Decode is the provenance setup wrote under ConfigKey, given that key's value as the record's one
 // reader of inputs/run-config.json (record.ReadRunConfig) returns it. ok is false when the key is
 // absent — a run set up by nothing that observed the hooks — and an error is a value that does not
-// decode. Neither is an empty Provenance, whose State "" no setup writes.
+// decode. Neither is an empty Provenance, whose State "" no setup writes: a value that decodes to one
+// — `null`, `{}` — is refused as one that does not decode, since the key is present and says nothing.
 func Decode(raw json.RawMessage) (p Provenance, ok bool, err error) {
 	if len(raw) == 0 {
 		return Provenance{}, false, nil
 	}
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return Provenance{}, false, fmt.Errorf("inputs/run-config.json %q does not decode: %w", ConfigKey, err)
+	}
+	if p.State == "" {
+		return Provenance{}, false, fmt.Errorf("inputs/run-config.json %q states no state: %s is no observation setup writes", ConfigKey, raw)
 	}
 	return p, true, nil
 }
