@@ -72,8 +72,9 @@ func TestCiteWithoutItsQuoteIsRefusedNamingIt(t *testing.T) {
 	if err == nil {
 		t.Fatal("a cite with no --quote was accepted")
 	}
-	if stderr != "" {
-		t.Errorf("--json wrote to stderr: %s", stderr)
+	// THE DIAGNOSIS IS ON STDERR UNDER --json TOO, without the page the human form prints under it.
+	if !strings.HasPrefix(stderr, InvokedAs()+": cite: requires --quote\n") || strings.Contains(stderr, "\nUsage:") {
+		t.Errorf("--json's stderr is not the diagnosis naming --quote: %s", stderr)
 	}
 	env := decodeEnvelope(t, stdout)
 	if env.Verb != "cite" || env.Role != "blue" || env.Code != "missing_field" || env.OK {

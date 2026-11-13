@@ -30,7 +30,8 @@ import (
 //
 // What each row holds the tool to:
 //   - --json: exactly one object on stdout — the keys verb, role, ok, code, error in that order,
-//     typed string, string, bool, string, string — nothing on stderr, exit 2;
+//     typed string, string, bool, string, string — and on stderr `feov-record: <path>: <diagnosis>`
+//     with no help page under it, exit 2;
 //   - no --json: nothing on stdout, and on stderr `feov-record: <path>: <diagnosis>`, the path
 //     printed once and left out only where no command resolved;
 //   - both forms carry the SAME diagnosis, and neither opens it with the role or the path again;
@@ -208,10 +209,15 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			if code != 2 {
 				t.Fatalf("--json: exit %d, want 2\nstdout: %s", code, clipTo(jsonOut, 400))
 			}
-			if jsonErr != "" {
-				t.Errorf("--json wrote to stderr:\n%s", clipTo(jsonErr, 400))
-			}
 			env := decodeEnvelope(t, jsonOut)
+			// THE DIAGNOSIS IS ON STDERR UNDER --json TOO, so a `| jq` written for the success shape
+			// cannot fold the refusal into an empty answer: the same line the human form opens with,
+			// with no help page under it.
+			jsonHuman := strings.TrimSuffix(strings.TrimPrefix(jsonErr, head), "\n")
+			if !strings.HasPrefix(jsonErr, head) || jsonHuman == "" || !strings.HasPrefix(env.Error, jsonHuman) ||
+				firstLine(jsonHuman) != firstLine(human) || strings.Contains(jsonHuman, "\nUsage:") || strings.Contains(jsonHuman, "\nFlags:") {
+				t.Errorf("--json's stderr is not the diagnosis under %q.\nstderr: %s\nenvelope: %s", head, clipTo(jsonErr, 400), clipTo(env.Error, 400))
+			}
 			if env.Verb != r.verb || env.Role != r.role || env.Code != r.code {
 				t.Errorf("envelope verb %q role %q code %q, want %q %q %q\n%s", env.Verb, env.Role, env.Code, r.verb, r.role, r.code, clipTo(jsonOut, 400))
 			}
