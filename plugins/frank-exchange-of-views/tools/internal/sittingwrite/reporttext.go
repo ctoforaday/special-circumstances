@@ -7,11 +7,12 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// REPORT TEXT IS HANDED ONE ITEM PER CALL TO THE RECORD, AND ONLY HERE (constitution-gaps P3).
+// REPORT TEXT IS HANDED ONE ITEM PER CALL TO THE RECORD, AND ONLY HERE.
 //
 // A seat's delivery is cut once, at its first item, from the report as it then stands
 // (record.CutDelivery), and kept in the sitting's .work-delivery file with the head it was cut at; every
@@ -34,7 +35,10 @@ type reportCut struct {
 // operator's log and the seat's stop.
 type ErrDeliveryStuck struct{ Reason string }
 
-func (e *ErrDeliveryStuck) Error() string { return "the delivery of report text cannot advance: " + e.Reason }
+func (e *ErrDeliveryStuck) Error() string { return hookgate.ErrDeliveryStuck.Error() + ": " + e.Reason }
+
+// Unwrap is hookgate.ErrDeliveryStuck, the name the writer's exit and the hook read it by.
+func (e *ErrDeliveryStuck) Unwrap() error { return hookgate.ErrDeliveryStuck }
 
 // stuck wraps err as a delivery that cannot advance.
 func stuck(format string, args ...any) error {

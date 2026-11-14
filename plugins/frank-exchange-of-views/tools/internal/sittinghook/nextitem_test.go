@@ -42,8 +42,13 @@ func TestNextItemReadsTheHeldStatusAsHeld(t *testing.T) {
 		t.Errorf("the held error dropped the writer's diagnostics: %v", err)
 	}
 
+	writer(hookgate.ExitDeliveryStuck)
+	if _, err := NextItem(t.TempDir(), "a1", "frank-exchange-of-views:red-lens-logic", "claude"); !errors.Is(err, hookgate.ErrDeliveryStuck) || errors.Is(err, hookgate.ErrDeliveryHeld) {
+		t.Errorf("a writer exiting %d gave %v — want hookgate.ErrDeliveryStuck", hookgate.ExitDeliveryStuck, err)
+	}
+
 	writer(1)
-	if _, err := NextItem(t.TempDir(), "a1", "frank-exchange-of-views:red-lens-logic", "claude"); err == nil || errors.Is(err, hookgate.ErrDeliveryHeld) {
-		t.Errorf("a writer exiting 1 gave %v — want an error that is not ErrDeliveryHeld", err)
+	if _, err := NextItem(t.TempDir(), "a1", "frank-exchange-of-views:red-lens-logic", "claude"); err == nil || errors.Is(err, hookgate.ErrDeliveryHeld) || errors.Is(err, hookgate.ErrDeliveryStuck) {
+		t.Errorf("a writer exiting 1 gave %v — want an error that is neither held nor stuck", err)
 	}
 }

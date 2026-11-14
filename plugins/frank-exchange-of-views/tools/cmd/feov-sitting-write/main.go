@@ -67,10 +67,15 @@ func main() {
 }
 
 // exitStatus is the writer's exit on err: hookgate.ExitDeliveryHeld for a lens's delivery another call
-// holds, on the next phase, which the PostToolUse hook reads as handing nothing; 1 for everything else.
+// holds, on the next phase, which the PostToolUse hook reads as handing nothing;
+// hookgate.ExitDeliveryStuck for report text that cannot be delivered, which it reads as ending the
+// seat's turn; 1 for everything else.
 func exitStatus(phase sittingwrite.Phase, err error) int {
 	if phase == sittingwrite.Next && errors.Is(err, hookgate.ErrDeliveryHeld) {
 		return hookgate.ExitDeliveryHeld
+	}
+	if phase == sittingwrite.Next && errors.Is(err, hookgate.ErrDeliveryStuck) {
+		return hookgate.ExitDeliveryStuck
 	}
 	return 1
 }

@@ -127,8 +127,9 @@ func Admission(runDir, agentID string) error {
 // PostToolUse hook passes the text on to the seat, and "" is "nothing it was handed has changed".
 //
 // THE WRITER'S STDOUT IS THE SEAT'S, and its stderr the hook record's, as on the opening end. Its
-// exit status hookgate.ExitDeliveryHeld is hookgate.ErrDeliveryHeld: another of the lens's calls is
-// handing the item.
+// exit status hookgate.ExitDeliveryHeld is hookgate.ErrDeliveryHeld: another of the seat's calls is
+// handing the item; hookgate.ExitDeliveryStuck is hookgate.ErrDeliveryStuck: its report text cannot
+// be delivered.
 func NextItem(runDir, agentID, agentType, engine string) (string, error) {
 	writer := writerPath()
 	if writer == "" {
@@ -140,6 +141,9 @@ func NextItem(runDir, agentID, agentType, engine string) (string, error) {
 	if err := cmd.Run(); err != nil {
 		if exit, ok := errors.AsType[*exec.ExitError](err); ok && exit.ExitCode() == hookgate.ExitDeliveryHeld {
 			return "", fmt.Errorf("%s: %w: %s", writerName, hookgate.ErrDeliveryHeld, strings.TrimSpace(diagnostics.String()))
+		}
+		if exit, ok := errors.AsType[*exec.ExitError](err); ok && exit.ExitCode() == hookgate.ExitDeliveryStuck {
+			return "", fmt.Errorf("%s: %w: %s", writerName, hookgate.ErrDeliveryStuck, strings.TrimSpace(diagnostics.String()))
 		}
 		return "", fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(diagnostics.String()+" "+forSeat.String()))
 	}

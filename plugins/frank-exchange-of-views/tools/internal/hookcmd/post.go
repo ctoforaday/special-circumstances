@@ -97,8 +97,16 @@ func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder
 		// nothing, and nothing failed — nor did this call see the stage work.
 		return
 	}
+	if errors.Is(err, hookgate.ErrDeliveryStuck) && caller.ID != req.SessionID {
+		// A DELIVERY OF REPORT TEXT THAT CANNOT ADVANCE ENDS THE SEAT'S TURN, and only a seat's: the
+		// writer has logged it as the tool's defect, and a seat handed nothing would read its envelope
+		// as waiting on text that never comes. The lead session itself is never stopped here.
+		rec.Fail(StageNextItem, "a seat's delivery of report text cannot advance, and its turn was ended: "+err.Error())
+		hookcore.Respond(req, hookcore.Response{TerminateTurn: true, Reason: deliveryStuckStop + "\n\n" + err.Error()}, stdout, os.Stderr, nil)
+		return
+	}
 	if err != nil {
-		rec.Fail(StageNextItem, "a lens's call went to the record and what it is handed next could not be read: "+err.Error())
+		rec.Fail(StageNextItem, "a seat's call went to the record and what it is handed next could not be read: "+err.Error())
 		// NEVER SILENCE IN ITS PLACE: a lens told nothing reads "nothing changed".
 		text = nextItemUnreadable + "\n\n" + err.Error() + "\n"
 	} else {
@@ -109,6 +117,10 @@ func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder
 	}
 	hookcore.Respond(req, hookcore.Response{AdditionalContext: text}, stdout, os.Stderr, nil)
 }
+
+// deliveryStuckStop is what a seat is told when its turn ends on a delivery that cannot advance.
+const deliveryStuckStop = "THE REPORT TEXT OWED TO YOU THIS SITTING COULD NOT BE DELIVERED, so your turn ends here: " +
+	"the tool logged it as its own defect, and the sitting is the operator's to look at."
 
 // nextItemUnreadable is what a lens is told when the writer could not say what it is handed next.
 const nextItemUnreadable = "WHAT YOU ARE HANDED NEXT COULD NOT BE READ, and that is NOT the same as nothing having " +

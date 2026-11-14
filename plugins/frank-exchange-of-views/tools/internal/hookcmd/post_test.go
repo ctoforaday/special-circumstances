@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
+	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
 // THE CALL THAT RETURNED A SEAT'S ENVELOPE, HAVING SUCCEEDED, IS HANDED OVER AS ITS ADMISSION — from
@@ -143,5 +144,47 @@ func TestAHeldDeliveryHandsNothingAndRecordsNoFailure(t *testing.T) {
 	}
 	if rec.Failed() {
 		t.Error("a held delivery was recorded as the hook's failure")
+	}
+}
+
+// A STUCK DELIVERY ENDS THE SEAT'S TURN, AND ONLY A SEAT'S: a subagent's or Workflow seat's call is
+// answered "continue": false with the writer's reason, and the hook record holds the failure; a call
+// from the lead session itself is never stopped, and is told the delivery could not be read.
+func TestAStuckDeliveryEndsOnlyTheSeatsTurn(t *testing.T) {
+	cwd, _ := hookRun(t)
+	prev := handNextItem
+	const reason = "item 1 of red-lens-logic's delivery renders to 9100 bytes, over the item budget of 9000"
+	handNextItem = func(string, string, string, string) (string, error) {
+		return "", fmt.Errorf("feov-sitting-write: %w: %s", hookgate.ErrDeliveryStuck, reason)
+	}
+	t.Cleanup(func() { handNextItem = prev })
+	post := func(agentID string) (map[string]any, *hookfailures.Recorder) {
+		t.Helper()
+		b, _ := json.Marshal(map[string]any{"tool_name": "Bash", "tool_input": map[string]string{"command": "feov-record show work"},
+			"cwd": cwd, "session_id": testLead, "agent_id": agentID, "agent_type": "frank-exchange-of-views:red-lens-logic",
+			"tool_response": map[string]string{}})
+		var out bytes.Buffer
+		rec := testRecorder()
+		if err := Post(bytes.NewReader(b), &out, rec); err != nil {
+			t.Fatal(err)
+		}
+		doc := map[string]any{}
+		if out.Len() > 0 {
+			if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+				t.Fatalf("the hook printed %q: %v", out.String(), err)
+			}
+		}
+		return doc, rec
+	}
+	doc, rec := post("a7cc47571ab8b015d")
+	if doc["continue"] != false || !strings.Contains(fmt.Sprint(doc["stopReason"]), reason) {
+		t.Errorf("a seat's stuck delivery answered %v — want continue false and the writer's reason as stopReason", doc)
+	}
+	if !rec.Failed() {
+		t.Error("a stuck delivery was not recorded as the hook's failure")
+	}
+	doc, _ = post(testLead)
+	if _, stopped := doc["continue"]; stopped {
+		t.Errorf("the lead session's own call was stopped: %v", doc)
 	}
 }
