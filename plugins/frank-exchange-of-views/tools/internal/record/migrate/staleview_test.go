@@ -1,6 +1,7 @@
 package migrate_test
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"strings"
 	"testing"
 
@@ -62,6 +63,7 @@ func assertMigratedGapView(t *testing.T, archive string) int {
 	if err != nil {
 		t.Fatalf("%s: the migrated record is refused: %v", archive, err)
 	}
+	lostClose := migrate.LostCloseGaps(t, archive, res)
 	closed, superseded := 0, 0
 	for _, g := range fam.Gaps {
 		if g.Open {
@@ -69,6 +71,11 @@ func assertMigratedGapView(t *testing.T, archive string) int {
 		}
 		closed++
 		if g.Closure == nil && g.BenchClosure == nil && g.SupersededBy != "" {
+			// Closed by a successor's mint alone: its archived close is a lost act, which left it
+			// open when the successor superseded it.
+			if !lostClose[g.ID] {
+				t.Errorf("%s: gap %s is closed by %s's mint alone, and no close of it is lost", archive, g.ID, g.SupersededBy)
+			}
 			superseded++
 		}
 		if !g.HasClosed || g.ClosureReason() == "" || g.ClosedEpoch == 0 {

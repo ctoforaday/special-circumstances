@@ -15,23 +15,86 @@ import (
 // replay stamps each area's pin and the changes to the report after it off the migrated record: each
 // pin is the head the lens was last served the report at, and the changes are every blue_edit and
 // report_part between the earliest pin and the spot-check. A spot-check stands only on a delivery in
-// the chair's sitting, which no archived chair sitting holds, so every archived spot-check is a lost
-// act and the stamp is read on a delivered source.
+// the chair's sitting: an archived one the manifest lists as lost is written as no event, one that
+// stands is held to its chair's last plan, and the stamp is always read on a delivered source.
+//
+// THE RESIDUE, accepted: an archive from before the whole-report serve was recorded (#1458; m32 has
+// no report_read) holds no pin the live rule can read, so every area stamps pin 0 and every change
+// before the spot-check, where its own plan listed the dispatch-era pins.
 func TestAnArchivedSpotCheckArrivesWithTheChangesBehindItsPins(t *testing.T) {
-	// No archived chair sitting holds a delivery, so each archive's spot-check is a lost act: listed
-	// in the manifest, and no spot-check on the migrated record.
-	for _, archive := range []string{"2026-10-29_is-91-prime-m36.tar.gz", "2026-10-24_is-91-prime-m32.tar.gz"} {
-		t.Run(archive, func(t *testing.T) {
-			recordtest.RequireArchive(t, archive)
-			res, dst := migrateArchive(t, archive)
+	// An archived spot-check the manifest lists as lost (the chair's sitting holds no delivery) is
+	// written as no event; one that stands is held to the plan's pins and the changes behind them.
+	for _, c := range []struct {
+		archive string
+		areas   int
+		served  bool // the archive records the whole-report serve its pins are read from
+	}{
+		{archive: "2026-10-29_is-91-prime-m36.tar.gz", areas: 2, served: true},
+		{archive: "2026-10-24_is-91-prime-m32.tar.gz", areas: 5},
+	} {
+		t.Run(c.archive, func(t *testing.T) {
+			recordtest.RequireArchive(t, c.archive)
+			res, dst := migrateArchive(t, c.archive)
 			if len(res.Refusals) != 0 {
 				t.Fatalf("refusals: %+v", res.Refusals)
 			}
-			if got := migrate.LostByWord(res)["spot_check"]; got != res.In["spot_check"] || got == 0 {
-				t.Errorf("%d of %d archived spot-check(s) listed lost; the chair's sitting holds no delivery", got, res.In["spot_check"])
+			if lost := migrate.LostByWord(res)["spot_check"]; lost > 0 {
+				if lost != res.In["spot_check"] {
+					t.Fatalf("%d of %d spot-checks lost; this test reads the archive's one", lost, res.In["spot_check"])
+				}
+				if n := len(int64sOf(t, openRO(t, dst.Dir()), `SELECT "event_id" FROM "spot_check"`)); n != 0 {
+					t.Errorf("the migrated record holds %d spot-check(s), and the manifest lists its one lost", n)
+				}
+				return
 			}
-			if n := len(int64sOf(t, openRO(t, dst.Dir()), `SELECT "event_id" FROM "spot_check"`)); n != 0 {
-				t.Errorf("the migrated record holds %d spot-check(s), all of them lost", n)
+			db := openRO(t, dst.Dir())
+			var spot int64
+			if err := db.QueryRow(`SELECT "event_id" FROM "spot_check"`).Scan(&spot); err != nil {
+				t.Fatal(err)
+			}
+			areas := wordsOf(t, db, `SELECT "value" FROM "spot_check_areas" ORDER BY "ord"`)
+			if len(areas) != c.areas {
+				t.Fatalf("the migrated spot-check names %d area(s), this test was written against %d", len(areas), c.areas)
+			}
+			pins := int64sOf(t, db, `SELECT "value" FROM "spot_check_pins" ORDER BY "ord"`)
+			if len(pins) != len(areas) {
+				t.Fatalf("%d area(s) carry %d pin(s)", len(areas), len(pins))
+			}
+			// THE PLAN'S PINS, read off the chair's last stored plan before the spot-check.
+			var printed string
+			if err := db.QueryRow(`SELECT "printed" FROM "plan" WHERE "event_id" < ? ORDER BY "event_id" DESC LIMIT 1`, spot).Scan(&printed); err != nil {
+				t.Fatal(err)
+			}
+			var plan struct {
+				StaleAreas []struct {
+					SeatID string `json:"seat_id"`
+					Pin    int64  `json:"pin"`
+				} `json:"stale_areas"`
+			}
+			if err := json.Unmarshal([]byte(printed), &plan); err != nil {
+				t.Fatal(err)
+			}
+			planPin := map[string]int64{}
+			for _, a := range plan.StaleAreas {
+				planPin[a.SeatID] = a.Pin
+			}
+			earliest := pins[0]
+			for i, a := range areas {
+				if !c.served {
+					if pins[i] != 0 {
+						t.Errorf("area %s stamped at pin %d in a record with no serve; want 0", a, pins[i])
+					}
+					continue
+				}
+				if p, ok := planPin[a]; !ok || p != pins[i] {
+					t.Errorf("area %s stamped at pin %d; the plan before it lists it at %d (listed: %v)", a, pins[i], p, ok)
+				}
+				earliest = min(earliest, pins[i])
+			}
+			want := int64sOf(t, db, `SELECT "id" FROM "events" WHERE "type" IN ('blue_edit', 'report_part') AND "id" > `+itoa(earliest)+` AND "id" < `+itoa(spot)+` ORDER BY "id"`)
+			got := int64sOf(t, db, `SELECT "value" FROM "spot_check_changes" ORDER BY "ord"`)
+			if len(want) == 0 || !slices.Equal(got, want) {
+				t.Errorf("stamped changes %v; the migrated record holds %v after pin %d", got, want, earliest)
 			}
 		})
 	}

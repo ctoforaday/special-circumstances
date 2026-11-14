@@ -228,7 +228,8 @@ func lineNumerals(p record.Plan) [][]int64 {
 // A STORED PLAN CROSSES A RENUMBERING NAMING THE EVENTS ITS SOURCE NAMED (F8). m28 holds two
 // class_new events, a chair's closing, a close of a gap its successor's mint had closed, eight
 // positions no chair filed, eight inquiry reviews and five rulings on an inquiry, which migrate
-// writes as none, so every later event lands up to twenty-five numbers lower; sixteen of its twenty stored plans
+// writes as none, so every later event lands lower, its lost acts (listed in the manifest) lower still;
+// sixteen of its twenty stored plans
 // name such an event — as a head, a pin, or a number a line
 // prints after `head`, `pin`, `edit` or `event`. Driven on the real archive through Migrate, and
 // checked against both databases rather than migrate's own map:

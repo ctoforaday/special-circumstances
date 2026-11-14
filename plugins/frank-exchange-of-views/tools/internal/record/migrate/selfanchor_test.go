@@ -16,20 +16,25 @@ import (
 // left out: its successor's mint closed it (TestAGapSupersededWhileOpenIsClosedByItsSuccessorsMint).
 // A close stands only on a delivery in its lens's sitting, which m30's sittings do not hold.
 func TestASelfAnchoredClosureMigratesWithoutItsOwnGap(t *testing.T) {
-	// m30's lens sittings hold no delivery, so its closes are lost acts and none of its self-anchored
-	// closures reaches the migrated record; the translation is held on a delivered source's close of
-	// G2, which named G2 and G1.
+	// The translation is held on m30's closes that stand and, whatever m30's lens sittings lose, on a
+	// delivered source's close of G2, which named G2 and G1.
 	res, run := migrateArchive(t, "2026-10-19_is-91-prime-m30.tar.gz")
 	if len(res.Refusals) != 0 {
 		t.Fatalf("%d event(s) refused; the first: %+v", len(res.Refusals), res.Refusals[0])
 	}
+	// A close the manifest lists as lost carries nothing to the migrated record; every other one is
+	// held to its anchors.
 	lost := migrate.LostCloseGaps(t, "2026-10-19_is-91-prime-m30.tar.gz", res)
-	for _, g := range []string{"G-968365ad", "G-dc877265"} {
+	want := map[string][]string{}
+	for g, anchors := range map[string][]string{
+		"G-968365ad": {"K-24a6af66", "K-7de24bab"},
+		"G-dc877265": {"C-4f4b8cfa"},
+	} {
 		if !lost[g] {
-			t.Errorf("m30's close of %s is not listed lost; its anchors are held here only once it is", g)
+			want[g] = anchors
 		}
 	}
-	assertClosureAnchors(t, run, nil)
+	assertClosureAnchors(t, run, want)
 	fres, _, dir := migrate.MigratedDeliveredBench(t)
 	assertClosureAnchors(t, runtest.Open(t, dir), map[string][]string{fres.IDs["G2"]: {fres.IDs["G1"]}})
 }

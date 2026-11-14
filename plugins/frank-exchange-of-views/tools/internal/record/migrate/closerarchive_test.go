@@ -16,25 +16,31 @@ import (
 // red as the closer and count none of them as the bench's, and the bench's word is the fate. The
 // archive's pairs are lost acts; the fixture's G2 is the same shape on delivered sittings.
 func TestAGapItsLensClosedBeforeTheBenchRuledIsTheLenss(t *testing.T) {
-	// wave-b's two closes (ev376, ev574) and the bench's two rulings (ev432, ev609) stood on no
-	// delivery the record holds: each is a lost act, so both gaps read open, and the shape is held on
-	// a source whose lens and bench were delivered the report before they acted.
+	// A close or ruling the manifest lists as lost (its seat's sitting holds no delivery) is written
+	// as no event: a pair with a lost arm leaves its gap open if both are lost, and is not this
+	// shape; a pair with neither lost is held to it. The fixture's G2 is the shape on delivered
+	// sittings, so it is held whatever the archive's pairs lose.
 	res, dst := migrateArchive(t, "2026-10-12_is-91-prime-wave-b.tar.gz")
 	lost := migrate.LostIDs(res)
-	for _, id := range []int64{376, 432, 574, 609} {
-		if !lost[id] {
-			t.Errorf("wave-b source event %d is not listed lost; its gap's closing pair is held here only once it is", id)
-		}
-	}
 	fam, err := record.FamilyOf(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"G-ede17021", "G-77b3a089"} {
-		if g := fam.Gap(id); g == nil || !g.Open {
-			t.Errorf("%s: both its closing acts are lost, and the migrated family reads it %+v", id, g)
+	var ruledAfter []string
+	for _, c := range []struct {
+		gap          string
+		close, ruled int64
+	}{{"G-ede17021", 376, 432}, {"G-77b3a089", 574, 609}} {
+		switch {
+		case !lost[c.close] && !lost[c.ruled]:
+			ruledAfter = append(ruledAfter, c.gap)
+		case lost[c.close] && lost[c.ruled]:
+			if g := fam.Gap(c.gap); g == nil || !g.Open {
+				t.Errorf("%s: both its closing acts are lost, and the migrated family reads it %+v", c.gap, g)
+			}
 		}
 	}
+	assertLensClosedBeforeBench(t, dst, ruledAfter...)
 	fres, _, dir := migrate.MigratedDeliveredBench(t)
 	assertLensClosedBeforeBench(t, runtest.Open(t, dir), fres.IDs["G2"])
 }
