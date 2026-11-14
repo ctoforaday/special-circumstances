@@ -149,7 +149,7 @@ func handReportItem(run record.Run, seat string, w record.WorkJSON, q []record.Q
 		if err != nil {
 			return stuck("the sitting's delivery file could not be read: %v", err)
 		}
-		text, now, err := handReportText(run, seat, staleAreasOf(w), prev)
+		text, now, err := handReportText(run, seat, record.ReportTextAreas(w), prev)
 		if err != nil {
 			return err
 		}
@@ -177,17 +177,6 @@ func queueKeys(q []record.QueueEntry) []string {
 		keys[i] = e.Key
 	}
 	return keys
-}
-
-// staleAreasOf is the stale areas the chair's list names (its stale_area items).
-func staleAreasOf(w record.WorkJSON) []string {
-	var out []string
-	for _, it := range w.Sitting.Open {
-		if it.Kind == record.ItemReportText && it.Subject != nil && it.Subject.Kind == record.SubjectArea {
-			out = append(out, it.Subject.ID)
-		}
-	}
-	return out
 }
 
 // nextOf decides what is handed after a call, given what was handed before, and what is then on

@@ -270,3 +270,22 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 
 // wholeDeliveryNote is what the whole-report delivery is for, as a lens's item says it.
 const wholeDeliveryNote = "A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery"
+
+// RecordDelivery writes seatID's report_read: the delivery of report text cut at head has reached the
+// seat's context. The delivery writer calls it as it hands the delivery's last item.
+func RecordDelivery(run Run, seatID string, head int64) error {
+	_, err := Append(Identity{Run: run, SeatID: seatID}, &recordpb.ReportRead{Head: proto.Int64(head)})
+	return err
+}
+
+// ReportTextAreas is the stale areas whose changes a seat's list holds as report text: the chair's
+// delivery is cut from them.
+func ReportTextAreas(w WorkJSON) []string {
+	var out []string
+	for _, it := range w.Sitting.Open {
+		if it.Kind == ItemReportText && it.Subject != nil && it.Subject.Kind == SubjectArea {
+			out = append(out, it.Subject.ID)
+		}
+	}
+	return out
+}

@@ -102,7 +102,7 @@ func handReportText(run record.Run, seat string, staleAreas []string, prev deliv
 	cp.Handed = i + 1
 	now.Report = &cp
 	if cp.Handed == len(cp.Pieces) {
-		if _, err := record.Append(record.Identity{Run: run, SeatID: seat}, &recordpb.ReportRead{Head: proto.Int64(cp.Head)}); err != nil {
+		if err := record.RecordDelivery(run, seat, cp.Head); err != nil {
 			return "", prev, stuck("the record refused %s's delivery: %v", seat, err)
 		}
 	}
