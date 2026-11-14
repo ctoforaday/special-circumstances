@@ -539,14 +539,18 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 
 func TestValidateCloseAnchorContract(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair"
+	seatID := evLens
 	// BOTH gaps are minted: G1 is the one being closed, G2 the successor a
 	// repaired_with_regression names. A successor is a reference like any other and is
-	// now checked, so a fixture that names one has to create it.
+	// now checked, so a fixture that names one has to create it. The lens mints them on an
+	// ingested report and sits with its delivery, so each close is answered by the rule it names.
 	writeShard(t, runDir, []*Event{
+		recordtest.At(t, HarnessSeat, "harness:ingest", &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nThe finding stands.\n")}),
+		recordtest.At(t, seatID, seatID+":register", &recordpb.Register{}),
 		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
 		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2")}),
 	})
+	deliver(t, mustRun(t, runDir), seatID)
 	anchored := func() *recordpb.Close {
 		return &recordpb.Close{
 			GapId: proto.String("G1"), AnchorSeat: proto.String("L1"),
@@ -589,7 +593,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, tc.p)
+			err := validateRun(mustRun(t, runDir), seatID, recordpb.EventType_EVENT_TYPE_CLOSE, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -857,8 +861,9 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	// A real gap on the record, so the reference check passes and the ARGUMENT rule is what answers.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+	// A real gap on the record, minted by the lens whose sitting holds its delivery, so the reference
+	// check and the delivered-text rule pass and the ARGUMENT rule is what answers.
+	if _, err := Append(sitRead(t, mustRun(t, runDir), evLens), &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"),
 		Class: recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -877,7 +882,7 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),
 	}
-	err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
+	err := validateRun(mustRun(t, runDir), evLens, recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
 	if err == nil || !strings.Contains(err.Error(), "requires --reason") {
 		t.Errorf("a closure with no argument was accepted; the exemption widened into a hole: %v", err)
 	}
