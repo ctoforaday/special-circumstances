@@ -20,6 +20,12 @@ func (b *stage) sit(pin int64, lens string) *stage {
 	return b.sitUnserved(pin, lens).served(lens, pin)
 }
 
+// readFully is a lens's first sitting and its full re-read, each served the whole report at pin: a
+// lens that has read the report at pin and is owed no whole delivery again until the head moves.
+func (b *stage) readFully(pin int64, lens string) *stage {
+	return b.sit(pin, lens).sit(pin, lens)
+}
+
 // sitUnserved is one sitting of a lens that was never served the whole report: a dispatch at pin and
 // its register.
 func (b *stage) sitUnserved(pin int64, lens string) *stage {
@@ -90,7 +96,7 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 	if !lensReady(never) || !strings.Contains(whyOf(never), "never sat") {
 		t.Fatalf("a lens that has never sat is ready for its first look: %+v", never)
 	}
-	same := planOf(t, retBoard(t).sit(2, evLens))
+	same := planOf(t, retBoard(t).readFully(2, evLens))
 	if lensReady(same) || !strings.Contains(whyOf(same), "served the report at the head (pin 2)") {
 		t.Fatalf("a lens that sat at the head is not readied for a second look at the same report: %+v", same)
 	}
@@ -110,7 +116,7 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 // of the report it has just read, and its gap waits for blue's answer (lensTurnOn) — blue is engaged
 // on it, and the lens is not.
 func TestALensThatMintedAtTheHeadWaitsForBlue(t *testing.T) {
-	plan := planOf(t, retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")))
+	plan := planOf(t, retBoard(t).readFully(2, evLens).add(evLens, freshHigh("G1")))
 	if lensReady(plan) || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || !strings.Contains(whyOf(plan), "served the report at the head (pin 2)") {
 		t.Fatalf("a lens whose open material gap blue has not answered does not sit, and the head has not moved: %+v", plan)
 	}
@@ -258,7 +264,7 @@ func TestPassPermittedAndGateShareTheFold(t *testing.T) {
 // A lens that sat at the head and found nothing holds no PASS: the plan permits one and the gate
 // takes it, with no second sitting at the same head between.
 func TestPassIsPermittedOnceEveryLensHasSatAtTheHead(t *testing.T) {
-	run := retBoard(t).sit(2, evLens).register("red-chair").seed()
+	run := retBoard(t).readFully(2, evLens).register("red-chair").seed()
 	plan, err := PlanDispatch(run)
 	if err != nil {
 		t.Fatal(err)
@@ -308,8 +314,8 @@ func TestWhyCarriesState(t *testing.T) {
 		want string
 	}{
 		{"never sat", planOf(t, retBoard(t)), "never sat — audits the report at head 2"},
-		{"served at the head", planOf(t, retBoard(t).sit(2, evLens)), "served the report at the head (pin 2) — ready when the head moves"},
-		{"head moved", planOf(t, retBoard(t).sit(2, evLens).ingest()), "the whole report was last served to it at its pin 2, behind head 7 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)"},
+		{"served at the head", planOf(t, retBoard(t).readFully(2, evLens)), "served the report at the head (pin 2) — ready when the head moves"},
+		{"head moved", planOf(t, retBoard(t).readFully(2, evLens).ingest()), "the whole report was last served to it at its pin 2, behind head 10 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3)"},
 		{"retired", planOf(t, b), fmt.Sprintf("retired (pin %d) — its last 3 sittings minted no fresh material; not ready", pin)},
 	} {
 		if !strings.Contains(whyOf(c.plan), evLens+": ") || !strings.Contains(whyOf(c.plan), c.want) {
