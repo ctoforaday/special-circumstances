@@ -16,6 +16,16 @@ func assistant(min, in, cacheRead, cacheCreate int) string {
 		at(min).Format(time.RFC3339), in, cacheRead, cacheCreate)
 }
 
+func plannerResponse(min, in, cacheRead, out int) string {
+	return fmt.Sprintf(`{"step_index":%d,"source":"MODEL","type":"PLANNER_RESPONSE","created_at":%q,"input_tokens":%d,"output_tokens":%d,"cache_read_tokens":%d}`,
+		min, at(min).Format(time.RFC3339), in, out, cacheRead)
+}
+
+func agyUser(min, bytes int) string {
+	return fmt.Sprintf(`{"step_index":%d,"source":"USER_EXPLICIT","type":"USER_INPUT","created_at":%q,"content":%q}`,
+		min, at(min).Format(time.RFC3339), strings.Repeat("x", bytes))
+}
+
 func boundary(min, pre, post, dropped int) string {
 	return fmt.Sprintf(`{"type":"system","subtype":"compact_boundary","timestamp":%q,"compactMetadata":{"trigger":"auto","preTokens":%d,"postTokens":%d,"cumulativeDroppedTokens":%d}}`,
 		at(min).Format(time.RFC3339), pre, post, dropped)
@@ -165,5 +175,45 @@ func TestAMissingTranscriptIsUnmeasuredNotAnError(t *testing.T) {
 	}
 	if m.TokensKnown || m.TurnsMeasured || m.DroppedKnown {
 		t.Errorf("missing transcript reported something as measured: %+v", m)
+	}
+}
+
+func TestAntigravityPlannerResponseTokensAndTurns(t *testing.T) {
+	p := transcript(t,
+		plannerResponse(1, 500, 1000, 50),  // before the note
+		plannerResponse(2, 600, 1200, 60),  // before the note
+		plannerResponse(10, 700, 2000, 70), // after the note
+		plannerResponse(11, 800, 3000, 80), // after the note
+		plannerResponse(12, 18420, 92100, 512))
+	m, err := Read(p, at(9))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.TokensKnown || m.Tokens != 110520 {
+		t.Errorf("Tokens = %d (known=%v), want 110520 (18420+92100) from the LAST PLANNER_RESPONSE entry", m.Tokens, m.TokensKnown)
+	}
+	if !m.TurnsMeasured || m.Turns != 3 {
+		t.Errorf("Turns = %d (measured=%v), want 3", m.Turns, m.TurnsMeasured)
+	}
+}
+
+func TestAntigravityPlannerResponseOutOfWindowStillReadsTokens(t *testing.T) {
+	var lines []string
+	lines = append(lines, plannerResponse(1, 100, 200, 10))
+	for i := range 40 {
+		lines = append(lines, agyUser(2+i, 40*1024))
+	}
+	lines = append(lines, plannerResponse(50, 1000, 5000, 100), plannerResponse(51, 2000, 8000, 200))
+	p := transcript(t, lines...)
+
+	m, err := Read(p, at(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.TurnsMeasured || m.Turns != 0 {
+		t.Errorf("Turns = %d (measured=%v), want unmeasured 0 when scan does not reach note", m.Turns, m.TurnsMeasured)
+	}
+	if !m.TokensKnown || m.Tokens != 10000 {
+		t.Errorf("Tokens = %d (known=%v), want 10000 from newest PLANNER_RESPONSE", m.Tokens, m.TokensKnown)
 	}
 }

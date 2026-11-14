@@ -402,6 +402,19 @@ func semverLess(a, b string) bool {
 	return false
 }
 
+// isDirOrSymlinkToDir reports whether entry e in parent is a directory or a
+// symlink pointing to a directory.
+func isDirOrSymlinkToDir(parent string, e os.DirEntry) bool {
+	if e.IsDir() {
+		return true
+	}
+	if e.Type()&os.ModeSymlink != 0 {
+		fi, err := os.Stat(filepath.Join(parent, e.Name()))
+		return err == nil && fi.IsDir()
+	}
+	return false
+}
+
 // newestVersionDir returns the highest-semver subdirectory name, "" if none.
 func newestVersionDir(pluginDir string) string {
 	entries, err := os.ReadDir(pluginDir)
@@ -410,7 +423,7 @@ func newestVersionDir(pluginDir string) string {
 	}
 	best := ""
 	for _, e := range entries {
-		if !e.IsDir() {
+		if !isDirOrSymlinkToDir(pluginDir, e) {
 			continue
 		}
 		if best == "" || semverLess(best, e.Name()) {
@@ -548,7 +561,7 @@ func siblingPluginRoots(root string) []pluginRef {
 			return nil
 		}
 		for _, e := range entries {
-			if !e.IsDir() || e.Name() == selfName {
+			if !isDirOrSymlinkToDir(marketDir, e) || e.Name() == selfName {
 				continue
 			}
 			v := newestVersionDir(filepath.Join(marketDir, e.Name()))
@@ -573,7 +586,7 @@ func siblingPluginRoots(root string) []pluginRef {
 			return nil
 		}
 		for _, e := range entries {
-			if !e.IsDir() || e.Name() == selfName {
+			if !isDirOrSymlinkToDir(parent, e) || e.Name() == selfName {
 				continue
 			}
 			siblingDir := filepath.Join(parent, e.Name())
