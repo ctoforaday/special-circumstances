@@ -15,8 +15,8 @@ import (
 // to read, so it has to be generated from the set rather than restated beside it: the
 // restated version is what was wrong for every one of these flags.
 func TestHelpIsGeneratedFromTheSet(t *testing.T) {
-	e := MustEnum("verdict", "verdict")
-	if got, want := e.Spelling(), "PASS"; got != want {
+	e := MustEnum("outcome", "verdict")
+	if got, want := e.Spelling(), "VERIFIED|CEILING|HALTED|UNVERIFIED"; got != want {
 		t.Errorf("Spelling() = %q, want %q", got, want)
 	}
 }
@@ -30,7 +30,7 @@ func TestMustEnumPanicsRatherThanRenderingAnEmptySet(t *testing.T) {
 			t.Error("MustEnum returned quietly for an undeclared key")
 		}
 	}()
-	_ = MustEnum("verdict", "no-such-key")
+	_ = MustEnum("outcome", "no-such-key")
 }
 
 // THE DUPLICATION THIS TEST GUARDED IS GONE, AND THAT IS WHAT IT NOW ASSERTS.
@@ -372,9 +372,9 @@ func schemaEnumFor(t *testing.T, typ, key string) protoreflect.EnumDescriptor {
 
 // schemaValue resolves a table word to the schema value it names.
 //
-// TWO SURFACES ARE LOUDER THAN THE SCHEMA. `chair verdict --as PASS` and `bench outcome --as
-// VERIFIED` are the seat's words in capitals — that is the surface, and VerdictOf and RunOutcomeOf
-// admit only that spelling, lowercasing it to resolve. BySpelling is exact by design (its own test
+// A SURFACE IS LOUDER THAN THE SCHEMA. `bench outcome --as VERIFIED` is the seat's word in
+// capitals — that is the surface, and RunOutcomeOf admits only that spelling, lowercasing it to
+// resolve. BySpelling is exact by design (its own test
 // pins that `PASS` does not resolve to `pass`), so the fold is checked here rather than
 // weakened there. It is one-way: a declared word may be louder than the schema's, never
 // different from it.

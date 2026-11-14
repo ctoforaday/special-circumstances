@@ -11,8 +11,6 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsEventType[:]
 	case "feov.record.v1.Grade":
 		return annotationsGrade[:]
-	case "feov.record.v1.Verdict":
-		return annotationsVerdict[:]
 	case "feov.record.v1.RunOutcome":
 		return annotationsRunOutcome[:]
 	case "feov.record.v1.CheckKind":
@@ -119,11 +117,6 @@ var annotationsGrade = [...]ValueAnnotations{
 	{Name: "GRADE_HIGH", Means: "serious", Mass: DeclaredNumber{Declared: true, Value: 3}},
 	{Name: "GRADE_CERTAIN", Means: "the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists", Mass: DeclaredNumber{Declared: true, Value: 3.5}},
 	{Name: "GRADE_REALIZED", Means: "it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead", Mass: DeclaredNumber{Declared: true, Value: 0}},
-}
-
-var annotationsVerdict = [...]ValueAnnotations{
-	{Name: "VERDICT_UNSPECIFIED"},
-	{Name: "VERDICT_PASS", Means: "nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word"},
 }
 
 var annotationsRunOutcome = [...]ValueAnnotations{
@@ -267,7 +260,7 @@ var annotationsPetitionRuling = [...]ValueAnnotations{
 var annotationsPositionRuling = [...]ValueAnnotations{
 	{Name: "POSITION_RULING_UNSPECIFIED"},
 	{Name: "POSITION_RULING_UPHELD", Means: "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"},
-	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"},
+	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"},
 }
 
 var annotationsAboutKind = [...]ValueAnnotations{

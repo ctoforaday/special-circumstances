@@ -290,7 +290,7 @@
     },
     {
       "term": "chair",
-      "definition": "The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.",
+      "definition": "The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.",
       "seats": [
         "lens",
         "chair",

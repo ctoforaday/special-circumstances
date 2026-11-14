@@ -1325,16 +1325,16 @@ func debate(fam record.Family) string {
 		// The fix is not to detect the contradiction — that would be a string match on prose, and
 		// a wrong one would be worse than none. It is to render the FACT next to the claim, so a
 		// reader sees both and needs no inference.
-		recordedVerdict := ""
+		passed := false
 		for _, l := range re {
-			if v, ok := recordpb.BodyAs[*recordpb.Gate](l); ok {
-				recordedVerdict = recordpb.Word(v.GetVerdict())
+			if _, ok := recordpb.BodyAs[*recordpb.Gate](l); ok {
+				passed = true
 			}
 		}
 		redHead := "### RED"
 		switch {
-		case recordedVerdict != "":
-			redHead = "### RED — recorded verdict: " + strings.ToUpper(recordedVerdict)
+		case passed:
+			redHead = "### RED — recorded verdict: PASS"
 		default:
 			// ABSENCE IS ITS OWN FACT. An epoch where red spoke and recorded no verdict is not an
 			// epoch that passed; it is one whose gate never closed, and silence renders the same

@@ -395,7 +395,7 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d citation(s) or computation(s) have no check of the sentence the report carries:\n  %s\n"+
 				"A citation nobody has read against its sentence, or a computation nobody has judged, is a claim nothing on the record backs yet; a check of a sentence an edit has since replaced is of a sentence the report no longer carries. `show evidence --anchor <id>` reads each as it now stands. "+
-				"A `verify` of the citation that reads its source (any result but `unreachable`, of a copy that is the work) or a `reproduce` naming the computation's anchor — from a sitting opened after the edit, where an edit changed the sentence — clears it, whichever lens records it; "+
+				"The lens's `verify` of the citation that reads its source (any result but `unreachable`, of a copy that is the work) or the lens's `reproduce` naming the computation's anchor — from a sitting opened after the edit, where an edit changed the sentence — clears it, whichever lens records it; "+
 				"PASS waits for the check",
 				len(bs), strings.Join(named, "\n  "))
 		},
@@ -873,13 +873,13 @@ func passBlockersOfReads(r planReads) []Blocker {
 	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh, r.found)
 }
 
-// requireNoBlockers is the verdict gate: a PASS is refused over every blocker.
+// requireNoBlockers is the verdict gate: the PASS is refused over every blocker.
 //
 // AN ACT JUDGEMENT (judgeAct; gblock, 2026-10-24): an archived verdict is carried as history. The
 // archived b7 and b9 runs' PASSes stand over gaps their classes now make material, and the replay
 // writes them as the chair issued them.
-func requireNoBlockers(verdict recordpb.Verdict, blockers []Blocker) error {
-	if verdict == recordpb.Verdict_VERDICT_PASS && len(blockers) > 0 {
+func requireNoBlockers(blockers []Blocker) error {
+	if len(blockers) > 0 {
 		return blockerRefusal(blockers)
 	}
 	return nil

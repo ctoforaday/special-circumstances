@@ -294,7 +294,7 @@ func passRefusalOver(t *testing.T, run Run, kinds ...BlockerKind) error {
 			}
 		}
 	}
-	return requireNoBlockers(recordpb.Verdict_VERDICT_PASS, of)
+	return requireNoBlockers(of)
 }
 
 func petitionMotion(id string) *recordpb.Motion {

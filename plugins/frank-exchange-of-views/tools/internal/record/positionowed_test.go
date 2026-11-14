@@ -20,8 +20,8 @@ func storedPlan(t *testing.T, permitted bool) *Event {
 	return recordtest.Event(t, chairSeat, &recordpb.Plan{Printed: proto.String(p.WithKey().Printed())})
 }
 
-func gate(t *testing.T, v recordpb.Verdict) *Event {
-	return recordtest.Event(t, chairSeat, &recordpb.Gate{Verdict: v.Enum()})
+func gate(t *testing.T) *Event {
+	return recordtest.Event(t, chairSeat, &recordpb.Gate{})
 }
 
 // THE CHAIR'S POSITION IS OWED WHERE IT WITHHELD A PASS ITS PLAN PERMITTED, AND NOWHERE ELSE — each
@@ -55,7 +55,7 @@ func TestTheChairOwesAPositionWhereItWithheldAPermittedPass(t *testing.T) {
 		},
 		"permitted, the PASS recorded": {
 			evs: func(t *testing.T) []*Event {
-				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), gate(t, recordpb.Verdict_VERDICT_PASS), agentStops(t, "chair-a")}
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), gate(t), agentStops(t, "chair-a")}
 			},
 			running: []PositionState{PositionNotOwed}, after: []PositionState{PositionNotOwed},
 		},
@@ -81,7 +81,7 @@ func TestTheChairOwesAPositionWhereItWithheldAPermittedPass(t *testing.T) {
 		},
 		"a permitted plan in the sitting before": {
 			evs: func(t *testing.T) []*Event {
-				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), gate(t, recordpb.Verdict_VERDICT_PASS), agentStops(t, "chair-a"),
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), gate(t), agentStops(t, "chair-a"),
 					registersAs(t, chairSeat, "chair-b"), agentStops(t, "chair-b")}
 			},
 			running: []PositionState{PositionNotOwed, PositionNotOwed}, after: []PositionState{PositionNotOwed, PositionNotOwed},

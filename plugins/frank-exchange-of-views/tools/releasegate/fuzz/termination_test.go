@@ -150,7 +150,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			switch {
 			case m.pass:
 				e.Relay(plan([]any{}, true, false, nil, "pass permitted"))
-				e["verdict"] = "PASS"
+				e["passed"] = true
 			case m.ceiling:
 				e.Relay(plan([]any{}, false, true, nil, "epoch limit 1 reached — this chair sitting opens the run's last epoch"))
 			case m.stall:

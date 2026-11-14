@@ -39,7 +39,7 @@ func TestTheVerdictCheckpointKeepsTheRecordLockedAndMirrorsOneConsistentDatabase
 	if err := os.WriteFile(filepath.Join(want, "record.db-wal"), []byte("not this run's log"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
+	out, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair")
 	if err != nil {
 		t.Fatalf("verdict: %v\n%s", err, out)
 	}

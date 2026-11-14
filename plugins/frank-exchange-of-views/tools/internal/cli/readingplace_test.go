@@ -143,7 +143,7 @@ func TestAReadingOverAnAppliedPrescriptionRecordsAndItsGapMeetsTheGuard(t *testi
 		if _, err := run(t, "register", "--run", b.runDir, "--seat-id", "red-chair"); err != nil {
 			t.Fatal(err)
 		}
-		_, err = run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair", "--as", "PASS")
+		_, err = run(t, "verdict", "--run", b.runDir, "--seat-id", "red-chair")
 		mustRefuse(t, err, "", g1, "material gap")
 	})
 	t.Run("c: a found-source reading and its quote gap", func(t *testing.T) {

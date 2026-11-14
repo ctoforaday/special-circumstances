@@ -31,6 +31,6 @@ func relayScriptedPlan(e map[string]any, label string, plans []map[string]any) {
 		maps.Copy(e, plans[n-1])
 	} else {
 		maps.Copy(e, plan([]any{}, true, false, nil, "no lens is ready and nothing material is open"))
-		e["verdict"] = "PASS"
+		e["passed"] = true
 	}
 }

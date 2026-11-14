@@ -104,7 +104,7 @@ func TestTheEnvelopeSchemaCheckRefusesWhatTheHarnessRefuses(t *testing.T) {
 	schema := map[string]any{
 		"type": "object", "required": []any{"pass_permitted", "blockers"}, "additionalProperties": false,
 		"properties": map[string]any{"pass_permitted": map[string]any{"type": "boolean"}, "blockers": map[string]any{"type": "array"},
-			"verdict": map[string]any{"type": "string", "enum": []any{"PASS"}}, "notes": map[string]any{"type": "string"}},
+			"passed": map[string]any{"type": "boolean"}, "notes": map[string]any{"type": "string"}},
 		"anyOf": []any{
 			map[string]any{"required": []any{"pass_permitted"}, "properties": map[string]any{"pass_permitted": map[string]any{"enum": []any{true}}}},
 			map[string]any{"required": []any{"blockers"}, "properties": map[string]any{"blockers": map[string]any{"minItems": 1}}},
@@ -115,13 +115,13 @@ func TestTheEnvelopeSchemaCheckRefusesWhatTheHarnessRefuses(t *testing.T) {
 		env    map[string]any
 		accept bool
 	}{
-		"a permitted PASS":                {map[string]any{"pass_permitted": true, "blockers": []any{}, "verdict": "PASS"}, true},
-		"a blocker named, with notes":     {map[string]any{"pass_permitted": false, "blockers": []any{"b"}, "notes": "n"}, true},
-		"nothing holding no PASS":         {map[string]any{"pass_permitted": false, "blockers": []any{}}, false},
-		"a key the plan does not hold":    {map[string]any{"pass_permitted": true, "blockers": []any{}, "epochs": 1}, false},
-		"the envelope wrapped in a key":   {map[string]any{"plan": map[string]any{"pass_permitted": true, "blockers": []any{}}}, false},
-		"a verdict the record never says": {map[string]any{"pass_permitted": true, "blockers": []any{}, "verdict": nil}, false},
-		"no plan":                         {map[string]any{}, false},
+		"a permitted PASS":              {map[string]any{"pass_permitted": true, "blockers": []any{}, "passed": true}, true},
+		"a blocker named, with notes":   {map[string]any{"pass_permitted": false, "blockers": []any{"b"}, "notes": "n"}, true},
+		"nothing holding no PASS":       {map[string]any{"pass_permitted": false, "blockers": []any{}}, false},
+		"a key the plan does not hold":  {map[string]any{"pass_permitted": true, "blockers": []any{}, "epochs": 1}, false},
+		"the envelope wrapped in a key": {map[string]any{"plan": map[string]any{"pass_permitted": true, "blockers": []any{}}}, false},
+		"a PASS the record never says":  {map[string]any{"pass_permitted": true, "blockers": []any{}, "passed": "PASS"}, false},
+		"no plan":                       {map[string]any{}, false},
 	} {
 		if why := s.refusal(schema, c.env); (why == "") != c.accept {
 			t.Errorf("%s: accept=%v, refusal %q", name, c.accept, why)

@@ -447,7 +447,7 @@ func TestTheDispatchVerbRefusesASeatOutsideTheCast(t *testing.T) {
 // lens engaged that has opened no sitting since has not sat, so it is still ready.
 func TestPassIsRefusedWhileAnyCastLensIsReady(t *testing.T) {
 	logic := "red-lens-logic"
-	pass := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}
+	pass := &recordpb.Gate{}
 	b := newStage(t).cast(evLens, logic, "red-chair", "blue-respond", "judge").ingest(). // head 2
 												register("red-chair").dispatch(2, evLens).dispatch(2, logic).register(evLens). // only evidence sits
 												register("red-chair")
@@ -471,7 +471,7 @@ func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 		register("red-chair")
 	run := b.seed()
 	chair := Identity{Run: run, SeatID: "red-chair"}
-	pass := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}
+	pass := &recordpb.Gate{}
 	if _, err := Append(chair, pass); err != nil {
 		t.Fatalf("a low-severity open gap held the gate: %v", err)
 	}

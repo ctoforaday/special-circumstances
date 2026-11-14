@@ -233,7 +233,6 @@ END;
 // lands here when a guarded read path narrows by the column; it is authored, like ViewsDDL,
 // because which questions get asked is a decision, not a derivation.
 const QueryIndexDDL = `
-CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");

@@ -108,7 +108,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	openUnderPass := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
-		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
+		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{})},
 	}
 	if c := find(t, Run(openUnderPass.fam(t)), "pass-closes-all-gaps"); c.OK {
 		t.Error("PASS with an open gap must fail the #67 gate")
@@ -118,7 +118,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	trifleUnderPass := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_LOW}},
-		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
+		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{})},
 	}
 	if c := find(t, Run(trifleUnderPass.fam(t)), "pass-closes-all-gaps"); !c.OK {
 		t.Errorf("PASS over an open LOW gap must pass the gate — it does not hold it: %s", c.Detail)
@@ -259,13 +259,13 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 // and the check reported "gate not applicable" on every run ever recorded.
 //
 // The board is built DIRECTLY here rather than through the CLI, and that is the point: the live
-// gate in record.Append refuses `chair verdict --as PASS` while a gap is open, so the
+// gate in record.Append refuses `chair verdict` while a gap is open, so the
 // contradiction cannot be produced the normal way. A record assembled some other way — a
 // hand-edited shard, a legacy run, a regressed live gate — is the only thing this check is for,
 // and it is what a test of it has to construct.
 func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
 	b := &boardT{
-		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
+		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{})},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 	}
@@ -280,7 +280,7 @@ func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
 
 func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
 	b := &boardT{
-		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
+		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{})},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: false}},
 	}
@@ -289,11 +289,10 @@ func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
 	}
 }
 
-// A terminal `outcome` is not the gate's business — reading it is what made the check dead — and
-// neither is a gate with no verdict on it. Both must leave it inapplicable rather than firing.
+// A terminal `outcome` is not the gate's business — reading it is what made the check dead. It must
+// leave the gate inapplicable rather than firing.
 func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 	for _, ev := range []*record.Event{
-		recordtest.Event(t, "", &recordpb.Gate{}),
 		recordtest.Event(t, "", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED), Prose: proto.String("verified")}),
 	} {
 		b := &boardT{
@@ -318,9 +317,8 @@ func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 // indistinguishable from a gate that holds. This test asserted the pair against the declared
 // vocabulary so the gate could not go quietly dark again.
 //
-// `RoundVerdict.Verdict` is a `recordpb.Verdict` and `Outcome.Verdict` is a `recordpb.RunOutcome`.
-// They are different Go types on different messages; the gate switches on the BODY, so pointing it
-// at the wrong event does not compile. A runtime test for a state the type system forbids is dead
+// The PASS is the verdict event itself, and `Outcome.Verdict` is a `recordpb.RunOutcome`; the gate
+// switches on the event type, so the two cannot be confused. A runtime test for a state the type system forbids is dead
 // code that reads like a live guard, and the next reader would take its passing as evidence the
 // hazard is still being watched.
 
@@ -365,7 +363,7 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 // decoration.
 func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 	b := &boardT{
-		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
+		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{})},
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
 			"G1": {ID: "G1", Open: false, Closure: &recordpb.Close{ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
@@ -383,7 +381,7 @@ func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 // A violated check reports FAIL, and is neither n/a nor ok.
 func TestAViolatedCheckReportsFail(t *testing.T) {
 	b := &boardT{
-		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
+		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{})},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 	}

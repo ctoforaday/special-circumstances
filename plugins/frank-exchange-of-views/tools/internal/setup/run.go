@@ -304,26 +304,12 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
 		return 2
 	}
-	// AN ENCODING FAILURE IS NOT A DIRECTORY'S: nothing was written, and a writable directory would
-	// fail the same way. No flag setup takes holds a value JSON cannot, so the failure is setup's own
-	// and is said as one.
-	failEncode := func(err error) int {
-		fmt.Fprintf(stderr, "run-setup: could not encode the run's configuration (inputs/run-config.json): %v\n", err)
-		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. This is a defect in setup, not in the flags passed: report it with this message")
-		return 2
-	}
-	hooks, err := marshalJSON(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
-	if err != nil {
-		return failEncode(err)
-	}
+	hooks := marshalJSON(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
 	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Seats: seatSpecs, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect,
 		K: new(terms.K), KMax: new(terms.KMax), MaxEpochs: new(terms.MaxEpochs),
 		Hooks:   hooks,
 		Billing: ReadBillingIdentity()}
-	b, err := marshalJSON(rc)
-	if err != nil {
-		return failEncode(err)
-	}
+	b := marshalJSON(rc)
 	// STAGED, THEN PUT IN PLACE ONLY ONCE THE CAST LANDS. The cast is written once, so it is what
 	// refuses a directory that already holds a run; writing the configuration in place first would
 	// overwrite that run's terms before the refusal. A staging write that fails leaves no cast, so

@@ -175,7 +175,7 @@ func requireNoRepeatedPosition(w writeView, seatID string) error {
 	if id, permitted, _ := overruledFollowerAt(evs, win); permitted {
 		return feov.Errorf(feov.Conflict,
 			"the bench overruled your position %s, and this is your first sitting since: the ruling binds, and a position here would hold the PASS back on the decided objection again. Nothing was recorded. "+
-				"This sitting owes the PASS your plan permits: `verdict --as PASS`", id)
+				"This sitting owes the PASS your plan permits: `verdict`", id)
 	}
 	return nil
 }

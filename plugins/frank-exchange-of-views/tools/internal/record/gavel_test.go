@@ -62,8 +62,8 @@ func TestAGavelResolvesToOneSeat(t *testing.T) {
 // THE PASS REFUSAL NAMES THE GAVEL, AND NAMES THE MOVE FOR A SEAT THAT DOES NOT HOLD IT.
 //
 // This is the wedge, stated as a test: a clean gap board plus an unruled PETITION. The chair
-// cannot rule it and cannot pass; the only legal act left is FAIL, and the seat learns that from
-// this message or not at all.
+// cannot rule it and cannot pass; it records no verdict this sitting, and the seat learns that the
+// bench holds the gavel from this message or not at all.
 func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, sid := range []string{"blue-respond", "red-chair"} {

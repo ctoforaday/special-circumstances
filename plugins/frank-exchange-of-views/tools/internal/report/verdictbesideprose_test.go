@@ -21,9 +21,7 @@ import (
 // the reader see both.
 func TestTheRecordedVerdictRendersBesideRedsProse(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "red-chair", &recordpb.Gate{
-			Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS),
-		}),
+		recordtest.Event(t, "red-chair", &recordpb.Gate{}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")),
 			Text: proto.String("A material gap is still open. I withhold the PASS."),
 		}),

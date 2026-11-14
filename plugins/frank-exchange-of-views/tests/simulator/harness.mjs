@@ -105,9 +105,9 @@ export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over 
 // record states.
 export const ceilingPlan = (over = {}) => plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 1, why: ["epoch limit 1 reached — this chair sitting opens the run's last epoch, so the 2 party(ies) above are not dispatched"], blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
 // chairEnv is a chair's envelope: the envelope IS the plan, so the plan given as `plan` is spread to
-// its top level, and every other key given (the plan's `verdict`, the chair's `notes`) sits beside it.
+// its top level, and every other key given (the plan's `passed`, the chair's `notes`) sits beside it.
 export const chairEnv = ({ plan: p = plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')]), ...over } = {}) => ({ ...p, ...over })
-export const passChair = (over = {}) => chairEnv({ plan: passPlan(), verdict: 'PASS', ...over })
+export const passChair = (over = {}) => chairEnv({ plan: passPlan(), passed: true, ...over })
 export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,

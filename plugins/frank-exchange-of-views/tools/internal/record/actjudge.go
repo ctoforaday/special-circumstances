@@ -108,7 +108,7 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		if err != nil {
 			return err
 		}
-		return requireNoBlockers(b.GetVerdict(), blockers)
+		return requireNoBlockers(blockers)
 	case *recordpb.Outcome:
 		// THE RUN'S TERMINAL ACT. The verdict itself is derived and needs no defence; a motion whose
 		// gavel is the bench's, standing unruled, is a settlement the run would record without it.

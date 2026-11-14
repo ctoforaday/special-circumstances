@@ -1475,7 +1475,7 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 
 	runDir := castRun(t)
 	mint2(runDir)
-	_, err := run(t, "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS")
+	_, err := run(t, "verdict", "--run", runDir, "--seat-id", seatID)
 	if err == nil {
 		t.Fatal("PASS was recorded over 2 open gaps — the rubber-stamp the guard exists to stop")
 	}
@@ -1492,24 +1492,24 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS"); err != nil {
+	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", seatID); err != nil {
 		t.Errorf("PASS must go through once every gap is closed: %v", err)
 	}
 }
 
-// ...AND THE GATE CANNOT BE SPELLED PAST.
-//
-// The guard above compares --as to the literal "PASS", so for as long as it has existed
-// every OTHER spelling of a pass simply missed it: measured on the shipped tree, `--as
-// pass`, `--as Pass` and `--as banana` were all recorded over an open board with the
-// check never running. That is a worse failure than the rubber-stamp it was written to
-// stop — the rubber-stamp at least left "PASS" on the record, where a re-audit could see
-// it. The set is closed at the write path now (record.EnumFields), and this pins the
-// route the original guard is reached BY, not just the guard.
+// ...AND THE GATE CANNOT BE SPELLED PAST. The verdict took a word once, and every spelling of a
+// pass the guard did not compare — `pass`, `Pass`, `banana` — was recorded over an open board with
+// the check never running. The verb takes no word now: the PASS is the act itself. This pins that
+// no word reaches the record by any route — a flag, a positional argument, or none — over an open
+// gap, and that a refusal writes nothing.
 func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 	seatID := "red-chair"
-	for _, as := range []string{"pass", "Pass", "PASSED", "banana", ""} {
-		t.Run("as="+as, func(t *testing.T) {
+	for name, extra := range map[string][]string{
+		"no word":               nil,
+		"a flag the verb lacks": {"--as", "PASS"},
+		"a positional word":     {"pass"},
+	} {
+		t.Run(name, func(t *testing.T) {
 			runDir := newRun(t)
 			registerChairOnce(t, runDir)
 			registerLensOnce(t, runDir)
@@ -1517,17 +1517,12 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 				"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
 			}
-			args := []string{"verdict", "--run", runDir, "--seat-id", seatID}
-			if as != "" {
-				args = append(args, "--as", as)
-			}
+			args := append([]string{"verdict", "--run", runDir, "--seat-id", seatID}, extra...)
 			if _, err := run(t, args...); err == nil {
-				t.Fatalf("`verdict --as %q` was recorded over an open gap", as)
-			} else if !strings.Contains(err.Error(), "PASS") {
-				t.Errorf("the refusal must name what would have worked, got: %v", err)
+				t.Fatalf("`%s` was recorded over an open gap", strings.Join(args, " "))
 			}
-			// AND NOTHING WAS WRITTEN. A refusal that still appends leaves a verdict on
-			// the record for every projection to read.
+			// AND NOTHING WAS WRITTEN. A refusal that still appends leaves a PASS on the record
+			// for every projection to read.
 			for _, e := range events(t, runDir) {
 				if e.GetType() == recordpb.EventType_EVENT_TYPE_VERDICT {
 					t.Errorf("a refused verdict reached the log anyway: %+v", e)
@@ -1555,11 +1550,11 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	chairSitsAgain(t, runDir)
-	out, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
+	out, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "verdict PASS") || !strings.Contains(out, "(0 open, 1 closed)") {
+	if !strings.HasPrefix(out, "PASS (0 open, 1 closed)") {
 		t.Errorf("verdict said %q", out)
 	}
 	if !strings.Contains(out, "checkpointed to ") {
@@ -1586,9 +1581,9 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	if !found {
 		t.Errorf("the mirror does not hold the record: %v", entries)
 	}
-	// The verdict itself is on the record.
-	if got := lastBody(t, runDir, &recordpb.Gate{}).GetVerdict(); got != recordpb.Verdict_VERDICT_PASS {
-		t.Errorf("verdict payload = %q", got)
+	// The PASS itself is on the record.
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_VERDICT); n != 1 {
+		t.Errorf("the record holds %d gate(s), want the one PASS", n)
 	}
 }
 

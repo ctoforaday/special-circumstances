@@ -154,7 +154,7 @@ func (a *chairSittingActs) read(e *Event, heard map[*Event]bool) {
 			a.permitted = p.PassPermitted
 		}
 	case *recordpb.Gate:
-		a.passed = a.passed || b.GetVerdict() == recordpb.Verdict_VERDICT_PASS
+		a.passed = true
 	}
 }
 
@@ -205,7 +205,7 @@ func heardPositionsOf(evs []*Event, win WindowIndex) map[*Event]bool {
 	}
 	passed := map[int64]bool{}
 	for _, e := range evs {
-		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok && e.GetSeatId() == chairSeat && g.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+		if _, ok := recordpb.BodyAs[*recordpb.Gate](e); ok && e.GetSeatId() == chairSeat {
 			passed[win.Of(e).SittingID] = true
 		}
 	}

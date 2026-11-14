@@ -335,22 +335,6 @@ enum Grade {
   GRADE_REALIZED = 8 [(means) = "it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead", (mass) = 0];
 }
 
-// Verdict is the chair's gate, and its one value is PASS. PASS is CHECKED against the open board,
-// not taken on the seat's word — which is why the set is closed: `--as pass` once recorded a PASS
-// that skipped the check entirely, and `--as banana` recorded a banana.
-//
-// THERE IS NO FAIL (EventSchema 78). A recorded FAIL changed no outcome and no dispatch: the run's
-// outcome is derived from the record (verdict.go), so a word the chair asserted against the board
-// told a reader nothing the plan did not. The chair withholds a PASS its plan permits by filing a
-// position, which the bench hears, and the bench's ruling on it binds. A stored event carries the
-// number, so it does not come back meaning something else.
-enum Verdict {
-  VERDICT_UNSPECIFIED = 0;
-  VERDICT_PASS = 1 [(means) = "nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word"];
-  reserved 2;
-  reserved "VERDICT_FAIL";
-}
-
 // RunOutcome is how the SITTING ended. The report's verdict stamp switches on it, so an
 // unrecognized value used to fall through to a bare stamp — losing, for CEILING, the "this is
 // NOT a judged failure to verify" caveat the stamp exists to carry.
@@ -674,7 +658,7 @@ enum PetitionRuling {
 enum PositionRuling {
   POSITION_RULING_UNSPECIFIED = 0;
   POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
-  POSITION_RULING_OVERRULED = 2 [(means) = "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"];
+  POSITION_RULING_OVERRULED = 2 [(means) = "the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"];
 }
 
 // Event is the log line.
@@ -2554,26 +2538,22 @@ message EnvelopeAdmitted {
   }];
 }
 
-// Gate carries the chair's PASS on the open board, as of this sitting.
+// Gate is the chair's PASS on the open board, as of this sitting. PASS is CHECKED against the
+// board, not taken on the seat's word.
+//
+// THE EVENT IS THE FACT, AND IT HOLDS NO FIELD (EventSchema 76). PASS is the one verdict: a recorded
+// FAIL changed no outcome and no dispatch, since the run's outcome is derived from the record
+// (verdict.go), and a field whose one legal value is PASS tells a reader nothing the event's type
+// does not. The chair withholds a PASS its plan permits by filing a position, which the bench
+// hears, and the bench's ruling on it binds. 1 and 2 are reserved: a stored event carries the bytes,
+// so neither number comes back meaning something else.
 //
 // IT WAS `RoundVerdict`. The round left the record (plans/roundless.md §III.A.2) and a name that
 // carried it would have been the last live surface saying the debate is paced in rounds; the
 // table follows the message, so `round_verdict` is `gate` — named from the message it records.
-//
-// IT WAS `Verdict_`, with a trailing underscore, because `Verdict` is the enum and protoc-gen-go
-// would collide the two Go identifiers. That is a real constraint and it was solved in the wrong
-// place: the workaround named the MESSAGE after a property of the code generator, and the name
-// then travelled all the way into the record as a table called `verdict_` — a Go artifact sitting
-// in the schema a human reads to understand the debate.
-//
-// `Gate` says what it is. The collision is gone because the name is different, not because it was
-// decorated, and the wire is unaffected either way: field numbers carry the format, names do not.
 message Gate {
-  optional Verdict verdict = 1;
-
-  // 2 is reserved: a stored event carries the bytes, so the number does not come back meaning
-  // something else.
-  reserved 2;
+  reserved 1, 2;
+  reserved "verdict";
 }
 
 // Outcome is the run's TERMINAL act. The verdict is DERIVED from the record — a halt, a recorded

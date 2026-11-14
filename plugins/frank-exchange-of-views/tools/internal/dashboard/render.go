@@ -109,8 +109,8 @@ func summarizeResult(raw any) string {
 		return sliceStr(s, 110)
 	}
 	var bits []string
-	if v, ok := j["verdict"].(string); ok && v != "" {
-		bits = append(bits, "verdict "+v)
+	if passed, _ := j["passed"].(bool); passed {
+		bits = append(bits, "verdict PASS")
 	}
 	if len(bits) == 0 {
 		return sliceStr(s, 110)

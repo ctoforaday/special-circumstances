@@ -14,10 +14,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// A PLAN STORED BEFORE THE PLAN PRINTED ITS VERDICT carries, migrated, the verdict its chair sitting
+// A PLAN STORED BEFORE THE PLAN PRINTED ITS VERDICT carries, migrated, the PASS its chair sitting
 // had recorded at that place — the record's own fact, read as `dispatch next` reads it — and a plan
 // stored before the sitting recorded one carries none.
-func TestAStoredPlanCarriesTheVerdictItsSittingHadRecorded(t *testing.T) {
+func TestAStoredPlanCarriesThePassItsSittingHadRecorded(t *testing.T) {
 	setup := func(dir string) []*recordpb.Event {
 		at := func(seat, key string, body proto.Message) *recordpb.Event {
 			return recordtest.Stamped(recordtest.At(t, seat, key, body), record.Stamp())
@@ -28,7 +28,7 @@ func TestAStoredPlanCarriesTheVerdictItsSittingHadRecorded(t *testing.T) {
 			at("red-chair", "r1", &recordpb.Register{}),
 		}
 	}
-	// The plan as the verb printed it before it printed a verdict: no `verdict` key.
+	// The plan as the verb printed it before it printed a verdict: no `passed` key.
 	asked := recordtest.TmpRun(t)
 	recordtest.Seed(t, asked, setup(asked)...)
 	plan, _, err := record.DispatchNext(record.Identity{Run: runtest.Open(t, asked), SeatID: "red-chair"})
@@ -36,7 +36,7 @@ func TestAStoredPlanCarriesTheVerdictItsSittingHadRecorded(t *testing.T) {
 		t.Fatal(err)
 	}
 	printed := plan.Printed()
-	if strings.Contains(printed, `"verdict"`) {
+	if strings.Contains(printed, `"passed"`) {
 		t.Fatalf("fixture: the plan asked before any verdict prints one: %s", printed)
 	}
 
@@ -45,10 +45,9 @@ func TestAStoredPlanCarriesTheVerdictItsSittingHadRecorded(t *testing.T) {
 	stamp := func(seat, key string, body proto.Message) *recordpb.Event {
 		return recordtest.Stamped(recordtest.At(t, seat, key, body), record.Stamp())
 	}
-	pass := recordpb.Verdict_VERDICT_PASS
 	evs = append(evs,
 		stamp("red-chair", "p1", &recordpb.Plan{Printed: proto.String(printed)}),
-		stamp("red-chair", "v", &recordpb.Gate{Verdict: &pass}),
+		stamp("red-chair", "v", &recordpb.Gate{}),
 		stamp("red-chair", "p2", &recordpb.Plan{Printed: proto.String(printed)}))
 	recordtest.Seed(t, dir, evs...)
 
@@ -72,7 +71,7 @@ func TestAStoredPlanCarriesTheVerdictItsSittingHadRecorded(t *testing.T) {
 	if after[0].Printed != printed {
 		t.Errorf("the plan stored before the verdict changed: %s", after[0].Printed)
 	}
-	if after[1].Plan.Verdict != "PASS" || after[1].Plan.Key != plan.Key {
-		t.Errorf("the plan stored after the PASS = verdict %q key %s, want PASS under the same key %s", after[1].Plan.Verdict, after[1].Plan.Key, plan.Key)
+	if !after[1].Plan.Passed || after[1].Plan.Key != plan.Key {
+		t.Errorf("the plan stored after the PASS = passed %v key %s, want the PASS under the same key %s", after[1].Plan.Passed, after[1].Plan.Key, plan.Key)
 	}
 }

@@ -664,7 +664,7 @@ func TestTheDrivesChairDecidesThePassAfterAnOverruling(t *testing.T) {
 	if r.actErr != "" || r.repeatedPositionsRefused != 1 {
 		t.Fatalf("the repeated position: %q, %d refused", r.actErr, r.repeatedPositionsRefused)
 	}
-	if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair", "--as", "PASS"); err != nil {
+	if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair"); err != nil {
 		t.Fatalf("the PASS the overruling sent back: %v", err)
 	}
 	r.dispatchReturns("red-chair", false)
@@ -891,7 +891,7 @@ func TestTheLensRouteFitsTheLimitAtItsLastWithholdEpoch(t *testing.T) {
 				if err != nil || !strings.Contains(out, `"pass_permitted":true`) {
 					t.Fatalf("the final sitting's plan: %v\n%s", err, out)
 				}
-				if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair", "--as", "PASS"); err != nil {
+				if _, err := r.exec("--json", "verdict", "--seat-id", "red-chair"); err != nil {
 					t.Fatalf("the PASS the lens's audit freed: %v", err)
 				}
 				r.dispatchReturns("red-chair", false)

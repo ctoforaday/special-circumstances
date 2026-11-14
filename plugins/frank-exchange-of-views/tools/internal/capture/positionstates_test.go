@@ -94,12 +94,12 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed without the PASS"}},
 		},
 		"overruled, the next sitting recorded the PASS": {
-			acts:    append(append([]act{}, overruled...), sits("chair-b", storedPlan(true), &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})...),
+			acts:    append(append([]act{}, overruled...), sits("chair-b", storedPlan(true), &recordpb.Gate{})...),
 			running: want{states: []record.PositionState{record.PositionFiled, record.PositionNotOwed}, verdict: "PASS"},
 			after:   want{states: []record.PositionState{record.PositionFiled, record.PositionNotOwed}, verdict: "PASS"},
 		},
 		"the PASS recorded": {
-			acts:    sits("chair-a", storedPlan(true), &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
+			acts:    sits("chair-a", storedPlan(true), &recordpb.Gate{}),
 			running: want{states: []record.PositionState{record.PositionNotOwed}, verdict: "PASS"},
 			after:   want{states: []record.PositionState{record.PositionNotOwed}, verdict: "PASS"},
 		},

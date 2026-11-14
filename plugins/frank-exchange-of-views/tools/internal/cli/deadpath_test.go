@@ -635,7 +635,7 @@ func TestThePassRefusalOverAReadingsGapNamesIt(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatal(err)
 	}
-	_, err = run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
+	_, err = run(t, "verdict", "--run", runDir, "--seat-id", "red-chair")
 	if err == nil || !strings.Contains(err.Error(), gap) {
 		t.Fatalf("the chair's PASS over the reading's open gap %s was not refused naming it: %v", gap, err)
 	}

@@ -26,7 +26,7 @@ func TestInquestDebateCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	// holds a PASS).
 	registerLensOnce(t, runDir)
 	chair("register")
-	chair("verdict", "--as", "PASS")
+	chair("verdict")
 
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "docket"); err != nil {
 		t.Fatalf("register judge: %v", err)
@@ -37,20 +37,20 @@ func TestInquestDebateCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	}
 	var dj struct {
 		Epochs []struct {
-			Epoch   int    `json:"epoch"`
-			Verdict string `json:"verdict"`
+			Epoch  int  `json:"epoch"`
+			Passed bool `json:"passed"`
 		} `json:"epochs"`
 	}
 	if err := json.Unmarshal([]byte(out), &dj); err != nil {
 		t.Fatalf("inquest debate --json emitted unparseable JSON: %v\n%s", err, out)
 	}
-	got := map[int]string{}
+	got := map[int]bool{}
 	for _, e := range dj.Epochs {
-		got[e.Epoch] = e.Verdict
+		got[e.Epoch] = e.Passed
 	}
-	for epoch, want := range map[int]string{1: "", 2: "pass"} {
+	for epoch, want := range map[int]bool{1: false, 2: true} {
 		if got[epoch] != want {
-			t.Errorf("epoch %d: inquest debate reports verdict %q, the record holds %q\n%s", epoch, got[epoch], want, out)
+			t.Errorf("epoch %d: inquest debate reports passed %v, the record holds %v\n%s", epoch, got[epoch], want, out)
 		}
 	}
 }

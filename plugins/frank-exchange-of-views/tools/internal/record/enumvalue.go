@@ -254,9 +254,9 @@ func evsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 	return out
 }
 
-// loud spells a generated set in capitals, for the two verbs whose seat-facing word is the
-// schema's in upper case: `chair verdict --as PASS` and `bench outcome --as VERIFIED`. VerdictOf
-// and RunOutcomeOf admit only that spelling and lowercase it to resolve, so the capitals are a
+// loud spells a generated set in capitals, for the verb whose seat-facing word is the schema's in
+// upper case: `bench outcome --as VERIFIED`. RunOutcomeOf admits only that spelling and lowercases
+// it to resolve, so the capitals are a
 // rendering rule applied once to the descriptor's set, not a second table that spells the same
 // words its own way.
 func loud(vs []EnumValue) []EnumValue {

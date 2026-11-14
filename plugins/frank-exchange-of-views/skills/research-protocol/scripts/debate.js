@@ -399,7 +399,7 @@ const PLAN = {
   required: ['key', 'head', 'parties', 'docket', 'remand_owed', 'exchanges', 'pass_permitted', 'stale_areas', 'ceiling', 'max_epochs', 'epoch', 'final_sitting', 'epoch_limit_reached', 'blockers', 'why'],
   additionalProperties: false,
   properties: {
-    key: { type: 'string', pattern: '^[0-9a-f]{16}$', description: "the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and verdict" },
+    key: { type: 'string', pattern: '^[0-9a-f]{16}$', description: "the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and passed" },
     head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
     parties: { type: 'array', items: { anyOf: [BENCH_PARTY, LENS_OR_BLUE_PARTY] } },
     docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
@@ -414,7 +414,7 @@ const PLAN = {
     epoch_limit_reached: { type: 'boolean', description: "the run's epoch limit leaves undispatched a party the board readies — any, at the sitting that opens the run's last epoch; blue, the only one, at the sitting before it — so nobody is dispatched, and ceiling is set for that reason" },
     blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['material_gap', 'remand_owed', 'unchecked', 'failed_check', 'reading_debt', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'upheld_position', 'open_inquiry', 'unchecked_inquiry'] }, subject: { type: 'string', description: 'the reference that names it: a gap id, a motion id, a lens seat, an anchor; empty for the run-wide kinds' }, owner: { type: 'string' } } } },
     why: { type: 'array', items: { type: 'string' } },
-    verdict: { type: 'string', enum: ['PASS'], description: 'the verdict the chair recorded in this sitting; absent while it has recorded none' },
+    passed: { type: 'boolean', description: 'true when the chair recorded the PASS in this sitting; absent while it has not' },
   },
   if: { required: ['pass_permitted'], properties: { pass_permitted: { type: 'boolean', enum: [true] } } },
   else: { required: ['blockers'], properties: { blockers: { type: 'array', minItems: 1 } } },
@@ -553,7 +553,7 @@ const BLUE_ENVELOPE = {
 // hook writes it into the chair's call, because this script has no other surface the record can reach
 // (record.ChairEnvelope). The chair copies none of it. Capture's dispatch-parity audit compares each
 // plan with the plan the record stored, whole, and requirePlan below type-checks every field read. The
-// verdict is the plan's own field — what the chair RECORDED in the sitting that asked — so the engine
+// PASS is the plan's own field — what the chair RECORDED in the sitting that asked — so the engine
 // ends the debate on a record fact. Beside the plan's fields is one more, `notes`, the chair's line to the operator. Nothing
 // else is here: the record holds it and every seat reads it through the tool.
 //
@@ -599,9 +599,9 @@ const requirePlan = (plan, epoch) => {
   for (const [list, flag] of Object.entries(PLAN_EMPTY_ONLY_WITH)) {
     if (!plan[list].length && plan[flag] !== true) throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`${list}\` is empty and whose \`${flag}\` is false — the record states \`${list}\` empty only when \`${flag}\` is true, so the relay emptied it; the plan is \`dispatch next\`'s JSON, as the record stored it`)
   }
-  // THE VERDICT ENDS THE DEBATE, so it is read only as one of the record's words, or absent: the
-  // verb prints it only once the sitting has recorded one.
-  if (plan.verdict !== undefined && !PLAN.properties.verdict.enum.includes(plan.verdict)) throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`verdict\` is ${JSON.stringify(plan.verdict)}, not one of ${PLAN.properties.verdict.enum.join(' | ')} or absent — the plan is \`dispatch next\`'s JSON, as the record stored it`)
+  // THE PASS ENDS THE DEBATE, so it is read only as a boolean, or absent: the verb prints it only
+  // once the sitting has recorded the PASS, and the debate ends on `true` alone.
+  if (plan.passed !== undefined && typeof plan.passed !== 'boolean') throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`passed\` is ${JSON.stringify(plan.passed)}, not a boolean or absent — the plan is \`dispatch next\`'s JSON, as the record stored it`)
 }
 // THE ENVELOPE IS THE PLAN, CLOSED: PLAN's own fields at the top level, with its required keys,
 // its closure and its if/else, and `notes` beside them. A `plan` slot holding the relay drew the whole
@@ -961,9 +961,9 @@ while (!stopped() && !seatStop) {
   const plan = chairEnv
   requirePlan(plan, epoch)
   lastPlan = plan
-  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${plan.verdict ? `, chair recorded ${plan.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}${chairEnv.notes ? ` — chair: ${chairEnv.notes}` : ''}`)
+  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${plan.passed === true ? ', chair recorded PASS' : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}${chairEnv.notes ? ` — chair: ${chairEnv.notes}` : ''}`)
   if (halted) break
-  if (plan.verdict === 'PASS') break
+  if (plan.passed === true) break
   // THE EPOCH LIMIT is the record's word, like the ceiling: the plan at the last epoch readies
   // nobody. A relayed plan that says the limit is reached ends the debate whatever parties it lists.
   // A HEARING OWED AT THE LAST EPOCH IS THE TERMINAL SITTING'S: no hearing is convened there, and the
@@ -1084,7 +1084,7 @@ const outcomeWord = (w) => {
 // The outcome is read twice: at the end of the debate, and again if the terminal sitting halts.
 const verdictNow = () => halted ? outcomeWord('HALTED')
   : readStop ? outcomeWord('UNVERIFIED')
-  : (lastPlan && lastPlan.verdict === 'PASS') ? outcomeWord('VERIFIED')
+  : (lastPlan && lastPlan.passed === true) ? outcomeWord('VERIFIED')
   : (noProgress || seatStop) ? outcomeWord('UNVERIFIED')
   : (lastPlan && (lastPlan.ceiling || limitHeldTheHearing)) ? outcomeWord('CEILING')
   : outcomeWord('UNVERIFIED')

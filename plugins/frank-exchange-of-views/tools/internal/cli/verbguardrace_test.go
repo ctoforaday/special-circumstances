@@ -204,7 +204,7 @@ func TestTheOutcomeIsCrossCheckedOnTheRecordItLandsOn(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	runDir := actFixture(t)
 	sitToAssemble(t, runDir)
-	pass := recordtest.At(t, "red-chair", "race:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})
+	pass := recordtest.At(t, "red-chair", "race:gate", &recordpb.Gate{})
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{pass}, func() error {
 		_, err := run(t, "outcome", "--run", runDir, "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "the run ended")
 		return err

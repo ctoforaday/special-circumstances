@@ -37,7 +37,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
   - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
-  - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
+  - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
   - The operator is the person running the research, and the seat id their own commands run under.
@@ -104,7 +104,7 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
 The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §5 (on 2 pages):
-OUTPUT (JSON, with --json — the bare call is the human form): {key,head,parties:[{seat_id,gap_ids:[string]}],docket:[string],remand_owed:[{gap_id,direction}],exchanges:[{gap_id,count,unresolved}],pass_permitted,stale_areas:[{seat_id,pin}],ceiling,max_epochs,epoch,final_sitting,epoch_limit_reached,blockers:[{kind,subject,owner}],why:[string],verdict}
+OUTPUT (JSON, with --json — the bare call is the human form): {key,head,parties:[{seat_id,gap_ids:[string]}],docket:[string],remand_owed:[{gap_id,direction}],exchanges:[{gap_id,count,unresolved}],pass_permitted,stale_areas:[{seat_id,pin}],ceiling,max_epochs,epoch,final_sitting,epoch_limit_reached,blockers:[{kind,subject,owner}],why:[string],passed}
 
 §6 (on 6 pages):
 it matches text with the anchors out: a report line's words, or each value of an entry as its JSON decodes it — every text and number, nested lists such as `history` included, and never a key name — each value on its own, never run into the next. An alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
@@ -235,7 +235,7 @@ Usage:
 $ feov-record inquest debate --help
 the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by the chair's `position` and `spot-check`, the lens's and blue's `closing` on a docketed gap (`### RED CLOSING` is the minting lens's, `### BLUE CLOSING` blue-respond's), a lens's `regrade` that keeps a gap's grade (`### RED KEEPS THE GRADE`; `red_keeps` in --json), and the bench's `motion docket rule`. THE BENCH'S RUN-LEVEL DISPOSITION follows the epochs (`## Bench disposition`; `bench` in --json): each `halt` opinion, verbatim; each `certify` statement, the last the one the debate carries and each earlier one superseded; and the `outcome` — its verdict, its basis (`derived` from the record or `asserted` by the bench), the derivation's reason and the bench's account of how the run ended. `bench.outcome` is null while no outcome is on the record
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],spot_checks:[string],red_keeps:[{gap_id,seat_id,text}],served:[{seat_id,head}]}],bench:{halts:[{seat_id,epoch,text}],certifications:[{seat_id,epoch,text}],outcome:{seat_id,epoch,verdict,verdict_basis,verdict_why,prose}}}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,passed,red:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],spot_checks:[string],red_keeps:[{gap_id,seat_id,text}],served:[{seat_id,head}]}],bench:{halts:[{seat_id,epoch,text}],certifications:[{seat_id,epoch,text}],outcome:{seat_id,epoch,verdict,verdict_basis,verdict_why,prose}}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -649,24 +649,17 @@ Flags:
 $ feov-record verdict --help
 the seat's terminal act: the PASS, and the checkpoint that follows it
 
-It prints the plan as `dispatch next` prints it, asked of the record this verdict leaves and stored: the plan carries the verdict, and it is the plan the tool writes into your envelope — the workflow reads the verdict off it and nowhere else. After it, the record is mirrored to the recovery copy.
+It records the PASS — the verb takes no word, because the PASS is the one verdict — and prints the plan as `dispatch next` prints it, asked of the record the PASS leaves and stored: the plan carries the PASS (`passed`), and it is the plan the tool writes into your envelope — the workflow reads the PASS off it and nowhere else. After it, the record is mirrored to the recovery copy.
 
-A PASS is REFUSED while anything still holds it — an open material gap (material by its class, else graded medium or above), a gap that is not material, remanded by the bench, whose one more exchange has not been had, a citation or computation with no check of the sentence the report carries, a citation whose source no check could read, or a computation a lens's standing judgement calls unsound, a lens's reading that finds a source against its sentence, with no gap of its class standing on it, no ingested report, a ready lens, a stale area no spot-check this sitting names, grade movement the bench has not ruled on past its threshold in total, a docketed gap's closing argument a party has not filed, an unruled motion, an audit the bench named in upholding the chair's position, not yet had, an inquiry still proposed or underway, with no fate that settles it, a settled inquiry with no check of its latest fate. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
+The PASS is CHECKED against the board, not taken on your word: it is REFUSED while anything still holds it — an open material gap (material by its class, else graded medium or above), a gap that is not material, remanded by the bench, whose one more exchange has not been had, a citation or computation with no check of the sentence the report carries, a citation whose source no check could read, or a computation a lens's standing judgement calls unsound, a lens's reading that finds a source against its sentence, with no gap of its class standing on it, no ingested report, a ready lens, a stale area no spot-check this sitting names, grade movement the bench has not ruled on past its threshold in total, a docketed gap's closing argument a party has not filed, an unruled motion, an audit the bench named in upholding the chair's position, not yet had, an inquiry still proposed or underway, with no fate that settles it, a settled inquiry with no check of its latest fate. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
-PASS is the one verdict. A sitting whose plan permits no PASS records none. A PASS the plan permits is withheld by a `position` arguing why, which the bench hears, and its ruling binds: overruled, your next sitting owes the PASS, and a position there is refused.
+A sitting whose plan permits no PASS records none. A PASS the plan permits is withheld by a `position` arguing why, which the bench hears, and its ruling binds: overruled, your next sitting owes the PASS, and a position there is refused.
 
 (OUTPUT (JSON, with --json — the …) → SHARED §5
 
 (If you need a verb or a flag tha…) → SHARED §1
 
-IF WHAT YOU RECORDED WAS WRONG, say so in the verdict of your next sitting (a sitting holds one, and
-this sitting's stands); after a PASS no chair sitting follows and nothing answers it.
-
-Flags:
-      --as PASS   REQUIRED — the seat's terminal act
-
-Enumerated values:
-  --as
-    PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
+IF WHAT YOU RECORDED WAS WRONG, say so in a log entry: a PASS ends the debate, so no chair sitting
+follows it and no act answers it.
 
 <!-- END GENERATED SURFACE -->
