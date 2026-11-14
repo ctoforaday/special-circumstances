@@ -9849,8 +9849,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	}()
 	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the lanes'
 	// parts a lens finding has no anchor quote to attach to and is refused, so red mints nothing
-	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
-	// which is correct and is not this path. The lanes debate.js dispatches record them, as in runOne.
+	// and the run takes the engine's degenerate-merge refusal, which is correct and is not this path. The lanes debate.js dispatches record them, as in runOne.
 	r := newRunner(bin, runDir, newLockedRand(1))
 	// THE CAST SETUP WRITES, as the halt path and the sweep write it. Without it every `dispatch
 	// next` is refused ("the record holds no cast"), the driver's fallback plan dispatches nobody,
