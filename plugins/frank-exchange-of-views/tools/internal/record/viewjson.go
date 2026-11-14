@@ -817,8 +817,8 @@ type CounterpartyJSON struct {
 //
 // THE BAR IS SELF-SUFFICIENCY FOR ANY JOB THAT IS NOT READING THE WHOLE DOCUMENT (gblock's
 // ruling). A seat re-auditing, closing, or arguing one of its own gaps must need no second call.
-// The full re-read of the report stays what it always was — a duty, and the one thing this list
-// does not replace.
+// The report text a lens audits — the whole report, its full re-read, or each edit since its pin —
+// arrives as its own items of report text, which this list does not replace.
 type WorkGapJSON struct {
 	ID             string `json:"id"`
 	Severity       any    `json:"severity"`

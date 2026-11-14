@@ -80,8 +80,8 @@ func changesAfter(changes []int64, pin int64) []int64 {
 // earliest of them onto a spot-check, which no writer may do itself. A spot-check that ARRIVES with
 // either is refused: a seat that could state the changes could state 42 over a record holding 4.
 //
-// The pin is the lens fold's (lensStates): the latest head the whole report was served to the lens
-// at in a sitting it sat through. A change is an event that moves the report head — a blue_edit or a
+// The pin is the lens fold's (lensStates): the head of the lens's latest complete delivery of report
+// text in a sitting it sat through. A change is an event that moves the report head — a blue_edit or a
 // report_part (reportHeadOf) — so the changes after a stale area's pin are exactly what moved the
 // head past it.
 func stampSpotCheckChanges(q recordsql.Querier, b *recordpb.SpotCheck) error {

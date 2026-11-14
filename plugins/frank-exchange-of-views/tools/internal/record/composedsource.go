@@ -14,7 +14,7 @@ import (
 // 2026-11-10). Assembly composes Research areas, Future research directions and Alternatives
 // considered from the inquiries' fates — each row prints its latest record's reason and method — and
 // the risk matrix from the open gaps, each row the first sentence of a gap's problem and of its fix
-// (anchor.Concise). None of it is in the report's text, which is all a lens's whole read serves, so
+// (anchor.Concise). None of it is in the report's text, which is all a delivery of report text carries, so
 // no lens audited its voice: universe-m40 shipped "A later run should search…" in a deferred
 // inquiry's method, "read from cached definitional sources" in a confirmed one's, and "The composed
 // row… Re-record the fate…" in a risk-matrix row, after the voice lens had read "the 56-line
