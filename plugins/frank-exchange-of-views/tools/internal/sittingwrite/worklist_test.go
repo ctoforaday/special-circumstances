@@ -156,7 +156,7 @@ func TestAnUnreadableListSaysSoRatherThanReadingEmpty(t *testing.T) {
 			t.Errorf("the failure does not say %q — a seat would read it as a clean board:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, arrived[:40]) {
+	if strings.Contains(out, lensArrived[:40]) {
 		t.Errorf("a failed render carried the preamble that says the list arrived:\n%s", out)
 	}
 }

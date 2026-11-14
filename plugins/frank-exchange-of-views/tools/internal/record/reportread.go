@@ -1,6 +1,5 @@
 package record
 
-
 // A SEAT'S PIN IS THE HEAD OF ITS LATEST COMPLETE DELIVERY in a sitting it sat through
 // (report_delivery). The delivery writer appends one report_read when it hands a delivery's last item
 // into the seat's context, its head the report head the delivery was cut at: the tool's record of

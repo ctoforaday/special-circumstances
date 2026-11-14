@@ -35,16 +35,6 @@ import (
 // prompt cannot say it (blue's configuration seats three seats and gets no injection) and the help
 // page cannot say it (a resumed dispatch fires no SubagentStart, #1111, and that seat must still ask).
 const (
-	// arrived is the preamble on a list that was read. It names no command: the surface owns the
-	// verbs, and a seat that wants the list again finds it where it already found everything else.
-	arrived = "YOUR WORK LIST, read from this run's record at the moment you were dispatched. It is the " +
-		"same projection your own surface returns, delivered instead of fetched — you are holding it, " +
-		"and you do not need to ask for it before you act. Everything open to you is in `sitting.open`, " +
-		"each item with whether it blocks you finishing; `sitting.complete` is the answer to whether " +
-		"anything does. The bench's holdings are in `declarations`, each gap one names beside where the " +
-		"board says it stands now. Act on it, and read it again from your surface after you have " +
-		"recorded anything, because your own acts move it, and so do the acts of the seats dispatched beside you."
-
 	// unreadable is the preamble on a list that could NOT be read, and it exists so that this case
 	// and an empty list are not the same bytes. A seat handed "nothing is open to you" when the truth
 	// is "nothing was determined" ends its turn on a measurement that never happened.

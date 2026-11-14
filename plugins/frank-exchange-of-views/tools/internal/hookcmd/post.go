@@ -59,21 +59,22 @@ func admit(req hookcore.Request, rec *hookfailures.Recorder) {
 	rec.OK(StageAdmission)
 }
 
-// nextItem hands a lens what it is handed next after a call of its that went to the record: its
-// next item when the record shows the current one discharged, the current one again when the record
-// moved it, a line when another item left its list, and nothing when nothing changed
-// (sittingwrite.WriteNextItem, through the writer, which links the record this binary may not).
+// nextItem hands a seat what it is handed next after a call of its that went to the record: the
+// sitting's report text one item per call while any is owed, then its next item when the record shows
+// the current one discharged, the current one again when the record moved it, a line when another
+// item left its list, and nothing when nothing changed (sittingwrite.WriteNextItem, through the
+// writer, which links the record this binary may not).
 //
-// ONLY A LENS'S CALL TO THE RECORD SPAWNS THE WRITER. A lens's work arrives one item at a time and
-// every other seat's arrives whole, so the agent type decides first (runlive.IsLensAgentType); and an
-// act is recorded only by a call to the record, so a call whose command does not name the tool
-// (hookgate.CallsRecord) cannot have discharged anything. A call it misses — the tool reached some
-// other way — costs a delivery until the lens's next call to the record, never the item: what the
-// lens was handed stays on file, and its whole list stays on its surface.
+// EVERY SEAT'S CALL TO THE RECORD SPAWNS THE WRITER, and no other call: an act is recorded only by a
+// call to the record, so a call whose command does not name the tool (hookgate.CallsRecord) cannot
+// have discharged anything. A call it misses — the tool reached some other way — costs a delivery
+// until the seat's next call to the record, never the item: what the seat was handed stays on file.
 //
 // THE DELIVERY IS additionalContext ON THE CALL'S RESULT, which reaches a Workflow seat's context as it
-// reaches an Agent subagent's (measured on claude 2.1.318). Under Antigravity a PostToolUse response
-// carries nothing back to the agent, so a lens there reads its next item off its work list.
+// reaches an Agent subagent's. A delivery of report text that cannot advance ends the seat's turn
+// ("continue": false); the writer has already logged it as the tool's defect. Under Antigravity a
+// PostToolUse response reaches the agent through hookcore's queue, and the writer hands no report
+// text there.
 func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder) {
 	caller := callerOf(req.AgentID, req.AgentType, req.SessionID)
 	if caller.ID == "" {
