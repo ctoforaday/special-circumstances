@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -77,6 +78,11 @@ func thisBinaryRun(t *testing.T) string {
 	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: []string{lens, chair}}); err != nil {
 		t.Fatal(err)
 	}
+	// A spot-check stands only on report text delivered to the chair, so the run holds a report
+	// before any seat sits.
+	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat}, &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nA claim the lens audits.\n")}); err != nil {
+		t.Fatal(err)
+	}
 	for _, s := range []string{lens, chair} {
 		if _, _, err := record.RegisterSeat(record.Identity{Run: run, SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
@@ -95,6 +101,9 @@ func thisBinaryRun(t *testing.T) string {
 		{lens, mint("G-00000002", recordpb.GapClass_GAP_CLASS_STRUCTURE_NONCOMPLIANCE, recordpb.Grade_GRADE_HIGH)},
 		{chair, &recordpb.SpotCheck{Areas: []string{lens}, Reason: proto.String("read the changes since the pin")}},
 	} {
+		if _, ok := act.body.(*recordpb.SpotCheck); ok {
+			deliverytest.Deliver(t, run, chair)
+		}
 		if _, err := record.Append(record.Identity{Run: run, SeatID: act.seat}, act.body); err != nil {
 			t.Fatalf("%T: %v", act.body, err)
 		}
