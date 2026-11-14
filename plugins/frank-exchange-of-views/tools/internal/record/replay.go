@@ -131,6 +131,10 @@ type Gap struct {
 	Open        bool
 	ClosedEpoch int
 	HasClosed   bool
+	// ClosedEvent is the events.id of the gap's FIRST closing act, of any arm (gap_state's
+	// closed_event), 0 while it is open. No later append moves it, so it answers whether the gap
+	// was open at any point of the record (Family.CountsAt), by the rule convergence_at reads.
+	ClosedEvent int64
 	Mint        *recordpb.Mint
 	// Closure and BenchClosure are the CLOSING EVENT'S BODY, and they are two fields because a
 	// closure arrives as one of two different messages.
