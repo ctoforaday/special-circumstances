@@ -416,7 +416,7 @@ func resolveSpan(trees []roleTree, role string, known map[string]bool, span, att
 	}
 	if !anyTreeNames(trees, words) {
 		if strings.HasPrefix(words[0], "--") {
-			// A bare flag span (`--as FAIL`): the flag must exist somewhere in the tree.
+			// A bare flag span (`--as UNVERIFIED`): the flag must exist somewhere in the tree.
 			name := strings.TrimPrefix(words[0], "--")
 			if isWord(name) && !known[name] {
 				return "`--" + name + "` is a flag no command registers", true
