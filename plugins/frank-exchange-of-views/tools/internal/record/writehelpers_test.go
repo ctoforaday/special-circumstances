@@ -98,3 +98,12 @@ func delivered(t *testing.T, id Identity) {
 		deliver(t, id.Run, id.SeatID)
 	}
 }
+
+// sitRead opens seat's sitting and completes its delivery of report text in it: the sitting of a
+// seat whose next act stands on text delivered to it.
+func sitRead(t *testing.T, run Run, seat string) Identity {
+	t.Helper()
+	id := sit(t, run, seat)
+	delivered(t, id)
+	return id
+}

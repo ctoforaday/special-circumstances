@@ -58,7 +58,7 @@ func TestAGrantStatesItsOrderAndADenialOrdersNothing(t *testing.T) {
 		m := s.docketed()
 		r := docketRuling(m, recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED)
 		r.Relief = proto.String(orderedRelief)
-		_, err := Append(sit(t, s.run, "judge"), r)
+		_, err := Append(sitRead(t, s.run, "judge"), r)
 		mustRefuse(t, err, "a granted petition's order", "a docket ruling orders nothing beyond its ruling")
 	})
 
@@ -94,7 +94,7 @@ func TestAnEstoppedRowStatesWhatTheRulingSettled(t *testing.T) {
 				r.GetDocket().Final = nil
 				r.GetDocket().ReopensOn = proto.String(c.reopensOn)
 			}
-			mustAppend(t, sit(t, s.run, "judge"), r)
+			mustAppend(t, sitRead(t, s.run, "judge"), r)
 			w, err := WorkOfSeat(s.run, "blue", "blue-respond")
 			if err != nil {
 				t.Fatal(err)
@@ -275,6 +275,7 @@ func TestABenchRegradeInARemandExchangeDoesNotSpendTheLimit(t *testing.T) {
 	st.stop(agent)
 	run := st.register("red-chair").docketMotion("red-chair", "M3", "G1").
 		dispatch(2, "judge", "G1").register("judge").seed()
+	deliver(t, run, "judge")
 	err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("M3", "a second direction"))
 	mustRefuse(t, err, RemandLimitRule)
 }

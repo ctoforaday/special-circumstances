@@ -384,7 +384,9 @@ func TestValidateVerbContracts(t *testing.T) {
 
 // docketRunDir is a run in which G1 exists AND motion M1 has been docketed against it, so a
 // bench ruling's references both resolve and the test can be about the missing FIELD rather than
-// the missing gap or the missing filing.
+// the missing gap or the missing filing. The gap is minted on an ingested report, and the bench sits
+// with its delivery of the gap's passage, so a ruling's refusal is about its fields and never about
+// text it was not handed.
 //
 // IT TAKES BOTH EVENTS, and that is the shape of the verb now. The gap rides the FILING and the
 // disposition rides the RULING, so a fixture that seeds only one of them leaves the other end of
@@ -392,6 +394,7 @@ func TestValidateVerbContracts(t *testing.T) {
 func docketRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
+	withReport(t, mustRun(t, runDir))
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -407,6 +410,7 @@ func docketRunDir(t *testing.T) string {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	sitRead(t, mustRun(t, runDir), "judge")
 	return runDir
 }
 
@@ -849,6 +853,7 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		AnchorTarget: proto.String("blue/report.md"),
 	}
 	runDir := newRun(t)
+	withReport(t, mustRun(t, runDir))
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -915,7 +920,7 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
 			o := full()
 			tc.set(o.GetDocket())
-			_, err := Append(sit(t, run, "judge"), o)
+			_, err := Append(sitRead(t, run, "judge"), o)
 			if err == nil {
 				t.Fatalf("a docket ruling with an EMPTY %s reached the record — an empty answer cannot be told from a skipped question", tc.flag)
 			}
@@ -926,7 +931,7 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	}
 	t.Run("all three stated", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
-		if _, err := Append(sit(t, run, "judge"), full()); err != nil {
+		if _, err := Append(sitRead(t, run, "judge"), full()); err != nil {
 			t.Errorf("a docket ruling stating its rule, tension and review flag was refused: %v", err)
 		}
 	})
