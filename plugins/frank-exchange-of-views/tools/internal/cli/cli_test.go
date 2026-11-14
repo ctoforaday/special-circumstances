@@ -1765,10 +1765,8 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 // skipped duty, which is precisely what the event stream exists to prevent.
 func TestSpotCheckRecordsAnHonestlyEmptySitting(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
-		t.Fatal(err)
-	}
+	// A spot-check is the chair's over a stale area; nothing is sampled from the empty archive.
+	runDir := staleAreaRun(t)
 	out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "archive empty at round start; floor not applicable")
 	if err != nil {
@@ -1805,10 +1803,8 @@ func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 // its duty" were the same event.
 func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
-		t.Fatal(err)
-	}
+	// A spot-check is the chair's over a stale area; nothing is sampled from the empty archive.
+	runDir := staleAreaRun(t)
 	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "nothing was sampled this round"); err != nil {
 		t.Fatalf("the no-sample form must keep working: %v", err)
@@ -1963,6 +1959,48 @@ func castRun(t *testing.T) string {
 		t.Fatalf("dispatch next: %v\n%s", err, out)
 	}
 	return dir
+}
+
+// staleAreaRun is castRun brought to the state a chair's spot-check stands on: a stale area. The chair
+// is delivered report text only for a stale area's changes it has not borne, and a spot-check stands
+// only on a sitting that holds that delivery, so a chair with nothing stale has no spot-check to
+// record. The lens takes both whole deliveries, then sits once after each of two head moves, minting
+// nothing; three sittings in a row with no fresh material mint retire it at its pin, and one more head
+// move leaves its area behind that pin. The chair's sitting that follows owes the area's changes,
+// which the harness delivers before the spot-check (deliverBeforeActing).
+func staleAreaRun(t *testing.T) string {
+	t.Helper()
+	dir := castRun(t)
+	registerLensOnce(t, dir)
+	lensRereads(t, dir)
+	moveHead := func(i int) {
+		t.Helper()
+		if _, err := record.Append(record.Identity{Run: runtest.Open(t, dir), SeatID: record.HarnessSeat},
+			&recordpb.ReportPart{Text: proto.String(fmt.Sprintf("\n# Addendum %d\n\nA paragraph the report gained after the lens's pin.\n", i))}); err != nil {
+			t.Fatalf("moving the report head: %v", err)
+		}
+	}
+	for i := 1; i <= 2; i++ {
+		moveHead(i)
+		chairSitsAgain(t, dir)
+		if out, err := run(t, "dispatch", "next", "--run", dir, "--seat-id", "red-chair"); err != nil {
+			t.Fatalf("dispatch next: %v\n%s", err, out)
+		}
+		lensRereads(t, dir)
+	}
+	moveHead(3)
+	chairSitsAgain(t, dir)
+	w, err := record.WorkOfSeat(runtest.Open(t, dir), "chair", "red-chair")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range w.Sitting.Open {
+		if it.Kind == record.ItemReportText {
+			return dir
+		}
+	}
+	t.Fatalf("the fixture left no stale area: the chair's list owes no report text")
+	return ""
 }
 
 // castSeats sits the seats castRun's cast names beside blue-synthesize: the lens castRun dispatched,
