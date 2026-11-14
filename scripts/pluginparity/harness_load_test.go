@@ -12,7 +12,8 @@ package main
 // Each harness test also runs a negative control: the defect it guards, planted in a copy of the
 // stage, must change what the harness reports. A check that cannot see the defect is not a check.
 //
-// The binaries are not on CI runners, so a missing binary skips the test, naming the binary.
+// CI installs both binaries in the `scripts` job; locally, a missing binary skips the test, naming
+// the binary, while on CI (`CI=true`) a missing binary fails the test outright.
 
 import (
 	"bytes"
@@ -46,6 +47,9 @@ func harnessCLI(t *testing.T, name string) string {
 			return p
 		}
 	}
+	if os.Getenv("CI") == "true" {
+		t.Fatalf("%s is not installed (PATH or ~/.local/bin) on CI: real harness validation must run on every PR", name)
+	}
 	t.Skipf("%s is not installed (PATH or ~/.local/bin): its load test did not run", name)
 	return ""
 }
@@ -54,6 +58,7 @@ func harnessCLI(t *testing.T, name string) string {
 type stagedPlugin struct {
 	name, version  string
 	skills, agents []string
+	hooks          int
 }
 
 // stage copies the files a harness loads — the marketplace, .agents/, and every plugin minus its
@@ -150,6 +155,9 @@ func inventory(t *testing.T, dst, name string) stagedPlugin {
 	}
 	sort.Strings(sp.skills)
 	sort.Strings(sp.agents)
+	if _, err := os.Stat(filepath.Join(dir, "hooks.json")); err == nil {
+		sp.hooks = 1
+	}
 	return sp
 }
 
@@ -339,22 +347,31 @@ type agyFinding struct {
 	Message  string `json:"message"`
 }
 
-// agyTolerated is the only finding a plugin may carry in this step: hooks/hooks.json is where
-// Claude Code reads hooks and Antigravity does not, which the hooks step resolves. The logo note
-// is informational. Anything else — a manifest key, a skipped agent, a skill — fails.
+// agyTolerated is the only finding a plugin may carry in this step: the logo note is
+// informational. Anything else — a manifest key, a hook warning, a skipped agent, a skill — fails.
 func agyTolerated(f agyFinding) bool {
-	switch {
-	case f.Severity == "warning" && f.File == "hooks/hooks.json":
-		return true
-	case f.Severity == "note" && f.File == ".antigravity-plugin/plugin.json" && strings.HasPrefix(f.Message, "no logo"):
-		return true
-	}
-	return false
+	return f.Severity == "note" && f.File == ".antigravity-plugin/plugin.json" && strings.HasPrefix(f.Message, "no logo")
 }
 
-// Antigravity: every plugin validates against .antigravity-plugin/plugin.json, the workspace finds
-// all four through .agents/plugins.json, a bulk install enables all four at the manifest's version,
-// and every skill and agent on disk loads.
+// runMustFail executes a harness command that must exit non-zero and returns its stdout.
+func runMustFail(t *testing.T, home, bin string, args ...string) string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.Env = isolatedEnv(home)
+	cmd.Dir = home
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err == nil {
+		t.Fatalf("%s %s succeeded, want non-zero exit\nstdout:\n%s\nstderr:\n%s", filepath.Base(bin), strings.Join(args, " "), stdout.String(), stderr.String())
+	}
+	return stdout.String()
+}
+
+// Antigravity: every plugin validates strictly against .antigravity-plugin/plugin.json and root
+// hooks.json, the workspace finds all four through .agents/plugins.json, a bulk install enables all
+// four at the manifest's version, and every skill and agent on disk loads.
 func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 	agy := harnessCLI(t, "agy")
 	repo, plugins := stage(t)
@@ -368,24 +385,99 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 				Name       string `json:"name"`
 				Components struct {
 					Agents int `json:"agents"`
+					Hooks  int `json:"hooks"`
 					Skills int `json:"skills"`
 				} `json:"components"`
 				Findings []agyFinding `json:"findings"`
 			}
-			if err := json.Unmarshal([]byte(run(t, home, agy, "plugin", "validate", "--json", filepath.Join(repo, "plugins", p.name))), &v); err != nil {
+			if err := json.Unmarshal([]byte(run(t, home, agy, "plugin", "validate", "--strict", "--json", filepath.Join(repo, "plugins", p.name))), &v); err != nil {
 				t.Fatal(err)
 			}
 			if v.Manifest != ".antigravity-plugin/plugin.json" || v.Name != p.name {
 				t.Errorf("%s: agy read manifest %q naming %q, want .antigravity-plugin/plugin.json naming %q", p.name, v.Manifest, v.Name, p.name)
 			}
-			if v.Components.Agents != len(p.agents) || v.Components.Skills != len(p.skills) {
-				t.Errorf("%s: agy counts %d agents / %d skills, disk has %d / %d", p.name, v.Components.Agents, v.Components.Skills, len(p.agents), len(p.skills))
+			if v.Components.Agents != len(p.agents) || v.Components.Skills != len(p.skills) || v.Components.Hooks != p.hooks {
+				t.Errorf("%s: agy counts %d agents / %d skills / %d hooks, disk has %d / %d / %d", p.name, v.Components.Agents, v.Components.Skills, v.Components.Hooks, len(p.agents), len(p.skills), p.hooks)
 			}
 			for _, f := range v.Findings {
 				if !agyTolerated(f) {
 					t.Errorf("%s: agy finding %s %s: %s", p.name, f.Severity, f.File, f.Message)
 				}
 			}
+		}
+	})
+
+	t.Run("strict validate rejects hook defects", func(t *testing.T) {
+		home := t.TempDir()
+		cases := []struct {
+			name   string
+			mutate func(t *testing.T, pluginDir string)
+			file   string
+		}{
+			{
+				name: "PLUGIN_ROOT in hooks.json command",
+				mutate: func(t *testing.T, pluginDir string) {
+					p := filepath.Join(pluginDir, "hooks.json")
+					b, err := os.ReadFile(p)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(p, bytes.Replace(b, []byte("${PWD}"), []byte("${PLUGIN_ROOT}"), 1), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				},
+				file: "hooks.json",
+			},
+			{
+				name: "Claude tool name in hooks.json matcher",
+				mutate: func(t *testing.T, pluginDir string) {
+					p := filepath.Join(pluginDir, "hooks.json")
+					b, err := os.ReadFile(p)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(p, bytes.Replace(b, []byte("run_command"), []byte("Bash"), 1), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				},
+				file: "hooks.json",
+			},
+			{
+				name: "legacy hooks/hooks.json without root hooks.json",
+				mutate: func(t *testing.T, pluginDir string) {
+					if err := os.Remove(filepath.Join(pluginDir, "hooks.json")); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(pluginDir, "hooks", "hooks.json"), []byte("{}"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				},
+				file: "hooks/hooks.json",
+			},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				broken := copyTree(t, repo)
+				pluginDir := filepath.Join(broken, "plugins", "prosthetic-conscience")
+				tc.mutate(t, pluginDir)
+				out := runMustFail(t, home, agy, "plugin", "validate", "--strict", "--json", pluginDir)
+				var v struct {
+					Findings []agyFinding `json:"findings"`
+				}
+				if err := json.Unmarshal([]byte(out), &v); err != nil {
+					t.Fatalf("unmarshal validate output: %v\n%s", err, out)
+				}
+				var matched bool
+				for _, f := range v.Findings {
+					if f.File == tc.file && !agyTolerated(f) {
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					t.Errorf("expected non-tolerated finding on %s, got %+v", tc.file, v.Findings)
+				}
+			})
 		}
 	})
 
