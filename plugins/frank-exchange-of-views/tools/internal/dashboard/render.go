@@ -9,9 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // sevCode: grade codes for phone-width tables — a display abbreviation, which the record does not
@@ -228,10 +230,10 @@ func RenderHTML(m Model) string {
 	}
 	w(`<p class="muted">generated ` + esc(m.Generated) + ` · auto-refreshes every 20s · dollars are list-rate estimates</p>` + "\n")
 
-	if m.Config.Model != "" || m.Config.JudgmentModel != "" || m.Config.Lanes != "" {
+	if len(m.Config.Seats) > 0 || m.Config.Lanes != "" {
 		w("<h2>Run configuration</h2>\n<table>\n")
-		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.Model, "session default")) + "</b></td></tr>\n")
-		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.JudgmentModel, "session default")) + "</b></td></tr>\n")
+		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "bulk")) + "</b></td></tr>\n")
+		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "judgment")) + "</b></td></tr>\n")
 		ln := "—"
 		if m.Config.Lanes != "" {
 			ln = esc(m.Config.Lanes)
@@ -553,13 +555,6 @@ func etaNow(m Model) float64 {
 	return float64(t.UnixMilli())
 }
 
-func orDefault(s, d string) string {
-	if s == "" {
-		return d
-	}
-	return s
-}
-
 // THE DASH IS FOR ABSENCE, and these three say which absence they mean.
 //
 // latestField took a string key against a map, so "the run has no telemetry yet", "this field was
@@ -634,6 +629,45 @@ func lastN(s []Seat, n int) []Seat {
 		return s
 	}
 	return s[len(s)-n:]
+}
+
+func summarizeSeatClass(seats map[string]modeltier.SeatSpec, class string) string {
+	counts := map[string]int{}
+	bySeat := map[string]string{}
+	for seatID, spec := range seats {
+		base := seatID
+		if seatID != seatclass.Lane.Base {
+			if def, ok := seatclass.Seats[seatID]; ok && def.Base != "" {
+				base = def.Base
+			}
+		}
+		if seatclass.ClassOf(base) != class || spec.Model == "" {
+			continue
+		}
+		v := spec.String()
+		bySeat[seatID] = v
+		counts[v]++
+	}
+	if len(bySeat) == 0 {
+		return "session default"
+	}
+	primary, best := "", -1
+	for v, n := range counts {
+		if n > best || (n == best && v < primary) {
+			primary, best = v, n
+		}
+	}
+	var diffs []string
+	for seatID, v := range bySeat {
+		if v != primary {
+			diffs = append(diffs, seatID+"="+v)
+		}
+	}
+	if len(diffs) == 0 {
+		return primary
+	}
+	sort.Strings(diffs)
+	return primary + " (" + strings.Join(diffs, ", ") + ")"
 }
 
 const styleBlock = `<style>

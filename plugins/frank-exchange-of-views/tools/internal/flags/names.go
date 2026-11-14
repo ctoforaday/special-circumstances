@@ -271,11 +271,13 @@ const (
 
 	// The operator `setup` command: it builds a research run's blackboard. Operator flags,
 	// not seat-verb payload keys.
-	Topic         = "topic"
-	Model         = "model"
-	JudgmentModel = "judgment-model"
-	Cite          = "cite"
-	Lanes         = "lanes"
+	Topic          = "topic"
+	Bulk           = "bulk"
+	Judgment       = "judgment"
+	Seat           = "seat"
+	SkipModelCheck = "skip-model-check"
+	Cite           = "cite"
+	Lanes          = "lanes"
 	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2).
 	K                   = "k"
 	KMax                = "k-max"
@@ -334,7 +336,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,
 		Method,
-		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
+		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
 		Card, Watch, Now, Serve,
 		Sha, DPI, Force, OCR,
 	}
@@ -357,7 +359,7 @@ var closedForm = map[string]bool{
 	Run: true, SeatID: true, For: true, ID: true, Key: true, Class: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Dir: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true, SourceLines: true, TextSha: true,
-	Model: true, JudgmentModel: true, Cite: true, Lanes: true,
+	Bulk: true, Judgment: true, Seat: true, Cite: true, Lanes: true,
 	BinDir: true, RunID: true, ScriptPath: true, FromSession: true,
 	Card: true, Occasion: true, Grounds: true, Lens: true,
 }

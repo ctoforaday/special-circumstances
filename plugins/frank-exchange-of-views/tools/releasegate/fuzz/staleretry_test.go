@@ -26,7 +26,7 @@ func staleRun(t *testing.T) (*runner, string) {
 	runDir := recordtest.TmpRun(t)
 	const sentence = "A § fuzz sentence to anchor findings."
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":1,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25,"maxEpochs":10}`)); err != nil {
+		fuzzRunConfig(1, 1, 2, 1, 10)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)

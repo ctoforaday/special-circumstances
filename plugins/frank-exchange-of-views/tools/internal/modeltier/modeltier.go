@@ -20,9 +20,12 @@ package modeltier
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // Order is the tier ladder, CHEAPEST FIRST. It is the scan order for Of and the rank for Dearer,
@@ -69,18 +72,80 @@ func Rank(tier string) int {
 // Dearer reports whether tier a costs more than tier b.
 func Dearer(a, b string) bool { return Rank(a) > Rank(b) }
 
-// Config reads the run's configured model tiers from inputs/run-config.json (empty strings if
-// absent) — the ONE place the run-config tier keys are read as bare strings.
-func Config(runDir string) (model, judgmentModel string) {
+// SeatSpec is one seat's configured harness and model in inputs/run-config.json.
+type SeatSpec struct {
+	Harness string `json:"harness"`
+	Model   string `json:"model"`
+}
+
+// String formats SeatSpec as `<harness>:<model>`, or `<model>` if Harness is empty.
+func (s SeatSpec) String() string {
+	if s.Harness == "" {
+		return s.Model
+	}
+	return s.Harness + ":" + s.Model
+}
+
+// ParseSeatSpec parses `<[harness:]model>`, defaulting a bare model string to the `claude` harness.
+func ParseSeatSpec(raw string) (SeatSpec, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return SeatSpec{}, fmt.Errorf("empty model specification")
+	}
+	if h, m, ok := strings.Cut(raw, ":"); ok {
+		h = strings.TrimSpace(strings.ToLower(h))
+		m = strings.TrimSpace(m)
+		if h != "claude" && h != "antigravity" {
+			return SeatSpec{}, fmt.Errorf("unsupported harness %q in %q (claude | antigravity)", h, raw)
+		}
+		if m == "" {
+			return SeatSpec{}, fmt.Errorf("missing model name after %s:", h)
+		}
+		return SeatSpec{Harness: h, Model: m}, nil
+	}
+	return SeatSpec{Harness: "claude", Model: raw}, nil
+}
+
+// SeatConfigs reads the per-seat {harness, model} map from inputs/run-config.json (nil if absent
+// or unparseable) — the ONE place the run-config seats map is read.
+func SeatConfigs(runDir string) map[string]SeatSpec {
 	b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
 	if err != nil {
-		return "", ""
+		return nil
 	}
-	var cfg map[string]any
-	if json.Unmarshal(b, &cfg) != nil {
-		return "", ""
+	var cfg struct {
+		Seats map[string]SeatSpec `json:"seats"`
 	}
-	model, _ = cfg["model"].(string)
-	judgmentModel, _ = cfg["judgmentModel"].(string)
-	return model, judgmentModel
+	if json.Unmarshal(b, &cfg) != nil || len(cfg.Seats) == 0 {
+		return nil
+	}
+	return cfg.Seats
+}
+
+// LookupSeat returns the SeatSpec for seatID, resolving numbered lane instances (blue-lane-1, ...)
+// via the shared blue-lane entry.
+func LookupSeat(seats map[string]SeatSpec, seatID string) (SeatSpec, bool) {
+	if len(seats) == 0 || seatID == "" {
+		return SeatSpec{}, false
+	}
+	if spec, ok := seats[seatID]; ok {
+		return spec, true
+	}
+	if seatclass.RoleOfSeat(seatID) == seatclass.Lane.Role {
+		spec, ok := seats[seatclass.Lane.Base]
+		return spec, ok
+	}
+	return SeatSpec{}, false
+}
+
+// SameModel reports whether a served model matches the configured model: Anthropic tier match
+// when both are recognized Anthropic tiers, and exact case-insensitive ID match otherwise.
+func SameModel(configured, served string) bool {
+	if configured == "" || served == "" {
+		return false
+	}
+	if Recognized(configured) && Recognized(served) {
+		return Of(configured) == Of(served)
+	}
+	return strings.EqualFold(strings.TrimSpace(configured), strings.TrimSpace(served))
 }

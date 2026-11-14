@@ -171,13 +171,12 @@ func recognized(m string) bool { return modeltier.Recognized(m) }
 // agent the record never bound both carry, and the report prints it as a dash.
 type Row struct {
 	// AgentID is the agent the transcript's own lines name (seatturn.Parse), never its file name.
-	AgentID string
-	Seat    string
-	// Occasion separates the BENCH's five sittings, which share one seat id. Without it the
-	// assembly's spend merges into a docket ruling's row — which happened, and which cost.go's own
-	// comment records happening once before under a different cause. Empty for every other seat.
+	AgentID  string
+	Seat     string
+	SeatID   string
 	Occasion string
 	Epoch    int
+	Model    string
 	T        string
 	Turns    int
 	Inp      int
@@ -186,7 +185,8 @@ type Row struct {
 	Cw       int
 	Cost     float64
 	// Unpriced names the models this agent's requests were served by that have no row in Prices.
-	// Their requests are charged the dearest rate, so Cost over-reports them; the report says so.
+	// Unrecognized Anthropic models are charged unpricedRate (reported as an over-report);
+	// non-Anthropic or un-modelled Antigravity turns sum tokens cleanly at $0.
 	Unpriced []string
 }
 
@@ -210,22 +210,40 @@ func ScanTranscript(txt string) Row {
 			model = t.Model
 		}
 	}
-	row := Row{AgentID: agentID, Seat: c.Seat, T: Tier(model), Turns: len(turns)}
+	tLabel := Tier(model)
+	switch {
+	case model != "" && !recognized(model):
+		tLabel = model
+	case model == "" && len(turns) > 0:
+		tLabel = "unpriced"
+	}
+	row := Row{AgentID: agentID, Seat: c.Seat, Model: model, T: tLabel, Turns: len(turns)}
 	unpriced := map[string]bool{}
 	for _, t := range turns {
 		m := t.Model
 		if m == "" {
 			m = model
 		}
-		usd, ok := Price(t, m)
-		if !ok && t.Prompt()+t.Output > 0 {
-			unpriced[m] = true
+		switch {
+		case m == "":
+			if t.Prompt()+t.Output > 0 {
+				unpriced["antigravity (model unreported)"] = true
+			}
+		case recognized(m):
+			usd, ok := Price(t, m)
+			if !ok && t.Prompt()+t.Output > 0 {
+				unpriced[m] = true
+			}
+			row.Cost += usd
+		default:
+			if t.Prompt()+t.Output > 0 {
+				unpriced[m] = true
+			}
 		}
 		row.Inp += t.Input
 		row.Out += t.Output
 		row.Cr += t.CacheRead
 		row.Cw += t.CacheCreation
-		row.Cost += usd
 	}
 	for m := range unpriced {
 		row.Unpriced = append(row.Unpriced, m)
@@ -295,62 +313,61 @@ type Finding struct {
 // and nothing checked; modeltier makes the ladder and the rank the same list.
 func dearer(a, b string) bool { return modeltier.Dearer(a, b) }
 
-// TierMismatch compares each seat's ACTUAL price-tier to the tier its CLASS was configured to
-// run on (#111): dearer than configured is the fable trap (FAIL); cheaper is discounted
-// verification (WARN); equal is PASS (omitted). Folded from model-guard.mjs.
-func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
+// TierMismatch compares each seat's ACTUAL model or tier to the seat's configured {harness, model}
+// in inputs/run-config.json (#111, #1827). Recognized Anthropic models compare by tier (dearer is
+// FAIL, cheaper is WARN); non-Anthropic models compare case-insensitively (un-modelled Antigravity
+// transcripts report without failing).
+func TierMismatch(rows []Row, seats map[string]modeltier.SeatSpec) []Finding {
 	var out []Finding
 	for _, row := range rows {
 		cls := seatclass.ClassOf(row.Seat)
 		if cls == "" {
-			// AN UNCLASSIFIABLE SEAT IS NOT AN UNBOUND ONE, and skipping it here made the two
-			// the same silence.
-			//
-			// Every seat in SeatClass has a tier, so ClassOf returns "" for exactly one input:
-			// `other`, which is what ClassifySeat reports when NO needle matched the prompt head.
-			// The comment that used to sit here said "not tier-bound", describing a category that
-			// does not exist — the row is not exempt from the tier check, it is a row whose seat
-			// nobody could name.
-			//
-			// The cost of the silence is the audit's whole purpose. TierMismatch is the fable
-			// trap: a judgment seat quietly running on a dearer model. A prompt-wording drift in
-			// debate.js sends that seat to `other`, and it then spent whatever it spent with no
-			// finding raised. seatclass's own doc promises the opposite — "`other` … a visible
-			// bucket, never folded away, so a prompt-wording drift is spottable" — and this is
-			// where it was folded away. The precedent is in that same doc: cost-audit once lacked
-			// the terminal-disposition case and misattributed that seat's spend.
 			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: "", Actual: row.T, Expected: "", Verdict: "WARN",
 				Why: fmt.Sprintf("a transcript's seat could not be identified from its prompt head, so its tier was NOT checked (it ran on %s, %d turn(s)). ClassifySeat matched no needle, which means debate.js's prompt wording and internal/seatclass have drifted apart — not that this seat is exempt", row.T, row.Turns)})
 			continue
 		}
-		configured := model
-		if cls == "judgment" {
-			configured = judgmentModel
+		keySeat := row.SeatID
+		if keySeat == "" {
+			keySeat = row.Seat
 		}
-		actual := row.T
-		if configured == "" {
-			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: cls, Actual: actual, Expected: "", Verdict: "WARN",
-				Why: fmt.Sprintf("%s tier not declared in run-config — cannot judge %s", cls, row.Seat)})
+		spec, ok := modeltier.LookupSeat(seats, keySeat)
+		if !ok || spec.Model == "" {
+			out = append(out, Finding{Seat: keySeat, Epoch: row.Epoch, Cls: cls, Actual: row.T, Expected: "", Verdict: "WARN",
+				Why: fmt.Sprintf("%s model not declared in run-config — cannot judge %s", cls, keySeat)})
 			continue
 		}
-		expected := Tier(configured)
-		switch {
-		case dearer(actual, expected):
-			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: cls, Actual: actual, Expected: expected, Verdict: "FAIL",
-				Why: fmt.Sprintf("%s ran on %s, DEARER than the configured %s tier %s", row.Seat, actual, cls, expected)})
-		case dearer(expected, actual):
-			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: cls, Actual: actual, Expected: expected, Verdict: "WARN",
-				Why: fmt.Sprintf("%s ran on %s, CHEAPER than the configured %s tier %s — verification may be discounted", row.Seat, actual, cls, expected)})
+		if row.Model == "" && row.Turns > 0 {
+			continue
 		}
+		actual := row.Model
+		if actual == "" {
+			actual = row.T
+		}
+		if modeltier.SameModel(spec.Model, actual) {
+			continue
+		}
+		if recognized(spec.Model) && recognized(actual) {
+			expectedTier, actualTier := Tier(spec.Model), Tier(actual)
+			switch {
+			case dearer(actualTier, expectedTier):
+				out = append(out, Finding{Seat: keySeat, Epoch: row.Epoch, Cls: cls, Actual: actualTier, Expected: expectedTier, Verdict: "FAIL",
+					Why: fmt.Sprintf("%s ran on %s, DEARER than the configured %s tier %s", keySeat, actualTier, cls, expectedTier)})
+			case dearer(expectedTier, actualTier):
+				out = append(out, Finding{Seat: keySeat, Epoch: row.Epoch, Cls: cls, Actual: actualTier, Expected: expectedTier, Verdict: "WARN",
+					Why: fmt.Sprintf("%s ran on %s, CHEAPER than the configured %s tier %s — verification may be discounted", keySeat, actualTier, cls, expectedTier)})
+			}
+			continue
+		}
+		out = append(out, Finding{Seat: keySeat, Epoch: row.Epoch, Cls: cls, Actual: actual, Expected: spec.Model, Verdict: "FAIL",
+			Why: fmt.Sprintf("%s ran on %s, differing from configured %s", keySeat, actual, spec.Model)})
 	}
 	return out
 }
 
-// TierConfig reads the run's configured model tiers from inputs/run-config.json (empty strings if
-// absent). The keys are read in ONE place and it is modeltier.Config — record needs them too, at
-// register, and two readers of the same bare keys is how one of them comes to read a key that was
-// renamed.
-func TierConfig(run record.Run) (model, judgmentModel string) { return modeltier.Config(run.Dir()) }
+// TierConfig reads the run's per-seat configuration from inputs/run-config.json (nil if absent).
+func TierConfig(run record.Run) map[string]modeltier.SeatSpec {
+	return modeltier.SeatConfigs(run.Dir())
+}
 
 // DedupTierFindings drops duplicate findings keyed on (seat|epoch|verdict|actual). TierMismatch
 // can emit repeats, and both the cost report and the capture model-tier audit dedup on this same
@@ -399,7 +416,7 @@ func Report(transcripts []record.Transcript, run record.Run, out io.Writer) erro
 		// Both fields come from the same binding: the epoch it always did, and now the occasion,
 		// which used to be recovered by matching the first words of the prompt.
 		bind := bindings[tr.AgentID]
-		row.Epoch, row.Occasion = bind.Epoch, bind.Occasion
+		row.SeatID, row.Epoch, row.Occasion = bind.SeatID, bind.Epoch, bind.Occasion
 		rows = append(rows, row)
 	}
 
@@ -590,18 +607,24 @@ func durationOrDash(ms *int64) string {
 }
 
 func reportTierCheck(run record.Run, rows []Row, p func(string)) {
-	model, judgmentModel := TierConfig(run)
-	findings := DedupTierFindings(TierMismatch(rows, model, judgmentModel))
+	seats := TierConfig(run)
+	findings := DedupTierFindings(TierMismatch(rows, seats))
 	p("\n## Tier check\n")
 	if len(findings) == 0 {
-		mDisp, jDisp := model, judgmentModel
-		if mDisp == "" {
-			mDisp = "undeclared"
+		models := map[string]bool{}
+		for _, s := range seats {
+			models[s.Harness+":"+s.Model] = true
 		}
-		if jDisp == "" {
-			jDisp = "undeclared"
+		var list []string
+		for m := range models {
+			list = append(list, m)
 		}
-		p(fmt.Sprintf("- PASS — every seat ran on its configured tier (bulk: %s, judgment: %s).", mDisp, jDisp))
+		sort.Strings(list)
+		summary := "undeclared"
+		if len(list) > 0 {
+			summary = strings.Join(list, ", ")
+		}
+		p(fmt.Sprintf("- PASS — every measured seat matched its configured model (%s).", summary))
 		return
 	}
 	for _, f := range findings {

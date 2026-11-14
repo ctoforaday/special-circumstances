@@ -132,16 +132,8 @@ func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
 	}); err != nil {
 		return nil, err
 	}
-	closed := map[string]int64{} // gap -> its first closing act; an open gap has none
-	if err := scanRows(q, firstClosureSQL, func(rows *sql.Rows) error {
-		var g string
-		var at sql.NullInt64
-		err := rows.Scan(&g, &at)
-		if at.Valid {
-			closed[g] = at.Int64
-		}
-		return err
-	}); err != nil {
+	closed, err := firstClosuresAt(q)
+	if err != nil {
 		return nil, err
 	}
 	out := map[int64][]reaching{}
@@ -158,6 +150,22 @@ func reachingRetiresOf(q recordsql.Querier) (map[int64][]reaching, error) {
 		slices.SortFunc(out[at], func(a, b reaching) int { return strings.Compare(a.gap, b.gap) })
 	}
 	return out, nil
+}
+
+// firstClosuresAt is each closed gap's first closing act (gap_state's closed_event), by gap id; an
+// open gap has none.
+func firstClosuresAt(q recordsql.Querier) (map[string]int64, error) {
+	closed := map[string]int64{}
+	err := scanRows(q, firstClosureSQL, func(rows *sql.Rows) error {
+		var g string
+		var at sql.NullInt64
+		err := rows.Scan(&g, &at)
+		if at.Valid {
+			closed[g] = at.Int64
+		}
+		return err
+	})
+	return closed, err
 }
 
 // scanRows runs query and hands each row to scan.

@@ -20,7 +20,7 @@
         "matcher": ".*",
         "hooks": [
           {
-            "command": "R=\"${PWD}\"; B=\"$R/bin/feov-posttoolusefailure\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PostToolUse; fi"
+            "command": "R=\"${PWD}\"; B=\"$R/bin/feov-posttooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"$R/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PostToolUse; fi"
           }
         ]
       }

@@ -228,8 +228,28 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// so "a log event this sitting" stopped meaning "the seat has spoken" — a refused call would have
 	// closed the channel it exists to open. A sitting whose only events are refused calls recorded no
 	// act and still met friction, so it is asked too.
-	own, refused := logsThisSitting(evs, win, seatID)
-	if own == 0 && (refused > 0 || !sittingRecordedNothing(evs, win, seatID)) {
+	//
+	// A SITTING THAT HAS NOT OPENED HOLDS NONE OF THIS. A seat dispatched and not yet registered, or
+	// a chair the workflow came back to before its register, reads this list in a sitting the record
+	// does not hold (the register items below say so), and the seat's latest stored sitting is the
+	// one before it: a refused call, an entry or an act counted there belongs to the agent that sat
+	// then. The seat is read as one that has not sat — nothing of its own filed, no refused call, and
+	// no empty sitting to excuse the entry.
+	d, owed := owedSitting(evs, win, seatID)
+	hearing := owed && seatID == benchSeat && benchRegisteredSince(evs, win, d)
+	var chairGroup DispatchGroup
+	chairOwed := false
+	if seatID == chairSeat {
+		chairGroup, chairOwed = unopenedChairSitting(evs, win)
+	}
+	unopened := (owed && !hearing) || chairOwed
+	var own, refused int
+	recordedNothing := false
+	if !unopened {
+		own, refused = logsThisSitting(evs, win, seatID)
+		recordedNothing = sittingRecordedNothing(evs, win, seatID)
+	}
+	if own == 0 && (refused > 0 || !recordedNothing) {
 		// THE ITEM NAMES ONLY WHAT CAN BE FILED. It used to end "nor said that nothing blocked you",
 		// which no type can say: `nominal` was retired when clean became DERIVED from having sat and
 		// filed nothing (LogType's own comment carries the measurement — 40 of 40 and 42 of 42 entries
@@ -261,7 +281,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// A HEARING CAN SIT BEFORE THE BENCH'S DOCKET: a sitting already registered for its hearing owes
 	// the docket's register to the NEXT sitting: a second register in this one is refused as a repeat,
 	// so this sitting cannot clear it.
-	if d, owed := owedSitting(evs, win, seatID); owed && seatID == benchSeat && benchRegisteredSince(evs, win, d) {
+	if hearing {
 		may(ItemRegisterOwed, nil, fmt.Sprintf("the dispatch against report head %d also convenes you for a sitting of its own you have not opened yet — this sitting is registered for its occasion, and the next is registered for the other", d.pin))
 	} else if owed {
 		add(ItemRegisterOwed, nil, fmt.Sprintf("you were dispatched against report head %d and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
@@ -273,10 +293,8 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// dispatch; where the hook's bracket opened it nothing is owed, and where none did `dispatch
 	// next` — the chair's first act — refuses until the register lands, which is the enforcement
 	// the rule at the top of this file asks of every item here.
-	if seatID == chairSeat {
-		if g, owed := unopenedChairSitting(evs, win); owed {
-			add(ItemRegisterOwed, nil, chairRegisterOwed(g)+" — register for this sitting")
-		}
+	if chairOwed {
+		add(ItemRegisterOwed, nil, chairRegisterOwed(chairGroup)+" — register for this sitting")
 	}
 
 	// A DOCKETED GAP LEAVES THE PARTIES' LISTS UNTIL IT IS RULED, APART FROM ITS CLOSING (ruled by gblock

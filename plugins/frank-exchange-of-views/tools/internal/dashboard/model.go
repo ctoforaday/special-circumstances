@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -20,10 +22,12 @@ import (
 // Config carries the run's launch parameters the dashboard displays. File values (setup's
 // inputs/run-config.json) are overridden by any non-empty CLI flag — the JS merge order.
 type Config struct {
-	Topic         string `json:"topic"`
-	Model         string `json:"model"`
-	JudgmentModel string `json:"judgmentModel"`
-	Lanes         string `json:"lanes"`
+	Topic         string                        `json:"topic"`
+	Seats         map[string]modeltier.SeatSpec `json:"seats"`
+	Bulk          string                        `json:"-"`
+	Judgment      string                        `json:"-"`
+	SeatOverrides []string                      `json:"-"`
+	Lanes         string                        `json:"lanes"`
 }
 
 // LogTile is the log tile's data: how many log entries the record holds, of every type, and the
@@ -161,14 +165,42 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		_ = json.Unmarshal(b, &fileCfg)
 	}
 	merged := fileCfg
+	merged.Seats = maps.Clone(fileCfg.Seats)
+	if merged.Seats == nil {
+		merged.Seats = map[string]modeltier.SeatSpec{}
+	}
 	if cfg.Topic != "" {
 		merged.Topic = cfg.Topic
 	}
-	if cfg.Model != "" {
-		merged.Model = cfg.Model
+	applyClassOverride := func(class, raw string) {
+		spec, err := modeltier.ParseSeatSpec(raw)
+		if err != nil {
+			return
+		}
+		if seatclass.ClassOf(seatclass.Lane.Base) == class {
+			merged.Seats[seatclass.Lane.Base] = spec
+		}
+		for seatID, def := range seatclass.Seats {
+			if def.Base != "" && seatclass.ClassOf(def.Base) == class {
+				merged.Seats[seatID] = spec
+			}
+		}
 	}
-	if cfg.JudgmentModel != "" {
-		merged.JudgmentModel = cfg.JudgmentModel
+	if cfg.Bulk != "" {
+		applyClassOverride("bulk", cfg.Bulk)
+	}
+	if cfg.Judgment != "" {
+		applyClassOverride("judgment", cfg.Judgment)
+	}
+	for _, raw := range cfg.SeatOverrides {
+		if seatID, val, ok := strings.Cut(raw, "="); ok {
+			if spec, err := modeltier.ParseSeatSpec(val); err == nil && strings.TrimSpace(seatID) != "" {
+				merged.Seats[strings.TrimSpace(seatID)] = spec
+			}
+		}
+	}
+	for k, v := range cfg.Seats {
+		merged.Seats[k] = v
 	}
 	if cfg.Lanes != "" {
 		merged.Lanes = cfg.Lanes
@@ -299,7 +331,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 			// Both windows come from the record's binding — the epoch it always did, and the
 			// occasion, which keeps the assembly's spend out of a docket ruling's row.
 			bind := bindings[row.AgentID]
-			row.Epoch, row.Occasion = bind.Epoch, bind.Occasion
+			row.SeatID, row.Epoch, row.Occasion = bind.SeatID, bind.Epoch, bind.Occasion
 			crows = append(crows, row)
 			apiRounds += row.Turns
 			costTotal += row.Cost

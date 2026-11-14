@@ -51,7 +51,7 @@ func drivePlans(t *testing.T, plans []map[string]any, extra Envelope) ([]Dispatc
 		t.Fatal(err)
 	}
 	ds, out, err := CaptureRun(ScriptPath(filepath.Join(wd, "..", "..")), Config{Topic: "t", RunDir: t.TempDir(), BinDir: t.TempDir(),
-		Lanes: 1, Model: "haiku", JudgmentModel: "haiku", Backend: backend})
+		Lanes: 1, Seats: TieredSeats("haiku", "haiku"), Backend: backend})
 	if err != nil {
 		t.Fatalf("driving debate.js: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestAnEnvelopePetitionIsNotAChannel(t *testing.T) {
 func TestABenchPartyWithNoGapIsRefused(t *testing.T) {
 	wd, _ := os.Getwd()
 	_, _, err := CaptureRun(ScriptPath(filepath.Join(wd, "..", "..")), Config{Topic: "t", RunDir: t.TempDir(), BinDir: t.TempDir(),
-		Lanes: 1, Model: "haiku", JudgmentModel: "haiku", Backend: func(seatID, label, prompt string) Envelope {
+		Lanes: 1, Seats: TieredSeats("haiku", "haiku"), Backend: func(seatID, label, prompt string) Envelope {
 			e := Envelope{"rulings": []any{}, "dispositions": []any{}, "open_gaps": 0}
 			if seatID == "red-chair" {
 				e.Relay(planWith([]any{map[string]any{"seat_id": "judge", "gap_ids": []any{}}}, []any{benchPetition}))

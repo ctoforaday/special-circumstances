@@ -94,4 +94,12 @@ func TestObserveReadsThePathItIsHanded(t *testing.T) {
 	if _, err := Observe(empty); err == nil || !strings.Contains(err.Error(), "NOT MEASURED") {
 		t.Errorf("a trajectory naming no model must say NOT MEASURED, got %v", err)
 	}
+
+	agy := filepath.Join(dir, "transcript.jsonl")
+	if err := os.WriteFile(agy, []byte(`{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","input_tokens":100,"output_tokens":20}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Observe(agy); err == nil || !strings.Contains(err.Error(), "antigravity transcript carrying no model field") {
+		t.Errorf("antigravity transcript must report NotMeasured reason; got %v", err)
+	}
 }

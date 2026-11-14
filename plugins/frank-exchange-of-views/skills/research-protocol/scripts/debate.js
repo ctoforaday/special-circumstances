@@ -18,18 +18,17 @@ export const meta = {
 //   FAIL-with-empty-gaps (run 3 retrospective, report §3 rows 20-24).
 //   Behavior needs live agents — /research --smoke (1 lane + laneFloorOverride, 1 round,
 //   model=haiku) exercises the pipeline for ~50k tokens.
-//   Model tiers are REQUIRED — both `model` and `judgmentModel` must be set explicitly. The engine
-//   throws rather than guess a tier or inherit the session model: a silently expensive (or silently
-//   cheap) tier was the #111 trap. sonnet for development; --smoke sets BOTH to haiku. NEVER change
-//   `model` OR `judgmentModel` on a resume — they change agent() opts, bust the cache keys, and
-//   re-run completed sittings at full price.
-//   Per-role split (efficiency doctrine: cheapen redundancy and mechanics, never judgment or
-//   the adversary): `model` drives the BULK seats (frontier, blue lanes, red lenses, blue
-//   responses); `judgmentModel` drives the JUDGMENT seats (blue-synthesize, red-chair,
-//   lead-judge, assemble). Neither inherits — every run, keeper or dev, names both.
-//   KNOWN TRADEOFF (retrospective §3 row 16b): red LENSES ride the bulk tier — on a cheap-model
-//   dev/smoke run, treat lens-sourced gap grades with a confidence discount. For keeper runs,
-//   name a STRONG model for BOTH tiers so the adversary and the bench run at full strength.
+//   Per-seat models are REQUIRED — `seats` must name every debating seat (plus `blue-lane`)
+//   with `{ harness: 'claude', model }`. The engine throws rather than guess a tier or inherit
+//   the session model: a silently expensive (or silently cheap) tier was the #111 trap. NEVER
+//   change `seats` on a resume — it changes agent() opts, busts the cache keys, and re-runs
+//   completed sittings at full price.
+//   Typical bulk/judgment split: BULK seats (frontier, blue lanes, red lenses, blue responses)
+//   run on a fast/cheap model unless selectively overridden; JUDGMENT seats (blue-synthesize,
+//   red-chair, lead-judge, assemble) run on a reasoning model.
+//   KNOWN TRADEOFF (retrospective §3 row 16b): when red LENSES ride a cheap model in dev/smoke
+//   runs, treat lens-sourced gap grades with a confidence discount. For keeper runs, name strong
+//   models so the adversary and the bench run at full strength.
 //   THE TIER YOU NAME IS NOT NECESSARILY THE TIER THAT ANSWERS, and until #589 nothing in the
 //   loop could tell. Both 2026-08-23 runs asked for `claude-fable-5` on the bulk tier and were
 //   answered by `claude-opus-4-8` on all 44 bulk seats, for ~$379: the configured research tier
@@ -45,7 +44,7 @@ export const meta = {
 //   runs live. The run's bounds are its TERMS in inputs/run-config.json (k-max, mint-budget,
 //   max-epochs), never a count passed here; the automatic severity-floor stop was REJECTED by the
 //   run-4 debate (it automates the one call that belongs to judgment). NEVER change
-//   model/judgmentModel on that resume.
+//   `seats` on that resume.
 // The lead is a script: mechanics, dispatch, termination. All file writes
 // belong to the agents (the filesystem is the blackboard; the script has no
 // filesystem access by design). Judgment calls go to lead-judge, never round-to-round.
@@ -53,7 +52,7 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, transcriptDir = null } = a
+const { topic, runDir, lanes = 3, seats = null, laneFloorOverride = null, binDir = null, transcriptDir = null } = a
 if (args && Object.prototype.hasOwnProperty.call(args, 'maxRounds')) {
   throw new Error(`debate: refusing dispatch — maxRounds is not a term of this engine any more (plans/roundless.md). A run ends on the record, not on a count:
 the chair's \`dispatch next\` says who sits, and the run ends when nobody is ready — PASS permitted — or at the run's
@@ -64,14 +63,9 @@ raised with the report's size, and the chair sittings the run gets (max-epochs);
 if (!topic || !runDir || String(runDir).includes('undefined') || String(topic) === 'undefined') {
   throw new Error(`debate: refusing dispatch — topic/runDir unbound (topic=${JSON.stringify(topic)}, runDir=${JSON.stringify(runDir)})`)
 }
-// Model tiers are REQUIRED and never inherited — the engine will not guess a tier (#111). A missing
-// tier is named explicitly with its role and a remedy; a silent expensive/cheap seat is the trap
-// this closes. Both messages begin "refusing dispatch" so the same-shaped regression guard catches them.
-if (!model) {
-  throw new Error(`debate: refusing dispatch — model unset. The engine does not guess a tier: pass model (the BULK tier — frontier, blue lanes, red lenses, blue responses), e.g. { model: "sonnet" }.`)
-}
-if (!judgmentModel) {
-  throw new Error(`debate: refusing dispatch — judgmentModel unset. The engine does not inherit the session model: pass judgmentModel (the JUDGMENT tier — blue-synthesize, red-chair, judge, assemble), e.g. { judgmentModel: "sonnet" }.`)
+// Per-seat models are REQUIRED and never inherited — the engine will not guess (#111, #1827).
+if (!seats || typeof seats !== 'object') {
+  throw new Error(`debate: refusing dispatch — seats unset. The engine does not guess a tier or inherit the session model: pass seats keyed by seat id ({ harness: "claude", model }).`)
 }
 if (!binDir) {
   throw new Error(`debate: refusing dispatch — binDir unset. The engine does not run without the record.
@@ -79,7 +73,7 @@ if (!binDir) {
 The tool is the contract, not an enhancement: every seat writes its acts through \`feov-record\` and reads the
 board back through it, and binDir is how a seat is told where that binary is. Without it no seat can reach
 the record, so the run would record nothing and every gate would still pass — the plausible zero with a whole
-run behind it. It is refused here for the same reason model and judgmentModel are: a decision the engine
+run behind it. It is refused here for the same reason unset seats are: a decision the engine
 cannot make correctly by guessing must be stated.`)
 }
 
@@ -89,8 +83,6 @@ cannot make correctly by guessing must be stated.`)
 if (lanes < 3 && !laneFloorOverride) {
   throw new Error(`debate: lanes=${lanes} is below the floor of 3 — pass laneFloorOverride: '<reason>' to run under-provisioned deliberately`)
 }
-// Unconditional now — the guard above rejected an unset tier, so both are set.
-const TIER = { bulk: { model }, judgment: { model: judgmentModel } }
 
 // WHO SITS, AND UNDER WHAT, IS THE RECORD'S ROSTER. The block below is written from it and this
 // script authors none of it: each seat's role, tier class, agent configuration and lens area
@@ -121,15 +113,25 @@ const LANE = { prefix: 'blue-lane-', role: 'lane', tier: 'bulk', agentType: 'fra
 const OCCASION = { docket: 'docket', petition: 'petition', terminal: 'terminal', assemble: 'assemble', position: 'position' }
 const MASS_MAPPING_VERSION = 'v2'
 // END GENERATED SEATS
+const REQUIRED_SEATS = [...Object.keys(SEATS), 'blue-lane']
+for (const id of REQUIRED_SEATS) {
+  const spec = seats[id]
+  if (!spec || !spec.model) {
+    throw new Error(`debate: refusing dispatch — seats[${JSON.stringify(id)}].model unset. The engine does not inherit the session model.`)
+  }
+  if (spec.harness !== 'claude') {
+    throw new Error(`debate: refusing dispatch — seat ${id} specifies harness ${JSON.stringify(spec.harness)}; debate.js only dispatches claude seats.`)
+  }
+}
 const roleOfSeat = (id) => (Object.prototype.hasOwnProperty.call(SEATS, id) ? SEATS[id].role : '')
-// dispatchAs is what a seat is dispatched under — its tier's model and its agent configuration,
-// both read from its row. A call site names the seat and spreads this; it writes neither.
+// dispatchAs is what a seat is dispatched under — its configured model and its agent configuration.
+// A call site names the seat and spreads this; it writes neither.
 const dispatchAs = (id) => {
   if (!roleOfSeat(id)) throw new Error(`debate: ${id} is no seat on the roster — a dispatch names a seat the record seats`)
-  return { ...TIER[SEATS[id].tier], agentType: SEATS[id].agentType }
+  return { model: seats[id].model, agentType: SEATS[id].agentType }
 }
 const laneSeat = (n) => `${LANE.prefix}${n}`
-const laneDispatch = () => ({ ...TIER[LANE.tier], agentType: LANE.agentType })
+const laneDispatch = () => ({ model: seats['blue-lane'].model, agentType: LANE.agentType })
 // A seat's label names the run by its directory, `<date>_<slug>`, without the date: the last
 // path element, and the part after the first `_` where everything before it is the date's digits
 // and hyphens.
@@ -140,7 +142,7 @@ const slug = (() => {
   return dated ? name.slice(cut + 1) : name
 })()
 log(`researching: ${topic.length > 160 ? topic.slice(0, 157) + '...' : topic}`)
-log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
+log(`resolved seats — ${[...new Set(REQUIRED_SEATS.map((id) => `${seats[id].harness}:${seats[id].model}`))].join(', ')}`)
 
 // A SEAT'S LOG ENTRIES LIVE ON THE RECORD AND NOWHERE ELSE. No envelope carries one and this
 // script collects none: the record survives a mid-run throw, and a second copy in a return value

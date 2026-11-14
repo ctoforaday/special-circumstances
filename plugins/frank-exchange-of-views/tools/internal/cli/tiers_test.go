@@ -23,7 +23,7 @@ func tierFixture(t *testing.T) (string, record.Family) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`), 0o644); err != nil {
+		[]byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"},"red-chair":{"harness":"claude","model":"claude-sonnet-5"},"judge":{"harness":"claude","model":"claude-sonnet-5"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	recordtest.Seed(t, run,
@@ -78,7 +78,7 @@ func TestTiersJoinsTheRequestAgainstTheService(t *testing.T) {
 func TestTiersRendersNotMeasuredRatherThanABlank(t *testing.T) {
 	run, b := tierFixture(t)
 	md := renderTiers(tierReport(runtest.Open(t, run), b))
-	for _, want := range []string{"| judge | judgment | claude-sonnet-5 | **NOT MEASURED** — the event that opened this seat's sitting carries no agent id", "substitution declared by the harness", "served measured on 2 of 3"} {
+	for _, want := range []string{"| judge | claude | judgment | claude-sonnet-5 | **NOT MEASURED** — the event that opened this seat's sitting carries no agent id", "substitution declared by the harness", "served measured on 2 of 3"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("the rendering must carry %q; got:\n%s", want, md)
 		}
@@ -93,7 +93,7 @@ func TestTiersSaysWhenNothingLookedAtAll(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`), 0o644); err != nil {
+		[]byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"},"red-chair":{"harness":"claude","model":"claude-sonnet-5"},"judge":{"harness":"claude","model":"claude-sonnet-5"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	recordtest.Seed(t, run, castWithOneLane(t), recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",

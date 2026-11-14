@@ -116,7 +116,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 	}
 	ds, err := debatejs.Capture(script, debatejs.Config{
 		Topic: "delivery", RunDir: t.TempDir(), BinDir: t.TempDir(), Lanes: 1,
-		Model: "haiku", JudgmentModel: "haiku", Backend: backend, Timeout: 2 * time.Minute,
+		Seats: debatejs.TieredSeats("haiku", "haiku"), Backend: backend, Timeout: 2 * time.Minute,
 	})
 	if err != nil {
 		t.Fatalf("capturing the shipped debate.js: %v", err)

@@ -1437,7 +1437,7 @@ func debate(fam record.Family) string {
 			continue
 		}
 		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
-			disp = append(disp, "**Certification** — "+ownBlock(c.GetStatement()))
+			disp = append(disp, "**Certification** — "+ownBlock(c.GetStatement())+"\n\n"+countsAtCertification(fam, e))
 			continue
 		}
 		// A DECLARATION BINDS HOW THE RECORD IS READ, so it belongs in the artifact the
@@ -1497,6 +1497,22 @@ func debate(fam record.Family) string {
 		b.WriteString("\n\n### Bench disposition\n\n" + strings.Join(disp, "\n\n"))
 	}
 	return b.String()
+}
+
+// countsAtCertification is the line a certification renders beside its statement: the record's
+// counts as it stood at that certify event e (record.Family.CountsAt), composed here and stored
+// nowhere. The statement is the bench's prose and a count typed into it is the bench's memory; this
+// line is the record's, so a reader holds the two side by side.
+func countsAtCertification(fam record.Family, e *record.Event) string {
+	c := fam.CountsAt(fam.At.Of(e).ID)
+	retired := func(n int) string {
+		if n == 0 {
+			return ""
+		}
+		return fmt.Sprintf(" (%d retired)", n)
+	}
+	return fmt.Sprintf("The record at this certification, counted by the tool — gaps: %d minted · %d closed · %d open; citations: %d%s; readings: %d; computations: %d%s.",
+		c.GapsMinted, c.GapsClosed, c.GapsOpen(), c.Citations, retired(c.CitationsRetired), c.Readings, c.Computations, retired(c.ComputationsRetired))
 }
 
 // logSection surfaces what the seats told the operator — log events, recorded through the log

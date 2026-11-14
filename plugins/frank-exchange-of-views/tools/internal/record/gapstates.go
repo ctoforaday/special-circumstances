@@ -23,6 +23,8 @@ type familyGapRow struct {
 	open, material    bool
 	sev, lik, imp, cx sql.NullString
 	closure           gapClosure
+	// closed is gap_state's closed_event, 0 while the gap is open: its first closing act, of any arm.
+	closed int64
 }
 
 // familyReadsAt reads the family's answers off q, the read transaction both come off: the whole
@@ -56,7 +58,20 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 		}
 		r.gaps = append(r.gaps, g)
 	}
-	return r, rows.Err()
+	if err := rows.Err(); err != nil {
+		return r, err
+	}
+	// EACH GAP'S FIRST CLOSING ACT, off the same snapshot: the gap view states the standing closers,
+	// and whether a gap was open at an earlier point of the record is asked of the first
+	// (Family.CountsAt).
+	closed, err := firstClosuresAt(q)
+	if err != nil {
+		return r, err
+	}
+	for i := range r.gaps {
+		r.gaps[i].closed = closed[r.gaps[i].id]
+	}
+	return r, nil
 }
 
 // gapStatesOf is the gap family, whole, from what familyReadsAt read: the view answers the derived
@@ -91,6 +106,7 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 			Impact:         gradeOrZero(row.imp),
 			ComplexityCost: gradeOrZero(row.cx),
 			Material:       row.material,
+			ClosedEvent:    row.closed,
 		}
 		c, err := closeStateOf(row.id, row.closure, byID, win)
 		if err != nil {

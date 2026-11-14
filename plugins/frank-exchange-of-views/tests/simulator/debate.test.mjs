@@ -1,14 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, read, standInRead, blocker, withKey, judgeEnv, petitionRulingEnv, assembleEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, makeSeats, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, read, standInRead, blocker, withKey, judgeEnv, petitionRulingEnv, assembleEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
 // dispatches the parties the plan names, and the debate ends when the plan is empty. So a
 // stubbed chair IS a stubbed plan, and a scenario is a sequence of plans.
 const script = loadDebateScript(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url))
-const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet', binDir: '/opt/feov/bin' }
+const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3, seats: makeSeats('sonnet', 'sonnet'), binDir: '/opt/feov/bin' }
 const labelsOf = (world, prefix) => world.calls.filter((c) => c.opts.label.startsWith(prefix))
 const firstPrompt = (world, prefix) => labelsOf(world, prefix)[0].prompt
 const CITATION_CLAUSE = 'THE REPORT DOES NOT NAME ITS SOURCES'
@@ -1421,15 +1421,19 @@ test('a log a seat returns in its envelope reaches nothing: not the workflow ret
 // WHICH SEAT RIDES WHICH TIER, UNDER WHICH CONFIGURATION, IS NOT ASSERTED HERE. Both are the
 // roster's, written into the script's generated seat block, and the dispatch identity test in
 // tools/integration/surface holds every dispatch to them.
-test('both tiers are required and every dispatch carries one of them; binDir is required', async () => {
-  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')]) }), passChair()] }))
-  await world.run(script, { ...ARGS, model: 'haiku', judgmentModel: 'opus' })
-  for (const c of world.calls) assert.ok(['haiku', 'opus'].includes(c.opts.model), `${c.opts.label} is dispatched on a tier the run named`)
-  assert.deepEqual([...new Set(world.calls.map((c) => c.opts.model))].sort(), ['haiku', 'opus'], 'both tiers are in use')
+test('per-seat models are required and every dispatch carries its configured model; binDir is required', async () => {
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-dark-side'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')]) }), passChair()] }))
+  const seats = makeSeats('haiku', 'opus', { 'red-lens-dark-side': { harness: 'claude', model: 'sonnet' } })
+  await world.run(script, { ...ARGS, seats })
+  for (const c of world.calls) assert.ok(['haiku', 'sonnet', 'opus'].includes(c.opts.model), `${c.opts.label} is dispatched on a model the run named`)
+  assert.deepEqual([...new Set(world.calls.map((c) => c.opts.model))].sort(), ['haiku', 'opus', 'sonnet'], 'per-seat override and both tiers are in use')
   const base = { topic: 't', runDir: 'research/x', binDir: '/b' }
-  await assert.rejects(makeWorld(makeResponder()).run(script, { ...base, judgmentModel: 'sonnet' }), /refusing dispatch — model unset/)
-  await assert.rejects(makeWorld(makeResponder()).run(script, { ...base, model: 'sonnet' }), /refusing dispatch — judgmentModel unset/)
-  await assert.rejects(makeWorld(makeResponder()).run(script, { topic: 't', runDir: 'research/x', model: 'sonnet', judgmentModel: 'sonnet' }), /binDir unset/)
+  await assert.rejects(makeWorld(makeResponder()).run(script, base), /refusing dispatch — seats unset/)
+  const missing = makeSeats('sonnet', 'sonnet')
+  delete missing['red-lens-dark-side']
+  await assert.rejects(makeWorld(makeResponder()).run(script, { ...base, seats: missing }), /refusing dispatch — seats\["red-lens-dark-side"\]\.model unset/)
+  await assert.rejects(makeWorld(makeResponder()).run(script, { ...base, seats: makeSeats('sonnet', 'sonnet', { 'red-lens-dark-side': { harness: 'antigravity', model: 'gpt-oss-120b-medium' } }) }), /refusing dispatch — seat red-lens-dark-side specifies harness "antigravity"/)
+  await assert.rejects(makeWorld(makeResponder()).run(script, { topic: 't', runDir: 'research/x', seats: makeSeats('sonnet', 'sonnet') }), /binDir unset/)
 })
 
 test('the lenses dispatched are the plan\'s, each under a configuration of its own', async () => {

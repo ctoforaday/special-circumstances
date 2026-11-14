@@ -10,7 +10,7 @@
 //   1. stringified args on resume -> destructured undefined -> literal 'undefined' paths (run 1)
 //   2. agent() returning null on terminal failure -> TypeError on redEnv.verdict (run 2)
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
 
@@ -219,4 +219,22 @@ export function strictTypesWarnings(schema, path = '#', context = []) {
   for (const [i, sub] of (schema.anyOf || []).entries()) warn.push(...strictTypesWarnings(sub, `${path}/anyOf/${i}`, dataTypes))
   for (const k of ['if', 'then', 'else']) if (schema[k]) warn.push(...strictTypesWarnings(schema[k], `${path}/${k}`, dataTypes))
   return warn
+}
+
+const SIMULATOR_LENS_SEATS = readdirSync(new URL('../../agents/', import.meta.url))
+  .map((f) => /^(red-lens-.+)\.md$/.exec(f))
+  .filter(Boolean)
+  .map((m) => m[1])
+
+export function makeSeats(bulk, judgment, overrides = {}) {
+  const seats = {
+    frontier: { harness: 'claude', model: bulk },
+    'blue-lane': { harness: 'claude', model: bulk },
+    'blue-respond': { harness: 'claude', model: bulk },
+    'blue-synthesize': { harness: 'claude', model: judgment },
+    'red-chair': { harness: 'claude', model: judgment },
+    judge: { harness: 'claude', model: judgment },
+  }
+  for (const id of SIMULATOR_LENS_SEATS) seats[id] = { harness: 'claude', model: bulk }
+  return { ...seats, ...overrides }
 }
