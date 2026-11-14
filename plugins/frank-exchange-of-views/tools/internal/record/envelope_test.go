@@ -44,14 +44,15 @@ func itemsOn(t *testing.T, run Run, role, seat, sub string) (blocking, open []It
 }
 
 // twinDocket stages a gap with two docket motions standing on it (the record admits the second while
-// the first stands) and the bench sitting the docket the chair convened it for, then build's acts.
+// the first stands) and the bench sitting the docket the chair convened it for, its delivery of the
+// gap's passage complete, then build's acts.
 func twinDocket(t *testing.T, build func(b *stage)) Run {
 	t.Helper()
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens).
 		mint(evLens, "G1", "low").
 		docketMotion("blue-respond", "M1", "G1").docketMotion("blue-respond", "M2", "G1").
-		dispatch(2, benchSeat, "G1").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
+		dispatch(2, benchSeat, "G1").benchRegister(recordpb.Occasion_OCCASION_DOCKET).served(benchSeat, 2)
 	build(b)
 	return b.seed()
 }
@@ -249,10 +250,12 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 }
 
 // A LENS'S ENVELOPE IS HELD BY ITS CLOSING ON A DOCKETED GAP OF ITS OWN, AND BY A REOPENED CITATION
-// IT OWNS UNTIL ITS SITTING EITHER CHECKS IT OR FINDS IT UNREACHABLE.
+// IT OWNS UNTIL ITS SITTING EITHER CHECKS IT OR FINDS IT UNREACHABLE. Each sitting holds its delivery of
+// report text, so what holds the envelope is the item under test.
 func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 	t.Run("a closing it owes holds it; filing admits it", func(t *testing.T) {
 		b := docketed(t).register(evLens)
+		b.served(evLens, b.head())
 		run := b.seed()
 		if r := refusalOf(t, run, evLens); !strings.Contains(r, "gap G1 is docketed") {
 			t.Fatalf("the owed closing does not hold the lens's envelope: %q", r)
@@ -267,6 +270,7 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 			add(HarnessSeat, &recordpb.ReportPart{Text: proto.String(report)}).register("red-chair").
 			dispatch(2, evLens).bracket(evLens, "lens-a").cite("C-00000001").supports(evLens, "C-00000001").stop("lens-a").
 			reopen("C-00000001").register("red-chair").dispatch(3, evLens).bracket(evLens, "lens-b")
+		b.served(evLens, b.head())
 		build(b)
 		return b.seed()
 	}
@@ -320,7 +324,7 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 		} {
 			run := newStage(t).cast(computationSeat, "red-chair", blueSeatID, "judge").
 				add(HarnessSeat, &recordpb.ReportPart{Text: proto.String(report)}).register("red-chair").
-				computation("K-00000001", "ab").dispatch(2, computationSeat).bracket(computationSeat, "lens-c").seed()
+				computation("K-00000001", "ab").dispatch(2, computationSeat).bracket(computationSeat, "lens-c").served(computationSeat, 2).seed()
 			if r := refusalOf(t, run, computationSeat); r != "" {
 				t.Errorf("%s: a computation no reproduce can reach refuses the lens's envelope: %q", name, r)
 			}
@@ -338,7 +342,7 @@ func TestAReadingDebtHoldsItsReadersEnvelopeUntilItsGap(t *testing.T) {
 	for name, gap := range map[string]string{"with its gap": "G-00000001", "with none": ""} {
 		t.Run(name, func(t *testing.T) {
 			run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().
-				register("red-chair").register(evLens).cite("C-1").foundAgainst(evLens, "C-1", gap).seed()
+				register("red-chair").register(evLens).served(evLens, 2).cite("C-1").foundAgainst(evLens, "C-1", gap).seed()
 			r := refusalOf(t, run, evLens)
 			blocking, _ := itemsOn(t, run, "lens", evLens, "reading of citation C-1")
 			if gap == "" && (r == "" || !strings.Contains(r, "reading of citation C-1") || len(blocking) != 1) {

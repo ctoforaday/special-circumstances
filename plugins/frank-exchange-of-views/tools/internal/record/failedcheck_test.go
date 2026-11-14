@@ -15,11 +15,11 @@ import (
 // retired. universe-m32 ended UNVERIFIED with pass_permitted true over exactly this board.
 
 // unsoundBoard is a run whose computation lens re-ran K-1 and judged its sentence unsound in its
-// sitting, with the chair seated after it.
+// sitting, which holds its delivery of the report, with the chair seated after it.
 func unsoundBoard(t *testing.T) *stage {
 	return newStage(t).cast(evLens, compLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
 		computation("K-1", "s1").
-		dispatch(2, compLens).register(compLens).
+		dispatch(2, compLens).register(compLens).served(compLens, 2).
 		reproduce(compLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
 }
 
