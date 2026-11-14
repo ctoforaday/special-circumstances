@@ -27,7 +27,7 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 		holding  = byLens + " remains open and is material; " + byBench + " is construed with it, and " + inProse + " is cited."
 		laterOne = "the later holding names no gap"
 	)
-	run := corrRun(t)
+	run := withReport(t, corrRun(t))
 	chair := sit(t, run, "red-chair")
 	lens := sit(t, run, evLens)
 	for _, id := range []string{byLens, byBench, inProse} {
@@ -71,10 +71,11 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 		}
 	}
 
+	delivered(t, lens)
 	mustAppend(t, lens, &recordpb.Close{GapId: proto.String(byLens), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 		AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("verified")})
 	mustAppend(t, chair, docketMotion("M1", byBench))
-	bench = sit(t, run, "judge")
+	bench = sitRead(t, run, "judge")
 	mustAppend(t, bench, docketRuling("M1", recordpb.Disposition_DISPOSITION_NOT_A_DEFECT))
 	mustAppend(t, bench, &recordpb.Declare{Holding: proto.String(laterOne)})
 

@@ -605,6 +605,7 @@ func TestOnlyTheMintingLensMayRegradeOrCloseItsGap(t *testing.T) {
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, regrade); err != nil {
 		t.Fatalf("the originator's regrade was refused: %v", err)
 	}
+	deliver(t, run, evLens)
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, closeG1()); err != nil {
 		t.Fatalf("the originator's close was refused: %v", err)
 	}

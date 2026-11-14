@@ -112,14 +112,15 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 // changes what the sitting produces. answer_kind says which it owes: a program or a source.
 func TestAwaitingEvidenceTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	runDir := newRun(t)
-	for _, s := range []string{"red-chair", "blue-respond"} {
+	withReport(t, mustRun(t, runDir))
+	for _, s := range []string{"red-chair", "blue-respond", evLens} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
 	mint := func(id string, kind recordpb.CheckKind) {
 		t.Helper()
-		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: evLens}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String(id),
 			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("p"),
@@ -203,7 +204,9 @@ func TestAwaitingEvidenceTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 		AnchorTarget: proto.String("x"),
 		Prose:        proto.String("the computation ran and the check holds"),
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, closeG2); err == nil || !strings.Contains(err.Error(), "nothing meets its live-answer demand") {
+	// The minting lens closes it from the sitting that holds its delivery, so the demand is what answers.
+	deliver(t, mustRun(t, runDir), evLens)
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: evLens}, closeG2); err == nil || !strings.Contains(err.Error(), "nothing meets its live-answer demand") {
 		t.Fatalf("the live close of unanswered G2 = %v, want refused by its demand", err)
 	}
 	db, err := recordsql.OpenSeparate(filepath.Join(runDir, "records", "record.db"))
@@ -215,7 +218,7 @@ func TestAwaitingEvidenceTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ev := &recordpb.Event{SeatId: proto.String("red-chair"), Ts: proto.String(Stamp()), Key: proto.String("archived:close")}
+	ev := &recordpb.Event{SeatId: proto.String(evLens), Ts: proto.String(Stamp()), Key: proto.String("archived:close")}
 	typ, err := recordpb.SetBody(ev, closeG2)
 	if err != nil {
 		t.Fatal(err)
