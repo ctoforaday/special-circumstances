@@ -21,7 +21,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class partial_control_coverage --check-kind document --check refetch --severity high --likelihood high --impact high --complexity medium --problem source moved
 exit 0
@@ -29,7 +30,8 @@ stdout:
 minted GAP001
   acceptance check RECORDED as: refetch
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP001
 exit 2
@@ -59,10 +61,9 @@ feov-record: close: requires --reason
 Run `feov-record close --help` for what it takes, flag by flag.
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
-exit 0
-stdout:
-closed GAP001 (repaired)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+exit 2
+stderr:
+feov-record: close: a close of GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -73,7 +74,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id: requires --as, --reason, --verified-against, --verified-by, --verified-with","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --verified-against --verified-by --verified-with: requires --reason","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
-{"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"refetched; the source now resolves and supports the claim"},"key":"red-lens-evidence:close:#1:GAP001","seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_CLOSE"}
+{"key":"red-lens-evidence:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: a close of GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- inquiries
@@ -105,7 +106,7 @@ A claim sits under S4.
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| _(no open gaps)_ |  |  |  |  |
+| source moved | high | high | medium | — |
 
 The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
 

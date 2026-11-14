@@ -21,7 +21,8 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --problem no check given
 exit 2
@@ -68,7 +69,8 @@ stdout:
 minted GAP001
   acceptance check RECORDED as: grep the sites
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

@@ -294,7 +294,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   mint        turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce   re-run a recorded computation and judge whether it establishes the sentence it is attached to
@@ -340,7 +340,7 @@ Available Commands:
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   retire      take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
@@ -387,7 +387,7 @@ Available Commands:
   help        Help about any command
   ingest      record your part of the report — once per lane, before the report's first change
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -429,7 +429,7 @@ Available Commands:
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   retire      take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
@@ -471,7 +471,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   regrade     set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
 
 Command groups — each holds commands THIS page does not list:
@@ -511,7 +511,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
@@ -604,7 +604,8 @@ feov-record: edit: your quote stops before finding anchor <!--fx:FINDING003--> (
 ── repeat target: the lens regrades GAP001
 exit 0
 regraded GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 ── a second regrade of a gap in one sitting
 exit 2
@@ -613,28 +614,24 @@ feov-record: regrade: red-lens-evidence has already recorded a regrade on "GAP00
 ── repeat target: the chair sits and states its position
 exit 0
 position POSITION001 recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 7 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
 
 ── a second position in one sitting
 exit 2
 feov-record: position: red-chair has already recorded a position this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new position at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the chair's spot-check
-exit 0
-spot-check recorded with its reason: named no archived closure
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
-  · lens red-lens-evidence is ready — PASS is refused while it is
+exit 2
+feov-record: spot-check: a spot-check stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
 
 ── a second spot-check in one sitting
 exit 2
-feov-record: spot-check: red-chair has already recorded a spot_check this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new spot-check at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
+feov-record: spot-check: a spot-check stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
 
 ── repeat target: the chair's verdict
 exit 0
@@ -644,11 +641,14 @@ dispatch against head 5:
   blue-respond — GAP001
   · red-lens-evidence: never sat — audits the report at head 5
   · GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there
+  · red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered
+  · red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered
   your verdict this sitting: FAIL — the workflow reads it off this plan
-NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
 
 ── a second verdict in one sitting
 exit 2
@@ -694,7 +694,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
@@ -729,23 +729,21 @@ feov-record: closing: blue-respond has already recorded a closing on "GAP001" th
 
 ── a lens closing a gap a docket motion stands on
 exit 2
-feov-record: close: gap GAP001 is docketed for the bench: motion MOTION001 stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on GAP001, which the bench reads before it rules
+feov-record: close: a close of GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
 
 ── repeat target: a gap nothing is before the bench on
 exit 0
 minted GAP002
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-2 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
+3 STILL TO CLEAR before you may end your turn (of 6 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
   · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── repeat target: the lens closes it
-exit 0
-closed GAP002 (repaired)
-2 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
-  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+exit 2
+feov-record: close: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
 
 ── repeat target: the chair sits again
 exit 0
@@ -756,38 +754,35 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
   · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
 
 ── repeat target: the chair carries the closure
-exit 0
-carried the closure of GAP002 (repaired)
-NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
-  · lens red-lens-evidence is ready — PASS is refused while it is
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
-  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+exit 2
+feov-record: carry: --carried-from says gap GAP002 was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against, which asks the gap's live-answer demand: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it
 
 ── a second carry of a gap in one sitting
 exit 2
-feov-record: carry: red-chair has already recorded a close on "GAP002" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a docket motion on the gap; the record is append-only and both stay visible
+feov-record: carry: --carried-from says gap GAP002 was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against, which asks the gap's live-answer demand: a gap whose check kind is `source` or `computation` closes, under every disposition, only on a live answer (a live citation or computation of that kind placed as its answer), or once its lens mints a gap of the same check kind superseding it, which takes the demand on, or once a retire takes out the anchor it is about, or once the seat whose check it carries checks that anchor again after the gap was minted and the check holds (under `source` a reading that backs the sentence, under `computation` a `sound` judgement); a demand its lens no longer holds goes before the bench, whose closing ruling is not held to it
 
 ── bunch target: a finding on a plain sentence
 exit 0
 finding recorded: FINDING004 (evidence) — the id a gap's found_by names
-2 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
+3 STILL TO CLEAR before you may end your turn (of 6 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
   · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── bunch target: a second finding on it
 exit 0
 finding recorded: FINDING005 (evidence) — the id a gap's found_by names
-2 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
+3 STILL TO CLEAR before you may end your turn (of 6 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
   · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
