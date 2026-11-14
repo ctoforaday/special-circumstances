@@ -67,7 +67,7 @@ func FailedSittings(run Run) ([]FailedSitting, error) {
 // and the synthesizer return no envelope the gate asks about.
 func FailedSittingsOf(evs []*Event, win WindowIndex) []FailedSitting {
 	var out []FailedSitting
-	for _, s := range AgentSittingsOf(evs, win) {
+	for _, s := range AgentSittingsOf(win) {
 		if !s.Closed || s.Admitted || !WorkArrivesAsItems(seatclass.RoleOfSeat(s.SeatID), s.SeatID) {
 			continue
 		}
@@ -122,50 +122,27 @@ func AgentSittings(run Run) ([]AgentSitting, error) {
 	if err != nil {
 		return nil, err
 	}
-	return AgentSittingsOf(m.Events, m.At), nil
+	return AgentSittingsOf(m.At), nil
 }
 
-// AgentSittingsOf IS THE ONE JOIN OF A SITTING TO ITS ENDS, read off the record's own facts:
+// AgentSittingsOf is each sitting opened under an agent, with its ends, read off the agent_sitting
+// view — the one statement of the join of a sitting to its ends:
 //
-//   - the event that OPENED the sitting names the agent that sat it (recordpb.AgentOpening) — the
-//     hook's bracket, or a register no bracket preceded;
+//   - the event that OPENED the sitting names the agent that sat it (the hook's bracket, or a
+//     register no bracket preceded);
 //   - a sitting_close of that agent says the agent returned;
 //   - an envelope_admitted of that agent says the call that ends the sitting succeeded;
 //   - a later opening of the same seat, with or without an agent, says the sitting is over.
 //
-// A close and an admission belong to the agent's latest opening before them, whichever comes first:
-// a seat the harness nudged is closed at its first stop and admitted after it, and that is one
-// sitting that finished. An opening with no agent can never be joined to a close, so it is not a
-// row here; it still ends the seat's sitting before it.
-func AgentSittingsOf(evs []*Event, win WindowIndex) []AgentSitting {
-	var order []*AgentSitting
-	current := map[string]*AgentSitting{} // agent -> its latest opening so far
-	latest := map[string]*AgentSitting{}  // seat -> its latest opening so far, nil for one with no agent
-	for _, e := range evs {
-		if seat, opens := win.Opens(e); opens {
-			if prev := latest[seat]; prev != nil {
-				prev.Over = true
-			}
-			latest[seat] = nil
-			if agent := recordpb.AgentOpening(e); agent != "" {
-				w := win.Of(e)
-				s := &AgentSitting{SeatID: seat, Sitting: w.Sitting, Epoch: w.Epoch, AgentID: agent}
-				order = append(order, s)
-				current[agent] = s
-				latest[seat] = s
-			}
-			continue
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && current[b.GetAgentId()] != nil {
-			current[b.GetAgentId()].Closed = true
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.EnvelopeAdmitted](e); ok && current[b.GetAgentId()] != nil {
-			current[b.GetAgentId()].Admitted = true
-		}
-	}
-	out := make([]AgentSitting, len(order))
-	for i, s := range order {
-		out[i] = *s
+// A close and an admission belong to the agent's latest opening before them. An opening with no
+// agent can never be joined to a close, so it is not a row here; it still ends the seat's sitting
+// before it.
+func AgentSittingsOf(win WindowIndex) []AgentSitting {
+	win.mustViews()
+	out := make([]AgentSitting, len(win.sittings))
+	for i, r := range win.sittings {
+		out[i] = AgentSitting{SeatID: r.SeatID, Sitting: r.Sitting, Epoch: r.Epoch, AgentID: r.AgentID,
+			Closed: r.Closed, Admitted: r.Admitted, Over: r.Over}
 	}
 	return out
 }

@@ -220,6 +220,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// The learning pass writes nothing, so what it rewrote is not what the record holds.
 	rm.prose = nil
 	place := newPlacer(batch.Querier(), evs, rm.ids)
+	readDropped := readsDropped(evs, rm.seat)
 	admits := predatesAdmission(source) // its closed sittings are admitted at their close
 	// THE EVENTS.ID A DISPATCH PINS IS TRANSLATED AS AN ID IS. The cast written first, an anchor
 	// placed after an act and a source event that writes nothing each move every later row, so a
@@ -266,6 +267,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 		if err != nil {
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
+		}
+		if readDropped[old.ID] {
+			continue // a second serve in its seat's sitting, or another seat's (readsDropped)
 		}
 		bodies, err := reg.Translate(src)
 		if err != nil {

@@ -232,7 +232,7 @@ func upheldPositionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocke
 			continue
 		}
 		if reads == nil {
-			reads = servedOf(evs, ids, win)
+			reads = servedOf(win)
 		}
 		if slices.ContainsFunc(reads[m.Work.Lens], func(r served) bool { return r.opening > m.ruled }) {
 			continue

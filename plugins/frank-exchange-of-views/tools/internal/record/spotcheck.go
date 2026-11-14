@@ -96,12 +96,10 @@ func stampSpotCheckChanges(q recordsql.Querier, b *recordpb.SpotCheck) error {
 		return err
 	}
 	ids := win.IDs(evs)
-	_, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
-	reads := servedOf(evs, ids, win)
+	reads := servedOf(win)
 	earliest := int64(math.MaxInt64)
 	for _, a := range b.GetAreas() {
-		pin := pinOf(reads[a], ends, a, math.MaxInt64)
+		pin := pinOf(reads[a], math.MaxInt64)
 		b.Pins = append(b.Pins, pin)
 		earliest = min(earliest, pin)
 	}

@@ -108,36 +108,33 @@ func requireReportReadAt(q recordsql.Querier, seatID string, b *recordpb.ReportR
 	return nil
 }
 
-// served is one ReportRead a lens's sitting holds: the place its sitting opened at, and the head.
+// served is one completed delivery to a seat (report_delivery): the sitting it was in, its head, and
+// whether that sitting was sat through.
 type served struct {
 	opening, head int64
+	sat           bool
 }
 
-// servedOf is each seat's reads, in stream order, by the place its sitting opened at — dispatchLedger's
-// places, so they compare with its openings and with satThrough's. A read in no sitting is in none.
-func servedOf(evs []*Event, ids []int64, win WindowIndex) map[string][]served {
-	place := placesOf(evs, ids, win)
+// servedOf is each seat's deliveries, in record order, read off the report_delivery view. A delivery
+// in no sitting is in none.
+func servedOf(win WindowIndex) map[string][]served {
+	win.mustViews()
 	out := map[string][]served{}
-	for _, e := range evs {
-		r, ok := recordpb.BodyAs[*recordpb.ReportRead](e)
-		if !ok {
+	for _, r := range win.deliveries {
+		if r.SittingID == 0 {
 			continue
 		}
-		o, in := place[win.Of(e).SittingID]
-		if !in || win.Of(e).SittingID == 0 {
-			continue
-		}
-		out[e.GetSeatId()] = append(out[e.GetSeatId()], served{opening: o, head: r.GetHead()})
+		out[r.SeatID] = append(out[r.SeatID], served{opening: r.SittingID, head: r.Head, sat: r.SatThrough})
 	}
 	return out
 }
 
-// pinOf is the lens's pin: the latest head of its reads in a sitting it sat through whose opening
-// precedes before, 0 where none does.
-func pinOf(reads []served, ends satThrough, seat string, before int64) int64 {
+// pinOf is the lens's pin: the head of its latest delivery in a sitting it sat through whose opening
+// precedes before, 0 where none does — an id comparison over report_delivery's rows.
+func pinOf(reads []served, before int64) int64 {
 	var pin int64
 	for _, r := range reads {
-		if r.opening < before && ends.sat(seat, r.opening) && r.head > pin {
+		if r.opening < before && r.sat && r.head > pin {
 			pin = r.head
 		}
 	}

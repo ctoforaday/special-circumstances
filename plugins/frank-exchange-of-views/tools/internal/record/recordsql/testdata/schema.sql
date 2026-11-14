@@ -1870,6 +1870,86 @@ CREATE VIEW "report_op" AS
   SELECT ra."event_id", 'remove', ra."value", NULL, 0
     FROM "retire_anchors" ra;
 
+-- A SEAT'S SITTING AND ITS ENDS, one row per opening that carries an agent, built over "sittings" as
+-- seat_of_agent is built over agent_binding. The agent is the one the opening names (a hook bracket's,
+-- or a register no bracket preceded); an opening with no agent is no row here, and it is sat through
+-- by construction, closing at the seat's next opening.
+--
+--   over        — the seat opened a later sitting: this one has ended, closed or not.
+--   closed      — a sitting_close of the agent whose latest opening carrying that agent before it is
+--                 this one; admitted, the same for an envelope_admitted. A seat the harness nudged is
+--                 closed at its first stop and admitted after it: one sitting that finished.
+--   sat_through — the agent's first close after the opening, before the seat's next opening: the
+--                 sitting the pin, the retirement count and a debt's lapse read as over.
+--
+-- Every term is an id comparison over the rows as they stand.
+CREATE VIEW "agent_sitting" AS
+WITH "opening" AS (
+  SELECT s."id" AS "sitting_id", s."seat_id" AS "seat_id", e."sitting" AS "sitting", e."epoch" AS "epoch",
+         COALESCE(NULLIF(so."agent_id", ''), NULLIF(r."agent_id", '')) AS "agent_id",
+         (SELECT MIN(n."id") FROM "sittings" n WHERE n."seat_id" = s."seat_id" AND n."id" > s."id") AS "next_opening"
+  FROM "sittings" s
+  JOIN "events" e ON e."id" = s."id"
+  LEFT JOIN "sitting_open" so ON so."event_id" = s."id"
+  LEFT JOIN "register" r ON r."event_id" = s."id"
+)
+SELECT o."sitting_id", o."seat_id", o."sitting", o."epoch", o."agent_id", o."next_opening",
+       o."next_opening" IS NOT NULL AS "over",
+       EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = o."agent_id" AND c."event_id" > o."sitting_id"
+                 AND NOT EXISTS (SELECT 1 FROM "opening" o2 WHERE o2."agent_id" = o."agent_id"
+                                   AND o2."sitting_id" > o."sitting_id" AND o2."sitting_id" < c."event_id")) AS "closed",
+       EXISTS (SELECT 1 FROM "envelope_admitted" a WHERE a."agent_id" = o."agent_id" AND a."event_id" > o."sitting_id"
+                 AND NOT EXISTS (SELECT 1 FROM "opening" o2 WHERE o2."agent_id" = o."agent_id"
+                                   AND o2."sitting_id" > o."sitting_id" AND o2."sitting_id" < a."event_id")) AS "admitted",
+       COALESCE((SELECT MIN(c."event_id") FROM "sitting_close" c WHERE c."agent_id" = o."agent_id" AND c."event_id" > o."sitting_id")
+                  < COALESCE(o."next_opening", 9223372036854775807), 0) AS "sat_through"
+FROM "opening" o
+WHERE o."agent_id" IS NOT NULL;
+
+-- A COMPLETED DELIVERY OF REPORT TEXT TO A SEAT: one row per report_read, which the tool writes when
+-- it hands a delivery's last item into the seat's context, every item cut from the report at "head".
+-- sat_through is the sitting's (agent_sitting; a sitting whose opening carries no agent is sat through).
+--
+-- whole is a lens's: whether this delivery was the whole report — fewer than two earlier rows of the
+-- lens in sat-through sittings (its first whole delivery, then its full re-read), or an upheld
+-- position naming the lens whose ruling precedes this row with no row of the lens between them. Every
+-- other delivery is the changes since the pin and the lens's own gap passages. NULL for a seat that is
+-- not a lens. Every term is an id comparison over the rows as they stand.
+CREATE VIEW "report_delivery" AS
+SELECT r."event_id" AS "event_id", e."seat_id" AS "seat_id", e."sitting_id" AS "sitting_id", r."head" AS "head",
+       COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = e."sitting_id"), 1) AS "sat_through",
+       CASE WHEN e."seat_id" IN ('red-lens-adversary','red-lens-architecture','red-lens-computation','red-lens-dark-side','red-lens-evidence','red-lens-logic','red-lens-voice') THEN ((SELECT COUNT(*) FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id"
+          WHERE pe."seat_id" = e."seat_id" AND p."event_id" < r."event_id"
+            AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1)) < 2
+     OR EXISTS (SELECT 1 FROM "motion_rule_position" u WHERE u."ruling" = 'upheld' AND u."lens" = e."seat_id"
+                  AND u."event_id" < r."event_id"
+                  AND NOT EXISTS (SELECT 1 FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id"
+                                   WHERE pe."seat_id" = e."seat_id" AND p."event_id" > u."event_id" AND p."event_id" < r."event_id"))) END AS "whole"
+FROM "report_read" r
+JOIN "events" e ON e."id" = r."event_id";
+
+-- THE CHANGES BEHIND A LENS'S PIN THE CHAIR HAS NOT BORNE: per lens, each head move (a blue_edit or a
+-- report_part) with an id after both the lens's pin — the head of its latest sat-through delivery — and
+-- the last change the chair has borne for it, the highest change stamped on the latest spot-check
+-- naming it. Which lenses are stale areas (retired, behind the head) is the plan's to say; this is
+-- every lens's list, read for the stale ones.
+CREATE VIEW "area_change" AS
+WITH "lens" AS (
+  SELECT DISTINCT v."value" AS "seat_id" FROM "cast_seat_ids" v WHERE v."value" IN ('red-lens-adversary','red-lens-architecture','red-lens-computation','red-lens-dark-side','red-lens-evidence','red-lens-logic','red-lens-voice')
+), "bound" AS MATERIALIZED (
+  SELECT l."seat_id",
+         MAX(COALESCE((SELECT MAX(r."head") FROM "report_read" r JOIN "events" e ON e."id" = r."event_id"
+                        WHERE e."seat_id" = l."seat_id"
+                          AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = e."sitting_id"), 1)), 0),
+             COALESCE((SELECT MAX(c."value") FROM "spot_check_changes" c
+                        WHERE c."event_id" = (SELECT MAX(a."event_id") FROM "spot_check_areas" a WHERE a."value" = l."seat_id")), 0)) AS "after"
+  FROM "lens" l
+)
+SELECT b."seat_id" AS "seat_id", h."event_id" AS "change", h."kind" AS "kind"
+FROM "bound" b
+JOIN (SELECT "event_id", 'edit' AS "kind" FROM "blue_edit" UNION ALL SELECT "event_id", 'append' FROM "report_part") h
+  ON h."event_id" > b."after";
+
 -- THE GAP VIEW'S RULES, ASKED OF THE GAPS THE APPEND IN FLIGHT TOUCHED (gap_dirty), one row each in
 -- gap_state's column order. The flush trigger is its one reader; between appends it reads nothing.
 -- recordsql.GapStateDDL says why the state is stored.
