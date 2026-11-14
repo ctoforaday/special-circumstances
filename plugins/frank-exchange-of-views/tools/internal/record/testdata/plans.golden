@@ -431,12 +431,16 @@
 -- INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new", "text", "applied_verbatim") VALUES (?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 9267039ce28a
--- INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new", "text", "applied_verbatim", "accepted") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+== stmt 82b905d68398
+-- INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new", "text", "applied_verbatim", "accepted", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 9422426dac3f
--- INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new", "text", "exact_span") VALUES (?, ?, ?, ?, ?, ?, ?)
+== stmt 1bdebeecf600
+-- INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new", "text", "exact_span", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt 5a070b6b91d0
+-- INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new", "text", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 3133bea8f400
@@ -2698,8 +2702,8 @@
 -- SELECT t."event_id", t."disposition", t."principle", t."tension", t."review_flag", t."settled", t."reopens_on", t."final", t."direction" FROM "motion_rule_docket" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt e070c3e64ba5
--- SELECT t."event_id", t."edit_key", t."answers", t."old", t."new", t."text", t."applied_verbatim", t."accepted", t."exact_span" FROM "blue_edit" t WHERE t."event_id" > ?
+== stmt 5b0fbb29d4b5
+-- SELECT t."event_id", t."edit_key", t."answers", t."old", t."new", t."text", t."applied_verbatim", t."accepted", t."exact_span", t."old_paragraphs", t."new_paragraphs" FROM "blue_edit" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 6402399ea6a7

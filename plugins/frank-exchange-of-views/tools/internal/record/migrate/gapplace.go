@@ -68,9 +68,7 @@ func (p *placer) step(body proto.Message) (proto.Message, error) {
 		p.census.Shapes["mint"]++
 		return &recordpb.Anchor{Id: proto.String(b.GetGapId()), Location: proto.String(b.GetLocation())}, nil
 	case *recordpb.BlueEdit:
-		if p.placed {
-			return nil, p.edit(b)
-		}
+		return nil, p.edit(b)
 	case *recordpb.Cite:
 		return p.owed("cite", b.GetLabel(), b.GetLocation())
 	case *recordpb.Computation:
@@ -131,8 +129,8 @@ func (p *placer) places(id, loc string) error {
 	return nil
 }
 
-// edit gives an archived edit every gap anchor that now stands in or against its span, so it
-// renders, carries them and records the gaps whose sentence it changed.
+// edit stamps an archived edit with the paragraphs it touched, and, once a gap is placed, gives it
+// every gap anchor that now stands in or against its span, so it renders and carries them.
 //
 // A gap anchor standing AGAINST the span is taken into it (the abutting shape). A live edit whose
 // quote stops before an anchor run leaves the run where it stands; an archived edit was written
@@ -145,12 +143,18 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		return nil
 	}
 	old, abuts := b.GetOld(), false
-	if !b.GetExactSpan() {
+	// Before any gap is placed there is no gap anchor to carry, and the edit is only stamped.
+	if p.placed && !b.GetExactSpan() {
 		if re, ok := rewriteOld(text, old); ok {
 			old, abuts = re, true
 		}
 	}
 	start, end, ok := locate(text, old, b.GetExactSpan())
+	// Before any gap is placed an edit that does not locate is the render's to refuse, loudly and
+	// naming any refusal before it (replayInOrder): the placer neither stamps nor judges it.
+	if !ok && !p.placed {
+		return nil
+	}
 	if !ok && b.GetExactSpan() {
 		return fmt.Errorf("this exact-span edit's old text no longer occurs in the report once the gaps' anchors stand in it, and migration rewrites no exact span: %q", old)
 	}
@@ -161,25 +165,29 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 		b.Old = proto.String(old)
 		p.census.Shapes["abutting"]++ // old given the anchor run that now abuts its span
 	}
-	b.New = proto.String(p.carry(text[start:end], b.GetNew()))
+	if p.placed {
+		b.New = proto.String(p.carry(text[start:end], b.GetNew()))
+	}
 	after := reportproj.ApplySplice(text, start, end, b.GetNew())
-	for _, id := range bluedoc.ReopenedAnchors(text, after) {
+	// THE EDIT'S TOUCHED PARAGRAPHS, STAMPED ONCE HERE (EventSchema 79): the replay holds the report
+	// before the edit and after it, which nothing after migration can rebuild without replaying
+	// again, so the archived edit is given what a live edit stamps at its write — and its reopened
+	// anchors computed from them as a live edit's are, an anchor it left bare included.
+	oldParas, newParas := bluedoc.TouchedParagraphs(text, after, start, end)
+	b.OldParagraphs, b.NewParagraphs = proto.String(oldParas), proto.String(newParas)
+	reopened := bluedoc.ReopenedAnchors(oldParas, newParas)
+	for _, id := range reopened {
 		if isGap(id) && !slices.Contains(b.Reopened, id) {
-			b.Reopened = append(b.Reopened, id)
-			p.census.Shapes["reopened"]++
+			p.census.Shapes["reopened"]++ // a gap whose sentence the archived edit changed
 		}
 	}
+	b.Reopened = reopened
 	return nil
 }
 
 // locate is the span replay takes for old.
 func locate(text, old string, exact bool) (int, int, bool) {
-	if exact {
-		s, e, _, ok := bluedoc.LocateLiteral(text, old)
-		return s, e, ok
-	}
-	s, e, err := bluedoc.LocateUniqueReplacing(text, old)
-	return s, e, err == nil
+	return bluedoc.SpliceSpan(text, old, exact)
 }
 
 // rewriteOld is old as replay can locate it now that gap anchors stand in the report: the anchor run

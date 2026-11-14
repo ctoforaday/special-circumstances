@@ -1688,6 +1688,11 @@ message BlueEdit {
   // It is a REOPENING, not an invalidation: the reference stands, and what changed is that its
   // referent needs looking at again. A verification of a reopened anchor is stale rather than
   // wrong, which is a different fact and gets a different word.
+  //
+  // AN ANCHOR THE EDIT LEAVES BARE IS LISTED: its sentence is gone, which changes its referent as
+  // surely as a rewrite. Only a gap or finding anchor can be left bare — an edit that bares an
+  // evidence anchor is refused — so its readers take it as the gap's sentence changing: estoppel
+  // ends the gap's prescription, the gap's acts count the edit, and the change lists it.
   repeated string reopened = 7;
 
   // ACCEPTED — blue took red's prescription through `blue edit --accept` rather than typing it.
@@ -1713,6 +1718,22 @@ message BlueEdit {
   // choice is RECORDED, because replay cannot re-derive it: an event written before this field
   // existed, whose trimmed span was a no-op, must still replay as one.
   optional bool exact_span = 9;
+
+  // old_paragraphs and new_paragraphs are the whole paragraphs this edit touched — each an
+  // anchor.Blocks block: a paragraph, a heading, a list item's first paragraph, a table line, a
+  // footnote definition, a fence — before it and after it, with their anchor tokens, in report
+  // order and with the breaks between them kept. The tool stamps both at the write from the report
+  // the edit lands on and the report it makes: old_paragraphs every block the replaced span
+  // touched, new_paragraphs every block that holds the replacement.
+  //
+  // THEY ARE THE EDIT'S OWN RECORD OF WHAT IT CHANGED. Nothing else on the record says it without
+  // rebuilding the report at the edit, so a seat's delivery of a change, the standing reading's
+  // reword chain and the retried-reading refusal read them, and never a past report. `old`/`new`
+  // stay what they are: the fragments the seat typed and the tool applied. A stamped paragraph is
+  // not a touched sentence: a sentence the two runs both hold, anchors stripped, the edit left
+  // alone; `reopened` is computed from the two runs, sentence by sentence.
+  optional string old_paragraphs = 10;
+  optional string new_paragraphs = 11;
 }
 
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.

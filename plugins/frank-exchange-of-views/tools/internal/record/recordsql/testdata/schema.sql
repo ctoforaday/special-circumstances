@@ -875,6 +875,8 @@ CREATE TABLE "blue_edit" (
   "applied_verbatim" INTEGER,
   "accepted" INTEGER,
   "exact_span" INTEGER,
+  "old_paragraphs" TEXT,
+  "new_paragraphs" TEXT,
   CHECK ("applied_verbatim" IS NULL OR "applied_verbatim" IN (0, 1)),
   CHECK ("accepted" IS NULL OR "accepted" IN (0, 1)),
   CHECK ("exact_span" IS NULL OR "exact_span" IN (0, 1))
