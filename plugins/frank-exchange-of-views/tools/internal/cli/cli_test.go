@@ -1149,7 +1149,7 @@ func TestBlueVerbContracts(t *testing.T) {
 // gap rides the filing. That is why the fixture files a docket motion first: without it the
 // refusal under test would be the dangling-motion one.
 func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
-	runDir := findingsRun(t)
+	runDir := docketRun(t)
 	seatID := "judge"
 	// The gap must EXIST: `motion docket file --id` is a reference and is checked at write time,
 	// so without a real gap the FILING below would be refused and this test would never reach the
@@ -1165,6 +1165,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		"--id", "G1", "--reason", "contested, and not mine to close"); err != nil {
 		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
 	}
+	benchSitsOn(t, runDir, "G1")
 	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
 	// turn and asserts the refusal names it. --direction is NOT unconditional (a remand's alone, as
 	// --reopens-on and --final are a closing ruling's), so it is supplied separately for every call
@@ -1280,7 +1281,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		return err
 	}
 	docket := func(t *testing.T) (string, string) {
-		runDir := findingsRun(t)
+		runDir := docketRun(t)
 		registerChairOnce(t, runDir)
 		registerLensOnce(t, runDir)
 		if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
@@ -1288,7 +1289,9 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
-		return runDir, docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
+		m := docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
+		benchSitsOn(t, runDir, "G1")
+		return runDir, m
 	}
 	// with is the stated set with f answered v; omitting is the stated set with f never passed.
 	with := func(f, v string) map[string]string {
@@ -1991,6 +1994,16 @@ func chairSitsAgain(t *testing.T, runDir string) {
 func findingsRun(t *testing.T) string {
 	t.Helper()
 	dir := newRun(t)
+	ingestReport(t, dir, "# Findings\n\nThe finding these gaps are about sits in this section.\n")
+	return dir
+}
+
+// docketRun is findingsRun on a cast run: the bench rules a docket motion only in a sitting a dispatch
+// convened on its gap (benchSitsOn), and only a cast run has a dispatch.
+func docketRun(t *testing.T) string {
+	t.Helper()
+	dir := newRun(t)
+	seedCast(t, dir)
 	ingestReport(t, dir, "# Findings\n\nThe finding these gaps are about sits in this section.\n")
 	return dir
 }
