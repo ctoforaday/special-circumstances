@@ -210,3 +210,27 @@ func TestTheInquiriesShowTheCheckThatStands(t *testing.T) {
 		}
 	}
 }
+
+// A CITATION OF A WEB ARCHIVE'S COPY SAYS WHEN THE ARCHIVE TOOK IT, beside the day the run fetched
+// it: the two can be years apart, and the copy says what the url said at the capture. A citation of
+// the url's own bytes says nothing more than its accessed date.
+func TestEvidenceShowsWhenTheArchiveCapturedACopy(t *testing.T) {
+	cite := func(label, loc string, captured *string) *record.Event {
+		c := &recordpb.Cite{Label: proto.String(label), Url: proto.String("https://ex/" + label), Title: proto.String(label),
+			FetchedAt: proto.String("2026-11-11T09:00:00Z"), Location: proto.String(loc), CopyCapturedAt: captured}
+		if captured != nil {
+			c.CopySubstitution = recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED.Enum()
+			c.CopyUrl = proto.String("https://web.archive.org/web/20190520083015id_/https://ex/" + label)
+		}
+		return recordtest.Event(t, "blue-synthesize", c)
+	}
+	doc := docOf(t, FileEvidence,
+		recordtest.Event(t, "red-chair", &recordpb.Register{}),
+		cite("C-00000001", "The tower is 330 metres tall.", proto.String("2019-05-20T08:30:15Z")),
+		cite("C-00000002", "The tower opened in 1889.", nil),
+	)
+	mustContain(t, doc, "evidence.md",
+		"- **source**: [https://ex/C-00000001](https://ex/C-00000001), accessed 2026-11-11, from the web archive's copy captured 2019-05-20\n",
+		"- **source**: [https://ex/C-00000002](https://ex/C-00000002), accessed 2026-11-11\n",
+	)
+}

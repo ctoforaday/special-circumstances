@@ -1383,6 +1383,14 @@ message Cite {
   // without it is refused (judgeAct), and a cite migrated from before the field holds none.
   optional string fetched_at = 27 [(prose) = false];
 
+  // WHEN THE WEB ARCHIVE TOOK THE COPY, stamped from the fetch index like the five above, on a copy
+  // the tool took from a web archive and on no other: the archive's timestamp for the capture, RFC
+  // 3339 UTC. fetched_at is when the run took the bytes; this is when the url said what they say, and
+  // the two can be years apart. A copy of the url's own bytes has none, so it is set only beside a
+  // copy_url; on the event because run-archive keeps no cache. A cite migrated from before the field
+  // holds none.
+  optional string copy_captured_at = 28 [(prose) = false];
+
   // answers is the gap this citation is placed as the answer to, typed --answers: the citation half
   // of an evidence anchor's answer (Computation.answers is the other), read through the
   // evidence_anchor view by the gap's live-answer demand.
