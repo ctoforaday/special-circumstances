@@ -197,7 +197,7 @@ func engineStop(run record.Run) (string, error) {
 		return "", nil
 	}
 	text := m.Events[stop].GetLog().GetText()
-	failed := record.FailedSittingsOf(m.Events, m.At)
+	failed := record.FailedSittingsOf(m.At)
 	if len(failed) == 0 {
 		return text, nil
 	}

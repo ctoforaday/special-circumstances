@@ -118,8 +118,9 @@ func TestBlueAnsweredReadsAGoneGapAsMoved(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &w); err != nil {
 		t.Fatal(err)
 	}
-	if len(w.Open) != 1 || w.Open[0].LocationState != record.LocationGone || len(w.Open[0].EditedSince) != 0 {
-		t.Fatalf("the cut gap should read gone with no edit listed: %+v", w.Open)
+	// The cut left the gap's anchor bare, which reopened it: the cut is the one edit listed.
+	if len(w.Open) != 1 || w.Open[0].LocationState != record.LocationGone || len(w.Open[0].EditedSince) != 1 {
+		t.Fatalf("the cut gap should read gone with the cut listed: %+v", w.Open)
 	}
 	var said bool
 	for _, it := range w.Sitting.Open {

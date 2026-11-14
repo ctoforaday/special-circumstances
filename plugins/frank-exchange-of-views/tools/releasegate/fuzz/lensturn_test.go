@@ -206,7 +206,7 @@ func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turn
 		sitting int
 	}
 	noTurn := map[seatSitting]bool{}
-	for _, f := range record.FailedSittingsOf(evs, at) {
+	for _, f := range record.FailedSittingsOf(at) {
 		noTurn[seatSitting{f.SeatID, f.Sitting}] = true
 	}
 	openings := map[string][]int{}

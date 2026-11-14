@@ -162,7 +162,7 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
 	out := map[string][]string{}
 	_, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
+	ends := satThroughOf(win, openings)
 	minted := map[string]string{}
 	for _, g := range gaps {
 		minted[g.id] = g.mintedBy
@@ -264,14 +264,14 @@ type StaleArea struct {
 func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool, owes map[string][]string, composed map[string][]composedSource) []lensFold {
 	cast := castOfEvents(evs)
 	ds, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
-	reads := servedOf(evs, ids, win)
+	ends := satThroughOf(win, openings)
+	reads := servedOf(win)
 	var out []lensFold
 	for _, seat := range cast {
 		if seatclass.RoleOfSeat(seat) != "lens" {
 			continue
 		}
-		f := lensFold{seat: seat, owes: owes[seat], composed: composedNames(composed[seat]), pin: pinOf(reads[seat], ends, seat, math.MaxInt64)}
+		f := lensFold{seat: seat, owes: owes[seat], composed: composedNames(composed[seat]), pin: pinOf(reads[seat], math.MaxInt64)}
 		sat := map[int64]bool{}
 		var sittings []int64
 		var short string // why the sitting of its latest dispatch is not one it sat through; "" when it is
@@ -496,8 +496,8 @@ func lastReadOf(evs []*Event, ids []int64, win WindowIndex, seatID string) LastR
 	if cur == nil {
 		return LastReadJSON{Kind: "undispatched"}
 	}
-	reads := servedOf(evs, ids, win)[seatID]
-	ls := LastReadJSON{Pin: pinOf(reads, satThroughOf(evs, ids, win, openings), seatID, cur.at), Head: cur.pin}
+	reads := servedOf(win)[seatID]
+	ls := LastReadJSON{Pin: pinOf(reads, cur.at), Head: cur.pin}
 	if now, sitting := sittingFor(openings[seatID], *cur); sitting {
 		for _, r := range reads {
 			if r.opening == now && (ls.Kind == "" || r.head > ls.Pin) {

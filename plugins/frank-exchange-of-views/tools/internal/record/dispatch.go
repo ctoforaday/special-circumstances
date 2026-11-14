@@ -311,7 +311,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// the head has no new pin, so it stays ready.
 	ids := win.IDs(evs)
 	dispatches, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
+	ends := satThroughOf(win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
 	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), r.found)), composedOwedOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil)))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
@@ -917,32 +917,23 @@ type satThrough struct {
 	short   map[int64]string   // opening -> why the seat did not sit through that sitting
 }
 
-// satThroughOf reads the stream once for every fact that ends a sitting. seq and openings are
-// dispatchLedger's, so the places compare with the dispatches and the openings it read.
-func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[string][]int64) satThrough {
-	agentOf := map[int64]string{} // an opening's place -> the agent it carries
-	stops := map[string][]int64{} // agent -> the places of its sitting_close events, ascending
-	for i, e := range evs {
-		if _, opens := win.Opens(e); opens {
-			agentOf[seq[i]] = recordpb.AgentOpening(e)
-		}
-		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
-			stops[b.GetAgentId()] = append(stops[b.GetAgentId()], seq[i])
-		}
+// satThroughOf is each seat's sittings it sat through and why it did not sit through the others, by
+// opening, read off the agent_sitting view (its sat_through, the one statement of the rule). An opening
+// the view holds no row for carries no agent, and is sat through. openings is dispatchLedger's.
+func satThroughOf(win WindowIndex, openings map[string][]int64) satThrough {
+	win.mustViews()
+	rows := make(map[int64]recordsql.AgentSittingRow, len(win.sittings))
+	for _, r := range win.sittings {
+		rows[r.SittingID] = r
 	}
 	out := satThrough{through: map[string][]int64{}, short: map[int64]string{}}
 	for seat, os := range openings {
-		for k, o := range os {
-			next, later := int64(0), k+1 < len(os)
-			if later {
-				next = os[k+1]
-			}
-			agent := agentOf[o]
-			stop, stopped := firstAfter(stops[agent], o)
+		for _, o := range os {
+			r, agent := rows[o]
 			switch {
-			case agent == "" || (stopped && (!later || stop < next)):
+			case !agent || r.SatThrough:
 				out.through[seat] = append(out.through[seat], o)
-			case later:
+			case r.Over:
 				out.short[o] = shortNeverClosed
 			default:
 				out.short[o] = shortNotClosed

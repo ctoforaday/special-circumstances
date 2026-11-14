@@ -39,7 +39,7 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 		return nil
 	}
 	_, openings := dispatchLedger(evs, ids, win)
-	ends := satThroughOf(evs, ids, win, openings)
+	ends := satThroughOf(win, openings)
 	var out []Item
 	for _, g := range held {
 		n := g.AnswersRetiredEvent
