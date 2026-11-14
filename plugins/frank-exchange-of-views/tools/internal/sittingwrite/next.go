@@ -84,40 +84,24 @@ func WriteNextItem(runDir, agentID, agentType, engine string, out io.Writer) err
 		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
 		return nil
 	}
-	path := deliveryPath(runDir, agentID, w.SittingID())
-	unlock, err := lockDelivery(path)
-	if err != nil {
-		return err
-	}
-	defer unlock()
 	q := record.QueueOf(w)
-	prev, had, err := readDelivered(path)
-	if err != nil {
-		return err
-	}
 	// REPORT TEXT IS HANDED ONLY WHERE IT REACHES THE SEAT'S CONTEXT AT ONCE: under Antigravity the
 	// answer waits in hookcore's queue for the seat's next PreInvocation, so report-text entries are
 	// passed over there and every other item is handed as here.
 	if !DeliversReportText(engine) {
 		q = slices.DeleteFunc(q, func(e record.QueueEntry) bool { return e.Kind == record.ItemReportText })
 	}
+	path := deliveryPath(runDir, agentID, w.SittingID())
 	if len(q) > 0 && q[0].Kind == record.ItemReportText {
-		text, now, err := handReportText(run, seat, staleAreasOf(w), prev)
-		if err != nil {
-			if reason, ok := IsDeliveryStuck(err); ok {
-				if lerr := logDefect(run, seat, reason); lerr != nil {
-					err = stuck("%s; and its log could not be written: %v", reason, lerr)
-				}
-			}
-			return err
-		}
-		now.Key, now.Digest = q[0].Key, q[0].Digest
-		now.Queue = queueKeys(q)
-		now.Listed = prev.Listed
-		if err := writeDelivered(path, now); err != nil {
-			return stuck("the sitting's delivery file could not be written: %v", err)
-		}
-		_, err = io.WriteString(out, text)
+		return handReportItem(run, seat, w, q, path, out)
+	}
+	unlock, err := lockDelivery(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	prev, had, err := readDelivered(path)
+	if err != nil {
 		return err
 	}
 	if !record.WorkArrivesAsItems(role, seat) && len(q) == 0 {
@@ -144,6 +128,45 @@ func WriteNextItem(runDir, agentID, agentType, engine string, out io.Writer) err
 		return err
 	}
 	_, err = io.WriteString(out, text)
+	return err
+}
+
+// handReportItem hands the seat the next item of its sitting's report text. EVERY FAILURE HERE IS A
+// DELIVERY THAT CANNOT ADVANCE — the seat's envelope waits on text no call can now hand it — so each
+// returns ErrDeliveryStuck and is logged as the tool's defect exactly once, here; only a delivery
+// another of the seat's calls holds is not (hookgate.ErrDeliveryHeld: that call is handing it).
+func handReportItem(run record.Run, seat string, w record.WorkJSON, q []record.QueueEntry, path string, out io.Writer) error {
+	err := func() error {
+		unlock, err := lockDelivery(path)
+		if errors.Is(err, hookgate.ErrDeliveryHeld) {
+			return err
+		}
+		if err != nil {
+			return stuck("the sitting's delivery file could not be locked: %v", err)
+		}
+		defer unlock()
+		prev, _, err := readDelivered(path)
+		if err != nil {
+			return stuck("the sitting's delivery file could not be read: %v", err)
+		}
+		text, now, err := handReportText(run, seat, staleAreasOf(w), prev)
+		if err != nil {
+			return err
+		}
+		now.Key, now.Digest = q[0].Key, q[0].Digest
+		now.Queue = queueKeys(q)
+		now.Listed = prev.Listed
+		if err := writeDelivered(path, now); err != nil {
+			return stuck("the sitting's delivery file could not be written: %v", err)
+		}
+		_, err = io.WriteString(out, text)
+		return err
+	}()
+	if reason, ok := IsDeliveryStuck(err); ok {
+		if lerr := logDefect(run, seat, reason); lerr != nil {
+			return stuck("%s; and its log could not be written: %v", reason, lerr)
+		}
+	}
 	return err
 }
 
