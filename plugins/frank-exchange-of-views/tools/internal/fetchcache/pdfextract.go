@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -204,10 +205,25 @@ func reapIfIdle(dir string, now time.Time) bool {
 	return os.RemoveAll(dir) == nil
 }
 
+// moduleStartMu makes one instance at a time compile or load the module from the cache.
+//
+// wazero's file cache reads an entry with os.Open and writes one by renaming a temp file onto
+// it. On Windows a rename onto a file another handle holds open, or an open during that rename,
+// fails with a sharing violation, and wazero returns the read's error rather than treating it as
+// a miss: "could not compile webassembly module: open …/.wazero/…: The process cannot access the
+// file because it is being used by another process" (native-run windows-amd64, run 43547750405,
+// TestCorpusGoldens/pages/doe-dotmatrix-listing). Parallel renders on a cold cache are exactly
+// that: each compiles, each renames, each reads. Holding the start under one lock lets the first
+// compile and write the entry and every later start read it; reads share. The lock covers this
+// process only; separate processes on one cold cache can still meet on Windows.
+var moduleStartMu sync.Mutex
+
 func pdfiumInstance(cacheDir string) (pdfium.Pdfium, func(), error) {
 	if moduleCacheDir != "" {
 		cacheDir = moduleCacheDir
 	}
+	moduleStartMu.Lock()
+	defer moduleStartMu.Unlock()
 	cache, err := wazero.NewCompilationCacheWithDir(filepath.Join(cacheDir, wazeroCacheDir))
 	if err != nil {
 		return nil, nil, fmt.Errorf("wazero compilation cache unavailable: %w", err)
