@@ -57,6 +57,9 @@ type Result struct {
 // undeliveredLoss is the accepted loss of an archived act the delivered-text rule refuses.
 const undeliveredLoss = "an archived close, spot-check or ruling on a motion about gaps stands only on report text delivered to its seat, and its sitting holds no recorded delivery; it is written as no event, each such act listed in lost_acts, and the run's stamped outcome is carried as history"
 
+// dependentLossWhy is the accepted loss of an archived act refused only because it depends on a lost act.
+const dependentLossWhy = "an archived act refused only because it depends on a gap a lost act took with it is that same loss; it is written as no event, each such act listed in lost_acts with the act it depended on"
+
 // preFieldFillWhy is the reason a mint whose source predates class_material records for the
 // stamp the live rule gives it.
 const preFieldFillWhy = "the source predates class_material; the gap takes the material default of the value its archived slug translates to"
@@ -244,6 +247,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	classMints := map[string]int{}         // archived class slug an authored row translates -> the mints written with it
 	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
 	raises := map[string]bool{}            // the ids of the archived raises written as no event
+	lost := lostGaps{}                     // each gap a lost act took with it (lostacts.go)
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -535,6 +539,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 				res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: u.Error()})
 				res.AcceptedLosses[old.Word] = undeliveredLoss
+				lost.noteLoss(body, old.ID, old.Word)
 				if _, seen := newID[old.ID]; !seen {
 					var last int64
 					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
@@ -566,7 +571,24 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 			ev, err := batch.Write(filer, body, ts)
 			if err != nil {
-				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
+				gap, from, dep, derr := lost.dependsOn(batch.Querier(), body)
+				if derr != nil {
+					return nil, derr
+				}
+				if !dep {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
+					continue
+				}
+				res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: dependentLoss(gap, from, err)})
+				res.AcceptedLosses[old.Word] = dependentLossWhy
+				lost.noteLoss(body, old.ID, old.Word)
+				if _, seen := newID[old.ID]; !seen {
+					var last int64
+					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
+					}
+					newID[old.ID] = last
+				}
 				continue
 			}
 			res.Out[wordOf(ev)]++
