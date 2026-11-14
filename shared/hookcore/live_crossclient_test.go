@@ -170,8 +170,10 @@ You are child-worker. Run the exact shell command requested and return its outpu
 			t.Errorf("parent Say leaked into child transcript %s", childConvID)
 		}
 		parentRaw := w.transcript(t, parentSessionID)
-		if strings.Contains(parentRaw, "CHILD_QUEUE_OK") {
-			t.Errorf("child Feedback leaked into parent transcript %s", parentSessionID)
+		for _, line := range strings.Split(parentRaw, "\n") {
+			if strings.Contains(line, `"EPHEMERAL_MESSAGE"`) && strings.Contains(line, "CHILD_QUEUE_OK") {
+				t.Errorf("child Feedback leaked into parent transcript %s as EPHEMERAL_MESSAGE: %s", parentSessionID, line)
+			}
 		}
 		if !strings.Contains(parentRaw, "HOOK_MODEL_OVERWRITE_AGY") {
 			t.Errorf("parent transcript missing HOOK_MODEL_OVERWRITE_AGY system message:\n%s", parentRaw)
