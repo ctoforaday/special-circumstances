@@ -1674,6 +1674,19 @@ jobs:
           phase: restore
           dependency-files: |
             scripts/go.sum
+      - name: Install claude and agy CLIs for real harness validation (#1872)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          curl -fsSL https://claude.ai/install.sh | bash
+          manifest="$(curl -fsSL https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json)"
+          url="$(jq -r .url <<<"$manifest")"
+          sha="$(jq -r .sha512 <<<"$manifest")"
+          curl -fsSL "$url" -o /tmp/agy.tar.gz
+          printf '%s  /tmp/agy.tar.gz\n' "$sha" | sha512sum -c -
+          tar -xzf /tmp/agy.tar.gz -O antigravity > "$HOME/.local/bin/agy"
+          chmod +x "$HOME/.local/bin/agy"
+          rm -f /tmp/agy.tar.gz
       - run: go test ./...
       # THE MODULE'S CONCURRENCY IS REAL NOW, so the detector gets a look. golden/interrupt.go
       # guards signal state with a mutex against its interrupt handler, where an unsynchronised
@@ -1921,37 +1934,58 @@ jobs:
           EMPTY="$(mktemp -d)"
           node -e "
             const fs = require('fs');
-            const files = fs.globSync('plugins/*/.claude-plugin/hooks.json');
-            if (!files.length) { console.error('no hooks.json found — the glob is wrong'); process.exit(1); }
+            const claudeFiles = fs.globSync('plugins/*/.claude-plugin/hooks.json');
+            const agyFiles = fs.globSync('plugins/*/hooks.json');
+            if (!claudeFiles.length || !agyFiles.length) { console.error('no hooks.json found — the glob is wrong'); process.exit(1); }
             const rows = [];
-            for (const f of files) {
+            for (const f of claudeFiles) {
               const plugin = f.split('/')[1];
               const h = JSON.parse(fs.readFileSync(f, 'utf8'));
-              for (const evs of Object.values(h.hooks)) for (const e of evs) for (const k of e.hooks) rows.push(plugin + '\t' + k.command);
+              for (const evs of Object.values(h.hooks)) for (const e of evs) for (const k of e.hooks) rows.push('claude\t' + plugin + '\t' + k.command);
+            }
+            for (const f of agyFiles) {
+              const plugin = f.split('/')[1];
+              const h = JSON.parse(fs.readFileSync(f, 'utf8'));
+              for (const grp of Object.values(h)) for (const evs of Object.values(grp)) for (const e of evs) {
+                if (e.command) rows.push('agy\t' + plugin + '\t' + e.command);
+                for (const k of (e.hooks || [])) rows.push('agy\t' + plugin + '\t' + k.command);
+              }
             }
             fs.writeFileSync('/tmp/hook-cmds.txt', rows.join('\n') + '\n');
-            console.log(files.length + ' hooks.json, ' + rows.length + ' hook command(s) extracted');
+            console.log((claudeFiles.length + agyFiles.length) + ' hooks.json, ' + rows.length + ' hook command(s) extracted');
           "
           onejson='const s = require("fs").readFileSync(0, "utf8").trim(); if (s) { if (s.split("\n").length !== 1) process.exit(1); JSON.parse(s); }'
           tab="$(printf '\t')"
-          while IFS="$tab" read -r plugin cmd; do
+          while IFS="$tab" read -r harness plugin cmd; do
             [ -z "$cmd" ] && continue
-            if ! CLAUDE_PLUGIN_ROOT="$EMPTY" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/tmp/hook-stderr.txt; then
-              echo "GUARD FAILED (non-zero exit, or over 2 s) on an empty root for: $cmd"; exit 1
+            if [ "$harness" = claude ]; then
+              if ! CLAUDE_PLUGIN_ROOT="$EMPTY" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/tmp/hook-stderr.txt; then
+                echo "GUARD FAILED (non-zero exit, or over 2 s) on an empty root for: $cmd"; exit 1
+              fi
+              # The SessionStart ensure entry runs no binary: on an empty root it has no script, and
+              # silence is its correct degradation. Every command that names a binary must warn.
+              case "$cmd" in
+                *'${CLAUDE_PLUGIN_ROOT}/bin/'*)
+                  grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing on stderr for: $cmd"; exit 1; } ;;
+              esac
+            else
+              if ! (cd "$EMPTY" && timeout 2 bash -c "$cmd") </dev/null >/tmp/hook-stdout.txt 2>/tmp/hook-stderr.txt; then
+                echo "GUARD FAILED (non-zero exit, or over 2 s) on an empty root for: $cmd"; exit 1
+              fi
             fi
-            # The SessionStart ensure entry runs no binary: on an empty root it has no script, and
-            # silence is its correct degradation. Every command that names a binary must warn.
-            case "$cmd" in
-              *'${CLAUDE_PLUGIN_ROOT}/bin/'*)
-                grep -q "doctor --fix" /tmp/hook-stderr.txt || { echo "guard warning missing on stderr for: $cmd"; exit 1; } ;;
-            esac
             if [ -s /tmp/hook-stdout.txt ]; then
               echo "guard printed to stdout on an empty root for: $cmd"; exit 1
             fi
             copy="$(mktemp -d)/$plugin"
             cp -R "plugins/$plugin" "$copy"
-            if ! CLAUDE_PLUGIN_ROOT="$copy" SC_RELEASE_BASE_URL="file:///nonexistent" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/dev/null; then
-              echo "GUARD FAILED (non-zero exit, or over 2 s) handing off to fetch-bin.sh for: $cmd"; exit 1
+            if [ "$harness" = claude ]; then
+              if ! CLAUDE_PLUGIN_ROOT="$copy" SC_RELEASE_BASE_URL="file:///nonexistent" timeout 2 bash -c "$cmd" </dev/null >/tmp/hook-stdout.txt 2>/dev/null; then
+                echo "GUARD FAILED (non-zero exit, or over 2 s) handing off to fetch-bin.sh for: $cmd"; exit 1
+              fi
+            else
+              if ! (cd "$copy" && SC_RELEASE_BASE_URL="file:///nonexistent" timeout 2 bash -c "$cmd") <<<'{"conversationId":"1"}' >/tmp/hook-stdout.txt 2>/dev/null; then
+                echo "GUARD FAILED (non-zero exit, or over 2 s) handing off to fetch-bin.sh for: $cmd"; exit 1
+              fi
             fi
             node -e "$onejson" </tmp/hook-stdout.txt || { echo "guard printed more than one line, or invalid JSON, handing off for: $cmd"; exit 1; }
           done < /tmp/hook-cmds.txt
