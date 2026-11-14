@@ -33,6 +33,8 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsSoundness[:]
 	case "feov.record.v1.Rerun":
 		return annotationsRerun[:]
+	case "feov.record.v1.PartCoverage":
+		return annotationsPartCoverage[:]
 	case "feov.record.v1.InquiryStatus":
 		return annotationsInquiryStatus[:]
 	case "feov.record.v1.MotionSubject":
@@ -107,6 +109,8 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_REPORT_READ", Means: "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"},
 	{Name: "EVENT_TYPE_ENVELOPE_ADMITTED", Means: "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"},
 	{Name: "EVENT_TYPE_INQUIRY_CHECK", Means: "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"},
+	{Name: "EVENT_TYPE_QUESTION_PART", Means: "a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason"},
+	{Name: "EVENT_TYPE_QUESTION_PART_CHECK", Means: "the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands"},
 }
 
 var annotationsGrade = [...]ValueAnnotations{
@@ -129,10 +133,11 @@ var annotationsVerdict = [...]ValueAnnotations{
 
 var annotationsRunOutcome = [...]ValueAnnotations{
 	{Name: "RUN_OUTCOME_UNSPECIFIED"},
-	{Name: "RUN_OUTCOME_VERIFIED", Means: "red passed the board and the bench agrees the question was answered"},
+	{Name: "RUN_OUTCOME_VERIFIED", Means: "red passed the board and every question part is covered, each covered part checked"},
 	{Name: "RUN_OUTCOME_CEILING", Means: "the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run"},
 	{Name: "RUN_OUTCOME_HALTED", Means: "the bench ended the run on a safety, ethics, consent or integrity boundary"},
 	{Name: "RUN_OUTCOME_UNVERIFIED", Means: "the run ended without the question being answered, and no ceiling or halt explains it"},
+	{Name: "RUN_OUTCOME_QUALIFIED", Means: "red passed the board and every question part is checked, and at least one part is not covered — its sources could not be obtained, or it is excluded from the report's answer; the derivation's reason names each"},
 }
 
 var annotationsCheckKind = [...]ValueAnnotations{
@@ -182,6 +187,7 @@ var annotationsGapClass = [...]ValueAnnotations{
 	{Name: "GAP_CLASS_UNSOURCED_CLAIM", Means: "a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence, or says nothing of it, is not the report's citation: the gap stands until blue cites one", Neighbor: "citation_figure_misattribution", Distinguisher: "does the report cite a source for the sentence that does not back it, or does the report cite nothing for it, whatever a lens found?", MaterialDefault: DeclaredEnum{Declared: true, Value: 3}},
 	{Name: "GAP_CLASS_UNCLASSIFIED", Means: "no other value fits this gap. The mint's reason names the nearest value and what it does not cover", MaterialDefault: DeclaredEnum{Declared: true, Value: 3}},
 	{Name: "GAP_CLASS_OUT_OF_SCOPE", Means: "an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's research", Neighbor: "invalid_inference", Distinguisher: "does the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?", MaterialDefault: DeclaredEnum{Declared: true, Value: 1}},
+	{Name: "GAP_CLASS_COVERAGE_MISSTATED", Means: "the report's coverage of the question is misstated on the record: a question part's coverage says covered where the report does not answer it, or not obtained or excluded where it does or where the reason given does not hold, or a part of the question the run was asked is on the record as no part at all", Neighbor: "out_of_scope", Distinguisher: "is the defect in what the record states of the question the run was asked — its parts and their coverage — or in an inquiry the research took up?", MaterialDefault: DeclaredEnum{Declared: true, Value: 1}},
 	{Name: "GAP_CLASS_CLAIM_CONTRADICTS_SOURCE", Means: "a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quote", Neighbor: "citation_figure_misattribution", Distinguisher: "does the source say otherwise than the sentence, or not say it at all?", MaterialDefault: DeclaredEnum{Declared: true, Value: 1}},
 }
 
@@ -234,6 +240,13 @@ var annotationsRerun = [...]ValueAnnotations{
 	{Name: "RERUN_CALLS_THE_TOOL", Means: "the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced"},
 }
 
+var annotationsPartCoverage = [...]ValueAnnotations{
+	{Name: "PART_COVERAGE_UNSPECIFIED"},
+	{Name: "PART_COVERAGE_COVERED", Means: "the report answers this part of the question"},
+	{Name: "PART_COVERAGE_NOT_OBTAINED", Means: "the report does not answer this part because the sources that would answer it could not be obtained — REQUIRES a reason naming them and what was tried; report.md states the part is not answered here for that cause"},
+	{Name: "PART_COVERAGE_EXCLUDED", Means: "the report does not answer this part because it lies outside the answer the report gives — REQUIRES a reason saying why; report.md states the part lies outside its answer"},
+}
+
 var annotationsInquiryStatus = [...]ValueAnnotations{
 	{Name: "INQUIRY_STATUS_UNSPECIFIED"},
 	{Name: "INQUIRY_STATUS_PROPOSED", Means: "put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it"},
@@ -276,6 +289,7 @@ var annotationsAboutKind = [...]ValueAnnotations{
 	{Name: "ABOUT_KIND_SECTION", Means: "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"},
 	{Name: "ABOUT_KIND_INQUIRY", Means: "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"},
 	{Name: "ABOUT_KIND_GAP", Means: "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"},
+	{Name: "ABOUT_KIND_QUESTION", Means: "the question the run was asked, by a question part's id, or by no id for a part the record does not hold: an objection to the part's coverage as the record states it, or to a part of the question no part covers — class coverage_misstated"},
 	{Name: "ABOUT_KIND_ANCHOR", Means: "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence"},
 }
 

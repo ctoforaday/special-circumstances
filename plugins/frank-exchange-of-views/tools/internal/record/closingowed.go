@@ -205,9 +205,11 @@ func closingBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blocke
 
 // owedBlockersOf is the blockers a seat owes by an act of its own beyond the gaps' own: the stream's
 // arms (eventBlockersOf, the reading debts among them, read off found), the closings owed
-// (closingBlockersOf) and the inquiries' (inquiryBlockersOf), which read the open gaps for the wanting
-// ones. A lens owes each one it owns (lensOwesOf).
-func owedBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, found []locatedReading) []Blocker {
+// (closingBlockersOf), the inquiries' (inquiryBlockersOf), which read the open gaps for the wanting
+// ones, and the question's (partBlockersOf), off parts — the question_part_state view's rows on the
+// same snapshot. A lens owes each one it owns (lensOwesOf).
+func owedBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, found []locatedReading, parts []QuestionPartRow) []Blocker {
 	out := append(eventBlockersOf(evs, ids, win, openSet(gaps), found), closingBlockersOf(evs, ids, win, gaps)...)
-	return append(out, inquiryBlockersOf(evs, ids, win, gaps)...)
+	out = append(out, inquiryBlockersOf(evs, ids, win, gaps)...)
+	return append(out, partBlockersOf(castOfEvents(evs) != nil, parts)...)
 }

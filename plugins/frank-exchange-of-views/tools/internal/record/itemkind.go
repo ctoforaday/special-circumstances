@@ -92,6 +92,8 @@ const (
 	// SubjectSentence is a sentence of the report, by its visible text: what a reading debt of a
 	// source a lens found is about.
 	SubjectSentence SubjectKind = "sentence"
+	// SubjectQuestionPart is a question part, by its id (questionpart.go).
+	SubjectQuestionPart SubjectKind = "question_part"
 )
 
 // ItemSubject is the one thing an item is about: a gap, an anchor, an inquiry, a motion, the report,

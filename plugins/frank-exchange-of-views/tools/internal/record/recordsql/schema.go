@@ -279,6 +279,10 @@ CREATE INDEX "inquiry_question" ON "inquiry" ("question");
 CREATE INDEX "cite_label" ON "cite" ("label");
 CREATE INDEX "computation_id" ON "computation" ("computation_id");
 CREATE INDEX "inquiry_id" ON "inquiry" ("inquiry_id");
+-- A question part's records and checks by its id, in order: its latest coverage and latest check
+-- (question_part_state, partCoveragesAtSQL, requireQuestionPartRef).
+CREATE INDEX "question_part_id" ON "question_part" ("part_id", "event_id");
+CREATE INDEX "question_part_check_id" ON "question_part_check" ("part_id", "event_id");
 -- A computation bundle's latest execution (requireNamedExecution).
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).

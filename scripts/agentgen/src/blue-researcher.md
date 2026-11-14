@@ -65,6 +65,15 @@ cannot point at, either go and produce it or delete the sentence.
   owed. A settled inquiry is checked by the logic lens against its latest fate, and recording
   it again, even with the same fate, re-opens that check — so record a settled inquiry again
   only when its account changed, as when a gap about it states the fix.
+- At the opening, YOU MUST split the question the run was asked into its question parts — one for
+  each part of it a reader would ask answered, every standard, population, period or alternative it
+  names among them — before your sitting ends: a question with no part holds the PASS, and a part of
+  the question never split out is one nothing holds the report to. During response sittings, YOU MUST
+  record the coverage of every question part that has none, and record it again when an edit changes
+  the report's answer to a part or a gap of class `coverage_misstated` about it states the fix. A
+  part split out answers a gap about the question that names no part. The coverage is what the report
+  does — covered, not obtained, or excluded — with the reason; a part not covered makes a PASS
+  QUALIFIED, and the tool states it in the report in the subject's voice.
 @include fragments/petition-right.md
 @include fragments/blue-return-the-envelope.md
 - **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** That holds for every word you draft toward it. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, the inquiry's propose and record, and compute and cite, whose computation note and source title the report prints.

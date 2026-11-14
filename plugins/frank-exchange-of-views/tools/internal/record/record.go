@@ -1599,6 +1599,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireInquiryCheck(w, seatID, b); err != nil {
 			return err
 		}
+	// A QUESTION PART IS SPLIT OUT WITH ITS TEXT, AND ITS COVERAGE IS RECORDED WITH A REASON
+	// (questionpart.go); its check judges it as it stands, by its owner.
+	case *recordpb.QuestionPart:
+		if err := requireQuestionPart(q, b); err != nil {
+			return err
+		}
+	case *recordpb.QuestionPartCheck:
+		if err := requireQuestionPartCheck(w, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.Halt:
 	case *recordpb.Certify:
 	case *recordpb.Cite:
@@ -1899,11 +1909,15 @@ func requireMintSubject(m *recordpb.Mint) error {
 	case loc != "" && strings.TrimSpace(loc) == "":
 		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
 	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
-		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, or a gap already on the board")
+		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, a question part, or a gap already on the board")
 	// OUT OF SCOPE IS AN INQUIRY'S DEFECT, always material, and blue answers it with the inquiry's
 	// fate; on report text it would hold the PASS with no fate to answer it.
 	case m.GetClass() == recordpb.GapClass_GAP_CLASS_OUT_OF_SCOPE && m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 		return fmt.Errorf("--class out_of_scope is an inquiry's defect — a real question, but not the one this run was asked — and blue answers it with the inquiry's fate, so its gap is about the inquiry: `--about-kind inquiry --about <its id>`. Report text that strays from the question is a defect of another class")
+	// COVERAGE MISSTATED IS THE QUESTION'S DEFECT, always material, and blue answers it with a question
+	// part or its coverage; on report text it would hold the PASS with no such act to answer it.
+	case m.GetClass() == recordpb.GapClass_GAP_CLASS_COVERAGE_MISSTATED && m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_QUESTION:
+		return fmt.Errorf("--class coverage_misstated is the question's defect — a question part's coverage the report does not bear out, or a part of the question no part covers — and blue answers it with `question cover` or `question split`, so its gap is about the question: `--about-kind question --about <the part's id>`, or `--about-kind question` alone for a part of the question no part covers")
 	}
 	return nil
 }

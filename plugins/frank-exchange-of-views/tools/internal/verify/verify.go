@@ -243,7 +243,7 @@ func supersedesResolve(f record.Family) Check {
 // defect this constant exists to prevent.
 //
 // The check read `e.Type == "outcome"`. An outcome's vocabulary is
-// VERIFIED|CEILING|HALTED|UNVERIFIED — validated at the write, so it can never hold "PASS".
+// VERIFIED|QUALIFIED|CEILING|HALTED|UNVERIFIED — validated at the write, so it can never hold "PASS".
 // Two event types share the payload key `verdict` with DISJOINT vocabularies, so the wrong
 // one is a plain type error that Go cannot see: the comparison never matched, the check took
 // the "gate not applicable" branch on every run ever recorded, and said so in words that read
@@ -342,7 +342,7 @@ func registerBeforeAppend(f record.Family) Check {
 //   - recordpb.Spelling derives `pass` and `verified` from the generated constant names, and
 //     recordpb's own TestBySpellingIsExactAndCaseSensitive pins that `PASS` does NOT resolve —
 //     so the schema's word for this set is lower case, deliberately.
-//   - enums.go still declares PASS|FAIL and VERIFIED|CEILING|HALTED|UNVERIFIED, `bench outcome`
+//   - enums.go still declares PASS|FAIL and VERIFIED|QUALIFIED|CEILING|HALTED|UNVERIFIED, `bench outcome`
 //     still passes `--as VERIFIED`, record.DeriveVerdict still returns "VERIFIED", and the
 //     report's stamp still switches on the capital word.
 //

@@ -267,6 +267,11 @@ var EnumFields = map[string][]EnumField{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
 		Why: "the inquiries projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
+	// `question_part`, the event type whose body holds the coverage set.
+	"question_part": {{
+		Key: "coverage", Flag: flags.As, Values: evsOf(recordpb.PartCoverage(0).Descriptor()),
+		Why: "the coverage decides the run's outcome: a PASS over a part not covered derives QUALIFIED, and report.md states the part from its coverage, so a coverage outside the set would state nothing",
+	}},
 	// `inquiry_check` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling. A check
 	// is a positive judgement only; an inquiry found wanting is an ORDINARY GAP with the grade
 	// vocabulary it already has. The check carries the inquiry's id and prose, nothing else.

@@ -313,6 +313,8 @@ enum EventType {
   EVENT_TYPE_REPORT_READ = 43 [(means) = "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"];
   EVENT_TYPE_ENVELOPE_ADMITTED = 44 [(means) = "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"];
   EVENT_TYPE_INQUIRY_CHECK = 45 [(means) = "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"];
+  EVENT_TYPE_QUESTION_PART = 46 [(means) = "a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason"];
+  EVENT_TYPE_QUESTION_PART_CHECK = 47 [(means) = "the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -349,10 +351,15 @@ enum Verdict {
 // NOT a judged failure to verify" caveat the stamp exists to carry.
 enum RunOutcome {
   RUN_OUTCOME_UNSPECIFIED = 0;
-  RUN_OUTCOME_VERIFIED = 1 [(means) = "red passed the board and the bench agrees the question was answered"];
+  RUN_OUTCOME_VERIFIED = 1 [(means) = "red passed the board and every question part is covered, each covered part checked"];
   RUN_OUTCOME_CEILING = 2 [(means) = "the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run"];
   RUN_OUTCOME_HALTED = 3 [(means) = "the bench ended the run on a safety, ethics, consent or integrity boundary"];
   RUN_OUTCOME_UNVERIFIED = 4 [(means) = "the run ended without the question being answered, and no ceiling or halt explains it"];
+  // QUALIFIED IS A PASS OVER A QUESTION THE REPORT DOES NOT ANSWER WHOLE (ruled by gblock 2026-11-12:
+  // a new value, not a field on VERIFIED). Red passed the board, and a question part's latest
+  // coverage, checked, says the report does not answer it: its sources could not be obtained, or it
+  // lies outside the report's answer. The derivation names each such part.
+  RUN_OUTCOME_QUALIFIED = 5 [(means) = "red passed the board and every question part is checked, and at least one part is not covered — its sources could not be obtained, or it is excluded from the report's answer; the derivation's reason names each"];
 }
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. SOURCE and COMPUTATION are the kinds whose
@@ -490,6 +497,12 @@ enum GapClass {
   GAP_CLASS_OUT_OF_SCOPE = 31 [(means) = "an inquiry asks a real question, but not the question this run was asked — its fate should set it aside, declined or deferred with why, rather than carry it as this run's research",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "invalid_inference",
     (distinguisher) = "does the inquiry's question bear on the question this run was asked, or does it bear on it and its fate's reasoning fail?"];
+  // COVERAGE MISSTATED IS A QUESTION PART'S DEFECT, as out_of_scope is an inquiry's: the coverage the
+  // record states for a part is not what the report does, or a part of the question was never split
+  // out. Blue answers it with `question cover` or `question split`.
+  GAP_CLASS_COVERAGE_MISSTATED = 33 [(means) = "the report's coverage of the question is misstated on the record: a question part's coverage says covered where the report does not answer it, or not obtained or excluded where it does or where the reason given does not hold, or a part of the question the run was asked is on the record as no part at all",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "out_of_scope",
+    (distinguisher) = "is the defect in what the record states of the question the run was asked — its parts and their coverage — or in an inquiry the research took up?"];
   GAP_CLASS_CLAIM_CONTRADICTS_SOURCE = 32 [(means) = "a source read against the sentence — cited by blue or found by red — states otherwise than the report; minted on your own standing reading that refutes: of the citation you name, or of a source you found for the sentence you quote",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "citation_figure_misattribution",
     (distinguisher) = "does the source say otherwise than the sentence, or not say it at all?"];
@@ -601,6 +614,16 @@ enum Rerun {
 // InquiryStatus is an inquiry's fate. The inquiries projection groups BY status, so a value outside
 // the set would not fail — it would silently vanish from the section that exists to show the roads
 // not taken.
+// PartCoverage is how the report covers a question part (ruled by gblock 2026-11-11, J: the cause of a
+// limitation is a field, and the tool composes the sentence). A part not covered still lets a PASS
+// stand, and the outcome it derives is QUALIFIED.
+enum PartCoverage {
+  PART_COVERAGE_UNSPECIFIED = 0;
+  PART_COVERAGE_COVERED = 1 [(means) = "the report answers this part of the question"];
+  PART_COVERAGE_NOT_OBTAINED = 2 [(means) = "the report does not answer this part because the sources that would answer it could not be obtained — REQUIRES a reason naming them and what was tried; report.md states the part is not answered here for that cause"];
+  PART_COVERAGE_EXCLUDED = 3 [(means) = "the report does not answer this part because it lies outside the answer the report gives — REQUIRES a reason saying why; report.md states the part lies outside its answer"];
+}
+
 enum InquiryStatus {
   INQUIRY_STATUS_UNSPECIFIED = 0;
   INQUIRY_STATUS_PROPOSED = 1 [(means) = "put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it"];
@@ -781,6 +804,8 @@ message Event {
     ReportRead report_read = 62;
     EnvelopeAdmitted envelope_admitted = 63;
     InquiryCheck inquiry_check = 64;
+    QuestionPart question_part = 65;
+    QuestionPartCheck question_part_check = 66;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
@@ -788,8 +813,9 @@ message Event {
   // `report_part`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
   // plan, 60 for the stale refusal, 62 for the report read, 63 for the envelope admission, 64 for the
-  // inquiry check, which is what the reserve is for — the block shrinks and nothing is renumbered.
-  reserved 65 to 80;
+  // inquiry check, 65-66 for the question part and its check, which is what the reserve is for — the
+  // block shrinks and nothing is renumbered.
+  reserved 67 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
@@ -1194,6 +1220,7 @@ enum AboutKind {
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
+  ABOUT_KIND_QUESTION = 6 [(means) = "the question the run was asked, by a question part's id, or by no id for a part the record does not hold: an objection to the part's coverage as the record states it, or to a part of the question no part covers — class coverage_misstated"];
   ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence"];
   reserved 4;
   reserved "ABOUT_KIND_CONTRADICTION";
@@ -1612,6 +1639,45 @@ message InquiryCheck {
     required: true
     why: "why the inquiry's latest fate stands as the report's account of it — a check that says nothing is the silence it exists to end"
   }, (prose) = true];
+}
+
+// QuestionPart is one part of the question the run was asked, with a lifecycle (ruled by gblock
+// 2026-11-11, E and J). A PROPOSAL assigns the id and carries the part's text; a RECORD of coverage
+// names the part and carries only the coverage and its reason — the two shapes Inquiry has, for the
+// reason it has them. The report's coverage of the question is the parts' latest coverage, and the
+// tool composes report.md's sentence for a part not covered from the coverage value; the reason is
+// the logic lens's to judge and is printed on the record's surfaces, never in report.md.
+message QuestionPart {
+  // part_id is the tool's: `S-<8 hex>`, assigned on a proposal and named by a coverage record.
+  optional string part_id = 1;
+  // text is the part as a reader of the subject would ask it, on a proposal only: report.md prints it
+  // in the sentence composed for a part not covered, so it is subject prose the voice lens audits.
+  optional string text = 2 [(sql) = {
+    flag: "text"
+    why: "the part of the question this names — a part with no text is no part of any question"
+  }, (prose) = true];
+  optional PartCoverage coverage = 3 [(sql) = {
+    flag: "as"
+    why: "how the report covers this part; the derived outcome reads it"
+  }];
+  // supersedes_coverage marks this event as a record of coverage rather than a proposal.
+  optional string supersedes_coverage = 4;
+  // reason is why the coverage holds, required on every record of coverage: the logic lens judges
+  // the coverage against it.
+  optional string reason = 5 [(prose) = true];
+}
+
+// QuestionPartCheck is the logic lens's judgement that a question part's latest coverage stands as
+// the report's account of it, shaped like InquiryCheck: a positive judgement only, and a part the lens
+// finds misstated gets a gap of class coverage_misstated about it instead. It stands while it is later
+// than the part's latest coverage record and than the latest gap minted about the part
+// (recordsql's question_part view).
+message QuestionPartCheck {
+  optional string part_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    why: "the question part this judges — a check of nothing judges nothing"
+  }];
 }
 
 // Inquiry is an inquiry with a lifecycle. A PROPOSAL assigns the id and carries the substance;

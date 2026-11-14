@@ -52,11 +52,12 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · lens red-lens-evidence is ready — PASS is refused while it is
   · lens red-lens-logic is ready — PASS is refused while it is
+  · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class partial_control_coverage --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote A claim sits under S2. --found-by FINDING001,FINDING002 --problem the cited source does not say this
 exit 0
@@ -70,12 +71,13 @@ $ position --run {RUN} --seat-id red-chair --reason round one: FAIL
 exit 0
 stdout:
 position POSITION001 recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 7 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 8 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
   · lens red-lens-logic is ready — PASS is refused while it is
+  · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 $ verdict --run {RUN} --seat-id red-chair --as FAIL
 exit 0
@@ -88,12 +90,15 @@ dispatch against head 3:
   · red-lens-evidence: never sat — audits the report at head 3
   · red-lens-logic: never sat — audits the report at head 3
   · GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there
+  · blue-respond: the question is split into no question part — ready, to split it
+  · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it
   your verdict this sitting: FAIL — the workflow reads it off this plan
-NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
   · lens red-lens-logic is ready — PASS is refused while it is
+  · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 ═══ EVENTS ═══
 {"cast":{"lane_seat_ids":["blue-lane-1"],"seat_ids":["red-lens-evidence","red-lens-logic","red-chair","blue-lane-1","blue-synthesize","blue-respond","frontier","judge"]},"key":"harness:setup:cast","seat_id":"harness","ts":0,"type":"EVENT_TYPE_CAST"}
@@ -114,7 +119,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, no
 {"dispatch":{"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":15,"type":"EVENT_TYPE_DISPATCH"}
 {"dispatch":{"pin":"3","seat_id":"red-lens-logic"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":16,"type":"EVENT_TYPE_DISPATCH"}
 {"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"blue-respond"},"key":"red-chair:dispatch:#3","seat_id":"red-chair","ts":17,"type":"EVENT_TYPE_DISPATCH"}
-{"key":"red-chair:plan:#1","plan":{"printed":"{\"key\":\"PLANKEY001\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"red-lens-logic\",\"gap_ids\":[]},{\"seat_id\":\"blue-respond\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":0,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":1,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-logic\",\"owner\":\"red-lens-logic\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"red-lens-logic: never sat — audits the report at head 3\",\"GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there\"],\"verdict\":\"FAIL\"}"},"seat_id":"red-chair","ts":18,"type":"EVENT_TYPE_PLAN"}
+{"key":"red-chair:plan:#1","plan":{"printed":"{\"key\":\"PLANKEY001\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"red-lens-logic\",\"gap_ids\":[]},{\"seat_id\":\"blue-respond\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":0,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":1,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-logic\",\"owner\":\"red-lens-logic\"},{\"kind\":\"question_unsplit\",\"subject\":\"\",\"owner\":\"blue-respond\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"red-lens-logic: never sat — audits the report at head 3\",\"GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there\",\"blue-respond: the question is split into no question part — ready, to split it\",\"the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it\"],\"verdict\":\"FAIL\"}"},"seat_id":"red-chair","ts":18,"type":"EVENT_TYPE_PLAN"}
 
 ═══ RENDERS ═══
 -- inquiries

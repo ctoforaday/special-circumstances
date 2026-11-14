@@ -1119,6 +1119,8 @@ type workReads struct {
 	found   []locatedReading
 	remands map[string][]remandRow
 	budget  *budgetRead
+	// parts is every question part (questionPartsAt), on the list's snapshot.
+	parts []QuestionPartRow
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
@@ -1198,6 +1200,9 @@ func workListReadsAt(q recordsql.Querier) (workReads, error) {
 		if r.found, err = locatedReadingsOn(q, r.evs, r.win, report); err != nil {
 			return r, err
 		}
+	}
+	if r.parts, err = questionPartsAt(q); err != nil {
+		return r, err
 	}
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
@@ -1581,7 +1586,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found}
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found, parts: r.parts}
 	var budget *MintBudgetJSON
 	var budgetLine string
 	if role == "lens" {

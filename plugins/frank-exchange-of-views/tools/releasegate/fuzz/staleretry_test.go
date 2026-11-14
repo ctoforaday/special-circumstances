@@ -38,6 +38,7 @@ func staleRun(t *testing.T) (*runner, string) {
 	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: []string{"blue-lane-1"}}); err != nil {
 		t.Fatal(err)
 	}
+	recordtest.SettleQuestion(t, stageRun.Dir()) // the question is not this fixture's subject
 	r := newRunner(bin, runDir, &lockedRand{r: rand.New(steadySource(99))})
 	if err := r.stagePart(sentence + "\n"); err != nil {
 		t.Fatalf("record the lane's part: %v", err)

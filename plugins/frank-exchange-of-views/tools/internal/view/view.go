@@ -187,6 +187,7 @@ var markdownViews = map[string]func(in Input, scope string) ([]byte, error){
 	"archive":   func(in Input, _ string) ([]byte, error) { return archiveMD(in), nil },
 	"debate":    func(in Input, _ string) ([]byte, error) { return debateMD(in), nil },
 	"inquiries": func(in Input, _ string) ([]byte, error) { return inquiryMD(in), nil },
+	"question":  func(in Input, _ string) ([]byte, error) { return questionMD(in) },
 }
 
 // MarkdownViews returns the markdown projection names, sorted. Exported so a test iterates the
@@ -817,6 +818,22 @@ func debateMD(in Input) []byte {
 }
 
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
+// questionMD is the question projection: each question part with its judged state, its coverage and
+// the reason for it, read off the record's question_part_state view.
+func questionMD(in Input) ([]byte, error) {
+	out := []string{"# The question — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
+	parts, err := record.QuestionParts(in.Run)
+	if err != nil {
+		return nil, err
+	}
+	body := record.QuestionBody(parts)
+	if body == "" {
+		out = append(out, "_The question is split into no question part on the record. The PASS is refused until it is._", "")
+		return []byte(strings.Join(out, "\n")), nil
+	}
+	return []byte(strings.Join(out, "\n") + "\n" + body), nil
+}
+
 func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
 	body := InquiryBody(in.Events, in.At, AsWritten)

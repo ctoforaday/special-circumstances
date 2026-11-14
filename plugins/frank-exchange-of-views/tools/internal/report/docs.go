@@ -133,6 +133,10 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("encoding the board: %w", err)
 	}
+	parts, err := record.QuestionParts(run)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("reading the question parts: %w", err)
+	}
 	evs := fam.Events
 
 	// EVERY SECTION SHIPS BECAUSE THE TABLE HAS A ROW FOR IT, in the row's document and the row's
@@ -140,7 +144,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	// run only the stamp — the outcome's word and its basis as state. Every sentence explaining a
 	// verdict, what answered the seats, the board in full and the transcript are envelope, and
 	// their rows put them in the documents behind it.
-	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(rd.text(blue)), rd: rd}
+	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), parts: parts, blue: part(rd.text(blue)), rd: rd}
 	// The title enters composition here, so its tokens leave here (stripTokens), by the weave's rule:
 	// the Question line composes the title into a section the weave reads, so a citation's or a
 	// computation's token stays for the weave to make a note of. The H1 is read by no weave, so it is cut
@@ -518,7 +522,7 @@ func factBox(fam record.Family) string {
 // supersededAsks is the changelog's account of a bench that spoke more than once. "Read this
 // first" carries the terminal statement alone; the ones it replaced are history, and history
 // belongs in a document rather than stacked under a heading that reads as parallel asks.
-func supersededAsks(fam record.Family) string {
+func supersededAsks(fam record.Family, parts partsAt) string {
 	// The statement the report carries is the LAST one; every other, replaced by a later
 	// certification, is listed here, in the order it was made, never dropped — each with the
 	// record's counts as it stood at ITS certification (countsAtCertification), not the last one's.
@@ -526,7 +530,7 @@ func supersededAsks(fam record.Family) string {
 	for _, e := range fam.Events {
 		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
 			if s := strings.TrimSpace(c.GetStatement()); s != "" {
-				all = append(all, oneLine(s)+"\n   "+countsAtCertification(fam, e))
+				all = append(all, oneLine(s)+"\n   "+countsAtCertification(fam, e, parts))
 			}
 		}
 	}

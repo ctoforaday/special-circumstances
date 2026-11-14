@@ -34,6 +34,7 @@ func stageEvents(t *testing.T, runDir string, more ...*record.Event) {
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 	}
 	recordtest.Seed(t, runDir, append(evs, more...)...)
+	recordtest.SettleQuestion(t, runDir) // the question is not this stage's subject
 }
 
 // The chair's verb records who sits and prints the same plan; the workflow obeys the record.
@@ -232,9 +233,9 @@ func TestDispatchNextPrintsThePlanAloneAndOffersNothingToCopy(t *testing.T) {
 	})
 	t.Run("the empty plan", func(t *testing.T) {
 		runDir := newRun(t)
-		recordtest.Seed(t, runDir,
-			recordtest.At(t, "harness", "harness:stage:1", &recordpb.Cast{SeatIds: []string{"red-chair", "blue-respond", "judge"}}),
-			recordtest.At(t, "red-chair", "red-chair:stage:2", &recordpb.Register{}))
+		evs := append([]*record.Event{recordtest.At(t, "harness", "harness:stage:1", &recordpb.Cast{SeatIds: []string{"red-chair", "blue-respond", "judge"}})},
+			recordtest.SettledQuestion(t)...) // a question with no part readies blue-respond
+		recordtest.Seed(t, runDir, append(evs, recordtest.At(t, "red-chair", "red-chair:stage:2", &recordpb.Register{}))...)
 		check(t, runDir, 0)
 	})
 }

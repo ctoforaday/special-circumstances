@@ -182,15 +182,22 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
 		"inquiry check":        {"a settled inquiry", func(b Board) bool { return slices.ContainsFunc(b.Inquiries, settled) }},
-		"reproduce":            {"a recorded computation", func(b Board) bool { return len(b.Computations) > 0 }},
-		"regrade":              {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"close":                {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"closing":              {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"spot-check":           {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
-		"verify":               {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
-		"render-page":          {"a cited claim with pages", func(b Board) bool { return len(b.PagedClaims) > 0 }},
-		"retire":               {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
-		"inquiry":              {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
+		"question split":       {"a question split into no part", func(b Board) bool { return b.Unsplit }},
+		"question cover": {"a question part with no coverage", func(b Board) bool {
+			return slices.ContainsFunc(b.Question, func(p QuestionPart) bool { return p.Coverage == "" })
+		}},
+		"question check": {"a covered question part no check stands on", func(b Board) bool {
+			return slices.ContainsFunc(b.Question, func(p QuestionPart) bool { return p.Coverage != "" && !p.Checked })
+		}},
+		"reproduce":   {"a recorded computation", func(b Board) bool { return len(b.Computations) > 0 }},
+		"regrade":     {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"close":       {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"closing":     {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"spot-check":  {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
+		"verify":      {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
+		"render-page": {"a cited claim with pages", func(b Board) bool { return len(b.PagedClaims) > 0 }},
+		"retire":      {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
+		"inquiry":     {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
 	}
 
 	for name, b := range Boards() {

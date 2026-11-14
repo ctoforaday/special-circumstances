@@ -42,7 +42,7 @@
 # report.md — THE RESEARCH
 
 # <Topic>                                <!-- [BLUE] blue's H1, cut at the author's own punctuation boundary -->
-**Outcome:** VERIFIED | UNVERIFIED | CEILING | HALTED | PENDING (derived from the record | asserted by the bench | no outcome on the record yet — the bench records it at the run's exit)
+**Outcome:** VERIFIED | QUALIFIED | UNVERIFIED | CEILING | HALTED | PENDING (derived from the record | asserted by the bench | no outcome on the record yet — the bench records it at the run's exit)
                                               <!-- [RECORD] the terminal `outcome` event. THE WORD, then its basis as
                                               STATE in parentheses, and nothing else: a field a reader can skim, badge
                                               or grep, whose first token is still the word. Everything that EXPLAINS it
@@ -50,6 +50,12 @@
                                               answer — is envelope, in run.md's verdict-basis section (gblock,
                                               2026-09-10). The BENCH's words are judgments.md's, never this
                                               document's. -->
+
+**Not answered here:** *<a question part's text>* is not answered here: its sources could not be obtained.
+                                              <!-- [RECORD] each question part whose coverage is not_obtained or
+                                              excluded, one tool-composed sentence each in the subject's voice; no
+                                              line where the report answers every part. The coverage's reason is
+                                              run.md's. -->
 
 **Question:** <the full brief>           <!-- [BLUE] blue's H1 in full, when it runs past 80 characters: a field rather
                                               than a heading -->
@@ -160,6 +166,8 @@
 
 
 ## The verdict's basis                   <!-- [RECORD] every verdict's gloss, and the ONLY place any of it lives — report.md keeps the stamp and its basis as state; with no outcome, it says the bench never recorded its terminal outcome -->
+
+## The question's coverage               <!-- [RECORD] each question part: its text, its coverage, the reason recorded for it, and whether the logic lens's check stands -->
 
 ## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; the seats that sat and filed no log entry are named apart -->
 

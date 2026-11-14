@@ -153,6 +153,14 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.InquiryCheck, true
 		}
+	case *Event_QuestionPart:
+		if b != nil {
+			return b.QuestionPart, true
+		}
+	case *Event_QuestionPartCheck:
+		if b != nil {
+			return b.QuestionPartCheck, true
+		}
 	}
 	return nil, false
 }

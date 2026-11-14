@@ -229,7 +229,7 @@ func outcomeBadge(fam record.Family) (string, string) {
 		cls = "good"
 	case strings.HasPrefix(word, "HALTED"):
 		cls = "bad"
-	case strings.HasPrefix(word, "CEILING"), strings.HasPrefix(word, "UNVERIFIED"):
+	case strings.HasPrefix(word, "CEILING"), strings.HasPrefix(word, "UNVERIFIED"), strings.HasPrefix(word, "QUALIFIED"):
 		cls = "warn"
 	}
 	return word, cls

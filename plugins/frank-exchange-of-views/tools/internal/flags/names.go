@@ -116,6 +116,11 @@ const (
 	// claim, and it is what makes a later abandonment checkable.
 	Hypothesis = "hypothesis"
 
+	// A question part's TEXT: the part of the question it names, as a reader of the subject asks it.
+	// Its own flag, as an inquiry's question is: the part's coverage is recorded by another verb, whose
+	// --reason is the account of that coverage.
+	PartText = "text"
+
 	// The computation axis. --dir is the bundle that settles a claim — the program and the files it
 	// reads, run by the command after `--`; --cites names the METHOD
 	// citation it applies — the source that says trial division decides primality. The method
@@ -330,7 +335,7 @@ func All() []string {
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class,
-		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, PartText, Dir, Cites, Variance, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,

@@ -110,6 +110,17 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add("blue-synthesize", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true))
 			b.add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED, false))
 		}, false},
+		// THE QUESTION HOLDS THE PASS UNTIL EVERY PART IS SOUND: split into no part, blue's; a part
+		// with no coverage, blue's; a part covered and not checked, the logic lens's.
+		{"question split into no part", BlockerQuestionUnsplit, true, true, func(b *stage) {
+			b.unsplit = true
+		}, false},
+		{"question part with no coverage", BlockerOpenPart, true, true, func(b *stage) {
+			b.add("blue-respond", partProposal(partA))
+		}, false},
+		{"question part unchecked", BlockerUncheckedPart, true, true, func(b *stage) {
+			b.add("blue-respond", partProposal(partA)).add("blue-respond", partCover(partA, recordpb.PartCoverage_PART_COVERAGE_COVERED))
+		}, false},
 		{"nothing holds", "", true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		}, true},

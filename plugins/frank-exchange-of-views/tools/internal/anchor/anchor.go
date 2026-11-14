@@ -71,6 +71,9 @@ var kinds = []kind{
 // shape and a letter no anchor kind holds, so no id of one kind reads as an id of another.
 var otherIDs = []kind{
 	{name: "inquiry", prefix: "Q-"},
+	// A question part is a part of the question the run was asked: S for its subject. P is read as an
+	// archived proof's id.
+	{name: "question part", prefix: "S-"},
 	{name: "motion", prefix: "M-"},
 	// A position is the chair's argument to the bench: A for argument.
 	{name: "position", prefix: "A-"},
