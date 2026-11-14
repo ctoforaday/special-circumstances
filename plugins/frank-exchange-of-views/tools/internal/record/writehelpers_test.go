@@ -73,3 +73,28 @@ func sitToAssemble(t *testing.T, run Run) Identity {
 	}
 	return id
 }
+
+// withReport ingests a report holding the Findings section every corrMint is about: an act that
+// stands on delivered text needs a report head to cut its delivery at.
+func withReport(t *testing.T, run Run) Run {
+	t.Helper()
+	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nThe finding stands.\n")})
+	return run
+}
+
+// delivered completes id's delivery of report text in its open sitting, as the delivery writer does
+// before the seat's act; a sitting that already holds its delivery is left as it is.
+func delivered(t *testing.T, id Identity) {
+	t.Helper()
+	db, err := openRunForRead(id.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, held, err := DeliveryThisSitting(db, id.SeatID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !held {
+		deliver(t, id.Run, id.SeatID)
+	}
+}
