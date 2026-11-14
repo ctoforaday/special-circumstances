@@ -39,6 +39,7 @@ func NewManifest(sourcePath string, files []migration.SourceFile, unclassified [
 		ClassTranslations:   res.ClassTranslations,
 		SupersededOutcomes:  res.SupersededOutcomes,
 		Accepted:            res.AcceptedLosses,
+		LostActs:            res.LostActs,
 		IDs:                 res.IDs,
 		Serialized:          res.Serialized,
 		GapAnchors:          res.GapAnchors,

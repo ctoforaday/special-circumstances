@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -80,6 +82,39 @@ const changedSinceSQL = `SELECT MIN(x) FROM (
   UNION ALL
   SELECT a."event_id" FROM "retire_anchors" a WHERE a."value" = ?2 AND a."event_id" > ?1)`
 
+// DeliveredTextRefusal is the delivered-text rule asked of one act, as the write asks it: the refusal
+// of body under seatID, or nil where the act depends on no report text or stands on its delivery. A
+// close (not a carry) depends on its gap's text, a spot-check on its sitting's delivery, and a ruling
+// on a motion about gaps on their passages; a ruling on a position names no passage and needs none.
+// The validate arms and migrate's replay ask this one function, so an archived act migrate drops is
+// exactly one the live write refuses.
+func DeliveredTextRefusal(q recordsql.Querier, seatID string, body proto.Message) error {
+	switch b := body.(type) {
+	case *recordpb.Close:
+		if b.CarriedFrom != nil {
+			return nil
+		}
+		return requireDeliveredText(q, seatID, "a close of "+b.GetGapId(), []string{b.GetGapId()})
+	case *recordpb.SpotCheck:
+		return requireDeliveredText(q, seatID, "a spot-check", nil)
+	case *recordpb.MotionRule:
+		if b.GetMotionId() == "" {
+			return nil
+		}
+		gaps, err := motionGaps(q, b.GetMotionId())
+		if err != nil || len(gaps) == 0 {
+			return err
+		}
+		return requireDeliveredText(q, seatID, "a ruling on a motion about "+gapsNamed(gaps), gaps)
+	}
+	return nil
+}
+
+// UndeliveredError is the delivered-text rule's refusal: the act, and why its text is not delivered.
+type UndeliveredError struct{ msg string }
+
+func (e *UndeliveredError) Error() string { return e.msg }
+
 // requireDeliveredText refuses an act of seatID that depends on the text around anchors unless the
 // seat's current sitting holds its delivery and no head move or retire after that delivery's head
 // changed any of those anchors' sentences. what names the act and where its text arrives.
@@ -89,7 +124,7 @@ func requireDeliveredText(q recordsql.Querier, seatID, what string, anchors []st
 		return err
 	}
 	if !held {
-		return fmt.Errorf("%s stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this", what)
+		return &UndeliveredError{fmt.Sprintf("%s stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this", what)}
 	}
 	for _, id := range anchors {
 		var at sql.NullInt64
@@ -97,7 +132,7 @@ func requireDeliveredText(q recordsql.Querier, seatID, what string, anchors []st
 			return fmt.Errorf("asking whether %s changed since your delivery: %w", anchor.Token(id), err)
 		}
 		if at.Valid {
-			return fmt.Errorf("%s stands only on report text delivered to you, and the text around %s changed after your delivery was cut: the change arrives on your work list at your next sitting", what, id)
+			return &UndeliveredError{fmt.Sprintf("%s stands only on report text delivered to you, and the text around %s changed after your delivery was cut: the change arrives on your work list at your next sitting", what, id)}
 		}
 	}
 	return nil
