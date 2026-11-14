@@ -200,7 +200,12 @@ func TestAnArchivedPassIsCarriedAsHistory(t *testing.T) {
 			// those, each still material.
 			want := []string{c.gap}
 			for g := range migrate.LostCloseGaps(t, c.archive, res) {
-				if gp := fam.Gap(g); gp != nil && gp.Open && gp.Material {
+				gp := fam.Gap(g)
+				if gp == nil || !gp.Open {
+					t.Errorf("%s's archived close is lost, and the migrated family reads it %+v, not open", g, gp)
+					continue
+				}
+				if gp.Material {
 					want = append(want, g)
 				}
 			}
