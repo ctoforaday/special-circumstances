@@ -2175,13 +2175,11 @@ func holdsBlueOut(plan map[string]any) bool {
 	return record.Plan{MaxEpochs: int(maxEpochs), Epoch: int(epoch)}.BlueHeldOut()
 }
 
-// auditRead is a lens sitting's read of the report. THE AUDIT IS SERVED THE WHOLE REPORT, and that
-// auditRead is the lens's pin: a lens that is not served it at the head is ready at the head again,
-// until it is or retires. Most sittings read it, in either whole form; the rest read only a
-// selection, which serves part of it and moves nothing, so the sweep reaches a lens readied again at
-// a head it sat at. A forced run's lens reads it whole every sitting, so each sitting moves its pin:
-// a selection read leaves it ready at the head it sat at, which is one more sitting the bound does
-// not count.
+// auditRead is a lens sitting's read of the report through the selector reads, beside the report text
+// the writer hands it. The read records nothing and moves no pin: the lens's pin is the head of the
+// delivery the writer completed (readDelivery). Most sittings read the report whole, in either form;
+// the rest read a selection. The call is a call to the record, so the writer hands the lens its next
+// item after it.
 func (r *runner) auditRead(seatID string) {
 	switch n := r.rng.Intn(10); {
 	case r.forcedVerdict() || n < 5:
@@ -2335,6 +2333,12 @@ func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args
 func (r *runner) execAs(agent string, args ...string) (string, error) {
 	// --run goes before a `--`: what follows it is a computation's command, and the verb would run
 	// --run as two more of its arguments.
+	// A SEAT READS WHAT IT IS OWED BEFORE AN ACT THAT STANDS ON DELIVERED TEXT: the record refuses the
+	// act until the sitting's delivery is complete, and a live seat finishes it first.
+	seat := seatOfCall(args)
+	if seat != "" && standsOnDeliveredText(args) {
+		r.readDelivery(seat, agent)
+	}
 	full := append([]string{}, args...)
 	if i := slices.Index(full, "--"); i >= 0 {
 		full = slices.Insert(full, i, "--run", r.runDir)
@@ -2350,8 +2354,14 @@ func (r *runner) execAs(agent string, args ...string) (string, error) {
 	noteExec(args, err, out)
 	if err != nil {
 		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		return string(out), err
 	}
-	return string(out), err
+	// THE WRITER HANDS THE SEAT ITS NEXT ITEM AFTER A CALL THAT SUCCEEDED, as the PostToolUse hook does;
+	// a refused call reaches PostToolUseFailure, which hands nothing.
+	if seat != "" {
+		r.handNext(seat, agent)
+	}
+	return string(out), nil
 }
 
 // sit is the register a DISPATCH makes: every time debate.js hands a seat a prompt, that seat sits
@@ -2429,6 +2439,9 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 		r.sittingAgent[seatID] = agent
 		r.mu.Unlock()
 	}
+	// THE SEAT READS WHAT ITS SITTING IS OWED BEFORE IT ACTS: the writer handed the first item after
+	// its register, and hands the rest one per call.
+	r.readDelivery(seatID, agent)
 	close(done)
 }
 
@@ -10254,6 +10267,8 @@ func (r *runner) owesNaming(seatID, standing string) (bool, error) {
 // again, at most four times, as a parallel blue can place more than once. The check that decides is
 // the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) bool {
+	// THE ENVELOPE WAITS ON THE SITTING'S REPORT TEXT, so the seat finishes reading it first.
+	r.readDelivery(seatID, "")
 	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
 	for i := 0; i < 4 && err == nil && refusal != "" && strings.HasPrefix(seatID, "red-lens-"); i++ {
 		r.dischargeOwed(seatID)
