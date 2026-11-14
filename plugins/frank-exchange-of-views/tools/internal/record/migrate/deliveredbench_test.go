@@ -24,6 +24,19 @@ import (
 // directory.
 func DeliveredBenchSource(t *testing.T) string {
 	t.Helper()
+	return deliveredBench(t, true)
+}
+
+// DeliveredBenchProseSource is DeliveredBenchSource as a source from before a closure's anchors were
+// a field: it holds no close_anchors table, and the close names its anchors in the words it was
+// verified with, G2 itself and G1.
+func DeliveredBenchProseSource(t *testing.T) string {
+	t.Helper()
+	return deliveredBench(t, false)
+}
+
+func deliveredBench(t *testing.T, anchorsField bool) string {
+	t.Helper()
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
@@ -50,13 +63,15 @@ func DeliveredBenchSource(t *testing.T) string {
 		`CREATE TABLE "report_read" ("event_id" INTEGER PRIMARY KEY, "head" INTEGER)`,
 		`CREATE TABLE "mint" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT, "class" TEXT, "location" TEXT, "problem" TEXT, "required_fix" TEXT, "acceptance_check" TEXT, "severity" TEXT, "mint_reason" TEXT, "check_kind" TEXT, "likelihood" TEXT, "impact" TEXT)`,
 		`CREATE TABLE "close" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT NOT NULL, "closure_class" TEXT, "anchor_seat" TEXT, "anchor_tool" TEXT, "anchor_target" TEXT, "carried_from" TEXT, "successor" TEXT, "prose" TEXT)`,
-		`CREATE TABLE "close_anchors" ("event_id" INTEGER NOT NULL, "ord" INTEGER NOT NULL, "value" TEXT NOT NULL, PRIMARY KEY ("event_id", "ord"))`,
 		`CREATE TABLE "blue_edit" ("event_id" INTEGER PRIMARY KEY, "edit_key" TEXT, "answers" TEXT, "old" TEXT, "new" TEXT, "text" TEXT, "applied_verbatim" INTEGER, "accepted" INTEGER, "exact_span" INTEGER)`,
 		`CREATE TABLE "spot_check" ("event_id" INTEGER PRIMARY KEY, "none" INTEGER, "reason" TEXT)`,
 		`CREATE TABLE "spot_check_areas" ("event_id" INTEGER NOT NULL, "ord" INTEGER NOT NULL, "value" TEXT NOT NULL, PRIMARY KEY ("event_id", "ord"))`,
 		`CREATE TABLE "opinion" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT, "disposition" TEXT, "principle" TEXT, "tension" TEXT, "review_flag" TEXT, "rationale" TEXT, "settled" TEXT, "reopens_on" TEXT, "final" INTEGER)`,
 	} {
 		exec(ddl)
+	}
+	if anchorsField {
+		exec(`CREATE TABLE "close_anchors" ("event_id" INTEGER NOT NULL, "ord" INTEGER NOT NULL, "value" TEXT NOT NULL, PRIMARY KEY ("event_id", "ord"))`)
 	}
 	for _, w := range []string{"register", "base_ingest", "report_read", "mint", "close", "blue_edit", "spot_check", "opinion"} {
 		exec(`INSERT INTO "enum_event_type" ("value", "means") VALUES (?, 'former vocabulary')`, w)
@@ -78,9 +93,11 @@ func DeliveredBenchSource(t *testing.T) string {
 			event(lens, "mint"), m.gap, m.check)
 	}
 	closed := event(lens, "close")
-	exec(`INSERT INTO "close" ("event_id", "gap_id", "closure_class", "anchor_seat", "anchor_tool", "anchor_target", "prose") VALUES (?, 'G2', 'not_a_defect', ?, 'show report', 'the sentence at head', 'The sentence holds as written.')`,
+	exec(`INSERT INTO "close" ("event_id", "gap_id", "closure_class", "anchor_seat", "anchor_tool", "anchor_target", "prose") VALUES (?, 'G2', 'not_a_defect', ?, 'show report, read against G2 and G1', 'the sentence at head', 'The sentence holds as written.')`,
 		closed, lens)
-	exec(`INSERT INTO "close_anchors" VALUES (?, 0, 'G2'), (?, 1, 'G1')`, closed, closed)
+	if anchorsField {
+		exec(`INSERT INTO "close_anchors" VALUES (?, 0, 'G2'), (?, 1, 'G1')`, closed, closed)
+	}
 	exec(`INSERT INTO "register" VALUES (?, 'abc1234')`, event("blue-respond", "register"))
 	edit := event("blue-respond", "blue_edit")
 	exec(`INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new") VALUES (?, 'E1', 'G1', 'A sentence.', 'A sentence, sourced.')`, edit)
@@ -114,3 +131,4 @@ func MigratedDeliveredBench(t *testing.T) (*migration.Manifest, Source, string) 
 	}
 	return res, archivedSource(t, src), to
 }
+
