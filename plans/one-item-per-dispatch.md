@@ -479,13 +479,13 @@ payloads; `record.HarnessSeat` is the pseudo-seat the host writes under today. T
 seat-control surface gets the same shape in FEOV's tools module — one interface, one
 implementation per `Harness`, and above it only items, seats, briefs and receipts:
 
-| Operation the rig needs | `claude` carrier today | `antigravity` carrier (from the dual-target plan's measurements) |
+| Operation the rig needs | `claude` carrier today | `antigravity` carrier (from the dual-target plan's measurements, updated for `agy 1.5.9`) |
 |---|---|---|
-| Spawn a seat with a brief | Workflow `agent()`; or a `claude -p` process | `invoke_subagent`, or an `agy -p` process |
+| Spawn a seat with a brief | Workflow `agent()`; or a `claude -p` process | `run_workflow` (`agy 1.5.9`, bundled Python), `invoke_subagent`, `/swarm` (`1.5.5+`), or an `agy -p` process ([#1871](https://github.com/ctoforaday/special-circumstances/issues/1871)) |
 | Deliver context at seat start | `SubagentStart` → `additionalContext` (measured to land, §II.2) | `SessionStart` → `injectSteps` |
 | Post into a sitting seat | the inbox socket (process-level only, above) | not measured — `PreInvocation` → `injectSteps` is pulled per turn, not pushed |
-| Identify the seat to the record | `PreToolUse` env rewrite (`FEOV_RUN`, `FEOV_AGENT_ID`) | `conversationId` on every payload |
-| Observe the sitting's end | `SubagentStop` / `Stop` | `Stop` (`terminationReason`) |
+| Identify the seat to the record | `PreToolUse` env rewrite (`FEOV_RUN`, `FEOV_AGENT_ID`) | `PreToolUse` `overwrite.CommandLine` env rewrite + `conversationId` / `agentName` on every payload |
+| Observe the sitting's end | `SubagentStop` / `Stop` | `PostInvocation` / `Stop` (`terminationReason`, `continuation_active` in `1.5.6+`) |
 | Cap the sitting | `sittingcap` in `PreToolUse` | `PreToolUse` deny (`decision: "deny"`) |
 
 Three consequences for the vehicles. First, nothing above the interface may name a socket path,

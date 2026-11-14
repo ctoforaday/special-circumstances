@@ -56,7 +56,8 @@ is its one call site.
   the hook payload, so every field on it is wire-supplied; a CLI-computed member would leave a
   reader unable to tell a derived value from something the client sent. `PostDropped` takes its
   injected readers for the same reason. `hookcmd` resolves the directory from the payload's
-  **`cwd`** — the seat's working directory, not the hook process's `os.Getwd()` — through
+  **`cwd`** (delivered natively on both Claude Code and `agy 1.5.4+` hook payloads, or via
+  `hookcore.ProjectDir` / `FEOV_RUN` for cross-harness `debate.py` seats — [#1866](https://github.com/ctoforaday/special-circumstances/issues/1866), [#1871](https://github.com/ctoforaday/special-circumstances/issues/1871)) — the seat's working directory, not the hook process's `os.Getwd()` — through
   `seat.InferRunDir` (`hookcmd.go:99-103`, `cwdOf`). No marker, or a marker naming a directory
   that does not exist → empty → **no rewrite**, matching `InferRunDir`'s "say nothing rather
   than guess".
