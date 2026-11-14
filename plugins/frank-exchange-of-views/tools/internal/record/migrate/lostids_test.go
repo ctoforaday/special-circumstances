@@ -36,6 +36,19 @@ func LostByWord(m *migration.Manifest) map[string]int {
 // id outside the live shape is mapped as the migration maps it.
 func LostCloseGaps(t *testing.T, name string, m *migration.Manifest) map[string]bool {
 	t.Helper()
+	return lostGapsOf(t, name, m, "close")
+}
+
+// LostMintGaps is the migrated id of every gap whose archived mint the named run's migration lost:
+// a mint refused because it superseded a gap a lost close left open.
+func LostMintGaps(t *testing.T, name string, m *migration.Manifest) map[string]bool {
+	t.Helper()
+	return lostGapsOf(t, name, m, "mint")
+}
+
+// lostGapsOf is the migrated gap id each lost source act of word names in its gap_id.
+func lostGapsOf(t *testing.T, name string, m *migration.Manifest, word string) map[string]bool {
+	t.Helper()
 	lost := LostIDs(m)
 	evs, err := archivedSource(t, recordtest.ExtractArchive(t, name)).Events()
 	if err != nil {
@@ -43,12 +56,12 @@ func LostCloseGaps(t *testing.T, name string, m *migration.Manifest) map[string]
 	}
 	out := map[string]bool{}
 	for _, ev := range evs {
-		if ev.Word != "close" || !lost[ev.ID] {
+		if ev.Word != word || !lost[ev.ID] {
 			continue
 		}
 		g, _ := ev.Fields["gap_id"].(string)
 		if g == "" {
-			t.Fatalf("lost close %d names no gap_id: %v", ev.ID, ev.Fields)
+			t.Fatalf("lost %s %d names no gap_id: %v", word, ev.ID, ev.Fields)
 		}
 		if !liveGapID.MatchString(g) {
 			sum := sha256.Sum256([]byte(m.SourceHash + g))
