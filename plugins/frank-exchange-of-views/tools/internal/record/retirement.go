@@ -49,8 +49,9 @@ import (
 //     limit, or one that never closed, is neither sat nor barren: a delivery in it moves no pin, and
 //     it adds nothing to the count.
 //   - A mint belongs to the sitting whose opening most recently precedes it.
-//   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW.
-//     A productive sitting returns the count to zero, a retired lens's included.
+//   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW,
+//     or recorded a close, a verify, a reproduce or an inquiry check. A productive sitting returns
+//     the count to zero, a retired lens's included.
 //
 // Nothing is ready before a report is ingested.
 
@@ -65,6 +66,7 @@ type lensFold struct {
 	pin      int64    // the head of its latest report read in a sitting it sat through (pinOf); 0 when it has none
 	owes     []string // what it owes (lensOwesOf), each named
 	composed []string // the composed sources it has not had (composedOwedOf), each named: owes holds them too
+	whole    string   // the whole delivery it is owed (wholeOwedWhat), "" when it has both
 	ready    bool
 	why      string
 }
@@ -112,10 +114,17 @@ func (f lensFold) readiness(head int64, short string) (bool, string) {
 			why += "; " + short
 		}
 		return true, why
-	case f.barren >= retiresAfter:
-		return false, fmt.Sprintf("%s: its delivery is at the head (pin %d) — ready when the head moves; %s", f.seat, f.pin, f.retiresWhy())
 	}
-	return false, fmt.Sprintf("%s: its delivery is at the head (pin %d) — ready when the head moves", f.seat, f.pin)
+	// A WHOLE DELIVERY OWED READIES THE LENS AT THIS HEAD (its whole_report_owed blocker, which the plan
+	// engages it on), so the pin line names that debt, not a head move it does not wait for.
+	when := "ready when the head moves"
+	if f.whole != "" {
+		when = "it owes " + f.whole + ", which readies it at this head"
+	}
+	if f.barren >= retiresAfter {
+		return false, fmt.Sprintf("%s: its delivery is at the head (pin %d) — %s; %s", f.seat, f.pin, when, f.retiresWhy())
+	}
+	return false, fmt.Sprintf("%s: its delivery is at the head (pin %d) — %s", f.seat, f.pin, when)
 }
 
 // servedClause is the fold's account of a lens's pin: the head of its latest complete delivery of
@@ -266,12 +275,16 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 	ds, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(win, openings)
 	reads := servedOf(win)
+	whole := map[string]string{}
+	for _, b := range wholeReportOwedBlockers(evs, ids, win) {
+		whole[b.Owner] = wholeOwedWhat(b)
+	}
 	var out []lensFold
 	for _, seat := range cast {
 		if seatclass.RoleOfSeat(seat) != "lens" {
 			continue
 		}
-		f := lensFold{seat: seat, owes: owes[seat], composed: composedNames(composed[seat]), pin: pinOf(reads[seat], math.MaxInt64)}
+		f := lensFold{seat: seat, owes: owes[seat], composed: composedNames(composed[seat]), pin: pinOf(reads[seat], math.MaxInt64), whole: whole[seat]}
 		sat := map[int64]bool{}
 		var sittings []int64
 		var short string // why the sitting of its latest dispatch is not one it sat through; "" when it is

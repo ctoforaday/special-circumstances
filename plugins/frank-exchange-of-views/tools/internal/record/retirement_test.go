@@ -315,11 +315,16 @@ func TestWhyCarriesState(t *testing.T) {
 	}{
 		{"never sat", planOf(t, retBoard(t)), "never sat — audits the report at head 2"},
 		{"served at the head", planOf(t, retBoard(t).readFully(2, evLens)), "its delivery is at the head (pin 2) — ready when the head moves"},
+		// A lens served once owes its full re-read, which readies it at this head: its pin line says so.
+		{"owes its re-read at the head", planOf(t, retBoard(t).sit(2, evLens)), "its delivery is at the head (pin 2) — it owes its full re-read, the whole report once more, which readies it at this head"},
 		{"head moved", planOf(t, retBoard(t).readFully(2, evLens).ingest()), "its latest complete delivery of report text was cut at its pin 2, behind head 10 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3)"},
 		{"retired", planOf(t, b), fmt.Sprintf("retired (pin %d) — its last 3 sittings minted no fresh material; not ready", pin)},
 	} {
 		if !strings.Contains(whyOf(c.plan), evLens+": ") || !strings.Contains(whyOf(c.plan), c.want) {
 			t.Errorf("%s: the why must say %q:\n%s", c.name, c.want, whyOf(c.plan))
+		}
+		if c.name == "owes its re-read at the head" && strings.Contains(whyOf(c.plan), evLens+": its delivery is at the head (pin 2) — ready when the head moves") {
+			t.Errorf("%s: the pin line waits on a head move while the lens is readied at this head:\n%s", c.name, whyOf(c.plan))
 		}
 	}
 }
