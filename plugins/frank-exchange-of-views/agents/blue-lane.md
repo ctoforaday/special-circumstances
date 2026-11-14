@@ -129,7 +129,7 @@ THE LOG IS FOR WHATEVER COST YOU A CALL, A GUESS OR AN ACT: a refusal; a verb, f
 Your surface — the lane surface, rendered from the record tool's own `manual`: every command you may run, each under a header naming it and followed by the help it prints.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
-  - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
+  - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report text the tool delivers to a seat on its work list, the report as `show report` prints it, which is how a seat reads it for context, and the copy assembled for the human reader once the run is over.
   - The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
   - The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
   - A run is one research question taken from setup to its outcome.
@@ -191,7 +191,7 @@ Global Flags:
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
 
 §3 (on 2 pages):
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{inquiry_id,status,question,recorded,idempotent,voice_tells:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{inquiry_id,status,question,recorded,idempotent,voice_tells:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
 
 §4 (on 14 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -214,7 +214,7 @@ A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats
 Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
 
 §8 (on 3 pages):
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,subject},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,subject},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
 
 §9 (on 3 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -249,7 +249,7 @@ Available Commands:
   help        Help about any command
   ingest      record your part of the report — once per lane, before the report's first change
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
@@ -296,7 +296,7 @@ NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: `
 
 WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{path,bytes},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{path,bytes},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 ========
@@ -381,7 +381,7 @@ YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing h
 
 A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Your work list says which case you are in, by not asking.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{message},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{message},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -484,17 +484,19 @@ Enumerated values:
     constitutional  the instruction itself conflicts with the rules the run is bound by
 ========
 $ feov-record register --help
-NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+NOT needed to look, only to RECORD — once per sitting, before your first record
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
-ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds and your first record after it. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not — a lens's whole read of the report among them — so a sitting that has already recorded something owes no register.
+ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds and your first record after it. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not, so a sitting that has already recorded something owes no register.
+
+REPORT TEXT ARRIVES AFTER A CALL TO THE RECORD, this one included. Where your sitting owes report text — a lens's whole report or the changes since its pin with its own gaps' passages, the chair's unborne changes behind each stale area's pin, the bench's passages of the gaps a motion before it is about — your dispatch hands you none of it: each call of yours to the record hands you its next item, whole, and the tool records the delivery when the last one reaches you. Your envelope waits until it has, and a delivery that cannot advance ends your turn at once, with its reason. A read through `show report` records nothing and moves no pin. A seat on a harness whose hooks cannot yet deliver report text into its context — Antigravity today — records no delivery: a lens there holds the PASS for good, and the chair or the bench there holds it whenever its delivered text is owed.
 
 A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 
 It also OPENS THE SITTING where nothing else did, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. Where the harness brackets your dispatch and your agent type seats one seat, that bracket opens the sitting, the record counts you as having sat whether or not you register, and your register joins that sitting. Where the bracket names no seat — an agent type that seats several, as blue's researcher does (the frontier, the lanes and the responding seat) — or there is no bracket — a resumed dispatch carries none — the record sees no sitting until you register, and a dispatched seat is readied again until one exists. Your work list says when one is owed.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 ========
@@ -650,7 +652,7 @@ Flags:
       --sha sha256     the cached source's sha256, as the fetch summary and the evidence view print it. Pass this or --anchor, or neither to search every cached source
 ========
 $ feov-record show work --help
-**WHERE YOUR DISPATCH HANDED YOU THIS LIST — it arrives under a preamble that says so — YOU ARE PROBABLY NOT MEANT TO RUN THIS: every act you record answers `may I stop` for you afterwards, so reach for it only when neither reached you, or when you want the items that do NOT block you. A seat of a configuration that seats several seats (blue-researcher's, blue-lane's), and a resumed dispatch, are handed no list, and read it first.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
+**THE LIST IS CUT INTO ITEMS HANDED ONE AT A TIME to every seat whose work arrives as items; this prints the whole of it.** A lane, the frontier and the synthesizer are dispatched to write and are handed nothing while their queue is empty. EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
 
 EVERY ITEM SAYS WHAT IT IS: `kind` is the item's kind — a PASS blocker's kind where the item states one — and `subject` is the one thing it is about, by `kind` (gap, anchor, inquiry, motion, report, seat or area) and `id`, absent on an item about nothing in particular. Read which gap an item is about from `subject`, never from its sentence.
 

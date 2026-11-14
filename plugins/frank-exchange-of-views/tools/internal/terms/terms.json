@@ -2,7 +2,7 @@
   "entries": [
     {
       "term": "the report",
-      "definition": "The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.",
+      "definition": "The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report text the tool delivers to a seat on its work list, the report as `show report` prints it, which is how a seat reads it for context, and the copy assembled for the human reader once the run is over.",
       "seats": [
         "lens",
         "chair",
@@ -760,9 +760,12 @@
     },
     {
       "term": "current item",
-      "definition": "A lens's current item is the one entry of its queue it is handed in full — an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the lens's work list after an act, and the next item is handed then.",
+      "definition": "A seat's current item is the one entry of its queue it is handed in full — report text owed to it, an item it owes, or a gap of its own the dispatch readies it on, with the items about that gap — beside an index of the rest; it stays current until the record shows it discharged, gone from the seat's work list after an act, and the next item is handed then.",
       "seats": [
         "lens",
+        "chair",
+        "blue",
+        "bench",
         "operator"
       ],
       "bans": [],
@@ -791,7 +794,7 @@
         },
         {
           "word": "report read",
-          "resolution": "a report read is the tool serving a lens the whole report; a reading is a lens's check of one source against one sentence"
+          "resolution": "a report read is the tool's record of report text it delivered into a seat's context; a reading is a lens's check of one source against one sentence"
         }
       ]
     },
@@ -837,7 +840,7 @@
     },
     {
       "term": "stale area",
-      "definition": "A stale area is the area of a retired lens whose pin is behind the report head, which the chair reads and names in a spot-check before a PASS.",
+      "definition": "A stale area is the area of a retired lens whose pin is behind the report head; its changes the chair has not borne are delivered to the chair on its work list, and the chair names the area in a spot-check before a PASS.",
       "seats": [
         "chair",
         "operator"
@@ -847,10 +850,11 @@
     },
     {
       "term": "report read",
-      "definition": "A report read is the record's evidence that the tool served a lens the whole report at a head, written by the report's whole read and by no read at an anchor or a selection; it says the text was served, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.",
+      "definition": "A report read is the record's evidence that the tool delivered report text into a seat's context: the tool writes one when it hands a delivery's last item, every item of it cut from the report at its head, and a read through `show report` writes none; it says the text was delivered, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.",
       "seats": [
         "lens",
         "chair",
+        "bench",
         "operator"
       ],
       "bans": [],
