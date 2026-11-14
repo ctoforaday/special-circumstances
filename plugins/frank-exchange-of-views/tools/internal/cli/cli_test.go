@@ -153,7 +153,7 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 
 // deliverBeforeActing completes the seat's delivery of report text before an act that stands only on
 // delivered text: a lens's close, the chair's spot-check, a ruling on a motion. Live, the delivery
-// writer hands the seat its report text one item after each of its calls to the record and writes the
+// writer hands the seat its report text one item after each of its tool calls and writes the
 // report_read with the last item (sittingwrite.WriteNextItem); the harness runs no hooks, so it
 // completes the delivery here, from the seat's own list: only where that list holds a report-text item
 // is the seat owed a delivery this sitting. A seat owed none — its sitting already holds one, no report

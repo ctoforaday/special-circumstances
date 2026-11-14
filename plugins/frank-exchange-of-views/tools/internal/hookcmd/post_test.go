@@ -25,6 +25,9 @@ func TestASucceededEnvelopeCallIsAdmitted(t *testing.T) {
 		return writeErr
 	}
 	t.Cleanup(func() { recordAdmission = prev })
+	prevNext := handNextItem
+	handNextItem = func(string, string, string, string) (string, error) { return "", nil }
+	t.Cleanup(func() { handNextItem = prevNext })
 	post := func(tool, agent string) {
 		t.Helper()
 		b, _ := json.Marshal(map[string]any{"tool_name": tool, "tool_input": map[string]string{}, "cwd": cwd,
@@ -65,9 +68,10 @@ func TestASucceededEnvelopeCallIsAdmitted(t *testing.T) {
 	}
 }
 
-// A SEAT'S CALL TO THE RECORD HANDS IT WHAT IT IS HANDED NEXT, AS additionalContext — and nothing
-// else spawns the writer: a call that does not reach the record, a call from no seat. A writer that fails is said to the lens, never silence.
-func TestASeatsCallToTheRecordIsHandedItsNextItem(t *testing.T) {
+// EVERY CALL OF A SEAT'S HANDS IT WHAT IT IS HANDED NEXT, AS additionalContext, whichever tool it
+// used — a Read and a WebSearch as a call to the record — and a call from no seat spawns nothing. A
+// writer that fails is said to the lens, never silence.
+func TestEverySeatCallIsHandedItsNextItem(t *testing.T) {
 	cwd, runDir := hookRun(t)
 	var asked []string
 	text, writeErr := "YOUR NEXT ITEM: …", error(nil)
@@ -77,11 +81,14 @@ func TestASeatsCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 		return text, writeErr
 	}
 	t.Cleanup(func() { handNextItem = prev })
+	prevAdmit := recordAdmission
+	recordAdmission = func(string, string) error { return nil }
+	t.Cleanup(func() { recordAdmission = prevAdmit })
 	const lens = "frank-exchange-of-views:red-lens-logic"
-	post := func(agentType, command string) (string, *bytes.Buffer) {
+	call := func(agentID, agentType, tool string, input map[string]string) (string, *bytes.Buffer) {
 		t.Helper()
-		b, _ := json.Marshal(map[string]any{"tool_name": "Bash", "tool_input": map[string]string{"command": command}, "cwd": cwd,
-			"session_id": testLead, "agent_id": "a7cc47571ab8b015d", "agent_type": agentType, "tool_response": map[string]string{}})
+		b, _ := json.Marshal(map[string]any{"tool_name": tool, "tool_input": input, "cwd": cwd,
+			"session_id": testLead, "agent_id": agentID, "agent_type": agentType, "tool_response": map[string]string{}})
 		var out bytes.Buffer
 		if err := Post(bytes.NewReader(b), &out, testRecorder()); err != nil {
 			t.Fatal(err)
@@ -99,6 +106,10 @@ func TestASeatsCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 		}
 		return doc.HookSpecificOutput.AdditionalContext, &out
 	}
+	post := func(agentType, command string) (string, *bytes.Buffer) {
+		t.Helper()
+		return call("a7cc47571ab8b015d", agentType, "Bash", map[string]string{"command": command})
+	}
 
 	got, _ := post(lens, `"/plugin/bin/feov-record" lens close --gap G-1`)
 	if len(asked) != 1 || asked[0] != runDir+" | a7cc47571ab8b015d | "+lens || got != text {
@@ -109,11 +120,28 @@ func TestASeatsCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 	if got, _ := post(chair, "feov-record show work"); len(asked) != 2 || asked[1] != runDir+" | a7cc47571ab8b015d | "+chair || got != text {
 		t.Errorf("a chair's call asked %q and was handed %q — want the chair's own next item", asked, got)
 	}
-	if _, out := post(lens, "ls -la"); len(asked) != 2 || out.Len() != 0 {
-		t.Errorf("a lens's call that does not reach the record spawned the writer or spoke: %q %q", asked, out.String())
+	// ANY TOOL ADVANCES THE DELIVERY: a Bash call that is not the record's, a Read, a WebSearch.
+	for i, c := range []struct {
+		tool  string
+		input map[string]string
+	}{
+		{"Bash", map[string]string{"command": "ls -la"}},
+		{"Read", map[string]string{"file_path": cwd + "/notes.md"}},
+		{"WebSearch", map[string]string{"query": "is 91 prime"}},
+	} {
+		if got, _ := call("a7cc47571ab8b015d", lens, c.tool, c.input); len(asked) != 3+i || asked[2+i] != runDir+" | a7cc47571ab8b015d | "+lens || got != text {
+			t.Errorf("a lens's %s call asked %q and was handed %q — want its next item, as a call to the record is", c.tool, asked, got)
+		}
+	}
+	// THE ENVELOPE'S CALL HANDS NOTHING: it ends the seat's work. And a call from no seat spawns nothing.
+	if _, out := call("a7cc47571ab8b015d", lens, envelopeTool, map[string]string{}); len(asked) != 5 || out.Len() != 0 {
+		t.Errorf("the envelope's call spawned the writer or spoke: %q %q", asked, out.String())
+	}
+	if _, out := call("", "", "Read", map[string]string{"file_path": cwd + "/notes.md"}); len(asked) != 5 || out.Len() != 0 {
+		t.Errorf("a call from no seat spawned the writer or spoke: %q %q", asked, out.String())
 	}
 	text = ""
-	if _, out := post(lens, "feov-record show report"); len(asked) != 3 || out.Len() != 0 {
+	if _, out := post(lens, "feov-record show report"); len(asked) != 6 || out.Len() != 0 {
 		t.Errorf("nothing to hand was said anyway: %q", out.String())
 	}
 	writeErr = errors.New("the record is locked")

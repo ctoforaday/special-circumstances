@@ -98,10 +98,11 @@ type Plan struct {
 	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
 	// (grade). Its work list marks those blocking until they are done.
 	PassPermitted bool `json:"pass_permitted"`
-	// StaleAreas is every retired lens whose pin the head has moved past. The chair reads
-	// the changes since each pin against that area's duties and names the areas in its spot-check;
-	// a PASS is refused until it has.
-	StaleAreas []StaleArea `json:"stale_areas" desc:"each retired lens whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS"`
+	// StaleAreas is every retired lens whose pin the head has moved past with changes no spot-check
+	// has borne. The chair reads those changes against that area's duties and names the areas in its
+	// spot-check; a PASS is refused until it has. An area a spot-check bore owes no repeat until it
+	// changes again.
+	StaleAreas []StaleArea `json:"stale_areas" desc:"each retired lens whose pin the report head has moved past with changes no spot-check has borne: the chair reads those changes and names the areas in its spot-check before a PASS"`
 	// Ceiling is the run at its limit: the run's epoch limit is reached with parties still ready
 	// (EpochLimitReached). A gap's own limit ends in a ruling that closes it — a second remand at
 	// impasse is refused (requireRemandWithinLimit) — so no open gap holds the run at a ceiling.
@@ -314,7 +315,7 @@ func foldPlan(params Params, r planReads) Plan {
 	ends := satThroughOf(win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
 	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), r.found)), composedOwedOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil)))
-	plan.StaleAreas = staleAreasOf(folds, plan.Head)
+	plan.StaleAreas = staleAreasOf(folds, plan.Head, borneThroughOf(evs))
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax: the epoch this sitting opens, and
 	// whether it is the run's last (isFinalEpoch) or the last that dispatches a lens (blueHeldOut).
 	plan.MaxEpochs = params.MaxEpochs

@@ -67,7 +67,7 @@ func injectWorkList(run record.Run, agentID, agentType string, out io.Writer) {
 // call after it hands the head of the queue again.
 //
 // SUBAGENTSTART HANDS NO REPORT TEXT. Where the head of the queue is report text, the seat is handed one
-// line saying it arrives one item after each of its calls to the record, and nothing is stored, so the
+// line saying it arrives one item after each of its tool calls, and nothing is stored, so the
 // first call hands the first item.
 func injectSeatWork(run record.Run, agentID, seat string, out io.Writer) {
 	role := seatclass.RoleOfSeat(seat)
@@ -91,4 +91,4 @@ func injectSeatWork(run record.Run, agentID, seat string, out io.Writer) {
 }
 
 // reportTextArrives is a seat's line at dispatch when its work opens with report text.
-const reportTextArrives = "YOUR WORK THIS SITTING OPENS WITH REPORT TEXT, and it arrives one item after each of your calls to the record — the first after your first call. Make that call (register, or read your work list), then work each item as it arrives; your envelope waits until all of the report text owed to you has been delivered, and the rest of your work follows it on the same chain. Your whole work list is on your own surface when you want it."
+const reportTextArrives = "YOUR WORK THIS SITTING OPENS WITH REPORT TEXT, and it arrives one item after each of your tool calls — the first after your first call. Make that call (register, or read your work list), then work each item as it arrives; your envelope waits until all of the report text owed to you has been delivered, and the rest of your work follows it on the same chain. Your whole work list is on your own surface when you want it."

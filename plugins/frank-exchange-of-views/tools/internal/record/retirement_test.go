@@ -240,7 +240,7 @@ func TestPassPermittedAndGateShareTheFold(t *testing.T) {
 		{staleRead, func(t *testing.T) *stage {
 			b, _ := retiredBehindHead(t)
 			b.register("red-chair")
-			return b.add("red-chair", &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("read the changes since the pin")})
+			return b.add("red-chair", &recordpb.SpotCheck{Areas: []string{evLens}, Changes: []int64{b.head()}, Reason: proto.String("read the changes since the pin")})
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -426,16 +426,19 @@ func TestPlanListsStaleAreas(t *testing.T) {
 }
 
 func TestPassRefusedUntilSpotCheckCoversStaleAreas(t *testing.T) {
-	spot := &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("read the changes since the pin")}
-	// A spot-check in an EARLIER chair sitting does not cover this one.
+	// The tool stamps the changes a spot-check bore: every change up to the head it was filed at.
+	spotAt := func(head int64) *recordpb.SpotCheck {
+		return &recordpb.SpotCheck{Areas: []string{evLens}, Changes: []int64{head}, Reason: proto.String("read the changes since the pin")}
+	}
+	// A spot-check in an EARLIER chair sitting, with the report changed since, does not cover this one.
 	b, _ := retiredBehindHead(t)
-	b.add("red-chair", spot).register("red-chair")
+	b.add("red-chair", spotAt(b.head())).ingest().register("red-chair")
 	run := b.seed()
 	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, passGate); err == nil || !strings.Contains(err.Error(), "the report changed behind 1 retired lens(es)") {
-		t.Fatalf("a PASS over an uncovered stale area must be refused: %v", err)
+		t.Fatalf("a PASS over a stale area changed since its spot-check must be refused: %v", err)
 	}
 	b2, _ := retiredBehindHead(t)
-	b2.register("red-chair").add("red-chair", spot)
+	b2.register("red-chair").add("red-chair", spotAt(b2.head()))
 	if _, err := Append(Identity{Run: b2.seed(), SeatID: "red-chair"}, passGate); err != nil {
 		t.Fatalf("a PASS after this sitting's spot-check named the stale area was refused: %v", err)
 	}

@@ -22,7 +22,7 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ register --run {RUN} --seat-id blue-respond
 exit 0
@@ -43,7 +43,7 @@ minted GAP001
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ position --run {RUN} --seat-id red-chair --reason the board is  going in
 exit 0
@@ -100,7 +100,7 @@ motion MOTION003 filed (docket)
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the leaf
 exit 2
 stderr:
-feov-record: close: a close of GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: close: a close of GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check a --severity high --likelihood high --impact high --problem the second gap
 exit 0
@@ -109,24 +109,24 @@ minted GAP002
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP002 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the  leaf
 exit 2
 stderr:
-feov-record: close: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: close: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP002 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the leaf
 exit 2
 stderr:
-feov-record: close: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: close: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ motion docket file --run {RUN} --seat-id red-lens-evidence --id GAP002 --reason my closure lost a word: verified at the leaf
 exit 0
 stdout:
 motion MOTION004 filed (docket)
 1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -178,10 +178,10 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (7) — the board's state, no
 {"key":"red-chair:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion grade rule` with --as --id --reason: motion MOTION001 is already ruled \"rejected\" by red-chair. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. The first stands. If it was wrong, say so in a docket motion on the gap; the record is append-only and bot…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_LOG"}
 {"key":"red-chair:motion:#1","motion":{"basis":"my ruling lost a word: the evidence does not reach it","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002"},"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_MOTION"}
 {"key":"blue-respond:motion:#2","motion":{"basis":"the ruling reads past the evidence: the bench should decide the gap","docket":{"gap_id":"GAP001"},"motion_id":"MOTION003"},"seat_id":"blue-respond","ts":12,"type":"EVENT_TYPE_MOTION"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: a close of GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":13,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: a close of GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":13,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:mint:GAP002","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the second gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":14,"type":"EVENT_TYPE_MINT"}
-{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":15,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":16,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":15,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: a close of GAP002 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":16,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:motion:#1","motion":{"basis":"my closure lost a word: verified at the leaf","docket":{"gap_id":"GAP002"},"motion_id":"MOTION004"},"seat_id":"red-lens-evidence","ts":17,"type":"EVENT_TYPE_MOTION"}
 {"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":18,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#2","position":{"position_id":"POSITION002","text":"the board is clean going in"},"seat_id":"red-chair","ts":19,"type":"EVENT_TYPE_POSITION"}

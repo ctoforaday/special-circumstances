@@ -481,16 +481,16 @@ var blockerKinds = []blockerKind{
 	{
 		kind:    BlockerStaleArea,
 		subject: SubjectArea,
-		gloss:   "a stale area no spot-check this sitting names",
+		gloss:   "a stale area: a retired lens's area holding changes no spot-check has borne",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("area %s is behind its pin %s — PASS is refused until a spot-check this sitting names it", b.Subject, b.Detail)
+			return fmt.Sprintf("area %s holds changes behind its pin %s that no spot-check has borne — PASS is refused until a spot-check names it", b.Subject, b.Detail)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
 			for _, b := range bs {
 				named = append(named, fmt.Sprintf("%s (pin %s)", b.Subject, b.Detail))
 			}
-			return fmt.Sprintf("the report changed behind %d retired lens(es): %s. Read the changes since each pin against that area's duties, and name the areas in a spot-check this sitting (--areas) before a PASS; a defect you find there goes in that spot-check",
+			return fmt.Sprintf("the report changed behind %d retired lens(es): %s. Read the changes no spot-check has borne against that area's duties, and name the areas in a spot-check (--areas) before a PASS; a defect you find there goes in that spot-check. An area nothing has changed in since a spot-check of it is not stale and owes none",
 				len(bs), strings.Join(named, ", "))
 		},
 	},
@@ -768,7 +768,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 		for _, f := range lg.ready() {
 			out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, foldWhy: f.why})
 		}
-		for _, a := range lg.uncovered() {
+		for _, a := range lg.stale {
 			out = append(out, Blocker{Kind: BlockerStaleArea, Subject: a.SeatID, Owner: chairSeat, Detail: fmt.Sprint(a.Pin)})
 		}
 	}

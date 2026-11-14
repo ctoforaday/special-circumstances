@@ -98,7 +98,7 @@ func (s StandingJSON) Human() string {
 	}
 	var b strings.Builder
 	if len(s.HoldsTurn) > 0 {
-		fmt.Fprintf(&b, "%d ITEM(S) OF REPORT TEXT HOLD YOUR TURN — each arrives after a call of yours to the record, and your envelope waits until all have been delivered:", len(s.HoldsTurn))
+		fmt.Fprintf(&b, "%d ITEM(S) OF REPORT TEXT HOLD YOUR TURN — each arrives after a tool call of yours, and your envelope waits until all have been delivered:", len(s.HoldsTurn))
 		for _, it := range s.HoldsTurn {
 			b.WriteString("\n  · " + it)
 		}

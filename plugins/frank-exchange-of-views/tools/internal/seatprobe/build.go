@@ -44,7 +44,7 @@ import (
 // Exec runs one tool invocation and returns its stdout.
 type Exec func(args ...string) (string, error)
 
-// Hand is the delivery writer's next phase for a seat after one of its calls to the record, as the
+// Hand is the delivery writer's next phase for a seat after one of its tool calls, as the
 // PostToolUse hook runs it (sittingwrite.WriteNextItem): report text is handed one item per call, and
 // the writer writes the seat's report_read as it hands the last. The build calls it after every call
 // the record admitted that names a seat, so a close or a ruling stands on a delivery the shipped
@@ -132,7 +132,7 @@ func Build(run record.Run, b Board, exec Exec, hand Hand) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("%s is still owed report text after %d calls to the record: the writer stopped handing it", seatID, maxDeliveryCalls)
+		return fmt.Errorf("%s is still owed report text after %d tool calls: the writer stopped handing it", seatID, maxDeliveryCalls)
 	}
 	// closingsOf is each staged gap's closings, by its board handle, filed after its docket motion.
 	closingsOf := map[string][]struct{ seat, text string }{}

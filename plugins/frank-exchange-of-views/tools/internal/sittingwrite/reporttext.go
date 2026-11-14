@@ -12,7 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// REPORT TEXT IS HANDED ONE ITEM PER CALL TO THE RECORD, AND ONLY HERE.
+// REPORT TEXT IS HANDED ONE ITEM PER TOOL CALL, AND ONLY HERE.
 //
 // A seat's delivery is cut once, at its first item, from the report as it then stands
 // (record.CutDelivery), and kept in the sitting's .work-delivery file with the head it was cut at; every
@@ -56,7 +56,7 @@ func IsDeliveryStuck(err error) (string, bool) {
 
 // reportItemPreamble is the fixed line before every item of report text.
 const reportItemPreamble = "REPORT TEXT, item %d of %d of this sitting's delivery — %s. It is handed to you whole, " +
-	"one item after each of your calls to the record, and the tool records the delivery when the last item " +
+	"one item after each of your tool calls, and the tool records the delivery when the last item " +
 	"reaches you; your envelope waits until then. Read any other text through the selector reads."
 
 // reportItemDelivery renders one item of report text: its preamble and its text, nothing else.

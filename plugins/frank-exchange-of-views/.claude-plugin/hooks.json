@@ -44,7 +44,6 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "StructuredOutput|Bash",
         "hooks": [
           {
             "type": "command",

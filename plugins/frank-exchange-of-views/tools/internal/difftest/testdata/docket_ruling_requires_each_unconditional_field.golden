@@ -22,7 +22,7 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
@@ -31,7 +31,7 @@ minted GAP001
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contested, and not red's to close
 exit 0
@@ -59,37 +59,37 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension t
 exit 2
 stderr:
-feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --review-flag none --settled s
 exit 2
 stderr:
-feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --tension t --review-flag none --settled s
 exit 2
 stderr:
-feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension t --review-flag none --settled s
 exit 2
 stderr:
-feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension "" --review-flag none --settled s --final
 exit 2
 stderr:
-feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as remanded --reason r --principle p --tension t --review-flag none --settled s --final
 exit 2
 stderr:
-feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension t --review-flag none --settled s --final --direction a reproduction on the shipped binary
 exit 2
 stderr:
-feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this
+feov-record: motion docket rule: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -99,13 +99,13 @@ feov-record: motion docket rule: a ruling on a motion about GAP001 stands only o
 {"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION001"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":6,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":7,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":8,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":9,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":10,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#5","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":11,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#6","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#7","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --direction --final --id --principle --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":13,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":8,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":9,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":10,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#5","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":11,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#6","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#7","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --direction --final --id --principle --reason --review-flag --settled --tension: a ruling on a motion about GAP001 stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":13,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- inquiries

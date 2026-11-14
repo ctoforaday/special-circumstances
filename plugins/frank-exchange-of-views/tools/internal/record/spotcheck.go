@@ -12,8 +12,8 @@ import (
 // THE SPOT-CHECKS ON THE RECORD, JOINED TO THE BOARD.
 //
 // A spot-check is owed before a PASS and at no other time, and the write enforces it: a PASS is
-// refused while a stale area stands that no spot-check in the chair's sitting names
-// (BlockerStaleArea, passblockers.go). Nothing here is a second statement of that rule. This file
+// refused while a stale area stands — a retired lens's area holding changes no spot-check has borne
+// (BlockerStaleArea, passblockers.go; borneThroughOf, retirement.go). Nothing here is a second statement of that rule. This file
 // is the reader's account of the spot-checks the chair filed — which stale areas each read, which
 // closures it re-read, what it found, and what the board says the archive held at that point, a
 // number no seat can author.

@@ -42,7 +42,7 @@ holds a gap open — and dropping one is a hard refusal. Write for the reader; p
 There is no search index.
 
 **The report arrives on the work list** — every seat's work arrives one item at a time, and
-report text only after a call to the record, never at dispatch. A lens is delivered blue's report
+report text only after a tool call, never at dispatch. A lens is delivered blue's report
 whole, in context, at its first sitting and once more at its next — its full re-read — and at
 every other sitting each edit since its pin as the whole paragraphs it touched, before and after,
 with the passages of its own gaps; the chair is delivered each stale area's changes it has not

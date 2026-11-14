@@ -71,11 +71,10 @@ var hookLocalPackages = map[string][]string{
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
 		"internal/sittinghook",
 	},
-	// feov-posttooluse is matched to the envelope tool and to Bash, so it fires on every Bash call in
-	// every session, and is held to the failure hook's graph for the same reason: it hands the
-	// admission, and a seat's next item, to feov-sitting-write, which carries the record, through
-	// sittinghook — and spawns the writer only for a call that names the record tool
-	// (hookgate.CallsRecord).
+	// feov-posttooluse has no matcher, so it fires on every successful tool call in every session, and
+	// is held to the failure hook's graph for the same reason: it hands the admission, and a seat's
+	// next item, to feov-sitting-write, which carries the record, through sittinghook — and spawns the
+	// writer only for a call a seat of a live run made.
 	"./cmd/feov-posttooluse": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
 		"internal/sittinghook",

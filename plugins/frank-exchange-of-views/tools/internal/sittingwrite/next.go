@@ -18,7 +18,7 @@ import (
 )
 
 // Next is the phase that hands a seat its next item, from the PostToolUse hook after a call of the
-// seat's that went to the record (WriteNextItem).
+// seat's, whichever tool (WriteNextItem).
 const Next Phase = "next"
 
 // deliveryDir holds, per seat sitting, what the seat was last handed: the current item's key and
@@ -41,7 +41,7 @@ type delivered struct {
 	Listed bool `json:"listed,omitempty"`
 }
 
-// WriteNextItem prints what a seat is handed after a call of its that went to the record, for the
+// WriteNextItem prints what a seat is handed after any call of its, for the
 // PostToolUse hook to pass to the seat — or nothing, where nothing it was handed has changed.
 //
 // THE CURRENT ITEM STAYS CURRENT UNTIL IT LEAVES THE QUEUE: an item that arrives ahead of it in queue

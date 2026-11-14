@@ -313,7 +313,7 @@ func sitToAssemble(t *testing.T, runDir string) {
 }
 
 // writerHands runs the shipped delivery writer's next phase for seatID under agent, as the PostToolUse
-// hook runs it after each of the seat's calls to the record, until the head of the seat's queue is no
+// hook runs it after each of the seat's calls, until the head of the seat's queue is no
 // report text: one item per call, and the report_read written as the last is handed. It returns the
 // number of items handed. An agent the record does not bind is resolved by the seat's configuration.
 func writerHands(t *testing.T, runDir, agent, seatID string) int {

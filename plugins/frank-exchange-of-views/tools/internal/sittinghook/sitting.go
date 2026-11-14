@@ -123,7 +123,7 @@ func Admission(runDir, agentID string) error {
 	return nil
 }
 
-// NextItem asks the writer what a seat is handed after a call of its that went to the record: the
+// NextItem asks the writer what a seat is handed after any call of its: the
 // PostToolUse hook passes the text on to the seat, and "" is "nothing it was handed has changed".
 //
 // THE WRITER'S STDOUT IS THE SEAT'S, and its stderr the hook record's, as on the opening end. Its

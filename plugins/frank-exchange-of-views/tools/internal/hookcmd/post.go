@@ -12,11 +12,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
 )
 
-// Post is the PostToolUse entry point. It acts on two calls of a seat's, and on nothing else:
+// Post is the PostToolUse entry point. It acts on every call of a seat's that succeeded:
 //
-//   - the call returning a seat's envelope, SUCCEEDED, is recorded as the envelope's admission
-//     (record.FailedSittings reads it);
-//   - a seat's Bash call to the record hands the seat what it is handed next (nextItem).
+//   - the call returning a seat's envelope is recorded as the envelope's admission
+//     (record.FailedSittings reads it), and hands nothing: it ends the seat's work, so nothing handed
+//     after it would be read;
+//   - every other call — Read, Grep, Glob, WebSearch, WebFetch, Edit, Write, Bash, whichever tool —
+//     hands the seat what it is handed next (nextItem).
 //
 // AFTER THE CALL, NOT BEFORE IT. The PreToolUse gate (gateEnvelope) asks the record whether it
 // refuses the envelope; the harness checks the envelope against its schema inside the tool's own
@@ -24,21 +26,21 @@ import (
 // written here is an envelope both the record and the schema accepted. A call the schema rejects
 // fails, and reaches PostToolUseFailure instead (PostFailure logs it).
 //
-// THE MATCHER IN hooks.json NAMES THE ENVELOPE TOOL AND Bash, so this binary is spawned for no other
-// call; the tool name is still checked here, because the matcher is configuration and this is the
-// claim. A call from no seat — no agent, no run — is no seat's, and nothing is written or said.
+// hooks.json REGISTERS THIS BINARY WITH NO MATCHER, so it is spawned for every successful call in
+// every session. A call from no seat — no agent, no run — is no seat's, and nothing is written or
+// said; that early return is the whole cost outside a run. A call that FAILED reaches
+// PostToolUseFailure instead and hands nothing: the seat's next successful call is handed the item.
 func Post(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	req := hookcore.Read("PostToolUse", stdin)
 	if !req.Parsed {
 		rec.Fail(StageAdmission, "cannot read or parse the PostToolUse payload — a seat's accepted envelope was not recorded as admitted")
 		return nil
 	}
-	switch req.ToolName {
-	case envelopeTool:
+	if req.ToolName == envelopeTool {
 		admit(req, rec)
-	case "Bash":
-		nextItem(req, stdout, rec)
+		return nil
 	}
+	nextItem(req, stdout, rec)
 	return nil
 }
 
@@ -59,16 +61,16 @@ func admit(req hookcore.Request, rec *hookfailures.Recorder) {
 	rec.OK(StageAdmission)
 }
 
-// nextItem hands a seat what it is handed next after a call of its that went to the record: the
-// sitting's report text one item per call while any is owed, then its next item when the record shows
-// the current one discharged, the current one again when the record moved it, a line when another
-// item left its list, and nothing when nothing changed (sittingwrite.WriteNextItem, through the
-// writer, which links the record this binary may not).
+// nextItem hands a seat what it is handed next after any call of its: the sitting's report text one
+// item per call while any is owed, then its next item when the record shows the current one
+// discharged, the current one again when the record moved it, a line when another item left its
+// list, and nothing when nothing changed (sittingwrite.WriteNextItem, through the writer, which links
+// the record this binary may not).
 //
-// EVERY SEAT'S CALL TO THE RECORD SPAWNS THE WRITER, and no other call: an act is recorded only by a
-// call to the record, so a call whose command does not name the tool (hookgate.CallsRecord) cannot
-// have discharged anything. A call it misses — the tool reached some other way — costs a delivery
-// until the seat's next call to the record, never the item: what the seat was handed stays on file.
+// EVERY SEAT'S CALL SPAWNS THE WRITER, whichever tool it used: report text owed to a seat arrives on
+// the calls it makes anyway — the reads it does its work with — and a seat never makes a call only to
+// be handed its next item. The writer takes the delivery's lock and reads the record once per call;
+// a call that finds nothing new hands nothing.
 //
 // THE DELIVERY IS additionalContext ON THE CALL'S RESULT, which reaches a Workflow seat's context as it
 // reaches an Agent subagent's. A delivery of report text that cannot advance ends the seat's turn
@@ -78,10 +80,6 @@ func admit(req hookcore.Request, rec *hookfailures.Recorder) {
 func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder) {
 	caller := callerOf(req.AgentID, req.AgentType, req.SessionID)
 	if caller.ID == "" {
-		return
-	}
-	command, _ := req.RawToolInput["command"].(string)
-	if !hookgate.CallsRecord(command) {
 		return
 	}
 	runDir := seatRunDir(cwdOfRequest(req), caller, rec)
@@ -107,7 +105,7 @@ func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder
 		return
 	}
 	if err != nil {
-		rec.Fail(StageNextItem, "a seat's call went to the record and what it is handed next could not be read: "+err.Error())
+		rec.Fail(StageNextItem, "after a seat's call, what it is handed next could not be read: "+err.Error())
 		// NEVER SILENCE IN ITS PLACE: a lens told nothing reads "nothing changed".
 		text = nextItemUnreadable + "\n\n" + err.Error() + "\n"
 	} else {

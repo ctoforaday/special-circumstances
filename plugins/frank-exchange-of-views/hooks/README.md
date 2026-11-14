@@ -77,8 +77,9 @@ catches a seat that typed a plausible event under a dead hook. Claude Code
 
 ## PostToolUse
 
-MATCHER `StructuredOutput|Bash`, ONE ENTRY: the binary is spawned for the call that returns a seat's
-envelope, and for every Bash call (below). PostToolUse fires on a call that SUCCEEDED, so when it fires the envelope gate refused
+NO MATCHER, ONE ENTRY: the binary is spawned for every successful tool call — the call that returns a
+seat's envelope, and every other call, whatever its tool (below). A call from no seat of a live run
+returns at once, so outside a run the hook costs one process start per call. PostToolUse fires on a call that SUCCEEDED, so when it fires the envelope gate refused
 nothing and the harness accepted the envelope against its schema. The hook hands the call to
 feov-sitting-write (`-phase admission`), which records the envelope as ADMITTED — an
 `envelope_admitted` event under `harness`, keyed to the agent, one per sitting. That admission is what
@@ -90,10 +91,12 @@ not take goes on the hook record (stage `envelope-admission`), and the sitting r
 from no seat — the main session, an operator — writes nothing. The bootstrap guard mirrors every other
 hook here.
 
-ON A Bash CALL, A SEAT IS HANDED ITS NEXT ITEM. Every seat's work arrives one item at a time, and
-the next item has to arrive after the act that discharged the current one, which is a Bash call to the
-record. So the binary returns at once for every Bash call that is not a seat's or whose command does
-not name `feov-record` (`hookgate.CallsRecord`); for the rest it hands the call to feov-sitting-write
+ON EVERY OTHER CALL, A SEAT IS HANDED ITS NEXT ITEM. Every seat's work arrives one item at a time,
+after any tool call — a Read, a Grep, a WebSearch, an Edit, a Bash call, the record's or not — so report
+text arrives on the calls a seat makes to do its work, and no seat makes a call only to be handed its
+next item. The call returning the envelope hands nothing: it ends the seat's work. A call that FAILED
+reaches PostToolUseFailure and hands nothing either; the next successful call does. The binary returns
+at once for a call that is not a seat's; for the rest it hands the call to feov-sitting-write
 (`-phase next`), which reads the seat's work list, orders it into its queue (`record.QueueOf`), and
 compares it with what the seat was last handed — the current item's key and digest and the keys
 queued beside it, one file per seat sitting under the run's `.work-delivery/`. The current item stays
@@ -145,7 +148,7 @@ event injects is the head of the seat's own queue — its standing, the current 
 index of the rest — read from the record at the moment of dispatch and rendered by the writer, so a
 seat that owes nothing can end its turn having run no commands at all. IT NEVER HANDS REPORT TEXT:
 where the queue opens with it, the seat is handed one line saying it arrives one item after each of
-its calls to the record, the first after its first call. A configuration that seats several seats
+its tool calls, the first after its first call. A configuration that seats several seats
 (blue's researcher, the lanes) is handed nothing here. It is the projection's bytes, not a second
 author of the seat's duties.
 

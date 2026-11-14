@@ -16,7 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
-// EVERY SEAT'S WORK ARRIVES THROUGH THE DELIVERY WRITER, one item after each of its calls to the record,
+// EVERY SEAT'S WORK ARRIVES THROUGH THE DELIVERY WRITER, one item after each of its calls — every call of the drive's is to the record —
 // as the PostToolUse hook hands it (hookcmd.nextItem → sittingwrite.WriteNextItem). The drive spawns the
 // shipped writer after every call of a seat's that the record admitted (execAs): report text is handed
 // one item per call, and the writer writes the seat's report_read when it hands the last. Nothing in

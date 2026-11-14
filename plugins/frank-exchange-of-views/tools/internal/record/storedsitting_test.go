@@ -306,21 +306,6 @@ func TestAHookOpenedSittingIsClosedByItsAgentsStop(t *testing.T) {
 	}
 }
 
-// THE CHAIR'S SPOT-CHECK BEFORE ITS PAIRED REGISTER IS IN ITS SITTING (#1206).
-//
-// The PASS gate's stale-area condition reads the chair's spot-checks in its current sitting. That
-// sitting opened at the hook's bracket; read back from the chair's last register, a spot-check filed
-// before the chair registered fell outside it and the area read as uncovered.
-func TestAChairSpotCheckBeforeItsPairedRegisterIsInItsSitting(t *testing.T) {
-	b := newStage(t).cast("red-chair", "red-lens-logic").ingest().bracket("red-chair", "chair-a")
-	b.add("red-chair", &recordpb.SpotCheck{Areas: []string{"red-lens-logic"}, Ids: []string{"G1"}, Reason: proto.String("the anchor still resolves")})
-	b.add("red-chair", &recordpb.Register{AgentId: proto.String("chair-a")})
-	m := loadedT(t, b.evs...)
-	if g := passLensGateOf(m.Events, m.At.IDs(m.Events), m.At, nil, nil, nil); !g.covered["red-lens-logic"] {
-		t.Error("the chair's sitting reads as not covering red-lens-logic, but its spot-check is in that sitting")
-	}
-}
-
 // AN INDEX THE LOADER DID NOT BUILD ANSWERS NOTHING. Of an event it does not hold, and the latest
 // sitting from no index at all, both panic: either read as 0 is "never sat", the same bytes as a
 // seat that has not sat.

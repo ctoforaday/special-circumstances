@@ -59,7 +59,7 @@ func TestALensRetiredWithoutBeingServedTheHeadLeavesItsAreaToTheSpotCheck(t *tes
 		t.Fatalf("a PASS over the area of a lens retired behind the head without its read: %v; want the stale-area refusal", err)
 	}
 	b, _ = board()
-	b.register("red-chair").add("red-chair", &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("read the changes since pin 2")})
+	b.register("red-chair").add("red-chair", &recordpb.SpotCheck{Areas: []string{evLens}, Pins: []int64{2}, Changes: []int64{b.head()}, Reason: proto.String("read the changes since pin 2")})
 	if _, err := Append(Identity{Run: b.seed(), SeatID: "red-chair"}, passGate); err != nil {
 		t.Fatalf("a PASS after the spot-check named the area was refused: %v", err)
 	}

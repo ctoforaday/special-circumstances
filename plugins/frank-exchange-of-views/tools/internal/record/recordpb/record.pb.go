@@ -3952,8 +3952,8 @@ type SpotCheck struct {
 	// ONE PROSE CHANNEL: what the spot-check found, or why it named nothing.
 	Reason *string `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	// The lens seats whose area the chair read the changes against this sitting — the plan's
-	// stale_areas, each a retired lens whose pin the report head has moved past. A PASS is
-	// refused until a spot-check in the chair's sitting names every stale area. Validated against the
+	// stale_areas, each a retired lens whose pin the report head has moved past with changes no
+	// spot-check has borne. A PASS is refused until a spot-check has borne every stale area's changes. Validated against the
 	// cast at the write.
 	Areas []string `protobuf:"bytes,5,rep,name=areas,proto3" json:"areas,omitempty"`
 	// WHAT CHANGED BEHIND EACH AREA'S PIN IS THE TOOL'S TO STATE, stamped at the write and never

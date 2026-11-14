@@ -696,11 +696,15 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   const bench = firstPrompt(world, 'judge')
   assert.ok(!/G-0000000/.test(bench), 'the bench is told its docket from the plan')
   for (const want of ['YOUR WORK LIST NAMES THE MOTIONS DOCKETED FOR YOU', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
-    'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
+    'RULING BASIS IS CONFINED TO', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
     "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and its refusal names the dispositions that close the gap', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE', "WHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE"]) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
+  // HOW A CLOSING IS WEIGHED IS THE CONSTITUTION'S, and the prompt does not restate it.
+  const judgeMd = readFileSync(new URL('../../agents/lead-judge.md', import.meta.url), 'utf8')
+  assert.ok(judgeMd.includes("Weigh each closing as that side's best case; a claim the record does not support counts AGAINST the side that made it"), 'the bench constitution lost how a closing is weighed')
+  assert.ok(!/Weigh each closing/.test(bench), 'the bench prompt restates how a closing is weighed, which its constitution carries')
   const schema = labelsOf(world, 'judge')[0].opts.schema
   assert.deepEqual(Object.keys(schema.properties), ['record_read'], 'the docket envelope declares a field beside the read: its rulings are on the record')
 })

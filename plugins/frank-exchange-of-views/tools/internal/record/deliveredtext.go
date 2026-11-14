@@ -127,7 +127,7 @@ func requireDeliveredText(q recordsql.Querier, seatID, what string, anchors []st
 		return err
 	}
 	if !held {
-		return &UndeliveredError{fmt.Sprintf("%s stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your calls to the record — finish it, then record this", what)}
+		return &UndeliveredError{fmt.Sprintf("%s stands only on report text delivered to you, and this sitting holds no complete delivery: the text arrives on your work list, one item after each of your tool calls — finish it, then record this", what)}
 	}
 	for _, id := range anchors {
 		var at sql.NullInt64
@@ -234,9 +234,9 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 				return err
 			}
 			if whole {
-				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. "+wholeDeliveryNote)
+				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. "+wholeDeliveryNote)
 			} else {
-				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the changes to the report since your pin — each edit as the whole paragraphs it touched, before and after — and the passages of your own gaps arrive on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. Read anything else through the selector reads")
+				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the changes to the report since your pin — each edit as the whole paragraphs it touched, before and after — and the passages of your own gaps arrive on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. Read anything else through the selector reads")
 			}
 		case "chair":
 			for _, it := range open {
@@ -248,7 +248,7 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 					return err
 				}
 				if n > 0 {
-					item(about(SubjectArea, it.Subject.ID), fmt.Sprintf("the %d change(s) behind %s's pin that you have not borne arrive on your work list this sitting, each as the paragraphs it touched before and after, one item after each of your calls to the record; a spot-check of the area stands only once all of them have been delivered, and your envelope waits until they have", n, it.Subject.ID))
+					item(about(SubjectArea, it.Subject.ID), fmt.Sprintf("the %d change(s) behind %s's pin that you have not borne arrive on your work list this sitting, each as the paragraphs it touched before and after, one item after each of your tool calls; a spot-check of the area stands only once all of them have been delivered, and your envelope waits until they have", n, it.Subject.ID))
 				}
 			}
 		case "bench":
@@ -260,7 +260,7 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 				return err
 			}
 			for _, gap := range gaps {
-				item(about(SubjectGap, gap), "the passage of gap "+gap+", which a motion this sitting is convened to rule is about, arrives on your work list this sitting, one item after each of your calls to the record; a ruling on a motion about it stands only once it has been delivered, and your envelope waits until it has")
+				item(about(SubjectGap, gap), "the passage of gap "+gap+", which a motion this sitting is convened to rule is about, arrives on your work list this sitting, one item after each of your tool calls; a ruling on a motion about it stands only once it has been delivered, and your envelope waits until it has")
 			}
 		}
 		return nil

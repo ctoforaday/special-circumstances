@@ -350,12 +350,36 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 	return out
 }
 
-// staleAreasOf is every retired lens whose pin is behind the head, in cast order.
-func staleAreasOf(folds []lensFold, head int64) []StaleArea {
+// staleAreasOf is every retired lens with a change behind its pin the chair has not borne, in cast
+// order: its pin is behind the head, and no spot-check of the chair's has borne the changes up to the
+// head (borneThroughOf). A spot-check bears an area's changes once, whichever sitting filed it, so an
+// area nothing has changed in since the chair's last spot-check of it owes no repeat — the
+// area_change view reads the same bound.
+func staleAreasOf(folds []lensFold, head int64, borne map[string]int64) []StaleArea {
 	out := []StaleArea{}
 	for _, f := range folds {
-		if f.retired() && f.pin < head {
+		if f.retired() && f.pin < head && borne[f.seat] < head {
 			out = append(out, StaleArea{SeatID: f.seat, Pin: f.pin})
+		}
+	}
+	return out
+}
+
+// borneThroughOf is, for each area a spot-check named, the highest change its spot-checks stamped:
+// the last change to the report the chair has borne for that area.
+func borneThroughOf(evs []*Event) map[string]int64 {
+	out := map[string]int64{}
+	for _, e := range evs {
+		sc, ok := recordpb.BodyAs[*recordpb.SpotCheck](e)
+		if !ok || e.GetSeatId() != chairSeat {
+			continue
+		}
+		var last int64
+		for _, c := range sc.GetChanges() {
+			last = max(last, c)
+		}
+		for _, a := range sc.GetAreas() {
+			out[a] = max(out[a], last)
 		}
 	}
 	return out
@@ -406,39 +430,23 @@ func reportHeadOf(evs []*Event, ids []int64) int64 {
 }
 
 // passLensGate is the PASS gate's lens conditions as ONE fold: passBlockersOf reads its ready
-// lenses and uncovered stale areas, so the gate, the chair's work list and the plan state them
-// from the same answer.
+// lenses and stale areas, so the gate, the chair's work list and the plan state them from the same
+// answer.
 // The dispatch readies from the same lensStates fold.
 type passLensGate struct {
-	cast    bool
-	head    int64
-	lenses  []lensFold
-	stale   []StaleArea
-	covered map[string]bool // areas a spot-check in the chair's current sitting named
+	cast   bool
+	head   int64
+	lenses []lensFold
+	stale  []StaleArea
 }
 
 func passLensGateOf(evs []*Event, ids []int64, win WindowIndex, fresh map[string]bool, owes map[string][]string, composed map[string][]composedSource) passLensGate {
-	g := passLensGate{cast: castOfEvents(evs) != nil, head: reportHeadOf(evs, ids), covered: map[string]bool{}}
+	g := passLensGate{cast: castOfEvents(evs) != nil, head: reportHeadOf(evs, ids)}
 	if !g.cast {
 		return g
 	}
 	g.lenses = lensStates(evs, ids, win, g.head, fresh, owes, composed)
-	g.stale = staleAreasOf(g.lenses, g.head)
-	// THIS SITTING is the chair's latest sitting as the write path stored it: its spot-checks in that
-	// sitting — the same window the work list reads (thisSitting). A spot-check filed between the
-	// chair's bracket and its register is in it, which a scan back to the chair's last register would
-	// cut out.
-	latest := win.LatestSittingOf(chairSeat)
-	for _, e := range evs {
-		if e.GetSeatId() != chairSeat || latest == 0 || win.Of(e).SittingID != latest {
-			continue
-		}
-		if sc, ok := recordpb.BodyAs[*recordpb.SpotCheck](e); ok {
-			for _, a := range sc.GetAreas() {
-				g.covered[a] = true
-			}
-		}
-	}
+	g.stale = staleAreasOf(g.lenses, g.head, borneThroughOf(evs))
 	return g
 }
 
@@ -448,17 +456,6 @@ func (g passLensGate) ready() []lensFold {
 	for _, f := range g.lenses {
 		if f.ready {
 			out = append(out, f)
-		}
-	}
-	return out
-}
-
-// uncovered is each stale area no spot-check in the chair's current sitting names.
-func (g passLensGate) uncovered() []StaleArea {
-	var out []StaleArea
-	for _, a := range g.stale {
-		if !g.covered[a.SeatID] {
-			out = append(out, a)
 		}
 	}
 	return out

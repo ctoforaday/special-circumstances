@@ -20,7 +20,7 @@ import (
 // NEVER REPORT TEXT (constitution-gaps §III.3.2, ruling 2026-11-14). The SubagentStart hook spawns
 // feov-sitting-write's opening end; it hands a seat its configuration names the head of its queue, as
 // the record queues it — not the whole list, which `show work` still prints — and where that head is
-// report text, the one line saying it arrives one item per call to the record. A configuration that
+// report text, the one line saying it arrives one item per tool call. A configuration that
 // seats several seats is handed nothing. The writer is driven as the process the hook spawns, so what
 // is asserted is what the shipped binary hands.
 func TestTheOpeningEndHandsTheHeadOfTheQueueAndNeverReportText(t *testing.T) {
