@@ -686,7 +686,7 @@ func debateMD(in Input) []byte {
 		// THE REPORT TEXT DELIVERED TO A LENS is the lens's pin: the bench reads which lens had a
 		// delivery completed at which head. The tool cannot see a read, so the line says what it handed.
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_REPORT_READ, "lens") {
-			parts = append(parts, record.ServedLine(l.GetSeatId(), l.GetReportRead().GetHead()))
+			parts = append(parts, in.At.DeliveryLine(l))
 		}
 		for _, l := range blueClosings {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l); ok {

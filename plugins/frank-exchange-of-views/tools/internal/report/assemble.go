@@ -1373,8 +1373,8 @@ func debate(fam record.Family) string {
 				epoch = append(epoch, record.KeptGradeHeading(e)+"\n"+ownBlock(e.GetRegrade().GetBasis()))
 			}
 			// THE REPORT TEXT DELIVERED TO A SEAT: which seat had a delivery completed at which head.
-			if rr, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok {
-				epoch = append(epoch, record.ServedLine(e.GetSeatId(), rr.GetHead()))
+			if _, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok {
+				epoch = append(epoch, fam.At.DeliveryLine(e))
 			}
 		}
 
