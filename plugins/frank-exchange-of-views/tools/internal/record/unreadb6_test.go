@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -22,7 +23,7 @@ const b6Archive = "2026-09-11_is-91-prime-b6.tar.gz"
 // nothing, which owes a gap about each; the PASS is refused naming them; and the lens's close of the
 // gap about either is refused while it stands unread.
 func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
-	whole := archivedEvents(t, b6Archive)
+	whole, lost := archivedRun(t, b6Archive)
 	unread := []string{"C-b718c6b6", "C-f5782056"}
 	for i, a := range unread {
 		v := whole[97+i].GetVerify()
@@ -64,14 +65,33 @@ func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
 		}
 	}
 
-	// THE LENS'S CLOSE OF THE GAP ABOUT AN UNREAD CITATION IS REFUSED. Before G-782e2cf3's close (event 172), in the
+	// THE LENS'S CLOSE OF THE GAP ABOUT AN UNREAD CITATION IS REFUSED. Before G-782e2cf3's close, in the
 	// evidence lens's sitting, the lens mints the gap it owes about C-b718c6b6 — outside its budget —
 	// and its close as repaired is refused while the citation stands unread.
-	if c := whole[171].GetClose(); c.GetGapId() != "G-782e2cf3" || whole[171].GetSeatId() != evLens {
-		t.Fatalf("event 172 is not %s's close of G-782e2cf3: %v", evLens, whole[171])
+	//
+	// WHERE THE MIGRATION LOST THAT CLOSE (its manifest's lost_acts: the lens's sitting holds no
+	// delivery of report text), the record holds no close of G-782e2cf3 and the gap reads open; the
+	// arm runs at the place the close was written, with the lens's delivery cut there, so the close
+	// it records is refused for the unread citation and not for want of a delivery.
+	at := slices.IndexFunc(whole, func(e *Event) bool { return e.GetClose().GetGapId() == "G-782e2cf3" })
+	closeLost := slices.IndexFunc(lost, func(a LostAct) bool { return a.Word == "close" && a.Gap == "G-782e2cf3" && a.Seat == evLens })
+	switch {
+	case closeLost >= 0:
+		if at >= 0 {
+			t.Fatalf("the migration lists %s's close of G-782e2cf3 as lost, and the record holds it at %d", evLens, at+1)
+		}
+		if open := gapOpenAt(t, archiveAt(t, b6Archive, whole, len(whole)), "G-782e2cf3"); !open {
+			t.Error("G-782e2cf3, whose close the migration lost, reads closed")
+		}
+		at = slices.IndexFunc(whole, func(e *Event) bool { return e.GetTs() > lost[closeLost].TS })
+	case at < 0 || whole[at].GetSeatId() != evLens:
+		t.Fatalf("the record holds no %s close of G-782e2cf3 and the migration lost none", evLens)
 	}
-	run = archiveAt(t, b6Archive, whole, 171)
+	run = archiveAt(t, b6Archive, whole, at)
 	lens := Identity{Run: run, SeatID: evLens}
+	if closeLost >= 0 {
+		deliver(t, run, evLens)
+	}
 	mint := aboutComputation("G-1", unread[0])
 	mint.Severity = recordpb.Grade_GRADE_HIGH.Enum()
 	mint.Problem = proto.String("the cited source could not be read, and the report still cites it")
@@ -79,4 +99,16 @@ func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
 	_, err = Append(lens, &recordpb.Close{GapId: proto.String("G-1"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 		AnchorSeat: proto.String(evLens), AnchorTool: proto.String("show evidence"), AnchorTarget: proto.String(unread[0]), Prose: proto.String("blue cited a mirror")})
 	mustRefuse(t, err, "gap G-1 carries citation "+unread[0], "the report still cites it", "Nothing is recorded")
+}
+
+// gapOpenAt is whether gap reads open on run's record.
+func gapOpenAt(t *testing.T, run Run, gap string) bool {
+	t.Helper()
+	var open bool
+	if err := readSnapshot(run, func(q recordsql.Querier) error {
+		return q.QueryRow(`SELECT "open" FROM "gap" WHERE "gap_id" = ?`, gap).Scan(&open)
+	}); err != nil {
+		t.Fatalf("gap %s: %v", gap, err)
+	}
+	return open
 }
