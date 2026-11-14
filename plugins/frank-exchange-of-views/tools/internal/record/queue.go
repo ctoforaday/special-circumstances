@@ -9,7 +9,7 @@ import (
 	"slices"
 )
 
-// A LENS'S WORK, ONE ITEM AT A TIME (gblock 2026-11-06).
+// EVERY SEAT'S WORK, ONE ITEM AT A TIME (gblock 2026-11-06 and 2026-11-13).
 //
 // A lens was handed its whole work list at dispatch and told to read it again after every act. The
 // list is mostly not its work: across 248 archived lens sittings, 217 held no blocking or readied

@@ -41,7 +41,7 @@ type delivered struct {
 	Listed bool `json:"listed,omitempty"`
 }
 
-// WriteNextItem prints what a lens is handed after a call of its that went to the record, for the
+// WriteNextItem prints what a seat is handed after a call of its that went to the record, for the
 // PostToolUse hook to pass to the seat — or nothing, where nothing it was handed has changed.
 //
 // THE CURRENT ITEM STAYS CURRENT UNTIL IT LEAVES THE QUEUE: an item that arrives ahead of it in queue

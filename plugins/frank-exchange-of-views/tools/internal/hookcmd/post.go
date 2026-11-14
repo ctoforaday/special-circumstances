@@ -16,7 +16,7 @@ import (
 //
 //   - the call returning a seat's envelope, SUCCEEDED, is recorded as the envelope's admission
 //     (record.FailedSittings reads it);
-//   - a lens's Bash call to the record hands the lens what it is handed next (nextItem).
+//   - a seat's Bash call to the record hands the seat what it is handed next (nextItem).
 //
 // AFTER THE CALL, NOT BEFORE IT. The PreToolUse gate (gateEnvelope) asks the record whether it
 // refuses the envelope; the harness checks the envelope against its schema inside the tool's own

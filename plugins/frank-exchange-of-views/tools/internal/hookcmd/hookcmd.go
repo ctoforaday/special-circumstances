@@ -67,7 +67,7 @@ const (
 	StageEnvelope hookfailures.Stage = "envelope-check"
 	// StageAdmission is the PostToolUse hook's one job: a seat's accepted envelope recorded as admitted.
 	StageAdmission hookfailures.Stage = "envelope-admission"
-	// StageNextItem is the PostToolUse hook's other job: what a lens is handed after a call to the record.
+	// StageNextItem is the PostToolUse hook's other job: what a seat is handed after a call to the record.
 	StageNextItem hookfailures.Stage = "next-item"
 )
 

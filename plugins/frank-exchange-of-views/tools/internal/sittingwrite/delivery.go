@@ -8,18 +8,18 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// A LENS IS HANDED ITS WORK ONE ITEM AT A TIME (gblock 2026-11-06).
+// EVERY SEAT IS HANDED ITS WORK ONE ITEM AT A TIME (gblock 2026-11-06 and 2026-11-13).
 //
 // The whole work list was the lens's delivery, and most of it was not the lens's work: across 248
 // archived lens sittings over nine runs, 217 held no blocking or readied item of the lens's own,
 // and the bulk of each delivery was other lenses' open gaps — every one with its passage, backing
 // and problem. A delivery over the harness's 10,000-character cap is not delivered at all: it is
 // spilled to a file in the PARENT session, and the seat sees a two-kilobyte preview (measured on
-// claude 2.1.318). So the lens is handed a header, the head of its queue (record.QueueOf) in full,
+// claude 2.1.318). So a seat is handed a header, the head of its queue (record.QueueOf) in full,
 // and one line for everything else, and the next item arrives after the call that discharged this
-// one (WriteNextItem).
+// one (WriteNextItem). Report text is handed the same way, one item per call, and never at dispatch.
 
-// DeliveryBudget is the most a lens delivery may hold, in bytes of additionalContext, below the
+// DeliveryBudget is the most a seat's delivery may hold, in bytes of additionalContext, below the
 // harness's 10,000-character cap with room for the document that carries it. A delivery over it
 // gives way in a fixed order until it fits (fitted), and says what it cut in a field.
 const DeliveryBudget = 9000
@@ -28,13 +28,13 @@ const DeliveryBudget = 9000
 const clipContext = 400
 
 const (
-	// lensArrived is the preamble on a lens's delivery at dispatch. It names no command: the surface
+	// lensArrived is the preamble on a seat's delivery at dispatch. It names no command: the surface
 	// owns the verbs, and the whole list is where the seat finds everything else.
 	lensArrived = "YOUR WORK, read from this run's record at the moment you were dispatched, and handed to you " +
 		"one item at a time. `current` is the item to work now, in full, with the gap it is about; `index` " +
 		"is one line for each other item queued for you and each other open gap on the board, and " +
 		"`estopped` one line for each bench ruling you may not re-raise. `sitting` is your standing: " +
-		"whether anything blocks you finishing, your read of the report, your mint budget, the items " +
+		"whether anything blocks you finishing, a lens's pin and mint budget, the items " +
 		"that are not queued (`notes`), the bench's holdings (`declarations`), each gap one names beside " +
 		"where the board says it stands now, and granted relief (`relief`). A count in a field ending " +
 		"`_omitted` is that many entries left out to keep this delivery whole; your work list holds them. A field " +

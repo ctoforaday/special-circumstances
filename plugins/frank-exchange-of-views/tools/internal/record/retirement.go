@@ -113,9 +113,9 @@ func (f lensFold) readiness(head int64, short string) (bool, string) {
 		}
 		return true, why
 	case f.barren >= retiresAfter:
-		return false, fmt.Sprintf("%s: delivered the report at the head (pin %d) — ready when the head moves; %s", f.seat, f.pin, f.retiresWhy())
+		return false, fmt.Sprintf("%s: its delivery is at the head (pin %d) — ready when the head moves; %s", f.seat, f.pin, f.retiresWhy())
 	}
-	return false, fmt.Sprintf("%s: delivered the report at the head (pin %d) — ready when the head moves", f.seat, f.pin)
+	return false, fmt.Sprintf("%s: its delivery is at the head (pin %d) — ready when the head moves", f.seat, f.pin)
 }
 
 // servedClause is the fold's account of a lens's pin: the head of its latest complete delivery of

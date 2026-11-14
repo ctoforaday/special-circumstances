@@ -51,8 +51,8 @@ a decontextualized quote is how audits go blind, which is why a change arrives a
 paragraphs. The tool records what it delivered when a delivery's last item reaches the seat, and
 the envelope waits until it has; a delivery that cannot advance ends the seat's turn at once; a
 close, a spot-check and a ruling on a motion about gaps stand only on delivered text. Where the
-report stands at a lens's pin, the read it is owed is the one already performed, and performing
-it again returns the same bytes to the same reader. Reading the report yourself is context: it
+report stands at a lens's pin and its full re-read is behind it, the read it is owed is the one
+already performed, and performing it again returns the same bytes to the same reader. Reading the report yourself is context: it
 records nothing and moves no pin. Under a harness whose hooks cannot yet deliver report text into
 a seat's context — Antigravity today — no delivery is recorded and the run cannot PASS.
 
