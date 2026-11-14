@@ -62,6 +62,9 @@ type StandingJSON struct {
 	// holding a gap its minter closes and a lens still ready, and ended its turn, correctly, with
 	// all ten open. Only the chair's list holds any.
 	AnotherSeatClears []string `json:"another_seat_clears,omitempty"`
+	// HoldsTurn is, on the chair's standing, the report text owed into its context this sitting: it
+	// holds the chair's turn, where the chair's other blocking items hold a PASS.
+	HoldsTurn []string `json:"holds_turn,omitempty"`
 	// holdsPass: the seat's blocking items hold a PASS and not the end of its turn
 	// (record.SittingJSON.HoldsPass), which is what the sentence above them says they hold.
 	holdsPass bool
@@ -94,7 +97,14 @@ func (s StandingJSON) Human() string {
 			"\n  this is not a report that nothing is open to you — read your work list before you stop"
 	}
 	var b strings.Builder
-	if len(s.Blocking) == 0 && len(s.AnotherSeatClears) == 0 {
+	if len(s.HoldsTurn) > 0 {
+		fmt.Fprintf(&b, "%d ITEM(S) OF REPORT TEXT HOLD YOUR TURN — each arrives after a call of yours to the record, and your envelope waits until all have been delivered:", len(s.HoldsTurn))
+		for _, it := range s.HoldsTurn {
+			b.WriteString("\n  · " + it)
+		}
+		b.WriteString("\n")
+	}
+	if len(s.Blocking) == 0 && len(s.AnotherSeatClears) == 0 && len(s.HoldsTurn) == 0 {
 		fmt.Fprintf(&b, "ALL CLEAR — nothing blocks you and you may end your turn "+
 			"(%d item(s) stay open to you and none of them is owed).", s.Open)
 		return b.String()
@@ -152,6 +162,11 @@ func standingAfter(cmd *cobra.Command) *StandingJSON {
 	out := &StandingJSON{Complete: w.Sitting.Complete, Open: len(w.Sitting.Open), Blocking: []string{}, holdsPass: w.Sitting.HoldsPass()}
 	owed, board := w.Sitting.Owed()
 	for _, it := range owed {
+		// THE CHAIR'S REPORT TEXT HOLDS ITS TURN, not a PASS: counted apart from what holds the PASS.
+		if out.holdsPass && it.Kind == record.ItemReportText {
+			out.HoldsTurn = append(out.HoldsTurn, it.What)
+			continue
+		}
 		out.Blocking = append(out.Blocking, it.What)
 	}
 	for _, it := range board {
