@@ -1,6 +1,6 @@
 // Package hookcore provides a pure-Go-standard-library wire adapter normalizing
 // process boundaries (env, stdin, stdout, stderr, exit code) between Claude Code
-// (claude 2.1.309) and Google Antigravity (agy 1.4.12 exa.hooks_pb).
+// (claude 2.1.309) and Google Antigravity (agy 1.5.9 exa.hooks_pb).
 package hookcore
 
 import (
@@ -56,6 +56,7 @@ type Request struct {
 	AgentTranscriptPath string           // agent_transcript_path | (transcriptPath when subagent)
 	ToolName            string           // Canonical ("Bash", "Write", "Edit", "Read", "WebSearch", "WebFetch", "Glob", "Grep")
 	RawToolName         string           // Original wire name ("run_command", "write_to_file", "write_file", ...)
+	ToolCallID          string           // tool_use_id (Claude) | toolCall.id (Antigravity 1.5.4+)
 	RawToolInput        map[string]any   // Original wire tool input map without synthetic keys
 	ToolInput           json.RawMessage  // Normalized JSON carrying canonical snake_case keys + original fields
 	ToolResult          json.RawMessage  // tool_response (Claude) | PostToolHookArgs.result (Antigravity 1.4.12+)
@@ -64,13 +65,13 @@ type Request struct {
 	ToolError           string           // error (PostToolUseFailure on Claude; PostTool.error on Antigravity)
 	LastUserInput       string           // prompt (Claude) | lastUserInput (Antigravity 1.4.7+)
 	IsInterrupt         bool             // is_interrupt | (terminationReason == "USER_CANCELED")
-	StopHookActive      bool             // stop_hook_active | (executionNum > 0)
+	StopHookActive      bool             // stop_hook_active | continuation_active (Antigravity 1.5.6+) | (executionNum > 0)
 	TerminationReason   string           // PostInvocation.terminationReason on Antigravity
 	Trigger             string           // PreCompact/PostCompact trigger
 	CustomInstructions  string           // PreCompact custom_instructions
 	CompactSummary      string           // PostCompact compact_summary
-	CWD                 string           // cwd
-	HookEventName       string           // hook_event_name
+	CWD                 string           // cwd (Claude & Antigravity 1.5.4+)
+	HookEventName       string           // hook_event_name (Claude) | hookEventName (Antigravity 1.5.4+)
 	Reason              string           // reason (SessionEnd: clear|logout|prompt_input_exit|other)
 	BackgroundTasks     *json.RawMessage // background_tasks (SubagentStop)
 	SessionCrons        *json.RawMessage // session_crons (SubagentStop)
@@ -393,6 +394,11 @@ func Read(event string, stdin io.Reader) Request {
 
 	if s, ok := env["hook_event_name"].(string); ok {
 		req.HookEventName = s
+	} else if s, ok := env["hookEventName"].(string); ok {
+		req.HookEventName = s
+	}
+	if req.Event == "" && req.HookEventName != "" {
+		req.Event = req.HookEventName
 	}
 	if s, ok := env["reason"].(string); ok {
 		req.Reason = s
@@ -416,8 +422,18 @@ func Read(event string, stdin io.Reader) Request {
 	if stopActive, ok := env["stop_hook_active"].(bool); ok {
 		req.StopHookActive = stopActive
 	}
+	if cont, ok := env["continuation_active"].(bool); ok && cont {
+		req.StopHookActive = true
+	}
+	if cont, ok := env["continuationActive"].(bool); ok && cont {
+		req.StopHookActive = true
+	}
 	if execNum, ok := env["executionNum"].(float64); ok && execNum > 0 {
 		req.StopHookActive = true
+	}
+
+	if id, ok := env["tool_use_id"].(string); ok {
+		req.ToolCallID = id
 	}
 
 	// Tool call extraction & normalization
@@ -429,6 +445,9 @@ func Read(event string, stdin io.Reader) Request {
 			toolInputMap = ti
 		}
 	} else if tc, ok := env["toolCall"].(map[string]any); ok {
+		if id, ok := tc["id"].(string); ok && req.ToolCallID == "" {
+			req.ToolCallID = id
+		}
 		if tn, ok := tc["name"].(string); ok {
 			req.RawToolName = tn
 			req.ToolName = CanonicalToolName(tn)

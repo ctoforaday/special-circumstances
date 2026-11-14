@@ -17,10 +17,16 @@ import (
 // Line is one logged hook call.
 type Line struct {
 	Event         string   `json:"event"`
+	HookEventName string   `json:"hook_event_name"`
 	Engine        string   `json:"engine"`
 	SessionID     string   `json:"session_id"`
+	CWD           string   `json:"cwd"`
+	ProjectDir    string   `json:"project_dir"`
+	PluginRoot    string   `json:"plugin_root"`
+	PluginDataDir string   `json:"plugin_data_dir"`
+	ToolCallID    string   `json:"tool_call_id"`
 	InvocationNum *int     `json:"invocation_num"`
-	EnvNames      []string `json:"env_names"` // ANTIGRAVITY_* names in the hook's own environment
+	EnvNames      []string `json:"env_names"` // ANTIGRAVITY_* and PLUGIN_* names in the hook's own environment
 	Raw           string   `json:"raw"`
 }
 
@@ -34,13 +40,18 @@ func main() {
 	_ = json.Unmarshal(req.Raw, &p)
 	var names []string
 	for _, kv := range os.Environ() {
-		if k, _, _ := strings.Cut(kv, "="); strings.HasPrefix(k, "ANTIGRAVITY_") {
+		k, _, _ := strings.Cut(kv, "=")
+		if strings.HasPrefix(k, "ANTIGRAVITY_") || k == "PLUGIN_ROOT" || k == "PLUGIN_DATA" {
 			names = append(names, k)
 		}
 	}
 	sort.Strings(names)
-	b, _ := json.Marshal(Line{Event: *event, Engine: string(req.Engine), SessionID: req.SessionID,
-		InvocationNum: p.InvocationNum, EnvNames: names, Raw: string(req.Raw)})
+	b, _ := json.Marshal(Line{
+		Event: *event, HookEventName: req.HookEventName, Engine: string(req.Engine),
+		SessionID: req.SessionID, CWD: req.CWD, ProjectDir: req.ProjectDir,
+		PluginRoot: req.PluginRoot, PluginDataDir: req.PluginDataDir, ToolCallID: req.ToolCallID,
+		InvocationNum: p.InvocationNum, EnvNames: names, Raw: string(req.Raw),
+	})
 	log := os.Getenv("EVENTLOG_FILE")
 	if f, err := os.OpenFile(log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
 		f.Write(append(b, '\n'))
