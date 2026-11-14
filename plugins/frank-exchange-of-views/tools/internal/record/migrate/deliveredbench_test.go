@@ -15,10 +15,11 @@ import (
 
 // DeliveredBenchSource is an old record whose bench rules on a delivery, which no archived bench
 // sitting holds: every archived opinion and every archived bench ruling on a motion about gaps is a
-// lost act, so a translation of one is exercised here. A lens registers, is served the report and
-// mints two gaps; the bench registers, is served the report in that sitting, and rules both — G1
-// deferred under the shard era's word "carried" with what would settle it, G2 not a defect with
-// what would reopen it. It returns the run directory.
+// lost act, so a translation of one is exercised here. A lens registers, is served the report,
+// mints two gaps and closes G2 not a defect; the bench registers, is served the report in that
+// sitting, and rules both — G1 deferred under the shard era's word "carried" with what would settle
+// it, G2 not a defect, after its lens closed it, with what would reopen it. It returns the run
+// directory.
 func DeliveredBenchSource(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -46,11 +47,12 @@ func DeliveredBenchSource(t *testing.T) string {
 		`CREATE TABLE "base_ingest" ("event_id" INTEGER PRIMARY KEY, "text" TEXT)`,
 		`CREATE TABLE "report_read" ("event_id" INTEGER PRIMARY KEY, "head" INTEGER)`,
 		`CREATE TABLE "mint" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT, "class" TEXT, "location" TEXT, "problem" TEXT, "required_fix" TEXT, "acceptance_check" TEXT, "severity" TEXT, "mint_reason" TEXT, "check_kind" TEXT, "likelihood" TEXT, "impact" TEXT)`,
+		`CREATE TABLE "close" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT NOT NULL, "closure_class" TEXT, "anchor_seat" TEXT, "anchor_tool" TEXT, "anchor_target" TEXT, "carried_from" TEXT, "successor" TEXT, "prose" TEXT)`,
 		`CREATE TABLE "opinion" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT, "disposition" TEXT, "principle" TEXT, "tension" TEXT, "review_flag" TEXT, "rationale" TEXT, "settled" TEXT, "reopens_on" TEXT, "final" INTEGER)`,
 	} {
 		exec(ddl)
 	}
-	for _, w := range []string{"register", "base_ingest", "report_read", "mint", "opinion"} {
+	for _, w := range []string{"register", "base_ingest", "report_read", "mint", "close", "opinion"} {
 		exec(`INSERT INTO "enum_event_type" ("value", "means") VALUES (?, 'former vocabulary')`, w)
 	}
 	n := 0
@@ -69,6 +71,8 @@ func DeliveredBenchSource(t *testing.T) string {
 		exec(`INSERT INTO "mint" VALUES (?, ?, 'guardrail-scope-overclaim', 'A sentence.', 'the problem', 'the fix', 'the check', 'high', 'the reason', 'document', 'medium', 'medium')`,
 			event(lens, "mint"), g)
 	}
+	exec(`INSERT INTO "close" ("event_id", "gap_id", "closure_class", "anchor_seat", "anchor_tool", "anchor_target", "prose") VALUES (?, 'G2', 'not_a_defect', ?, 'show report', 'the sentence at head', 'The sentence holds as written.')`,
+		event(lens, "close"), lens)
 	exec(`INSERT INTO "register" VALUES (?, 'abc1234')`, event(bench, "register"))
 	exec(`INSERT INTO "report_read" VALUES (?, ?)`, event(bench, "report_read"), ingest)
 	exec(`INSERT INTO "opinion" ("event_id", "gap_id", "disposition", "principle", "rationale", "reopens_on") VALUES (?, 'G1', 'carried', 'correctness', 'the rationale', 'a source that settles the sentence')`,
