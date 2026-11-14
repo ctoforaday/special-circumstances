@@ -18,6 +18,7 @@ import (
 //
 // Asserted per archive that holds dispatch rows, and in order: the n-th migrated dispatch pins an
 // event of the type and key the n-th source dispatch's pin named, and that event is a report head.
+// A dispatch the manifest lists as lost is no source dispatch of this pairing.
 // The archive is where the renumbering is real; a seeded run writes no cast first and shifts nothing.
 func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 	checked, renumbered := 0, 0
@@ -27,11 +28,15 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// A dispatch on a gap a lost act took with it is that same loss, written as no event and
+			// listed in the manifest; the rest pair with the migrated dispatches in order.
+			res, dir := MigratedArchive(t, name)
+			lost := LostIDs(res)
 			byID := map[int64]OldEvent{}
-			var want []OldEvent // the event each source dispatch pins, in dispatch order
+			var want []OldEvent // the event each surviving source dispatch pins, in dispatch order
 			for _, old := range evs {
 				byID[old.ID] = old
-				if old.Word != "dispatch" {
+				if old.Word != "dispatch" || lost[old.ID] {
 					continue
 				}
 				pin, _ := old.Fields["pin"].(int64)
@@ -44,7 +49,6 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 			if len(want) == 0 {
 				return
 			}
-			_, dir := MigratedArchive(t, name)
 			m, err := record.MergedEvents(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)
