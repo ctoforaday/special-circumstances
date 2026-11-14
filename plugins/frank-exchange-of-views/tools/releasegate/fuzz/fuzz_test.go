@@ -2333,12 +2333,7 @@ func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args
 func (r *runner) execAs(agent string, args ...string) (string, error) {
 	// --run goes before a `--`: what follows it is a computation's command, and the verb would run
 	// --run as two more of its arguments.
-	// A SEAT READS WHAT IT IS OWED BEFORE AN ACT THAT STANDS ON DELIVERED TEXT: the record refuses the
-	// act until the sitting's delivery is complete, and a live seat finishes it first.
 	seat := seatOfCall(args)
-	if seat != "" && standsOnDeliveredText(args) {
-		r.readDelivery(seat, agent)
-	}
 	full := append([]string{}, args...)
 	if i := slices.Index(full, "--"); i >= 0 {
 		full = slices.Insert(full, i, "--run", r.runDir)
@@ -10267,8 +10262,6 @@ func (r *runner) owesNaming(seatID, standing string) (bool, error) {
 // again, at most four times, as a parallel blue can place more than once. The check that decides is
 // the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) bool {
-	// THE ENVELOPE WAITS ON THE SITTING'S REPORT TEXT, so the seat finishes reading it first.
-	r.readDelivery(seatID, "")
 	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
 	for i := 0; i < 4 && err == nil && refusal != "" && strings.HasPrefix(seatID, "red-lens-"); i++ {
 		r.dischargeOwed(seatID)

@@ -60,20 +60,6 @@ func seatOfCall(args []string) string {
 	return ""
 }
 
-// standsOnDeliveredText is whether a call is one of the acts the delivered-text rule governs
-// (record.DeliveredTextRefusal): a close, a spot-check, and a ruling on a motion. A seat reads what it
-// is owed before it records one, as a live seat does once the refusal tells it to finish its delivery.
-func standsOnDeliveredText(args []string) bool {
-	verbs := slices.DeleteFunc(slices.Clone(args), func(a string) bool { return strings.HasPrefix(a, "-") })
-	switch {
-	case slices.Contains(verbs, "close"), slices.Contains(verbs, "spot-check"):
-		return true
-	case len(verbs) >= 3 && verbs[0] == "motion" && slices.Contains(verbs, "rule"):
-		return true
-	}
-	return false
-}
-
 // handNext spawns the writer's next phase for seatID after one of its calls to the record, under
 // agent (or the seat's own, deliveryAgentOf), with the argv the hook gives it (sittinghook). A held
 // delivery hands nothing and is no failure: another of the seat's calls is handing the item. A
