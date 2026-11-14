@@ -2109,6 +2109,10 @@
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
+== stmt 14df3440c20f
+-- SELECT "gap_id", COALESCE("location", '') FROM "mint" WHERE "gap_id" = ?1
+  SEARCH mint USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+
 == stmt 0cd405f346b6
 -- SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", ''), COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '') FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"
   SCAN m
@@ -2311,6 +2315,41 @@
 -- SELECT "text", "failure" FROM "report_checkpoint" WHERE "one" = 1
   SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid=?)
 
+== stmt 4c93b9f8cdeb
+-- SELECT "type" FROM "events" WHERE "id" = ?
+  SEARCH events USING INTEGER PRIMARY KEY (rowid=?)
+
+== stmt 9a127978073f
+-- SELECT (SELECT COUNT(*) FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id" WHERE pe."seat_id" = ?1 AND p."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events") AND COALESCE((SELECT a."sat_through" FROM "agent_sitting" a WHERE a."sitting_id" = pe."sitting_id"), 1)) < 2 OR EXISTS (SELECT 1 FROM "motion_rule_position" u WHERE u."ruling" = 'upheld' AND u."lens" = ?1 AND u."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events") AND NOT EXISTS (SELECT 1 FROM "report_read" p JOIN "events" pe ON pe."id" = p."event_id" WHERE pe."seat_id" = ?1 AND p."event_id" > u."event_id" AND p."event_id" < (SELECT COALESCE(MAX("id"), 0) + 1 FROM "events")))
+  SCAN CONSTANT ROW
+  SCALAR SUBQUERY
+    SEARCH pe USING INDEX events_seat (seat_id=? AND rowid<?)
+    SCALAR SUBQUERY
+      SEARCH events
+    CORRELATED SCALAR SUBQUERY
+      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+      SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+      SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+      CORRELATED SCALAR SUBQUERY
+        SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+      CORRELATED SCALAR SUBQUERY
+        SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
+    SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
+    REUSE SUBQUERY
+  SCALAR SUBQUERY
+    SEARCH u USING INTEGER PRIMARY KEY (rowid<?)
+    SCALAR SUBQUERY
+      SEARCH events
+    CORRELATED SCALAR SUBQUERY
+      SEARCH pe USING COVERING INDEX events_seat (seat_id=? AND rowid>? AND rowid<?)
+      SCALAR SUBQUERY
+        SEARCH events
+      SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
+      REUSE SUBQUERY
+
 == stmt 751199db797c
 -- SELECT (SELECT count(*) FROM "verify"), (SELECT count(*) FROM "cite")
   SCAN CONSTANT ROW
@@ -2351,11 +2390,6 @@
 == stmt 69e158862e4b
 -- SELECT 1 FROM "report_part" LIMIT 1
   SCAN report_part
-
-== stmt 065b75c3960b
--- SELECT 1 FROM "report_read" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = ?1 AND r."head" = ?2 AND e."sitting_id" IS ?3 LIMIT 1
-  SEARCH e USING INDEX events_sitting (sitting_id=?)
-  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 8362cfafd957
 -- SELECT 1 FROM (SELECT "id" FROM "finding" UNION ALL SELECT "gap_id" FROM "mint" UNION ALL SELECT "anchor_id" FROM "evidence_anchor") WHERE "id" = ? LIMIT 1
@@ -2411,6 +2445,22 @@
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
+== stmt 3b1993047144
+-- SELECT COALESCE(MAX("head"), 0) FROM "report_delivery" WHERE "seat_id" = ?1 AND "sat_through"
+  SEARCH e USING INDEX events_seat (seat_id=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    CORRELATED SCALAR SUBQUERY
+      SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    CORRELATED SCALAR SUBQUERY
+      SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
+  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+
 == stmt 218c39de6b34
 -- SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'report_part')
   SEARCH events USING COVERING INDEX events_type (type=?)
@@ -2423,6 +2473,11 @@
   SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
   SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
   SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+
+== stmt 718506cedfcd
+-- SELECT COALESCE(b."old_paragraphs", '') FROM "blue_edit_reopened" r JOIN "blue_edit" b ON b."event_id" = r."event_id" WHERE r."value" = ?1 ORDER BY r."event_id" DESC LIMIT 1
+  SEARCH r USING COVERING INDEX blue_edit_reopened_value (value=?)
+  SEARCH b USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt b225f6c6764f
 -- SELECT COALESCE(max("id"), 0) + 1, COALESCE((SELECT "epoch" FROM "events" ORDER BY "id" DESC LIMIT 1), 0) FROM "events"
@@ -2438,6 +2493,41 @@
 -- SELECT COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = ? AND e."sitting_id" = ? ORDER BY e."id" DESC LIMIT 1
   SEARCH e USING INDEX events_sitting (sitting_id=?)
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+
+== stmt 57143b4594ce
+-- SELECT COUNT(*) FROM "area_change" WHERE "seat_id" = ? AND "change" <= ?
+  MATERIALIZE bound
+    CO-ROUTINE lens
+      SCAN v
+      USE TEMP B-TREE FOR DISTINCT
+    SCAN l
+    CORRELATED SCALAR SUBQUERY
+      SEARCH e USING INDEX events_seat (seat_id=?)
+      CORRELATED SCALAR SUBQUERY
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        CORRELATED SCALAR SUBQUERY
+          SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+        CORRELATED SCALAR SUBQUERY
+          SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
+      SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+    CORRELATED SCALAR SUBQUERY
+      SEARCH c USING INDEX sqlite_autoindex_spot_check_changes_1 (event_id=?)
+      CORRELATED SCALAR SUBQUERY
+        SEARCH a USING INDEX sqlite_autoindex_spot_check_areas_1
+  MATERIALIZE h
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SEARCH blue_edit USING INTEGER PRIMARY KEY (rowid<?)
+      UNION ALL
+        SEARCH report_part USING INTEGER PRIMARY KEY (rowid<?)
+  SCAN h
+  BLOOM FILTER ON b (seat_id=?)
+  SEARCH b USING AUTOMATIC PARTIAL COVERING INDEX (seat_id=?)
 
 == stmt ad77e0228e94
 -- SELECT DISTINCT c."computation_id" FROM "computation" c WHERE c."cites" = ? AND c."computation_id" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "retire_anchors" ra WHERE ra."value" = c."computation_id") ORDER BY c."computation_id"
@@ -2476,6 +2566,16 @@
         UNION ALL
           SCAN ra USING COVERING INDEX retire_anchors_value
     SCAN report_op
+
+== stmt 862322623e5b
+-- SELECT MIN(x) FROM ( SELECT r."event_id" AS x FROM "blue_edit_reopened" r WHERE r."value" = ?2 AND r."event_id" > ?1 UNION ALL SELECT a."event_id" FROM "retire_anchors" a WHERE a."value" = ?2 AND a."event_id" > ?1)
+  CO-ROUTINE (subquery)
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SEARCH r USING COVERING INDEX blue_edit_reopened_value (value=? AND event_id>?)
+      UNION ALL
+        SEARCH a USING COVERING INDEX retire_anchors_value (value=? AND event_id>?)
+  SEARCH (subquery)
 
 == stmt 85c0a2e22afc
 -- SELECT a."event_id" FROM "envelope_admitted" a WHERE a."agent_id" = ? AND a."event_id" > COALESCE((SELECT MAX(o."event_id") FROM "sitting_open" o WHERE o."agent_id" = ?), 0) LIMIT 1
@@ -2580,6 +2680,16 @@
 == stmt 1b39457d2243
 -- SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'
   SCAN sqlite_master
+
+== stmt 3cecd9be1a0e
+-- SELECT d."gap_id" FROM "motion" m JOIN "motion_docket" d ON d."event_id" = m."event_id" WHERE m."motion_id" = ?1 UNION SELECT g."gap_id" FROM "motion" m JOIN "motion_grade" g ON g."event_id" = m."event_id" WHERE m."motion_id" = ?1 AND g."gap_id" IS NOT NULL
+  MERGE (UNION)
+    LEFT
+      SEARCH m USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+      SEARCH d USING INTEGER PRIMARY KEY (rowid=?)
+    RIGHT
+      SEARCH m USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+      SEARCH g USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt c4eaa3f0f946
 -- SELECT e, kind, about, loc FROM ( SELECT "event_id" e, 'finding' kind, ("about_kind" = 'gap' AND "about_ref" = ?2) about, '' loc FROM "finding" WHERE "id" = ?1 UNION ALL SELECT m."event_id", 'gap', ((m."about_kind" = 'gap' AND m."about_ref" = ?2) OR EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id" AND s."value" = ?2)), '' FROM "mint" m WHERE m."gap_id" = ?1 UNION ALL SELECT ea."placed_event", ea."kind", COALESCE(ea."answers" = ?2, 0), COALESCE(c."location", '') FROM "evidence_anchor" ea LEFT JOIN "cite" c ON c."event_id" = ea."placed_event" WHERE ea."anchor_id" = ?1) ORDER BY e LIMIT 1
@@ -2715,6 +2825,54 @@
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
+== stmt 1a9dae79e53c
+-- SELECT h."event_id", h."before", h."after" FROM ( SELECT ed."event_id", COALESCE(ed."old_paragraphs", '') AS "before", COALESCE(ed."new_paragraphs", '') AS "after" FROM "blue_edit" ed UNION ALL SELECT p."event_id", '', p."text" FROM "report_part" p) h WHERE h."event_id" > ?1 AND h."event_id" <= ?2 AND (?3 = '' OR h."event_id" IN (SELECT a."change" FROM "area_change" a WHERE a."seat_id" = ?3)) ORDER BY h."event_id"
+  CO-ROUTINE h
+    COMPOUND QUERY
+      LEFT-MOST SUBQUERY
+        SEARCH ed USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)
+        LIST SUBQUERY
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              MATERIALIZE bound
+                MATERIALIZE lens
+                  SCAN v
+                  USE TEMP B-TREE FOR DISTINCT
+                SCAN l
+                CORRELATED SCALAR SUBQUERY
+                  SEARCH e USING INDEX events_seat (seat_id=?)
+                  CORRELATED SCALAR SUBQUERY
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+                    SEARCH so USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+                    SEARCH r USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+                    CORRELATED SCALAR SUBQUERY
+                      SEARCH e USING INTEGER PRIMARY KEY (rowid>?)
+                      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+                    CORRELATED SCALAR SUBQUERY
+                      SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
+                  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+                CORRELATED SCALAR SUBQUERY
+                  SEARCH c USING INDEX sqlite_autoindex_spot_check_changes_1 (event_id=?)
+                  CORRELATED SCALAR SUBQUERY
+                    SEARCH a USING INDEX sqlite_autoindex_spot_check_areas_1
+              BLOOM FILTER ON b (seat_id=?)
+              SEARCH b USING AUTOMATIC PARTIAL COVERING INDEX (seat_id=?)
+              SEARCH blue_edit USING INTEGER PRIMARY KEY (rowid>?)
+              CREATE BLOOM FILTER
+            UNION ALL
+              BLOOM FILTER ON b (seat_id=?)
+              SEARCH b USING AUTOMATIC PARTIAL COVERING INDEX (seat_id=?)
+              SEARCH report_part USING INTEGER PRIMARY KEY (rowid>?)
+              CREATE BLOOM FILTER
+      UNION ALL
+        SEARCH p USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)
+        REUSE LIST SUBQUERY
+  SCAN h
+  REUSE LIST SUBQUERY
+  USE TEMP B-TREE FOR ORDER BY
+
 == stmt 007024a15384
 -- SELECT l."event_id", l."value" FROM "blue_edit_reopened" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_blue_edit_reopened_1 (event_id>?)
@@ -2796,6 +2954,12 @@
   SEARCH e USING COVERING INDEX events_seat (seat_id=?)
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
 
+== stmt 23b4968fdfff
+-- SELECT m."gap_id", COALESCE(m."location", '') FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ?1 ORDER BY m."event_id"
+  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
+  SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+  USE TEMP B-TREE FOR ORDER BY
+
 == stmt 59e4c6c67072
 -- SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE mo."motion_id" = ?
   SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
@@ -2855,6 +3019,12 @@
 == stmt d25a76648285
 -- SELECT r."event_id", r."claim", r."reason", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id" WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1
   SEARCH ra USING COVERING INDEX retire_anchors_value (value=?)
+  SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
+  USE TEMP B-TREE FOR ORDER BY
+
+== stmt 2457b51271d8
+-- SELECT r."head" FROM "report_read" r JOIN "events" e ON e."id" = r."event_id" WHERE e."seat_id" = ?1 AND e."sitting_id" = ?2 ORDER BY r."event_id" DESC LIMIT 1
+  SEARCH e USING INDEX events_sitting (sitting_id=?)
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
