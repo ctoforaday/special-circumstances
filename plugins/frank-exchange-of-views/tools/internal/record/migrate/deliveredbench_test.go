@@ -16,7 +16,7 @@ import (
 // DeliveredBenchSource is an old record whose bench rules on a delivery, which no archived bench
 // sitting holds: every archived opinion and every archived bench ruling on a motion about gaps is a
 // lost act, as is every archived spot-check, so a translation of each is exercised here. A lens
-// registers, is served the report, mints two gaps and closes G2 not a defect, naming G2 itself and G1 among its anchors as m30's
+// registers, is served the report, mints two gaps — G2 settled by a source no citation answers — and closes G2 not a defect, naming G2 itself and G1 among its anchors as m30's
 // closures did; blue edits G1's
 // sentence; the chair registers, is served the report at that edit, and spot-checks the lens's area;
 // the bench registers, is served the report at the edit, and rules both — G1 deferred under the shard era's word "carried" with what would settle
@@ -73,9 +73,9 @@ func DeliveredBenchSource(t *testing.T) string {
 	ingest := event("blue-synthesize", "base_ingest")
 	exec(`INSERT INTO "base_ingest" VALUES (?, ?)`, ingest, "# report\n\nA sentence.\n")
 	exec(`INSERT INTO "report_read" VALUES (?, ?)`, event(lens, "report_read"), ingest)
-	for _, g := range []string{"G1", "G2"} {
-		exec(`INSERT INTO "mint" VALUES (?, ?, 'guardrail-scope-overclaim', 'A sentence.', 'the problem', 'the fix', 'the check', 'high', 'the reason', 'document', 'medium', 'medium')`,
-			event(lens, "mint"), g)
+	for _, m := range []struct{ gap, check string }{{"G1", "document"}, {"G2", "source"}} {
+		exec(`INSERT INTO "mint" VALUES (?, ?, 'guardrail-scope-overclaim', 'A sentence.', 'the problem', 'the fix', 'the check', 'high', 'the reason', ?, 'medium', 'medium')`,
+			event(lens, "mint"), m.gap, m.check)
 	}
 	closed := event(lens, "close")
 	exec(`INSERT INTO "close" ("event_id", "gap_id", "closure_class", "anchor_seat", "anchor_tool", "anchor_target", "prose") VALUES (?, 'G2', 'not_a_defect', ?, 'show report', 'the sentence at head', 'The sentence holds as written.')`,
