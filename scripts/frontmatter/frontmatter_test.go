@@ -202,8 +202,42 @@ func TestAnAgentToolsFieldMustBeAList(t *testing.T) {
 			t.Errorf("block %q: want a problem containing %q, got %v", tc.block, tc.want, p)
 		}
 	}
-	// Only agents are held to it: a skill's frontmatter is not an agent definition.
+	// Only agents are held to it: a skill's own SKILL.md is not an agent definition.
 	if p, _ := check("plugins/p/skills/s/SKILL.md", "---\nname: s\ndescription: d\ntools: Read, Write\n---\n"); len(p) > 0 {
 		t.Errorf("a SKILL.md is not an agent and must not be held to the agent list rule: %v", p)
+	}
+}
+
+func TestSkillVisibilityParityAndOperatorGuard(t *testing.T) {
+	// Operator skill must stay visible.
+	const op = "plugins/prosthetic-conscience/skills/doctor/SKILL.md"
+	if p, _ := check(op, "---\nname: doctor\ndescription: d\n---\n"); len(p) > 0 {
+		t.Errorf("visible operator skill must pass: %v", p)
+	}
+	for _, hidden := range []string{
+		"---\nname: doctor\ndescription: d\ndisable-slash-command: true\nuser-invocable: false\n---\n",
+		"---\nname: doctor\ndescription: d\ndisable-slash-command: true\n---\n",
+		"---\nname: doctor\ndescription: d\nuser-invocable: false\n---\n",
+	} {
+		p, _ := check(op, hidden)
+		if got := fmt.Sprint(p); !strings.Contains(got, "Everything that was a command is intended to be visible") {
+			t.Errorf("hiding operator skill must be rejected with the operator guard message, got %v", p)
+		}
+	}
+
+	// Internal procedural skill in a shipped plugin must carry both hiding flags.
+	const proc = "plugins/prosthetic-conscience/skills/terse-communication/SKILL.md"
+	if p, _ := check(proc, "---\nname: terse-communication\ndescription: d\ndisable-slash-command: true\nuser-invocable: false\n---\n"); len(p) > 0 {
+		t.Errorf("properly hidden procedural skill must pass: %v", p)
+	}
+	for _, partial := range []string{
+		"---\nname: terse-communication\ndescription: d\n---\n",
+		"---\nname: terse-communication\ndescription: d\ndisable-slash-command: true\n---\n",
+		"---\nname: terse-communication\ndescription: d\nuser-invocable: false\n---\n",
+	} {
+		p, _ := check(proc, partial)
+		if got := fmt.Sprint(p); !strings.Contains(got, "must carry both `disable-slash-command: true`") {
+			t.Errorf("unhidden or half-hidden procedural skill must fail, got %v", p)
+		}
 	}
 }
