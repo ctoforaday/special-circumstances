@@ -29,13 +29,14 @@ const (
 	otherLens = "red-lens-logic"
 )
 
-// debtBoard is a run whose evidence lens has sat once at the head, with the found-source sentences
-// and citation C-1 on the report.
+// debtBoard is a run whose evidence lens has sat twice at the head, served the whole report in each
+// (its first sitting and its full re-read), with the found-source sentences and citation C-1 on the
+// report.
 func debtBoard(t *testing.T) *stage {
 	t.Helper()
 	return newStage(t).cast(evLens, otherLens, "red-chair", "blue-respond", "judge").
 		add("harness", &recordpb.ReportPart{Text: proto.String("# report\n\n" + dbFirst + " " + dbSecond + " " + dbCited + anchor.Token("C-00000001") + ".\n")}).
-		register("red-chair").cite("C-00000001").dispatch(2, evLens).register(evLens).served(evLens, 2)
+		register("red-chair").cite("C-00000001").sit(2, evLens).dispatch(2, evLens).register(evLens).served(evLens, 2)
 }
 
 // readFound is seat's reading of url, a source it found, against claim with outcome o.
