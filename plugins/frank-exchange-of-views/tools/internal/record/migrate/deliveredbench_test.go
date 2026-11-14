@@ -15,9 +15,10 @@ import (
 
 // DeliveredBenchSource is an old record whose bench rules on a delivery, which no archived bench
 // sitting holds: every archived opinion and every archived bench ruling on a motion about gaps is a
-// lost act, so a translation of one is exercised here. A lens registers, is served the report,
-// mints two gaps and closes G2 not a defect; the bench registers, is served the report in that
-// sitting, and rules both — G1 deferred under the shard era's word "carried" with what would settle
+// lost act, as is every archived spot-check, so a translation of each is exercised here. A lens
+// registers, is served the report, mints two gaps and closes G2 not a defect; blue edits G1's
+// sentence; the chair registers, is served the report at that edit, and spot-checks the lens's area;
+// the bench registers, is served the report at the edit, and rules both — G1 deferred under the shard era's word "carried" with what would settle
 // it, G2 not a defect, after its lens closed it, with what would reopen it. It returns the run
 // directory.
 func DeliveredBenchSource(t *testing.T) string {
@@ -48,11 +49,14 @@ func DeliveredBenchSource(t *testing.T) string {
 		`CREATE TABLE "report_read" ("event_id" INTEGER PRIMARY KEY, "head" INTEGER)`,
 		`CREATE TABLE "mint" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT, "class" TEXT, "location" TEXT, "problem" TEXT, "required_fix" TEXT, "acceptance_check" TEXT, "severity" TEXT, "mint_reason" TEXT, "check_kind" TEXT, "likelihood" TEXT, "impact" TEXT)`,
 		`CREATE TABLE "close" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT NOT NULL, "closure_class" TEXT, "anchor_seat" TEXT, "anchor_tool" TEXT, "anchor_target" TEXT, "carried_from" TEXT, "successor" TEXT, "prose" TEXT)`,
+		`CREATE TABLE "blue_edit" ("event_id" INTEGER PRIMARY KEY, "edit_key" TEXT, "answers" TEXT, "old" TEXT, "new" TEXT, "text" TEXT, "applied_verbatim" INTEGER, "accepted" INTEGER, "exact_span" INTEGER)`,
+		`CREATE TABLE "spot_check" ("event_id" INTEGER PRIMARY KEY, "none" INTEGER, "reason" TEXT)`,
+		`CREATE TABLE "spot_check_areas" ("event_id" INTEGER NOT NULL, "ord" INTEGER NOT NULL, "value" TEXT NOT NULL, PRIMARY KEY ("event_id", "ord"))`,
 		`CREATE TABLE "opinion" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT, "disposition" TEXT, "principle" TEXT, "tension" TEXT, "review_flag" TEXT, "rationale" TEXT, "settled" TEXT, "reopens_on" TEXT, "final" INTEGER)`,
 	} {
 		exec(ddl)
 	}
-	for _, w := range []string{"register", "base_ingest", "report_read", "mint", "close", "opinion"} {
+	for _, w := range []string{"register", "base_ingest", "report_read", "mint", "close", "blue_edit", "spot_check", "opinion"} {
 		exec(`INSERT INTO "enum_event_type" ("value", "means") VALUES (?, 'former vocabulary')`, w)
 	}
 	n := 0
@@ -62,7 +66,7 @@ func DeliveredBenchSource(t *testing.T) string {
 		return exec(`INSERT INTO "events" ("seat_id", "round", "ts", "type") VALUES (?, 1, ?, ?)`,
 			seat, fmt.Sprintf("2026-09-02T10:00:%02d.%09dZ", n, n), word)
 	}
-	const lens, bench = "red-lens-evidence", "judge"
+	const lens, chair, bench = "red-lens-evidence", "red-chair", "judge"
 	exec(`INSERT INTO "register" VALUES (?, 'abc1234')`, event(lens, "register"))
 	ingest := event("blue-synthesize", "base_ingest")
 	exec(`INSERT INTO "base_ingest" VALUES (?, ?)`, ingest, "# report\n\nA sentence.\n")
@@ -73,8 +77,16 @@ func DeliveredBenchSource(t *testing.T) string {
 	}
 	exec(`INSERT INTO "close" ("event_id", "gap_id", "closure_class", "anchor_seat", "anchor_tool", "anchor_target", "prose") VALUES (?, 'G2', 'not_a_defect', ?, 'show report', 'the sentence at head', 'The sentence holds as written.')`,
 		event(lens, "close"), lens)
+	exec(`INSERT INTO "register" VALUES (?, 'abc1234')`, event("blue-respond", "register"))
+	edit := event("blue-respond", "blue_edit")
+	exec(`INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new") VALUES (?, 'E1', 'G1', 'A sentence.', 'A sentence, sourced.')`, edit)
+	exec(`INSERT INTO "register" VALUES (?, 'abc1234')`, event(chair, "register"))
+	exec(`INSERT INTO "report_read" VALUES (?, ?)`, event(chair, "report_read"), edit)
+	spot := event(chair, "spot_check")
+	exec(`INSERT INTO "spot_check" ("event_id", "reason") VALUES (?, 'read the change behind the pin')`, spot)
+	exec(`INSERT INTO "spot_check_areas" VALUES (?, 0, ?)`, spot, lens)
 	exec(`INSERT INTO "register" VALUES (?, 'abc1234')`, event(bench, "register"))
-	exec(`INSERT INTO "report_read" VALUES (?, ?)`, event(bench, "report_read"), ingest)
+	exec(`INSERT INTO "report_read" VALUES (?, ?)`, event(bench, "report_read"), edit)
 	exec(`INSERT INTO "opinion" ("event_id", "gap_id", "disposition", "principle", "rationale", "reopens_on") VALUES (?, 'G1', 'carried', 'correctness', 'the rationale', 'a source that settles the sentence')`,
 		event(bench, "opinion"))
 	exec(`INSERT INTO "opinion" ("event_id", "gap_id", "disposition", "principle", "rationale", "reopens_on", "final") VALUES (?, 'G2', 'not_a_defect', 'correctness', 'the rationale', 'a counterexample to the sentence', 0)`,
