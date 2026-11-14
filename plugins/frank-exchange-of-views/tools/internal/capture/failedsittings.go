@@ -25,7 +25,7 @@ func FailedSittingsAudit(run record.Run) Audit {
 	if err != nil {
 		return Audit{Check: "failed-sittings", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	failed := record.FailedSittingsOf(m.Events, m.At)
+	failed := record.FailedSittingsOf(m.At)
 	if len(failed) == 0 {
 		return Audit{Check: "failed-sittings", Verdict: "PASS", Detail: "every closed sitting of a seat whose work arrives as items ended on an admitted envelope"}
 	}
