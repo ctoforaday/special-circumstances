@@ -305,13 +305,6 @@ func registerBeforeAppend(f record.Family) Check {
 // --as` takes; recordpb.Spelling's lower case is the schema's. The zero renders as "".
 func outcomeWord(o recordpb.RunOutcome) string { return strings.ToUpper(recordpb.Word(o)) }
 
-func nonEmpty(s, fallback string) string {
-	if strings.TrimSpace(s) == "" {
-		return fallback
-	}
-	return s
-}
-
 // Stats is the authoritative tally of a run's record — the numbers a human would otherwise
 // grep for. GapsOpen is the ground truth an external consumer must match: the 2026-07-22 run's
 // envelope self-reported 10 outstanding while GapsOpen was 2 (#83). Dialectic coverage
