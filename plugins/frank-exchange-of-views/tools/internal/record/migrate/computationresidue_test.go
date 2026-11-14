@@ -348,9 +348,10 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	}
 	// A native archive's acts written `ran` = false, each on its bundle's re-run before it.
 	ranNothing := map[string]int{
-		"2026-10-30_mersenne-31-prime-sum.tar.gz": 10,
-		"2026-11-04_eiffel-tower-height.tar.gz":   8,
-		"2026-11-11_eiffel-tower-height.tar.gz":   3,
+		"2026-10-30_mersenne-31-prime-sum.tar.gz":            10,
+		"2026-11-04_eiffel-tower-height.tar.gz":              8,
+		"2026-11-11_eiffel-tower-height.tar.gz":              3,
+		"2026-11-10_auditing-constitutions-gap-audit.tar.gz": 7,
 	}
 	ledger, native, unsentenced, sentenced := 0, 0, 0, 0
 	for _, name := range archivedRuns(t) {
@@ -620,8 +621,8 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 	// over 30, before 1565, m35, m36, mersenne-31-prime-sum (11 acts on 3 bundles),
 	// 2026-11-04_eiffel-tower-height (4 acts on 2 bundles) and 2026-11-11_eiffel-tower-height (3 acts
 	// on 1 bundle) were archived.
-	if acts != 176 || bundles != 45 || runs != 29 {
-		t.Errorf("%d acts share %d bundles in %d runs, want 176, 45, 29", acts, bundles, runs)
+	if acts != 183 || bundles != 46 || runs != 30 {
+		t.Errorf("%d acts share %d bundles in %d runs, want 183, 46, 30", acts, bundles, runs)
 	}
 }
 

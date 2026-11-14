@@ -1055,6 +1055,22 @@
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
   SCAN motion_grade
 
+== stmt 6ff98d44a6ec
+-- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "about_kind", "about_ref", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)
+  SEARCH demand_lineage USING PRIMARY KEY (gap_id=?)
+  SCAN stale
+  SEARCH regrade USING COVERING INDEX regrade_gap (gap_id=?)
+  SCAN closing
+  SCAN close
+  SEARCH close USING COVERING INDEX close_gap (gap_id=?)
+  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
+  SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
+  SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
+  SCAN motion_rule_position_gap_ids
+  SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
+  SCAN motion_grade
+
 == stmt 527fa3e7601a
 -- INSERT INTO "mint" ("event_id", "gap_id", "mint_key", "class", "location", "about_kind", "about_ref", "problem", "required_fix", "fix_basis", "acceptance_check", "check_kind", "severity", "likelihood", "impact", "complexity_cost", "mint_reason", "class_material") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH demand_lineage USING COVERING INDEX demand_lineage_from (from_gap=?)

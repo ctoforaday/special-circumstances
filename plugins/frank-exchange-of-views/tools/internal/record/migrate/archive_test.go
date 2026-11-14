@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -185,18 +186,40 @@ func firstLine(s string) string {
 	return s
 }
 
-// archivePath walks up from the package to the repository's run-archive, skipping loudly
-// when it is not there.
+// archivePath walks up from the package to the repository's run-archive. A checkout with no
+// run-archive above it — a consumer's — skips loudly; a checkout that has one and lacks the named
+// tarball fails, because every test that names an archive would otherwise pass by skipping.
 func archivePath(t *testing.T, name string) string {
 	t.Helper()
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
+	p, err := findArchive(dir, name)
+	switch {
+	case errors.Is(err, errNoRunArchive):
+		t.Skipf("no run-archive above this checkout — the archive drive needs the repository's run-archive (%s)", name)
+	case err != nil:
+		t.Fatal(err)
+	}
+	return p
+}
+
+// errNoRunArchive is findArchive's answer for a tree with no run-archive directory above it.
+var errNoRunArchive = errors.New("no run-archive directory above this checkout")
+
+// findArchive is the named tarball in the nearest run-archive directory at or above dir: the path,
+// errNoRunArchive where no such directory exists, and an error naming the tarball where the
+// directory exists and does not hold it.
+func findArchive(dir, name string) (string, error) {
 	for i := 0; i < 10; i++ {
-		p := filepath.Join(dir, "run-archive", name)
-		if _, err := os.Stat(p); err == nil {
-			return p
+		archive := filepath.Join(dir, "run-archive")
+		if fi, err := os.Stat(archive); err == nil && fi.IsDir() {
+			p := filepath.Join(archive, name)
+			if _, err := os.Stat(p); err != nil {
+				return "", fmt.Errorf("run-archive/%s is missing from %s: the test reads that archive, and a missing one fails rather than skips", name, archive)
+			}
+			return p, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -204,8 +227,7 @@ func archivePath(t *testing.T, name string) string {
 		}
 		dir = parent
 	}
-	t.Skipf("run-archive/%s not found above this checkout — the archive drive needs the repository's run-archive", name)
-	return ""
+	return "", errNoRunArchive
 }
 
 func untar(t *testing.T, tarball, into string) {
