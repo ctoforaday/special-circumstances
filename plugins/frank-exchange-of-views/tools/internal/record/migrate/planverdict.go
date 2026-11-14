@@ -11,7 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// TranslatePlanVerdict carries a stored plan's `verdict` to `passed` (EventSchema 76): a plan stored
+// TranslatePlanVerdict carries a stored plan's `verdict` to `passed` (EventSchema 78): a plan stored
 // from EventSchema 39 prints the verdict its sitting recorded, and the plan now prints whether that
 // sitting recorded the PASS. A PASS becomes `passed: true`; a FAIL becomes nothing, as the FAIL
 // itself does (verdictEntry); any other word is refused. The verdict is not in the plan's key, so the

@@ -10,7 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// A FAIL TRANSLATES TO NO EVENT, AND THE PLAN STORED AFTER IT PRINTS NO PASS (EventSchema 76).
+// A FAIL TRANSLATES TO NO EVENT, AND THE PLAN STORED AFTER IT PRINTS NO PASS (EventSchema 78).
 // universe 2026-11-11 eiffel recorded one FAIL at its final sitting (register, plan, FAIL, plan),
 // and the plan it stored after the FAIL prints `"verdict":"FAIL"`. Migrated, the record holds no
 // gate, the manifest counts the FAIL in and not out, every plan the archive stored is still stored,
@@ -88,7 +88,7 @@ func TestEveryArchivedFailIsTheResidue(t *testing.T) {
 				if old.Word != "verdict" {
 					continue
 				}
-				// EVERY ARCHIVE PREDATES EPOCH 76, so each of its verdicts states its word: a wordless
+				// EVERY ARCHIVE PREDATES EPOCH 78, so each of its verdicts states its word: a wordless
 				// gate is the live shape, and one here would pass through the replay as a PASS unread.
 				raw, worded := old.Fields["verdict"]
 				if !worded {

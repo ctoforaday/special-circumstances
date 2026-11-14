@@ -8,6 +8,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 )
 
 // THE BACKENDS ANSWER DIFFERENT QUESTIONS, WHICH IS WHY THERE IS MORE THAN ONE.
@@ -102,6 +103,10 @@ type Attempt struct {
 	// FetchedAt is when the backend's answer arrived, stamped by Recover (FetchTime). The entry
 	// built from this attempt carries it.
 	FetchedAt string
+	// CapturedAt is when the web archive took the bytes, RFC 3339 UTC, set where they are a web
+	// archive's snapshot and nowhere else: the archive's own timestamp for the capture, read where
+	// the backend chose it. The entry built from this attempt carries it as its copy's capture time.
+	CapturedAt string
 }
 
 // ---------- identifiers ----------
@@ -261,11 +266,27 @@ func letters(s string) bool { return s != "" && strings.Trim(s, "abcdefghijklmno
 
 // ---------- archive (CDX) ----------
 
-// Capture is one Wayback capture, as CDX reports it.
+// Capture is one Wayback capture, as CDX reports it. CapturedAt is its Timestamp as a time, RFC 3339
+// UTC: CDX states the capture's time in UTC as fourteen digits, and the snapshot url keeps those.
 type Capture struct {
-	Timestamp string
-	Original  string
-	Digest    string
+	Timestamp  string
+	Original   string
+	Digest     string
+	CapturedAt string
+}
+
+// waybackStamp is the form the web archive states a capture's time in: fourteen digits, UTC.
+const waybackStamp = "20060102150405"
+
+// archiveCaptureTime is a web archive timestamp as an RFC 3339 UTC time, or false where it is not
+// one: the archive names a capture by it, and a copy whose time cannot be read is not taken as if
+// it had none.
+func archiveCaptureTime(stamp string) (string, bool) {
+	t, err := time.Parse(waybackStamp, stamp)
+	if err != nil {
+		return "", false
+	}
+	return t.UTC().Format(time.RFC3339), true
 }
 
 // SnapshotURL is where the archived bytes live.
@@ -311,7 +332,13 @@ func CapturesFor(f Fetcher, rawURL string) ([]Capture, error) {
 	out := make([]Capture, 0, len(rows)-1)
 	for _, r := range rows[1:] { // row 0 is the header
 		if len(r) >= 3 {
-			out = append(out, Capture{Timestamp: r[0], Original: r[1], Digest: r[2]})
+			// A CAPTURE WHOSE TIME CANNOT BE READ IS AN ANSWER THIS FUNCTION DOES NOT UNDERSTAND, like
+			// a body that is not a capture list: its bytes would cite exactly like a live copy.
+			at, ok := archiveCaptureTime(r[0])
+			if !ok {
+				return nil, fmt.Errorf("the archive listed a capture whose timestamp %q is not the fourteen-digit time it names captures by", r[0])
+			}
+			out = append(out, Capture{Timestamp: r[0], Original: r[1], Digest: r[2], CapturedAt: at})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Timestamp < out[j].Timestamp })
@@ -733,7 +760,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 				when = fmt.Sprintf("%s-%s-%s", when[0:4], when[4:6], when[6:8])
 			}
 			return &Attempt{Body: resp.Body, ContentType: SniffedMediaType(resp.ContentType, resp.Body), TextRetrieved: true,
-				URL: snapURL,
+				URL: snapURL, CapturedAt: c.CapturedAt,
 				Via: fmt.Sprintf("archive.org capture of %s (%s) — a snapshot, NOT the live source; for a subscription "+
 					"article this is usually the landing page and not the text, so read it before citing it as read",
 					when, c.SnapshotURL())}
@@ -767,12 +794,12 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			// archived asks the web archive for the copy the index named at loc, when that host would
 			// not hand it over; why says how it would not.
 			archived := func(loc, why string) *Attempt {
-				snap, snapURL := archivedCopy(f, loc)
+				snap, snapURL, capturedAt := archivedCopy(f, loc)
 				if snap == nil {
 					return nil
 				}
 				return &Attempt{Body: snap.Body, ContentType: SniffedMediaType(snap.ContentType, snap.Body),
-					TextRetrieved: true, URL: snapURL, Facts: facts, Version: typed[loc].Version,
+					TextRetrieved: true, URL: snapURL, CapturedAt: capturedAt, Facts: facts, Version: typed[loc].Version,
 					License: firstNonEmpty(typed[loc].License, facts.License),
 					Via: fmt.Sprintf("open-access copy of doi %s, taken from the web archive's snapshot of %s "+
 						"because that host %s — the copy is the one the index named, and the archive is where it "+
@@ -1115,11 +1142,12 @@ func versionWords(v string) string {
 //
 // The `if_` suffix on the timestamp asks the archive for the bytes it stored rather than its own
 // framed replay of them; without it the body comes back wrapped in the archive's navigation. The
-// url returned is the snapshot's, the one the bytes were fetched from.
-func archivedCopy(f Fetcher, rawURL string) (*Response, string) {
+// url returned is the snapshot's, the one the bytes were fetched from, and the time beside it the
+// archive's timestamp for the capture, RFC 3339 UTC.
+func archivedCopy(f Fetcher, rawURL string) (*Response, string, string) {
 	resp, err := f.Fetch("https://archive.org/wayback/available?url=" + url.QueryEscape(rawURL))
 	if err != nil {
-		return nil, ""
+		return nil, "", ""
 	}
 	var r struct {
 		Snapshots struct {
@@ -1132,21 +1160,26 @@ func archivedCopy(f Fetcher, rawURL string) (*Response, string) {
 		} `json:"archived_snapshots"`
 	}
 	if json.Unmarshal(resp.Body, &r) != nil {
-		return nil, ""
+		return nil, "", ""
 	}
 	c := r.Snapshots.Closest
 	// A SNAPSHOT OF A REFUSAL IS NOT A COPY. The archive stores whatever it was served, including
 	// the 403 page and the challenge interstitial, and its own status field is the only thing that
 	// separates those from the document.
 	if !c.Available || c.URL == "" || (c.Status != "" && c.Status != "200") {
-		return nil, ""
+		return nil, "", ""
+	}
+	// A SNAPSHOT WITH NO READABLE TIME IS NOT TAKEN: its bytes would cite as a copy of no date.
+	capturedAt, ok := archiveCaptureTime(c.Timestamp)
+	if !ok {
+		return nil, "", ""
 	}
 	snapURL := strings.Replace(c.URL, "/"+c.Timestamp+"/", "/"+c.Timestamp+"if_/", 1)
 	snap, serr := f.Fetch(snapURL)
 	if serr != nil || ShellReason(snap.ContentType, snap.Body) != "" {
-		return nil, ""
+		return nil, "", ""
 	}
-	return snap, snapURL
+	return snap, snapURL, capturedAt
 }
 
 // heldCopy is the best answer an open-access walk has seen so far, by how much of the work it

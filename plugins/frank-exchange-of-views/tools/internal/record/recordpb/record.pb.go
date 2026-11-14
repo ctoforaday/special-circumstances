@@ -4233,6 +4233,13 @@ type Cite struct {
 	// report and in `show evidence`. On the event because run-archive keeps no cache; a live cite
 	// without it is refused (judgeAct), and a cite migrated from before the field holds none.
 	FetchedAt *string `protobuf:"bytes,27,opt,name=fetched_at,json=fetchedAt,proto3,oneof" json:"fetched_at,omitempty"`
+	// WHEN THE WEB ARCHIVE TOOK THE COPY, stamped from the fetch index like the five above, on a copy
+	// the tool took from a web archive and on no other: the archive's timestamp for the capture, RFC
+	// 3339 UTC. fetched_at is when the run took the bytes; this is when the url said what they say, and
+	// the two can be years apart. A copy of the url's own bytes has none, so it is set only beside a
+	// copy_url; on the event because run-archive keeps no cache. A cite migrated from before the field
+	// holds none.
+	CopyCapturedAt *string `protobuf:"bytes,28,opt,name=copy_captured_at,json=copyCapturedAt,proto3,oneof" json:"copy_captured_at,omitempty"`
 	// answers is the gap this citation is placed as the answer to, typed --answers: the citation half
 	// of an evidence anchor's answer (Computation.answers is the other), read through the
 	// evidence_anchor view by the gap's live-answer demand.
@@ -4428,6 +4435,13 @@ func (x *Cite) GetCopyUrl() string {
 func (x *Cite) GetFetchedAt() string {
 	if x != nil && x.FetchedAt != nil {
 		return *x.FetchedAt
+	}
+	return ""
+}
+
+func (x *Cite) GetCopyCapturedAt() string {
+	if x != nil && x.CopyCapturedAt != nil {
+		return *x.CopyCapturedAt
 	}
 	return ""
 }
@@ -6944,7 +6958,7 @@ func (x *EnvelopeAdmitted) GetAgentId() string {
 // Gate is the chair's PASS on the open board, as of this sitting. PASS is CHECKED against the
 // board, not taken on the seat's word.
 //
-// THE EVENT IS THE FACT, AND IT HOLDS NO FIELD (EventSchema 76). PASS is the one verdict: a recorded
+// THE EVENT IS THE FACT, AND IT HOLDS NO FIELD (EventSchema 78). PASS is the one verdict: a recorded
 // FAIL changed no outcome and no dispatch, since the run's outcome is derived from the record
 // (verdict.go), and a field whose one legal value is PASS tells a reader nothing the event's type
 // does not. The chair withholds a PASS its plan permits by filing a position, which the bench
@@ -7799,7 +7813,7 @@ const file_record_proto_rawDesc = "" +
 	"\x03_idB\v\n" +
 	"\t_locationB\x0e\n" +
 	"\f_sentence_ofJ\x04\b\x03\x10\aR\n" +
-	"finding_idR\vfinding_keyR\x05labelR\x04text\"\x93\f\n" +
+	"finding_idR\vfinding_keyR\x05labelR\x04text\"\xdd\f\n" +
 	"\x04Cite\x12!\n" +
 	"\x05label\x18\x01 \x01(\tB\x06\x82\xb5\x18\x02(\x01H\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
@@ -7830,8 +7844,9 @@ const file_record_proto_rawDesc = "" +
 	"\x11copy_substitution\x18\x18 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x13R\x10copySubstitution\x88\x01\x01\x12$\n" +
 	"\bcopy_url\x18\x19 \x01(\tB\x04\xc0\xb5\x18\x00H\x14R\acopyUrl\x88\x01\x01\x12(\n" +
 	"\n" +
-	"fetched_at\x18\x1b \x01(\tB\x04\xc0\xb5\x18\x00H\x15R\tfetchedAt\x88\x01\x01\x12\x1d\n" +
-	"\aanswers\x18\x1a \x01(\tH\x16R\aanswers\x88\x01\x01B\b\n" +
+	"fetched_at\x18\x1b \x01(\tB\x04\xc0\xb5\x18\x00H\x15R\tfetchedAt\x88\x01\x01\x123\n" +
+	"\x10copy_captured_at\x18\x1c \x01(\tB\x04\xc0\xb5\x18\x00H\x16R\x0ecopyCapturedAt\x88\x01\x01\x12\x1d\n" +
+	"\aanswers\x18\x1a \x01(\tH\x17R\aanswers\x88\x01\x01B\b\n" +
 	"\x06_labelB\x06\n" +
 	"\x04_urlB\t\n" +
 	"\a_sha256B\b\n" +
@@ -7853,7 +7868,8 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
 	"\t_copy_urlB\r\n" +
-	"\v_fetched_atB\n" +
+	"\v_fetched_atB\x13\n" +
+	"\x11_copy_captured_atB\n" +
 	"\n" +
 	"\b_answersJ\x04\b\x06\x10\aJ\x04\b\b\x10\tJ\x04\b\n" +
 	"\x10\vR\vaccess_dateR\x05claimR\x10source_text_read\"\xfb\f\n" +

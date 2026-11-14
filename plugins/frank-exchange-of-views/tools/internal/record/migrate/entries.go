@@ -87,7 +87,7 @@ func Entries() Registry {
 		// finding to an open gap's found_by after the mint. No live act writes it, so the credited
 		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
 		"credit": {Translate: toNoEvent},
-		// A FAIL TRANSLATES TO NO EVENT (EventSchema 76); a PASS carries (verdictEntry).
+		// A FAIL TRANSLATES TO NO EVENT (EventSchema 78); a PASS carries (verdictEntry).
 		"verdict": {Translate: verdictEntry},
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
 		// re-run is the script's; its soundness is carried to every anchor on that script when it was
@@ -355,17 +355,17 @@ func toNoEvent(OldEvent) ([]proto.Message, error) { return nil, nil }
 // replay writes it without the live gate's judgement, so nothing is admitted and the list is not
 // carried.
 var verdictCarried = mapped("verdict", nil, drops{
-	"verdict":                    "the PASS is the event itself (EventSchema 76): the word was the one value of a closed set, and says nothing the event's type does not",
+	"verdict":                    "the PASS is the event itself (EventSchema 78): the word was the one value of a closed set, and says nothing the event's type does not",
 	"migration_admitted_gap_ids": "the gaps an earlier migration stamped on an archived PASS: the record carries the verdict as the chair issued it, with no admission beside it",
 }, nil)
 
-// verdictEntry: A PASS IS WRITTEN AS THE GATE, AND A FAIL AS NO EVENT (EventSchema 76). The verdict
+// verdictEntry: A PASS IS WRITTEN AS THE GATE, AND A FAIL AS NO EVENT (EventSchema 78). The verdict
 // is the PASS alone: a recorded FAIL changed no outcome and no dispatch, and the chair withholds a
 // PASS its plan permits with a position the bench hears. A FAIL carried its reason nowhere — the
 // plan's blockers and the chair's position are on the record either way — so the archived FAILs
 // are the residue: the manifest counts each in events_in and none in events_out. A stored plan
 // printed after a verdict prints it, and the replay translates it (TranslatePlanVerdict). A gate with
-// no word is the record's own shape from EventSchema 76, and passes as it is. Any other word is
+// no word is the record's own shape from EventSchema 78, and passes as it is. Any other word is
 // refused: the replay does not decide what it meant.
 func verdictEntry(old OldEvent) ([]proto.Message, error) {
 	raw, worded := old.Fields["verdict"]
