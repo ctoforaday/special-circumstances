@@ -210,6 +210,23 @@ func isolatedEnv(home string) []string {
 	)
 }
 
+// tempHome creates an isolated HOME directory and retries removal on cleanup so a harness child
+// process (such as Antigravity's language server) flushing its logs as it exits does not fail
+// t.TempDir()'s RemoveAll.
+func tempHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Cleanup(func() {
+		for range 20 {
+			if err := os.RemoveAll(home); err == nil {
+				return
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	})
+	return home
+}
+
 // run executes a harness command and returns its stdout; a non-zero exit fails the test with
 // both streams.
 func run(t *testing.T, home, bin string, args ...string) string {
@@ -291,7 +308,7 @@ func claudeInventory(t *testing.T, out string) (skills, agents []string) {
 func TestClaudeLoadsMarketplaceAndAllFourPlugins(t *testing.T) {
 	claude := harnessCLI(t, "claude")
 	repo, plugins := stage(t)
-	home := t.TempDir()
+	home := tempHome(t)
 
 	run(t, home, claude, "plugin", "validate", "--strict", repo)
 	for _, p := range plugins {
@@ -378,7 +395,7 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 	want := allAgents(plugins)
 
 	t.Run("validate", func(t *testing.T) {
-		home := t.TempDir()
+		home := tempHome(t)
 		for _, p := range plugins {
 			var v struct {
 				Manifest   string `json:"manifest"`
@@ -408,7 +425,7 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 	})
 
 	t.Run("strict validate rejects hook defects", func(t *testing.T) {
-		home := t.TempDir()
+		home := tempHome(t)
 		cases := []struct {
 			name   string
 			mutate func(t *testing.T, pluginDir string)
@@ -482,7 +499,7 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 	})
 
 	t.Run("workspace discovery through .agents/plugins.json", func(t *testing.T) {
-		if got := lines(run(t, t.TempDir(), agy, "--add-dir", repo, "agents")); !sameSet(got, want) {
+		if got := lines(run(t, tempHome(t), agy, "--add-dir", repo, "agents")); !sameSet(got, want) {
 			t.Errorf("agy --add-dir found agents %v, want %v", got, want)
 		}
 		// Negative control: without the registration file the workspace holds no plugin.
@@ -490,7 +507,7 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		if err := os.Remove(filepath.Join(bare, ".agents", "plugins.json")); err != nil {
 			t.Fatal(err)
 		}
-		if got := lines(run(t, t.TempDir(), agy, "--add-dir", bare, "agents")); len(got) != 0 {
+		if got := lines(run(t, tempHome(t), agy, "--add-dir", bare, "agents")); len(got) != 0 {
 			t.Errorf("without .agents/plugins.json agy still found agents %v — this subtest cannot tell the file matters", got)
 		}
 	})
@@ -511,7 +528,7 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 		if err := os.WriteFile(probe, re.ReplaceAll(b, []byte("tools: $1")), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		got := lines(run(t, t.TempDir(), agy, "--add-dir", broken, "agents"))
+		got := lines(run(t, tempHome(t), agy, "--add-dir", broken, "agents"))
 		for _, a := range got {
 			if a == "probe" {
 				t.Fatalf("agy still loads probe with a scalar tools field — the frontmatter rule guards nothing: %v", got)
@@ -523,7 +540,7 @@ func TestAntigravityValidatesInstallsAndDiscoversAllFourPlugins(t *testing.T) {
 	})
 
 	t.Run("bulk install", func(t *testing.T) {
-		home := t.TempDir()
+		home := tempHome(t)
 		run(t, home, agy, "plugin", "install", repo)
 		var listed []struct {
 			Name    string   `json:"name"`
