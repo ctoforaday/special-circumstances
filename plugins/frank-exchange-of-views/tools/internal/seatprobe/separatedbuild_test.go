@@ -60,6 +60,7 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 	// convention rather than a fixed spelling (a `.exe` on Linux breaks the callers that
 	// resolve the name themselves — measured, see that package's comment).
 	bin := testbuild.Binary(t, "feov-record")
+	writer := testbuild.Binary(t, "feov-sitting-write")
 
 	boards := Boards()
 	if len(boards) == 0 {
@@ -88,7 +89,9 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 				return string(out), nil
 			}
 
-			err := Build(runtest.Open(t, runDir), b, run)
+			// The delivery writer runs as the hook runs it, in its own process under the same root.
+			hand := WriterHand(writer, runDir, append(os.Environ(), record.RecordRootEnv+"="+recordRoot, "CLAUDE_PROJECT_DIR="+runDir))
+			err := Build(runtest.Open(t, runDir), b, run, hand)
 			// A BINARY WITHOUT A HELPER CANNOT CITE OCR TEXT, and the board says so rather than building
 			// without its citation. A binary with a helper that reports the helper absent is the defect, so
 			// the skip is taken only through Require when the helper is absent.

@@ -29,7 +29,7 @@ func TestEveryProbeBoardsListIsKeyedQueuedAndFits(t *testing.T) {
 		t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 		exec := func(args ...string) (string, error) { return run(t, args...) }
 		r := runtest.Open(t, runDir)
-		if err := seatprobe.Build(r, b, exec); err != nil {
+		if err := seatprobe.Build(r, b, exec, seatprobe.InProcessHand(r.Dir())); err != nil {
 			t.Fatalf("board %q does not build: %v", name, err)
 		}
 		for seat := range seatclass.Seats {
