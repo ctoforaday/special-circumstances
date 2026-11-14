@@ -38,8 +38,9 @@ func TestALensNeverServedTheReportAtTheFinalHeadHoldsThePass(t *testing.T) {
 // bounded: retired, its pin is the head it was LAST SERVED, not the dispatch's, so its area is stale —
 // the chair reads the changes since that pin and names the area in its spot-check, and the PASS lands.
 func TestALensRetiredWithoutBeingServedTheHeadLeavesItsAreaToTheSpotCheck(t *testing.T) {
+	// The lens read the report whole at its first sitting and its full re-read, then sat unserved.
 	board := func() (*stage, int64) {
-		b := retBoard(t).sit(2, evLens).ingest()
+		b := retBoard(t).readFully(2, evLens).ingest()
 		h := b.head()
 		b.sitUnserved(h, evLens).sitUnserved(h, evLens)
 		return b, h
@@ -47,7 +48,7 @@ func TestALensRetiredWithoutBeingServedTheHeadLeavesItsAreaToTheSpotCheck(t *tes
 	b, h := board()
 	f := lensStateOf(t, b.seed())
 	if !f.retired() || f.pin != 2 || f.ready {
-		t.Fatalf("three barren sittings, the last two never served head %d: %+v — want retired at pin 2", h, f)
+		t.Fatalf("four barren sittings, the last two never served head %d: %+v — want retired at pin 2", h, f)
 	}
 	b, _ = board()
 	run := b.register("red-chair").seed()
@@ -126,14 +127,16 @@ func TestAReportReadIsNotAnAct(t *testing.T) {
 	}
 }
 
-// A REPORT READ IS A LENS'S, AT THE HEAD THE TEXT WAS SERVED AT. The write refuses one by any other
-// seat — no other seat's audit is pinned — and one naming a head the report is not at.
+// A REPORT READ IS A DELIVERY TO A LENS, THE CHAIR OR THE BENCH, AT A HEAD THE REPORT HAS HELD. The
+// write refuses one by any other seat — blue is delivered no report text (plan constitution-gaps
+// §III.3: one report_read row per completed delivery, for a lens, the chair and the bench) — and one
+// naming a head that is no edit or part at or before the report's head.
 func TestAReportReadIsALensesAtTheReportsHead(t *testing.T) {
 	run := retBoard(t).seed()
-	if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(2)}); err == nil || !strings.Contains(err.Error(), "is not a lens") {
-		t.Errorf("a chair's report read: %v; want refused", err)
+	if err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(2)}); err == nil || !strings.Contains(err.Error(), "blue-respond is none of them") {
+		t.Errorf("blue's report read: %v; want refused", err)
 	}
-	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(1)}); err == nil || !strings.Contains(err.Error(), "the report's head is 2") {
+	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(1)}); err == nil || !strings.Contains(err.Error(), "names head 1, which is no edit or part at or before the report's head 2") {
 		t.Errorf("a read naming head 1 over head 2: %v; want refused", err)
 	}
 	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_REPORT_READ, &recordpb.ReportRead{Head: proto.Int64(2)}); err != nil {
