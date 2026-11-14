@@ -47,7 +47,7 @@ builds gblock's rulings so that each one becomes a record fact the tool composes
 | **E** + **J** | The question is split into **question parts** on the record. Each part carries a coverage state (`covered`, `not_obtained`, `excluded`) and a reason. Blue records it; the logic lens checks it, as it checks inquiries. A PASS over a part that is not covered derives the new outcome **QUALIFIED**. VERIFIED's meaning and derivation are made to agree. The tool composes the sentence for a part not covered from the cause field. | P5 |
 | **K** | A **basis block** under the outcome stamp in report.md: coverage in subject voice, and a metadata table composed from record fields. The report layout table (`report/layout.go`) becomes the one source the agent-facing descriptions of report.md are generated from. | P7 |
 | **D** | Two mechanisms. (1) A retired lens is re-readied by a change after its pin that falls in its own area: an edit that reopens an anchor of a gap it minted, open or closed; for logic, whose area is the whole report, any head move. (2) The chair's stale-area check is kept and redesigned: the chain delivers the chair each change since a retired lens's pin, as its old and new text, and the chair records a **bearing** on each, accepted only once its delivery is complete — a field the tool refuses the PASS without. This completes #1805's stamps. | P4 |
-| **F** | **The report reaches a lens through its work list** (ruled by gblock 2026-11-13), **on the one delivery chain every seat's work now arrives on** (ruled 2026-11-13 after plan-audit r3). A lens with no complete delivery, and at its next sitting after its first (its **full re-read**), is served the whole report; every other sitting, each edit since its pin as the whole paragraphs it touched, before and after, stamped on the edit (ruled 2026-11-14; the paragraph unit picked at approval), and its own gap passages. The chair is served each stale area's unborne changes, the bench the passages of the gaps its motions are about. Report text is handed only at PostToolUse, one item per call to the record; the tool writes one `report_read` row per completed delivery, and everything else about deliveries is derived in recordsql views (ruled 2026-11-14). The PASS is refused (`whole_report_owed`) while a lens that has sat owes a whole delivery, and the debt readies the lens. A close, a bearing and a ruling on a motion about gaps stand only on delivered text. Report-text items block the envelope; a delivery that cannot advance ends the seat's turn at once and logs its reason for the operator. The seat records nothing about its reading. A sitting that closed, checked, reproduced or verified is productive for retirement. | P3 |
+| **F** | **The report reaches a lens through its work list** (ruled by gblock 2026-11-13), **on the one delivery chain every seat's work now arrives on** (ruled 2026-11-13 after plan-audit r3). A lens with no complete delivery, and at its next sitting after its first (its **full re-read**), is served the whole report; every other sitting, each edit since its pin as the whole paragraphs it touched, before and after, stamped on the edit (ruled 2026-11-14; the paragraph unit picked at approval), and its own gap passages. The chair is served each stale area's unborne changes, the bench the passages of the gaps its motions are about. Report text is handed only at PostToolUse, one item per tool call, whichever tool (ruled 2026-11-14); the tool writes one `report_read` row per completed delivery, and everything else about deliveries is derived in recordsql views (ruled 2026-11-14). The PASS is refused (`whole_report_owed`) while a lens that has sat owes a whole delivery, and the debt readies the lens. A close, a bearing and a ruling on a motion about gaps stand only on delivered text. Report-text items block the envelope; a delivery that cannot advance ends the seat's turn at once and logs its reason for the operator. The seat records nothing about its reading. A sitting that closed, checked, reproduced or verified is productive for retirement. | P3 |
 | **G** | A lane's settled inquiry fate that contradicts another lane's settled fate on the same inquiry is refused; the lane records the inquiry `underway`, and the synthesizer settles every inquiry the lanes left open. | P2 |
 | **I** | **Deferred** to #1695's redesign (gblock 2026-11-12: "1695 is being redesigned for being overly complicated"). Not built from this plan, and nothing here is designed against #1695's current plan (§III.6). | — |
 | **L** | No rule of its own: D(1)'s retirement rule with logic's area, the whole report, so any head move after logic's pin re-readies it and its next sitting is delivered the change (§III.4). | P4 |
@@ -415,6 +415,19 @@ passages.
 > ends the seat's turn; no `delivery_stopped` event and no PreToolUse refusal arm; under Antigravity report-text items
 > do not block, the run states it cannot PASS, and delivery waits on #1827. Blue-respond gets no report-text items and
 > a position ruling needs none (§VII.8).
+>
+> **Ruled by gblock 2026-11-14, after the PR2 smoke** (picked options, agent wording): **any tool call advances the
+> delivery.** Every item, report text included, is handed after EVERY successful tool call a seat makes — Read, Grep,
+> Glob, WebSearch, WebFetch, Edit, Write, Bash — not only after a call to the record; the call returning the envelope
+> hands nothing, it ends the seat's work. The read row is still written only when the text is emitted. This removes
+> the filler calls the smoke showed (`show work --match` on a selector that matches nothing, made only to advance). The
+> PostToolUse registration in `.claude-plugin/hooks.json` carries no matcher, and `hookcmd.Post` hands the next item for
+> every call but the envelope's (`hookgate.CallsRecord` is deleted). A failed call reaches PostToolUseFailure and hands
+> nothing; the next successful call does. **And a spot-check bears an area's changes once** (smoke finding, fixed as
+> found): an area is stale only while it holds a change no spot-check of the chair's has borne (`borneThroughOf`, the
+> same bound `area_change` reads), whichever sitting filed the spot-check, so a chair whose areas have not changed since
+> its last spot-check owes no repeat and may PASS. The smoke's chair spot-checked at epoch 9, was refused a repeat at
+> epoch 10 with nothing to deliver, and the PASS stayed blocked.
 
 **The chain is universal** (gblock 2026-11-13, after plan-audit r3: "Give everyone the same chain as lenses - that was
 meant to be universal"). Today only a lens's work arrives one item at a time: the PostToolUse hook hands the next item
@@ -423,8 +436,8 @@ nothing for any other role (`next.go:56-58`), and at SubagentStart `injectWorkLi
 list as `record.WorkJSONBytes` (`worklist.go:66-83`), or nothing where the configuration seats several (the frontier
 and blue-respond share `blue-researcher`; every lane is `blue-lane`). P3 makes the lens's chain the one path for every
 seat.
-- [MODIFY] `hookcmd/post.go` `nextItem`: the `IsLensAgentType` gate goes; the writer is spawned for any agent whose call
-  went to the record (`hookgate.CallsRecord`), on either harness: under Antigravity the answer reaches the seat through
+- [MODIFY] `hookcmd/post.go` `nextItem`: the `IsLensAgentType` gate goes; the writer is spawned for any agent's
+  successful call, whichever tool (ruled 2026-11-14, above), on either harness: under Antigravity the answer reaches the seat through
   hookcore's queue at its next PreInvocation (§II), so non-report items are handed there as on Claude Code; only
   report-text items are withheld under agy (below). Its doc (`post.go:62-76`) is rewritten to say so. [MODIFY]
   `sittingwrite/next.go` `WriteNextItem`: the seat is the record's binding of the agent (`record.SeatOfAgent`, the
@@ -437,7 +450,7 @@ seat.
   returns.
 - [MODIFY] `sittingwrite/worklist.go`: **SubagentStart hands no report-text item** (ruling 2026-11-14). It hands every
   seat its configuration names the head of its queue, as `injectLensWork` does a lens's today, unless the head is a
-  report-text item; then it hands one line: the sitting's report text arrives one item per call to the record, the
+  report-text item; then it hands one line: the sitting's report text arrives one item per tool call, the
   first after the seat's first call (for a lens the `audit` item carries it). The configurations that seat several get
   nothing at SubagentStart, as today. `WorkJSONBytes` is no longer injected; `show work` still prints the whole list.
   [MODIFY] `delivery.go`: `renderLens` becomes the one renderer of a queue entry for every role.
@@ -456,7 +469,7 @@ seat.
   work` prints the whole; the blocking paragraph (:330) gains the chair; the chair's paragraph (:331, "your envelope is
   refused on none of them") says report-text items refuse the chair's envelope — and `cli/seat/standing.go:102-111`,
   whose chair sentence ("STILL TO CLEAR before the run can PASS") counts report-text items apart, as items that hold
-  the chair's turn. Each says: work arrives one item at a time; report text arrives only after a call to the record;
+  the chair's turn. Each says: work arrives one item at a time; report text arrives only after a tool call, whichever tool;
   report-text items refuse the envelope, the chair's included. The authored constitution sources hold no rival
   sentence (`grep -rn -i 'one item at a time\|refused on none\|arrives whole' scripts/agentgen/src` → only
   `fragments/lens-duties.md`, already a carrier below).
@@ -824,7 +837,7 @@ per run.
   the measured 10,000-character cap. It cannot see a client that lowers the cap or changes how it spills, or a hook
   killed between the row's write and its emit.
 - **Constitution, help and docs** say, in present tense: every seat's work arrives one item at a time, report text only
-  after a call to the record; a lens with no whole delivery and its one full re-read are served the whole report, every
+  after a tool call; a lens with no whole delivery and its one full re-read are served the whole report, every
   other lens sitting each edit since its pin as the paragraphs it touched, before and after, and its own gap passages; the chair is served each stale area's unborne
   changes and the bench its motions' gap passages; the envelope waits until the delivery is complete; a delivery that
   cannot advance ends the seat's turn at once; a close, a bearing and a ruling on a motion about gaps stand only on
@@ -1148,8 +1161,9 @@ its SubagentStart section, `cli/seat/verbs.go:328-331` (the work page's lens, se
 `cli/seat/standing.go:102-111` (the chair's standing sentence), debate.js `oneItemClause` (:896) and the chair's,
 bench's and blue-respond's prompts; tests `cli/{hookworklist,onelist}_test.go`,
 `record/{blueworkitem,cast,composedsource,declarations,queue,retirement}_test.go`,
-`integration/surface/hookgraph_test.go`, `releasegate/fuzz/queue_test.go`. `hooks.json` is unchanged: the PostToolUse
-matcher already names Bash, and the stop needs no PreToolUse arm.
+`integration/surface/hookgraph_test.go`, `releasegate/fuzz/queue_test.go`. `.claude-plugin/hooks.json`'s PostToolUse
+registration loses its matcher, so every successful call reaches the hook (ruled 2026-11-14, §III.3.2), and the stop
+needs no PreToolUse arm.
 
 **D (P4).** `grep -rln 'StaleArea\|stale_area\|SpotCheck\|spot_check\|spot-check\|stampSpotCheckChanges\|BlockerStaleArea\|stale area' tools ../../scripts skills agents docs hooks.json .claude-plugin`
 from `plugins/frank-exchange-of-views` returns **137 paths**, including **12** generated agent files. D now keeps the
@@ -1217,7 +1231,8 @@ source :25 (generated SKILL.md:45), the research-protocol SKILL source :48 (gene
 `definitions_gen.go` regenerate). Each states the new pin and delivery. False hits: `cli/blue/verify.go:10`, `cli/ocr.go`,
 `cost/cost.go:444` (a historical cost note on lens reads; read at implementation), `migrate/planids.go` and
 `migrate/testdata/prose-rewrites.golden` (archived plan prose, history), `docs/seat-command-triggers.md:127` (a cut verb).
-**hooks.json is unchanged** (F1, and §III.3.2's stop needs no matcher change). **`hooks/README.md` changes**
+**hooks.json's PostToolUse matcher goes** (ruled 2026-11-14, §III.3.2: any tool call advances the delivery); its
+command is unchanged. **`hooks/README.md` changes**
 (:93-130 and the SubagentStart section): every seat's work arrives one item at a time, report text only at
 PostToolUse, and a delivery that cannot advance ends the seat's turn.
 
@@ -1379,7 +1394,7 @@ noted.
 - **Terms (`terms.json` → `vocabdoc`).** [NEW] "full re-read" (the whole-report delivery at a lens's next sitting after
   its first; once per lens; the PASS waits on it), "question part", "coverage" (collision notes against
   `partial_control_coverage` and lane coverage), "change bearing". [MODIFY] "current item" (a lens's today; every
-  seat's, report text only after a call to the record), "outcome", "lens retirement" (a change after its pin in its own area readies a
+  seat's, report text only after a tool call), "outcome", "lens retirement" (a change after its pin in its own area readies a
   retired lens again; logic's area is the whole report), "report read" (one row per
   completed delivery: for a lens the whole report, or the changes and its gap passages; for the chair the stale areas'
   changes; for the bench its motions' gap passages; its `pin (a dispatch's)` collision restates a lens's pin as the
@@ -1404,7 +1419,7 @@ noted.
 | R10 | Section keying of voice gaps refuses a legitimate second gap | M × L × L | The successor mint (`mint --supersedes`) carries both (F5 ruled the key) |
 | R11 | The price correction is wrong again | L × L × L | Published rates first, verified on two runs |
 | R12 | Rebasing across #1828 (open) and #1695's redesign changes signatures | H × L × M | Each part rebases on current main, regenerates goldens, re-runs its census |
-| R13 | The universal chain breaks a hook path no gate exercises (gates never dispatch a seat), and every seat — not only lenses — pays one call to the record per item | M × H × M | P3's own PR runs a universe smoke (§V 11) and proves the installed copy carries the change; the chair queues only what it clears and each change once; per-seat items and turns are reported on the acceptance run (§V 9.2) |
+| R13 | The universal chain breaks a hook path no gate exercises (gates never dispatch a seat), and every seat — not only lenses — pays one tool call per item, and the writer runs once per successful call (about 100 ms: the delivery lock and one read of the record; the PR2 smoke's seats made 643 non-envelope calls against 615 to the record, so spawns rise about 5%) | M × H × M | P3's own PR runs a universe smoke (§V 11) and proves the installed copy carries the change; the chair queues only what it clears and each change once; per-seat items and turns are reported on the acceptance run (§V 9.2) |
 | R14 | The stop (`continue: false` on a PostToolUse) is measured to end the seat's turn (Claude Code 2.1.323, `continue-probe/`), but whether the stopped seat's SubagentStop still writes `sitting_close` is not, and without it the sitting reads as never closed, not failed | M × M × L | P3's smoke checks it before merge (§V 11). The stop applies to Workflow and subagent seats only, and every seat is one: seats run as native workflow subagents on every harness (§VII.5). A client that changes `continue: false`'s behaviour goes the same way: the seat can then neither return its envelope nor be handed its item, and its sitting fails at `maxTurns`; that would be reported to gblock, not designed around. No PreToolUse arm is added |
 | R15 | A row records text handed to the harness, not text seen: a client that changes its 10,000-character cap or spill, or a hook killed between the row's write and its emit, leaves a row for text the seat did not get | L × M × M | Ruled: arrival is checked once, on the acceptance run (§V 9.2), against the transcripts; no recurring check. Stated as residue (§III.3.2) |
 
