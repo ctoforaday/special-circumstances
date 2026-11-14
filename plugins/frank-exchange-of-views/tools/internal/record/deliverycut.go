@@ -244,7 +244,7 @@ type change struct {
 // changesAfterSQL is the head moves after ?1 and at or before ?2, in record order: each edit's stamped
 // paragraphs, and each part's text as the new side. With ?3 set, only the area_change rows of that lens.
 const changesAfterSQL = `SELECT h."event_id", h."before", h."after" FROM (
-    SELECT b."event_id", COALESCE(b."old_paragraphs", '') AS "before", COALESCE(b."new_paragraphs", '') AS "after" FROM "blue_edit" b
+    SELECT ed."event_id", COALESCE(ed."old_paragraphs", '') AS "before", COALESCE(ed."new_paragraphs", '') AS "after" FROM "blue_edit" ed
     UNION ALL
     SELECT p."event_id", '', p."text" FROM "report_part" p) h
   WHERE h."event_id" > ?1 AND h."event_id" <= ?2
