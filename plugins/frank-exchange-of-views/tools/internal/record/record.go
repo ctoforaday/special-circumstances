@@ -1652,6 +1652,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.FetchedAt != nil && AccessedOn(b.GetFetchedAt()) == "" {
 			return fmt.Errorf("cite carries fetched_at %q, which is not an RFC 3339 time — the tool stamps it from the fetch index's record of when the copy was fetched", b.GetFetchedAt())
 		}
+		// WHEN A WEB ARCHIVE TOOK THE COPY belongs to a copy read at a copy url: the url's own bytes
+		// were taken live, and no archive took them. It is a time, as the fetch index stamped it.
+		if b.CopyCapturedAt != nil {
+			if b.CopyUrl == nil {
+				return fmt.Errorf("cite carries copy_captured_at and no copy_url — a capture time is when a web archive took the copy the citation read, and the url's own bytes were not taken from one")
+			}
+			if AccessedOn(b.GetCopyCapturedAt()) == "" {
+				return fmt.Errorf("cite carries copy_captured_at %q, which is not an RFC 3339 time — the tool stamps it from the fetch index's record of when the web archive took the copy", b.GetCopyCapturedAt())
+			}
+		}
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
 		// none. The span, its place and the text around it are one fact: a span without the source's
 		// own bytes around it is blue's word for what the source says, which is what this exists to

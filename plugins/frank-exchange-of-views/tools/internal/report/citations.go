@@ -43,6 +43,9 @@ func citationsSection(ev record.EvidenceJSON, live map[string]string) string {
 		if on := record.AccessedOn(s.FetchedAt); on != "" {
 			fmt.Fprintf(&b, ", accessed %s", on)
 		}
+		if on := record.AccessedOn(s.CopyCapturedAt); on != "" {
+			fmt.Fprintf(&b, ", from the web archive's copy captured %s", on)
+		}
 		b.WriteString("\n")
 		if loc := plain(backs); loc != "" {
 			fmt.Fprintf(&b, "- **backs**: %s\n", loc)

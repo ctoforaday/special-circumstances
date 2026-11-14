@@ -129,7 +129,7 @@ var (
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding`)
 	dataFields = fieldSet(`Anchor.location ReportPart.text BlueEdit.edit_key
-		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.cite_key Cite.copy_url Cite.fetched_at
+		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.cite_key Cite.copy_captured_at Cite.copy_url Cite.fetched_at
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
 		Close.anchor_seat Close.carried_from DocketMotion.grounds_quote

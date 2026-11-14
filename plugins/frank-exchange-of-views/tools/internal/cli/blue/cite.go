@@ -153,6 +153,11 @@ func newCite() *cobra.Command {
 		if entry.Substitution != "" && entry.CopyURL != "" {
 			body.CopyUrl = proto.String(entry.CopyURL)
 		}
+		// AND, FOR A COPY TAKEN FROM A WEB ARCHIVE, WHEN THE ARCHIVE TOOK IT: the capture time the
+		// fetch index holds for these bytes. The copy says what the url said then, not at fetched_at.
+		if entry.CopyCapturedAt != "" {
+			body.CopyCapturedAt = proto.String(entry.CopyCapturedAt)
+		}
 		if at.located {
 			body.SourceSpan = proto.String(at.span)
 			body.SpanStart = proto.Int32(int32(at.loc.Start))

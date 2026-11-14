@@ -2738,8 +2738,8 @@
 -- SELECT t."event_id", t."inquiry_id", t."reason" FROM "inquiry_check" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 113c188b6b5b
--- SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."fetched_at", t."answers" FROM "cite" t WHERE t."event_id" > ?
+== stmt ffed9265f4d6
+-- SELECT t."event_id", t."label", t."url", t."sha256", t."title", t."location", t."cite_key", t."text", t."source_text_origin", t."source_span", t."ocr_engine", t."ocr_text_sha", t."span_start", t."span_end", t."span_text_sha", t."source_before", t."source_matched", t."source_after", t."work_status", t."source_completeness", t."copy_substitution", t."copy_url", t."fetched_at", t."copy_captured_at", t."answers" FROM "cite" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt 8da850344d9a
