@@ -149,7 +149,7 @@ func handReportItem(run record.Run, seat string, w record.WorkJSON, q []record.Q
 		if err != nil {
 			return stuck("the sitting's delivery file could not be read: %v", err)
 		}
-		text, now, err := handReportText(run, seat, record.ReportTextAreas(w), prev)
+		text, now, err := handReportText(run, seat, record.ReportTextSubjects(w), prev)
 		if err != nil {
 			return err
 		}

@@ -46,9 +46,11 @@ type DeliveryCut struct {
 }
 
 // CutDelivery cuts seatID's delivery from the record as it stands, each piece small enough that
-// fits(label, text) holds. A seat owed no report text — no report yet, or a role that is handed none —
-// is cut nothing (nil pieces).
-func CutDelivery(run Run, seatID string, staleAreas []string, fits func(label, text string) bool) (DeliveryCut, error) {
+// fits(label, text) holds. subjects is what the seat's report-text items are about
+// (ReportTextSubjects): the chair's stale areas, the bench's gaps; a lens's are cut from the report.
+// A seat owed no report text — no report yet, or a role that is handed none — is cut nothing (nil
+// pieces).
+func CutDelivery(run Run, seatID string, subjects []string, fits func(label, text string) bool) (DeliveryCut, error) {
 	var cut DeliveryCut
 	role := seatclass.RoleOfSeat(seatID)
 	err := readSnapshot(run, func(q recordsql.Querier) error {
@@ -88,7 +90,7 @@ func CutDelivery(run Run, seatID string, staleAreas []string, fits func(label, t
 			}
 		case "chair":
 			var changes []DeliveryPiece
-			for _, area := range staleAreas {
+			for _, area := range subjects {
 				cs, err := changeItemsAfter(q, report, -1, head, area)
 				if err != nil {
 					return err
@@ -97,7 +99,7 @@ func CutDelivery(run Run, seatID string, staleAreas []string, fits func(label, t
 			}
 			cut.Pieces = pieces(changes, nil, fits)
 		case "bench":
-			passages, err := motionPassages(q, report)
+			passages, err := gapsPassages(q, report, subjects)
 			if err != nil {
 				return err
 			}
@@ -322,18 +324,20 @@ func ownPassages(q recordsql.Querier, report, seatID string) ([]DeliveryPiece, e
 	return gapPassages(q, report, ownPassagesSQL, seatID)
 }
 
-// motionPassagesSQL is the gaps of every unruled motion about gaps.
-const motionPassagesSQL = `SELECT DISTINCT g."gap_id", COALESCE(m."location", '') FROM (
-    SELECT x."motion_id", d."gap_id" FROM "motion" x JOIN "motion_docket" d ON d."event_id" = x."event_id"
-    UNION ALL
-    SELECT x."motion_id", r."gap_id" FROM "motion" x JOIN "motion_grade" r ON r."event_id" = x."event_id" WHERE r."gap_id" IS NOT NULL) g
-  JOIN "mint" m ON m."gap_id" = g."gap_id"
-  WHERE ?1 = ?1 AND NOT EXISTS (SELECT 1 FROM "motion_rule" u WHERE u."motion_id" = g."motion_id")
-  ORDER BY m."event_id"`
+// gapPassageSQL is gap ?1 and its recorded location.
+const gapPassageSQL = `SELECT "gap_id", COALESCE("location", '') FROM "mint" WHERE "gap_id" = ?1`
 
-// motionPassages is the passage of each gap an unruled motion is about.
-func motionPassages(q recordsql.Querier, report string) ([]DeliveryPiece, error) {
-	return gapPassages(q, report, motionPassagesSQL, "")
+// gapsPassages is the passage of each of gaps, in order.
+func gapsPassages(q recordsql.Querier, report string, gaps []string) ([]DeliveryPiece, error) {
+	var out []DeliveryPiece
+	for _, g := range gaps {
+		ps, err := gapPassages(q, report, gapPassageSQL, g)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, ps...)
+	}
+	return out, nil
 }
 
 // latestReopeningSQL is the stamped paragraphs before the latest edit whose reopened lists gap ?1.

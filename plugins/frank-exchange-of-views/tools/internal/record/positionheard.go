@@ -235,7 +235,7 @@ func upheldPositionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocke
 		if reads == nil {
 			reads = servedOf(win)
 		}
-		if slices.ContainsFunc(reads[m.Work.Lens], func(r served) bool { return r.opening > m.ruled }) {
+		if slices.ContainsFunc(reads[m.Work.Lens], func(r served) bool { return r.opening > m.ruled && r.sat }) {
 			continue
 		}
 		out = append(out, Blocker{Kind: BlockerUpheldPosition, Subject: m.ID, Owner: m.Work.Lens, Detail: m.Work.Direction, since: m.ruled})

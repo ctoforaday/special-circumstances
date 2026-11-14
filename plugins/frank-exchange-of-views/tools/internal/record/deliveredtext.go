@@ -84,8 +84,9 @@ const changedSinceSQL = `SELECT MIN(x) FROM (
 
 // DeliveredTextRefusal is the delivered-text rule asked of one act, as the write asks it: the refusal
 // of body under seatID, or nil where the act depends on no report text or stands on its delivery. A
-// close (not a carry) depends on its gap's text, a spot-check on its sitting's delivery, and a ruling
-// on a motion about gaps on their passages; a ruling on a position names no passage and needs none.
+// close (not a carry) depends on its gap's text, a spot-check on its sitting's delivery, and the
+// bench's ruling on a motion about gaps on their passages; a ruling on a position names no passage and
+// needs none.
 // The validate arms and migrate's replay ask this one function, so an archived act migrate drops is
 // exactly one the live write refuses.
 func DeliveredTextRefusal(q recordsql.Querier, seatID string, body proto.Message) error {
@@ -98,7 +99,9 @@ func DeliveredTextRefusal(q recordsql.Querier, seatID string, body proto.Message
 	case *recordpb.SpotCheck:
 		return requireDeliveredText(q, seatID, "a spot-check", nil)
 	case *recordpb.MotionRule:
-		if b.GetMotionId() == "" {
+		// THE BENCH'S RULING, not the chair's: the chair rules blue's grade motions on the board it
+		// is handed, and its report text is its stale areas' changes alone.
+		if b.GetMotionId() == "" || seatclass.RoleOfSeat(seatID) != "bench" {
 			return nil
 		}
 		gaps, err := motionGaps(q, b.GetMotionId())
@@ -249,19 +252,16 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 				}
 			}
 		case "bench":
-			rows, err := q.Query(motionPassagesSQL, "")
+			// THE MOTIONS THIS SITTING IS CONVENED TO RULE (benchHeld), each a blocking item on its list:
+			// a motion that waits for another sitting is not this one's to rule, and its passage is
+			// that sitting's text.
+			gaps, err := convenedGaps(q, open)
 			if err != nil {
 				return err
 			}
-			defer rows.Close()
-			for rows.Next() {
-				var gap, loc string
-				if err := rows.Scan(&gap, &loc); err != nil {
-					return err
-				}
-				item(about(SubjectGap, gap), "the passage of gap "+gap+", which a motion before you is about, arrives on your work list this sitting, one item after each of your calls to the record; a ruling on a motion about it stands only once it has been delivered, and your envelope waits until it has")
+			for _, gap := range gaps {
+				item(about(SubjectGap, gap), "the passage of gap "+gap+", which a motion this sitting is convened to rule is about, arrives on your work list this sitting, one item after each of your calls to the record; a ruling on a motion about it stands only once it has been delivered, and your envelope waits until it has")
 			}
-			return rows.Err()
 		}
 		return nil
 	})
@@ -278,14 +278,37 @@ func RecordDelivery(run Run, seatID string, head int64) error {
 	return err
 }
 
-// ReportTextAreas is the stale areas whose changes a seat's list holds as report text: the chair's
-// delivery is cut from them.
-func ReportTextAreas(w WorkJSON) []string {
+// ReportTextSubjects is what a seat's report-text items are about, in list order: the chair's stale
+// areas, the bench's gaps. The delivery is cut from them (CutDelivery); a lens's items name the report.
+func ReportTextSubjects(w WorkJSON) []string {
 	var out []string
 	for _, it := range w.Sitting.Open {
-		if it.Kind == ItemReportText && it.Subject != nil && it.Subject.Kind == SubjectArea {
+		if it.Kind == ItemReportText && it.Subject != nil && (it.Subject.Kind == SubjectArea || it.Subject.Kind == SubjectGap) {
 			out = append(out, it.Subject.ID)
 		}
 	}
 	return out
+}
+
+// convenedGaps is the gaps the motions on open that this sitting is convened to rule are about, each
+// once, in list order.
+func convenedGaps(q recordsql.Querier, open []Item) ([]string, error) {
+	var out []string
+	seen := map[string]bool{}
+	for _, it := range open {
+		if it.Kind != ItemKind(BlockerUnruledMotion) || !it.Blocks || it.Subject == nil {
+			continue
+		}
+		gaps, err := motionGaps(q, it.Subject.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, g := range gaps {
+			if !seen[g] {
+				seen[g] = true
+				out = append(out, g)
+			}
+		}
+	}
+	return out, nil
 }

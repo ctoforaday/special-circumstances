@@ -14,7 +14,7 @@ func deliver(t testing.TB, run Run, seatID string) int64 {
 	if err != nil {
 		t.Fatalf("reading %s's work list to cut its delivery: %v", seatID, err)
 	}
-	cut, err := CutDelivery(run, seatID, ReportTextAreas(w), func(string, string) bool { return true })
+	cut, err := CutDelivery(run, seatID, ReportTextSubjects(w), func(string, string) bool { return true })
 	if err != nil {
 		t.Fatalf("cutting %s's delivery: %v", seatID, err)
 	}

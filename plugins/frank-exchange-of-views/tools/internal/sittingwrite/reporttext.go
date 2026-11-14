@@ -77,10 +77,10 @@ func itemFits(label, text string) bool {
 
 // handReportText hands the seat's next item of report text, cutting the delivery at the first, and
 // writes the report_read when it hands the last. now is what the sitting's file holds after.
-func handReportText(run record.Run, seat string, staleAreas []string, prev delivered) (string, delivered, error) {
+func handReportText(run record.Run, seat string, subjects []string, prev delivered) (string, delivered, error) {
 	now := prev
 	if now.Report == nil {
-		cut, err := record.CutDelivery(run, seat, staleAreas, itemFits)
+		cut, err := record.CutDelivery(run, seat, subjects, itemFits)
 		if err != nil {
 			return "", prev, stuck("the record could not be read to cut %s's delivery: %v", seat, err)
 		}

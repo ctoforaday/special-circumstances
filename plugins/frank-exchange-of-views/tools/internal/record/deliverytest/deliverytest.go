@@ -30,7 +30,7 @@ func Deliver(t testing.TB, run record.Run, seatID string) int64 {
 	if err != nil {
 		t.Fatalf("reading %s's work list to cut its delivery: %v", seatID, err)
 	}
-	cut, err := record.CutDelivery(run, seatID, record.ReportTextAreas(w), fitsAll)
+	cut, err := record.CutDelivery(run, seatID, record.ReportTextSubjects(w), fitsAll)
 	if err != nil {
 		t.Fatalf("cutting %s's delivery: %v", seatID, err)
 	}
