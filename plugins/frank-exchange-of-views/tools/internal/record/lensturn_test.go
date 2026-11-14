@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -131,21 +132,26 @@ func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]r
 }
 
 // UNIVERSE-M36, REPLAYED. Every plan its chair stored is folded again on the record as it stood
-// before that plan's dispatch rows. Three plans — events 191, 317 and 430 — engaged seven lenses on
-// gaps minted the epoch before, which blue had not answered: each lens sat first, recorded a
-// keep-the-grade regrade ("Blue has not edited the sentence since this gap was minted") and nothing
+// before that plan's dispatch rows. Three plans — events 191, 312 and 423 of the migrated record, which
+// holds none of blue's repair receipts (plans/delete-manifest-row.md), five of them before 312 and
+// seven before 423 — engaged seven lenses on gaps minted the epoch before, which blue had not
+// answered: each lens sat first, recorded a keep-the-grade regrade ("Blue has not edited the sentence since this gap was minted") and nothing
 // else readied it. Folded now, none of the three engages a lens on a gap the stored plan engaged it on,
 // blue is ready on every gap it was engaged on, and no plan engages a lens on a gap blue has not acted
 // on since the lens's last act.
 //
 // REPORT_VOICE IS ALWAYS MATERIAL (gblock, 2026-11-05), so m36's low voice gaps hold the board now:
-// blue is ready on them too, and at event 430 the voice lens is engaged on G-380a3523, whose sentence
-// an edit changed — the lens's turn. That one sitting is why the replay saves six lens sittings, not
-// the seven no-op sittings it saved while the class went by grade.
+// blue is ready on them too, and at event 423 the voice lens is engaged on G-380a3523, whose sentence
+// an edit changed — the lens's turn.
+//
+// EVERY LENS OWES ITS FULL RE-READ at 191, the whole report once more, which readies it at an unmoved
+// head (plan constitution-gaps §III.3); a sitting with a verify is productive ("Productive sitting
+// (retirement)"), so the evidence lens, whose sitting holds its verify at 372, is not retired from 455
+// as the run retired it. The count below is held plan by plan, so no move offsets another.
 //
 // M36'S INQUIRIES WERE SETTLED AND NEVER CHECKED, so the replay also readies the logic lens, on no gap,
-// for their check (inquirycheck.go). That readiness engages no lens on a gap, and is left out of both
-// counts. So is the voice lens readied, on no gap, for the text the tool composes from a fate or a mint
+// for their check (inquirycheck.go). That readiness engages no lens on a gap, and is left out of the
+// count. So is the voice lens readied, on no gap, for the text the tool composes from a fate or a mint
 // it had not sat through since (composedsource.go).
 func TestM36LensesWaitForBlue(t *testing.T) {
 	whole := archivedEvents(t, m36Archive)
@@ -153,8 +159,18 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blueAlone := map[int]bool{191: true, 317: true, 430: true}
-	lensSittings := map[string]int{} // stored, replayed
+	blueAlone := map[int]bool{191: true, 312: true, 423: true}
+	// stored minus replayed lens sittings, per plan; a plan not named moves none.
+	wantFewer := map[int]int{
+		191: -3, // three lenses engaged on gaps; the replay readies all six for the full re-read
+		312: 2,  // two no-op sittings
+		423: 1,  // two no-op sittings, less voice's turn on G-380a3523
+		455: -1, // the evidence lens, unretired
+		516: -1,
+		517: -1,
+		519: -1,
+	}
+	hit := map[int]bool{}
 	for _, sp := range stored {
 		start := sp.At
 		for start > 0 {
@@ -193,8 +209,10 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 			}
 			return n
 		}
-		lensSittings["stored"] += lenses(sp.Plan)
-		lensSittings["replayed"] += lenses(plan)
+		hit[at] = true
+		if got := lenses(sp.Plan) - lenses(plan); got != wantFewer[at] {
+			t.Errorf("plan at event %d: the replay dispatches %d lens sitting(s) fewer than the stored plan (%d stored), want %d: %+v", at, got, lenses(sp.Plan), wantFewer[at], plan.Parties)
+		}
 		if blueAlone[at] {
 			for _, q := range sp.Plan.Parties {
 				if seatclass.RoleOfSeat(q.SeatID) != "lens" {
@@ -213,15 +231,15 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 			}
 		}
 	}
-	// THE COUNT, PLAN BY PLAN (plan constitution-gaps §III.3). The replay drops the no-op sittings at
-	// 312 (two) and 423 (two) and adds voice's turn at 423: three fewer. At 191 every lens owes its full
-	// re-read, the whole report once more, which readies it at an unmoved head: the
-	// stored plan engaged three lenses there, the replay readies six (voice's composed-text readiness is
-	// left out, above), three more. From 455 to 519 the evidence lens is ready where the run had retired
-	// it: its verify at 372 makes that sitting productive ("Productive sitting (retirement)"), so it is
-	// not three barren sittings in a row — four plans, four more. Net, the replay dispatches four more.
-	if got := lensSittings["stored"] - lensSittings["replayed"]; got != -4 {
-		t.Errorf("the replayed plans dispatch %d lens sitting(s) fewer than m36's (%d stored, %d replayed), want 4 more: the no-op sittings at 312 and 423 less voice's turn, the full re-read at 191, the evidence lens unretired from 455", got, lensSittings["stored"], lensSittings["replayed"])
+	for _, at := range slices.Sorted(maps.Keys(blueAlone)) {
+		if !hit[at] {
+			t.Errorf("no stored plan at event %d: the blue-alone check there runs on nothing", at)
+		}
+	}
+	for _, at := range slices.Sorted(maps.Keys(wantFewer)) {
+		if !hit[at] {
+			t.Errorf("no stored plan at event %d: its count runs on nothing", at)
+		}
 	}
 
 	// CAPTURE NAMES THEM: the run's own dispatch rows hold the nine early engagements, in the seven
