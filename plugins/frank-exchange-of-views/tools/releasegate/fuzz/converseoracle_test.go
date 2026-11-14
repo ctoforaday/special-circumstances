@@ -103,9 +103,13 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		r.dispatchSits("lens", converseLens)
 		r.dispatchReturns(converseLens, false)
 	case benchCloses:
-		r.dispatchReturns(converseLens, false)
+		// THE BENCH SITS ON A DOCKETED GAP ONCE NO OTHER PARTY'S CLOSING IS AWAITED, and only a sitting the
+		// plan convenes on the gap is delivered its passage, which the bench's ruling stands on: blue
+		// dockets the gap while the lens sits, and the lens files its closing on it before it returns.
 		r.register("blue", "blue-respond")
 		must("motion", "docket", "file", "--seat-id", "blue-respond", "--id", open[0], "--reason", "fuzz: the bench's to settle")
+		must("closing", "--seat-id", converseLens, "--id", open[0], "--reason", "fuzz: the lens's closing on the docketed gap")
+		r.dispatchReturns(converseLens, false)
 		r.dispatchSits("chair", "red-chair")
 		must("--json", "dispatch", "next", "--seat-id", "red-chair")
 		r.dispatchReturns("red-chair", false)
