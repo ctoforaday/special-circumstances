@@ -146,7 +146,7 @@ Use "feov-record [command] --help" for more information about a command.
 $ help --seat-id red-lens-evidence
 exit 0
 stdout:
-feov-record — red lens seats — findings, source readings, computation re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them.
+feov-record — red lens seats — findings, source readings, computation re-runs; mints its own gaps and, as the originator, regrades and closes them.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you

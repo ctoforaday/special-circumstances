@@ -568,9 +568,6 @@ type runner struct {
 	// position, a closing on a gap — each naming the act that answers the first. The sweep gates
 	// it at zero.
 	repeatsRefused int
-	// budgetRefused counts the mints the tool refused a lens holding its whole mint budget open.
-	// The sweep gates it at zero.
-	budgetRefused int
 	// oneGapRefused counts the mints the tool refused because an open gap of their class stood on
 	// their sentence or inquiry, and oneGapFindings the findings the refused lens then filed about
 	// that gap. The sweep gates both at zero.
@@ -659,9 +656,8 @@ type runner struct {
 	closedNow map[string]map[string]bool
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
-	// lensMints: lens seat -> mints that LANDED. The gaps a lens holds open are bounded by a budget
-	// whose floor is the run's mintBudget (the report's size can only raise it), so the driver
-	// spreads its mints over the lenses debate.js dispatches rather than raising the floor.
+	// lensMints: lens seat -> mints that LANDED, which fuzzLensStock bounds; the driver spreads its
+	// mints over the lenses debate.js dispatches.
 	lensMints map[string]int
 	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
@@ -2758,10 +2754,7 @@ func (r *runner) register(role, seatID string) {
 }
 
 // fuzzLensSeats are the lens seats this driver mints from — the default cast's lenses, every area,
-// read off record.CastFor so the driver and setup cannot disagree about who sits. Each lens's
-// budget is at least the run's mintBudget and grows with the report, so the ceiling on gaps open
-// at once is at least seven times the floor; a lens holding its budget open sees `mint` refused
-// with the budget text, which noteExec tallies, until one of its gaps closes.
+// read off record.CastFor so the driver and setup cannot disagree about who sits.
 var fuzzLensSeats = func() []string {
 	var out []string
 	seats, _ := record.CastFor(1)
@@ -3496,8 +3489,7 @@ func (r *runner) citeForBareMint(seatID string) {
 // mintBaringCitation is the lens's half of mintBareSeed's forced run: a lens sitting after blue cited
 // mintBareClaim prescribes the citation's token alone as the sentence's replacement, which blue's
 // accept would refuse for leaving the citation bare, and the mint must refuse it with the report
-// unchanged. A mint refused for anything else (the lens's budget, say) leaves the drive to the next
-// lens sitting. It draws nothing from the run's RNG.
+// unchanged. A mint refused for anything else leaves the drive to the next lens sitting. It draws nothing from the run's RNG.
 func (r *runner) mintBaringCitation(seatID string) {
 	r.mu.Lock()
 	due := r.forceMintBare && r.mintBareCited && !r.mintBareDriving && r.mintBareRefused == 0 && r.mintBareAdmittedErr == ""
@@ -3641,8 +3633,7 @@ func (r *runner) judgement() string {
 
 // answerFailed is the half of a failed check that is the lens's whose check failed: for every computation
 // it judged unsound, and every citation whose source its check could not read, that no gap of its
-// carries, it mints its gap about the anchor — outside its budget, so a refusal for budget fails the
-// run — and, on a coin, checks again an anchor whose gap it minted in an earlier sitting: a computation's
+// carries, it mints its gap about the anchor — and, on a coin, checks again an anchor whose gap it minted in an earlier sitting: a computation's
 // judgement, which is what clears the blocker where blue has not retired or reopened it, or a
 // citation read unreachable again. A drawn `unsound`, or the `unreachable`, while that gap is open,
 // is driven to the record's refusal and tallied.
@@ -3727,9 +3718,6 @@ func (r *runner) answerFailed(seatID string) {
 		overOpen := r.ownOpenGapAbout(seatID, b.Subject)
 		out, err := r.exec(args...)
 		if err != nil {
-			if strings.Contains(out, "its mint budget admits no more") {
-				r.noteActErr(seatID + "'s gap about " + b.Subject + ", whose check of its failed, was refused for budget: " + firstLine(out))
-			}
 			continue
 		}
 		var env struct {
@@ -4326,11 +4314,6 @@ func (r *runner) mintWith(seatID, class string) string {
 		return ""
 	}
 	if err != nil {
-		if strings.Contains(out, "its mint budget admits no more") {
-			r.mu.Lock()
-			r.budgetRefused++
-			r.mu.Unlock()
-		}
 		return ""
 	}
 	var env struct {
@@ -4364,7 +4347,7 @@ func (r *runner) mintWith(seatID, class string) string {
 func collapseWS(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 // oneGapWords is the one-gap refusal's own sentence (record.oneGapRefusal), which tells it from the
-// other conflicts a mint meets — an estoppel, a budget.
+// other conflicts a mint meets — an estoppel, say.
 const oneGapWords = "Two defects of one class on one subject are one gap"
 
 // firstEpoch is whether the chair has opened no epoch past the first: the wave of lenses that sit in
@@ -4813,7 +4796,7 @@ func (r *runner) openGaps() []string {
 // amends_prior close are issued as the gap's ORIGINATOR — the lens whose mint created it — because
 // the record refuses a close from anyone else (roundless §III.B.3, requireOriginator); the chair
 // dispatching that lens is what this driver models by looking the minter up. A successor minted
-// here is the closer's own, against its own budget. The chair's `carry` lives in carryPrior.
+// here is the closer's own. The chair's `carry` lives in carryPrior.
 func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	_ = chairID // the sitting seat; the closer is the minter, looked up below
 	if !r.openOnRecord(id) {
@@ -4875,12 +4858,10 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	// (record.go requires --successor for repaired_with_regression). Only allowed on the first close
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
 	if allowReg && r.coin(35) {
-		// THE CLOSER MINTS ITS OWN SUCCESSOR: it is the seat that is sitting, and a mint past its
-		// budget is refused rather than laundered through a lens that is not. The gap being closed
-		// is still open when its successor is minted, so under the sweep's floor of one open gap
-		// per lens that refusal is the usual case, and the remainder is
-		// forwarded to a gap the board already holds open — which is what a successor is: a real,
-		// still-open gap, and the record refuses a dead-end forwarding address either way.
+		// THE CLOSER MINTS ITS OWN SUCCESSOR: it is the seat that is sitting. Where it mints none —
+		// its stock is spent, or the mint is refused — the close is forwarded to a gap the board
+		// already holds open, which is what a successor is: a real, still-open gap, and the record
+		// refuses a dead-end forwarding address either way.
 		// A forced run past its first sitting forwards only: a successor is a fresh gap (see findsFresh).
 		// THE SUCCESSOR CARRIES THE REGRESSION, and does not supersede the gap: a mint superseding it
 		// would close it before its repair could be recorded.
@@ -5346,8 +5327,7 @@ func (r *runner) firstInquiryFate() string {
 // citationReading is a lens's reading of a citation's source, from the outcome drawn for it. A reading
 // that owes a mint is not drawn where the bound forbids one: a reading that finds against (`refutes`,
 // `absent`) mints a gap, so a lens that draws no fresh mint (fresh) reads the source as backing
-// instead; an `unreachable` one is a failed check, whose gap the reader owes outside its budget
-// (answerFailed) and which readies blue to remedy it, so a run forced to a verdict never draws it,
+// instead; an `unreachable` one is a failed check, whose gap the reader owes (answerFailed) and which readies blue to remedy it, so a run forced to a verdict never draws it,
 // as it never judges a computation unsound (judgement). Left drawn, one unreachable reading in a
 // forced-UNVERIFIED run started the failed check's march at a later sitting, blue's remedy moved the
 // head, and the run reached its epoch limit and ended CEILING.
@@ -6125,7 +6105,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// dispatched this lens either ENGAGED — on gaps it minted that are open and below their
 		// limits, which it now re-evaluates against blue's repair — or because it has never sat or
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
-		// fallthrough) and may put new gaps on the board against its own budget.
+		// fallthrough) and may put new gaps on the board.
 		r.sit("lens", seatID)
 		r.queueHolds(seatID)
 		r.docketedOffTheList("lens", seatID)
@@ -6202,17 +6182,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			fresh = max(fresh, 1)
 		}
 		for range fresh {
-			// A LENS RUNS OUT OF DEFECTS, AND THE DRIVER HAS TO SAY SO. The budget caps what a lens
-			// holds open, not what it mints in a run, so a lens that draws fresh mints at every
-			// sitting mints again after every close and the run never converges: measured on this
-			// sweep, 35 of 40 runs ended CEILING, 27 at the epoch limit, and the forced-VERIFIED
-			// run with them. A stock of two per lens over the floor of one still drives both sides
-			// of the budget: the second mint is refused while the first is open, and lands once it
-			// has closed.
+			// A LENS RUNS OUT OF DEFECTS, AND THE DRIVER HAS TO SAY SO. A lens that draws fresh mints
+			// at every sitting mints again after every close and the run never converges: measured on
+			// this sweep, 35 of 40 runs ended CEILING, 27 at the epoch limit, and the forced-VERIFIED
+			// run with them. fuzzLensStock bounds the mints that land.
 			if r.landedMints(seatID) >= fuzzLensStock || !r.mintsFresh(seatID) {
 				break
 			}
-			r.mint(seatID) // refused past the budget, which the sweep counts as a driven refusal
+			r.mint(seatID)
 		}
 		// THE FIRST WAVE'S RACE: parallel lenses each read the board before their siblings minted.
 		// Half the first-epoch lens sittings mint a gap of a class already open on a subject.
@@ -6679,9 +6656,6 @@ type outcome struct {
 	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
 	// the act that answers the first (runner.repeatsRefused).
 	repeatsRefused int
-	// budgetRefused is the mints the tool refused a lens holding its whole budget open
-	// (runner.budgetRefused).
-	budgetRefused int
 	// oneGapRefused and oneGapFindings are the runner's.
 	oneGapRefused, oneGapFindings int
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
@@ -6839,28 +6813,26 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	}()
 	// The fuzz builds its run directly rather than through `setup`, so it must lay down the
 	// same inputs/run-config.json setup writes — the run's TERMS (plans/roundless.md §III.B.2:
-	// k, kMax, mintBudget, convergenceFraction) are what `dispatch next` reads impasse and the
-	// mint budget from, and what the CEILING verdict is DERIVED against (#308).
+	// k, kMax, convergenceFraction, maxEpochs) are what `dispatch next` reads impasse from, and what
+	// the CEILING verdict is DERIVED against (#308).
 	//
 	// TERMS TIGHTER THAN A SMOKE'S, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
 	// forty times inside a release gate, not to run forty production-length debates: under the
-	// terms of production size (kMax 6, mintBudget 5, every lens area) a run is up to twenty gaps of six exchanges
+	// terms of production size (kMax 6, every lens area) a run is up to twenty gaps of six exchanges
 	// each, and 29 of 40 blew the ten-minute per-run budget while every verb the sweep counts had
-	// already been reached. One open gap per lens and two exchanges per gap reach impasse, the
-	// docket, the ceiling and the pass in a few epochs. `/research --smoke` runs a floor of three;
-	// one keeps a lens at its budget, and the budget's refusal driven, in most sittings.
+	// already been reached. Two exchanges per gap, and the driver's own stock of mints per lens
+	// (fuzzLensStock), reach impasse, the docket, the ceiling and the pass in a few epochs.
 	//
 	// THE EPOCH LIMIT IS SETUP'S DEFAULT, READ FROM WHERE SETUP READS IT. Every run setup creates
 	// carries one, and a config that states none is held to none (record.RunParams): without it
-	// the computation lens — whose mint budget grows with blue's computations — carried some seeds to
-	// 21–28 chair sittings, past the per-run budget on a loaded box, and no run of the sweep ever
+	// the computation lens carried some seeds to 21–28 chair sittings, past the per-run budget on a loaded box, and no run of the sweep ever
 	// took the epoch-limit exit a real run can.
 	maxEpochs := record.DefaultParams.MaxEpochs
 	if r.maxEpochs > 0 {
 		maxEpochs = r.maxEpochs
 	}
 	if err := writeSetup(filepath.Join(r.runDir, "inputs", "run-config.json"),
-		fuzzRunConfig(3, 1, 2, 1, maxEpochs)); err != nil {
+		fuzzRunConfig(3, 1, 2, maxEpochs)); err != nil {
 		return nil, err.Error()
 	}
 
@@ -8172,7 +8144,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.repeatsRefused = r.repeatsRefused
 	res.lensSittings = r.lensSittings
 	res.blueSittings, res.blueAgain = r.blueSittings, r.blueAgain
-	res.budgetRefused = r.budgetRefused
 	res.oneGapRefused, res.oneGapFindings = r.oneGapRefused, r.oneGapFindings
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen

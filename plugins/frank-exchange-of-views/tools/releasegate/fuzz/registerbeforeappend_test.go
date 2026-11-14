@@ -51,8 +51,8 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 
 	// `mint` draws the gap KIND at random, so take gaps until a computation one appears. Bounded
 	// so a change that stops producing them fails here rather than hanging. The minter rotates
-	// across the cast's lenses so the mints stay under each lens's budget (the record refuses a
-	// mint past it); the loop stops at the first computation gap, typically within a handful.
+	// across the cast's lenses; the loop stops at the first computation gap, typically within a
+	// handful.
 	var gapID string
 	for i := 0; i < 40 && gapID == ""; i++ {
 		lens := fuzzLensSeats[i%len(fuzzLensSeats)]

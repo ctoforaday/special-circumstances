@@ -229,7 +229,7 @@ func (r *runner) readingDirective() string {
 type readingMintResult struct {
 	gap string
 	// refusedBy is "" where the mint landed; else one_gap (the one-gap rule, any arm), estoppel,
-	// standing (the standing-reading check), budget, or other.
+	// standing (the standing-reading check), or other.
 	refusedBy string
 	out       string
 }
@@ -263,9 +263,6 @@ func (r *runner) mintOnReading(seatID, class string, subject []string, at int64,
 		case strings.Contains(out, standingReadingWords), strings.Contains(out, citedDefectWords):
 			res.refusedBy = "standing"
 			r.noteActErr(fmt.Sprintf("%s's %s mint on its reading at event %d was refused for want of a standing reading: %s", seatID, class, at, firstLine(out)))
-		case strings.Contains(out, "its mint budget admits no more"):
-			res.refusedBy = "budget"
-			r.noteActErr(fmt.Sprintf("%s's %s mint on its reading was refused for budget, and a gap of a class a reading defines is outside the budget: %s", seatID, class, firstLine(out)))
 		default:
 			res.refusedBy = "other"
 			noteEither(args[:2], "a mint on a reading, refused by another rule", false)
@@ -690,8 +687,7 @@ func (r *runner) mintOnFoundReading(seatID, quote string, v *recordpb.Verify, at
 
 // mintUnsourcedOnDebt is seatID's plain unsourced_claim mint quoting the uncited sentence a found
 // source of its was read `absent` for: admitted, or refused as a second on the sentence — either way
-// the open gap discharges the debt (F7 (a)). Refused for budget, the lens reads another source for
-// the sentence instead.
+// the open gap discharges the debt (F7 (a)).
 func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 	args := append([]string{"--json", "mint", "--seat-id", seatID, "--class", classUnsourced,
 		"--problem", "fuzz: no source backs the sentence", "--check-kind", "document", "--check", "a citation backs the sentence",
@@ -718,11 +714,6 @@ func (r *runner) mintUnsourcedOnDebt(seatID, quote string) {
 			return
 		}
 		r.debtDischargedByOpenGap(seatID, quote, gap, args, classUnsourced, "the open unsourced_claim gap "+gap+" on the sentence")
-	case strings.Contains(out, "its mint budget admits no more"):
-		r.mu.Lock()
-		r.budgetRefused++
-		r.mu.Unlock()
-		r.rereadFound(seatID, quote)
 	default:
 		noteEither(args[:2], "an unsourced_claim mint on an absent found reading, refused by another rule", false)
 		r.rereadFound(seatID, quote)

@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io/fs"
 	"os"
 	"path"
@@ -38,6 +37,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	// Aliased: this package's own `Run` returns a named result called `report`, and the two
 	// spellings would shadow each other at exactly the call site that needs the constant.
@@ -1156,15 +1156,11 @@ func recordTierFindings(run record.Run, seats map[string]modeltier.SeatSpec) (fi
 			continue
 		}
 		measured++
-		spec, ok := modeltier.LookupSeat(seats, sm.SeatID)
-		if !ok || spec.Model == "" {
-			continue
-		}
-		switch {
-		case sm.Substituted():
+		switch spec, v := cost.JudgeServed(sm, seats); v {
+		case cost.ServedDeclared:
 			findings = append(findings, fmt.Sprintf("FAIL %s (%s) asked for %s and was answered by %s — the harness declared the substitution",
 				sm.SeatID, sm.Class, sm.Requested, sm.Served))
-		case !modeltier.SameModel(spec.Model, sm.Served):
+		case cost.ServedOtherModel:
 			findings = append(findings, fmt.Sprintf("FAIL %s (%s) was answered by %s against a configured %s",
 				sm.SeatID, sm.Class, sm.Served, spec.Model))
 		}
@@ -1186,7 +1182,10 @@ func summarizeConfiguredSeats(seats map[string]modeltier.SeatSpec) string {
 }
 
 func ModelTierAudit(run record.Run, transcripts []record.Transcript) Audit {
-	seatsCfg := cost.TierConfig(run)
+	seatsCfg, cerr := cost.TierConfig(run)
+	if cerr != nil {
+		return Audit{Check: "model-tier", Verdict: "FAIL", Detail: "could not read the run's configuration: " + cerr.Error()}
+	}
 	if len(seatsCfg) == 0 {
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "the run config names no seats, so there is no configured model to check the served one against"}
 	}
@@ -2137,9 +2136,9 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// THE RUN'S TERMS, because without them the archive is BROKEN rather than merely thin.
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
-	// time by a dozen packages: record.RunParams hands k-max, mint-budget, max-epochs and the
-	// convergence fraction to the dispatch verb AND the write path; modeltier and cost read the
-	// configured tiers; capture's own lane coverage reads the declared lane count. Measured on an archived run against the same run
+	// time by a dozen packages: record.RunParams hands k-max, max-epochs and the
+	// convergence fraction to the dispatch verb AND the write path; cost reads the configured
+	// tiers; capture's own lane coverage reads the declared lane count. Measured on an archived run against the same run
 	// live: `ops tiers` printed configuredBulk and configuredJudgment from the live directory and
 	// simply OMITTED both from the archive — so a run whose configuration was thrown away reads
 	// exactly like a run that had none.

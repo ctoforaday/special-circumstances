@@ -156,7 +156,7 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 	// listed reads the predicate off the work list's own inputs, and holds the rendered list to it.
 	listed := func(t *testing.T, run Run) bool {
 		t.Helper()
-		r, err := workView(run, nil)
+		r, err := workView(run)
 		if err != nil {
 			t.Fatal(err)
 		}

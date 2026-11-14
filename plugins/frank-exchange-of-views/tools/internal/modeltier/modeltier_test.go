@@ -1,9 +1,9 @@
 package modeltier
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 func TestOfPicksTheTierBySubstring(t *testing.T) {
@@ -52,18 +52,12 @@ func TestDearerFollowsTheLadder(t *testing.T) {
 	}
 }
 
-func TestSeatConfigsReadsPerSeatSpecs(t *testing.T) {
-	run := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(run, "inputs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-sonnet-5"},"red-lens-dark-side":{"harness":"antigravity","model":"gpt-oss-120b-medium"}}}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	seats := SeatConfigs(run)
-	if len(seats) != 2 {
-		t.Fatalf("got %d seats, want 2", len(seats))
+// THE LOOKUP RESOLVES A NUMBERED LANE THROUGH THE LANE BASE, and a seat the map does not name is not
+// configured rather than given another seat's spec.
+func TestLookupSeatResolvesALaneThroughItsBase(t *testing.T) {
+	seats := map[string]SeatSpec{
+		"blue-lane":          {Harness: "claude", Model: "claude-sonnet-5"},
+		"red-lens-dark-side": {Harness: "antigravity", Model: "gpt-oss-120b-medium"},
 	}
 	lane, ok := LookupSeat(seats, "blue-lane-2")
 	if !ok || lane.Harness != "claude" || lane.Model != "claude-sonnet-5" {
@@ -73,8 +67,35 @@ func TestSeatConfigsReadsPerSeatSpecs(t *testing.T) {
 	if !ok || ds.Harness != "antigravity" || ds.Model != "gpt-oss-120b-medium" {
 		t.Fatalf("dark-side lookup got (%+v, %v)", ds, ok)
 	}
-	if got := SeatConfigs(t.TempDir()); got != nil {
-		t.Errorf("absent config: got %+v, want nil", got)
+	if got, ok := LookupSeat(seats, "red-chair"); ok {
+		t.Errorf("an unnamed seat resolved to %+v", got)
+	}
+}
+
+// THE TWO CLASS SPECS EXPAND TO EVERY CONFIGURABLE SEAT, each on its class's spec, and a zero spec
+// configures no seat of its class.
+func TestTieredSeatsPutsEachSeatOnItsClassSpec(t *testing.T) {
+	bulk, judgment := SeatSpec{Harness: "claude", Model: "sonnet"}, SeatSpec{Harness: "claude", Model: "opus"}
+	seats := TieredSeats(bulk, judgment)
+	if len(seats) != len(Seats()) {
+		t.Fatalf("expanded %d seats, want every configurable seat (%d)", len(seats), len(Seats()))
+	}
+	for id, spec := range seats {
+		want := bulk
+		if seatclass.ClassOf(baseOf(id)) == "judgment" {
+			want = judgment
+		}
+		if spec != want {
+			t.Errorf("%s: %+v, want %+v", id, spec, want)
+		}
+	}
+	if seats["red-chair"] != judgment || seats["blue-lane"] != bulk {
+		t.Errorf("red-chair %+v, blue-lane %+v", seats["red-chair"], seats["blue-lane"])
+	}
+	for id := range TieredSeats(bulk, SeatSpec{}) {
+		if seatclass.ClassOf(baseOf(id)) == "judgment" {
+			t.Errorf("a zero judgment spec configured %s", id)
+		}
 	}
 }
 

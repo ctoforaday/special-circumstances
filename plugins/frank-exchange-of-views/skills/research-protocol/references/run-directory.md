@@ -71,10 +71,7 @@ are the same bytes, by construction.
 permitted (VERIFIED) — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
 named as the reason). The epoch before the last readies no blue, so a lens sits after every act of blue's. A gap at impasse after the one more exchange the bench's remand granted is
 docketed again and closed: a second remand at impasse is refused. An exchange is blue's answer and the minting lens's audit of it. The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
-impasse (k-max), the floor of the gaps a lens may hold open at once (mint-budget), which the record raises
-with the report's size in each lens's unit — citations, computations, claims or prose paragraphs; a gap a lens's
-reading of a citation mints, or one about an anchor whose check of that lens's failed, takes no mint
-of it — and
+impasse (k-max) and
 the chair sittings the run gets (max-epochs, default 12). One stop is the engine's own: a dispatch
 plan the same for three chair sittings in a row — the same parties readied against the same
 head, with the same docket, exchange counts and standing blockers — is a loop nothing on the board

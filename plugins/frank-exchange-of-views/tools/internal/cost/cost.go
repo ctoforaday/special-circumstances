@@ -8,8 +8,6 @@ package cost
 
 import (
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"io"
 	"math"
 	"os"
@@ -20,6 +18,8 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
@@ -364,9 +364,48 @@ func TierMismatch(rows []Row, seats map[string]modeltier.SeatSpec) []Finding {
 	return out
 }
 
-// TierConfig reads the run's per-seat configuration from inputs/run-config.json (nil if absent).
-func TierConfig(run record.Run) map[string]modeltier.SeatSpec {
-	return modeltier.SeatConfigs(run.Dir())
+// TierConfig is the run's configured {harness, model} per seat, read through the record's one reader
+// of the run's configuration (record.ReadRunConfig): nil where the run has no configuration or names
+// no seat, and an error — never an empty map — where the configuration does not read, so an unread
+// file is not reported as a run that configured no seat.
+func TierConfig(run record.Run) (map[string]modeltier.SeatSpec, error) {
+	rc, err := record.ReadRunConfig(run)
+	if err != nil || rc == nil {
+		return nil, err
+	}
+	return rc.Seats, nil
+}
+
+// ServedVerdict is one seat's served model judged against the model configured for that seat.
+type ServedVerdict int
+
+const (
+	// ServedNotJudged: nothing measured what answered, or no model is configured for the seat.
+	ServedNotJudged ServedVerdict = iota
+	// ServedMatches: the configured model answered (modeltier.SameModel) and the harness declared
+	// no substitution.
+	ServedMatches
+	// ServedDeclared: the harness declared a substitution, whatever model each end names.
+	ServedDeclared
+	// ServedOtherModel: a model other than the configured one answered.
+	ServedOtherModel
+)
+
+// JudgeServed is the one judgment of a seat's served model against the model configured for that
+// seat (modeltier.LookupSeat), which capture's model-tier audit and `show tiers` both report: a
+// declared substitution is one even where both ends are the same model, and a seat nothing
+// measured, or with no configured model, is not judged. spec is what the seat was configured with.
+func JudgeServed(sm record.SeatModel, seats map[string]modeltier.SeatSpec) (spec modeltier.SeatSpec, v ServedVerdict) {
+	spec, _ = modeltier.LookupSeat(seats, sm.SeatID)
+	switch {
+	case !sm.Measured() || spec.Model == "":
+		return spec, ServedNotJudged
+	case sm.Substituted():
+		return spec, ServedDeclared
+	case !modeltier.SameModel(spec.Model, sm.Served):
+		return spec, ServedOtherModel
+	}
+	return spec, ServedMatches
 }
 
 // DedupTierFindings drops duplicate findings keyed on (seat|epoch|verdict|actual). TierMismatch
@@ -607,9 +646,13 @@ func durationOrDash(ms *int64) string {
 }
 
 func reportTierCheck(run record.Run, rows []Row, p func(string)) {
-	seats := TierConfig(run)
-	findings := DedupTierFindings(TierMismatch(rows, seats))
 	p("\n## Tier check\n")
+	seats, err := TierConfig(run)
+	if err != nil {
+		p(fmt.Sprintf("- NOT CHECKED — could not read the run's configuration: %v", err))
+		return
+	}
+	findings := DedupTierFindings(TierMismatch(rows, seats))
 	if len(findings) == 0 {
 		models := map[string]bool{}
 		for _, s := range seats {

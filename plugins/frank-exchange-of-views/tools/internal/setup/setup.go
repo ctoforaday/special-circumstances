@@ -64,6 +64,22 @@ func marshalJSON(v any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// stageFile writes b to a new file in dir named by pattern (os.CreateTemp), mode 0644, and returns
+// its path. A write that fails removes the file.
+func stageFile(dir, pattern string, b []byte) (string, error) {
+	f, err := os.CreateTemp(dir, pattern)
+	if err != nil {
+		return "", err
+	}
+	_, werr := f.Write(b)
+	cerr := f.Close()
+	if err := errors.Join(werr, cerr, os.Chmod(f.Name(), 0o644)); err != nil {
+		_ = os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
+}
+
 func exists(p string) bool { _, err := os.Stat(p); return err == nil }
 
 // ---- skeleton + pins ----

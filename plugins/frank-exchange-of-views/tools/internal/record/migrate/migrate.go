@@ -1,15 +1,20 @@
 package migrate
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -29,8 +34,10 @@ import (
 // The channel copy comes FIRST: validation consults the run's own inputs (inputs/run-config.json,
 // the run's terms), and an act replayed into a run without them refuses, taking every later
 // reference to it down in a cascade. Everything except the database file set, an archived class
-// registry and the computation store copies verbatim; the record is what replay rebuilds, and the
-// store is rebuilt from it.
+// registry, the computation store and inputs/run-config.json copies verbatim; the record is what
+// replay rebuilds, and the store is rebuilt from it. The run's configuration is translated
+// (translateRunConfig): the keys it no longer declares are dropped and its epoch is the migrated
+// record's, and the manifest's run_config records both with the values the source wrote.
 //
 // A refusal publishes the run and its manifest and returns the manifest with an error. A failure
 // before the rename removes the build; a failed rename keeps it, complete and synced, and names it.
@@ -85,7 +92,8 @@ func refusedError(n int, manifest string) error {
 // fill builds the migrated run in the build directory and writes its manifest there.
 func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Manifest, error) {
 	toDir := b.dir
-	if err := copyChannels(fromDir, toDir); err != nil {
+	runConfig, err := copyChannels(fromDir, toDir)
+	if err != nil {
 		return nil, err
 	}
 	// The record's format picks the adapter: a database if one exists, else the era of
@@ -177,6 +185,7 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Mani
 	m.MissingArtifacts = missing
 	m.SeatTurns = carried
 	m.SourceEpoch = sourceEpoch
+	m.RunConfig = runConfig
 	if err := m.Write(toDir); err != nil {
 		return nil, err
 	}
@@ -200,8 +209,11 @@ func carryCapturedMark(fromDir, toDir string) error {
 // copyChannels copies the run directory verbatim, EXCEPT the record itself — the database
 // file set and the era's event shards. Replay rebuilds the record, and a stale copy beside
 // the fresh one would be two records claiming one run. The capture mark waits for the replay
-// (carryCapturedMark): beside the record before it, it refuses every event replay appends.
-func copyChannels(fromDir, toDir string) error {
+// (carryCapturedMark): beside the record before it, it refuses every event replay appends. The run's
+// configuration is translated, not copied, and what the translation did is returned — nil when the
+// source holds no configuration.
+func copyChannels(fromDir, toDir string) (*migration.RunConfigTranslation, error) {
+	var runConfig *migration.RunConfigTranslation
 	skip := map[string]bool{filepath.Join(fromDir, runlive.CapturedMark): true}
 	for _, n := range dbSiblings {
 		skip[filepath.Join(fromDir, "records", n)] = true
@@ -212,7 +224,7 @@ func copyChannels(fromDir, toDir string) error {
 	// THE COMPUTATION STORE IS REBUILT FROM THE RECORD (writeStore): an archived proofs/ is the old
 	// layout, and computations/ holds staging and directories no event names, which are not copied.
 	skipTree := map[string]bool{filepath.Join(fromDir, "proofs"): true, filepath.Join(fromDir, compute.StoreDir): true}
-	return filepath.WalkDir(fromDir, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(fromDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -241,9 +253,202 @@ func copyChannels(fromDir, toDir string) error {
 			// rather than silently flattening or following it.
 			return fmt.Errorf("%s is not a regular file — a run channel copy does not know what it would mean", path)
 		}
+		if rel == runConfigPath {
+			tr, err := translateRunConfig(path, dst)
+			runConfig = tr
+			return err
+		}
 		return copyFile(path, dst)
 	})
+	if err != nil {
+		return nil, err
+	}
+	return runConfig, nil
 }
+
+// runConfigPath is the run's terms file, relative to the run directory.
+var runConfigPath = filepath.Join("inputs", "run-config.json")
+
+// runConfigDrops are the keys of an archived run-config.json the run's configuration no longer
+// declares. The record's reader of the file refuses a key it does not declare, so a key carried
+// verbatim would refuse the migrated run's every read of its configuration. Why each key went is
+// said here, beside it; the manifest's run_config records each key dropped with its value.
+var runConfigDrops = map[string]struct{}{
+	// A SOURCE BEFORE EPOCH 74 MAY STATE `maxSittingCalls`, the per-sitting tool-call limit, which
+	// went at epoch 74: the agent definition's maxTurns bounds a sitting.
+	"maxSittingCalls": {},
+	// A SOURCE BEFORE EPOCH 75 MAY STATE `mintBudget`, the per-lens mint cap, which went at epoch 75:
+	// lens retirement and the epoch limit bound a run.
+	"mintBudget": {},
+	// A SOURCE BEFORE EPOCH 75 MAY STATE `allowModelSubstitution`, the operator's consent to a
+	// served model other than the configured tier, which went at epoch 75: nothing read it, and
+	// capture's tier audit fails a substitution in either direction.
+	"allowModelSubstitution": {},
+}
+
+// translateRunConfig copies the run-config.json at from to to without the keys runConfigDrops
+// names, with an archived class-tier pair (runConfigTierKeys) reshaped into `seats` in the place of
+// its first key, every other key in its place and with its value as written — except
+// `eventSchema`, which states the epoch the migrated record is written at (record.EventSchema), added at the end where the
+// source states none: the record beside the file is at that epoch, and a file still naming the
+// source's would say the run was set up under a shape it is no longer in. The source must be ONE
+// JSON object and nothing after it (record.RunConfigObject), and the copy must read through
+// record.DecodeRunConfig, the record's own reader, or nothing is written. What it did — each key
+// dropped, each tier key reshaped and the epoch the source stated, with the values the source
+// wrote — is returned for the manifest.
+func translateRunConfig(from, to string) (*migration.RunConfigTranslation, error) {
+	b, err := os.ReadFile(from)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := record.RunConfigObject(b)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", from, err)
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if _, err := dec.Token(); err != nil { // the object's `{`, checked above
+		return nil, fmt.Errorf("%s: %w", from, err)
+	}
+	tr := &migration.RunConfigTranslation{Dropped: map[string]json.RawMessage{}}
+	var out bytes.Buffer
+	out.WriteByte('{')
+	first := true
+	put := func(key string, val []byte) error {
+		if !first {
+			out.WriteByte(',')
+		}
+		first = false
+		k, err := json.Marshal(key)
+		if err != nil {
+			return err
+		}
+		out.Write(k)
+		out.WriteByte(':')
+		out.Write(val)
+		return nil
+	}
+	epoch := []byte(strconv.Itoa(record.EventSchema))
+	statedEpoch := false
+	// The source's keys in order, read whole first: an archived class-tier pair is reshaped into
+	// `seats` in the place of its first key, and that needs both values before either is written.
+	type entry struct {
+		key string
+		val json.RawMessage
+	}
+	var entries []entry
+	tiers := map[string]json.RawMessage{}
+	statesSeats := false
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", from, err)
+		}
+		key, _ := tok.(string)
+		var val json.RawMessage
+		if err := dec.Decode(&val); err != nil {
+			return nil, fmt.Errorf("%s: key %q: %w", from, key, err)
+		}
+		if _, tier := runConfigTierKeys[key]; tier {
+			tiers[key] = val
+		}
+		statesSeats = statesSeats || key == runConfigSeatsKey
+		entries = append(entries, entry{key, val})
+	}
+	var seats []byte
+	if len(tiers) > 0 {
+		if statesSeats {
+			return nil, fmt.Errorf("%s states both the per-seat %q and the class tiers %s: which configured the run is not the copy's to choose", from, runConfigSeatsKey, tierKeyList(tiers))
+		}
+		if seats, err = reshapeTiers(tiers); err != nil {
+			return nil, fmt.Errorf("%s: %w", from, err)
+		}
+		tr.Reshaped = tiers
+	}
+	for _, e := range entries {
+		key, val := e.key, e.val
+		if _, drop := runConfigDrops[key]; drop {
+			tr.Dropped[key] = val
+			continue
+		}
+		if _, tier := runConfigTierKeys[key]; tier {
+			if seats == nil {
+				continue // the pair's first key took its place
+			}
+			key, val, seats = runConfigSeatsKey, seats, nil
+		}
+		if key == runConfigEpochKey {
+			tr.SourceEventSchema = val
+			val, statedEpoch = epoch, true
+		}
+		if err := put(key, val); err != nil {
+			return nil, err
+		}
+	}
+	if !statedEpoch {
+		if err := put(runConfigEpochKey, epoch); err != nil {
+			return nil, err
+		}
+	}
+	out.WriteByte('}')
+	var indented bytes.Buffer
+	if err := json.Indent(&indented, out.Bytes(), "", "  "); err != nil {
+		return nil, fmt.Errorf("%s: %w", from, err)
+	}
+	indented.WriteByte('\n')
+	// THE COPY IS HELD TO THE RECORD'S OWN READER: a key no drop names, or a value of the wrong
+	// type, would publish a run whose every read of its configuration is refused.
+	if _, err := record.DecodeRunConfig(indented.Bytes()); err != nil {
+		return nil, fmt.Errorf("%s: the migrated configuration %w", from, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(to, indented.Bytes(), 0o644); err != nil {
+		return nil, err
+	}
+	return tr, nil
+}
+
+// runConfigTierKeys are an archived run-config.json's two class tiers: `model` for every bulk seat
+// and `judgmentModel` for every judgment seat, which a source before epoch 75 may state. A run is
+// now configured per seat (record.RunConfig.Seats, #1827), so the pair is RESHAPED, not dropped: the
+// copy states the seats the two tiers stood for, through the one expansion setup's --bulk and
+// --judgment go through (modeltier.TieredSeats), on the claude harness, the only one a run had
+// then. The tier audit of a migrated run then judges each seat against what it was configured with,
+// rather than skipping a run that names no seat.
+var runConfigTierKeys = map[string]struct{}{"model": {}, "judgmentModel": {}}
+
+// runConfigSeatsKey is record.RunConfig.Seats's key in the file.
+const runConfigSeatsKey = "seats"
+
+// reshapeTiers is the `seats` value an archived class-tier pair stands for. A tier stated as "" names
+// no model and configures no seat of its class; a tier that is not a string is refused.
+func reshapeTiers(tiers map[string]json.RawMessage) ([]byte, error) {
+	spec := map[string]modeltier.SeatSpec{}
+	for key, raw := range tiers {
+		var m string
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return nil, fmt.Errorf("key %q states %s, not a model", key, raw)
+		}
+		if m != "" {
+			spec[key] = modeltier.SeatSpec{Harness: "claude", Model: m}
+		}
+	}
+	return json.Marshal(modeltier.TieredSeats(spec["model"], spec["judgmentModel"]))
+}
+
+// tierKeyList names the class-tier keys a source stated, sorted, for a refusal.
+func tierKeyList(tiers map[string]json.RawMessage) string {
+	keys := make([]string, 0, len(tiers))
+	for k := range tiers {
+		keys = append(keys, strconv.Quote(k))
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, " and ")
+}
+
+// runConfigEpochKey is record.RunConfig.EventSchema's key in the file.
+const runConfigEpochKey = "eventSchema"
 
 func copyFile(from, to string) error {
 	in, err := os.Open(from)

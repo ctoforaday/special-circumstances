@@ -128,18 +128,7 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			},
 			want: "M7 (petition, ruled by the bench seat)",
 		},
-		{
-			name: "a lens's two mints at once, one slot left",
-			stage: func(t *testing.T) Run {
-				dir := newRun(t)
-				writeRunConfig(t, dir, `{"mintBudget":1}`)
-				recordtest.Seed(t, dir, recordtest.At(t, evLens, "race:register", &recordpb.Register{}))
-				return mustRun(t, dir)
-			},
-			acts: func(t *testing.T) []*Event { return []*Event{recordtest.At(t, evLens, "race:mint:G1", highMint("G1"))} },
-			seat: evLens, body: func() proto.Message { return budgetMint("G2") },
-			want: "holds 1 gap(s) open and its mint budget admits no more",
-		},
+
 		{
 			name:  "a close while a docket motion on the gap lands",
 			stage: raceStage,

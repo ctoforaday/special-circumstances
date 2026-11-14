@@ -194,14 +194,10 @@ func TestAMisattributionGapAboutACitationStandsOnAbsentOrANotTheWorkCopy(t *test
 		if got := readingBehind(t, b.runDir, gap); got != at {
 			t.Errorf("the reading behind %s is event %d, want the not-the-work reading at %d", gap, got, at)
 		}
-		// The gap answers the unread check the reading left, takes no mint, and the ledger keeps the
-		// citation unread.
+		// The gap answers the unread check the reading left, and the ledger keeps the citation unread.
 		fs := failedOf(t, b.runDir, b.c1)
 		if len(fs) != 1 || fs[0].CheckState() != record.CheckUnread || fs[0].Owner != lensL || fs[0].AnsweredBy() != gap {
 			t.Errorf("C's failed checks = %+v, want one unread owned by %s answered by %s", fs, lensL, gap)
-		}
-		if st := b.standing(lensL); st.Open != 0 || st.Answering != 1 {
-			t.Errorf("%s's standing is open %d answering %d, want 0 and 1: the gap takes no mint", lensL, st.Open, st.Answering)
 		}
 	})
 	t.Run("refutes admits no misattribution", func(t *testing.T) {
@@ -238,7 +234,7 @@ func TestAFoundSourceContradictionGapStandsOnTheMintersReadingOfTheSentence(t *t
 		mustRefuse(t, err, out, "a cited source's defect", "--about-kind anchor --about C-")
 	})
 	t.Run("a quote the report holds twice is the placement's refusal", func(t *testing.T) {
-		b := readingRunOf(t, rdFillerReport, 0, rdCited, rdBacked)
+		b := readingRunOf(t, rdFillerReport, rdCited, rdBacked)
 		_, out, err := b.mintSource(lensL, class, "--quote", "stands here.")
 		if err == nil {
 			t.Fatalf("a quote the report holds eight times placed a gap: %s", out)
@@ -359,7 +355,7 @@ func TestOneGapPerClassAboutOneCitationAndAcrossItsSentence(t *testing.T) {
 			second = "margins held steady"
 			joined = first + " and " + second + " through the winter."
 		)
-		b := readingRunOf(t, "# Findings\n\n"+joined+" "+rdFree1+"\n", 0, first, second)
+		b := readingRunOf(t, "# Findings\n\n"+joined+" "+rdFree1+"\n", first, second)
 		if _, out, err := b.mintSource(lensL, judgement, about(b.c2)...); err != nil {
 			t.Fatalf("X's judgement about C2: %v\n%s", err, out)
 		}

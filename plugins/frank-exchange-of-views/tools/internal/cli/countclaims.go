@@ -16,8 +16,8 @@ import (
 // newCountClaims counts the report's claims deterministically. Like verify/graph it is a root,
 // read-only operator command, not a seat verb — it takes no seat identity because counting the
 // report is not an act on the record. IT IS THE ONE DEFINITION OF THE COUNT: no seat relays the
-// number and no envelope carries it, so a reader that wants it — the dashboard's tile, the mint
-// budget — counts the report on the record through internal/claimcount, as this does.
+// number and no envelope carries it, so a reader that wants it — the dashboard's tile — counts the
+// report on the record through internal/claimcount, as this does.
 func newCountClaims() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "count-claims",

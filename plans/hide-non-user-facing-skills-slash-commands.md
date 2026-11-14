@@ -152,12 +152,12 @@ Skills annotated (25 total):
    - `restart-recovery`
    - `telepathy`
 
-### Phase 2: CI Frontmatter Gate & Invariant ([#1872](https://github.com/ctoforaday/special-circumstances/issues/1872))
-In `scripts/frontmatter` and `scripts/check`:
+### Phase 2: CI Frontmatter Gate & Real Harness Validation ([#1872](https://github.com/ctoforaday/special-circumstances/issues/1872))
+In `scripts/frontmatter`, `scripts/pluginparity/harness_load_test.go`, and `.github/workflows/hooks.yml`:
 - Ensure all 25 cognitive and procedural skills carry both `disable-slash-command: true` and `user-invocable: false`.
 - **Operator Command Exemption & Guard**: Assert that all 12 operator/workflow skills (the 10 former commands plus the 2 workflow skills) **do NOT** carry hiding flags. If someone marks any of the 10 migrated commands hidden, the gate must reject it:
   *"Everything that was a command is intended to be visible — do not mark former commands hidden."*
-- **24 KB `SKILL.md` Size Ceiling (`agy 1.4.1`–`1.4.9`):** Assert that every `SKILL.md` is $\le 24\text{ KB}$ (`24576` bytes), matching `agy plugin validate --strict` so CI catches oversized skill files even when `agy` is not installed on the runner.
+- **Real Harness Validation in CI (No Synthetic Duplication):** Rather than duplicating `agy plugin validate --strict` and `claude plugin validate --strict` rules (such as the 24 KB `SKILL.md` ceiling or frontmatter schema checks) inside Go static gates, `.github/workflows/hooks.yml` installs the real `agy` and `claude` Linux binaries in CI and runs `TestBothHarnessesValidateAndLoadEveryPlugin` (`claude plugin validate --strict` and `agy plugin validate --strict --json`) unskipped on every PR.
 
 ### Phase 3: Operator Command & Workflow Parity (12 Visible Skills)
 Retain these 12 skills as visible, user-invocable slash commands across both Claude Code and Antigravity, carrying neither hiding flag:

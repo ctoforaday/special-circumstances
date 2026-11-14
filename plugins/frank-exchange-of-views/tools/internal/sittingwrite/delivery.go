@@ -34,7 +34,7 @@ const (
 		"one item at a time. `current` is the item to work now, in full, with the gap it is about; `index` " +
 		"is one line for each other item queued for you and each other open gap on the board, and " +
 		"`estopped` one line for each bench ruling you may not re-raise. `sitting` is your standing: " +
-		"whether anything blocks you finishing, your read of the report, your mint budget, the items " +
+		"whether anything blocks you finishing, your read of the report, the items " +
 		"that are not queued (`notes`), the bench's holdings (`declarations`), each gap one names beside " +
 		"where the board says it stands now, and granted relief (`relief`). A count in a field ending " +
 		"`_omitted` is that many entries left out to keep this delivery whole; your work list holds them. A field " +
@@ -69,17 +69,16 @@ type lensDelivery struct {
 // items that are not queued, and the bench's holdings and granted relief — inline where they fit,
 // one line each where they do not.
 type lensStanding struct {
-	Seat       string                 `json:"seat"`
-	Role       string                 `json:"role"`
-	Complete   bool                   `json:"complete"`
-	LastRead   *record.LastReadJSON   `json:"last_read,omitempty"`
-	MintBudget *record.MintBudgetJSON `json:"mint_budget,omitempty"`
-	Counts     struct {
+	Seat     string               `json:"seat"`
+	Role     string               `json:"role"`
+	Complete bool                 `json:"complete"`
+	LastRead *record.LastReadJSON `json:"last_read,omitempty"`
+	Counts   struct {
 		Open     int `json:"open"`
 		Estopped int `json:"estopped"`
 		Queued   int `json:"queued"`
 	} `json:"counts"`
-	// Notes are the list's items that are not queued: the log channel, the budget, news of a closure,
+	// Notes are the list's items that are not queued: the log channel, news of a closure,
 	// an anchor no check of this sitting can reach, the statement that nothing is owed.
 	// Each is whole where the delivery fits, and one line an entry where it would not (fitted).
 	Notes        any `json:"notes"`
@@ -366,7 +365,7 @@ func render(preamble string, d lensDelivery) string {
 // standingOf is the delivery's header.
 func standingOf(w record.WorkJSON, q []record.QueueEntry) *lensStanding {
 	s := &lensStanding{Seat: w.Sitting.Seat, Role: w.Sitting.Role, Complete: w.Sitting.Complete,
-		LastRead: w.Sitting.LastRead, MintBudget: w.Sitting.MintBudget, w: w}
+		LastRead: w.Sitting.LastRead, w: w}
 	notes := []record.Item{}
 	s.Counts.Open, s.Counts.Estopped, s.Counts.Queued = w.Counts.Open, w.Counts.Estopped, len(q)
 	queued := map[string]bool{}

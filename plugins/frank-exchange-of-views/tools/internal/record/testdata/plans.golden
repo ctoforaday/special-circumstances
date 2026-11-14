@@ -483,10 +483,6 @@
 -- INSERT INTO "cite" ("event_id", "label") VALUES (?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
-== stmt e4c244018c9b
--- INSERT INTO "cite" ("event_id", "label", "source_text_origin", "work_status", "source_completeness") VALUES (?, ?, ?, ?, ?)
-  SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
-
 == stmt eead04ec1847
 -- INSERT INTO "cite" ("event_id", "label", "url") VALUES (?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
@@ -1850,18 +1846,6 @@
   SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 3dfa77959b1f
--- SELECT "gap_id" FROM "gap" WHERE "minted_by" = ? AND "class" = ?
-  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
-
-== stmt b86463934924
--- SELECT "gap_id" FROM "gap" WHERE "open" AND "minted_by" = ?
-  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
-
 == stmt 3ffe1b1290cb
 -- SELECT "gap_id" FROM "mint"
   SCAN mint USING COVERING INDEX sqlite_autoindex_mint_1
@@ -1994,12 +1978,6 @@
 -- SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"
   SCAN blue_edit
 
-== stmt 4034a172bb4d
--- SELECT "open" AND COALESCE("minted_by", '') = ? FROM "gap" WHERE "gap_id" = ?
-  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-
 == stmt a2cf5c4411fe
 -- SELECT "open" FROM "gap" WHERE "gap_id" = ?
   SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
@@ -2121,11 +2099,6 @@
 == stmt b6b9d9b0aee9
 -- SELECT 1 FROM "inquiry" WHERE "inquiry_id" = ? LIMIT 1
   SEARCH inquiry USING COVERING INDEX inquiry_id (inquiry_id=?)
-
-== stmt 86836e39ecb4
--- SELECT 1 FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."about_kind" = ? AND e."seat_id" = ? LIMIT 1
-  SEARCH m USING COVERING INDEX mint_about (about_kind=?)
-  SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
 == stmt 69e158862e4b
 -- SELECT 1 FROM "report_part" LIMIT 1
@@ -2309,14 +2282,6 @@
 -- SELECT c."label" FROM "cite" c JOIN "events" e ON e."id" = c."event_id" WHERE e."seat_id" = ? AND c."cite_key" = ? ORDER BY c."event_id" LIMIT 1
   SEARCH c USING INDEX cite_key (cite_key=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-
-== stmt 1b5791e9ddf5
--- SELECT count(*) FROM "cite"
-  SCAN cite USING COVERING INDEX cite_label
-
-== stmt f44bdf556857
--- SELECT count(*) FROM "computation"
-  SCAN computation USING COVERING INDEX computation_id
 
 == stmt e950b6a73744
 -- SELECT count(*) FROM "events"
@@ -2563,11 +2528,6 @@
 -- SELECT m."event_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ? AND m."mint_key" = ? ORDER BY m."event_id" LIMIT 1
   SEARCH m USING COVERING INDEX mint_key (mint_key=?)
   SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
-
-== stmt 3df95c2f61ec
--- SELECT m."gap_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."about_kind" = ? AND e."seat_id" = ?
-  SEARCH e USING COVERING INDEX events_seat (seat_id=?)
-  SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 59e4c6c67072
 -- SELECT md."gap_id" FROM "motion" mo JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE mo."motion_id" = ?
