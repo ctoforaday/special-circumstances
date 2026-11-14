@@ -134,8 +134,12 @@ func TestReplayDeterminism(t *testing.T) {
 		t.Run(fmt.Sprintf("seq%02d", i), func(t *testing.T) {
 			ran++
 			t.Logf("sequence:%s", dumpSeq(cmds))
-			first := replay(t, bin, writer, cmds)
-			second := replay(t, bin, writer, cmds)
+			var cast []string
+			if i == len(seqs)-1 {
+				cast = tourCast
+			}
+			first := replay(t, bin, writer, cmds, cast)
+			second := replay(t, bin, writer, cmds, cast)
 
 			// Tallied from the FIRST replay: the same runGo invocation the comparison below
 			// rests on, so "this arm landed" is a claim about the command the fuzz actually ran.
@@ -226,13 +230,13 @@ type replayResult struct {
 	setup int
 }
 
-func replay(t *testing.T, bin, writer string, cmds []cmd) replayResult {
+func replay(t *testing.T, bin, writer string, cmds []cmd, cast []string) replayResult {
 	t.Helper()
 	// TmpRun, not t.TempDir: collect opens the record in this process, and the cached handle
 	// must be released before cleanup removes the directory — or Windows cannot remove it.
 	runDir := recordtest.TmpRun(t)
 	m := newMapper()
-	prepareRun(t, bin, runDir, m, nil, nil)
+	prepareRun(t, bin, runDir, m, nil, cast)
 	// A BOARD BEFORE THE FUZZ STARTS, as every sitting after the first has: GAP001 open, GAP002
 	// before the bench as MOTION001 — the placeholders the prologue's own output is given below,
 	// which is how a generated command names an id it cannot predict. Without it, every gap verb — close, regrade, carry, both
@@ -293,7 +297,18 @@ func replay(t *testing.T, bin, writer string, cmds []cmd) replayResult {
 				"so its event depends on fetch timing — seed every url the sequence names (seedFuzzSources)", n)
 		}
 	}()
+	drive := &replayDrive{t: t, bin: bin, writer: writer, runDir: runDir}
 	for _, c := range cmds {
+		if c.do != nil {
+			// A DRIVE STEP keeps its place in the sequence, so every command after it is still the one
+			// its index names; what it did is the record's, and the event comparison holds it.
+			c.do(drive)
+			m.observe(filepath.Join(runDir, "records"))
+			res.output = append(res.output, "drive: "+c.drive)
+			res.codes = append(res.codes, 0)
+			res.stderrs = append(res.stderrs, "")
+			continue
+		}
 		c.args = fillVars(c.args, vars)
 		inv := runGo(bin, runDir, m, c)
 		if inv.code == 0 {
@@ -490,17 +505,35 @@ var tourArms = []fuzzArm{
 	tourArm("lens closing", []string{"red-lens-evidence"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} }, nil),
 	tourArm("log", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
-	tourArm("chair spot-check", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--reason", t} }, nil),
+	// A SPOT-CHECK STANDS ON A STALE AREA'S DELIVERED CHANGES: the drive retires the voice lens behind
+	// a head move, and the chair reads the changes before it judges them.
+	tourArm("chair spot-check", []string{"red-chair"}, []string{"spot-check"},
+		func(t string) []string { return []string{"--areas", tourStaleLens, "--reason", t} },
+		func(string) []cmd { return []cmd{chairOwesAStaleArea(tourStaleLens)} }),
 	tourArm("lens regrade", []string{"red-lens-evidence"}, []string{"regrade"},
 		func(t string) []string { return []string{"--id", "GAP001", "--severity", "high", "--reason", t} }, nil),
 	tourArm("chair motion grade rule", []string{"red-chair"}, []string{"motion", "grade", "rule"},
 		func(t string) []string { return []string{"--id", "{MOTION}", "--as", "rejected", "--reason", t} },
 		func(name string) []cmd { return []cmd{fileGradeMotion(name)} }),
+	// THE BENCH RULES WHAT A DISPATCH CONVENES IT TO RULE, on the passages delivered to that sitting: both
+	// parties filed their closings on GAP002 above and sit again, the chair's next sitting dispatches the
+	// bench, and the bench registers for the docket and reads the passage of the gap MOTION001 is about.
 	tourArm("bench motion docket rule", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
 			return []string{"--id", "MOTION001", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
 				"--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", t}
-		}, nil),
+		},
+		func(name string) []cmd {
+			return []cmd{
+				fuzzStep(name+" · setup", []string{"register"}, "red-lens-evidence"),
+				readStep("red-lens-evidence"),
+				fuzzStep(name+" · setup", []string{"register"}, "blue-respond"),
+				fuzzStep(name+" · setup", []string{"register"}, "red-chair"),
+				fuzzStep(name+" · setup", []string{"dispatch", "next"}, "red-chair"),
+				fuzzStep(name+" · setup", []string{"register"}, "judge", "--occasion", "docket"),
+				readStep("judge"),
+			}
+		}),
 	tourArm("blue inquiry propose", blueSeats, []string{"inquiry", "propose"},
 		func(t string) []string { return []string{"--question", t, "--hypothesis", "it would settle something"} }, nil),
 	// THE LOGIC LENS'S CHECK OF A SETTLED INQUIRY: INQUIRY001 is the proposal above, blue settles it,
@@ -522,7 +555,8 @@ var tourArms = []fuzzArm{
 	tourArm("lens close", []string{"red-lens-evidence"}, []string{"close"},
 		func(t string) []string {
 			return []string{"--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
-		}, nil),
+		},
+		func(string) []cmd { return []cmd{readStep("red-lens-evidence")} }),
 	tourArm("bench halt", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
 	// The outcome is the assembly sitting's: the bench registers for it first.
 	tourArm("bench outcome", []string{"judge"}, []string{"outcome"},
@@ -531,6 +565,18 @@ var tourArms = []fuzzArm{
 			return []cmd{fuzzStep(name+" · setup", []string{"register"}, "judge", "--occasion", "assemble")}
 		}),
 }
+
+// tourCast is the act tour's cast: the tour runs on a cast run, as a real one stands, because the
+// chair's spot-check and the bench's docket ruling stand only on report text delivered to their
+// sittings, and both deliveries are owed only through the plan — the chair's for a stale area, which
+// is a cast lens's retired behind a head move, and the bench's for the motions a dispatch convenes
+// it to rule. The computation lens is cast because the tour's computation makes it a party the plan
+// dispatches. The voice lens is the one the tour retires; the random sequences keep the cast-less board
+// they were measured on.
+var tourCast = castOf("evidence", "logic", "computation", "voice")
+
+// tourStaleLens is the cast lens the tour sits until it retires, leaving its area stale.
+const tourStaleLens = "red-lens-voice"
 
 func reasonOnly(t string) []string { return []string{"--reason", t} }
 
@@ -652,6 +698,10 @@ func dumpSeq(cmds []cmd) string {
 	var b strings.Builder
 	b.WriteString("\n")
 	for _, c := range cmds {
+		if c.do != nil {
+			fmt.Fprintf(&b, "  (drive) %s\n", c.drive)
+			continue
+		}
 		fmt.Fprintf(&b, "  [%s] feov-record %s %s\n", c.arm, c.verb, strings.Join(c.args, " "))
 	}
 	return b.String()
