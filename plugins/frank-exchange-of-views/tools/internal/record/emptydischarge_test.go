@@ -79,8 +79,14 @@ func TestAClosingMustNameItsGap(t *testing.T) {
 // spot-check is DELIBERATELY not in this class: its bare form is a documented decision with its
 // own test, and its --reason says why it named nothing. Pinned so a later sweep of
 // this class does not "fix" it by mistake.
+//
+// The chair sits with a stale area and its delivery of that area's changes, which is the only sitting
+// a spot-check stands in.
 func TestSpotCheckBareStaysAccepted(t *testing.T) {
-	if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_SPOT_CHECK, &recordpb.SpotCheck{}); err != nil {
+	b, _ := retiredBehindHead(t)
+	run := b.register("red-chair").seed()
+	deliver(t, run, "red-chair")
+	if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_SPOT_CHECK, &recordpb.SpotCheck{}); err != nil {
 		t.Errorf("a bare spot-check was refused, but an honestly-empty round is a discharge: %v", err)
 	}
 }

@@ -431,7 +431,10 @@ func TestPassRefusedUntilSpotCheckCoversStaleAreas(t *testing.T) {
 }
 
 func TestSpotCheckAreasValidatedAgainstCast(t *testing.T) {
-	run := retBoard(t).seed()
+	// The chair spot-checks in a sitting that holds its delivery: the stale area's changes.
+	b, _ := retiredBehindHead(t)
+	run := b.register("red-chair").seed()
+	deliver(t, run, "red-chair")
 	chair := Identity{Run: run, SeatID: "red-chair"}
 	// The refused areas come first and are refused FOR THE AREA: a spot-check is once per sitting,
 	// so one that lands makes every later one a refusal whatever it names.
@@ -452,6 +455,7 @@ func TestSpotCheckAreasValidatedAgainstCast(t *testing.T) {
 func TestASpotCheckStampsTheChangesBehindEachPin(t *testing.T) {
 	b, pin := retiredBehindHead(t)
 	run := b.register("red-chair").seed()
+	deliver(t, run, "red-chair")
 	var want []int64
 	if err := readSnapshot(run, func(q recordsql.Querier) error {
 		rows, err := q.Query(`SELECT "id" FROM "events" WHERE "type" IN ('blue_edit', 'report_part') AND "id" > ? ORDER BY "id"`, pin)
@@ -503,6 +507,7 @@ func TestASpotCheckArrivingWithItsChangesIsRefused(t *testing.T) {
 	} {
 		b, _ := retiredBehindHead(t)
 		run := b.register("red-chair").seed()
+		deliver(t, run, "red-chair")
 		if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, body); err == nil || !strings.Contains(err.Error(), "stamped by the tool") {
 			t.Errorf("a spot-check supplying %v / %v is not refused as the tool's stamp: %v", body.GetPins(), body.GetChanges(), err)
 		}
