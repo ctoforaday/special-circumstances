@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/debatejs"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -153,6 +154,27 @@ func writeSetup(path string, data []byte) error {
 		return fmt.Errorf("setup: %w", err)
 	}
 	return nil
+}
+
+func fuzzRunConfig(lanes, k, kMax, mintBudget, maxEpochs int) []byte {
+	cfg := map[string]any{
+		"topic": "fuzz", "seats": debatejs.TieredSeats("haiku", "haiku"),
+		"lanes": lanes, "k": k, "kMax": kMax,
+		"convergenceFraction": 0.25, "maxEpochs": maxEpochs,
+	}
+	if mintBudget > 0 {
+		cfg["mintBudget"] = mintBudget
+	}
+	b, _ := json.Marshal(cfg)
+	return b
+}
+
+func fuzzJSSeats(bulk, judgment string) map[string]any {
+	out := map[string]any{}
+	for id, spec := range debatejs.TieredSeats(bulk, judgment) {
+		out[id] = map[string]any{"harness": spec.Harness, "model": spec.Model}
+	}
+	return out
 }
 
 // writeBundle writes a computation's program into a bundle directory of its own under the run's

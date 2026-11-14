@@ -116,14 +116,14 @@ func gapIDs(b Board, runDir string) ([]any, error) {
 // THE MISS IS AN ERROR. A board naming a seat debate.js never dispatches gets no prompt and no
 // fallback: dispatching a hand-written substitute is how the probe spent four runs measuring a
 // seat production does not seat.
-func ProductionPrompt(scriptPath string, b Board, runDir, binDir, model, judgmentModel string) (debatejs.Dispatch, error) {
+func ProductionPrompt(scriptPath string, b Board, runDir, binDir, model string) (debatejs.Dispatch, error) {
 	ids, err := gapIDs(b, runDir)
 	if err != nil {
 		return debatejs.Dispatch{}, fmt.Errorf("board %q: %w", b.Name, err)
 	}
 	ds, err := debatejs.Capture(scriptPath, debatejs.Config{
 		Topic: b.Name, RunDir: runDir, BinDir: binDir, Lanes: 1,
-		Model: model, JudgmentModel: judgmentModel, Backend: backendFor(b, ids),
+		Seats: debatejs.TieredSeats(model, model), Backend: backendFor(b, ids),
 	})
 	if err != nil {
 		return debatejs.Dispatch{}, fmt.Errorf("board %q: %w", b.Name, err)

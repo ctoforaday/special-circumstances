@@ -55,7 +55,7 @@ func TestTakeOverRebindsTheLeadOnlyFromTheSessionNamed(t *testing.T) {
 	}
 	gitCommit(t, cwd)
 	runDir := filepath.Join(cwd, "research", "resume")
-	setupArgs := []string{"setup", runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku"}
+	setupArgs := []string{"setup", runDir, "--topic", "t", "--bulk", "haiku", "--judgment", "haiku"}
 
 	if r := runAs(t, bin, cwd, cliTestLead, setupArgs...); r.code != 0 {
 		t.Fatalf("setup: exit %d: %s", r.code, r.stderr)
@@ -108,7 +108,7 @@ func TestASecondSessionsSetupLeadsWithAnotherCheckout(t *testing.T) {
 	}
 	gitCommit(t, cwd)
 	setupArgs := func(runDir string) []string {
-		return []string{"setup", runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku"}
+		return []string{"setup", runDir, "--topic", "t", "--bulk", "haiku", "--judgment", "haiku"}
 	}
 	first := filepath.Join(cwd, "research", "first")
 	if r := runAs(t, bin, cwd, cliTestLead, setupArgs(first)...); r.code != 0 {

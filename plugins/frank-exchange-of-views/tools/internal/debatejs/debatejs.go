@@ -40,6 +40,9 @@ import (
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/parser"
 	"github.com/dop251/goja_nodejs/eventloop"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // Dispatch is one agent() call debate.js made: the prompt a seat is given, and the routing that
@@ -206,17 +209,35 @@ var outcomeRe = regexp.MustCompile(`Debate outcome: ([A-Z]+)`)
 // re-prompt); label is always set.
 type Backend func(seatID, label, prompt string) Envelope
 
+// TieredSeats builds a Claude per-seat map from bulk and judgment models, populating every
+// debating seat on seatclass.Seats plus seatclass.Lane.Base.
+func TieredSeats(bulk, judgment string) map[string]modeltier.SeatSpec {
+	out := map[string]modeltier.SeatSpec{
+		seatclass.Lane.Base: {Harness: "claude", Model: bulk},
+	}
+	for id, def := range seatclass.Seats {
+		if def.Base == "" {
+			continue
+		}
+		m := bulk
+		if seatclass.ClassOf(def.Base) == "judgment" {
+			m = judgment
+		}
+		out[id] = modeltier.SeatSpec{Harness: "claude", Model: m}
+	}
+	return out
+}
+
 // Config is the run debate.js is driven through. These are the `args` a real workflow invocation
 // supplies; they appear inside the captured prompts, so a value that differs from the probe's own
 // fixture produces a prompt naming a directory the seat cannot read.
 type Config struct {
-	Topic         string
-	RunDir        string
-	BinDir        string
-	Lanes         int
-	Model         string
-	JudgmentModel string
-	Backend       Backend
+	Topic   string
+	RunDir  string
+	BinDir  string
+	Lanes   int
+	Seats   map[string]modeltier.SeatSpec
+	Backend Backend
 	// Read is what the PreToolUse hook writes on an envelope returned under a schema, for a backend
 	// standing in for a seat: `record_read`, which the seat's own call would carry. Nil is StandInRead,
 	// for a backend with no record behind it. A backend's own record_read is left alone: the hook is
@@ -443,10 +464,14 @@ func drive(scriptPath string, cfg Config) (driven, error) {
 		}()
 		loop := eventloop.NewEventLoop()
 		loop.Run(func(vm *goja.Runtime) {
+			jsSeats := map[string]any{}
+			for id, s := range cfg.Seats {
+				jsSeats[id] = map[string]any{"harness": s.Harness, "model": s.Model}
+			}
 			vm.Set("args", map[string]any{
 				"topic": cfg.Topic, "runDir": cfg.RunDir, "binDir": cfg.BinDir,
 				"lanes": cfg.Lanes, "laneFloorOverride": "seatprobe",
-				"model": cfg.Model, "judgmentModel": cfg.JudgmentModel,
+				"seats": jsSeats,
 			})
 			if _, err := vm.RunString(preamble); err != nil {
 				settledErr = "preamble: " + err.Error()

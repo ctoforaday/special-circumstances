@@ -3,6 +3,7 @@ package setup
 import (
 	"bytes"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -54,17 +55,17 @@ func runCfg(t *testing.T, exec ExecFunc) (Config, string) {
 	}
 
 	return Config{
-		BinDir:        binDir,
-		RunDir:        runDir,
-		Topic:         "a probe",
-		Model:         "haiku",
-		JudgmentModel: "haiku",
-		Session:       testLead,
-		Cwd:           home,
-		Home:          home,
-		Git:           func([]string) GitResult { return GitResult{Status: 0, Stdout: "abc1234\n"} },
-		Exec:          exec,
-		Now:           time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		BinDir:   binDir,
+		RunDir:   runDir,
+		Topic:    "a probe",
+		Bulk:     "haiku",
+		Judgment: "haiku",
+		Session:  testLead,
+		Cwd:      home,
+		Home:     home,
+		Git:      func([]string) GitResult { return GitResult{Status: 0, Stdout: "abc1234\n"} },
+		Exec:     exec,
+		Now:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	}, runDir
 }
 
@@ -182,13 +183,13 @@ func TestNoManifestIsRefusedRatherThanCheckedAgainstItself(t *testing.T) {
 // silently not firing is a documented guarantee that is simply untrue.
 
 func TestMissingModelTierRefuses(t *testing.T) {
-	for _, drop := range []string{"model", "judgment"} {
+	for _, drop := range []string{"bulk", "judgment"} {
 		t.Run(drop, func(t *testing.T) {
 			cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-			if drop == "model" {
-				cfg.Model = ""
+			if drop == "bulk" {
+				cfg.Bulk = ""
 			} else {
-				cfg.JudgmentModel = ""
+				cfg.Judgment = ""
 			}
 			var out, errb bytes.Buffer
 			if code := Run(cfg, &out, &errb); code != 2 {
@@ -201,6 +202,46 @@ func TestMissingModelTierRefuses(t *testing.T) {
 				t.Error("the run directory was created despite a missing tier")
 			}
 		})
+	}
+}
+
+func TestSeatOverridesAndAntigravityDiscovery(t *testing.T) {
+	cfg, runDir := runCfg(t, func(name string, args []string) ExecResult {
+		if name == "agy" && len(args) > 0 && args[0] == "models" {
+			return ExecResult{Status: 0, Stdout: "ID\n\x1b[32mgpt-oss-120b-medium\x1b[0m\n"}
+		}
+		return reports(strconv.Itoa(record.EventSchema))(name, args)
+	})
+	cfg.Bulk = "sonnet"
+	cfg.Judgment = "opus"
+	cfg.SeatOverrides = []string{"red-lens-dark-side=antigravity:gpt-oss-120b-medium"}
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("exit %d, want 0: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "workflow: python") {
+		t.Errorf("mixed setup must report workflow: python; got:\n%s", out.String())
+	}
+	seats := modeltier.SeatConfigs(runDir)
+	if got := seats["red-lens-dark-side"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "gpt-oss-120b-medium"}) {
+		t.Errorf("run-config.json override = %+v, want antigravity:gpt-oss-120b-medium", got)
+	}
+
+	// Missing Antigravity model refuses before creating the run.
+	cfg2, runDir2 := runCfg(t, func(name string, args []string) ExecResult {
+		if name == "agy" && len(args) > 0 && args[0] == "models" {
+			return ExecResult{Status: 0, Stdout: "other-model\n"}
+		}
+		return reports(strconv.Itoa(record.EventSchema))(name, args)
+	})
+	cfg2.SeatOverrides = []string{"red-lens-dark-side=antigravity:gpt-oss-120b-medium"}
+	out.Reset()
+	errb.Reset()
+	if code := Run(cfg2, &out, &errb); code != 2 || !strings.Contains(errb.String(), "MODEL DISCOVERY FAILED") {
+		t.Fatalf("missing agy model: exit %d stderr=%q", code, errb.String())
+	}
+	if _, err := os.Stat(runDir2); !os.IsNotExist(err) {
+		t.Error("run directory was created despite failed model discovery")
 	}
 }
 

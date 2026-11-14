@@ -34,6 +34,11 @@ func TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier(t *testing.T) 
 	const lanes = 3
 	tierModel := map[string]string{"bulk": "m-bulk", "judgment": "m-judgment"}
 
+	seats := debatejs.TieredSeats(tierModel["bulk"], tierModel["judgment"])
+	override := seats["red-lens-dark-side"]
+	override.Model = "m-lens-override"
+	seats["red-lens-dark-side"] = override
+
 	agentPaths, err := repotree.Constitutions()
 	if err != nil {
 		t.Fatal(err)
@@ -43,7 +48,7 @@ func TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier(t *testing.T) 
 		agentTypes = append(agentTypes, strings.TrimSuffix(filepath.Base(p), ".md"))
 	}
 	ds, _ := driveEverySite(t, agentTypes, debatejs.Config{Topic: "dispatch identity", Lanes: lanes,
-		Model: tierModel["bulk"], JudgmentModel: tierModel["judgment"]})
+		Seats: seats})
 
 	laneIDs := record.LaneSeatIDs(lanes)
 	sat := map[string]bool{}
@@ -64,9 +69,17 @@ func TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier(t *testing.T) 
 				where, d.SeatID, d.AgentType, row.AgentType)
 		}
 		class := seatclass.ClassOf(row.Base)
-		if want, ok := tierModel[class]; !ok || d.Model != want {
-			t.Errorf("%s: seat %s is dispatched on model %q; its tier class is %q, whose model in this drive is %q",
-				where, d.SeatID, d.Model, class, want)
+		want := tierModel[class]
+		seatKey := d.SeatID
+		if slices.Contains(laneIDs, d.SeatID) {
+			seatKey = seatclass.Lane.Base
+		}
+		if spec, ok := seats[seatKey]; ok && spec.Model != "" {
+			want = spec.Model
+		}
+		if want == "" || d.Model != want {
+			t.Errorf("%s: seat %s is dispatched on model %q; want %q (tier class %q)",
+				where, d.SeatID, d.Model, want, class)
 		}
 		if owes := record.SeatOwesOccasion(d.SeatID); owes != (d.Occasion != "") {
 			t.Errorf("%s: seat %s is told OCCASION %q; a seat owes one at register: %v", where, d.SeatID, d.Occasion, owes)

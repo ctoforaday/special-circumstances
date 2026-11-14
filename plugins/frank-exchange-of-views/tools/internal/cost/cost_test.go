@@ -104,44 +104,54 @@ func TestCacheShare(t *testing.T) {
 }
 
 func TestTierMismatch(t *testing.T) {
+	mkSeats := func(bulk, judgment string) map[string]modeltier.SeatSpec {
+		return map[string]modeltier.SeatSpec{
+			"red-lens":  {Harness: "claude", Model: bulk},
+			"red-chair": {Harness: "claude", Model: judgment},
+		}
+	}
 	// DEARER → FAIL (the fable trap).
-	out := TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "fable"}}, "haiku", "haiku")
+	out := TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "fable"}}, mkSeats("haiku", "haiku"))
 	if len(out) != 1 || out[0].Verdict != "FAIL" || out[0].Cls != "bulk" || !strings.Contains(out[0].Why, "DEARER") {
 		t.Errorf("dearer = %+v", out)
 	}
 	// CHEAPER → WARN.
-	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "haiku"}}, "opus", "opus")
+	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "haiku"}}, mkSeats("opus", "opus"))
 	if len(out) != 1 || out[0].Verdict != "WARN" || !strings.Contains(out[0].Why, "CHEAPER") {
 		t.Errorf("cheaper = %+v", out)
 	}
 	// Exactly configured → PASS (no finding).
-	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "sonnet"}, {Seat: "red-chair", Epoch: 1, T: "opus"}}, "sonnet", "opus")
+	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "sonnet"}, {Seat: "red-chair", Epoch: 1, T: "opus"}}, mkSeats("sonnet", "opus"))
 	if len(out) != 0 {
 		t.Errorf("pass = %+v", out)
 	}
-	// A class with no configured tier WARNs "not declared".
-	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "haiku"}}, "", "opus")
+	// A seat with no configured model WARNs "not declared".
+	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "haiku"}}, map[string]modeltier.SeatSpec{"red-chair": {Harness: "claude", Model: "opus"}})
 	if len(out) != 1 || out[0].Verdict != "WARN" || !strings.Contains(out[0].Why, "not declared") {
 		t.Errorf("undeclared = %+v", out)
 	}
 	// AN UNIDENTIFIABLE SEAT WARNS — it is not exempt, it is unnamed.
-	//
-	// This case used to assert the opposite ("an other/unknown seat is not tier-bound") and its
-	// fixture is the trap: a seat on `fable`, the dearest tier, which the first assertion in this
-	// very test calls the fable trap. Asserting ZERO findings for it meant the audit's own test
-	// pinned the silence on precisely the run it exists to catch.
-	//
-	// Every seat in SeatClass has a tier, so ClassOf returns "" for exactly one input: the `other`
-	// ClassifySeat reports when no needle matched the prompt head. That is a drift between
-	// debate.js's wording and internal/seatclass, not an exemption.
-	out = TierMismatch([]Row{{Seat: "other", Epoch: 0, T: "fable"}}, "haiku", "haiku")
+	out = TierMismatch([]Row{{Seat: "other", Epoch: 0, T: "fable"}}, mkSeats("haiku", "haiku"))
 	if len(out) != 1 || out[0].Verdict != "WARN" || !strings.Contains(out[0].Why, "could not be identified") {
 		t.Errorf("unidentifiable = %+v", out)
 	}
-	// A judgment seat is measured against judgmentModel, not model.
-	out = TierMismatch([]Row{{Seat: "red-chair", Epoch: 2, T: "opus"}}, "opus", "haiku")
+	// A judgment seat is measured against its own configured spec.
+	out = TierMismatch([]Row{{Seat: "red-chair", Epoch: 2, T: "opus"}}, mkSeats("opus", "haiku"))
 	if len(out) != 1 || out[0].Verdict != "FAIL" || out[0].Cls != "judgment" {
 		t.Errorf("judgment = %+v", out)
+	}
+	// Per-seat SeatID overrides the shared red-lens prompt class, and non-Anthropic/un-modelled
+	// Antigravity transcripts do not fall back to fable.
+	perSeat := map[string]modeltier.SeatSpec{
+		"red-lens-adversary": {Harness: "claude", Model: "sonnet"},
+		"red-lens-dark-side": {Harness: "antigravity", Model: "gpt-oss-120b-medium"},
+	}
+	out = TierMismatch([]Row{
+		{Seat: "red-lens", SeatID: "red-lens-adversary", Epoch: 1, Model: "claude-sonnet-5", T: "sonnet", Turns: 1},
+		{Seat: "red-lens", SeatID: "red-lens-dark-side", Epoch: 1, Model: "", T: "unpriced", Turns: 2},
+	}, perSeat)
+	if len(out) != 0 {
+		t.Errorf("per-seat cross-harness with un-modelled Antigravity transcript: got %+v, want none", out)
 	}
 }
 
@@ -222,6 +232,13 @@ func TestAnUnpricedModelIsChargedHighAndNamed(t *testing.T) {
 	// A turn with no tokens (the client's synthetic turns) is not a charge to name.
 	if z := ScanTranscript(usageLine("<synthetic>", 0, 0, 0, 0)); len(z.Unpriced) != 0 {
 		t.Errorf("a zero-token turn named %v", z.Unpriced)
+	}
+	// Non-Anthropic and un-modelled Antigravity turns sum tokens cleanly at $0 and mark Unpriced
+	// without falling back to fable rates.
+	agyTxt := `{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","input_tokens":1000000,"output_tokens":500,"cache_read_tokens":2000}` + "\n"
+	agyRow := ScanTranscript(agyTxt)
+	if agyRow.Cost != 0 || agyRow.T != "unpriced" || agyRow.Inp != 1000000 || len(agyRow.Unpriced) != 1 {
+		t.Errorf("antigravity row = %+v (want $0, unpriced, 1M input)", agyRow)
 	}
 }
 

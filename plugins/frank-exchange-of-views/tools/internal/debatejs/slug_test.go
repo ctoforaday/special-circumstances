@@ -31,7 +31,7 @@ func TestEveryLabelNamesTheRunByItsDirectory(t *testing.T) {
 	} {
 		dir := filepath.ToSlash(t.TempDir()) + "/" + name
 		ds, err := Capture(ScriptPath(filepath.Join(wd, "..", "..")), Config{Topic: "t", RunDir: dir, BinDir: t.TempDir(),
-			Lanes: 1, Model: "haiku", JudgmentModel: "haiku", Backend: backend})
+			Lanes: 1, Seats: TieredSeats("haiku", "haiku"), Backend: backend})
 		if err != nil {
 			t.Fatalf("driving debate.js in %s: %v", dir, err)
 		}

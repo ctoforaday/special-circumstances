@@ -73,7 +73,11 @@ func (o Observation) Substituted() bool {
 // A malformed line is SKIPPED, never fatal: a trajectory is appended to live and its final line
 // may be half-written while this reads.
 func Read(r io.Reader) (Observation, bool) {
-	var o Observation
+	o, ok, _ := readWithKind(r)
+	return o, ok
+}
+
+func readWithKind(r io.Reader) (o Observation, ok bool, sawAntigravity bool) {
 	sc := bufio.NewScanner(r)
 	// Trajectory lines carry whole tool results and run far past the 64KiB default.
 	sc.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
@@ -83,6 +87,8 @@ func Read(r io.Reader) (Observation, bool) {
 			continue
 		}
 		var j struct {
+			Source  string `json:"source"`
+			Type    string `json:"type"`
 			Message struct {
 				Model   string `json:"model"`
 				Content []struct {
@@ -99,6 +105,9 @@ func Read(r io.Reader) (Observation, bool) {
 		if json.Unmarshal([]byte(line), &j) != nil {
 			continue
 		}
+		if j.Source == "MODEL" && j.Type == "PLANNER_RESPONSE" {
+			sawAntigravity = true
+		}
 		// The DECLARATION outranks the observation, and is looked for on every line rather than
 		// only the first: a fallback can be announced mid-sitting, and that is precisely the case
 		// the issue calls out — "a substitution mid-run should not silently change the adversary's
@@ -106,7 +115,7 @@ func Read(r io.Reader) (Observation, bool) {
 		for _, c := range j.Message.Content {
 			if c.Type == "fallback" && c.From.Model != "" && c.To.Model != "" {
 				o.Requested, o.Served, o.Declared = c.From.Model, c.To.Model, true
-				return o, true
+				return o, true, sawAntigravity
 			}
 		}
 		if o.Served == "" && j.Message.Model != "" {
@@ -114,7 +123,7 @@ func Read(r io.Reader) (Observation, bool) {
 		}
 	}
 	// A scan error over a partially-written file still yields what was read before it.
-	return o, o.Served != ""
+	return o, o.Served != "", sawAntigravity
 }
 
 // Observe reads the trajectory at path, which the record names (record.TranscriptOf): what the
@@ -125,8 +134,11 @@ func Observe(path string) (Observation, error) {
 		return Observation{}, fmt.Errorf("servedmodel: opening %s: %w", path, err)
 	}
 	defer func() { _ = f.Close() }()
-	o, ok := Read(f)
+	o, ok, antigravity := readWithKind(f)
 	if !ok {
+		if antigravity {
+			return Observation{}, fmt.Errorf("servedmodel: %s is an antigravity transcript carrying no model field — NOT MEASURED", path)
+		}
 		return Observation{}, fmt.Errorf("servedmodel: %s carries no assistant turn naming a model yet — NOT MEASURED, not unsubstituted", path)
 	}
 	o.Path = path

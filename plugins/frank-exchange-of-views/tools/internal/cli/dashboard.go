@@ -24,7 +24,8 @@ func newDashboard() *cobra.Command {
 	var watch bool
 	var now int64
 	var serve int
-	var model, judgmentModel, lanes string
+	var bulk, judgment, lanes string
+	var seatOverrides []string
 	c := &cobra.Command{
 		Use:           "dashboard <runDir> <transcriptDir>",
 		Short:         "render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)",
@@ -54,7 +55,7 @@ func newDashboard() *cobra.Command {
 			if err := requireTranscriptDir(transcriptDir); err != nil {
 				return err
 			}
-			cfg := dashboard.Config{Model: model, JudgmentModel: judgmentModel, Lanes: lanes}
+			cfg := dashboard.Config{Bulk: bulk, Judgment: judgment, SeatOverrides: seatOverrides, Lanes: lanes}
 			clock := func() float64 {
 				if now != 0 {
 					return float64(now)
@@ -133,8 +134,9 @@ func newDashboard() *cobra.Command {
 	// (or, worse, makes a careless one think the exposure is already understood).
 	c.Flags().IntVar(&serve, flags.Serve, 0, "host the dashboard over HTTPS on this port instead of writing a file — bound to 0.0.0.0 so it is reachable across the local network, gated by a per-run secret URL (self-signed cert, rendered fresh per request, self-tears-down when the run ends)")
 	c.Flags().Int64Var(&now, flags.Now, 0, "inject the clock in unix-ms (default: real time) — for deterministic tests")
-	c.Flags().StringVar(&model, flags.Model, "", "bulk-tier model, for the run-config header (else read from inputs/run-config.json)")
-	c.Flags().StringVar(&judgmentModel, flags.JudgmentModel, "", "judgment-tier model, for the run-config header")
+	c.Flags().StringVar(&bulk, flags.Bulk, "", "bulk-tier model <[harness:]model>, for the run-config header (else read from inputs/run-config.json)")
+	c.Flags().StringVar(&judgment, flags.Judgment, "", "judgment-tier model <[harness:]model>, for the run-config header")
+	c.Flags().StringArrayVar(&seatOverrides, flags.Seat, nil, "per-seat override <seat-id>=<[harness:]model>, for the run-config header")
 	c.Flags().StringVar(&lanes, flags.Lanes, "", "blue lane count, for the run-config header")
 	return c
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -62,7 +63,18 @@ func baseModel(t *testing.T, runDir string) Model {
 			{Epoch: i32p(2), Opened: 1, Closed: 2, Open: i32p(2), CloseRate: 50},
 		},
 		Judiciary: judFixture(),
-		Config:    Config{Topic: "does the widget converge", Model: "sonnet", JudgmentModel: "opus", Lanes: "3"},
+		Config: Config{
+			Topic: "does the widget converge",
+			Seats: map[string]modeltier.SeatSpec{
+				"frontier":        {Harness: "claude", Model: "sonnet"},
+				"blue-lane":       {Harness: "claude", Model: "sonnet"},
+				"blue-respond":    {Harness: "claude", Model: "sonnet"},
+				"blue-synthesize": {Harness: "claude", Model: "opus"},
+				"red-chair":       {Harness: "claude", Model: "opus"},
+				"judge":           {Harness: "claude", Model: "opus"},
+			},
+			Lanes: "3",
+		},
 		Generated: "2025-01-16T00:00:00.000Z",
 	}
 }
@@ -189,7 +201,7 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 	// run-config on disk; CLI overrides lanes.
 	_ = os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"t","model":"haiku","judgmentModel":"haiku","maxRounds":"6","lanes":"2"}`), 0o644)
+		[]byte(`{"topic":"t","seats":{"blue-lane":{"harness":"claude","model":"haiku"},"judge":{"harness":"claude","model":"haiku"}},"maxRounds":"6","lanes":"2"}`), 0o644)
 	// one agent transcript with a usage record.
 	_ = os.WriteFile(filepath.Join(tr, "agent-a.jsonl"),
 		[]byte(`{"message":{"model":"claude-haiku-4-5","usage":{"input_tokens":1000,"output_tokens":500}}}`+"\n"), 0o644)
@@ -197,7 +209,7 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 		[]byte(`{"agentId":"a","result":{"verdict":"FAIL","gaps":[]}}`+"\n"), 0o644)
 
 	m := BuildModel(runtest.Open(t, runDir), tr, Config{Lanes: "9"}, 1737000000000)
-	if m.Config.Model != "haiku" {
+	if m.Config.Seats["blue-lane"].Model != "haiku" {
 		t.Errorf("file config not merged: %+v", m.Config)
 	}
 	if m.Config.Lanes != "9" {

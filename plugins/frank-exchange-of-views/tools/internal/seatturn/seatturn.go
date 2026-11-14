@@ -76,9 +76,17 @@ func Parse(transcript string) (agentID string, turns []Turn) {
 			continue
 		}
 		var rec struct {
-			AgentID   string `json:"agentId"`
-			Timestamp string `json:"timestamp"`
-			Message   *struct {
+			AgentID         string `json:"agentId"`
+			Timestamp       string `json:"timestamp"`
+			Source          string `json:"source"`
+			Type            string `json:"type"`
+			CreatedAt       string `json:"created_at"`
+			InputTokens     int    `json:"input_tokens"`
+			OutputTokens    int    `json:"output_tokens"`
+			CacheReadTokens int    `json:"cache_read_tokens"`
+			Thinking        string `json:"thinking"`
+			ToolCalls       []any  `json:"tool_calls"`
+			Message         *struct {
 				ID      string `json:"id"`
 				Model   string `json:"model"`
 				Content []struct {
@@ -102,6 +110,17 @@ func Parse(transcript string) (agentID string, turns []Turn) {
 			agentID = rec.AgentID
 		}
 		if rec.Message == nil || rec.Message.Usage == nil {
+			if rec.Source == "MODEL" && rec.Type == "PLANNER_RESPONSE" {
+				turns = append(turns, Turn{
+					Index:     len(turns),
+					TSMillis:  millis(rec.CreatedAt),
+					Input:     rec.InputTokens,
+					Output:    rec.OutputTokens,
+					CacheRead: rec.CacheReadTokens,
+					Thinking:  rec.Thinking != "",
+					Tool:      len(rec.ToolCalls) > 0,
+				})
+			}
 			continue
 		}
 		u := rec.Message.Usage

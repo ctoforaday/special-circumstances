@@ -149,7 +149,7 @@ var ceilings = map[string]int{
 func TestNoSeatPromptGrowsPastItsCeiling(t *testing.T) {
 	got := map[string]int{}
 	for _, b := range Boards() {
-		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku")
+		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku")
 		if err != nil {
 			t.Errorf("%s: %v", b.Name, err)
 			continue
