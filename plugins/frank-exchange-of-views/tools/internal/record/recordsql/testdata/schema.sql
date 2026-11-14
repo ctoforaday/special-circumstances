@@ -771,6 +771,7 @@ CREATE TABLE "cite" (
   "copy_substitution" TEXT,
   "copy_url" TEXT,
   "fetched_at" TEXT,
+  "copy_captured_at" TEXT,
   "answers" TEXT,
   FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),

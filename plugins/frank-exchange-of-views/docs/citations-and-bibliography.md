@@ -101,7 +101,9 @@ a pdf's text layer, or an html page's readable text (parsed as a browser parses 
 comments, scripts, styles, the no-script fallback and the head left out, entities decoded, a line
 break per block; `extractor: feov-html-text@2`) — and the index
 maps url → entry, first match winning. Each entry records `fetched_at`, the time the fetch took
-its bytes. A second fetch of a url is a cache hit, so red audits the exact bytes blue cited, never a
+its bytes. An entry whose bytes are a web archive's snapshot also records
+`copy_captured_at`, the archive's timestamp for the capture: what the copy says is what the url said
+then. A capture whose timestamp cannot be read is not taken. A second fetch of a url is a cache hit, so red audits the exact bytes blue cited, never a
 page that drifted since, and the entry's `fetched_at` stays the first fetch's. When the same bytes are cached for two
 urls that do not name one resource, fetch prints `shared_body_with`: that is the shape of a wall,
 and the hash then certifies the blockade. Two spellings of one url — `%7E` for `~`, a host's case,
@@ -311,7 +313,10 @@ from here.**
   path for private-repository or local-file sources (#551, #64).
 - Page locators are the pdf's page **index**, not the folio printed on the page.
 - An archive snapshot is a different artifact, what a url said on a date. The footnote shows the url
-  that was asked and the snapshot it was read from. A citation migrated from before the field
+  that was asked and the snapshot it was read from. The cite carries `copy_captured_at`, the archive's capture time,
+  which `show evidence` prints and evidence.md renders beside the accessed date. A citation migrated
+  from before the field carries none, and neither does a url a seat typed that is itself a snapshot:
+  the tool took that copy live. A citation migrated from before the field
   carries `copy_substitution: not_recorded` and no copy url, and so does a migrated verification:
   the fetch index that knew is not archived.
 - Citation ids are 4 random bytes. Collisions are negligible per run, but the uniqueness test
