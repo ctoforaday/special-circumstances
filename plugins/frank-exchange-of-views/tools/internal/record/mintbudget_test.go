@@ -32,12 +32,13 @@ func budgetMint(id string, supersedes ...string) *recordpb.Mint {
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Supersedes: supersedes}
 }
 
-// budgetRun is a run with the given floor, cites and computations on the record, and the lens registered.
+// budgetRun is a run with the given floor, cites and computations on the record, a report ingested
+// for a close to stand on, and the lens registered.
 func budgetRun(t *testing.T, floor, cites, computations int, lens string) Identity {
 	t.Helper()
 	runDir := newRun(t)
 	writeRunConfig(t, runDir, fmt.Sprintf(`{"mintBudget":%d}`, floor))
-	var evs []*recordpb.Event
+	evs := []*recordpb.Event{recordtest.At(t, HarnessSeat, "harness:ingest", &recordpb.ReportPart{Text: proto.String("# Report\n\n## Findings\n\nA paragraph that cites nothing.\n")})}
 	for i := 0; i < cites; i++ {
 		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String(fmt.Sprintf("c-%x", i))}))
 	}
@@ -50,6 +51,13 @@ func budgetRun(t *testing.T, floor, cites, computations int, lens string) Identi
 		t.Fatal(err)
 	}
 	return id
+}
+
+// closeOwn is the lens's close of its own gap, from the sitting that holds its delivery.
+func closeOwn(t *testing.T, id Identity, c *recordpb.Close) {
+	t.Helper()
+	delivered(t, id)
+	mustAppend(t, id, c)
 }
 
 // The table is the roster: every area the engine can cast has a scale, no scale names an area
@@ -239,7 +247,7 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 	t.Run("three minted and closed, a fourth lands", func(t *testing.T) {
 		id := atCap(t)
 		for _, g := range []string{"G1", "G2", "G3"} {
-			mustAppend(t, id, repairClose(g))
+			closeOwn(t, id, repairClose(g))
 		}
 		for _, g := range []string{"G4", "G5", "G6"} {
 			if _, err := Append(id, budgetMint(g)); err != nil {
@@ -252,7 +260,7 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 	t.Run("all open is refused, and the lens closing one frees a mint", func(t *testing.T) {
 		id := atCap(t)
 		refused(t, id, budgetMint("G4"))
-		mustAppend(t, id, repairClose("G2"))
+		closeOwn(t, id, repairClose("G2"))
 		if _, err := Append(id, budgetMint("G4")); err != nil {
 			t.Fatalf("closing one gap did not free a mint: %v", err)
 		}
@@ -265,7 +273,7 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 		id := atCap(t)
 		c := repairClose("G1")
 		c.ClosureClass = recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)
-		mustAppend(t, id, c)
+		closeOwn(t, id, c)
 		if _, err := Append(id, budgetMint("G4")); err != nil {
 			t.Fatalf("a gap closed not_a_defect still held a mint: %v", err)
 		}
@@ -274,7 +282,7 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 	t.Run("the bench closing one frees a mint", func(t *testing.T) {
 		id := atCap(t)
 		mustAppend(t, sit(t, id.Run, "red-chair"), docketMotion("M1", "G3"))
-		mustAppend(t, sit(t, id.Run, "judge"), docketRuling("M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED))
+		mustAppend(t, sitRead(t, id.Run, "judge"), docketRuling("M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED))
 		if _, err := Append(id, budgetMint("G4")); err != nil {
 			t.Fatalf("a gap the bench disposed of still held a mint: %v", err)
 		}
@@ -284,7 +292,7 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 	t.Run("a remand frees nothing", func(t *testing.T) {
 		id := atCap(t)
 		mustAppend(t, sit(t, id.Run, "red-chair"), docketMotion("M1", "G3"))
-		mustAppend(t, sit(t, id.Run, "judge"), docketRuling("M1", recordpb.Disposition_DISPOSITION_REMANDED))
+		mustAppend(t, sitRead(t, id.Run, "judge"), docketRuling("M1", recordpb.Disposition_DISPOSITION_REMANDED))
 		refused(t, id, budgetMint("G4"))
 	})
 
@@ -297,7 +305,7 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 		}
 		refused(t, id, budgetMint("G5", "G1"))
 		refused(t, id, budgetMint("G5"))
-		mustAppend(t, id, repairClose("G4"))
+		closeOwn(t, id, repairClose("G4"))
 		if _, err := Append(id, budgetMint("G5")); err != nil {
 			t.Fatalf("closing the successor did not free its mint: %v", err)
 		}
@@ -428,7 +436,7 @@ func TestTheWorkListStatesTheMintsLeft(t *testing.T) {
 		if got, _ := standing(t, id); got.Open != 2 || got.Left != 0 {
 			t.Fatalf("two open gaps of a budget of 2: %+v", got)
 		}
-		mustAppend(t, id, repairClose("G1"))
+		closeOwn(t, id, repairClose("G1"))
 		got, items := standing(t, id)
 		if got.Open != 1 || got.Left != 1 || !mentions(items, "you hold 1 gap(s) open of a mint budget of 2") {
 			t.Errorf("after a close the list does not give the mint back: %+v %v", got, hows(items))
