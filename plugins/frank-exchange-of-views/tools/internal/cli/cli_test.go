@@ -941,7 +941,7 @@ func TestProseChannelResolution(t *testing.T) {
 // close carries its evidence or it does not happen: the anchor triple is the
 // difference between an auditable closure and an assertion.
 func TestCloseRequiresItsAnchor(t *testing.T) {
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -1000,7 +1000,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 }
 
 func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -1033,7 +1033,7 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 
 // close --file carries the full closure record; a missing one is an error.
 func TestCloseRecordsItsProse(t *testing.T) {
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -1149,7 +1149,7 @@ func TestBlueVerbContracts(t *testing.T) {
 // gap rides the filing. That is why the fixture files a docket motion first: without it the
 // refusal under test would be the dangling-motion one.
 func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	seatID := "judge"
 	// The gap must EXIST: `motion docket file --id` is a reference and is checked at write time,
 	// so without a real gap the FILING below would be refused and this test would never reach the
@@ -1280,7 +1280,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		return err
 	}
 	docket := func(t *testing.T) (string, string) {
-		runDir := newRun(t)
+		runDir := findingsRun(t)
 		registerChairOnce(t, runDir)
 		registerLensOnce(t, runDir)
 		if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
@@ -1831,7 +1831,7 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 // word is --reason now, the one prose spelling, and this pins that close reads it.
 func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := newRun(t)
+	runDir := findingsRun(t)
 	const prose = "verified at the leaf; digits match the cited arm"
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
 		t.Fatal(err)
@@ -1983,6 +1983,16 @@ func chairSitsAgain(t *testing.T, runDir string) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatalf("register red-chair: %v", err)
 	}
+}
+
+// findingsRun is newRun with a report holding the Findings section these fixtures' gaps are about. A
+// close and a ruling on a motion about gaps stand only on report text delivered to their seat, and no
+// report text is delivered while no report exists, so a fixture that closes or rules has one.
+func findingsRun(t *testing.T) string {
+	t.Helper()
+	dir := newRun(t)
+	ingestReport(t, dir, "# Findings\n\nThe finding these gaps are about sits in this section.\n")
+	return dir
 }
 
 // newRun makes a run directory as `setup` leaves it before any seat sits: the empty record. A gap's
