@@ -175,7 +175,7 @@ func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
 			o := docketRule("M1", "the ruling")
 			c.clear(o.GetDocket())
-			_, err := Append(sitRead(t, run, "judge"), o)
+			_, err := Append(benchSits(t, run), o)
 			if err == nil {
 				t.Fatalf("a docket ruling with no %s reached the record", c.flag)
 			}
@@ -188,7 +188,7 @@ func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
 		o := docketRule("M1", "the ruling")
 		o.GetDocket().Settled = proto.String("")
-		if _, err := Append(sitRead(t, run, "judge"), o); err != nil {
+		if _, err := Append(benchSits(t, run), o); err != nil {
 			t.Errorf("a ruling that bars no proposition was refused: %v", err)
 		}
 	})
@@ -216,7 +216,7 @@ func TestARemandStatesItsDirection(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
 			o := docketRule("M1", "the ruling")
 			c.set(o.GetDocket())
-			_, err := Append(sitRead(t, run, "judge"), o)
+			_, err := Append(benchSits(t, run), o)
 			if err == nil {
 				t.Fatal("a remand stating no direction reached the record — blue and the minting lens would be dispatched owing nothing")
 			}
@@ -227,7 +227,7 @@ func TestARemandStatesItsDirection(t *testing.T) {
 	}
 	t.Run("remanded --direction", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
-		if _, err := Append(sitRead(t, run, "judge"), docketRule("M1", "the ruling")); err != nil {
+		if _, err := Append(benchSits(t, run), docketRule("M1", "the ruling")); err != nil {
 			t.Errorf("a remand stating its direction was refused: %v", err)
 		}
 	})
@@ -236,7 +236,7 @@ func TestARemandStatesItsDirection(t *testing.T) {
 		o := docketRule("M1", "the ruling")
 		d := o.GetDocket()
 		d.Disposition, d.Direction, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), nil, proto.Bool(true)
-		if _, err := Append(sitRead(t, run, "judge"), o); err != nil {
+		if _, err := Append(benchSits(t, run), o); err != nil {
 			t.Errorf("a final not_a_defect ruling was refused: %v", err)
 		}
 	})
@@ -245,7 +245,7 @@ func TestARemandStatesItsDirection(t *testing.T) {
 		o := docketRule("M1", "the ruling")
 		d := o.GetDocket()
 		d.Disposition, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), proto.Bool(true)
-		_, err := Append(sitRead(t, run, "judge"), o)
+		_, err := Append(benchSits(t, run), o)
 		if err == nil || !strings.Contains(err.Error(), "--direction is the research a remand's one more exchange owes") {
 			t.Errorf("a not_a_defect ruling stating a direction was not refused for it: %v", err)
 		}

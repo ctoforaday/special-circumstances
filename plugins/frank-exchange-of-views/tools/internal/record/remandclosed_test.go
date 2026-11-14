@@ -20,7 +20,7 @@ func TestARemandOfAClosedGapIsRefusedNamingTheClose(t *testing.T) {
 		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
 	st.register("red-chair").docketMotion("red-chair", "M1", "G1").register(evLens).closeGap(evLens, "G1")
 	closedAt := int64(st.n)
-	run := st.register("judge").seed()
+	run := st.dispatch(2, "judge", "G1").register("judge").seed()
 	deliver(t, run, "judge")
 
 	err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("M1", remandDirection))
@@ -48,7 +48,7 @@ func TestARemandOfAnOpenGapIsAdmitted(t *testing.T) {
 	for _, grade := range []string{"high", "low"} {
 		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", grade)
-		run := st.register("red-chair").docketMotion("red-chair", "M1", "G1").register("judge").seed()
+		run := st.register("red-chair").docketMotion("red-chair", "M1", "G1").dispatch(2, "judge", "G1").register("judge").seed()
 		deliver(t, run, "judge")
 		if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("M1", remandDirection)); err != nil {
 			t.Errorf("a remand of an open gap graded %s is refused: %v", grade, err)

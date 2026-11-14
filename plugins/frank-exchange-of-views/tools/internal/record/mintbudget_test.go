@@ -282,7 +282,7 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 	t.Run("the bench closing one frees a mint", func(t *testing.T) {
 		id := atCap(t)
 		mustAppend(t, sit(t, id.Run, "red-chair"), docketMotion("M1", "G3"))
-		mustAppend(t, sitRead(t, id.Run, "judge"), docketRuling("M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED))
+		mustAppend(t, benchSits(t, id.Run), docketRuling("M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED))
 		if _, err := Append(id, budgetMint("G4")); err != nil {
 			t.Fatalf("a gap the bench disposed of still held a mint: %v", err)
 		}
@@ -292,7 +292,7 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 	t.Run("a remand frees nothing", func(t *testing.T) {
 		id := atCap(t)
 		mustAppend(t, sit(t, id.Run, "red-chair"), docketMotion("M1", "G3"))
-		mustAppend(t, sitRead(t, id.Run, "judge"), docketRuling("M1", recordpb.Disposition_DISPOSITION_REMANDED))
+		mustAppend(t, benchSits(t, id.Run), docketRuling("M1", recordpb.Disposition_DISPOSITION_REMANDED))
 		refused(t, id, budgetMint("G4"))
 	})
 

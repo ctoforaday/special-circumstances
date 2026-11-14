@@ -58,7 +58,7 @@ func TestAGrantStatesItsOrderAndADenialOrdersNothing(t *testing.T) {
 		m := s.docketed()
 		r := docketRuling(m, recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED)
 		r.Relief = proto.String(orderedRelief)
-		_, err := Append(sitRead(t, s.run, "judge"), r)
+		_, err := Append(benchSits(t, s.run), r)
 		mustRefuse(t, err, "a granted petition's order", "a docket ruling orders nothing beyond its ruling")
 	})
 
@@ -94,7 +94,7 @@ func TestAnEstoppedRowStatesWhatTheRulingSettled(t *testing.T) {
 				r.GetDocket().Final = nil
 				r.GetDocket().ReopensOn = proto.String(c.reopensOn)
 			}
-			mustAppend(t, sitRead(t, s.run, "judge"), r)
+			mustAppend(t, benchSits(t, s.run), r)
 			w, err := WorkOfSeat(s.run, "blue", "blue-respond")
 			if err != nil {
 				t.Fatal(err)

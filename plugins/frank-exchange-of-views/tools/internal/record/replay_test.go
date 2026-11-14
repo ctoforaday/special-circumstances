@@ -384,9 +384,8 @@ func TestValidateVerbContracts(t *testing.T) {
 
 // docketRunDir is a run in which G1 exists AND motion M1 has been docketed against it, so a
 // bench ruling's references both resolve and the test can be about the missing FIELD rather than
-// the missing gap or the missing filing. The gap is minted on an ingested report, and the bench sits
-// with its delivery of the gap's passage, so a ruling's refusal is about its fields and never about
-// text it was not handed.
+// the missing gap or the missing filing. The gap is minted on an ingested report, so a bench sitting
+// can be delivered its passage (docketBench).
 //
 // IT TAKES BOTH EVENTS, and that is the shape of the verb now. The gap rides the FILING and the
 // disposition rides the RULING, so a fixture that seeds only one of them leaves the other end of
@@ -410,8 +409,16 @@ func docketRunDir(t *testing.T) string {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	sitRead(t, mustRun(t, runDir), "judge")
 	return runDir
+}
+
+// docketBench is docketRunDir's run with the bench convened on the docket and sitting with its
+// delivery of the gap's passage, as a bench rules.
+func docketBench(t *testing.T) Run {
+	t.Helper()
+	run := mustRun(t, docketRunDir(t))
+	benchSits(t, run)
+	return run
 }
 
 // The bench's ruling demands every field its schema marks required, and names the one that is
@@ -463,7 +470,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		t.Run("missing "+c.field, func(t *testing.T) {
 			o := complete()
 			c.clear(o)
-			err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
+			err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
 			if err == nil {
 				t.Fatalf("a docket ruling was accepted without %s", c.field)
 			}
@@ -488,7 +495,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		}
 	})
 
-	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
+	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
 		t.Errorf("a complete docket ruling was refused: %v", err)
 	}
 
@@ -497,7 +504,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// holds the fields an empty value does not satisfy.
 	empty := complete()
 	empty.GetDocket().Settled = proto.String("")
-	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
+	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
 		t.Errorf("a docket ruling with settled present-but-empty was refused: %v", err)
 	}
 }
@@ -925,7 +932,7 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
 			o := full()
 			tc.set(o.GetDocket())
-			_, err := Append(sitRead(t, run, "judge"), o)
+			_, err := Append(benchSits(t, run), o)
 			if err == nil {
 				t.Fatalf("a docket ruling with an EMPTY %s reached the record — an empty answer cannot be told from a skipped question", tc.flag)
 			}
@@ -936,7 +943,7 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	}
 	t.Run("all three stated", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
-		if _, err := Append(sitRead(t, run, "judge"), full()); err != nil {
+		if _, err := Append(benchSits(t, run), full()); err != nil {
 			t.Errorf("a docket ruling stating its rule, tension and review flag was refused: %v", err)
 		}
 	})

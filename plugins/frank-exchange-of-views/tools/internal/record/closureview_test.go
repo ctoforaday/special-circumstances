@@ -102,8 +102,7 @@ func (s *closureStage) reconsidered() string {
 
 func (s *closureStage) rule(motion string, word recordpb.Disposition) *Event {
 	s.t.Helper()
-	s.bench = sit(s.t, s.run, "judge")
-	delivered(s.t, s.bench)
+	s.bench = benchSits(s.t, s.run)
 	return mustAppend(s.t, s.bench, docketRuling(motion, word))
 }
 
@@ -347,8 +346,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 		if _, _, err := RegisterSeat(red, "", ""); err != nil {
 			t.Fatal(err)
 		}
-		judge2 = sit(t, run, "judge")
-		delivered(t, judge2)
+		judge2 = benchSits(t, run)
 		app(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Opinion: proto.String("ra"),
 			Ruling:  &recordpb.MotionRule_Docket{Docket: rule}})

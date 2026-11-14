@@ -37,7 +37,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 			Direction:  proto.String("a reproduction on the shipped binary"),
 		}},
 	}
-	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
+	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }

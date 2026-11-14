@@ -23,7 +23,7 @@ import (
 func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	run := withReport(t, mustRun(t, newRun(t)))
 	red := Identity{Run: run, SeatID: "red-chair"}
-	judge := sit(t, run, "judge")
+	var judge Identity
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
 		if _, err := Append(id, body); err != nil {
@@ -42,7 +42,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
 	}
 	carry := func(motionID, reopensOn string) {
-		delivered(t, judge)
+		judge = benchSits(t, run)
 		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Opinion: proto.String("not this round"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
@@ -54,7 +54,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 				Direction:   proto.String(reopensOn)}}})
 	}
 	dispose := func(motionID string) {
-		delivered(t, judge)
+		judge = benchSits(t, run)
 		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Opinion: proto.String("settled"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
