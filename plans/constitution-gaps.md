@@ -479,7 +479,8 @@ edit's span touched, as they stood before it, with the anchor tokens on them; an
 paragraphs that hold its replacement after it, with theirs (names grepped across the Go tree, debate.js, `agents/` and `skills/`: 0 hits). **A paragraph is an
 `anchor.Blocks` block** — a paragraph, a heading, a list item's first paragraph, a table line, a footnote definition,
 a fence — the unit `anchor.Sentences` already never crosses; `claimcount.Paragraphs`' grouping (a tight list as one
-paragraph) is not used. On this run's report a block is a line: 227 non-blank lines, one multi-line prose block.
+paragraph) is not used. On this run's final report, read by a newline heuristic (not by running `anchor.Blocks`), a paragraph is a line:
+227 non-blank lines and one multi-line prose block; a table row or a list item is its own paragraph.
 `cli/blue/edit.go` already has both texts when it locates and applies the edit (`peek`, the report it plans over, and
 `planned`, the report it plans; `edit.go:150-180`), so it cuts the run of blocks around the span from each. `old`/`new`
 stay what they are: the fragments the seat typed and the tool applied. These facts are not derivable from the record
@@ -491,8 +492,10 @@ composition and these a field: they are the only record of what the edit changed
   stripped, `anchortext.Visible`) was not touched; one on the old side that is changed or absent on the new side was.
 - `reopened` is computed from the two stamped runs at the same write (`bluedoc.ReopenedAnchors(old_paragraphs,
   new_paragraphs)`), which already compares each anchor's own sentence on both sides (`bluedoc.go:321-348`, "COMPARING
-  SENTENCES, NOT SPANS"), so an anchor in an untouched sentence of a touched paragraph is not reopened; and, because a
-  run of whole blocks splits into the same sentences as the whole report, the comparison is the one it makes today.
+  SENTENCES, NOT SPANS"), so an anchor in an untouched sentence of a touched paragraph is not reopened; and a run of whole
+  blocks splits into the sentences the whole report has there (probed 2026-11-14 on a heading, prose, a table's rows
+  and a list with a continuation line: every sentence of a lone block equals the one in place), so the comparison is
+  the one it makes today; a fuzz gate holds it (§III.12).
   **An anchor the edit leaves bare is listed**: `ReopenedAnchors` skips one today (`bluedoc.go:336-342`), so an edit
   that cut a gap's sentence and left its token bare reopened nothing. Only a gap or finding anchor can be left bare
   (`refuseBaredAnchors`, `cli/blue/edit.go:268`, refuses an edit that bares an evidence anchor). Every reader of
@@ -614,8 +617,10 @@ sentence, and finds it inside the stamped paragraphs as above:
   from the sentence the reading read — the claim the `Verify` stores — and walk the `blue_edit` rows after the
   reading's id in order. An edit whose `old_paragraphs` hold the current sentence (compared with anchors stripped,
   `anchortext.Visible`) and whose `new_paragraphs` hold it unchanged did not touch it, and the walk goes on; one whose
-  `new_paragraphs` do not moves it to the sentence around the reading's anchor in `new_paragraphs`
-  (`bluedoc.SentenceAround`, the rule that made the stored claim), or ends the chain where the anchor is gone or bare. The estoppel floor and the debt rules are unchanged; only where they read text changes.
+  `new_paragraphs` do not moves it to the sentence the edit reworded it to — `rewordedTo`'s rule, run with
+  `old_paragraphs` as the text before and `new_paragraphs` as the text after: the sentences overlapping the edit's
+  `new`, less those its `old` carried through unchanged; one is the reword, none or several a removal — or ends the
+  chain where it is removed. The estoppel floor and the debt rules are unchanged; only where they read text changes.
 - [MODIFY] `record/reading.go:95-125`, the retried-reading refusal: whether this reading repeats an earlier one on the
   same sentence is answered by the same forward scan from the earlier reading's stored claim to now, compared with the
   sentence the new reading locates in the report now — no render at the earlier reading's event (:107).
@@ -785,7 +790,7 @@ per run.
   the record: ~+9 turns at ~100k cache-read tokens (~$0.02 a turn) plus ~$0.05 to write the report into the cache,
   about $0.25. Whole every sitting would be ~$12.5 over 50 sittings; the ruled design is 7 first sittings + 7 re-reads
   ≈ $3.5 plus 43 later sittings at 30–35% of a whole delivery (Q3's unpacked share applied to the packed whole) ≈
-  $3.2–3.8: **about $7 against $12.5**, beside the lenses' $13.64. The chair's area items: 8 at ev945. The re-read
+  $3.2–3.8: **about $7 against $12.5**, beside the lenses' $13.64. The chair's area items: 14 at ev945, for at most 101 changes (§III.4 D(2)). The re-read
   falls at each lens's second complete sitting, mostly e2 (the ruled timing).
 - **Productive sitting (retirement).** [MODIFY] `record/retirement.go` (`productive[...]` at :308, :320): a sitting is
   productive when it minted a fresh gap that is material now, **or** recorded a close, a `verify`, a `reproduce`, an
@@ -846,7 +851,10 @@ logic at all.
 - [MODIFY] the carriers of the retirement rule state it once, for every lens: the `lens retirement` term ("a change
   after its pin in its own area readies it again; logic's area is the whole report"), and the readiness prose P3
   already changes (`scripts/agentgen/src/red-chair.md:14`, `cli/seat/help/dispatch.md:13`). `inquiryCheckStands` is
-  unchanged: a re-readied logic is delivered the change and re-checks what its audit finds no longer holds.
+  unchanged: a re-readied logic is delivered the change and judges it as it judges any text. Its constitution
+  (`scripts/agentgen/src/red-lens-logic.md`, regenerated by agentgen) gains one sentence: a change after its pin
+  reaches it whether or not it has retired, and where the change alters what a settled inquiry's fate rests on, it
+  mints the gap about the inquiry, which makes the check owed again by the existing rule.
 - **Against the 11-11 ruling** ("once logic has retired, any later report edit re-owes its inquiry check"; retired as
   of the edit), in one line: the edit now re-readies logic and delivers it the change, and no longer unseats its
   standing inquiry checks.
@@ -1089,7 +1097,7 @@ for the wrong check", is not addressed by any part (Left out, §VII).
 
 ### III.11 Carrier and consumer census
 
-Commands ran on the plan's tree, 2026-11-11 (`census.txt`); the chain, F, "served", D, L, `reopened` and new-name
+Commands ran on the plan's tree, 2026-11-11 (`census.txt`); the chain, F, "served", D, `reopened` and new-name
 censuses were re-run on `origin/main` 5ab86a02b on 2026-11-14 (`r7/census.txt`): the chain still returns 25 paths, F 41
 (39 under `tools/internal`), D 137, and every new name 0 hits; only line numbers moved (#1861 in `sitting.go`, #1864
 in debate.js, +2 from line 146, and in `hookcore.go`). Each is re-run when its part opens; the census is complete when
@@ -1204,7 +1212,8 @@ The one item kind `report_text` joins where `composed_source` is enumerated:
 Productive sitting: `grep -rn 'productive\[' tools/internal --include=*.go` → `retirement.go:308, :320`.
 
 **D(1) and L (P4), one rule.** The arm is `lensOwesOf`'s (`retirement.go`), read with the D census above; no site
-reads an inquiry check for it, so `inquiryCheckStands` and its prose are not carriers.
+reads an inquiry check for it, so `inquiryCheckStands` and its prose are not carriers. Its prose carriers: the
+`lens retirement` term, the readiness prose P3 changes, and `scripts/agentgen/src/red-lens-logic.md`.
 
 **G (P2).** `grep -rn 'InquiryStatusOf\|func InquiriesOf\|case \*recordpb.Inquiry:' tools/internal --include=*.go | grep -v _test`
 → `record.go:1563` (changes); `inquiry.go:95,108` (gains `LanesDisagree`); `enumof.go:75-78`, `impasse.go:310`,
@@ -1234,7 +1243,7 @@ its absence. `grep -rn 'judgments.md'` adds `cli/seat/help/certify.md:7` and `le
 
 **New names grepped for collisions** (re-run on 5ab86a02b): `QuestionPart`, `PartCoverage`, `S-`, `ChangeBearing`/`bearing`,
 `LanesDisagree`, `copy_captured_at`, `reportItemDelivery`, `whole_report_owed`, `report_text`/`ItemReportText`,
-`agent_sitting`, `report_delivery`, `area_change`, `errDeliveryHeld`, `old_paragraphs`/`new_paragraphs`, `change_in_area` — 0 hits, or no seat-facing hit beyond those
+`agent_sitting`, `report_delivery`, `area_change`, `errDeliveryHeld`, `old_paragraphs`/`new_paragraphs` and `change_in_area` (`git grep` on `origin/main`, 2026-11-14) — 0 hits, or no seat-facing hit beyond those
 noted.
 
 ### III.12 Release fuzz, simulator, terms — per part
@@ -1279,8 +1288,9 @@ noted.
       `blue_edit` row's `old_paragraphs`/`new_paragraphs`, and no report text is rendered to build it.
     - **The edit's record.** Every live `blue_edit` carries `old_paragraphs` holding its `old` and `new_paragraphs`
       holding its `new` (anchors stripped), each a run of whole `anchor.Blocks` blocks; `reopened` equals
-      `ReopenedAnchors(old_paragraphs, new_paragraphs)`, a bared gap anchor included, and lists no anchor whose own
-      sentence is unchanged in a touched paragraph. The standing reading's reword chain and the retried-reading refusal reach the same verdicts as
+      `ReopenedAnchors(old_paragraphs, new_paragraphs)`, a bared gap anchor included, equals `ReopenedAnchors` over the
+      whole report before and after the edit, and lists no anchor whose own sentence is unchanged in a touched
+      paragraph. The standing reading's reword chain and the retried-reading refusal reach the same verdicts as
       main's renders on every board the fuzz reaches (run once on the P3 branch against main's functions before they
       are deleted).
     - **A first sitting that ends undelivered.** Gate: no pin, and the next sitting's delivery is the whole report;
@@ -1354,7 +1364,7 @@ noted.
   retired lens again; logic's area is the whole report), "report read" (one row per
   completed delivery: for a lens the whole report, or the changes and its gap passages; for the chair the stale areas'
   changes; for the bench its motions' gap passages; its `pin (a dispatch's)` collision restates a lens's pin as the
-  head of its latest delivery), "the report", "stale
+  head of its latest delivery), "the report", "inquiry" (P2 adds "lanes disagree"), "stale
   area" (discharged by bearings after a complete delivery), "blocker".
 - **Goldens** regenerate at `-count=1` and are read line by line.
 
