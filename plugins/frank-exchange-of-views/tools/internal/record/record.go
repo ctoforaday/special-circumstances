@@ -938,7 +938,12 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 			// A RULING ON A MOTION ABOUT GAPS STANDS ON THEIR PASSAGES DELIVERED TO THE BENCH. A
-			// position names no passage, and its ruling needs none.
+			// position names no passage, and its ruling needs none. A motion already ruled is told so
+			// first: no delivery would let a second ruling stand (requireUnanswered asks it again under
+			// the write lock).
+			if err := requireUnanswered(q, b); err != nil {
+				return err
+			}
 			if err := DeliveredTextRefusal(q, seatID, b); err != nil {
 				return err
 			}
