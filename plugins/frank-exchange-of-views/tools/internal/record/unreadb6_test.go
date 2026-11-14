@@ -14,7 +14,8 @@ import (
 const b6Archive = "2026-09-11_is-91-prime-b6.tar.gz"
 
 // B6 PASSED OVER TWO CITATIONS NOBODY COULD READ. Its evidence lens verified C-b718c6b6 and
-// C-f5782056 `unreachable` at events 99 and 100, minted G-782e2cf3 on the sentence (quote-anchored,
+// C-f5782056 `unreachable` at events 98 and 99 (the migrated record's ids: migrate writes the
+// spot-check before them, which the delivered-text rule refuses, as no event), minted G-782e2cf3 on the sentence (quote-anchored,
 // not about either anchor) and closed it repaired at 172 after blue cited a mirror; the two dead
 // anchors stayed in the report, and the chair's PASS stood. Under the ruling (gblock, 2026-10-25:
 // "Citation checking isn't optional. Ever.") both are on a failed check owned by the lens that read
@@ -24,9 +25,9 @@ func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
 	whole := archivedEvents(t, b6Archive)
 	unread := []string{"C-b718c6b6", "C-f5782056"}
 	for i, a := range unread {
-		v := whole[98+i].GetVerify()
-		if v.GetAnchor() != a || v.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE || whole[98+i].GetSeatId() != evLens {
-			t.Fatalf("event %d is not %s's unreachable verify of %s: %v", 99+i, evLens, a, whole[98+i])
+		v := whole[97+i].GetVerify()
+		if v.GetAnchor() != a || v.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE || whole[97+i].GetSeatId() != evLens {
+			t.Fatalf("event %d is not %s's unreachable verify of %s: %v", 98+i, evLens, a, whole[97+i])
 		}
 	}
 	pass := slices.IndexFunc(whole, func(e *Event) bool {
