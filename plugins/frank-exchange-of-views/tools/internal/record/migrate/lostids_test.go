@@ -73,3 +73,38 @@ func lostGapsOf(t *testing.T, name string, m *migration.Manifest, word string) m
 }
 
 var liveGapID = regexp.MustCompile(`^G-[0-9a-f]{8}$`)
+
+// LostRulingMotions is the migrated id of every motion whose archived ruling the named run's
+// migration lost: an opinion's synthesized motion, or the motion a lost motion_rule ruled. The motion
+// itself is written; its ruling is the loss.
+func LostRulingMotions(t *testing.T, name string, m *migration.Manifest) map[string]bool {
+	t.Helper()
+	lost := LostIDs(m)
+	evs, err := archivedSource(t, recordtest.ExtractArchive(t, name)).Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mapped := func(id string) string {
+		if to, ok := m.IDs[id]; ok {
+			return to
+		}
+		return id
+	}
+	out := map[string]bool{}
+	for _, ev := range evs {
+		if !lost[ev.ID] {
+			continue
+		}
+		switch ev.Word {
+		case "opinion":
+			out[mapped(fmt.Sprintf("M-mig-%d", ev.ID))] = true
+		case "motion_rule":
+			id, _ := ev.Fields["motion_id"].(string)
+			if id == "" {
+				t.Fatalf("lost ruling %d names no motion_id: %v", ev.ID, ev.Fields)
+			}
+			out[mapped(id)] = true
+		}
+	}
+	return out
+}
