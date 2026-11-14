@@ -180,9 +180,20 @@ func TestAnArchivedPassIsCarriedAsHistory(t *testing.T) {
 			if g := fam.Gap(c.gap); g == nil || !g.Open || !g.Material || g.Mint.GetClassMaterial() != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {
 				t.Fatalf("fixture: %s is not an open, material gap of an always class on the migrated record: %+v", c.gap, g)
 			}
+			// A gap whose archived close is a lost act stays open on the migrated board, so the
+			// carried PASS stands over it too: verify names the gap the PASS stood over and exactly
+			// those, each still material.
+			want := []string{c.gap}
+			for g := range migrate.LostCloseGaps(t, c.archive, res) {
+				if gp := fam.Gap(g); gp != nil && gp.Open && gp.Material {
+					want = append(want, g)
+				}
+			}
+			slices.Sort(want)
 			for _, ck := range verify.Run(fam) {
-				if ck.Name == "pass-closes-all-gaps" && (ck.OK || ck.NA || !slices.Equal(ck.Violations, []string{c.gap})) {
-					t.Errorf("verify must read the carried PASS against its board and name %s: %+v", c.gap, ck)
+				got := slices.Sorted(slices.Values(ck.Violations))
+				if ck.Name == "pass-closes-all-gaps" && (ck.OK || ck.NA || !slices.Equal(got, want)) {
+					t.Errorf("verify must read the carried PASS against its board and name %v (%s and the gaps whose close was lost): %+v", want, c.gap, ck)
 				}
 			}
 		})
