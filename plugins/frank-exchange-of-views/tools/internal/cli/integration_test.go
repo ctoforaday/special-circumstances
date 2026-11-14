@@ -2,12 +2,14 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"regexp"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -246,19 +248,46 @@ func registerChairOnce(t *testing.T, runDir string) {
 	registerSeatOnce(t, runDir, "red-chair")
 }
 
-// registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and serves it the whole report
-// where one is ingested, as a lens's audit does. A seat registers before it acts, and a lens's mints
-// are counted against its budget by seat id, so every mint helper here sits the same lens rather than
-// a fresh one per call. The read is the lens's pin (record.ServeReport): a lens that sat and was never
-// served the report is still ready at the head, and every PASS these fixtures drive waits on it.
+// registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and completes its delivery of
+// the whole report where one is ingested, as a lens's first sitting does. A seat registers before it
+// acts, and a lens's mints are counted against its budget by seat id, so every mint helper here sits
+// the same lens rather than a fresh one per call. The delivery is the lens's pin (report_read, written
+// by the delivery writer as it hands the last item): a lens that sat and was never delivered the report
+// is still ready at the head and owes its first whole delivery, and every PASS these fixtures drive
+// waits on it.
 func registerLensOnce(t *testing.T, runDir string) {
 	t.Helper()
 	registerSeatOnce(t, runDir, lensSeat)
-	if _, head, err := record.ReportAtHead(runtest.Open(t, runDir)); err != nil || head == 0 {
-		return
+	deliverIfOwed(t, runDir, lensSeat)
+}
+
+// lensRereads opens `lensSeat`'s next sitting and completes its delivery there: the whole report once
+// more, its full re-read. A lens is delivered the whole report at its first sitting and again at its
+// next, and a PASS is held (whole_report_owed) while a lens that has sat lacks either, so a fixture
+// that drives a PASS sits its lens through both.
+func lensRereads(t *testing.T, runDir string) {
+	t.Helper()
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
+		t.Fatalf("register %s for its full re-read: %v", lensSeat, err)
 	}
-	if _, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat); err != nil {
-		t.Fatalf("serve %s the report: %v", lensSeat, err)
+	deliverIfOwed(t, runDir, lensSeat)
+}
+
+// deliverIfOwed completes seatID's delivery in its open sitting where its list holds report text it is
+// owed — the state the delivery writer leaves once it has handed the last item. A seat owed none (no
+// report yet, its sitting already holds its delivery) is left as it stands.
+func deliverIfOwed(t *testing.T, runDir, seatID string) {
+	t.Helper()
+	r := runtest.Open(t, runDir)
+	w, err := record.WorkOfSeat(r, seatclass.RoleOfSeat(seatID), seatID)
+	if err != nil {
+		t.Fatalf("reading %s's work list: %v", seatID, err)
+	}
+	for _, it := range w.Sitting.Open {
+		if it.Kind == record.ItemReportText {
+			deliverytest.Deliver(t, r, seatID)
+			return
+		}
 	}
 }
 

@@ -26,6 +26,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -126,6 +127,7 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 		t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	}
 	seatID := testDispatchedSeat(args)
+	deliverBeforeActing(t, args, seatID)
 	root := NewRootFor(seatID)
 	var out, errOut bytes.Buffer
 	root.SetOut(&out)
@@ -147,6 +149,50 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	// The error is STILL RETURNED. The binary exits 2 whenever it rendered a refusal, so "this call
 	// failed" stays true for the tests that assert one.
 	return out.String(), errOut.String(), err
+}
+
+// deliverBeforeActing completes the seat's delivery of report text before an act that stands only on
+// delivered text: a lens's close, the chair's spot-check, a ruling on a motion. Live, the delivery
+// writer hands the seat its report text one item after each of its calls to the record and writes the
+// report_read with the last item (sittingwrite.WriteNextItem); the harness runs no hooks, so it
+// completes the delivery here, from the seat's own list: only where that list holds a report-text item
+// is the seat owed a delivery this sitting. A seat owed none — its sitting already holds one, no report
+// yet, a chair with nothing stale — acts as it stands, and the write's own refusal is what a test sees.
+//
+// Delivering at the act rather than at the register is what the live seat does: it acts after its
+// delivery is complete, and a delivery cut at the register would pin a head every later edit in the
+// fixture moves past.
+func deliverBeforeActing(t *testing.T, args []string, seatID string) {
+	t.Helper()
+	var words []string
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			break
+		}
+		words = append(words, a)
+	}
+	switch {
+	case len(words) >= 1 && (words[0] == "close" || words[0] == "spot-check"):
+	case len(words) >= 3 && words[0] == "motion" && words[2] == "rule":
+	default:
+		return
+	}
+	role := seatclass.RoleOfSeat(seatID)
+	if role != "lens" && role != "chair" && role != "bench" {
+		return
+	}
+	dir := flagValue(args, "--run")
+	if dir == "" {
+		r, err := seatenv.Resolve("", nil)
+		if err != nil {
+			return
+		}
+		dir = r
+	}
+	if _, err := record.OpenRun(dir); err != nil {
+		return
+	}
+	deliverIfOwed(t, dir, seatID)
 }
 
 // assertRefusalNamesItsCommandOnce reads a refusal `run` returned against the command that
