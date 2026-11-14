@@ -28,8 +28,8 @@ const m23SourceSentence = "91 is not a prime number. It is a composite number."
 // holds nothing; the gap a lens mints on it holds the PASS. Migrate mints no gap for an archived
 // reading (its grades would be fabricated), and a reading of a source the lens found names no
 // anchor for the ledger to hold — so the migrated reading holds nothing. That loss is accepted and
-// stated (gblock, 2026-10-30, GAP 2): the recorded outcome does not move, and the run's own stale
-// areas still refuse a PASS at its end.
+// stated (gblock, 2026-10-30, GAP 2): the recorded outcome does not move, and the whole deliveries its
+// lenses owe still refuse a PASS at its end.
 //
 // LIVE, the same reading on the record as it stood before event 392 — with the gap flags a refuting
 // reading now needs — is refused, because its quote is not the report's sentence, and records nothing.
@@ -47,8 +47,17 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fam.Events) != 504 {
-		t.Fatalf("the migrated m23 holds %d events, want 504 — the archive's 476, less its one coining, the 9 receipts blue filed, the 5 positions blue filed and the 7 inquiry reviews and rulings the chair recorded, and the 6 reproduces carried to a second computation on their script, and 44 admissions, one at the close of each sitting of a seat whose work arrives as items", len(fam.Events))
+	// THE ACTS THE DELIVERED-TEXT RULE REFUSES ARE WRITTEN AS NO EVENT and listed in the manifest's
+	// lost_acts, so the count is the translation's, less each of them — read off the result, never typed.
+	if want := 504 - len(res.LostActs); len(fam.Events) != want {
+		t.Fatalf("the migrated m23 holds %d events, want %d — 504 (the archive's 476, less its one coining, the 9 receipts blue filed, the 5 positions blue filed and the 7 inquiry reviews and rulings the chair recorded, and the 6 reproduces carried to a second computation on their script, and 44 admissions, one at the close of each sitting of a seat whose work arrives as items) less the %d lost acts", len(fam.Events), want, len(res.LostActs))
+	}
+	// The reading is archive event 392; every lost act before it moves it one place earlier.
+	lostBefore := 0
+	for _, l := range res.LostActs {
+		if l.OldID < 392 {
+			lostBefore++
+		}
 	}
 	at := -1
 	for i, e := range fam.Events {
@@ -56,30 +65,34 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 			at = i
 		}
 	}
-	if at != 391 {
-		t.Fatalf("the reading quoting the source's sentence is event %d of the migrated m23, want 392", at+1)
+	if at != 391-lostBefore {
+		t.Fatalf("the reading quoting the source's sentence is event %d of the migrated m23, want %d (392 less the %d lost acts before it)", at+1, 392-lostBefore, lostBefore)
 	}
 	was, _ := recordpb.BodyAs[*recordpb.Verify](fam.Events[at])
 	if was.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES || fam.Events[at].GetSeatId() != "red-lens-evidence" || was.GetAnchor() != "" {
-		t.Fatalf("event 392 is %s by %s on anchor %q, want the evidence lens's refutes of a source it found", was.GetOutcome(), fam.Events[at].GetSeatId(), was.GetAnchor())
+		t.Fatalf("archive event 392 is %s by %s on anchor %q, want the evidence lens's refutes of a source it found", was.GetOutcome(), fam.Events[at].GetSeatId(), was.GetAnchor())
 	}
 	blockers, err := record.PassBlockers(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	stale := 0
+	owed := 0
 	for _, b := range blockers {
 		switch {
 		case b.Subject == "392" || b.Detail == m23SourceSentence:
 			t.Errorf("the migrated m23 holds a blocker on the archived reading: %+v", b)
 		case b.Kind == record.BlockerFailedCheck:
 			t.Errorf("the migrated m23 holds a failed check (%s, %s) — no reading of it was of a citation", b.Subject, b.CheckState())
-		case b.Kind == record.BlockerStaleArea:
-			stale++
+		case b.Kind == record.BlockerWholeReportOwed:
+			owed++
 		}
 	}
-	if stale != 4 {
-		t.Errorf("the migrated m23 holds %d stale_area blocker(s) at its end, want the chair's 4 — the PASS stays refused without the lost reading", stale)
+	// THE PASS STAYS REFUSED WITHOUT THE LOST READING. The record holds no delivery an archived lens
+	// sat through as a whole delivery and its full re-read, so each lens that sat owes them and is not
+	// retired (constitution-gaps §III.3.1: whole_report_owed holds the PASS while a lens that has sat
+	// lacks both); no lens retires, so no area is stale, and what holds the PASS is those owed deliveries.
+	if owed == 0 {
+		t.Errorf("the migrated m23 holds no whole_report_owed blocker at its end, so nothing holds the PASS the lost reading would have")
 	}
 	var outcome *recordpb.Outcome
 	for _, e := range fam.Events {
