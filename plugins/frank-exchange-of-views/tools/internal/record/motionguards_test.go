@@ -56,7 +56,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 		{
 			name: "a second docket ruling is refused",
 			act: func(t *testing.T, run Run) error {
-				judge := sit(t, run, "judge")
+				judge := sitRead(t, run, "judge")
 				mustAppend(t, judge, docketRule("M2", "the bench rules"))
 				_, err := Append(judge, finalDocketRule())
 				return err
@@ -198,7 +198,7 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	// The legal acts, through Append.
 	chair := sit(t, run, "red-chair")
 	mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "the grade stands, and here is why"))
-	mustAppend(t, sit(t, run, "judge"), docketRule("M2", "the bench remands"))
+	mustAppend(t, sitRead(t, run, "judge"), docketRule("M2", "the bench remands"))
 
 	motions := motionReadersAgree(t, run)
 	if got, want := motions["M1"], (motionAnswer{ruling: "rejected", by: "red-chair"}); got != want {
