@@ -103,8 +103,8 @@ type GapJSON struct {
 	// context, which is what an auditor otherwise renders the whole report to get (#1091). Present
 	// only while the gap is `marked`: absent means READ THE REPORT, never "no context".
 	//
-	// IT DOES NOT REPLACE THE REPORT. `show report` is unchanged and the constitution's full
-	// re-read stands; this removes the navigating, not the audit.
+	// IT DOES NOT REPLACE THE REPORT. The constitution's full re-read is the whole-report delivery
+	// the work list owes; this removes the navigating, not the audit.
 	Passage string `json:"passage,omitempty"`
 	// AboutKind/AboutRef are the anchor for a gap about something that is NOT report text — the
 	// same pair a finding carries, because a gap is where that finding ends up. Omitted when
@@ -1970,8 +1970,9 @@ type DebateEpochJSON struct {
 type DebateServedJSON struct {
 	SeatID string `json:"seat_id"`
 	Head   int64  `json:"head"`
-	// Whole is the delivery being the whole report; false for the changes since the lens's pin and
-	// its own gaps' passages (report_delivery).
+	// Whole is the delivery being a lens's whole report; false for every other delivery — a lens's
+	// changes since its pin and its own gaps' passages, the chair's stale areas' changes, the bench's
+	// convened motions' passages (report_delivery).
 	Whole bool `json:"whole"`
 }
 
@@ -2126,7 +2127,10 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 				rj.RedKeeps = append(rj.RedKeeps, DebateKeepJSON{GapID: e.GetRegrade().GetGapId(), SeatID: e.GetSeatId(), Text: e.GetRegrade().GetBasis()})
 			}
 		}
-		for _, e := range sec(recordpb.EventType_EVENT_TYPE_REPORT_READ, "lens") {
+		for _, e := range re {
+			if e.GetType() != recordpb.EventType_EVENT_TYPE_REPORT_READ {
+				continue
+			}
 			row, _ := win.delivery(e)
 			rj.Served = append(rj.Served, DebateServedJSON{SeatID: e.GetSeatId(), Head: row.Head, Whole: row.Whole})
 		}

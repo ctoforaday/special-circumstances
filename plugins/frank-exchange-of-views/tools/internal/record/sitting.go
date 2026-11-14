@@ -83,7 +83,7 @@ type Item struct {
 	AnotherSeatClears bool `json:"another_seat_clears,omitempty"`
 	// Kind is what the item is, and Subject what it is about (itemkind.go): the item's identity as
 	// fields, set where the item is built, so a reader keys an item without reading its sentence. A
-	// lens's work arrives one item at a time keyed on them (QueueOf).
+	// seat's work arrives one item at a time keyed on them (QueueOf).
 	Kind    ItemKind     `json:"kind"`
 	Subject *ItemSubject `json:"subject,omitempty"`
 }

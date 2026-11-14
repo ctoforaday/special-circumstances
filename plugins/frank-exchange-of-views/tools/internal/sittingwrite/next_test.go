@@ -68,7 +68,7 @@ func TestTheDeliveryFitsAndSaysWhatItCut(t *testing.T) {
 	g := record.WorkGapJSON{ID: "G-1", Problem: "the problem", ProblemSynopsis: "the problem", YourTurn: true,
 		Location: loc, Passage: long + loc + ". " + long, MintedBy: "red-lens-logic", Backing: []record.GapBackingJSON{}, RegradesOwed: []record.OwedRegradeJSON{}}
 	w := record.WorkJSON{Open: []record.WorkGapJSON{g}, Sitting: record.SittingJSON{Seat: "red-lens-logic", Role: "lens", Open: []record.Item{}}}
-	text := RenderLensDelivery(w)
+	text := RenderDispatchDelivery(w)
 	if len(text) > DeliveryBudget {
 		t.Fatalf("delivery is %d bytes, over the budget of %d", len(text), DeliveryBudget)
 	}
@@ -182,7 +182,7 @@ func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 		if len(text) > DeliveryBudget {
 			t.Fatalf("%s: %d bytes, over the budget of %d", name, len(text), DeliveryBudget)
 		}
-		var d lensDelivery
+		var d seatDelivery
 		if err := json.Unmarshal([]byte(text[strings.Index(text, "{"):]), &d); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -204,7 +204,7 @@ func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 			t.Errorf("%s: estopped holds %d lines and %d omitted, want 30 in all", name, len(d.Estopped), d.EstoppedOmitted)
 		}
 	}
-	check("at dispatch", RenderLensDelivery(w), 0)
+	check("at dispatch", RenderDispatchDelivery(w), 0)
 	check("next", renderNext(w, q, 3, false), 3)
 	check("changed", renderNext(w, q, 0, true), 0)
 }
@@ -252,12 +252,12 @@ func TestAGapPastTheBudgetIsCutAndSaysSo(t *testing.T) {
 		for _, r := range []struct {
 			arm  string
 			text string
-		}{{"at dispatch", RenderLensDelivery(w)}, {"next", renderNext(w, q, 0, false)}} {
+		}{{"at dispatch", RenderDispatchDelivery(w)}, {"next", renderNext(w, q, 0, false)}} {
 			name := tc.name + ", " + r.arm
 			if len(r.text) > DeliveryBudget {
 				t.Fatalf("%s: %d bytes, over the budget of %d", name, len(r.text), DeliveryBudget)
 			}
-			var d lensDelivery
+			var d seatDelivery
 			if err := json.Unmarshal([]byte(r.text[strings.Index(r.text, "{"):]), &d); err != nil {
 				t.Fatalf("%s: %v", name, err)
 			}

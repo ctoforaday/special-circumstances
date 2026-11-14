@@ -53,7 +53,7 @@ owed:
 		r.noteActErr(fmt.Sprintf("queue oracle: %s owes %q and it is not queued", seatID, it.What))
 		return
 	}
-	if text := sittingwrite.RenderLensDelivery(w); len(text) > sittingwrite.DeliveryBudget {
+	if text := sittingwrite.RenderDispatchDelivery(w); len(text) > sittingwrite.DeliveryBudget {
 		r.noteActErr(fmt.Sprintf("queue oracle: %s's delivery is %d bytes, over the budget of %d (%s)", seatID, len(text), sittingwrite.DeliveryBudget, sectionBytes(text)))
 		return
 	}

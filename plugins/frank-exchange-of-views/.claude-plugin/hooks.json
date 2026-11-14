@@ -1,5 +1,5 @@
 {
-  "description": "Run and identity injection, the envelope gate and its admission, a lens's next item, and the sitting span for frank-exchange-of-views; why each is wired this way is in hooks/README.md.",
+  "description": "Run and identity injection, the envelope gate and its admission, a seat's next item, and the sitting span for frank-exchange-of-views; why each is wired this way is in hooks/README.md.",
   "hooks": {
     "PreToolUse": [
       {

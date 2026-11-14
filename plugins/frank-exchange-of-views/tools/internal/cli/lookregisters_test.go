@@ -44,9 +44,8 @@ func TestALookRegistersNoOneAndTheSeatsRegisterGoesThrough(t *testing.T) {
 // NO COMMAND THAT RECORDS NOTHING REGISTERS ITS SEAT — every surface walked, so a read added
 // tomorrow is held to it without being listed.
 //
-// A command records nothing when, run, it appends no event but a register: a record type is not
-// the whole answer, because a lens's whole `show report` records a report_read. Each runs with an
-// agent handle and no register on the record, through its own RunE with only the run and the seat
+// A command records nothing when, run, it appends no event but a register — measured on the record,
+// not read off the command's record type. Each runs with an agent handle and no register on the record, through its own RunE with only the run and the seat
 // id parsed, so a read that needs more flags may refuse — what it may not do is leave a register
 // behind.
 func TestNoCommandThatRecordsNothingRegistersItsSeat(t *testing.T) {
@@ -74,8 +73,8 @@ func TestNoCommandThatRecordsNothingRegistersItsSeat(t *testing.T) {
 			before := recordsBesidesRegisters(t, runDir)
 			_, _ = callLeaf(t, surface, path, runDir)
 			if recordsBesidesRegisters(t, runDir) != before {
-				// IT RECORDED SOMETHING — a lens's whole `show report` is a report_read — so it is
-				// an act that records, and registering its seat is the rule working.
+				// IT RECORDED SOMETHING, so it is an act that records, and registering its seat is
+				// the rule working.
 				t.Setenv(seatenv.AgentVar, "")
 				continue
 			}

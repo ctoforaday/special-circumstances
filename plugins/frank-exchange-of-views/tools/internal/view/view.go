@@ -683,10 +683,12 @@ func debateMD(in Input) []byte {
 				parts = append(parts, record.KeptGradeHeading(l)+"\n"+l.GetRegrade().GetBasis())
 			}
 		}
-		// THE REPORT TEXT DELIVERED TO A LENS is the lens's pin: the bench reads which lens had a
-		// delivery completed at which head. The tool cannot see a read, so the line says what it handed.
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_REPORT_READ, "lens") {
-			parts = append(parts, in.At.DeliveryLine(l))
+		// THE REPORT TEXT DELIVERED TO A SEAT: the bench reads which seat had a delivery completed at
+		// which head. The tool cannot see a read, so the line says what it handed.
+		for _, l := range re {
+			if l.GetType() == recordpb.EventType_EVENT_TYPE_REPORT_READ {
+				parts = append(parts, in.At.DeliveryLine(l))
+			}
 		}
 		for _, l := range blueClosings {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l); ok {

@@ -94,7 +94,7 @@ func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder
 	}
 	text, err := handNextItem(runDir, caller.ID, caller.Type, string(engine))
 	if errors.Is(err, hookgate.ErrDeliveryHeld) {
-		// ANOTHER OF THE LENS'S CALLS HOLDS THE DELIVERY and is handing the item: this call hands
+		// ANOTHER OF THE SEAT'S CALLS HOLDS THE DELIVERY and is handing the item: this call hands
 		// nothing, and nothing failed — nor did this call see the stage work.
 		return
 	}

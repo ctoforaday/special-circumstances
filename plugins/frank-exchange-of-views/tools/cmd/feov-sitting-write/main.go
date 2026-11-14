@@ -66,7 +66,7 @@ func main() {
 	}
 }
 
-// exitStatus is the writer's exit on err: hookgate.ExitDeliveryHeld for a lens's delivery another call
+// exitStatus is the writer's exit on err: hookgate.ExitDeliveryHeld for a seat's delivery another call
 // holds, on the next phase, which the PostToolUse hook reads as handing nothing;
 // hookgate.ExitDeliveryStuck for report text that cannot be delivered, which it reads as ending the
 // seat's turn; 1 for everything else.

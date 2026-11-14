@@ -87,7 +87,7 @@ func injectSeatWork(run record.Run, agentID, seat string, out io.Writer) {
 	if err := recordDelivered(run.Dir(), agentID, w, q); err != nil {
 		fmt.Fprintf(os.Stderr, "sittingwrite: storing what %s was handed: %v\n", agentID, err)
 	}
-	io.WriteString(out, renderLens(w, q))
+	io.WriteString(out, renderDispatch(w, q))
 }
 
 // reportTextArrives is a seat's line at dispatch when its work opens with report text.

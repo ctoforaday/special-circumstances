@@ -370,7 +370,7 @@ func registeredSitting(tx *sql.Tx, agentID, seatID string) (h heldRegister, foun
 // one, and says so.
 //
 // THE FIRST RECORD IS NAMED BECAUSE THE SEAT CANNOT SEE IT. Measured on the #1565 smoke: four lenses
-// whose whole read of the report registered them ran `register` next, were refused naming only the
+// whose first recorded act registered them ran `register` next, were refused naming only the
 // dispatch, and each blamed the dispatch bracket.
 func repeatRegister(seatID string, dispatch int, h heldRegister, occ *recordpb.Occasion) error {
 	held := fmt.Sprintf("dispatch %d, register at event %d", dispatch, h.event)

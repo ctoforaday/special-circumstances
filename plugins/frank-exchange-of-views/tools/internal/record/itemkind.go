@@ -4,7 +4,7 @@ package record
 //
 // An item's sentence names its gap, anchor or motion, and nothing else did: a reader that wanted to
 // know which gap an item was about matched the id out of `what`, and the release fuzz did exactly
-// that (strings.Contains over the sentence). A lens handed its work one item at a time needs each
+// that (strings.Contains over the sentence). A seat handed its work one item at a time needs each
 // item's identity as a key — to say which item is current, to tell an item that changed from one
 // that is new, and to see one leave its list — and a key recovered from prose is the pattern
 // facts-are-fields refuses. So every item carries its kind and its subject, set where the item is

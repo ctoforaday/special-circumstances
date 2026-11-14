@@ -60,11 +60,11 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := listed.String()
-	if !strings.HasPrefix(out, lensArrived[:40]) {
+	if !strings.HasPrefix(out, dispatchArrived[:40]) {
 		t.Fatalf("the list arrived without the preamble that says it arrived:\n%s", out)
 	}
 	body := out[strings.Index(out, "{"):]
-	var d lensDelivery
+	var d seatDelivery
 	if err := json.Unmarshal([]byte(body), &d); err != nil {
 		t.Fatalf("what was handed to the lens is not its delivery (%v):\n%s", err, body)
 	}
@@ -156,7 +156,7 @@ func TestAnUnreadableListSaysSoRatherThanReadingEmpty(t *testing.T) {
 			t.Errorf("the failure does not say %q — a seat would read it as a clean board:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, lensArrived[:40]) {
+	if strings.Contains(out, dispatchArrived[:40]) {
 		t.Errorf("a failed render carried the preamble that says the list arrived:\n%s", out)
 	}
 }

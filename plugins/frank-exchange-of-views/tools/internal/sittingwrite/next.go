@@ -17,8 +17,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// Next is the phase that hands a lens its next item, from the PostToolUse hook after a call of the
-// lens's that went to the record (WriteNextItem).
+// Next is the phase that hands a seat its next item, from the PostToolUse hook after a call of the
+// seat's that went to the record (WriteNextItem).
 const Next Phase = "next"
 
 // deliveryDir holds, per seat sitting, what the seat was last handed: the current item's key and
@@ -26,7 +26,7 @@ const Next Phase = "next"
 // run directory, keyed by the agent and its sitting; it is the writer's buffer, read by nothing else.
 const deliveryDir = ".work-delivery"
 
-// delivered is what a lens sitting was last handed.
+// delivered is what a seat sitting was last handed.
 type delivered struct {
 	// Key and Digest are the current item's (record.QueueEntry); Key is "" when nothing was queued.
 	Key    string `json:"key"`
@@ -112,7 +112,7 @@ func WriteNextItem(runDir, agentID, agentType, engine string, out io.Writer) err
 	if had && prev.Report != nil && !prev.Listed {
 		// THE LIST ARRIVES WHOLE ONCE A SITTING: the opening end held it back behind the sitting's
 		// report text, so the first item after that text carries the standing and the index with it.
-		text, now = renderLens(w, q), delivered{Queue: queueKeys(q), Listed: true}
+		text, now = renderDispatch(w, q), delivered{Queue: queueKeys(q), Listed: true}
 		if len(q) > 0 {
 			now.Key, now.Digest = q[0].Key, q[0].Digest
 		}
@@ -232,7 +232,7 @@ func deliveryAgent(agentID string) error {
 	return nil
 }
 
-// deliveryPath is the file holding what one lens sitting was handed.
+// deliveryPath is the file holding what one seat sitting was handed.
 func deliveryPath(runDir, agentID string, sitting int64) string {
 	return filepath.Join(runDir, deliveryDir, agentID+"-"+strconv.FormatInt(sitting, 10)+".json")
 }
@@ -266,7 +266,7 @@ func writeDelivered(path string, d delivered) error {
 }
 
 // lockDelivery holds an O_EXCL marker beside the sitting's file while what was handed is compared and
-// rewritten, so two of the lens's calls returning together hand it the next item once. A marker
+// rewritten, so two of the seat's calls returning together hand it the next item once. A marker
 // older than staleLock is a holder that died, and is taken over; one still held past lockWait is
 // hookgate.ErrDeliveryHeld, since the holder is handing the item.
 func lockDelivery(path string) (func(), error) {
@@ -301,7 +301,7 @@ var lockWait = 5 * time.Second
 
 const staleLock = 30 * time.Second
 
-// recordDelivered stores what the opening end handed the lens, so the first call after it compares
+// recordDelivered stores what the opening end handed the seat, so the first call after it compares
 // against that.
 func recordDelivered(runDir, agentID string, w record.WorkJSON, q []record.QueueEntry) error {
 	if err := deliveryAgent(agentID); err != nil {
