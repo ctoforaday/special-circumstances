@@ -1,29 +1,28 @@
 # Constitution gaps from the auditing-standards run — question coverage, the report on the work list, retired lenses, lane fates, the PASS basis
 
-> **Status: DRAFT r5 for the auditor gate.** r1 failed the gate (8 gaps, 11 notes), r2 failed it (5 gaps), r4 failed
-> it as plan-audit r3 (3 gaps). r5 applies gblock's rulings of 2026-11-13 after plan-audit r3 (`RULINGS.md`, last
-> section): **the delivery chain is universal** — every seat's work arrives one item at a time through the lens's hook
-> chain, and an act that depends on report text stands only on text the chain delivered (gblock: "Give everyone the
-> same chain as lenses - that was meant to be universal"; §III.3.2); **report-text items block the envelope and a
-> delivery that cannot advance fails the sitting at once, with its reason** (§III.3.2); **P0, P1a, P1b, P11 and P2 ship
-> now as their own PRs, off this gate** (§III.0); **P3 ships before #1827**, so an Antigravity run cannot PASS and help
-> says so, and arrival is checked once on the acceptance run (§III.3.2 residues, R2, §V 9.2). It folds the Antigravity
-> session's evidence into F12, and closes r3's three gaps: the chair's delivery (by the universal chain), an own-gap
-> passage counted only inside rowed items (§III.3.2 item 3), and one delivery cut from one text (§III.3.2, `as_of`).
-> r4 applied F11 and composed `served_head`; r3 applied the F ruling and the whole-read value measurement
-> (`f-invest/WHOLE-READ-VALUE.md`); r2 applied the rulings after plan-audit r1 and the cross-check against the peer
-> workstreams. Forks F1–F3, F5–F7 and F9–F12 are ruled; the body is built to them.
+> **Status: DRAFT r6, the last revision before gblock reviews it again.** r5 failed plan-audit r4 (6 gaps). r6 applies
+> gblock's rulings of 2026-11-14 (`RULINGS.md`, last section) and cuts mechanism: **delivery facts are derived in
+> recordsql views and prepared statements, never stored or replayed in Go** (gblock: "Is this you doing in go what you
+> can just as easily do from views and prepared statements again?"), so `report_read` keeps its shape as one row per
+> completed delivery and `ReportItemKind`, `item`/`of`/`kind`/`as_of` and the four item kinds are gone (§III.3.2);
+> **one fail path** — report text is handed only at PostToolUse, a stuck delivery logs its reason as (TOOL, DEFECT) and
+> ends the seat's turn with `continue: false`, measured on Claude Code 2.1.323, with no `delivery_stopped` event and no
+> PreToolUse refusal arm (§III.3.2); **blue-respond gets no report text and a position ruling needs none**, now ruled
+> (§VII.8). H's `own_prescription` is composed rather than stored (§III.8), so P8 needs no bump. It closes r4's gaps 3–6
+> (a gone anchor's act, the chair's bearings under any call, the stop's scope, the delivery carriers) and its notes.
+> **What this plan adds is counted in §I.** Forks F1–F3, F5–F7 and F9–F12 are ruled; the body is built to them.
 >
-> **Base: `origin/main` at 3eca8f516 (2026-11-13), EventSchema 74** (`recordpb/schema_gen.go:18`): #1824 took 72,
-> #1853 (slimming's fetch time) 73, and 404a894dd (#1854) 74, which deleted the per-sitting call limit — a sitting is
-> bounded by the client's `maxTurns: 430`, written into every agent definition by agentgen. Line numbers cited are on
-> that tree. The option text quoted in the rulings is agent wording; gblock's own words appear only where marked as
-> his. Evidence is the archived run `2026-11-10_auditing-constitutions-gap-audit` (VERIFIED at e12/12): `evN` is an event
-> id in its record, and AUDIT.md, PROCESS.md and `audit/` give the findings. Every measurement was taken on a COPY of
-> the run directory with the run's own `.bin/feov-record` and the seat environment cleared. Scripts and outputs are in
-> `~/.claude/scratch/plan-constitution-gaps/` (`touch.py`, `reopen.py`, `census.txt`) and its `f-invest/`
-> (`scripts/{replay,locate,diffsize}.py`, `scripts/truncate.sh`, `locate.json`, `diffsize.txt`, `chainitems.txt`,
-> and the rendered work lists `work-*.json`).
+> **Shipping off this gate** (ruled 2026-11-13): **P11 SHIPPED** (#1862, 0254bfc7a, 2026-11-13); **P1a and P1b in
+> flight** (#1861, #1863); P0 and P2 have no PR yet.
+>
+> **Base: `origin/main` at 0254bfc7a (2026-11-13), EventSchema 74** (`recordpb/schema_gen.go:18`): #1824 took 72, #1853
+> 73, and #1854 74, which deleted the per-sitting call limit — a sitting is bounded by the client's `maxTurns: 430`.
+> Line numbers cited are on that tree. The option text quoted in the rulings is agent wording; gblock's own words appear
+> only where marked as his. Evidence is the archived run `2026-11-10_auditing-constitutions-gap-audit` (VERIFIED at
+> e12/12): `evN` is an event id in its record, and AUDIT.md, PROCESS.md and `audit/` give the findings. Measurements ran
+> on a COPY of the run directory with the run's own `.bin/feov-record` and the seat environment cleared. Scripts and
+> outputs are in `~/.claude/scratch/plan-constitution-gaps/` (`touch.py`, `reopen.py`, `census.txt`) and its
+> `f-invest/`.
 
 ## I. Summary & Goals
 
@@ -36,37 +35,51 @@ builds gblock's rulings so that each one becomes a record fact the tool composes
 |---|---|---|
 | **E** + **J** | The question is split into **question parts** on the record. Each part carries a coverage state (`covered`, `not_obtained`, `excluded`) and a reason. Blue records it; the logic lens checks it, as it checks inquiries. A PASS over a part that is not covered derives the new outcome **QUALIFIED**. VERIFIED's meaning and derivation are made to agree. The tool composes the sentence for a part not covered from the cause field. | P5 |
 | **K** | A **basis block** under the outcome stamp in report.md: coverage in subject voice, and a metadata table composed from record fields. The report layout table (`report/layout.go`) becomes the one source the agent-facing descriptions of report.md are generated from. | P7 |
-| **D** | Two mechanisms. (1) A retired lens is re-readied when an edit since its pin reopens an anchor of a gap it minted, open or closed. (2) The chair's stale-area check is kept and redesigned: the chain delivers the chair each change since a retired lens's pin, as its old and new text, and the chair records a **bearing** on each, accepted only on a delivered item — a field the tool refuses the PASS without. This completes #1805's stamps. | P4 |
-| **F** | **The report reaches a lens through its work list** (ruled by gblock 2026-11-13), **on the one delivery chain every seat's work now arrives on** (ruled 2026-11-13 after plan-audit r3). What a lens's sitting is served is keyed on its pin state: with no complete whole delivery, the whole report as items on the chain; its next sitting after its first complete whole delivery, the whole report again — its **full re-read** — at any head; every other sitting, the paragraphs changed since its pin (old and new) and its own gap passages, open and closed. The chair is served each stale area's unborne changes, the bench the passages of the gaps its motions are about. The PASS is refused (`whole_report_owed`) while any lens that has sat still owes a whole delivery, and the debt readies the lens itself. The record of what the chain put in a seat's context is the report read: a row only for an item whose full text reached the seat, every item of one delivery cut from one text. A close, a bearing and a ruling on a motion about gaps stand only on delivered text. Report-text items block the envelope; a delivery that cannot advance fails the sitting at once with its reason. The seat records nothing about its reading. A sitting that closed, checked, reproduced or verified is productive for retirement. | P3 |
+| **D** | Two mechanisms. (1) A retired lens is re-readied when an edit since its pin reopens an anchor of a gap it minted, open or closed. (2) The chair's stale-area check is kept and redesigned: the chain delivers the chair each change since a retired lens's pin, as its old and new text, and the chair records a **bearing** on each, accepted only once its delivery is complete — a field the tool refuses the PASS without. This completes #1805's stamps. | P4 |
+| **F** | **The report reaches a lens through its work list** (ruled by gblock 2026-11-13), **on the one delivery chain every seat's work now arrives on** (ruled 2026-11-13 after plan-audit r3). A lens with no complete delivery, and at its next sitting after its first (its **full re-read**), is served the whole report; every other sitting, the paragraphs changed since its pin (old and new) and its own gap passages. The chair is served each stale area's unborne changes, the bench the passages of the gaps its motions are about. Report text is handed only at PostToolUse, one item per call to the record; the tool writes one `report_read` row per completed delivery, and everything else about deliveries is derived in recordsql views (ruled 2026-11-14). The PASS is refused (`whole_report_owed`) while a lens that has sat owes a whole delivery, and the debt readies the lens. A close, a bearing and a ruling on a motion about gaps stand only on delivered text. Report-text items block the envelope; a delivery that cannot advance ends the seat's turn at once and logs its reason for the operator. The seat records nothing about its reading. A sitting that closed, checked, reproduced or verified is productive for retirement. | P3 |
 | **G** | A lane's settled inquiry fate that contradicts another lane's settled fate on the same inquiry is refused; the lane records the inquiry `underway`, and the synthesizer settles every inquiry the lanes left open. | P2 |
 | **I** | **Deferred** to #1695's redesign (gblock 2026-11-12: "1695 is being redesigned for being overly complicated"). Not built from this plan, and nothing here is designed against #1695's current plan (§III.6). | — |
 | **L** | An edit made while logic was retired, as computed over the events before that edit, unseats every standing inquiry check, which re-owes it. This joins #1806's re-owe through `inquiryCheckStands`. | P4 |
-| **H** | The tool stamps `own_prescription` on a close, derived from the estoppel record. Seats type nothing. | P8 |
+| **H** | The closure line names the closer's own applied prescription, composed from the estoppel record as of the close (stored nothing: ruled 2026-11-14). Seats type nothing. | P8 |
 | **M** | `cite` stamps the archive capture time of a copy the tool took from a web archive, beside slimming's fetch time (F6, ruled by gblock 2026-11-12). | P10 |
-| AUDIT defects without a ruling | `show work` stops counting the previous sitting's refusals as this one's (8) and the sonnet price row is corrected against the bill (9): two standalone PRs now (F9). Certify's counts are composed where they render (11): its own render-only PR (F9). A closure line states what the closer's sitting was delivered, composed from its report-read rows, with no Close field (7; ruled by gblock 2026-11-13). A voice closure judges its section (10, gblock's P ruling; F5). | P1a, P1b, P11, P8, P9 |
+| AUDIT defects without a ruling | `show work` stops counting the previous sitting's refusals as this one's (8) and the sonnet price row is corrected against the bill (9): two standalone PRs, in flight (#1861, #1863). Certify's counts are composed where they render (11): shipped (#1862). A closure line states what the closer's sitting was delivered, composed from its report-read rows, with no Close field (7; ruled by gblock 2026-11-13). A voice closure judges its section (10, gblock's P ruling; F5). | P1a, P1b, P11, P8, P9 |
 | Fixture | The archive this plan's migrate tests read is committed, and a missing archive fails the test. | P0 |
+
+**What this plan adds** (counted from §III; P0, P1a, P1b, P2 and P11 add none of these; P6 is deferred):
+
+| Kind | r4 (plan-audit r4's count) | r6 | Which |
+|---|---|---|---|
+| Epoch bumps | 5 | **4** | P3 (three views and `REPORT_READ`'s `means`), P4, P5, P10. P8 composes `own_prescription` and stores nothing |
+| Events | 3 | **2** | `QuestionPart`, `QuestionPartCheck` (P5). `DeliveryStopped` is gone |
+| Fields | 18 | **8** | `SpotCheck.bearings` (P4); `QuestionPart` `part_id`, `text`, `coverage`, `supersedes_coverage`, `reason` and `QuestionPartCheck.part_id` (P5); `Cite.copy_captured_at` (P10). `ReportRead` keeps its one field; its `item`/`of`/`kind`/`as_of`, `DeliveryStopped`'s five and `Close.own_prescription` are gone |
+| Blockers | 4 | **4** | `whole_report_owed` (P3); `question_unsplit`, `open_part`, `unchecked_part` (P5) |
+| Enum values (UNSPECIFIED counted, as r4 did) | 15 | **10** | `ChangeBearing` ×3 (P4); `PartCoverage` ×4, `RUN_OUTCOME_QUALIFIED`, gap class `coverage_misstated`, `ABOUT_KIND_QUESTION` (P5). `ReportItemKind` ×5 is gone |
+| Work-list item kinds | 4 | **1** | `report_text` (P3), its subject one of the existing report, gap and area subjects |
+| Verbs | 1 group | **1 group** | `question` (`part`, `cover`, `check`) (P5); `spot-check` gains `--bearing` |
+| Views (not in r4's count) | — | **3** | `agent_sitting`, `report_delivery`, `area_change` (P3), replacing three Go folds over every event: `AgentSittingsOf`, `satThroughOf`, `servedOf`/`pinOf` |
 
 **Success criteria (quantitative, checked in §V):**
 1. On a re-run of the same topic, every part of the question the frontier lists has a coverage state and a standing
    check at the PASS. A part that is not covered derives QUALIFIED, and report.md's basis block names it in subject
    voice. `grep -c 'HTTP 4' report.md` returns 0.
-2. For every `report_read` row, whichever seat it is for, that seat's own transcript holds that item's full text in
-   the hook-injected `additionalContext` (an independent source: the client's transcript, not the record's delivery
-   rows), unclipped and not spilled to a file. Zero exceptions, checked once on the acceptance run. At the PASS, every
-   lens that sat has a complete whole delivery in a sitting after the sitting of its first complete whole delivery
-   (its full re-read). Every close, spot-check bearing and ruling on a motion about gaps follows, in its own sitting, a
-   row for an item carrying the text it depends on.
-3. At the PASS, every change after each retired lens's pin carries a bearing recorded against an `area_change` item
-   the chain delivered to the chair (a row in the bearing's sitting), or re-readied the lens through its own reopened
-   anchor. Every re-ready names, on the lens's item, the change (old and new text) that caused it.
+2. For every `report_read` row, whichever seat it is for, that seat's own transcript holds the full text of every
+   item of that delivery (recomputed from the row's seat, sitting and head) in the hook-injected `additionalContext`
+   (an independent source: the client's transcript), unclipped and not spilled to a file. Zero exceptions, checked
+   once on the acceptance run. At the PASS, every lens that sat has rows in two sat-through sittings (its first whole
+   delivery and its full re-read). Every close, spot-check and ruling on a motion about gaps follows, in its own
+   sitting, its seat's row, with the text it depends on unchanged since that row's head — a gap whose anchor is gone
+   included, its passage being the change that removed its text.
+3. At the PASS, every change after each retired lens's pin carries a bearing recorded in a sitting that holds the
+   chair's row at a head at or after the change, or re-readied the lens through its own reopened anchor. Every re-ready
+   names, on the lens's item, the change (old and new text) that caused it.
 4. No inquiry ends the base phase with two different settled lane fates.
 5. The sonnet cost in `cost.md` is within 1% of the client's `modelUsage.costUSD` for the same tokens.
 6. `go -C scripts run ./check` is green, and so is CI's sharded release fuzz (all 4 parts plus the tally).
 
 **Value case.** The naive alternative is to edit the seven constitutions: tell the chair to read the changes, tell
 lanes to agree, tell the bench to mention omissions. Every row above shows that prose duty failing on this run
-(ev945, ev17–42, ev953). Each part replaces such a duty with a field and a refusal. The cost is real: five epoch
-bumps (P3, P4, P5, P8, P10) and about 12 PRs. It buys a VERIFIED stamp that cannot be printed over an unanswered part of the question
+(ev945, ev17–42, ev953). Each part replaces such a duty with a field and a refusal. The cost is real: four epoch
+bumps (P3, P4, P5, P10) and about 12 PRs. It buys a VERIFIED stamp that cannot be printed over an unanswered part of the question
 (AUDIT.md's first-ranked defect), and a report read the record can trust.
 
 ## II. Technical Context
@@ -75,7 +88,7 @@ bumps (P3, P4, P5, P8, P10) and about 12 PRs. It buys a VERIFIED stamp that cann
   `plugins/frank-exchange-of-views/tools`; the authored engine `skills/research-protocol/scripts/debate.js` with two
   enginegen regions; agent sources `scripts/agentgen/src/`; record schema `internal/record/recordpb/record.proto` →
   `protogen`; views `internal/record/recordsql`; terms registry `internal/terms/terms.json` → `go -C scripts run ./vocabdoc`.
-- **What this plan sits on** (state on `origin/main` 3eca8f516, 2026-11-13):
+- **What this plan sits on** (state on `origin/main` 0254bfc7a, 2026-11-13):
   1. **Merged:** #1824 `feov/gap-is-the-one-holder` (EventSchema 72) adds `BlockerReadingDebt` (its dispatch arm is
      `dispatch.go:619-625`), threads `found` through the blocker functions, makes a standing reading debt count as owed,
      and ends estoppel on a reword (`estoppingPrescriptions`, `verbatimPrescriptions(…, reworded)`); **P8 builds on its
@@ -94,9 +107,12 @@ bumps (P3, P4, P5, P8, P10) and about 12 PRs. It buys a VERIFIED stamp that cann
   4. **TRIAGE** (`~/.claude/scratch/feov-slim/small-items/TRIAGE.md:20-26`, queued after #1695/#1828) turns
      `lensFold.owes` into `[]owedItem{kind, subject}` and deletes `keptByDebt` and its regex. **P4's new owe arms are
      specified as typed `{kind, subject}` now**; whichever of P4 and TRIAGE lands second writes them in that form.
-  5. #1826 (hybrid search) and #1825 (verify `--title` help) touch none of these areas.
+  5. #1826 (hybrid search) and #1825 (verify `--title` help) touch none of these areas. #1862 (P11) added
+     `record/countsat.go` and `Gap.ClosedEvent`, read off `gap_state.closed_event`.
 - **Epochs.** Main is at 74. #1828 and the parts here each take the next free epoch at implementation, in merge order.
-  Every part that changes the schema bumps `record.EventSchema`. Each bump carries one `migrate` translation per
+  Every part that changes the schema bumps `record.EventSchema` — on this tree that includes a view's definition
+  (`recordsql/store.go:615`, gated by `TestEveryDDLChangeBumpsTheEpoch`; the repository guide's "a view-only change
+  does not bump it" no longer holds). Each bump carries one `migrate` translation per
   change, or states that the change needs none, with a test on
   `run-archive/2026-11-10_auditing-constitutions-gap-audit.tar.gz` (committed by P0).
 - **Harness constraints that decide designs here (measured, not assumed):**
@@ -104,8 +120,8 @@ bumps (P3, P4, P5, P8, P10) and about 12 PRs. It buys a VERIFIED stamp that cann
     PARENT session, and the seat sees a two-kilobyte preview (`sittingwrite/delivery.go:16-25`, `DeliveryBudget =
     9000`, measured on claude 2.1.318). A delivery under the cap is in the seat's context by construction.
   - **The chain, lens-only today** (`record.QueueOf`, `queue.go:60`; `sittingwrite.WriteNextItem`, `next.go:52`): one
-    item is current; the next is handed by the PostToolUse hook after a call of the lens's to the record that
-    discharged it (`hookcmd/post.go` `nextItem`). What was handed is kept in `.work-delivery/<agent>-<sitting>.json`
+    item is current, handed at SubagentStart; the next is handed by the PostToolUse hook after a call of the lens's to
+    the record that discharged it (`hookcmd/post.go` `nextItem`). What was handed is kept in `.work-delivery/<agent>-<sitting>.json`
     (identities only, not on the record). Three gates keep it lens-only: `runlive.IsLensAgentType` in `nextItem`
     (`post.go:79`), the role check in `WriteNextItem` (`next.go:56-58`), and `injectWorkList`'s lens branch
     (`worklist.go:72-75`). Every other seat whose configuration names it is handed its whole list as
@@ -114,6 +130,9 @@ bumps (P3, P4, P5, P8, P10) and about 12 PRs. It buys a VERIFIED stamp that cann
     `agent_binding` view) names any agent's seat.
   - **A sitting's bound** is the client's `maxTurns: 430` (agentgen, 404a894dd); a seat stopped there returns no
     envelope and its sitting is failed (`FailedSittingsOf`, `failedsitting.go:68`).
+  - **A PostToolUse `continue: false` ends one seat's turn** (`~/.claude/scratch/continue-probe/`, Claude Code 2.1.323):
+    inside an Agent subagent or a Workflow seat it ends only that seat's turn and the parent continues; a schema'd
+    `agent()` then throws "completed without calling StructuredOutput", which debate.js `sit()` catches.
   - **A Bash result over the client's limit is persisted to a file and previewed.** On this run 15 lens `show report`
     reads came back as `<persisted-output>`; 46 were piped to `head`/`grep`/`wc`/`/dev/null`
     (`audit/calls.jsonl`). The tool cannot tell from its stdout whether its text reached the seat.
@@ -124,7 +143,10 @@ bumps (P3, P4, P5, P8, P10) and about 12 PRs. It buys a VERIFIED stamp that cann
   - **Under Antigravity**, FEOV's hook answers a PostToolUse with an empty document (`hookcmd/hookcmd.go:138-146`;
     the claim at `hookcmd/post.go:74-76`), so nothing it hands reaches an agy seat today. Whether agy offers any path
     by which hook text reaches the agent belongs to the Antigravity native-workflow session (#1827, fork F12 ruled);
-    this plan states the property it needs, records that session's evidence (F12), and builds no agy mechanism.
+    this plan states the property it needs, records that session's evidence (F12), and builds no agy mechanism: under
+    agy report-text items do not block and the run cannot PASS (ruled 2026-11-14).
+  - **The record does not know the harness**: no run-config or record field names it. Only the hook's request does
+    (`req.Engine`).
 - **Constraints from standing rulings, not reopened:** a reading only records and the gap is the one PASS-holder
   (#1727). Reading itself is a recorded act, tool-generated if anything; a seat never records what it read
   (gblock 2026-11-11). Seat-facing text names no event id: "we do this by working locators" (gblock, FORKS:368).
@@ -140,16 +162,17 @@ bumps (P3, P4, P5, P8, P10) and about 12 PRs. It buys a VERIFIED stamp that cann
 
 ### III.0 The parts and their order
 
-**Shipping now, off this gate, as their own PRs** (ruled by gblock 2026-11-13, after plan-audit r3): **P0, P1a, P1b,
-P11 and P2.** Their implementation is underway elsewhere; this plan keeps their sections (§III.0a, §III.1, §III.2,
-§III.10a) as written, corrected only for stale facts, and the parts below treat them as landed or landing.
+**Off this gate, as their own PRs** (ruled by gblock 2026-11-13, after plan-audit r3): **P0, P1a, P1b, P11 and P2.**
+P11 shipped (#1862, 0254bfc7a); P1a and P1b are in flight (#1861, #1863); P0 and P2 have no PR yet. This plan keeps
+their sections (§III.0a, §III.1, §III.2, §III.10a), corrected for what their PRs found, and the parts below treat them
+as landed or landing.
 
 ```
-Shipping separately, now:  P0 (archive fixture)   P1a (defect 8)   P1b (defect 9)   P11 (defect 11)   P2 (G)
+Off this gate:  P0 (archive fixture)   P1a (defect 8, #1861)   P1b (defect 9, #1863)   P11 (defect 11, SHIPPED #1862)   P2 (G)
 
 Gated by this plan (main at 74; #1828, open, takes the next free epoch wherever it lands):
 P3 (F + the universal chain; needs P0) ──┬─ P4 (D + L)
-                                         ├─ P8 (H; defect 7 composed)
+                                         ├─ P8 (H and defect 7, both composed)
                                          └─ P9 (voice; also needs P7)
 P5 (E + J) ── P7 (K) ──────────────────────── P9
 P10 (M; beside #1853's Cite.fetched_at) ── independent
@@ -158,21 +181,21 @@ P6 (I): deferred to #1695's redesign; nothing designed here
 
 | Part | Concept, complete | Schema | Depends on | Rough cost |
 |---|---|---|---|---|
-| **P0** | Commit the archive; a missing archive fails. **Ships separately now** | none | — | small |
-| **P1a** | Defect 8 (refusal notice scope). **Ships separately now** (F9) | none | — | small |
-| **P1b** | Defect 9 (the sonnet price row). **Ships separately now** (F9) | none | — | small |
-| **P2** | G: lane fates cannot contradict; the synthesizer settles what the lanes leave open. **Ships separately now** | none | — | small |
-| **P3** | F and the universal chain: every seat's work arrives one item at a time; a lens's delivery keyed on pin state (whole with no complete whole delivery, whole again as the full re-read, else the changes since the pin plus its gap passages); the chair's area changes and the bench's gap passages; a read row only for text that reached the seat, every item of a delivery cut from one text; a close, a bearing and a ruling on a motion about gaps accepted only on delivered text; report-text items block the envelope; a delivery that cannot advance fails the sitting at once; the PASS waits on every whole-report debt, which readies the lens; productive sitting widened | `ReportRead` gains `item`/`of`/`kind`/`as_of`; `DeliveryStopped` (bump) | P0 | large |
-| **P4** | D + L: own-anchor re-ready; the chair's bearing per stale change, on delivered items; logic's checks re-owed as of the edit | `SpotCheck` gains `bearings` (bump) | P3 | medium |
+| **P0** | Commit the archive; a missing archive fails. **Off this gate; no PR yet** | none | — | small |
+| **P1a** | Defect 8 (refusal notice scope). **In flight: #1861** (F9) | none | — | small |
+| **P1b** | Defect 9 (the sonnet price row). **In flight: #1863** (F9) | none | — | small |
+| **P2** | G: lane fates cannot contradict; the synthesizer settles what the lanes leave open. **Off this gate; no PR yet** | none | — | small |
+| **P3** | F and the universal chain: every seat's work arrives one item at a time, report text only at PostToolUse; a lens's delivery keyed on its rows (whole with none, whole again as the full re-read, else the changes since the pin plus its gap passages); the chair's area changes and the bench's gap passages; one `report_read` row per completed delivery, every item cut from one text, and every other delivery fact derived in views; a close, a bearing and a ruling on a motion about gaps accepted only on delivered text; report-text items block the envelope; a delivery that cannot advance ends the seat's turn at once, its reason logged for the operator; the PASS waits on every whole-report debt, which readies the lens; productive sitting widened | three views (`agent_sitting`, `report_delivery`, `area_change`) and `REPORT_READ`'s `means`; no field (bump) | P0 | large |
+| **P4** | D + L: own-anchor re-ready; the chair's bearing per stale change, once its delivery is complete; logic's checks re-owed as of the edit | `SpotCheck` gains `bearings` (bump) | P3 | medium |
 | **P5** | E + J: question parts, coverage, checks, QUALIFIED | new events + enum value + gap class + about kind (bump) | — | large |
 | **P6** | I — DEFERRED to #1695's redesign; nothing built here | — | #1695 redesign | — |
 | **P7** | K: basis block; layout is the one source | none | P5 | medium |
-| **P8** | H: close stamps `own_prescription`; defect 7: the closure line composes the closer's delivery from its `report_read` rows | `Close.own_prescription` (bump) | P3 | small-medium |
+| **P8** | H: the closure line composes the closer's own applied prescription; defect 7: it composes the closer's delivery from its `report_delivery` row | none | P3 | small |
 | **P9** | Defect 10 / ruling P: one open report_voice gap per section; a voice closure judges its section | none (key rule) | P3, P7 | small |
 | **P10** | M: archive capture time on `cite`, beside `Cite.fetched_at` | `Cite` field (bump) | — | small |
-| **P11** | Defect 11: certify's counts composed where they render; render-only (F9). **Ships separately now** | none | — | small |
+| **P11** | Defect 11: certify's counts composed where they render; render-only (F9). **SHIPPED: #1862** | none | — | small |
 
-### III.0a P0 — the archive is a fixture (its own PR, shipping now)
+### III.0a P0 — the archive is a fixture (its own PR, off this gate; no PR yet)
 
 The archive `2026-11-10_auditing-constitutions-gap-audit.tar.gz` (2.19 MB) is in
 `~/.claude/scratch/universe-research-audit/`, not in `run-archive/`. `migrate/archive_test.go:207` (`archivePath`)
@@ -183,21 +206,28 @@ calls `t.Skipf` when a tarball is absent, so every migrate test this plan names 
   checkout (a consumer checkout). When the directory exists and the named tarball does not, `t.Fatalf`. Test: delete
   the tarball in a temp copy of the tree and see the test fail.
 
-### III.1 P1a and P1b — defects 8 and 9 (no schema change; each its own PR, shipping now)
+### III.1 P1a and P1b — defects 8 and 9 (no schema change; each its own PR, in flight: #1861, #1863)
 
-**Defect 8: the `show work` refusal notice.** `record/sitting.go:228` calls `logsThisSitting`, which counts tool
-`REFUSAL`/`FAILURE` logs inside `thisSitting` (`sitting.go:689-698`), scoped to the seat's `LatestSittingOf`. When the
-hook's bracket names no seat (blue-respond's agent type is shared), nothing opens the new sitting until `register`,
-so `store.go:795` stamps a pre-register refusal into the previous sitting. Blue's ev658 then explained a refusal it
-never made.
-- [MODIFY] `record/recordsql/store.go:795-828`: an event written by an agent whose bracket is open and not yet bound to
-  a seat joins **that bracket** (by `agent_id`, as `register` already joins it), never the seat's latest sitting.
-- [MODIFY] `record/sitting.go:228-246`: no change in shape; the count is right by construction.
-- Test: `cli/refusalonce_test.go`-style. Seat A sits and has a refused call; a new agent of the same type opens an
-  unbound bracket; `show work` before `register` reports 0 refused calls; after `register` a refusal counts once. It
-  fails today with 1.
+**Defect 8: the `show work` refusal notice. In flight as #1861**, whose investigation corrected this section's
+diagnosis. `record/sitting.go:228` calls `logsThisSitting`, which counts tool `REFUSAL`/`FAILURE` logs inside the seat's
+`LatestSittingOf`. On the archived record the refusal (ev588) belongs to the previous blue-respond agent's sitting 587,
+stamped correctly: nothing is stamped wrong in `store.go` (the hook writes no entry for an agent with no binding,
+`WriteToolEntry` → `SeatOfAgent`). The new agent's bracket (ev644) names no seat and opens no sitting, so before its
+register (ev645) the seat's latest sitting is still 587, and the reader counted it.
+- [MODIFY] `record/sitting.go` `sittingOf` (#1861): a seat that is dispatched and owes its register, or a chair returned
+  to before its register (`unopenedChairSitting`), reads as a seat that has not sat — no refused calls, no entry of its
+  own, no empty sitting excusing the log item. No record or event shape changes.
+- Tests (#1861, `record/unopenedsittinglog_test.go`): before register the list counts 0 refused calls (1 on main);
+  after a refused call of its own, exactly 1; the same for the chair.
+- **Left by #1861, by design:** the other reads of "this sitting" in `sittingOf` still read the previous sitting before
+  register — `engagedOf`, `answeredByActThisSitting` (motion, retire), `remandItemsOf`, `blueInquiryItemsOf`, the
+  `LastRead` "served" kind, and the blocker windows (`win.LatestSittingOf`) — because they agree with each other, and
+  suppressing some would make the list contradict itself. **P3 owns the `LastRead` "served" kind** (it rewrites
+  `lastReadOf` over `report_delivery`, §III.3.2). The rest are no part's here (Left out, §VII).
 
-**Defect 9: the sonnet price row.** `cost/cost.go:77-78` prices `claude-sonnet-5-5`/`claude-sonnet-5` at
+**Defect 9: the sonnet price row. In flight as #1863** (Sonnet 5.5 cache reads at the published $0.10/MTok; the
+run's `seat_turn` token sums reproduce `modelUsage.costUSD` exactly; a second Sonnet run is NOT MEASURED, none exists).
+`cost/cost.go:77-78` prices `claude-sonnet-5-5`/`claude-sonnet-5` at
 {2, 10, 0.20, 2.50, 4} $/MTok. On this run's tokens that gives $25.23; the client's `modelUsage.costUSD` for the same
 tokens (`costBasis: list`) is **$19.91**. `cost.go:56-67` says the rows were checked against `costUSD` on 2026-10-17,
 but only for Haiku 5.5 and Opus 5.5.
@@ -208,7 +238,7 @@ but only for Haiku 5.5 and Opus 5.5.
 - [MODIFY] `cost/cost_test.go:42-49` pins only the input rate. Add one case per token class for sonnet, against the
   client's figure recorded as a fixture from this run's `stream-…jsonl` result line.
 
-### III.2 P2 — G: lanes cannot contradict each other's settled fate (no schema change; its own PR, shipping now)
+### III.2 P2 — G: lanes cannot contradict each other's settled fate (no schema change; its own PR, off this gate; no PR yet)
 
 **Cause (PROCESS Q2).** Each lane records a fate on every frontier inquiry. `InquiriesOf` (`record/inquiry.go:95-177`)
 takes the latest record as standing. Q-6c290b7a: lane-3 `confirmed` (ev18), lane-1 `refuted` (ev27), lane-2
@@ -345,336 +375,289 @@ passages.
 
 #### III.3.2 The design: one delivery chain for every seat, and the report on it
 
+> **Ruled by gblock 2026-11-14, after plan-audit r4** (`RULINGS.md`, last section). His words: "Is this you doing in
+> go what you can just as easily do from views and prepared statements again?" Picked options (agent wording): no
+> stored `item`/`of`/`kind`/`as_of` and no `ReportItemKind`; delivery position, completeness and kind are derived in
+> recordsql views and prepared statements over rows the record already holds; Go renders text only. **One fail path:**
+> every report-text item, the first included, is handed at PostToolUse and SubagentStart hands none; a stuck delivery
+> logs its reason to the tool's existing (TOOL, DEFECT) log, the failed-sitting line reads it, and `continue: false`
+> ends the seat's turn; no `delivery_stopped` event and no PreToolUse refusal arm; under Antigravity report-text items
+> do not block, the run states it cannot PASS, and delivery waits on #1827. Blue-respond gets no report-text items and
+> a position ruling needs none (§VII.8).
+
 **The chain is universal** (gblock 2026-11-13, after plan-audit r3: "Give everyone the same chain as lenses - that was
 meant to be universal"). Today only a lens's work arrives one item at a time: the PostToolUse hook hands the next item
 only to an agent type `runlive.IsLensAgentType` accepts (`hookcmd/post.go:79`), `sittingwrite.WriteNextItem` returns
 nothing for any other role (`next.go:56-58`), and at SubagentStart `injectWorkList` hands every other seat its whole
 list as `record.WorkJSONBytes` (`worklist.go:66-83`), or nothing where the configuration seats several (the frontier
 and blue-respond share `blue-researcher`; every lane is `blue-lane`). P3 makes the lens's chain the one path for every
-seat. There is no second path for any seat.
+seat.
 - [MODIFY] `hookcmd/post.go` `nextItem`: the `IsLensAgentType` gate goes; the writer is spawned for any agent whose call
-  went to the record (`hookgate.CallsRecord`). [MODIFY] `sittingwrite/next.go` `WriteNextItem`: the seat is the
-  record's binding of the agent (`record.SeatOfAgent`, the `agent_binding` view), not its configuration, so a seat its
-  configuration does not name is reached from the call after its `register`; the lens-only role check goes, and the
-  list is read with the seat's own role. [DELETE] `runlive.IsLensAgentType` and its test (`seatclass/lensagenttype_test.go`)
-  when no reader is left (re-run the census in §III.11).
-- [MODIFY] `sittingwrite/worklist.go`: `injectWorkList` hands every seat whose configuration names it the head of its
-  queue (today's `injectLensWork`, for every role), and the configurations that seat several get nothing at
-  SubagentStart, as today; `WorkJSONBytes` is no longer injected. `show work` still prints the whole list on request.
-  [MODIFY] `delivery.go`: `renderLens` becomes the one renderer of a queue entry for every role (`lensArrived` and the
-  standing fields name what every seat holds; the lens-only fields render only where the list carries them).
-- [MODIFY] `record/queue.go` `QueueOf` orders every role's list by its existing rules: the report-text items below open
-  the queue, then the items the seat's own act clears, then readied gaps, then the rest.
-- [MODIFY] debate.js: `oneItemClause` (debate.js:894, today in the lens prompt only) is said in the chair's, the
-  bench's and blue-respond's prompts as well, naming the act, never a command.
+  went to the record (`hookgate.CallsRecord`), and under Antigravity `nextItem` returns at once (below). [MODIFY]
+  `sittingwrite/next.go` `WriteNextItem`: the seat is the record's binding of the agent (`record.SeatOfAgent`, the
+  `agent_binding` view), so a seat its configuration does not name is reached from the call after its `register`; the
+  lens-only role check goes. [DELETE] `runlive.IsLensAgentType` and `seatclass/lensagenttype_test.go` when no reader is
+  left (§III.11).
+- [MODIFY] `nextOf` (`next.go:120-126`): a seat whose work does not arrive as items (`WorkArrivesAsItems` false: the
+  frontier, the lanes, the synthesizer) is handed nothing when its queue is empty. Today it is told "nothing is queued
+  for you: whether anything blocks you finishing is `complete` on your work list", a line about an envelope it never
+  returns.
+- [MODIFY] `sittingwrite/worklist.go`: **SubagentStart hands no report-text item** (ruling 2026-11-14). It hands every
+  seat its configuration names the head of its queue, as `injectLensWork` does a lens's today, unless the head is a
+  report-text item; then it hands one line: the sitting's report text arrives one item per call to the record, the
+  first after the seat's first call (for a lens the `audit` item carries it). The configurations that seat several get
+  nothing at SubagentStart, as today. `WorkJSONBytes` is no longer injected; `show work` still prints the whole list.
+  [MODIFY] `delivery.go`: `renderLens` becomes the one renderer of a queue entry for every role.
+- [MODIFY] `record/queue.go` `QueueOf`: report-text items open every role's queue, then the items the seat's own act
+  clears, then readied gaps, then the rest.
+- [MODIFY] debate.js: `oneItemClause` (debate.js:894, lens prompt only today) is said in the chair's, the bench's and
+  blue-respond's prompts as well, naming the act, never a command.
 
 **What each seat's items are** (the list is `record.SittingOf`, `sitting.go:290-525`; the queue is `QueueOf`):
 
-| Seat | Items today (its list) | Report-text items P3 adds (rowed) | Acts accepted only on delivered text |
+| Seat | Items today (its list) | Report-text items P3 adds | Acts accepted only on delivered text |
 |---|---|---|---|
-| Lens | the audit; owed blockers it clears (unchecked anchor, failed check, reading debt, upheld position, unchecked inquiry, closing owed); a remand's exchange; news; composed sources; each readied own gap with its items folded | `report_section`, `report_change`, `gap_passage` (below) | `close` of its gap: the gap's passage reached it in a rowed item of this sitting |
-| Chair (`red-chair`) | the PASS gate's blockers, each marked whether another seat clears it (only its own are queued); each open non-material gap; `verdict_owed` | `area_change`: the changes after each stale area's pin that carry no bearing yet (§III.4 D(2)) | `spot-check` with its bearings: on a rowed `area_change` item of this sitting |
-| Bench (`judge`) | each unruled motion whose gavel is the bench's, blocking where this sitting is convened to rule it (`benchHeld`) | `gap_passage` for each gap a convened motion is about | a ruling on a motion about gaps: on rowed `gap_passage` items for each of them. A position (`recordpb.Position`: text, id) names no lens or gap; the ruling's `--lens`/`--ids` choose them, so no report text can be delivered for it before the ruling, and a position ruling is not gated (§VII) |
-| blue-respond | awaiting evidence, a remand's exchange, inquiry fates, `successor_owed`, closings owed, a failed check's remedy | none | none: an edit names the text it changes and is refused unless that text locates once in the report (`bluedoc.LocateUniqueReplacing`, `reportproj/plan.go:79`); an engage, a motion or a fate quotes nothing it was handed |
-| Frontier, blue-synthesize, lanes | none (`WorkArrivesAsItems`, `envelope.go:178-186`: they are dispatched to write, and return no envelope the gate asks about) | none | none. Their queue is empty today; when an item reaches their list (P2's open inquiries for the synthesizer, P5's question parts) it arrives on the same chain |
+| Lens | the audit; owed blockers it clears; a remand's exchange; news; composed sources; each readied own gap with its items folded | the whole report, or the changes since its pin and its own gap passages (below) | `close` of its gap |
+| Chair (`red-chair`) | the PASS gate's blockers it clears; each open non-material gap; `verdict_owed` | each stale area's changes that carry no bearing yet (§III.4 D(2)) | `spot-check` with its bearings |
+| Bench (`judge`) | each unruled motion whose gavel is the bench's (`benchHeld`) | the passage of each gap a convened motion is about | a ruling on a motion about gaps. A position ruling is not gated (§VII.8) |
+| blue-respond | awaiting evidence, a remand's exchange, inquiry fates, `successor_owed`, closings owed, a failed check's remedy | none (§VII.8) | none: an edit names the text it changes and is refused unless that text locates once (`bluedoc.LocateUniqueReplacing`, `reportproj/plan.go:79`) |
+| Frontier, blue-synthesize, lanes | none (`WorkArrivesAsItems`, `envelope.go:178-186`) | none | none; an item that later reaches their list (P2's open inquiries, P5's question parts) arrives on the same chain |
 
-**The report-text items.** Item kinds are new: `report_section`, `report_change`, `gap_passage`, `area_change` (0 hits
-each across the Go tree, debate.js, `agents/` and `skills/`; `StaleChange` is taken by `record/stale.go` in another
-sense, so the chair's kind is not named after it):
-1. **The whole report** (`report_section`, a lens): whole `## ` sections in report order, packed into items; a section
-   over the item budget is split at `anchor.Sentences` block boundaries, and a single sentence over it at word
-   boundaries across consecutive items, each marked as continuing. No text is cut short: the items' report text,
-   concatenated, is the delivery's text (below), a test asserts it, and a 2,172-character line is never truncated.
-   ~10 items at this run's size.
-2. **The changes since the pin** (`report_change`, a lens): each paragraph that differs between the report at the
-   lens's pin and the delivery's text, as an `anchor.Blocks` block diff of the two, served whole with its section
-   heading — the old side and the new side; an inserted paragraph has only a new side, a deleted one only an old side.
-   - **What a change is.** Both texts are compared with anchor tokens stripped, as the replay in §III.3.1 compared
-     them. A difference in anchor tokens alone — a mint, citation or computation placed, a retire's `remove` of a bare
-     anchor and its husk (`recordsql/views.go:648-669`) — is not a change: the act that placed or removed the token
-     reaches its owner through its own items. Text a retire takes out was edited away by a `blue_edit` first, and that
-     edit is a change.
-   - **A moved section** shows as its paragraphs deleted at the old place and inserted at the new, each item with its
-     own section heading; no move is detected, and nothing is lost: both sides are served whole.
-   - **Past text is read through the record's own fold**, `renderSource(reportSourceAt(q, at))` (`record/queries.go:250-263`,
-     over `recordsql.ReportSourceAt`, which folds all five `report_op` kinds from the latest checkpoint), never a
-     `blue_edit`-only replay. The text at the pin is the report as of the pin's delivery's `as_of`.
-   - The locator is the text, never an id. Packed to the item budget in report order; a paragraph over it is split
-     as in 1.
-3. **Gap passages** (`gap_passage`): for a lens, each gap it minted, open or closed; for the bench, each gap a convened
-   motion is about — its passage in the delivery's text, `PassageAround` as today, except that a `report_voice` gap's
-   passage is its **whole section**, split as in 1 and never trimmed (P9 judges the section). A gap whose anchor is
-   gone from the report has no passage; in a changes delivery its item says so, and a whole delivery serves no item
-   for it (the whole report holds no text of it).
-   - **Deduplication (r3 GAP 2).** A gap's passage is left out of a delivery only when another **rowed** item of the
-     same (sitting, `as_of`) delivery — a `report_change` item, or an earlier `gap_passage` item — carries every
-     character of it. The gap's own open-gap item (the `reaudit` entry, whose passage `fitted()`/`clipPassage` clip,
-     `delivery.go:196-312`, and `PassageAround` trims at 6,000 characters, and which gets no row) **never counts**: it is
-     navigation, not delivery. A fuzz invariant fails any complete delivery in which a gap passage is neither served
-     nor contained whole in its rowed items (a gap whose anchor is gone has no passage and is exempt).
-4. **Area changes** (`area_change`, the chair): for one stale area, each change after that lens's pin and up to the delivery's text that carries no bearing yet, as section heading and
-   old → new text, packed to the budget per area; the item names the area. A change already borne is never served
-   again. The tool binds each item to the changes it carried; those are what a bearing on it is recorded against.
+**One item kind.** [NEW] `ItemReportText` (`report_text`, 0 hits across the Go tree, debate.js, `agents/`, `skills/`)
+in `record/itemkind.go`, its subject one of the existing `SubjectReport` (the whole report, a change since the pin, or
+the one item saying the text at the head is the text at the pin), `SubjectGap` (a gap's passage) or `SubjectArea` (a
+stale area's changes). What an item carries is said by its subject and its text; no second kind is coined.
 
-No neighbouring section is served (N=0). Any other text a seat wants it reads through the report's selector reads
-(anchor, quote, match, window), which record nothing.
+**What a delivery carries.** A seat's delivery at a sitting is cut from one text: the report as of its **head H**, the
+report head when its first item is handed. The writer keeps H in the sitting's `.work-delivery` file (which already
+holds identities only) and cuts every later item from `ReportSourceAt(H)` (`recordsql/reportcheckpoint.go`, folding
+all five `report_op` kinds from the latest checkpoint), never from a later state. Anchor ops after H (a mint, a
+citation, a computation, a retire's `remove`) change no item; an edit after H reaches the seat at its next sitting,
+which the head move readies. A lens's delivery is one of:
+1. **The whole report** — whole `## ` sections in report order, packed into items; a section over the item budget is
+   split at `anchor.Sentences` block boundaries, and a single sentence over it at word boundaries across consecutive
+   items, each marked as continuing. The items' text, concatenated, is the text at H (a test asserts it). ~10 items at
+   this run's size.
+2. **The changes since the pin, then the lens's own gap passages.** Each paragraph that differs between the text at
+   the pin and at H (an `anchor.Blocks` block diff, anchor tokens stripped, as §III.3.1's replay compared them), served
+   whole with its section heading, old side and new side; a moved section shows as deleted and inserted paragraphs.
+   Then, for each gap the lens minted before H, open or closed, its passage at H (`PassageAround`; a `report_voice`
+   gap's whole section, split as in 1 and never trimmed, for P9). **A gap whose anchor is gone** has as its passage
+   the change that removed its text: its old side, the paragraph as it stood before that change. A passage is left
+   out only where another item of the same delivery carries every character of it; the gap's own open-gap item, which
+   `fitted()`/`clipPassage` clip, never counts. Never empty: with no changed paragraph and no own gap, its one item says
+   the text at H is the text at the pin.
 
-**Every item of one delivery is cut from one text** (r3 GAP 3). A seat's delivery at a sitting is fixed — its text,
-its item set, its count `of` and every item boundary — when its first item is handed, and it is stated as of the event
-it was read at: `as_of`, the `events.id` of the record snapshot the writer cut it from, written on every row of the
-delivery. The delivery's text is the report as of `as_of`. Every later item of it is cut from that same text, recomputed
-from the record at `as_of`, never re-cut at a later state. **The cut is a pure function of the event prefix
-through `as_of`** — the events up to and including it, the kind of prefix L's term folds `retired()` over (§III.4):
-the text (`renderSource(reportSourceAt(q, as_of))`), the lens's pin (`deliveriesOf` over the prefix), the gap set (the
-gaps the lens had minted by then; the gaps the bench's convened motions were about), and the stale areas with their
-unborne changes. A bearing, a mint or a close recorded after `as_of` therefore moves no item of the delivery. So the anchor ops between two of
-its items — `insert`, `sentence_of` and `remove` rows of `report_op` (a mint, a citation, a computation, a retire), the
-lens's own mint or close among them — change neither `of` nor any boundary. An edit that moves the head mid-delivery
-changes nothing in it either: when the delivery completes, the paragraphs changed between its text and the new head are
-the next delivery, cut at its own first item with its own `as_of` and `of` (the existing `changed_since_delivered`
-mechanism, `next.go:104-105`), and the pin moves to the head of the latest delivery that was complete.
+The chair's delivery is §III.4 D(2)'s; the bench's is the passages, as in 2, of the gaps its convened motions are
+about. No neighbouring section is served (N=0); other text is read through the selector reads, which record nothing.
 
-**Which delivery a lens's sitting holds is keyed on its pin state, never on a sitting ordinal.** At the sitting's
-opening the tool reads the lens's delivery rows over the sittings it sat through (`satThrough`) and serves:
-1. **no pin** — no sitting it sat through holds a complete delivery — → the whole report. A first sitting that ended
-   with items undelivered leaves no pin, so the next sitting is served the whole report again, never changes against
-   a pin that does not exist;
-2. **the full re-read owed** — exactly one sitting it sat through holds a complete whole delivery, and no later one
-   does — → the whole report, at any head (F11, ruled by gblock 2026-11-13);
-3. **an upheld position naming the lens and undischarged** (below) → the whole report;
-4. otherwise → the changes since its pin, then its gap passages. This delivery is never empty: when no paragraph
-   differs between pin and head and the lens holds no gap, its one item says the report's text at the head is the text
-   at its pin. So no reader below ever meets a zero-item delivery.
+**Which delivery a lens's sitting holds is keyed on its rows, never on a sitting ordinal**, read at its first item by
+the statement the view below renders: (1) no `report_read` row in a sitting it sat through → the whole report; (2)
+exactly one → the whole report again, its full re-read (F11), at any head; (3) an upheld position naming the lens with
+no row of the lens since the ruling → the whole report; (4) otherwise → the changes and its gap passages. The first
+two rows are whole by construction, so "fewer than two rows" is "owes a whole delivery", and "no row since the ruling"
+is "no whole delivery since the ruling": no reader needs a stored kind.
 
-One complete whole delivery discharges every whole-delivery debt standing when it began (2 and 3 together). A whole
-delivery serves no old side; the pin moves to its head.
+**The record: one row per completed delivery, derived everything else** (ruling 2026-11-14).
+- **`report_read` keeps its shape** (`ReportRead{head}`) and changes its grain: the delivery writer appends one row
+  under the seat's id when it hands a delivery's **last** item, `head` = H. The row is the completed delivery. Where the
+  writer stands inside a delivery (its H and the keys handed) stays in the `.work-delivery` file and is not on the
+  record: nothing reads a position.
+- **[NEW] views in `recordsql/views.go`, read by every reader below** (house pattern: `gap_state`'s rules rendered once
+  and read by every reader, `gapstate.go`; prepared and cached on the connection, `stmtcache.go`):
+  - **`agent_sitting`**: one row per sitting opening — seat, opening id, agent, `closed` (a `sitting_close` of the
+    agent after its latest opening before the close), `admitted` (an `envelope_admitted` likewise), `over`, and
+    `sat_through` (an opening with no agent, or a close of its agent before the seat's next opening). **It replaces two
+    Go folds** that answer these by walking every event: `AgentSittingsOf` (`failedsitting.go:140-171`, read by
+    `FailedSittingsOf`) and `satThroughOf` (`dispatch.go:922-953`, read by the pin, `lensStates`, `lastReadOf`,
+    `lensOwesOf` and `foldPlan`); both become reads of the view, with the rules as those functions state them.
+  - **`report_delivery`**: one row per (seat, sitting) holding `report_read` rows, from `agent_sitting` and
+    `report_read` — seat, sitting, `head` (the max, so an archived sitting with several serves reads as one), `sat_through`,
+    `whole` (for a lens: fewer than two earlier rows of the lens in sat-through sittings, or an upheld position naming
+    it with no row of it since the ruling; the same SQL fragment the writer's "which delivery" statement renders, as
+    `demandReachSQL` is rendered for `gap_refresh` and for its readers).
+  - **`area_change`**: per stale area, each head move (`blue_edit`, `report_part`) after the area's pin that no
+    spot-check before the asking sitting bore (§III.4 D(2)).
+- **The pin** is the head of the lens's latest `report_delivery` row with `sat_through` (a prepared statement), replacing
+  `servedOf`/`pinOf` (`reportread.go:112-145`), which fold every event in Go. A complete delivery in a sitting that later
+  fails still moves the pin: the text reached the seat.
+- **Delivered text for an act** is one prepared statement: the seat's `report_read` row in this sitting at head H, and no
+  `blue_edit` after H whose `reopened` names the act's anchor (`blue_edit_reopened`), and no `remove` of the anchor after
+  H (`report_op`). Go does not recompute any cut to answer it.
+- [DELETE] `requireReportReadAt` (`reportread.go:97-109`) and the seat-side write. **Write-time refusals in its place**
+  (`record.go:1515`'s `ReportRead` arm): the seat's role is a lens, the chair or the bench; one row per (seat,
+  sitting); `head` is 0 or a `blue_edit`/`report_part` id at or before the current head. Archived records hold several
+  rows a sitting; every reader groups by sitting.
+- [MODIFY] `record/recordpb/record.proto`: `EVENT_TYPE_REPORT_READ`'s `means` and `ReportRead`'s comment say "the tool
+  handed a delivery's last report-text item into the seat's context; every item of it was cut from the report at
+  `head`". No field is added. **Epoch bump, for the views and the `means` text** (`recordsql/store.go:615`: every change
+  to a table, a column or a view's definition bumps the epoch, and `TestEveryDDLChangeBumpsTheEpoch` fails one that
+  does not). `migrate`: no translation; an archived `report_read` was a serve of the whole report through stdout, and
+  reads as a completed delivery at its head, so archived pins stay where they were and an archived later serve counts
+  as the full re-read. Residue, stated in the migrate comment: archived rows record serves through stdout.
 
-**The delivery and its record.**
-- [NEW] `ItemReportSection`, `ItemReportChange`, `ItemGapPassage`, `ItemAreaChange` in `record/itemkind.go`. A lens's
-  `audit` item's prose is replaced: it states which delivery the sitting holds and how many items it is.
-- [MODIFY] `sittingwrite/next.go`, `delivery.go`, `worklist.go`: a report-text item is **discharged by its delivery**;
-  the next item is handed after the seat's next call to the record, as a lens's is today. The delivery writer (the hook
-  process that already writes `sitting_open` and `envelope_admitted`) appends a `ReportRead{head, item, of, kind,
-  as_of}` event under the seat's id for each report-text item it hands: `item` its 1-based index in the delivery,
-  `of` the delivery's count, `kind` the item's kind, `as_of` the delivery's snapshot, `head` the report head at
-  `as_of`. All tool-computed from what it served; the client reports nothing and the seat types nothing.
-- **A row only for text whose full text reached the seat's `additionalContext`.** Today a lens's delivery is `fitted()`
-  to `DeliveryBudget` (`delivery.go:196-312`): it clips the current gap's passage, drops index lines and notes, and for
-  an item with no gap drops the item's entries from the end (`c.Items = c.Items[:len(c.Items)-1]`, :252), and when
-  nothing more can give way it returns the text over the budget, which the harness spills to a file in the PARENT
-  session past 10,000 characters (`delivery.go:11-25`). None of that may touch report text:
-  - [NEW] a report-text item renders through its own renderer, `reportItemDelivery`: a fixed preamble and the item,
-    with no standing, index, estopped lines, notes or declarations (the seat's work list holds them; its first other
-    item after the delivery carries them as today). `fitted()` is never applied to it.
-  - **Items are sized against that rendered envelope, not against a header estimate.** The cutter measures each
-    candidate item by rendering it with `reportItemDelivery` — the JSON-escaped bytes the hook emits, escapes of quotes,
-    newlines and non-ASCII included — and packs while the render is ≤ `DeliveryBudget` (9,000 bytes, so ≤ 9,000
-    characters, under the 10,000-character cap: no spill).
-  - The writer writes the row only when, for the text it is about to emit: the render is ≤ `DeliveryBudget`; the item
-    carries its whole report text, no `_clipped` or `_omitted` field; and the engine is one whose hook
-    `additionalContext` reaches the seat (`req.Engine`, passed from `hookcmd` into the writer). Under Antigravity
-    FEOV's hook answers PostToolUse with an empty document (`hookcmd.go:138-146`), so no row is written there: the
-    delivery cannot advance (below) (F12).
-  - Order: render, write the row, emit. The row records the handing of the full text to the harness, which is the last
-    fact the tool observes; arrival is measured once, on the acceptance run (§V 9.2), and the residue is stated below.
-- **A seat's act that depends on report text is accepted only for text the chain delivered** (ruling 1), by the same
-  test a row passes: rendered within budget, unclipped, on an engine that delivers. The record recomputes the items of
-  each of the seat's deliveries this sitting from their `as_of` and asks whether rowed items carry the text the act
-  depends on, at a head at or after the latest change to it:
-  - [MODIFY] `close` (`record.go` Close arm): the gap's passage, from its whole-report delivery, a `report_change` item
-    holding the paragraph, or its `gap_passage` item. Refused otherwise, naming that the passage arrives on the work list.
-    **A gap whose anchor is gone from the report** (blue retired its claim) depends on no report text, so its close is
-    not gated: there is no text to deliver, and a whole delivery — a first sitting or a full re-read — holds none for
-    it. The same holds for a bench ruling on a motion about such a gap.
-  - [MODIFY] `spot-check` (§III.4 D(2)): the bearings are recorded against the current `area_change` item, which must be
-    rowed in this sitting.
-  - [MODIFY] the bench's ruling on a motion about gaps (`motion … rule`; docket, remand, grade): every `gap_passage`
-    item for the gaps the motion is about whose anchor stands in the report, rowed in this sitting.
-  - Under Antigravity no row is written, so none of these acts is accepted and an agy run cannot PASS (R2).
-- [MODIFY] `record/reportread.go`: [NEW] `deliveriesOf` replaces `servedOf`: per seat, per sitting, per `as_of`, the
-  rows, `head`, `of`, the kinds, and **complete** (rows cover `1..of`). **The pin** (a lens's) is the latest head at
-  which a sitting the lens sat through holds a complete delivery — whole or changes. A complete changes delivery at head
-  H puts every change between the old pin and H in front of the lens, so the pin means "the head through which every
-  change was delivered to it". The chair's and the bench's rows move no pin.
-- [DELETE] `requireReportReadAt` (`reportread.go:97-109`) with the seat-side read it guarded. **[NEW] write-time
-  refusals in its place** (`record.go:1515`'s `ReportRead` arm), so a malformed row is an error at the write, never a
-  pin: the seat's role holds the kind (a lens: `report_section`, `report_change`, `gap_passage`; the chair:
-  `area_change`; the bench: `gap_passage`; no other seat); `of ≥ 1`; `1 ≤ item ≤ of`; `head` is the
-  report head at `as_of`, and `as_of` is at or before the row; within one (sitting, `as_of`) every row carries the same
-  `of`, no `item` repeats, and `report_section` rows are not mixed with other kinds.
-- **Report-text items block the seat's envelope** (ruled by gblock 2026-11-13, after plan-audit r3). Each is listed
-  with `blocks: true`, so the PreToolUse gate refuses the call returning the envelope while any item of the sitting's
-  delivery is unhanded. [MODIFY] `record/envelope.go:40-66` `EnvelopeRefusal`: an unhanded report-text item refuses the
-  chair's envelope too, before `HoldsPass` (`sitting.go:574`) exempts the chair's other blocking items.
-  [MODIFY] `cli/seat/verbs.go:330`'s paragraph ("A BLOCKING ITEM HOLDS YOUR SITTING", today for lens, blue and bench)
-  gains the chair and names report-text items; the refusal says the next item arrives after the seat's next call to the
-  record. **Effect:** a sitting that returns its envelope has had every report-text item handed, so "sat through with
-  the delivery incomplete" no longer occurs where the harness delivers. An incomplete delivery remains only in a
-  sitting that never returns its envelope — a seat stopped at its definition's `maxTurns` (430, written by agentgen
-  since 404a894dd), a seat failure, a resumed dispatch that never calls the record, a delivery that failed (next) —
-  and under Antigravity (F12). Those sittings move no pin and discharge no debt; the readiness below re-seats the lens,
-  and the engine's own stops bound the repeats.
-- **A delivery that cannot advance fails the sitting at once, with its reason** (ruled by gblock 2026-11-13). A
-  delivery cannot advance when the writer cannot hand the next report-text item: the record cannot be read or written,
-  the delivery file cannot be written, the row is refused at the write, a render is over the budget (a cutter
-  defect its test forbids), or **the engine delivers no hook text into the seat** (Antigravity today: the reason is
-  "this harness delivers no hook text into the seat", so an agy sitting with a report-text item fails at its first
-  one rather than holding its envelope refused until `maxTurns`). A lock not taken within `lockWait` is not one of
-  these: another call of the same seat holds it and is handing the item, so this call hands nothing, as today. Then the writer hands nothing for the item and writes no row, and:
-  - [NEW] it appends `DeliveryStopped{kind, item, of, as_of, reason}` (`delivery_stopped`, 0 hits) under the seat's id
-    in the open sitting, with the cause in `reason`, when the record can still be written; and a `hookfailures`
-    failure (`StageNextItem`) in every case, as `nextItem` does today;
-  - [MODIFY] the hook's response ends the seat's turn through the field `hookcore.Response` already has for it,
-    `TerminateTurn` (`shared/hookcore/hookcore.go:92`, today rendered only at an Antigravity PreInvocation as
-    `terminationBehavior: "terminate"` with `errorMessage`, `:921`): it also renders on a Claude Code PostToolUse as
-    `"continue": false` with `stopReason`, the text naming the item and the cause. No second stop field is coined.
-    Its readers are `shared/hookcore` and its tests only (`git grep TerminateTurn` across `plugins/` and `shared/`);
-  - [MODIFY] the PreToolUse gate refuses every later call of the agent in that sitting that reaches it, its envelope's
-    included, naming the same reason (read from `delivery_stopped`). Under Claude Code the PreToolUse matcher is
-    `Bash|Read|StructuredOutput` (since 404a894dd), so the record, the file reads and the envelope are refused, and a
-    WebSearch, Grep, Edit or Write is not: **residue, stated** — `hooks.json` is not widened for it, and the stop above
-    is what ends the turn. The Antigravity manifest's PreToolUse matcher is `.*`, so there every later call is refused;
-  - the sitting closes with no admitted envelope and is a failed sitting (`FailedSittingsOf`, `failedsitting.go:68`),
-    which [MODIFY] composes its reason from the `delivery_stopped` row; the plan's readiness line and debate.md's
-    failed-sitting line state it. A lens's failed sitting is no turn and retires it after the failed-sitting bound;
-    the chair's and blue's failures stop the debate at `NO_PROGRESS_EPOCHS` (`seatStop`, debate.js:951-953,
-    :1026-1028), UNVERIFIED, naming the seat.
-  - **Measured before it is relied on:** whether a PostToolUse `continue: false` ends a Workflow seat's turn is not
-    measured. P3's PR measures it on its universe smoke (§V 11) before merge. For a report-text item handed at
-    SubagentStart there is no PostToolUse to carry the stop; the PreToolUse refusal is the stop there. If it does not, the PreToolUse refusal
-    is the stop, and the turns a seat spends before it ends (it can neither call the record nor return its envelope)
-    are reported to gblock, not designed around.
-  - A sitting in flight when the outcome is recorded (HALT, or the outcome stamp) is stopped this way: with the
-    `closedAtTheOutcome` exemption deleted (consumer table below), its next row is refused at the write as any act
-    after the outcome is, and the refusal is the stated reason.
-- `last_read` (`lastReadOf`, `retirement.go:487-518`) reports `first` / `behind` / `unchanged` / `served` from
-  `deliveriesOf`: `served` only when this sitting holds a complete delivery; a partly delivered sitting reports the
-  state before it. `ServedPinNote` and `servedClause` (`retirement.go:123`) state the new pin.
+**A row only for text whose full text reached the seat's `additionalContext`.** Today a lens's delivery is `fitted()`
+to `DeliveryBudget` (`delivery.go:196-312`): it clips the current gap's passage, drops index lines and notes, drops an
+item's entries from the end (:252), and when nothing more can give way returns the text over the budget, which the
+harness spills to a file in the PARENT session past 10,000 characters (`delivery.go:11-25`). None of that may touch
+report text:
+- [NEW] `reportItemDelivery` renders a report-text item: a fixed preamble and the item, with no standing, index,
+  estopped lines, notes or declarations; `fitted()` is never applied to it. The cutter measures each candidate item by
+  rendering it — the JSON-escaped bytes the hook emits — and packs while the render is ≤ `DeliveryBudget` (9,000 bytes,
+  under the 10,000-character cap).
+- The writer hands an item only when its render is ≤ `DeliveryBudget` and it carries its whole report text, no
+  `_clipped` or `_omitted` field. Order for the last item: render, write the row, emit. The row records the handing of
+  the full text to the harness, the last fact the tool observes; arrival is measured once (§V 9.2).
 
-**The whole-report debt and the full re-read** (F11, ruled by gblock 2026-11-13). **The full re-read is owed once per
-lens per run.** The debt stands for every lens that has sat while the sittings it sat through hold fewer than two
-complete whole deliveries (`report_section` rows covering `1..of` at one `as_of`), in two different sittings: the
-first is its first complete whole delivery, the second its full re-read. A lens whose first sittings all ended with the
-delivery incomplete therefore owes the first one, so it can neither retire with no pin nor let the PASS stand over a
-report it was never delivered. It is a **verify act the tool records**: the delivery is the read, and no seat field
-says what was read (reading is a recorded act, gblock 2026-11-11). Edits after it reach the lens through the changes
-delivery; it is never owed again in the run.
+**A seat's act that depends on report text is accepted only on delivered text** (ruling 2026-11-13), by the statement
+above:
+- [MODIFY] `close` (`record.go` Close arm): this sitting holds the lens's row and the gap's anchor sentence has not been
+  changed or removed after its head. **No exemption for a gone anchor:** its passage item is the change that removed
+  its text, so a close of it stands after a complete changes delivery, or a complete whole delivery, at a head at or
+  after that change. Refused otherwise, naming that the passage arrives on the work list.
+- [MODIFY] `spot-check` (§III.4 D(2)): this sitting holds the chair's row.
+- [MODIFY] the bench's ruling on a motion about gaps (`motion … rule`; docket, remand, grade): this sitting holds the
+  bench's row and no gap the motion is about changed after its head.
+
+**Report-text items block the seat's envelope** (ruled by gblock 2026-11-13). Each is listed `blocks: true`; the
+PreToolUse gate refuses the call returning the envelope while the seat owes report text this sitting and holds no row
+for it. [MODIFY] `record/envelope.go:40-66` `EnvelopeRefusal`: this refuses the chair's envelope too, before `HoldsPass`
+(`sitting.go:574`) exempts the chair's other blocking items. [MODIFY] `cli/seat/verbs.go:330`'s paragraph ("A BLOCKING
+ITEM HOLDS YOUR SITTING") gains the chair and names report-text items. A sitting whose envelope is admitted therefore
+holds its row.
+
+**A delivery that cannot advance stops the seat at once, on one path** (ruled by gblock 2026-11-13; the path ruled
+2026-11-14). Every report-text item is handed at PostToolUse, so every stuck delivery has a hook response to carry the
+stop.
+- **Causes:** the record cannot be read or written, the `.work-delivery` file cannot be written, the row is refused at
+  the write, or a render is over the budget (a cutter defect its test forbids). **Not a cause:** the delivery lock not
+  taken within `lockWait`. Another call of the same seat holds it and is handing the item, so this call hands nothing,
+  as today. [MODIFY] `lockDelivery` (`next.go:181-208`; the error at :201) returns a typed `errDeliveryHeld` (0 hits) for it, where today
+  it returns an untyped `fmt.Errorf`; `nextItem` hands nothing and records no failure on it. Unit test: a second
+  `lockDelivery` on a held path returns `errors.Is(err, errDeliveryHeld)`, and a real error (an unwritable directory)
+  does not.
+- **Scope: only a sitting that holds an unhanded report-text item is stopped.** The writer stops a seat only on positive
+  knowledge: the record read names an unhanded report-text item, or the sitting's `.work-delivery` file holds a delivery
+  in flight. Otherwise — a lane, any seat with no report text this sitting, an unreadable record with no delivery in
+  flight — it does what it does today: the unreadable line (`nextItemUnreadable`) and a `hookfailures` entry, and the
+  envelope gate's own refusal on an unreadable record (m30) holds the envelope.
+- **The reason** goes to the tool's existing (TOOL, DEFECT) log (`LOG_TYPE_DEFECT`: "a tool that fails INTERNALLY
+  records this too, as (TOOL, DEFECT)", `record.proto:1800`): the writer appends `Log{source: TOOL, type: DEFECT}`
+  under the seat in its open sitting, the append `cli/blue/cite.go:108` makes, when the record can be written; and a
+  `hookfailures` entry (`StageNextItem`) in every case. Not `recordFailure` (`sittinghook.Failure`, which the writer maps
+  to `LOG_TYPE_FAILURE`, `sittingwrite/write.go:137-138`): that is a seat's failed call, and the seat's work list
+  counts it among its refused or failed calls (`sitting.go:752`).
+- **The stop:** the hook's response sets `hookcore.Response.TerminateTurn` (`shared/hookcore/hookcore.go:92`, rendered
+  today only at an Antigravity PreInvocation, `:921`), with the reason. [MODIFY] hookcore renders it on a Claude Code
+  PostToolUse as `"continue": false` with `stopReason`. No second stop field is coined; its readers are `shared/hookcore`
+  and its tests.
+- **Measured** (`~/.claude/scratch/continue-probe/`, Claude Code 2.1.323, arms A–E): a PostToolUse `continue: false`
+  inside an Agent subagent or a Workflow seat ends only that seat's turn, and the parent continues; a schema'd
+  `agent()` then throws "completed without calling StructuredOutput (after in-conversation nudge)", which debate.js
+  `sit()` (:715-724) catches and returns null. Not measured there: whether the stopped seat's SubagentStop still
+  writes `sitting_close` (the probe hooked no SubagentStop); §V 11 checks it.
+- **The sitting** closes with no admitted envelope and is a failed sitting (`FailedSittingsOf`). A lens's failed
+  sitting is no turn and retires it after the failed-sitting bound; the chair's and blue's stop the debate at
+  `NO_PROGRESS_EPOCHS` (`seatStop`, debate.js:951-953, :1026-1028), UNVERIFIED, naming the seat.
+- **The failed-sitting line reads the reason from the log, on operator surfaces only.** Logs are operator-only (m30,
+  gblock 2026-10-20). The reader of a failed sitting's reason is capture's `failed-sittings` audit
+  (`capture/failedsittings.go`), which joins the (TOOL, DEFECT) log rows in that sitting by source, type and
+  `events.sitting_id`, never by matching text, and says "no reason recorded" where none is. No seat-facing surface
+  carries the reason: the plan's readiness line and every work list are unchanged, and nothing in the report set
+  renders failed sittings today. The seat itself got the reason as `stopReason` when it was stopped.
+- A sitting in flight when the outcome is recorded: with the `closedAtTheOutcome` exemption deleted (consumer table),
+  its row is refused at the write as any act after the outcome is, and the refusal is a stuck delivery.
+- **Under Antigravity** report-text items do not block, nothing is stopped, and the run states it cannot PASS (ruled
+  2026-11-14). FEOV's hook answers an agy PostToolUse with an empty document (`hookcmd.go:138-146`), so nothing it hands
+  reaches the seat: `nextItem` returns at once under `hookcore.EngineAntigravity` and no row is written; the hook passes
+  the engine to the writer's envelope phase, which then does not hold the envelope on report-text items. With no row,
+  no close, bearing or ruling on a motion about gaps is accepted and `whole_report_owed` never clears, so the run ends
+  CEILING or UNVERIFIED by the no-progress stop, never PASS. The carriers that state it are existing ones: the
+  `whole_report_owed` gloss and its CEILING clause, and `register` and `show report` help ("a harness whose hooks
+  cannot deliver into the seat's context — Antigravity today — records no delivery, and the run cannot PASS"). No field.
+  The agy delivery mechanism is #1827's (F12).
+
+**The whole-report debt and the full re-read** (F11, ruled by gblock 2026-11-13). The full re-read is owed once per lens
+per run.
 - [NEW] `BlockerWholeReportOwed` (`whole_report_owed`, 0 hits; owner and subject the lens) in `record/passblockers.go`,
-  standing while the lens owes a whole delivery — the first, while it has no complete one, or the full re-read. The
-  name is the debt's, not one of its two cases; its gloss, plan reason and work-list item say which is owed. It is
-  **not chair-owned**, so `chairOnly` is false while it stands and the plan never permits the PASS
-  (`dispatch.go:662-672`); the gate refuses a PASS on it as on any blocker.
-- **It is owed through `owedBlockersOf`** (`closingowed.go:210`, a new arm beside the closings and inquiries), so the
-  lens owes it in `lensOwesOf` (`retirement.go:162`) and cannot retire while it stands (`retired()` needs `owes`
-  empty, `retirement.go:73`).
-- **The debt readies the lens itself, at an unmoved head.** [MODIFY] `dispatch.go`'s blocker loop (`:599-651`) gains
-  `case b.Kind == BlockerWholeReportOwed: engage(b.Owner)`, the shape `upheld_position` already uses at `:610-612`,
-  with a plan reason naming which delivery is owed. The sitting's delivery is the whole report by the pin-state rule
-  above.
-- [MODIFY] the readiness prose that says a lens sits again only when the head moves: agentgen
-  `scripts/agentgen/src/red-chair.md:14` ("A LENS SITS AGAIN ONLY WHEN THE REPORT HAS MOVED … readied when it has never
-  sat or its pin is behind the head, and not otherwise") and `cli/seat/help/dispatch.md:13` (`help_gen.go` and the
-  difftest `manual` golden regenerate) each state the third case: a lens that owes a whole delivery — it has none
-  complete, or owes its full re-read — is ready at an unmoved head until the delivery is complete.
-- **The chair's area-change items and a re-read never meet.** A stale area is a *retired* lens behind the head
-  (`staleAreasOf`, `retirement.go:333-341`); a lens owing a whole delivery owes an item and is not retired, so the chair
-  is never served area-change items (§III.4 D(2)) for a lens whose re-read is pending. After the re-read the pin is
-  the re-read's head, so a later stale area's changes start there.
+  standing while the lens has an opening and fewer than two `report_delivery` rows with `sat_through` (a prepared
+  statement over the view). Its gloss, plan reason and work-list item say which is owed: the first whole delivery, or
+  the full re-read. Not chair-owned, so the plan never permits the PASS while it stands (`dispatch.go:662-672`).
+- It is owed through `owedBlockersOf` (`closingowed.go:210`), so the lens owes it in `lensOwesOf`
+  (`retirement.go:162`) and cannot retire while it stands (`retirement.go:73`).
+- **The debt readies the lens itself, at an unmoved head:** `dispatch.go`'s blocker loop (`:599-651`) gains `case
+  b.Kind == BlockerWholeReportOwed: engage(b.Owner)`, the shape `upheld_position` uses at `:610-612`.
+- [MODIFY] the readiness prose that says a lens sits again only when the head moves — agentgen
+  `scripts/agentgen/src/red-chair.md:14` and `cli/seat/help/dispatch.md:13` (`help_gen.go` and the difftest `manual`
+  golden regenerate) — states the third case: a lens that owes a whole delivery is ready at an unmoved head until it has
+  one.
+- **The chair's area-change items and a re-read never meet:** a stale area is a *retired* lens behind the head
+  (`staleAreasOf`, `retirement.go:333-341`); a lens owing a whole delivery owes an item and is not retired.
 
-**Every termination path with `whole_report_owed` standing** (no reachable board holds it with nobody readied and the
-run reading as anything but what it is):
+**Every termination path with `whole_report_owed` standing:**
 
 | Path | Code | With the debt standing |
 |---|---|---|
 | Plan permits PASS | `dispatch.go:672` `PassPermitted = Head > 0 && no parties && chairOnly` | Never: the owner is a party, and the blocker is not chair-owned |
-| Chair records PASS | gate (`passBlockersOf`); debate.js:967 `plan.verdict === 'PASS'` break | Refused at the gate; the engine never reads a PASS |
-| Nobody ready, nothing owed | debate.js:980 break → `verdictNow` UNVERIFIED (debate.js:1086-1106) | Unreachable: the blocker loop engages the owner, so `parties` is non-empty |
-| Final sitting | `dispatch.go:693-697`: `FinalSitting` empties `parties`, sets `Ceiling` → debate.js:973-977 break → CEILING | **The stated outcome: CEILING.** The debt readies its lens at every chair sitting while it stands, so it is still owed at the final sitting only when the epoch limit leaves fewer epochs than the two whole deliveries need, or when whole deliveries kept failing. CEILING's reason (`verdict.go:129` `anchorsStanding` over `StandingClauses()`, `:147-160`) gains the clause naming each lens that owes it: "the whole report was not delivered to <lens>" / "the full re-read was not delivered to <lens>" |
+| Chair records PASS | gate (`passBlockersOf`); debate.js:967 | Refused at the gate |
+| Nobody ready, nothing owed | debate.js:980 → `verdictNow` UNVERIFIED | Unreachable: the blocker loop engages the owner |
+| Final sitting | `dispatch.go:693-697` → CEILING | **CEILING.** Its reason (`verdict.go:129` over `StandingClauses()`, `:147-160`) gains "the whole report was not delivered to <lens>" / "the full re-read was not delivered to <lens>" |
 | Blue held out (`heldBlue`) | `dispatch.go:680-686` | Lenses are still dispatched; the re-read sits |
-| Same plan `NO_PROGRESS_EPOCHS` (3) times | debate.js:983-985 → UNVERIFIED, `noProgress` why (:1104) | Reached when a whole delivery fails to complete three epochs running at an unmoved head; the why names the lens as the party readied each time. A failed delivery is not dressed as a PASS or a CEILING |
-| Seat fails `NO_PROGRESS_EPOCHS` sittings | `seatStop` → UNVERIFIED (:1103) | Same: an engine stop, stated; a failed delivery's sitting carries its `delivery_stopped` reason |
+| Same plan `NO_PROGRESS_EPOCHS` (3) times | debate.js:983-985 → UNVERIFIED, `noProgress` | Reached when a whole delivery fails three epochs running at an unmoved head, or under Antigravity |
+| Seat fails `NO_PROGRESS_EPOCHS` sittings | `seatStop` → UNVERIFIED | An engine stop, stated; the operator reads each stuck delivery's reason in capture's `failed-sittings` audit |
 | Halted / read stop | `halted`, `readStop` | Unchanged; a sitting in flight is stopped as above |
-
-So a run whose lenses' whole deliveries were never completed ends CEILING, or UNVERIFIED by an engine stop that names
-it — never VERIFIED and never "nobody ready" over a debt.
 
 - [DELETE] `record.ServeReport` and its caller in `cli/seat/verbs.go:966-991`. `show report` serves text and records
   nothing in every form; the `--anchor`/`--quote`/`--match`/`--window` reads are unchanged.
-- [MODIFY] `record/recordpb/record.proto` `ReportRead`: add `int32 item = 2`, `int32 of = 3`, `ReportItemKind kind = 4`,
-  `int64 as_of = 5`, required on new writes; [NEW] `enum ReportItemKind {REPORT_ITEM_KIND_UNSPECIFIED, REPORT_SECTION,
-  REPORT_CHANGE, GAP_PASSAGE, AREA_CHANGE}` with `means` text (0 hits for the name), so its `enum_report_item_kind`
-  table's foreign key refuses a value that is no report-text kind at the write; [NEW] `message
-  DeliveryStopped` (event type next free). The comment and `EVENT_TYPE_REPORT_READ`'s `means` say "the tool handed this
-  report-text item's full text into the seat's context on its work list". **Epoch bump.** `migrate`: an archived
-  `report_read` was a serve of the whole report through stdout, so it translates to `{head, item: 1, of: 1, kind:
-  report_section, as_of: <its own event id>}`, keeping archived pins where they were and counting an archived later
-  serve as the full re-read. No archive holds `delivery_stopped`. Residue, stated in the migrate comment: archived pins
-  and re-reads record serves through stdout, not deliveries into the seat's context.
-- **Help and Antigravity** (ruled by gblock 2026-11-13: P3 ships before #1827). `register` and `show report` help state
-  that report text arrives on the work list, that the tool records what it delivered, and that a run under a harness
-  whose hooks cannot deliver into the seat's context — Antigravity today — records no delivery: each sitting with a
-  report-text item fails at its first one, with that reason, so the run ends UNVERIFIED by the engine's seat-failure or
-  no-progress stop and never PASS.
 
-**The consumers of "served the report since X"**. Every reader of `servedOf`/`ReportRead` states which it reads — a
-**complete delivery** or **any row** — and none meets a zero-item delivery (rule 4 above makes none):
+**The consumers of "served the report since X"** — each reads `report_delivery` and none reads a position:
 
 | Reader | Today | Under P3 |
 |---|---|---|
-| `upheldPositionBlockers` (`positionheard.go:224-243`) | clears on any read in a sitting opened after the ruling | clears only on a **complete whole delivery** in a sitting the lens sat through, opened after the ruling. At an unmoved head that delivery exists because rule 3 serves the whole report to a lens an undischarged upheld position names: the area a lens audits is its defect class across the whole report, so the area's text is the whole report |
-| `upheldAuditItem` (`positionheard.go:252`) | "PASS is refused until you have been served the report since the ruling" | "the whole report arrives on your work list this sitting, one item at a time; the PASS is refused until every item of it has been delivered to you" |
+| `upheldPositionBlockers` (`positionheard.go:224-243`) | clears on any read in a sitting opened after the ruling | clears on a lens row in a sat-through sitting opened after the ruling, which is whole by rule 3 |
+| `upheldAuditItem` (`positionheard.go:252`) | "PASS is refused until you have been served the report since the ruling" | "the whole report arrives on your work list this sitting, one item at a time; the PASS is refused until all of it has been delivered to you" |
 | `upheld_position` gloss and item (`passblockers.go:563-575`) | "has been served the report in no sitting since the ruling" | "has had the whole report delivered in no sitting since the ruling" |
 | `motion position rule` help (`cli/motion/verbs.go:286`) | "readied … until it has been served the report since your ruling" | "readied … until the whole report has been delivered to it on its work list in a sitting after your ruling" |
-| `pinOf` (`reportread.go:137`) / `lensStates` (`retirement.go:264-330`) / readiness | latest read head in a sat-through sitting | latest **complete** lens delivery head in a sat-through sitting |
-| `lastReadOf` (`retirement.go:487`) | any read this sitting → `served` | `served` only on a complete delivery this sitting |
-| `stampSpotCheckChanges` pins (`spotcheck.go:87-117`, `pinOf` at :104) | `pinOf` | the new `pinOf` (complete delivery) |
-| D(1), L, `chair_re_ready` debts (§III.4) | — | cleared only by a complete lens delivery at a head at or after the cause |
-| debate view `Served` (`viewjson.go:1957-1969, :2087`) | one `DebateServedJSON` per row | one per (seat, sitting, `as_of`) delivery: seat, head, kinds, `of`, and items delivered; complete or not |
-| debate.md (`report/assemble.go:1377`) and the view (`view/view.go:689`) via `ServedLine` | one line per row, "the whole report" | one line per delivery: "the whole report at head N" / "the changes since head P and its own gap passages at head N" / "the changes behind <area>'s pin at head N", with "k of n items delivered" when incomplete — never one line per item |
-| `closedAtTheOutcome` (`outcomeclosed.go:75`) | exempts `REPORT_READ` from the closed record | the exemption is deleted: a row after the outcome is refused like any act. A sitting in flight at HALT or at the stamp therefore has its next row refused, and the refusal fails the sitting with that reason (above) |
-| P8's closure line (§III.8) | — | composed from the closer's sitting's rows as of the close, complete or not |
+| `pinOf` / `lensStates` (`retirement.go:264-330`) / readiness | Go fold over every read | the pin statement over `report_delivery` |
+| `lastReadOf` (`retirement.go:487`) | any read this sitting → `served` | `served` on a row in the seat's current opened sitting (P1a's `sittingOf` rule for a sitting not yet opened); P3 owns this one of P1a's left-over reads |
+| `stampSpotCheckChanges` pins (`spotcheck.go:87-117`) | `pinOf` | the pin statement |
+| D(1), L, `chair_re_ready` debts (§III.4) | — | cleared by a lens row in a sat-through sitting at a head at or after the cause |
+| debate view `Served` (`viewjson.go:1957-1969, :2087`) | one per row | one per `report_delivery` row: seat, head, whole or changes |
+| debate.md (`report/assemble.go:1377`) and the view (`view/view.go:689`) via `ServedLine` | "the whole report" per row | one line per delivery: "the whole report at head N" / "the changes since head P and its own gap passages at head N" / "the changes behind <area>'s pin at head N" |
+| `closedAtTheOutcome` (`outcomeclosed.go:75`) | exempts `REPORT_READ` | the exemption is deleted |
+| P8's closure line (§III.8) | — | the closer's row in its sitting before the close |
 
-- **Cost, measured from this run, an estimate.** A whole delivery is ~10 packed items; each after the first needs one
-  call to the record, so ~+9 turns at ~100k cache-read tokens a turn (~$0.02) plus ~$0.05 to write the report into the
-  cache: about $0.25. Whole every sitting would be ~$12.5 over 50 sittings. The ruled design is 7 first sittings + 7
-  full re-reads ≈ $3.5, plus 43 later sittings at 30–35% of a whole delivery (Q3's unpacked share applied to the
-  packed whole delivery; the changed paragraphs alone are 102 packed items, `diffsize.txt`) ≈ $3.2–3.8: **about $7
-  against $12.5**, beside the lenses' $13.64. The chair's area-change items are served once per change (a borne
-  change is not served again): 8 items at ev945, about 8 turns. Every other seat's items now arrive one per call to
-  the record instead of in one list; a seat's queue is short (the chair queues only what it clears), and the extra
-  turns are reported per seat on the acceptance run (§V 9.2). Wall clock rises about 9 × 3 s per whole delivery.
-  Under F11 the re-read falls at each lens's second complete sitting, mostly e2, when the report is still moving; that
-  is the ruled timing, and it adds no sitting a head move would not already have readied unless the head stood still.
-- **Productive sitting (retirement).** [MODIFY] `record/retirement.go` (`productive[...]` at :308, :320): a
-  sitting is productive when it minted a fresh gap that is material now, **or** recorded a close, a `verify`, a
-  `reproduce`, an `inquiry check` (and, after P5, a question-part check), by the existing sitting rule. The word stays
-  "productive". On this run 17 of 50 lens sittings had no mint and one of these acts (ev450–456, 605, 671–674, 730,
-  816–818, 869, 921), which would have delayed the computation and logic retirements by about one sitting each.
-- **The bound.** A lens is readied by a head move past its pin (unretired), an owed item that only an edit creates
-  (D's arm, L's re-owe, a chair `re_ready` bearing), an upheld position, or an undischarged whole-report debt (no
-  complete whole delivery, or the full re-read). The last two ready at an unmoved head, so they are bounded not by head
-  moves but by the engine: a lens whose whole delivery keeps failing at one head is the same plan each epoch and stops
-  the debate at `NO_PROGRESS_EPOCHS`, and `maxEpochs` caps epochs in every case; a sitting itself is bounded by the
-  client's `maxTurns` and, on a failed delivery, by the stop above. A complete re-read is never owed again. So lens
-  sittings ≤ 7 × (`maxEpochs` + 1), and the run ends at PASS, CEILING or a stated engine stop. A widened "productive"
-  can keep a lens unretired longer; it cannot add a sitting without a head move or a debt.
-- **Residues, stated** (ruled by gblock 2026-11-13: arrival is checked once, no recurring transcript check). The row
-  is the tool's record of handing text to the harness under the client's measured 10,000-character cap. Two things it
-  cannot see: a client that lowers the cap or changes how it spills (rows would record text the seat saw only as a
-  preview), and a hook process killed between the row's write and its emit (a row for text never sent). The acceptance
-  run (§V 9.2) checks arrival against the transcripts once; nothing re-checks it per run.
-- **Constitution and help.** `fragments/lens-duties.md`, the adversarial-audit SKILL source (:25, generated SKILL.md:45:
-  "THE FULL RE-READ IS THE TOOL'S WHOLE-DOCUMENT READ … when the document HAS moved, the full re-read stands exactly as
-  written"), the red-chair and lead-judge sources, `register` and `show report` help, the `show work` page's blocking
-  paragraph (`cli/seat/verbs.go:330`), and the research-protocol SKILL source (:48) say, in present tense: every seat's
-  work arrives one item at a time; report text arrives on the work list; a lens with no complete whole delivery and its
-  one full re-read are served the whole report; every other lens sitting is the changed paragraphs, old and new, and
-  the lens's own gap passages; the chair is served each stale area's unborne changes and the bench the passages of
-  the gaps its motions are about; the envelope waits until every report-text item has arrived; a close, a bearing and a ruling on a
-  motion about gaps stand only on delivered text; the tool records what it delivered; context outside it is read through the selector
-  reads and judged there. debate.js `lastReadClause` (debate.js:885) and `oneItemClause` (:894),
-  `reportIsReadThroughTheTool` (`hookgate/hookgate.go:121`), `view/changes.go:18-52` and `record/passage.go:18` say the
-  same. The pin's definition is restated wherever it is written (§III.11).
+- **Cost, measured from this run, an estimate.** A whole delivery is ~10 packed items, each after the first one call to
+  the record: ~+9 turns at ~100k cache-read tokens (~$0.02 a turn) plus ~$0.05 to write the report into the cache,
+  about $0.25. Whole every sitting would be ~$12.5 over 50 sittings; the ruled design is 7 first sittings + 7 re-reads
+  ≈ $3.5 plus 43 later sittings at 30–35% of a whole delivery (Q3's unpacked share applied to the packed whole) ≈
+  $3.2–3.8: **about $7 against $12.5**, beside the lenses' $13.64. The chair's area items: 8 at ev945. The re-read
+  falls at each lens's second complete sitting, mostly e2 (the ruled timing).
+- **Productive sitting (retirement).** [MODIFY] `record/retirement.go` (`productive[...]` at :308, :320): a sitting is
+  productive when it minted a fresh gap that is material now, **or** recorded a close, a `verify`, a `reproduce`, an
+  `inquiry check` (and, after P5, a question-part check). On this run 17 of 50 lens sittings had no mint and one of
+  these acts (ev450–456, 605, 671–674, 730, 816–818, 869, 921).
+- **The bound.** A lens is readied by a head move past its pin, an owed item only an edit creates (D's arm, L's re-owe,
+  a chair `re_ready` bearing), an upheld position, or a whole-delivery debt. The last two ready at an unmoved head and
+  are bounded by the engine: a lens whose whole delivery keeps failing is the same plan each epoch and stops the debate
+  at `NO_PROGRESS_EPOCHS`, and `maxEpochs` caps epochs; a sitting is bounded by `maxTurns` and by the stop above. So lens
+  sittings ≤ 7 × (`maxEpochs` + 1).
+- **Residues, stated** (ruled 2026-11-13: arrival is checked once). The row records handing text to the harness under
+  the measured 10,000-character cap. It cannot see a client that lowers the cap or changes how it spills, or a hook
+  killed between the row's write and its emit.
+- **Constitution, help and docs** say, in present tense: every seat's work arrives one item at a time, report text only
+  after a call to the record; a lens with no whole delivery and its one full re-read are served the whole report, every
+  other lens sitting the changed paragraphs and its own gap passages; the chair is served each stale area's unborne
+  changes and the bench its motions' gap passages; the envelope waits until the delivery is complete; a delivery that
+  cannot advance ends the seat's turn at once; a close, a bearing and a ruling on a motion about gaps stand only on
+  delivered text; the tool records what it delivered. Carriers: `fragments/lens-duties.md`, the adversarial-audit SKILL
+  source (:25, generated SKILL.md:45), the red-chair and lead-judge sources, the research-protocol SKILL source (:48),
+  `register` and `show report` help, `cli/seat/verbs.go:330`, debate.js `lastReadClause` (:885), `oneItemClause` and its
+  comment (:891-894), `reportIsReadThroughTheTool` (`hookgate/hookgate.go:121`), `view/changes.go:18-52`,
+  `record/passage.go:18`, terms "current item" (a lens's today; every seat's) and "report read", and
+  **`hooks/README.md:93-130`**: its "ON A Bash CALL, A LENS IS HANDED ITS NEXT ITEM" paragraph becomes every seat's,
+  says report text is handed only there and never at SubagentStart, and states the stop; its SubagentStart section
+  (from :117) says it hands the queue's head or the one line, never report text.
 
 ### III.4 P4 — D and L
 
@@ -688,40 +671,35 @@ evidence was re-readied by them at e7. **What it does not do:** a `G-` anchor st
 
 - [MODIFY] `record/retirement.go` `lensOwesOf`: one new arm. For each edit after the lens's pin that reopened an anchor
   of a gap this lens minted, open or closed, the lens owes `owedItem{kind: "reopened_own_anchor", subject: <gap id>}`.
-  **The debt clears only on a real read** (r1's GAP 5): when a sitting the lens sat through, opened after the edit,
-  holds a **complete delivery** (P3's `deliveriesOf`) at a head at or after the edit — a whole delivery, or a changes
-  delivery, which carries the reopening edit as a changed paragraph (the edit lies between the pin and the head) and
-  the gap's passage as a `gap_passage` item. A sitting whose delivery was not complete clears nothing; no delivery is
-  empty (§III.3.2, rule 4).
+  **The debt clears only on a real read** (r1's GAP 5): a lens `report_delivery` row in a sat-through sitting opened
+  after the edit, at a head at or after it — a whole delivery, or a changes delivery, which carries the reopening edit
+  as a changed paragraph and the gap's passage. A sitting with no row clears nothing; no delivery is empty (§III.3.2).
 - [MODIFY] the delivered item for the debt carries the gap id, its location, and the reopening change as old → new text.
-  No event id is printed. Its passage is not served twice (§III.3.2's deduplication).
+  No event id is printed. Its passage is not served twice (§III.3.2).
 
 #### D(2): the chair's bearing on each stale change (completes #1805)
 
 A stale area is a retired lens behind the head; `Plan.StaleAreas`, `BlockerStaleArea` (owner: chair) and the plan's
 `stale_areas` key stay (ev944 printed three: architecture at 716, computation and logic at 589). #1805's `SpotCheck.pins`
 and `changes` stamps stay. What changes is what discharges the blocker.
-- [MODIFY] `record/queue.go`: the chair's queue opens with its **`area_change` items** (§III.3.2 item 4), delivered on
-  the same chain as every seat's items — handed one at a time by the PostToolUse hook after the chair's call to the
-  record, each rowed as a `report_read` under the chair's id, every item of one delivery cut from one text at its
-  `as_of`. For each stale area, the changes after the lens's pin that did not re-ready it through D(1) and carry no
-  bearing yet, each as its section heading and old → new text, packed to the budget per area. The tool binds each item
-  to the changes it carried (the `changes` it stamps). A borne change is never served again, so the chair is served
-  each change once. The items block the chair's envelope (§III.3.2).
-- [MODIFY] `spot-check` (`cli/chair/spot_check.go`): the chair records one **bearing** per change of the current item, in
-  the item's order: `--bearing none` (the change bears on nothing this lens audits) or `--bearing re_ready` (the lens
-  audits it), plus one `--reason`. **The spot-check is accepted only on an item the chain delivered**: the current
-  `area_change` item must have its `report_read` row in this sitting, by the test every row passes (rendered within
-  budget, unclipped, on an engine that delivers). The tool refuses a count of bearings that differs from the item's
-  changes, a spot-check on any other item, and one on an item with no row. The chair types no id. `--areas` stays for
-  the area the item serves; the tool refuses a value that is not the current item's. #1805's stamped `pins`/`changes`
-  are the delivered item's.
+- [MODIFY] `record/queue.go`: the chair's queue opens with its report-text items (subject `SubjectArea`), on the same
+  chain as every seat's: for each stale area, its `area_change` rows up to the delivery's head H (§III.3.2) — each change
+  after the lens's pin that did not re-ready it through D(1) and that no spot-check before this sitting bore — as
+  section heading and old → new text, packed to the budget per area. A borne change is never served again. The items
+  block the chair's envelope.
+- [MODIFY] `spot-check` (`cli/chair/spot_check.go`): one spot-check per area (`--areas` names one), with one **bearing**
+  per change in event order: `--bearing none` (the change bears on nothing this lens audits) or `--bearing re_ready`
+  (the lens audits it), plus one `--reason`. **Accepted only once this sitting holds the chair's `report_read` row**
+  (its delivery complete), whatever calls came between the delivery and the spot-check; the chair types no id. #1805's
+  stamp names the changes: they are the area's `area_change` rows up to the row's head, so the bearings align with the
+  stamped `changes` by position and nothing is bound to an item. The tool refuses a count of bearings that differs from
+  the stamped changes, and a spot-check in a sitting with no chair row.
 - [MODIFY] `record.proto` `SpotCheck`: add `repeated ChangeBearing bearings = 8`, aligned with the stamped `changes`;
   [NEW] `enum ChangeBearing {CHANGE_BEARING_UNSPECIFIED, NONE, RE_READY}` with `means` text. **Epoch bump.** No
   translation: archived spot-checks carry no bearings, and archived verdicts are history (FORKS:345). Residue: an
   archived spot-check shows its stamped changes without bearings.
-- [MODIFY] `passblockers.go`: `BlockerStaleArea` for a lens stands until every change after its pin carries a bearing or
-  re-readied it. A `re_ready` bearing makes the lens owe `owedItem{kind: "chair_re_ready", subject: <seat>}`, cleared by
+- [MODIFY] `passblockers.go`: `BlockerStaleArea` for a lens stands while `area_change` holds a row for it at the current
+  head (a change after a chair delivery's head reaches the chair's next sitting). A `re_ready` bearing makes the lens owe `owedItem{kind: "chair_re_ready", subject: <seat>}`, cleared by
   a real read as in D(1): its next sitting's changes delivery carries every change after its pin, the borne one
   included.
 - Name grep: "bearing" appears only in ordinary English ("load-bearing", terms.json:741 "bearing on the reader's
@@ -731,7 +709,7 @@ and `changes` stamps stay. What changes is what discharges the blocker.
 **Coverage of the edits that motivated D** (`reopen.py`, `scripts/diffsize.py`). At ev945, three stale areas held 66 + 66
 + 35 = 167 changes (computation and logic behind 589, architecture behind 716), served as 3 + 3 + 2 = 8 items. Edit 698
 ("seven → eight failure modes") reopened only architecture's G-6bcce9f2; under D(2) it is a stale change on
-computation's item and logic's, and the PASS is refused until the chair records a bearing on it for each. The 43
+computation's items and logic's, and the PASS is refused until the chair records a bearing on it for each. The 43
 edits after 589 that reopened no anchor are each on computation's and logic's items in the same way. Edit 907 is on
 logic's and architecture's, and L (below) re-owes logic's checks as well. The bearing is the chair's judgement; what
 the tool guarantees is that no change is borne without its text having been delivered to the chair.
@@ -742,7 +720,9 @@ the tool guarantees is that no change is borne without its text having been deli
 - [MODIFY] add a third term: `&& at > a.EditWhileRetired`, where `EditWhileRetired` is the events.id of the latest
   report-head change (`blue_edit` or `report_part`) **made while logic was retired, as `retired()`
   (`retirement.go:73`) computes over the events before that change**. Computed over the prefix, the re-owe cannot feed
-  back into the retirement it is measured against, so no barren-count stand-in is needed.
+  back into the retirement it is measured against, so no barren-count stand-in is needed. `retired()` stays the Go
+  fold it is: L's prefix reading was ruled 2026-11-11, and the 2026-11-14 ruling is read as about delivery facts;
+  moving retirement into a view is not this plan's (§VII.6).
 - After the re-owe, logic owes, is readied, re-checks; the check is productive (P3), so logic's barren count restarts and
   later head moves ready it directly until it retires again.
 - [MODIFY] `record/inquiry.go` (the fold gains `EditWhileRetired`), `inquirycheck.go:16-29` (the doc's "A report edit does
@@ -794,7 +774,7 @@ table, never report.md.
 
 **Consumer census (GAP 1).** Run when the part opens; these are the results on this tree (`census.txt`):
 - `about_kind` / `ABOUT_KIND_`: `grep -rln 'AboutKind_ABOUT_KIND\|ABOUT_KIND_\|about_kind' tools --include=*.go | grep -v _test`
-  returns 22 non-generated files: `record/{onegapperclass,viewjson,dispatch,available,about,mintbudget,inquiry,passblockers,blueanswered,failedcheck,inquirycheck,grounds,gapacts,refs,enums,record}.go`,
+  returns 23 non-generated files on `origin/main` 0254bfc7a: `record/{onegapperclass,viewjson,dispatch,available,about,mintbudget,inquiry,passblockers,standingreading,blueanswered,failedcheck,inquirycheck,grounds,gapacts,refs,enums,record}.go`,
   `recordsql/{views,schema}.go`, `migrate/replay.go`, `cli/lens/{mint,finding}.go`, `consistency/consistency.go`. Each
   gains the QUESTION arm or is shown to fall through correctly (`mintbudget.go` and `finding.go` are deleted by
   #1828/#1695 first). In particular `blueAnswersOf` (`blueanswered.go:174`) recognises `question part`/`question cover`
@@ -813,6 +793,9 @@ table, never report.md.
   `verify/verify.go:360, ~408`; `viewjson.go:1997`; `view.go:798`; `debatejs/debatejs.go:243` (the `Verdict` comment);
   debate.js `:376` (enginegen), `:439` (generate or derive from the region), `:1059` `outcomeWord`, `:1068-1073`
   `verdictNow`, `:1085` (the verdict gloss) and `:1137` (the stamp instruction); `annotations_gen.go` regenerated.
+
+**Certify's counts** (P11 shipped them without parts): [MODIFY] `report/assemble.go` `countsAtCertification` and the
+`certify` help gain the parts by coverage as of the certify event.
 
 **migrate.** No translation of outcomes: archived verdicts are carried as history (FORKS:345 — migrate checks shape
 only, the live gate never runs on replay). Archived records hold no parts; their stored `Outcome.verdict` stands as
@@ -845,52 +828,55 @@ Question line. m30: tool-written report text is subject-only. Each line is marke
    which stays the home of the outcome's `means` text, so `TOOL_COMPOSED` in debate.js:205 keeps it); *Open defects*
    (the open non-material gaps as they stand, one row each: class, location, and the field value `not material`,
    linking to docket.md; no grouping, since I is deferred, §III.6); *Open material defects* (CEILING/HALTED only);
-   *Bench certification* (links to judgments.md, where the bench's statement renders; no record ids — F7, ruled by
-   gblock 2026-11-12: no `Certify.subjects`).
+   *Bench certification* (links to debate.md's Bench disposition, where the bench's statement renders, with the counts
+   P11 composes beside it; no record ids — F7, ruled by gblock 2026-11-12: no `Certify.subjects`. F7 named
+   judgments.md; P11 found the statement renders in debate.md and, superseded, in CHANGELOG.md, never judgments.md, so
+   the link follows the render, §VII.3).
 3. No sentence a seat wrote enters report.md, and no line narrates the run.
 
-**One generated source for what report.md is.** Four hand-kept carriers disagree with the code:
-`skills/research-protocol/SKILL.md:62` (source `scripts/agentgen/src/skills/research-protocol/SKILL.md:62`: "*Read this
-first*", gone per `report/assemble_integration_test.go:181-188`); lead-judge (`scripts/agentgen/src/lead-judge.md:128-129`:
-"judgments.md … your ask at the top of it" — it renders in debate.md and judgments.md, nothing at the top, and line 129
-is internally inconsistent about it); `docs/seat-command-triggers.md:187`; `references/report_template.md`. Also
-`seatprobe/boards.go:681` and comments at `report/docs.go:518`, `report/assemble_test.go:127`.
+**One generated source for what report.md is.** Hand-kept carriers disagree with the code: the research-protocol SKILL
+source (`scripts/agentgen/src/skills/research-protocol/SKILL.md:64`, generated `SKILL.md:66`: report.md's verdict
+argument "opens *Read this first*", a section `report/assemble_integration_test.go:181-188` asserts is gone); lead-judge
+(`scripts/agentgen/src/lead-judge.md:128-129`: the certification lands in judgments.md, and "the research document with
+your ask at the top of it" — it renders in debate.md's Bench disposition and, superseded, in CHANGELOG.md, nowhere in
+judgments.md and nothing at the top of report.md, P11's finding); the `certify` help (`cli/seat/help/certify.md:7`,
+"it lands in judgments.md"); `docs/seat-command-triggers.md:187`; `references/report_template.md`. Also
+`seatprobe/boards.go:681` ("The report promotes it into `Read this first`") and comments at `report/docs.go:518`,
+`report/assemble_test.go:127`.
 - [NEW] `assemble --help` renders the layout from `layout` through `seat.HelpValues["ReportLayout"]`.
 - [MODIFY] agentgen inlines it into lead-judge.md; lines 128-129 keep only the duty, stated consistently. The
   research-protocol SKILL source includes the same rendering. `agentgen -check` fails a stale copy.
 - [DELETE] report_template.md's section table (pointing to `assemble --help`). [MODIFY] seat-command-triggers.md:180-189,
   present tense.
 - Test: `agentgen -check` plus a `cli` help golden.
-- [MODIFY] lead-judge.md:128-129 (source `scripts/agentgen/src/lead-judge.md`): the bench's statement renders in
-  judgments.md and debate.md, and the basis table links to it (F7).
+- [MODIFY] lead-judge.md:128-129 (source `scripts/agentgen/src/lead-judge.md`) and `certify` help: the bench's
+  statement renders in debate.md's Bench disposition (superseded ones in CHANGELOG.md) with the record's counts beside
+  it, and the basis table links to it (F7, destination corrected to the render, §VII.3).
 
-### III.8 P8 — H and defect 7: what a close judged — H stamped, defect 7 composed
+### III.8 P8 — H and defect 7: what a close judged, both composed (no schema change)
 
 **H: own applied prescription.** Only a gap's minter closes it (`requireOriginator`, `record.go:1114-1117`). The estoppel
-record holds the rest (`estoppel.go:55-75 appliedVerbatim`, `minterOf` at :112).
-- [NEW] `Close.own_prescription` (repeated string, **stamped**, refused if supplied): each gap minted by the closer whose
-  `fix_new` was applied verbatim and still stands in the closed gap's sentence at the write — #1824's
-  `verbatimPrescriptions(…, reworded)` and the `minEstoppelOverlap` containment `EstoppelConflict` uses. Gaps about an
-  inquiry or a part get none. Destination: docket.md's closure line; the chair's and bench's work lists.
+record holds the rest (`estoppel.go:55-75 appliedVerbatim`, `minterOf` at :112). Ruled 2026-11-11 as "the tool stamps
+`own_prescription` on the close, derived from the record"; under the 2026-11-14 ruling (store nothing derivable) it is
+**composed where it renders, not stored**:
+- [MODIFY] the closure line (`report/docs.go`, docket.md; `viewjson.go`'s close rendering; the chair's and bench's work
+  lists) names each gap minted by the closer whose `fix_new` was applied verbatim and still stood in the closed gap's
+  sentence at the close — #1824's `verbatimPrescriptions(…, reworded)` and the `minEstoppelOverlap` containment
+  `EstoppelConflict` uses, asked of the record as of the close event. Gaps about an inquiry or a part get none. The
+  comparison is text containment, which stays in Go beside the estoppel helpers it reuses; no stored field is added.
 - [MODIFY] `fragments/lens-duties.md`: one sentence stating the ancestor route (mint `--supersedes`).
 
-**Defect 7: closures claim reads they did not make** (ev685, ev692, ev744, ev828). **Composed, with no field** (ruled
-by gblock 2026-11-13: `served_head` is composed from the sitting's `report_read` rows).
-- [MODIFY] the closure line (`report/docs.go`, docket.md; `viewjson.go`'s close rendering) composes, from the rows in
-  the closer's sitting written before the close event (P3's `deliveriesOf`, as of the close): "the whole report was
-  delivered at head N this sitting"; "the changes since head P and the closer's own gap passages were delivered at head
-  N this sitting"; at a pin equal to the head, where no paragraph changed and the delivery is the closer's gap passages
-  alone, "the closer's own gap passages were delivered at head N this sitting; the report had not changed since its
-  pin"; or "k of n items of this sitting's delivery had been delivered at the close". Since P3 accepts a close only on
-  a delivered passage (§III.3.2), a live close always has at least the item carrying its gap's passage rowed; "no item
-  of this sitting's delivery had been delivered at the close" is reachable only on a migrated archived close. The
-  composition reads only fields P3 stores; `Close` gains no field for it.
+**Defect 7: closures claim reads they did not make** (ev685, ev692, ev744, ev828). **Composed, with no field** (ruled by
+gblock 2026-11-13: `served_head` is composed from the sitting's `report_read` rows).
+- [MODIFY] the closure line composes, from the closer's `report_delivery` row in its sitting before the close event:
+  "the whole report was delivered at head N this sitting"; "the changes since head P and the closer's own gap passages
+  were delivered at head N this sitting"; at a pin equal to N, "the closer's own gap passages were delivered at head N
+  this sitting; the report had not changed since its pin". P3 accepts a live close only after that row, so "no delivery
+  of this sitting was complete at the close" is reachable only on a migrated archived close.
 - Left out: ev685's `--quote` read records nothing by design; ev883's omitted counter-evidence is a judgement.
-- **Epoch bump** (for `own_prescription` alone), one migrate translation: archived closes get `own_prescription`
-  restamped from archived edits. Defect 7 needs no translation: its line composes from the migrated `report_read`
-  rows (P3), each a whole delivery of one item, so an archived close renders "the whole report was delivered at head N
-  this sitting" where its sitting held an archived serve before it, and "no item … had been delivered" where it held
-  none. Residue: that line reports a serve through stdout.
+- **No epoch bump and no migrate translation.** An archived close renders from the archived rows: "the whole report was
+  delivered at head N this sitting" where its sitting held a serve before it. Residue: that line reports a serve
+  through stdout.
 
 ### III.9 P9 — voice closures judge the section (defect 10; ruling P)
 
@@ -901,7 +887,7 @@ in the paragraph of a closed voice gap. `internal/reportvoice` is a pattern list
 - **Structural plus duty** (F5, ruled by gblock 2026-11-12): for `report_voice` only, the one-gap subject key is the section. A
   second voice gap in a section while one is open is refused, naming the open gap; the route is `mint --supersedes`.
   The voice constitution says a check names the section and the class, and the close judges the whole section. P3 puts
-  that section in context at every later sitting: a `report_voice` gap's `gap_passage` is its whole section, split at
+  that section in context at every later sitting: a `report_voice` gap's passage item is its whole section, split at
   sentence boundaries over the budget and never trimmed (§III.3.2). `close` help says the same.
 
 ### III.10 P10 — M: the archive capture time of a copy
@@ -914,18 +900,22 @@ substitution. Slimming (FORKS:435) adds the cache's **fetch time** and renders "
   than the claim's present tense as a `live_source_drift` trigger. Sequenced after slimming 5e, on the same cache record.
   Epoch bump; migrate restamps from an archived cache where present; residue stated.
 
-### III.10a P11 — defect 11: certify's counts, composed where they render (its own PR, shipping now)
+### III.10a P11 — defect 11: certify's counts, composed where they render (SHIPPED: #1862, 0254bfc7a, 2026-11-13)
 
-**Certify (defect 11, GAP 8)**, its own render-only PR, independent of every other part (F9, ruled by gblock 2026-11-12). ev953 called 66 readings "66 citations". The counts are derivable from the record, so no
-field holds them: [MODIFY] `report/docs.go:521-527` and `assemble.go:1440-1441` **compose** the counts beside the
-certification where it renders (debate.md's Bench disposition, judgments.md), from the record as of the certify event:
-gaps minted, closed and open; citations; readings; computations; parts by coverage. The certify help says the counts are
-composed and the statement carries none. No schema change.
+**Shipped** as its own render-only PR (F9). `record/countsat.go` `Family.CountsAt(point)` composes, as of each certify
+event, gaps minted, closed and open; citations (retired noted); readings; computations — beside the certification in
+debate.md's Bench disposition (`report/assemble.go` `debate()`) and beside each superseded statement in CHANGELOG.md
+(`report/docs.go` `supersededAsks`); `certify` help says "STATE NO COUNT IN IT". No schema change. **What P11 found and
+left open, carried here:** certifications render in debate.md and CHANGELOG.md, not judgments.md, while the lead-judge
+source (:128-129) and `certify` help still say judgments.md — P7 corrects both (§III.7); the parts-by-coverage count
+waits for P5's `QuestionPart`, and P5 adds it to `countsAtCertification` and the help (§III.5); the seat views
+(`view/view.go:797`, `record/viewjson.go:2014`) show the statement without counts; and defect 11's second half, "asks
+for the wrong check", is not addressed by any part (Left out, §VII).
 
 ### III.11 Carrier and consumer census
 
 Commands ran on the plan's tree, 2026-11-11 (`census.txt`); the chain, F and "served" censuses were re-run on
-`origin/main` 3eca8f516 on 2026-11-13. Each is re-run when its part opens; the census is complete when a re-run
+`origin/main` 3eca8f516 on 2026-11-13, and F's and the new names' on 0254bfc7a on 2026-11-14. Each is re-run when its part opens; the census is complete when a re-run
 surfaces nothing the list omits.
 
 **The universal chain (P3).** Re-run 2026-11-13 on `origin/main`, from `plugins/frank-exchange-of-views`:
@@ -939,42 +929,43 @@ returns 25 paths. The sites that change: `hookcmd/post.go` (`nextItem` loses the
 writer-failure tests); `record/queue.go` (`QueueOf` for every role), `record/sitting.go` (each role's report-text
 items), `record/viewjson.go:1662` (`WorkJSONBytes`, no longer injected; `show work`'s caller at
 `cli/seat/verbs.go:1138` stays), `record/envelope.go:40-66` (`EnvelopeRefusal`, the chair's report-text items) and
-`:178-186` (`WorkArrivesAsItems`, read by `failedsitting.go:71`, `sitting.go:547`, `migrate/admission.go:61`: unchanged
-in meaning, re-read), `record/failedsitting.go` (the failed sitting's `delivery_stopped` reason),
-`cmd/feov-sitting-write/main.go` (the writer's engine input), `shared/hookcore/hookcore.go:92, :921` (`TerminateTurn`
-on a Claude Code PostToolUse), the PreToolUse gate (`hookcmd`/`hookgate`, refusing a stopped sitting's calls),
+`:178-186` (`WorkArrivesAsItems`, read by `failedsitting.go:71`, `sitting.go:547`, `migrate/admission.go:61`, and now
+by `nextOf`'s empty-queue line), `record/failedsitting.go` (`AgentSittingsOf` becomes a read of `agent_sitting`),
+`record/dispatch.go:915-962` (`satThroughOf` likewise), `capture/failedsittings.go` (the stuck delivery's reason from
+the (TOOL, DEFECT) log), `cmd/feov-sitting-write/main.go` (the envelope phase's engine input),
+`shared/hookcore/hookcore.go:92, :921` (`TerminateTurn` on a Claude Code PostToolUse), `hookcmd/post.go` (`nextItem`:
+the stop, `errDeliveryHeld`, Antigravity's early return), `hooks/README.md:93-130` and its SubagentStart section,
 `cli/seat/verbs.go:330` (the blocking paragraph gains the chair), debate.js `oneItemClause` (:894) and the chair's,
 bench's and blue-respond's prompts; tests `cli/{hookworklist,onelist}_test.go`,
 `record/{blueworkitem,cast,composedsource,declarations,queue,retirement}_test.go`,
 `integration/surface/hookgraph_test.go`, `releasegate/fuzz/queue_test.go`. `hooks.json` is unchanged: the PostToolUse
-matcher already names Bash, and the PreToolUse matcher's reach is the residue stated in §III.3.2.
+matcher already names Bash, and the stop needs no PreToolUse arm.
 
 **D (P4).** `grep -rln 'StaleArea\|stale_area\|SpotCheck\|spot_check\|spot-check\|stampSpotCheckChanges\|BlockerStaleArea\|stale area' tools ../../scripts skills agents docs hooks.json .claude-plugin`
 from `plugins/frank-exchange-of-views` returns **137 paths**, including **12** generated agent files. D now keeps the
 stale area, so most hits are unchanged readers. The chair's `area_change` items arrive through the universal chain,
-so every chain site above is also D's. The sites that change: `record/{spotcheck,retirement,passblockers,queue,sitting,record}.go`,
+so every chain site above is also D's, and `area_change` is P3's view. The sites that change: `record/{spotcheck,retirement,passblockers,queue,sitting,record}.go`,
 `recordpb/record.proto` (+ generated), `cli/chair/spot_check.go`, `cli/seat/help/spot-check.md`, `flags/{names,prose,register}.go`
 (`--bearing`), `report/docs.go` (bearings on the spot-check line), terms (`stale area`, new `change bearing`),
 agentgen `red-chair.md`, debate.js's chair paragraph, `docs/local-development.md:253` (the spot-check sentence), seatprobe
 chair boards, `releasegate/fuzz/{spotcheckstamp,coverage,fuzz}_test.go` (the stamp drive gains bearings), and goldens.
 `tessocr/page.go` is a false hit.
 
-**F (P3).** Re-run 2026-11-13 on `origin/main` (41 paths).
+**F (P3).** Re-run 2026-11-14 on `origin/main` 0254bfc7a (39 paths under `tools/internal`).
 `grep -rln 'ServeReport\|servedOf\|pinOf\|ReportRead\|report_read\|ServedLine\|ServedPinNote\|LastReadJSON\|requireReportReadAt' tools ../../scripts skills agents`
 returns: `record/{reportread,retirement,spotcheck,sitting,viewjson,itemkind,outcomeclosed,positionheard,record,required_gen}.go`,
 `record/testdata/plans.golden`, `recordpb/{record.proto,record.pb.go,body_gen.go}`,
 `recordsql/{decode_gen.go,testdata/schema.sql}`, `migrate/replay.go`; `cli/seat/verbs.go` (writer deleted),
 `sittingwrite/delivery.go` (writer added, with `next.go` and `write.go`, which do not hit yet), `view/view.go`,
 `report/assemble.go`; tests `hookgate/deadreport_test.go`, `capture/dispatchparity_test.go`,
-`cli/{epochlimitexit,integration,lookregisters,registeronce,reportread,vocabulary}_test.go`,
+`cli/{epochlimitexit,integration,lookregisters,registeronce,reportread,search,vocabulary}_test.go`,
 `record/{narrowedview,plansweep,queue,reportread,retirement}_test.go`, `migrate/{reportread,spotcheckchanges}_test.go`,
 `report/reportread_test.go`, `recordpb/correspondence_test.go`, `integration/surface/chairrefusal_test.go`,
 `releasegate/fuzz/fuzz_test.go`. `record/queue.go` does not hit and changes (the delivery opens the queue). **The fuzz
-moves pins through `show report`**: its drive switches to the delivery writer (`sittingwrite.WriteNextItem` / the
-dispatch delivery), and a gate asserts no pin moves without a complete delivery. The ReportRead writer gains the
-engine (`req.Engine`) from `hookcmd/post.go` `nextItem` and the SubagentStart path (`sittingwrite/worklist.go`).
-The act refusals that read rows: the `Close` arm and the `SpotCheck` arm of `record.go`'s validate, and the bench's
-motion-ruling arm.
+moves pins through `show report`**: its drive switches to the delivery writer (`sittingwrite.WriteNextItem`), and a
+gate asserts no pin moves without a completed delivery. The views go in `recordsql/views.go` (with
+`recordsql/testdata/schema.sql` and the epoch's DDL test). The act refusals that read the delivered-text statement:
+the `Close` arm and the `SpotCheck` arm of `record.go`'s validate, and the bench's motion-ruling arm.
 
 **Consumers of "served the report since X"** (re-run 2026-11-13 on `origin/main`).
 `grep -rn -i 'served the report\|been served\|served it whole\|served the whole' tools/internal skills ../../scripts/agentgen/src --include=*.go --include=*.md --include=*.js | grep -v _test | grep -v golden`
@@ -982,9 +973,8 @@ motion-ruling arm.
 "has been served the report in no sitting since the ruling"), `reportread.go:22, :90`, `retirement.go:116, :118, :125,
 :471-480`, `cli/motion/verbs.go:286`, `record/queue.go:47`, `positionheard.go:26, :225, :253`,
 `cli/seat/help/dispatch.md:13` (+ `help_gen.go:56`), debate.js:395 (enginegen), agentgen `red-chair.md:14`. Every one is
-restated by §III.3.2's consumer table: a complete delivery where it gates or pins (`upheld_position` clears on a
-complete whole delivery after the ruling; the pin is the latest complete delivery), one line per delivery where it
-renders (`Served`, `ServedLine`), and none reads a zero-item delivery because none exists.
+restated by §III.3.2's consumer table: a `report_delivery` row where it gates or pins, one line per delivery where it
+renders (`Served`, `ServedLine`).
 
 **The pin's definition and the full re-read in prose.**
 `grep -rln -i 'full re-read\|full-re-read\|re-reads the full\|whole-report read\|whole report' tools/internal skills ../../scripts/agentgen/src hooks docs`
@@ -1001,20 +991,21 @@ source :25 (generated SKILL.md:45), the research-protocol SKILL source :48 (gene
 `definitions_gen.go` regenerate). Each states the new pin and delivery. False hits: `cli/blue/verify.go:10`, `cli/ocr.go`,
 `cost/cost.go:444` (a historical cost note on lens reads; read at implementation), `migrate/planids.go` and
 `migrate/testdata/prose-rewrites.golden` (archived plan prose, history), `docs/seat-command-triggers.md:127` (a cut verb).
-**hooks.json is unchanged** (F1, and §III.3.2's stop needs no matcher change); `hooks/README.md` needs no change.
+**hooks.json is unchanged** (F1, and §III.3.2's stop needs no matcher change). **`hooks/README.md` changes**
+(:93-130 and the SubagentStart section): every seat's work arrives one item at a time, report text only at
+PostToolUse, and a delivery that cannot advance ends the seat's turn.
 
 **The new blocker, event and item kinds.** `whole_report_owed` joins the blocker kinds where `closing_owed` is enumerated:
 `grep -rln 'BlockerClosingOwed\|closing_owed' tools skills ../../scripts/agentgen/src | grep -v _test | grep -v golden` →
 `record/{closingowed,sitting,dispatch,passblockers}.go`, debate.js (enginegen region); `verdict` help's
 `{{.PassBlockerKinds}}` renders it; CEILING's reason gains its clause in `StandingClauses()` (`verdict.go:147-160`).
-`delivery_stopped` joins the event types (`record.proto`, the generated bindings, `recordsql` schema golden) and is read
-by `failedsitting.go` and the PreToolUse gate. The four item kinds join where `composed_source` is enumerated:
+The one item kind `report_text` joins where `composed_source` is enumerated:
 `grep -rln 'ItemComposedSource\|composed_source' tools/internal skills | grep -v _test | grep -v golden` →
 `record/{composedsource,itemkind,queue}.go`; `sittingwrite/delivery.go` renders items by kind.
 Productive sitting: `grep -rn 'productive\[' tools/internal --include=*.go` → `retirement.go:308, :320`.
 
 **L (P4).** `grep -rn 'inquiryCheckStands\|GapMint' tools/internal --include=*.go | grep -v _test` →
-`inquiry.go:60,64,66,163,170`; `inquirycheck.go:26,50,53,54,168,308,309`; `passblockers.go:84`.
+`inquiry.go:60,64,66,163,170`; `inquirycheck.go:26,50,53,54,168,308,309`; `passblockers.go:88`.
 
 **G (P2).** `grep -rn 'InquiryStatusOf\|func InquiriesOf\|case \*recordpb.Inquiry:' tools/internal --include=*.go | grep -v _test`
 → `record.go:1563` (changes); `inquiry.go:95,108` (gains `LanesDisagree`); `enumof.go:75-78`, `impasse.go:310`,
@@ -1026,22 +1017,25 @@ Productive sitting: `grep -rn 'productive\[' tools/internal --include=*.go` → 
 **I (P6).** Deferred: no census in this plan; #1695's redesign carries its own.
 
 **H, defect 7 (P8).** `grep -rln 'recordpb.Close\b\|\*recordpb.Close)\|GetClosureClass\|message Close' tools/internal | grep -v _test`
-→ 23 files; only `record.go` (stamp), `close.go` (help), `viewjson.go`, `report/docs.go` and migrate change. Defect 7's
-composed line reads P3's `deliveriesOf` in `report/docs.go` and `viewjson.go`; `Close` gains no field for it.
+→ 23 files; only `close.go` (help), `viewjson.go` and `report/docs.go` change: both lines are composed there, H's from
+the estoppel helpers as of the close and defect 7's from P3's `report_delivery`; `Close` gains no field and migrate
+nothing.
 
 **K (P7) and defect 11 (P11).** `grep -rn 'recordpb.Certify\|GetStatement()' tools/internal --include=*.go | grep -v _test` →
 `view/view.go:796-797`, `report/docs.go:526-527`, `record/record.go:1618`, `record/viewjson.go:1995-1996`,
-`cli/bench/certify.go:23`, `report/assemble.go:1440-1441`, generated `decode_gen.go`. `grep -rn 'Read this first'` →
-`seatprobe/boards.go:681`, `docs/seat-command-triggers.md:187`, the skill's line 62.
+`cli/bench/certify.go:23`, `report/assemble.go` (`debate()`, `countsAtCertification`, from #1862), generated
+`decode_gen.go`. `grep -rn 'Read this first'` on 0254bfc7a → `seatprobe/boards.go:681`,
+`docs/seat-command-triggers.md:187`, the research-protocol SKILL source :64 (generated :66), and test strings asserting
+its absence. `grep -rn 'judgments.md'` adds `cli/seat/help/certify.md:7` and `lead-judge.md:128-129`.
 
 **Defects 8, 9 (P1a, P1b).** `grep -rn 'logsThisSitting\|func thisSitting\|LatestSittingOf' tools/internal --include=*.go | grep -v _test`
 → 20 sites, each reading the seat's own sitting after register; `grep -rn 'claude-sonnet' tools/internal/cost` →
 `cost.go:77,78,79`, `cost_test.go:16,42`.
 
-**New names grepped for collisions:** `QuestionPart`, `PartCoverage`, `S-`, `own_prescription`, `ChangeBearing`/`bearing`,
-`LanesDisagree`, `copy_captured_at`, `deliveriesOf`, `reportItemDelivery`, `whole_report_owed`, `delivery_stopped`,
-`report_section`, `report_change`, `gap_passage`, `area_change`, `as_of` — no seat-facing hit beyond
-those noted.
+**New names grepped for collisions** (0254bfc7a): `QuestionPart`, `PartCoverage`, `S-`, `ChangeBearing`/`bearing`,
+`LanesDisagree`, `copy_captured_at`, `reportItemDelivery`, `whole_report_owed`, `report_text`/`ItemReportText`,
+`agent_sitting`, `report_delivery`, `area_change`, `errDeliveryHeld` — 0 hits, or no seat-facing hit beyond those
+noted.
 
 ### III.12 Release fuzz, simulator, terms — per part
 
@@ -1052,86 +1046,89 @@ those noted.
     every role; the fuzz's `show report` pin moves are gone):
     - **Every seat through the chain.** Chair, bench and blue-respond sittings are driven through the writer. Gate:
       each seat is handed its `QueueOf` entries one at a time, in queue order, the next after its next call to the
-      record; no seat's SubagentStart delivery is its whole `WorkJSONBytes` list; the frontier and blue-respond, whose
-      configuration names no seat, are handed their queue's head from the call after `register`.
+      record; no SubagentStart delivery holds report text or the whole `WorkJSONBytes` list; the frontier and
+      blue-respond are handed their queue's head from the call after `register`; a lane with an empty queue is handed
+      nothing.
     - **Acts on delivered text only.** For a lens `close`, a chair `spot-check` and a bench ruling on a docket motion:
-      the act before the item carrying its text is rowed → refused, naming the work list; after → accepted. A close
-      whose gap's passage changed after its row → refused until the changed paragraph is delivered.
+      before the seat's row this sitting → refused, naming the work list; after → accepted. A close whose gap's anchor
+      sentence an edit after the row's head reopened → refused. **A gone anchor:** a close of a gap whose anchor a retire
+      removed, before any row → refused; after a complete changes delivery whose head is at or after the removal, or a
+      complete whole delivery → accepted (no exemption).
+    - **The chair's bearings under any call.** Between the chair's last item and its spot-check the drive makes a
+      selector read (`show report --match`) and a `show work`. Gate: the spot-check is accepted, its stamped changes
+      are the area's `area_change` rows up to the row's head, and the bearings align with them.
   - P3, the delivery and its record:
-    - A sitting whose delivery ends incomplete (the drive stops calling the record). Gate: no pin move, no debt
-      discharged, and the seat's envelope was refused while report-text items were unhanded — the chair's included.
-      All delivered: pin move. A head move mid-sitting: the delivery in hand completes from its own text; the changed
-      paragraphs follow as the next delivery, at the new head with its own `as_of`; pin at the last completely
-      delivered head.
-    - **One delivery, one text** (r3 GAP 3). Between two items of one delivery the drive lands an anchor op (a
-      citation and a computation, each placed by `insert`; a retire's `remove`) and an own mint of the lens's (a
-      `sentence_of` or `insert` row). Gate: the delivery completes, every row carries the same `as_of` and `of`, and
-      the concatenation of its items' report text equals the report as of `as_of`; a fresh cut at the delivery's end
-      would differ, and is not what was served.
-    - **What a change is.** Pin and head differ only in anchor tokens (a mint, a citation, a `remove`). Gate: the
-      changes delivery holds no `report_change` item. A paragraph moved to another section: one deleted and one
-      inserted item, each with its heading.
-    - **A first sitting that ends undelivered.** Gate: the lens has no pin, and its next sitting's delivery is
-      `report_section` items (the whole report), never `report_change`; `whole_report_owed` stands for it, and it does
-      not retire however many such sittings it sits through.
-    - A later sitting with a pin and the re-read discharged. Gate: its delivery holds only `report_change` items for
-      paragraphs changed since its pin and `gap_passage` items for its own gaps, open and closed, and no
-      `report_section`. At an unmoved head with no own gap: exactly one item, stating the text is unchanged.
-    - **Invariants over every board the fuzz reaches:** every `report_read` row's item rendered by
-      `reportItemDelivery` is ≤ `DeliveryBudget` bytes and carries no `_clipped`/`_omitted` field; the report text of a
-      whole delivery's items, concatenated, equals the report as of its `as_of`; **every complete changes delivery's
-      gap passages (each own gap whose anchor stands) are each either served as a `gap_passage` item or contained whole in another rowed item of the same
-      (sitting, `as_of`) delivery** (r3 GAP 2: a passage left out because the gap's clipped open-gap item carried it
-      fails); no row is written for a seat whose role does not hold its kind.
+    - A sitting whose delivery ends incomplete (the drive stops calling the record). Gate: no row, no pin move, no
+      debt discharged, and the envelope was refused while report-text items were unhanded — the chair's included. All
+      delivered: one row, pin move. A head move mid-sitting: the delivery completes from the text at its head; the
+      changed paragraphs arrive at the lens's next sitting.
+    - **One delivery, one text** (r3 GAP 3). Between two items the drive lands an anchor op (a citation and a
+      computation placed by `insert`; a retire's `remove`) and an own mint of the lens's. Gate: the delivery completes,
+      and the concatenation of its items' report text equals `ReportSourceAt(head)` folded.
+    - **What a change is.** Pin and head differ only in anchor tokens. Gate: the changes delivery holds no changed
+      paragraph. A paragraph moved to another section: one deleted and one inserted item, each with its heading.
+    - **A first sitting that ends undelivered.** Gate: no pin, and the next sitting's delivery is the whole report;
+      `whole_report_owed` stands, and the lens does not retire however many such sittings it sits through.
+    - A later sitting with a pin and the re-read discharged. Gate: its delivery holds only changed paragraphs and its
+      own gap passages; at an unmoved head with no own gap, exactly one item, saying the text is unchanged.
+    - **Invariants over every board the fuzz reaches:** every handed report-text item rendered by `reportItemDelivery`
+      is ≤ `DeliveryBudget` bytes with no `_clipped`/`_omitted` field; a whole delivery's items concatenate to the
+      text at its head; **every completed changes delivery serves the passage of every gap the lens minted before its
+      head** — a gone anchor's as the change that removed its text — as an item or contained whole in another item of
+      it (r3 GAP 2: a passage left out because the gap's clipped open-gap item carried it fails; no gap is exempt); at
+      most one `report_read` row per (seat, sitting), and none for a seat that is not a lens, the chair or the bench.
     - **A delivery that cannot advance.** Three drives: the writer's record write fails (fault injected in the
-      writer); the row is refused at the write (a repeated `item` forced into the same delivery through a test seam in the
-      writer, `sittingwrite`'s internal test hook, since no live path repeats one); the engine is
-      Antigravity. Gate for each: no row for the item; a `delivery_stopped` row naming it and the cause (the first
-      two where the record can be written; the third always); the seat's next call to the record and its envelope are
-      refused with that reason; the sitting closes unadmitted and `FailedSittingsOf` gives the reason; the next plan's
-      readiness line names it; no pin moves; and the PASS stays refused. A unit test in `hookcmd` asserts the
-      PostToolUse response carries `continue: false` with the reason (`TerminateTurn`).
-    - A sitting in flight when the outcome is stamped. Gate: its next row is refused, and the sitting fails with that
+      writer); the row is refused at the write (a second row forced into the sitting through `sittingwrite`'s internal
+      test hook, since no live path writes one); the delivery file cannot be written. Gate for each: no row; a (TOOL,
+      DEFECT) log in the seat's open sitting where the record can be written; the PostToolUse response carries
+      `continue: false` with the reason (`TerminateTurn`); the sitting closes unadmitted and capture's
+      `failed-sittings` line names that reason; no seat-facing surface carries it; no pin moves; the PASS stays
+      refused.
+    - **The stop's scope.** A lane whose record read fails; a chair with no stale area whose record read fails; a seat
+      whose delivery lock is held past `lockWait`. Gate: no stop, no `continue: false`, no DEFECT log (the first two
+      are handed the unreadable line, as today).
+    - **Antigravity.** The engine is Antigravity. Gate: no row, no stop; the envelope is not held on report-text items;
+      no close is accepted; `whole_report_owed` stands; the run ends CEILING or UNVERIFIED by the no-progress stop.
+    - A sitting in flight when the outcome is stamped. Gate: its row is refused, and the seat is stopped with that
       reason.
   - P3, the whole-report debt and termination:
-    - After a lens's first complete whole delivery. Gate: the next plan holds `whole_report_owed` for it (the re-read),
-      readies it at the same head (no edit between), and does not permit the PASS; its sitting's delivery is whole.
+    - After a lens's first row. Gate: the next plan holds `whole_report_owed` for it (the re-read), readies it at the
+      same head, and does not permit the PASS; its sitting's delivery is whole.
     - **Invariant over every plan the fuzz prints:** no plan holds `whole_report_owed` with its owner absent from
-      `parties` unless `ceiling` (the final sitting) is true; and no plan holding it has `pass_permitted`.
-    - The re-read delivered complete. Gate: the blocker is gone; a later edit readies the lens with a changes delivery,
-      never a second whole one.
-    - A re-read sitting that ends undelivered. Gate: the debt stands, the lens is readied again at the same head with a
-      whole delivery, and the PASS stays refused.
-    - `--max-epochs` set so the final sitting falls while a lens owes its re-read. Gate: `ceiling` true, parties
-      empty, the derived outcome CEILING, its reason naming the lens.
+      `parties` unless `ceiling` is true; no plan holding it has `pass_permitted`.
+    - The re-read delivered. Gate: the blocker is gone; a later edit readies the lens with a changes delivery.
+    - A re-read sitting that ends undelivered. Gate: the debt stands, the lens is readied at the same head with a whole
+      delivery, and the PASS stays refused.
+    - `--max-epochs` set so the final sitting falls while a lens owes its re-read. Gate: CEILING, its reason naming the
+      lens.
     - An upheld position naming a lens at an unmoved head. Gate: the lens's next delivery is whole; `upheld_position`
-      clears only when it is complete, and a changes delivery or a partial one leaves it standing.
-  - The engine's stops over repeated undelivered whole deliveries are debate.js behaviour, gated by `debatejs` tests:
-    three identical plans readying the owing lens → UNVERIFIED with the `noProgress` why naming it; three failed chair
-    sittings with `delivery_stopped` → UNVERIFIED with the `seatStop` why.
-  - P4: an edit reopening a closed gap of a retired lens (re-readied; an empty sitting does not clear it). A stale
-    change with no bearing (PASS refused). A spot-check on an `area_change` item with no row (refused). A borne change
-    (never served again). A `re_ready` bearing (lens owes). An edit while logic is retired (check unseated).
+      clears only on its row.
+  - The engine's stops are debate.js behaviour, gated by `debatejs` tests: three identical plans readying the owing
+    lens → UNVERIFIED with the `noProgress` why; three failed chair sittings → UNVERIFIED with the `seatStop` why.
+  - P4: an edit reopening a closed gap of a retired lens (re-readied; a sitting with no row does not clear it). A stale
+    change with no bearing (PASS refused). A spot-check in a sitting with no chair row (refused). A borne change (never
+    served again). A `re_ready` bearing (lens owes). An edit while logic is retired (check unseated).
   - P5: parts with each coverage. Gate: the derived outcome; PASS refused while a part is open or unchecked.
-  - P8: a close on own verbatim text (stamped; a reword drops it).
-- **Unit tests** (`sittingwrite`): a section whose raw length fits "budget less the header" but whose JSON-escaped
-  render does not → the cutter splits it and every row's render fits; a delivery whose report item `fitted()` would
-  clip or drop → no row; a single sentence longer than the item budget → split across items, concatenation equal to
-  the sentence; `req.Engine` Antigravity → no row and `delivery_stopped`; the cut recomputed from `as_of` after later
-  events equals the cut at `as_of`.
+  - P8: a close on own verbatim text (the closure line names it; a reword drops it).
+- **Unit tests.** `sittingwrite`: a section whose raw length fits "budget less the header" but whose JSON-escaped render
+  does not → split, every render fits; an item `fitted()` would clip → never handed; a sentence longer than the budget
+  → split across items, concatenation equal to it; the cut from `ReportSourceAt(head)` after later events equals the
+  cut at the head; `lockDelivery` on a held path → `errDeliveryHeld`, on an unwritable directory → not it; `nextOf` for
+  a seat whose work does not arrive as items with an empty queue → nothing. `hookcmd`: a stuck delivery → `continue:
+  false` with `stopReason`; Antigravity → `nextItem` returns at once. `shared/hookcore`: `TerminateTurn` on a Claude
+  Code PostToolUse renders `continue: false` and `stopReason`.
 - **Simulator (`internal/seatprobe`, `devcmd/seatprobe`).** Boards for the question split and cover, question check,
-  the chair's `area_change` items and bearings, the bench's `gap_passage` items, the re-readied retired lens, a lens's
-  first sitting reading the whole report's items, its re-read sitting, a later sitting reading its changed paragraphs
-  and gap passages, an envelope refused while report-text items are unhanded, and a sitting stopped by a failed
-  delivery.
+  the chair's area items and bearings, the bench's gap passages, the re-readied retired lens, a lens's first sitting
+  reading the whole report's items, its re-read, a later sitting reading its changed paragraphs and gap passages, an
+  envelope refused while report-text items are unhanded, and a seat stopped by a delivery that cannot advance.
 - **Terms (`terms.json` → `vocabdoc`).** [NEW] "full re-read" (the whole-report delivery at a lens's next sitting after
-  its first complete whole one; once per lens; the PASS waits on it; no entry today), "question part", "coverage"
-  (collision notes against `partial_control_coverage` and lane coverage), "change bearing". [MODIFY] "outcome",
-  "lens retirement", "report read" (a report-text item handed whole into a seat's context on its work list: for a lens
-  the whole report, or the changes and its gap passages; for the chair a stale area's changes; for the bench a
-  motion's gap passages; its `pin (a dispatch's)` collision restates a lens's pin as the head through which every
-  change was delivered), "the report", "inquiry" (re-owed while retired; P2's own PR adds "lanes disagree"), "stale
-  area" (discharged by bearings on delivered items), "blocker".
+  its first; once per lens; the PASS waits on it), "question part", "coverage" (collision notes against
+  `partial_control_coverage` and lane coverage), "change bearing". [MODIFY] "current item" (a lens's today; every
+  seat's, report text only after a call to the record), "outcome", "lens retirement", "report read" (one row per
+  completed delivery: for a lens the whole report, or the changes and its gap passages; for the chair the stale areas'
+  changes; for the bench its motions' gap passages; its `pin (a dispatch's)` collision restates a lens's pin as the
+  head of its latest delivery), "the report", "inquiry" (re-owed while retired; P2 adds "lanes disagree"), "stale
+  area" (discharged by bearings after a complete delivery), "blocker".
 - **Goldens** regenerate at `-count=1` and are read line by line.
 
 ## IV. Risk & Mitigation
@@ -1140,19 +1137,19 @@ those noted.
 |---|---|---|---|
 | R1 | P3's deliveries add turns: ~+9 per whole delivery (a lens's first sitting and its full re-read) and a few per later sitting — about $7 on this run against $12.5 for the whole report every sitting, beside the lenses' $13.64. Blocking delivery items make those turns unskippable | H × M × L | Measured and stated as an estimate (§III.3.2: the later-sitting share is an unpacked ratio applied to the packed whole delivery). Cost concentrates at the big-rewrite epochs (e3: 19 of 30 items a sitting); the acceptance run (§V 9.2) reports the delivered items per sitting |
 | R1a | A later sitting sees only the changes and its own gap passages, so a first-read miss far from any change (ev580) or the unchanged far side of a cross-section contradiction (ev760's AS 1215 side, measured only at section granularity) waits for the full re-read | M × M × M | The ruled trade (gblock 2026-11-13). The full re-read is the second draw the evidence argues for; the selector reads stay open for context; the acceptance run counts gaps minted at full re-reads against later sittings |
-| R2 | A harness whose hook `additionalContext` does not reach the seat writes no `report_read` row, so no pin moves, no whole delivery completes, and no close, bearing or ruling on a motion about gaps is accepted. FEOV's hook answers PostToolUse with an empty document under Antigravity today (`hookcmd.go:138-146`) | M × H × M | **Ruled (gblock 2026-11-13): P3 ships before #1827, and an agy run cannot PASS.** The engine that cannot deliver is a delivery that cannot advance: each agy sitting holding a report-text item fails at its first one, with the reason "this harness delivers no hook text into the seat", instead of holding its envelope refused until `maxTurns`. The run ends UNVERIFIED by the engine's seat-failure or no-progress stop, stated, never PASS; `register` and `show report` help say so. The agy delivery mechanism is #1827's (F12) |
-| R3 | A head move mid-sitting re-hands changed paragraphs, adding turns; the re-read under F11 falls early (mostly e2), when the report is still moving | M × L × L | Only the paragraphs changed between the two heads are handed (existing `changed_since_delivered`); the pin moves to the last fully delivered head. The early re-read is the ruled timing (F11); edits after it reach the lens through its changes deliveries |
+| R2 | A harness whose hook `additionalContext` does not reach the seat writes no `report_read` row, so no pin moves, no whole delivery completes, and no close, bearing or ruling on a motion about gaps is accepted. FEOV's hook answers PostToolUse with an empty document under Antigravity today (`hookcmd.go:138-146`) | M × H × M | **Ruled (gblock 2026-11-13: P3 ships before #1827; 2026-11-14: under agy report-text items do not block and the run states it cannot PASS).** `nextItem` returns at once under Antigravity and the envelope phase does not hold the envelope on report text, so an agy seat is never stopped by delivery; `whole_report_owed` never clears, and the run ends CEILING or UNVERIFIED by the no-progress stop, never PASS. Its CEILING clause and `register`/`show report` help say so; no field. The agy delivery mechanism is #1827's (F12) |
+| R3 | A head move mid-sitting is not in the delivery in hand; the re-read under F11 falls early (mostly e2), when the report is still moving | M × L × L | The changed paragraphs arrive at the lens's next sitting, which the head move readies; the pin is the head of the delivery it completed. The early re-read is the ruled timing (F11) |
 | R4 | L makes logic sit after edits made while retired | H × L × L | ~5 sittings / ~$1.4 here; the ruled behaviour |
 | R5 | QUALIFIED changes every consumer keyed on "VERIFIED" | M × M × L | §III.5 census; archived outcomes untouched (history) |
 | R6 | Blue splits the question too coarsely or finely; `coverage_misstated` churns | M × M × M | Always material, so it holds the PASS until its minter closes it; how a dispute over it is heard is #1695's redesign, not designed here; §V 9.1 measures churn |
 | R7 | The lane refusal strands a base phase | L × M × L | The open-inquiry blocker holds the PASS with blue as owner; fuzz gate |
-| R8 | The chair records `none` on a change it should not have | M × M × M | The chain delivers every change to the chair as old and new text in an `area_change` item, and a bearing is refused on an item with no row, so no change is borne unseen; the judgement stays the chair's. 167 bearings over 8 items at ev945, each change served once |
+| R8 | The chair records `none` on a change it should not have | M × M × M | Every change reaches the chair as old and new text, and a spot-check is refused in a sitting that holds no chair row, so no change is borne unseen; the judgement stays the chair's. 167 bearings at ev945, each change served once |
 | R9 | Widened "productive" keeps lenses unretired longer; the full re-read readies every lens at its second sitting, at any head; a re-read that keeps failing re-readies the lens at an unmoved head | M × L × L | Bounded by head moves for the first, once per lens for the second, and the engine's `NO_PROGRESS_EPOCHS` stop and `maxEpochs` for the third (§III.3.2, "The bound") |
 | R10 | Section keying of voice gaps refuses a legitimate second gap | M × L × L | The successor mint (`mint --supersedes`) carries both (F5 ruled the key) |
 | R11 | The price correction is wrong again | L × L × L | Published rates first, verified on two runs |
 | R12 | Rebasing across #1828 (open) and #1695's redesign changes signatures | H × L × M | Each part rebases on current main, regenerates goldens, re-runs its census |
 | R13 | The universal chain breaks a hook path no gate exercises (gates never dispatch a seat), and every seat — not only lenses — pays one call to the record per item | M × H × M | P3's own PR runs a universe smoke (§V 11) and proves the installed copy carries the change; the chair queues only what it clears and each change once; per-seat items and turns are reported on the acceptance run (§V 9.2) |
-| R14 | A failed delivery's stop (`continue: false` on a PostToolUse) does not end a Workflow seat's turn; the PreToolUse matcher (`Bash\|Read\|StructuredOutput`) leaves WebSearch, Grep, Edit and Write unrefused | M × M × L | Measured on P3's smoke before merge (§V 11). If the stop does not hold, the seat can neither call the record nor return its envelope, so its sitting still fails; the turns spent are reported to gblock rather than designed around (`hooks.json` is not widened) |
+| R14 | The stop (`continue: false` on a PostToolUse) is measured to end the seat's turn (Claude Code 2.1.323, `continue-probe/`), but whether the stopped seat's SubagentStop still writes `sitting_close` is not, and without it the sitting reads as never closed, not failed | M × M × L | P3's smoke checks it before merge (§V 11). A client that changes `continue: false`'s behaviour goes the same way: the seat can then neither return its envelope nor be handed its item, and its sitting fails at `maxTurns`; that would be reported to gblock, not designed around. No PreToolUse arm is added |
 | R15 | A row records text handed to the harness, not text seen: a client that changes its 10,000-character cap or spill, or a hook killed between the row's write and its emit, leaves a row for text the seat did not get | L × M × M | Ruled: arrival is checked once, on the acceptance run (§V 9.2), against the transcripts; no recurring check. Stated as residue (§III.3.2) |
 
 ## V. Verification Plan (the validation loop)
@@ -1169,10 +1166,11 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
    then read every changed golden line and each affected `--help` before and after. Re-armed by: help, plan or report
    template changes.
 5. `go -C plugins/frank-exchange-of-views/tools test -count=1 -run 'TestEveryArchivedRunMigrates|<part's migrate test>' ./internal/record/migrate/`
-   on the committed archive (P0; a missing tarball now fails). Expected: P3 archived `report_read` →
-   `{head, item 1, of 1, kind report_section, as_of = its own event id}`, pins unchanged, and a lens with an archived serve in a later sitting owes no full
-   re-read; P4 no translation, ev945's stamps intact and bearings empty; P5 the stored VERIFIED unchanged; P8
-   G-7a1103be/G-1606eaab closes stamped `own_prescription`. Re-armed by: any `record.proto` change or epoch bump.
+   on the committed archive (P0; a missing tarball now fails). Expected: P3 no translation — the archive migrates with
+   its `report_read` rows unchanged, and on it, once, before `servedOf`/`pinOf` are deleted, each lens's pin from the
+   pin statement equals the one main's `pinOf` gives at every plan event; a lens with an archived serve in a later
+   sitting owes no full re-read; P4 no translation, ev945's stamps intact and bearings empty; P5 the stored VERIFIED
+   unchanged; P8 none (G-7a1103be/G-1606eaab closure lines name `own_prescription`, composed). Re-armed by: any `record.proto` change or epoch bump.
 6. `go -C scripts run ./vocabdoc` then `go test -count=1 -run TestVocabularyProse ./...` (FEOV module). Re-armed by:
    terms.json.
 7. **Release fuzz, CI only:** the hooks workflow's sharded `FEOV_RELEASE_GATE=1 go test ./releasegate/fuzz/` on each
@@ -1197,44 +1195,31 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
       debate, Constitutional AI), or a `coverage_misstated` gap put a missing one back; every part has coverage and a
       standing check at the PASS; VERIFIED only if every part is covered, else QUALIFIED with `verdict_why` naming the
       parts; `grep -c 'HTTP 4\|not retrieved' report.md` = 0.
-   2. **F and the chain:** completeness per delivery, from the record:
+   2. **F and the chain**, from the record's own views:
       ```sql
-      -- each (seat, sitting, as_of) delivery: rows, of, whole or not, complete
-      SELECT e.seat_id, e.sitting_id, r.as_of, r.head,
-             min(r.kind = 'report_section') AS whole, count(*) AS rows, max(r."of") AS n,
-             count(*) = max(r."of") AS complete
-        FROM report_read r JOIN events e ON e.id = r.event_id GROUP BY 1, 2, 3, 4;
+      -- each completed delivery: seat, sitting, head, whole or not, sat through (one row per (seat, sitting))
+      SELECT seat_id, sitting_id, head, whole, sat_through FROM report_delivery ORDER BY sitting_id;
+      -- every lens that sat has its re-read before the PASS (expect 0 rows)
+      WITH pass AS (SELECT max(event_id) AS at FROM gate WHERE verdict = 'pass')
+      SELECT DISTINCT a.seat_id FROM agent_sitting a
+       WHERE a.seat_id LIKE 'red-lens-%'
+         AND (SELECT count(*) FROM report_delivery d WHERE d.seat_id = a.seat_id AND d.sat_through
+                AND d.sitting_id < (SELECT at FROM pass)) < 2;
       ```
-      **Arrival, checked once** (criterion 2; ruled: no recurring transcript check): for every row, whichever seat it is
-      for, the sitting's subagent transcript holds that item's full report text inside a hook `additionalContext`,
-      unclipped and with no persisted-output marker; zero exceptions. Every sitting that returned an envelope has
-      `complete = 1` for each of its deliveries. Each lens's first complete delivery is whole; its next sitting with a
-      complete delivery is whole (the re-read); every later complete lens delivery has `whole = 0`, except one that an
-      upheld position named. Every close, every spot-check and every bench ruling on a motion about gaps has, in its own
-      sitting and before it, a row for an item carrying the text it depends on (recomputed from each delivery's
-      `as_of`). Every lens that sat has its re-read before the PASS (expect 0 rows):
-      ```sql
-      WITH whole AS (SELECT e.seat_id, e.sitting_id FROM report_read r JOIN events e ON e.id = r.event_id
-                      GROUP BY e.seat_id, e.sitting_id, r.as_of
-                     HAVING min(r.kind = 'report_section') = 1 AND count(*) = max(r."of")),
-           firsts AS (SELECT seat_id, min(sitting_id) AS first FROM whole GROUP BY seat_id),
-           pass AS (SELECT max(event_id) AS at FROM gate WHERE verdict = 'pass')
-      SELECT DISTINCT s.seat_id FROM sitting_open s
-       WHERE s.seat_id LIKE 'red-lens-%'
-         AND NOT EXISTS (SELECT 1 FROM whole w JOIN firsts f ON f.seat_id = w.seat_id
-                          WHERE w.seat_id = s.seat_id AND w.sitting_id > f.first
-                            AND w.sitting_id < (SELECT at FROM pass));
-      ```
-      (`gate` holds one row per verdict the chair recorded, refused or not; the PASS is the latest `'pass'` row, and
-      `enum_verdict`'s values are lowercase. `sitting_open.seat_id` is NULL for the configurations that seat several,
-      none of them a lens. `"of"` is quoted: `OF` is an SQLite keyword.) Every plan holding `whole_report_owed` lists
-      its owner in `parties` or is the final sitting's. Every later lens sitting's rendered work list holds only
-      `report_change` items for paragraphs that differ between its pin and head and `gap_passage` items for its own
-      gaps. Every `delivery_stopped` row names its cause, and its sitting is failed with that reason. Every retirement's
-      plan reason shows 3 sittings with no mint, close, check, verify or reproduce. Reported, not gated: delivered
-      items per sitting by seat and kind, the extra turns per seat the chain cost, sittings that ended with a delivery
-      incomplete (expected: only failed sittings), and the gaps minted at full re-reads against those minted at later
-      sittings.
+      (`gate` holds one row per verdict the chair recorded; the PASS is the latest `'pass'` row.) **Arrival, checked
+      once** (criterion 2; ruled: no recurring transcript check): for every `report_delivery` row, whichever seat it is
+      for, the items recomputed from its seat, sitting and head are each in that sitting's subagent transcript inside a
+      hook `additionalContext`, unclipped, with no persisted-output marker; zero exceptions. Every sitting with an
+      admitted envelope and report text owed has its row. Each lens's first two rows are whole; every later row has
+      `whole = 0`, except one an upheld position named. Every close, every spot-check and every bench ruling on a motion
+      about gaps follows its seat's row in its sitting, with the text it depends on unchanged after that row's head (the
+      delivered-text statement, re-run by query) — closes of gone-anchor gaps included. Every plan holding
+      `whole_report_owed` lists its owner in `parties` or is the final sitting's. Every later lens sitting's rendered work
+      list holds only changed paragraphs and its own gap passages. Every failed sitting whose seat was stopped has a
+      (TOOL, DEFECT) log in it, and capture's `failed-sittings` line names that reason. Every retirement's plan reason
+      shows 3 sittings with no mint, close, check, verify or reproduce. Reported, not gated: items per sitting by seat,
+      the extra turns per seat the chain cost, sittings that owed report text and hold no row (expected: only failed
+      sittings), and the gaps minted at full re-reads against those minted at later sittings.
    3. **D:**
       ```sql
       -- every change after a stale lens's pin carries a bearing at the PASS (expect 0 rows)
@@ -1248,11 +1233,11 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
            head_moves AS (SELECT id FROM events WHERE type IN ('blue_edit', 'report_part'))
       SELECT sa.seat, h.id FROM sa JOIN head_moves h ON h.id > sa.pin AND h.id < (SELECT at FROM pass)
        WHERE NOT EXISTS (SELECT 1 FROM borne WHERE borne.change_id = h.id AND borne.seat = sa.seat);
-      -- every spot-check with bearings follows, in its sitting, an area_change row (expect 0 rows)
+      -- every spot-check with bearings follows, in its sitting, the chair's report_read row (expect 0 rows)
       SELECT sc.event_id FROM spot_check sc JOIN events se ON se.id = sc.event_id
        WHERE EXISTS (SELECT 1 FROM spot_check_bearings b WHERE b.event_id = sc.event_id)
          AND NOT EXISTS (SELECT 1 FROM report_read r JOIN events re ON re.id = r.event_id
-                          WHERE re.sitting_id = se.sitting_id AND r.kind = 'area_change' AND r.event_id < sc.event_id);
+                          WHERE re.sitting_id = se.sitting_id AND re.seat_id = 'red-chair' AND r.event_id < sc.event_id);
       -- every re-ready of a retired lens through its own anchor names a G- anchor it minted
       SELECT r.event_id, r.value, e.seat_id FROM blue_edit_reopened r JOIN mint m ON m.gap_id = r.value
         JOIN events e ON e.id = m.event_id
@@ -1266,11 +1251,10 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
    6. **K:** report.md has the basis block under `**Outcome:**`; its coverage lines equal the parts not covered; its
       *Open defects* rows equal the open non-material gaps at the gate; no line narrates the run (the voice lens audits
       it); `grep -c 'Read this first' agents/ skills/` = 0.
-   7. **H/defect 7:** every close whose closer's verbatim fix stands carries `own_prescription`. Defect 7 is composed,
-      not stored (ruled by gblock 2026-11-13): `Close` has no `served_head` column, and every closure line in docket.md
-      states the closer's sitting's delivery as of the close — whole at head N, the changes since P at head N, or k of n
-      items — and equals what the `report_read` rows in that sitting before the close event give (recomputed by query
-      for every close).
+   7. **H/defect 7:** both composed, neither stored (`Close` has no `own_prescription` or `served_head` column). Every
+      closure line in docket.md names the closer's own applied prescriptions where its verbatim fix stood at the close,
+      and states the closer's sitting's delivery as of the close — whole at head N, or the changes since P at head N —
+      equal to its `report_delivery` row before the close event (by query, for every close).
    8. **P9:** no two report_voice gaps open at once in one section; the count of voice successor chains is reported
       against this run's ~75 edits.
    9. **Defects:** `cost.md` sonnet total within 1% of `modelUsage.costUSD`; the counts beside the certification equal
@@ -1291,11 +1275,14 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
     ```
     Expected, read from a copy as in 9: every seat that sat — the chair, the bench where convened, blue-respond and
     each lens — was handed its items one at a time (the `.work-delivery` files and the transcripts' hook
-    `additionalContext`); each lens's first sitting has a complete whole delivery; every `report_read` row's text is
-    in its seat's transcript, unclipped; no envelope was returned with a report-text item unhanded. **The stop is
-    measured here:** one sitting's delivery is failed by hand — its `.work-delivery` directory made unwritable, so
-    `lockDelivery`'s `O_CREATE` fails with EACCES (a real writer error, with no timing in it) — and the transcript shows whether the PostToolUse `continue: false` ended the seat's turn; the result
-    goes in the PR body and, if the stop did not hold, to gblock (R14). Re-armed by: any change to `sittingwrite/`,
+    `additionalContext`), and no SubagentStart injection holds report text; each lens's first sitting has its row;
+    every row's items are in its seat's transcript, unclipped; no envelope was admitted without the row. **The stop is
+    checked here:** one sitting's delivery is failed by hand — its `.work-delivery` directory made unwritable, so
+    `lockDelivery`'s `O_CREATE` fails with EACCES (a real writer error, with no timing in it) — and the record and
+    transcript show: the PostToolUse `continue: false` ended that seat's turn (as measured in `continue-probe/`); **its
+    SubagentStop still wrote `sitting_close`**, so the sitting reads as failed; a (TOOL, DEFECT) log names the cause in
+    that sitting; capture's `failed-sittings` line names it; and debate.js `sit()` caught the throw. The result goes in
+    the PR body and, if the close was not written, to gblock (R14). Re-armed by: any change to `sittingwrite/`,
     `hookcmd/`, `hookgate/`, `shared/hookcore` or `hooks.json`.
 
 ## VI. Forks (gblock's; recommendation first)
@@ -1342,8 +1329,9 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
   text, none after. For this plan's property it means one thing: under a queue route a `report_read` row is written
   when the text is injected into the seat, not when it is queued. The mechanism is #1827's. This plan holds the
   property — a `report_read` row only for text that reached the seat (§III.3.2) — and builds no agy mechanism; until
-  #1827 lands one, an agy sitting with a report-text item fails at its first one, and an agy run cannot PASS (R2;
-  ruled by gblock 2026-11-13: P3 ships before #1827).
+  #1827 lands one, report-text items do not block under agy, nothing is stopped, and an agy run cannot PASS (R2;
+  ruled by gblock 2026-11-13: P3 ships before #1827; 2026-11-14: the run states it cannot PASS).
+
 ## VII. In the rulings: contradictions, limits and what is left out
 
 1. **F, as ruled 2026-11-13.** The work list carries the report and the read is the tool's record of what it delivered
@@ -1363,20 +1351,35 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
    it can retire, so it does not shrink the chair's bearings at the PASS: ev945's 167 changes behind pins 589 and 716
    are what the chair would bear on this run.
 3. **K against lead-judge.md:129** ("You author no sentence into report.md"). Reconciled: the basis block holds no
-   bench sentence; its table links to judgments.md.
+   bench sentence; its table links to where the statement renders. **F7's destination is corrected, not re-ruled:**
+   F7 (2026-11-12) said the basis block points to judgments.md; P11 (#1862) found the certification renders in debate.md's
+   Bench disposition and, superseded, in CHANGELOG.md, never in judgments.md. The link follows the render (§III.7), and
+   the lead-judge source and `certify` help stop saying judgments.md. The ruling's substance — a pointer, no
+   `Certify.subjects` — stands; gblock may rule the statement into judgments.md instead.
 4. **I**: deferred to #1695's redesign (gblock 2026-11-12); this plan designs nothing against #1695's current plan.
 5. **Antigravity** (F12, ruled): the property — a read row only for text that reached the seat — is fixed here; the
    agy delivery mechanism is the Antigravity native-workflow session's (#1827). P3 ships first (ruled 2026-11-13), so
-   until #1827 lands an agy run cannot PASS: its sittings with report-text items fail at once, stated.
+   until #1827 lands an agy run cannot PASS: report-text items do not block there and nothing is stopped (ruled
+   2026-11-14); the run ends CEILING or UNVERIFIED, and the debt's clause and help say why.
 6. **L as ruled is computable**: "retired as of the edit" is `retired()` over the events before it (§III.4).
+   **Ruling 2026-11-14's reach.** Derivation in SQL is applied to every delivery fact (§III.3.2), and P3 moves the Go
+   folds it reads (`AgentSittingsOf`, `satThroughOf`, `servedOf`/`pinOf`) into views. Retirement (`retired()`,
+   `lensStates`) and estoppel (P8's text containment) stay Go: they are not delivery facts, the first is a large fold
+   ruled 2026-11-11 as computed over the prefix, and the second compares text. Moving retirement into a view is a
+   candidate the ruling's question points at and no part here owns.
+   **Position in flight is not derived; it is not stored.** The ruling asked that delivery position be derived in a
+   view. With one row per completed delivery nothing on the record reads a position: completeness is the row, and
+   which item a seat is on lives in the `.work-delivery` file the writer already keeps (identities only). This departs
+   from the ruling's letter (a position view) toward its point (store nothing derivable, no Go replay).
 7. **VERIFIED's definition and derivation**: neither was wholly right (§III.5).
 8. **The universal chain** (ruled 2026-11-13: "Give everyone the same chain as lenses - that was meant to be
-   universal"). One mechanism serves every seat. Two readings of it are this plan's, not rulings: **blue-respond is
-   given no report-text item**, because its acts carry the text they change (an edit is refused unless its `old` locates
-   once in the report) and quote nothing they were handed; and **a bench ruling on a position is not gated**, because a
-   position (`recordpb.Position`: its text and id) names no lens or gap — the ruling's `--lens`/`--ids` choose them —
-   so no report text can be delivered for it before the ruling. "A judge's ruling on an area" is read as the bench's
-   rulings on motions about gaps. Either reading is gblock's to overturn.
+   universal"). One mechanism serves every seat. **Ruled by gblock 2026-11-14** (picked options): **blue-respond is
+   given no report-text item** — its acts carry the text they change (an edit is refused unless its `old` locates once
+   in the report) and quote nothing they were handed; and **a bench ruling on a position needs none** — a position
+   (`recordpb.Position`: `text`, `position_id`, and `class`, a gap class whose materiality default binds the hearing,
+   `record.proto:2607-2621`) names no lens, gap or passage; the ruling's `--lens`/`--ids` choose them, so no report text
+   can be delivered for it before the ruling. "A judge's ruling on an area" is read as the bench's rulings on motions
+   about gaps.
 9. **Arrival is checked once** (ruled 2026-11-13): the acceptance run checks every row against the transcripts; no run
    after it does. The residue (a changed client cap or spill; a hook killed between row and emit) is stated in
    §III.3.2 and R15.
@@ -1392,4 +1395,9 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
   or lies in one of its own gap passages.
 - FINDINGS row 15: no ruling, not in AUDIT's list.
 - #1805's own census follow-up list (its items, not this plan's forks) where not touched above: their own issue.
+- **#1861's left-over "this sitting" reads** before register — `engagedOf`, `answeredByActThisSitting`,
+  `remandItemsOf`, `blueInquiryItemsOf` and the blocker windows: no part here owns them; they read the previous
+  sitting consistently with each other, and changing them is a change of its own. P3 owns the `LastRead` "served" read.
+- **Defect 11's second half** ("asks for the wrong check"): #1862 left it, and no part here addresses it; it needs a
+  ruling on what the bench's ask should be checked against.
 - FINDINGS row 4's general case (a dispute between lenses): how it is heard is #1695's redesign.
