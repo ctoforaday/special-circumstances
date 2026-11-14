@@ -52,22 +52,46 @@ func TestDearerFollowsTheLadder(t *testing.T) {
 	}
 }
 
-func TestConfigReadsTheRunsDeclaredTiers(t *testing.T) {
+func TestSeatConfigsReadsPerSeatSpecs(t *testing.T) {
 	run := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(run, "inputs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`), 0o644); err != nil {
+		[]byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-sonnet-5"},"red-lens-dark-side":{"harness":"antigravity","model":"gpt-oss-120b-medium"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	m, j := Config(run)
-	if m != "claude-fable-5" || j != "claude-sonnet-5" {
-		t.Fatalf("got %q/%q", m, j)
+	seats := SeatConfigs(run)
+	if len(seats) != 2 {
+		t.Fatalf("got %d seats, want 2", len(seats))
 	}
-	// An absent or unparseable config yields two empty strings, and the caller decides what that
-	// means — here it means "declared no tier", never "declared haiku".
-	if m, j := Config(t.TempDir()); m != "" || j != "" {
-		t.Errorf("absent config: got %q/%q", m, j)
+	lane, ok := LookupSeat(seats, "blue-lane-2")
+	if !ok || lane.Harness != "claude" || lane.Model != "claude-sonnet-5" {
+		t.Fatalf("lane lookup got (%+v, %v)", lane, ok)
+	}
+	ds, ok := LookupSeat(seats, "red-lens-dark-side")
+	if !ok || ds.Harness != "antigravity" || ds.Model != "gpt-oss-120b-medium" {
+		t.Fatalf("dark-side lookup got (%+v, %v)", ds, ok)
+	}
+	if got := SeatConfigs(t.TempDir()); got != nil {
+		t.Errorf("absent config: got %+v, want nil", got)
+	}
+}
+
+func TestSameModel(t *testing.T) {
+	if !SameModel("sonnet", "claude-sonnet-5-5") {
+		t.Error("recognized Anthropic tier should match")
+	}
+	if SameModel("sonnet", "claude-opus-5-5") {
+		t.Error("different Anthropic tiers must not match")
+	}
+	if !SameModel("gpt-oss-120b-medium", "GPT-OSS-120B-MEDIUM") {
+		t.Error("non-Anthropic models should match case-insensitively")
+	}
+	if SameModel("gpt-oss-120b-medium", "gemini-4-argon-high") {
+		t.Error("different non-Anthropic models must not match")
+	}
+	if SameModel("gpt-oss-120b-medium", "claude-fable-5") {
+		t.Error("non-Anthropic model must not match fable tier")
 	}
 }

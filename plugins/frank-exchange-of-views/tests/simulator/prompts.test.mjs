@@ -14,7 +14,7 @@
 // commit (see scripts/golden.mjs).
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, party, read, blocker, judgeEnv } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, makeSeats, blueEnv, chairEnv, passChair, plan, passPlan, party, read, blocker, judgeEnv } from './harness.mjs'
 import { assertGolden, orphanGoldens, goldenReport } from './golden.mjs'
 import { createHash } from 'node:crypto'
 
@@ -59,10 +59,10 @@ function assertLossless(name, prompt) {
 }
 
 const script = loadDebateScript(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url))
-// model + judgmentModel are REQUIRED (#111) — the script throws without both before emitting any
-// prompt. They set dispatch opts, not prompt text, so the goldens are unchanged.
+// seats is REQUIRED (#111, #1827) — the script throws without it before emitting any
+// prompt. It sets dispatch opts, not prompt text, so the goldens are unchanged.
 const BIN_DIR = '/opt/feov/bin'
-const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_golden', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet', binDir: BIN_DIR }
+const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_golden', lanes: 3, seats: makeSeats('sonnet', 'sonnet'), binDir: BIN_DIR }
 
 // A debate that reaches every seat class: round 1 FAILs with a docketed gap (so
 // the bench sits), blue responds, round 2 PASSes, assembly runs.

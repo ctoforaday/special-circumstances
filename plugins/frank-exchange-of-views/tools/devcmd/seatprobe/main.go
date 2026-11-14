@@ -148,7 +148,7 @@ func main() {
 		if *dir == "" || *bin == "" {
 			fail("-print-sitting renders the prompt debate.js hands the seat, which names the run directory and the tool: pass -dir and -bin (the same values the -build-only staging used)")
 		}
-		d, err := seatprobe.ProductionPrompt(*debatePath, b, filepath.Join(*dir, b.Name), filepath.Dir(*bin), *model, *model)
+		d, err := seatprobe.ProductionPrompt(*debatePath, b, filepath.Join(*dir, b.Name), filepath.Dir(*bin), *model)
 		if err != nil {
 			fail("%v", err)
 		}
@@ -555,7 +555,7 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debate
 	// was never given production's instructions, and every one of those numbers was published as
 	// a finding about seats. There is no fallback and no substitute: a board whose seat debate.js
 	// does not dispatch fails here rather than being handed something written locally.
-	d, err := seatprobe.ProductionPrompt(debatePath, b, runDir, filepath.Dir(bin), model, model)
+	d, err := seatprobe.ProductionPrompt(debatePath, b, runDir, filepath.Dir(bin), model)
 	if err != nil {
 		return err
 	}

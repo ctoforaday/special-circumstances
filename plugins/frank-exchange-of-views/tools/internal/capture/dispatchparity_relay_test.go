@@ -253,7 +253,7 @@ func TestTheValveStopsOnTheKeyTheRecordRepeats(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, out, err := debatejs.CaptureRun(debatejs.ScriptPath(filepath.Join(wd, "..", "..")), debatejs.Config{Topic: "t", RunDir: t.TempDir(), BinDir: t.TempDir(),
-		Lanes: 1, Model: "haiku", JudgmentModel: "haiku", Backend: backend})
+		Lanes: 1, Seats: debatejs.TieredSeats("haiku", "haiku"), Backend: backend})
 	if err != nil {
 		t.Fatalf("driving debate.js: %v", err)
 	}

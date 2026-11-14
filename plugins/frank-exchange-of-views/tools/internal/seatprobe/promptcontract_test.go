@@ -40,7 +40,7 @@ func debateScriptForTest() string {
 // negative below is what keeps it from growing back here.
 func TestTheDispatchedPromptTeachesTheBindingContract(t *testing.T) {
 	for name, b := range Boards() {
-		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku")
+		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku")
 		if err != nil {
 			t.Errorf("%s: %v", name, err)
 			continue
@@ -95,7 +95,7 @@ func TestTheDispatchedPromptTeachesTheBindingContract(t *testing.T) {
 // seat receives.
 func TestTheElicitationArmWrapsTheDispatchedSitting(t *testing.T) {
 	b := Boards()["lens-audit"]
-	d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku")
+	d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku")
 	if err != nil {
 		t.Fatal(err)
 	}

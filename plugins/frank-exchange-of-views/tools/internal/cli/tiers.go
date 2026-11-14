@@ -85,9 +85,10 @@ func newShowTiers() *cobra.Command {
 
 // TierRow is one seat's request-versus-service, as fields.
 type TierRow struct {
-	SeatID string `json:"seatId"`
-	Class  string `json:"class"`
-	// Configured is the tier this seat's CLASS was dispatched on.
+	SeatID  string `json:"seatId"`
+	Harness string `json:"harness,omitempty"`
+	Class   string `json:"class"`
+	// Configured is the model configured for this seat.
 	Configured string `json:"configured,omitempty"`
 	// Served is the model that answered. Empty means NOT MEASURED, which is why Measured exists
 	// beside it rather than a reader inferring the state from the blank.
@@ -96,39 +97,36 @@ type TierRow struct {
 	// NotMeasured says why nothing answered, set exactly when Measured is false.
 	NotMeasured string `json:"notMeasured,omitempty"`
 	// Declared marks a substitution the harness itself announced, as against one this join
-	// deduced by comparing tiers.
+	// deduced by comparing models/tiers.
 	Declared bool `json:"declared"`
 	Matches  bool `json:"matches"`
 }
 
 // TierReport is the run's whole answer, request and service together.
 type TierReport struct {
-	RunDir          string    `json:"runDir"`
-	ConfiguredBulk  string    `json:"configuredBulk,omitempty"`
-	ConfiguredJudge string    `json:"configuredJudgment,omitempty"`
-	Seats           []TierRow `json:"seats"`
-	TierBound       int       `json:"tierBound"`
-	Measured        int       `json:"measured"`
-	Substituted     int       `json:"substituted"`
+	RunDir          string                        `json:"runDir"`
+	ConfiguredSeats map[string]modeltier.SeatSpec `json:"configuredSeats,omitempty"`
+	Seats           []TierRow                     `json:"seats"`
+	TierBound       int                           `json:"tierBound"`
+	Measured        int                           `json:"measured"`
+	Substituted     int                           `json:"substituted"`
 }
 
 func tierReport(run record.Run, b record.Family) TierReport {
-	bulk, judgment := modeltier.Config(run.Dir())
-	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment}
+	seatsCfg := modeltier.SeatConfigs(run.Dir())
+	rep := TierReport{RunDir: run.Dir(), ConfiguredSeats: seatsCfg}
 	for _, sm := range record.SeatModels(run, b) {
 		if sm.Class == "" {
 			continue // the operator and anything off the roster ride no tier
 		}
-		configured := bulk
-		if sm.Class == "judgment" {
-			configured = judgment
-		}
-		row := TierRow{SeatID: sm.SeatID, Class: sm.Class, Configured: configured,
+		spec, _ := modeltier.LookupSeat(seatsCfg, sm.SeatID)
+		configured := spec.Model
+		row := TierRow{SeatID: sm.SeatID, Harness: spec.Harness, Class: sm.Class, Configured: configured,
 			Served: sm.Served, Measured: sm.Measured(), NotMeasured: sm.NotMeasured, Declared: sm.Substituted()}
 		// MATCHES IS FALSE WHEN NOTHING WAS MEASURED, and that is the point of carrying Measured
 		// separately: a reader that treats !Matches as "substituted" would over-report, and one
 		// that treats an unmeasured seat as matching would rebuild the defect.
-		row.Matches = row.Measured && configured != "" && modeltier.Of(configured) == modeltier.Of(sm.Served)
+		row.Matches = row.Measured && configured != "" && modeltier.SameModel(configured, sm.Served)
 		rep.TierBound++
 		if row.Measured {
 			rep.Measured++
@@ -145,8 +143,7 @@ func tierReport(run record.Run, b record.Family) TierReport {
 func renderTiers(r TierReport) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# model tiers — requested and served\n\n")
-	fmt.Fprintf(&sb, "configured: bulk=%s · judgment=%s\n\n", orUnset(r.ConfiguredBulk), orUnset(r.ConfiguredJudge))
-	fmt.Fprintf(&sb, "| seat | class | configured | served |\n|---|---|---|---|\n")
+	fmt.Fprintf(&sb, "| seat | harness | class | configured | served |\n|---|---|---|---|---|\n")
 	for _, s := range r.Seats {
 		served := s.Served
 		switch {
@@ -157,9 +154,9 @@ func renderTiers(r TierReport) string {
 		case !s.Matches:
 			served = "**" + s.Served + "**"
 		}
-		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n", s.SeatID, s.Class, orUnset(s.Configured), served)
+		fmt.Fprintf(&sb, "| %s | %s | %s | %s | %s |\n", s.SeatID, orUnset(s.Harness), s.Class, orUnset(s.Configured), served)
 	}
-	fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); %d answered by a model other than the configured tier\n",
+	fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); %d answered by a model other than the configured model\n",
 		r.Measured, r.TierBound, r.Substituted)
 	if r.TierBound > 0 && r.Measured == 0 {
 		fmt.Fprintf(&sb, "\nNOTHING LOOKED. This run predates the served-model field or its seats' trajectories were unreadable, which is NOT the same as a run that matched its configuration.\n")

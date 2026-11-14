@@ -41,17 +41,19 @@ var flagExemptions = map[string]string{
 	// depends on. Read that, not this line, to know whether the flag still works. It was driven
 	// NOWHERE until 2026-09-08 — invisible because persistent flags were absent from the
 	// coverage denominator entirely.
-	"schema":         "printed by the root before dispatch and shelled by setup's epoch guard, not by a seat; asserted in internal/cli by TestSchemaFlagPrintsTheEpochSetupCompares",
-	"bin-dir":        "setup's flag, and setup is exempt from the sweep (it CREATES a run; the harness builds its own)",
-	"topic":          "setup's flag, as above",
-	"cite":           "setup's flag, as above",
-	"lanes":          "setup's flag, as above",
-	"format":         "graph's renderer selector; both values are driven by the format oracle, not the random sweep",
-	"watch":          "dashboard's follow mode blocks until the run-live marker lifts — a sweep driving it would never return",
-	"serve":          "dashboard's HTTP mode binds a port and blocks, as above",
-	"now":            "dashboard's clock injection, for its own deterministic tests",
-	"model":          "dashboard's tier labels, read from run-config in a real run",
-	"judgment-model": "as above",
+	"schema":           "printed by the root before dispatch and shelled by setup's epoch guard, not by a seat; asserted in internal/cli by TestSchemaFlagPrintsTheEpochSetupCompares",
+	"bin-dir":          "setup's flag, and setup is exempt from the sweep (it CREATES a run; the harness builds its own)",
+	"topic":            "setup's flag, as above",
+	"cite":             "setup's flag, as above",
+	"lanes":            "setup's flag, as above",
+	"format":           "graph's renderer selector; both values are driven by the format oracle, not the random sweep",
+	"watch":            "dashboard's follow mode blocks until the run-live marker lifts — a sweep driving it would never return",
+	"serve":            "dashboard's HTTP mode binds a port and blocks, as above",
+	"now":              "dashboard's clock injection, for its own deterministic tests",
+	"bulk":             "setup's and dashboard's bulk-tier model flag, read from run-config in a real run",
+	"judgment":         "setup's and dashboard's judgment-tier model flag, as above",
+	"seat":             "setup's and dashboard's per-seat model override flag, as above",
+	"skip-model-check": "setup's flag skipping live Antigravity model discovery",
 }
 
 // enumExemptions are enum values no sweep can reach, each with its reason.

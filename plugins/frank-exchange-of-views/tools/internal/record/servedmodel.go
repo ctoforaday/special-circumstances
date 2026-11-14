@@ -57,12 +57,12 @@ func (s SeatModel) Substituted() bool { return s.Requested != "" && s.Requested 
 // THE LATEST SITTING WINS: a re-dispatched seat opens a fresh sitting, and its opening names the
 // agent of that sitting. A seat re-dispatched into a substituted environment must not be masked by
 // its first, clean dispatch.
-// SUBSTITUTION IS DETECTED HERE, NOT AT REGISTER. `run` supplies the configured tier per class;
+// SUBSTITUTION IS DETECTED HERE, NOT AT REGISTER. `run` supplies the configured model per seat;
 // pass an empty Run to skip the comparison and report only what answered.
 func SeatModels(run Run, f Family) []SeatModel {
-	model, judgmentModel := "", ""
+	var seats map[string]modeltier.SeatSpec
 	if run.Dir() != "" {
-		model, judgmentModel = modeltier.Config(run.Dir())
+		seats = modeltier.SeatConfigs(run.Dir())
 	}
 	order := []string{}
 	bySeat := map[string]*SeatModel{}
@@ -122,11 +122,8 @@ func SeatModels(run Run, f Family) []SeatModel {
 			obs = servedmodel.Observation{Served: m}
 		}
 		row.Served, row.Requested, row.NotMeasured = obs.Served, obs.Requested, ""
-		configured := model
-		if row.Class == "judgment" {
-			configured = judgmentModel
-		}
-		row.Substitution = TierSubstitution(run, configured, obs)
+		spec, _ := modeltier.LookupSeat(seats, seat)
+		row.Substitution = TierSubstitution(run, spec.Model, obs)
 	}
 	out := make([]SeatModel, 0, len(order))
 	for _, s := range order {
@@ -199,17 +196,21 @@ func servedOnRecord(run Run) map[string]string {
 // under test excusing itself.
 func TierSubstitution(run Run, configured string, o servedmodel.Observation) string {
 	if o.Served == "" || configured == "" {
-		return "" // NOT MEASURED, or a run that declared no tier for this class
+		return "" // NOT MEASURED, or a run that declared no model for this seat
 	}
-	want, got := modeltier.Of(configured), modeltier.Of(o.Served)
-	if want == got && !o.Substituted() {
+	if modeltier.SameModel(configured, o.Served) && !o.Substituted() {
 		return ""
 	}
 	declared := ""
 	if o.Substituted() {
 		declared = " The harness declared the substitution itself: " + o.Requested + " -> " + o.Served + "."
 	}
-	msg := "configured " + configured + " (" + want + " tier), served " + o.Served + " (" + got + " tier)." + declared
+	var msg string
+	if modeltier.Recognized(configured) && modeltier.Recognized(o.Served) {
+		msg = "configured " + configured + " (" + modeltier.Of(configured) + " tier), served " + o.Served + " (" + modeltier.Of(o.Served) + " tier)." + declared
+	} else {
+		msg = "configured " + configured + ", served " + o.Served + "." + declared
+	}
 	if run.Dir() != "" && allowSubstitution(run) {
 		return "ALLOWED BY THIS RUN'S CONFIG — " + msg
 	}

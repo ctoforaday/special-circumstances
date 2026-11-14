@@ -343,17 +343,25 @@ func Read(event string, stdin io.Reader) Request {
 	if s, ok := env["agent_transcript_path"].(string); ok {
 		req.AgentTranscriptPath = s
 	}
+	if s, ok := env["agentName"].(string); ok && s != "" && req.AgentType == "" {
+		req.AgentType = s
+		if req.Engine == EngineAntigravity {
+			if req.AgentID == "" {
+				req.AgentID = req.SessionID
+			}
+			if req.AgentTranscriptPath == "" {
+				req.AgentTranscriptPath = req.TranscriptPath
+			}
+		}
+	}
 	if parent, ok := env["parentConversationId"].(string); ok && parent != "" {
 		if req.AgentID == "" {
 			req.AgentID = req.SessionID
 		}
-		req.SessionID = parent
-		if s, ok := env["agentName"].(string); ok && req.AgentType == "" {
-			req.AgentType = s
-		}
 		if req.AgentTranscriptPath == "" {
 			req.AgentTranscriptPath = req.TranscriptPath
 		}
+		req.SessionID = parent
 	}
 
 	// Compact & user input
@@ -599,6 +607,17 @@ type pendingItem struct {
 	Say               string `json:"say,omitempty"`
 }
 
+// pendingQueueKey identifies which Antigravity conversation owns a queued PreInvocation step.
+// Subagent hooks promote parentConversationId to req.SessionID while storing the child's own
+// conversationId in req.AgentID; keying on AgentID keeps concurrent subagents isolated rather
+// than colliding in pending_<parent>.jsonl.
+func pendingQueueKey(req Request) string {
+	if req.AgentID != "" {
+		return req.AgentID
+	}
+	return req.SessionID
+}
+
 func queuePending(pluginDataDir, sessionID string, item pendingItem) {
 	if pluginDataDir == "" || sessionID == "" {
 		return
@@ -683,10 +702,10 @@ func Respond(req Request, resp Response, stdout, stderr io.Writer, rec Settler) 
 func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 	switch req.Event {
 	case "PreToolUse":
-		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" && resp.Say == "" {
+		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" && len(resp.UpdatedInput) == 0 && resp.Say == "" {
 			return 0
 		}
-		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" && resp.Say != "" {
+		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" && len(resp.UpdatedInput) == 0 && resp.Say != "" {
 			out := map[string]any{"systemMessage": resp.Say}
 			b, _ := json.Marshal(out)
 			fmt.Fprintln(stdout, string(b))
@@ -706,7 +725,7 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			out.HookSpecificOutput.PermissionDecision = string(resp.Decision)
 			out.HookSpecificOutput.PermissionDecisionReason = resp.Reason
 		}
-		if resp.UpdatedInput != nil {
+		if len(resp.UpdatedInput) > 0 {
 			out.HookSpecificOutput.UpdatedInput = resp.UpdatedInput
 		} else if resp.UpdatedCommand != "" {
 			updated := make(map[string]any, len(req.RawToolInput)+1)
@@ -715,6 +734,9 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			}
 			updated["command"] = resp.UpdatedCommand
 			out.HookSpecificOutput.UpdatedInput = updated
+		}
+		if len(out.HookSpecificOutput.UpdatedInput) > 0 && out.HookSpecificOutput.PermissionDecision == "" {
+			out.HookSpecificOutput.PermissionDecision = string(DecisionAllow)
 		}
 		out.SystemMessage = resp.Say
 		b, _ := json.Marshal(out)
@@ -837,17 +859,20 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 				out.DenyReason = resp.Reason
 			}
 		}
-		if resp.UpdatedInput != nil {
+		if len(resp.UpdatedInput) > 0 {
 			out.Overwrite = resp.UpdatedInput
 		} else if resp.UpdatedCommand != "" {
 			out.Overwrite = map[string]any{
 				"CommandLine": resp.UpdatedCommand,
 			}
 		}
-		if resp.Say != "" {
-			queuePending(req.PluginDataDir, req.SessionID, pendingItem{Say: resp.Say})
+		if len(out.Overwrite) > 0 && out.Decision == "" {
+			out.Decision = string(DecisionAllow)
 		}
-		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" {
+		if resp.Say != "" {
+			queuePending(req.PluginDataDir, pendingQueueKey(req), pendingItem{Say: resp.Say})
+		}
+		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" && len(resp.UpdatedInput) == 0 {
 			return 0
 		}
 		b, _ := json.Marshal(out)
@@ -856,7 +881,7 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 
 	case "PostTool", "PostToolUse", "PostToolUseFailure":
 		if resp.Feedback != "" || resp.AdditionalContext != "" || resp.Say != "" {
-			queuePending(req.PluginDataDir, req.SessionID, pendingItem{
+			queuePending(req.PluginDataDir, pendingQueueKey(req), pendingItem{
 				Feedback:          resp.Feedback,
 				AdditionalContext: resp.AdditionalContext,
 				Say:               resp.Say,
@@ -866,7 +891,7 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 		return 0
 
 	case "PreInvocation", "SessionStart":
-		pending := flushPending(req.PluginDataDir, req.SessionID)
+		pending := flushPending(req.PluginDataDir, pendingQueueKey(req))
 		var injectSteps []map[string]any
 
 		for _, p := range pending {

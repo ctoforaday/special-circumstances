@@ -96,7 +96,7 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 	}
 	sort.Strings(fragments)
 
-	ds, sites := driveEverySite(t, agentTypes, debatejs.Config{Topic: "fragment dispatch", Lanes: 2, Model: "haiku", JudgmentModel: "haiku"})
+	ds, sites := driveEverySite(t, agentTypes, debatejs.Config{Topic: "fragment dispatch", Lanes: 2, Seats: debatejs.TieredSeats("haiku", "haiku")})
 
 	type pair struct {
 		site int

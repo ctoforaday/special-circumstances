@@ -884,3 +884,89 @@ func TestContractMalformedStdinEnvironmentRoots(t *testing.T) {
 		t.Errorf("req.ProjectDir = %q, want %q", req.ProjectDir, "/tmp/fake-proj-dir")
 	}
 }
+
+func TestPendingQueueIsolatesConcurrentSubagents(t *testing.T) {
+	dataDir := t.TempDir()
+
+	// Two subagents share a parentConversationId; queueing for sub-1 must not flush into sub-2.
+	sub1Post := Read("PostToolUse", strings.NewReader(`{"conversationId":"sub-1","parentConversationId":"root-1"}`))
+	sub1Post.Engine = EngineAntigravity
+	sub1Post.PluginDataDir = dataDir
+
+	sub2Post := Read("PostToolUse", strings.NewReader(`{"conversationId":"sub-2","parentConversationId":"root-1"}`))
+	sub2Post.Engine = EngineAntigravity
+	sub2Post.PluginDataDir = dataDir
+
+	var out, errBuf bytes.Buffer
+	Respond(sub1Post, Response{Feedback: "msg-for-sub-1"}, &out, &errBuf, nil)
+	Respond(sub2Post, Response{Feedback: "msg-for-sub-2"}, &out, &errBuf, nil)
+
+	sub2Pre := Read("PreInvocation", strings.NewReader(`{"conversationId":"sub-2","parentConversationId":"root-1"}`))
+	sub2Pre.Engine = EngineAntigravity
+	sub2Pre.PluginDataDir = dataDir
+	out.Reset()
+	Respond(sub2Pre, Response{}, &out, &errBuf, nil)
+	if !strings.Contains(out.String(), "msg-for-sub-2") || strings.Contains(out.String(), "msg-for-sub-1") {
+		t.Fatalf("sub-2 flushed wrong messages: %s", out.String())
+	}
+
+	sub1Pre := Read("PreInvocation", strings.NewReader(`{"conversationId":"sub-1","parentConversationId":"root-1"}`))
+	sub1Pre.Engine = EngineAntigravity
+	sub1Pre.PluginDataDir = dataDir
+	out.Reset()
+	Respond(sub1Pre, Response{}, &out, &errBuf, nil)
+	if !strings.Contains(out.String(), "msg-for-sub-1") || strings.Contains(out.String(), "msg-for-sub-2") {
+		t.Fatalf("sub-1 flushed wrong messages: %s", out.String())
+	}
+
+	// Standalone agy agent with agentName and no parentConversationId still populates AgentID/AgentType.
+	standalone := Read("SessionStart", strings.NewReader(`{"conversationId":"agy-1","agentName":"red-chair","artifactDirectoryPath":"/tmp/brain/agy-1"}`))
+	if standalone.AgentID != "agy-1" || standalone.AgentType != "red-chair" || !strings.HasSuffix(standalone.AgentTranscriptPath, "transcript.jsonl") {
+		t.Fatalf("standalone agy normalization failed: %+v", standalone)
+	}
+}
+
+func TestRespondUpdatedInputEmitsWithoutExplicitDecision(t *testing.T) {
+	// UpdatedInput alone (with DecisionNone) must not early-return on either harness.
+	claudeReq := Request{Engine: EngineClaude, Event: "PreToolUse"}
+	var stdout, stderr bytes.Buffer
+	code := Respond(claudeReq, Response{
+		Say:          "model injected",
+		UpdatedInput: map[string]any{"model": "haiku", "prompt": "hi"},
+	}, &stdout, &stderr, nil)
+	if code != 0 {
+		t.Fatalf("Claude Respond exit = %d, want 0", code)
+	}
+	var claudeOut struct {
+		HookSpecificOutput struct {
+			PermissionDecision string         `json:"permissionDecision"`
+			UpdatedInput       map[string]any `json:"updatedInput"`
+		} `json:"hookSpecificOutput"`
+		SystemMessage string `json:"systemMessage"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &claudeOut); err != nil {
+		t.Fatalf("unmarshal Claude output %q: %v", stdout.String(), err)
+	}
+	if claudeOut.HookSpecificOutput.PermissionDecision != "allow" || claudeOut.HookSpecificOutput.UpdatedInput["model"] != "haiku" {
+		t.Fatalf("Claude output dropped updatedInput: %s", stdout.String())
+	}
+
+	agyReq := Request{Engine: EngineAntigravity, Event: "PreTool", SessionID: "agy-s1", PluginDataDir: t.TempDir()}
+	stdout.Reset()
+	code = Respond(agyReq, Response{
+		UpdatedInput: map[string]any{"Model": "flash_lite", "Prompt": "hi"},
+	}, &stdout, &stderr, nil)
+	if code != 0 {
+		t.Fatalf("Antigravity Respond exit = %d, want 0", code)
+	}
+	var agyOut struct {
+		Decision  string         `json:"decision"`
+		Overwrite map[string]any `json:"overwrite"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &agyOut); err != nil {
+		t.Fatalf("unmarshal Antigravity output %q: %v", stdout.String(), err)
+	}
+	if agyOut.Decision != "allow" || agyOut.Overwrite["Model"] != "flash_lite" {
+		t.Fatalf("Antigravity output dropped overwrite: %s", stdout.String())
+	}
+}

@@ -31,8 +31,8 @@ td, th { font-variant-numeric: tabular-nums; }
 <p class="muted">generated 2025-01-16T00:00:00.000Z · auto-refreshes every 20s · dollars are list-rate estimates</p>
 <h2>Run configuration</h2>
 <table>
-<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>sonnet</b></td></tr>
-<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>opus</b></td></tr>
+<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>claude:sonnet</b></td></tr>
+<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>claude:opus</b></td></tr>
 <tr><td>blue lanes <span class="muted">best-of-N candidate drafts</span></td><td class="nowrap">3</td></tr>
 </table>
 <h2>Progress (epochs segmented by the ceiling — judged termination may end the run earlier)</h2>
