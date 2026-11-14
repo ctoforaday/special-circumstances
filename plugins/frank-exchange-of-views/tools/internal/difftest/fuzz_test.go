@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
 // TestReplayDeterminism drives random valid-ish verb sequences through the tool
@@ -110,6 +111,7 @@ func TestReplayDeterminism(t *testing.T) {
 		t.Skip("determinism fuzz spawns two processes per command; skipped under -short")
 	}
 	bin := buildBinary(t)
+	writer := testbuild.Binary(t, "feov-sitting-write")
 
 	// EVERY sequence is generated before any runs. Generating inside the subtest drew from the
 	// shared rng only for the sequences a -run filter let through, so `-run .../seq03` replayed
@@ -132,8 +134,8 @@ func TestReplayDeterminism(t *testing.T) {
 		t.Run(fmt.Sprintf("seq%02d", i), func(t *testing.T) {
 			ran++
 			t.Logf("sequence:%s", dumpSeq(cmds))
-			first := replay(t, bin, cmds)
-			second := replay(t, bin, cmds)
+			first := replay(t, bin, writer, cmds)
+			second := replay(t, bin, writer, cmds)
 
 			// Tallied from the FIRST replay: the same runGo invocation the comparison below
 			// rests on, so "this arm landed" is a claim about the command the fuzz actually ran.
@@ -224,7 +226,7 @@ type replayResult struct {
 	setup int
 }
 
-func replay(t *testing.T, bin string, cmds []cmd) replayResult {
+func replay(t *testing.T, bin, writer string, cmds []cmd) replayResult {
 	t.Helper()
 	// TmpRun, not t.TempDir: collect opens the record in this process, and the cached handle
 	// must be released before cleanup removes the directory — or Windows cannot remove it.
@@ -268,6 +270,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 		if inv.code != 0 {
 			t.Fatalf("fuzz prologue %s %v: exit %d\nstderr: %s", pre.verb, pre.args, inv.code, inv.stderr)
 		}
+		handNext(t, writer, runDir, seatOfArgs(pre.args))
 		m.observe(filepath.Join(runDir, "records"))
 		// READ FOR ITS IDS: each id the prologue prints takes its placeholder here, in print order.
 		normalizeOutput(inv, runDir, m)
@@ -293,6 +296,9 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	for _, c := range cmds {
 		c.args = fillVars(c.args, vars)
 		inv := runGo(bin, runDir, m, c)
+		if inv.code == 0 {
+			handNext(t, writer, runDir, seatOfArgs(c.args))
+		}
 		envelopeVars(inv.stdout, vars)
 		m.observe(filepath.Join(runDir, "records"))
 		got := normalizeOutput(inv, runDir, m)
