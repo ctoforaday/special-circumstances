@@ -35,10 +35,9 @@ type Config struct {
 	SkipModelCheck bool
 	Cites          []string
 	Lanes          string
-	// The run's terms (plans/roundless.md §III.B.2): K, KMax and the convergence fraction. Zero means "setup's default", which is written out so the file always
+	// The run's terms (plans/roundless.md §III.B.2): K and KMax. Zero means "setup's default", which is written out so the file always
 	// states what bound the run.
-	K, KMax             int
-	ConvergenceFraction float64
+	K, KMax int
 	// MaxEpochs is the run's epoch limit; zero is setup's default unless MaxEpochsSet says the
 	// operator passed it, and a value the operator passed below 1 is refused.
 	MaxEpochs    int
@@ -295,9 +294,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.KMax > 0 {
 		terms.KMax = cfg.KMax
 	}
-	if cfg.ConvergenceFraction > 0 {
-		terms.ConvergenceFraction = cfg.ConvergenceFraction
-	}
 	if cfg.MaxEpochs > 0 {
 		terms.MaxEpochs = cfg.MaxEpochs
 	}
@@ -309,10 +305,11 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 	// AN ENCODING FAILURE IS NOT A DIRECTORY'S: nothing was written, and a writable directory would
-	// fail the same way. JSON holds no infinite or NaN number, which a float flag parses from "inf".
+	// fail the same way. No flag setup takes holds a value JSON cannot, so the failure is setup's own
+	// and is said as one.
 	failEncode := func(err error) int {
 		fmt.Fprintf(stderr, "run-setup: could not encode the run's configuration (inputs/run-config.json): %v\n", err)
-		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: pass each flag a value JSON can hold (a finite number), then re-run setup")
+		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. This is a defect in setup, not in the flags passed: report it with this message")
 		return 2
 	}
 	hooks, err := marshalJSON(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
@@ -320,7 +317,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return failEncode(err)
 	}
 	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Seats: seatSpecs, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect,
-		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
+		K: new(terms.K), KMax: new(terms.KMax), MaxEpochs: new(terms.MaxEpochs),
 		Hooks:   hooks,
 		Billing: ReadBillingIdentity()}
 	b, err := marshalJSON(rc)

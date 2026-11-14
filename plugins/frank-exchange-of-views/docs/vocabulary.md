@@ -169,10 +169,6 @@ A failed sitting is a sitting of a seat whose work arrives as items that closed 
 
 **Delivered to:** operator
 
-**Collisions:**
-
-- **FAIL (a verdict)** — the chair's FAIL is a judgement on the board; a failed sitting is a sitting that ended without its envelope admitted, and judges nothing
-
 ## exchange
 
 An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.
@@ -401,7 +397,7 @@ A finding anchor is the anchor a lens's finding leaves at the sentence the findi
 
 ## verdict
 
-The verdict is the chair's PASS or FAIL on the board.
+The verdict is the chair's PASS on the board.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -476,7 +472,7 @@ A reading is a lens's recorded account of what one source did for one sentence o
 **Collisions:**
 
 - **reading (OCR)** — the OCR reading is the machine's reading of a scanned document's page images (`reading_render_sha`, `render-page`'s `reading:` line, OCR-derived text); a lens's reading is a recorded check of a source against a sentence, and a page's OCR reading may be what a lens's reading finds wrong
-- **verdict** — the verdict is the chair's PASS or FAIL; a reading has an outcome, and a reading that reads nothing is never called a verdict
+- **verdict** — the verdict is the chair's PASS; a reading has an outcome, and a reading that reads nothing is never called a verdict
 - **report read** — a report read is the tool serving a lens the whole report; a reading is a lens's check of one source against one sentence
 
 ## retire

@@ -1,6 +1,6 @@
 ## menu
 
-the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+the seat's terminal act: the PASS, and the checkpoint that follows it
 
 ## detail
 
@@ -8,4 +8,4 @@ It prints the plan as `dispatch next` prints it, asked of the record this verdic
 
 A PASS is REFUSED while anything still holds it — {{.PassBlockerKinds}}. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 
-A FAIL is for a board that, as it stands, still stops you. It is refused over a converged board — nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak — where nothing another seat must clear holds the PASS: there, PASS, or record no verdict.
+PASS is the one verdict. A sitting whose plan permits no PASS records none. A PASS the plan permits is withheld by a `position` arguing why, which the bench hears, and its ruling binds: overruled, your next sitting owes the PASS, and a position there is refused.

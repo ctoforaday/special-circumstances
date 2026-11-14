@@ -294,9 +294,9 @@ func (r *runner) rulePositions(seatID, occasion string) {
 		switch {
 		case r.forcePosition != "":
 			form = r.forcePosition
-		// A FORCED RUN'S BENCH OVERRULES, and drives no refusal: its chair's next sitting decides on
-		// the PASS, so the forced run keeps the exit it is forced to (UNVERIFIED: its chair leaves its
-		// own motions unruled, so that verdict is a FAIL or none).
+		// A FORCED RUN'S BENCH OVERRULES, and drives no refusal: its chair's next sitting owes the
+		// PASS, so the forced run keeps the exit it is forced to (UNVERIFIED: its chair leaves its
+		// own motions unruled, so the PASS is refused and no verdict is recorded).
 		case r.forcedVerdict(), r.coin(50):
 			form = "overruled"
 		case len(open) > 0 && r.coin(50):

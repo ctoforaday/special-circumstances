@@ -271,15 +271,20 @@ func (Grade) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{1}
 }
 
-// Verdict is red's binary gate. PASS is CHECKED against the open board, not taken on the seat's
-// word — which is why the set is closed: `--as pass` once recorded a PASS that skipped the check
-// entirely, and `--as banana` recorded a banana.
+// Verdict is the chair's gate, and its one value is PASS. PASS is CHECKED against the open board,
+// not taken on the seat's word — which is why the set is closed: `--as pass` once recorded a PASS
+// that skipped the check entirely, and `--as banana` recorded a banana.
+//
+// THERE IS NO FAIL (EventSchema 78). A recorded FAIL changed no outcome and no dispatch: the run's
+// outcome is derived from the record (verdict.go), so a word the chair asserted against the board
+// told a reader nothing the plan did not. The chair withholds a PASS its plan permits by filing a
+// position, which the bench hears, and the bench's ruling on it binds. A stored event carries the
+// number, so it does not come back meaning something else.
 type Verdict int32
 
 const (
 	Verdict_VERDICT_UNSPECIFIED Verdict = 0
 	Verdict_VERDICT_PASS        Verdict = 1
-	Verdict_VERDICT_FAIL        Verdict = 2
 )
 
 // Enum value maps for Verdict.
@@ -287,12 +292,10 @@ var (
 	Verdict_name = map[int32]string{
 		0: "VERDICT_UNSPECIFIED",
 		1: "VERDICT_PASS",
-		2: "VERDICT_FAIL",
 	}
 	Verdict_value = map[string]int32{
 		"VERDICT_UNSPECIFIED": 0,
 		"VERDICT_PASS":        1,
-		"VERDICT_FAIL":        2,
 	}
 )
 
@@ -3833,7 +3836,7 @@ type Regrade struct {
 	// (recordsql.stampRegradeResult). On each axis: this regrade's grade where it names one, else the
 	// grade the gap held before it — the result of the gap's latest earlier regrade, or the mint's
 	// grade when there is none. Both inputs are fixed once this regrade is written, so the stored
-	// grades are the gap's grades from this regrade until the next, and gap_grade reads them rather
+	// grades are the gap's grades from this regrade until the next, and the gap view reads them rather
 	// than deriving them. An axis nothing ever graded stays absent.
 	ResultSeverity       *Grade `protobuf:"varint,7,opt,name=result_severity,json=resultSeverity,proto3,enum=feov.record.v1.Grade,oneof" json:"result_severity,omitempty"`
 	ResultLikelihood     *Grade `protobuf:"varint,8,opt,name=result_likelihood,json=resultLikelihood,proto3,enum=feov.record.v1.Grade,oneof" json:"result_likelihood,omitempty"`
@@ -6993,7 +6996,7 @@ func (x *EnvelopeAdmitted) GetAgentId() string {
 	return ""
 }
 
-// Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.
+// Gate carries the chair's PASS on the open board, as of this sitting.
 //
 // IT WAS `RoundVerdict`. The round left the record (plans/roundless.md §III.A.2) and a name that
 // carried it would have been the last live surface saying the debate is paced in rounds; the
@@ -8277,7 +8280,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\xd8&\n" +
+	"\b_holding*\xc2&\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8302,8 +8305,8 @@ const file_record_proto_rawDesc = "" +
 	"\x12EVENT_TYPE_REGRADE\x10\x19\x1a8\x8a\xb5\x184a gap's grade changed, with the basis for the change\x12\x84\x01\n" +
 	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aj\x8a\xb5\x18fred checking a recorded computation against its bundle's re-run, and whether what it computes is sound\x12b\n" +
 	"\x11EVENT_TYPE_RETIRE\x10\x1b\x1aK\x8a\xb5\x18Ga claim retired from the report, with the reason and what supersedes it\x12n\n" +
-	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aS\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\x12b\n" +
-	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1aJ\x8a\xb5\x18Fthe chair's verdict for its epoch: PASS or FAIL against the open board\x12x\n" +
+	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aS\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\x12L\n" +
+	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1a4\x8a\xb5\x180the chair's PASS, checked against the open board\x12x\n" +
 	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1aa\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\x12\xcd\x01\n" +
 	"\x16EVENT_TYPE_REPORT_PART\x10!\x1a\xb0\x01\x8a\xb5\x18\xab\x01a lane's part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them\x12\x93\x01\n" +
 	"\x17EVENT_TYPE_SITTING_OPEN\x10\"\x1av\x8a\xb5\x18rthe harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat\x12^\n" +
@@ -8325,11 +8328,10 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"GRADE_HIGH\x10\x06\x1a\x16\x8a\xb5\x18\aserious\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\b@\x12\xaf\x01\n" +
 	"\rGRADE_CERTAIN\x10\a\x1a\x9b\x01\x8a\xb5\x18\x8b\x01the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\f@\x12\xbc\x01\n" +
-	"\x0eGRADE_REALIZED\x10\b\x1a\xa7\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00*\xc9\x02\n" +
+	"\x0eGRADE_REALIZED\x10\b\x1a\xa7\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00*\xfa\x01\n" +
 	"\aVerdict\x12\x17\n" +
 	"\x13VERDICT_UNSPECIFIED\x10\x00\x12\xc1\x01\n" +
-	"\fVERDICT_PASS\x10\x01\x1a\xae\x01\x8a\xb5\x18\xa9\x01nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word\x12a\n" +
-	"\fVERDICT_FAIL\x10\x02\x1aO\x8a\xb5\x18Kthe board, as it stands, still stops you — refused over a converged board*\x8c\x05\n" +
+	"\fVERDICT_PASS\x10\x01\x1a\xae\x01\x8a\xb5\x18\xa9\x01nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word\"\x04\b\x02\x10\x02*\fVERDICT_FAIL*\x8c\x05\n" +
 	"\n" +
 	"RunOutcome\x12\x1b\n" +
 	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12a\n" +
@@ -8420,14 +8422,14 @@ const file_record_proto_rawDesc = "" +
 	"\x11RERUN_UNSPECIFIED\x10\x00\x12l\n" +
 	"\x10RERUN_REPRODUCED\x10\x01\x1aV\x8a\xb5\x18Rthe bundle's re-run wrote this act's recorded output, exit and out/, byte for byte\x12\x80\x01\n" +
 	"\rRERUN_DIFFERS\x10\x02\x1am\x8a\xb5\x18ithe bundle's re-run wrote something other than this act's recorded output, exit or out/; drift names what\x12\xb1\x01\n" +
-	"\x14RERUN_CALLS_THE_TOOL\x10\x03\x1a\x96\x01\x8a\xb5\x18\x91\x01the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced\"\x04\b\x04\x10\x04*\rRERUN_NOT_RUN*\xcf\x0e\n" +
+	"\x14RERUN_CALLS_THE_TOOL\x10\x03\x1a\x96\x01\x8a\xb5\x18\x91\x01the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced\"\x04\b\x04\x10\x04*\rRERUN_NOT_RUN*\xcb\x0e\n" +
 	"\rInquiryStatus\x12\x1e\n" +
 	"\x1aINQUIRY_STATUS_UNSPECIFIED\x10\x00\x12\xb2\x01\n" +
 	"\x17INQUIRY_STATUS_PROPOSED\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01put forward and undecided — the state `inquiry propose` gives an inquiry; it owes a fate, and holds the PASS until it has one that settles it\x12\xc7\x01\n" +
 	"\x17INQUIRY_STATUS_UNDERWAY\x10\x02\x1a\xa9\x01\x8a\xb5\x18\xa4\x01you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached\x12\x96\x02\n" +
 	"\x18INQUIRY_STATUS_CONFIRMED\x10\x06\x1a\xf7\x01\x8a\xb5\x18\xf2\x01you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`\x12\xc3\x02\n" +
-	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this\x12\xee\x01\n" +
-	"\x17INQUIRY_STATUS_DEFERRED\x10\x03\x1a\xd0\x01\x8a\xb5\x18\xcb\x01left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it\x12\xc7\x02\n" +
+	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this\x12\xea\x01\n" +
+	"\x17INQUIRY_STATUS_DEFERRED\x10\x03\x1a\xcc\x01\x8a\xb5\x18\xc7\x01left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it\x12\xc7\x02\n" +
 	"\x17INQUIRY_STATUS_DECLINED\x10\x04\x1a\xa9\x02\x8a\xb5\x18\xa4\x02you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\x84\x02\n" +
 	"\x18INQUIRY_STATUS_ABANDONED\x10\x05\x1a\xe5\x01\x8a\xb5\x18\xe0\x01you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this*\x98\x05\n" +
 	"\rMotionSubject\x12\x1e\n" +

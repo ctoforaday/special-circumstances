@@ -30,7 +30,8 @@ func storedPlan(permitted bool) *recordpb.Plan {
 // sitting that withheld a PASS its plan permitted filed its position, and it is held here to
 // record.PositionSittings on one record at one reading.
 //
-//   - missing: the audit FAILS naming the sitting; the chair's list holds no item.
+//   - missing: the audit FAILS naming the sitting; while it is the chair's latest, its list holds the
+//     PASS-or-position item, by the same fold of the sitting's acts.
 //   - unresolved: no FAIL — NOT MEASURED, and a SKIP.
 //   - not owed (the PASS recorded, or none permitted): no finding.
 //   - filed: nothing anywhere but the position.
@@ -53,7 +54,8 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 		return append(out, act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(agent)}})
 	}
 	withheld := sits("chair-a", storedPlan(true), position)
-	// The bench overrules the position: the chair's next sitting owes the verdict (gblock, 2026-10-30).
+	// The bench overrules the position, and its ruling binds: the chair's next sitting owes the PASS
+	// (gblock, 2026-10-30, 2026-11-13).
 	overruled := append(append([]act{}, withheld...), act{"judge", &recordpb.MotionRule{MotionId: proto.String(position.GetPositionId()), Opinion: proto.String("the objection does not hold"),
 		Ruling: &recordpb.MotionRule_Position{Position: &recordpb.PositionHearing{Ruling: recordpb.PositionRuling_POSITION_RULING_OVERRULED.Enum()}}}})
 	type want struct {
@@ -84,12 +86,12 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 			after: want{states: []record.PositionState{record.PositionFiled, record.PositionMissing}, verdict: "FAIL",
 				detail: []string{"red-chair sitting 2, which withheld the PASS its plan permitted, filed no position"}},
 		},
-		"overruled, the next sitting closed with no verdict": {
+		"overruled, the next sitting closed without the PASS": {
 			acts: append(append([]act{}, overruled...), sits("chair-b", storedPlan(true))...),
 			running: want{states: []record.PositionState{record.PositionFiled, record.PositionVerdictMissing}, verdict: "FAIL",
-				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed with no verdict"}},
+				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed without the PASS"}},
 			after: want{states: []record.PositionState{record.PositionFiled, record.PositionVerdictMissing}, verdict: "FAIL",
-				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed with no verdict"}},
+				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed without the PASS"}},
 		},
 		"overruled, the next sitting recorded the PASS": {
 			acts:    append(append([]act{}, overruled...), sits("chair-b", storedPlan(true), &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})...),
@@ -191,26 +193,30 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// The chair's work list holds no item for the position itself; the sitting after an
-			// overruling holds the verdict it owes, while it has recorded none.
-			owesVerdict := false
-			for _, st := range c.after.states {
-				owesVerdict = owesVerdict || st == record.PositionVerdictMissing
-			}
-			verdictItem := false
+			// THE WORK LIST AND THE AUDIT READ ONE DUTY. The chair's latest sitting, while it sits,
+			// owes the PASS after an overruling, and otherwise the PASS or a position where its plan
+			// permits the PASS and it has recorded neither: the states the audit reads as short or
+			// unresolved for that sitting.
+			latest := c.running.states[len(c.running.states)-1]
+			owesPass := latest == record.PositionVerdictMissing
+			owesEither := latest == record.PositionMissing || latest == record.PositionUnresolved
+			passItem, eitherItem := false, false
 			for _, it := range cw.Sitting.Open {
-				if strings.Contains(it.What, "the bench overruled your position") {
-					verdictItem = true
+				if it.Kind != record.ItemVerdictOwed {
 					continue
 				}
-				// The heard position stands unruled as a motion the bench holds, and the PASS gate's
-				// blocker for it is on the list as every blocker is; that is not a duty to file one.
-				if strings.Contains(it.What, "position") && !strings.Contains(it.What, "(position, ruled by the bench seat) was filed and never ruled") {
-					t.Errorf("the chair's work list holds a position item: %q", it.What)
+				switch {
+				case strings.Contains(it.What, "the bench overruled your position"):
+					passItem = true
+				case strings.Contains(it.What, "record it, or withhold it with a position"):
+					eitherItem = true
+				default:
+					t.Errorf("the chair's work list holds a verdict item neither duty states: %q", it.What)
 				}
 			}
-			if verdictItem != owesVerdict {
-				t.Errorf("the chair's work list holds the overruled verdict item: %v; the sitting owes the verdict: %v", verdictItem, owesVerdict)
+			if passItem != owesPass || eitherItem != owesEither {
+				t.Errorf("the chair's work list holds the overruled PASS item %v and the PASS-or-position item %v; the sitting owes the PASS %v, the PASS or a position %v",
+					passItem, eitherItem, owesPass, owesEither)
 			}
 		})
 	}

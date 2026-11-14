@@ -41,12 +41,6 @@ func TestTheChairOwesAPositionWhereItWithheldAPermittedPass(t *testing.T) {
 			},
 			running: []PositionState{PositionMissing}, after: []PositionState{PositionMissing},
 		},
-		"permitted, a FAIL recorded, none filed": {
-			evs: func(t *testing.T) []*Event {
-				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), gate(t, recordpb.Verdict_VERDICT_FAIL), agentStops(t, "chair-a")}
-			},
-			running: []PositionState{PositionMissing}, after: []PositionState{PositionMissing},
-		},
 		"permitted, no PASS, filed": {
 			evs: func(t *testing.T) []*Event {
 				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), position(t), agentStops(t, "chair-a")}

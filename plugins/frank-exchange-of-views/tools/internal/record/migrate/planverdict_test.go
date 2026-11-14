@@ -45,10 +45,10 @@ func TestAStoredPlanCarriesTheVerdictItsSittingHadRecorded(t *testing.T) {
 	stamp := func(seat, key string, body proto.Message) *recordpb.Event {
 		return recordtest.Stamped(recordtest.At(t, seat, key, body), record.Stamp())
 	}
-	fail := recordpb.Verdict_VERDICT_FAIL
+	pass := recordpb.Verdict_VERDICT_PASS
 	evs = append(evs,
 		stamp("red-chair", "p1", &recordpb.Plan{Printed: proto.String(printed)}),
-		stamp("red-chair", "v", &recordpb.Gate{Verdict: &fail}),
+		stamp("red-chair", "v", &recordpb.Gate{Verdict: &pass}),
 		stamp("red-chair", "p2", &recordpb.Plan{Printed: proto.String(printed)}))
 	recordtest.Seed(t, dir, evs...)
 
@@ -72,7 +72,7 @@ func TestAStoredPlanCarriesTheVerdictItsSittingHadRecorded(t *testing.T) {
 	if after[0].Printed != printed {
 		t.Errorf("the plan stored before the verdict changed: %s", after[0].Printed)
 	}
-	if after[1].Plan.Verdict != "FAIL" || after[1].Plan.Key != plan.Key {
-		t.Errorf("the plan stored after the FAIL = verdict %q key %s, want FAIL under the same key %s", after[1].Plan.Verdict, after[1].Plan.Key, plan.Key)
+	if after[1].Plan.Verdict != "PASS" || after[1].Plan.Key != plan.Key {
+		t.Errorf("the plan stored after the PASS = verdict %q key %s, want PASS under the same key %s", after[1].Plan.Verdict, after[1].Plan.Key, plan.Key)
 	}
 }

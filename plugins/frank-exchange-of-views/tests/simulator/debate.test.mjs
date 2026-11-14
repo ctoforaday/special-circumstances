@@ -474,13 +474,13 @@ test('EPOCH LIMIT: the epoch before the last dispatches the lenses its plan name
   assert.ok(early.logs.some((m) => /epoch 3: the epoch limit \(4\) is reached/.test(m)))
 })
 
-test('a chair that records PASS ends the debate even if it relayed parties; a FAIL with parties continues', async () => {
+test('a chair that records PASS ends the debate even if it relayed parties; one that records no verdict with parties continues', async () => {
   const passing = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence')]), verdict: 'PASS' })] }))
   const out = await passing.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
   assert.equal(labelsOf(passing, 'red-lens').length, 0, 'PASS ends the sitting sequence')
-  const failing = makeWorld(makeResponder({ chair: [chairEnv({ verdict: 'FAIL' }), passChair()] }))
-  const out2 = await failing.run(script, ARGS)
+  const continuing = makeWorld(makeResponder({ chair: [chairEnv({}), passChair()] }))
+  const out2 = await continuing.run(script, ARGS)
   assert.equal(out2.verdict, 'VERIFIED')
   assert.equal(out2.epochs, 2)
 })
@@ -538,7 +538,7 @@ test('the chair runs the debate: copies no plan, mints nothing, closes nothing, 
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /COPY NONE OF IT/.test(p) && !/VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked: the plan stored last is the one that goes/.test(p))
-  assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
+  assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or withhold it with your position, which argues why/.test(p) && !/FAIL/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/RULE THE GRADE MOTIONS blue filed: a ruling is an ARGUMENT, not a command — it needs a reason\./.test(p))
   // THE CHAIR HOLDS NO INQUIRY DUTY: the logic lens checks each settled inquiry, and blue owes each open one a fate.
@@ -979,7 +979,7 @@ test('a read that owes the chair\'s position seats the bench; the next chair sit
   assert.ok(sitting >= 0, 'the position sitting fired')
   assert.ok(!heard.calls.some((c) => c.opts.label.startsWith('judge · petition')), 'a position convened a petition sitting')
   const prompt = heard.calls[sitting].prompt
-  for (const clause of ['upheld | overruled', 'NAMES THE WORK', 'one remand at impasse', 'next sitting decides on the PASS with a verdict', 'EITHER WAY THE OBJECTION IS DECIDED', 'not disposing of a position']) {
+  for (const clause of ['upheld | overruled', 'NAMES THE WORK', 'one remand at impasse', 'your ruling binds: the chair\'s next sitting owes the PASS', 'EITHER WAY THE OBJECTION IS DECIDED', 'not disposing of a position']) {
     assert.ok(prompt.includes(clause), `the position sitting's prompt lacks: ${clause}`)
   }
   const halting = makeWorld(makeResponder({ chair: [owing()], position: [{ record_read: read({ halted: true }) }] }))

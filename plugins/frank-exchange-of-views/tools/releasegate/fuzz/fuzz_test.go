@@ -5852,16 +5852,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.mu.Unlock()
 			}
 		}
-		// A FAIL names what stops the chair, and a FAIL over a converged board is refused — so
-		// the chair records one only while something material is open, and otherwise records no
-		// verdict this sitting, which is what the prompt tells it to do. The FAIL half of the
-		// verdict enum is still driven here, as it was: a FAIL is the ordinary mid-run sitting.
-		verdict, printed := "", ""
-		if len(r.openGaps()) > 0 {
-			verdict, printed = r.chairFail(seatID)
-		}
+		// THE VERDICT IS THE PASS ALONE: a sitting that records none relays no verdict. Where its
+		// plan permitted the PASS and the gate refused it, the position is still owed.
 		r.chairPosition(seatID, permitted)
-		return r.chairEnvelope(seatID, verdict, printed, responses)
+		return r.chairEnvelope(seatID, "", "", responses)
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.remandHeldBeforeRegister()
@@ -6813,7 +6807,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	}()
 	// The fuzz builds its run directly rather than through `setup`, so it must lay down the
 	// same inputs/run-config.json setup writes — the run's TERMS (plans/roundless.md §III.B.2:
-	// k, kMax, convergenceFraction, maxEpochs) are what `dispatch next` reads impasse from, and what
+	// k, kMax, maxEpochs) are what `dispatch next` reads impasse from, and what
 	// the CEILING verdict is DERIVED against (#308).
 	//
 	// TERMS TIGHTER THAN A SMOKE'S, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
@@ -8551,7 +8545,7 @@ var reportExemptions = map[string]string{
 	// (view.go); a shortfall reaches the reader as an ordinary gap about the inquiry.
 	"inquiry_check": "read by record.InquiryJudgements as the unchecked_inquiry PASS gate; the standing check prints on the inquiry's row, a stale one nowhere, and a shortfall the lens finds is minted as an ordinary gap about the inquiry, which is what reaches the reader",
 	"outcome":       "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":       "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	"verdict":       "the chair's PASS, consumed by DeriveVerdict into the terminal outcome and printed as each epoch's recorded verdict in the debate transcript's heading",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a

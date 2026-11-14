@@ -10,29 +10,26 @@ import "fmt"
 //   - K: consecutive exchanges on one gap with no movement before it is at impasse.
 //   - KMax: total exchanges on one gap before it is at impasse regardless — the monotone bound
 //     that a regrade per exchange cannot reset.
-//   - ConvergenceFraction: the board-mass fraction of the run's peak below which a FAIL over a
-//     board with nothing material is refused (§III.B.2.1).
 //   - MaxEpochs: the chair sittings the run gets. The sitting that opens epoch MaxEpochs
 //     dispatches nobody, and a run with parties still ready there ends CEILING (PlanDispatch).
 //
 // A smoke run is KMax = 2.
 type Params struct {
-	K                   int     `json:"k"`
-	KMax                int     `json:"kMax"`
-	ConvergenceFraction float64 `json:"convergenceFraction"`
-	MaxEpochs           int     `json:"maxEpochs"`
+	K         int `json:"k"`
+	KMax      int `json:"kMax"`
+	MaxEpochs int `json:"maxEpochs"`
 }
 
 // DefaultParams are the values setup writes when the operator names none. They are a starting
 // point the gate run measures (plans/roundless.md §V), stated as such.
-var DefaultParams = Params{K: 2, KMax: 6, ConvergenceFraction: 0.25, MaxEpochs: 12}
+var DefaultParams = Params{K: 2, KMax: 6, MaxEpochs: 12}
 
 // RunParams reads the run's terms. A run with no run-config.json, or one written before these
 // were recorded, gets the defaults — a real answer, and the same one setup would have written —
 // with ONE exception: MaxEpochs is 0, no limit, where the file does not state it. An epoch limit
 // the run was never held to is not a term of that run, and reading the default into it would
 // derive CEILING for a run whose engine never stopped at the limit. A value that is PRESENT and
-// unusable (zero or negative, a fraction outside (0, 1]) is an error: a limit of zero would put
+// unusable (zero or negative) is an error: a limit of zero would put
 // every gap at impasse before its first exchange, and a reader that silently repaired it would
 // hide exactly the misconfiguration the file exists to make visible.
 func RunParams(run Run) (Params, error) { return paramsIn(run.Dir()) }
@@ -66,34 +63,5 @@ func paramsIn(dir string) (Params, error) {
 	if err := set(&p.MaxEpochs, rc.MaxEpochs, "maxEpochs", "ends the run at its first chair sitting, before any seat is dispatched"); err != nil {
 		return p, err
 	}
-	p.ConvergenceFraction, err = rc.fraction()
-	return p, err
-}
-
-// convergenceFractionIn is the one term the convergence rule reads in the run directory dir, and
-// ONLY that term: a reader of the fraction is not refused for another term it never uses (an epoch
-// limit of 0 says nothing about what fraction of the peak a converged board sits below). No file, or
-// no fraction in it, is setup's default; a fraction outside (0, 1], or a file that does not parse, is
-// an error.
-func convergenceFractionIn(dir string) (float64, error) {
-	rc, err := readRunConfig(dir)
-	if err != nil {
-		return 0, err
-	}
-	if rc == nil {
-		return DefaultParams.ConvergenceFraction, nil
-	}
-	return rc.fraction()
-}
-
-// fraction is the stated convergence fraction, else setup's default.
-func (rc *RunConfig) fraction() (float64, error) {
-	if rc.ConvergenceFraction == nil {
-		return DefaultParams.ConvergenceFraction, nil
-	}
-	f := *rc.ConvergenceFraction
-	if !(f > 0 && f <= 1) {
-		return DefaultParams.ConvergenceFraction, fmt.Errorf("run-config.json convergenceFraction = %v — a fraction of the run's peak board mass, in (0, 1]", f)
-	}
-	return f, nil
+	return p, nil
 }

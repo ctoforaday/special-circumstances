@@ -342,7 +342,7 @@ func registerBeforeAppend(f record.Family) Check {
 //   - recordpb.Spelling derives `pass` and `verified` from the generated constant names, and
 //     recordpb's own TestBySpellingIsExactAndCaseSensitive pins that `PASS` does NOT resolve —
 //     so the schema's word for this set is lower case, deliberately.
-//   - enums.go still declares PASS|FAIL and VERIFIED|CEILING|HALTED|UNVERIFIED, `bench outcome`
+//   - enums.go still declares PASS and VERIFIED|CEILING|HALTED|UNVERIFIED, `bench outcome`
 //     still passes `--as VERIFIED`, record.DeriveVerdict still returns "VERIFIED", and the
 //     report's stamp still switches on the capital word.
 //

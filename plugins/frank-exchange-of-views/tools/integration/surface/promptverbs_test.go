@@ -1073,3 +1073,15 @@ func TestTheCatalogueThatWalkedPastThreeGatesIsCaught(t *testing.T) {
 		}
 	}
 }
+
+// walk calls fn on every command under c, help and completion aside, with its path from c.
+func walk(c *cobra.Command, prefix []string, fn func(path []string, c *cobra.Command)) {
+	for _, s := range c.Commands() {
+		if s.Name() == "help" || s.Name() == "completion" {
+			continue
+		}
+		path := append(append([]string{}, prefix...), s.Name())
+		fn(path, s)
+		walk(s, path, fn)
+	}
+}

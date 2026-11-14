@@ -1901,10 +1901,9 @@ type DebateOutcomeJSON struct {
 type DebateEpochJSON struct {
 	Epoch int `json:"epoch"`
 	// Verdict is the epoch's RECORDED verdict, and it is here because `red` is PROSE. A position
-	// may say "my verdict is PASS" while round_verdict holds fail — measured in
+	// may say "my verdict is PASS" while the record holds none — measured in
 	// research/2026-09-02_quadratic-formula, where a reader of the debate projection alone
-	// concluded the opposite of the record. Empty means no verdict was recorded for this epoch,
-	// which is a different fact from a verdict of fail and must not read as one.
+	// concluded the opposite of the record. Empty means no verdict was recorded for this epoch.
 	Verdict      string              `json:"verdict"`
 	Red          []string            `json:"red"`
 	Lead         []DebateOpinionJSON `json:"lead"`

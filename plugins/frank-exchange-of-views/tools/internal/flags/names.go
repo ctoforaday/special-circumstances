@@ -275,13 +275,12 @@ const (
 	Cite           = "cite"
 	Lanes          = "lanes"
 	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2).
-	K                   = "k"
-	KMax                = "k-max"
-	ConvergenceFraction = "convergence-fraction"
-	MaxEpochs           = "max-epochs"
-	BinDir              = "bin-dir"
-	RunID               = "run-id"
-	ScriptPath          = "script-path"
+	K          = "k"
+	KMax       = "k-max"
+	MaxEpochs  = "max-epochs"
+	BinDir     = "bin-dir"
+	RunID      = "run-id"
+	ScriptPath = "script-path"
 
 	// The operator `take-over` command: the session that leads a live run, named so a run is never
 	// taken from a lead the caller did not name.
@@ -331,7 +330,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,
 		Method,
-		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, ConvergenceFraction, MaxEpochs, BinDir, RunID, ScriptPath, FromSession,
+		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, MaxEpochs, BinDir, RunID, ScriptPath, FromSession,
 		Card, Watch, Now, Serve,
 		Sha, DPI, Force, OCR,
 	}

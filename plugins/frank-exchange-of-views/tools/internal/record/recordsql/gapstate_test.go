@@ -244,7 +244,7 @@ func gapStateSteps(r *demandRecord) []gapStep {
 }
 
 // gapStateFirstClosures is each gap's first closing act as gap_state holds it, after every step of
-// gapStateSteps: the act convergence_at and the window index read as the gap's closing.
+// gapStateSteps: the act the window index reads as the gap's closing.
 func gapStateFirstClosures(t *testing.T, db *sql.DB) map[string]string {
 	t.Helper()
 	rows, err := db.Query(`SELECT s."gap_id", COALESCE(e."type", 'open') FROM "gap_state" s LEFT JOIN "events" e ON e."id" = s."closed_event"`)

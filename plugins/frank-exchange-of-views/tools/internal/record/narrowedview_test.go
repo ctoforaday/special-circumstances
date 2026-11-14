@@ -93,7 +93,6 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.At(t, "red-chair", "red-chair:log:#9", &recordpb.Log{Text: str("the tool  refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		recordtest.At(t, "blue-respond", "blue-respond:computation:#9", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: str("K-00000002"), BundleSha: str("def")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		// Epoch 2: the chair sits again, dockets G2, the bench rules, red closes G1 and passes.
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: str("test")}),
 		recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: str("M1"), Basis: str("red cannot settle G2"),
@@ -197,7 +196,6 @@ func TestDebateJSONBytesCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: proto.String("test")}),
-		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: proto.String("test")}),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
 	)
@@ -213,7 +211,7 @@ func TestDebateJSONBytesCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	for _, e := range dj.Epochs {
 		got[e.Epoch] = e.Verdict
 	}
-	for epoch, want := range map[int]string{1: "fail", 2: "pass"} {
+	for epoch, want := range map[int]string{1: "", 2: "pass"} {
 		if got[epoch] != want {
 			t.Errorf("epoch %d: verdict %q, the record holds %q\n%s", epoch, got[epoch], want, b)
 		}

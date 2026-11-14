@@ -307,15 +307,9 @@ func RenderHTML(m Model) string {
 	tile(countOrNotMeasured(m.BlueClaims), "blue claims")
 	tile(intUnavail(m.Shards.Findings), "lens findings")
 	tile(intUnavail(m.Shards.Citations), "citations checked")
+	// THE TILE IS THE RUN'S VERDICT, AND A RECORDED PASS IS ONE: the record derives VERIFIED from it
+	// (record.TerminalVerdict), so before that the tile says the run has none.
 	verdict := m.TerminalVerdict
-	verdictLabel := "final verdict"
-	if verdict == "" {
-		verdict = m.Judiciary.LatestVerdict
-		verdictLabel = "latest verdict"
-		if m.Judiciary.VerdictEpoch != 0 {
-			verdictLabel += " (epoch " + itoa(m.Judiciary.VerdictEpoch) + ")"
-		}
-	}
 	switch {
 	case verdict != "":
 	case !m.Judiciary.Measured:
@@ -323,7 +317,7 @@ func RenderHTML(m Model) string {
 	default:
 		verdict = "—"
 	}
-	tile(esc(verdict), verdictLabel)
+	tile(esc(verdict), "final verdict")
 	tile(logTileCount(m.Log), "log entries")
 	if etaRunning {
 		tile(fmt.Sprintf("%d–%dm", m.Eta.LowMin, m.Eta.HighMin), "projected remaining")

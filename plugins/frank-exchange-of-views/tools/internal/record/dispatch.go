@@ -137,8 +137,7 @@ type Plan struct {
 	// recorded none (chairVerdictOf). THE WORKFLOW ENDS THE DEBATE ON THIS FIELD, and the chair's
 	// envelope is this plan: the verdict reaches the engine as the record's fact, never as the
 	// chair's restatement of it. It says what the asking sitting did, not what the board decides,
-	// so the key leaves it out — a FAIL recorded in one sitting and not the next is no movement on
-	// the board.
+	// so the key leaves it out.
 	Verdict PlanVerdict `json:"verdict,omitempty" key:"-" desc:"the verdict the chair recorded in this sitting; absent while it has recorded none"`
 }
 
@@ -777,7 +776,7 @@ func HeardInTime(subj recordpb.MotionSubject) Guard {
 		word := recordpb.Word(subj)
 		return feov.Errorf(feov.Conflict, "a %s motion filed at the run's final sitting is not heard in time: the record is at epoch %d, the last under the run's epoch limit of %d, and no seat is dispatched after this sitting. "+
 			"Recorded, it would hold the PASS until the run ends, and no ruling on it could change how the run ends. Nothing was recorded. "+
-			"At the final sitting the chair records the verdict the board permits — a PASS where the plan permits one, or a FAIL — or none, and the run's outcome is derived from the record as it stands. "+
+			"At the final sitting the chair records the PASS where the plan permits one, or no verdict, and the run's outcome is derived from the record as it stands. "+
 			"What the motion would have argued goes in a position, which the transcript carries to the bench at the exit; an objection that the run must not go on is a petition, which the bench hears at the exit", word, epoch, params.MaxEpochs)
 	})
 }

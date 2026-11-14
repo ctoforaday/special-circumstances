@@ -56,10 +56,9 @@ type RunConfig struct {
 	Lanes *string `json:"lanes"`
 	// The run's terms (Params says what each bounds). Setup always writes them; each is nil where the
 	// file does not state it, which RunParams reads as setup's default.
-	K                   *int     `json:"k"`
-	KMax                *int     `json:"kMax"`
-	ConvergenceFraction *float64 `json:"convergenceFraction"`
-	MaxEpochs           *int     `json:"maxEpochs"`
+	K         *int `json:"k"`
+	KMax      *int `json:"kMax"`
+	MaxEpochs *int `json:"maxEpochs"`
 	// Hooks is what was INSTALLED on the hook side when this run was set up (#751). The record
 	// binary is baked from the working tree and the hooks come from the version-gated install
 	// cache, so the two can be days apart — and a run whose hooks were stale is otherwise

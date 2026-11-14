@@ -72,7 +72,7 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
-	rows, carried, identical, verdicts := 0, 0, 0, 0
+	rows, carried, identical, verdicts, fails := 0, 0, 0, 0, 0
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		res, dst := migrateArchive(t, name)
@@ -90,13 +90,18 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 		}
 		for i := range srcPlans {
 			s, d := readingBlockersTranslated(t, kindsTranslated(t, srcPlans[i].printed), anchors), dstPlans[i].printed
-			if !strings.Contains(s, `"verdict":`) {
-				for _, w := range []string{"PASS", "FAIL"} {
-					if v := `,"verdict":"` + w + `"}`; strings.HasSuffix(d, v) {
-						d = strings.TrimSuffix(d, v) + "}"
-						verdicts++
-					}
+			// A PLAN STORED AFTER A FAIL PRINTS IT, and the FAIL translates to no event (EventSchema
+			// 78): the migrated plan prints no verdict.
+			if v := `,"verdict":"FAIL"}`; strings.HasSuffix(s, v) {
+				if strings.Contains(d, `"verdict":`) {
+					t.Errorf("%s: stored plan %d printed a FAIL and migrated printing a verdict: %s", name, i, d)
 				}
+				s = strings.TrimSuffix(s, v) + "}"
+				fails++
+			}
+			if v := `,"verdict":"PASS"}`; !strings.Contains(s, `"verdict":`) && strings.HasSuffix(d, v) {
+				d = strings.TrimSuffix(d, v) + "}"
+				verdicts++
 			}
 			if s == d {
 				identical++
@@ -141,7 +146,10 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	if verdicts == 0 {
 		t.Fatal("no archived plan carries its sitting's verdict migrated — the verdict's translation is exercised by nothing")
 	}
-	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte apart from %d verdict(s) carried", rows, carried, identical, verdicts)
+	if fails == 0 {
+		t.Fatal("no archived plan prints a FAIL — the stripping of the retired verdict is exercised by nothing")
+	}
+	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte apart from %d verdict(s) carried and %d FAIL(s) stripped", rows, carried, identical, verdicts, fails)
 }
 
 // A ROW'S REMAND EXCHANGE IS NOT CARRIED: the row is translated word for word without it.

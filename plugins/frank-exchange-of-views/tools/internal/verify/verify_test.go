@@ -123,15 +123,6 @@ func TestPassClosesAllGaps(t *testing.T) {
 	if c := find(t, Run(trifleUnderPass.fam(t)), "pass-closes-all-gaps"); !c.OK {
 		t.Errorf("PASS over an open LOW gap must pass the gate — it does not hold it: %s", c.Detail)
 	}
-	// A FAIL verdict makes the gate inapplicable — an open gap is expected there.
-	failed := &boardT{
-		GapOrder: []string{"G1"},
-		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
-		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()})},
-	}
-	if c := find(t, Run(failed.fam(t)), "pass-closes-all-gaps"); !c.OK {
-		t.Error("a FAIL verdict must not trip the PASS gate")
-	}
 	// And a terminal CEILING outcome, which is a different event and a different question.
 	// Whether outcome=VERIFIED with open gaps should ALSO be a violation is a live design
 	// question, not something this fix decided — see the issue at passClosesAllGaps.
@@ -298,11 +289,11 @@ func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
 	}
 }
 
-// A FAIL verdict is not the gate's business, and neither is a terminal `outcome` — reading the
-// latter is what made the check dead. Both must leave it inapplicable rather than firing.
+// A terminal `outcome` is not the gate's business — reading it is what made the check dead — and
+// neither is a gate with no verdict on it. Both must leave it inapplicable rather than firing.
 func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 	for _, ev := range []*record.Event{
-		recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+		recordtest.Event(t, "", &recordpb.Gate{}),
 		recordtest.Event(t, "", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED), Prose: proto.String("verified")}),
 	} {
 		b := &boardT{
@@ -321,7 +312,7 @@ func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 // ERROR.
 //
 // It existed because `verdict` and `outcome` events both carried their word under the payload key
-// "verdict" while their vocabularies were disjoint — PASS|FAIL against
+// "verdict" while their vocabularies were disjoint — PASS against
 // VERIFIED|CEILING|HALTED|UNVERIFIED. Reading the wrong event type did not fail loudly: the
 // comparison simply never matched and the gate reported "not applicable" forever, which is
 // indistinguishable from a gate that holds. This test asserted the pair against the declared
@@ -342,14 +333,13 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-chair", &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_HIGH, Material: true}},
 	}
 	got := find(t, Run(b.fam(t)), "pass-closes-all-gaps")
 	if !got.NA {
-		t.Errorf("a FAIL verdict leaves the PASS gate inapplicable; NA must say so: %+v", got)
+		t.Errorf("no recorded verdict leaves the PASS gate inapplicable; NA must say so: %+v", got)
 	}
 	if got.Status() != "n/a" {
 		t.Errorf("Status() = %q, want n/a", got.Status())

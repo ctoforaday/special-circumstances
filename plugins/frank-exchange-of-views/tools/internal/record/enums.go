@@ -323,7 +323,7 @@ var EnumFields = map[string][]EnumField{
 	}},
 }
 
-// Spelling is the set as a verb summary writes it: PASS|FAIL, no spaces.
+// Spelling is the set as a verb summary writes it: VERIFIED|CEILING|HALTED|UNVERIFIED, no spaces.
 func (e EnumField) Spelling() string { return strings.Join(Names(e.Values), "|") }
 
 // enum returns one declared set by (event type, payload key), for the CLI's help.

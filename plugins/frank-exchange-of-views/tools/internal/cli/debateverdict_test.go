@@ -21,10 +21,9 @@ func TestInquestDebateCarriesEachEpochsRecordedVerdict(t *testing.T) {
 			t.Fatalf("%v: %v", args, err)
 		}
 	}
-	// Epoch 1 (castRun's chair sitting, which dispatched the lens) fails; the lens sits, the chair
-	// sits again and epoch 2 passes — by then the lens is not one that has never sat (which holds a
-	// PASS).
-	chair("verdict", "--as", "FAIL")
+	// Epoch 1 (castRun's chair sitting, which dispatched the lens) records no verdict; the lens sits,
+	// the chair sits again and epoch 2 passes — by then the lens is not one that has never sat (which
+	// holds a PASS).
 	registerLensOnce(t, runDir)
 	chair("register")
 	chair("verdict", "--as", "PASS")
@@ -49,7 +48,7 @@ func TestInquestDebateCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	for _, e := range dj.Epochs {
 		got[e.Epoch] = e.Verdict
 	}
-	for epoch, want := range map[int]string{1: "fail", 2: "pass"} {
+	for epoch, want := range map[int]string{1: "", 2: "pass"} {
 		if got[epoch] != want {
 			t.Errorf("epoch %d: inquest debate reports verdict %q, the record holds %q\n%s", epoch, got[epoch], want, out)
 		}

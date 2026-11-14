@@ -87,12 +87,8 @@ func Entries() Registry {
 		// finding to an open gap's found_by after the mint. No live act writes it, so the credited
 		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
 		"credit": {Translate: toNoEvent},
-		// A PASS BEFORE EPOCH 57 MAY CARRY THE GAPS A MIGRATION ADMITTED IT OVER. The record carries an
-		// archived verdict as history, and the replay writes it without the live gate's judgement, so
-		// nothing is admitted and the list is not carried.
-		"verdict": mapped("verdict", nil, drops{
-			"migration_admitted_gap_ids": "the gaps an earlier migration stamped on an archived PASS: the record carries the verdict as the chair issued it, with no admission beside it",
-		}, nil),
+		// A FAIL TRANSLATES TO NO EVENT (EventSchema 78); a PASS carries (verdictEntry).
+		"verdict": {Translate: verdictEntry},
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
 		// re-run is the script's; its soundness is carried to every anchor on that script when it was
 		// written — the fan-out is the replay's, because it reads the computations replayed before it
@@ -353,6 +349,31 @@ func remandDirection(r *recordpb.DocketRuling) {
 
 // toNoEvent translates an archived event to none, whatever its era's columns.
 func toNoEvent(OldEvent) ([]proto.Message, error) { return nil, nil }
+
+// verdictCarried is an archived PASS. A PASS BEFORE EPOCH 57 MAY CARRY THE GAPS A MIGRATION ADMITTED
+// IT OVER. The record carries an archived verdict as history, and the replay writes it without the
+// live gate's judgement, so nothing is admitted and the list is not carried.
+var verdictCarried = mapped("verdict", nil, drops{
+	"migration_admitted_gap_ids": "the gaps an earlier migration stamped on an archived PASS: the record carries the verdict as the chair issued it, with no admission beside it",
+}, nil)
+
+// verdictEntry: A FAIL TRANSLATES TO NO EVENT (EventSchema 78). The verdict is the PASS alone: a
+// recorded FAIL changed no outcome and no dispatch, and the chair withholds a PASS its plan permits
+// with a position the bench hears. A FAIL carried its reason nowhere — the plan's blockers and the
+// chair's position are on the record either way — so the archived FAILs are the residue: the
+// manifest counts each in events_in and none in events_out. A stored plan printed after one prints
+// it, and the replay strips it from the plan (CarryPlanVerdict). Every other verdict carries as the
+// chair issued it, and a word the vocabulary does not hold is refused as any is.
+func verdictEntry(old OldEvent) ([]proto.Message, error) {
+	if w, ok := old.Fields["verdict"].(string); ok && recordpb.SameWord(w, retiredVerdict) {
+		return nil, nil
+	}
+	return verdictCarried.Translate(old)
+}
+
+// retiredVerdict is the verdict word an archive may hold that the record no longer does. It
+// describes ARCHIVED bytes, so it is migrate's own, and the live vocabulary never holds it.
+const retiredVerdict = "fail"
 
 // mintCoiningDrop is why a mint's coining columns are not carried.
 const mintCoiningDrop = "a class is a value of the closed set; whether a run coined it, and the coiner's definition, are not carried — the value's own definition is"

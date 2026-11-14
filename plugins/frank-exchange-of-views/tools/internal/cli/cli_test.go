@@ -1457,8 +1457,7 @@ func TestPositionIsASingletonPerSeat(t *testing.T) {
 }
 
 // A PASS is a claim that nothing left on the board holds the gate; the tool refuses one over an open material gap —
-// the 2026-07-20 rubber-stamp (PASS with 9 open gaps) made structurally impossible. FAIL is
-// always allowed.
+// the 2026-07-20 rubber-stamp (PASS with 9 open gaps) made structurally impossible.
 func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 	seatID := "red-chair"
 	mint2 := func(runDir string) {
@@ -1472,12 +1471,6 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 			}
 		}
 		chairSitsAgain(t, runDir)
-	}
-
-	failDir := castRun(t)
-	mint2(failDir)
-	if _, err := run(t, "verdict", "--run", failDir, "--seat-id", seatID, "--as", "FAIL"); err != nil {
-		t.Fatalf("FAIL must be allowed with open gaps: %v", err)
 	}
 
 	runDir := castRun(t)
@@ -1530,7 +1523,7 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 			}
 			if _, err := run(t, args...); err == nil {
 				t.Fatalf("`verdict --as %q` was recorded over an open gap", as)
-			} else if !strings.Contains(err.Error(), "PASS|FAIL") {
+			} else if !strings.Contains(err.Error(), "PASS") {
 				t.Errorf("the refusal must name what would have worked, got: %v", err)
 			}
 			// AND NOTHING WAS WRITTEN. A refusal that still appends leaves a verdict on

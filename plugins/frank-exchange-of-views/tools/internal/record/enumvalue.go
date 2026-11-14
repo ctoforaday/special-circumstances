@@ -143,8 +143,8 @@ func Identifiers(vs []EnumValue) enumflag.EnumIdentifiers[string] {
 
 // Refuse builds the sentence a seat gets for a value outside the set, with the set under it.
 //
-// IT IS NOT enumflag's, AND THAT MATTERS. enumflag says `must be 'FAIL', 'PASS'`, which is
-// correct and teaches nothing. Ours names the NEAR-MISS — "it differs from \"PASS\" only in
+// IT IS NOT enumflag's, AND THAT MATTERS. enumflag says `must be 'PASS'`, which is correct
+// and teaches nothing. Ours names the NEAR-MISS — "it differs from \"PASS\" only in
 // case" — and then says what the mistype WOULD have done, because the refusal is where a seat
 // actually meets the design and a seat that is merely told it is wrong guesses again.
 //

@@ -89,7 +89,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-  - The verdict is the chair's PASS or FAIL on the board.
+  - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.

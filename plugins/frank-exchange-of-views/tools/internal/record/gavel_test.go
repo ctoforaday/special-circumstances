@@ -89,8 +89,8 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	if !strings.Contains(msg, "bench") {
 		t.Errorf("the refusal does not say the BENCH holds this gavel, so a chair seat reads it as work it owes: %v", err)
 	}
-	if !strings.Contains(msg, "--as FAIL") {
-		t.Errorf("the refusal does not name the one act still open to a seat that cannot rule: %v", err)
+	if !strings.Contains(msg, "record no verdict this sitting") {
+		t.Errorf("the refusal does not say what a seat that cannot rule does instead: %v", err)
 	}
 	// And it must not name the ruler as though the reader were it: the wedge came from an
 	// instruction the seat could follow only into a second refusal.

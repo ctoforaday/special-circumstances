@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -223,7 +222,7 @@ func TestImpasseFiresOnStallAndOnTheMonotoneBound(t *testing.T) {
 	cycle(stall, nil)
 	cycle(stall, nil)
 	cycle(stall, nil)
-	x, _ := Exchanges(stall.seed(), Params{K: 2, KMax: 6, ConvergenceFraction: 0.25})
+	x, _ := Exchanges(stall.seed(), Params{K: 2, KMax: 6})
 	if g := x["G1"]; !g.Impasse || g.Stalled != 2 {
 		t.Fatalf("two stalled exchanges under K=2: %+v, want impasse", g)
 	}
@@ -235,7 +234,7 @@ func TestImpasseFiresOnStallAndOnTheMonotoneBound(t *testing.T) {
 		cycle(oscillate, func(b *stage) { b.regrade(evLens, "G1", g) })
 	}
 	cycle(oscillate, nil)
-	x, _ = Exchanges(oscillate.seed(), Params{K: 2, KMax: 3, ConvergenceFraction: 0.25})
+	x, _ = Exchanges(oscillate.seed(), Params{K: 2, KMax: 3})
 	if g := x["G1"]; !g.Impasse || g.Stalled != 0 || g.Exchanges != 3 {
 		t.Fatalf("a regrade every exchange under KMax=3: %+v, want impasse by the bound with no stall", g)
 	}
@@ -481,68 +480,6 @@ func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 		register("red-chair")
 	if _, err := Append(Identity{Run: b2.seed(), SeatID: "red-chair"}, pass); err == nil || !strings.Contains(err.Error(), "material gap(s) still OPEN: G1") {
 		t.Fatalf("a MEDIUM gap is material and must hold the gate: %v", err)
-	}
-}
-
-// A FAIL over a converged board is refused: nothing material open, mass a small fraction of the
-// run's peak, no fresh material mint this epoch. A fresh material mint lifts the refusal.
-func TestAFailOnAConvergentBoardIsRefused(t *testing.T) {
-	stage := func() (*stage, Run) {
-		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").register(evLens)
-		// Epoch 1: a serious gap (mass 9) and a FAIL — the peak the run will be measured against.
-		sev, _ := GradeOf("high")
-		st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
-			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &sev,
-			Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)})
-		st.add("red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)})
-		// Epoch 2: G1 closes; only a trifle (mass 1) is minted.
-		st.register("red-chair").register(evLens).
-			add(evLens, &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
-				AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")})
-		low, _ := GradeOf("low")
-		st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
-			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &low,
-			Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
-		// Two barren sittings retire the lens. A ready lens holds the PASS and is not the chair's
-		// to clear, and the refusal stands only where the PASS is the chair's to record.
-		st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair")
-		return st, Run{}
-	}
-	st, _ := stage()
-	run := st.seed()
-	chair := Identity{Run: run, SeatID: "red-chair"}
-	fail := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}
-	if _, err := Append(chair, fail); err == nil || !strings.Contains(err.Error(), "converged") {
-		t.Fatalf("a FAIL over a converged board landed: %v", err)
-	} else if feov.CodeOf(err) != string(feov.Conflict) {
-		t.Errorf("the convergence refusal is coded %q, want %q", feov.CodeOf(err), feov.Conflict)
-	}
-	c, _ := convergenceOf(viewOf(t, run))
-	if c.Peak != 9 || c.Mass != 1 || c.MaxSeverityMass != 1 || c.FreshMaterialMints != 0 {
-		t.Errorf("convergence = %+v, want peak 9, mass 1, top severity 1, no fresh material mint", c)
-	}
-}
-
-func TestAMaterialFreshMintBlocksTheConvergenceRefusal(t *testing.T) {
-	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").register(evLens)
-	high, _ := GradeOf("high")
-	st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
-		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &high,
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)})
-	st.add("red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)})
-	st.register("red-chair").register(evLens).
-		add(evLens, &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
-			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")})
-	// Fresh, superseding nothing, MEDIUM: material. Its mass (1) is still under the fraction; the
-	// mint alone is what keeps the FAIL legal.
-	med, _ := GradeOf("medium")
-	st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
-		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &med,
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
-	run := st.seed()
-	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}); err != nil {
-		t.Fatalf("a FAIL with a fresh material mint this epoch was refused: %v", err)
 	}
 }
 

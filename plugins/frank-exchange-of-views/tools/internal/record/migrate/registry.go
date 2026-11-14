@@ -180,8 +180,8 @@ func scalarValue(fd protoreflect.FieldDescriptor, v any) (protoreflect.Value, er
 
 // enumNumberOf is the reverse of the schema's enum spelling: the value whose word matches —
 // exactly first, then by the schema's own same-word class (recordpb.SameWord: case and
-// separators only), because the eras changed exactly those. `low-medium` and `FAIL` are the
-// same words as `low_medium` and `fail`; `closed` and `repaired` are not, and stay a
+// separators only), because the eras changed exactly those. `low-medium` and `PASS` are the
+// same words as `low_medium` and `pass`; `closed` and `repaired` are not, and stay a
 // refusal for an AUTHORED map to answer.
 func enumNumberOf(ed protoreflect.EnumDescriptor, word string) (protoreflect.EnumNumber, error) {
 	for i := 0; i < ed.Values().Len(); i++ {

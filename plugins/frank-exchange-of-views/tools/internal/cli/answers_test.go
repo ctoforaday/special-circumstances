@@ -223,10 +223,6 @@ func answerDrives() []answerDrive {
 		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"},
 			drive: oncePerSitting(rowSpotCheck, "red-chair", "spot-check")},
 		{name: "verdict", row: rowVerdict, helps: []string{"chair verdict"}, drive: func(d drive) {
-			d.admitted("a FAIL", "red-chair", "verdict", "--as", "FAIL")
-			d.endsWithRow(d.refused("a second verdict in the sitting", "red-chair", "verdict", "--as", "FAIL"), rowVerdict)
-			d.nextSitting("red-chair")
-			d.admitted("the next sitting's verdict, after a FAIL", "red-chair", "verdict", "--as", "FAIL")
 			// AFTER A PASS the write path still admits the next sitting's verdict; that no chair
 			// sitting follows one is the engine's rule, held by the simulator
 			// (tests/simulator debate.test.mjs, "a chair that records PASS ends the debate even if it

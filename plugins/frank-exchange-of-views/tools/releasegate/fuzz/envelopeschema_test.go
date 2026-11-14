@@ -104,7 +104,7 @@ func TestTheEnvelopeSchemaCheckRefusesWhatTheHarnessRefuses(t *testing.T) {
 	schema := map[string]any{
 		"type": "object", "required": []any{"pass_permitted", "blockers"}, "additionalProperties": false,
 		"properties": map[string]any{"pass_permitted": map[string]any{"type": "boolean"}, "blockers": map[string]any{"type": "array"},
-			"verdict": map[string]any{"type": "string", "enum": []any{"PASS", "FAIL"}}, "notes": map[string]any{"type": "string"}},
+			"verdict": map[string]any{"type": "string", "enum": []any{"PASS"}}, "notes": map[string]any{"type": "string"}},
 		"anyOf": []any{
 			map[string]any{"required": []any{"pass_permitted"}, "properties": map[string]any{"pass_permitted": map[string]any{"enum": []any{true}}}},
 			map[string]any{"required": []any{"blockers"}, "properties": map[string]any{"blockers": map[string]any{"minItems": 1}}},
