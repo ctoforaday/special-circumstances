@@ -60,6 +60,7 @@ func benchRuleArgs(motionID, as, principle string) []string {
 func benchDisposes(t *testing.T, runDir, gapID, as, principle string) {
 	t.Helper()
 	id := docketFile(t, runDir, "red-chair", gapID, "contested, and not mine to close")
+	benchSitsOn(t, runDir, gapID)
 	args := append([]string{}, benchRuleArgs(id, as, principle)...)
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
 	if _, err := runAt(t, args...); err != nil {

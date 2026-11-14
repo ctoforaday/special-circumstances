@@ -24,7 +24,8 @@ import (
 // These tests drive the real multi-seat sequences: red mints, blue disputes, red answers,
 // the bench rules, and each side reads back the state the others set.
 
-// seatRun sets up a run directory with every seat registered, the way the engine does.
+// seatRun sets up a run directory with every seat registered, the way the engine does: on the cast
+// setup writes, which the chair's dispatch plans against (a bench convened on a docket, benchSitsOn).
 func seatRun(t *testing.T) string {
 	return seatRunReport(t, "")
 }
@@ -38,6 +39,9 @@ func seatRunReport(t *testing.T, body string) string {
 	t.Helper()
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
+	// The cast names every seat on the roster, so a test may register any lens beside these four.
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: seatclass.SeatIDs()}))
 	for _, id := range []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"} {
 		// The bench owes an OCCASION and no other seat may pass one — ask the same question the
 		// write path asks rather than keeping a list of which ids are the bench.
