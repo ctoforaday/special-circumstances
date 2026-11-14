@@ -109,19 +109,17 @@ feov-record: motion petition: a petition motion is ruled by the bench seat, so `
 
 ── verdict in the wrong case
 exit 2
-feov-record: verdict: --as takes one of PASS|FAIL, not "pass": it differs from "PASS" only in case. A PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+feov-record: verdict: --as takes one of PASS, not "pass": it differs from "PASS" only in case. A PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
 
     PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
-    FAIL  the board, as it stands, still stops you — refused over a converged board
 
 Run `feov-record verdict --help` for what it takes, flag by flag.
 
 ── verdict outside the set
 exit 2
-feov-record: verdict: --as takes one of PASS|FAIL, not "banana". A PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+feov-record: verdict: --as takes one of PASS, not "banana". A PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
 
     PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
-    FAIL  the board, as it stands, still stops you — refused over a converged board
 
 Run `feov-record verdict --help` for what it takes, flag by flag.
 
@@ -470,7 +468,7 @@ Available Commands:
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+  outcome     stamp how the run ENDED, as a fact — a different question from the chair's PASS
   register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   regrade     set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
 
@@ -513,7 +511,7 @@ Available Commands:
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
   register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
-  verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+  verdict     the seat's terminal act: the PASS, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
@@ -613,8 +611,7 @@ feov-record: regrade: red-lens-evidence has already recorded a regrade on "GAP00
 ── repeat target: the chair sits and states its position
 exit 0
 position POSITION001 recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
@@ -626,8 +623,7 @@ feov-record: position: red-chair has already recorded a position this sitting, a
 ── repeat target: the chair's spot-check
 exit 0
 spot-check recorded with its reason: named no archived closure
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
@@ -635,24 +631,6 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, no
 ── a second spot-check in one sitting
 exit 2
 feov-record: spot-check: red-chair has already recorded a spot_check this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new spot-check at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
-
-── repeat target: the chair's verdict
-exit 0
-verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
-dispatch against head 5:
-  red-lens-evidence — audits the report (its state is in the reasons below)
-  blue-respond — GAP001
-  · red-lens-evidence: never sat — audits the report at head 5
-  · GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there
-  your verdict this sitting: FAIL — the workflow reads it off this plan
-NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
-  · lens red-lens-evidence is ready — PASS is refused while it is
-
-── a second verdict in one sitting
-exit 2
-feov-record: verdict: red-chair has already recorded a verdict this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it; the record is append-only and both stay visible
 
 ── a closing on a gap nothing is before the bench on
 exit 2
@@ -668,8 +646,7 @@ Read GAP001 as it now stands and decide whether the act still holds. If it does,
 ── the same filing, once blue has read the regrade it was shown
 exit 0
 motion MOTION001 filed (docket)
-2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── the chair files a closing, party to no dispute
@@ -696,7 +673,7 @@ Available Commands:
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
   register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   spot-check  name the stale areas whose changes you judged and any archived closure you re-verified — owed before a PASS
-  verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+  verdict     the seat's terminal act: the PASS, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
@@ -720,8 +697,7 @@ feov-record: closing: a closing is the argument of a party to the gap's dispute 
 ── repeat target: blue's closing on GAP001
 exit 0
 closing filed for GAP001
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ── a second closing on a gap in one sitting
 exit 2
@@ -736,15 +712,13 @@ exit 0
 minted GAP002
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── repeat target: the lens closes it
 exit 0
 closed GAP002 (repaired)
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── repeat target: the chair sits again
@@ -780,15 +754,13 @@ feov-record: carry: red-chair has already recorded a close on "GAP002" this sitt
 ── bunch target: a finding on a plain sentence
 exit 0
 finding recorded: FINDING004 (evidence) — the id a gap's found_by names
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── bunch target: a second finding on it
 exit 0
 finding recorded: FINDING005 (evidence) — the id a gap's found_by names
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
 
 ── an edit carrying a run of anchors to the end of a longer replacement

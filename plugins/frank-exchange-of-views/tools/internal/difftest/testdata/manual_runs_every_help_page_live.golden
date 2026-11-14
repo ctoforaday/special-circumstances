@@ -27,7 +27,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-  - The verdict is the chair's PASS or FAIL on the board.
+  - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
@@ -125,7 +125,7 @@ Available Commands:
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+  outcome     stamp how the run ENDED, as a fact — a different question from the chair's PASS
   register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   regrade     set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
 
@@ -191,7 +191,7 @@ Flags:
 $ feov-record halt --help
 stop the run at a safety or consent boundary, when continuing would itself be the harm
 
-The bench's own act on its own channel, and the one terminal state that is not a finding about the artifact. Capture relays the written opinion to the human VERBATIM, like a FAIL and never smoothed.
+The bench's own act on its own channel, and the one terminal state that is not a finding about the artifact. Capture relays the written opinion to the human VERBATIM, never smoothed.
 
 A boundary is not a defect, however severe: a bench that disposes of such a gap and lets the run continue has treated a boundary as a finding.
 
@@ -394,7 +394,7 @@ Enumerated values:
     overruled  the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld
 ========
 $ feov-record outcome --help
-stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+stamp how the run ENDED, as a fact — a different question from the chair's PASS
 
 The verdict is derived from the record — a halt, the chair's PASS, or the dispatch plan's ceiling (the run's epoch limit reached) — and the word you give is checked against it. The one word you may assert is UNVERIFIED, for a run that stopped before the record reached a terminal state.
 
@@ -672,7 +672,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-  - The verdict is the chair's PASS or FAIL on the board.
+  - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
@@ -1046,7 +1046,7 @@ Enumerated values:
     underway   you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached
     confirmed  you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`
     refuted    you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this
-    deferred   left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it
+    deferred   left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it
     declined   you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came
     abandoned  you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this
 ========
@@ -1432,7 +1432,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-  - The verdict is the chair's PASS or FAIL on the board.
+  - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
@@ -1641,7 +1641,7 @@ Enumerated values:
     underway   you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached
     confirmed  you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`
     refuted    you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this
-    deferred   left for later research, not taken up in this run — kept, not set aside. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it
+    deferred   left for later research — kept, not set aside, and not yet answered. REQUIRES a reason saying, in the subject's terms, what the question still leaves unsettled; the method says what would settle it
     declined   you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came
     abandoned  you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this
 ========
@@ -1987,7 +1987,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
   - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-  - The verdict is the chair's PASS or FAIL on the board.
+  - The verdict is the chair's PASS on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
   - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
@@ -2250,20 +2250,19 @@ Usage:
   feov-record setup <runDir> [flags]
 
 Flags:
-      --bin-dir string               where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss
-      --bulk string                  the bulk model <[harness:]model> (frontier, blue lanes, red lenses, blue responses)
-      --cite stringArray             a cited path, optionally pinned: <path>[@<commit>] (repeatable)
-      --convergence-fraction float   fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)
-      --judgment string              the judgment model <[harness:]model> (blue-synthesize, red-chair, judge, assemble)
-      --k int                        consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)
-      --k-max int                    total exchanges on one gap — blue's answer and its lens's audit of it — before it is at impasse regardless of movement (default 6; a smoke run passes 2)
-      --lanes string                 the frontier lane count (recorded in run-config.json)
-      --max-epochs int               the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default 12; recorded in run-config.json)
-      --run-id string                the orchestrator's run id, recorded in the .run-live marker so a run found STALE can be resumed rather than only noticed
-      --script-path string           the orchestrator script this run was launched from, recorded in the .run-live marker beside --run-id
-      --seat stringArray             override one seat: <seat-id>=<[harness:]model> (repeatable)
-      --skip-model-check             skip live harness model discovery (offline tests)
-      --topic string                 the run's research topic (goes in every stub header)
+      --bin-dir string       where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss
+      --bulk string          the bulk model <[harness:]model> (frontier, blue lanes, red lenses, blue responses)
+      --cite stringArray     a cited path, optionally pinned: <path>[@<commit>] (repeatable)
+      --judgment string      the judgment model <[harness:]model> (blue-synthesize, red-chair, judge, assemble)
+      --k int                consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)
+      --k-max int            total exchanges on one gap — blue's answer and its lens's audit of it — before it is at impasse regardless of movement (default 6; a smoke run passes 2)
+      --lanes string         the frontier lane count (recorded in run-config.json)
+      --max-epochs int       the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default 12; recorded in run-config.json)
+      --run-id string        the orchestrator's run id, recorded in the .run-live marker so a run found STALE can be resumed rather than only noticed
+      --script-path string   the orchestrator script this run was launched from, recorded in the .run-live marker beside --run-id
+      --seat stringArray     override one seat: <seat-id>=<[harness:]model> (repeatable)
+      --skip-model-check     skip live harness model discovery (offline tests)
+      --topic string         the run's research topic (goes in every stub header)
 ========
 $ feov-record take-over --help
 take-over <runDir> --from-session <id> makes the session running it lead the run in <runDir>, in place of the session named.
