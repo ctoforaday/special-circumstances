@@ -53,7 +53,7 @@ test('founding regression 1b: unbound topic/runDir refuses dispatch before any a
 
 test('maxRounds is refused as an argument, with the terms that replaced it', async () => {
   const world = makeWorld(makeResponder())
-  await assert.rejects(world.run(script, { ...ARGS, maxRounds: 12 }), (e) => /not a term of this engine/.test(e.message) && /k-max/.test(e.message) && /mint-budget/.test(e.message) && /max-epochs/.test(e.message) && !/--k-max/.test(e.message))
+  await assert.rejects(world.run(script, { ...ARGS, maxRounds: 12 }), (e) => /not a term of this engine/.test(e.message) && /k-max/.test(e.message) && /max-epochs/.test(e.message) && !/--k-max/.test(e.message))
   assert.equal(world.calls.length, 0, 'refused before anything was dispatched')
 })
 
@@ -582,11 +582,11 @@ test('the chair is told a lens sits again only when the head passes its pin and 
   }
 })
 
-test('the lens mints its own gaps, screens first, spends a budget, and closes as the originator', async () => {
+test('the lens mints its own gaps, screens first, and closes as the originator', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side')]) }), passChair()] }))
   await world.run(script, ARGS)
   const evidence = firstPrompt(world, 'red-lens-evidence')
-  for (const want of ['YOU MINT YOUR OWN GAPS', 'read the board first', 'then mint', 'or the catch-all with the reason none does', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
+  for (const want of ['YOU MINT YOUR OWN GAPS', 'read the board first', 'then mint', 'or the catch-all with the reason none does', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING.
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
@@ -612,9 +612,9 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     assert.ok(/A finding about an inquiry reaches the logic lens, which judges every settled inquiry against its latest fate; a gap about it reaches blue, and a material one holds the PASS\./.test(p) && !/Both are findings/.test(p), `${seat} is not told where a finding and a gap about an inquiry go`)
     // AN OPEN INQUIRY IS BLUE'S BLOCKER, NOT A LENS'S FINDING.
     assert.ok(/An inquiry still open already holds the PASS until blue settles it\./.test(p) && !/a decision nobody made/.test(p), `${seat} is told an open inquiry is a finding`)
-    // THE BAR IS THE ONE EVERY GAP MEETS. A clause that orders a mint for every mismatch spends a
-    // lens's budget — three open gaps, in a smoke — on a duplicate row, against the same prompt's "not on
-    // nitpicks"; and the lens that filed findings on universe-m21 had judged by the answer alone.
+    // THE BAR IS THE ONE EVERY GAP MEETS. A clause that orders a mint for every mismatch puts a
+    // duplicate row on the board as a gap, against the same prompt's "not nitpicks"; and the lens
+    // that filed findings on universe-m21 had judged by the answer alone.
     assert.ok(/weighed like any other: by what it changes for a reader, who decides by what was tried as well as by the answer/.test(p) && !/YOU MINT A GAP/.test(p),
       `${seat} is told to mint whatever the mismatch changes for a reader`)
   }

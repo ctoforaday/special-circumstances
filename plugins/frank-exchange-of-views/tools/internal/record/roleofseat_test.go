@@ -49,7 +49,7 @@ func TestOneAnswerToTheRoleOfASeat(t *testing.T) {
 		if refused := requireFilerHoldsNoGavel(id, docket) != nil; refused != (want == docketRuler) {
 			t.Errorf("a docket filing by %q is refused = %v; its role is %q and the %s rules a docket", id, refused, want, docketRuler)
 		}
-		// Only a lens spends a mint budget, and an id off the roster is no lens.
+		// Only a lens has an area, and an id off the roster is no lens.
 		if lens := AreaOf(id) != ""; lens != (want == "lens") {
 			t.Errorf("AreaOf(%q) says lens = %v, and its role is %q", id, lens, want)
 		}

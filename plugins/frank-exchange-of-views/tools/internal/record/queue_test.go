@@ -32,7 +32,7 @@ func TestTheQueueOrdersTheListByItsFields(t *testing.T) {
 				gapItem(ItemNews, "G-9", "G-9's answers are retired"),
 				gapItem(ItemFindingOnGap, "G-4", "a finding about G-4"),
 				{Kind: ItemKind(BlockerUnchecked), Subject: about(SubjectAnchor, "c-8"), What: "c-8 is unchecked — no check can reach it"},
-				{Kind: ItemBudget, What: "budget"},
+				{Kind: ItemLaw, What: "law"},
 			},
 		},
 	}

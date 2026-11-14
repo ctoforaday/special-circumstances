@@ -286,7 +286,7 @@ func failedRemedy(b Blocker) string {
 // until it is minted, and blue's remedy.
 func failedOwed(b Blocker) string {
 	if b.owed() {
-		return fmt.Sprintf("%s owes its gap about the anchor (`mint --about-kind anchor --about %s`), which takes no mint of its budget, and blue %s", ownerOr(b, failedChecker), b.Subject, failedRemedy(b))
+		return fmt.Sprintf("%s owes its gap about the anchor (`mint --about-kind anchor --about %s`), and blue %s", ownerOr(b, failedChecker), b.Subject, failedRemedy(b))
 	}
 	return fmt.Sprintf("gap %s carries it to blue, which %s", b.answeredBy, failedRemedy(b))
 }
@@ -320,7 +320,7 @@ func failedCheckRefusal(bs []Blocker) string {
 		named = append(named, fmt.Sprintf("%s (%s by %s at event %d; %s)", b.Subject, how, ownerOr(b, failedChecker), b.since, gap))
 	}
 	return fmt.Sprintf("%d citation(s) or computation(s) stand on a failed check:\n  %s\n"+
-		"A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`, which takes no mint of its budget), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
+		"A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
 		"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it. "+demandAfterClear+". "+
 		"`show evidence --anchor <id>` reads each check. PASS waits for that, and `--as FAIL` does not",
 		len(bs), strings.Join(named, "\n  "))

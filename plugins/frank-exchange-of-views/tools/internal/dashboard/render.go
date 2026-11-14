@@ -230,11 +230,24 @@ func RenderHTML(m Model) string {
 	}
 	w(`<p class="muted">generated ` + esc(m.Generated) + ` · auto-refreshes every 20s · dollars are list-rate estimates</p>` + "\n")
 
+	if m.ConfigUnread != "" {
+		w("<h2>Run configuration</h2>\n")
+		w(`<p class="stale">the run's configuration could not be read: ` + esc(m.ConfigUnread) + "</p>\n")
+	}
+	// The flags the dashboard was given still show when the file could not be read: they are the
+	// operator's own statement, not a reading of the file. A field no flag gave is then one the
+	// unread file would have supplied, and reads as not read rather than as a run's default.
 	if len(m.Config.Seats) > 0 || m.Config.Lanes != "" {
-		w("<h2>Run configuration</h2>\n<table>\n")
-		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "bulk")) + "</b></td></tr>\n")
-		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "judgment")) + "</b></td></tr>\n")
-		ln := "—"
+		modelUnset, lanesUnset := "session default", "—"
+		if m.ConfigUnread == "" {
+			w("<h2>Run configuration</h2>\n")
+		} else {
+			modelUnset, lanesUnset = "not read", "not read"
+		}
+		w("<table>\n")
+		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "bulk", modelUnset)) + "</b></td></tr>\n")
+		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(summarizeSeatClass(m.Config.Seats, "judgment", modelUnset)) + "</b></td></tr>\n")
+		ln := lanesUnset
 		if m.Config.Lanes != "" {
 			ln = esc(m.Config.Lanes)
 		}
@@ -631,7 +644,7 @@ func lastN(s []Seat, n int) []Seat {
 	return s[len(s)-n:]
 }
 
-func summarizeSeatClass(seats map[string]modeltier.SeatSpec, class string) string {
+func summarizeSeatClass(seats map[string]modeltier.SeatSpec, class, unset string) string {
 	counts := map[string]int{}
 	bySeat := map[string]string{}
 	for seatID, spec := range seats {
@@ -649,7 +662,7 @@ func summarizeSeatClass(seats map[string]modeltier.SeatSpec, class string) strin
 		counts[v]++
 	}
 	if len(bySeat) == 0 {
-		return "session default"
+		return unset
 	}
 	primary, best := "", -1
 	for v, n := range counts {

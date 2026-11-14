@@ -238,7 +238,7 @@ func TestTheAnchorLifecyclePagesSayIt(t *testing.T) {
 			"A demand you no longer hold is not closed: `motion docket file` on the gap puts it before the bench, whose closing ruling is not held to it.",
 		}},
 		{"mint --help", page(lensSeat, "mint"), []string{
-			"if the defect it closed is still in the report, that is a new gap — mint it naming that gap as the one it supersedes; it takes a mint",
+			"if the defect it closed is still in the report, that is a new gap — mint it naming that gap as the one it supersedes",
 			"A gap about a retired citation or computation is refused, naming its retire",
 		}},
 		{"cite --help", page(blueSeat, "cite"), []string{

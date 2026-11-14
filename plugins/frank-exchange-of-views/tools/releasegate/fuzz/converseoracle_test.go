@@ -49,7 +49,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		maxEpochs = 4
 	}
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		fuzzRunConfig(1, 1, 2, 1, maxEpochs)); err != nil {
+		fuzzRunConfig(1, 1, 2, maxEpochs)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)

@@ -127,18 +127,28 @@ func TestLaneCoverageFailsOnALaneTheConfigNeverAskedFor(t *testing.T) {
 // could read, must each say so — this audit exists because "looks like two lanes" was allowed to
 // stand in for "was two lanes".
 func TestLaneCoverageWillNotReportAnUncheckedRunAsAClearOne(t *testing.T) {
-	for _, tc := range []struct{ name, cfg, want string }{
-		{"no lanes declared", `{}`, "declared no lane count"},
-		{"empty string", `{"lanes":""}`, "declared no lane count"},
-		{"unparseable config", `{ not json`, "declared no lane count"},
+	// A config that declared none is a SKIP; one nobody could read, or whose lane count is not a
+	// count, is a FAIL — the run's own statement of what it asked for is damaged, as the model-tier
+	// audit treats the same file.
+	for _, tc := range []struct{ name, cfg, verdict, want string }{
+		{"no lanes declared", `{}`, "SKIP", "declared no lane count"},
+		{"empty string", `{"lanes":""}`, "FAIL", "not a positive whole number"},
+		{"unparseable config", `{ not json`, "FAIL", "could not read the run's configuration"},
+		{"undeclared key", `{"lanes":"2","noSuchKey":3}`, "FAIL", "could not read the run's configuration"},
+		{"a word", `{"lanes":"two"}`, "FAIL", "not a positive whole number"},
+		{"zero", `{"lanes":"0"}`, "FAIL", "not a positive whole number"},
+		{"negative", `{"lanes":"-1"}`, "FAIL", "not a positive whole number"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			run := t.TempDir()
 			write(t, filepath.Join(run, "inputs", "run-config.json"), tc.cfg)
 			recordtest.Seed(t, run)
 			got := LaneCoverageAudit(runtest.Open(t, run))
-			if got.Verdict != "SKIP" || !strings.Contains(got.Detail, tc.want) {
+			if got.Verdict != tc.verdict || !strings.Contains(got.Detail, tc.want) {
 				t.Errorf("got %s — %s", got.Verdict, got.Detail)
+			}
+			if tc.want != "declared no lane count" && strings.Contains(got.Detail, "declared no lane count") {
+				t.Errorf("an unread configuration must not read as one that declared no lane count; got:\n%s", got.Detail)
 			}
 			if !strings.Contains(got.Detail, "NOT a run whose lanes were checked") {
 				t.Errorf("the miss must not read as a clean board; got:\n%s", got.Detail)

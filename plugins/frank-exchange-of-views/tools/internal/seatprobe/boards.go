@@ -524,7 +524,7 @@ The working group's standard has been withdrawn since the benchmark was run.
 			Script:   "print('improvement: 40%')",
 		}},
 		Expect: []Expectation{
-			{Seat: "red-lens-evidence", Verb: "mint", Because: "The lens's core act since the chair stopped transcribing (roundless §III.B.3): a defect it can anchor to a sentence goes on the board as ITS gap, graded on every axis, against its own budget. The withdrawn standard is exactly that — a methodology claim whose foundation is gone, which no source reading of the sentence carries: a defect a reading finds against its source is minted by the reading's own act and counts under the reading's verb."},
+			{Seat: "red-lens-evidence", Verb: "mint", Because: "The lens's core act since the chair stopped transcribing (roundless §III.B.3): a defect it can anchor to a sentence goes on the board as ITS gap, graded on every axis. The withdrawn standard is exactly that — a methodology claim whose foundation is gone, which no source reading of the sentence carries: a defect a reading finds against its source is minted by the reading's own act and counts under the reading's verb."},
 			{Seat: "red-lens-evidence", Verb: "finding", Because: "The lens's whole act. A finding anchors into the report at a quoted sentence and is refused if the quote is not there, so it cannot be filed against text nobody wrote."},
 			{Seat: "red-lens-evidence", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the confidence is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty. The methodology claim also rests on a standard BLUE NEVER CITED, so there is no anchor to read it by: the lens reads the standard it found with `--url`, and the reading mints the gap blue answers with a citation — the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
 			{Seat: "red-lens-evidence", Verb: "reproduce", Because: "A computation is audited by RE-RUNNING it, not by reading it — and then judged for whether it establishes the claim at all. `print(\"7 is prime\")` reproduces perfectly forever."},
@@ -874,7 +874,7 @@ Each prime up to the square root of 91 was tried as a divisor in turn.
 		},
 		Expect: []Expectation{
 			{Seat: "red-lens-logic", Verb: "inquiry check", Because: "Q1 is settled and no check stands on it: its fate claims trial division found the factor 7, and the report's Findings and Method deliver exactly that. A settled inquiry with no standing check holds the PASS, the logic lens's work list names it, and the check with its reason is the one act that clears it."},
-			{Seat: "red-lens-logic", Verb: "mint", Because: "Q2 asks which table first listed 91 — a question of history this run, which asks whether 91 is prime, was not asked. Checking it would pass an inquiry the report should not carry; the accounted act is the gap about the inquiry, class out_of_scope, which blue answers by declining it, and which takes none of the logic lens's mint budget."},
+			{Seat: "red-lens-logic", Verb: "mint", Because: "Q2 asks which table first listed 91 — a question of history this run, which asks whether 91 is prime, was not asked. Checking it would pass an inquiry the report should not carry; the accounted act is the gap about the inquiry, class out_of_scope, which blue answers by declining it."},
 		},
 	}
 }

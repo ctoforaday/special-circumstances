@@ -3,6 +3,13 @@ package setup
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
@@ -12,16 +19,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
-	"io"
-	"os"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // Config is the parsed setup invocation. The environment fields (Cwd/Home/ExpectVersion)
@@ -37,10 +35,9 @@ type Config struct {
 	SkipModelCheck bool
 	Cites          []string
 	Lanes          string
-	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2): K, KMax, MintBudget and the
-	// convergence fraction. Zero means "setup's default", which is written out so the file always
+	// The run's terms (plans/roundless.md §III.B.2): K, KMax and the convergence fraction. Zero means "setup's default", which is written out so the file always
 	// states what bound the run.
-	K, KMax, MintBudget int
+	K, KMax             int
 	ConvergenceFraction float64
 	// MaxEpochs is the run's epoch limit; zero is setup's default unless MaxEpochsSet says the
 	// operator passed it, and a value the operator passed below 1 is refused.
@@ -52,10 +49,6 @@ type Config struct {
 	// know them leaves them empty, and the marker omits the fields rather than carrying "".
 	RunID      string
 	ScriptPath string
-	// AllowSubstitution is the operator's standing consent to a served model that is not the
-	// configured tier. It is recorded on the run rather than passed per seat: the seat is the
-	// party whose adversary strength is in question, so the decision cannot be its to make.
-	AllowSubstitution bool
 	// Session is the launching session's id (seatenv.Session), recorded on the run's live-run row
 	// as its lead: the hooks attribute a payload to the run only when its session_id is this one.
 	// Required — a run no session leads is a run none of whose seats can be attributed.
@@ -69,7 +62,7 @@ type Config struct {
 }
 
 // Run reproduces the mjs main(): the fail-fast gates (runDir→1; model tiers, launching session,
-// epoch limit, another live run, a decided run uncaptured, pin miss, record-binary and client preflights→2),
+// lane count, epoch limit, another live run, a decided run uncaptured, pin miss, record-binary and client preflights→2),
 // then the run-dir build + mirrors + marker, then the summary. Returns the process exit code; writes to the given streams.
 func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.Git == nil {
@@ -108,6 +101,19 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "  %v\n", err)
 			return 2
 		}
+	}
+
+	// Gate: a lane count, when given, is a positive whole number — before the run dir exists. The
+	// cast and every reader of run-config take it as one; "two" or "0" stored as typed would cast
+	// no lanes while the config claims some.
+	lanesN := 0
+	if cfg.Lanes != "" {
+		n, err := record.ParseLanes(cfg.Lanes)
+		if err != nil {
+			fmt.Fprintf(stderr, "run-setup: --lanes: %v — refusing to create the run\n", err)
+			return 2
+		}
+		lanesN = n
 	}
 
 	// Gate: a launching session, before the run dir exists. The run's members are the agents of the
@@ -281,23 +287,81 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "run-setup: %v\n", err)
 		return 2
 	}
-	// THE CAST IS WRITTEN FIRST, under the harness, before any seat registers: the run's admissible
+	BuildSkeleton(run)
+	terms := record.DefaultParams
+	if cfg.K > 0 {
+		terms.K = cfg.K
+	}
+	if cfg.KMax > 0 {
+		terms.KMax = cfg.KMax
+	}
+	if cfg.ConvergenceFraction > 0 {
+		terms.ConvergenceFraction = cfg.ConvergenceFraction
+	}
+	if cfg.MaxEpochs > 0 {
+		terms.MaxEpochs = cfg.MaxEpochs
+	}
+	// THE RUN'S CONFIGURATION IS WRITTEN OR SETUP FAILS: every record reader of the run's terms and its
+	// lane count reads this file, and a run set up without it would run on defaults nobody chose.
+	failConfig := func(err error) int {
+		fmt.Fprintf(stderr, "run-setup: could not write the run's configuration (inputs/run-config.json): %v\n", err)
+		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: make the run directory writable, then re-run setup")
+		return 2
+	}
+	// AN ENCODING FAILURE IS NOT A DIRECTORY'S: nothing was written, and a writable directory would
+	// fail the same way. JSON holds no infinite or NaN number, which a float flag parses from "inf".
+	failEncode := func(err error) int {
+		fmt.Fprintf(stderr, "run-setup: could not encode the run's configuration (inputs/run-config.json): %v\n", err)
+		fmt.Fprintln(stderr, "  The hooks cannot find this run, so do not launch it. remedy: pass each flag a value JSON can hold (a finite number), then re-run setup")
+		return 2
+	}
+	hooks, err := marshalJSON(hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"))
+	if err != nil {
+		return failEncode(err)
+	}
+	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Seats: seatSpecs, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect,
+		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
+		Hooks:   hooks,
+		Billing: ReadBillingIdentity()}
+	b, err := marshalJSON(rc)
+	if err != nil {
+		return failEncode(err)
+	}
+	// STAGED, THEN PUT IN PLACE ONLY ONCE THE CAST LANDS. The cast is written once, so it is what
+	// refuses a directory that already holds a run; writing the configuration in place first would
+	// overwrite that run's terms before the refusal. A staging write that fails leaves no cast, so
+	// re-running setup succeeds. The staged file's name is this setup's own, so two setups of one
+	// directory never write one staged file.
+	cfgPath := filepath.Join(run.Dir(), "inputs", "run-config.json")
+	staged, err := stageFile(filepath.Dir(cfgPath), "run-config.json.setup-*", b)
+	if err != nil {
+		return failConfig(err)
+	}
+	// THE CAST IS WRITTEN under the harness, before any seat registers: the run's admissible
 	// seats, derived from the areas selected and the lane count. Every register and every dispatch
 	// is checked against it from here on (plans/roundless.md §III.B.1).
-	lanesN, _ := strconv.Atoi(cfg.Lanes)
+	//
 	// THE LANES ARE NAMED, NOT LEFT TO BE RECOGNISED. Every other seat's role and tier come from the
 	// static roster; a lane's cannot, because how many a run seats is a run parameter. setup is the
 	// one process that knows, so it says so here rather than leaving a pattern to guess later.
 	seats, laneSeats := record.CastFor(lanesN)
-	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat},
-		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}); err != nil {
-		fmt.Fprintf(stderr, "run-setup: could not write the cast: %v\n", err)
+	_, castErr := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
+	// Setup holds no record handle past this write, refused or not: the seats open their own.
+	_ = recordsql.Close(filepath.Join(run.Records(), "record.db"))
+	if castErr != nil {
+		_ = os.Remove(staged)
+		fmt.Fprintf(stderr, "run-setup: could not write the cast: %v\n", castErr)
 		return 2
 	}
-	// Setup holds no record handle past this write: the seats open their own.
-	_ = recordsql.Close(filepath.Join(run.Records(), "record.db"))
+	if err := os.Rename(staged, cfgPath); err != nil {
+		_ = os.Remove(staged)
+		fmt.Fprintf(stderr, "run-setup: could not put the run's configuration in place (inputs/run-config.json): %v\n", err)
+		fmt.Fprintln(stderr, "  The cast is written and the hooks cannot find this run, so do not launch it. remedy: set up a fresh run directory")
+		return 2
+	}
+	reportBilling(rc.Billing, stdout, stderr)
 
-	BuildSkeleton(run)
 	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
 		// LOUD, not folded into the zero: a purge that could not resolve its own directory has
 		// not checked anything, and reporting that as "0 removed" is the same line a clean
@@ -307,31 +371,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", n)
 	}
 	pinned := BuildPinned(run, head, cfg.Cites)
-
-	terms := record.DefaultParams
-	if cfg.K > 0 {
-		terms.K = cfg.K
-	}
-	if cfg.KMax > 0 {
-		terms.KMax = cfg.KMax
-	}
-	if cfg.MintBudget > 0 {
-		terms.MintBudget = cfg.MintBudget
-	}
-	if cfg.ConvergenceFraction > 0 {
-		terms.ConvergenceFraction = cfg.ConvergenceFraction
-	}
-	if cfg.MaxEpochs > 0 {
-		terms.MaxEpochs = cfg.MaxEpochs
-	}
-	rc := runConfig{Topic: topic, RunDir: run.Dir(), Seats: seatSpecs, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
-		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
-		Hooks:   hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"),
-		Billing: ReadBillingIdentity()}
-	if b, err := marshalJSON(rc); err == nil {
-		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
-	}
-	reportBilling(rc.Billing, stdout, stderr)
 
 	law := MirrorLaw(filepath.Join(cfg.Cwd, "law"), run)
 	pinnedPaths := []string{}
@@ -425,68 +464,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	return 0
 }
 
-type runConfig struct {
-	Topic string `json:"topic"`
-	// RunDir is the ABSOLUTE path of this run.
-	//
-	// It is recorded because the run directory reaches a seat as a STRING each seat resolves
-	// against its own working directory, and a relative one resolves differently per invocation.
-	// Measured (#358): a seat whose shell cwd was the `tools/` directory resolved
-	// `research/<slug>/` from there and built a second blackboard — the lane's entire draft, its
-	// own shards, clock and locks — while the real run's candidates directory stayed empty. Two
-	// shards of one seat class existed in both places.
-	//
-	// A seat can no longer CREATE a run directory (RegisterSeat refuses one that does not exist),
-	// which turns that failure loud. This field is the other half: the operator and every
-	// post-hoc reader can see which absolute path the run was set up at, rather than inferring it
-	// from wherever they happen to be standing.
-	RunDir string                        `json:"runDir"`
-	Seats  map[string]modeltier.SeatSpec `json:"seats"`
-	Lanes  *string                       `json:"lanes"`
-	// The run's terms, always written (record.Params reads them; see that type for what each bounds).
-	K                   int     `json:"k"`
-	KMax                int     `json:"kMax"`
-	MintBudget          int     `json:"mintBudget"`
-	ConvergenceFraction float64 `json:"convergenceFraction"`
-	MaxEpochs           int     `json:"maxEpochs"`
-	// Hooks is what was INSTALLED on the hook side when this run was set up (#751). The record
-	// binary is baked from the working tree and the hooks come from the version-gated install
-	// cache, so the two can be days apart — and a run whose hooks were stale is otherwise
-	// byte-identical on the record to one whose hooks were current.
-	//
-	// It says what was installed, never what RAN: a cache entry on disk does not prove the
-	// harness invoked it. The liveness half is #555's. The key is hookprovenance.ConfigKey, and
-	// run.md reads it back through hookprovenance.Read.
-	Hooks hookprovenance.Provenance `json:"hooks"`
-	// EventSchema is the event-shape EPOCH this run's events were written under.
-	//
-	// A run directory is created by `setup` and does not outlive the schema that made it — but
-	// `run-archive/` does, and CLAUDE.md calls it the only part of a run that survives the
-	// container, re-read by every later audit. When the record's storage moved to a database,
-	// six archived runs became unreadable by the current binary, and nothing in them said what
-	// shape they were in — so a later reader could only guess which binary to build.
-	//
-	// It is the EPOCH and deliberately not a binary version (#597): a release number moves for
-	// reasons the event shape does not care about, so recording one would tell a future reader
-	// what shipped rather than what it can read. This is the same number the setup preflight
-	// just checked the binary against, so the file states a fact the run has already verified.
-	EventSchema int `json:"eventSchema,omitempty"`
-	// AllowModelSubstitution records that the OPERATOR accepted, before the run, an environment
-	// that may answer with a model other than the configured tier. Absent means no: a run whose
-	// config predates the field never consented, and the failing direction of a gate has to be
-	// the safe one.
-	//
-	// It is written here and read at `register` (record.allowSubstitution), which is what makes
-	// the consent a FIELD an operator set rather than a flag a seat could type for itself.
-	AllowModelSubstitution bool `json:"allowModelSubstitution,omitempty"`
-	// Billing is WHAT THIS RUN IS BILLED TO — the account, its organization and whether it is a
-	// subscription. See BillingIdentity for the measurement that put it here: a run had no way to
-	// say which bill it was on, so an isolated config silently authenticated against a different
-	// organization and spent credits for months while reporting a dollar figure that read as
-	// telemetry.
-	Billing BillingIdentity `json:"billing"`
-}
-
 // helperPreflightDetail is setup's line for a helper that did not come up: the error's name, then
 // what an operator acts on — the path looked in, both digests, the exit — and the error's detail.
 // The path is part of every case: a helper-absent line that names no path cannot be acted on.
@@ -548,7 +525,7 @@ func gitHead(git GitFunc) string {
 // deliberately isolated environment — and refusing it would break those to protect a wallet the
 // tool cannot see. What is not legitimate is doing it SILENTLY, so this makes the quiet case loud
 // and leaves the decision where it belongs.
-func reportBilling(b BillingIdentity, stdout, stderr io.Writer) {
+func reportBilling(b record.BillingIdentity, stdout, stderr io.Writer) {
 	if b.Subscription() {
 		where := "the default config"
 		if b.Isolated {
@@ -633,42 +610,31 @@ func refuseADecidedRun(cfg Config, stderr io.Writer) int {
 // --seat overrides, and any explicit cfg.Seats, refusing unless every debating seat on the
 // roster (plus blue-lane) has both a valid harness and a model.
 func resolveSeats(cfg Config) (map[string]modeltier.SeatSpec, error) {
-	required := requiredSeatKeys()
-	out := make(map[string]modeltier.SeatSpec, len(required))
+	required := modeltier.Seats()
 
 	var bulkSpec, judgmentSpec modeltier.SeatSpec
-	var hasBulk, hasJudgment bool
 	if strings.TrimSpace(cfg.Bulk) != "" {
 		spec, err := modeltier.ParseSeatSpec(cfg.Bulk)
 		if err != nil {
 			return nil, fmt.Errorf("--bulk: %w", err)
 		}
-		bulkSpec, hasBulk = spec, true
+		bulkSpec = spec
 	}
 	if strings.TrimSpace(cfg.Judgment) != "" {
 		spec, err := modeltier.ParseSeatSpec(cfg.Judgment)
 		if err != nil {
 			return nil, fmt.Errorf("--judgment: %w", err)
 		}
-		judgmentSpec, hasJudgment = spec, true
+		judgmentSpec = spec
 	}
-	for _, seatID := range required {
-		base := seatBase(seatID)
-		if seatclass.ClassOf(base) == "judgment" {
-			if hasJudgment {
-				out[seatID] = judgmentSpec
-			}
-		} else if hasBulk {
-			out[seatID] = bulkSpec
-		}
-	}
+	out := modeltier.TieredSeats(bulkSpec, judgmentSpec)
 	for _, raw := range cfg.SeatOverrides {
 		seatID, val, ok := strings.Cut(raw, "=")
 		seatID = strings.TrimSpace(seatID)
 		if !ok || seatID == "" {
 			return nil, fmt.Errorf("--seat %q must have form <seat-id>=<[harness:]model>", raw)
 		}
-		if !isConfigurableSeat(seatID) {
+		if !modeltier.Configurable(seatID) {
 			return nil, fmt.Errorf("--seat %q names unknown seat %q", raw, seatID)
 		}
 		spec, err := modeltier.ParseSeatSpec(val)
@@ -678,7 +644,7 @@ func resolveSeats(cfg Config) (map[string]modeltier.SeatSpec, error) {
 		out[seatID] = spec
 	}
 	for seatID, spec := range cfg.Seats {
-		if !isConfigurableSeat(seatID) {
+		if !modeltier.Configurable(seatID) {
 			return nil, fmt.Errorf("seats[%q] names unknown seat", seatID)
 		}
 		h := strings.TrimSpace(strings.ToLower(spec.Harness))
@@ -706,37 +672,6 @@ func resolveSeats(cfg Config) (map[string]modeltier.SeatSpec, error) {
 		return nil, fmt.Errorf("unresolved seat(s): %s (pass --bulk, --judgment, and/or --seat)", strings.Join(missing, ", "))
 	}
 	return out, nil
-}
-
-func requiredSeatKeys() []string {
-	seen := map[string]bool{seatclass.Lane.Base: true}
-	keys := []string{seatclass.Lane.Base}
-	for id, s := range seatclass.Seats {
-		if s.Base == "" {
-			continue
-		}
-		if !seen[id] {
-			seen[id] = true
-			keys = append(keys, id)
-		}
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func seatBase(seatID string) string {
-	if seatID == seatclass.Lane.Base {
-		return seatclass.Lane.Base
-	}
-	return seatclass.Seats[seatID].Base
-}
-
-func isConfigurableSeat(seatID string) bool {
-	if seatID == seatclass.Lane.Base {
-		return true
-	}
-	s, ok := seatclass.Seats[seatID]
-	return ok && s.Base != ""
 }
 
 var ansiCSI = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)

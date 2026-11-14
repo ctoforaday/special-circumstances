@@ -54,7 +54,7 @@ type QueueEntry struct {
 //  5. the composed sources the voice lens has not had (composedItemsOf), all of them as one entry,
 //     while nothing above is queued.
 //
-// Everything else on the list is not queued: the log channel, the budget, the statement that nothing
+// Everything else on the list is not queued: the log channel, the statement that nothing
 // is owed, news of a closure, an anchor no check can reach, and every gap that is not the seat's to
 // act on. A delivery states those in its header and index.
 func QueueOf(w WorkJSON) []QueueEntry {

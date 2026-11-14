@@ -662,8 +662,7 @@ func sentenceWords(text string, at [2]int) string {
 // the minting seat holds its own standing reading of the mint's subject that admits the class: of the
 // citation the mint is about, or of a source it found for the sentence the mint quotes. Asked after
 // requireAboutAnchorLive (a mint about a retired citation is about nothing, not told to read it) and
-// before the one-gap rule and the budget (a mint refused for its ground is not first told about a held
-// subject or a full budget). Any other class returns nil at the table lookup.
+// before the one-gap rule (a mint refused for its ground is not first told about a held subject). Any other class returns nil at the table lookup.
 func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) error {
 	row, ok := readingMintedClassOf(m.GetClass())
 	if !ok {

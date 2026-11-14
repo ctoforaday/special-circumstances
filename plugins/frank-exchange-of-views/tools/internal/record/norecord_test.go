@@ -51,7 +51,7 @@ func TestEveryReaderAnswersARunWithNoRecordThroughItsNilHandle(t *testing.T) {
 	if v, err := recordedOutcomeAt(q); err != nil || v != "" {
 		t.Errorf("recordedOutcomeAt: %q, %v", v, err)
 	}
-	if r, err := workReadsAt(q, nil); err != nil || !r.absent {
+	if r, err := workReadsAt(q); err != nil || !r.absent {
 		t.Errorf("workReadsAt: absent %v, %v", r.absent, err)
 	}
 	if r, err := planReadsAt(q); err != nil || r.cast != nil {

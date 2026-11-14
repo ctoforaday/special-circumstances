@@ -21,7 +21,7 @@ func liftRun(t *testing.T, ledger *benchOrderLedger, scenario string) (*runner, 
 	runDir := recordtest.TmpRun(t)
 	const sentence = "A § fuzz sentence to anchor findings."
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		fuzzRunConfig(1, 1, 2, 1, 10)); err != nil {
+		fuzzRunConfig(1, 1, 2, 10)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)

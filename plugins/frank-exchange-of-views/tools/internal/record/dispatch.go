@@ -1401,7 +1401,7 @@ func failedCheckReadiness(b Blocker, seat string, satSince bool) string {
 	if satSince {
 		return fmt.Sprintf("%s has sat since its check of %s %s and minted no gap about it — readied once per check, so not again", seat, what, failed)
 	}
-	return fmt.Sprintf("%s's check of %s %s and no gap of its carries that to blue — ready, to mint its gap about the anchor, which takes no mint of its budget", seat, what, failed)
+	return fmt.Sprintf("%s's check of %s %s and no gap of its carries that to blue — ready, to mint its gap about the anchor", seat, what, failed)
 }
 
 // failedAnchor names the anchor a failed check stands on: a computation judged unsound, a citation

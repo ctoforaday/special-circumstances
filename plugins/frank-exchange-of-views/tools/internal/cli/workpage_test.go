@@ -23,8 +23,8 @@ func workPageOf(t *testing.T, root *cobra.Command) string {
 
 // `show work` TELLS EACH SEAT ABOUT ITS OWN LIST.
 //
-// record.WorkOfSeat builds the list per role: the mint budget, the regrades owed and whether blue
-// answered are a lens's, `engaged` is blue's response sitting's, and an item another seat clears is
+// record.WorkOfSeat builds the list per role: the regrades owed and whether blue answered are a
+// lens's, `engaged` is blue's response sitting's, and an item another seat clears is
 // the chair's. A paragraph about a field the reader's list never holds cannot be acted on, and the
 // page is read at every sitting's opening act — it reaches a seat's constitution through this same
 // tree — so each paragraph is on the page of the roles below and on no other seat's.
@@ -37,7 +37,6 @@ func TestShowWorkCarriesTheParagraphsOfTheRoleItIsRenderedFor(t *testing.T) {
 		{"ON THE CHAIR'S LIST a blocking item holds a PASS", []string{"chair"}},
 		{"FOR EACH GAP OF YOURS WHOSE TURN HAS COME", []string{"lens"}},
 		{"A DOCKETED GAP IS OFF YOUR LIST UNTIL THE BENCH RULES IT", []string{"lens", "blue"}},
-		{"A LENS'S LIST STATES ITS MINT BUDGET", []string{"lens"}},
 		{"AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE", []string{"lens"}},
 		{"WHERE THE LENS PRESCRIBED EXACT TEXT", []string{"lens", "blue"}},
 		{"`engaged` IS BLUE'S RESPONSE SITTING'S", []string{"blue"}},

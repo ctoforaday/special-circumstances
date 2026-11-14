@@ -55,9 +55,10 @@ var Seats = []struct{ Role, ID string }{
 }
 
 // Build materialises a board into runDir.
-// stagingLenses are the lens seats the builder mints a board through, in rotation. Four — a budget
-// fixture, not the default cast (which seats every area): a board of up to twenty gaps stays within
-// each lens's default budget of five.
+// stagingLenses are the lens seats the builder mints a board through, in rotation. Four — a fixture,
+// not the default cast (which seats every area). The rotation spreads the board's gaps over several
+// owners, so a probed lens meets gaps of its own, which it alone closes, beside other lenses' gaps,
+// which it does not; each board's prose names its gaps' owners by this order.
 var stagingLenses = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
 
 func Build(run record.Run, b Board, exec Exec) error {
@@ -112,9 +113,9 @@ func Build(run record.Run, b Board, exec Exec) error {
 		return err
 	}
 
-	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats — rotated
-	// over the default areas so no lens spends more than its budget on a large board — and each
-	// gap is closed by the lens that minted it, because the originator closes.
+	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats, rotated
+	// over stagingLenses, and each gap is closed by the lens that minted it, because the originator
+	// closes.
 	for _, lensSeat := range stagingLenses {
 		if _, err := exec("register", "--run", run.Dir(), "--seat-id", lensSeat); err != nil {
 			return fmt.Errorf("register %s: %w", lensSeat, err)

@@ -156,7 +156,7 @@ func TestFingerprintOfNothingIsUnmeasurable(t *testing.T) {
 // It was not, and nothing checked. The total priced each MESSAGE at its own `model` field while
 // the breakdown priced each FILE at one tier chosen for the whole transcript — two definitions of
 // one run's cost, on one page, agreeing only while every transcript carried a single model. A
-// transcript carrying two is exactly what `setup --allow-substitution` exists to permit.
+// transcript carrying two is exactly what a harness substitution produces.
 //
 // The fixture writes one, so this test fails against the old two-pass code rather than merely
 // describing the new one.

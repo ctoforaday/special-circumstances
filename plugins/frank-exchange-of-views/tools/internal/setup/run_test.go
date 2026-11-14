@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
@@ -222,9 +223,15 @@ func TestSeatOverridesAndAntigravityDiscovery(t *testing.T) {
 	if !strings.Contains(out.String(), "workflow: python") {
 		t.Errorf("mixed setup must report workflow: python; got:\n%s", out.String())
 	}
-	seats := modeltier.SeatConfigs(runDir)
-	if got := seats["red-lens-dark-side"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "gpt-oss-120b-medium"}) {
+	rc, err := record.ReadRunConfig(runtest.Open(t, runDir))
+	if err != nil || rc == nil {
+		t.Fatalf("the written configuration does not read: %v", err)
+	}
+	if got := rc.Seats["red-lens-dark-side"]; got != (modeltier.SeatSpec{Harness: "antigravity", Model: "gpt-oss-120b-medium"}) {
 		t.Errorf("run-config.json override = %+v, want antigravity:gpt-oss-120b-medium", got)
+	}
+	if got := rc.Seats["red-chair"]; got != (modeltier.SeatSpec{Harness: "claude", Model: "opus"}) {
+		t.Errorf("run-config.json judgment seat = %+v, want claude:opus", got)
 	}
 
 	// Missing Antigravity model refuses before creating the run.

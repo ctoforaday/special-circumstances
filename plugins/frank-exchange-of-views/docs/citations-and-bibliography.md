@@ -165,7 +165,7 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   no bench ruling clears, is a citation `unread` or a computation `unsound`.
   - *Unread*: a `verify` `unreachable`, or any outcome on a copy stamped `not_the_work`, reads
     nothing. The first lens whose reading read nothing since the sentence last changed owes a gap
-    about the anchor (`--about-kind anchor`), outside its mint budget. It clears when any lens's
+    about the anchor (`--about-kind anchor`). It clears when any lens's
     reading reads the work, an edit changes the sentence, or blue retires the citation. A second
     reading by the same lens that again reads nothing, while its gap is open and the sentence
     unchanged, is refused.

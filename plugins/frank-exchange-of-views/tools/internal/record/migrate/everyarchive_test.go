@@ -20,18 +20,49 @@ import (
 // read from the roster with no second spelling admitted. An id the translation leaves off the
 // roster has no role, so every act under it renders as no party's — this is what holds the
 // translation to the whole archive rather than to the ids remap_test.go lists.
+//
+// EVERY MIGRATED RUN'S TERMS READ. The record reads inputs/run-config.json strictly, refusing a key
+// the run's configuration does not declare, so an archived key the configuration no longer has —
+// the mint cap's `mintBudget`, the call limit's `maxSittingCalls` — refuses the migrated run's terms unless the channel copy drops it.
+// And the epoch the file states is the one the migrated record is written at.
 func TestEveryArchivedRunMigrates(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
 	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
+	configs := 0
+	t.Cleanup(func() {
+		if configs == 0 && !t.Failed() {
+			t.Error("no archived run carries a run-config.json, so no migrated configuration's epoch was checked")
+		}
+	})
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
 			res, run := migrateArchive(t, name)
 			if len(res.Refusals) != 0 {
 				t.Errorf("%d event(s) refused migrating %s; the first: %+v", len(res.Refusals), name, res.Refusals[0])
+			}
+			if _, err := record.RunParams(run); err != nil {
+				t.Errorf("%s: the migrated run's terms do not read: %v", name, err)
+			}
+			// THE MIGRATED CONFIGURATION STATES THE EPOCH ITS RECORD IS AT, not the source's. An
+			// archive from before run-config.json existed has none to state it.
+			rc, err := record.ReadRunConfig(run)
+			if err != nil {
+				t.Errorf("%s: the migrated run-config does not read: %v", name, err)
+			} else if rc != nil {
+				configs++
+				if rc.EventSchema != record.EventSchema {
+					t.Errorf("%s: the migrated run-config states epoch %d, the record is at %d", name, rc.EventSchema, record.EventSchema)
+				}
+				// THE MANIFEST SAYS WHAT THE TRANSLATION CHANGED, the one channel file not copied verbatim.
+				if res.RunConfig == nil || res.RunConfig.Dropped == nil {
+					t.Errorf("%s: the manifest does not record the run-config translation: %+v", name, res.RunConfig)
+				}
+			} else if res.RunConfig != nil {
+				t.Errorf("%s: the manifest records a run-config translation for a run with no run-config: %+v", name, res.RunConfig)
 			}
 			merged, err := record.MergedEvents(run)
 			if err != nil {

@@ -4,9 +4,7 @@ package hookprovenance
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -227,28 +225,20 @@ func trimExe(n string) string {
 // ConfigKey is the provenance's key in inputs/run-config.json.
 const ConfigKey = "hooks"
 
-// Read is the provenance setup wrote into the run's inputs/run-config.json. ok is false when the
-// file or its key is absent — a run set up by nothing that observed the hooks — and an error is a
-// file or a value that does not decode. Neither is an empty Provenance, whose State "" no setup
-// writes.
-func Read(runDir string) (p Provenance, ok bool, err error) {
-	b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return Provenance{}, false, nil
-	}
-	if err != nil {
-		return Provenance{}, false, err
-	}
-	var rc map[string]json.RawMessage
-	if err := json.Unmarshal(b, &rc); err != nil {
-		return Provenance{}, false, fmt.Errorf("inputs/run-config.json does not decode: %w", err)
-	}
-	raw, present := rc[ConfigKey]
-	if !present {
+// Decode is the provenance setup wrote under ConfigKey, given that key's value as the record's one
+// reader of inputs/run-config.json (record.ReadRunConfig) returns it. ok is false when the key is
+// absent — a run set up by nothing that observed the hooks — and an error is a value that does not
+// decode. Neither is an empty Provenance, whose State "" no setup writes: a value that decodes to one
+// — `null`, `{}` — is refused as one that does not decode, since the key is present and says nothing.
+func Decode(raw json.RawMessage) (p Provenance, ok bool, err error) {
+	if len(raw) == 0 {
 		return Provenance{}, false, nil
 	}
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return Provenance{}, false, fmt.Errorf("inputs/run-config.json %q does not decode: %w", ConfigKey, err)
+	}
+	if p.State == "" {
+		return Provenance{}, false, fmt.Errorf("inputs/run-config.json %q states no state: %s is no observation setup writes", ConfigKey, raw)
 	}
 	return p, true, nil
 }

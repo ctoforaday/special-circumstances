@@ -381,27 +381,6 @@ func TestARetiredOwnerStillOwesTheCheck(t *testing.T) {
 	}
 }
 
-// THE OWNER'S GAP ABOUT AN INQUIRY TAKES NO MINT: at the cap the logic lens's mint about an inquiry
-// is admitted, and another lens's is refused.
-func TestTheOwnersGapAboutAnInquiryTakesNoMint(t *testing.T) {
-	for _, r := range []struct {
-		lens  string
-		admit bool
-	}{{inquiryOwner, true}, {"red-lens-dark-side", false}} {
-		id := budgetRun(t, 1, 0, 0, r.lens)
-		if _, err := Append(Identity{Run: id.Run, SeatID: "blue-respond"}, fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true)); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := Append(id, budgetMint("G-cap")); err != nil {
-			t.Fatalf("%s: the mint that fills the floor: %v", r.lens, err)
-		}
-		_, err := Append(id, liveInquiryGap("G-q", "Q1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, recordpb.Grade_GRADE_HIGH))
-		if admitted := err == nil; admitted != r.admit {
-			t.Errorf("%s at the cap minting about an inquiry: admitted = %v (%v), want %v", r.lens, admitted, err, r.admit)
-		}
-	}
-}
-
 // A RUN THAT CANNOT SETTLE OR CLEAR ITS INQUIRIES ENDS CEILING (ruled by gblock 2026-11-01): an
 // inquiry blue keeps `underway`, and one a material gap holds wanting, each keep a party ready to the
 // epoch limit, and the derived outcome names the open one.

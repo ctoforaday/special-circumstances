@@ -26,7 +26,7 @@ import (
 //
 // ONE SHAPE FOR UNREAD AND UNSOUND. The seat whose check failed — the judge, or the first reader since
 // the edit that found the source unreadable — owes a gap about the anchor (`about_kind` anchor,
-// `about_ref` it), outside its mint budget, which carries the defect to blue with a grade and a fix;
+// `about_ref` it), which carries the defect to blue with a grade and a fix;
 // dispatch readies it until the gap exists, then blue. The gap answers the seat's debt, NOT the
 // blocker: the blocker holds the PASS until the anchor is checked and holds, is changed by an edit
 // (which leaves it unchecked, owed a fresh check), or is retired — and the gap's close is refused
@@ -124,10 +124,9 @@ func failedChecksOf(evs []*Event, win WindowIndex) []failedCheck {
 	return out
 }
 
-// failedChecksAt is failedChecksOf asked of q. held is the stream q holds where the reader already
-// took it (heldStream), nil where none is held.
-func failedChecksAt(q recordsql.Querier, held *heldStream) ([]failedCheck, error) {
-	evs, win, err := held.all(q)
+// failedChecksAt is failedChecksOf asked of q.
+func failedChecksAt(q recordsql.Querier) ([]failedCheck, error) {
+	evs, win, err := eventsAt(q)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +162,7 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 	if !fails {
 		return nil
 	}
-	fs, err := failedChecksAt(q, nil)
+	fs, err := failedChecksAt(q)
 	if err != nil {
 		return feov.Wrap(feov.Conflict, err, "the record's checks could not be read, so whether %s already stands as a failed check by %s cannot be told: %v", anchor, seatID, err)
 	}
@@ -224,7 +223,7 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 	if b.CarriedFrom != nil {
 		return nil
 	}
-	fs, err := failedChecksAt(q, nil)
+	fs, err := failedChecksAt(q)
 	if err != nil {
 		return feov.Wrap(feov.Conflict, err, "the record's checks could not be read, so whether gap %s carries a failed check that still stands cannot be told: %v", b.GetGapId(), err)
 	}
@@ -248,14 +247,15 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 	return nil
 }
 
-// ownFailedCheckAnswers is the gaps seatID minted that answer a standing unread or unsound check of
-// its own: outside its mint budget while open (lensMintStanding).
-func ownFailedCheckAnswers(fs []failedCheck, seatID string) map[string]bool {
-	out := map[string]bool{}
-	for _, f := range fs {
-		if f.owner == seatID && f.answeredBy != "" {
-			out[f.answeredBy] = true
-		}
+// answersOwnFailedCheckAt is the anchor a mint by seatID answers — its own standing failed check of
+// the anchor the mint is about, which no gap answers yet — or "" where it answers none.
+func answersOwnFailedCheckAt(q recordsql.Querier, seatID string, m *recordpb.Mint) (string, error) {
+	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
+		return "", nil
 	}
-	return out
+	fs, err := failedChecksAt(q)
+	if err != nil {
+		return "", err
+	}
+	return answersOwnFailedCheck(fs, seatID, m.GetAboutKind(), m.GetAboutRef()), nil
 }

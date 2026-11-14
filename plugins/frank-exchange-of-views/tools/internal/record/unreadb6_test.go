@@ -64,7 +64,7 @@ func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
 	}
 
 	// THE LENS'S CLOSE OF THE GAP ABOUT AN UNREAD CITATION IS REFUSED. Before G-782e2cf3's close (event 172), in the
-	// evidence lens's sitting, the lens mints the gap it owes about C-b718c6b6 — outside its budget —
+	// evidence lens's sitting, the lens mints the gap it owes about C-b718c6b6,
 	// and its close as repaired is refused while the citation stands unread.
 	if c := whole[171].GetClose(); c.GetGapId() != "G-782e2cf3" || whole[171].GetSeatId() != evLens {
 		t.Fatalf("event 172 is not %s's close of G-782e2cf3: %v", evLens, whole[171])

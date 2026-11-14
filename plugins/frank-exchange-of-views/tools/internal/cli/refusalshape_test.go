@@ -222,7 +222,6 @@ func TestTheMessageGateTellsAHeadFromASentence(t *testing.T) {
 		"render: replaying edit %d of %d: %w":                true,
 		"replaying edit %d of %d: %w":                        false,
 		"%s was minted --check-kind computation":             false,
-		"mints are budgeted: this lens has %d left":          false,
 		"a %s names the gap it is about":                     false,
 		"--accept: no gap %s on the board":                   false,
 		"reading the report to ingest at %s: %w":             false,

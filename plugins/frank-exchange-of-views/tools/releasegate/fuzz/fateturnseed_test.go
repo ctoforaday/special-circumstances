@@ -22,7 +22,7 @@ import (
 // sweep reached it on the draw.
 //
 // The run's first lens sitting mints a material gap about the section that prints one inquiry's fate
-// (mintAboutFateSection), before any other mint of its sitting spends its budget. Blue's first sitting
+// (mintAboutFateSection), before any other mint of its sitting. Blue's first sitting
 // engaged on that gap records the inquiry's fate again with its status kept and its reason re-voiced
 // (changeFateForTurn) — the m38 shape: the only way blue changes a composed section is a fate. The next
 // plan engages the lens, whose turn that fate brought, alone or beside blue, and the lens-turn tally
