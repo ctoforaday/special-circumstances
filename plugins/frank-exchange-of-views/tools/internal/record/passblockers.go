@@ -44,14 +44,18 @@ const (
 	BlockerUpheldPosition   BlockerKind = "upheld_position"
 	BlockerOpenInquiry      BlockerKind = "open_inquiry"
 	BlockerUncheckedInquiry BlockerKind = "unchecked_inquiry"
+	BlockerQuestionUnsplit  BlockerKind = "question_unsplit"
+	BlockerOpenPart         BlockerKind = "open_part"
+	BlockerUncheckedPart    BlockerKind = "unchecked_part"
 )
 
 // Blocker is one thing on the board holding the PASS gate, and the seat whose act clears it.
 type Blocker struct {
 	Kind BlockerKind
-	// Subject is what holds it: a gap id, an anchor, a lens seat, a motion id, an inquiry id, the
+	// Subject is what holds it: a gap id, an anchor, a lens seat, a motion id, an inquiry id, a question
+	// part's id, the
 	// sentence a source a lens found was read against (reading_debt, visible text, whitespace
-	// collapsed) — "" for the kind that is about the run as a whole (no_report).
+	// collapsed) — "" for the kinds that are about the run as a whole (no_report, question_unsplit).
 	Subject string
 	// Owner is the seat whose act clears it — the gap's minter, the seat whose check failed, the lens
 	// whose reading finds against, the ready lens, the motion's gavel-holder, the chair for its own
@@ -634,6 +638,68 @@ var blockerKinds = []blockerKind{
 			return uncheckedInquiryFact(b) + " — " + planHold(b, "PASS is not permitted until "+ownerOr(b, inquiryOwner)+" checks it")
 		},
 	},
+	// A RECORD WITH NO QUESTION PART HOLDS THE PASS (ruled by gblock 2026-11-11, E; questionpart.go): a
+	// run that never split its question has no account of whether it answered it. Its owner is
+	// blue-respond, which dispatch readies while it stands; the frontier owes the split at e0.
+	{
+		kind:    BlockerQuestionUnsplit,
+		subject: SubjectQuestionPart,
+		gloss:   "a question with no question part on the record",
+		item: func(b Blocker) string {
+			return unsplitFact() + " — PASS is refused until blue's `question split` splits it"
+		},
+		refusal: func([]Blocker) string {
+			return unsplitFact() + ". A PASS would certify an answer to a question the record never states the parts of, so nothing could say a part went unanswered. " +
+				"Blue splits it with blue's `question split`, one part for each part of it a reader would ask answered, records each part's coverage, and the logic lens then checks each. PASS waits for that, and `--as FAIL` does not"
+		},
+		why: func(b Blocker) string {
+			return unsplitFact() + " — " + planHold(b, "PASS is not permitted until blue splits it")
+		},
+	},
+	// A QUESTION PART WITH NO COVERAGE HOLDS THE PASS UNTIL BLUE RECORDS ONE (questionpart.go). Its owner
+	// is blue-respond, which dispatch readies while any part has none.
+	{
+		kind:    BlockerOpenPart,
+		subject: SubjectQuestionPart,
+		gloss:   "a question part with no coverage recorded",
+		item: func(b Blocker) string {
+			return openPartFact(b) + " — PASS is refused until blue records it: covered, not_obtained or excluded, with the reason"
+		},
+		refusal: func(bs []Blocker) string {
+			return fmt.Sprintf("%d question part(s) have no coverage recorded: %s. A PASS would certify an answer without saying whether the report answers these parts of the question. "+
+				"Blue records each one's coverage with blue's `question cover` — covered, not_obtained or excluded, with the reason — and the logic lens then checks it. A part not covered lets the PASS stand and derives QUALIFIED. "+
+				"PASS waits for those records, and `--as FAIL` does not",
+				len(bs), strings.Join(subjects(bs), ", "))
+		},
+		why: func(b Blocker) string {
+			return openPartFact(b) + " — " + planHold(b, "PASS is not permitted until blue records its coverage")
+		},
+	},
+	// A QUESTION PART WITH COVERAGE HOLDS THE PASS UNTIL A CHECK STANDS ON IT. Its owner is the logic lens
+	// (questionPartOwner), which dispatch readies once per cause; a wanting part holds the PASS through
+	// its gap's material_gap row instead, and has no row here.
+	{
+		kind:    BlockerUncheckedPart,
+		subject: SubjectQuestionPart,
+		gloss:   "a question part whose latest coverage no check stands on",
+		item: func(b Blocker) string {
+			return uncheckedPartFact(b) + " — PASS is refused until one does. " + uncheckedPartAct(b)
+		},
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, uncheckedPartFact(b))
+			}
+			return fmt.Sprintf("%d question part(s) have no check of their latest coverage:\n  %s\n"+
+				"A part's coverage is the record's account of whether the report answers that part of the question, and nothing on the record has judged that account. "+
+				"The logic lens judges each, with the lens's `question check --id <id>` where its coverage stands, or the gap about it, class coverage_misstated, where it does not. "+
+				"A coverage recorded again, or any gap minted about the part, leaves its check stale. PASS waits for those checks, and `--as FAIL` does not",
+				len(bs), strings.Join(named, "\n  "))
+		},
+		why: func(b Blocker) string {
+			return uncheckedPartFact(b) + " — " + planHold(b, "PASS is not permitted until "+ownerOr(b, questionPartOwner)+" checks it")
+		},
+	},
 }
 
 func kindOf(k BlockerKind) blockerKind {
@@ -720,7 +786,7 @@ func blockerGapsOfOpen(gaps []openGap, owed map[string]bool) []blockerGap {
 //
 // TWO SETS OF ARMS. The stream alone answers eventBlockersOf's; the gap arms and the lens arms read
 // the open gaps and the fresh-material set, which are SQL as it stands now.
-func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, fresh map[string]bool, found []locatedReading) []Blocker {
+func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, fresh map[string]bool, found []locatedReading, parts []QuestionPartRow) []Blocker {
 	var out []Blocker
 	for _, g := range gaps {
 		if g.material {
@@ -732,7 +798,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 			out = append(out, Blocker{Kind: BlockerRemandOwed, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
-	events := owedBlockersOf(evs, ids, win, gaps, found)
+	events := owedBlockersOf(evs, ids, win, gaps, found, parts)
 	out = append(out, events...)
 	out = append(out, gradeMovementOf(evs, ids, win, openSet(gaps)).blockers()...)
 	if lg := passLensGateOf(evs, ids, win, fresh, lensOwesOf(evs, ids, win, gaps, events), composedOwedOf(evs, ids, win, gaps)); lg.cast && lg.head != 0 {
@@ -849,7 +915,7 @@ func passBlockersAt(q recordsql.Querier) ([]Blocker, error) {
 }
 
 // passBlockerReadsAt is every answer the gate's list takes off the record: the stream, the fresh
-// material gaps, the open gaps, the located readings and the bench's remands.
+// material gaps, the open gaps, the located readings, the question parts and the bench's remands.
 func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 	var r planReads
 	var err error
@@ -865,6 +931,9 @@ func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 	if r.found, err = locatedReadingsAt(q, r.evs, r.win); err != nil {
 		return r, err
 	}
+	if r.parts, err = questionPartsAt(q); err != nil {
+		return r, err
+	}
 	r.remands, err = remandRulingsOf(q)
 	return r, err
 }
@@ -872,7 +941,7 @@ func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 // passBlockersOfReads folds the gate's list from what passBlockerReadsAt read.
 func passBlockersOfReads(r planReads) []Blocker {
 	ids := r.win.IDs(r.evs)
-	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh, r.found)
+	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh, r.found, r.parts)
 }
 
 // requireNoBlockers is the verdict gate. A PASS is refused over every blocker. A FAIL is then held to

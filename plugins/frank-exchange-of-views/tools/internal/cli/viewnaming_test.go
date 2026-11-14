@@ -45,6 +45,7 @@ var viewWriters = map[string][]string{
 	// offered as backing (`cite`, `compute`) and what red made of it (`verify`, `reproduce`).
 	"evidence":  {"cite", "compute", "verify", "reproduce"},
 	"inquiries": {"inquiry", "propose"},
+	"question":  {"question", "split"},
 	"telemetry": {},
 	"board":     {"mint", "close", "regrade", "retire"},
 	// No act writes it: `fetch` fills the cache it reads.

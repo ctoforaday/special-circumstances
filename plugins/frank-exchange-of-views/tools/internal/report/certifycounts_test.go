@@ -53,7 +53,7 @@ func TestACertificationRendersTheRecordsCountsAsOfIt(t *testing.T) {
 		first = "The record at this certification, counted by the tool — gaps: 2 minted · 1 closed · 1 open; citations: 1; readings: 1; computations: 0."
 		last  = "The record at this certification, counted by the tool — gaps: 2 minted · 2 closed · 0 open; citations: 2 (1 retired); readings: 3; computations: 1."
 	)
-	d := debate(fam)
+	d := debate(fam, nil)
 	for _, want := range []string{
 		"**Certification** — re-examine all 9 citations\n\n" + first,
 		"**Certification** — re-examine the cost model\n\n" + last,
@@ -62,7 +62,7 @@ func TestACertificationRendersTheRecordsCountsAsOfIt(t *testing.T) {
 			t.Errorf("the debate's bench disposition is missing %q:\n%s", want, d)
 		}
 	}
-	s := supersededAsks(fam)
+	s := supersededAsks(fam, nil)
 	if want := "1. re-examine all 9 citations\n   " + first; !strings.Contains(s, want) {
 		t.Errorf("the superseded statement is missing its own point's counts %q:\n%s", want, s)
 	}

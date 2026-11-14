@@ -27,7 +27,7 @@ func TestTheTranscriptCarriesARegradeThatKeptTheGrade(t *testing.T) {
 	}
 	want := "### RED KEEPS THE GRADE — G1 (" + lens + ")\n" + reason
 	f := famOf(t, evs)
-	if got := debate(f); !strings.Contains(got, want) || strings.Contains(got, "conceded") {
+	if got := debate(f, nil); !strings.Contains(got, want) || strings.Contains(got, "conceded") {
 		t.Errorf("the assembled transcript does not carry the kept grade alone:\n%s", got)
 	}
 	md, err := view.MarkdownFrom(view.Input{Gaps: f.Gaps, Events: f.Events, At: f.At}, "debate", "")

@@ -1892,6 +1892,8 @@ func seedCast(t *testing.T, runDir string) {
 	t.Helper()
 	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-synthesize", "blue-respond", "judge"}}))
+	// The question is split, covered and checked: what these fixtures test is not the question.
+	recordtest.SettleQuestion(t, runDir)
 }
 
 // castRun is a run as a real one stands when its lens is first sent to sit: the cast setup writes,

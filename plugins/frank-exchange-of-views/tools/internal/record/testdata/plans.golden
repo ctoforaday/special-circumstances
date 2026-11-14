@@ -300,6 +300,30 @@
   SEARCH rd USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH fre USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
+== view question_part_state
+  CO-ROUTINE p
+    SCAN a0 USING INDEX question_part_id
+  SCAN p
+  SEARCH fp USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH pe USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH cv USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  CORRELATED SCALAR SUBQUERY
+    SEARCH x USING INDEX question_part_id (part_id=?)
+  SEARCH cve USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  CORRELATED SCALAR SUBQUERY
+    SEARCH c USING COVERING INDEX question_part_check_id (part_id=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH m USING COVERING INDEX mint_about (about_kind=? AND about_ref=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH m USING COVERING INDEX mint_about (about_kind=? AND about_ref=?)
+    SEARCH gs USING INTEGER PRIMARY KEY (rowid=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH m USING COVERING INDEX mint_about (about_kind=? AND about_ref=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH m USING COVERING INDEX mint_about (about_kind=? AND about_ref=?)
+    SEARCH gs USING INTEGER PRIMARY KEY (rowid=?)
+
 == view remand
   CO-ROUTINE remand
     COMPOUND QUERY
@@ -1324,6 +1348,18 @@
 -- INSERT INTO "position" ("event_id", "text", "position_id", "class") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt c9ae209a8261
+-- INSERT INTO "question_part" ("event_id", "part_id", "coverage", "supersedes_coverage", "reason") VALUES (?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt da91b68cfb20
+-- INSERT INTO "question_part" ("event_id", "part_id", "text") VALUES (?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt cb546f3acd99
+-- INSERT INTO "question_part_check" ("event_id", "part_id") VALUES (?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt 1ff97edd63bf
 -- INSERT INTO "register" ("event_id") VALUES (?)
   (no plan rows: the statement reads no table)
@@ -2127,6 +2163,10 @@
   SEARCH m USING COVERING INDEX mint_about (about_kind=?)
   SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
+== stmt 8f9f9d926a7e
+-- SELECT 1 FROM "question_part" WHERE "part_id" = ? LIMIT 1
+  SEARCH question_part USING COVERING INDEX question_part_id (part_id=?)
+
 == stmt 69e158862e4b
 -- SELECT 1 FROM "report_part" LIMIT 1
   SCAN report_part
@@ -2198,6 +2238,16 @@
   SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
   SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
   SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+
+== stmt c0c1c3532a69
+-- SELECT COALESCE(c."coverage", ''), COUNT(*) FROM (SELECT a0."part_id" AS "part_id" FROM "question_part" a0 WHERE COALESCE(a0."part_id", '') != '' AND a0."supersedes_coverage" IS NULL AND a0."event_id" <= ?1 GROUP BY a0."part_id") p LEFT JOIN "question_part" c ON c."event_id" = (SELECT MAX(x."event_id") FROM "question_part" x WHERE x."part_id" = p."part_id" AND x."supersedes_coverage" IS NOT NULL AND x."event_id" <= ?1) GROUP BY COALESCE(c."coverage", '')
+  CO-ROUTINE p
+    SCAN a0 USING INDEX question_part_id
+  SCAN p
+  SEARCH c USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  CORRELATED SCALAR SUBQUERY
+    SEARCH x USING INDEX question_part_id (part_id=? AND event_id<?)
+  USE TEMP B-TREE FOR GROUP BY
 
 == stmt b225f6c6764f
 -- SELECT COALESCE(max("id"), 0) + 1, COALESCE((SELECT "epoch" FROM "events" ORDER BY "id" DESC LIMIT 1), 0) FROM "events"
@@ -2617,6 +2667,32 @@
   SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
   USE TEMP B-TREE FOR ORDER BY
 
+== stmt 1d6df52ba873
+-- SELECT q."part_id", COALESCE(q."text", ''), COALESCE(q."proposed_by", ''), q."proposed_seq", COALESCE(q."coverage", ''), COALESCE(q."reason", ''), COALESCE(q."coverage_seq", 0), COALESCE(q."covered_by", ''), COALESCE(q."gap_seq", 0), q."wanting", COALESCE(q."check_seq", 0), COALESCE(q."checked_by", ''), q."check_stands" FROM "question_part_state" q ORDER BY q."proposed_seq"
+  CO-ROUTINE p
+    SCAN a0 USING INDEX question_part_id
+  SCAN p
+  SEARCH fp USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH pe USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH cv USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  CORRELATED SCALAR SUBQUERY
+    SEARCH x USING INDEX question_part_id (part_id=?)
+  SEARCH cve USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH ce USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  CORRELATED SCALAR SUBQUERY
+    SEARCH c USING COVERING INDEX question_part_check_id (part_id=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH m USING COVERING INDEX mint_about (about_kind=? AND about_ref=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH m USING COVERING INDEX mint_about (about_kind=? AND about_ref=?)
+    SEARCH gs USING INTEGER PRIMARY KEY (rowid=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH m USING COVERING INDEX mint_about (about_kind=? AND about_ref=?)
+  CORRELATED SCALAR SUBQUERY
+    SEARCH m USING COVERING INDEX mint_about (about_kind=? AND about_ref=?)
+    SEARCH gs USING INTEGER PRIMARY KEY (rowid=?)
+  USE TEMP B-TREE FOR ORDER BY
+
 == stmt 3f0bd7aae06f
 -- SELECT r."event_id", mr."motion_id", r."disposition", r."settled", COALESCE(r."reopens_on", ''), COALESCE(r."final", 0) FROM "motion_rule_docket" r JOIN "motion_rule" mr ON mr."event_id" = r."event_id" JOIN "motion" mo ON mo."motion_id" = mr."motion_id" JOIN "motion_docket" md ON md."event_id" = mo."event_id" WHERE md."gap_id" = ? ORDER BY r."event_id" DESC LIMIT 1
   SEARCH md USING COVERING INDEX motion_docket_gap (gap_id=?)
@@ -2752,6 +2828,14 @@
 
 == stmt 3c76fc357542
 -- SELECT t."event_id", t."opinion" FROM "halt" t WHERE t."event_id" > ?
+  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
+
+== stmt 4c8b45b45e51
+-- SELECT t."event_id", t."part_id" FROM "question_part_check" t WHERE t."event_id" > ?
+  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
+
+== stmt efd01e410a94
+-- SELECT t."event_id", t."part_id", t."text", t."coverage", t."supersedes_coverage", t."reason" FROM "question_part" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt a82e2f72fdd7

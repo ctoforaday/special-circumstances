@@ -21,6 +21,8 @@ type stage struct {
 	runDir string
 	n      int
 	evs    []*Event
+	// unsplit seeds the stage with no settled question: a stage about the question's own blockers.
+	unsplit bool
 }
 
 func newStage(t *testing.T) *stage { return &stage{t: t, runDir: newRun(t)} }
@@ -81,8 +83,21 @@ func (b *stage) regrade(evLens, gap, severity string) *stage {
 	sev, _ := GradeOf(severity)
 	return b.add(evLens, &recordpb.Regrade{GapId: proto.String(gap), Severity: &sev, Basis: proto.String("b")})
 }
+
+// seed writes the staged acts, then the settled question (recordtest.SettledQuestion) where the
+// stage holds a cast and no question part of its own: a stage about something else reaches its PASS
+// over a question split, covered and checked.
 func (b *stage) seed() Run {
-	recordtest.Seed(b.t, b.runDir, b.evs...)
+	evs := b.evs
+	cast, parts := false, false
+	for _, ev := range evs {
+		cast = cast || ev.GetCast() != nil
+		parts = parts || ev.GetQuestionPart() != nil
+	}
+	if cast && !parts && !b.unsplit {
+		evs = append(evs, recordtest.SettledQuestion(b.t)...)
+	}
+	recordtest.Seed(b.t, b.runDir, evs...)
 	return mustRun(b.t, b.runDir)
 }
 

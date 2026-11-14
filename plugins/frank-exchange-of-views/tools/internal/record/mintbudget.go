@@ -331,9 +331,11 @@ func answersOwnReadingDebtAt(w writeView, seatID string, m *recordpb.Mint) (bool
 }
 
 // ownsInquiryGap reports whether a mint by seatID about kind is the inquiry owner's gap about an
-// inquiry, which takes no mint (requireMintWithinBudget, ownAnswersAt).
+// inquiry, or the question part owner's gap about the question, which takes no mint
+// (requireMintWithinBudget, ownAnswersAt): each is the judgement it owes, where the subject is wanting.
 func ownsInquiryGap(seatID string, kind recordpb.AboutKind) bool {
-	return seatID == inquiryOwner && kind == recordpb.AboutKind_ABOUT_KIND_INQUIRY
+	return (seatID == inquiryOwner && kind == recordpb.AboutKind_ABOUT_KIND_INQUIRY) ||
+		(seatID == questionPartOwner && kind == recordpb.AboutKind_ABOUT_KIND_QUESTION)
 }
 
 // ownAnswersAt is the gaps seatID minted that its budget does not count (lensMintStanding): each
@@ -357,8 +359,11 @@ func ownAnswersAt(q recordsql.Querier, held *heldStream, seatID string) (map[str
 			out[g] = true
 		}
 	}
-	if ownsInquiryGap(seatID, recordpb.AboutKind_ABOUT_KIND_INQUIRY) {
-		gaps, err := gapsMintedAbout(q, seatID, recordpb.AboutKind_ABOUT_KIND_INQUIRY)
+	for _, kind := range []recordpb.AboutKind{recordpb.AboutKind_ABOUT_KIND_INQUIRY, recordpb.AboutKind_ABOUT_KIND_QUESTION} {
+		if !ownsInquiryGap(seatID, kind) {
+			continue
+		}
+		gaps, err := gapsMintedAbout(q, seatID, kind)
 		if err != nil {
 			return nil, err
 		}

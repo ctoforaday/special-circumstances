@@ -104,6 +104,7 @@ func readingRunCast(t *testing.T, report string, floor int, cited ...string) rea
 	// Stamped as a write path stamps it, so the run migrates as a written one does.
 	cast.Ts = proto.String(record.Stamp())
 	recordtest.Seed(t, runDir, cast)
+	recordtest.SettleQuestion(t, runDir) // the question is not this board's subject
 	return readingBoardOn(t, runDir, report, floor, cited...)
 }
 

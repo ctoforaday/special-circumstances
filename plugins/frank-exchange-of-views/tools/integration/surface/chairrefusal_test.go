@@ -264,8 +264,10 @@ func convergedBoard(t *testing.T) *board {
 	}
 	b := &board{t: t, dir: dir}
 	b.add("harness", &recordpb.Cast{SeatIds: []string{lens, "red-chair", "blue-respond", "judge"}}).
-		add("harness", &recordpb.ReportPart{Text: proto.String("# report")}).
-		register("red-chair").register(lens).
+		add("harness", &recordpb.ReportPart{Text: proto.String("# report")})
+	// The question is split, covered and checked, so it holds nothing.
+	b.evs = append(b.evs, recordtest.SettledQuestion(t)...)
+	b.register("red-chair").register(lens).
 		add(lens, mint("G1", recordpb.Grade_GRADE_HIGH)).
 		add("red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}).
 		register("red-chair").register(lens).

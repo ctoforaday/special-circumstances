@@ -48,6 +48,8 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	for range 2 { // it has been served the report at the head, so the head readies it for nothing further
 		evs = append(evs, at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}), served())
 	}
+	// The question is split, covered and checked: what these runs test is the epoch limit.
+	evs = append(evs, recordtest.SettledQuestion(t)...)
 	evs = append(evs, at("red-chair", &recordpb.Register{}))
 	recordtest.Seed(t, runDir, evs...)
 }

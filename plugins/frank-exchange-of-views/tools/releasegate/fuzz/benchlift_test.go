@@ -32,6 +32,7 @@ func liftRun(t *testing.T, ledger *benchOrderLedger, scenario string) (*runner, 
 		&recordpb.Cast{SeatIds: []string{liftLens, "red-chair", "blue-lane-1", "blue-synthesize", "blue-respond", "judge"}, LaneSeatIds: []string{"blue-lane-1"}}); err != nil {
 		t.Fatal(err)
 	}
+	recordtest.SettleQuestion(t, stageRun.Dir()) // the question is not this fixture's subject
 	r := newRunner(bin, runDir, &lockedRand{r: rand.New(steadySource(99))})
 	r.benchOrders = ledger
 	if err := r.stagePart(sentence + "\n"); err != nil {

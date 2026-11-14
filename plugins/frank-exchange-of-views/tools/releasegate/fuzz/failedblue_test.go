@@ -85,6 +85,7 @@ func blueEngagedRun(t *testing.T) (*runner, string) {
 		&recordpb.Cast{SeatIds: []string{lens, "red-chair", "blue-lane-1", "blue-synthesize", "blue-respond", "judge"}, LaneSeatIds: []string{"blue-lane-1"}}); err != nil {
 		t.Fatal(err)
 	}
+	recordtest.SettleQuestion(t, stageRun.Dir()) // the question is not this fixture's subject
 	r := newRunner(bin, runDir, newLockedRand(7))
 	r.openUnderAgent = true
 	r.forceVerified = true // no draw leaves a sitting open or a return unadmitted
@@ -286,6 +287,7 @@ func TestTheMaterialGradesAreTheRecordsMaterialGrades(t *testing.T) {
 				&recordpb.Cast{SeatIds: append(slices.Clone(lenses), "red-chair", "blue-lane-1", "blue-synthesize", "blue-respond", "judge"), LaneSeatIds: []string{"blue-lane-1"}}); err != nil {
 				t.Fatal(err)
 			}
+			recordtest.SettleQuestion(t, stageRun.Dir()) // the question is not this fixture's subject
 			r := newRunner(bin, runDir, newLockedRand(7))
 			if err := r.stagePart(part.String()); err != nil {
 				t.Fatalf("record the lane's part: %v", err)

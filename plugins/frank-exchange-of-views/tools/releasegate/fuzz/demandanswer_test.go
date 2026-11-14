@@ -19,6 +19,7 @@ func demandBoard(t *testing.T) (*runner, map[string]string) {
 	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatal(err)
 	}
+	recordtest.SettleQuestion(t, r.run().Dir()) // the question is not this fixture's subject
 	if err := r.stagePart("A § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"); err != nil {
 		t.Fatalf("record the lane's part: %v", err)
 	}

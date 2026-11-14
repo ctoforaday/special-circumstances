@@ -45,9 +45,11 @@ const (
 // a server's lifetime to that answer would take a busy record for a run in flight. Everything
 // else is already recorded:
 //
-//	HALTED    a halt event exists — the bench ended the run on its own authority
-//	VERIFIED  the chair recorded a PASS verdict
-//	CEILING   the dispatch plan's ceiling: the run's epoch limit is reached with parties ready
+//	HALTED     a halt event exists — the bench ended the run on its own authority
+//	VERIFIED   the chair recorded a PASS verdict, and every question part is covered
+//	QUALIFIED  the chair recorded a PASS verdict, and a question part's coverage is not covered — its
+//	           sources were not obtained, or it is excluded from the report's answer
+//	CEILING    the dispatch plan's ceiling: the run's epoch limit is reached with parties ready
 //
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
@@ -74,6 +76,9 @@ type verdictReads struct {
 	halted, passed bool
 	cast           []string
 	plan           *planReads
+	// parts is every question part, read where the chair recorded a PASS: which parts are not covered
+	// decides VERIFIED or QUALIFIED.
+	parts []QuestionPartRow
 }
 
 // verdictReadsAt reads the verdict's answers off q.
@@ -88,6 +93,10 @@ func verdictReadsAt(q recordsql.Querier) (verdictReads, error) {
 		return r, err
 	}
 	if r.cast, err = castAt(q); err != nil {
+		return r, err
+	}
+	if r.passed && !r.halted {
+		r.parts, err = questionPartsAt(q)
 		return r, err
 	}
 	if r.halted || r.passed || r.cast == nil {
@@ -109,6 +118,13 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 	case halted:
 		return "HALTED", "a halt event is on the record", true, nil
 	case passed:
+		// A PASS OVER A PART NOT COVERED IS QUALIFIED (ruled by gblock 2026-11-12, F3). The gate refuses
+		// the PASS while the question has no part or a part has no coverage or no standing check, so
+		// every part a live PASS stands over is checked. An archived record holds no part, and its PASS
+		// derives VERIFIED as it was stamped (F10: archived outcomes are carried as history).
+		if why := notCoveredWhy(r.parts); why != "" {
+			return "QUALIFIED", "the chair recorded a PASS verdict, and " + why, true, nil
+		}
 		return "VERIFIED", "the chair recorded a PASS verdict", true, nil
 	}
 	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2): the chair has sat for the run's
@@ -146,7 +162,8 @@ type StandingClause struct {
 
 // StandingClauses is the ONE table of the kinds a run that ends names in its reason — the citation or
 // computation nobody checked, the failed check, the lens's reading debt, the inquiry open or
-// unchecked — in kind-table order, each with its clause. anchorsStanding folds it for the record's
+// unchecked, the question with no part split out, the question part with no coverage or no standing check
+// — in kind-table order, each with its clause; a kind about the run as a whole names no subject. anchorsStanding folds it for the record's
 // derived reason, and enginegen renders it into debate.js's generated vocabulary as STANDING_CLAUSES,
 // which the engine's termination reason folds: two carriers, one declaration, so the record's reason
 // and the engine's cannot name different kinds.
@@ -157,7 +174,25 @@ func StandingClauses() []StandingClause {
 		{BlockerReadingDebt, "on a reading debt"},
 		{BlockerOpenInquiry, "inquiries open"},
 		{BlockerUncheckedInquiry, "inquiries unchecked"},
+		{BlockerQuestionUnsplit, "the question with no part split out"},
+		{BlockerOpenPart, "question parts with no coverage"},
+		{BlockerUncheckedPart, "question parts unchecked"},
 	}
+}
+
+// notCoveredWhy names each question part whose latest coverage is not covered, with its coverage —
+// "" where every part is covered or there is none.
+func notCoveredWhy(parts []QuestionPartRow) string {
+	var named []string
+	for _, p := range parts {
+		if p.Coverage != "" && !p.Covered() {
+			named = append(named, fmt.Sprintf("%s (%s)", p.ID, p.Coverage))
+		}
+	}
+	if len(named) == 0 {
+		return ""
+	}
+	return "question part(s) not covered: " + strings.Join(named, ", ")
 }
 
 // anchorsStanding is the outcome reason's clause naming each subject that holds the PASS by its own
@@ -172,7 +207,11 @@ func anchorsStanding(bs []PlanBlocker) string {
 				subjects = append(subjects, b.Subject)
 			}
 		}
-		if len(subjects) > 0 {
+		switch {
+		case len(subjects) == 1 && subjects[0] == "":
+			// A KIND ABOUT THE RUN AS A WHOLE names no subject, and its clause stands alone.
+			out += "; " + c.Clause
+		case len(subjects) > 0:
 			out += "; " + c.Clause + ": " + strings.Join(subjects, ", ")
 		}
 	}

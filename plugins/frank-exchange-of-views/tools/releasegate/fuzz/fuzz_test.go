@@ -436,6 +436,10 @@ type runner struct {
 	// with the code the class carries (inquiryCheckClasses). The sweep gates both at zero.
 	inquiryChecks       int
 	inquiryCheckRefused map[string]int
+	// questionParts guards the question's drive (questionparts_test.go): the refusal classes of
+	// `question check` driven this run, and the parts' read failure, which fails the run.
+	questionCheckRefused map[string]bool
+	questionReadErr      string
 	// inquiryUnseats counts the gaps below material minted about a checked inquiry after which the
 	// owner's check was owed again, its item naming the gap (unseatInquiryCheck). The sweep gates it
 	// at zero.
@@ -4209,6 +4213,17 @@ func (r *runner) mintWith(seatID, class string) string {
 		settleClassDrive(driven, false)
 		driven = ""
 	}
+	// COVERAGE MISSTATED IS A CLASS OF A GAP ABOUT THE QUESTION: about a part, or, one time in four,
+	// about the question as a whole for a part nobody split out.
+	part, whole := "", false
+	if driven == coverageMisstatedClass || class == coverageMisstatedClass {
+		part = r.someQuestionPart()
+		whole = r.coin(25)
+	}
+	if driven == coverageMisstatedClass && part == "" && !whole {
+		settleClassDrive(driven, false)
+		driven = ""
+	}
 	chosen := class
 	switch {
 	case class != "":
@@ -4224,6 +4239,12 @@ func (r *runner) mintWith(seatID, class string) string {
 	case chosen == outOfScopeClass:
 		proposing = false
 		args = append(args, "--about-kind", "inquiry", "--about", inquiry)
+	case chosen == coverageMisstatedClass && whole:
+		proposing = false
+		args = append(args, "--about-kind", "question")
+	case chosen == coverageMisstatedClass:
+		proposing = false
+		args = append(args, "--about-kind", "question", "--about", part)
 	case about:
 		args = append(args, "--about-kind", aboutKind, "--about", aboutRef)
 	case !proposing:
@@ -4441,7 +4462,7 @@ func argOf(args []string, flag string) string {
 }
 
 // sameClassAndSubject is the gaps on the board, open and closed, of class on the subject a mint's
-// args name, as the record's one-gap rule reads the subject: the inquiry it is about; the sentence
+// args name, as the record's one-gap rule reads the subject: the inquiry or question part it is about; the sentence
 // the board marks holding its quote, or — the cross-arm (F9) — a citation that sentence holds; the
 // citation it is about, or — the other cross-arm — the sentence holding that citation's token. A mint
 // about anything else names no such subject, and has none.
@@ -4471,6 +4492,8 @@ func (r *runner) sameClassAndSubject(class string, args []string) (open, all []r
 			return false
 		case kind == "inquiry":
 			return g.AboutKind == "inquiry" && g.AboutRef == ref
+		case kind == "question":
+			return g.AboutKind == "question" && g.AboutRef == ref
 		case kind == "anchor":
 			if g.AboutKind == "anchor" && g.AboutRef == ref {
 				return true
@@ -5777,6 +5800,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.sit("blue", seatID)
 		r.synthesize(seatID)
+		// EVERY PART WITH NO COVERAGE IS COVERED: each is a blocking item on the synthesizer's work list.
+		// A question the frontier left unsplit is split first, so a chain that wants blue absent finds
+		// nothing of the question's to ready blue-respond on.
+		r.splitQuestion(seatID)
+		r.coverQuestionParts(seatID)
 		r.extras("blue", seatID, nil)
 		// A FORCED CHAIN THAT WANTS BLUE ABSENT HAS ITS FIRST PLAN WITHOUT BLUE: an inquiry the
 		// synthesis leaves open readies blue-respond on the first plan, and later plans ready it on the
@@ -5950,6 +5978,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.answerComposedGap(seatID)
 		// EVERY OPEN INQUIRY GETS A FATE THIS SITTING: each is a blocking item on blue's work list.
 		r.settleOpenInquiries(seatID)
+		// SO DOES THE QUESTION: split where it has no part, and every part with no coverage covered.
+		r.splitQuestion(seatID)
+		r.coverQuestionParts(seatID)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
 		// minted with; blue reads it back off the board and does what it says. This replaces a
 		// blanket 40%-per-gap dispute roll plus a 50% verbatim-apply coin, neither of which
@@ -6078,6 +6109,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		verd := "UNVERIFIED"
 		if m := outcomeRe.FindStringSubmatch(prompt); m != nil {
 			verd = m[1]
+		}
+		// AFTER A PASS THE PROMPT NAMES BOTH OUTCOMES A PASS DERIVES, and the record says which.
+		if strings.Contains(prompt, "VERIFIED or QUALIFIED") {
+			verd = r.stampWord()
 		}
 		if r.forceHalt {
 			verd = "HALTED" // a halted run's terminal outcome is HALTED (debate.js computes this)
@@ -6240,6 +6275,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.lanePart(seatID)
 			case strings.HasPrefix(seatID, "frontier"):
 				r.frontierReadsNoPart(seatID)
+				// THE FRONTIER SPLITS THE QUESTION: the split is a blocking item on its work list.
+				r.splitQuestion(seatID)
 			}
 			// The non-prose lens channel is the RECORD now, not red/candidates files: a
 			// citation lens records cite events, and every red lens records finding events
@@ -6276,6 +6313,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// EVERY SETTLED INQUIRY NO CHECK STANDS ON IS CHECKED BY ITS OWNER: its item blocks the
 				// owner's envelope. Every other lens drives the owner's refusal.
 				r.checkInquiries(seatID)
+				// EVERY COVERED PART NO CHECK STANDS ON IS CHECKED BY ITS OWNER, as an inquiry is.
+				r.checkQuestionParts(seatID)
 				// A GAP BELOW MATERIAL ABOUT A CHECKED INQUIRY makes the owner's check owed again.
 				r.unseatInquiryCheck(seatID)
 				// FOUND-AGAINST SEED'S CHAIN, before the owed checks: its reading checks the citation it
@@ -7294,6 +7333,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.inquiryReadErr != "" {
 		res.err = "inquiry drive: the inquiries' judged states could not be read, so the drive could not tell an open or unchecked inquiry from a sound one: " + r.inquiryReadErr
+		return res
+	}
+	if r.questionReadErr != "" {
+		res.err = "question drive: the question parts could not be read, so the drive could not tell an unsplit question or an open or unchecked part from a sound one: " + r.questionReadErr
 		return res
 	}
 	if r.inquiryIDErr != "" {
@@ -8396,6 +8439,8 @@ var verbsWithEvents = []string{
 	"envelope_admitted",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_check", "register",
+	// The question's parts and their checks (record/questionparts_test.go drives split, cover and check).
+	"question_part", "question_part_check",
 	// The cast and the dispatch (plans/roundless.md §III.B.1). `cast` is written by setup, before
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep. `plan`
@@ -8579,8 +8624,13 @@ var reportExemptions = map[string]string{
 	// is on the record and printed nowhere. The standing check prints on the inquiry's row
 	// (view.go); a shortfall reaches the reader as an ordinary gap about the inquiry.
 	"inquiry_check": "read by record.InquiryJudgements as the unchecked_inquiry PASS gate; the standing check prints on the inquiry's row, a stale one nowhere, and a shortfall the lens finds is minted as an ordinary gap about the inquiry, which is what reaches the reader",
-	"outcome":       "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":       "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	// A question part's text reaches report.md only where the part is not covered, in the sentence the
+	// tool composes; its coverage reason is printed in run.md's coverage table.
+	"question_part": "text: composed into report.md's not-answered line for a part not covered (report.coverageSentence); reason: run.md's coverage table",
+	// The logic lens's check of a part's coverage, read as a gate as an inquiry's check is.
+	"question_part_check": "read by the question_part_state view as the unchecked_part PASS gate; the standing check prints on run.md's coverage table, a stale one nowhere",
+	"outcome":             "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":             "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a

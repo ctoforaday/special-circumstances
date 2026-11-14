@@ -294,5 +294,6 @@ func stagedRunner(t *testing.T) *runner {
 	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatal(err)
 	}
+	recordtest.SettleQuestion(t, stageRun.Dir()) // the question is not this fixture's subject
 	return newRunner(bin, runDir, newLockedRand(7))
 }

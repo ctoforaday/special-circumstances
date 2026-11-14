@@ -204,6 +204,10 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 	}
 
+	if err := stageQuestion(run, b, exec); err != nil {
+		return err
+	}
+
 	for i, m := range b.Motions {
 		args := []string{"motion", m.Subject, "file", "--run", run.Dir(), "--seat-id", m.Filer,
 			"--reason", m.Basis}
@@ -458,4 +462,55 @@ func splitFrame(text string) (frame, part string, err error) {
 	}
 	at := tldr + 1 + next + 1
 	return text[:at], text[at:], nil
+}
+
+// stageQuestion splits the board's question into its parts as blue, records each part's coverage,
+// and has the logic lens check those its board marks checked, in a sitting it opens after the
+// coverage. Nothing where the board is unsplit.
+func stageQuestion(run record.Run, b Board, exec Exec) error {
+	if b.Unsplit {
+		return nil
+	}
+	parts := b.Question
+	if parts == nil {
+		parts = settledQuestion
+	}
+	var checks []string
+	for i, p := range parts {
+		out, err := exec("question", "split", "--run", run.Dir(), "--seat-id", "blue-respond", "--text", p.Text)
+		if err != nil {
+			return fmt.Errorf("question part %d: %w", i+1, err)
+		}
+		id := minted("question part", out)
+		if id == "" {
+			return fmt.Errorf("question part %d: the tool did not report a minted id in %q", i+1, out)
+		}
+		if p.Coverage == "" {
+			continue
+		}
+		// A COVERAGE WITH NO REASON IS A FIXTURE DEFECT, and loud: the logic lens judges the reason.
+		if strings.TrimSpace(p.CoverWhy) == "" {
+			return fmt.Errorf("question part %d: the board records the coverage %q with no CoverWhy — a check of it would judge nothing", i+1, p.Coverage)
+		}
+		if _, err := exec("question", "cover", "--run", run.Dir(), "--seat-id", "blue-respond",
+			"--id", id, "--as", p.Coverage, "--reason", p.CoverWhy); err != nil {
+			return fmt.Errorf("cover %s: %w", id, err)
+		}
+		if p.Checked {
+			checks = append(checks, id)
+		}
+	}
+	if len(checks) == 0 {
+		return nil
+	}
+	owner := record.QuestionPartOwner()
+	if _, err := exec("register", "--run", run.Dir(), "--seat-id", owner); err != nil {
+		return fmt.Errorf("register %s: %w", owner, err)
+	}
+	for _, id := range checks {
+		if _, err := exec("question", "check", "--run", run.Dir(), "--seat-id", owner, "--id", id); err != nil {
+			return fmt.Errorf("check %s: %w", id, err)
+		}
+	}
+	return nil
 }

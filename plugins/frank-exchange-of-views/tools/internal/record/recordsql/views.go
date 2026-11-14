@@ -645,6 +645,55 @@ LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "events" ce ON ce."id" =
   (SELECT MAX(c."event_id") FROM "inquiry_check" c WHERE c."inquiry_id" = p."inquiry_id");
 
+-- A QUESTION PART, whole, and its judged state (ruled by gblock 2026-11-11, E and J; 2026-11-14: a fact
+-- P5 derives is a view's, never a Go replay). One row per part, in proposal order:
+--   text            the proposal's: the part as a reader of the subject asks it.
+--   coverage, reason, coverage_seq, covered_by
+--                   the LATEST record of coverage — covered, not_obtained or excluded — with its
+--                   reason, event and seat; NULL while none is recorded, which is an open part.
+--   gap_seq         the latest gap minted about the part, material or not; NULL while none is.
+--   wanting         how many open material gaps are about the part: its check waits for their route.
+--   check_seq, checked_by
+--                   the latest check of the part.
+--   check_stands    1 where a check stands: the part has coverage, no open material gap is about it,
+--                   and its latest check is later than its latest coverage and than the latest gap
+--                   about it. A check is a judgement of the coverage as it stood, so a coverage
+--                   recorded again, or any gap minted about the part, unseats it.
+CREATE VIEW "question_part_state" AS
+SELECT
+  p."part_id"                                    AS "part_id",
+  pe."seat_id"                                   AS "proposed_by",
+  p."pid"                                        AS "proposed_seq",
+  fp."text"                                      AS "text",
+  cv."coverage"                                  AS "coverage",
+  cv."reason"                                    AS "reason",
+  cv."event_id"                                  AS "coverage_seq",
+  cve."seat_id"                                  AS "covered_by",
+  (SELECT MAX(m."event_id") FROM "mint" m
+    WHERE m."about_kind" = 'question' AND m."about_ref" = p."part_id") AS "gap_seq",
+  (SELECT COUNT(*) FROM "gap_state" gs JOIN "mint" m ON m."event_id" = gs."minted_event"
+    WHERE gs."open" AND gs."material" AND m."about_kind" = 'question' AND m."about_ref" = p."part_id") AS "wanting",
+  ce."id"                                        AS "check_seq",
+  ce."seat_id"                                   AS "checked_by",
+  CASE WHEN cv."event_id" IS NOT NULL AND ce."id" > cv."event_id"
+        AND ce."id" > COALESCE((SELECT MAX(m."event_id") FROM "mint" m
+                                 WHERE m."about_kind" = 'question' AND m."about_ref" = p."part_id"), 0)
+        AND NOT EXISTS (SELECT 1 FROM "gap_state" gs JOIN "mint" m ON m."event_id" = gs."minted_event"
+                         WHERE gs."open" AND gs."material" AND m."about_kind" = 'question' AND m."about_ref" = p."part_id")
+       THEN 1 ELSE 0 END                         AS "check_stands"
+FROM (SELECT a0."part_id" AS "part_id", MIN(a0."event_id") AS "pid"
+        FROM "question_part" a0
+        WHERE COALESCE(a0."part_id", '') != '' AND a0."supersedes_coverage" IS NULL
+        GROUP BY a0."part_id") p
+JOIN "question_part" fp ON fp."event_id" = p."pid"
+JOIN "events" pe ON pe."id" = p."pid"
+LEFT JOIN "question_part" cv ON cv."event_id" =
+  (SELECT MAX(x."event_id") FROM "question_part" x
+    WHERE x."part_id" = p."part_id" AND x."supersedes_coverage" IS NOT NULL)
+LEFT JOIN "events" cve ON cve."id" = cv."event_id"
+LEFT JOIN "events" ce ON ce."id" =
+  (SELECT MAX(c."event_id") FROM "question_part_check" c WHERE c."part_id" = p."part_id");
+
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
 -- this stream folded from the empty text, so the SELECTION of which events mutate the text — and
 -- how each names its change — is a projection, authored HERE where every reader sees the same one,

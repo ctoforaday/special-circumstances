@@ -20,7 +20,7 @@ import (
 
 // outcome: the run's terminal verdict, recorded as a fact.
 //
-// VERIFIED | CEILING | HALTED | UNVERIFIED is the orchestrator's read of the EXIT STATE,
+// VERIFIED | QUALIFIED | CEILING | HALTED | UNVERIFIED is the orchestrator's read of the EXIT STATE,
 // and it is not recoverable from any single event: the per-epoch `gate` events are
 // red-merge's PASS/FAIL verdict, and "hit the ceiling" needs the run terms the log
 // never carries. So the value originates outside the record — but it BELONGS in it. The

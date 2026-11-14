@@ -138,6 +138,11 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			inquiries++
 			continue
 		}
+		// AND THE QUESTION, WHICH THE ARCHIVE NEVER SPLIT: m19 was recorded before the question had
+		// parts, and an archived record holds none (#1830 P5's residue).
+		if b.Kind == BlockerQuestionUnsplit {
+			continue
+		}
 		if b.Kind != BlockerUnchecked {
 			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors, their owners' readiness and the settled inquiries", b.Kind, b.Subject, b.Owner)
 			continue

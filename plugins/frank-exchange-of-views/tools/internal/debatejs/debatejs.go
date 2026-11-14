@@ -261,7 +261,7 @@ type Config struct {
 // behaviours it wants to check, drives the real loop under each, and reads what it actually
 // decided. Nothing here restates a rule; every field is a value debate.js computed.
 type Outcome struct {
-	// Verdict is the terminal stamp: HALTED, VERIFIED, CEILING or UNVERIFIED. debate.js
+	// Verdict is the terminal stamp: HALTED, VERIFIED, QUALIFIED, CEILING or UNVERIFIED. debate.js
 	// composes it from halted / red's verdict / the ceiling arm.
 	Verdict string
 	// Epochs is the number of chair sittings at exit — the loop counter (plans/roundless.md §III.B.1).

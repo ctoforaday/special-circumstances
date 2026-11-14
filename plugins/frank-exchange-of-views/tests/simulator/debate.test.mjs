@@ -738,7 +738,10 @@ test('the assembler authors nothing, stamps the outcome the record derives, and 
   await world.run(script, ARGS)
   const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/you author NOTHING, you copy NOTHING/.test(asm) && /do not copy anything into it yourself/.test(asm) && /cannot mis-author a synthesis surface/.test(asm))
-  assert.ok(/it is VERIFIED/.test(asm) && /Record it as the run's outcome — VERIFIED/.test(asm) && !/ended at the ceiling/.test(asm))
+  // A PASS DERIVES ONE OF TWO OUTCOMES and the record says which: the engine names both and sends the
+  // seat to the question parts' coverage, never a word of its own.
+  assert.ok(/it is VERIFIED or QUALIFIED — the record derives which from the question parts' coverage/.test(asm) &&
+    /Record it as the run's outcome — the one of the two the record derives/.test(asm) && !/ended at the ceiling/.test(asm))
   // THE REASON IS A JUDGEMENT, NOT A RECAP. `--reason` carries why this outcome is the right read
   // of the board; the ledger already holds what the sitting did, in order.
   assert.ok(/WHY this outcome is the right read of the board/.test(asm) && !/your account of the sitting/.test(asm),
