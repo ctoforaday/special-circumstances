@@ -106,11 +106,11 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 		// "Productive sitting (retirement)"), so no sitting in a row is barren.
 		{"a reopened citation readies the evidence lens", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
-		}, want{evLens, true, nil, evLens + ": the whole report was last served to it at its pin 2, behind head 12 — audits the report (0 sitting(s) in a row with no fresh material mint; it retires at 3 owing nothing, and it owes unchecked C-1)", nil}},
+		}, want{evLens, true, nil, evLens + ": its latest complete delivery of report text was cut at its pin 2, behind head 12 — audits the report (0 sitting(s) in a row with no fresh material mint; it retires at 3 owing nothing, and it owes unchecked C-1)", nil}},
 		{"a reopened citation its lens has sat since is not readied again", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
-		}, want{evLens, false, nil, evLens + ": served the report at the head (pin 12) — ready when the head moves", nil}},
+		}, want{evLens, false, nil, evLens + ": its delivery is at the head (pin 12) — ready when the head moves", nil}},
 	}
 	for _, c := range rows {
 		t.Run(c.name, func(t *testing.T) {

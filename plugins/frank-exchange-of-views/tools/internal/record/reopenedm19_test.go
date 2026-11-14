@@ -124,7 +124,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	for _, b := range blockers {
 		if b.Kind == BlockerLensReady {
 			switch {
-			case !strings.Contains(b.foldWhy, "no sitting it sat through was served the whole report"):
+			case !strings.Contains(b.foldWhy, "no sitting it sat through holds a complete delivery of report text"):
 				t.Errorf("%s is ready for %q, want it behind the head: the archive records no report read", b.Subject, b.foldWhy)
 			case owners[b.Subject] && (!strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "unchecked ")):
 				t.Errorf("%s is ready for %q, want it unretired because it owes a reopened check", b.Subject, b.foldWhy)

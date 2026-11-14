@@ -22,7 +22,7 @@ func TestALensNeverServedTheReportAtTheFinalHeadHoldsThePass(t *testing.T) {
 		t.Fatalf("plan over a lens never served the final head = %+v; want it ready and no PASS", plan)
 	}
 	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, passGate); err == nil ||
-		!strings.Contains(err.Error(), evLens+": the whole report was last served to it at its pin 2, behind head ") {
+		!strings.Contains(err.Error(), evLens+": its latest complete delivery of report text was cut at its pin 2, behind head ") {
 		t.Fatalf("a PASS over a lens never served the final head: %v; want it refused naming the lens and its pin", err)
 	}
 

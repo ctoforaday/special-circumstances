@@ -97,17 +97,17 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 		t.Fatalf("a lens that has never sat is ready for its first look: %+v", never)
 	}
 	same := planOf(t, retBoard(t).readFully(2, evLens))
-	if lensReady(same) || !strings.Contains(whyOf(same), "served the report at the head (pin 2)") {
+	if lensReady(same) || !strings.Contains(whyOf(same), "its delivery is at the head (pin 2)") {
 		t.Fatalf("a lens that sat at the head is not readied for a second look at the same report: %+v", same)
 	}
 	// A SITTING AT THE HEAD THAT WAS NEVER SERVED THE REPORT IS NOT A LOOK AT IT (#1458): the lens is
 	// still behind the head, and readied to audit it.
 	unserved := planOf(t, retBoard(t).sitUnserved(2, evLens))
-	if !lensReady(unserved) || !strings.Contains(whyOf(unserved), "no sitting it sat through was served the whole report, behind head 2") {
+	if !lensReady(unserved) || !strings.Contains(whyOf(unserved), "no sitting it sat through holds a complete delivery of report text, behind head 2") {
 		t.Fatalf("a lens that sat at the head and was never served the report is ready to audit it: %+v", unserved)
 	}
 	moved := planOf(t, retBoard(t).sit(2, evLens).ingest())
-	if !lensReady(moved) || !strings.Contains(whyOf(moved), "the whole report was last served to it at its pin 2, behind head") {
+	if !lensReady(moved) || !strings.Contains(whyOf(moved), "its latest complete delivery of report text was cut at its pin 2, behind head") {
 		t.Fatalf("a lens is ready when the head has moved past its last sitting's pin: %+v", moved)
 	}
 }
@@ -117,7 +117,7 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 // on it, and the lens is not.
 func TestALensThatMintedAtTheHeadWaitsForBlue(t *testing.T) {
 	plan := planOf(t, retBoard(t).readFully(2, evLens).add(evLens, freshHigh("G1")))
-	if lensReady(plan) || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || !strings.Contains(whyOf(plan), "served the report at the head (pin 2)") {
+	if lensReady(plan) || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || !strings.Contains(whyOf(plan), "its delivery is at the head (pin 2)") {
 		t.Fatalf("a lens whose open material gap blue has not answered does not sit, and the head has not moved: %+v", plan)
 	}
 }
@@ -221,7 +221,7 @@ func TestPassRefusedWhileALensHasNotSeenTheHead(t *testing.T) {
 		t.Fatalf("pass_permitted while the head has moved past a lens's last sitting: %+v", plan)
 	}
 	_, err = Append(Identity{Run: run, SeatID: "red-chair"}, passGate)
-	if err == nil || !strings.Contains(err.Error(), evLens) || !strings.Contains(err.Error(), "the whole report was last served to it at its pin") {
+	if err == nil || !strings.Contains(err.Error(), evLens) || !strings.Contains(err.Error(), "its latest complete delivery of report text was cut at its pin") {
 		t.Fatalf("a chair's PASS over a lens the head has moved past must be refused at the write path, naming the lens: %v", err)
 	}
 }
@@ -314,8 +314,8 @@ func TestWhyCarriesState(t *testing.T) {
 		want string
 	}{
 		{"never sat", planOf(t, retBoard(t)), "never sat — audits the report at head 2"},
-		{"served at the head", planOf(t, retBoard(t).readFully(2, evLens)), "served the report at the head (pin 2) — ready when the head moves"},
-		{"head moved", planOf(t, retBoard(t).readFully(2, evLens).ingest()), "the whole report was last served to it at its pin 2, behind head 10 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3)"},
+		{"served at the head", planOf(t, retBoard(t).readFully(2, evLens)), "its delivery is at the head (pin 2) — ready when the head moves"},
+		{"head moved", planOf(t, retBoard(t).readFully(2, evLens).ingest()), "its latest complete delivery of report text was cut at its pin 2, behind head 10 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3)"},
 		{"retired", planOf(t, b), fmt.Sprintf("retired (pin %d) — its last 3 sittings minted no fresh material; not ready", pin)},
 	} {
 		if !strings.Contains(whyOf(c.plan), evLens+": ") || !strings.Contains(whyOf(c.plan), c.want) {
@@ -400,12 +400,12 @@ func TestLensWorkItemFollowsTheServe(t *testing.T) {
 		return strings.Join(whats, "\n")
 	}
 	b, _ := behind()
-	if got := items(b); !strings.Contains(got, "before this sitting, the report was last served to you whole at 2") {
+	if got := items(b); !strings.Contains(got, "before this sitting, your pin — the head of the latest report text delivered to you in a sitting you sat through — is 2") {
 		t.Errorf("behind: the work list does not say so:\n%s", got)
 	}
 	b, head := behind()
 	got := items(b.served(evLens, head))
-	if strings.Contains(got, "before this sitting") || !strings.Contains(got, fmt.Sprintf("this sitting served you the report whole at head %d", head)) {
+	if strings.Contains(got, "before this sitting") || !strings.Contains(got, fmt.Sprintf("this sitting delivered you its report text, cut at head %d", head)) {
 		t.Errorf("served in this sitting: the work list still speaks of before it, or not of the serve:\n%s", got)
 	}
 }
@@ -599,7 +599,8 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 		add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
 	head := int64(b.n)
 	beh := sittingOfRunT(t, b.sitUnserved(head, evLens).seed(), "lens", evLens)
-	if !listsItem(beh, "reads it in full") {
+	// Its second sitting is its full re-read: the whole report is what its list delivers.
+	if !listsItem(beh, "the whole report arrives on your work list") {
 		t.Errorf("a lens whose report MOVED is not sent to the whole document: %+v", beh.Open)
 	}
 	if listsItem(beh, "not the whole document") {
