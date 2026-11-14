@@ -79,7 +79,10 @@ func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder
 	if caller.ID == "" || !runlive.IsLensAgentType(caller.Type) {
 		return
 	}
-	command, _ := req.RawToolInput["command"].(string)
+	command := req.Command
+	if command == "" {
+		command, _ = req.RawToolInput["command"].(string)
+	}
 	if !hookgate.CallsRecord(command) {
 		return
 	}

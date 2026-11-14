@@ -83,11 +83,11 @@ func TestAntigravityPreToolUseAndPostToolUse(t *testing.T) {
 		t.Errorf("Antigravity rewrite mismatch: %+v", rewriteDoc)
 	}
 
-	// 3. Antigravity PostToolUse Run emits {} and queues message
+	// 3. Antigravity PostToolUse Run emits {} and queues message on subagent conversationId when present
 	tmpDir := t.TempDir()
 	t.Setenv("CLAUDE_PLUGIN_DATA", tmpDir)
 	var postOut bytes.Buffer
-	in := `{"toolCall":{"name":"StructuredOutput","args":{}},"conversationId":"conv-post-1"}`
+	in := `{"toolCall":{"name":"StructuredOutput","args":{}},"conversationId":"child-conv-1","parentConversationId":"parent-conv-1"}`
 	Run("feov-posttooluse", "PostToolUse", func(_ io.Reader, _ io.Writer, rec *hookfailures.Recorder) error {
 		rec.Fail("envelope-admission", "test failure in settlement")
 		return nil
@@ -95,5 +95,14 @@ func TestAntigravityPreToolUseAndPostToolUse(t *testing.T) {
 
 	if strings.TrimSpace(postOut.String()) != "{}" {
 		t.Errorf("Antigravity PostToolUse output = %q, want {}", postOut.String())
+	}
+
+	// Verify the message was queued under child-conv-1, not parent-conv-1
+	var preOut bytes.Buffer
+	preIn := `{"conversationId":"child-conv-1","parentConversationId":"parent-conv-1","workspacePaths":["/workspace"]}`
+	reqPre := hookcore.Read("PreInvocation", strings.NewReader(preIn))
+	hookcore.Respond(reqPre, hookcore.Response{}, &preOut, &bytes.Buffer{}, nil)
+	if !strings.Contains(preOut.String(), "test failure in settlement") {
+		t.Errorf("expected queued message on child-conv-1 PreInvocation, got: %s", preOut.String())
 	}
 }
