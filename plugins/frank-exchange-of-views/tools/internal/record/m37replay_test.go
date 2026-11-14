@@ -26,7 +26,9 @@ const m37Archive = "bundle-store/2026-10-31_is-91-prime-m37.tar.gz"
 //
 // The run filed six; the migrated record holds five. G-8405d5e1's successor G-07884fea was minted
 // superseding it while it was open, which closes it (ruled by gblock 2026-11-04), so its docket and
-// its ruling are acts on a closed gap and are left out of the migration.
+// its ruling are acts on a closed gap and are left out of the migration. Its bench's rulings sat
+// with no delivery of report text and are lost (the manifest's lost_acts), so G-deced912's first
+// docket stands unruled when the second is filed, and that plan readies the bench on it.
 //
 //   - G-584d152f: blue's fix landed under G-07884fea's name; the edit's `reopened` gives the lens its turn.
 //   - G-c3f84f98: blue's computation answered the kept grade; the lens reads it before any docket.
@@ -35,7 +37,10 @@ const m37Archive = "bundle-store/2026-10-31_is-91-prime-m37.tar.gz"
 //     the ruling ordered happens; the gap is not re-docketed for blue's obedience.
 //   - G-37347c3c: blue's fix was a fate on the inquiry it is anchored on.
 func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
-	whole := archivedEvents(t, m37Archive)
+	whole, lost := archivedRun(t, m37Archive)
+	rulingLost := func(motion string) bool {
+		return slices.ContainsFunc(lost, func(a LostAct) bool { return a.Word == "motion_rule" && a.Motion == motion })
+	}
 	want := []struct {
 		gap     string
 		remains bool
@@ -66,7 +71,21 @@ func TestM37DocketsComeAfterTheLensHasRead(t *testing.T) {
 			t.Fatal(err)
 		}
 		lens := minted[g]
-		if slices.Contains(plan.ToFile, g) || !slices.Contains(gapsOf(plan, lens), g) || slices.Contains(gapsOf(plan, blueRespondSeat), g) {
+		// AN EARLIER DOCKET ON THE GAP WHOSE RULING THE MIGRATION LOST (its manifest's lost_acts: the
+		// bench's sitting held no delivery of report text) stands unruled, so the plan readies the bench
+		// on the gap for it, and neither the lens nor blue: a docketed gap is the bench's until it rules.
+		unruled := ""
+		for _, p := range whole[:i] {
+			if pm, ok := recordpb.BodyAs[*recordpb.Motion](p); ok && pm.GetDocket().GetGapId() == g && rulingLost(pm.GetMotionId()) {
+				unruled = pm.GetMotionId()
+			}
+		}
+		switch {
+		case unruled != "":
+			if slices.Contains(plan.ToFile, g) || !slices.Contains(gapsOf(plan, benchSeat), g) || slices.Contains(gapsOf(plan, lens), g) || slices.Contains(gapsOf(plan, blueRespondSeat), g) {
+				t.Errorf("docket %s on %s: its earlier docket %s stands unruled, its ruling lost, so the plan must file nothing and ready the bench alone on it: to file %v, parties %+v", m.GetMotionId(), g, unruled, plan.ToFile, plan.Parties)
+			}
+		case slices.Contains(plan.ToFile, g) || !slices.Contains(gapsOf(plan, lens), g) || slices.Contains(gapsOf(plan, blueRespondSeat), g):
 			t.Errorf("docket %s on %s: the plan must file nothing and ready %s alone on it: to file %v, parties %+v", m.GetMotionId(), g, lens, plan.ToFile, plan.Parties)
 		}
 		// WHAT THE LENS DID NEXT, off the run itself.
