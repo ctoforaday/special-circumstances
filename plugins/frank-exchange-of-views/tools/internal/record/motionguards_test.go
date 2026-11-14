@@ -252,6 +252,12 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 			for i, s := range seats {
 				ids[i] = sit(t, run, s)
 			}
+			// THE BENCH'S RULING STANDS ONLY ON DELIVERED PASSAGES, and the race is the answers', not the
+			// delivery's: the judge's sitting holds its delivery at the report's head, so the guard that
+			// refuses it is first-wins alone.
+			if err := RecordDelivery(run, benchSeat, st.head()); err != nil {
+				t.Fatal(err)
+			}
 			start := make(chan struct{})
 			errs := make([]error, len(ids))
 			var wg sync.WaitGroup
