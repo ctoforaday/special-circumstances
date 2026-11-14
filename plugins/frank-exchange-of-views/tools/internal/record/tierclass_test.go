@@ -11,8 +11,8 @@ import (
 )
 
 // A seat's tier class is the join of the run's cast and the tier-class table (TierClassOfSeat). The
-// served model is compared with the tier its class was configured for by capture's tier audit and
-// `show tiers`; a seat whose join misses would never be compared at all.
+// served model of a tier-bound seat is compared with the model configured for it by capture's tier
+// audit and `show tiers`; a seat whose join misses would never be compared at all.
 
 func runWithTiers(t *testing.T) string {
 	t.Helper()

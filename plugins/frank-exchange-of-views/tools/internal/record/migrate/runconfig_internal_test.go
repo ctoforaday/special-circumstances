@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -70,6 +71,8 @@ func TestTranslateRunConfig(t *testing.T) {
 		{"a number", ` 3 `, "it holds a number"},
 		{"empty", ``, "does not parse as the run's configuration: EOF"},
 		{"a key the configuration does not declare", `{"k":2,"rounds":3}`, "unknown field"},
+		{"both the class tiers and the seats", `{"model":"sonnet","seats":{}}`, "states both the per-seat"},
+		{"a tier that is not a string", `{"model":3}`, `key "model" states 3, not a model`},
 		{"lanes as a number", `{"lanes":3}`, "the migrated configuration does not parse"},
 	} {
 		write(tc.body)
@@ -80,5 +83,81 @@ func TestTranslateRunConfig(t *testing.T) {
 		if err != nil && strings.Contains(err.Error(), "<nil>") {
 			t.Errorf("%s: the refusal reads %q", tc.name, err)
 		}
+	}
+}
+
+// AN ARCHIVED CLASS-TIER PAIR IS RESHAPED INTO THE SEATS IT STOOD FOR, not dropped: `model` for every
+// bulk seat and `judgmentModel` for every judgment seat, on the claude harness, written as `seats` in
+// the place of the pair's first key, through the expansion setup's --bulk and --judgment use. A tier
+// stated as "" configures no seat, and the manifest records each tier key with its source value. The
+// copy reads through the record's own reader, so a migrated run's tier audit judges each seat.
+func TestTranslateRunConfigReshapesTheClassTiers(t *testing.T) {
+	dir := t.TempDir()
+	from, to := filepath.Join(dir, "from.json"), filepath.Join(dir, "out", "to.json")
+	seatsOf := func(bulk, judgment string) string {
+		spec := func(m string) modeltier.SeatSpec {
+			if m == "" {
+				return modeltier.SeatSpec{}
+			}
+			return modeltier.SeatSpec{Harness: "claude", Model: m}
+		}
+		b, err := json.Marshal(modeltier.TieredSeats(spec(bulk), spec(judgment)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	for _, tc := range []struct{ name, body, bulk, judgment, reshaped string }{
+		{"both tiers", `{"topic":"t","model":"sonnet","judgmentModel":"opus","k":2,"eventSchema":74}`, "sonnet", "opus",
+			`{"judgmentModel":"opus","model":"sonnet"}`},
+		{"the bulk tier only", `{"topic":"t","model":"haiku","eventSchema":74}`, "haiku", "",
+			`{"model":"haiku"}`},
+		{"the judgment tier only", `{"topic":"t","judgmentModel":"opus","eventSchema":74}`, "", "opus",
+			`{"judgmentModel":"opus"}`},
+		{"an empty bulk tier", `{"topic":"t","model":"","judgmentModel":"opus","eventSchema":74}`, "", "opus",
+			`{"judgmentModel":"opus","model":""}`},
+	} {
+		if err := os.WriteFile(from, []byte(tc.body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		tr, err := translateRunConfig(from, to)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		got, err := os.ReadFile(to)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rc, err := record.DecodeRunConfig(got)
+		if err != nil {
+			t.Fatalf("%s: the reshaped configuration does not read: %v", tc.name, err)
+		}
+		b, _ := json.Marshal(rc.Seats)
+		if want := seatsOf(tc.bulk, tc.judgment); string(b) != want {
+			t.Errorf("%s: seats = %s, want %s", tc.name, b, want)
+		}
+		if !strings.HasPrefix(string(got), "{\n  \"topic\": \"t\",\n  \"seats\": {") {
+			t.Errorf("%s: the seats are not in the place of the pair's first key:\n%s", tc.name, got)
+		}
+		if r, _ := json.Marshal(tr.Reshaped); string(r) != tc.reshaped {
+			t.Errorf("%s: the manifest records the reshaped keys as %s, want %s", tc.name, r, tc.reshaped)
+		}
+	}
+	// A source that states the seats already is copied as written, and records nothing reshaped.
+	body := `{"topic":"t","seats":{"blue-lane":{"harness":"claude","model":"sonnet"}},"eventSchema":74}`
+	if err := os.WriteFile(from, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tr, err := translateRunConfig(from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Reshaped != nil {
+		t.Errorf("a source stating its seats recorded a reshape: %v", tr.Reshaped)
+	}
+	got, _ := os.ReadFile(to)
+	rc, err := record.DecodeRunConfig(got)
+	if err != nil || len(rc.Seats) != 1 || rc.Seats["blue-lane"].Model != "sonnet" {
+		t.Errorf("a source stating its seats copied as %s (%v)", got, err)
 	}
 }

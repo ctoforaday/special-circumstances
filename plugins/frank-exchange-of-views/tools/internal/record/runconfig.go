@@ -9,6 +9,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 )
 
 // RunConfig is inputs/run-config.json: the ONE type setup marshals and every reader in the record
@@ -26,7 +28,8 @@ import (
 // hookprovenance.Provenance, which moves with no epoch bump — is held as raw JSON and decoded by its
 // owner (hookprovenance.Decode): typed here, a change in that package would refuse every archived
 // run's configuration with no migration able to bring it forward. The TOP-LEVEL key set stays
-// strict either way; `billing` is BillingIdentity, which the record declares, so it is typed.
+// strict either way; `billing` is BillingIdentity, which the record declares, so it is typed, and so
+// is each entry of `seats`, modeltier.SeatSpec, whose shape moves only with an epoch bump.
 type RunConfig struct {
 	Topic string `json:"topic"`
 	// RunDir is the ABSOLUTE path of this run.
@@ -42,9 +45,13 @@ type RunConfig struct {
 	// which turns that failure loud. This field is the other half: the operator and every
 	// post-hoc reader can see which absolute path the run was set up at, rather than inferring it
 	// from wherever they happen to be standing.
-	RunDir        string `json:"runDir"`
-	Model         string `json:"model"`
-	JudgmentModel string `json:"judgmentModel"`
+	RunDir string `json:"runDir"`
+	// Seats is the {harness, model} each seat a run configures was set up with (#1827), keyed by
+	// seat id, with the lanes under their base (blue-lane; modeltier.LookupSeat resolves a numbered
+	// lane through it). Capture's model-tier audit and `show tiers` judge each seat's served model
+	// against its entry. Typed here, and so read strictly to its two keys, because a seat's spec is
+	// what the record's epoch gate covers: a change to its shape is an epoch bump with a migration.
+	Seats map[string]modeltier.SeatSpec `json:"seats"`
 	// Lanes is the `--lanes` flag as typed, nil where the operator named none (LanesDeclared).
 	Lanes *string `json:"lanes"`
 	// The run's terms (Params says what each bounds). Setup always writes them; each is nil where the

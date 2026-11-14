@@ -227,13 +227,13 @@ magnitude:
 | judgment tier | `haiku` | `sonnet` |
 | terms | `--k-max 2` | default (6) |
 
-`judgmentModel` is set EXPLICITLY, and that is the point of the mode. Before both tiers were
+`--judgment` is set EXPLICITLY, and that is the point of the mode. Before both tiers were
 required, omitting it let the judgment seats inherit the session model — measured at 68% of one
 run's wall clock, 92 of 136 minutes across seven serial seats — so a "smoke" was two-thirds full
 strength and no faster to iterate on than a keeper.
 
 ```sh
-MODEL=haiku JUDGMENT_MODEL=haiku LANES=1 \
+BULK=haiku JUDGMENT=haiku LANES=1 \
   scripts/universe.sh run "<topic>" --k-max 2
 ```
 

@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -22,8 +24,10 @@ import (
 // flag — the JS merge order.
 type Config struct {
 	Topic         string
-	Model         string
-	JudgmentModel string
+	Seats         map[string]modeltier.SeatSpec
+	Bulk          string
+	Judgment      string
+	SeatOverrides []string
 	Lanes         string
 }
 
@@ -167,20 +171,46 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	case err != nil:
 		configUnread = err.Error()
 	case rc != nil:
-		fileCfg = Config{Topic: rc.Topic, Model: rc.Model, JudgmentModel: rc.JudgmentModel}
+		fileCfg = Config{Topic: rc.Topic, Seats: rc.Seats}
 		if rc.Lanes != nil {
 			fileCfg.Lanes = *rc.Lanes
 		}
 	}
 	merged := fileCfg
+	merged.Seats = maps.Clone(fileCfg.Seats)
+	if merged.Seats == nil {
+		merged.Seats = map[string]modeltier.SeatSpec{}
+	}
 	if cfg.Topic != "" {
 		merged.Topic = cfg.Topic
 	}
-	if cfg.Model != "" {
-		merged.Model = cfg.Model
+	// A class flag stands for every seat of its class, through the one expansion setup uses.
+	applyClassOverride := func(raw string, spread func(modeltier.SeatSpec) map[string]modeltier.SeatSpec) {
+		spec, err := modeltier.ParseSeatSpec(raw)
+		if err != nil {
+			return
+		}
+		maps.Copy(merged.Seats, spread(spec))
 	}
-	if cfg.JudgmentModel != "" {
-		merged.JudgmentModel = cfg.JudgmentModel
+	if cfg.Bulk != "" {
+		applyClassOverride(cfg.Bulk, func(s modeltier.SeatSpec) map[string]modeltier.SeatSpec {
+			return modeltier.TieredSeats(s, modeltier.SeatSpec{})
+		})
+	}
+	if cfg.Judgment != "" {
+		applyClassOverride(cfg.Judgment, func(s modeltier.SeatSpec) map[string]modeltier.SeatSpec {
+			return modeltier.TieredSeats(modeltier.SeatSpec{}, s)
+		})
+	}
+	for _, raw := range cfg.SeatOverrides {
+		if seatID, val, ok := strings.Cut(raw, "="); ok {
+			if spec, err := modeltier.ParseSeatSpec(val); err == nil && strings.TrimSpace(seatID) != "" {
+				merged.Seats[strings.TrimSpace(seatID)] = spec
+			}
+		}
+	}
+	for k, v := range cfg.Seats {
+		merged.Seats[k] = v
 	}
 	if cfg.Lanes != "" {
 		merged.Lanes = cfg.Lanes
@@ -311,7 +341,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 			// Both windows come from the record's binding — the epoch it always did, and the
 			// occasion, which keeps the assembly's spend out of a docket ruling's row.
 			bind := bindings[row.AgentID]
-			row.Epoch, row.Occasion = bind.Epoch, bind.Occasion
+			row.SeatID, row.Epoch, row.Occasion = bind.SeatID, bind.Epoch, bind.Occasion
 			crows = append(crows, row)
 			apiRounds += row.Turns
 			costTotal += row.Cost

@@ -103,11 +103,16 @@ type Manifest struct {
 }
 
 // RunConfigTranslation is what the migration changed in the run's configuration file: each key the
-// configuration no longer declares, dropped, and the epoch key, which states the epoch the migrated
+// configuration no longer declares, dropped; an archived class-tier pair, reshaped into the per-seat
+// `seats`; and the epoch key, which states the epoch the migrated
 // record is written at (Manifest.EventSchema) whatever the source's file stated there.
 type RunConfigTranslation struct {
 	// Dropped is each dropped key with its value as the source wrote it. Empty is stated as {}.
 	Dropped map[string]json.RawMessage `json:"dropped"`
+	// Reshaped is each class-tier key (`model`, `judgmentModel`) the source stated, with its value as
+	// the source wrote it; the copy states the seats they stood for under `seats` instead. Absent
+	// where the source stated neither.
+	Reshaped map[string]json.RawMessage `json:"reshaped,omitempty"`
 	// SourceEventSchema is the value the source's file stated under `eventSchema`, as written —
 	// absent where it stated none. A source record that states no epoch of its own (a shard-era
 	// record, a database predating the field) leaves this the one statement of the source's epoch.

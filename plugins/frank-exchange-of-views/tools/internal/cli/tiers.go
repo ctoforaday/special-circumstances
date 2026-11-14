@@ -12,6 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -74,11 +75,11 @@ func newShowTiers() *cobra.Command {
 			}
 			if rep.ConfigUnread != "" {
 				return feov.Errorf(feov.Validation,
-					"no seat was judged against a configured tier: %s", rep.ConfigUnread)
+					"no seat was judged against a configured model: %s", rep.ConfigUnread)
 			}
 			if rep.Substituted > 0 {
 				return feov.Errorf(feov.Validation,
-					"%d seat(s) were answered by a model other than their class's configured one", rep.Substituted)
+					"%d seat(s) were answered by a model other than the one configured for them", rep.Substituted)
 			}
 			return nil
 		},
@@ -89,9 +90,10 @@ func newShowTiers() *cobra.Command {
 
 // TierRow is one seat's request-versus-service, as fields.
 type TierRow struct {
-	SeatID string `json:"seatId"`
-	Class  string `json:"class"`
-	// Configured is the tier this seat's CLASS was dispatched on.
+	SeatID  string `json:"seatId"`
+	Harness string `json:"harness,omitempty"`
+	Class   string `json:"class"`
+	// Configured is the model configured for this seat.
 	Configured string `json:"configured,omitempty"`
 	// Served is the model that answered. Empty means NOT MEASURED, which is why Measured exists
 	// beside it rather than a reader inferring the state from the blank.
@@ -100,16 +102,15 @@ type TierRow struct {
 	// NotMeasured says why nothing answered, set exactly when Measured is false.
 	NotMeasured string `json:"notMeasured,omitempty"`
 	// Declared marks a substitution the harness itself announced, as against one this join
-	// deduced by comparing tiers.
+	// deduced by comparing models/tiers.
 	Declared bool `json:"declared"`
 	Matches  bool `json:"matches"`
 }
 
 // TierReport is the run's whole answer, request and service together.
 type TierReport struct {
-	RunDir          string `json:"runDir"`
-	ConfiguredBulk  string `json:"configuredBulk,omitempty"`
-	ConfiguredJudge string `json:"configuredJudgment,omitempty"`
+	RunDir          string                        `json:"runDir"`
+	ConfiguredSeats map[string]modeltier.SeatSpec `json:"configuredSeats,omitempty"`
 	// ConfigUnread is why the run's configuration could not be read, or "". The served rows still
 	// list — what answered each seat does not depend on the configuration — and none is judged.
 	ConfigUnread string    `json:"configUnread,omitempty"`
@@ -120,30 +121,30 @@ type TierReport struct {
 }
 
 func tierReport(run record.Run, b record.Family) TierReport {
-	// A configuration that does not read is said, never shown as a run that configured no tier.
+	// A configuration that does not read is said, never shown as a run that configured no seat.
 	var unread string
-	bulk, judgment, err := cost.TierConfig(run)
+	seatsCfg, err := cost.TierConfig(run)
 	if err != nil {
 		unread = err.Error()
 	}
-	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment, ConfigUnread: unread}
+	rep := TierReport{RunDir: run.Dir(), ConfiguredSeats: seatsCfg, ConfigUnread: unread}
 	for _, sm := range record.SeatModels(run, b) {
 		if sm.Class == "" {
 			continue // the operator and anything off the roster ride no tier
 		}
-		// ONE JUDGMENT, capture's: a declared substitution counts on the same tier as on another.
-		configured, v := cost.JudgeServed(sm, bulk, judgment)
+		// ONE JUDGMENT, capture's: a declared substitution counts even where both ends name one model.
+		spec, v := cost.JudgeServed(sm, seatsCfg)
 		// MATCHES IS FALSE WHEN NOTHING WAS MEASURED, and that is the point of carrying Measured
 		// separately: a reader that treats !Matches as "substituted" would over-report, and one
 		// that treats an unmeasured seat as matching would rebuild the defect.
-		row := TierRow{SeatID: sm.SeatID, Class: sm.Class, Configured: configured,
+		row := TierRow{SeatID: sm.SeatID, Harness: spec.Harness, Class: sm.Class, Configured: spec.Model,
 			Served: sm.Served, Measured: sm.Measured(), NotMeasured: sm.NotMeasured, Declared: sm.Substituted(),
 			Matches: v == cost.ServedMatches}
 		rep.TierBound++
 		if row.Measured {
 			rep.Measured++
 		}
-		if v == cost.ServedDeclared || v == cost.ServedOtherTier {
+		if v == cost.ServedDeclared || v == cost.ServedOtherModel {
 			rep.Substituted++
 		}
 		rep.Seats = append(rep.Seats, row)
@@ -156,14 +157,12 @@ func renderTiers(r TierReport) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# model tiers — requested and served\n\n")
 	if r.ConfigUnread != "" {
-		fmt.Fprintf(&sb, "configured: **NOT READ** — %s; no seat below is judged against a tier\n\n", r.ConfigUnread)
-	} else {
-		fmt.Fprintf(&sb, "configured: bulk=%s · judgment=%s\n\n", orUnset(r.ConfiguredBulk), orUnset(r.ConfiguredJudge))
+		fmt.Fprintf(&sb, "configured: **NOT READ** — %s; no seat below is judged against a configured model\n\n", r.ConfigUnread)
 	}
-	fmt.Fprintf(&sb, "| seat | class | configured | served |\n|---|---|---|---|\n")
-	// UNDER A CONFIGURATION NOT READ, NO ROW IS JUDGED: its configured cell says the configuration
+	fmt.Fprintf(&sb, "| seat | harness | class | configured | served |\n|---|---|---|---|---|\n")
+	// UNDER A CONFIGURATION NOT READ, NO ROW IS JUDGED: its configured cells say the configuration
 	// was not read rather than that it declared nothing, and a served model is not marked a
-	// mismatch against a tier nobody could read. A declared substitution is the harness's own
+	// mismatch against a model nobody could read. A declared substitution is the harness's own
 	// statement and is marked either way.
 	unread := r.ConfigUnread != ""
 	for _, s := range r.Seats {
@@ -176,14 +175,14 @@ func renderTiers(r TierReport) string {
 		case !s.Matches && !unread:
 			served = "**" + s.Served + "**"
 		}
-		configured := orUnset(s.Configured)
+		harness, configured := orUnset(s.Harness), orUnset(s.Configured)
 		if unread {
-			configured = "(not read)"
+			harness, configured = "(not read)", "(not read)"
 		}
-		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n", s.SeatID, s.Class, configured, served)
+		fmt.Fprintf(&sb, "| %s | %s | %s | %s | %s |\n", s.SeatID, harness, s.Class, configured, served)
 	}
 	if unread {
-		fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); none judged against a configured tier, which was not read\n",
+		fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); none judged against a configured model, which was not read\n",
 			r.Measured, r.TierBound)
 	} else {
 		fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); %d answered by a model other than the configured one\n",

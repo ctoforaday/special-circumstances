@@ -49,7 +49,8 @@
 #
 # Env:
 #   WORKDIR   where the universe lives (default ~/.claude/scratch/universe)
-#   MODEL / JUDGMENT_MODEL   default haiku/haiku — the engine's own --smoke tier
+#   BULK / JUDGMENT   default haiku/haiku — the engine's own --smoke tier
+#   SEAT_OVERRIDES    optional space-separated `<seat-id>=<[harness:]model>` overrides
 #   LANES     default 1
 #   CONCURRENT_AGENTS  default 16 — the Workflow tool's per-run concurrent agent limit. The engine's
 #             own default is min(16, cpu_cores - 2), which is 2 on a 4-core box and serialises the
@@ -71,8 +72,9 @@ PLUGINS=(prosthetic-conscience frank-exchange-of-views sleeper-service gray-area
 # a deliberate act; either way the mode is printed beside the tiers, so a log says which experiment
 # it was.
 SMOKE="${SMOKE:-1}"
-MODEL="${MODEL:-haiku}"
-JUDGMENT_MODEL="${JUDGMENT_MODEL:-haiku}"
+BULK="${BULK:-haiku}"
+JUDGMENT="${JUDGMENT:-haiku}"
+SEAT_OVERRIDES="${SEAT_OVERRIDES:-}"
 LANES="${LANES:-1}"
 # THE WORKFLOW ENGINE'S CONCURRENCY IS min(16, cpu_cores - 2), AND THAT HEURISTIC IS WRONG FOR
 # THIS WORKLOAD.
@@ -667,13 +669,17 @@ cmd_run() {
   # meant. (Matching values are not a conflict — the defaults here ARE smoke's.)
   smoke_flag=""
   if [ "$SMOKE" = "1" ]; then
-    if [ "$MODEL" != "haiku" ] || [ "$JUDGMENT_MODEL" != "haiku" ] || [ "$LANES" != "1" ]; then
-      die "SMOKE=1 sets model=haiku judgment=haiku lanes=1 (and --k-max 2), but this run asks for model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES. Pass SMOKE=0 for the development configuration, or drop the overrides."
+    if [ "$BULK" != "haiku" ] || [ "$JUDGMENT" != "haiku" ] || [ "$LANES" != "1" ] || [ -n "$SEAT_OVERRIDES" ]; then
+      die "SMOKE=1 sets bulk=haiku judgment=haiku lanes=1 (and --k-max 2), but this run asks for bulk=$BULK judgment=$JUDGMENT lanes=$LANES overrides=$SEAT_OVERRIDES. Pass SMOKE=0 for the development configuration, or drop the overrides."
     fi
     smoke_flag=" --smoke"
   fi
+  seat_flags=""
+  for s in $SEAT_OVERRIDES; do
+    seat_flags="$seat_flags --seat $s"
+  done
   {
-    log "tiers: model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES mode=$([ "$SMOKE" = "1" ] && echo smoke || echo development)"
+    log "tiers: bulk=$BULK judgment=$JUDGMENT lanes=$LANES mode=$([ "$SMOKE" = "1" ] && echo smoke || echo development)${SEAT_OVERRIDES:+ overrides=\"$SEAT_OVERRIDES\"}"
     # PRINTED BESIDE THE TIERS because it changes the wall clock a run is compared on: two runs at
     # different concurrency are not the same experiment, and the engine's own default depends on the
     # BOX rather than on anything the run records.
@@ -681,7 +687,7 @@ cmd_run() {
     log "cwd:   $src"
   } >> "$out"
 
-  printf '%s' "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES$smoke_flag $*" \
+  printf '%s' "/frank-exchange-of-views:research $topic --bulk $BULK --judgment $JUDGMENT$seat_flags --lanes $LANES$smoke_flag $*" \
     > "$WORKDIR/prompt-$stamp.txt"
   ln -sfn "stream-$stamp.jsonl" "$ORIGIN_STREAM"
   launch_detached "$stamp" run

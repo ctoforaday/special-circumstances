@@ -457,7 +457,7 @@ func TestModelTierAudit(t *testing.T) {
 	run, tr := t.TempDir(), t.TempDir()
 	// A judgment seat (red-chair) running on haiku while configured for opus → dearer? No: haiku
 	// cheaper than opus → WARN. Configure judgment=haiku, seat on fable → dearer → FAIL.
-	write(t, filepath.Join(run, "inputs", "run-config.json"), `{"model":"claude-haiku-4-5","judgmentModel":"claude-haiku-4-5"}`)
+	write(t, filepath.Join(run, "inputs", "run-config.json"), `{"seats":{"red-chair":{"harness":"claude","model":"claude-haiku-4-5"}}}`)
 	write(t, filepath.Join(tr, "agent-m.jsonl"),
 		`{"message":{"role":"assistant","model":"claude-fable-5","usage":{"input_tokens":10,"output_tokens":5}}}`+"\n"+
 			`{"message":{"role":"assistant","model":"claude-fable-5"}}`+"\n")
@@ -1081,7 +1081,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"kMax":6,"maxEpochs":12,"model":"sonnet"}`), 0o644); err != nil {
+		[]byte(`{"kMax":6,"maxEpochs":12,"seats":{"frontier":{"harness":"claude","model":"sonnet"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// The LAW mirror is read by seats during the run and by nothing after it, so it is hashed
@@ -1399,7 +1399,7 @@ func TestAnAbsentScorecardIsStillCreated(t *testing.T) {
 func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 	run := t.TempDir()
 	write(t, filepath.Join(run, "inputs", "run-config.json"),
-		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
+		`{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"},"red-chair":{"harness":"claude","model":"claude-sonnet-5"}}}`)
 	recordtest.Seed(t, run,
 		castWithOneLane(t),
 		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1", &recordpb.Register{
@@ -1433,7 +1433,7 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 func TestModelTierAuditSaysWhenTheServedModelWasNeverMeasured(t *testing.T) {
 	run := t.TempDir()
 	write(t, filepath.Join(run, "inputs", "run-config.json"),
-		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
+		`{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"},"red-chair":{"harness":"claude","model":"claude-sonnet-5"}}}`)
 	recordtest.Seed(t, run,
 		castWithOneLane(t),
 		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",

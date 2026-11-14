@@ -211,7 +211,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 	}
 	ds, out, err := debatejs.CaptureRun(script, debatejs.Config{
 		Topic: "termination", RunDir: t.TempDir(), BinDir: t.TempDir(), Lanes: 1,
-		Model: "haiku", JudgmentModel: "haiku", Backend: backend, Read: read, Timeout: 2 * time.Minute,
+		Seats: debatejs.TieredSeats("haiku", "haiku"), Backend: backend, Read: read, Timeout: 2 * time.Minute,
 	})
 	if err != nil {
 		t.Fatalf("schedule %s: %v", scheduleName(sched), err)

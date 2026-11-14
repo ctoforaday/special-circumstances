@@ -185,7 +185,7 @@ func TestAFilingIsHeardAtTheBarrierAfterItsSeat(t *testing.T) {
 			}
 			_, out, err := debatejs.CaptureRun(script, debatejs.Config{
 				Topic: "barrier", RunDir: t.TempDir(), BinDir: t.TempDir(), Lanes: 1,
-				Model: "haiku", JudgmentModel: "haiku", Backend: backend, Read: read, Timeout: 2 * time.Minute,
+				Seats: debatejs.TieredSeats("haiku", "haiku"), Backend: backend, Read: read, Timeout: 2 * time.Minute,
 			})
 			if err != nil {
 				t.Fatal(err)

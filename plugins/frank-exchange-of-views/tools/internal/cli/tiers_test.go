@@ -23,7 +23,7 @@ func tierFixture(t *testing.T) (string, record.Family) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`), 0o644); err != nil {
+		[]byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"},"red-chair":{"harness":"claude","model":"claude-sonnet-5"},"judge":{"harness":"claude","model":"claude-sonnet-5"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	recordtest.Seed(t, run,
@@ -79,7 +79,7 @@ func TestTiersRendersNotMeasuredRatherThanABlank(t *testing.T) {
 	run, b := tierFixture(t)
 	rep := tierReport(runtest.Open(t, run), b)
 	md := renderTiers(rep)
-	for _, want := range []string{"| judge | judgment | claude-sonnet-5 | **NOT MEASURED** — the event that opened this seat's sitting carries no agent id", "substitution declared by the harness", "served measured on 2 of 3"} {
+	for _, want := range []string{"| judge | claude | judgment | claude-sonnet-5 | **NOT MEASURED** — the event that opened this seat's sitting carries no agent id", "substitution declared by the harness", "served measured on 2 of 3"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("the rendering must carry %q; got:\n%s", want, md)
 		}
@@ -94,7 +94,7 @@ func TestTiersSaysWhenNothingLookedAtAll(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`), 0o644); err != nil {
+		[]byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"},"red-chair":{"harness":"claude","model":"claude-sonnet-5"},"judge":{"harness":"claude","model":"claude-sonnet-5"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	recordtest.Seed(t, run, castWithOneLane(t), recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",
@@ -127,7 +127,7 @@ func castWithOneLane(t *testing.T) *recordpb.Event {
 // seat does not depend on the configuration, and no seat is judged against a tier nobody could read.
 func TestTiersListsWhatServedBesideAnUnreadConfiguration(t *testing.T) {
 	run, b := tierFixture(t)
-	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"), []byte(`{"model":"claude-haiku-4-5","rounds":3}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"), []byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-haiku-4-5"}},"rounds":3}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	rep := tierReport(runtest.Open(t, run), b)
@@ -140,7 +140,7 @@ func TestTiersListsWhatServedBesideAnUnreadConfiguration(t *testing.T) {
 	}
 	// NO ROW CONTRADICTS THE HEADER: a configured cell says the configuration was not read, never
 	// that it declared nothing, and a served model is not marked a mismatch against it.
-	for _, want := range []string{"| red-chair | judgment | (not read) | claude-sonnet-5 |", "none judged against a configured tier"} {
+	for _, want := range []string{"| red-chair | (not read) | judgment | (not read) | claude-sonnet-5 |", "none judged against a configured model"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("the rendering under an unread configuration must carry %q; got:\n%s", want, md)
 		}
@@ -152,8 +152,8 @@ func TestTiersListsWhatServedBesideAnUnreadConfiguration(t *testing.T) {
 	}
 }
 
-// A SUBSTITUTION THE HARNESS DECLARED IS ONE WHATEVER THE TIERS SAY. opus-4-8 answered by opus-4-9
-// stays on one tier, and capture's model-tier audit FAILs it all the same; the projection counts
+// A SUBSTITUTION THE HARNESS DECLARED IS ONE WHATEVER THE MODELS SAY. opus-4-8 answered by opus-4-9
+// is the same model to modeltier.SameModel (one tier), and capture's model-tier audit FAILs it all the same; the projection counts
 // it as capture does, and does not call the row a match.
 func TestTiersCountsADeclaredSubstitutionOnTheSameTier(t *testing.T) {
 	run := t.TempDir()
@@ -161,7 +161,7 @@ func TestTiersCountsADeclaredSubstitutionOnTheSameTier(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
-		[]byte(`{"model":"claude-opus-4-8","judgmentModel":"claude-opus-4-8"}`), 0o644); err != nil {
+		[]byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-opus-4-8"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	recordtest.Seed(t, run,
@@ -191,7 +191,7 @@ func TestTiersCountsADeclaredSubstitutionOnTheSameTier(t *testing.T) {
 // same file: the report still prints, and the exit says nothing was judged, with the reason.
 func TestTiersFailsOnAnUnreadConfiguration(t *testing.T) {
 	run, _ := tierFixture(t)
-	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"), []byte(`{"model":"claude-haiku-4-5","rounds":3}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"), []byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-haiku-4-5"}},"rounds":3}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	out, stderr, err := runSeen(t, "ops", "tiers", "--seat-id", "operator", "--run", run)

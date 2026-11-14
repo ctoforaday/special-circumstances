@@ -74,7 +74,7 @@ func blueEngagedRun(t *testing.T) (*runner, string) {
 	bin := buildBinary(t)
 	runDir := recordtest.TmpRun(t)
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":"1","k":1,"kMax":6,"convergenceFraction":0.25,"maxEpochs":12}`)); err != nil {
+		fuzzRunConfig(1, 1, 6, 12)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)

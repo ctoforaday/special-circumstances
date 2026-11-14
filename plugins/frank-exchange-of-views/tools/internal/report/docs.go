@@ -518,14 +518,15 @@ func factBox(fam record.Family) string {
 // supersededAsks is the changelog's account of a bench that spoke more than once. "Read this
 // first" carries the terminal statement alone; the ones it replaced are history, and history
 // belongs in a document rather than stacked under a heading that reads as parallel asks.
-func supersededAsks(evs []*record.Event) string {
+func supersededAsks(fam record.Family) string {
 	// The statement the report carries is the LAST one; every other, replaced by a later
-	// certification, is listed here, in the order it was made, never dropped.
+	// certification, is listed here, in the order it was made, never dropped — each with the
+	// record's counts as it stood at ITS certification (countsAtCertification), not the last one's.
 	var all []string
-	for _, e := range evs {
+	for _, e := range fam.Events {
 		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
 			if s := strings.TrimSpace(c.GetStatement()); s != "" {
-				all = append(all, s)
+				all = append(all, oneLine(s)+"\n   "+countsAtCertification(fam, e))
 			}
 		}
 	}
@@ -539,7 +540,7 @@ func supersededAsks(evs []*record.Event) string {
 	var b strings.Builder
 	b.WriteString("The LAST statement is the one the report carries; these are the ones it replaced, in the order they were made.\n\n")
 	for i, s := range rows {
-		fmt.Fprintf(&b, "%d. %s\n\n", i+1, oneLine(s))
+		fmt.Fprintf(&b, "%d. %s\n\n", i+1, s)
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

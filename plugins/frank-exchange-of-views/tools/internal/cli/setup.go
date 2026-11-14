@@ -23,19 +23,21 @@ import (
 // exits directly rather than returning an error through the root's uniform exit-2 path.
 func newSetup() *cobra.Command {
 	var (
-		topic, model, judgmentModel string
-		lanes                       string
-		k, kMax                     int
-		maxEpochs                   int
-		convergenceFraction         float64
-		binDir                      string
-		runID, scriptPath           string
-		cites                       []string
+		topic, bulk, judgment string
+		seats                 []string
+		skipModelCheck        bool
+		lanes                 string
+		k, kMax               int
+		maxEpochs             int
+		convergenceFraction   float64
+		binDir                string
+		runID, scriptPath     string
+		cites                 []string
 	)
 	c := &cobra.Command{
 		Use:           "setup <runDir>",
 		Short:         "build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)",
-		Long:          "setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult — its row names the session setup runs in (" + seatenv.SessionVar + ") as the run's lead session, and the hooks attribute only that session's agents to the run — and preflights the record binary.\n\nA project holds ONE live run, whatever session leads it: a second run starts from another checkout, which is its own project. A run resumed in a new session, once the run's lead session has ended, is taken over with `take-over` rather than set up again.\n\nThe fail-fast gates — a runDir, both model tiers, a launching session (" + seatenv.SessionVar + "), an epoch limit of 1 or more, no other live run and no decided run left uncaptured in the project, valid cites, and a matching record binary — run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.",
+		Long:          "setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult — its row names the session setup runs in (" + seatenv.SessionVar + ") as the run's lead session, and the hooks attribute only that session's agents to the run — and preflights the record binary.\n\nA project holds ONE live run, whatever session leads it: a second run starts from another checkout, which is its own project. A run resumed in a new session, once the run's lead session has ended, is taken over with `take-over` rather than set up again.\n\nThe fail-fast gates — a runDir, every seat resolved via --bulk/--judgment/--seat, live model discovery unless --skip-model-check is passed, a launching session (" + seatenv.SessionVar + "), an epoch limit of 1 or more, no other live run and no decided run left uncaptured in the project, valid cites, and a matching record binary — run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -49,8 +51,10 @@ func newSetup() *cobra.Command {
 			cfg := setup.Config{
 				RunDir:              runDir,
 				Topic:               topic,
-				Model:               model,
-				JudgmentModel:       judgmentModel,
+				Bulk:                bulk,
+				Judgment:            judgment,
+				SeatOverrides:       seats,
+				SkipModelCheck:      skipModelCheck,
 				Cites:               cites,
 				Lanes:               lanes,
 				K:                   k,
@@ -73,8 +77,10 @@ func newSetup() *cobra.Command {
 	}
 	f := c.Flags()
 	flags.TextVar(c, &topic, flags.Topic, "the run's research topic (goes in every stub header)")
-	f.StringVar(&model, flags.Model, "", "the bulk tier (frontier, blue lanes, red lenses, blue responses)")
-	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "the judgment tier (blue-synthesize, red-chair, judge, assemble)")
+	f.StringVar(&bulk, flags.Bulk, "", "the bulk model <[harness:]model> (frontier, blue lanes, red lenses, blue responses)")
+	f.StringVar(&judgment, flags.Judgment, "", "the judgment model <[harness:]model> (blue-synthesize, red-chair, judge, assemble)")
+	f.StringArrayVar(&seats, flags.Seat, nil, "override one seat: <seat-id>=<[harness:]model> (repeatable)")
+	f.BoolVar(&skipModelCheck, flags.SkipModelCheck, false, "skip live harness model discovery (offline tests)")
 	f.StringArrayVar(&cites, flags.Cite, nil, "a cited path, optionally pinned: <path>[@<commit>] (repeatable)")
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")
 	f.IntVar(&k, flags.K, 0, "consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)")

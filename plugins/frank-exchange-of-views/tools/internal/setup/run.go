@@ -6,11 +6,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -24,12 +26,15 @@ import (
 // and the injectables (Git/Exec/Now) are resolved by the command from os;
 // tests may supply them directly.
 type Config struct {
-	RunDir        string
-	Topic         string
-	Model         string
-	JudgmentModel string
-	Cites         []string
-	Lanes         string
+	RunDir         string
+	Topic          string
+	Bulk           string
+	Judgment       string
+	SeatOverrides  []string
+	Seats          map[string]modeltier.SeatSpec
+	SkipModelCheck bool
+	Cites          []string
+	Lanes          string
 	// The run's terms (plans/roundless.md §III.B.2): K, KMax and the convergence fraction. Zero means "setup's default", which is written out so the file always
 	// states what bound the run.
 	K, KMax             int
@@ -71,7 +76,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 
 	if cfg.RunDir == "" || strings.HasPrefix(cfg.RunDir, "--") {
-		fmt.Fprintln(stderr, `usage: feov-record setup <runDir> --topic "<topic>" --model <m> --judgment-model <m> [--cite <path>[@pin]]... [--bin-dir <dir>]`)
+		fmt.Fprintln(stderr, `usage: feov-record setup <runDir> --topic "<topic>" --bulk <[harness:]model> --judgment <[harness:]model> [--seat <id>=<[harness:]model>]... [--cite <path>[@pin]]... [--bin-dir <dir>]`)
 		return 1
 	}
 	topic := cfg.Topic
@@ -80,18 +85,22 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	head := gitHead(cfg.Git)
 
-	// Gate: model tiers REQUIRED (#111), before the run dir exists.
-	if cfg.Model == "" || cfg.JudgmentModel == "" {
+	// Gate: per-seat models REQUIRED (#111, #1827), before the run dir exists.
+	seatSpecs, seatErr := resolveSeats(cfg)
+	if seatErr != nil {
 		fmt.Fprintln(stderr, "run-setup: MODEL TIERS REQUIRED — refusing to create the run:")
-		if cfg.Model == "" {
-			fmt.Fprintln(stderr, "  - --model is unset (the BULK tier: frontier, blue lanes, red lenses, blue responses)")
-		}
-		if cfg.JudgmentModel == "" {
-			fmt.Fprintln(stderr, "  - --judgment-model is unset (the JUDGMENT tier: blue-synthesize, red-chair, judge, assemble)")
-		}
-		fmt.Fprintln(stderr, "  the engine does not guess a tier or inherit the session model. Pass both, e.g.")
-		fmt.Fprintln(stderr, "  --model sonnet --judgment-model sonnet   (a smoke run passes --model haiku --judgment-model haiku)")
+		fmt.Fprintf(stderr, "  %v\n", seatErr)
+		fmt.Fprintln(stderr, "  the engine does not guess a tier or inherit the session model. Pass --bulk and --judgment")
+		fmt.Fprintln(stderr, "  (or per-seat --seat <id>=<[harness:]model> overrides), e.g.")
+		fmt.Fprintln(stderr, "  --bulk sonnet --judgment opus   (a smoke run passes --bulk haiku --judgment haiku)")
 		return 2
+	}
+	if !cfg.SkipModelCheck {
+		if err := validateSeatModels(seatSpecs, cfg.Exec); err != nil {
+			fmt.Fprintln(stderr, "run-setup: MODEL DISCOVERY FAILED — refusing to create the run:")
+			fmt.Fprintf(stderr, "  %v\n", err)
+			return 2
+		}
 	}
 
 	// Gate: a lane count, when given, is a positive whole number — before the run dir exists. The
@@ -310,7 +319,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if err != nil {
 		return failEncode(err)
 	}
-	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect,
+	rc := record.RunConfig{Topic: topic, RunDir: run.Dir(), Seats: seatSpecs, Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect,
 		K: new(terms.K), KMax: new(terms.KMax), ConvergenceFraction: new(terms.ConvergenceFraction), MaxEpochs: new(terms.MaxEpochs),
 		Hooks:   hooks,
 		Billing: ReadBillingIdentity()}
@@ -444,6 +453,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// from its own working directory.
 	fmt.Fprintln(stdout, `  binDir arg: pass THIS path as the workflow's "binDir" arg`)
 	fmt.Fprintf(stdout, "    %s\n", binDir)
+	workflowKind := "claude"
+	for _, spec := range seatSpecs {
+		if spec.Harness == "antigravity" {
+			workflowKind = "python"
+			break
+		}
+	}
+	fmt.Fprintf(stdout, "  workflow: %s\n", workflowKind)
 	return 0
 }
 
@@ -587,4 +604,122 @@ func refuseADecidedRun(cfg Config, stderr io.Writer) int {
 		return 2
 	}
 	return 0
+}
+
+// resolveSeats builds the complete per-seat {harness, model} map from Bulk/Judgment defaults,
+// --seat overrides, and any explicit cfg.Seats, refusing unless every debating seat on the
+// roster (plus blue-lane) has both a valid harness and a model.
+func resolveSeats(cfg Config) (map[string]modeltier.SeatSpec, error) {
+	required := modeltier.Seats()
+
+	var bulkSpec, judgmentSpec modeltier.SeatSpec
+	if strings.TrimSpace(cfg.Bulk) != "" {
+		spec, err := modeltier.ParseSeatSpec(cfg.Bulk)
+		if err != nil {
+			return nil, fmt.Errorf("--bulk: %w", err)
+		}
+		bulkSpec = spec
+	}
+	if strings.TrimSpace(cfg.Judgment) != "" {
+		spec, err := modeltier.ParseSeatSpec(cfg.Judgment)
+		if err != nil {
+			return nil, fmt.Errorf("--judgment: %w", err)
+		}
+		judgmentSpec = spec
+	}
+	out := modeltier.TieredSeats(bulkSpec, judgmentSpec)
+	for _, raw := range cfg.SeatOverrides {
+		seatID, val, ok := strings.Cut(raw, "=")
+		seatID = strings.TrimSpace(seatID)
+		if !ok || seatID == "" {
+			return nil, fmt.Errorf("--seat %q must have form <seat-id>=<[harness:]model>", raw)
+		}
+		if !modeltier.Configurable(seatID) {
+			return nil, fmt.Errorf("--seat %q names unknown seat %q", raw, seatID)
+		}
+		spec, err := modeltier.ParseSeatSpec(val)
+		if err != nil {
+			return nil, fmt.Errorf("--seat %s: %w", seatID, err)
+		}
+		out[seatID] = spec
+	}
+	for seatID, spec := range cfg.Seats {
+		if !modeltier.Configurable(seatID) {
+			return nil, fmt.Errorf("seats[%q] names unknown seat", seatID)
+		}
+		h := strings.TrimSpace(strings.ToLower(spec.Harness))
+		if h == "" {
+			h = "claude"
+		}
+		if h != "claude" && h != "antigravity" {
+			return nil, fmt.Errorf("seats[%q]: unsupported harness %q (claude | antigravity)", seatID, spec.Harness)
+		}
+		m := strings.TrimSpace(spec.Model)
+		if m == "" {
+			return nil, fmt.Errorf("seats[%q]: model must be non-empty", seatID)
+		}
+		out[seatID] = modeltier.SeatSpec{Harness: h, Model: m}
+	}
+
+	var missing []string
+	for _, seatID := range required {
+		spec, ok := out[seatID]
+		if !ok || spec.Harness == "" || spec.Model == "" {
+			missing = append(missing, seatID)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("unresolved seat(s): %s (pass --bulk, --judgment, and/or --seat)", strings.Join(missing, ", "))
+	}
+	return out, nil
+}
+
+var ansiCSI = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+
+func validateSeatModels(seats map[string]modeltier.SeatSpec, execFn ExecFunc) error {
+	var needAgy bool
+	for seatID, spec := range seats {
+		switch spec.Harness {
+		case "claude":
+			if !modeltier.Recognized(spec.Model) {
+				return fmt.Errorf("seat %s: unrecognized Claude model %q (pass haiku, sonnet, opus, fable, or claude-*)", seatID, spec.Model)
+			}
+		case "antigravity":
+			needAgy = true
+		}
+	}
+	if !needAgy {
+		return nil
+	}
+	res := execFn("agy", []string{"models"})
+	if res.Err != nil || res.Status != 0 {
+		return fmt.Errorf("could not query live Antigravity models (`agy models` status=%d err=%v): %s", res.Status, res.Err, strings.TrimSpace(res.Stdout))
+	}
+	live := parseAgyModels(res.Stdout)
+	for seatID, spec := range seats {
+		if spec.Harness != "antigravity" {
+			continue
+		}
+		if !live[spec.Model] {
+			return fmt.Errorf("seat %s: Antigravity model %q not found in live `agy models` output:\n%s", seatID, spec.Model, strings.TrimSpace(res.Stdout))
+		}
+	}
+	return nil
+}
+
+func parseAgyModels(out string) map[string]bool {
+	clean := ansiCSI.ReplaceAllString(out, "")
+	models := map[string]bool{}
+	for _, line := range strings.Split(clean, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		tok := fields[0]
+		if tok == "ID" || tok == "NAME" || tok == "Available" || strings.HasPrefix(tok, "-") || strings.HasPrefix(tok, "=") {
+			continue
+		}
+		models[tok] = true
+	}
+	return models
 }

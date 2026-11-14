@@ -150,6 +150,8 @@ what a human should re-examine after the run ends — the bench keeps no memory 
 
 Not a ruling, and it moves no gap: it is the bench's own voice, and it lands in judgments.md — the document the human reviewing the run opens — not the research report, whose reader came for the subject.
 
+STATE NO COUNT IN IT. The tool composes the record's counts beside your statement in the run's documents, as the record stands at this certification: gaps minted, closed and open; citations; readings; computations. The statement carries none of them — name what to re-examine and why, and leave the numbers to the record.
+
 (OUTPUT (JSON, with --json — the …) → SHARED §3
 
 (If you need a verb or a flag tha…) → SHARED §1
@@ -2080,12 +2082,13 @@ Usage:
   feov-record dashboard <runDir> <transcriptDir> [flags]
 
 Flags:
-      --judgment-model string   judgment-tier model, for the run-config header
-      --lanes string            blue lane count, for the run-config header
-      --model string            bulk-tier model, for the run-config header (else read from inputs/run-config.json)
-      --now int                 inject the clock in unix-ms (default: real time) — for deterministic tests
-      --serve int               host the dashboard over HTTPS on this port instead of writing a file — bound to 0.0.0.0 so it is reachable across the local network, gated by a per-run secret URL (self-signed cert, rendered fresh per request, self-tears-down when the run ends)
-      --watch                   regenerate every 15s until the run-live marker is removed
+      --bulk string        bulk-tier model <[harness:]model>, for the run-config header (else read from inputs/run-config.json)
+      --judgment string    judgment-tier model <[harness:]model>, for the run-config header
+      --lanes string       blue lane count, for the run-config header
+      --now int            inject the clock in unix-ms (default: real time) — for deterministic tests
+      --seat stringArray   per-seat override <seat-id>=<[harness:]model>, for the run-config header
+      --serve int          host the dashboard over HTTPS on this port instead of writing a file — bound to 0.0.0.0 so it is reachable across the local network, gated by a per-run secret URL (self-signed cert, rendered fresh per request, self-tears-down when the run ends)
+      --watch              regenerate every 15s until the run-live marker is removed
 ========
 $ feov-record engine-stopped --help
 engine-stopped --reason "<the error>" writes the error the engine stopped on to the run's log, as the tool's own `failure` entry under `harness`.
@@ -2239,7 +2242,7 @@ setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files ar
 
 A project holds ONE live run, whatever session leads it: a second run starts from another checkout, which is its own project. A run resumed in a new session, once the run's lead session has ended, is taken over with `take-over` rather than set up again.
 
-The fail-fast gates — a runDir, both model tiers, a launching session (CLAUDE_CODE_SESSION_ID), an epoch limit of 1 or more, no other live run and no decided run left uncaptured in the project, valid cites, and a matching record binary — run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.
+The fail-fast gates — a runDir, every seat resolved via --bulk/--judgment/--seat, live model discovery unless --skip-model-check is passed, a launching session (CLAUDE_CODE_SESSION_ID), an epoch limit of 1 or more, no other live run and no decided run left uncaptured in the project, valid cites, and a matching record binary — run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -2248,16 +2251,18 @@ Usage:
 
 Flags:
       --bin-dir string               where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss
+      --bulk string                  the bulk model <[harness:]model> (frontier, blue lanes, red lenses, blue responses)
       --cite stringArray             a cited path, optionally pinned: <path>[@<commit>] (repeatable)
       --convergence-fraction float   fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)
-      --judgment-model string        the judgment tier (blue-synthesize, red-chair, judge, assemble)
+      --judgment string              the judgment model <[harness:]model> (blue-synthesize, red-chair, judge, assemble)
       --k int                        consecutive exchanges on one gap with no movement before it is at impasse (default 2; recorded in run-config.json)
       --k-max int                    total exchanges on one gap — blue's answer and its lens's audit of it — before it is at impasse regardless of movement (default 6; a smoke run passes 2)
       --lanes string                 the frontier lane count (recorded in run-config.json)
       --max-epochs int               the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default 12; recorded in run-config.json)
-      --model string                 the bulk tier (frontier, blue lanes, red lenses, blue responses)
       --run-id string                the orchestrator's run id, recorded in the .run-live marker so a run found STALE can be resumed rather than only noticed
       --script-path string           the orchestrator script this run was launched from, recorded in the .run-live marker beside --run-id
+      --seat stringArray             override one seat: <seat-id>=<[harness:]model> (repeatable)
+      --skip-model-check             skip live harness model discovery (offline tests)
       --topic string                 the run's research topic (goes in every stub header)
 ========
 $ feov-record take-over --help

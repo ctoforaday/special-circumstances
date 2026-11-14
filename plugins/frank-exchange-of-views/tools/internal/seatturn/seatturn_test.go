@@ -93,6 +93,28 @@ func TestParseReadsTheTimestamp(t *testing.T) {
 	}
 }
 
+func TestParseReadsAntigravityPlannerResponses(t *testing.T) {
+	agy := strings.Join([]string{
+		`{"step_index":0,"source":"SYSTEM_SDK","type":"SYSTEM_MESSAGE","status":"DONE","created_at":"2026-11-13T16:09:56Z","content":"hello"}`,
+		`{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-13T16:09:56Z","input_tokens":3357,"cache_read_tokens":0,"output_tokens":2787,"thinking":"reasoning","tool_calls":[{"name":"send_message"}]}`,
+		`{"step_index":3,"source":"MODEL","type":"GENERIC","status":"DONE","created_at":"2026-11-13T16:10:19Z","content":"tool result"}`,
+		`{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-11-13T16:10:19Z","input_tokens":2951,"cache_read_tokens":3379,"output_tokens":170,"content":"PRO_OK"}`,
+	}, "\n")
+	_, turns := Parse(agy)
+	if len(turns) != 2 {
+		t.Fatalf("got %d turns, want 2: %+v", len(turns), turns)
+	}
+	if turns[0].Input != 3357 || turns[0].Output != 2787 || !turns[0].Thinking || !turns[0].Tool || turns[0].TSMillis == 0 {
+		t.Errorf("turn 0 = %+v", turns[0])
+	}
+	if turns[1].Input != 2951 || turns[1].CacheRead != 3379 || turns[1].Output != 170 || turns[1].Thinking || turns[1].Tool {
+		t.Errorf("turn 1 = %+v", turns[1])
+	}
+	if turns[1].TSMillis-turns[0].TSMillis != 23000 {
+		t.Errorf("the gap between the two agy turns is %dms, want 23000", turns[1].TSMillis-turns[0].TSMillis)
+	}
+}
+
 // THE AGENT COMES OFF THE LINE. A transcript whose file was renamed or copied still files its
 // turns against the agent that produced them.
 func TestParseTakesTheAgentFromTheRecordNotTheCaller(t *testing.T) {

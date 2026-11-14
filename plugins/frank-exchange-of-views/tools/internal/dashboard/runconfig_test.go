@@ -18,15 +18,15 @@ func TestTheBoardShowsAnUnreadableConfigurationAsUnread(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := filepath.Join(dir, "inputs", "run-config.json")
-	if err := os.WriteFile(cfg, []byte(`{"model":"claude-fable-5","lanes":"2"}`), 0o644); err != nil {
+	if err := os.WriteFile(cfg, []byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"}},"lanes":"2"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	m := BuildModel(runtest.Open(t, dir), t.TempDir(), Config{}, 0)
-	if m.ConfigUnread != "" || m.Config.Model != "claude-fable-5" || m.Config.Lanes != "2" {
+	if m.ConfigUnread != "" || m.Config.Seats["blue-lane"].Model != "claude-fable-5" || m.Config.Lanes != "2" {
 		t.Fatalf("a readable configuration read as %+v (unread %q)", m.Config, m.ConfigUnread)
 	}
 
-	if err := os.WriteFile(cfg, []byte(`{"model":"claude-fable-5","noSuchKey":3}`), 0o644); err != nil {
+	if err := os.WriteFile(cfg, []byte(`{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"}},"noSuchKey":3}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	m = BuildModel(runtest.Open(t, dir), t.TempDir(), Config{}, 0)
@@ -42,7 +42,7 @@ func TestTheBoardShowsAnUnreadableConfigurationAsUnread(t *testing.T) {
 	}
 
 	// The flags the board was given are the operator's own statement, and still show.
-	m = BuildModel(runtest.Open(t, dir), t.TempDir(), Config{Model: "operator-bulk", Lanes: "4"}, 0)
+	m = BuildModel(runtest.Open(t, dir), t.TempDir(), Config{Bulk: "operator-bulk", Lanes: "4"}, 0)
 	html = RenderHTML(m)
 	if m.ConfigUnread == "" || !strings.Contains(html, "operator-bulk") || !strings.Contains(html, ">4<") {
 		t.Errorf("the board dropped the flags it was given beside an unread configuration (unread %q)", m.ConfigUnread)
@@ -59,7 +59,7 @@ func TestTheBoardShowsAFieldTheUnreadConfigurationWouldHaveSuppliedAsNotRead(t *
 	if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), []byte(`{"noSuchKey":3}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	html := RenderHTML(BuildModel(runtest.Open(t, dir), t.TempDir(), Config{Model: "operator-bulk"}, 0))
+	html := RenderHTML(BuildModel(runtest.Open(t, dir), t.TempDir(), Config{Bulk: "operator-bulk"}, 0))
 	for _, row := range []string{"judgment seats", "blue lanes"} {
 		i := strings.Index(html, row)
 		if i < 0 {

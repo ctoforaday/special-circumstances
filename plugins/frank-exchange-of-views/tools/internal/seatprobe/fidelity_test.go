@@ -115,7 +115,7 @@ func TestTheProbeComposesNoPromptOfItsOwn(t *testing.T) {
 // board pointed at a seat production does not seat fails the run instead of scoring a sitting.
 func TestEveryBoardNamesASeatProductionDispatches(t *testing.T) {
 	for name, b := range Boards() {
-		if _, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku"); err != nil {
+		if _, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku"); err != nil {
 			t.Errorf("board %q: %v", name, err)
 		}
 	}
@@ -174,7 +174,7 @@ func TestEveryBenchBoardCarriesTheClosingsItsPromptPromises(t *testing.T) {
 		}
 		// And the prompt must actually still promise them, or this gate is guarding a duty that
 		// moved. Reproduce it rather than recall it.
-		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku")
+		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku")
 		if err != nil {
 			t.Errorf("board %q: %v", name, err)
 			continue
@@ -202,7 +202,7 @@ func TestEveryBenchBoardCarriesTheClosingsItsPromptPromises(t *testing.T) {
 // it files anything that renders into the transcript.
 func TestEveryBoardSentToTheTranscriptStagesOne(t *testing.T) {
 	for name, b := range Boards() {
-		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku", "haiku")
+		d, err := ProductionPrompt(debateScriptForTest(), b, "/runs/x", "/bin", "haiku")
 		if err != nil {
 			t.Errorf("board %q: %v", name, err)
 			continue

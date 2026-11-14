@@ -33,6 +33,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/archive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -1141,7 +1142,7 @@ func jsStringify(v any) string {
 // both ends — so a declared substitution is a fact this reads rather than a tier it deduces. The
 // transcript pass stays for what the record cannot cover: runs whose trajectories are gone,
 // and seats that never registered.
-func recordTierFindings(run record.Run, model, judgmentModel string) (findings []string, measured, total int) {
+func recordTierFindings(run record.Run, seats map[string]modeltier.SeatSpec) (findings []string, measured, total int) {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return nil, 0, 0
@@ -1155,25 +1156,38 @@ func recordTierFindings(run record.Run, model, judgmentModel string) (findings [
 			continue
 		}
 		measured++
-		switch configured, v := cost.JudgeServed(sm, model, judgmentModel); v {
+		switch spec, v := cost.JudgeServed(sm, seats); v {
 		case cost.ServedDeclared:
 			findings = append(findings, fmt.Sprintf("FAIL %s (%s) asked for %s and was answered by %s — the harness declared the substitution",
 				sm.SeatID, sm.Class, sm.Requested, sm.Served))
-		case cost.ServedOtherTier:
-			findings = append(findings, fmt.Sprintf("FAIL %s (%s) was answered by %s (%s tier) against a configured %s (%s tier)",
-				sm.SeatID, sm.Class, sm.Served, cost.Tier(sm.Served), configured, cost.Tier(configured)))
+		case cost.ServedOtherModel:
+			findings = append(findings, fmt.Sprintf("FAIL %s (%s) was answered by %s against a configured %s",
+				sm.SeatID, sm.Class, sm.Served, spec.Model))
 		}
 	}
 	return findings, measured, total
 }
 
+func summarizeConfiguredSeats(seats map[string]modeltier.SeatSpec) string {
+	distinct := map[string]bool{}
+	for _, s := range seats {
+		distinct[s.Harness+":"+s.Model] = true
+	}
+	list := make([]string, 0, len(distinct))
+	for m := range distinct {
+		list = append(list, m)
+	}
+	sort.Strings(list)
+	return strings.Join(list, ", ")
+}
+
 func ModelTierAudit(run record.Run, transcripts []record.Transcript) Audit {
-	model, judgmentModel, cerr := cost.TierConfig(run)
+	seatsCfg, cerr := cost.TierConfig(run)
 	if cerr != nil {
 		return Audit{Check: "model-tier", Verdict: "FAIL", Detail: "could not read the run's configuration: " + cerr.Error()}
 	}
-	if model == "" && judgmentModel == "" {
-		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "the run config names no models, so there is no configured tier to check the served one against"}
+	if len(seatsCfg) == 0 {
+		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "the run config names no seats, so there is no configured model to check the served one against"}
 	}
 	// THE EPOCH COMES FROM THE RECORD, per transcript: the agent whose stop named it joins to the
 	// act that bound it to its seat (record.SeatBindings), and that act's window says which chair
@@ -1191,10 +1205,11 @@ func ModelTierAudit(run record.Run, transcripts []record.Transcript) Audit {
 			continue
 		}
 		row := cost.ScanTranscript(string(b))
-		row.Epoch = bindings[tr.AgentID].Epoch
+		bind := bindings[tr.AgentID]
+		row.SeatID, row.Epoch = bind.SeatID, bind.Epoch
 		rows = append(rows, row)
 	}
-	findings := cost.DedupTierFindings(cost.TierMismatch(rows, model, judgmentModel))
+	findings := cost.DedupTierFindings(cost.TierMismatch(rows, seatsCfg))
 	fails, warns := 0, 0
 	for _, f := range findings {
 		if f.Verdict == "FAIL" {
@@ -1203,10 +1218,10 @@ func ModelTierAudit(run record.Run, transcripts []record.Transcript) Audit {
 			warns++
 		}
 	}
-	recFindings, measured, seats := recordTierFindings(run, model, judgmentModel)
+	recFindings, measured, seats := recordTierFindings(run, seatsCfg)
 	fails += len(recFindings)
 
-	tiers := fmt.Sprintf("configured bulk=%s, judgment=%s", orQ(model), orQ(judgmentModel))
+	tiers := fmt.Sprintf("configured seats=%d (%s)", len(seatsCfg), summarizeConfiguredSeats(seatsCfg))
 	// THE COVERAGE LINE IS NOT DECORATION. "every seat ran on its configured tier" over a run
 	// where nothing was measured is the plausible zero this audit exists to stop printing, so the
 	// served side always says how many seats it actually looked at.

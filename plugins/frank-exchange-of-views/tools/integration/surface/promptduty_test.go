@@ -120,7 +120,7 @@ func TestNoPromptRestatesAConstitutionDuty(t *testing.T) {
 		t.FailNow()
 	}
 
-	ds, _ := driveEverySite(t, agentTypes, debatejs.Config{Topic: "prompt duty", Lanes: 2, Model: "haiku", JudgmentModel: "haiku"})
+	ds, _ := driveEverySite(t, agentTypes, debatejs.Config{Topic: "prompt duty", Lanes: 2, Seats: debatejs.TieredSeats("haiku", "haiku")})
 	if len(ds) == 0 {
 		t.Fatal("no dispatch was captured — no prompt was read")
 	}
