@@ -2,21 +2,11 @@
 // and which of two rows is dearer. What tiers a run was CONFIGURED to use is the run's configuration,
 // read through the record (record.ReadRunConfig).
 //
-// # Why it is not in internal/cost
-//
-// It was, and it could not stay there. `cost` prices transcripts, so it imports `view`, which
-// imports `record` — and the tier check now has to run at `register`, inside `record` itself.
-// Importing cost from there is a cycle.
-//
-// The alternative was to let `record` re-derive the tier: another `strings.Contains(m, "opus")`
-// ladder.
-// That is the defect this repository names most often — one fact, two hand-kept readers, drifting
-// silently — and the tier ladder is exactly the kind that drifts: it is a substring scan whose
-// miss returns the DEAREST row, so a copy that falls behind a new model name reports a plausible
-// tier rather than an error.
-//
-// So the vocabulary moved down to a leaf both sides can import, and `cost` keeps only what is
-// actually about money: the price rows keyed by the tier this package names.
+// Its one importer is internal/cost, which prices transcripts by tier and judges a seat's served
+// model against its configured tier (cost.JudgeServed) for capture's model-tier audit and
+// `show tiers`. The ladder lives here, apart from the prices, because it is a substring scan whose
+// miss returns the DEAREST row: a second copy that falls behind a new model name reports a
+// plausible tier rather than an error, so there is one copy and it imports nothing.
 package modeltier
 
 import (

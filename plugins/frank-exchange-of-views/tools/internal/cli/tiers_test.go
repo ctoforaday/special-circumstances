@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // The 2026-08-23 shape, in miniature: a bulk seat answered by something nobody asked for, a
@@ -149,5 +149,59 @@ func TestTiersListsWhatServedBesideAnUnreadConfiguration(t *testing.T) {
 		if strings.Contains(md, bad) {
 			t.Errorf("the rendering under an unread configuration carries %q:\n%s", bad, md)
 		}
+	}
+}
+
+// A SUBSTITUTION THE HARNESS DECLARED IS ONE WHATEVER THE TIERS SAY. opus-4-8 answered by opus-4-9
+// stays on one tier, and capture's model-tier audit FAILs it all the same; the projection counts
+// it as capture does, and does not call the row a match.
+func TestTiersCountsADeclaredSubstitutionOnTheSameTier(t *testing.T) {
+	run := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(run, "inputs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"),
+		[]byte(`{"model":"claude-opus-4-8","judgmentModel":"claude-opus-4-8"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	recordtest.Seed(t, run,
+		castWithOneLane(t),
+		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1", &recordpb.Register{
+			ToolVersion: proto.String("test"),
+			AgentId:     proto.String(recordtest.ServedBy(t, "cccc3333", "claude-opus-4-9", "claude-opus-4-8")),
+		}),
+		recordtest.Event(t, record.HarnessSeat, recordtest.StopOf(t, "cccc3333")),
+	)
+	b, err := record.FamilyOf(runtest.Open(t, run))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep := tierReport(runtest.Open(t, run), b)
+	if rep.Substituted != 1 {
+		t.Fatalf("a declared same-tier substitution counted %d, want 1: %+v", rep.Substituted, rep)
+	}
+	for _, s := range rep.Seats {
+		if s.SeatID == "blue-lane-1" && (s.Matches || !s.Declared) {
+			t.Errorf("a declared substitution reads as a match: %+v", s)
+		}
+	}
+}
+
+// A CONFIGURATION THAT DOES NOT READ FAILS THE COMMAND, as capture's model-tier audit FAILs on the
+// same file: the report still prints, and the exit says nothing was judged, with the reason.
+func TestTiersFailsOnAnUnreadConfiguration(t *testing.T) {
+	run, _ := tierFixture(t)
+	if err := os.WriteFile(filepath.Join(run, "inputs", "run-config.json"), []byte(`{"model":"claude-haiku-4-5","rounds":3}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, stderr, err := runSeen(t, "ops", "tiers", "--seat-id", "operator", "--run", run)
+	if err == nil {
+		t.Fatalf("an unread configuration exits 0; stdout:\n%s", out)
+	}
+	if !strings.Contains(stderr, "rounds") {
+		t.Errorf("the refusal does not carry why the configuration was not read; stderr:\n%s", stderr)
+	}
+	if !strings.Contains(out, `"configUnread"`) {
+		t.Errorf("the report is not printed beside the refusal; stdout:\n%s", out)
 	}
 }

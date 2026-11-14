@@ -53,6 +53,17 @@ var dirs = []string{"blue/candidates", "red", "trajectories", "inputs", "scratch
 // trailing newline, and — critically — NO HTML escaping. Go's default escapes
 // <, >, & to \u00xx; JS does not, and the law banner ("statute > precedent")
 // carries '>'. json.Encoder.Encode already appends the newline.
+func marshalJSON(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // stageFile writes b to a new file in dir named by pattern (os.CreateTemp), mode 0644, and returns
 // its path. A write that fails removes the file.
 func stageFile(dir, pattern string, b []byte) (string, error) {
@@ -67,17 +78,6 @@ func stageFile(dir, pattern string, b []byte) (string, error) {
 		return "", err
 	}
 	return f.Name(), nil
-}
-
-func marshalJSON(v any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
 
 func exists(p string) bool { _, err := os.Stat(p); return err == nil }

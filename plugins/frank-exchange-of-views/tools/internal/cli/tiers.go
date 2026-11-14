@@ -9,9 +9,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -72,9 +72,13 @@ func newShowTiers() *cobra.Command {
 				// answer to a question the tool does not have.
 				return feov.Errorf(feov.Validation, "unknown --format %q (json | markdown)", format)
 			}
+			if rep.ConfigUnread != "" {
+				return feov.Errorf(feov.Validation,
+					"no seat was judged against a configured tier: %s", rep.ConfigUnread)
+			}
 			if rep.Substituted > 0 {
 				return feov.Errorf(feov.Validation,
-					"%d seat(s) were answered by a model other than their class's configured tier", rep.Substituted)
+					"%d seat(s) were answered by a model other than their class's configured one", rep.Substituted)
 			}
 			return nil
 		},
@@ -117,34 +121,30 @@ type TierReport struct {
 
 func tierReport(run record.Run, b record.Family) TierReport {
 	// A configuration that does not read is said, never shown as a run that configured no tier.
-	var bulk, judgment, unread string
-	switch rc, err := record.ReadRunConfig(run); {
-	case err != nil:
+	var unread string
+	bulk, judgment, err := cost.TierConfig(run)
+	if err != nil {
 		unread = err.Error()
-	case rc != nil:
-		bulk, judgment = rc.Model, rc.JudgmentModel
 	}
 	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment, ConfigUnread: unread}
 	for _, sm := range record.SeatModels(run, b) {
 		if sm.Class == "" {
 			continue // the operator and anything off the roster ride no tier
 		}
-		configured := bulk
-		if sm.Class == "judgment" {
-			configured = judgment
-		}
-		row := TierRow{SeatID: sm.SeatID, Class: sm.Class, Configured: configured,
-			Served: sm.Served, Measured: sm.Measured(), NotMeasured: sm.NotMeasured, Declared: sm.Substituted()}
+		// ONE JUDGMENT, capture's: a declared substitution counts on the same tier as on another.
+		configured, v := cost.JudgeServed(sm, bulk, judgment)
 		// MATCHES IS FALSE WHEN NOTHING WAS MEASURED, and that is the point of carrying Measured
 		// separately: a reader that treats !Matches as "substituted" would over-report, and one
 		// that treats an unmeasured seat as matching would rebuild the defect.
-		row.Matches = row.Measured && configured != "" && modeltier.Of(configured) == modeltier.Of(sm.Served)
+		row := TierRow{SeatID: sm.SeatID, Class: sm.Class, Configured: configured,
+			Served: sm.Served, Measured: sm.Measured(), NotMeasured: sm.NotMeasured, Declared: sm.Substituted(),
+			Matches: v == cost.ServedMatches}
 		rep.TierBound++
 		if row.Measured {
 			rep.Measured++
-			if configured != "" && !row.Matches {
-				rep.Substituted++
-			}
+		}
+		if v == cost.ServedDeclared || v == cost.ServedOtherTier {
+			rep.Substituted++
 		}
 		rep.Seats = append(rep.Seats, row)
 	}
@@ -186,7 +186,7 @@ func renderTiers(r TierReport) string {
 		fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); none judged against a configured tier, which was not read\n",
 			r.Measured, r.TierBound)
 	} else {
-		fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); %d answered by a model other than the configured tier\n",
+		fmt.Fprintf(&sb, "\nserved measured on %d of %d tier-bound seat(s); %d answered by a model other than the configured one\n",
 			r.Measured, r.TierBound, r.Substituted)
 	}
 	if r.TierBound > 0 && r.Measured == 0 {

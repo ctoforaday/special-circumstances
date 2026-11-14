@@ -3,6 +3,12 @@ package setup
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nativehelper"
@@ -12,11 +18,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
-	"io"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 // Config is the parsed setup invocation. The environment fields (Cwd/Home/ExpectVersion)
@@ -96,11 +97,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// Gate: a lane count, when given, is a positive whole number — before the run dir exists. The
 	// cast and every reader of run-config take it as one; "two" or "0" stored as typed would cast
 	// no lanes while the config claims some.
+	lanesN := 0
 	if cfg.Lanes != "" {
-		if _, err := record.ParseLanes(cfg.Lanes); err != nil {
+		n, err := record.ParseLanes(cfg.Lanes)
+		if err != nil {
 			fmt.Fprintf(stderr, "run-setup: --lanes: %v — refusing to create the run\n", err)
 			return 2
 		}
+		lanesN = n
 	}
 
 	// Gate: a launching session, before the run dir exists. The run's members are the agents of the
@@ -327,10 +331,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// THE CAST IS WRITTEN under the harness, before any seat registers: the run's admissible
 	// seats, derived from the areas selected and the lane count. Every register and every dispatch
 	// is checked against it from here on (plans/roundless.md §III.B.1).
-	lanesN := 0
-	if cfg.Lanes != "" {
-		lanesN, _ = record.ParseLanes(cfg.Lanes) // refused above when malformed
-	}
+	//
 	// THE LANES ARE NAMED, NOT LEFT TO BE RECOGNISED. Every other seat's role and tier come from the
 	// static roster; a lane's cannot, because how many a run seats is a run parameter. setup is the
 	// one process that knows, so it says so here rather than leaving a pattern to guess later.

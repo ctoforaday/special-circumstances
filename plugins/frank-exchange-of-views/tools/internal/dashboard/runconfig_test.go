@@ -48,3 +48,27 @@ func TestTheBoardShowsAnUnreadableConfigurationAsUnread(t *testing.T) {
 		t.Errorf("the board dropped the flags it was given beside an unread configuration (unread %q)", m.ConfigUnread)
 	}
 }
+
+// A FIELD THE UNREAD FILE WOULD HAVE SUPPLIED READS AS NOT READ, never as the default a run with no
+// such field gets: beside an unread configuration, a flag the operator did not pass is unknown.
+func TestTheBoardShowsAFieldTheUnreadConfigurationWouldHaveSuppliedAsNotRead(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "inputs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "inputs", "run-config.json"), []byte(`{"noSuchKey":3}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	html := RenderHTML(BuildModel(runtest.Open(t, dir), t.TempDir(), Config{Model: "operator-bulk"}, 0))
+	for _, row := range []string{"judgment seats", "blue lanes"} {
+		i := strings.Index(html, row)
+		if i < 0 {
+			t.Fatalf("the board has no %q row:\n%s", row, html)
+		}
+		line := html[i:]
+		line = line[:strings.Index(line, "</tr>")]
+		if strings.Contains(line, "session default") || strings.Contains(line, "—") || !strings.Contains(line, "not read") {
+			t.Errorf("the %q row beside an unread configuration reads %q", row, line)
+		}
+	}
+}

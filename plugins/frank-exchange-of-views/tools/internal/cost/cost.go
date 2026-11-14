@@ -8,8 +8,6 @@ package cost
 
 import (
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"io"
 	"math"
 	"os"
@@ -20,6 +18,8 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
@@ -319,10 +319,7 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 				Why: fmt.Sprintf("a transcript's seat could not be identified from its prompt head, so its tier was NOT checked (it ran on %s, %d turn(s)). ClassifySeat matched no needle, which means debate.js's prompt wording and internal/seatclass have drifted apart — not that this seat is exempt", row.T, row.Turns)})
 			continue
 		}
-		configured := model
-		if cls == "judgment" {
-			configured = judgmentModel
-		}
+		configured := ConfiguredFor(cls, model, judgmentModel)
 		actual := row.T
 		if configured == "" {
 			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: cls, Actual: actual, Expected: "", Verdict: "WARN",
@@ -352,6 +349,46 @@ func TierConfig(run record.Run) (model, judgmentModel string, err error) {
 		return "", "", err
 	}
 	return rc.Model, rc.JudgmentModel, nil
+}
+
+// ConfiguredFor is the model a seat class was configured for: the judgment tier for the judgment
+// class, the bulk tier for every other.
+func ConfiguredFor(class, model, judgmentModel string) string {
+	if class == "judgment" {
+		return judgmentModel
+	}
+	return model
+}
+
+// ServedVerdict is one seat's served model judged against its class's configured tier.
+type ServedVerdict int
+
+const (
+	// ServedNotJudged: nothing measured what answered, or the class's tier is not configured.
+	ServedNotJudged ServedVerdict = iota
+	// ServedMatches: the configured tier answered and the harness declared no substitution.
+	ServedMatches
+	// ServedDeclared: the harness declared a substitution, whatever tier each end is on.
+	ServedDeclared
+	// ServedOtherTier: a model on a tier other than the configured one answered.
+	ServedOtherTier
+)
+
+// JudgeServed is the one judgment of a seat's served model against its class's configured tier,
+// which capture's model-tier audit and `show tiers` both report: a declared substitution is one
+// even on the same tier, and a seat nothing measured, or whose tier is not configured, is not
+// judged. configured is the model the seat's class was configured for.
+func JudgeServed(sm record.SeatModel, model, judgmentModel string) (configured string, v ServedVerdict) {
+	configured = ConfiguredFor(sm.Class, model, judgmentModel)
+	switch {
+	case !sm.Measured() || configured == "":
+		return configured, ServedNotJudged
+	case sm.Substituted():
+		return configured, ServedDeclared
+	case Tier(configured) != Tier(sm.Served):
+		return configured, ServedOtherTier
+	}
+	return configured, ServedMatches
 }
 
 // DedupTierFindings drops duplicate findings keyed on (seat|epoch|verdict|actual). TierMismatch

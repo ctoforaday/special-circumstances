@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io/fs"
 	"os"
 	"path"
@@ -34,10 +33,10 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/archive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	// Aliased: this package's own `Run` returns a named result called `report`, and the two
 	// spellings would shadow each other at exactly the call site that needs the constant.
@@ -1156,21 +1155,13 @@ func recordTierFindings(run record.Run, model, judgmentModel string) (findings [
 			continue
 		}
 		measured++
-		configured := model
-		if sm.Class == "judgment" {
-			configured = judgmentModel
-		}
-		if configured == "" {
-			continue
-		}
-		want, got := modeltier.Of(configured), modeltier.Of(sm.Served)
-		switch {
-		case sm.Substituted():
+		switch configured, v := cost.JudgeServed(sm, model, judgmentModel); v {
+		case cost.ServedDeclared:
 			findings = append(findings, fmt.Sprintf("FAIL %s (%s) asked for %s and was answered by %s — the harness declared the substitution",
 				sm.SeatID, sm.Class, sm.Requested, sm.Served))
-		case want != got:
+		case cost.ServedOtherTier:
 			findings = append(findings, fmt.Sprintf("FAIL %s (%s) was answered by %s (%s tier) against a configured %s (%s tier)",
-				sm.SeatID, sm.Class, sm.Served, got, configured, want))
+				sm.SeatID, sm.Class, sm.Served, cost.Tier(sm.Served), configured, cost.Tier(configured)))
 		}
 	}
 	return findings, measured, total
@@ -2131,8 +2122,8 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
 	// time by a dozen packages: record.RunParams hands k-max, max-epochs and the
-	// convergence fraction to the dispatch verb AND the write path; modeltier and cost read the
-	// configured tiers; capture's own lane coverage reads the declared lane count. Measured on an archived run against the same run
+	// convergence fraction to the dispatch verb AND the write path; cost reads the configured
+	// tiers; capture's own lane coverage reads the declared lane count. Measured on an archived run against the same run
 	// live: `ops tiers` printed configuredBulk and configuredJudgment from the live directory and
 	// simply OMITTED both from the archive — so a run whose configuration was thrown away reads
 	// exactly like a run that had none.
