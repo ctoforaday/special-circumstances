@@ -194,7 +194,9 @@ func actRows() map[string]actRow {
 			}},
 		"motion docket rule": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {
-				return actVars{"m": docketFile(t, runDir, "red-chair", "G1", "red cannot settle G1")}
+				m := docketFile(t, runDir, "red-chair", "G1", "red cannot settle G1")
+				benchSitsOn(t, runDir, "G1")
+				return actVars{"m": m}
 			},
 			act: func(v actVars, text string) []string {
 				return []string{"motion", "docket", "rule", "--id", v["m"], "--as", "remanded",
