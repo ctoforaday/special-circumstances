@@ -1,4 +1,4 @@
-prompt sha256: 4ba34635c77733c4be6a6048bc0c05d6b7d07aa89310ae80cb5e529eb89792b2
+prompt sha256: 1cd28aeb7d472a508301865b99e418cf7b963b0f861199b4fd80e8c2c99c2c64
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `inquiries` projection (the tool renders it fresh from the inquiry events on the record).
@@ -10,14 +10,13 @@ Where the two tell the reader different things — one approach under two fates;
 A finding about an inquiry reaches the logic lens, which judges every settled inquiry against its latest fate; a gap about it reaches blue, and a material one holds the PASS.
 An inquiry still open already holds the PASS until blue settles it.
 YOUR ITEMS ARRIVE ONE AT A TIME, each after a call of yours to the record; the index lists the rest.
-Report text owed you comes first; your envelope waits for all of it, and a delivery that cannot advance ends your turn.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides your audit.
 `first`: the whole report — audit it whole, in context, never a diff.
 `behind` (head H; pin P): the whole report at your full re-read, else each edit since your pin as the paragraphs it touched, before and after, and your own gaps' passages.
-`unchanged`: NOTHING TO AUDIT at head H unless the whole report is owed; else your earlier read stands, and where nothing engages you the sitting owes no entry.
+`unchanged`: NOTHING TO AUDIT at head H unless the whole report is owed; your earlier read stands, and if nothing engages you the sitting owes no entry.
 `served`: this sitting's delivery is complete (pin P) — audit it.
 `undispatched`: no dispatch for you — log that and end.
-Only a complete delivery moves your pin, never a read.
+Only a complete delivery moves your pin.
 A FRESH gap on text an earlier sitting of yours read and passed states, in its mint reason, why you missed it then.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The ids of your findings and of the gaps you mint are the tool's to assign.
