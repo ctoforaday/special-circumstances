@@ -677,8 +677,8 @@
 -- INSERT INTO "gap_flush" ("id") VALUES (1)
   (no plan rows: the statement reads no table)
 
-== stmt f8aad82a7c84
--- INSERT INTO "gate" ("event_id", "verdict") VALUES (?, ?)
+== stmt 3d14217766d0
+-- INSERT INTO "gate" ("event_id") VALUES (?)
   (no plan rows: the statement reads no table)
 
 == stmt 6c9fde3c4764
@@ -1972,9 +1972,9 @@
 -- SELECT 1 FROM "finding" WHERE "id" = ? LIMIT 1
   SEARCH finding USING COVERING INDEX sqlite_autoindex_finding_1 (id=?)
 
-== stmt 11bb0ecebe81
--- SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1
-  SEARCH gate USING COVERING INDEX gate_verdict (verdict=?)
+== stmt 2c6e26193cfc
+-- SELECT 1 FROM "gate" LIMIT 1
+  SCAN gate
 
 == stmt 84a9f8acd6cc
 -- SELECT 1 FROM "halt" LIMIT 1
@@ -2623,10 +2623,6 @@
 
 == stmt 760f1c736676
 -- SELECT t."event_id", t."tool_version", t."hook_version", t."agent_id", t."run_via", t."agent_type", t."occasion" FROM "register" t WHERE t."event_id" > ?
-  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
-
-== stmt 57218d4d68a9
--- SELECT t."event_id", t."verdict" FROM "gate" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt a874699cf98f

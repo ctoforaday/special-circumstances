@@ -169,12 +169,6 @@ INSERT INTO "enum_occasion" ("value", "means") VALUES ('petition', 'hearing the 
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('position', 'hearing the chair''s position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close''s record_read reports a position unheard: in the turn that filed it, at no epoch');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('terminal', 'the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here');
 
-CREATE TABLE "enum_verdict" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
-) STRICT;
-INSERT INTO "enum_verdict" ("value", "means") VALUES ('pass', 'nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word');
-
 CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -294,7 +288,7 @@ CREATE TABLE "enum_position_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('overruled', 'the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld');
+INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('overruled', 'the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld');
 INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('upheld', 'the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue''s act on it and audited by its minting lens after — a remand, and the gap''s one remand at impasse. Name one or the other, with --direction stating the work');
 
 CREATE TABLE "enum_ruling_binds" (
@@ -455,9 +449,7 @@ CREATE TABLE "register" (
 ) STRICT;
 
 CREATE TABLE "gate" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "verdict" TEXT,
-  FOREIGN KEY ("verdict") REFERENCES "enum_verdict"("value")
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id")
 ) STRICT;
 
 CREATE TABLE "outcome" (
@@ -991,7 +983,6 @@ CREATE TABLE "inquiry_check" (
   "reason" TEXT NOT NULL
 ) STRICT;
 
-CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");

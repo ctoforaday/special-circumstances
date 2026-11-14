@@ -107,22 +107,6 @@ feov-record: motion docket: a docket motion is ruled by the bench seat, so `file
 exit 2
 feov-record: motion petition: a petition motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair, lane and lens seats file one. Where the run itself must stop, `halt` is yours.
 
-── verdict in the wrong case
-exit 2
-feov-record: verdict: --as takes one of PASS, not "pass": it differs from "PASS" only in case. A PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
-
-    PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
-
-Run `feov-record verdict --help` for what it takes, flag by flag.
-
-── verdict outside the set
-exit 2
-feov-record: verdict: --as takes one of PASS, not "banana". A PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
-
-    PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
-
-Run `feov-record verdict --help` for what it takes, flag by flag.
-
 ── outcome in the wrong case
 exit 2
 feov-record: outcome: --as takes one of VERIFIED|CEILING|HALTED|UNVERIFIED, not "ceiling": it differs from "CEILING" only in case. The report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
