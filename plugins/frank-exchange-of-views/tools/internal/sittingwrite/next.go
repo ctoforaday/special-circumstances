@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -238,7 +239,8 @@ func writeDelivered(path string, d delivered) error {
 
 // lockDelivery holds an O_EXCL marker beside the sitting's file while what was handed is compared and
 // rewritten, so two of the lens's calls returning together hand it the next item once. A marker
-// older than staleLock is a holder that died, and is taken over.
+// older than staleLock is a holder that died, and is taken over; one still held past lockWait is
+// hookgate.ErrDeliveryHeld, since the holder is handing the item.
 func lockDelivery(path string) (func(), error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
@@ -259,16 +261,17 @@ func lockDelivery(path string) (func(), error) {
 			continue
 		}
 		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("the lens's delivery is held by another call (%s) past %v", lock, lockWait)
+			return nil, fmt.Errorf("%w (%s) past %v", hookgate.ErrDeliveryHeld, lock, lockWait)
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
 }
 
-const (
-	lockWait  = 5 * time.Second
-	staleLock = 30 * time.Second
-)
+// lockWait is how long a call waits on another's hold before it hands nothing (a variable so a test
+// need not wait it out); a hold older than staleLock is a holder that died.
+var lockWait = 5 * time.Second
+
+const staleLock = 30 * time.Second
 
 // recordDelivered stores what the opening end handed the lens, so the first call after it compares
 // against that.

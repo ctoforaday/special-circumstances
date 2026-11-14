@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 )
 
 // THE CALL THAT RETURNED A SEAT'S ENVELOPE, HAVING SUCCEEDED, IS HANDED OVER AS ITS ADMISSION — from
@@ -114,5 +117,30 @@ func TestALensCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 	writeErr = errors.New("the record is locked")
 	if got, _ := post(lens, "feov-record show report"); !strings.Contains(got, "COULD NOT BE READ") || !strings.Contains(got, "the record is locked") {
 		t.Errorf("a writer that failed was handed to the lens as %q — want the statement that nothing was determined, and why", got)
+	}
+}
+
+// A DELIVERY ANOTHER CALL HOLDS HANDS NOTHING AND IS NO FAILURE: that call is handing the item. The
+// lens is told nothing — not the unreadable statement — and the hook record holds no failure.
+func TestAHeldDeliveryHandsNothingAndRecordsNoFailure(t *testing.T) {
+	cwd, _ := hookRun(t)
+	prev := handNextItem
+	handNextItem = func(string, string, string) (string, error) {
+		return "", fmt.Errorf("feov-sitting-write: %w: (x.lock) past 5s", hookgate.ErrDeliveryHeld)
+	}
+	t.Cleanup(func() { handNextItem = prev })
+	b, _ := json.Marshal(map[string]any{"tool_name": "Bash", "tool_input": map[string]string{"command": "feov-record show report"},
+		"cwd": cwd, "session_id": testLead, "agent_id": "a7cc47571ab8b015d", "agent_type": "frank-exchange-of-views:red-lens-logic",
+		"tool_response": map[string]string{}})
+	var out bytes.Buffer
+	rec := testRecorder()
+	if err := Post(bytes.NewReader(b), &out, rec); err != nil {
+		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("a held delivery said something to the lens: %s", out.String())
+	}
+	if rec.Failed() {
+		t.Error("a held delivery was recorded as the hook's failure")
 	}
 }

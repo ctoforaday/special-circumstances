@@ -11,11 +11,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 	"github.com/ctoforaday/special-circumstances/shared/gcpolicy"
 )
@@ -57,8 +59,18 @@ func main() {
 	}
 	if err != nil {
 		// Stderr and a non-zero exit. The span hooks ignore it — a seat is not blocked because the
-		// bookkeeping failed; the PreToolUse hook passes it to its own stderr.
+		// bookkeeping failed; the PreToolUse hook passes it to its own stderr. A held delivery has its
+		// own status (exitStatus), since it is no failure.
 		fmt.Fprintln(os.Stderr, "feov-sitting-write:", err)
-		os.Exit(1)
+		os.Exit(exitStatus(sittingwrite.Phase(*phase), err))
 	}
+}
+
+// exitStatus is the writer's exit on err: hookgate.ExitDeliveryHeld for a lens's delivery another call
+// holds, on the next phase, which the PostToolUse hook reads as handing nothing; 1 for everything else.
+func exitStatus(phase sittingwrite.Phase, err error) int {
+	if phase == sittingwrite.Next && errors.Is(err, hookgate.ErrDeliveryHeld) {
+		return hookgate.ExitDeliveryHeld
+	}
+	return 1
 }

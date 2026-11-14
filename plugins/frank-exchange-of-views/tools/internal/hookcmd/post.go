@@ -1,6 +1,7 @@
 package hookcmd
 
 import (
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -91,6 +92,11 @@ func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder
 		engine = hookcore.EngineClaude
 	}
 	text, err := handNextItem(runDir, caller.ID, caller.Type, string(engine))
+	if errors.Is(err, hookgate.ErrDeliveryHeld) {
+		// ANOTHER OF THE LENS'S CALLS HOLDS THE DELIVERY and is handing the item: this call hands
+		// nothing, and nothing failed — nor did this call see the stage work.
+		return
+	}
 	if err != nil {
 		rec.Fail(StageNextItem, "a lens's call went to the record and what it is handed next could not be read: "+err.Error())
 		// NEVER SILENCE IN ITS PLACE: a lens told nothing reads "nothing changed".

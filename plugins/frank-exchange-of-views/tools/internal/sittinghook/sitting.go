@@ -23,6 +23,7 @@ package sittinghook
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
@@ -125,7 +126,9 @@ func Admission(runDir, agentID string) error {
 // NextItem asks the writer what a lens is handed after a call of its that went to the record: the
 // PostToolUse hook passes the text on to the seat, and "" is "nothing it was handed has changed".
 //
-// THE WRITER'S STDOUT IS THE SEAT'S, and its stderr the hook record's, as on the opening end.
+// THE WRITER'S STDOUT IS THE SEAT'S, and its stderr the hook record's, as on the opening end. Its
+// exit status hookgate.ExitDeliveryHeld is hookgate.ErrDeliveryHeld: another of the lens's calls is
+// handing the item.
 func NextItem(runDir, agentID, agentType, engine string) (string, error) {
 	writer := writerPath()
 	if writer == "" {
@@ -135,6 +138,9 @@ func NextItem(runDir, agentID, agentType, engine string) (string, error) {
 	var forSeat, diagnostics bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &forSeat, &diagnostics
 	if err := cmd.Run(); err != nil {
+		if exit, ok := errors.AsType[*exec.ExitError](err); ok && exit.ExitCode() == hookgate.ExitDeliveryHeld {
+			return "", fmt.Errorf("%s: %w: %s", writerName, hookgate.ErrDeliveryHeld, strings.TrimSpace(diagnostics.String()))
+		}
 		return "", fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(diagnostics.String()+" "+forSeat.String()))
 	}
 	return forSeat.String(), nil
