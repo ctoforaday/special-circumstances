@@ -137,7 +137,9 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:  "PASS is allowed once every motion is answered",
-			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			// The lens closes G1 at its next sitting, its full re-read, delivered before the close: a
+			// PASS waits on both whole deliveries.
+			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"register", "--seat-id", "red-lens-evidence"}, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
 			act:   seatStep{"verdict", "--seat-id", "red-chair", "--as", "PASS"},
 			guards: "The gate above must not become unpassable. A check that no legitimate run can " +
 				"satisfy is removed by the first person it blocks.",

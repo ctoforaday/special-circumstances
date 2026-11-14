@@ -89,6 +89,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	// The bench's two references — the gap on the filing, the motion on the ruling — both
 	// resolve, which is the converse of the two rows above.
 	m := docketFile(t, runDir, "red-chair", first, "put before the bench")
+	benchSitsOn(t, runDir, first)
 	for _, c := range [][]string{
 		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "remanded",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", "the ruling"},

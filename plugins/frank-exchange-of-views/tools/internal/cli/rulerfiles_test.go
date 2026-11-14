@@ -111,6 +111,7 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 	t.Run("the chair files a docket motion and the bench rules it", func(t *testing.T) {
 		d := fresh(t)
 		m := docketFile(t, d.run, "red-chair", "G1", "red cannot settle G1")
+		benchSitsOn(t, d.run, "G1")
 		d.admitted("the bench's ruling", "judge", docketRule(m)...)
 	})
 	for _, filer := range []string{"blue-respond", lensSeat, "judge"} {
@@ -129,6 +130,7 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		t.Run("a docket motion filed by "+filer+" is ruled by the bench", func(t *testing.T) {
 			d := fresh(t)
 			m := docketFile(t, d.run, filer, "G1", "the bench should decide G1")
+			benchSitsOn(t, d.run, "G1")
 			d.admitted("the bench's ruling", "judge", docketRule(m)...)
 		})
 	}

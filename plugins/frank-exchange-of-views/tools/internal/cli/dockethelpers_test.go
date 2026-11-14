@@ -69,8 +69,8 @@ func benchDisposes(t *testing.T, runDir, gapID, as, principle string) {
 }
 
 // benchSitsOn convenes the bench on the docketed gaps and opens its docket sitting, as the workflow
-// does: the gap's minting lens and blue file their closings on each gap, the chair's next sitting
-// dispatches the bench, and the bench registers for the docket. Its sitting is then convened on those
+// does: the gap's minting lens and blue file their closings on each gap and sit again, the chair's next
+// sitting dispatches the bench, and the bench registers for the docket. Its sitting is then convened on those
 // gaps and owed their passages, which the harness delivers before its ruling (deliverBeforeActing).
 // Only a cast run has a dispatch to convene the bench, so a fixture that rules a docket motion seeds
 // one.
@@ -83,6 +83,13 @@ func benchSitsOn(t *testing.T, runDir string, gaps ...string) {
 				"--reason", "the closing argument "+party+" files on the docketed gap"); err != nil {
 				t.Fatalf("closing on %s by %s: %v", g, party, err)
 			}
+		}
+	}
+	// Each party's closing is the last act of the sitting it filed it in; what it does after the bench
+	// is convened, it does at its next sitting.
+	for _, party := range []string{lensSeat, "blue-respond"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", party); err != nil {
+			t.Fatalf("register %s for its next sitting: %v", party, err)
 		}
 	}
 	chairSitsAgain(t, runDir)

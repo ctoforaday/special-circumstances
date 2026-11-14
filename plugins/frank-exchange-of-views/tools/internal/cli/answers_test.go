@@ -161,6 +161,7 @@ func (d drive) benchClosesG1() {
 	}
 	for _, m := range record.MotionsOf(b.Events, b.At) {
 		if m.Subject == "docket" && !m.Ruled() {
+			benchSitsOn(d.t, d.run, "G1")
 			ruleDocket(d.t, d.run, m.ID, "repaired")
 			return
 		}
@@ -232,6 +233,8 @@ func answerDrives() []answerDrive {
 			// (tests/simulator debate.test.mjs, "a chair that records PASS ends the debate even if it
 			// relayed parties").
 			d.closeG1(lensSeat)
+			// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+			lensRereads(d.t, d.run)
 			d.nextSitting("red-chair")
 			d.admitted("a PASS", "red-chair", "verdict", "--as", "PASS")
 			d.endsWithRow(d.refused("a second verdict after the PASS", "red-chair", "verdict", "--as", "PASS"), rowVerdict)
@@ -355,6 +358,7 @@ func answerDrives() []answerDrive {
 		}},
 		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")
+			benchSitsOn(d.t, d.run, "G1")
 			rule := func(text string) []string {
 				return []string{"motion", "docket", "rule", "--id", m, "--as", "remanded", "--principle", "thoroughness over speed",
 					"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", text}
