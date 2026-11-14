@@ -6860,8 +6860,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 		maxEpochs = r.maxEpochs
 	}
 	if err := writeSetup(filepath.Join(r.runDir, "inputs", "run-config.json"),
-		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":3,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25,"maxEpochs":%d}`,
-			maxEpochs)); err != nil {
+		fuzzRunConfig(3, 1, 2, 1, maxEpochs)); err != nil {
 		return nil, err.Error()
 	}
 
@@ -6893,9 +6892,9 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 		vm.Set("args", map[string]any{
 			"topic": "fuzz", "runDir": r.runDir, "binDir": binDir(r.bin),
 			"lanes": 3,
-			// #111: both tiers are REQUIRED — nil refuses dispatch. Both haiku so the tier oracle
+			// #111, #1827: per-seat models are REQUIRED — nil refuses dispatch. All haiku so the tier oracle
 			// expects every dispatched seat to carry exactly "haiku".
-			"model": "haiku", "judgmentModel": "haiku",
+			"seats": fuzzJSSeats("haiku", "haiku"),
 		})
 		if _, err := vm.RunString(preamble); err != nil {
 			settledErr = "preamble: " + err.Error()
@@ -8324,12 +8323,17 @@ ORDER BY s."proposed_seq"`)
 // with the flag-named message. No binary needed: the throw precedes any tool act.
 func TestDispatchRefusesUnsetModel(t *testing.T) {
 	wrapped := debateWrapped(t)
+	missingSeat := fuzzJSSeats("haiku", "haiku")
+	delete(missingSeat, "red-lens-dark-side")
+	mixedSeats := fuzzJSSeats("haiku", "haiku")
+	mixedSeats["red-lens-dark-side"] = map[string]any{"harness": "antigravity", "model": "gpt-oss-120b-medium"}
 	cases := []struct {
 		name, want string
 		args       map[string]any
 	}{
-		{"model unset", "refusing dispatch — model unset", map[string]any{"topic": "x", "runDir": "research/2026-01-01_t", "lanes": 1, "laneFloorOverride": "t", "judgmentModel": "haiku"}},
-		{"judgmentModel unset", "refusing dispatch — judgmentModel unset", map[string]any{"topic": "x", "runDir": "research/2026-01-01_t", "lanes": 1, "laneFloorOverride": "t", "model": "haiku"}},
+		{"seats unset", "refusing dispatch — seats unset", map[string]any{"topic": "x", "runDir": "research/2026-01-01_t", "binDir": "/b", "lanes": 1, "laneFloorOverride": "t"}},
+		{"seat model unset", `refusing dispatch — seats["red-lens-dark-side"].model unset`, map[string]any{"topic": "x", "runDir": "research/2026-01-01_t", "binDir": "/b", "lanes": 1, "laneFloorOverride": "t", "seats": missingSeat}},
+		{"antigravity harness refused", `refusing dispatch — seat red-lens-dark-side specifies harness "antigravity"`, map[string]any{"topic": "x", "runDir": "research/2026-01-01_t", "binDir": "/b", "lanes": 1, "laneFloorOverride": "t", "seats": mixedSeats}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

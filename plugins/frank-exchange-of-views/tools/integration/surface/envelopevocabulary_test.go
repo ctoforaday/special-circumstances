@@ -44,7 +44,7 @@ func everyEnvelopeKey(t *testing.T) map[string]bool {
 	for _, p := range agentPaths {
 		agentTypes = append(agentTypes, strings.TrimSuffix(filepath.Base(p), ".md"))
 	}
-	ds, _ := driveEverySite(t, agentTypes, debatejs.Config{Topic: "envelope keys", Lanes: 3, Model: "m-bulk", JudgmentModel: "m-judgment"})
+	ds, _ := driveEverySite(t, agentTypes, debatejs.Config{Topic: "envelope keys", Lanes: 3, Seats: debatejs.TieredSeats("m-bulk", "m-judgment")})
 	keys := map[string]bool{}
 	schemas := 0
 	for _, d := range ds {

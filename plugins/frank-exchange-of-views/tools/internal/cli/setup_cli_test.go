@@ -116,7 +116,7 @@ func TestSetupCLIPinValidationRefusesAndCreatesNothing(t *testing.T) {
 	gitCommit(t, cwd)
 	runDir := filepath.Join(cwd, "research", "pin-test")
 
-	bad := runSetup(t, bin, cwd, runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku", "--cite", "plans/does-not-exist.md")
+	bad := runSetup(t, bin, cwd, runDir, "--topic", "t", "--bulk", "haiku", "--judgment", "haiku", "--cite", "plans/does-not-exist.md")
 	if bad.code != 2 {
 		t.Fatalf("expected exit 2, got %d: %s", bad.code, bad.stderr)
 	}
@@ -130,7 +130,7 @@ func TestSetupCLIPinValidationRefusesAndCreatesNothing(t *testing.T) {
 		t.Error("nothing must be created — validation runs before the skeleton")
 	}
 
-	good := runSetup(t, bin, cwd, runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku", "--cite", "real.md")
+	good := runSetup(t, bin, cwd, runDir, "--topic", "t", "--bulk", "haiku", "--judgment", "haiku", "--cite", "real.md")
 	if good.code != 0 {
 		t.Fatalf("expected exit 0, got %d: %s", good.code, good.stderr)
 	}
@@ -145,7 +145,7 @@ func TestSetupCLIArgParsing(t *testing.T) {
 	cwd := recordtest.TmpRun(t)
 	runDir := filepath.Join(cwd, "research", "2026-01-01_cli-test")
 
-	r := runSetup(t, bin, cwd, runDir, "--topic", "cli parse topic", "--model", "haiku", "--judgment-model", "haiku", "--k-max", "3", "--mint-budget", "2",
+	r := runSetup(t, bin, cwd, runDir, "--topic", "cli parse topic", "--bulk", "haiku", "--judgment", "haiku", "--k-max", "3", "--mint-budget", "2",
 		"--cite", "a/path@abc1234", "--cite", "b/path")
 	if r.code != 0 {
 		t.Fatalf("expected exit 0, got %d: %s", r.code, r.stderr)
@@ -177,7 +177,7 @@ func TestSetupCLIArgParsing(t *testing.T) {
 func TestSetupCLIRecordsAndRefusesTheEpochLimit(t *testing.T) {
 	bin := buildSetupBinary(t)
 	cwd := recordtest.TmpRun(t)
-	base := []string{"--topic", "t", "--model", "haiku", "--judgment-model", "haiku"}
+	base := []string{"--topic", "t", "--bulk", "haiku", "--judgment", "haiku"}
 	for _, c := range []struct {
 		dir  string
 		args []string

@@ -37,22 +37,20 @@ func runWithTiers(t *testing.T, cfg string) string {
 	return run
 }
 
-// configuredFor is the class -> configured-model join SeatModels makes, so these tests drive
+// configuredFor is the seat -> configured-model join SeatModels makes, so these tests drive
 // TierSubstitution with the same input the read path builds.
 func configuredFor(t *testing.T, run string, seatID string) string {
 	t.Helper()
-	model, judgment := modeltier.Config(run)
+	seats := modeltier.SeatConfigs(run)
 	r := mustRun(t, run)
-	if tierClassOfSeat(t, r, seatID) == "judgment" {
-		return judgment
-	}
 	if tierClassOfSeat(t, r, seatID) == "" {
 		return ""
 	}
-	return model
+	spec, _ := modeltier.LookupSeat(seats, seatID)
+	return spec.Model
 }
 
-const fableSonnet = `{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`
+const fableSonnet = `{"seats":{"frontier":{"harness":"claude","model":"claude-fable-5"},"blue-lane":{"harness":"claude","model":"claude-fable-5"},"blue-respond":{"harness":"claude","model":"claude-fable-5"},"red-lens-adversary":{"harness":"claude","model":"claude-fable-5"},"red-lens-architecture":{"harness":"claude","model":"claude-fable-5"},"red-lens-computation":{"harness":"claude","model":"claude-fable-5"},"red-lens-dark-side":{"harness":"claude","model":"claude-fable-5"},"red-lens-evidence":{"harness":"claude","model":"claude-fable-5"},"red-lens-logic":{"harness":"claude","model":"claude-fable-5"},"red-lens-voice":{"harness":"claude","model":"claude-fable-5"},"blue-synthesize":{"harness":"claude","model":"claude-sonnet-5"},"red-chair":{"harness":"claude","model":"claude-sonnet-5"},"judge":{"harness":"claude","model":"claude-sonnet-5"}}}`
 
 func TestTheGateStopsTheRunTheRetrospectiveMeasured(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
@@ -120,7 +118,7 @@ func TestSeatsThatRideNoTierAreNotGated(t *testing.T) {
 // THE OVERRIDE IS THE OPERATOR'S AND IT IS A FIELD ON THE RUN, never a flag a seat could type —
 // the seat is the party whose adversary strength is in question.
 func TestTheOperatorsStandingConsentLetsTheRunProceed(t *testing.T) {
-	run := runWithTiers(t, `{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5","allowModelSubstitution":true}`)
+	run := runWithTiers(t, `{"seats":{"blue-lane":{"harness":"claude","model":"claude-fable-5"},"red-chair":{"harness":"claude","model":"claude-sonnet-5"}},"allowModelSubstitution":true}`)
 	got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "blue-lane-1"), servedmodel.Observation{
 		Served: "claude-opus-4-8", Requested: "claude-fable-5", Declared: true})
 	if !strings.Contains(got, "ALLOWED BY THIS RUN'S CONFIG") {

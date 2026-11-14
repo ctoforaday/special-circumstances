@@ -2,7 +2,6 @@ package fuzz
 
 import (
 	"encoding/json"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -50,7 +49,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		maxEpochs = 4
 	}
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":1,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25,"maxEpochs":%d}`, maxEpochs)); err != nil {
+		fuzzRunConfig(1, 1, 2, 1, maxEpochs)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)
