@@ -616,7 +616,11 @@ is "a complete whole delivery since the ruling": no reader needs a stored kind.
   whose anchor changed after that delivery's head, is written as no event. Measured: about 400 acts in 36 of the 37
   archives (`TestEveryArchivedRunMigrates`). Each is recorded as loss in the migration manifest (`migration.json`,
   the accepted losses, each act listed by its source id, word and reason), and a pin or read point that named a
-  dropped act names the last event written before it, as for an act on a superseded gap. Each archived run's stamped
+  dropped act names the last event written before it, as for an act on a superseded gap. An archived act the write
+  refuses only because it depends on a gap a lost act took with it — a mint superseding a gap whose close was lost,
+  an act on a gap whose mint was lost, an inquiry check waiting on a gap left open — is the same loss, listed with
+  the act it depended on (the dependency read off the ids its body names, never the refusal's words; 8 acts in 3
+  archives). Each archived run's stamped
   outcome is carried as history (F10). Nothing is synthesized: no `report_read` is written for an archived act, the
   live write keeps the rule, and no era check or tolerance enters the live code. The predicate is one `record`
   function the validate arms and migrate both ask. A translation test on the gap-audit archive and the every-archive
@@ -648,8 +652,9 @@ sentence, and finds it inside the stamped paragraphs as above:
   :566, :600`, `reading.go:107`, `queries.go:325` — all six change above. Capture's audits (`RecordReadAt`,
   `BenchOwedBefore`, `EarlyDockets`) and P11's `CountsAt` fold events and read no report text, so they stay as they are
   (and stay gblock's separate question). `migrate` builds its own text in the replay (`gapplace.go`, `record.RenderAt`
-  over the batch) and reads a source's checkpoints only to carry them (`migrate/sqlitesource.go:257-260`), which now
-  carries the latest. `ReportProjection` (the whole op stream, read by migrate's reordering trial and by tests) reads
+  over the batch) and carries no source checkpoint (`migrate/sqlitesource.go:257-260`): the replay writes every event
+  through the write path, which restamps the destination's own row. The table's append-only triggers go, the key is one
+  value so the schema refuses a second row, and `TestACheckpointIsAppendOnly` becomes a one-row test. `ReportProjection` (the whole op stream, read by migrate's reordering trial and by tests) reads
   ops, not checkpoints, and stays.
 
 **A row only for text whose full text reached the seat's `additionalContext`.** Today a lens's delivery is `fitted()`
@@ -1182,8 +1187,8 @@ on 5ab86a02b. The sites that change: `record/recordpb/record.proto` `BlueEdit` (
 :429, `rewordChainOf` :488, `lostQuoteEdit` :554, `rewordedTo` :595), `record/reading.go:95-125`,
 `record/queries.go:259-326` (`reportSourceAt` loses `at`; `ReportAtPart` reads parts; read by
 `cli/blue/ingest.go:102`), `recordsql/reportcheckpoint.go` (one current row; `ReportSourceAt` without `at`),
-`migrate/gapplace.go:150-170` (stamps archived edits) and `migrate/sqlitesource.go:257-260` (carries the latest
-checkpoint), `sittingwrite/delivery.go` (the change-item renderer), `record/estoppel.go` (P8's containment over the
+`migrate/gapplace.go:150-170` (stamps archived edits) and `migrate/sqlitesource.go:257-260` (carries no checkpoint;
+the replay restamps its own), `sittingwrite/delivery.go` (the change-item renderer), `record/estoppel.go` (P8's containment over the
 sentence found in the stamped paragraphs). Readers of `reopened` (`estoppel.go:97`, `gapacts.go:221`, `anchorchecks.go:262`,
 `viewjson.go:2187`) are unchanged in code. Tests: `record/{standingreading,reading,reportcheckpoint}_test.go`,
 `cli/{retireanchor,ingest}_test.go`, `migrate/gapplace_test.go`, and the goldens that print a `blue_edit`.
