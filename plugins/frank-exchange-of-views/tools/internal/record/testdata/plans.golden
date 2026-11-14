@@ -517,8 +517,16 @@
 -- INSERT INTO "blue_edit" ("event_id", "answers", "old", "new", "text", "applied_verbatim") VALUES (?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
+== stmt 8ef638c8fba1
+-- INSERT INTO "blue_edit" ("event_id", "answers", "old", "new", "text", "applied_verbatim", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
 == stmt d2a6777fd339
 -- INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new") VALUES (?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt ebc1e8107106
+-- INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt b9b436aa5333
@@ -553,12 +561,16 @@
 -- INSERT INTO "blue_edit" ("event_id", "old", "new", "text") VALUES (?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 7f5ab19c2ac2
--- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "applied_verbatim") VALUES (?, ?, ?, ?, ?)
+== stmt 21055bc2f195
+-- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "applied_verbatim", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt d83c26fd5f6c
--- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "exact_span") VALUES (?, ?, ?, ?, ?)
+== stmt daff991c0966
+-- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "exact_span", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?, ?)
+  (no plan rows: the statement reads no table)
+
+== stmt a9ba0f4ba26d
+-- INSERT INTO "blue_edit" ("event_id", "old", "new", "text", "old_paragraphs", "new_paragraphs") VALUES (?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
 == stmt 5496d2cf1194
@@ -1925,6 +1937,10 @@
   SCAN report_op
   USE TEMP B-TREE FOR ORDER BY
 
+== stmt 26d04e5d41b8
+-- SELECT "event_id", "old", "new", "applied_verbatim", "exact_span", "old_paragraphs", "new_paragraphs" FROM "blue_edit" WHERE "event_id" > ? ORDER BY "event_id"
+  SEARCH blue_edit USING INTEGER PRIMARY KEY (rowid>?)
+
 == stmt 5db0579b06c0
 -- SELECT "event_id", "seat_id", "sitting", "epoch", "answers", "old", "new", "delta", "reason", "applied_verbatim", "accepted", "retired" FROM "change" WHERE ? = '' OR "answers" = ? ORDER BY "event_id"
   CO-ROUTINE x
@@ -1992,9 +2008,9 @@
       SEARCH pe USING COVERING INDEX events_seat (seat_id=? AND rowid>? AND rowid<?)
       SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 179f570c06e4
--- SELECT "event_id", "text", "failure" FROM "report_checkpoint" WHERE "event_id" <= ? ORDER BY "event_id" DESC LIMIT 1
-  SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid<?)
+== stmt ff455d9f2258
+-- SELECT "event_id", "text", "failure" FROM "report_checkpoint" ORDER BY "event_id" DESC LIMIT 1
+  SCAN report_checkpoint
 
 == stmt 014ad841ca9c
 -- SELECT "event_id", "value" FROM "mint_found_by" ORDER BY "event_id", "ord"
@@ -2372,6 +2388,10 @@
   SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?)
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+
+== stmt d34696ace2d8
+-- SELECT COALESCE("text", '') FROM "report_part" WHERE "event_id" <= ? ORDER BY "event_id"
+  SEARCH report_part USING INTEGER PRIMARY KEY (rowid<?)
 
 == stmt ba2e62bd0528
 -- SELECT COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?

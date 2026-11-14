@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
@@ -15,17 +14,15 @@ import (
 // migration replays every event through the write path, whose insert stamps the checkpoints, so no
 // code of the migration's writes them. On every archived run, every checkpoint the record stores is
 // byte for byte the replay from the empty text of every op up to its event, and so is the report as it
-// stands now and the report as of each event read as every reader reads it — from the checkpoint at or
-// below the event and the ops after it. The events read as of are each checkpoint's and the op event
-// just before it, whose read replays the longest tail a checkpoint leaves. The whole replay is this
-// test's own: no reader replays from the empty text.
+// stands now, read as every reader reads it — from the newest checkpoint and the ops after it. The
+// whole replay is this test's own: no reader replays from the empty text.
 func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
 	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
-	runs, checkpoints, reads := 0, 0, 0
+	runs, checkpoints := 0, 0
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		t.Run(strings.TrimSuffix(name, ".tar.gz"), func(t *testing.T) {
@@ -35,17 +32,13 @@ func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T
 				t.Fatal(err)
 			}
 			// whole(e) is the replay from the empty text of every op of an event at or below e: the text,
-			// or the replay's failure. last[e] is the index past e's last op, for each event that adds one,
-			// and before[e] the op event just before it.
+			// or the replay's failure. last[e] is the index past e's last op, for each event that adds one.
 			type replayed struct{ text, failure string }
-			last, before := map[int64]int{}, map[int64]int64{}
+			last := map[int64]int{}
 			var events []int64
 			for k, op := range ops {
 				if k+1 < len(ops) && ops[k+1].EventID == op.EventID {
 					continue // the event's last op closes it
-				}
-				if len(events) > 0 {
-					before[op.EventID] = events[len(events)-1]
 				}
 				last[op.EventID] = k + 1
 				events = append(events, op.EventID)
@@ -70,7 +63,6 @@ func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T
 				t.Fatal(err)
 			}
 			stored := 0
-			var readAt []int64
 			for rows.Next() {
 				var at int64
 				var text, failure sql.NullString
@@ -79,10 +71,6 @@ func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T
 				}
 				if _, ok := last[at]; !ok {
 					t.Fatalf("a checkpoint at event %d, which adds no report op", at)
-				}
-				readAt = append(readAt, at)
-				if b, ok := before[at]; ok {
-					readAt = append(readAt, b)
 				}
 				if want := whole(at); text.String != want.text || failure.String != want.failure {
 					t.Errorf("the checkpoint at event %d is not the whole replay to it:\n  stored  %q %q\n  replay  %q %q",
@@ -98,24 +86,6 @@ func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T
 			}
 			if len(ops) == 0 {
 				return
-			}
-
-			// The report as of each event, read as ReportAtPart reads it, is the whole replay to it.
-			for _, at := range readAt {
-				src, err := recordsql.ReportSourceAt(db, at)
-				if err != nil {
-					t.Fatalf("the report as of event %d: %v", at, err)
-				}
-				got, gerr := src.Fold(reportproj.Replay)
-				failure := ""
-				if gerr != nil {
-					failure = gerr.Error()
-				}
-				if want := whole(at); got != want.text || failure != want.failure {
-					t.Fatalf("the report as of event %d read through its checkpoint differs from the whole replay:\n  read    %q %q\n  replay  %q %q",
-						at, got, failure, want.text, want.failure)
-				}
-				reads++
 			}
 
 			// The report as it stands, as every reader of the run reads it.
@@ -134,8 +104,8 @@ func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T
 	}
 	// THE SWEEP SAYS WHAT IT HELD THE CHECKPOINTS TO, so an archive set that stopped holding a report
 	// fails here rather than passing on nothing.
-	if runs < 30 || checkpoints < 250 || reads < 500 {
-		t.Fatalf("held %d run(s), %d checkpoint(s) and %d as-of read(s) to the whole replay — too few to say anything", runs, checkpoints, reads)
+	if runs < 30 || checkpoints < 250 {
+		t.Fatalf("held %d run(s) and %d checkpoint(s) to the whole replay — too few to say anything", runs, checkpoints)
 	}
-	t.Logf("held %d run(s), %d checkpoint(s) and %d as-of read(s) to the whole replay", runs, checkpoints, reads)
+	t.Logf("held %d run(s) and %d checkpoint(s) to the whole replay", runs, checkpoints)
 }

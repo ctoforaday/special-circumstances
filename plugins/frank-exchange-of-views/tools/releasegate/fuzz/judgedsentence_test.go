@@ -184,12 +184,14 @@ func checkSentences(run record.Run, fam record.Family) (got judgedSentences, msg
 			msg = "recorded sentence: the record's handle did not close: " + err.Error()
 		}
 	}()
+	// The report as of a check's event is the replay of every op up to it from the empty text: no
+	// reader of the record reads the report at a past event, so the gate folds the ops itself.
 	reportAt := func(at int64) (string, error) {
-		src, err := recordsql.ReportSourceAt(db, at)
+		ops, err := recordsql.ReportOpsBetween(db, 0, at)
 		if err != nil {
 			return "", err
 		}
-		return src.Fold(reportproj.Replay)
+		return reportproj.Replay("", false, ops)
 	}
 	for _, e := range fam.Events {
 		var verb, id, claim string

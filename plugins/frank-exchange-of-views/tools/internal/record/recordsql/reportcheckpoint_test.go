@@ -46,8 +46,8 @@ func checkpointEvents(t *testing.T, db *sql.DB) []int64 {
 }
 
 // A CHECKPOINT LANDS AT THE FIRST OP AND AT EVERY reportCheckpointEvery-TH OP AFTER IT, and an event
-// that adds no op lands none. The report as of every event, read from the checkpoint at or below it
-// and the ops after it, is the replay of every op up to it from the empty text.
+// that adds no op lands none. The report read after every event, from the newest checkpoint and the
+// ops after it, is the replay of every op from the empty text.
 func TestACheckpointLandsAtTheFirstOpAndAtEverySpacingAfter(t *testing.T) {
 	db := store(t)
 	ord := int32(0)
@@ -56,6 +56,24 @@ func TestACheckpointLandsAtTheFirstOpAndAtEverySpacingAfter(t *testing.T) {
 		id, err := Insert(db, event(t, ord, typ, body))
 		if err != nil {
 			t.Fatal(err)
+		}
+		ops, err := ReportOpsBetween(db, 0, Newest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		whole, err := reportproj.Replay("", false, ops)
+		if err != nil {
+			t.Fatal(err)
+		}
+		src, err := ReportSourceAt(db)
+		if err != nil {
+			t.Fatalf("after event %d: %v", id, err)
+		}
+		if len(src.Ops) >= reportCheckpointEvery {
+			t.Errorf("after event %d the read replays %d ops", id, len(src.Ops))
+		}
+		if got, err := src.Fold(reportproj.Replay); err != nil || got != whole {
+			t.Errorf("after event %d the read gives (%q, %v), want the whole replay %q", id, got, err, whole)
 		}
 		return id
 	}
@@ -68,26 +86,6 @@ func TestACheckpointLandsAtTheFirstOpAndAtEverySpacingAfter(t *testing.T) {
 	want := []int64{part, anchors[reportCheckpointEvery-1], anchors[2*reportCheckpointEvery-1]}
 	if got := checkpointEvents(t, db); !slices.Equal(got, want) {
 		t.Fatalf("checkpoints at events %v, want %v", got, want)
-	}
-	for _, at := range append([]int64{part}, anchors...) {
-		ops, err := ReportOpsBetween(db, 0, at)
-		if err != nil {
-			t.Fatal(err)
-		}
-		whole, err := reportproj.Replay("", false, ops)
-		if err != nil {
-			t.Fatal(err)
-		}
-		src, err := ReportSourceAt(db, at)
-		if err != nil {
-			t.Fatalf("as of event %d: %v", at, err)
-		}
-		if len(src.Ops) >= reportCheckpointEvery {
-			t.Errorf("as of event %d the read replays %d ops", at, len(src.Ops))
-		}
-		if got, err := src.Fold(reportproj.Replay); err != nil || got != whole {
-			t.Errorf("as of event %d the read gives (%q, %v), want the whole replay %q", at, got, err, whole)
-		}
 	}
 }
 
@@ -110,7 +108,7 @@ func TestAMissingCheckpointIsAnError(t *testing.T) {
 	t.Run("ops below no checkpoint", func(t *testing.T) {
 		db := store(t)
 		rawInsert(t, db, 1, "report_part", "report_part", `"text"`, checkpointPart(1))
-		if _, err := ReportSourceAt(db, Newest); err == nil || !strings.Contains(err.Error(), "no report checkpoint at or below them") {
+		if _, err := ReportSourceAt(db); err == nil || !strings.Contains(err.Error(), "no report checkpoint at or below them") {
 			t.Fatalf("the read = %v, want the missing checkpoint named", err)
 		}
 	})
@@ -120,19 +118,21 @@ func TestAMissingCheckpointIsAnError(t *testing.T) {
 			t.Fatal(err)
 		}
 		for k := range reportCheckpointEvery {
+			if k == reportCheckpointEvery-1 {
+				if _, err := ReportSourceAt(db); err != nil {
+					t.Fatalf("a read before the tail reaches the spacing: %v", err)
+				}
+			}
 			a := anchorOn(k)
 			rawInsert(t, db, int64(2+k), "anchor", "anchor", `"id", "location"`, a.GetId(), a.GetLocation())
 		}
-		if _, err := ReportSourceAt(db, Newest); err == nil || !strings.Contains(err.Error(), "after its checkpoint at event 1 and none since") {
+		if _, err := ReportSourceAt(db); err == nil || !strings.Contains(err.Error(), "after its checkpoint at event 1 and none since") {
 			t.Fatalf("the read = %v, want the missing checkpoint named", err)
-		}
-		if _, err := ReportSourceAt(db, int64(reportCheckpointEvery)); err != nil {
-			t.Fatalf("a read as of an event before the tail reaches the spacing: %v", err)
 		}
 	})
 }
 
-// AN OP THE REPORT CANNOT REPLAY THROUGH LANDS, AND ITS CHECKPOINT HOLDS THE FAILURE: a read as of it
+// AN OP THE REPORT CANNOT REPLAY THROUGH LANDS, AND ITS CHECKPOINT HOLDS THE FAILURE: a read after it
 // or any later event states the replay's own words, as the replay from the empty text does, and a
 // later checkpoint carries the failure on.
 func TestAnOpTheReportCannotReplayThroughIsStoredAsTheFailure(t *testing.T) {
@@ -141,6 +141,13 @@ func TestAnOpTheReportCannotReplayThroughIsStoredAsTheFailure(t *testing.T) {
 		if _, err := Insert(db, event(t, int32(1+k), recordpb.EventType_EVENT_TYPE_ANCHOR, anchorOn(k))); err != nil {
 			t.Fatalf("an anchor before any part was refused at the insert: %v", err)
 		}
+		src, err := ReportSourceAt(db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := src.Fold(reportproj.Replay); err == nil || err.Error() != reportproj.NoPart {
+			t.Errorf("after event %d the read = %v, want %q", 1+k, err, reportproj.NoPart)
+		}
 	}
 	if got := checkpointEvents(t, db); !slices.Equal(got, []int64{1, 1 + reportCheckpointEvery}) {
 		t.Fatalf("checkpoints at events %v", got)
@@ -148,15 +155,6 @@ func TestAnOpTheReportCannotReplayThroughIsStoredAsTheFailure(t *testing.T) {
 	var failures int
 	if err := db.QueryRow(`SELECT count(*) FROM "report_checkpoint" WHERE "failure" = ? AND "text" IS NULL`, reportproj.NoPart).Scan(&failures); err != nil || failures != 2 {
 		t.Fatalf("%d checkpoint(s) hold the replay's failure (%v), want both", failures, err)
-	}
-	for _, at := range []int64{1, 4, Newest} {
-		src, err := ReportSourceAt(db, at)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := src.Fold(reportproj.Replay); err == nil || err.Error() != reportproj.NoPart {
-			t.Errorf("as of event %d the read = %v, want %q", at, err, reportproj.NoPart)
-		}
 	}
 }
 

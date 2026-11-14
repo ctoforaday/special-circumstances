@@ -519,9 +519,9 @@ func TestALostQuoteDebtStands(t *testing.T) {
 		wantDebts(t, runOf(b.register("red-chair")))
 	})
 
-	// An edit whose `old` does not locate once in the report before it — an exact-span edit whose
-	// literal quote occurs once where the folded one occurs twice — is the read's error, never a debt
-	// reworded to "".
+	// An edit whose `old` does not locate once in the paragraphs it stamped before it — an exact-span
+	// edit whose literal quote occurs once where the folded one occurs twice — is the read's error,
+	// never a debt reworded to "".
 	t.Run("an old the fold cannot locate is the read's error", func(t *testing.T) {
 		const third = "The third claim stands on the measured  figures from every month of the year."
 		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").
@@ -530,7 +530,7 @@ func TestALostQuoteDebtStands(t *testing.T) {
 			readFound(evLens, dbURL, dbFirst, refutes)
 		b.add("blue-respond", &recordpb.BlueEdit{Old: proto.String("stands on the measured figures from every month"), New: proto.String("rests on the measured figures from every month"), Text: proto.String("edited"), ExactSpan: proto.Bool(true)})
 		_, err := PassBlockers(runOf(b.register("red-chair")))
-		if err == nil || !strings.Contains(err.Error(), "does not locate once in the report as of the event before it") {
+		if err == nil || !strings.Contains(err.Error(), "does not locate once in the paragraphs the edit stamped before it") {
 			t.Errorf("PassBlockers = %v, want the read's error naming the edit", err)
 		}
 	})

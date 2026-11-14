@@ -147,10 +147,10 @@ END;
 // keep in step.
 //
 // THE REPORT CHECKPOINT IS THE ONE STORED ANSWER, and it is stored for three reasons none of these
-// metrics has (ReportCheckpointDDL). Its question is asked one way only — what the report says at
-// event N — by every reader of the report. Its answer is fixed once N is written: the record is
-// append-only and the report is a left fold of its ops (reportproj.Replay), so no later write moves
-// the text at N. And asking it again is the expensive read: a replay of every op from the empty text,
+// metrics has (ReportCheckpointDDL). Its question is asked one way only — what the report says
+// now — by every reader of the report. A checkpoint's answer is fixed once its event N is written:
+// the record is append-only and the report is a left fold of its ops (reportproj.Replay), so no later
+// write moves the text at N. And asking it again is the expensive read: a replay of every op from the empty text,
 // on every board, work list and report read. The second place the question lives is the renderer's
 // code at the time of the write: a record written before the renderer changed, at the same epoch,
 // keeps the text the older renderer gave, and nothing compares the two.
@@ -194,13 +194,10 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 // event, stamped by the insert that writes the event (stampReportCheckpoint). It is not a
 // body — no seat writes it, and nothing on the wire carries it.
 //
-// A ROW EVERY reportCheckpointEvery OPS, NOT ONE ROW OVERWRITTEN. A reader reads the report as of an
-// event — the newest, or an older one (the report as a lane's part left it) — so it needs the
-// checkpoint at or below that event, and an overwritten row holds only the newest. A row per op would
-// store the whole text once per op. So a row lands at the first event that adds a report op, and
-// after that at the first event that brings the ops since the last row to reportCheckpointEvery; a
-// reader starts from the newest row at or below the event it reads at and replays fewer than
-// reportCheckpointEvery ops after it.
+// A ROW EVERY reportCheckpointEvery OPS. A row per op would store the whole text once per op. So a
+// row lands at the first event that adds a report op, and after that at the first event that brings
+// the ops since the last row to reportCheckpointEvery; a reader reads the report as it stands, from
+// the newest row, and replays fewer than reportCheckpointEvery ops after it.
 //
 // A ROW HOLDS THE TEXT OR THE REPLAY'S FAILURE, never both. The write path's guards decide which ops
 // land; the checkpoint records what folding them gives, and an op the report cannot replay through —
