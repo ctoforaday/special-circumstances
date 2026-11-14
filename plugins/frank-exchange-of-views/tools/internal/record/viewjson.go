@@ -1959,12 +1959,13 @@ type DebateEpochJSON struct {
 	// the lens saying, after its re-audit, that the gap stands and what its check still finds
 	// failing. The bench reads it with the closings.
 	RedKeeps []DebateKeepJSON `json:"red_keeps"`
-	// Served is each whole report the tool served a lens this epoch (ReportRead): the lens and the
-	// head, which is its pin once its sitting closes. Served, not read: the tool cannot see a read.
+	// Served is each delivery of report text the tool completed to a seat this epoch (ReportRead): the
+	// seat and the head the delivery was cut at, a lens's pin once its sitting closes. Delivered, not
+	// read: the tool records what it handed into the seat's context and cannot see a read.
 	Served []DebateServedJSON `json:"served"`
 }
 
-// DebateServedJSON is one whole report served to a lens: the lens and the head it was served at.
+// DebateServedJSON is one completed delivery of report text: the seat and the head it was cut at.
 type DebateServedJSON struct {
 	SeatID string `json:"seat_id"`
 	Head   int64  `json:"head"`

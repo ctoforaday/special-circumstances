@@ -6913,17 +6913,19 @@ func (x *Stale) GetThrough() int64 {
 	return 0
 }
 
-// ReportRead is the tool serving a lens the whole report: the bare and the --json form of the
-// report's read with no selector, at the head it served. The seat and the sitting are the envelope's.
+// ReportRead is the tool handing a delivery's last report-text item into the seat's context; every
+// item of it was cut from the report at `head`. The delivery writer appends it, one per seat and
+// sitting, for a lens, the chair or the bench; a read through `show report` writes none. The seat and
+// the sitting are the envelope's.
 //
-// IT IS EVIDENCE THE TEXT WAS SERVED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat
-// read what it was given; what it can say is that the whole text at this head reached the seat in
-// this sitting, which is what a read at an anchor or a selection cannot say.
+// IT IS EVIDENCE THE TEXT WAS DELIVERED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat
+// read what it was given; what it can say is that every item of the delivery reached the seat's
+// context in this sitting, which is what a read through the selectors cannot say.
 //
-// IT IS THE LENS'S PIN. A lens has audited the report at the head of its latest read in a sitting it
-// sat through (lensStates), so a lens whose sitting opened at a head and that was never served the
-// report there is still ready at it — the dispatch's own pin is the head the chair asked it to read,
-// and opening a sitting is not reading.
+// IT IS THE LENS'S PIN. A lens has audited the report at the head of its latest delivery in a sitting
+// it sat through (report_delivery), so a lens whose sitting opened at a head and whose delivery there
+// never completed is still ready at it — the dispatch's own pin is the head the chair asked it to
+// audit, and opening a sitting is not reading.
 type ReportRead struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Head          *int64                 `protobuf:"varint,1,opt,name=head,proto3,oneof" json:"head,omitempty"`
@@ -8272,10 +8274,10 @@ const file_record_proto_rawDesc = "" +
 	"\athrough\x18\x02 \x01(\x03B\x0f\x82\xb5\x18\v\"\tevents.idH\x01R\athrough\x88\x01\x01B\t\n" +
 	"\a_gap_idB\n" +
 	"\n" +
-	"\b_through\"\xc5\x01\n" +
+	"\b_through\"\xc2\x01\n" +
 	"\n" +
-	"ReportRead\x12\xad\x01\n" +
-	"\x04head\x18\x01 \x01(\x03B\x93\x01\x82\xb5\x18\x8e\x01\b\x01\x1a\x7fthe events.id of the report head the text was served at — the latest blue_edit or report_part when the read's transaction ran\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
+	"ReportRead\x12\xaa\x01\n" +
+	"\x04head\x18\x01 \x01(\x03B\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x1a|the events.id of the report head the delivery was cut at — the latest blue_edit or report_part when its first item was cut\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
 	"\x05_head\"\xf7\x01\n" +
 	"\x10EnvelopeAdmitted\x12\xd5\x01\n" +
 	"\bagent_id\x18\x01 \x01(\tB\xb4\x01\x82\xb5\x18\xaf\x01\b\x01\x1a\xaa\x01the harness's id for the subagent invocation whose envelope was admitted — the key that joins the admission to the sitting that agent opened and the close it ended withH\x00R\aagentId\x88\x01\x01B\v\n" +
@@ -8316,7 +8318,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\xd8&\n" +
+	"\b_holding*\xa0'\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8350,8 +8352,8 @@ const file_record_proto_rawDesc = "" +
 	"\x0fEVENT_TYPE_CAST\x10$\x1a\x90\x01\x8a\xb5\x18\x8b\x01the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against\x12\xbf\x01\n" +
 	"\x13EVENT_TYPE_DISPATCH\x10%\x1a\xa5\x01\x8a\xb5\x18\xa0\x01the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch\x12\xa5\x01\n" +
 	"\x0fEVENT_TYPE_PLAN\x10(\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none\x12\xd8\x01\n" +
-	"\x10EVENT_TYPE_STALE\x10)\x1a\xc1\x01\x8a\xb5\x18\xbc\x01the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here\x12\xca\x01\n" +
-	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xad\x01\x8a\xb5\x18\xa8\x01the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin\x12\xbe\x02\n" +
+	"\x10EVENT_TYPE_STALE\x10)\x1a\xc1\x01\x8a\xb5\x18\xbc\x01the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here\x12\x92\x02\n" +
+	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xf5\x01\x8a\xb5\x18\xf0\x01the tool handed a delivery's last report-text item into the seat's context; every item of it was cut from the report at `head` — evidence the text was delivered, not that it was read; a lens's latest in a sitting it sat through is its pin\x12\xbe\x02\n" +
 	"\x1cEVENT_TYPE_ENVELOPE_ADMITTED\x10,\x1a\x9b\x02\x8a\xb5\x18\x96\x02the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed\x12\xd4\x01\n" +
 	"\x18EVENT_TYPE_INQUIRY_CHECK\x10-\x1a\xb5\x01\x8a\xb5\x18\xb0\x01the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands\"\x04\b\x0f\x10\x0f\"\x04\b\a\x10\a\"\x04\b\x12\x10\x12\"\x04\b\x1c\x10\x1c\"\x04\b \x10 \"\x04\b'\x10'\"\x04\b*\x10*\"\x04\b\x14\x10\x14\"\x04\b\x15\x10\x15\"\x04\b&\x10&*\x17EVENT_TYPE_MANIFEST_ROW*\x14EVENT_TYPE_CLASS_NEW*\x18EVENT_TYPE_MOTION_APPEAL*\x13EVENT_TYPE_REVISION*\x15EVENT_TYPE_CORRECTION*\x19EVENT_TYPE_INQUIRY_REVIEW*\x12EVENT_TYPE_OBSERVE*\x12EVENT_TYPE_OPINION*\x18EVENT_TYPE_SITTING_LIMIT*\x9e\x06\n" +
 	"\x05Grade\x12\"\n" +

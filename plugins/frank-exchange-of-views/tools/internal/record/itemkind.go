@@ -18,8 +18,9 @@ type ItemKind string
 // BlockerKind does, and an item's kind is one of these or a BlockerKind — never a second word for a
 // blocker.
 const (
-	// ItemAudit is a lens's audit of the report: its first read, its read since it was last served
-	// the report whole, or the sitting's read once served (LastReadJSON.Kind says which).
+	// ItemAudit is a lens's audit of the report: its first audit, its audit of what this sitting delivers
+	// while its pin is behind the head, or the sitting's audit once its delivery is complete
+	// (LastReadJSON.Kind says which).
 	ItemAudit ItemKind = "audit"
 	// ItemReaudit is a lens's own open gap that blue answered, or whose sentence an edit changed,
 	// since the lens last acted on it — or that blue was engaged on and left unanswered (blueAnswers).

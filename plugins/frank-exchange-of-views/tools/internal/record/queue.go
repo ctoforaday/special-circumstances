@@ -45,8 +45,8 @@ type QueueEntry struct {
 // QueueOf orders a seat's work list into the queue its work arrives in, from the list's fields:
 //
 //  0. the report text owed into the seat's context this sitting (ItemReportText);
-//  1. the audit item, while the lens has not been served the report whole since it was last behind
-//     (last_read first or behind);
+//  1. the audit item, while no delivery to the lens has completed this sitting and its pin is behind
+//     the head it is dispatched against, or it has none (last_read first or behind);
 //  2. every item the seat's own act clears (SittingJSON.Owed), in list order;
 //  3. each open gap the dispatch readies the seat on (your_turn) — material first, then by mass, then
 //     in mint order — with the non-blocking items about it folded in;

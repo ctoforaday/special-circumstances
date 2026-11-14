@@ -18,7 +18,7 @@ import (
 // failed check of its own, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a check of its that failed (a citation it read nothing of, a computation it judged unsound), or by a reading debt of its own (a source its reading read against its sentence and found to say otherwise, with no gap of that class standing — it mints the gap or reads again), or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry; empty for the logic lens readied to check a settled inquiry; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head of the latest report text delivered to it in a sitting it sat through, or it owes the whole report — its first whole delivery or its full re-read, which readies it at an unmoved head — or by a check of its that failed (a citation it read nothing of, a computation it judged unsound), or by a reading debt of its own (a source its reading read against its sentence and found to say otherwise, with no gap of that class standing — it mints the gap or reads again), or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read — or to record a fate on an open inquiry; empty for the logic lens readied to check a settled inquiry; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -305,10 +305,10 @@ func foldPlan(params Params, r planReads) Plan {
 	evs, win, fresh := r.evs, r.win, r.fresh
 	plan.Verdict = chairVerdictOf(evs, win)
 
-	// Source 1: each cast lens that has never sat, or whose pin — the head the whole report was last
-	// served to it at — is behind the head, until it retires owing nothing (retirement.go): the same
-	// fold the PASS gate refuses from. A lens whose sitting ended without the report served to it at
-	// the head has no new pin, so it stays ready.
+	// Source 1: each cast lens that has never sat, or whose pin — the head of its latest complete
+	// delivery of report text, in a sitting it sat through — is behind the head, until it retires
+	// owing nothing (retirement.go): the same fold the PASS gate refuses from. A lens whose sitting
+	// ended without a complete delivery at the head has no new pin, so it stays ready.
 	ids := win.IDs(evs)
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(win, openings)
@@ -604,13 +604,13 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			statedMotion[b.Subject] = true
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
-		// AN UPHELD POSITION THAT NAMES A LENS READIES IT until it has audited its area: its blocker
-		// stands until the lens is served the report in a sitting opened after the ruling
-		// (upheldPositionBlockers), so the readiness ends with it.
 		// A WHOLE DELIVERY OWED READIES ITS LENS ITSELF, at an unmoved head, until the lens has it.
 		case b.Kind == BlockerWholeReportOwed:
 			engage(b.Owner)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s owes %s — ready at an unmoved head until it has been delivered", b.Owner, wholeOwedWhat(b)))
+		// AN UPHELD POSITION THAT NAMES A LENS READIES IT until it has audited its area: its blocker
+		// stands until the whole report has been delivered to the lens in a sitting it sat through,
+		// after the ruling (upheldPositionBlockers), so the readiness ends with it.
 		case b.Kind == BlockerUpheldPosition && seatclass.RoleOfSeat(b.Owner) == "lens":
 			engage(b.Owner)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: the bench upheld the chair's position %s and named its area — ready, to audit it on the ruling's direction: %s", b.Owner, b.Subject, b.Detail))

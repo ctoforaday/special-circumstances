@@ -474,7 +474,7 @@ var blockerKinds = []blockerKind{
 			for _, b := range bs {
 				why = append(why, b.foldWhy)
 			}
-			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or its pin — the head the tool last served it the whole report at, in a sitting it sat through — is behind the head, until three sittings in a row with no fresh material mint retire it — and it is not retired while it owes: something new on a gap it minted since it last sat, a check it owns, the gap about a check of its that read nothing or judged a computation unsound. A sitting that never closed is not a sitting it sat: a read in it moves no pin, and it counts toward no retirement; `dispatch next` readies them",
+			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or its pin — the head of the latest report text the tool delivered to it, in a sitting it sat through — is behind the head, until three sittings in a row with no fresh material mint retire it — and it is not retired while it owes: something new on a gap it minted since it last sat, a check it owns, the gap about a check of its that read nothing or judged a computation unsound. A sitting that never closed is not a sitting it sat: a delivery in it moves no pin, and it counts toward no retirement; `dispatch next` readies them",
 				len(bs), strings.Join(why, "; "))
 		},
 	},
@@ -564,14 +564,14 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	// AN UPHELD POSITION NAMING A LENS HOLDS THE PASS UNTIL THAT LENS HAS AUDITED ITS AREA (gblock,
-	// 2026-10-30; positionheard.go): the lens is served the report in a sitting opened after the
-	// ruling. The owner is the lens, so the plan readies it; the subject is the position's id.
+	// 2026-10-30; positionheard.go): the whole report is delivered to the lens in a sitting opened
+	// after the ruling. The owner is the lens, so the plan readies it; the subject is the position's id.
 	{
 		kind:    BlockerUpheldPosition,
 		subject: SubjectMotion,
 		gloss:   "an audit the bench named in upholding the chair's position, not yet had",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("the bench upheld the chair's position %s and named %s's area: it owes an audit of it on the ruling's direction — %q — and has been served the report in no sitting since the ruling; PASS is refused until it has", b.Subject, ownerOr(b, "a lens"), b.Detail)
+			return fmt.Sprintf("the bench upheld the chair's position %s and named %s's area: it owes an audit of it on the ruling's direction — %q — and has had the whole report delivered in no sitting since the ruling; PASS is refused until it has", b.Subject, ownerOr(b, "a lens"), b.Detail)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string

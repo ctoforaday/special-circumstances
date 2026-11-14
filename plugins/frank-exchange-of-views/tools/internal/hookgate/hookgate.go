@@ -118,8 +118,9 @@ const (
 //
 // SCOPED TO SEATS. agent_id is present only on a subagent's call, so the operator's own session,
 // which does read the assembled report once the run is over, is untouched.
-const reportIsReadThroughTheTool = "the report is not a file a seat reads: `show report` serves it " +
-	"from the record, where every read is a projection. A report.md under the run directory is assembled " +
+const reportIsReadThroughTheTool = "the report is not a file a seat reads: the report text owed to you arrives " +
+	"on your work list, one item after each call to the record, and `show report` prints it from the record, " +
+	"where every read is a projection and records nothing. A report.md under the run directory is assembled " +
 	"at the end for the human reader — during the run it does not exist, and afterwards it is a snapshot " +
 	"of a record that has moved."
 

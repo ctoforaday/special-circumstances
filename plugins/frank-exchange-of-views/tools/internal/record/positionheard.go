@@ -23,8 +23,8 @@ import (
 //     (RecordRead.BenchOwed), and the engine convenes the position sitting, as for a petition.
 //   - UPHELD: the bench names the work, and the debate continues on it. A lens or open gaps, chosen
 //     per ruling (gblock, 2026-10-30): the lens owes an audit of its area on the ruling's direction
-//     (an upheld_position blocker it owns, which readies it until it is served the report in a
-//     sitting opened after the ruling); each gap goes back for one more exchange on the direction —
+//     (an upheld_position blocker it owns, which readies it until the whole report has been
+//     delivered to it in a sitting opened after the ruling); each gap goes back for one more exchange on the direction —
 //     a remand, read off the same "remand" view as the docket's, so it is the gap's one remand at
 //     impasse and the second-remand refusal stays one rule.
 //   - OVERRULED: the chair's next sitting decides on the PASS. Its plan still permits the PASS; its
@@ -222,8 +222,9 @@ func overruledFollowerAt(evs []*Event, win WindowIndex) (id string, permitted, v
 }
 
 // upheldPositionBlockers is the gate list's upheld_position arm: each position the bench upheld
-// naming a lens, owned by that lens while it has been served the report in no sitting opened after
-// the ruling. ids is evs's places, aligned with it.
+// naming a lens, owned by that lens while no delivery to it completes in a sitting opened after the
+// ruling — the first such delivery is the whole report (report_delivery's rule for a lens an upheld
+// position names). ids is evs's places, aligned with it.
 func upheldPositionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	var out []Blocker
 	var reads map[string][]served
@@ -250,7 +251,7 @@ func overruledVerdictItem(positionID string) string {
 
 // upheldAuditItem is the named lens's work-list item for an upheld position: its audit of its area.
 func upheldAuditItem(b Blocker) string {
-	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. Read the report as it now stands; a defect you find there is a finding and a gap. PASS is refused until you have been served the report since the ruling", b.Subject, b.Detail)
+	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. The whole report arrives on your work list this sitting, one item at a time; a defect you find there is a finding and a gap. The PASS is refused until all of it has been delivered to you", b.Subject, b.Detail)
 }
 
 // upheldPositionGaps is the open gaps an upheld position ruling names — each one remanded, as a

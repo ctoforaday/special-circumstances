@@ -40,14 +40,14 @@ import (
 //   - A SITTING is the first opening after a dispatch naming the lens (sittingFor) — the hook's
 //     bracket, or a register no bracket preceded — including the sittings it is engaged for on its
 //     own gaps.
-//   - ITS PIN IS THE HEAD THE WHOLE REPORT WAS LAST SERVED TO IT AT (reportread.go): the latest
-//     report read in a sitting it sat through. Opening a sitting is not auditing the report, and the
-//     dispatch's own pin is the head the chair asked it to audit, not one it was given: a lens whose
-//     sitting at the head ended without the whole report served to it is still behind the head, and
-//     ready at it, until it is served it or retires.
+//   - ITS PIN IS THE HEAD OF ITS LATEST COMPLETE DELIVERY (reportread.go): the head of the latest
+//     report read the tool recorded in a sitting it sat through. Opening a sitting is not auditing
+//     the report, and the dispatch's own pin is the head the chair asked it to audit, not one it was
+//     given: a lens whose sitting at the head ended without its delivery complete is still behind
+//     the head, and ready at it, until a delivery completes or it retires.
 //   - IT COUNTS WHEN THE LENS SAT THROUGH IT (satThrough). A sitting stopped at the per-sitting call
-//     limit, or one that never closed, is neither sat nor barren: a read in it moves no pin, and it
-//     adds nothing to the count.
+//     limit, or one that never closed, is neither sat nor barren: a delivery in it moves no pin, and
+//     it adds nothing to the count.
 //   - A mint belongs to the sitting whose opening most recently precedes it.
 //   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW.
 //     A productive sitting returns the count to zero, a retired lens's included.
@@ -113,18 +113,18 @@ func (f lensFold) readiness(head int64, short string) (bool, string) {
 		}
 		return true, why
 	case f.barren >= retiresAfter:
-		return false, fmt.Sprintf("%s: served the report at the head (pin %d) — ready when the head moves; %s", f.seat, f.pin, f.retiresWhy())
+		return false, fmt.Sprintf("%s: delivered the report at the head (pin %d) — ready when the head moves; %s", f.seat, f.pin, f.retiresWhy())
 	}
-	return false, fmt.Sprintf("%s: served the report at the head (pin %d) — ready when the head moves", f.seat, f.pin)
+	return false, fmt.Sprintf("%s: delivered the report at the head (pin %d) — ready when the head moves", f.seat, f.pin)
 }
 
-// servedClause is the fold's account of a lens's pin: the head the whole report was last served to it
-// at, or that no sitting it sat through was served it.
+// servedClause is the fold's account of a lens's pin: the head of its latest complete delivery of
+// report text in a sitting it sat through, or that no such sitting holds one.
 func servedClause(pin int64) string {
 	if pin == 0 {
-		return "no sitting it sat through was served the whole report"
+		return "no sitting it sat through holds a complete delivery of report text"
 	}
-	return fmt.Sprintf("the whole report was last served to it at its pin %d", pin)
+	return fmt.Sprintf("its latest complete delivery of report text was cut at its pin %d", pin)
 }
 
 // unsatSitting is the clause on a sitting the lens did not sit through: the place it opened at and
@@ -251,7 +251,7 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 }
 
 // StaleArea is a retired lens whose pin the report head has moved past: text it will not audit
-// again changed after the whole report was last served to it. The chair reads those changes against the area's duties and
+// again changed after the head of its latest complete delivery. The chair reads those changes against the area's duties and
 // names the area in its spot-check before a PASS.
 type StaleArea struct {
 	SeatID string `json:"seat_id"`
@@ -473,25 +473,25 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes, composedOwedOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, nil))), true, nil
 }
 
-// LastReadJSON is a lens's pin as its work view carries it, as of now: the head the whole report was
-// last served to it at — in a sitting it SAT THROUGH that opened before the dispatch it is now
-// sitting for, or in the sitting it is sitting now — beside that dispatch's head. Kind is first |
-// behind | unchanged | served | undispatched: first is a lens no such sitting was served the report
-// in; served is a lens this sitting has served it whole, at Pin.
+// LastReadJSON is a lens's pin as its work view carries it, as of now: the head of its latest
+// complete delivery of report text — in a sitting it SAT THROUGH that opened before the dispatch it
+// is now sitting for, or in the sitting it is sitting now — beside that dispatch's head. Kind is
+// first | behind | unchanged | served | undispatched: first is a lens no such sitting holds a
+// delivery to; served is a lens whose delivery this sitting is complete, cut at Pin.
 type LastReadJSON struct {
 	Kind string `json:"kind"`
 	Pin  int64  `json:"pin"`
 	Head int64  `json:"head"`
 }
 
-// lastReadOf is NOT the fold's pin, which counts a read only once its sitting closes. The lens reads
-// its work view in its current sitting, before and after it is served the report, and the view
-// answers as of the read: a whole read in this sitting is the kind served, never unchanged, which
-// would tell a lens halfway through the audit it was just served that it has nothing to audit. D is
-// the latest dispatch naming the seat (the one it sits for, or owes); the pin before this sitting is
-// its reads in sittings that opened before D and that it sat through (satThrough), so a sitting
-// that never closed is not a read of the report it was served; this sitting is the one it opened
-// for D (sittingFor).
+// lastReadOf is NOT the fold's pin, which counts a delivery only once its sitting closes. The lens
+// reads its work view in its current sitting, before and after its delivery completes, and the view
+// answers as of the read: a complete delivery in this sitting is the kind served, never unchanged,
+// which would tell a lens halfway through the audit just delivered to it that it has nothing to
+// audit. D is the latest dispatch naming the seat (the one it sits for, or owes); the pin before
+// this sitting is its deliveries in sittings that opened before D and that it sat through
+// (satThrough), so a sitting that never closed is not a read of the text delivered in it; this
+// sitting is the one it opened for D (sittingFor).
 func lastReadOf(evs []*Event, ids []int64, win WindowIndex, seatID string) LastReadJSON {
 	ds, openings := dispatchLedger(evs, ids, win)
 	var cur *dispatchRow

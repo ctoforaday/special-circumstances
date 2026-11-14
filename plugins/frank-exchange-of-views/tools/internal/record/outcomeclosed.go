@@ -26,8 +26,8 @@ import (
 //   - every log entry: the channel friction travels on, the tool's refusal entries included, so the
 //     refusal this check gives is itself recorded. A log is bookkeeping, not an act
 //     (sittingRecordedNothing reads it the same way);
-//   - a lens's whole-report read (ServeReport): a read, not an act — after the outcome the text is
-//     served and the read records nothing (ErrWritesNothing), so the run's record does not move;
+//   - a report read (RecordDelivery): the tool's record that a delivery's last item of report text
+//     reached a seat's context — the tool's observation, not the seat's act;
 //   - the bench's declare and certify: the assembly sitting stamps the outcome FIRST and then states
 //     its holdings and what a human should re-examine before it assembles (debate.js, the assembly
 //     prompt) — every archived run with an outcome holds one or both after it.
