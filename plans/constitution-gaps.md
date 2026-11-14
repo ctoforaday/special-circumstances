@@ -1571,7 +1571,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
   every other item is handed through hookcore's queue (#1864), and a run with a lens on agy cannot PASS (its `whole_report_owed` never clears); a chair on agy cannot discharge a stale area, and a bench on agy cannot rule a motion about gaps, so either holds the PASS whenever one is owed (R2; ruled by gblock 2026-11-13: P3 ships before #1827; 2026-11-14: the run states it cannot PASS).
   **Open for the delivery path, not a fork here:** seats run as native workflow subagents on every harness (gblock
   2026-11-14, §VII.5); whether Antigravity 1.5.9's native subagents can end only their own turn, and tie injected text
-  to the receiving subagent, is being discussed with the Antigravity session 194f5a55. The 1.5.8 measurements above
+  to the receiving subagent, is answered by session 194f5a55 from the agy 1.5.9 source (2026-11-14): yes. Each `run_workflow` subagent has its own `conversationId` and `agentName` in every hook; PreInvocation and PostInvocation honour `terminationBehavior: terminate`, which ends only that subagent's loop (the workflow's `await` raises `WorkflowError`, caught per sitting); PostToolUse queues keyed by `conversationId` (#1867) and the next PreInvocation injects the item, so the read row is written at injection. PostToolUse `overwrite_result` is discarded by agy's declarative-agent adapter. Top-level `agy -p`/`claude -p` seats are being removed from #1827/#1871. Building that path is #1827's. The 1.5.8 measurements above
   stand as measured on 1.5.8.
 
 ## VII. In the rulings: contradictions, limits and what is left out
@@ -1617,7 +1617,7 @@ Run from the worktree root. BEFORE any test: `for v in $(env | grep -o '^FEOV_[A
    no top-level seat exists to stop, P3's stop applies to Workflow and subagent seats only, and the 11-13 ruling (a
    delivery that cannot advance fails the sitting at once) holds whole wherever report text is handed. **Open item for the Antigravity delivery path
    (F12, #1827), not a fork for this plan:** whether Antigravity 1.5.9's native subagents can end only their own turn,
-   and tie injected text to the subagent that receives it, is being discussed with the Antigravity session 194f5a55.
+   and tie injected text to the subagent that receives it: answered by session 194f5a55 from the agy 1.5.9 source (2026-11-14): yes. Each `run_workflow` subagent has its own `conversationId` and `agentName` in every hook; PreInvocation and PostInvocation honour `terminationBehavior: terminate`, which ends only that subagent's loop (the workflow's `await` raises `WorkflowError`, caught per sitting); PostToolUse queues keyed by `conversationId` (#1867) and the next PreInvocation injects the item, so the read row is written at injection. PostToolUse `overwrite_result` is discarded by agy's declarative-agent adapter. Top-level `agy -p`/`claude -p` seats are being removed from #1827/#1871. Building that path is #1827's.
    Until that path is built, report-text items are not handed under agy and nothing is stopped there (above).
 6. **No read as of a past event** (gblock 2026-11-14: "I don't really care what the record used to say when you
    regenerate it"). Every rule this plan adds is a since-X read: rows after an id, filtered on the views and the report
