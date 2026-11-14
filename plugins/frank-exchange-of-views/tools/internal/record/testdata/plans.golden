@@ -2867,7 +2867,7 @@
       UNION ALL
         SCAN ra USING COVERING INDEX retire_anchors_value
         SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
-  SCAN r
+  SCAN r USING COVERING INDEX blue_edit_reopened_value
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   BLOOM FILTER ON x (event_id=?)
   SEARCH x USING AUTOMATIC COVERING INDEX (event_id=?)

@@ -277,6 +277,9 @@ CREATE INDEX "close_gap" ON "close" ("gap_id");
 -- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
 -- (gap_refresh's supersede_event) and passes its demand on (the demand_lineage_supersedes trigger).
 CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
+-- The edits whose reopened names an anchor, in order: the latest is the edit that took its text, whose
+-- stamped old paragraphs still hold it, and the first after a head is the change that touched it since.
+CREATE INDEX "blue_edit_reopened_value" ON "blue_edit_reopened" ("value", "event_id");
 `
 
 func Schema() (string, error) {
