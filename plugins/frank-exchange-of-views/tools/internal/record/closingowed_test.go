@@ -15,10 +15,13 @@ func (b *stage) closing(seat, gap string) *stage {
 }
 
 // docketed is G1, minted by the evidence lens and docketed by a party's motion, with nobody having
-// sat since: both parties' closings are awaited.
+// sat since: both parties' closings are awaited. Both lenses have read the report whole twice (their
+// first sitting and their full re-read), so neither is owed it again.
 func docketed(t *testing.T) *stage {
 	return newStage(t).cast(evLens, outsideLens, "red-chair", "blue-respond", "blue-lane-1", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).dispatch(2, outsideLens).register(evLens).register(outsideLens).
+		served(evLens, 2).served(outsideLens, 2).
+		dispatch(2, evLens).dispatch(2, outsideLens).register(evLens).register(outsideLens).
 		served(evLens, 2).served(outsideLens, 2).mint(evLens, "G1", "medium").
 		register("red-chair").docketMotion("blue-respond", "M1", "G1")
 }
