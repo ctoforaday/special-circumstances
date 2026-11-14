@@ -1961,46 +1961,75 @@ func castRun(t *testing.T) string {
 	return dir
 }
 
-// staleAreaRun is castRun brought to the state a chair's spot-check stands on: a stale area. The chair
-// is delivered report text only for a stale area's changes it has not borne, and a spot-check stands
-// only on a sitting that holds that delivery, so a chair with nothing stale has no spot-check to
-// record. The lens takes both whole deliveries, then sits once after each of two head moves, minting
-// nothing; three sittings in a row with no fresh material mint retire it at its pin, and one more head
-// move leaves its area behind that pin. The chair's sitting that follows owes the area's changes,
-// which the harness delivers before the spot-check (deliverBeforeActing).
+// staleAreaRun is castRun brought to the state a chair's spot-check stands on: a stale area
+// (chairOwesAStaleArea) in the cast lens's own area.
 func staleAreaRun(t *testing.T) string {
 	t.Helper()
 	dir := castRun(t)
-	registerLensOnce(t, dir)
-	lensRereads(t, dir)
-	moveHead := func(i int) {
-		t.Helper()
-		if _, err := record.Append(record.Identity{Run: runtest.Open(t, dir), SeatID: record.HarnessSeat},
-			&recordpb.ReportPart{Text: proto.String(fmt.Sprintf("\n# Addendum %d\n\nA paragraph the report gained after the lens's pin.\n", i))}); err != nil {
-			t.Fatalf("moving the report head: %v", err)
+	chairOwesAStaleArea(t, dir, lensSeat)
+	return dir
+}
+
+// chairOwesAStaleArea brings a cast run to the state a chair's spot-check stands on: lens's area is
+// stale and the chair's open sitting owes its changes. The chair is delivered report text only for a
+// stale area's changes it has not borne, and a spot-check stands only on a sitting that holds that
+// delivery, so a chair with nothing stale has no spot-check to record. Each of lens's sittings follows
+// a chair dispatch naming it, as the workflow sends it, and takes the delivery it is owed (both whole
+// deliveries first, then the changes since its pin); between sittings the head moves. Three sittings
+// in a row with no fresh material mint retire the lens at its pin, and the next head move leaves its
+// area behind that pin. The harness delivers the chair's owed changes before its spot-check
+// (deliverBeforeActing).
+func chairOwesAStaleArea(t *testing.T, dir, lens string) {
+	t.Helper()
+	owes := func() bool {
+		w, err := record.WorkOfSeat(runtest.Open(t, dir), "chair", "red-chair")
+		if err != nil {
+			t.Fatal(err)
 		}
+		for _, it := range w.Sitting.Open {
+			if it.Kind == record.ItemReportText {
+				return true
+			}
+		}
+		return false
 	}
-	for i := 1; i <= 2; i++ {
-		moveHead(i)
+	for i := 0; i < 6; i++ {
+		if i > 1 {
+			moveReportHead(t, dir)
+		}
 		chairSitsAgain(t, dir)
+		if owes() {
+			return
+		}
 		if out, err := run(t, "dispatch", "next", "--run", dir, "--seat-id", "red-chair"); err != nil {
 			t.Fatalf("dispatch next: %v\n%s", err, out)
 		}
-		lensRereads(t, dir)
-	}
-	moveHead(3)
-	chairSitsAgain(t, dir)
-	w, err := record.WorkOfSeat(runtest.Open(t, dir), "chair", "red-chair")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, it := range w.Sitting.Open {
-		if it.Kind == record.ItemReportText {
-			return dir
+		if _, err := run(t, "register", "--run", dir, "--seat-id", lens); err != nil {
+			t.Fatalf("register %s: %v", lens, err)
 		}
+		deliverIfOwed(t, dir, lens)
 	}
-	t.Fatalf("the fixture left no stale area: the chair's list owes no report text")
-	return ""
+	t.Fatalf("the fixture left no stale area: after six sittings of %s the chair's list owes no report text", lens)
+}
+
+// moveReportHead appends a part to the report, as an ingest does: a head move every lens's pin is
+// then behind.
+func moveReportHead(t *testing.T, dir string) {
+	t.Helper()
+	n := countType(t, dir, recordpb.EventType_EVENT_TYPE_REPORT_PART)
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, dir), SeatID: record.HarnessSeat},
+		&recordpb.ReportPart{Text: proto.String(fmt.Sprintf("\n# Addendum %d\n\nA paragraph the report gained after the lens's pin.\n", n+1))}); err != nil {
+		t.Fatalf("moving the report head: %v", err)
+	}
+}
+
+// castNewRun is newRun on the cast setup writes for the whole roster: a stale area is a cast lens's.
+func castNewRun(t *testing.T) string {
+	t.Helper()
+	dir := newRun(t)
+	recordtest.Seed(t, dir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: seatclass.SeatIDs()}))
+	return dir
 }
 
 // castSeats sits the seats castRun's cast names beside blue-synthesize: the lens castRun dispatched,

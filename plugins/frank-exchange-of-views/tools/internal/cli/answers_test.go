@@ -221,8 +221,16 @@ func answerDrives() []answerDrive {
 	return []answerDrive{
 		{name: "position, the chair", row: rowPosition, helps: []string{"chair position"},
 			drive: oncePerSitting(rowPosition, "red-chair", "position")},
-		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"},
-			drive: oncePerSitting(rowSpotCheck, "red-chair", "spot-check")},
+		// A SPOT-CHECK STANDS ON A STALE AREA'S DELIVERED CHANGES: the run has one, and the next sitting's
+		// follows a head move the first did not bear.
+		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"}, drive: func(d drive) {
+			chairOwesAStaleArea(d.t, d.run, lensSeat)
+			d.admitted("the first", "red-chair", "spot-check", "--reason", "the first")
+			d.endsWithRow(d.refused("a second in the sitting", "red-chair", "spot-check", "--reason", "the second"), rowSpotCheck)
+			moveReportHead(d.t, d.run)
+			d.nextSitting("red-chair")
+			d.admitted("the next sitting's", "red-chair", "spot-check", "--reason", "the first was wrong")
+		}},
 		{name: "verdict", row: rowVerdict, helps: []string{"chair verdict"}, drive: func(d drive) {
 			d.admitted("a FAIL", "red-chair", "verdict", "--as", "FAIL")
 			d.endsWithRow(d.refused("a second verdict in the sitting", "red-chair", "verdict", "--as", "FAIL"), rowVerdict)

@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 )
@@ -257,8 +256,9 @@ func TestVerbPayloads(t *testing.T) {
 func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	t.Parallel()
 	t.Run("with ids", func(t *testing.T) {
-		runDir := newRun(t)
+		runDir := castNewRun(t)
 		seedReferents(t, runDir)
+		chairOwesAStaleArea(t, runDir, "red-lens-logic")
 		out, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 			"--ids", "G2", "--reason", "it still holds")
 		if err != nil {
@@ -281,8 +281,9 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	// printed "nothing to sample", which a seat reads as a fact about the board — false here, where
 	// G2 is closed and was there to re-read.
 	t.Run("without ids over a closed gap", func(t *testing.T) {
-		runDir := newRun(t)
+		runDir := castNewRun(t)
 		seedReferents(t, runDir)
+		chairOwesAStaleArea(t, runDir, "red-lens-logic")
 		out, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 			"--reason", "no closure re-read this sitting")
 		if err != nil {
@@ -307,8 +308,8 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	//
 	// So the states are asserted where they live rather than through a key that cannot carry them.
 	t.Run("the three states are distinguishable", func(t *testing.T) {
-		// 1. Never checked: no event.
-		runDir := recordtest.TmpRun(t)
+		// 1. Never checked: no event. The run's chair owes a stale area, the state a spot-check stands on.
+		runDir := staleAreaRun(t)
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_SPOT_CHECK); n != 0 {
 			t.Fatalf("%d spot-checks before any were run", n)
 		}
@@ -336,8 +337,9 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 // write fails and the seat is told why.
 func TestSpotCheckIsASingleton(t *testing.T) {
 	t.Parallel()
-	runDir := newRun(t)
+	runDir := castNewRun(t)
 	seedReferents(t, runDir)
+	chairOwesAStaleArea(t, runDir, "red-lens-logic")
 	if _, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--ids", "G2",
 		"--reason", "re-read the closure record"); err != nil {
 		t.Fatal(err)
