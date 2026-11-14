@@ -34,7 +34,7 @@ func TestNextItemReadsTheHeldStatusAsHeld(t *testing.T) {
 	}
 
 	writer(hookgate.ExitDeliveryHeld)
-	text, err := NextItem(t.TempDir(), "a1", "frank-exchange-of-views:red-lens-logic")
+	text, err := NextItem(t.TempDir(), "a1", "frank-exchange-of-views:red-lens-logic", "claude")
 	if !errors.Is(err, hookgate.ErrDeliveryHeld) || text != "" {
 		t.Fatalf("a writer exiting %d gave %q, %v — want nothing and hookgate.ErrDeliveryHeld", hookgate.ExitDeliveryHeld, text, err)
 	}
@@ -43,7 +43,7 @@ func TestNextItemReadsTheHeldStatusAsHeld(t *testing.T) {
 	}
 
 	writer(1)
-	if _, err := NextItem(t.TempDir(), "a1", "frank-exchange-of-views:red-lens-logic"); err == nil || errors.Is(err, hookgate.ErrDeliveryHeld) {
+	if _, err := NextItem(t.TempDir(), "a1", "frank-exchange-of-views:red-lens-logic", "claude"); err == nil || errors.Is(err, hookgate.ErrDeliveryHeld) {
 		t.Errorf("a writer exiting 1 gave %v — want an error that is not ErrDeliveryHeld", err)
 	}
 }

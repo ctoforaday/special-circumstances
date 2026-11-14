@@ -36,6 +36,9 @@ type delivered struct {
 	// Report is the sitting's report-text delivery as cut at its first item, and how far it has been
 	// handed: the cut text, kept so every later item comes from the one text (handReportText).
 	Report *reportCut `json:"report,omitempty"`
+	// Listed is whether the seat's whole list (standing, current item, index) has been handed this
+	// sitting after report text held it back at the opening end.
+	Listed bool `json:"listed,omitempty"`
 }
 
 // WriteNextItem prints what a lens is handed after a call of its that went to the record, for the
@@ -110,6 +113,7 @@ func WriteNextItem(runDir, agentID, agentType, engine string, out io.Writer) err
 		}
 		now.Key, now.Digest = q[0].Key, q[0].Digest
 		now.Queue = queueKeys(q)
+		now.Listed = prev.Listed
 		if err := writeDelivered(path, now); err != nil {
 			return stuck("the sitting's delivery file could not be written: %v", err)
 		}
@@ -119,7 +123,19 @@ func WriteNextItem(runDir, agentID, agentType, engine string, out io.Writer) err
 	if !record.WorkArrivesAsItems(role, seat) && len(q) == 0 {
 		return nil
 	}
-	text, now := nextOf(w, q, prev, had)
+	var text string
+	var now delivered
+	if had && prev.Report != nil && !prev.Listed {
+		// THE LIST ARRIVES WHOLE ONCE A SITTING: the opening end held it back behind the sitting's
+		// report text, so the first item after that text carries the standing and the index with it.
+		text, now = renderLens(w, q), delivered{Queue: queueKeys(q), Listed: true}
+		if len(q) > 0 {
+			now.Key, now.Digest = q[0].Key, q[0].Digest
+		}
+	} else {
+		text, now = nextOf(w, q, prev, had)
+		now.Listed = prev.Listed
+	}
 	if text == "" {
 		return nil
 	}

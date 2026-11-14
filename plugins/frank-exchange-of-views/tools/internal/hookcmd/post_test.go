@@ -64,10 +64,9 @@ func TestASucceededEnvelopeCallIsAdmitted(t *testing.T) {
 	}
 }
 
-// A LENS'S CALL TO THE RECORD HANDS IT WHAT IT IS HANDED NEXT, AS additionalContext — and nothing
-// else spawns the writer: another seat's call, a lens's call that does not reach the record, a call
-// from no seat. A writer that fails is said to the lens, never silence.
-func TestALensCallToTheRecordIsHandedItsNextItem(t *testing.T) {
+// A SEAT'S CALL TO THE RECORD HANDS IT WHAT IT IS HANDED NEXT, AS additionalContext — and nothing
+// else spawns the writer: a call that does not reach the record, a call from no seat. A writer that fails is said to the lens, never silence.
+func TestASeatsCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 	cwd, runDir := hookRun(t)
 	var asked []string
 	text, writeErr := "YOUR NEXT ITEM: …", error(nil)
@@ -104,14 +103,16 @@ func TestALensCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 	if len(asked) != 1 || asked[0] != runDir+" | a7cc47571ab8b015d | "+lens || got != text {
 		t.Fatalf("asked %q, handed %q — want the lens's run, agent and type asked once, and the answer handed on", asked, got)
 	}
-	if _, out := post("frank-exchange-of-views:red-chair", "feov-record show work"); len(asked) != 1 || out.Len() != 0 {
-		t.Errorf("a chair's call spawned the writer or spoke: %q %q", asked, out.String())
+	// THE CHAIN IS EVERY SEAT'S: a chair's call to the record is handed its next item as a lens's is.
+	const chair = "frank-exchange-of-views:red-chair"
+	if got, _ := post(chair, "feov-record show work"); len(asked) != 2 || asked[1] != runDir+" | a7cc47571ab8b015d | "+chair || got != text {
+		t.Errorf("a chair's call asked %q and was handed %q — want the chair's own next item", asked, got)
 	}
-	if _, out := post(lens, "ls -la"); len(asked) != 1 || out.Len() != 0 {
+	if _, out := post(lens, "ls -la"); len(asked) != 2 || out.Len() != 0 {
 		t.Errorf("a lens's call that does not reach the record spawned the writer or spoke: %q %q", asked, out.String())
 	}
 	text = ""
-	if _, out := post(lens, "feov-record show report"); len(asked) != 2 || out.Len() != 0 {
+	if _, out := post(lens, "feov-record show report"); len(asked) != 3 || out.Len() != 0 {
 		t.Errorf("nothing to hand was said anyway: %q", out.String())
 	}
 	writeErr = errors.New("the record is locked")
@@ -125,7 +126,7 @@ func TestALensCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 func TestAHeldDeliveryHandsNothingAndRecordsNoFailure(t *testing.T) {
 	cwd, _ := hookRun(t)
 	prev := handNextItem
-	handNextItem = func(string, string, string) (string, error) {
+	handNextItem = func(string, string, string, string) (string, error) {
 		return "", fmt.Errorf("feov-sitting-write: %w: (x.lock) past 5s", hookgate.ErrDeliveryHeld)
 	}
 	t.Cleanup(func() { handNextItem = prev })
