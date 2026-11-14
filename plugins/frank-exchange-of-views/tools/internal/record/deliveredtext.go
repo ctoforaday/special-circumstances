@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -156,3 +157,81 @@ func motionGaps(q recordsql.Querier, id string) ([]string, error) {
 
 // gapsNamed is ids joined for a message.
 func gapsNamed(ids []string) string { return strings.Join(ids, ", ") }
+
+// reportTextItems is the report text the seat is owed into its context this sitting, as blocking
+// items: none once its sitting holds its delivery, and none for a seat that is handed no report text.
+// open is the seat's list so far, from which the chair's stale areas are read.
+//
+//   - a lens: the whole report (its first whole delivery, or its full re-read, or after an upheld
+//     position named it), or the changes since its pin and its own gaps' passages;
+//   - the chair: each stale area with changes it has not borne (area_change);
+//   - the bench: each gap an unruled motion is about.
+func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) {
+	if role != "lens" && role != "chair" && role != "bench" {
+		return nil, nil
+	}
+	var out []Item
+	err := readSnapshot(run, func(q recordsql.Querier) error {
+		if noRecord(q) {
+			return nil
+		}
+		head, err := reportHeadAt(q)
+		if err != nil || head == 0 {
+			return err
+		}
+		sitting, _, err := latestSittingAt(q, seatID)
+		if err != nil || !sitting.Valid {
+			return err
+		}
+		if _, held, err := DeliveryThisSitting(q, seatID); err != nil || held {
+			return err
+		}
+		item := func(sub *ItemSubject, what string) {
+			out = append(out, Item{What: what, Blocks: true, Kind: ItemReportText, Subject: sub})
+		}
+		switch role {
+		case "lens":
+			whole, err := NextDeliveryWhole(q, seatID)
+			if err != nil {
+				return err
+			}
+			if whole {
+				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the whole report arrives on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. "+wholeDeliveryNote)
+			} else {
+				item(about(SubjectReport, strconv.FormatInt(head, 10)), "the changes to the report since your pin — each edit as the whole paragraphs it touched, before and after — and the passages of your own gaps arrive on your work list this sitting, one item after each of your calls to the record, and your envelope waits until all of it has been delivered to you. Read anything else through the selector reads")
+			}
+		case "chair":
+			for _, it := range open {
+				if it.Kind != ItemKind(BlockerStaleArea) || it.Subject == nil {
+					continue
+				}
+				var n int
+				if err := q.QueryRow(`SELECT COUNT(*) FROM "area_change" WHERE "seat_id" = ? AND "change" <= ?`, it.Subject.ID, head).Scan(&n); err != nil {
+					return err
+				}
+				if n > 0 {
+					item(about(SubjectArea, it.Subject.ID), fmt.Sprintf("the %d change(s) behind %s's pin that you have not borne arrive on your work list this sitting, each as the paragraphs it touched before and after, one item after each of your calls to the record; a spot-check of the area stands only once all of them have been delivered, and your envelope waits until they have", n, it.Subject.ID))
+				}
+			}
+		case "bench":
+			rows, err := q.Query(motionPassagesSQL, "")
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var gap, loc string
+				if err := rows.Scan(&gap, &loc); err != nil {
+					return err
+				}
+				item(about(SubjectGap, gap), "the passage of gap "+gap+", which a motion before you is about, arrives on your work list this sitting, one item after each of your calls to the record; a ruling on a motion about it stands only once it has been delivered, and your envelope waits until it has")
+			}
+			return rows.Err()
+		}
+		return nil
+	})
+	return out, err
+}
+
+// wholeDeliveryNote is what the whole-report delivery is for, as a lens's item says it.
+const wholeDeliveryNote = "A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery"

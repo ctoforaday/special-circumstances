@@ -69,7 +69,7 @@ func TestALensCallToTheRecordIsHandedItsNextItem(t *testing.T) {
 	var asked []string
 	text, writeErr := "YOUR NEXT ITEM: …", error(nil)
 	prev := handNextItem
-	handNextItem = func(dir, agent, typ string) (string, error) {
+	handNextItem = func(dir, agent, typ, _ string) (string, error) {
 		asked = append(asked, dir+" | "+agent+" | "+typ)
 		return text, writeErr
 	}

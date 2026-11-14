@@ -359,12 +359,12 @@ type scopedPara struct {
 // reportLong is the report's page for every seat.
 var reportLong = "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE. TO LOOK ONE UP: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("K-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. --quote takes the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. --search is not a selector: it RANKS the report's paragraphs by hybrid lexical and vector relevance to a query and returns the top few — a cut list, in which absence proves nothing — for when you do not know the report's wording. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. Under --search, --json gives the ranked paragraphs instead, each `text` with its anchors out, and `search_scope` says the list is ranked and cut, how many it returned and of how many paragraphs: " + jsonshape.Tree(ReportSearchJSON{}) + ". The bare call is the form to READ; this is the form to select from.\n\n" + report.ReportTextNote
 
-// reportPage is the report's page: every seat's, and the lens's paragraph on what its whole read
-// records (record.ServeReport).
+// reportPage is the report's page: every seat's, and the paragraphs on how report text reaches a
+// seat whose acts stand on it.
 var reportPage = []scopedPara{
 	{text: reportLong},
 	{roles: []string{"blue"}, text: "YOUR `edit` REFUSES AN EDIT THAT DROPS AN ANCHOR, so a token inside the span you are replacing is yours to carry into --new."},
-	{roles: []string{"lens"}, text: "A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote and --search serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat."},
+	{roles: []string{"lens", "chair", "bench"}, text: "THIS READ RECORDS NOTHING, in any form. The report text your acts stand on arrives on your work list, one item after each of your calls to the record: a lens's whole report at its first sitting and its full re-read at its next, and the changes since its pin with its own gaps' passages at every other; the chair's unborne changes behind each stale area's pin; the bench's passages of the gaps a motion before it is about. The tool records the delivery when its last item reaches you, and a close, a spot-check and a ruling on a motion about gaps stand only on delivered text. A seat on a harness whose hooks cannot yet deliver report text into its context — Antigravity today — records no delivery: a lens there holds the PASS for good, and the chair or the bench there holds it whenever its delivered text is owed. Read the report here for context: --anchor, --match, --quote and --search select from it."},
 }
 
 // scopedPages are the projections whose page is scoped by role, by name.
@@ -963,31 +963,9 @@ func renderView(cmd *cobra.Command, want string) error {
 		}
 		var b []byte
 		var head int64
-		// THE WHOLE REPORT SERVED TO A LENS IS RECORDED, and it is the lens's pin (record.ServeReport):
-		// both whole forms, bare and --json, and no read at an anchor or a selection, which serve part
-		// of it. The text is printed after the read is committed, so a read the record could not take
-		// is refused rather than served unrecorded.
-		serve := role == "lens" && Str(cmd, flags.Anchor) == "" && !cmd.Flags().Changed(flags.Window)
-		if serve {
-			sel, serr := SelectorOf(cmd)
-			if serr != nil {
-				return serr
-			}
-			// A RANKED SEARCH SERVES A CUT LIST OF PARAGRAPHS, not the report: it is no whole read
-			// and does not move the lens's pin.
-			serve = !sel.Active() && query == ""
-		}
-		if serve {
-			s, err := Begin(cmd)
-			if err != nil {
-				return err
-			}
-			text, h, err := record.ServeReport(s.Identity())
-			if err != nil {
-				return err
-			}
-			b, head = []byte(text), h
-		} else if asJSON {
+		// A READ RECORDS NOTHING, in every form: the report text a seat's acts stand on arrives on its
+		// work list, and the tool records that delivery (record.DeliveryThisSitting).
+		if asJSON {
 			text, h, err := record.ReportAtHead(run)
 			if err != nil {
 				return err

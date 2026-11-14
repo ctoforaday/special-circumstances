@@ -20,9 +20,9 @@ import (
 // lens's that went to the record (WriteNextItem).
 const Next Phase = "next"
 
-// deliveryDir holds, per lens sitting, what the lens was last handed: the current item's key and
-// digest, and the keys queued beside it. It lives under the run directory, keyed by the agent and
-// its sitting, and it holds identities only, never content.
+// deliveryDir holds, per seat sitting, what the seat was last handed: the current item's key and
+// digest, the keys queued beside it, and the sitting's report-text delivery as cut. It lives under the
+// run directory, keyed by the agent and its sitting; it is the writer's buffer, read by nothing else.
 const deliveryDir = ".work-delivery"
 
 // delivered is what a lens sitting was last handed.
@@ -32,6 +32,9 @@ type delivered struct {
 	Digest string `json:"digest"`
 	// Queue is every key queued when it was handed, in queue order.
 	Queue []string `json:"queue"`
+	// Report is the sitting's report-text delivery as cut at its first item, and how far it has been
+	// handed: the cut text, kept so every later item comes from the one text (handReportText).
+	Report *reportCut `json:"report,omitempty"`
 }
 
 // WriteNextItem prints what a lens is handed after a call of its that went to the record, for the
@@ -49,20 +52,30 @@ type delivered struct {
 // not hand a queue — is handed the head of its queue. A list that cannot be read prints the
 // unreadable statement, never silence: "I could not tell" and "nothing changed" are not the same
 // bytes.
-func WriteNextItem(runDir, agentID, agentType string, out io.Writer) error {
+func WriteNextItem(runDir, agentID, agentType, engine string, out io.Writer) error {
 	if err := deliveryAgent(agentID); err != nil {
 		return err
-	}
-	seat, known := record.SeatOfAgentType(agentType)
-	if !known || seatclass.RoleOfSeat(seat) != "lens" {
-		return nil
 	}
 	run, err := record.NewRun(runDir)
 	if err != nil {
 		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
 		return nil
 	}
-	w, err := record.WorkOfSeat(run, "lens", seat)
+	// THE SEAT IS THE RECORD'S BINDING OF THE AGENT, so a seat its configuration does not name is
+	// reached from the call after its register; before it, the configuration names the seat where it
+	// names one.
+	seat, known, err := record.SeatOfAgent(run, agentID)
+	if err != nil {
+		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
+		return nil
+	}
+	if !known {
+		if seat, known = record.SeatOfAgentType(agentType); !known {
+			return nil
+		}
+	}
+	role := seatclass.RoleOfSeat(seat)
+	w, err := record.WorkOfSeat(run, role, seat)
 	if err != nil {
 		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
 		return nil
@@ -78,15 +91,63 @@ func WriteNextItem(runDir, agentID, agentType string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	// REPORT TEXT IS HANDED ONLY WHERE IT REACHES THE SEAT'S CONTEXT AT ONCE: under Antigravity the
+	// answer waits in hookcore's queue for the seat's next PreInvocation, so report-text entries are
+	// passed over there and every other item is handed as here.
+	if !DeliversReportText(engine) {
+		q = slices.DeleteFunc(q, func(e record.QueueEntry) bool { return e.Kind == record.ItemReportText })
+	}
+	if len(q) > 0 && q[0].Kind == record.ItemReportText {
+		text, now, err := handReportText(run, seat, staleAreasOf(w), prev)
+		if err != nil {
+			if reason, ok := IsDeliveryStuck(err); ok {
+				if lerr := logDefect(run, seat, reason); lerr != nil {
+					err = stuck("%s; and its log could not be written: %v", reason, lerr)
+				}
+			}
+			return err
+		}
+		now.Key, now.Digest = q[0].Key, q[0].Digest
+		now.Queue = queueKeys(q)
+		if err := writeDelivered(path, now); err != nil {
+			return stuck("the sitting's delivery file could not be written: %v", err)
+		}
+		_, err = io.WriteString(out, text)
+		return err
+	}
+	if !record.WorkArrivesAsItems(role, seat) && len(q) == 0 {
+		return nil
+	}
 	text, now := nextOf(w, q, prev, had)
 	if text == "" {
 		return nil
 	}
+	now.Report = prev.Report
 	if err := writeDelivered(path, now); err != nil {
 		return err
 	}
 	_, err = io.WriteString(out, text)
 	return err
+}
+
+// queueKeys is every entry's key, in queue order.
+func queueKeys(q []record.QueueEntry) []string {
+	keys := make([]string, len(q))
+	for i, e := range q {
+		keys[i] = e.Key
+	}
+	return keys
+}
+
+// staleAreasOf is the stale areas the chair's list names (its stale_area items).
+func staleAreasOf(w record.WorkJSON) []string {
+	var out []string
+	for _, it := range w.Sitting.Open {
+		if it.Kind == record.ItemReportText && it.Subject != nil && it.Subject.Kind == record.SubjectArea {
+			out = append(out, it.Subject.ID)
+		}
+	}
+	return out
 }
 
 // nextOf decides what is handed after a call, given what was handed before, and what is then on

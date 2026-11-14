@@ -105,7 +105,7 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := WriteNextItem(dir, "agent_01", agentType, &out); err != nil {
+	if err := WriteNextItem(dir, "agent_01", agentType, "claude", &out); err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
@@ -118,7 +118,7 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	if err := os.Remove(files[0]); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteNextItem(dir, "agent_01", agentType, &out); err != nil {
+	if err := WriteNextItem(dir, "agent_01", agentType, "claude", &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), `"key": "audit:report:`) {
@@ -126,7 +126,7 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	}
 	// ANOTHER SEAT'S CALL IS HANDED NOTHING: its work arrives whole.
 	out.Reset()
-	if err := WriteNextItem(dir, "agent_02", "frank-exchange-of-views:red-chair", &out); err != nil || out.Len() != 0 {
+	if err := WriteNextItem(dir, "agent_02", "frank-exchange-of-views:red-chair", "claude", &out); err != nil || out.Len() != 0 {
 		t.Errorf("a chair's call was handed %q (%v)", out.String(), err)
 	}
 }

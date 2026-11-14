@@ -607,6 +607,10 @@ func foldPlan(params Params, r planReads) Plan {
 		// AN UPHELD POSITION THAT NAMES A LENS READIES IT until it has audited its area: its blocker
 		// stands until the lens is served the report in a sitting opened after the ruling
 		// (upheldPositionBlockers), so the readiness ends with it.
+		// A WHOLE DELIVERY OWED READIES ITS LENS ITSELF, at an unmoved head, until the lens has it.
+		case b.Kind == BlockerWholeReportOwed:
+			engage(b.Owner)
+			plan.Why = append(plan.Why, fmt.Sprintf("%s owes %s — ready at an unmoved head until it has been delivered", b.Owner, wholeOwedWhat(b)))
 		case b.Kind == BlockerUpheldPosition && seatclass.RoleOfSeat(b.Owner) == "lens":
 			engage(b.Owner)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: the bench upheld the chair's position %s and named its area — ready, to audit it on the ruling's direction: %s", b.Owner, b.Subject, b.Detail))

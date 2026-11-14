@@ -43,7 +43,7 @@ func main() {
 		err = sittingwrite.WriteAdmission(*run, *agentID)
 	case sittingwrite.Next:
 		// STDOUT IS THE SEAT'S CHANNEL here as on the opening end: the PostToolUse hook passes it on.
-		err = sittingwrite.WriteNextItem(*run, *agentID, *agentType, os.Stdout)
+		err = sittingwrite.WriteNextItem(*run, *agentID, *agentType, *engine, os.Stdout)
 	case sittingwrite.Refusal, sittingwrite.Failure:
 		err = sittingwrite.WriteToolEntry(*run, sittingwrite.Phase(*phase), *agentID, *entry)
 	default:

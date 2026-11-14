@@ -126,12 +126,12 @@ func Admission(runDir, agentID string) error {
 // PostToolUse hook passes the text on to the seat, and "" is "nothing it was handed has changed".
 //
 // THE WRITER'S STDOUT IS THE SEAT'S, and its stderr the hook record's, as on the opening end.
-func NextItem(runDir, agentID, agentType string) (string, error) {
+func NextItem(runDir, agentID, agentType, engine string) (string, error) {
 	writer := writerPath()
 	if writer == "" {
 		return "", fmt.Errorf("%s is not beside this hook, so %s was not handed its next item", writerName, agentID)
 	}
-	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseNext, "-agent-id", agentID, "-agent-type", agentType)
+	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseNext, "-agent-id", agentID, "-agent-type", agentType, "-engine", engine)
 	var forSeat, diagnostics bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &forSeat, &diagnostics
 	if err := cmd.Run(); err != nil {

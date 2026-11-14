@@ -68,33 +68,37 @@ func injectWorkList(run record.Run, agentID, agentType string, out io.Writer) {
 	if !known {
 		return
 	}
-	// The seat is a roster row: the attestation table is the roster read by configuration.
-	role := seatclass.RoleOfSeat(seat)
-	if role == "lens" {
-		injectLensWork(run, agentID, seat, out)
-		return
-	}
-	b, err := record.WorkJSONBytes(run, role, seat)
-	if err != nil {
-		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
-		return
-	}
-	fmt.Fprintf(out, "%s\n\n%s", arrived, b)
+	injectSeatWork(run, agentID, seat, out)
 }
 
-// injectLensWork is a lens's delivery at dispatch (delivery.go): its standing, the head of its queue
+// injectSeatWork is a seat's delivery at dispatch (delivery.go): its standing, the head of its queue
 // in full, and the index — and what it was handed, stored for the first call after it to compare
 // against (WriteNextItem). A store that fails costs the comparison and never the delivery: the first
 // call after it hands the head of the queue again.
-func injectLensWork(run record.Run, agentID, seat string, out io.Writer) {
-	w, err := record.WorkOfSeat(run, "lens", seat)
+//
+// SUBAGENTSTART HANDS NO REPORT TEXT. Where the head of the queue is report text, the seat is handed one
+// line saying it arrives one item after each of its calls to the record, and nothing is stored, so the
+// first call hands the first item.
+func injectSeatWork(run record.Run, agentID, seat string, out io.Writer) {
+	role := seatclass.RoleOfSeat(seat)
+	w, err := record.WorkOfSeat(run, role, seat)
 	if err != nil {
 		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)
 		return
 	}
 	q := record.QueueOf(w)
+	if len(q) > 0 && q[0].Kind == record.ItemReportText {
+		io.WriteString(out, reportTextArrives+"\n")
+		return
+	}
+	if !record.WorkArrivesAsItems(role, seat) && len(q) == 0 {
+		return
+	}
 	if err := recordDelivered(run.Dir(), agentID, w, q); err != nil {
 		fmt.Fprintf(os.Stderr, "sittingwrite: storing what %s was handed: %v\n", agentID, err)
 	}
 	io.WriteString(out, renderLens(w, q))
 }
+
+// reportTextArrives is a seat's line at dispatch when its work opens with report text.
+const reportTextArrives = "YOUR WORK THIS SITTING OPENS WITH REPORT TEXT, and it arrives one item after each of your calls to the record — the first after your first call. Make that call (register, or read your work list), then work each item as it arrives; your envelope waits until all of the report text owed to you has been delivered, and the rest of your work follows it on the same chain. Your whole work list is on your own surface when you want it."

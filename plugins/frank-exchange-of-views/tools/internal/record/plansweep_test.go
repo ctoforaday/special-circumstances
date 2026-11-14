@@ -34,7 +34,17 @@ func TestPlanSweepReachesTheStatementsNoOtherTestIssues(t *testing.T) {
 	_, _ = ReportHasParts(run)
 	_, _, _ = PartStanding(run, "harness")
 	_, _ = ExistingProposalByText(run, "blue-respond", "q", "h")
-	_, _, _ = ServeReport(Identity{Run: run, SeatID: evLens})
+	for _, seat := range []string{evLens, "red-chair", "judge"} {
+		_, _ = CutDelivery(run, seat, []string{evLens}, func(string, string) bool { return true })
+	}
+	if db, err := openRunForRead(run); err == nil && db != nil {
+		_, _, _ = DeliveryThisSitting(db, evLens)
+		_, _ = NextDeliveryWhole(db, evLens)
+		_, _ = PinAt(db, evLens)
+		_ = requireDeliveredText(db, evLens, "a close", []string{"G1"})
+		_, _ = motionGaps(db, "M1")
+		_ = requireReportRead(db, evLens, &recordpb.ReportRead{Head: proto.Int64(1)})
+	}
 	_, _ = MergedEvents(run) // decodes every arm some row names, the position motion's included
 
 	_, _ = AppendSeatTurns(run, "agent-1", []seatturn.Turn{{Index: 0, Model: "m"}})

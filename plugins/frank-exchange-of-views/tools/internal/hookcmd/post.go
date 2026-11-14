@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 
 	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 	"github.com/ctoforaday/special-circumstances/shared/hookfailures"
@@ -76,7 +75,7 @@ func admit(req hookcore.Request, rec *hookfailures.Recorder) {
 // carries nothing back to the agent, so a lens there reads its next item off its work list.
 func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder) {
 	caller := callerOf(req.AgentID, req.AgentType, req.SessionID)
-	if caller.ID == "" || !runlive.IsLensAgentType(caller.Type) {
+	if caller.ID == "" {
 		return
 	}
 	command, _ := req.RawToolInput["command"].(string)
@@ -87,7 +86,11 @@ func nextItem(req hookcore.Request, stdout io.Writer, rec *hookfailures.Recorder
 	if runDir == "" {
 		return
 	}
-	text, err := handNextItem(runDir, caller.ID, caller.Type)
+	engine := req.Engine
+	if engine == "" {
+		engine = hookcore.EngineClaude
+	}
+	text, err := handNextItem(runDir, caller.ID, caller.Type, string(engine))
 	if err != nil {
 		rec.Fail(StageNextItem, "a lens's call went to the record and what it is handed next could not be read: "+err.Error())
 		// NEVER SILENCE IN ITS PLACE: a lens told nothing reads "nothing changed".

@@ -298,8 +298,16 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			if e.GetSeatId() != seat {
 				continue
 			}
-			m, ok := recordpb.BodyAs[*recordpb.Mint](e)
-			if !ok || !fresh[m.GetGapId()] {
+			// A SITTING IS PRODUCTIVE when it minted a fresh gap that is material now, or recorded a close,
+			// a verify, a reproduce or an inquiry check: work done on what the lens was delivered, not only
+			// new gaps (gblock 2026-11-11, F).
+			switch b := mustBodyOf(e).(type) {
+			case *recordpb.Mint:
+				if !fresh[b.GetGapId()] {
+					continue
+				}
+			case *recordpb.Close, *recordpb.Verify, *recordpb.Reproduce, *recordpb.InquiryCheck:
+			default:
 				continue
 			}
 			// the sitting whose opening most recently precedes the mint

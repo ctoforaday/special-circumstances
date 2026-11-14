@@ -1592,6 +1592,11 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)
+	textItems, err := reportTextItems(run, role, seatID, w.Sitting.Open)
+	if err != nil {
+		return WorkJSON{}, err
+	}
+	w.Sitting.Open = append(textItems, w.Sitting.Open...)
 	if role == "lens" {
 		// The lens arm of the sitting's list states these in a sentence (availableOf); the fields
 		// are the same reader's rows, joined to the gap they are about.
