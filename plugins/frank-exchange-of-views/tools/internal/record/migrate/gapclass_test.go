@@ -69,45 +69,51 @@ func TestLivePassOverOpenAlwaysGapRefused(t *testing.T) {
 }
 
 // thisBinaryRun is a source written by THIS binary: a mint of an `always` class, a mint of a
-// `never` class, and a spot-check naming an area.
+// `never` class, and a spot-check naming an area. A spot-check stands only on report text delivered
+// to the chair, and the chair is delivered a stale area's changes: so a second lens retires through
+// three barren sittings, the report moves past its pin, and the chair's delivery is that change.
 func thisBinaryRun(t *testing.T) string {
 	t.Helper()
 	dir := recordtest.TmpRun(t)
 	run := runtest.Open(t, dir)
-	lens, chair := "red-lens-evidence", "red-chair"
-	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: []string{lens, chair}}); err != nil {
-		t.Fatal(err)
+	lens, stale, chair := "red-lens-evidence", "red-lens-logic", "red-chair"
+	app := func(seat string, body proto.Message) {
+		t.Helper()
+		if _, err := record.Append(record.Identity{Run: run, SeatID: seat}, body); err != nil {
+			t.Fatalf("%s %T: %v", seat, body, err)
+		}
 	}
-	// A spot-check stands only on report text delivered to the chair, so the run holds a report
-	// before any seat sits.
-	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat}, &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nA claim the lens audits.\n")}); err != nil {
-		t.Fatal(err)
-	}
-	for _, s := range []string{lens, chair} {
-		if _, _, err := record.RegisterSeat(record.Identity{Run: run, SeatID: s}, "", ""); err != nil {
+	register := func(seat string) {
+		t.Helper()
+		if _, _, err := record.RegisterSeat(record.Identity{Run: run, SeatID: seat}, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
+	app(record.HarnessSeat, &recordpb.Cast{SeatIds: []string{lens, stale, chair}})
+	app(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nA claim the lens audits.\n")})
+	var head int64
+	if err := openRO(t, dir).QueryRow(`SELECT MAX("event_id") FROM "report_part"`).Scan(&head); err != nil {
+		t.Fatal(err)
+	}
+	register(chair)
+	for range 3 {
+		app(chair, &recordpb.Dispatch{Pin: proto.Int64(head), SeatId: proto.String(stale)})
+		register(stale)
+		deliverytest.Deliver(t, run, stale)
+	}
+	register(lens)
+	deliverytest.Deliver(t, run, lens)
 	mint := func(id string, class recordpb.GapClass, sev recordpb.Grade) *recordpb.Mint {
 		return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: class.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: sev.Enum(),
 			Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}
 	}
-	for _, act := range []struct {
-		seat string
-		body proto.Message
-	}{
-		{lens, mint("G-00000001", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL, recordpb.Grade_GRADE_LOW)},
-		{lens, mint("G-00000002", recordpb.GapClass_GAP_CLASS_STRUCTURE_NONCOMPLIANCE, recordpb.Grade_GRADE_HIGH)},
-		{chair, &recordpb.SpotCheck{Areas: []string{lens}, Reason: proto.String("read the changes since the pin")}},
-	} {
-		if _, ok := act.body.(*recordpb.SpotCheck); ok {
-			deliverytest.Deliver(t, run, chair)
-		}
-		if _, err := record.Append(record.Identity{Run: run, SeatID: act.seat}, act.body); err != nil {
-			t.Fatalf("%T: %v", act.body, err)
-		}
-	}
+	app(lens, mint("G-00000001", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL, recordpb.Grade_GRADE_LOW))
+	app(lens, mint("G-00000002", recordpb.GapClass_GAP_CLASS_STRUCTURE_NONCOMPLIANCE, recordpb.Grade_GRADE_HIGH))
+	app(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String("\n## Method\n\nA later part.\n")})
+	register(chair)
+	deliverytest.Deliver(t, run, chair)
+	app(chair, &recordpb.SpotCheck{Areas: []string{stale}, Reason: proto.String("read the changes since the pin")})
 	return dir
 }
 
