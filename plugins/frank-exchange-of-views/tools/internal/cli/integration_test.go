@@ -282,17 +282,7 @@ func lensRereads(t *testing.T, runDir string) {
 // report yet, its sitting already holds its delivery) is left as it stands.
 func deliverIfOwed(t *testing.T, runDir, seatID string) {
 	t.Helper()
-	r := runtest.Open(t, runDir)
-	w, err := record.WorkOfSeat(r, seatclass.RoleOfSeat(seatID), seatID)
-	if err != nil {
-		t.Fatalf("reading %s's work list: %v", seatID, err)
-	}
-	for _, it := range w.Sitting.Open {
-		if it.Kind == record.ItemReportText {
-			deliverytest.Deliver(t, r, seatID)
-			return
-		}
-	}
+	deliverytest.DeliverIfOwed(t, runtest.Open(t, runDir), seatID)
 }
 
 func registerSeatOnce(t *testing.T, runDir, seatID string) {

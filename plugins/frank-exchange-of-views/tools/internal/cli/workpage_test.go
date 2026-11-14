@@ -41,10 +41,9 @@ func TestShowWorkCarriesTheParagraphsOfTheRoleItIsRenderedFor(t *testing.T) {
 		{"AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE", []string{"lens"}},
 		{"WHERE THE LENS PRESCRIBED EXACT TEXT", []string{"lens", "blue"}},
 		{"`engaged` IS BLUE'S RESPONSE SITTING'S", []string{"blue"}},
-		// Every seat's but the lens's, whose work arrives one item at a time: what the list is. Every
-		// seat's: what an item is, what does not block, what an open gap carries, what is estopped.
-		{"A LENS IS HANDED ITS WORK ONE ITEM AT A TIME", []string{"lens"}},
-		{"EVERYTHING OPEN TO YOU, in one list", []string{"blue", "chair", "bench"}},
+		// Every seat's: its work arrives one item at a time, cut from this list; what an item is, what
+		// does not block, what an open gap carries, what is estopped.
+		{"YOUR WORK IS HANDED TO YOU ONE ITEM AT A TIME, AND THIS IS THE WHOLE LIST IT IS CUT FROM", every},
 		{"EVERY ITEM SAYS WHAT IT IS", every},
 		{"An item with `blocks: false` is work nobody will refuse you for skipping", every},
 		{"`open` holds OPEN gaps only", every},
