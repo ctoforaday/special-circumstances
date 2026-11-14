@@ -325,7 +325,7 @@ func TestBlueIsRefusedItsEnvelopeUntilItActsOnTheRemandedGap(t *testing.T) {
 	}
 	holds := func(t *testing.T, run Run, seat string) bool {
 		t.Helper()
-		r, err := EnvelopeRefusal(run, seat)
+		r, err := EnvelopeRefusal(run, seat, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -674,7 +674,7 @@ func TestALensActBeforeBlueLeavesTheRemandExchangeUnbegun(t *testing.T) {
 			t.Errorf("%s: remand_stage = %q, want owed", seat.id, got)
 		}
 	}
-	if r, err := EnvelopeRefusal(run, evLens); err != nil || strings.Contains(r, remandDirection) {
+	if r, err := EnvelopeRefusal(run, evLens, true); err != nil || strings.Contains(r, remandDirection) {
 		t.Errorf("the remand does not hold the lens's envelope: %q (%v)", r, err)
 	}
 	if !remandItemBlocks(t, run, "blue", "blue-respond") {

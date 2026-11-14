@@ -61,7 +61,7 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	r.dispatchSits("bench", "judge", "docket")
 	// ITS ENVELOPE IS REFUSED WHILE EITHER TWIN STANDS, naming each.
 	var refusal string
-	refusal, err = record.EnvelopeRefusal(r.run(), "judge")
+	refusal, err = record.EnvelopeRefusal(r.run(), "judge", true)
 	if err != nil {
 		t.Fatal(err)
 	}

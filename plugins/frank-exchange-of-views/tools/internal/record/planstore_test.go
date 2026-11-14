@@ -415,14 +415,14 @@ func TestAgentEnvelopeRoutesOnTheSeat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filled, refusal, seat, err := AgentEnvelope(run, "agent-chair", []byte(`{}`))
+	filled, refusal, seat, err := AgentEnvelope(run, "agent-chair", []byte(`{}`), true)
 	if err != nil || refusal != "" || seat != "red-chair" {
 		t.Fatalf("the chair's envelope (%v): %q", err, refusal)
 	}
 	if _, printed, err := ReadPlan(filled); err != nil || printed != plan.Printed() {
 		t.Errorf("the chair's call does not carry the stored plan (%v): %s", err, filled)
 	}
-	filled, refusal, seat, err = AgentEnvelope(run, "agent-of-no-seat", []byte(`{"anything":1}`))
+	filled, refusal, seat, err = AgentEnvelope(run, "agent-of-no-seat", []byte(`{"anything":1}`), true)
 	if err != nil || refusal != "" || filled != nil || seat != "" {
 		t.Errorf("an agent bound to no seat was answered (%v): filled %s, refusal %q", err, filled, refusal)
 	}

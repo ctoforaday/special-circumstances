@@ -124,7 +124,7 @@ func TestAReadingDebtIsOnEverySurface(t *testing.T) {
 	if item == nil || !item.Blocks || item.Subject == nil || item.Subject.ID != "C-00000001" || item.What != debts[0].WorkItem() {
 		t.Errorf("the lens's list holds %+v, want a blocking reading_debt item about C-1 worded from the kind row", item)
 	}
-	refusal, err := EnvelopeRefusal(run, evLens)
+	refusal, err := EnvelopeRefusal(run, evLens, true)
 	if err != nil || !strings.Contains(refusal, debts[0].WorkItem()) {
 		t.Errorf("the lens's envelope refusal = %q, %v; want it to name the debt", refusal, err)
 	}
@@ -263,7 +263,7 @@ func TestAReadingDebtIsDischarged(t *testing.T) {
 			run := runOf(b.register("red-chair"))
 			wantDebts(t, run, c.want...)
 			if len(c.want) == 0 {
-				if refusal, err := EnvelopeRefusal(run, evLens); err != nil || strings.Contains(refusal, "reading of ") {
+				if refusal, err := EnvelopeRefusal(run, evLens, true); err != nil || strings.Contains(refusal, "reading of ") {
 					t.Errorf("the lens's envelope = %q, %v; want it admitted with no debt", refusal, err)
 				}
 			}
@@ -562,7 +562,7 @@ func TestAFoundAbsentReadingOfAMarkedSentenceOwesNothing(t *testing.T) {
 		b := debtBoard(t).readFound(evLens, dbURL, dbCited, absent)
 		run := runOf(b.register("red-chair"))
 		wantDebts(t, run)
-		if refusal, err := EnvelopeRefusal(run, evLens); err != nil || strings.Contains(refusal, "reading of ") {
+		if refusal, err := EnvelopeRefusal(run, evLens, true); err != nil || strings.Contains(refusal, "reading of ") {
 			t.Errorf("the envelope = %q, %v; want no debt on it", refusal, err)
 		}
 	})

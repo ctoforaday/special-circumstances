@@ -937,6 +937,17 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			if err := requireSubjectMatches(q, b.Subject(), b.GetMotionId()); err != nil {
 				return err
 			}
+			// A RULING ON A MOTION ABOUT GAPS STANDS ON THEIR PASSAGES DELIVERED TO THE BENCH. A
+			// position names no passage, and its ruling needs none.
+			gaps, err := motionGaps(q, b.GetMotionId())
+			if err != nil {
+				return err
+			}
+			if len(gaps) > 0 {
+				if err := requireDeliveredText(q, seatID, "a ruling on a motion about "+gapsNamed(gaps), gaps); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	if err := recordpb.CheckRequired(body); err != nil {
@@ -1099,6 +1110,12 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	case *recordpb.Close:
 		if b.CarriedFrom == nil {
 			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
+				return err
+			}
+			// A CLOSE STANDS ON THE TEXT DELIVERED TO THE LENS: its sitting's delivery, and no change
+			// to the gap's sentence since — a gap whose anchor an edit left bare or a retire removed
+			// included, its passage being the change that did it.
+			if err := requireDeliveredText(q, seatID, "a close of "+b.GetGapId(), []string{b.GetGapId()}); err != nil {
 				return err
 			}
 		}
@@ -1513,10 +1530,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.ReportRead:
-		if err := requireReportReadAt(q, seatID, b); err != nil {
+		if err := requireReportRead(q, seatID, b); err != nil {
 			return err
 		}
 	case *recordpb.SpotCheck:
+		if err := requireDeliveredText(q, seatID, "a spot-check", nil); err != nil {
+			return err
+		}
 		if err := requireGaps(q, b.GetIds(), "--ids"); err != nil {
 			return err
 		}

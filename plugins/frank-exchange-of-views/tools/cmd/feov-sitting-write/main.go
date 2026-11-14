@@ -27,6 +27,7 @@ func main() {
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as (open, close and next)")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
+	engine := flag.String("engine", "", "the harness answering the hook (envelope and next): on antigravity no report text is delivered or held on")
 	entry := flag.String("entry", "", "what a hook saw happen to the seat's call — refused, or failed (refusal and failure only)")
 	flag.Parse()
 
@@ -36,7 +37,7 @@ func main() {
 		// STDIN IS THE CALL'S ARGUMENTS: what the seat stated, which the answer turns on.
 		var input []byte
 		if input, err = io.ReadAll(os.Stdin); err == nil {
-			err = sittingwrite.WriteEnvelopeAnswer(*run, *agentID, input, os.Stdout)
+			err = sittingwrite.WriteEnvelopeAnswer(*run, *agentID, *engine, input, os.Stdout)
 		}
 	case sittingwrite.Admission:
 		err = sittingwrite.WriteAdmission(*run, *agentID)

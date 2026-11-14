@@ -16,7 +16,7 @@ import (
 // refusalOf is EnvelopeRefusal for seat, failing the test on a read error.
 func refusalOf(t *testing.T, run Run, seat string) string {
 	t.Helper()
-	refusal, err := EnvelopeRefusal(run, seat)
+	refusal, err := EnvelopeRefusal(run, seat, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +366,7 @@ func TestTheChairsEnvelopeIsNotHeldByWhatHoldsAPass(t *testing.T) {
 // record, or an id that is no seat.
 func TestAnEnvelopeCheckThatCannotReadTheRecordFails(t *testing.T) {
 	run := twinDocket(t, func(*stage) {})
-	if _, err := EnvelopeRefusal(run, "no-such-seat"); err == nil {
+	if _, err := EnvelopeRefusal(run, "no-such-seat", true); err == nil {
 		t.Error("an id that is no seat was checked as one")
 	}
 	// A run directory with no record: removing an open one is refused on Windows.
@@ -374,10 +374,10 @@ func TestAnEnvelopeCheckThatCannotReadTheRecordFails(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(run.Records(), dbName)); err == nil {
 		t.Fatal("the fixture run has a record, so this measures nothing")
 	}
-	if _, err := EnvelopeRefusal(run, benchSeat); err == nil || !strings.Contains(err.Error(), "not readable") {
+	if _, err := EnvelopeRefusal(run, benchSeat, true); err == nil || !strings.Contains(err.Error(), "not readable") {
 		t.Errorf("a missing record was not an error naming it: %v", err)
 	}
-	if _, _, _, err := AgentEnvelope(run, "agent-x", []byte(`{}`)); err == nil {
+	if _, _, _, err := AgentEnvelope(run, "agent-x", []byte(`{}`), true); err == nil {
 		t.Error("an agent's envelope was checked against a missing record")
 	}
 }

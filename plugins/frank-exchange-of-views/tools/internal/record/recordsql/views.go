@@ -834,6 +834,9 @@ func lensSeatsSQL() string {
 	return strings.Join(words, ",")
 }
 
+// WholeDeliverySQL is wholeDeliverySQL for the statement that decides a seat's next delivery.
+func WholeDeliverySQL(row, seat string) string { return wholeDeliverySQL(row, seat) }
+
 // wholeDeliverySQL is whether a lens's delivery row (its event id at row, the lens at seat) is the
 // whole report: report_delivery's "whole", and the statement that decides a lens's next delivery,
 // which asks it of the row it is about to write (row = the next id). One fragment, two readers, as

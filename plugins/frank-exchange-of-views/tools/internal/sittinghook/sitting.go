@@ -83,12 +83,15 @@ func Failure(runDir, agentID, text string) error {
 // THE WRITER'S STDOUT IS THE ANSWER, kept even when the writer exits non-zero: it prints a refusal
 // before it logs it, so a failed log reaches the caller as the error beside a refusal that still
 // stands.
-func Envelope(runDir, agentID string, input []byte) (hookgate.EnvelopeAnswer, error) {
+//
+// engine is the harness answering the hook: on one whose hooks cannot yet deliver report text into a
+// seat's context (Antigravity), the envelope is not held on report-text items.
+func Envelope(runDir, agentID, engine string, input []byte) (hookgate.EnvelopeAnswer, error) {
 	writer := writerPath()
 	if writer == "" {
 		return hookgate.EnvelopeAnswer{}, fmt.Errorf("%s is not beside this hook, so %s's envelope was not checked against the record", writerName, agentID)
 	}
-	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseEnvelope, "-agent-id", agentID)
+	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseEnvelope, "-agent-id", agentID, "-engine", engine)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = bytes.NewReader(input), &stdout, &stderr
 	runErr := cmd.Run()

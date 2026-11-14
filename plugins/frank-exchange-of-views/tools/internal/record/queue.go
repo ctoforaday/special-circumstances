@@ -44,6 +44,7 @@ type QueueEntry struct {
 
 // QueueOf orders a seat's work list into the queue its work arrives in, from the list's fields:
 //
+//  0. the report text owed into the seat's context this sitting (ItemReportText);
 //  1. the audit item, while the lens has not been served the report whole since it was last behind
 //     (last_read first or behind);
 //  2. every item the seat's own act clears (SittingJSON.Owed), in list order;
@@ -92,6 +93,13 @@ func QueueOf(w WorkJSON) []QueueEntry {
 		add(QueueEntry{Kind: it.Kind, Subject: it.Subject, Items: []Item{it}, Gap: rowOf(it.Subject)})
 	}
 
+	// REPORT TEXT OPENS EVERY ROLE'S QUEUE: the delivery writer hands it one item per call, and the
+	// seat's other work waits behind it.
+	for i, it := range w.Sitting.Open {
+		if it.Kind == ItemReportText && !used[i] {
+			single(i)
+		}
+	}
 	if lr := w.Sitting.LastRead; lr != nil && (lr.Kind == "first" || lr.Kind == "behind") {
 		for i, it := range w.Sitting.Open {
 			if it.Kind == ItemAudit && !used[i] {

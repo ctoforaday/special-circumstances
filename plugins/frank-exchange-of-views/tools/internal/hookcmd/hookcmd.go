@@ -313,7 +313,11 @@ func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	if runDir == "" {
 		return
 	}
-	answer, err := envelopeAnswer(runDir, agentID, in.ToolInput)
+	engine := string(hookcore.EngineClaude)
+	if len(req) > 0 && req[0].Engine != "" {
+		engine = string(req[0].Engine)
+	}
+	answer, err := envelopeAnswer(runDir, agentID, engine, in.ToolInput)
 	if err != nil {
 		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record, and was refused: "+err.Error())
 		if answer.Refusal == "" {

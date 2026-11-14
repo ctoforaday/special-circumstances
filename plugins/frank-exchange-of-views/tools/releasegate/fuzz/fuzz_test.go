@@ -10207,7 +10207,7 @@ func (r *runner) envelopeRefusedEarly(seatID, standing string) bool {
 		noteEnvelope(seatID, "not driven early: the record owed no item naming "+strings.TrimSpace(standing))
 		return false
 	}
-	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
+	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
 	if err != nil {
 		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
 		return false
@@ -10254,14 +10254,14 @@ func (r *runner) owesNaming(seatID, standing string) (bool, error) {
 // again, at most four times, as a parallel blue can place more than once. The check that decides is
 // the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) bool {
-	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
+	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
 	for i := 0; i < 4 && err == nil && refusal != "" && strings.HasPrefix(seatID, "red-lens-"); i++ {
 		r.dischargeOwed(seatID)
 		r.answerFailed(seatID)
 		// AN INQUIRY A SIBLING'S ACT LEFT UNCHECKED: a lens sitting alongside closed or regraded the gap
 		// that held it wanting after the owner's pass, and the owner's list now offers its check.
 		r.checkInquiries(seatID)
-		refusal, err = record.EnvelopeRefusal(r.run(), seatID)
+		refusal, err = record.EnvelopeRefusal(r.run(), seatID, true)
 	}
 	switch {
 	case err != nil:

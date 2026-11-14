@@ -56,7 +56,7 @@ func TestASubBoundEditLeavesTheDebtTheCurrentSentenceClears(t *testing.T) {
 			if r.actErr != "" || len(r.readingDebts()) != 0 || r.reading.debtsDischarged["reread"] != 1 || r.reading.lostQuoteReread != 1 {
 				t.Fatalf("after the lens's answer: %d debts, reread %d, lost-quote reread %d (%s)", len(r.readingDebts()), r.reading.debtsDischarged["reread"], r.reading.lostQuoteReread, r.actErr)
 			}
-			if ref, err := record.EnvelopeRefusal(r.run(), lens); err != nil || ref != "" {
+			if ref, err := record.EnvelopeRefusal(r.run(), lens, true); err != nil || ref != "" {
 				t.Errorf("the envelope after the answer: %q (%v)", ref, err)
 			}
 			// THE SENTENCE THE EDIT LEFT, read against a fresh source: the lost url is read once.
