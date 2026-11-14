@@ -83,6 +83,20 @@ func TierClassOfSeat(run Run, seatID string) (string, error) {
 // to anyone checking. The area is a field now and the name says which fact it is.
 func AreaOf(seatID string) string { return seatclass.Seats[seatID].Area }
 
+// requireMinterOnRoster refuses a mint attributed to an id that is no seat: every writer asks it
+// (validate). A seat is on the roster by its role, and a lens's roster entry carries its area.
+//
+// THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER, and is refused by name
+// rather than by an area cut off its spelling — `red-lens-banana` is not the `banana` lens.
+// requireDispatchableSeat refuses such an id at `register`; a write that reaches here under one is
+// refused here.
+func requireMinterOnRoster(seatID string) error {
+	if seatclass.RoleOfSeat(seatID) == "" {
+		return feov.Errorf(feov.Validation, "%q is not a seat on the engine's roster, so it mints nothing", seatID)
+	}
+	return nil
+}
+
 // LensAreas are the strategic areas a lens seat can be dispatched for — one seat each, and the
 // name IS the identity (#791). ALIASED from internal/flags, which declares it: internal/record
 // imports that package, so a second copy here is the one thing this arrangement exists to stop.

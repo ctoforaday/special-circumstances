@@ -104,8 +104,14 @@ func (w *agyWorld) installPlugin(t *testing.T, name, hooksJSON string) string {
 
 type eventLine struct {
 	Event         string   `json:"event"`
+	HookEventName string   `json:"hook_event_name"`
 	Engine        string   `json:"engine"`
 	SessionID     string   `json:"session_id"`
+	CWD           string   `json:"cwd"`
+	ProjectDir    string   `json:"project_dir"`
+	PluginRoot    string   `json:"plugin_root"`
+	PluginDataDir string   `json:"plugin_data_dir"`
+	ToolCallID    string   `json:"tool_call_id"`
 	InvocationNum *int     `json:"invocation_num"`
 	EnvNames      []string `json:"env_names"`
 }
@@ -150,7 +156,9 @@ func TestLiveAntigravityEventContract(t *testing.T) {
 	}
 	w.installPlugin(t, "eventlog", `{"eventlog-hooks":{
   "SessionStart":[{"command":"./bin/eventlog -event SessionStart"}],
-  "PreInvocation":[{"command":"./bin/eventlog -event PreInvocation"}]}}`)
+  "PreInvocation":[{"command":"./bin/eventlog -event PreInvocation"}],
+  "PreToolUse":[{"matcher":"run_command","hooks":[{"command":"./bin/eventlog -event PreToolUse"}]}],
+  "PostToolUse":[{"matcher":"run_command","hooks":[{"command":"./bin/eventlog -event PostToolUse"}]}]}}`)
 	logPath := filepath.Join(t.TempDir(), "events.jsonl")
 	logEnv := "EVENTLOG_FILE=" + logPath
 
@@ -163,11 +171,22 @@ func TestLiveAntigravityEventContract(t *testing.T) {
 	conv := convs[0]
 	first := readEvents(t, logPath)
 
-	var starts int
+	var starts, preTools, postTools int
 	var invs []int
 	for _, l := range first {
 		if l.SessionID != conv || l.Engine != "antigravity" {
 			t.Errorf("hook call for session %q engine %q, want %s antigravity", l.SessionID, l.Engine, conv)
+		}
+		if l.HookEventName == "" {
+			t.Errorf("%s payload carried no hookEventName (agy 1.5.4+)", l.Event)
+		}
+		if l.CWD == "" || l.ProjectDir == "" {
+			t.Errorf("%s payload carried empty cwd=%q or projectDir=%q (agy 1.5.4+)", l.Event, l.CWD, l.ProjectDir)
+		}
+		for _, wantEnv := range []string{"PLUGIN_ROOT", "PLUGIN_DATA"} {
+			if !slices.Contains(l.EnvNames, wantEnv) {
+				t.Errorf("%s hook did not receive %s in env=%v (agy 1.5.3+)", l.Event, wantEnv, l.EnvNames)
+			}
 		}
 		switch l.Event {
 		case "SessionStart":
@@ -178,6 +197,16 @@ func TestLiveAntigravityEventContract(t *testing.T) {
 				continue
 			}
 			invs = append(invs, *l.InvocationNum)
+		case "PreToolUse":
+			preTools++
+			if l.ToolCallID == "" {
+				t.Errorf("PreToolUse payload carried empty toolCall.id (agy 1.5.4+)")
+			}
+		case "PostToolUse":
+			postTools++
+			if l.ToolCallID == "" {
+				t.Errorf("PostToolUse payload carried empty toolCall.id (agy 1.5.4+)")
+			}
 		}
 		for _, secret := range []string{"ANTIGRAVITY_CSRF_TOKEN", "ANTIGRAVITY_LS_ADDRESS"} {
 			if slices.Contains(l.EnvNames, secret) {
@@ -187,6 +216,9 @@ func TestLiveAntigravityEventContract(t *testing.T) {
 	}
 	if starts != 1 {
 		t.Errorf("SessionStart fired %d times for a new conversation, want 1", starts)
+	}
+	if preTools == 0 || postTools == 0 {
+		t.Errorf("PreToolUse=%d PostToolUse=%d on a turn with a tool call, want ≥1 each", preTools, postTools)
 	}
 	if len(invs) < 2 {
 		t.Errorf("PreInvocation fired %d times on a turn with a tool call, want one per model step (≥2)", len(invs))

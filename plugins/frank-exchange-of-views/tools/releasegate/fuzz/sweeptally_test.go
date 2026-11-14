@@ -170,7 +170,6 @@ type runTally struct {
 	UnreadClosesRefused        int                       `json:"unread_closes_refused"`
 	UnsoundClosesRefused       int                       `json:"unsound_closes_refused"`
 	RepeatsRefused             int                       `json:"repeats_refused"`
-	BudgetRefused              int                       `json:"budget_refused"`
 	OneGapRefused              int                       `json:"one_gap_refused"`
 	OneGapFindings             int                       `json:"one_gap_findings"`
 	UnclassifiedMinted         int                       `json:"unclassified_minted"`
@@ -251,7 +250,7 @@ func tallyOf(o outcome) runTally {
 		ComputationReopenedReadied: o.computationReopenedReadied, OwedKept: o.owedKept, ComputationOwedKept: o.computationOwedKept,
 		OwedKeptBy: o.owedKeptBy, OwnerWhys: o.ownerWhys, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
 		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires, UnreadRetiresJoined: o.unreadRetiresJoined,
-		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused, BudgetRefused: o.budgetRefused,
+		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused,
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
@@ -613,7 +612,7 @@ type sweepFold struct {
 	unreadRetires                                   int
 	unreadRetiresJoined                             int
 	unreadClosesRefused, unsoundClosesRefused       int
-	repeatsRefused, budgetRefused                   int
+	repeatsRefused                                  int
 	oneGapRefused, oneGapFindings                   int
 	unsoundReadied, unsoundPlans, unsoundAnswers    int
 	forcedUnsoundReadied, forcedComputationOwedKept int
@@ -801,7 +800,6 @@ func foldRuns(runs []runTally) sweepFold {
 			f.closesByEpoch[ep] += n
 		}
 		f.repeatsRefused += r.RepeatsRefused
-		f.budgetRefused += r.BudgetRefused
 		f.oneGapRefused += r.OneGapRefused
 		f.oneGapFindings += r.OneGapFindings
 		f.unclassifiedMinted += r.UnclassifiedMinted
@@ -1140,14 +1138,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// that stopped repeating an act would leave those refusals unreached behind a green sweep.
 		if f.repeatsRefused == 0 {
 			t.Errorf("fuzz drove ZERO refused repeats across %d runs — no seat filed a second position or closing in a sitting, so the refusal that names the answering act is unexercised (false green)", f.completed)
-		}
-		// THE MINT-BUDGET GATE. The budget caps the gaps a lens holds open, and the sweep's floor of
-		// one keeps most lenses at it: a mint from a lens already holding its budget is refused. The
-		// `mint` verb gate is satisfied by the mints that land, so a budget that stopped refusing — or
-		// terms too generous for any lens to reach it — would leave the refusal unreached behind a
-		// green sweep.
-		if f.budgetRefused == 0 {
-			t.Errorf("fuzz drove ZERO mints refused for budget across %d runs — no lens held its whole mint budget open and minted again, so the cap on open gaps is unexercised (false green)", f.completed)
 		}
 		// THE ONE-GAP GATE. A mint of a class on a sentence or inquiry where an open gap of that class
 		// stands is refused, naming it, and the lens files its point as a finding about that gap. The

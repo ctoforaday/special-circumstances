@@ -60,6 +60,14 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 		{"no fetch time", unfetched(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()}, nil), "carries no fetched_at"},
 		{"a fetch time that is a date", unfetched(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
 			proto.String("2026-11-12")), "not an RFC 3339 time"},
+		// AND THE SIXTH: when the web archive took a copy the tool took from it. It belongs to a copy
+		// read at a copy url, never to the url's own bytes, and it is a time a reader can print.
+		{"an archive copy and its capture time", captured(copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, "https://web.archive.org/x"), "2019-05-20T08:30:15Z"), ""},
+		{"a capture time on the url's own bytes", captured(stamped(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()}),
+			"2019-05-20T08:30:15Z"), "copy_captured_at and no copy_url"},
+		{"a capture time that is the archive's digits", captured(copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, "https://web.archive.org/x"), "20190520083015"), "copy_captured_at \"20190520083015\", which is not an RFC 3339 time"},
 	} {
 		err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CITE, tc.body)
 		switch {
@@ -83,6 +91,12 @@ func stamped(c *recordpb.Cite) *recordpb.Cite {
 func unfetched(c *recordpb.Cite, fetchedAt *string) *recordpb.Cite {
 	stamped(c)
 	c.FetchedAt = fetchedAt
+	return c
+}
+
+// captured sets copy_captured_at on c.
+func captured(c *recordpb.Cite, at string) *recordpb.Cite {
+	c.CopyCapturedAt = proto.String(at)
 	return c
 }
 

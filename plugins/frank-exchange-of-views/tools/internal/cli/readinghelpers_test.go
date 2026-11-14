@@ -2,9 +2,7 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -88,15 +86,15 @@ type readingBoard struct {
 	base [3]int
 }
 
-// readingRunOf builds the reading board over report, citing cited[i] from rdU1, rdU2 and rdU7 in turn. A floor > 0 is written as the run's mintBudget.
-func readingRunOf(t *testing.T, report string, floor int, cited ...string) readingBoard {
+// readingRunOf builds the reading board over report, citing cited[i] from rdU1, rdU2 and rdU7 in turn.
+func readingRunOf(t *testing.T, report string, cited ...string) readingBoard {
 	t.Helper()
-	return readingBoardOn(t, newRun(t), report, floor, cited...)
+	return readingBoardOn(t, newRun(t), report, cited...)
 }
 
 // readingRunCast is readingRunOf on a run whose cast names every seat the board seats, as setup
 // writes it: the chair's dispatch plans against it.
-func readingRunCast(t *testing.T, report string, floor int, cited ...string) readingBoard {
+func readingRunCast(t *testing.T, report string, cited ...string) readingBoard {
 	t.Helper()
 	runDir := newRun(t)
 	cast := recordtest.At(t, "harness", "harness:cast", &recordpb.Cast{SeatIds: []string{
@@ -105,14 +103,11 @@ func readingRunCast(t *testing.T, report string, floor int, cited ...string) rea
 	cast.Ts = proto.String(record.Stamp())
 	recordtest.Seed(t, runDir, cast)
 	recordtest.SettleQuestion(t, runDir) // the question is not this board's subject
-	return readingBoardOn(t, runDir, report, floor, cited...)
+	return readingBoardOn(t, runDir, report, cited...)
 }
 
-func readingBoardOn(t *testing.T, runDir, report string, floor int, cited ...string) readingBoard {
+func readingBoardOn(t *testing.T, runDir, report string, cited ...string) readingBoard {
 	t.Helper()
-	if floor > 0 {
-		writeRunConfigCLI(t, runDir, fmt.Sprintf(`{"mintBudget":%d}`, floor))
-	}
 	writeReport(t, runDir, report)
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{
@@ -150,7 +145,7 @@ func readingBoardOn(t *testing.T, runDir, report string, floor int, cited ...str
 
 func readingRun(t *testing.T) readingBoard {
 	t.Helper()
-	return readingRunOf(t, rdReport, 0, rdCited, rdBacked)
+	return readingRunOf(t, rdReport, rdCited, rdBacked)
 }
 
 func citeTokens(report string) []string {
@@ -159,16 +154,6 @@ func citeTokens(report string) []string {
 		out = append(out, m[1])
 	}
 	return out
-}
-
-func writeRunConfigCLI(t *testing.T, runDir, body string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "inputs", "run-config.json"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // sit opens seat's next sitting and serves it the report, as a lens's audit does.
@@ -283,20 +268,7 @@ func mintOf(t *testing.T, runDir, gap string) *recordpb.Mint {
 	return nil
 }
 
-// openCount is seat's mint-budget standing as its work list states it.
-func (b readingBoard) standing(seat string) record.MintBudgetJSON {
-	b.t.Helper()
-	w, err := record.WorkOfSeat(runtest.Open(b.t, b.runDir), "lens", seat)
-	if err != nil {
-		b.t.Fatal(err)
-	}
-	if w.Sitting.MintBudget == nil {
-		b.t.Fatalf("%s's work list states no mint budget", seat)
-	}
-	return *w.Sitting.MintBudget
-}
-
-// rdFillers are sentences of a third section a test mints plain gaps on to bring a lens to its cap.
+// rdFillers are sentences of a third section a test mints plain gaps on.
 var rdFillers = []string{
 	"Filler sentence one stands here.", "Filler sentence two stands here.", "Filler sentence three stands here.",
 	"Filler sentence four stands here.", "Filler sentence five stands here.", "Filler sentence six stands here.",

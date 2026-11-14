@@ -156,14 +156,13 @@ func writeSetup(path string, data []byte) error {
 	return nil
 }
 
-func fuzzRunConfig(lanes, k, kMax, mintBudget, maxEpochs int) []byte {
+func fuzzRunConfig(lanes, k, kMax, maxEpochs int) []byte {
+	// THE LANE COUNT IS A STRING, as setup writes the --lanes flag it was given: the record's reader
+	// of the configuration refuses a number there.
 	cfg := map[string]any{
 		"topic": "fuzz", "seats": debatejs.TieredSeats("haiku", "haiku"),
-		"lanes": lanes, "k": k, "kMax": kMax,
+		"lanes": strconv.Itoa(lanes), "k": k, "kMax": kMax,
 		"convergenceFraction": 0.25, "maxEpochs": maxEpochs,
-	}
-	if mintBudget > 0 {
-		cfg["mintBudget"] = mintBudget
 	}
 	b, _ := json.Marshal(cfg)
 	return b

@@ -74,7 +74,7 @@ func blueEngagedRun(t *testing.T) (*runner, string) {
 	bin := buildBinary(t)
 	runDir := recordtest.TmpRun(t)
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
-		fuzzRunConfig(1, 1, 6, 0, 12)); err != nil {
+		fuzzRunConfig(1, 1, 6, 12)); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)

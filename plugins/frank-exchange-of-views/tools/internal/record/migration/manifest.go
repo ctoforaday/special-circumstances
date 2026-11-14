@@ -38,6 +38,9 @@ type Manifest struct {
 	// distance travelled is only legible beside where it started.
 	EventSchema int  `json:"event_schema"`
 	SourceEpoch *int `json:"source_epoch,omitempty"`
+	// RunConfig is what the channel copy did to inputs/run-config.json, the one channel file it does
+	// not copy verbatim; absent when the source held no such file.
+	RunConfig *RunConfigTranslation `json:"run_config,omitempty"`
 	// SeatTurns is how many per-turn measurements were carried across. Zero is a real answer — a run
 	// whose capture never went has none — and it is a stated zero rather than an absent field, because
 	// a dropped carry and an uncaptured run produce the same empty timing view downstream.
@@ -97,6 +100,23 @@ type Manifest struct {
 	// Warnings are what the publish could not guarantee — a directory whose sync failed. They arise
 	// after the manifest is written, so they are never part of it; feov-migrate prints each.
 	Warnings []string `json:"-"`
+}
+
+// RunConfigTranslation is what the migration changed in the run's configuration file: each key the
+// configuration no longer declares, dropped; an archived class-tier pair, reshaped into the per-seat
+// `seats`; and the epoch key, which states the epoch the migrated
+// record is written at (Manifest.EventSchema) whatever the source's file stated there.
+type RunConfigTranslation struct {
+	// Dropped is each dropped key with its value as the source wrote it. Empty is stated as {}.
+	Dropped map[string]json.RawMessage `json:"dropped"`
+	// Reshaped is each class-tier key (`model`, `judgmentModel`) the source stated, with its value as
+	// the source wrote it; the copy states the seats they stood for under `seats` instead. Absent
+	// where the source stated neither.
+	Reshaped map[string]json.RawMessage `json:"reshaped,omitempty"`
+	// SourceEventSchema is the value the source's file stated under `eventSchema`, as written —
+	// absent where it stated none. A source record that states no epoch of its own (a shard-era
+	// record, a database predating the field) leaves this the one statement of the source's epoch.
+	SourceEventSchema json.RawMessage `json:"source_event_schema,omitempty"`
 }
 
 // SourceFile names one file the source was read from, with the hash of its bytes AS FOUND.

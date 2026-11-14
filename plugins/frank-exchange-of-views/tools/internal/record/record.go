@@ -34,11 +34,9 @@ package record
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -395,24 +393,6 @@ func repeatRegister(seatID string, dispatch int, h heldRegister, occ *recordpb.O
 			"and where this command takes nothing but your seat id, your first act that records makes it for you%s. "+
 			"Every act you record in this sitting is already attributed to %s",
 		seatID, held, first, seatID)
-}
-
-// allowSubstitution reads the operator's standing decision from run-config.
-//
-// ABSENT MEANS NO. A run whose config predates the field, or whose config cannot be read, is a run
-// that never consented to a substitution — the failing direction of a gate has to be the safe one.
-func allowSubstitution(run Run) bool {
-	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
-	if err != nil {
-		return false
-	}
-	var cfg struct {
-		Allow bool `json:"allowModelSubstitution"`
-	}
-	if json.Unmarshal(b, &cfg) != nil {
-		return false
-	}
-	return cfg.Allow
 }
 
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
@@ -956,16 +936,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
 		}
 	case *recordpb.Mint:
-		// The one-gap-per-class rule, the mint budget, the report-voice refusal and a retired --about
-		// anchor judge what a seat may mint next, and run on the live write alone (judgeAct); the
-		// minting seat's place on the roster is asked of every writer.
+		// The one-gap-per-class rule, the report-voice refusal and a retired --about anchor judge
+		// what a seat may mint next, and run on the live write alone (judgeAct); the minting seat's
+		// place on the roster is asked of every writer.
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
 		if err := requireMintSubject(b); err != nil {
 			return err
 		}
-		if _, _, err := mintAreaOf(seatID); err != nil {
+		if err := requireMinterOnRoster(seatID); err != nil {
 			return err
 		}
 		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
@@ -1661,6 +1641,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// parse would print no accessed date and say nothing of why.
 		if b.FetchedAt != nil && AccessedOn(b.GetFetchedAt()) == "" {
 			return fmt.Errorf("cite carries fetched_at %q, which is not an RFC 3339 time — the tool stamps it from the fetch index's record of when the copy was fetched", b.GetFetchedAt())
+		}
+		// WHEN A WEB ARCHIVE TOOK THE COPY belongs to a copy read at a copy url: the url's own bytes
+		// were taken live, and no archive took them. It is a time, as the fetch index stamped it.
+		if b.CopyCapturedAt != nil {
+			if b.CopyUrl == nil {
+				return fmt.Errorf("cite carries copy_captured_at and no copy_url — a capture time is when a web archive took the copy the citation read, and the url's own bytes were not taken from one")
+			}
+			if AccessedOn(b.GetCopyCapturedAt()) == "" {
+				return fmt.Errorf("cite carries copy_captured_at %q, which is not an RFC 3339 time — the tool stamps it from the fetch index's record of when the web archive took the copy", b.GetCopyCapturedAt())
+			}
 		}
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
 		// none. The span, its place and the text around it are one fact: a span without the source's

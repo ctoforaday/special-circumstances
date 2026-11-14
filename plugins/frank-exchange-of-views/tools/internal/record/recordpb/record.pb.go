@@ -1870,7 +1870,7 @@ const (
 	LogType_LOG_TYPE_FRICTION    LogType = 4
 	// REFUSAL IS EVERY OTHER NO THE TOOL GIVES A SEAT, written by the tool at the moment it refuses.
 	// On universe-m13 seats met a dozen refusals — a flag guessed from another verb, a field name
-	// typed as a flag, a mint refused at its budget — and filed none: each was classed as the seat's
+	// typed as a flag — and filed none: each was classed as the seat's
 	// own mistake. The guess is the operator's signal, whoever made it, so the tool keeps it.
 	LogType_LOG_TYPE_REFUSAL LogType = 6
 	// FAILURE IS WHAT A REFUSAL CANNOT SEE: a seat's tool call that failed outside the record tool — a
@@ -4394,6 +4394,13 @@ type Cite struct {
 	// report and in `show evidence`. On the event because run-archive keeps no cache; a live cite
 	// without it is refused (judgeAct), and a cite migrated from before the field holds none.
 	FetchedAt *string `protobuf:"bytes,27,opt,name=fetched_at,json=fetchedAt,proto3,oneof" json:"fetched_at,omitempty"`
+	// WHEN THE WEB ARCHIVE TOOK THE COPY, stamped from the fetch index like the five above, on a copy
+	// the tool took from a web archive and on no other: the archive's timestamp for the capture, RFC
+	// 3339 UTC. fetched_at is when the run took the bytes; this is when the url said what they say, and
+	// the two can be years apart. A copy of the url's own bytes has none, so it is set only beside a
+	// copy_url; on the event because run-archive keeps no cache. A cite migrated from before the field
+	// holds none.
+	CopyCapturedAt *string `protobuf:"bytes,28,opt,name=copy_captured_at,json=copyCapturedAt,proto3,oneof" json:"copy_captured_at,omitempty"`
 	// answers is the gap this citation is placed as the answer to, typed --answers: the citation half
 	// of an evidence anchor's answer (Computation.answers is the other), read through the
 	// evidence_anchor view by the gap's live-answer demand.
@@ -4589,6 +4596,13 @@ func (x *Cite) GetCopyUrl() string {
 func (x *Cite) GetFetchedAt() string {
 	if x != nil && x.FetchedAt != nil {
 		return *x.FetchedAt
+	}
+	return ""
+}
+
+func (x *Cite) GetCopyCapturedAt() string {
+	if x != nil && x.CopyCapturedAt != nil {
+		return *x.CopyCapturedAt
 	}
 	return ""
 }
@@ -8108,7 +8122,7 @@ const file_record_proto_rawDesc = "" +
 	"\x03_idB\v\n" +
 	"\t_locationB\x0e\n" +
 	"\f_sentence_ofJ\x04\b\x03\x10\aR\n" +
-	"finding_idR\vfinding_keyR\x05labelR\x04text\"\x93\f\n" +
+	"finding_idR\vfinding_keyR\x05labelR\x04text\"\xdd\f\n" +
 	"\x04Cite\x12!\n" +
 	"\x05label\x18\x01 \x01(\tB\x06\x82\xb5\x18\x02(\x01H\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
@@ -8139,8 +8153,9 @@ const file_record_proto_rawDesc = "" +
 	"\x11copy_substitution\x18\x18 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x13R\x10copySubstitution\x88\x01\x01\x12$\n" +
 	"\bcopy_url\x18\x19 \x01(\tB\x04\xc0\xb5\x18\x00H\x14R\acopyUrl\x88\x01\x01\x12(\n" +
 	"\n" +
-	"fetched_at\x18\x1b \x01(\tB\x04\xc0\xb5\x18\x00H\x15R\tfetchedAt\x88\x01\x01\x12\x1d\n" +
-	"\aanswers\x18\x1a \x01(\tH\x16R\aanswers\x88\x01\x01B\b\n" +
+	"fetched_at\x18\x1b \x01(\tB\x04\xc0\xb5\x18\x00H\x15R\tfetchedAt\x88\x01\x01\x123\n" +
+	"\x10copy_captured_at\x18\x1c \x01(\tB\x04\xc0\xb5\x18\x00H\x16R\x0ecopyCapturedAt\x88\x01\x01\x12\x1d\n" +
+	"\aanswers\x18\x1a \x01(\tH\x17R\aanswers\x88\x01\x01B\b\n" +
 	"\x06_labelB\x06\n" +
 	"\x04_urlB\t\n" +
 	"\a_sha256B\b\n" +
@@ -8162,7 +8177,8 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
 	"\t_copy_urlB\r\n" +
-	"\v_fetched_atB\n" +
+	"\v_fetched_atB\x13\n" +
+	"\x11_copy_captured_atB\n" +
 	"\n" +
 	"\b_answersJ\x04\b\x06\x10\aJ\x04\b\b\x10\tJ\x04\b\n" +
 	"\x10\vR\vaccess_dateR\x05claimR\x10source_text_read\"\xfb\f\n" +
@@ -8659,15 +8675,15 @@ const file_record_proto_rawDesc = "" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x9c\x04\n" +
 	"\x14DISPOSITION_REMANDED\x10\a\x1a\x81\x04\x8a\xb5\x18\xf8\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\x94\x13\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xfb\x12\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xaf\x03\n" +
 	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\x91\x03\x8a\xb5\x18\x8c\x03you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xd3\x02\n" +
 	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1a\xa9\x02\x8a\xb5\x18\xa4\x02it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xa3\x02\n" +
 	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1a\x89\x02\x8a\xb5\x18\x84\x02it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for is the ground of an `unsourced_claim` gap you mint quoting it\x12\xc7\x02\n" +
 	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\xaa\x02\x8a\xb5\x18\xa1\x02you read the source and it CONTRADICTS the claim. A reading of the work with this outcome is the ground of a `claim_contradicts_source` gap you mint — about the citation, or quoting the sentence for a source you found — and your debt until that gap stands or you read the subject again\x80\xb6\x18\x01\x12\x9f\x04\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\x83\x04\x8a\xb5\x18\xfa\x03you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap\x80\xb6\x18\x01\x12\xc8\x03\n" +
-	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xa7\x03\x8a\xb5\x18\xa2\x03you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read*\xc6\x04\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\x83\x04\x8a\xb5\x18\xfa\x03you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap\x80\xb6\x18\x01\x12\xaf\x03\n" +
+	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\x8e\x03\x8a\xb5\x18\x89\x03you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire it or cite a source a lens can read*\xc6\x04\n" +
 	"\n" +
 	"BridgeKind\x12\x1b\n" +
 	"\x17BRIDGE_KIND_UNSPECIFIED\x10\x00\x12\xa3\x01\n" +

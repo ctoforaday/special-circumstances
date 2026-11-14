@@ -43,6 +43,7 @@ type agyRawLine struct {
 }
 
 type agyToolCall struct {
+	ID   string          `json:"id"`
 	Name string          `json:"name"`
 	Args json.RawMessage `json:"args"`
 }
@@ -129,7 +130,10 @@ func parseInternal(r io.Reader, file string, includeAll bool) (Result, error) {
 				}
 
 				for idx, tc := range al.ToolCalls {
-					callID := fmt.Sprintf("call_%d_%d", al.StepIndex, idx)
+					callID := tc.ID
+					if callID == "" {
+						callID = fmt.Sprintf("call_%d_%d", al.StepIndex, idx)
+					}
 					pendingAgyCalls = append(pendingAgyCalls, callID)
 
 					canonicalName := NormalizeToolName(tc.Name)

@@ -68,24 +68,3 @@ func TestAGuardReadsTheReportItsWriteLandsOn(t *testing.T) {
 		}
 	}
 }
-
-// A MINT RENDERS THE REPORT ONLY WHERE ITS MEASURE READS IT. The budget of a lens whose unit is in
-// the report reads the report in the mint's validation (requireMintWithinBudget); a lens measured on
-// rows of the record renders nothing.
-func TestAMintRendersTheReportOnlyWhereItsMeasureReadsIt(t *testing.T) {
-	calls := everyInput(t)
-	run := newStage(t).cast("red-lens-voice").ingest().register("red-lens-voice").seed()
-	if _, err := Append(Identity{Run: run, SeatID: "red-lens-voice"}, highMint("G1")); err != nil {
-		t.Fatalf("the mint: %v", err)
-	}
-	if *calls != 1 {
-		t.Errorf("a voice lens's mint rendered the report %d times, want once", *calls)
-	}
-	*calls = 0
-	if _, err := Append(Identity{Run: run, SeatID: evLens}, highMint("G2")); err != nil {
-		t.Fatalf("the evidence mint: %v", err)
-	}
-	if *calls != 0 {
-		t.Errorf("an evidence lens's mint, measured on citations, rendered the report %d times, want none", *calls)
-	}
-}

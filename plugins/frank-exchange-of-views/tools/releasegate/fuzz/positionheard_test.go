@@ -177,8 +177,7 @@ func lastWithholdEpoch(form string, maxEpochs int) int {
 func finalEpoch(epoch, maxEpochs int) bool { return maxEpochs > 0 && epoch >= maxEpochs }
 
 // mintHeldTrifle is the gaps run's lens minting, once, a gap of a class that is never material, at
-// a sitting after the first where it holds no gap of its own open (the budget refuses a second
-// open one). A gap that is not material readies no seat and holds no PASS, so it stands open, with
+// a sitting after the first where it holds no gap of its own open. A gap that is not material readies no seat and holds no PASS, so it stands open, with
 // no exchange on it, at the chair's next permitted PASS — the open gap the bench names. The bench's
 // remand of it readies its lens and blue, who answer and close it, and the run then passes.
 func (r *runner) mintHeldTrifle(seatID string) {

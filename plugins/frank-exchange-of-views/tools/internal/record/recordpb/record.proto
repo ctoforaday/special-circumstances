@@ -558,7 +558,7 @@ enum SourceOutcome {
     (finds_against) = true];
   SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation is the ground of a `citation_figure_misattribution` gap you mint about it, and your debt until that gap stands or you read it again; on a source you found it records what the source does not say, and on a sentence no citation or computation marks it is the ground of an `unsourced_claim` gap",
     (finds_against) = true];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
-  SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read"];
+  SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, asking blue to retire it or cite a source a lens can read"];
 }
 
 // BridgeKind is WHAT a `supports_with_bridge` reading bridged — the three things that outcome's own
@@ -1410,6 +1410,14 @@ message Cite {
   // without it is refused (judgeAct), and a cite migrated from before the field holds none.
   optional string fetched_at = 27 [(prose) = false];
 
+  // WHEN THE WEB ARCHIVE TOOK THE COPY, stamped from the fetch index like the five above, on a copy
+  // the tool took from a web archive and on no other: the archive's timestamp for the capture, RFC
+  // 3339 UTC. fetched_at is when the run took the bytes; this is when the url said what they say, and
+  // the two can be years apart. A copy of the url's own bytes has none, so it is set only beside a
+  // copy_url; on the event because run-archive keeps no cache. A cite migrated from before the field
+  // holds none.
+  optional string copy_captured_at = 28 [(prose) = false];
+
   // answers is the gap this citation is placed as the answer to, typed --answers: the citation half
   // of an evidence anchor's answer (Computation.answers is the other), read through the
   // evidence_anchor view by the gap's live-answer demand.
@@ -1868,7 +1876,7 @@ enum LogType {
   LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (defined_term) = "friction"];
   // REFUSAL IS EVERY OTHER NO THE TOOL GIVES A SEAT, written by the tool at the moment it refuses.
   // On universe-m13 seats met a dozen refusals — a flag guessed from another verb, a field name
-  // typed as a flag, a mint refused at its budget — and filed none: each was classed as the seat's
+  // typed as a flag — and filed none: each was classed as the seat's
   // own mistake. The guess is the operator's signal, whoever made it, so the tool keeps it.
   LOG_TYPE_REFUSAL = 6 [(seat_may_file) = false, (means) = "the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from"];
   // FAILURE IS WHAT A REFUSAL CANNOT SEE: a seat's tool call that failed outside the record tool — a

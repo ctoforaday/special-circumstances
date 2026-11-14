@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -551,5 +552,33 @@ func TestProjectDirComesFromTheSessionTranscript(t *testing.T) {
 	db.QueryRow(`SELECT project_dir FROM session WHERE session_id='S'`).Scan(&dir)
 	if want := filepath.Dir(sess.Path); dir != want {
 		t.Errorf("project_dir = %q, want %q — an agent file overwrote it", dir, want)
+	}
+}
+
+func TestAntigravitySystemMessageIngestsAsNotificationWithoutUnknownOrigin(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "brain", "S", ".system_generated", "logs", "transcript.jsonl")
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sysLine := `{"step_index":0,"source":"SYSTEM","type":"SYSTEM_MESSAGE","status":"DONE","created_at":"2026-11-14T18:00:00Z","content":"Background task task-123 completed"}`
+	if err := os.WriteFile(p, []byte(sysLine+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db := store(t)
+	if _, err := IngestFile(db, TranscriptFile{Path: p, SessionID: "S"}); err != nil {
+		t.Fatal(err)
+	}
+	var role string
+	if err := db.QueryRow(`SELECT role FROM word WHERE session_id='S'`).Scan(&role); err != nil {
+		t.Fatal(err)
+	}
+	if role != string(SpeakerNotification) {
+		t.Errorf("stored word role = %q, want %q (never unknown_origin)", role, SpeakerNotification)
+	}
+	idx := strings.Index(sysLine, "task-123")
+	hit, ok := DecodeHit(sysLine, []Span{{Start: idx, End: idx + len("task-123"), Text: "task-123"}}, false)
+	if !ok || hit.Channel != ChannelNotification {
+		t.Errorf("DecodeHit channel = %q (ok=%v), want %q matching stored role", hit.Channel, ok, ChannelNotification)
 	}
 }

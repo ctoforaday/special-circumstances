@@ -199,7 +199,7 @@ func TestTwoConcurrentMintsAreOneGapAndOneRefusal(t *testing.T) {
 }
 
 // THE GAP A FAILED CHECK OBLIGES IS NOT A SECOND GAP. A lens whose reading of a citation read nothing
-// owes a gap about it, outside its budget; another lens's open gap of the same class on the cited
+// owes a gap about it; another lens's open gap of the same class on the cited
 // sentence does not refuse it, since the gap is about the anchor, and the finding the refusal would
 // point to does not answer the check. A quote gap of that class on that sentence is refused as ever.
 func TestTheGapAFailedCheckObligesIsNotRefusedAsASecondGap(t *testing.T) {

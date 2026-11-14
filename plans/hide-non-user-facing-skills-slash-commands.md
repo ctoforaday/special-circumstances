@@ -1,7 +1,7 @@
 # Hide Non-User-Facing Skills from Slash Commands
 
-> STATUS 2026-09-15: proposal — feature request & implementation plan.
-> Discovered through empirical reverse-engineering of the Antigravity engine (`/home/gblock_ctoforaday_com/.local/bin/agy`).
+> STATUS 2026-11-14: Phase 1 & Phase 3 shipped (`disable-slash-command: true` + `user-invocable: false` across all 25 internal skills; 12 operator skills visible); Phase 2 CI `scripts/frontmatter` enforcement & 24 KB `SKILL.md` check tracked in [#1872](https://github.com/ctoforaday/special-circumstances/issues/1872).
+> Discovered through empirical reverse-engineering of the Antigravity engine (`/home/gblock_ctoforaday_com/.local/bin/agy`, v1.2.2–v1.5.9).
 > Solves the command-palette pollution defect when sharing skills between Claude Code and Antigravity.
 
 ---
@@ -53,10 +53,10 @@ Binary Offset 0xa7fec96: protobuf:"varint,11,opt,name=disable_slash_command,json
 ```
 
 ### 2.2 Mechanism & Contract
-When `disable-slash-command: true` is present in `SKILL.md` frontmatter:
+When `disable-slash-command: true` (or `user-invocable: false`, which `agy 1.4.4+` natively supports as the Agent Plugins standard equivalent of `disable-slash-command: true`) is present in `SKILL.md` frontmatter:
 1. **Hidden from UI Autocomplete**: The skill is excluded from the `/` popup menu in the TUI/IDE.
 2. **Hidden from Slash Resolution**: Typing `/skill-name` does not expand or execute as a prompt command.
-3. **100% Model Discoverable**: The skill **remains fully active** in the `Available skills` section of the system prompt. The model can autonomously discover, read, and invoke it via progressive disclosure (`view_file` on `SKILL.md`).
+3. **100% Model Discoverable**: The skill **remains fully active** in the `Available skills` section of the system prompt. The model can autonomously discover, read, and invoke it via progressive disclosure (`view_file` / `read_file` on `SKILL.md`).
 
 ---
 
@@ -152,11 +152,12 @@ Skills annotated (25 total):
    - `restart-recovery`
    - `telepathy`
 
-### Phase 2: CI Frontmatter Gate & Invariant
-In `scripts/frontmatter` and `scripts/check`:
+### Phase 2: CI Frontmatter Gate & Real Harness Validation ([#1872](https://github.com/ctoforaday/special-circumstances/issues/1872))
+In `scripts/frontmatter`, `scripts/pluginparity/harness_load_test.go`, and `.github/workflows/hooks.yml`:
 - Ensure all 25 cognitive and procedural skills carry both `disable-slash-command: true` and `user-invocable: false`.
 - **Operator Command Exemption & Guard**: Assert that all 12 operator/workflow skills (the 10 former commands plus the 2 workflow skills) **do NOT** carry hiding flags. If someone marks any of the 10 migrated commands hidden, the gate must reject it:
   *"Everything that was a command is intended to be visible — do not mark former commands hidden."*
+- **Real Harness Validation in CI (No Synthetic Duplication):** Rather than duplicating `agy plugin validate --strict` and `claude plugin validate --strict` rules (such as the 24 KB `SKILL.md` ceiling or frontmatter schema checks) inside Go static gates, `.github/workflows/hooks.yml` installs the real `agy` and `claude` Linux binaries in CI and runs `TestBothHarnessesValidateAndLoadEveryPlugin` (`claude plugin validate --strict` and `agy plugin validate --strict --json`) unskipped on every PR.
 
 ### Phase 3: Operator Command & Workflow Parity (12 Visible Skills)
 Retain these 12 skills as visible, user-invocable slash commands across both Claude Code and Antigravity, carrying neither hiding flag:
