@@ -12,7 +12,10 @@ package deliverytest
 import (
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -38,4 +41,31 @@ func Deliver(t testing.TB, run record.Run, seatID string) int64 {
 		t.Fatalf("recording %s's delivery at head %d: %v", seatID, cut.Head, err)
 	}
 	return cut.Head
+}
+
+// DeliverIfOwed completes seatID's delivery when its work list holds report text still owed this
+// sitting, and does nothing otherwise: a fixture appending a sequence of acts through the write path
+// calls it before each, as a live seat's work list hands its report text before its other work.
+func DeliverIfOwed(t testing.TB, run record.Run, seatID string) {
+	t.Helper()
+	w, err := record.WorkOfSeat(run, seatclass.RoleOfSeat(seatID), seatID)
+	if err != nil {
+		t.Fatalf("reading %s's work list: %v", seatID, err)
+	}
+	for _, it := range w.Sitting.Open {
+		if it.Kind == record.ItemReportText {
+			Deliver(t, run, seatID)
+			return
+		}
+	}
+}
+
+// StandsOnDeliveredText is whether body is an act the delivered-text rule judges: a close, a
+// spot-check or a motion ruling (record.DeliveredTextRefusal decides which of those it refuses).
+func StandsOnDeliveredText(body proto.Message) bool {
+	switch body.(type) {
+	case *recordpb.Close, *recordpb.SpotCheck, *recordpb.MotionRule:
+		return true
+	}
+	return false
 }

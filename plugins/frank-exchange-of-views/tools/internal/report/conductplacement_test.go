@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -126,6 +127,9 @@ func assembleWithOutcome(t *testing.T, outcome *recordpb.Outcome) (report, runmd
 		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seat}
 		if _, _, err := record.RegisterSeat(id, "", benchOccasion(id.SeatID)); err != nil {
 			t.Fatalf("register %s: %v", seat, err)
+		}
+		if deliverytest.StandsOnDeliveredText(body) {
+			deliverytest.DeliverIfOwed(t, id.Run, id.SeatID)
 		}
 		if _, err := record.Append(id, body); err != nil {
 			t.Fatalf("append %s/%T: %v", seat, body, err)
