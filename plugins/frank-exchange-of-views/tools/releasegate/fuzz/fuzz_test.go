@@ -792,6 +792,11 @@ type runner struct {
 	// about a one-in-four chance of ending there (see directives), so the chance a run reaches
 	// VERIFIED falls with every gap a run mints: seven lenses mint about seven.
 	forceVerified bool
+	// forceQualified is a forced-PASS run whose PASS derives QUALIFIED: blue covers its question part
+	// as not obtained (nextPartCoverage), and the chair's PASS over it is the one a PASS over a part not
+	// covered derives. Only the forced runs reach a PASS, so a drawn coverage never meets one
+	// (forcedPassSeeds names which forced run takes which outcome).
+	forceQualified bool
 	// forceReopenedComputation drives one computation through judgement and reopening on a reopenedComputationSeed
 	// run: blue computes on the sentence the edit drive rewrites, the owner judges the computation when its
 	// work list offers it, blue rewrites the sentence, and the next plan readies the owner for the
@@ -6433,8 +6438,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				findArgs := []string{"finding", "--seat-id", seatID,
 					"--severity", severity, "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz finding"}
 				aboutGap := ""
-				if k, ref := r.aboutAnchor(); k != "" && r.coin(30) {
-					findArgs = append(findArgs, "--about-kind", k, "--about", ref)
+				k, ref := r.aboutAnchor()
+				// A FINDING ABOUT THE QUESTION: about one of its parts, or, one time in four, about the
+				// question as a whole, which names no part. It is drawn here and not in aboutAnchor, which
+				// mintWith also draws from: a gap about a part moves the part's check, a finding does not.
+				if part := r.someQuestionPart(); part != "" && r.coin(20) {
+					k, ref = "question", part
+					if r.coin(25) {
+						ref = ""
+					}
+				}
+				if k != "" && r.coin(30) {
+					findArgs = append(findArgs, "--about-kind", k)
+					if ref != "" {
+						findArgs = append(findArgs, "--about", ref)
+					}
 					if k == "gap" {
 						aboutGap = ref
 					}
@@ -7019,6 +7037,10 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 //
 // The error names the value AND the keys that were present, because "no verdict" alone does
 // not separate a result that arrived empty from one that arrived with a different shape.
+// passOutcome is whether a run's outcome is one a PASS derives: VERIFIED, or QUALIFIED where a question
+// part is not covered (record.DeriveVerdict). Every oracle that holds a PASS to the board holds both.
+func passOutcome(word string) bool { return word == "VERIFIED" || word == "QUALIFIED" }
+
 func readVerdict(result map[string]any) (string, error) {
 	raw, present := result["verdict"]
 	if !present {
@@ -7220,6 +7242,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
+	r.forceQualified = forceVerified && forcedPassSeeds[seed] == "QUALIFIED"
 	r.forceReopenedComputation = seed == reopenedComputationSeed
 	r.forceUnsoundComputation = seed == unsoundComputationSeed
 	r.forceOwedComputation = seed == owedComputationSeed
@@ -7368,7 +7391,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = o
 		return res
 	}
-	if r.lastPassRefusal != "" && res.verdict != "VERIFIED" {
+	if r.lastPassRefusal != "" && !passOutcome(res.verdict) {
 		res.why = "PASS refused: " + r.lastPassRefusal
 		if r.lastRuleRefusal != "" {
 			res.why += " ‖ last ruling refused: " + r.lastRuleRefusal
@@ -7799,7 +7822,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	lastPlanWhy(&res, board)
 	// A RUN THAT ENDS WITH A READING DEBT STANDING IS COUNTED, and its reason names the debt.
 	r.tallyDebtsAtEnd(&res)
-	if res.verdict != "VERIFIED" {
+	if !passOutcome(res.verdict) {
 		res.why += r.positionRouteClause()
 	}
 	{
@@ -7991,13 +8014,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err = fmt.Sprintf("outcome oracle: debate.js ended the run %s and the record's outcome is %q — the assembly's `bench outcome` was refused, or recorded another word", verdict, recorded)
 			return res
 		}
-		if recorded == "VERIFIED" && !permitted {
-			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED over a board that does not permit a PASS (%d gap(s) open, material or not) — a pass over unfinished work", openCount)
+		if passOutcome(recorded) && !permitted {
+			res.err = fmt.Sprintf("verdict oracle: the run recorded %s over a board that does not permit a PASS (%d gap(s) open, material or not) — a pass over unfinished work", recorded, openCount)
 			return res
 		}
 		// NO PASS OVER AN ANCHOR NOBODY CHECKED, OR ONE WHOSE CHECK FAILED — the record's own answer,
 		// read at the run's end, not a hand copy of the rule.
-		if recorded == "VERIFIED" {
+		if passOutcome(recorded) {
 			bs, berr := record.PassBlockers(oracleRun)
 			if berr != nil {
 				res.err = "anchor oracle: the PASS blockers could not be read at the run's end: " + berr.Error()
@@ -8005,7 +8028,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 			for _, b := range bs {
 				if b.Kind == record.BlockerUnchecked || b.Kind == record.BlockerFailedCheck {
-					res.err = fmt.Sprintf("anchor oracle: the run recorded VERIFIED while %s stands %s — a pass over a citation or computation no check has read", b.Subject, b.Kind)
+					res.err = fmt.Sprintf("anchor oracle: the run recorded %s while %s stands %s — a pass over a citation or computation no check has read", recorded, b.Subject, b.Kind)
 					return res
 				}
 			}
@@ -8285,7 +8308,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 // Any other verdict holds no inquiry to anything — a run that could not get its inquiries sound ends
 // CEILING, which the verdict oracle reads.
 func inquirySoundOracle(run record.Run, verdict string) string {
-	if verdict != "VERIFIED" {
+	if !passOutcome(verdict) {
 		return ""
 	}
 	db, err := recordsql.Open(filepath.Join(run.Records(), "record.db"))
@@ -10067,11 +10090,11 @@ func TestReadVerdictRefusesAResultThatCarriesNoVerdict(t *testing.T) {
 	}
 }
 
-// AND THE FOUR REAL VERDICTS STILL PASS. debate.js computes exactly these; a guard that also
+// AND THE FIVE REAL VERDICTS STILL PASS. debate.js computes exactly these; a guard that also
 // rejected one of them would turn a working sweep red and be indistinguishable, from the
 // outside, from the bug it replaced.
 func TestReadVerdictAcceptsEveryVerdictDebateJSComputes(t *testing.T) {
-	for _, want := range []string{"HALTED", "VERIFIED", "CEILING", "UNVERIFIED"} {
+	for _, want := range []string{"HALTED", "VERIFIED", "QUALIFIED", "CEILING", "UNVERIFIED"} {
 		got, err := readVerdict(map[string]any{"verdict": want, "epochs": int64(1)})
 		if err != nil {
 			t.Errorf("readVerdict rejected %q, which debate.js line 1166 can produce: %v", want, err)
@@ -10569,7 +10592,7 @@ func converseVerdictOracle(recorded string, board record.Family) string {
 // epoch 12 of 12 with every gap closed by red and one blocker, "lens red-lens-computation is ready":
 // it held eleven computations nobody had judged and the last edit had moved the head past its pin.
 func unfinishedOverRedsWork(recorded string, gaps, open, benchClosed int, blockers []record.PlanBlocker) bool {
-	if recorded == "" || recorded == "VERIFIED" || recorded == "HALTED" || gaps == 0 || open > 0 || benchClosed > 0 {
+	if recorded == "" || passOutcome(recorded) || recorded == "HALTED" || gaps == 0 || open > 0 || benchClosed > 0 {
 		return false
 	}
 	return !slices.ContainsFunc(blockers, func(b record.PlanBlocker) bool { return b.Owner != "red-chair" })
@@ -10597,6 +10620,7 @@ func TestTheConverseVerdictOracleFiresOnlyOverWorkRedFinished(t *testing.T) {
 		{"a gap the bench closed", "CEILING", 3, 0, 1, nil, false},
 		{"no gaps", "CEILING", 0, 0, 0, nil, false},
 		{"VERIFIED", "VERIFIED", 3, 0, 0, nil, false},
+		{"QUALIFIED", "QUALIFIED", 3, 0, 0, nil, false},
 		{"HALTED", "HALTED", 3, 0, 0, nil, false},
 	} {
 		if got := unfinishedOverRedsWork(c.recorded, c.gaps, c.open, c.benchClosed, c.blockers); got != c.fires {

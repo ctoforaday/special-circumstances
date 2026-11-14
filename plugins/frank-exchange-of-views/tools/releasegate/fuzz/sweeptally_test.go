@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -583,9 +584,9 @@ type sweepFold struct {
 	whyHist, dcov                        map[string]int
 	citeAnchors, cacheFiles, editAnswers int
 	forcedVerdict, forcedWhy             string
-	// verifiedExits is each forced-VERIFIED run's exit, by seed: verifiedSeed's and each position
-	// seed's (forcedVerifiedSeeds).
-	verifiedExits                                   map[int64]forcedExit
+	// passExits is each forced-PASS run's exit, by seed: verifiedSeed's and each position seed's
+	// (forcedPassSeeds).
+	passExits                                       map[int64]forcedExit
 	verifiedBasis, foundByMints                     int
 	verbatimApplied, typedVerbatim, estoppels       int
 	inquiryRecords, quotesRefused                   int
@@ -664,7 +665,7 @@ func foldRuns(runs []runTally) sweepFold {
 	f := sweepFold{
 		verdicts: map[string]int{}, epochHist: map[int]int{}, whyHist: map[string]int{}, dcov: map[string]int{},
 		copiesRead: map[string]map[string]int{}, computationReopenedReadied: map[string]int{}, owedKeptBy: map[string]int{},
-		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, partRefused: map[string]int{}, verifiedExits: map[int64]forcedExit{},
+		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, partRefused: map[string]int{}, passExits: map[int64]forcedExit{},
 		finalBlockers: map[string]map[string]int{}, finalParties: map[string]map[string]int{}, openByFoundBy: map[string]map[string]int{},
 		mintsByEpoch: map[int]int{}, closesByEpoch: map[int]int{},
 		inquiryCheckRefused: map[string]int{},
@@ -683,8 +684,8 @@ func foldRuns(runs []runTally) sweepFold {
 		if r.Seed == unverifiedSeed {
 			f.forcedVerdict, f.forcedWhy = r.Verdict, r.Why
 		}
-		if slices.Contains(forcedVerifiedSeeds, r.Seed) {
-			f.verifiedExits[r.Seed] = forcedExit{verdict: r.Verdict, why: r.Why}
+		if forcedPassSeeds[r.Seed] != "" {
+			f.passExits[r.Seed] = forcedExit{verdict: r.Verdict, why: r.Why}
 		}
 		f.epochHist[r.Epochs]++
 		if r.EpochLimit {
@@ -1422,16 +1423,18 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 				"reports that as a missing WORD rather than as this declining DRIVER.%s",
 				unverifiedSeed, f.forcedVerdict, forcedWhyClause(f.forcedWhy))
 		}
-		// AND THE FORCED-VERIFIED DRIVES, for the same reason: the run that exists to write the word
-		// went somewhere else, and this names where. A position seed's run is one of them: its bench's
+		// AND THE FORCED-PASS DRIVES, for the same reason: the run that exists to write the word went
+		// somewhere else, and this names where. A position seed's run is one of them: its bench's
 		// ruling leaves a route to the PASS — the named lens audits on the direction, the named gap's
 		// exchange closes it, or the chair's next sitting records the PASS — and a run that ends
-		// anywhere else is a ruling the record left with no way out.
-		for _, seed := range forcedVerifiedSeeds {
-			if x := f.verifiedExits[seed]; x.verdict != "VERIFIED" {
-				t.Errorf("the forced-VERIFIED run on seed %d%s ended %q, not VERIFIED — the drive that makes "+
-					"`outcome --as VERIFIED` a fact rather than a draw did not deliver.%s",
-					seed, positionClause(seed), x.verdict, forcedWhyClause(x.why))
+		// anywhere else is a ruling the record left with no way out. Each is held to the outcome its
+		// PASS derives: VERIFIED, or QUALIFIED where blue covered its question part as not obtained.
+		for _, seed := range slices.Sorted(maps.Keys(forcedPassSeeds)) {
+			want := forcedPassSeeds[seed]
+			if x := f.passExits[seed]; x.verdict != want {
+				t.Errorf("the forced-%s run on seed %d%s ended %q, not %s — the drive that makes "+
+					"`outcome --as %s` a fact rather than a draw did not deliver.%s",
+					want, seed, positionClause(seed), x.verdict, want, want, forcedWhyClause(x.why))
 			}
 		}
 		if !p.MootSpent {
@@ -1545,9 +1548,16 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 // forcedExit is a forced run's verdict and the reason it ended there.
 type forcedExit struct{ verdict, why string }
 
-// forcedVerifiedSeeds are the seeds whose runs are forced to VERIFIED: verifiedSeed, and each seed
-// whose chair withholds its first permitted PASS for the bench to rule (positionFormOf).
-var forcedVerifiedSeeds = []int64{verifiedSeed, positionLensSeed, positionGapsSeed, positionOverruledSeed}
+// forcedPassSeeds are the seeds whose runs are forced to a PASS, each with the outcome that PASS
+// derives: verifiedSeed, and each seed whose chair withholds its first permitted PASS for the bench to
+// rule (positionFormOf). Only these runs reach a PASS, so the QUALIFIED one is the sweep's only drive of
+// `outcome --as QUALIFIED`: its blue covers the question's part as not obtained (nextPartCoverage).
+var forcedPassSeeds = map[int64]string{
+	verifiedSeed:          "VERIFIED",
+	positionLensSeed:      "QUALIFIED",
+	positionGapsSeed:      "VERIFIED",
+	positionOverruledSeed: "VERIFIED",
+}
 
 // positionClause names the ruling a position seed's run is forced to, "" for any other seed.
 func positionClause(seed int64) string {

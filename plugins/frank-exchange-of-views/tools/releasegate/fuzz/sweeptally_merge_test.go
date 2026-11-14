@@ -144,7 +144,7 @@ func TestThePartsFoldToWhatTheWholeSweepFolds(t *testing.T) {
 	const n, of = 12, 4
 	whole := sampleRuns(t, n)
 	want := foldRuns(whole)
-	if want.completed != n || want.forcedVerdict == "" || !hasForcedVerifiedExits(want) || !want.limitForced {
+	if want.completed != n || want.forcedVerdict == "" || !hasForcedPassExits(want) || !want.limitForced {
 		t.Fatalf("the sample does not reach the forced seeds' facts: %+v", want)
 	}
 
@@ -328,11 +328,11 @@ func TestTheFoldReadsEveryRunFieldAndWritesEveryFoldField(t *testing.T) {
 	}
 }
 
-// hasForcedVerifiedExits is whether the fold kept the exit of verifiedSeed's run and of each
-// position seed's: the gate holds each to VERIFIED, and an exit the fold drops is one it never asks.
-func hasForcedVerifiedExits(f sweepFold) bool {
-	for _, seed := range []int64{verifiedSeed, positionLensSeed, positionGapsSeed, positionOverruledSeed} {
-		if f.verifiedExits[seed].verdict == "" {
+// hasForcedPassExits is whether the fold kept the exit of every forced-PASS run (forcedPassSeeds):
+// the gate holds each to the outcome its PASS derives, and an exit the fold drops is one it never asks.
+func hasForcedPassExits(f sweepFold) bool {
+	for seed := range forcedPassSeeds {
+		if f.passExits[seed].verdict == "" {
 			return false
 		}
 	}

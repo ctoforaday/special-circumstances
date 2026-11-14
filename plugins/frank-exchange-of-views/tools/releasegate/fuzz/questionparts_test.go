@@ -15,18 +15,23 @@ import (
 // no standing check each hold the PASS, so a drive that skipped any of them would end every run
 // UNVERIFIED and leave VERIFIED undriven.
 
-// partCoverages is the round-robin the drive's coverage records draw from: covered twice in four, so a
-// run ends VERIFIED as well as QUALIFIED, and each value not covered once. PACKAGE-LEVEL AND ATOMIC for
+// partCoverages is the round-robin the drive's coverage records draw from: covered twice in four, and
+// each value not covered once, so every coverage is recorded and checked. The outcome a PASS derives is
+// the forced runs' (nextPartCoverage): a drawn run reaches no PASS. PACKAGE-LEVEL AND ATOMIC for
 // the reason inquiryTick is: a run records a part or two, and a per-run counter would never reach the
 // values past its first.
 var partCoverages = []string{"covered", "not_obtained", "covered", "excluded"}
 
 var partCoverageTick atomic.Int64
 
-// nextPartCoverage is the coverage a drawn record states: the round-robin's, and covered in a run forced
-// to a verdict, whose outcome is the one it is forced to.
+// nextPartCoverage is the coverage a drawn record states: the round-robin's, and in a run forced to a
+// verdict the one that verdict wants — not obtained where the forced PASS derives QUALIFIED, covered
+// otherwise. A drawn run reaches no PASS (only the forced runs do), so QUALIFIED is a forced run's word.
 func (r *runner) nextPartCoverage() string {
-	if r.forcedVerdict() {
+	switch {
+	case r.forceQualified:
+		return "not_obtained"
+	case r.forcedVerdict():
 		return "covered"
 	}
 	return partCoverages[int(partCoverageTick.Add(1)-1)%len(partCoverages)]
