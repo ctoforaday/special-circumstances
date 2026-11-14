@@ -2497,6 +2497,12 @@
   SEARCH f USING COVERING INDEX finding_key (finding_key=?)
   SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
+== stmt 75b56e05280b
+-- SELECT f."id", e."seat_id", COALESCE(f."about_ref", ''), f."event_id" FROM "finding" f JOIN "events" e ON e."id" = f."event_id" WHERE f."about_kind" = 'question' ORDER BY f."event_id"
+  SEARCH f USING INDEX finding_about (about_kind=?)
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+  USE TEMP B-TREE FOR ORDER BY
+
 == stmt d1e7bd5ef2f7
 -- SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''), g."material", COALESCE(g."class_material", ''), COALESCE(g."unruled_docket_filed", 0), COALESCE(g."unruled_docket_motion", ''), COALESCE(g."docket_direction", ''), COALESCE(g."about_kind", ''), COALESCE(g."about_ref", '') FROM "gap" g WHERE g."open" ORDER BY g."minted_event"
   SCAN s USING INDEX gap_state_open

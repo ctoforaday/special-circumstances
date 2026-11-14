@@ -255,6 +255,9 @@ CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a retire's reach
 -- (record.reachingRetiresOf) and by the demand_reach view gap_refresh and the gap-state markers read.
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
+-- The findings about the question, which the logic lens's item for a part's check and blue-respond's
+-- question item list (record.questionFindingsAt).
+CREATE INDEX "finding_about" ON "finding" ("about_kind", "about_ref");
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
 CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");

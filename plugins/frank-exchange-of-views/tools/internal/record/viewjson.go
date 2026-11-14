@@ -1120,6 +1120,9 @@ type workReads struct {
 	remands map[string][]remandRow
 	// parts is every question part (questionPartsAt), on the list's snapshot.
 	parts []QuestionPartRow
+	// wholeQuestion is the findings about the question as a whole since its latest split
+	// (wholeQuestionNotesOf), on the same snapshot.
+	wholeQuestion []string
 }
 
 // reportRender is the report folded from one snapshot's source (the checkpoint and the ops after it,
@@ -1189,6 +1192,11 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	if r.parts, err = questionPartsAt(q); err != nil {
 		return r, err
 	}
+	found, err := questionFindingsAt(q)
+	if err != nil {
+		return r, err
+	}
+	r.wholeQuestion = wholeQuestionNotesOf(r.parts, found)
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1571,7 +1579,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found, parts: r.parts}
+	reads := sittingReads{unverifiable: unverifiableIn(r), blueOut: blueHeldOut(params, win.LastEpoch(evs)), found: r.found, parts: r.parts, wholeQuestion: r.wholeQuestion}
 	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	w.sitting = win.LatestSittingOf(seatID)
 	if role == "lens" {

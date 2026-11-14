@@ -66,6 +66,9 @@ type QuestionPartRow struct {
 	proposed, covered, gapMint, lastCheck int64
 	wanting                               int
 	stands                                bool
+	// notes is the findings other lenses filed about the part since its latest coverage, each as
+	// "<id> (<seat>)", which its check's item lists for the owner as an inquiry's does.
+	notes []string
 }
 
 // questionPartsSQL reads the view, in proposal order.
@@ -99,7 +102,80 @@ func questionPartsAt(q recordsql.Querier) ([]QuestionPartRow, error) {
 		p.State = p.state()
 		out = append(out, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	found, err := questionFindingsAt(q)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i].notes = partNotesOf(out[i], found)
+	}
+	return out, nil
+}
+
+// questionFinding is a finding a lens filed about the question: about one of its parts, or, with no
+// part, about the question as a whole.
+type questionFinding struct {
+	id, seat, part string
+	at             int64 // the finding's events.id
+}
+
+// note is the finding as an item lists it.
+func (f questionFinding) note() string { return f.id + " (" + f.seat + ")" }
+
+// questionFindingsSQL reads every finding about the question, in record order.
+const questionFindingsSQL = `SELECT f."id", e."seat_id", COALESCE(f."about_ref", ''), f."event_id"
+  FROM "finding" f JOIN "events" e ON e."id" = f."event_id"
+ WHERE f."about_kind" = 'question' ORDER BY f."event_id"`
+
+// questionFindingsAt is every finding about the question on the record q reads.
+func questionFindingsAt(q recordsql.Querier) ([]questionFinding, error) {
+	rows, err := q.Query(questionFindingsSQL)
+	if err != nil {
+		return nil, fmt.Errorf("asking the record for its findings about the question: %w", err)
+	}
+	defer rows.Close()
+	var out []questionFinding
+	for rows.Next() {
+		var f questionFinding
+		if err := rows.Scan(&f.id, &f.seat, &f.part, &f.at); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
 	return out, rows.Err()
+}
+
+// partNotesOf is the findings about part p that another lens than the owner filed since its latest
+// coverage — the ones its owner's check has not had in hand — as an inquiry's are since its fate.
+func partNotesOf(p QuestionPartRow, found []questionFinding) []string {
+	var out []string
+	for _, f := range found {
+		if f.part == p.ID && f.seat != questionPartOwner && f.at > p.covered {
+			out = append(out, f.note())
+		}
+	}
+	return out
+}
+
+// wholeQuestionNotesOf is the findings about the question as a whole — naming no part — filed since its
+// latest split, which blue-respond's question item lists: such a finding names a part of the question
+// no part covers, and only blue splits one out. Before any split, every one stands.
+func wholeQuestionNotesOf(parts []QuestionPartRow, found []questionFinding) []string {
+	var split int64
+	for _, p := range parts {
+		split = max(split, p.proposed)
+	}
+	var out []string
+	for _, f := range found {
+		if f.part == "" && f.at > split {
+			out = append(out, f.note())
+		}
+	}
+	return out
 }
 
 // QuestionParts is every question part on the run, in proposal order.
@@ -156,7 +232,7 @@ func partBlockersOf(cast bool, parts []QuestionPartRow) []Blocker {
 			out = append(out, Blocker{Kind: BlockerOpenPart, Subject: p.ID, Owner: blueRespondSeat, Detail: p.Text, since: p.proposed})
 		case PartUnchecked:
 			out = append(out, Blocker{Kind: BlockerUncheckedPart, Subject: p.ID, Owner: questionPartOwner, Detail: p.Coverage,
-				since: p.covered, placed: max(p.covered, p.gapMint), lastCheck: p.lastCheck, gapMint: p.gapMint})
+				since: p.covered, placed: max(p.covered, p.gapMint), lastCheck: p.lastCheck, gapMint: p.gapMint, notes: p.notes})
 		}
 	}
 	return out
@@ -181,25 +257,37 @@ func uncheckedPartFact(b Blocker) string {
 }
 
 // uncheckedPartAct is how an unchecked part is judged.
+// uncheckedPartAct is how an unchecked part is judged, with the findings other lenses filed about it
+// since its coverage, so the owner's judgement is not blind to them.
 func uncheckedPartAct(b Blocker) string {
-	return fmt.Sprintf("%s owes the judgement: read its row (`show question`) and the report against it, then `question check --id %s` where its coverage stands as the report's account of that part, or mint the gap about it (`mint --about-kind question --about %s`, class coverage_misstated) where it does not",
+	s := fmt.Sprintf("%s owes the judgement: read its row (`show question`) and the report against it, then `question check --id %s` where its coverage stands as the report's account of that part, or mint the gap about it (`mint --about-kind question --about %s`, class coverage_misstated) where it does not",
 		ownerOr(b, questionPartOwner), b.Subject, b.Subject)
+	if len(b.notes) > 0 {
+		s += ". Findings other lenses filed about it since its coverage: " + strings.Join(b.notes, ", ")
+	}
+	return s
 }
 
 // blueQuestionItemsOf is a blue seat's blocking items for the question: the frontier owes the split
 // while the record holds no part, the synthesizer and blue-respond each part's coverage while it has
 // none, and blue-respond the split as well. A lane owes none: it reads the parts.
-func blueQuestionItemsOf(seatID string, parts []QuestionPartRow) []Item {
+//
+// whole is the findings about the question as a whole since its latest split (wholeQuestionNotesOf):
+// the unsplit item lists them, or, once the question is split, blue-respond's first open part's item.
+func blueQuestionItemsOf(seatID string, parts []QuestionPartRow, whole []string) []Item {
 	switch seatID {
 	case frontierSeat, synthesizerSeat, blueRespondSeat:
 	default:
 		return nil
 	}
+	if seatID != blueRespondSeat {
+		whole = nil
+	}
 	if len(parts) == 0 {
 		if seatID == synthesizerSeat {
 			return nil
 		}
-		return []Item{{Blocks: true, Kind: ItemKind(BlockerQuestionUnsplit), What: unsplitFact() + " — split it before your sitting ends: one `question split` for each part of the question a reader would ask answered, in the subject's terms. A part not split out is a part nothing holds the report to, and the PASS is refused while the question has none"}}
+		return []Item{{Blocks: true, Kind: ItemKind(BlockerQuestionUnsplit), What: unsplitFact() + " — split it before your sitting ends: one `question split` for each part of the question a reader would ask answered, in the subject's terms. A part not split out is a part nothing holds the report to, and the PASS is refused while the question has none" + wholeQuestionClause(whole)}}
 	}
 	if seatID == frontierSeat {
 		return nil
@@ -210,9 +298,19 @@ func blueQuestionItemsOf(seatID string, parts []QuestionPartRow) []Item {
 			continue
 		}
 		out = append(out, Item{Blocks: true, Kind: ItemKind(BlockerOpenPart), Subject: about(SubjectQuestionPart, p.ID),
-			What: fmt.Sprintf("question part %s (%q) has no coverage recorded — record it before your sitting ends (`question cover --id %s --as covered|not_obtained|excluded --reason \"...\"`): covered where the report answers it, not_obtained where the sources that would answer it could not be obtained, excluded where it lies outside the report's answer. The PASS is refused while it has none, and a part not covered derives QUALIFIED", p.ID, p.Text, p.ID)})
+			What: fmt.Sprintf("question part %s (%q) has no coverage recorded — record it before your sitting ends (`question cover --id %s --as covered|not_obtained|excluded --reason \"...\"`): covered where the report answers it, not_obtained where the sources that would answer it could not be obtained, excluded where it lies outside the report's answer. The PASS is refused while it has none, and a part not covered derives QUALIFIED", p.ID, p.Text, p.ID) + wholeQuestionClause(whole)})
+		whole = nil
 	}
 	return out
+}
+
+// wholeQuestionClause lists the findings about the question as a whole on blue's question item, ""
+// where none stands.
+func wholeQuestionClause(whole []string) string {
+	if len(whole) == 0 {
+		return ""
+	}
+	return ". Findings lenses filed about the question as a whole since it was last split, each naming a part of it no question part covers — split that part out (`question split`) where the report owes it an answer: " + strings.Join(whole, ", ")
 }
 
 // The blue seats the question's items are for.

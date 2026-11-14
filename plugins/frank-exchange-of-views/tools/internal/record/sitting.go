@@ -126,6 +126,9 @@ type sittingReads struct {
 	found []locatedReading
 	// parts: the question parts (questionPartsAt), read on the list's snapshot.
 	parts []QuestionPartRow
+	// wholeQuestion: the findings about the question as a whole since its latest split
+	// (wholeQuestionNotesOf), which blue-respond's question item lists.
+	wholeQuestion []string
 }
 
 // unverifiableFunc says why no check can reach an evidence anchor's sentence in the report as it
@@ -349,7 +352,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// THE QUESTION'S SPLIT AND EACH PART'S COVERAGE ARE BLUE'S (questionpart.go): the frontier owes
 		// the split, the synthesizer each part's coverage, blue-respond both while they hold the PASS.
 		if castOfEvents(evs) != nil {
-			s.Open = append(s.Open, blueQuestionItemsOf(seatID, reads.parts)...)
+			s.Open = append(s.Open, blueQuestionItemsOf(seatID, reads.parts, reads.wholeQuestion)...)
 		}
 		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage`
 		// (successorsOwedOnTheWorkList): the record names the successor, and blue sits on it a second
