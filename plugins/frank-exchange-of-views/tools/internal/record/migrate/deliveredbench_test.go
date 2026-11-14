@@ -16,7 +16,8 @@ import (
 // DeliveredBenchSource is an old record whose bench rules on a delivery, which no archived bench
 // sitting holds: every archived opinion and every archived bench ruling on a motion about gaps is a
 // lost act, as is every archived spot-check, so a translation of each is exercised here. A lens
-// registers, is served the report, mints two gaps and closes G2 not a defect; blue edits G1's
+// registers, is served the report, mints two gaps and closes G2 not a defect, naming G2 itself and G1 among its anchors as m30's
+// closures did; blue edits G1's
 // sentence; the chair registers, is served the report at that edit, and spot-checks the lens's area;
 // the bench registers, is served the report at the edit, and rules both — G1 deferred under the shard era's word "carried" with what would settle
 // it, G2 not a defect, after its lens closed it, with what would reopen it. It returns the run
@@ -49,6 +50,7 @@ func DeliveredBenchSource(t *testing.T) string {
 		`CREATE TABLE "report_read" ("event_id" INTEGER PRIMARY KEY, "head" INTEGER)`,
 		`CREATE TABLE "mint" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT, "class" TEXT, "location" TEXT, "problem" TEXT, "required_fix" TEXT, "acceptance_check" TEXT, "severity" TEXT, "mint_reason" TEXT, "check_kind" TEXT, "likelihood" TEXT, "impact" TEXT)`,
 		`CREATE TABLE "close" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT NOT NULL, "closure_class" TEXT, "anchor_seat" TEXT, "anchor_tool" TEXT, "anchor_target" TEXT, "carried_from" TEXT, "successor" TEXT, "prose" TEXT)`,
+		`CREATE TABLE "close_anchors" ("event_id" INTEGER NOT NULL, "ord" INTEGER NOT NULL, "value" TEXT NOT NULL, PRIMARY KEY ("event_id", "ord"))`,
 		`CREATE TABLE "blue_edit" ("event_id" INTEGER PRIMARY KEY, "edit_key" TEXT, "answers" TEXT, "old" TEXT, "new" TEXT, "text" TEXT, "applied_verbatim" INTEGER, "accepted" INTEGER, "exact_span" INTEGER)`,
 		`CREATE TABLE "spot_check" ("event_id" INTEGER PRIMARY KEY, "none" INTEGER, "reason" TEXT)`,
 		`CREATE TABLE "spot_check_areas" ("event_id" INTEGER NOT NULL, "ord" INTEGER NOT NULL, "value" TEXT NOT NULL, PRIMARY KEY ("event_id", "ord"))`,
@@ -75,8 +77,10 @@ func DeliveredBenchSource(t *testing.T) string {
 		exec(`INSERT INTO "mint" VALUES (?, ?, 'guardrail-scope-overclaim', 'A sentence.', 'the problem', 'the fix', 'the check', 'high', 'the reason', 'document', 'medium', 'medium')`,
 			event(lens, "mint"), g)
 	}
+	closed := event(lens, "close")
 	exec(`INSERT INTO "close" ("event_id", "gap_id", "closure_class", "anchor_seat", "anchor_tool", "anchor_target", "prose") VALUES (?, 'G2', 'not_a_defect', ?, 'show report', 'the sentence at head', 'The sentence holds as written.')`,
-		event(lens, "close"), lens)
+		closed, lens)
+	exec(`INSERT INTO "close_anchors" VALUES (?, 0, 'G2'), (?, 1, 'G1')`, closed, closed)
 	exec(`INSERT INTO "register" VALUES (?, 'abc1234')`, event("blue-respond", "register"))
 	edit := event("blue-respond", "blue_edit")
 	exec(`INSERT INTO "blue_edit" ("event_id", "edit_key", "answers", "old", "new") VALUES (?, 'E1', 'G1', 'A sentence.', 'A sentence, sourced.')`, edit)
