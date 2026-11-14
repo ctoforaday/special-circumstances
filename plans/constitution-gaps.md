@@ -441,6 +441,10 @@ seat.
   first after the seat's first call (for a lens the `audit` item carries it). The configurations that seat several get
   nothing at SubagentStart, as today. `WorkJSONBytes` is no longer injected; `show work` still prints the whole list.
   [MODIFY] `delivery.go`: `renderLens` becomes the one renderer of a queue entry for every role.
+- [MODIFY] `sittingwrite/next.go` `WriteNextItem`: **the first non-report item after a sitting's report text hands
+  the whole list** — the standing, the current item and the index (`renderLens`) — once a sitting, because the opening
+  end held the list back behind the report text. The sitting's delivery file records it (`delivered.Listed`); every
+  later item is handed as `nextOf` hands it.
 - [MODIFY] `record/queue.go` `QueueOf`: report-text items open every role's queue, then the items the seat's own act
   clears, then readied gaps, then the rest.
 - [MODIFY] debate.js: `oneItemClause` (debate.js:896, lens prompt only today) is said in the chair's, the bench's and
@@ -598,7 +602,7 @@ is "a complete whole delivery since the ruling": no reader needs a stored kind.
   `head`". No field is added to `ReportRead`. **One epoch bump for P3**, forced by the views and `BlueEdit`'s two
   columns (`recordsql/store.go:613-620`: every change to a table, a column or a view's definition bumps the epoch, and
   `TestEveryDDLChangeBumpsTheEpoch` fails one that does not); the `means` text needs none of its own. **`migrate`: two
-  translations in that bump** — the edits' stamped paragraphs (above), and this one, because the refusals above would refuse
+  translations in that bump** — the edits' stamped paragraphs (above), the dropped acts (below), and this one, because the refusals above would refuse
   an archived sitting holding several serves or a serve under a seat that is not a lens, the chair or the bench: it
   keeps the latest row of each (seat, sitting) and drops the rest and every row of another role, each counted in the
   manifest. Measured: the six archives in `run-archive/` that hold a `report_read` table, and the gap-audit archive,
@@ -607,6 +611,16 @@ is "a complete whole delivery since the ruling": no reader needs a stored kind.
   archive. An archived `report_read` was a serve of the whole report through stdout and reads as a completed delivery
   at its head, so archived pins stay where they were and an archived later serve counts as the full re-read. Residue,
   stated in the migrate comment: archived rows record serves through stdout.
+- **`migrate` drops the archived acts the delivered-text rule refuses** (ruled by gblock 2026-11-14, picked option):
+  an archived close, spot-check or ruling on a motion about gaps that its seat's sitting holds no delivery for, or
+  whose anchor changed after that delivery's head, is written as no event. Measured: about 400 acts in 36 of the 37
+  archives (`TestEveryArchivedRunMigrates`). Each is recorded as loss in the migration manifest (`migration.json`,
+  the accepted losses, each act listed by its source id, word and reason), and a pin or read point that named a
+  dropped act names the last event written before it, as for an act on a superseded gap. Each archived run's stamped
+  outcome is carried as history (F10). Nothing is synthesized: no `report_read` is written for an archived act, the
+  live write keeps the rule, and no era check or tolerance enters the live code. The predicate is one `record`
+  function the validate arms and migrate both ask. A translation test on the gap-audit archive and the every-archive
+  test hold it.
 
 **The other readers of past report text become forward scans of the edits** (same ruling). With each edit's touched
 paragraphs on the record, no live reader needs the report as it stood at a past event. Each reader below asks about one
