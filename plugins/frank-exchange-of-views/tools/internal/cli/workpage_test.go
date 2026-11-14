@@ -44,6 +44,7 @@ func TestShowWorkCarriesTheParagraphsOfTheRoleItIsRenderedFor(t *testing.T) {
 		// Every seat's: its work arrives one item at a time, cut from this list; what an item is, what
 		// does not block, what an open gap carries, what is estopped.
 		{"YOUR WORK IS HANDED TO YOU ONE ITEM AT A TIME, AND THIS IS THE WHOLE LIST IT IS CUT FROM", every},
+		{"AT DISPATCH, WHERE REPORT TEXT DOES NOT OPEN YOUR QUEUE", every},
 		{"EVERY ITEM SAYS WHAT IT IS", every},
 		{"An item with `blocks: false` is work nobody will refuse you for skipping", every},
 		{"`open` holds OPEN gaps only", every},

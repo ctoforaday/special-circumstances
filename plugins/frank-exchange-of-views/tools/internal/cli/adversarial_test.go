@@ -136,7 +136,7 @@ func adversarialCases() []adversarialCase {
 				"open, and an unanswered ask is exactly that.",
 		},
 		{
-			name:  "PASS is allowed once every motion is answered",
+			name: "PASS is allowed once every motion is answered",
 			// The lens closes G1 at its next sitting, its full re-read, delivered before the close: a
 			// PASS waits on both whole deliveries.
 			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"register", "--seat-id", "red-lens-evidence"}, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
