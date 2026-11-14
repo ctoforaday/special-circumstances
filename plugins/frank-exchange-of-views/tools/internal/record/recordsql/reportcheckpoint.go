@@ -12,11 +12,11 @@ import (
 // reportCheckpointEvery is how many report ops a reader replays at most, less one, after the
 // checkpoint it starts from (ReportCheckpointDDL).
 //
-// THE SPACING TRADES A READER'S REPLAY AGAINST THE ROWS THE RECORD STORES. A reader replays up to
-// reportCheckpointEvery-1 ops on every read of the report, and the record stores a copy of the text
+// THE SPACING TRADES A READER'S REPLAY AGAINST THE WRITES THAT RESTAMP THE ROW. A reader replays up to
+// reportCheckpointEvery-1 ops on every read of the report, and the write folds and rewrites the text
 // every reportCheckpointEvery ops. Measured on a 1,863-event run (257 ops, a 4.4 kB report): the
 // whole replay is 16 ms, one op about 0.13 ms whatever the text's length, so the worst reader at 8 is
-// under a millisecond, and the stored text is an eighth of a copy per op.
+// under a millisecond.
 const reportCheckpointEvery = 8
 
 // Newest is the upper bound of a read of every op the record holds: above every event's id.
@@ -71,7 +71,7 @@ func ReportSourceAt(q Querier) (ReportSource, error) {
 	var src ReportSource
 	var cp int64
 	var text, failure sql.NullString
-	err := q.QueryRow(`SELECT "event_id", "text", "failure" FROM "report_checkpoint" ORDER BY "event_id" DESC LIMIT 1`).
+	err := q.QueryRow(`SELECT "event_id", "text", "failure" FROM "report_checkpoint"`).
 		Scan(&cp, &text, &failure)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -117,8 +117,8 @@ func ReportOpsBetween(q Querier, after, upto int64) ([]reportproj.ReportOp, erro
 	return ops, rows.Err()
 }
 
-// stampReportCheckpoint writes the report's text as event id leaves it, where id is the first event
-// to add a report op, or brings the ops since the last checkpoint to reportCheckpointEvery. It runs
+// stampReportCheckpoint replaces the checkpoint with the report's text as event id leaves it, where id
+// is the first event to add a report op, or brings the ops since the checkpoint to reportCheckpointEvery. It runs
 // in InsertTx after the body is written, so the event's own ops are on the report_op view, and every
 // write of an event — a seat's act, a migration's replay, a seeded fixture — keeps the checkpoints
 // a reader requires (ReportSourceAt).
@@ -139,7 +139,7 @@ func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	}
 	var cp, since int64
 	if err := tx.QueryRow(`SELECT c."at", (SELECT count(*) FROM "report_op" WHERE "event_id" > c."at")
-	  FROM (SELECT coalesce(max("event_id"), 0) AS "at" FROM "report_checkpoint") c`).Scan(&cp, &since); err != nil {
+	  FROM (SELECT coalesce((SELECT "event_id" FROM "report_checkpoint"), 0) AS "at") c`).Scan(&cp, &since); err != nil {
 		return fmt.Errorf("reading the report's last checkpoint: %w", err)
 	}
 	if cp > 0 && since < reportCheckpointEvery {
@@ -151,7 +151,7 @@ func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	var src ReportSource
 	if cp > 0 {
 		var text, failure sql.NullString
-		if err := tx.QueryRow(`SELECT "text", "failure" FROM "report_checkpoint" WHERE "event_id" = ?`, cp).Scan(&text, &failure); err != nil {
+		if err := tx.QueryRow(`SELECT "text", "failure" FROM "report_checkpoint"`).Scan(&text, &failure); err != nil {
 			return fmt.Errorf("reading the report checkpoint at event %d: %w", cp, err)
 		}
 		src = ReportSource{Text: text.String, Parted: true, Failure: failure.String}
@@ -166,7 +166,8 @@ func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	} else {
 		text = folded
 	}
-	if _, err := tx.Exec(`INSERT INTO "report_checkpoint" ("event_id", "text", "failure") VALUES (?, ?, ?)`, id, text, failure); err != nil {
+	if _, err := tx.Exec(`INSERT INTO "report_checkpoint" ("one", "event_id", "text", "failure") VALUES (1, ?, ?, ?)
+	  ON CONFLICT ("one") DO UPDATE SET "event_id" = excluded."event_id", "text" = excluded."text", "failure" = excluded."failure"`, id, text, failure); err != nil {
 		return fmt.Errorf("writing the report checkpoint at event %d: %w", id, err)
 	}
 	return nil

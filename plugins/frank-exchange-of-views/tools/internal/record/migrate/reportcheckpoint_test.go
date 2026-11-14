@@ -10,9 +10,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// A MIGRATION REBUILDS THE REPORT CHECKPOINTS, AND A READ THROUGH ONE IS THE WHOLE REPLAY. The
-// migration replays every event through the write path, whose insert stamps the checkpoints, so no
-// code of the migration's writes them. On every archived run, every checkpoint the record stores is
+// A MIGRATION REBUILDS THE REPORT CHECKPOINT, AND A READ THROUGH IT IS THE WHOLE REPLAY. The
+// migration replays every event through the write path, whose insert stamps the checkpoint, so no
+// code of the migration's writes it. On every archived run, the checkpoint the record stores is
 // byte for byte the replay from the empty text of every op up to its event, and so is the report as it
 // stands now, read as every reader reads it — from the newest checkpoint and the ops after it. The
 // whole replay is this test's own: no reader replays from the empty text.

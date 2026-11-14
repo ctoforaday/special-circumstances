@@ -40,7 +40,7 @@ func TestAMigratedRecordAdmitsEveryClosedSitting(t *testing.T) {
 	if len(admitted) == 0 {
 		t.Fatal("the migrated record holds no admission, so nothing here exercised the translation")
 	}
-	if f := record.FailedSittingsOf(m.Events, m.At); len(f) != 0 {
+	if f := record.FailedSittingsOf(m.At); len(f) != 0 {
 		t.Errorf("%d migrated sitting(s) read failed, the first %+v — every closed sitting of the source is admitted", len(f), f[0])
 	}
 	owed := 0

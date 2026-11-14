@@ -88,7 +88,7 @@ func TestConstrainedScanSeparatesMissingIndexesFromDesignCosts(t *testing.T) {
 		{"an aliased scan is judged as its table", `SELECT m."gap_id" FROM "mint" m WHERE m."problem" = ?`, "SCAN m", true},
 		{"a bare SEARCH may walk the whole table", `SELECT max(m."event_id") FROM "mint" m WHERE m."problem" = ?`, "SEARCH m", true},
 		{"an unfiltered max of the rowid reads one row", `SELECT "sitting_id" FROM "events" WHERE "id" = (SELECT max("id") FROM "events")`, "SEARCH events", false},
-		{"so does a wrapped one", `SELECT c."at" FROM (SELECT coalesce(max("event_id"), 0) AS "at" FROM "report_checkpoint") c WHERE c."at" > ?`, "SEARCH report_checkpoint", false},
+		{"so does a wrapped one", `SELECT c."at" FROM (SELECT coalesce(max("event_id"), 0) AS "at" FROM "outcome") c WHERE c."at" > ?`, "SEARCH outcome", false},
 		{"an unfiltered max of another column walks", `SELECT 1 FROM "mint" WHERE "problem" = (SELECT max("problem") FROM "mint")`, "SEARCH mint", true},
 		{"a max of the rowid beside a filtered one may walk", `SELECT (SELECT max("id") FROM "events"), (SELECT max("id") FROM "events" WHERE "seat_id" = ?)`, "SEARCH events", true},
 		{"a max of the rowid beside another column walks", `SELECT 1 WHERE ? = (SELECT max("id") + length("seat_id") FROM "events")`, "SEARCH events", true},

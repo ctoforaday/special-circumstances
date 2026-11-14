@@ -54,7 +54,7 @@ func FailedSittings(run Run) ([]FailedSitting, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FailedSittingsOf(m.Events, m.At), nil
+	return FailedSittingsOf(m.At), nil
 }
 
 // FailedSittingsOf IS THE ONE ANSWER TO "DID THIS SITTING FAIL", read off the record's own facts
@@ -65,7 +65,7 @@ func FailedSittings(run Run) ([]FailedSitting, error) {
 // seat, a register no hook reached — can never be joined to a close, so it is not read here at all,
 // and neither is a seat whose work never arrives as items (WorkArrivesAsItems): the frontier, a lane
 // and the synthesizer return no envelope the gate asks about.
-func FailedSittingsOf(evs []*Event, win WindowIndex) []FailedSitting {
+func FailedSittingsOf(win WindowIndex) []FailedSitting {
 	var out []FailedSitting
 	for _, s := range AgentSittingsOf(win) {
 		if !s.Closed || s.Admitted || !WorkArrivesAsItems(seatclass.RoleOfSeat(s.SeatID), s.SeatID) {
@@ -92,7 +92,7 @@ type seatSitting struct {
 // failures in a row — never the gap's limits.
 func noTurnSittingsOf(evs []*Event, win WindowIndex) map[seatSitting]bool {
 	out := map[seatSitting]bool{}
-	for _, f := range FailedSittingsOf(evs, win) {
+	for _, f := range FailedSittingsOf(win) {
 		out[seatSitting{f.SeatID, f.Sitting}] = true
 	}
 	return out

@@ -194,10 +194,11 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 // event, stamped by the insert that writes the event (stampReportCheckpoint). It is not a
 // body — no seat writes it, and nothing on the wire carries it.
 //
-// A ROW EVERY reportCheckpointEvery OPS. A row per op would store the whole text once per op. So a
-// row lands at the first event that adds a report op, and after that at the first event that brings
-// the ops since the last row to reportCheckpointEvery; a reader reads the report as it stands, from
-// the newest row, and replays fewer than reportCheckpointEvery ops after it.
+// ONE ROW, THE REPORT AS IT STANDS. No reader reads the report as it stood at a past event (what an
+// edit changed is on its row, BlueEdit.old_paragraphs/new_paragraphs), so the table holds the newest
+// checkpoint only: restamped at the first event that adds a report op, and after that at the first
+// event that brings the ops since the row to reportCheckpointEvery, the row replaced each time. A
+// reader reads the report from it and replays fewer than reportCheckpointEvery ops after it.
 //
 // A ROW HOLDS THE TEXT OR THE REPLAY'S FAILURE, never both. The write path's guards decide which ops
 // land; the checkpoint records what folding them gives, and an op the report cannot replay through —
@@ -205,22 +206,15 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 // on with the replay's own words, as a replay from the empty text does. A checkpoint after a failed
 // one carries the failure on: a left fold that failed at an op fails at every op after it.
 //
-// APPEND-ONLY BY TRIGGER, as events are: the text at an event is fixed once the event is written, so
-// a row that changed would be a report no write ever left.
+// THE ONE ROW IS HELD BY THE SCHEMA: "one" is its only key value, so a second row is refused.
 const ReportCheckpointDDL = `
 CREATE TABLE "report_checkpoint" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events" ("id"),
+  "one"      INTEGER PRIMARY KEY CHECK ("one" = 1),
+  "event_id" INTEGER NOT NULL REFERENCES "events" ("id"),
   "text"     TEXT,
   "failure"  TEXT,
   CHECK (("text" IS NULL) <> ("failure" IS NULL))
 ) STRICT;
-
-CREATE TRIGGER "report_checkpoint_is_append_only_update" BEFORE UPDATE ON "report_checkpoint" BEGIN
-  SELECT RAISE(ABORT, 'a report checkpoint is the text an event left: it cannot be edited after it is written');
-END;
-CREATE TRIGGER "report_checkpoint_is_append_only_delete" BEFORE DELETE ON "report_checkpoint" BEGIN
-  SELECT RAISE(ABORT, 'a report checkpoint is the text an event left: it cannot be removed after it is written');
-END;
 `
 
 // Schema returns the full DDL: the envelope, then one table per body type in a stable order.
