@@ -215,7 +215,10 @@ func projectAntigravity(p *Projection, lines [][]byte, startSeq int) {
 			}
 
 			for idx, tc := range al.ToolCalls {
-				callID := fmt.Sprintf("call_%d_%d", al.StepIndex, idx)
+				callID := tc.ID
+				if callID == "" {
+					callID = fmt.Sprintf("call_%d_%d", al.StepIndex, idx)
+				}
 				cTool := NormalizeToolName(tc.Name)
 				cTarget := TargetOf(cTool, tc.Args)
 				if clean := strings.Trim(cTarget, "\"'"); strings.HasPrefix(clean, "/") {
@@ -256,7 +259,7 @@ func projectAntigravity(p *Projection, lines [][]byte, startSeq int) {
 					TS:         ts,
 					Role:       "system",
 					Text:       al.Content,
-					OriginKind: "system",
+					OriginKind: "task-notification",
 				})
 			}
 		}
