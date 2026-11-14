@@ -312,7 +312,7 @@ func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 // trifle — holds no PASS.
 func TestASupersededAncestorReadiesNobody(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
-											register("red-chair").sit(2, evLens).
+											register("red-chair").readFully(2, evLens).
 											mint(evLens, "G1", "low").mintSuperseding(evLens, "G2", "low", "G1").
 											register("red-chair")
 	plan, err := PlanDispatch(b.seed())
@@ -353,7 +353,7 @@ func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	}
 
 	b2 := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").
+		register("red-chair").readFully(2, evLens).mint(evLens, "G1", "high").
 		register("red-chair")
 	plan2, _ := PlanDispatch(b2.seed())
 	if len(plan2.Parties) != 1 || !slices.Equal(gapsOf(plan2, "blue-respond"), []string{"G1"}) || plan2.PassPermitted {

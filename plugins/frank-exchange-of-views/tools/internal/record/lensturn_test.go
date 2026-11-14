@@ -14,11 +14,11 @@ import (
 // m36Archive is universe-m36: 540 events, VERIFIED at epoch 8, 51 sittings of which 33 were lenses'.
 const m36Archive = "2026-10-29_is-91-prime-m36.tar.gz"
 
-// mintedOn is a stage at its second chair sitting: the lens sat in epoch 1 and minted G1 there, and
-// nobody has acted on G1 since.
+// mintedOn is a stage at its second chair sitting: the lens sat in epoch 1, read the report whole
+// and again at its full re-read, and minted G1 there, and nobody has acted on G1 since.
 func mintedOn(t *testing.T) *stage {
 	return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").
+		register("red-chair").sit(2, evLens).dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").
 		register("red-chair")
 }
 
