@@ -93,6 +93,17 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 			after: want{states: []record.PositionState{record.PositionFiled, record.PositionVerdictMissing}, verdict: "FAIL",
 				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed without the PASS"}},
 		},
+		// THE RULING BINDS: a position in the sitting the overruling sends back to the chair does not
+		// discharge it — only the PASS does. The write path refuses that position; this is the record
+		// it would leave, as an archived or hand-built one could hold it.
+		"overruled, the next sitting filed a position instead of the PASS": {
+			acts: append(append([]act{}, overruled...), sits("chair-b", storedPlan(true),
+				&recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("the PASS is withheld again")})...),
+			running: want{states: []record.PositionState{record.PositionFiled, record.PositionVerdictMissing}, verdict: "FAIL",
+				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed without the PASS"}},
+			after: want{states: []record.PositionState{record.PositionFiled, record.PositionVerdictMissing}, verdict: "FAIL",
+				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed without the PASS"}},
+		},
 		"overruled, the next sitting recorded the PASS": {
 			acts:    append(append([]act{}, overruled...), sits("chair-b", storedPlan(true), &recordpb.Gate{})...),
 			running: want{states: []record.PositionState{record.PositionFiled, record.PositionNotOwed}, verdict: "PASS"},
