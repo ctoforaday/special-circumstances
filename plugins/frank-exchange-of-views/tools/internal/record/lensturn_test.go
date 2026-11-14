@@ -213,8 +213,15 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 			}
 		}
 	}
-	if got := lensSittings["stored"] - lensSittings["replayed"]; got != 6 {
-		t.Errorf("the replayed plans dispatch %d lens sitting(s) fewer than m36's (%d stored, %d replayed), want the 7 no-op sittings less voice's turn at event 430", got, lensSittings["stored"], lensSittings["replayed"])
+	// THE COUNT, PLAN BY PLAN (plan constitution-gaps §III.3). The replay drops the no-op sittings at
+	// 312 (two) and 423 (two) and adds voice's turn at 423: three fewer. At 191 every lens owes its full
+	// re-read, the whole report once more, which readies it at an unmoved head: the
+	// stored plan engaged three lenses there, the replay readies six (voice's composed-text readiness is
+	// left out, above), three more. From 455 to 519 the evidence lens is ready where the run had retired
+	// it: its verify at 372 makes that sitting productive ("Productive sitting (retirement)"), so it is
+	// not three barren sittings in a row — four plans, four more. Net, the replay dispatches four more.
+	if got := lensSittings["stored"] - lensSittings["replayed"]; got != -4 {
+		t.Errorf("the replayed plans dispatch %d lens sitting(s) fewer than m36's (%d stored, %d replayed), want 4 more: the no-op sittings at 312 and 423 less voice's turn, the full re-read at 191, the evidence lens unretired from 455", got, lensSittings["stored"], lensSittings["replayed"])
 	}
 
 	// CAPTURE NAMES THEM: the run's own dispatch rows hold the nine early engagements, in the seven
