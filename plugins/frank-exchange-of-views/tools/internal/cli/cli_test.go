@@ -1517,6 +1517,8 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+		lensRereads(t, runDir)
 		chairSitsAgain(t, runDir)
 	}
 
@@ -1607,6 +1609,8 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
 		t.Fatal(err)
 	}
+	// The lens sits once more for its full re-read: a PASS waits on both whole deliveries.
+	lensRereads(t, runDir)
 	chairSitsAgain(t, runDir)
 	out, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
 	if err != nil {

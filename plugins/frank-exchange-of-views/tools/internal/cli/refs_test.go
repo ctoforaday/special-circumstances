@@ -211,6 +211,10 @@ func TestASuccessorsMintClosesItsAncestor(t *testing.T) {
 		"--reason", "successor resolved"); err != nil {
 		t.Fatal(err)
 	}
+	// The lens sits once more for its full re-read and the chair after it: a PASS waits on both whole
+	// deliveries.
+	lensRereads(t, runDir)
+	chairSitsAgain(t, runDir)
 	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS"); err != nil {
 		t.Errorf("with the successor closed and the ancestor closed by its mint, the verdict must go through: %v", err)
 	}
