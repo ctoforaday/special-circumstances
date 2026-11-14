@@ -1,6 +1,6 @@
 # Cross-Platform sc-doctor: Dual-Harness Support (Claude Code & Antigravity)
 
-**Status:** Draft  
+**Status:** Shipped in [#1784](https://github.com/ctoforaday/special-circumstances/pull/1784) (updated 2026-11-14 for `agy 1.5.3+` symlinked plugins — [#1869](https://github.com/ctoforaday/special-circumstances/issues/1869))  
 **Author:** Antigravity / Gregory Block  
 **Date:** 2026-11-07  
 **Rule-Class:** `protocol-reform`  
@@ -100,7 +100,7 @@ func siblingPluginRoots(root string) []pluginRef
          Add `pluginRef{Name: name, Version: version, Root: siblingDir}`.
    - If `isSemver(filepath.Base(root))` is false, `root` is directly a plugin directory in a flat layout (`<pluginsDir>/<plugin>`, e.g., Antigravity `~/.gemini/config/plugins/<plugin>` or dev repo `plugins/<plugin>`):
      - The container of sibling plugins is `parent := filepath.Dir(root)`.
-     - For every child directory `e` in `parent` (skipping `selfName` and non-directories):
+     - For every child directory `e` in `parent` (skipping `selfName`, and checking `os.Stat(filepath.Join(parent, e.Name()))` when `!e.IsDir()` so symlinked plugin directories supported by `agy 1.5.3+` are followed rather than skipped — [#1869](https://github.com/ctoforaday/special-circumstances/issues/1869)):
        `siblingDir := filepath.Join(parent, e.Name())`
        Verify `siblingDir` is a plugin directory (contains `requirements.json`, `tools/cmd`, or a plugin manifest `plugin.json` / `.claude-plugin/plugin.json` / `.antigravity-plugin/plugin.json`). If not, skip (e.g. non-SC plugins or scratch dirs).
        Resolve `name, version := pluginIdentity(siblingDir)`.
