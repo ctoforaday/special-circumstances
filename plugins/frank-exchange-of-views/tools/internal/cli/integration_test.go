@@ -1,11 +1,15 @@
 package cli
 
 import (
+	"io"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 	"regexp"
 	"testing"
 
@@ -306,4 +310,30 @@ func sitToAssemble(t *testing.T, runDir string) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {
 		t.Fatalf("registering the bench's assembly sitting: %v", err)
 	}
+}
+
+// writerHands runs the shipped delivery writer's next phase for seatID under agent, as the PostToolUse
+// hook runs it after each of the seat's calls to the record, until the head of the seat's queue is no
+// report text: one item per call, and the report_read written as the last is handed. It returns the
+// number of items handed. An agent the record does not bind is resolved by the seat's configuration.
+func writerHands(t *testing.T, runDir, agent, seatID string) int {
+	t.Helper()
+	owes := func() bool {
+		w, err := record.WorkOfSeat(runtest.Open(t, runDir), seatclass.RoleOfSeat(seatID), seatID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		q := record.QueueOf(w)
+		return len(q) > 0 && q[0].Kind == record.ItemReportText
+	}
+	for n := 0; n < 200; n++ {
+		if !owes() {
+			return n
+		}
+		if err := sittingwrite.WriteNextItem(runDir, agent, seatclass.Seats[seatID].AgentType, string(hookcore.EngineClaude), io.Discard); err != nil {
+			t.Fatalf("the writer's next phase for %s: %v", seatID, err)
+		}
+	}
+	t.Fatalf("%s is still owed report text after 200 items: the writer stopped handing it", seatID)
+	return 0
 }
