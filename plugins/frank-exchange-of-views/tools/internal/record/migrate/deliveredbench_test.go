@@ -131,4 +131,3 @@ func MigratedDeliveredBench(t *testing.T) (*migration.Manifest, Source, string) 
 	}
 	return res, archivedSource(t, src), to
 }
-
