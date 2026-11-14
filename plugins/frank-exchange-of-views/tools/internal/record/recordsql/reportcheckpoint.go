@@ -71,7 +71,7 @@ func ReportSourceAt(q Querier) (ReportSource, error) {
 	var src ReportSource
 	var cp int64
 	var text, failure sql.NullString
-	err := q.QueryRow(`SELECT "event_id", "text", "failure" FROM "report_checkpoint"`).
+	err := q.QueryRow(`SELECT "event_id", "text", "failure" FROM "report_checkpoint" WHERE "one" = 1`).
 		Scan(&cp, &text, &failure)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -139,7 +139,7 @@ func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	}
 	var cp, since int64
 	if err := tx.QueryRow(`SELECT c."at", (SELECT count(*) FROM "report_op" WHERE "event_id" > c."at")
-	  FROM (SELECT coalesce((SELECT "event_id" FROM "report_checkpoint"), 0) AS "at") c`).Scan(&cp, &since); err != nil {
+	  FROM (SELECT coalesce((SELECT "event_id" FROM "report_checkpoint" WHERE "one" = 1), 0) AS "at") c`).Scan(&cp, &since); err != nil {
 		return fmt.Errorf("reading the report's last checkpoint: %w", err)
 	}
 	if cp > 0 && since < reportCheckpointEvery {
@@ -151,7 +151,7 @@ func stampReportCheckpoint(tx *sql.Tx, id int64) error {
 	var src ReportSource
 	if cp > 0 {
 		var text, failure sql.NullString
-		if err := tx.QueryRow(`SELECT "text", "failure" FROM "report_checkpoint"`).Scan(&text, &failure); err != nil {
+		if err := tx.QueryRow(`SELECT "text", "failure" FROM "report_checkpoint" WHERE "one" = 1`).Scan(&text, &failure); err != nil {
 			return fmt.Errorf("reading the report checkpoint at event %d: %w", cp, err)
 		}
 		src = ReportSource{Text: text.String, Parted: true, Failure: failure.String}

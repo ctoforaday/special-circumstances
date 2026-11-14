@@ -81,8 +81,8 @@ func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T
 			if err := rows.Close(); err != nil {
 				t.Fatal(err)
 			}
-			if (stored == 0) != (len(ops) == 0) {
-				t.Fatalf("%d checkpoint(s) over %d report op(s)", stored, len(ops))
+			if want := min(len(ops), 1); stored != want {
+				t.Fatalf("%d checkpoint row(s) over %d report op(s), want %d: the table holds the report as it stands", stored, len(ops), want)
 			}
 			if len(ops) == 0 {
 				return
@@ -104,7 +104,7 @@ func TestEveryArchivedRunReadsThroughItsCheckpointsAsTheWholeReplay(t *testing.T
 	}
 	// THE SWEEP SAYS WHAT IT HELD THE CHECKPOINTS TO, so an archive set that stopped holding a report
 	// fails here rather than passing on nothing.
-	if runs < 30 || checkpoints < 250 {
+	if runs < 30 || checkpoints < 30 {
 		t.Fatalf("held %d run(s) and %d checkpoint(s) to the whole replay — too few to say anything", runs, checkpoints)
 	}
 	t.Logf("held %d run(s) and %d checkpoint(s) to the whole replay", runs, checkpoints)

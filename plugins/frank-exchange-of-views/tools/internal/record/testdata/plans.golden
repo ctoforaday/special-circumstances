@@ -1590,8 +1590,8 @@
 -- INSERT INTO "regrade" ("event_id", "gap_id", "severity", "likelihood", "impact", "complexity_cost", "basis", "result_severity", "result_likelihood", "result_impact", "result_complexity_cost") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt 7e6bbeaa6938
--- INSERT INTO "report_checkpoint" ("event_id", "text", "failure") VALUES (?, ?, ?)
+== stmt f5ccc4dd53dc
+-- INSERT INTO "report_checkpoint" ("one", "event_id", "text", "failure") VALUES (1, ?, ?, ?) ON CONFLICT ("one") DO UPDATE SET "event_id" = excluded."event_id", "text" = excluded."text", "failure" = excluded."failure"
   (no plan rows: the statement reads no table)
 
 == stmt 3f6547acabd7
@@ -2008,9 +2008,9 @@
       SEARCH pe USING COVERING INDEX events_seat (seat_id=? AND rowid>? AND rowid<?)
       SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt ff455d9f2258
--- SELECT "event_id", "text", "failure" FROM "report_checkpoint" ORDER BY "event_id" DESC LIMIT 1
-  SCAN report_checkpoint
+== stmt 902a3dd85928
+-- SELECT "event_id", "text", "failure" FROM "report_checkpoint" WHERE "one" = 1
+  SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 014ad841ca9c
 -- SELECT "event_id", "value" FROM "mint_found_by" ORDER BY "event_id", "ord"
@@ -2307,8 +2307,8 @@
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
 
-== stmt 4bdc1b26744d
--- SELECT "text", "failure" FROM "report_checkpoint" WHERE "event_id" = ?
+== stmt 91e1ad0d21d6
+-- SELECT "text", "failure" FROM "report_checkpoint" WHERE "one" = 1
   SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid=?)
 
 == stmt 751199db797c
@@ -2504,10 +2504,12 @@
   SEARCH b USING COVERING INDEX blue_edit_key (edit_key=?)
   SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
-== stmt afa3d2ec318a
--- SELECT c."at", (SELECT count(*) FROM "report_op" WHERE "event_id" > c."at") FROM (SELECT coalesce(max("event_id"), 0) AS "at" FROM "report_checkpoint") c
+== stmt 6e4d3199fe77
+-- SELECT c."at", (SELECT count(*) FROM "report_op" WHERE "event_id" > c."at") FROM (SELECT coalesce((SELECT "event_id" FROM "report_checkpoint" WHERE "one" = 1), 0) AS "at") c
   CO-ROUTINE c
-    SEARCH report_checkpoint
+    SCAN CONSTANT ROW
+    SCALAR SUBQUERY
+      SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid=?)
   SCAN c
   CORRELATED SCALAR SUBQUERY
     CO-ROUTINE report_op
