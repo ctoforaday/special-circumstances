@@ -8,7 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// AN ARCHIVED RUN'S ARCHIVE COPIES COME FORWARD WITHOUT A CAPTURE TIME (EventSchema 76). When the
+// AN ARCHIVED RUN'S ARCHIVE COPIES COME FORWARD WITHOUT A CAPTURE TIME (EventSchema 77). When the
 // web archive took a copy is a fact the fetch index held for the run that fetched it, and run-archive
 // keeps no cache; the archive's cites hold the snapshot's url and nothing that states its time. A
 // migrated cite of an archive copy carries no copy_captured_at, and `show evidence` and evidence.md
