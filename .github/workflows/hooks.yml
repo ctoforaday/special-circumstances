@@ -2042,13 +2042,32 @@ jobs:
         shell: bash
         env:
           FEOV_RELEASE_GATE: "1"
+        # THE FAILURE IS NAMED, NOT TAILED. `go test -v` prints in order, so a seed that fails
+        # early sits hundreds of lines above the end; the 1.75.0 tag run (43555663288, attempt 1)
+        # printed eighty PASS lines and FAIL, and which seed failed was lost. The failing lines
+        # come first, then the end, and the whole log is uploaded as the release-fuzz parts do.
         run: |
-          out=$(go test -v -count=1 -timeout=100m ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
-          echo "$out" | grep -E "^(--- |ok)" | tail -30
-          grep -qE '^--- PASS: TestFuzzDebate \(' <<<"$out" || {
+          log="$RUNNER_TEMP/release-gate-fuzz.log"
+          go test -v -count=1 -timeout=100m ./releasegate/fuzz/ >"$log" 2>&1 || {
+            grep -E '^[[:space:]]*--- FAIL|^panic:|seed [0-9]+ FAILED|fuzz runs failed' "$log" | head -60 || true
+            echo "--- end of the log:"
+            tail -40 "$log"
+            exit 1
+          }
+          grep -E "^(--- |ok)" "$log" | tail -30
+          grep -qE '^--- PASS: TestFuzzDebate \(' "$log" || {
             echo "::error::the release sweep did not run TestFuzzDebate; the gate guarded nothing"
             exit 1
           }
+      - uses: actions/upload-artifact@v7
+        if: (failure() || cancelled()) && steps.plugin.outputs.plugin == 'frank-exchange-of-views'
+        with:
+          name: release-gate-fuzz-log
+          path: ${{ runner.temp }}/release-gate-fuzz.log
+          if-no-files-found: ignore
+          retention-days: 14
+          # A re-run of the release replaces its own log rather than failing on the name.
+          overwrite: true
       # BUILD OUTPUT LEAVES THE SOURCE TREE, and that is a correctness fix rather than tidiness.
       #
       # This wrote into `dist/` inside the plugin's tools directory. `dist/` is not ignored, so
