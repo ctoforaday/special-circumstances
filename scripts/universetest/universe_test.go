@@ -33,7 +33,18 @@ const (
 // invocation first emits the empty result a queued notification produces, as m37's resume did, and
 // only then dispatches. It holds until the test creates $STUB_DIR/release, with a child that outlives
 // it, and writes each fact the test asks about to a file named for the invocation.
+//
+// Called with no CLAUDE_CONFIG_DIR it is the HOST login renewing its token, which is how universe.sh
+// renews one too short for a run: it counts the call, and unless STUB_RENEW_FAIL is set it writes a
+// token with eight hours left to the host credential file.
 const stubClaude = `#!/usr/bin/env bash
+if [ -z "${CLAUDE_CONFIG_DIR:-}" ]; then
+  r=$(ls "$STUB_DIR" | grep -c '^renew\.' )
+  : > "$STUB_DIR/renew.$((r + 1))"
+  [ -n "${STUB_RENEW_FAIL:-}" ] && exit 0
+  python3 -c 'import json,sys,time; json.dump({"claudeAiOauth":{"accessToken":"renewed-token","refreshToken":"host-refresh","expiresAt":int((time.time()+480*60)*1000)}}, open(sys.argv[1],"w"))' "$HOME/.claude/.credentials.json"
+  exit 0
+fi
 n=$(ls "$STUB_DIR" | grep -c '^argv\.' )
 n=$((n + 1))
 printf '%s\n' "$@" > "$STUB_DIR/argv.$n"
@@ -43,6 +54,7 @@ readlink /proc/$$/fd/0 > "$STUB_DIR/stdin.$n"
 readlink /proc/$$/fd/1 > "$STUB_DIR/stdout.$n"
 pwd > "$STUB_DIR/cwd.$n"
 printf '%s\n' "$CLAUDE_CONFIG_DIR" > "$STUB_DIR/config.$n"
+printf '%s\n' "${CLAUDE_CODE_OAUTH_TOKEN:-}" > "$STUB_DIR/token.$n"
 printf '%s\n' "$CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS" > "$STUB_DIR/ceiling.$n"
 sleep 600 &
 printf '%s\n' "$!" > "$STUB_DIR/child.$n"
@@ -110,6 +122,7 @@ func newUniverse(t *testing.T) *universe {
 	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(stubClaude), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	writeHostCredentials(t, scratch, 600, "lent-token")
 	for _, kv := range os.Environ() {
 		name, _, _ := strings.Cut(kv, "=")
 		if strings.HasPrefix(name, "FEOV_") || name == "HOME" || name == "PATH" || name == "WORKDIR" || name == "CLAUDE_CONFIG_DIR" {
@@ -128,6 +141,28 @@ func newUniverse(t *testing.T) *universe {
 	// hold the test binary's temp directory.
 	t.Cleanup(u.killEverything)
 	return u
+}
+
+// writeHostCredentials is the host login a universe borrows from: $home/.claude/.credentials.json
+// holding an access token with minutesLeft to run.
+func writeHostCredentials(t *testing.T, home string, minutesLeft int, token string) {
+	t.Helper()
+	dir := filepath.Join(home, ".claude")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	creds := map[string]any{"claudeAiOauth": map[string]any{
+		"accessToken":  token,
+		"refreshToken": "host-refresh",
+		"expiresAt":    time.Now().Add(time.Duration(minutesLeft) * time.Minute).UnixMilli(),
+	}}
+	b, err := json.Marshal(creds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".credentials.json"), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func (u *universe) killEverything() {
@@ -775,4 +810,80 @@ func TestTheRendererJudgesAResumeByTheWholeStream(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The run gets the host's ACCESS token and no credential file: a universe holding the refresh token
+// renewed it at expiry and left every Remote Control session on the box with a spent one. A link or
+// copy left by an earlier universe is removed rather than used.
+func TestARunLendsTheAccessTokenAndHoldsNoCredentialFile(t *testing.T) {
+	u := newUniverse(t)
+	config := filepath.Join(u.workdir, "config")
+	if err := os.MkdirAll(config, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(u.scratch, ".claude", ".credentials.json"), filepath.Join(config, ".credentials.json")); err != nil {
+		t.Fatal(err)
+	}
+	u.startDetached()
+	if got := u.readStub("token.1"); got != "lent-token" {
+		t.Errorf("the run's CLAUDE_CODE_OAUTH_TOKEN is %q, want the host's access token", got)
+	}
+	if _, err := os.Lstat(filepath.Join(config, ".credentials.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the universe config still holds a credential file (err %v)", err)
+	}
+	if n := len(globStub(t, u, "renew.*")); n != 0 {
+		t.Errorf("a token with 600 min left was renewed %d time(s)", n)
+	}
+}
+
+func TestARunWithNoHostLoginIsRefused(t *testing.T) {
+	u := newUniverse(t)
+	if err := os.Remove(filepath.Join(u.scratch, ".claude", ".credentials.json")); err != nil {
+		t.Fatal(err)
+	}
+	u.record("")
+	out, rc := u.verb("run", "--no-follow", topic)
+	if rc == 0 || !strings.Contains(out, "claude auth login") {
+		t.Fatalf("exit %d, want a refusal naming the login:\n%s", rc, out)
+	}
+	if n := u.invocations(); n != 0 {
+		t.Errorf("claude started %d time(s) with no login to lend", n)
+	}
+}
+
+// A token too short for a run is renewed through the HOST login, so the new grant lands in the file
+// the host's sessions read, and the run is lent the renewed token.
+func TestAShortTokenIsRenewedThroughTheHostLoginFirst(t *testing.T) {
+	u := newUniverse(t)
+	writeHostCredentials(t, u.scratch, 10, "short-token")
+	u.startDetached()
+	if n := len(globStub(t, u, "renew.*")); n != 1 {
+		t.Errorf("renewed %d time(s), want 1", n)
+	}
+	if got := u.readStub("token.1"); got != "renewed-token" {
+		t.Errorf("the run was lent %q, want the renewed token", got)
+	}
+}
+
+func TestARenewalThatLeavesTheTokenShortRefusesTheRun(t *testing.T) {
+	u := newUniverse(t)
+	writeHostCredentials(t, u.scratch, 10, "short-token")
+	u.extraEnv = []string{"STUB_RENEW_FAIL=1"}
+	u.record("")
+	out, rc := u.verb("run", "--no-follow", topic)
+	if rc == 0 || !strings.Contains(out, "renewal left the access token") {
+		t.Fatalf("exit %d, want the renewal refusal:\n%s", rc, out)
+	}
+	if n := u.invocations(); n != 0 {
+		t.Errorf("the run started %d time(s) on a token that could not be renewed", n)
+	}
+}
+
+func globStub(t *testing.T, u *universe, pattern string) []string {
+	t.Helper()
+	m, err := filepath.Glob(filepath.Join(u.stubDir, pattern))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
 }

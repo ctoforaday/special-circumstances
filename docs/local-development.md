@@ -41,6 +41,13 @@ scripts/universe.sh doctor           # what is installed, binaries per plugin, s
 `WORKDIR` (default `~/.claude/scratch/universe`), so nothing touches `~/.claude` and other sessions
 on the box are unaffected.
 
+Authentication is the exception, and it is lent rather than shared: `run`, `resume` and `shell` pass
+the host login's current access token in `CLAUDE_CODE_OAUTH_TOKEN`, and the universe holds no
+credential file. It never holds the refresh token, because a universe that renewed it left the host's
+Remote Control sessions with a spent one ("needs to sign in again"). A token with less than
+`TOKEN_MIN_MINUTES` (default 180) left is renewed through the host login before the run starts, which
+revokes the old access token; sessions holding it re-read the host file on their next call.
+
 Tearing one down is **three** paths, not one: `$WORKDIR`, `$WORKDIR.marketplace`, and
 `$WORKDIR.release`. The staged marketplace is a copy of the checkout's `plugins/` beside the universe,
 and it is the plugin root a universe session loads (below). `$WORKDIR.release` is the local release
