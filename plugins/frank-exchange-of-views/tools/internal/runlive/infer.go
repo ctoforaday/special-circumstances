@@ -65,9 +65,12 @@ const SeatTypePrefix = "frank-exchange-of-views:"
 // seatclass reads it from here rather than spelling it a second time.
 const LensAgentTypePrefix = SeatTypePrefix + "red-lens-"
 
-// IsLensAgentType reports whether a hook payload's agent type is a lens seat's configuration.
+// IsLensAgentType reports whether a hook payload's agent type is a lens seat's configuration,
+// accepting both the Claude plugin-prefixed form ("frank-exchange-of-views:red-lens-<area>") and
+// Antigravity's unprefixed agentName ("red-lens-<area>").
 func IsLensAgentType(agentType string) bool {
-	return strings.HasPrefix(agentType, LensAgentTypePrefix) && len(agentType) > len(LensAgentTypePrefix)
+	base := strings.TrimPrefix(agentType, SeatTypePrefix)
+	return strings.HasPrefix(base, "red-lens-") && len(base) > len("red-lens-")
 }
 
 // StageMembership is the failure-record stage for a payload a live run could not be told to own or
