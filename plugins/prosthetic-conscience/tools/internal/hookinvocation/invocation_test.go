@@ -13,12 +13,14 @@
 package hookinvocation
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooktest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +34,9 @@ import (
 // load-bearing: a bare path to a missing binary is what disabled sessions in 1082275,
 // so the wrapper degrades instead of failing the event.
 var binRef = regexp.MustCompile(`\$\{CLAUDE_PLUGIN_ROOT\}/bin/([a-z0-9-]+)`)
+
+// agyBinRef pulls the binary name out of the Antigravity root hooks.json command string (`B="$R/bin/<name>"`).
+var agyBinRef = regexp.MustCompile(`\$R/bin/([a-z0-9-]+)`)
 
 type hooksFile struct {
 	Hooks map[string][]struct {
@@ -286,6 +291,201 @@ func TestTheShippedSecretsGateRefusesWithoutEchoing(t *testing.T) {
 				t.Fatalf("%s: the key reached the hook's output", f.Name)
 			}
 		}
+	}
+}
+
+type agyHookEntry struct {
+	Command string `json:"command"`
+	Matcher string `json:"matcher"`
+	Hooks   []struct {
+		Command string `json:"command"`
+	} `json:"hooks"`
+}
+
+func loadAntigravityHooks(t *testing.T) map[string][]string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "hooks.json"))
+	if err != nil {
+		t.Fatalf("cannot read root Antigravity hooks.json: %v", err)
+	}
+	var raw map[string]map[string][]agyHookEntry
+	if err := json.Unmarshal(b, &raw); err != nil {
+		t.Fatalf("root hooks.json is not valid JSON: %v", err)
+	}
+	out := map[string][]string{}
+	for _, events := range raw {
+		for ev, list := range events {
+			for _, item := range list {
+				if item.Command != "" {
+					out[ev] = append(out[ev], item.Command)
+				}
+				for _, h := range item.Hooks {
+					if h.Command != "" {
+						out[ev] = append(out[ev], h.Command)
+					}
+				}
+			}
+		}
+	}
+	if len(out) == 0 {
+		t.Fatal("root hooks.json declares no hooks")
+	}
+	return out
+}
+
+// validateStrictAgyStdout decodes stdout with DisallowUnknownFields against the exact .exa.hooks_pb.*HookResult schema.
+func validateStrictAgyStdout(t *testing.T, event, stdout string) {
+	t.Helper()
+	s := strings.TrimSpace(stdout)
+	if s == "" {
+		return
+	}
+	dec := json.NewDecoder(bytes.NewReader([]byte(s)))
+	dec.DisallowUnknownFields()
+
+	switch event {
+	case "SessionStart", "PreInvocation", "PostInvocation":
+		var res struct {
+			InjectSteps []struct {
+				EphemeralMessage string `json:"ephemeralMessage"`
+				SystemMessage    *struct {
+					SystemMessage string `json:"systemMessage"`
+				} `json:"systemMessage"`
+				ErrorMessage *struct {
+					ModelMessage string `json:"modelMessage"`
+					UserMessage  string `json:"userMessage"`
+				} `json:"errorMessage"`
+			} `json:"injectSteps"`
+			TerminationBehavior string `json:"terminationBehavior"`
+		}
+		if err := dec.Decode(&res); err != nil {
+			t.Errorf("%s stdout failed strict .exa.hooks_pb schema: %v\nstdout: %s", event, err, s)
+		}
+	case "PreToolUse", "PreTool":
+		var res struct {
+			Decision   string         `json:"decision"`
+			Reason     string         `json:"reason"`
+			DenyReason string         `json:"deny_reason"`
+			Overwrite  map[string]any `json:"overwrite"`
+		}
+		if err := dec.Decode(&res); err != nil {
+			t.Errorf("%s stdout failed strict .exa.hooks_pb.PreToolHookResult schema: %v\nstdout: %s", event, err, s)
+		}
+	case "PostToolUse", "PostTool":
+		var res struct{}
+		if err := dec.Decode(&res); err != nil {
+			t.Errorf("%s stdout failed strict .exa.hooks_pb.PostToolHookResult schema: %v\nstdout: %s", event, err, s)
+		}
+	case "Stop":
+		var res struct {
+			Decision string `json:"decision"`
+			Reason   string `json:"reason"`
+		}
+		if err := dec.Decode(&res); err != nil {
+			t.Errorf("%s stdout failed strict .exa.hooks_pb.StopHookResult schema: %v\nstdout: %s", event, err, s)
+		}
+	default:
+		t.Fatalf("unhandled Antigravity event %q", event)
+	}
+}
+
+func TestAntigravityHooksResolveAndHonourStrictProtojsonContract(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hooks.json invokes POSIX sh")
+	}
+	root := build(t)
+	project := t.TempDir()
+	pluginData := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(project, ".claude", "checkpoints"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(project, ".claude", "checkpoints", "CHECKPOINT.md"),
+		[]byte("---\nschema: 3\nwritten_at: 2026-08-23T00:00:00Z\n---\n## Validation loop\n1. go test ./...\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	agyHooks := loadAntigravityHooks(t)
+	for event, cmds := range agyHooks {
+		for _, command := range cmds {
+			m := agyBinRef.FindStringSubmatch(command)
+			if m == nil {
+				t.Fatalf("%s command names no $R/bin/<binary>: %q", event, command)
+			}
+			binName := m[1]
+			if _, err := os.Stat(filepath.Join("..", "..", "cmd", binName)); err != nil {
+				t.Errorf("%s registers %q, which has no cmd/ directory: %v", event, binName, err)
+			}
+
+			// 1. Degrades cleanly when binary is missing
+			emptyPluginDir := t.TempDir()
+			degCmd := exec.Command("sh", "-c", command)
+			degCmd.Dir = emptyPluginDir
+			degCmd.Env = append(os.Environ(), "PLUGIN_ROOT="+emptyPluginDir, "PLUGIN_DATA="+pluginData)
+			degCmd.Stdin = strings.NewReader("{}")
+			if out, err := degCmd.Output(); err != nil || len(out) != 0 {
+				t.Errorf("%s command failed to degrade cleanly when binary missing: err=%v out=%q", event, err, out)
+			}
+
+			// 2. Runs against built binary with agy 1.5.4-1.5.6 payload and satisfies strict .exa.hooks_pb schema
+			payload := marshal(t, map[string]any{
+				"hookEventName":       event,
+				"conversationId":      "conv-agy-1873",
+				"cwd":                 project,
+				"workspacePaths":      []string{project},
+				"invocationNum":       0,
+				"continuation_active": false,
+				"toolCall": map[string]any{
+					"id":   "call_1873",
+					"name": "run_command",
+					"args": map[string]any{"CommandLine": "echo ok"},
+				},
+			})
+			runCmd := exec.Command("sh", "-c", command)
+			runCmd.Dir = root
+			runCmd.Env = append(os.Environ(),
+				"ANTIGRAVITY_CONVERSATION_ID=conv-agy-1873",
+				"PLUGIN_ROOT="+root,
+				"PLUGIN_DATA="+pluginData,
+			)
+			runCmd.Stdin = strings.NewReader(payload)
+			var out, errb strings.Builder
+			runCmd.Stdout, runCmd.Stderr = &out, &errb
+			if err := runCmd.Run(); err != nil {
+				t.Errorf("%s (%s) exited non-zero: %v\nstderr: %s", event, binName, err, errb.String())
+			}
+			validateStrictAgyStdout(t, event, out.String())
+		}
+	}
+
+	// 3. Verify Antigravity PreToolUse secrets gate denies without echoing and satisfies strict PreToolHookResult
+	preCmd := agyHooks["PreToolUse"][0]
+	key := st.Key(st.Vendors[0].Name)
+	secPayload := marshal(t, map[string]any{
+		"hookEventName":  "PreToolUse",
+		"conversationId": "conv-sec-1873",
+		"cwd":            project,
+		"workspacePaths": []string{project},
+		"toolCall": map[string]any{
+			"id":   "call_sec_1",
+			"name": "run_command",
+			"args": map[string]any{"CommandLine": "echo " + key},
+		},
+	})
+	secRun := exec.Command("sh", "-c", preCmd)
+	secRun.Dir = root
+	secRun.Env = append(os.Environ(), "ANTIGRAVITY_CONVERSATION_ID=conv-sec-1873", "PLUGIN_ROOT="+root, "PLUGIN_DATA="+pluginData)
+	secRun.Stdin = strings.NewReader(secPayload)
+	var secOut, secErr strings.Builder
+	secRun.Stdout, secRun.Stderr = &secOut, &secErr
+	if err := secRun.Run(); err != nil {
+		t.Fatalf("Antigravity PreToolUse secrets gate exited non-zero: %v\n%s", err, secErr.String())
+	}
+	validateStrictAgyStdout(t, "PreToolUse", secOut.String())
+	if !strings.Contains(secOut.String(), `"decision":"deny"`) {
+		t.Errorf("Antigravity PreToolUse secrets gate did not deny: %s", secOut.String())
+	}
+	if strings.Contains(secOut.String()+secErr.String(), key) {
+		t.Fatal("Antigravity PreToolUse secrets gate echoed the secret key")
 	}
 }
 

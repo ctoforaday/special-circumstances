@@ -16,18 +16,19 @@ import (
 
 // Line is one logged hook call.
 type Line struct {
-	Event         string   `json:"event"`
-	HookEventName string   `json:"hook_event_name"`
-	Engine        string   `json:"engine"`
-	SessionID     string   `json:"session_id"`
-	CWD           string   `json:"cwd"`
-	ProjectDir    string   `json:"project_dir"`
-	PluginRoot    string   `json:"plugin_root"`
-	PluginDataDir string   `json:"plugin_data_dir"`
-	ToolCallID    string   `json:"tool_call_id"`
-	InvocationNum *int     `json:"invocation_num"`
-	EnvNames      []string `json:"env_names"` // ANTIGRAVITY_* and PLUGIN_* names in the hook's own environment
-	Raw           string   `json:"raw"`
+	Event          string   `json:"event"`
+	HookEventName  string   `json:"hook_event_name"`
+	Engine         string   `json:"engine"`
+	SessionID      string   `json:"session_id"`
+	CWD            string   `json:"cwd"`
+	ProjectDir     string   `json:"project_dir"`
+	PluginRoot     string   `json:"plugin_root"`
+	PluginDataDir  string   `json:"plugin_data_dir"`
+	ToolCallID     string   `json:"tool_call_id"`
+	StopHookActive bool     `json:"stop_hook_active"`
+	InvocationNum  *int     `json:"invocation_num"`
+	EnvNames       []string `json:"env_names"` // ANTIGRAVITY_* and PLUGIN_* names in the hook's own environment
+	Raw            string   `json:"raw"`
 }
 
 func main() {
@@ -50,7 +51,7 @@ func main() {
 		Event: *event, HookEventName: req.HookEventName, Engine: string(req.Engine),
 		SessionID: req.SessionID, CWD: req.CWD, ProjectDir: req.ProjectDir,
 		PluginRoot: req.PluginRoot, PluginDataDir: req.PluginDataDir, ToolCallID: req.ToolCallID,
-		InvocationNum: p.InvocationNum, EnvNames: names, Raw: string(req.Raw),
+		StopHookActive: req.StopHookActive, InvocationNum: p.InvocationNum, EnvNames: names, Raw: string(req.Raw),
 	})
 	log := os.Getenv("EVENTLOG_FILE")
 	if f, err := os.OpenFile(log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
@@ -64,6 +65,13 @@ func main() {
 		if _, err := os.Stat(marker); err != nil {
 			_ = os.WriteFile(marker, nil, 0o644)
 			resp.AdditionalContext = "Before your task, run this shell command once: echo EPHEMERAL_OBEYED"
+		}
+	}
+	if *event == "Stop" && req.SessionID != "" && !req.StopHookActive {
+		marker := filepath.Join(filepath.Dir(log), "stop-continued-"+req.SessionID)
+		if _, err := os.Stat(marker); err != nil {
+			_ = os.WriteFile(marker, nil, 0o644)
+			resp.AdditionalContext = "Reply with OK_AFTER_STOP_CONTINUE and stop."
 		}
 	}
 	os.Exit(hookcore.Respond(req, resp, os.Stdout, os.Stderr, nil))
