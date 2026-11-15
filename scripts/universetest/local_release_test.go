@@ -277,6 +277,8 @@ func newTestFixture(t *testing.T) *testFixture {
 		t.Fatal(err)
 	}
 
+	writeHostCredentials(t, scratch, 600, "lent-token")
+
 	// Build base environment
 	var env []string
 	for _, kv := range os.Environ() {
