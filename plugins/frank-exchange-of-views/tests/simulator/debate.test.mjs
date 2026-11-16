@@ -590,7 +590,7 @@ test('the lens mints its own gaps, screens first, and closes as the originator',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING.
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
-    'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
+    "ANCHOR EVERY GAP ABOUT THE REPORT'S TEXT TO A QUOTED SENTENCE", "ids of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
     'counts LINES, not occurrences',
     "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the bundle runs once and THIS computation's output is compared; a clean exit or '0 failing' is not an output", "read at its anchor, gives the program and the output blue recorded"]) {
     assert.ok(evidence.includes(want), `the lens prompt lost: ${want}`)
@@ -601,7 +601,7 @@ test('the lens mints its own gaps, screens first, and closes as the originator',
   // finds is read through the run's cache so every later seat reads the same bytes.
   assert.ok(!/heredoc/.test(evidence) && !/curl/.test(evidence), 'the lens prompt contradicts its manual on heredocs or bypasses the shared source cache')
   assert.ok(/STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-logic')) && /STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-dark-side')), 'logic and dark-side audit the declines')
-  // AN INQUIRY THAT CONTRADICTS WHAT THE READER IS TOLD IS A GAP, NOT A FINDING. The inquiries print
+  // AN INQUIRY THAT CONTRADICTS WHAT THE READER IS TOLD IS A GAP. The inquiries print
   // in the report beside the body, so the reader sees both halves. The lens is told those sections
   // are composed from the record the inquiries projection serves.
   for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
@@ -609,12 +609,12 @@ test('the lens mints its own gaps, screens first, and closes as the originator',
     assert.ok(/that is a candidate gap, anchored to the inquiry/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a computation contradicts/.test(p) && /a section built on an approach that is no inquiry/.test(p),
       `${seat} is not told that an inquiry contradicting the report is a gap`)
     assert.ok(/in sections the report's text does not hold, composed from the record that projection serves\./.test(p), `${seat} is not told the inquiry sections are composed from the inquiries projection`)
-    assert.ok(/A finding about an inquiry reaches the logic lens, which judges every settled inquiry against its latest fate; a gap about it reaches blue, and a material one holds the PASS\./.test(p) && !/Both are findings/.test(p), `${seat} is not told where a finding and a gap about an inquiry go`)
-    // AN OPEN INQUIRY IS BLUE'S BLOCKER, NOT A LENS'S FINDING.
-    assert.ok(/An inquiry still open already holds the PASS until blue settles it\./.test(p) && !/a decision nobody made/.test(p), `${seat} is told an open inquiry is a finding`)
+    assert.ok(/A gap about an inquiry reaches blue, and a material one holds the PASS; the logic lens judges every settled inquiry against its latest fate, reading the open gaps about it\./.test(p), `${seat} is not told where a gap about an inquiry goes`)
+    // AN OPEN INQUIRY IS BLUE'S BLOCKER, NOT A LENS'S GAP.
+    assert.ok(/An inquiry still open already holds the PASS until blue settles it\./.test(p) && !/a decision nobody made/.test(p), `${seat} is told an open inquiry is a gap to mint`)
     // THE BAR IS THE ONE EVERY GAP MEETS. A clause that orders a mint for every mismatch puts a
-    // duplicate row on the board as a gap, against the same prompt's "not nitpicks"; and the lens
-    // that filed findings on universe-m21 had judged by the answer alone.
+    // duplicate row on the board as a gap, against the same prompt's "not nitpicks"; and a lens
+    // that judges by the answer alone misses what the reader decides by.
     assert.ok(/weighed like any other: by what it changes for a reader, who decides by what was tried as well as by the answer/.test(p) && !/YOU MINT A GAP/.test(p),
       `${seat} is told to mint whatever the mismatch changes for a reader`)
   }

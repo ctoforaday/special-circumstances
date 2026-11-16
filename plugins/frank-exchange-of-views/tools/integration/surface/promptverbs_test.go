@@ -53,7 +53,7 @@ var promptVerb = regexp.MustCompile(`feov-record(?:"|'\})?\s+(lens|chair|blue|be
 // promptVerb anchors on `feov-record` or the ternary's `'feov-record'}` because it answers "is this verb a seat
 // is being told to TYPE real". The naming gates ask a different question — "does this text hand a
 // seat a slice of the surface" — and there the prefix is often neither: `edit by edit through
-// \`blue edit\“, "an anchor is BORN only from \`lens finding\`/\`blue cite\`", "cite the METHOD
+// \`blue edit\“, "an anchor is BORN only from \`lens mint\`/\`blue cite\`", "cite the METHOD
 // with blue cite". SIX such invocations sat in the rendered prompts while the catalogue gate was
 // pinned at ZERO and green, which is this file's own recurring defect: a gate covering less than
 // it claims and reporting the shortfall as a clean board.

@@ -175,9 +175,8 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 // not reading the whole document).
 //
 // Every one of universe-m10's eight refusals was a seat acting on a gap another seat minted, and the
-// information was on the list the whole time — as `found_by: ["computation-F1"]`, a finding label
-// whose owning seat you recover by decoding a prefix and then recalling that only the originator may
-// close. Two inferences, at the moment of acting, ten calls into a sitting.
+// information was on the list the whole time — as an attribution label whose owning seat you
+// recover by decoding a prefix and then recalling that only the originator may close. Two inferences, at the moment of acting, ten calls into a sitting.
 //
 // THROUGH THE SEAT PATH, because `yours_to_close` is a fact ABOUT THE READER and the oracle's
 // entry point has no reader. A test through WorkJSONOfRun would assert the false case twice and

@@ -12,7 +12,7 @@ import (
 )
 
 // WHAT A SEAT TYPED OPENS NO FOOTNOTE. Both rows that head this table shipped in one run's set: a
-// finding naming the report's footnote, printed in the board document, and a log entry quoting a
+// gap's text naming the report's footnote, printed in the board document, and a log entry quoting a
 // regex, printed in the run document.
 func TestEscapeNotesMakesEveryNoteOpenerText(t *testing.T) {
 	for _, c := range []struct{ name, in, want string }{

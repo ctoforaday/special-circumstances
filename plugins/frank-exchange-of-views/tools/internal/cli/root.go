@@ -187,7 +187,7 @@ bench rules and never originates.`,
 	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the
-	// format is primarily view-selected: board/findings/work/motions/telemetry/evidence are JSON
+	// format is primarily view-selected: board/work/motions/telemetry/evidence are JSON
 	// by name (seat.JSONByNameViews is the set; each one says so in its own --help), the rest
 	// are markdown. --json opts a markdown view into its structured form where one exists
 	// (today only `show debate --json`); on a JSON-by-name view it is accepted and changes
@@ -448,7 +448,7 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 	//
 	// A FLAG THE ROOT DOES NOT DECLARE IS A VERB'S, typed before the verb, and its arity is unknown
 	// until a verb is found — so its next word is NOT skipped, and is read as the name. `before`
-	// keeps that flag, so the refusal below can say what happened: `--key adv-f-tldr finding` read
+	// keeps that flag, so the refusal below can say what happened: `--key adv-f-tldr mint` read
 	// "adv-f-tldr" as a command and was told no command of that name exists.
 	name, before := "", ""
 	for i := 1; i < len(argv) && name == ""; i++ {

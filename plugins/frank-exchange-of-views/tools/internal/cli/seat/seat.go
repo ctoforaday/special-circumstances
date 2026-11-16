@@ -963,7 +963,7 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 //
 // IT WAS ONE STRING, SET INTO BOTH, and that is why the listing became unreadable. Everything a
 // verb had to say went into Short — flag enumerations, sibling discriminators, the arguments from
-// past runs — and cobra prints Short IN FULL in the parent's Available Commands block. `finding`
+// past runs — and cobra prints Short IN FULL in the parent's Available Commands block. One verb's
 // alone ran to 961 characters there. A menu whose entries are each a paragraph is not a menu, and
 // a seat facing one reads the first clause, which was the mechanics, and stops.
 //

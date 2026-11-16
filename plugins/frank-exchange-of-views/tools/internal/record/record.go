@@ -1518,7 +1518,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Inquiry:
-		// EVERY INQUIRY HAS AN ID, exactly as every gap, finding and citation does. A
+		// EVERY INQUIRY HAS AN ID, exactly as every gap and citation does. A
 		// record without one does not replay: a compatibility path for one subsystem is an
 		// asymmetry every reader then has to learn.
 		// A RECORDED FATE names an inquiry that exists. A proposal ASSIGNS the id, so only a

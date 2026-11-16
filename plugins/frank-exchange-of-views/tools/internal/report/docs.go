@@ -275,7 +275,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 }
 
 // NO TOKEN SHIPS IN PROSE, AND IT IS MADE SO WHERE TEXT ENTERS COMPOSITION. A seat copies a token into
-// record prose — a finding's location, a computation's reason, a citation's title — and the report's text
+// record prose — a gap's problem, a computation's reason, a citation's title — and the report's text
 // carries the ones the tool placed. Every such text passes stripTokens as it enters a document: each
 // section a row composes, before its notes are escaped (Section.block); the inquiries document; and
 // each field the tool writes into a line after the weave — a note's text, a Bibliography entry, a
@@ -291,7 +291,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 // a token one tier reads as prose would ship there as prose.
 //
 // A LINE THE STRIP LEAVES A HUSK GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
-// finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ." in
+// anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ." in
 // universe-m19's verified report. The line that goes is that husk (anchor.Husk): a list marker at
 // most, sentence punctuation, and the brackets or emphasis that held the text. A line of symbols that
 // held a token is content — a table's delimiter row, a row of marks, a rule — and ships without the

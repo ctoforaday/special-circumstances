@@ -832,7 +832,7 @@ func PassBlockers(run Run) ([]Blocker, error) {
 }
 
 // passBlockersAt is PassBlockers asked of q, the write path's transaction: the gate and the outcome
-// read the blockers on the record their verdict lands on, so a mint, a motion or a finding another
+// read the blockers on the record their verdict lands on, so a mint or a motion another
 // seat commits cannot fall between the blockers read and the verdict written.
 func passBlockersAt(q recordsql.Querier) ([]Blocker, error) {
 	if noRecord(q) {

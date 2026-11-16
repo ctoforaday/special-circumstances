@@ -5,13 +5,10 @@ import (
 	"testing"
 )
 
-// A GAP ABOUT AN ABSENCE ANCHORS THE WAY THE FINDING DID, with the same two flags.
+// A GAP ABOUT AN ABSENCE ANCHORS BY WHERE THE MISSING THING BELONGS, with --about-kind and --about.
 //
-// `lens mint` is the next step of the act `lens finding` begins, and its help used to send an
-// omission back to the handle the finding had just been taught to stop using: "for a gap about
-// something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an
-// omission". Once that stopped being how a finding anchors an omission, the sentence was a
-// cross-verb instruction to do the wrong thing.
+// It borrows no quote: telling a lens to quote the sentence where something MISSING should be is an
+// instruction to anchor an omission on text that does not hold it.
 func TestAGapAboutAnAbsenceNeedsNoBorrowedQuote(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")

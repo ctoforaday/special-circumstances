@@ -595,7 +595,7 @@ func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
 		"defect_accepted":          true,
 		"defect_owed_elsewhere":    true,
 		// MOOT ENDS THE GAP WITHOUT ANSWERING IT (#847). The predicate expired — the text the
-		// finding attached to is gone — so there is nothing left to repair and nothing to argue,
+		// gap attached to is gone — so there is nothing left to repair and nothing to argue,
 		// and the gap does not survive to the next round. Closing, and deliberately not folded
 		// into not_a_defect, which would assert an argument that never happened.
 		"moot": true,

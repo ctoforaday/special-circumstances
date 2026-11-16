@@ -9,7 +9,7 @@
 // — and a seat reading for what was wrong reads past two names to reach it.
 //
 // WHAT COUNTS AS NAMING IT. The command's path or its last word, standing as THE COMMAND BEING
-// REFUSED: leading the diagnosis, alone or behind a role word (`lens finding requires`, "`motion`
+// REFUSED: leading the diagnosis, alone or behind a role word (`lens mint requires`, "`motion`
 // has no …"); followed by a flag, by `requires`, by
 // `refused` or by a colon, in backquotes or bare (blue's `compute` --answers names …); or behind the
 // tool's name (`for "feov-record count-claims"`).

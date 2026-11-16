@@ -456,12 +456,12 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		for _, gr := range bySevOrder {
 			bySev = append(bySev, &recordpb.SeverityTally{Grade: gr.Enum(), Count: proto.Int32(bySevCount[gr])})
 		}
-		// THE CLASS DISTRIBUTION — "did the findings change CHARACTER" made computable.
+		// THE CLASS DISTRIBUTION — "did the gaps change CHARACTER" made computable.
 		//
 		// The severity profile answers "how bad", and a run can hold severity flat for
 		// epochs while the KIND of thing being found moves from "this is wrong about the
 		// world" to "this document disagrees with itself". That phase change is the bench's
-		// stopping signal (#284): findings continuing is normal; findings turning into
+		// stopping signal (#284): gaps continuing is normal; gaps turning into
 		// internal-consistency complaints means the rest is cheaper to shake out in
 		// execution than in review. Class is already a REQUIRED mint field from a closed
 		// enum, so this is an aggregation, never a new assertion.
@@ -672,7 +672,7 @@ func debateMD(in Input) []byte {
 		//
 		// The bench is this system's ethical and safety boundary. A boundary whose rulings cannot
 		// reach the seat they bind is decoration, and an undelivered ruling is worse than an
-		// unread finding: an unread finding costs a reader, an undelivered ruling costs
+		// unread gap: an unread gap costs a reader, an undelivered ruling costs
 		// compliance, and nothing anywhere reported that it was not delivered.
 		var ops []string
 		for _, l := range re {
@@ -785,7 +785,7 @@ func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
 	body := InquiryBody(in.Events, in.At, AsWritten)
 	if body == "" {
-		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
+		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
 			"indistinguishable from one that never looked._", "")
 		return []byte(strings.Join(inquiry, "\n"))

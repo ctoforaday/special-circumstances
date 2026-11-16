@@ -18,7 +18,7 @@ import (
 
 // TestAssembleEndToEnd drives a minimal but real run through the record API and asserts the
 // assembled report.md combines the two ownership classes correctly: blue's audited sections
-// ship as written, and the verdict, findings, inquiries and debate are composed from the
+// ship as written, and the verdict, gaps, inquiries and debate are composed from the
 // event log. It is the driveable check the unit tests around each composer cannot give.
 func TestAssembleEndToEnd(t *testing.T) {
 	runDir := newRun(t)

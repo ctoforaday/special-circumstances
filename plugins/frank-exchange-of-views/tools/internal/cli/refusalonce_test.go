@@ -8,8 +8,8 @@ import (
 //
 // seat.RenderRefusal prints `feov-record: <path>: <diagnosis>` and carries the role and the verb as
 // fields of the JSON envelope, both read from the command that resolved. A diagnosis that opens
-// with its own role or its own path therefore says it twice — `feov-record: finding: lens finding
-// requires --reason` — and a seat reading for what was wrong reads past two names to reach it.
+// with its own role or its own path therefore says it twice — `feov-record: mint: lens mint
+// requires --class` — and a seat reading for what was wrong reads past two names to reach it.
 //
 // Every refusal any test drives through `run` is read against this (cli_test.go), the binary's
 // own output is in TestEveryRefusalKindHasOneEnvelope and in every difftest scenario, and the

@@ -47,7 +47,7 @@ func TestShippedHelpIsTheRenderedDocument(t *testing.T) {
 // THE MENU LINE IS A MENU LINE.
 //
 // Cobra prints Short IN FULL inside the parent's Available Commands block, so a paragraph there is
-// paid by every seat that opens the listing whether or not it cares about the verb. `finding` ran to
+// paid by every seat that opens the listing whether or not it cares about the verb. One Short ran to
 // 961 characters, and the measured failure is a seat reading the first clause and stopping — the
 // first clause being the flag list.
 func TestMenuLinesStayScannable(t *testing.T) {

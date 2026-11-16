@@ -22,7 +22,7 @@ import (
 //	the one channel both seats read was unavailable for the one holding both seats most need.
 //
 // Quoted as written. That verb is `motion docket rule` now (#681) and the argument is unchanged by
-// the rename: it had a finding both parties needed on the record and no way to state it. Disposing
+// the rename: it had a holding both parties needed on the record and no way to state it. Disposing
 // of a docketed gap wants an id and a fate. Every bench act changed something's
 // fate, so a holding that changes none had no verb — and the bench put it in a petition ruling's
 // opinion text, which was the channel least likely to be read (#360).
@@ -51,7 +51,7 @@ import (
 // first act, with the board's status beside each gap it names; and it renders into `inquest debate`
 // beside the bench's dispositions, where the chair and the bench read what the bench ruled. A ruling that reaches no reader is decoration
 // — and the bench is this system's ethical and safety boundary, which makes an undelivered one
-// worse than an unread finding: an unread finding costs a reader, an undelivered ruling costs
+// worse than an unread gap: an unread gap costs a reader, an undelivered ruling costs
 // compliance, and nothing reports that it was not delivered.
 func newDeclare() *cobra.Command {
 	// The handler above refuses an empty holding; the marker says so where the seat reads.

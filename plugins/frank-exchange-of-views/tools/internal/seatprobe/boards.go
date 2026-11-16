@@ -892,7 +892,7 @@ func Boards() map[string]Board {
 //
 // THIS MAP IS A FINDING, NOT AN EXEMPTION LIST. Building the boards surfaced it: `motion grade
 // file` is offered to every seat but the chair, which rules it — but grades are blue's to
-// contest. A lens files findings; a bench disposes of gaps rather than arguing their axes. The
+// contest. A lens mints gaps; a bench disposes of gaps rather than arguing their axes. The
 // verb-slots below exist and no board here reaches them.
 //
 // That is capability offered without purpose, and the choice report would otherwise show every
@@ -908,8 +908,8 @@ var NoSituation = map[string]string{
 	"lane motion docket file":   "a lane sits before any gap is minted, so it has no gap to put before the bench.",
 	"lane motion grade file":    "a lane sits before any gap is minted, so it has no grade to contest.",
 	"lane motion petition file": laneSitsBeforeAnyBoard,
-	"lens motion docket file":   "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
-	"lens motion grade file":    "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
+	"lens motion docket file":   "a lens mints its gaps. Its one road here is a proposed act on another lens's gap, which the one-gap-per-class refusal opens and no board here stages.",
+	"lens motion grade file":    "a lens mints its gaps and weighs them as it mints; a weight it disputes on another lens's gap is a proposed regrade, not a grade contest.",
 	"chair position": "possible and real — the chair withholds a PASS its plan permits, and its position says why — but a " +
 		"permitted PASS needs every cast lens to have sat at the report head, which no board here stages; capture's " +
 		"record-parity audit holds the duty instead.",

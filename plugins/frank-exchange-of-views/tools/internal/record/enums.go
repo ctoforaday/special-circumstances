@@ -177,7 +177,7 @@ var artifactByClass = map[string]ArtifactState{
 	// class that shows it.
 	//
 	// It is not `repaired` — nobody verified a fix. It is not `no_defect` — that asserts red was
-	// WRONG, and a mooted finding may have been entirely right about text that has since gone. It
+	// WRONG, and a mooted gap may have been entirely right about text that has since gone. It
 	// is not `defect_live` — the text it attached to is not in the report to ship. What is true is
 	// that the question was never reached: the predicate expired underneath it.
 	"moot": ArtifactUnexamined,

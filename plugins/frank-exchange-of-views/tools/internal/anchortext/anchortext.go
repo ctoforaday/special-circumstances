@@ -44,12 +44,12 @@ func IsSpace(b byte) bool {
 }
 
 // annotationLen returns the byte length of an annotation span starting at s[i:] — an
-// invisible HTML-comment anchor ("<!--fx:…-->" finding, "<!--cite:…-->" citation, or any
+// invisible HTML-comment anchor ("<!--gap:…-->" gap, "<!--cite:…-->" citation, or any
 // other) or a footnote reference "[^label]" — or 0 if none starts there. These spans are
 // the "invisible layer": the matcher skips them so a quote of the semantic prose still
 // anchors even when markers/footnotes are spliced in. The whole HTML-comment class is
-// skipped (not just fx) so a sentence already carrying a citation anchor is still locatable
-// for a finding, and vice versa — the two anchor axes never block each other.
+// skipped (not just one tag) so a sentence already carrying a citation anchor is still locatable
+// for a gap, and vice versa — the two anchor axes never block each other.
 func annotationLen(s string, i int) int {
 	if strings.HasPrefix(s[i:], "<!--") {
 		if j := strings.Index(s[i:], "-->"); j >= 0 {
@@ -91,7 +91,7 @@ func Visible(s string) string { return normalizeQuote(s) }
 // of the invisible layer and the line breaks out (Visible).
 //
 // A TOKEN IN A LOG ENTRY IS A MARKER, NOT A MENTION. Every document that renders the log strips a
-// finding's or a gap's token and weaves a citation's or a computation's into a note, so a refusal naming
+// gap's token and weaves a citation's or a computation's into a note, so a refusal naming
 // one read "anchor G-ec5568ed () is not in the report" on universe-m28. The bare id is how every
 // shipped document names an anchor, and nothing that reads the annotation layer takes it for one.
 //
@@ -197,8 +197,8 @@ func skeleton(q string) string {
 }
 
 // locateEnd returns the byte offset in report just past the last CONTENT char of the
-// quote, or -1 if not present — the insert-point half of LocateSpan, used by the
-// finding-marker anchor (which needs only the end).
+// quote, or -1 if not present — the insert-point half of LocateSpan, used by
+// InsertAnchor (which needs only the end).
 func locateEnd(report, quote string) int {
 	_, end := LocateSpan(report, quote)
 	return end
@@ -218,7 +218,7 @@ func LocateSpan(report, quote string) (int, int) {
 
 // SpanScope says whether a quote may cross a blank line.
 //
-// ONE MATCHER SERVED TWO OPPOSITE REQUIREMENTS AND THAT WAS THE BUG. A finding ANCHORS a
+// ONE MATCHER SERVED TWO OPPOSITE REQUIREMENTS AND THAT WAS THE BUG. An anchor MARKS a
 // sentence, so a paragraph break is correctly a hard boundary — a marker that spanned one would
 // sit in two places at once. An EDIT REPLACES a span, and a span across paragraphs is an ordinary
 // thing to replace.

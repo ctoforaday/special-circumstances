@@ -78,7 +78,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 	}
 }
 
-// HTML IN THE SOURCE IS ESCAPED, not executed. A seat's prose is model output and a finding's
+// HTML IN THE SOURCE IS ESCAPED, not executed. A seat's prose is model output and a gap's
 // text is quoted from a repository; either can contain a tag, and a report that renders it is
 // a report that can be written into.
 func TestMarkupInProseIsEscaped(t *testing.T) {

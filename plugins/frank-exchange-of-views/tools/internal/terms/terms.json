@@ -276,7 +276,7 @@
     },
     {
       "term": "lens",
-      "definition": "A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.",
+      "definition": "A lens is a red seat that audits the report for one class of defect, and the only seat that mints gaps.",
       "seats": [
         "lens",
         "chair",
@@ -589,7 +589,7 @@
     },
     {
       "term": "anchor",
-      "definition": "An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.",
+      "definition": "An anchor is the invisible token a citation, a computation or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.",
       "seats": [
         "lens",
         "chair",
@@ -614,31 +614,6 @@
       ],
       "bans": [],
       "collisions": []
-    },
-    {
-      "term": "finding anchor",
-      "definition": "A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.",
-      "seats": [
-        "lens",
-        "chair",
-        "blue",
-        "lane",
-        "bench",
-        "operator"
-      ],
-      "bans": [
-        {
-          "variant": "finding-marker, marker layer",
-          "kind": "GATED",
-          "pattern": "finding markers?|marker layer"
-        }
-      ],
-      "collisions": [
-        {
-          "word": "marker",
-          "resolution": "the `.run-live` marker and the manual's `→ SHARED` marker keep the word"
-        }
-      ]
     },
     {
       "term": "verdict",
@@ -677,31 +652,6 @@
         "operator"
       ],
       "bans": [],
-      "collisions": []
-    },
-    {
-      "term": "finding",
-      "definition": "A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.",
-      "seats": [
-        "lens",
-        "chair",
-        "blue",
-        "lane",
-        "bench",
-        "operator"
-      ],
-      "bans": [
-        {
-          "variant": "finding (a complaint about the tooling)",
-          "kind": "GATED",
-          "pattern": "\\bfinding about the tooling\\b"
-        },
-        {
-          "variant": "finding (a capture-audit failure)",
-          "kind": "GATED",
-          "pattern": "\\bfinding against you\\b"
-        }
-      ],
       "collisions": []
     },
     {
@@ -770,7 +720,7 @@
     },
     {
       "term": "reading",
-      "definition": "A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the finding — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.",
+      "definition": "A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the defect on the record — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.",
       "seats": [
         "lens",
         "chair",

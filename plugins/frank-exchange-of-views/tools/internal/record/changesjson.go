@@ -29,7 +29,7 @@ type ChangesJSON struct {
 	Gap *ChangesGapJSON `json:"gap"`
 	// Edits is every recorded change in record order — each edit, and each evidence anchor's retire, which
 	// takes a citation or a computation off a sentence the report keeps — and on the scoped form every one answering the gap. NOT omitempty: an empty list is "blue recorded
-	// no edit", which on a run past epoch 0 is itself a finding, and an absent key would read as a
+	// no edit", which on a run past epoch 0 is itself a defect, and an absent key would read as a
 	// projection that does not carry edits.
 	Edits  []EditJSON `json:"edits"`
 	Counts struct {

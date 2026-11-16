@@ -61,7 +61,7 @@ const (
 
 	// Quote is THE EXACT TEXT, quoted out of blue/report.md and nothing else, matched
 	// literally. Every verb that addresses a span of the report takes it: cite and compute
-	// splice an anchor there, finding flags it, mint says the defect lives there, edit
+	// splice an anchor there, mint says the defect lives there and anchors its gap, edit
 	// replaces it, retire says it left. A section heading prepended to it makes it match
 	// nothing, which is why the four words this replaced could not all be right.
 	Quote = "quote"
@@ -218,7 +218,7 @@ const (
 	VerifiedWith    = "verified-with"
 	VerifiedAgainst = "verified-against"
 
-	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--fx:f-…-->` or
+	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--gap:G-…-->` or
 	// `<!--computation:K-…-->` token — naming a place in the report by identity rather than by
 	// quoting it. Where --quote says the text, this says the marker.
 	//

@@ -20,7 +20,7 @@
 //
 // A violation is a DISAGREEMENT, not a verdict. When the family says a gap was closed by the bench
 // and the last closing event on the record is red's, the oracle reports both sides; which reader
-// is wrong is the finding's job to establish. The one thing a violation always means is that two
+// is wrong is the reader's job to establish. The one thing a violation always means is that two
 // carriers of one fact have diverged, which is the thing this codebase keeps paying for.
 package consistency
 

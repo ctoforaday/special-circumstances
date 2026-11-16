@@ -120,7 +120,7 @@ func TestATokensRemovalOpensNoNote(t *testing.T) {
 
 // A LINE THE STRIP LEAVES A HUSK GOES WHOLE, WHATEVER THE TOKEN. An elided citation token is no token
 // the weave takes; stripped after it, "- <!--cite:C-…-->." shipped as "- .". The same holds for a
-// finding's.
+// gap's.
 func TestAHuskGoesWholeForEveryToken(t *testing.T) {
 	set := shipSeeded(t,
 		recordtest.Event(t, "blue-synthesize", &recordpb.ReportPart{Text: proto.String(

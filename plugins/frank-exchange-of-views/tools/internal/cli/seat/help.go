@@ -5,7 +5,7 @@ package seat
 // Every verb's help lives in help/<verb>.md and is embedded. Three reasons, in order of weight:
 //
 //	IT IS PROSE FOR A READER. Written as a string literal it acquired backtick escaping, `+`
-//	concatenation across five lines, and a shape nobody could review as writing. `finding` ran to
+//	concatenation across five lines, and a shape nobody could review as writing. One verb's ran to
 //	961 characters of that.
 //	IT IS WHERE THE PROMPTS' PROSE IS GOING. Moving a paragraph out of debate.js into a markdown
 //	file is an edit; moving it into a quoted Go literal is a translation, and translations are

@@ -112,13 +112,13 @@ incentivised to stop being found out, and the run's terms — exchanges per gap,
 bound the debate without judging it. Weighing remaining defect against remaining cost is
 YOURS. Read the telemetry series before you weigh it; its own page says what each line carries.
 
-- **Stop when the findings change CHARACTER, not when they stop.** Substantive ("this is
+- **Stop when the new gaps change CHARACTER, not when they stop.** Substantive ("this is
   wrong about the world") turning into self-consistency ("this artifact disagrees with
-  itself") is the phase change. Findings continuing is normal and is NOT a reason to keep
-  going; findings becoming internal means the rest is cheaper to shake out in execution than
+  itself") is the phase change. New gaps continuing is normal and is NOT a reason to keep
+  going; new gaps becoming internal means the rest is cheaper to shake out in execution than
   in review. In telemetry this is `new_mint.by_class` moving, and `class_repeat_rate` rising.
   A high `unclassified_rate` is a different signal: the closed class vocabulary is missing a
-  class this run's findings need, so `by_class` and `class_repeat_rate` undercount their kind.
+  class this run's gaps need, so `by_class` and `class_repeat_rate` undercount their kind.
 - **A stable core under churn is a stopping signal.** If the part that answers the original
   question has gone several sittings unchallenged, the live dispute is about accretion — and
   accretion is scope, not defect.
@@ -165,7 +165,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
-  - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
+  - A lens is a red seat that audits the report for one class of defect, and the only seat that mints gaps.
   - The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
@@ -176,16 +176,14 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
-  - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
+  - An anchor is the invisible token a citation, a computation or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
-  - A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
   - The verdict is the chair's PASS or FAIL on the board.
   - The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
-  - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
-  - A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the finding — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
+  - A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the defect on the record — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
   - To retire a claim is to take it out of the report with the retire verb, on the record; retiring an evidence anchor alone — a citation or computation — takes it out of the report and keeps the sentence it stood on word for word, and a retired anchor is in no document.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.
@@ -386,7 +384,7 @@ Flags:
       --quote text    select only the motions containing this text LITERALLY (case-insensitive) — → SHARED §7
 ========
 $ feov-record inquest telemetry --help
-JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring
+JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the gaps are still changing character or merely recurring
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 

@@ -55,7 +55,7 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 	return recordtest.Event(t, "blue-respond", be)
 }
 
-// The core rule: a finding located in text red prescribed and blue applied VERBATIM names
+// The core rule: a mint located in text red prescribed and blue applied VERBATIM names
 // the gap that prescribed it, the seat that minted that gap, and the text.
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 	mint := recordtest.Event(t, "red-lens-logic", &recordpb.Mint{GapId: proto.String("G1")})
@@ -96,16 +96,16 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
 	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
 	if est, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); est.Gap != "" {
-		t.Errorf("an unrelated finding was estopped by gap %q — the guard is over-broad", est.Gap)
+		t.Errorf("an unrelated mint was estopped by gap %q — the guard is over-broad", est.Gap)
 	}
 }
 
 // The overlap floor exists so a short prescription cannot shield half the report. Refusing a
-// real finding is worse than missing an estoppel, so the guard declines to fire here.
+// real defect is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
 	b := board(t, map[string]string{"G1": "7 is prime."}, []*Event{edit(t, "G1", true)})
 	if est, _ := EstoppelConflict(b, "7 is prime."); est.Gap != "" {
-		t.Errorf("a %d-character prescription estopped a finding (gap %q); the floor is %d",
+		t.Errorf("a %d-character prescription estopped a mint (gap %q); the floor is %d",
 			len("7 is prime."), est.Gap, minEstoppelOverlap)
 	}
 }

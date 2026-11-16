@@ -70,7 +70,7 @@ func TestAssembleStripsGapMarkersAndResolvesCitations(t *testing.T) {
 		"# Coherence — research report",
 		"",
 		"## TL;DR",
-		// One finding marker (must be STRIPPED) and one citation anchor (must be RESOLVED),
+		// One gap marker (must be STRIPPED) and one citation anchor (must be RESOLVED),
 		// on the same sentence.
 		"The cache is coherent<!--gap:G-00000aaa--><!--cite:C-00000001-->.",
 		"",
@@ -110,7 +110,7 @@ func TestAssembleStripsGapMarkersAndResolvesCitations(t *testing.T) {
 	got := string(b)
 
 	if strings.Contains(got, "<!--gap:") {
-		t.Error("a finding marker survived assembly")
+		t.Error("a gap marker survived assembly")
 	}
 	if strings.Contains(got, "<!--cite:") {
 		t.Error("a citation anchor survived assembly (should be woven to [^N])")

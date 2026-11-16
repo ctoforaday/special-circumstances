@@ -12,7 +12,7 @@
 //
 // # Why it is a leaf
 //
-// Each kind is placed by its own verb — `lens finding`, `lens mint`, `lens verify` (the gap its
+// Each kind is placed by its own verb — `lens mint`, `lens verify` (the gap its
 // reading mints), `blue cite`, `blue compute` — and read back by the edit guard, the board, the assembly and every seat that
 // wants the live text at one. That is a vocabulary several layers share, so it depends on NOTHING
 // but the standard library. It was in `internal/bluedoc`, which reaches up into `internal/cli/lens`
@@ -190,7 +190,7 @@ func Replace(s string, repl func(token, id string) string) string {
 // writtenAt is the token of an anchor kind's tag beginning at i AS WRITTEN — `<!--TAG:…-->` closed on
 // its line, whatever stands between the tag and the close — with its length, its kind and what it
 // holds. A real token holds its id; a seat that copies a token into record prose may elide the id
-// ("<!--fx:…-->"), and a message that shows the token's shape holds a placeholder ("<!--cite:C-…-->").
+// ("<!--gap:…-->"), and a message that shows the token's shape holds a placeholder ("<!--cite:C-…-->").
 // A token is one line's: an opener with no close on its line is text, and nothing after it is taken.
 //
 // It is read by its parts — the opener, a tag the kinds table holds, the close — rather than matched,
@@ -356,8 +356,8 @@ func Kinds() []string {
 // SkipRun returns the index just past a maximal run of anchor tokens starting at i in s, or i
 // itself when no token starts there.
 //
-// WHY A RUN AND NOT A TOKEN. Anchors abut: `verification<!--fx:f-e4bc25ec--><!--fx:f-73a56bd3-->`
-// is a real span from the 2026-08-22 corpus, where two lenses anchored the same sentence. A
+// WHY A RUN AND NOT A TOKEN. Anchors abut: `verification<!--gap:G-e4bc25ec--><!--gap:G-73a56bd3-->`
+// is a sentence two lenses each minted a gap on, of two classes. A
 // caller stepping over "the anchor" would step over one of two and land inside the layer it
 // was trying to see past.
 func SkipRun(s string, i int) int {

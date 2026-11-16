@@ -15,13 +15,13 @@ import (
 //
 // # Why it does NOT resolve the anchors, though assembly does
 //
-// The first draft stripped finding-markers and wove citations and computations into footnotes, on the
+// The first draft stripped gap anchors and wove citations and computations into footnotes, on the
 // argument that the tool already knows how to render this document for a human and was making
-// each seat read past `<!--fx:…-->` tokens by hand.
+// each seat read past `<!--gap:…-->` tokens by hand.
 //
 // That would have broken editing. `blue edit` compares the anchors in --old against --new and
-// REFUSES any edit that drops, duplicates or invents one: an anchor is born only from `lens
-// finding` or `blue cite` and removed only by the tool. A seat that read a resolved rendering
+// REFUSES any edit that drops, duplicates or invents one: an anchor is born only from a placing
+// verb (`lens mint`, `blue cite`, `blue compute`) and removed only by the tool. A seat that read a resolved rendering
 // would not know an anchor lived inside the span it is about to replace, would omit it from
 // --new, and would have the edit refused — a wasted epoch, on a document it had every reason to
 // think it had read correctly.

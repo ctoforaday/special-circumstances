@@ -15,8 +15,8 @@ type returnsProbe struct {
 func (returnsProbe) Human() string { return "probe" }
 
 // A VERB'S PAGE STATES ITS --json SUCCESS FROM THE TYPE IT RETURNS, AND THE RESULT IS HELD TO IT. The
-// smoke's voice lens read `.result.id` off `finding --json` and got null: the key is `finding_id`,
-// and no write page said so (#1601 smoke, ev117). Returns writes the tree from the type; Emit refuses
+// smoke's voice lens read `.result.id` off a write's `--json` and got null: the key is named for
+// the act's noun, and no write page said so (#1601 smoke, ev117). Returns writes the tree from the type; Emit refuses
 // a handler that returns another, so the page cannot describe a shape the wire does not carry.
 func TestAVerbsPageStatesTheResultItReturnsAndEmitHoldsItToIt(t *testing.T) {
 	c := Returns(&cobra.Command{Use: "probe"}, returnsProbe{})

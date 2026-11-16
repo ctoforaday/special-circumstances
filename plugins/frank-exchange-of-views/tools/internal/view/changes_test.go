@@ -147,7 +147,7 @@ func TestChangesScopedRefusesAnUnknownGap(t *testing.T) {
 // An empty stack is a FINDING on a run past epoch 0, not blank formatting.
 func TestChangesSaysWhyItIsEmpty(t *testing.T) {
 	out := md(t, t.TempDir(), "changes")
-	if !strings.Contains(out, "itself a finding") {
+	if !strings.Contains(out, "itself a defect") {
 		t.Errorf("an empty change stack rendered as if there were simply nothing to show:\n%s", out)
 	}
 }

@@ -99,10 +99,10 @@ The #474 split is semantically sound and the seat walked to it perfectly when as
 because the two neighbouring help texts each say "that's a finding" without qualifying which question
 they are answering.
 
-> **FIXED.** The Shorts name the question they answer — `finding` the TEXT, `verify` a source read
-> against the sentence, blue's citation or one the lens found in the WORLD — and each routes to the other at the boundary. `finding`
-> also states the asymmetry the seat identified rather than leaving it to act: *"this verb cannot
-> fail, needing no fetch and risking no `absent`, and the evidence verbs can."*
+> **FIXED.** A lens reports a defect in the text one way, by minting a gap, and `verify`'s page names
+> the question each answers: a source read against the sentence — blue's citation or one the lens
+> found — answers whether the claim is true in the WORLD; a gap on the sentence alone is for when
+> there is nothing to fetch, and answers whether the TEXT stands up.
 >
 > The gate that would have caught it is derived rather than written for this case:
 > `TestSplitVerbsNameEachOtherInTheirHelp` pairs verbs by the event type they WRITE — a
@@ -192,7 +192,7 @@ seat was dispatched more than once.
 *Addendum (2026-08-22).* Still unresolved, and the diagnostic quoted above no longer exists. The
 record is one database per run: there are no shards, no nonce, and no winner selection, so the
 `multi-nonce seat …` anomaly is gone — but the observation it accompanied is unchanged. Both
-dispatches' findings are rows, which is the honest outcome, and any count that does not group by
+dispatches' acts are rows, which is the honest outcome, and any count that does not group by
 dispatch still doubles. The dispatch is answerable now (`register` reports which attempt it is, and
 the registers are on the record), so a per-verb count CAN be scoped to one sitting. Nothing does
 that yet.

@@ -165,7 +165,7 @@ func (v *ShapedValue) Type() string { return v.kind }
 // BareID names an anchor's bare id against the text a seat copies when it drops a token's comment
 // delimiters and keeps the rest: that text carries the kind's tag before the id, and a flag taking
 // an anchor stores the id alone, so it is refused. Measured on universe-m35 and m36: a lens passed
-// `fx:F-…` to `close --anchor` in both runs, reading "the id inside one" as everything inside the
+// the tagged form to `close --anchor` in both runs, reading "the id inside one" as everything inside the
 // delimiters. One spelling here, so each refusal and help line that names the form names it alike.
 func BareID(id string) string { return "`" + id + "`, never `" + anchor.Tagged(id) + "`" }
 

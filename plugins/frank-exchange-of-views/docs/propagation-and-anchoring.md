@@ -70,7 +70,7 @@ through edits. The engine's version, compatible with a **read-only red**:
 around them). Turn boundaries, not concurrent writes to one file. Round-0 blue is multi-lane, but
 that is *before* red cites anything.
 
-**Built as the anchor layer** (`finding-markers.md`): an anchor of every kind is placed by the tool at
+**Built as the anchor layer** ([anchor-lifecycle.md](anchor-lifecycle.md)): an anchor of every kind is placed by the tool at
 the end of its quote, carried by every edit, and leaves only by `retire`.
 
 ## Two complementary anchor sources

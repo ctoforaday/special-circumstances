@@ -35,10 +35,8 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [OCR-derived text](#ocr-derived-text) | lens, blue, lane, operator |
 | [anchor](#anchor) | lens, chair, blue, lane, bench, operator |
 | [computation](#computation) | lens, chair, blue, lane, bench, operator |
-| [finding anchor](#finding-anchor) | lens, chair, blue, lane, bench, operator |
 | [verdict](#verdict) | lens, chair, blue, lane, bench, operator |
 | [outcome](#outcome) | lens, chair, blue, lane, bench, operator |
-| [finding](#finding) | lens, chair, blue, lane, bench, operator |
 | [gap](#gap) | lens, chair, blue, lane, bench, operator |
 | [material](#material) | lens, chair, blue, lane, bench, operator |
 | [blocker](#blocker) | lens, chair, bench |
@@ -199,7 +197,7 @@ A side is red or blue: red audits the report and passes or fails it, blue resear
 
 ## lens
 
-A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
+A lens is a red seat that audits the report for one class of defect, and the only seat that mints gaps.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -373,7 +371,7 @@ OCR-derived text is a machine's reading of a scanned document's page images: det
 
 ## anchor
 
-An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
+An anchor is the invisible token a citation, a computation or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, which never stands bare and may leave alone by retire, its sentence kept.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -382,22 +380,6 @@ An anchor is the invisible token a citation, a computation, a finding or a gap l
 A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
-
-## finding anchor
-
-A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-
-**Delivered to:** lens, chair, blue, lane, bench, operator
-
-**Not:**
-
-| variant | kind | pattern | masks | allowed in |
-|---|---|---|---|---|
-| finding-marker, marker layer | GATED | `finding markers?\|marker layer` |  |  |
-
-**Collisions:**
-
-- **marker** — the `.run-live` marker and the manual's `→ SHARED` marker keep the word
 
 ## verdict
 
@@ -417,19 +399,6 @@ The verdict is the chair's PASS or FAIL on the board.
 The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
-
-## finding
-
-A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
-
-**Delivered to:** lens, chair, blue, lane, bench, operator
-
-**Not:**
-
-| variant | kind | pattern | masks | allowed in |
-|---|---|---|---|---|
-| finding (a complaint about the tooling) | GATED | `\bfinding about the tooling\b` |  |  |
-| finding (a capture-audit failure) | GATED | `\bfinding against you\b` |  |  |
 
 ## gap
 
@@ -469,7 +438,7 @@ A lens's current item is the one entry of its queue it is handed in full — an 
 
 ## reading
 
-A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the finding — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
+A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the defect on the record — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 

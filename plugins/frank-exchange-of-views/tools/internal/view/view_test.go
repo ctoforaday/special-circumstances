@@ -386,7 +386,7 @@ func TestTelemetryIsComputed(t *testing.T) {
 // THE STOPPING SIGNAL (#284). Severity answers "how bad"; it can sit flat for epochs while
 // the KIND of defect being found moves — and that phase change is what tells the bench the
 // remaining work is cheaper to shake out in execution than in review. The distribution and
-// the repeat rate against the previous epoch are what make "the findings changed character"
+// the repeat rate against the previous epoch are what make "the defects changed character"
 // readable without re-reading every gap's prose.
 func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 	runDir := t.TempDir()

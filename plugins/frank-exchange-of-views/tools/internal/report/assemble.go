@@ -12,7 +12,7 @@
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
 //     matrix (the board), the three research areas (inquiry events by fate), the red
-//     findings (the board's gaps), and the debate transcript (position/closing/motion/
+//     gaps (the board), and the debate transcript (position/closing/motion/
 //     motion-rule/halt/certify events). The event log is the source of truth; the
 //     rendered projection .md files are in-run artifacts for the seats, NOT read here.
 //
@@ -568,8 +568,8 @@ func outcomeStamp(o *recordpb.Outcome) string {
 		//
 		// PENDING, NOT A DEFECT. Every assembly before the bench's last sitting has no outcome to
 		// stamp — an operator reading `ops assembled` mid-run sees this line — and "NONE (no
-		// terminal outcome on the record)" read as a finding: a lens on the 2026-10-17 smoke filed
-		// one against it, at a line no seat can change. Capture re-assembles at the close, so a run
+		// terminal outcome on the record)" read as a defect: a lens on the 2026-10-17 smoke reported
+		// it as one, at a line no seat can change. Capture re-assembles at the close, so a run
 		// whose bench recorded an outcome ships with it stamped.
 		return outcomeLine + " PENDING (no outcome on the record yet — the bench records it at the run's exit)"
 	}
