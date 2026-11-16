@@ -137,12 +137,12 @@ func unsatSitting(opened int64, reason string) string {
 func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 
 // lensOwesOf is what each lens owes, by seat, each named: an item its work list names as its own to
-// clear that is still undone. Each name is that item's alone — a finding and a remand by their own
+// clear that is still undone. Each name is that item's alone — a remand and a motion by their own
 // ids, since one gap may hold several — so a clause listing two items never reads as one listed twice.
 //
 //   - ON A GAP IT MINTED, WHAT IS NEW SINCE IT LAST SAT (gblock, 2026-10-18): blue's answer to the gap
 //     (blueAnswersOf), a retire that reached it (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
-//     remand of it, another seat's finding about it (findingsAboutGapsOf) — each owed until the lens
+//     remand of it — each owed until the lens
 //     sits through a sitting opened after it arrived (satThrough), whether or not that sitting acts
 //     on it. A sitting that never closed does not end the debt. A gap it holds with
 //     nothing new on it owes nothing: every act a lens has on its own gap waits on another seat's act,
@@ -204,7 +204,7 @@ type gapNews struct {
 
 // gapNewsOf IS "WHAT IS NEW ON A GAP" (gblock, 2026-10-18), for each gap of gaps: blue's answer to it
 // (blueAnswersOf), a reaching retire of it (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
-// remand of it, another seat's finding about it (findingsAboutGapsOf). It is one reading with two
+// remand of it. It is one reading with two
 // readers: the minting lens owes each item until it sits through a sitting opened after it
 // (lensOwesOf), and a seat's act on the gap is refused while an item arrived after its sitting opened
 // (staleOf).
@@ -243,9 +243,6 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
 			out = append(out, gapNews{gap: m.GapID, at: m.ruled, item: "the bench's remand of " + m.GapID + " in " + m.ID})
 		}
-	}
-	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
-		out = append(out, gapNews{gap: f.gap, at: f.at, item: f.filer + "'s finding " + f.id + " about " + f.gap})
 	}
 	return out
 }

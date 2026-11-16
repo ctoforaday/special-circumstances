@@ -141,20 +141,6 @@ func gradeOrZero(v sql.NullString) recordpb.Grade {
 	return g
 }
 
-// ObservationsOf builds the lens observations from the finding events, exactly as the fold
-// appended them: seat, key, the type's word, the finding body.
-func ObservationsOf(evs []*Event) []*Observation {
-	var out []*Observation
-	for _, e := range evs {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			out = append(out, &Observation{
-				SeatID: e.GetSeatId(), Key: e.GetKey(), Kind: recordpb.Word(e.GetType()), Finding: f,
-			})
-		}
-	}
-	return out
-}
-
 // Family is the record handed to a whole-record presenter — the gap family in board order and
 // the typed event stream, nothing derived beyond the family itself. It is what the report, the
 // verifiers and the operators' consumers take instead of a Board (plans/board-as-views.md waves

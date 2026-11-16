@@ -25,9 +25,9 @@ import (
 // until it sits through a sitting opened after that record, and its work list hands it each such
 // source in the meantime (composedItemsOf). Narration in an inquiry's reason or method is a
 // report_voice gap about the inquiry, and blue answers it by recording the fate again (fateActsOf).
-// A gap's problem and fix change only by its minter's successor, so narration there reaches the
-// minter as a finding about the gap, which readies it (gapNewsOf) — the voice lens's own gap it
-// supersedes itself, and its own mints it does not owe.
+// A gap's problem and fix change only by a successor, so narration in another seat's gap is a
+// proposed supersede of that gap carrying the reworded text, which its assignee may accept — the
+// voice lens's own gap it supersedes itself, and its own mints it does not owe.
 
 // composedSourceAuditor is the lens whose audit of the report covers the composed sections' sources.
 const composedSourceAuditor = "red-lens-voice"

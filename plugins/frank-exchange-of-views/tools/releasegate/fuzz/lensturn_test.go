@@ -119,9 +119,6 @@ func actsOnGaps(evs []*record.Event, carried map[string][]string) (acts gapActs,
 		if b, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
 			add(seat, i, b.GetGapId())
 		}
-		if b, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_GAP {
-			add(seat, i, b.GetAboutRef())
-		}
 		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
 			add(seat, i, b.GetAnswers())
 		}

@@ -237,25 +237,10 @@ func TestSupersedesChainWithAmendsPrior(t *testing.T) {
 	check(t, dir)
 }
 
-// Findings and citations: label bijections and the citation count.
-func TestFindingsAndCitations(t *testing.T) {
+// Citations: the citation count, authored and read.
+func TestCitations(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:F-00000001", &recordpb.Finding{
-			Id: proto.String("F-00000001"), Text: proto.String("a finding"),
-		}),
-		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:F-00000002", &recordpb.Finding{
-			Id: proto.String("F-00000002"), Text: proto.String("another"),
-		}),
-		// The anchor events: a finding and its anchor are appended as a pair, and the oracle's
-		// pair rule treats a missing anchor event as the crash window it is — this fixture
-		// claims to be a SETTLED record, so it carries both halves.
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:anchor:F-00000001", &recordpb.Anchor{
-			Id: proto.String("F-00000001"), Location: proto.String("a finding"),
-		}),
-		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:anchor:F-00000002", &recordpb.Anchor{
-			Id: proto.String("F-00000002"), Location: proto.String("another"),
-		}),
 		recordtest.At(t, "blue-synthesize", "blue-synthesize:cite:C-aa000001", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
 			Label: proto.String("C-aa000001"), Url: proto.String("https://example.org/a"),
 			Title: proto.String("A"), Location: proto.String("the cited sentence"),
@@ -317,46 +302,44 @@ func TestMarkdownInjectionInProblemText(t *testing.T) {
 	_ = filepath.Join // keep the import while scenarios grow
 }
 
-// THE ANCHOR-RECORD RULE STILL FIRES, AND IT NO LONGER FIRES ON AN HONEST RECORD.
+// THE ANCHOR-RECORD RULE FIRES ON A SPLIT PAIR, AND NOT ON AN HONEST ABSENCE.
 //
-// The rule catches a split pair: `lens finding` writes the finding and its anchor event as a PAIR,
-// in one transaction, so a finding with no anchor event is one an archived run's crash split and
-// migrate brought forward, which no retry has finished.
+// An act that stores a quote writes its anchor event as a PAIR, in one transaction, so a quoted
+// gap with no anchor event is one an archived run's crash split and migrate brought forward, which
+// no retry has finished. A gap anchored to a section or an inquiry names nothing that is report
+// text, so there is no marker to splice and no anchor event to pair with.
 //
-// That reasoning held while EVERY finding named a quoted sentence. A finding may now anchor to a
-// section, an inquiry or a gap — things that are not report text, so
-// there is no marker to splice and no anchor event to pair with. The rule reported every one of
-// those as the crash it was written to detect, on a record that was entirely correct. Nothing
-// caught it because no drive passed --about; the release sweep found it the moment one did.
-//
-// BOTH ARMS IN ONE TEST, because the fix is a narrowing and a narrowing is only safe if the
-// original catch survives it. Delete the about-kind condition in the walk and the first arm
-// fails; widen it back to every finding and the second does.
+// BOTH ARMS IN ONE TEST, because the rule is a narrowing and a narrowing is only safe if the
+// original catch survives it. Delete the location condition in the walk and the second arm
+// fails; drop the walk's quoted-gap entry and the first does.
 func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
-	finding := func(id string, about *recordpb.AboutKind, ref string) *recordpb.Event {
-		f := &recordpb.Finding{
-			Id:       proto.String(id),
-			Text:     proto.String("fuzz finding"),
-			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+	gap := func(id string, about *recordpb.AboutKind, ref string) *recordpb.Event {
+		m := &recordpb.Mint{
+			GapId: proto.String(id), Problem: proto.String("problem " + id),
+			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
+			Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}
 		if about != nil {
-			f.AboutKind, f.AboutRef = about, proto.String(ref)
+			m.AboutKind, m.AboutRef = about, proto.String(ref)
 		} else {
-			f.Location = proto.String("a quoted sentence")
+			m.Location = proto.String("a quoted sentence")
 		}
-		return recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:"+id, f)
+		return recordtest.At(t, "red-lens-evidence", "red-lens-evidence:mint:"+id, m)
 	}
 
-	t.Run("a quote-anchored finding with no anchor event is still the crash window", func(t *testing.T) {
+	t.Run("a quote-anchored gap with no anchor event is the crash window", func(t *testing.T) {
 		dir := recordtest.TmpRun(t)
-		recordtest.Seed(t, dir, finding("F-11111111", nil, ""))
+		recordtest.Seed(t, dir, gap("G-11111111", nil, ""))
 		res, err := Check(runtest.Open(t, dir))
 		if err != nil {
 			t.Fatal(err)
 		}
 		found := false
 		for _, v := range res.Violations {
-			if v.Rule == "anchor-record" && strings.Contains(v.Detail, "finding F-11111111 has no anchor event") {
+			if v.Rule == "anchor-record" && strings.Contains(v.Detail, "gap G-11111111 has no anchor event") {
 				found = true
 			}
 		}
@@ -366,14 +349,17 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 		}
 	})
 
-	t.Run("an about-anchored finding has no marker to pair with and is not a violation", func(t *testing.T) {
-		for _, k := range []recordpb.AboutKind{
-			recordpb.AboutKind_ABOUT_KIND_SECTION,
-			recordpb.AboutKind_ABOUT_KIND_INQUIRY,
-			recordpb.AboutKind_ABOUT_KIND_GAP,
+	t.Run("an about-anchored gap has no marker to pair with and is not a violation", func(t *testing.T) {
+		for _, c := range []struct {
+			kind recordpb.AboutKind
+			ref  string
+		}{
+			{recordpb.AboutKind_ABOUT_KIND_SECTION, "Method"},
+			{recordpb.AboutKind_ABOUT_KIND_INQUIRY, "Q-22222222"},
 		} {
 			dir := recordtest.TmpRun(t)
-			recordtest.Seed(t, dir, finding("F-22222222", &k, "G1"))
+			k := c.kind
+			recordtest.Seed(t, dir, gap("G-22222222", &k, c.ref))
 			res, err := Check(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)
@@ -382,7 +368,7 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 				if v.Rule == "anchor-record" {
 					t.Errorf("--about-kind %s: an absence has no sentence to mark, so it emits no "+
 						"anchor event — and the oracle called an honest record broken: %s",
-						recordpb.Word(k), v)
+						recordpb.Word(c.kind), v)
 				}
 			}
 		}

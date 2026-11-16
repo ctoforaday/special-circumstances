@@ -24,9 +24,9 @@ func runWithCadence(t *testing.T, n int, gap time.Duration, last time.Time) stri
 	for i := 0; i < n; i++ {
 		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format(liveStamp)
 		evs = append(evs, recordtest.Stamped(
-			recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:k"+itoaT(i), &recordpb.Finding{
-				Id:   proto.String("L1-F" + itoaT(i)),
-				Text: proto.String("a finding"),
+			recordtest.At(t, "red-lens-evidence", "", &recordpb.Log{
+				Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum(),
+				Text: proto.String("a log entry " + itoaT(i)),
 			}), ts))
 	}
 	writeShard(t, dir, evs)

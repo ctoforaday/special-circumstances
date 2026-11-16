@@ -33,7 +33,7 @@ func TestGrowthSetIsDerivedFromTheSchema(t *testing.T) {
 	// derivation SUBTRACTS the bounded vocabularies rather than enumerating what grows. A
 	// repeated-field child is the shape most easily dropped by a derivation that walked only
 	// top-level messages.
-	for _, want := range []string{"events", "mint", "close", "cite", "mint_supersedes", "mint_found_by"} {
+	for _, want := range []string{"events", "mint", "close", "cite", "mint_supersedes"} {
 		if !set[want] {
 			t.Errorf("the derived growth set is missing %q", want)
 		}

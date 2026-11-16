@@ -86,6 +86,15 @@ type Manifest struct {
 	// plan does not hold (migrate's planids.go). A stated zero: an absent count and a migration that
 	// dropped none would otherwise be the same bytes.
 	DroppedPlanBlockers int `json:"dropped_plan_blockers"`
+	// QuotelessReadings is the source id of each reading whose quote held nothing but a finding's
+	// token and a dropped label's, written as no event: with the tokens gone it quotes no report text
+	// (EventSchema 78). A stated empty list where there is none.
+	QuotelessReadings []int64 `json:"quoteless_readings"`
+	// SettledEdits is the source id of each edit written as no event because its change already
+	// stands: a finding's token had held a terminator outside an earlier edit's span, this edit removed
+	// it, and without the token the earlier edit took it, so no stray stands for it to remove
+	// (EventSchema 78). A stated empty list where there is none.
+	SettledEdits []int64 `json:"settled_edits"`
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`

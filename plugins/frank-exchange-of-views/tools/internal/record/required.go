@@ -9,8 +9,8 @@ import (
 // WHAT EACH VERB REQUIRES, DECLARED ONCE.
 //
 // A seat's contract is `--help`. The help was a flat alphabetical list in which `--check`,
-// `--class` and `--problem` (mandatory) sat indistinguishable from `--comment`,
-// `--found-by` and `--supersedes` (optional), so the only way to discover a requirement
+// `--class` and `--problem` (mandatory) sat indistinguishable from `--comment`
+// and `--supersedes` (optional), so the only way to discover a requirement
 // was to omit it and read the error — one round trip per missing flag, and wall clock is
 // the constraint this project is actually fighting.
 //

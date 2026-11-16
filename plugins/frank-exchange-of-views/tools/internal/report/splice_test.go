@@ -124,7 +124,7 @@ func TestATokensRemovalOpensNoNote(t *testing.T) {
 func TestAHuskGoesWholeForEveryToken(t *testing.T) {
 	set := shipSeeded(t,
 		recordtest.Event(t, "blue-synthesize", &recordpb.ReportPart{Text: proto.String(
-			"# On 91 — research report\n\n## TL;DR\n\nIt is not.\n\n- kept\n- <!--cite:C-…-->.\n- <!--fx:F-1-->.\n- also kept\n")}),
+			"# On 91 — research report\n\n## TL;DR\n\nIt is not.\n\n- kept\n- <!--cite:C-…-->.\n- <!--gap:G-1-->.\n- also kept\n")}),
 	)
 	report, _ := set.textOf(FileReport)
 	if !strings.Contains(report, "- kept\n- also kept\n") {
@@ -265,15 +265,15 @@ func TestStripTokens(t *testing.T) {
 		weave bool
 		want  string
 	}{
-		{"A<!--fx:F-00000001--> b<!--fx:…--><!--cite:C-00000002--><!--gap:G-00000001-->.", true, "A b<!--cite:C-00000002-->."},
-		{"A<!--fx:F-00000001--> b<!--fx:…--><!--cite:C-00000002--><!--gap:G-00000001-->.", false, "A b."},
-		{"a `<!--fx:F-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token", true, "a `<!--fx:F-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token"},
-		{"```\n- <!--gap:G-00000001-->\necho <!--fx:F-00000001-->\n```\n- <!--gap:G-00000001-->.\nprose<!--fx:F-00000001--> `x<!--cite:C-00000002-->`\n", false,
-			"```\n- <!--gap:G-00000001-->\necho <!--fx:F-00000001-->\n```\nprose `x<!--cite:C-00000002-->`\n"},
-		{"    indented <!--fx:F-00000001-->\n", false, "    indented <!--fx:F-00000001-->\n"},
+		{"A<!--gap:G-00000001--> b<!--gap:…--><!--cite:C-00000002--><!--gap:G-00000001-->.", true, "A b<!--cite:C-00000002-->."},
+		{"A<!--gap:G-00000001--> b<!--gap:…--><!--cite:C-00000002--><!--gap:G-00000001-->.", false, "A b."},
+		{"a `<!--computation:K-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token", true, "a `<!--computation:K-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token"},
+		{"```\n- <!--gap:G-00000001-->\necho <!--gap:G-00000001-->\n```\n- <!--gap:G-00000001-->.\nprose<!--gap:G-00000001--> `x<!--cite:C-00000002-->`\n", false,
+			"```\n- <!--gap:G-00000001-->\necho <!--gap:G-00000001-->\n```\nprose `x<!--cite:C-00000002-->`\n"},
+		{"    indented <!--gap:G-00000001-->\n", false, "    indented <!--gap:G-00000001-->\n"},
 		{"one<!--computation:K-00000003--> two", true, "one<!--computation:K-00000003--> two"},
-		{"A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n", true, "A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n"},
-		{"- kept\n- <!--fx:F-1-->.\n- **<!--cite:C-…-->**\n|---|<!--gap:G-1-->\n", true, "- kept\n|---|\n"},
+		{"A <!--gap: unclosed\n\na paragraph.\n\n<!-- a comment -->\n", true, "A <!--gap: unclosed\n\na paragraph.\n\n<!-- a comment -->\n"},
+		{"- kept\n- <!--gap:G-1-->.\n- **<!--cite:C-…-->**\n|---|<!--gap:G-1-->\n", true, "- kept\n|---|\n"},
 	} {
 		if got := stdReaders().stripTokens(c.in, c.weave); got != c.want {
 			t.Errorf("stdReaders().stripTokens(%q, %v) = %q, want %q", c.in, c.weave, got, c.want)
@@ -284,8 +284,8 @@ func TestStripTokens(t *testing.T) {
 // A SEAT'S CODE SHIPS AS IT TYPED IT, TOKENS AND ALL. A script quoted in a fence and a command in a
 // code span are the bytes that ran; a token in prose leaves, and the line it leaves a husk with it.
 func TestATokenInCodeShipsInReportMD(t *testing.T) {
-	const fence = "```\n- <!--gap:G-00000001-->\necho <!--fx:F-00000001-->\n```"
-	blue := "# T\n\n## Analysis\n\n" + fence + "\n\nRun `grep '<!--gap:G-00000001-->'` here<!--fx:F-00000001-->.\n\n- <!--fx:F-00000001-->.\n- kept\n"
+	const fence = "```\n- <!--gap:G-00000001-->\necho <!--gap:G-00000001-->\n```"
+	blue := "# T\n\n## Analysis\n\n" + fence + "\n\nRun `grep '<!--gap:G-00000001-->'` here<!--gap:G-00000001-->.\n\n- <!--gap:G-00000001-->.\n- kept\n"
 	runDir := newRun(t)
 	run := runtest.Open(t, runDir)
 	id := record.Identity{Run: run, SeatID: "blue-synthesize"}

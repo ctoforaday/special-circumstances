@@ -80,7 +80,6 @@ func result(name, okDetail, badDetail string, violations []string) Check {
 func Run(f record.Family) []Check {
 	return []Check{
 		gapsDisposed(f),
-		foundByResolves(f),
 		dialecticRefsResolve(f),
 		supersedesResolve(f),
 		passClosesAllGaps(f),
@@ -137,35 +136,6 @@ func gapsDisposed(f record.Family) Check {
 	return result("gaps-disposed",
 		"every closed gap carries a reason (a closure class or a bench disposition)",
 		"a gap is closed with no recorded reason (a torn closure, not a decision)", bad)
-}
-
-// foundByResolves: every gap's found_by names a finding or observation that actually
-// exists on the record. Enforced at write time; verified here against the replayed set in case
-// a shard was hand-edited or lost.
-func foundByResolves(f record.Family) Check {
-	labels := map[string]bool{}
-	for _, e := range f.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			if l := f.GetId(); l != "" {
-				labels[l] = true
-			}
-		}
-	}
-	var bad []string
-	for _, g := range f.Gaps {
-		id := g.ID
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		for _, l := range g.Mint.GetFoundBy() {
-			if !labels[l] {
-				bad = append(bad, fmt.Sprintf("%s→%s", id, l))
-			}
-		}
-	}
-	return result("found-by-resolves",
-		"every found_by names a real finding",
-		"a gap's found_by names a finding that no lens recorded (attribution to a finding nobody made)", bad)
 }
 
 // dialecticRefsResolve: every act that argues ABOUT a gap (a closing, or a motion filed about
@@ -372,14 +342,11 @@ func nonEmpty(s, fallback string) string {
 // (gaps_with_closing/dispute/disposition) is how "is the argument on the record?" becomes a number
 // — the record-only migration's progress bar.
 type Stats struct {
-	Verdict          string         `json:"verdict"`
-	Events           map[string]int `json:"events"`
-	GapsTotal        int            `json:"gaps_total"`
-	GapsOpen         int            `json:"gaps_open"`
-	GapsClosed       int            `json:"gaps_closed"`
-	Findings         int            `json:"findings"`
-	FindingsMinted   int            `json:"findings_minted"`
-	FindingsUnminted int            `json:"findings_unminted"`
+	Verdict    string         `json:"verdict"`
+	Events     map[string]int `json:"events"`
+	GapsTotal  int            `json:"gaps_total"`
+	GapsOpen   int            `json:"gaps_open"`
+	GapsClosed int            `json:"gaps_closed"`
 	// Citations is the count of cite events on the record — the canonical source for
 	// the envelope's citations_checked, which red used to self-report (fabricated on
 	// haiku). Cite events are keyed by reference (deriveKey), so re-verifying a source
@@ -410,17 +377,6 @@ func Compute(f record.Family) Stats {
 		}
 	}
 
-	minted := map[string]bool{}
-	for _, g := range f.Gaps {
-		id := g.ID
-		_ = id
-		if g != nil && g.Mint != nil {
-			for _, l := range g.Mint.GetFoundBy() {
-				minted[l] = true
-			}
-		}
-	}
-	findingLabels := map[string]bool{}
 	withClosing, withDispute, withDisposition := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, e := range f.Events {
 		// COUNTED ON THE TYPE, NOT THE BODY. A verify event with an unreadable body is still a
@@ -435,10 +391,6 @@ func Compute(f record.Family) Stats {
 			continue
 		}
 		switch f := body.(type) {
-		case *recordpb.Finding:
-			if l := f.GetId(); l != "" {
-				findingLabels[l] = true
-			}
 		case *recordpb.Closing:
 			if gid := f.GetGapId(); gid != "" {
 				withClosing[gid] = true
@@ -473,14 +425,6 @@ func Compute(f record.Family) Stats {
 		}
 	}
 
-	s.Findings = len(findingLabels)
-	for l := range findingLabels {
-		if minted[l] {
-			s.FindingsMinted++
-		} else {
-			s.FindingsUnminted++
-		}
-	}
 	for _, g := range f.Gaps {
 		if g == nil {
 			continue

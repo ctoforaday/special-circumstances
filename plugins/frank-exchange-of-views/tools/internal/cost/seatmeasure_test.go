@@ -104,8 +104,15 @@ func TestTheMeasuredSectionSaysWhatTheSittingBoughtAndWhatItCost(t *testing.T) {
 	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(id, &recordpb.Finding{
-		Id: proto.String("F-f0000001"), Text: proto.String("an act this sitting made")}); err != nil {
+	if _, err := record.Append(id, &recordpb.Mint{
+		GapId: proto.String(record.NewID("gap")), Problem: proto.String("an act this sitting made"),
+		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
+		Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Severity:   recordtest.P(recordpb.Grade_GRADE_LOW),
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW),
+		Impact:     recordtest.P(recordpb.Grade_GRADE_LOW),
+		AboutKind:  recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Method"),
+	}); err != nil {
 		t.Fatal(err)
 	}
 	idle := record.Identity{Run: run, SeatID: "red-lens-logic"}

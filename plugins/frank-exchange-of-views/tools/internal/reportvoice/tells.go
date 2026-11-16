@@ -50,7 +50,7 @@ type Tell struct {
 	Class    Class
 	Pattern  *regexp.Regexp
 	Redirect string
-	// Refuse marks a tell that has NO READING AS SUBJECT PROSE: a seat or lens id, a finding or gap id,
+	// Refuse marks a tell that has NO READING AS SUBJECT PROSE: a seat or lens id, a gap id,
 	// a lane tag. `lens mint` refuses these in the two fields the
 	// report's risk matrix prints (gblock's ruling, plans/feov-lens-bar.md §III.9). Every other
 	// tell has an innocent reading — "the red team exercise" is a security report's subject, "this
@@ -77,11 +77,11 @@ var tells = []Tell{
 	// seatIDTell.
 	{ProcessVoice, seatIDPattern(),
 		"a seat id names who acted in the run; say what is wrong with the subject", true},
-	// FINDING AND GAP IDS. The id shape is one no subject uses — "the G20 summit" is subject prose and
+	// GAP IDS. The id shape is one no subject uses — "the G20 summit" is subject prose and
 	// is not it — so an id is the record's handle wherever it stands in prose. Find takes the anchors
 	// out first: their tokens carry ids by design.
-	{ProcessVoice, regexp.MustCompile(`\b` + anchor.IDPattern("finding", "gap") + `\b`),
-		"a finding or gap id is the record's handle; say what is wrong with the subject", true},
+	{ProcessVoice, regexp.MustCompile(`\b` + anchor.IDPattern("gap") + `\b`),
+		"a gap id is the record's handle; say what is wrong with the subject", true},
 	{LaneAttribution, regexp.MustCompile(`\[(minority|lane-\d)[^\]]*\]`),
 		"provenance is the record's; a claim in the report is the report's", true},
 	{LaneAttribution, regexp.MustCompile(`(?i)\bresearch lanes?\b`),

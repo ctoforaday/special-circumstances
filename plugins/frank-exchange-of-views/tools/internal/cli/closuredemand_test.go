@@ -477,7 +477,7 @@ func TestANonMinterIsToldTheMinterRuleBeforeTheDemand(t *testing.T) {
 	_, err := runMint(t, "--run", runDir, "--seat-id", other, "--class", "spec_underspecification", "--problem", "p", "--fix", "f",
 		"--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--check-kind", "document",
 		"--about-kind", "section", "--about", "Findings", "--supersedes", g)
-	if err == nil || !strings.Contains(err.Error(), "only its minter closes a gap") || strings.Contains(err.Error(), "live-answer demand") {
+	if err == nil || !strings.Contains(err.Error(), "only its assignee closes a gap") || strings.Contains(err.Error(), "live-answer demand") {
 		t.Fatalf("%s's document successor of %s's awaiting %s: %v; want the minter rule's refusal", other, lensSeat, g, err)
 	}
 }

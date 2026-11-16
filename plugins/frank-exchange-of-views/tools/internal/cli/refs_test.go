@@ -10,8 +10,8 @@ import (
 // EVERY CROSS-REFERENCE, CHECKED.
 //
 // An audit of the whole surface found TWELVE OF TWELVE references unvalidated: only
-// `close --id` and `mint --supersedes` were checked, and every other field naming a gap,
-// an observation, a finding or a seat was accepted on the seat's say-so.
+// `close --id` and `mint --supersedes` were checked, and every other field naming a gap
+// or a seat was accepted on the seat's say-so.
 //
 // That is the mechanism behind the 2026-07-18 run's worst damage. Eight judicial closures
 // were `opinion --id` events ACCEPTED at write time and silently DROPPED at replay,
@@ -49,10 +49,6 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		{"close --successor", "no mint event created", []string{"close", "--seat-id", lensSeat,
 			"--id", real, "--as", "repaired", "--verified-by", "L1", "--verified-with", "t",
 			"--verified-against", "x", "--superseded-by", "G99"}},
-		{"mint --found-by", "no lens recorded", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", lensSeat,
-			"--key", "k2", "--class", "spec_underspecification", "--problem", "p",
-			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
-			"--impact", "medium", "--complexity", "low", "--found-by", "F-0000f9f9"}},
 		{"spot-check --ids", "no mint event created", []string{"spot-check", "--seat-id", "red-chair",
 			"--ids", "G99"}},
 		// The petitioner is no longer a field the ruler RESTATES, so there is no seat reference

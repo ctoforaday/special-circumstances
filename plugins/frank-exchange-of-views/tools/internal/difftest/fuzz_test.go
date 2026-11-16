@@ -32,7 +32,7 @@ import (
 // Hand-written scenarios cannot cover this: they exercise the orderings the
 // author already thought about. A generator reaches the interleavings nobody
 // enumerated — a close before its mint, a regrade of a closed gap, a mint whose
-// --found-by names a finding that never existed, a bench ruling on a motion
+// --supersedes names a gap that never existed, a bench ruling on a motion
 // nobody filed.
 //
 // Sequences are valid-ISH by construction rather than valid: a refusal is as
@@ -320,10 +320,6 @@ var (
 	fuzzMotions = []string{"MOTION001", "MOTION001", "MOTION002", "MOTION003"}
 	// Report text the seeded round-0 report carries, plus one line it does not (a mis-quote).
 	fuzzQuotes = []string{"A claim sits under S2.", "A claim sits under S4.", "a sentence the report never says"}
-	// Finding ids, which a mint's --found-by is checked against at the write, by the placeholder of
-	// the sequence's first, second and third finding — so some name a recorded finding and some
-	// name nothing.
-	fuzzFoundBy = []string{"FINDING001", "FINDING002", "FINDING003", "L1,L5"}
 
 	// The evidence lens twice: it originated GAP001, and only the originator may close or regrade a
 	// gap — the other two lenses are where the wrong-originator refusal comes from.
@@ -356,25 +352,17 @@ var fuzzArms = []fuzzArm{
 		flags: func(*rand.Rand) []string { return nil }},
 	{name: "lens register", weight: 1, seats: lensSeats, verb: []string{"register"},
 		flags: func(*rand.Rand) []string { return nil }},
-	{name: "lens finding", weight: 3, seats: lensSeats, verb: []string{"finding"},
-		flags: func(rng *rand.Rand) []string {
-			// --key from a small space so the SAME seat sometimes repeats it — that exercises
-			// the crash-retry idempotency (a repeated key returns the existing tool-assigned
-			// id, no duplicate).
-			f := []string{"--key", fmt.Sprintf("F%d", 1+rng.Intn(3)),
-				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
-				"--impact", pick(rng, fuzzGrades), "--reason", "a finding"}
-			if rng.Intn(4) > 0 {
-				f = append(f, "--quote", pick(rng, fuzzQuotes))
-			}
-			return f
-		}},
 	{name: "lens mint", weight: 4, seats: lensSeats, verb: []string{"mint"},
 		flags: func(rng *rand.Rand) []string {
 			f := []string{"--class", pick(rng, fuzzClasses), "--check-kind", "document", "--check", "acceptance check",
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
-				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000)),
-				"--about-kind", "section", "--about", "Findings"}
+				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000))}
+			// A quoted gap anchors into the report, and a mis-quote is refused; the rest name a section.
+			if rng.Intn(4) == 0 {
+				f = append(f, "--quote", pick(rng, fuzzQuotes))
+			} else {
+				f = append(f, "--about-kind", "section", "--about", "Findings")
+			}
 			if rng.Intn(3) == 0 {
 				f = append(f, "--complexity", pick(rng, fuzzGrades))
 			}
@@ -383,9 +371,6 @@ var fuzzArms = []fuzzArm{
 			}
 			if rng.Intn(4) == 0 {
 				f = append(f, "--key", fmt.Sprintf("K%d", rng.Intn(3)))
-			}
-			if rng.Intn(5) == 0 {
-				f = append(f, "--found-by", pick(rng, fuzzFoundBy))
 			}
 			return f
 		}},

@@ -32,7 +32,7 @@ func trajectory(t *testing.T, lines ...string) string {
 
 // lensActs is the role's act list, as cli.CommandPaths() renders it with the role stripped.
 func lensActs() []string {
-	return []string{"finding", "verify", "render-page", "reproduce", "log", "register", "show"}
+	return []string{"mint", "verify", "render-page", "reproduce", "log", "register", "show"}
 }
 
 // THE PADDED NAME IS NOT DROPPED. Cobra pads the name column to the width of the LONGEST name,
@@ -42,7 +42,7 @@ func lensActs() []string {
 func TestTheLongestNameIsNotDroppedByTheColumnPadding(t *testing.T) {
 	help := "Available Commands:\n" +
 		"  render-page draw a page of a cited PDF\n" +
-		"  finding     a lens finding\n" +
+		"  mint        a gap on the board\n" +
 		"  verify      adjudicate ONE citation\n" +
 		"\n"
 	got, err := ReadSeen(trajectory(t, resultLine(t, help)), lensActs())
@@ -123,7 +123,7 @@ func TestCobrasHousekeepingDoesNotDisqualifyTheRolesOwnListing(t *testing.T) {
 	help := "Available Commands:\n" +
 		"  completion  Generate the autocompletion script for the specified shell\n" +
 		"  render-page draw a page of a cited PDF\n" +
-		"  finding     a lens finding\n" +
+		"  mint        a gap on the board\n" +
 		"  help        Help about any command\n" +
 		"  verify      adjudicate ONE citation\n" +
 		"\n"

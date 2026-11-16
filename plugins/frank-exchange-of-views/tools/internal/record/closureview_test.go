@@ -84,16 +84,22 @@ func (s *closureStage) docketed() string {
 }
 
 // reconsidered is the lens putting G1, which the bench ruled closed, before it again on new grounds:
-// a finding about G1 recorded since the ruling.
+// a citation blue placed as G1's answer since the ruling.
 func (s *closureStage) reconsidered() string {
 	s.t.Helper()
 	s.motions++
 	id := "M" + string(rune('0'+s.motions))
-	finding := fmt.Sprintf("F-0000000%d", s.motions)
-	mustAppend(s.t, s.lens, &recordpb.Finding{Id: proto.String(finding), Text: proto.String("the ruling missed this"),
-		AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1")})
+	label := fmt.Sprintf("C-0000000%d", s.motions)
+	if _, err := replayed(s.t, sit(s.t, s.run, "blue-respond"), &recordpb.Cite{FetchedAt: proto.String("2026-11-12T00:00:00Z"),
+		SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0),
+		SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
+		SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
+		Label: proto.String(label), Url: proto.String("https://x/" + label), Title: proto.String("t"), CiteKey: proto.String("k-" + label),
+		Sha256: proto.String("abc"), Answers: proto.String("G1")}); err != nil {
+		s.t.Fatal(err)
+	}
 	m := docketMotion(id, "G1")
-	m.GetDocket().Grounds = proto.String(finding)
+	m.GetDocket().Grounds = proto.String(label)
 	mustAppend(s.t, s.lens, m)
 	return id
 }
@@ -269,14 +275,12 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 // THE BOARD BESIDE ITS CLOSURES, on one record: a gap closed by BOTH arms (attribution follows the
 // act that ended it, the epoch the LAST closing act, and the embedded body prefers the red close), a
 // non-closing docket ruling that
-// must close nothing, regrade overlays, minted and unminted findings, and the verify/cite count
-// split.
+// must close nothing, regrade overlays, and the verify/cite count split.
 func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
 	red := Identity{Run: run, SeatID: "red-chair"}
 	blue := Identity{Run: run, SeatID: "blue-respond"}
-	lens := Identity{Run: run, SeatID: "red-lens-evidence"}
 	judge2 := Identity{Run: run, SeatID: "judge"}
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
@@ -284,9 +288,6 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-
-	app(lens, &recordpb.Finding{Id: proto.String("F-0a0a0a0a"), Location: proto.String("¶3"), Text: proto.String("overclaims"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)})
-	app(lens, &recordpb.Finding{Id: proto.String("F-0b0b0b0b"), Text: proto.String("unminted")})
 
 	mint := func(id string, extra func(m *recordpb.Mint)) {
 		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
@@ -303,7 +304,6 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 		t.Fatal(err)
 	}
 	mint("G1", func(m *recordpb.Mint) {
-		m.FoundBy = []string{"F-0a0a0a0a"}
 		m.MintReason = proto.String("the argument")
 		m.Location = proto.String("the claimed span")
 		m.FixBasis = proto.String("proposed")
@@ -400,17 +400,6 @@ func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	}
 	if bj.Counts.Citations != 1 || bj.Counts.CitationsAuthored != 1 {
 		t.Errorf("citation split = %d/%d, want 1/1", bj.Counts.Citations, bj.Counts.CitationsAuthored)
-	}
-	minted, unminted := 0, 0
-	for _, o := range bj.Observations {
-		if o.Minted {
-			minted++
-		} else {
-			unminted++
-		}
-	}
-	if minted != 1 || unminted != 1 || bj.Counts.UnmintedFindings != 1 {
-		t.Errorf("minted split = %d/%d (counter %d), want 1/1/1", minted, unminted, bj.Counts.UnmintedFindings)
 	}
 }
 

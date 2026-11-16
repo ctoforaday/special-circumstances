@@ -12,7 +12,7 @@ import (
 
 var planGap = anchor.ID("gap", [4]byte{0xa, 0xb, 0xc, 0xd})
 
-const planReport = "# H\n\nFive independent verification approaches agree that 7 is prime.\n\nThe sieve is fast<!--fx:F-00abc123--> and simple.\n"
+const planReport = "# H\n\nFive independent verification approaches agree that 7 is prime.\n\nThe sieve is fast<!--gap:G-00abc123--> and simple.\n"
 
 // planOver is PlanAccept over planReport with gap G's anchor placed at the end of quote, as `lens
 // mint` asks it.
@@ -45,16 +45,16 @@ func TestPlanAcceptRefusesAQuoteThatIsNotThere(t *testing.T) {
 }
 
 // A prescription that drops an anchor inside its span is one blue could not apply: the quote is
-// matched across the anchor, so the located span CONTAINS F-00abc123.
+// matched across the anchor, so the located span CONTAINS G-00abc123.
 func TestPlanAcceptRefusesAnAnchorDrop(t *testing.T) {
 	if _, err := planOver(t, "The sieve is fast and simple", "The sieve is quick and simple"); err == nil {
-		t.Fatal("a prescription that drops a finding's anchor mid-span was planned")
+		t.Fatal("a prescription that drops a gap's anchor mid-span was planned")
 	}
 }
 
 // An anchor CARRIED across is legal, for red exactly as for blue.
 func TestPlanAcceptAllowsAnchorTransit(t *testing.T) {
-	if _, err := planOver(t, "The sieve is fast and simple", "The sieve is quick<!--fx:F-00abc123--> and simple"); err != nil {
+	if _, err := planOver(t, "The sieve is fast and simple", "The sieve is quick<!--gap:G-00abc123--> and simple"); err != nil {
 		t.Fatalf("carrying an anchor across a prescription was refused: %v", err)
 	}
 }

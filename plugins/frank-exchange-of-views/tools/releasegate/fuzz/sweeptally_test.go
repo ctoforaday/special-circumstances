@@ -120,7 +120,6 @@ type runTally struct {
 	CacheFiles                 int                       `json:"cache_files"`
 	EditAnswers                int                       `json:"edit_answers"`
 	VerifiedBasis              int                       `json:"verified_basis"`
-	FoundByMints               int                       `json:"found_by_mints"`
 	VerbatimApplied            int                       `json:"verbatim_applied"`
 	TypedVerbatim              int                       `json:"typed_verbatim"`
 	EstoppelMisses             map[string]int            `json:"estoppel_misses"`
@@ -171,7 +170,6 @@ type runTally struct {
 	UnsoundClosesRefused       int                       `json:"unsound_closes_refused"`
 	RepeatsRefused             int                       `json:"repeats_refused"`
 	OneGapRefused              int                       `json:"one_gap_refused"`
-	OneGapFindings             int                       `json:"one_gap_findings"`
 	UnclassifiedMinted         int                       `json:"unclassified_minted"`
 	UnclassifiedRefused        int                       `json:"unclassified_refused"`
 	SupersedeDemandCarried     int                       `json:"supersede_demand_carried"`
@@ -236,7 +234,7 @@ func tallyOf(o outcome) runTally {
 		Seed: o.seed, Err: o.err, Verdict: o.verdict, Why: o.why, Epochs: o.epochs, EpochLimit: o.epochLimit,
 		Dialectic: o.dialectic, BlueSittings: o.blueSittings, BlueAgain: o.blueAgain,
 		CiteAnchors: o.citeAnchors, CacheFiles: o.cacheFiles, EditAnswers: o.editAnswers,
-		VerifiedBasis: o.verifiedBasis, FoundByMints: o.foundByMints, VerbatimApplied: o.verbatimApplied,
+		VerifiedBasis: o.verifiedBasis, VerbatimApplied: o.verbatimApplied,
 		TypedVerbatim: o.typedVerbatim, EstoppelMisses: o.estoppelMisses, ApplyMisses: o.applyMisses,
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
 		InquiryChecks: o.inquiryChecks, InquiryCheckRefused: o.inquiryCheckRefused, InquiryUnseats: o.inquiryUnseats,
@@ -251,7 +249,7 @@ func tallyOf(o outcome) runTally {
 		OwedKeptBy: o.owedKeptBy, OwnerWhys: o.ownerWhys, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
 		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires, UnreadRetiresJoined: o.unreadRetiresJoined,
 		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused,
-		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
+		OneGapRefused:      o.oneGapRefused,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
 		Reproduces: o.reproduces, ReproducesWithClaim: o.reproducesWithClaim,
@@ -586,7 +584,7 @@ type sweepFold struct {
 	// verifiedExits is each forced-VERIFIED run's exit, by seed: verifiedSeed's and each position
 	// seed's (forcedVerifiedSeeds).
 	verifiedExits                                   map[int64]forcedExit
-	verifiedBasis, foundByMints                     int
+	verifiedBasis                                   int
 	verbatimApplied, typedVerbatim, estoppels       int
 	inquiryRecords, quotesRefused                   int
 	inquiryChecks                                   int
@@ -613,7 +611,7 @@ type sweepFold struct {
 	unreadRetiresJoined                             int
 	unreadClosesRefused, unsoundClosesRefused       int
 	repeatsRefused                                  int
-	oneGapRefused, oneGapFindings                   int
+	oneGapRefused                                   int
 	unsoundReadied, unsoundPlans, unsoundAnswers    int
 	forcedUnsoundReadied, forcedComputationOwedKept int
 	forcedOwnerWhys                                 []string
@@ -701,7 +699,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.cacheFiles += r.CacheFiles
 		f.editAnswers += r.EditAnswers
 		f.verifiedBasis += r.VerifiedBasis
-		f.foundByMints += r.FoundByMints
 		f.verbatimApplied += r.VerbatimApplied
 		f.typedVerbatim += r.TypedVerbatim
 		f.estoppels += r.Estoppels
@@ -801,7 +798,6 @@ func foldRuns(runs []runTally) sweepFold {
 		}
 		f.repeatsRefused += r.RepeatsRefused
 		f.oneGapRefused += r.OneGapRefused
-		f.oneGapFindings += r.OneGapFindings
 		f.unclassifiedMinted += r.UnclassifiedMinted
 		f.unclassifiedRefused += r.UnclassifiedRefused
 		f.supersedeDemandCarried += r.SupersedeDemandCarried
@@ -1140,12 +1136,12 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			t.Errorf("fuzz drove ZERO refused repeats across %d runs — no seat filed a second position or closing in a sitting, so the refusal that names the answering act is unexercised (false green)", f.completed)
 		}
 		// THE ONE-GAP GATE. A mint of a class on a sentence or inquiry where an open gap of that class
-		// stands is refused, naming it, and the lens files its point as a finding about that gap. The
+		// stands is refused, naming it. The
 		// `mint` verb gate is satisfied by the mints that land, so a rule that stopped refusing — or a
 		// drive that stopped reaching it — would hide behind a green sweep.
-		t.Logf("one gap per class and subject: %d mint(s) refused, %d finding(s) filed about the gap that holds the subject", f.oneGapRefused, f.oneGapFindings)
-		if f.oneGapRefused == 0 || f.oneGapFindings == 0 {
-			t.Errorf("fuzz drove %d mints refused over an open gap of their class and subject and %d findings about that gap across %d runs — both must be non-zero, or the one-gap rule is unexercised (false green)", f.oneGapRefused, f.oneGapFindings, f.completed)
+		t.Logf("one gap per class and subject: %d mint(s) refused", f.oneGapRefused)
+		if f.oneGapRefused == 0 {
+			t.Errorf("fuzz drove %d mints refused over an open gap of their class and subject across %d runs — it must be non-zero, or the one-gap rule is unexercised (false green)", f.oneGapRefused, f.completed)
 		}
 		// THE READING GATES (plans/gap-is-the-one-holder.md §V check 12). A reading records and holds
 		// nothing; the gap of the class it obliges is a mint on the lens's standing reading, and a reading
@@ -1332,9 +1328,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.verifiedBasis == 0 {
 			t.Errorf("fuzz minted ZERO gaps with fix_basis=verified across %d runs — no concrete proposal ever validated, so the whole stage-3 path is unexercised (false green)", f.completed)
 		}
-		if f.foundByMints == 0 {
-			t.Errorf("fuzz minted ZERO gaps naming a finding in found_by across %d runs — no accepted mint carried --found-by, so the id a found_by names a finding by is unexercised (false green)", f.completed)
-		}
 		if f.verbatimApplied == 0 {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", f.completed)
 		}
@@ -1365,7 +1358,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 	}
 	if !measured {
-		for _, k := range []string{"cite", "finding"} {
+		for _, k := range []string{"cite"} {
 			if f.dcov[k] == 0 {
 				t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, f.completed)
 			}

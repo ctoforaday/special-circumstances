@@ -430,17 +430,16 @@ var singleton = map[recordpb.EventType]bool{
 }
 
 // defines is the label-keyed verbs whose label IS the identity the event brings into being — a
-// gap id, a finding id, a citation id, an anchor. Those are run-unique by construction (the
+// gap id, a citation id, an anchor. Those are run-unique by construction (the
 // tool mints them: NewID), so their key stays
 // `seat:verb:label` and a second event with the same label is the SAME act whichever sitting
 // records it. Every other label-keyed verb REFERENCES something that already exists — a verify
 // names a source, a regrade names a gap — and there the label alone would make
 // the act possible once per run; see deriveKey.
 var defines = map[recordpb.EventType]bool{
-	recordpb.EventType_EVENT_TYPE_MINT:    true,
-	recordpb.EventType_EVENT_TYPE_FINDING: true,
-	recordpb.EventType_EVENT_TYPE_CITE:    true,
-	recordpb.EventType_EVENT_TYPE_ANCHOR:  true,
+	recordpb.EventType_EVENT_TYPE_MINT:   true,
+	recordpb.EventType_EVENT_TYPE_CITE:   true,
+	recordpb.EventType_EVENT_TYPE_ANCHOR: true,
 }
 
 // numbered is the types whose every write is a new act even where the body carries a label, so they
@@ -930,7 +929,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// An id no anchor kind claims spells no token a reader recognises, so its gap would read `gone`
 		// beside a stray comment in the report: the empty id and every such id are refused here.
 		if anchor.Kind(b.GetId()) == "" {
-			return fmt.Errorf("anchor requires id — the id of the finding, citation, computation or gap whose marker this places; %q is none of them", b.GetId())
+			return fmt.Errorf("anchor requires id — the id of the citation, computation or gap whose marker this places; %q is none of them", b.GetId())
 		}
 		if (b.GetLocation() == "") == (b.GetSentenceOf() == "") {
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
@@ -996,9 +995,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err != nil {
 			return err
 		}
-		if err := requireFindings(q, b.GetFoundBy(), "--found-by"); err != nil {
-			return err
-		}
 		for _, anc := range b.GetSupersedes() {
 			if !ids[anc] {
 				return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
@@ -1036,10 +1032,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if err := requireNotARepeatFailedCheck(q, seatID, b.GetComputationId(), b.GetSoundness() == recordpb.Soundness_SOUNDNESS_UNSOUND); err != nil {
-			return err
-		}
-	case *recordpb.Finding:
-		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
 	case *recordpb.BlueEdit:
@@ -1889,7 +1881,7 @@ func requireMintSubject(m *recordpb.Mint) error {
 	case loc != "" && strings.TrimSpace(loc) == "":
 		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
 	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
-		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, or a gap already on the board")
+		return feov.Errorf(feov.MissingField, "a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, or a citation or computation whose check failed")
 	// OUT OF SCOPE IS AN INQUIRY'S DEFECT, always material, and blue answers it with the inquiry's
 	// fate; on report text it would hold the PASS with no fate to answer it.
 	case m.GetClass() == recordpb.GapClass_GAP_CLASS_OUT_OF_SCOPE && m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY:

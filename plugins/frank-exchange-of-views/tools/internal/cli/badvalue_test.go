@@ -13,7 +13,7 @@ import (
 // A VALUE A FLAG DOES NOT TAKE, A WORD WITH NO FLAG AND A FLAG GROUP VIOLATED ARE EACH REFUSED IN A
 // FEW LINES, as a flag left out and a flag the verb does not have are.
 //
-// MEASURED on the wave B smoke: a lens passed `finding --about-kind ""` and read 5 776 bytes — the
+// MEASURED on the wave B smoke: a lens passed `--about-kind ""` and read 5 776 bytes — the
 // parser's wrapper and the flag's own sentence each naming the flag and the value, then the verb's
 // whole page. What answers the call is the flag, what it was given and what it takes.
 
@@ -56,8 +56,8 @@ func assertShortRefusal(t *testing.T, seatID, path string, args []string, opens 
 }
 
 func TestAnEnumeratedFlagsBadValueIsRefusedWithItsSet(t *testing.T) {
-	said := assertShortRefusal(t, "red-lens-evidence", "finding", []string{"finding", "--about-kind", "", "--reason", "r"},
-		"--about-kind takes one of section|inquiry|gap|anchor and was given nothing. ")
+	said := assertShortRefusal(t, "red-lens-evidence", "mint", []string{"mint", "--about-kind", "", "--reason", "r"},
+		"--about-kind takes one of section|inquiry|anchor and was given nothing. ")
 	// THE FLAG AND THE VALUE ONCE: the parser's wrapper names both in front of a sentence that does.
 	for _, twice := range []string{"invalid argument", `(got "")`, "nothing was passed, and"} {
 		if strings.Contains(said, twice) {
@@ -68,23 +68,23 @@ func TestAnEnumeratedFlagsBadValueIsRefusedWithItsSet(t *testing.T) {
 		t.Errorf("the refusal names --about-kind %d times, want once:\n%s", n, said)
 	}
 	// WHAT IT ACCEPTS, value by value, from the table the page's own menu renders.
-	for _, v := range record.MustEnum("finding", "about_kind").Values {
+	for _, v := range record.MustEnum("mint", "about_kind").Values {
 		if !strings.Contains(said, v.Name+"  ") || !strings.Contains(said, v.Means) {
 			t.Errorf("the refusal does not carry `%s` with what it is for (%q):\n%s", v.Name, v.Means, said)
 		}
 	}
 
-	near := assertShortRefusal(t, "red-lens-evidence", "finding", []string{"finding", "--about-kind", "Section", "--about", "x", "--reason", "r"},
-		`--about-kind takes one of section|inquiry|gap|anchor, not "Section": it differs from "section" only in case. `)
+	near := assertShortRefusal(t, "red-lens-evidence", "mint", []string{"mint", "--about-kind", "Section", "--about", "x", "--reason", "r"},
+		`--about-kind takes one of section|inquiry|anchor, not "Section": it differs from "section" only in case. `)
 	if strings.Contains(near, "invalid argument") {
 		t.Errorf("the near miss is refused under the parser's wrapper:\n%s", near)
 	}
 }
 
 func TestABadValueIsRefusedWithTheFlagsOwnLine(t *testing.T) {
-	said := assertShortRefusal(t, "red-lens-evidence", "finding", []string{"finding", "--severity", "huge", "--quote", "q", "--reason", "r"},
+	said := assertShortRefusal(t, "red-lens-evidence", "mint", []string{"mint", "--severity", "huge", "--quote", "q", "--reason", "r"},
 		`--severity "huge" is not a grade`)
-	severity := cmdAt(NewRootFor("red-lens-evidence"), []string{"finding"}).Flags().Lookup("severity")
+	severity := cmdAt(NewRootFor("red-lens-evidence"), []string{"mint"}).Flags().Lookup("severity")
 	if !strings.Contains(said, "--severity grade ") || !strings.Contains(said, severity.Usage) {
 		t.Errorf("the refusal does not carry --severity's own usage line (%q):\n%s", severity.Usage, said)
 	}
@@ -104,9 +104,9 @@ func TestABadValueIsRefusedWithTheFlagsOwnLine(t *testing.T) {
 }
 
 func TestAStrayWordIsRefusedWithTheVerbsFlags(t *testing.T) {
-	said := assertShortRefusal(t, "red-lens-evidence", "finding", []string{"finding", "stray", "--quote", "q", "--reason", "r"},
+	said := assertShortRefusal(t, "red-lens-evidence", "mint", []string{"mint", "stray", "--quote", "q", "--reason", "r"},
 		"takes no arguments; got \"stray\"\nThis verb's flags: --about, --about-kind, ")
-	if !strings.Contains(said, "--severity.") {
+	if !strings.Contains(said, "--supersedes.") {
 		t.Errorf("the flags a value can go behind are not all listed:\n%s", said)
 	}
 }

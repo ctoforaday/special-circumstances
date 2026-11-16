@@ -38,7 +38,7 @@ func TestVerifyRendersItsReportAndSucceedsOnASoundRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify on a sound run: %v\n%s", err, out)
 	}
-	for _, want := range []string{"invariants:", "record (verdict", "gaps:", "findings:", "events:"} {
+	for _, want := range []string{"invariants:", "record (verdict", "gaps:", "events:"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the report is what an operator reads; it is missing %q:\n%s", want, out)
 		}
@@ -116,8 +116,8 @@ func TestVerifyRefusesWithoutARun(t *testing.T) {
 // It was at 0.0%, so the stated contract was unenforced — and an unstable order in a report a
 // human diffs between rounds is noise that reads as change.
 func TestEventTallyOrdersByFrequencyThenName(t *testing.T) {
-	got := eventTally(map[string]int{"finding": 2, "mint": 9, "closing": 2, "verdict": 1})
-	const want = "mint=9, closing=2, finding=2, verdict=1"
+	got := eventTally(map[string]int{"regrade": 2, "mint": 9, "closing": 2, "verdict": 1})
+	const want = "mint=9, closing=2, regrade=2, verdict=1"
 	if got != want {
 		t.Errorf("eventTally = %q, want %q (most-frequent-first, ties alphabetical)", got, want)
 	}

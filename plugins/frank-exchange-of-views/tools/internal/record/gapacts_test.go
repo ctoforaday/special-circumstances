@@ -45,7 +45,6 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		{"a regrade", lens, "G1", &recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("b")}},
 		{"a close", lens, "G1", &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		{"a closing", blue, "G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("t")}},
-		{"a finding about the gap", lens, "G1", &recordpb.Finding{AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1")}},
 		{"a mint superseding it", lens, "G1", mint("G3", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings", "G1")},
 		{"an edit answering it", blue, "G1", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("a")}},
 		{"a computation answering it", blue, "G1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("P1"), Answers: proto.String("G1")}},
@@ -74,7 +73,7 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		places[i] = at(r.seat, r.body)
 	}
 	unrelated := []int64{
-		at(lens, &recordpb.Finding{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Text: proto.String("G1 is wrong")}),
+		at(lens, &recordpb.Log{Text: proto.String("G1 is wrong")}),
 		at(blue, &recordpb.BlueEdit{Old: proto.String("G1"), New: proto.String("b")}),
 		at(lens, &recordpb.Reproduce{ComputationId: proto.String("K-unknown")}),
 		// A READING MOVES NO TURN ON A GAP: only its citation's answer does.

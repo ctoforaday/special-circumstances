@@ -15,19 +15,12 @@ import (
 // aboutShapes are the --about-kinds whose reference is an id of a known shape.
 var aboutShapes = map[recordpb.AboutKind]func() *flags.ShapedValue{
 	recordpb.AboutKind_ABOUT_KIND_INQUIRY: flags.InquiryID,
-	recordpb.AboutKind_ABOUT_KIND_GAP:     flags.GapID,
 	recordpb.AboutKind_ABOUT_KIND_ANCHOR:  flags.AboutAnchor,
 }
 
 // ResolveAbout turns the --about-kind/--about pair into a checked anchor, for EVERY verb that
-// takes one. admitted is the set the verb declares for --about-kind.
-//
-// IT LIVES HERE RATHER THAN BESIDE EITHER CALLER BECAUSE THERE ARE TWO. `lens finding` files the
-// finding and `lens mint` files the gap that finding becomes; a seat that anchors an omission at
-// the first step and then has to anchor it differently at the second is being asked to hold two
-// vocabularies for one act. Two copies of this would also be two copies of the checks, free to
-// drift on which references the record verifies — and the checks are the entire reason the pair
-// beats a borrowed quote.
+// takes one. admitted is the set the verb declares for --about-kind. The checks are the entire
+// reason the pair beats a borrowed quote, so they live in this one place.
 //
 // The refusal names the flags and not the command: whichever verb the seat typed, the renderer
 // prints it.
@@ -57,7 +50,7 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 	// THE REFERENCE IS CHECKED AGAINST THE RECORD, which is the whole advantage over a quote
 	// borrowed from a nearby paragraph: an inquiry id either names an inquiry this run proposed or it
 	// does not. A section name is not checked — the report's headings are blue's to change mid-run,
-	// and refusing on a stale one would refuse the finding rather than the staleness.
+	// and refusing on a stale one would refuse the gap rather than the staleness.
 	//
 	// THE SHAPE FIRST, or an existence check answers for it: an id spelled another way reads as an id
 	// the record lacks, and `--about '<!--computation:K-050249f6-->'` was told no computation on the
@@ -73,14 +66,6 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 	switch k {
 	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 		if err := RequireInquiryRef(run, ref, "--about"); err != nil {
-			return nil, nil, err
-		}
-	case recordpb.AboutKind_ABOUT_KIND_GAP:
-		db, err := openRunForRead(run)
-		if err != nil {
-			return nil, nil, err
-		}
-		if err := requireGap(db, ref, "--about"); err != nil {
 			return nil, nil, err
 		}
 	case recordpb.AboutKind_ABOUT_KIND_ANCHOR:

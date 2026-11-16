@@ -42,8 +42,8 @@ func TestCount(t *testing.T) {
 			2,
 		},
 		{
-			"a finding anchor is not a claim and never counts",
-			"A finding sits here<!--fx:F-0000000a--> but nothing cites it.",
+			"a gap anchor is not a claim and never counts",
+			"A gap sits here<!--gap:G-0000000a--> but nothing cites it.",
 			0,
 		},
 		{

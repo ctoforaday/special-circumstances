@@ -80,8 +80,8 @@ func convergenceOf(w writeView) (Convergence, error) {
 // chair's own item (the stale-area spot-check) does not lift it: the refusal names it, and the PASS is the chair's once it has done it.
 //
 // THE REFUSAL NAMES ONLY THE CHAIR'S OWN ACTS, because the chair is the one seat that reads it. It
-// told the chair to "raise something material — a material finding … minted as a gap", which is a
-// lens's `finding` and `mint`; the chair has neither, and no route to ready a lens
+// told the chair to "raise something material … minted as a gap", which is a lens's `mint`; the
+// chair has none, and no route to ready a lens
 // (plans/feov-lens-bar.md D6). What the chair CAN do with a defect that still stops it over a
 // converged board is record no verdict and say why, so the run ends unverified on the record: in its
 // position, which the bench reads in the transcript and the report renders under the epoch's

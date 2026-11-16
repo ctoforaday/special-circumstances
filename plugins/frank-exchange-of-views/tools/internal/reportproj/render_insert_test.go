@@ -27,7 +27,7 @@ func insertHelper(t *testing.T, text, location, marker string) string {
 
 // The marker verbs (cite/compute/finding) record their act and then an Anchor, and the projection
 // re-places the marker from the Anchor alone. This is the fidelity guard for that path: a base with
-// a citation, a computation and a finding replays to exactly what write-time InsertAnchor would have
+// a citation, a computation and a gap replays to exactly what write-time InsertAnchor would have
 // produced, markers in record order — and an act recorded with no Anchor places nothing.
 func TestRenderRunReplaysMarkerInsertions(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
@@ -41,8 +41,8 @@ func TestRenderRunReplaysMarkerInsertions(t *testing.T) {
 		t.Fatalf("append base: %v", err)
 	}
 
-	const citeID, computationID, findID = "C-cafef00d", "K-12345678", "F-deadbeef"
-	// cite anchors the first sentence, computation the first too (two markers, one sentence), finding
+	const citeID, computationID, gapID = "C-cafef00d", "K-12345678", "G-deadbeef"
+	// cite anchors the first sentence, computation the first too (two markers, one sentence), the gap
 	// the second. Recorded in this order; replay must honour it.
 	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Cite{FetchedAt: proto.String("2026-11-12T00:00:00Z"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String(citeID), Location: proto.String("The estimate is stable across the range"),
@@ -65,13 +65,16 @@ func TestRenderRunReplaysMarkerInsertions(t *testing.T) {
 		}
 	}
 	// Every placing act records BOTH events; only the Anchor carries the marker geometry.
-	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Finding{
-		Id: proto.String("F-f0000001"), Location: proto.String("Demand grows steadily over the period"),
+	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Mint{
+		GapId: proto.String(gapID), Location: proto.String("Demand grows steadily over the period"),
+		Problem: proto.String("the growth is asserted"), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
+		Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum(),
 	}); err != nil {
-		t.Fatalf("append finding: %v", err)
+		t.Fatalf("append mint: %v", err)
 	}
 	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Anchor{
-		Id: proto.String(findID), Location: proto.String("Demand grows steadily over the period"),
+		Id: proto.String(gapID), Location: proto.String("Demand grows steadily over the period"),
 	}); err != nil {
 		t.Fatalf("append anchor: %v", err)
 	}
@@ -84,7 +87,7 @@ func TestRenderRunReplaysMarkerInsertions(t *testing.T) {
 	want := base
 	want = insertHelper(t, want, "The estimate is stable across the range", anchor.Token(citeID))
 	want = insertHelper(t, want, "The estimate is stable across the range", anchor.Token(computationID))
-	want = insertHelper(t, want, "Demand grows steadily over the period", anchor.Token(findID))
+	want = insertHelper(t, want, "Demand grows steadily over the period", anchor.Token(gapID))
 	if got != want {
 		t.Fatalf("marker replay drifted from write-time placement:\n  want %q\n  got  %q", want, got)
 	}
@@ -95,16 +98,16 @@ func TestRenderRunReplaysMarkerInsertions(t *testing.T) {
 		t.Errorf("a second anchor for %s was not refused as a duplicate id: %v", citeID, err)
 	}
 	// Every marker present, exactly once.
-	for _, id := range []string{citeID, computationID, findID} {
+	for _, id := range []string{citeID, computationID, gapID} {
 		if n := strings.Count(got, anchor.Token(id)); n != 1 {
 			t.Errorf("marker %s appears %d times, want 1", anchor.Token(id), n)
 		}
 	}
 }
 
-// A Finding event with NO paired Anchor inserts nothing: the marker geometry rides the Anchor, and
-// replaying the Finding too would double it. This guards the deliberate skip of Finding in replay.
-func TestRenderRunDoesNotInsertFromFindingAlone(t *testing.T) {
+// A quoted gap with NO paired Anchor inserts nothing: the marker geometry rides the Anchor, and
+// replaying the mint too would double it.
+func TestRenderRunDoesNotInsertFromAGapAlone(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	for _, s := range []string{"blue-synthesize", "red-lens-evidence"} {
 		if _, _, err := record.RegisterSeat(ident(t, runDir, s), "", ""); err != nil {
@@ -115,16 +118,19 @@ func TestRenderRunDoesNotInsertFromFindingAlone(t *testing.T) {
 	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.ReportPart{Text: proto.String(base)}); err != nil {
 		t.Fatalf("append base: %v", err)
 	}
-	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Finding{
-		Id: proto.String("F-deadbeef"), Location: proto.String("Demand grows steadily over the period"),
+	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Mint{
+		GapId: proto.String("G-deadbeef"), Location: proto.String("Demand grows steadily over the period"),
+		Problem: proto.String("the growth is asserted"), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
+		Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum(),
 	}); err != nil {
-		t.Fatalf("append finding: %v", err)
+		t.Fatalf("append mint: %v", err)
 	}
 	got, err := record.RenderRun(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("RenderRun: %v", err)
 	}
 	if got != base {
-		t.Fatalf("a Finding with no Anchor changed the report:\n  base %q\n  got  %q", base, got)
+		t.Fatalf("a gap with no Anchor changed the report:\n  base %q\n  got  %q", base, got)
 	}
 }

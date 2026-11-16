@@ -39,10 +39,12 @@ feov-record: log: requires --type
 
 Run `feov-record log --help` for what it takes, flag by flag.
 
-$ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity medium --likelihood high --impact medium --quote A claim sits under S2. --reason unfounded leap
+$ mint --run {RUN} --seat-id red-lens-logic --key K1 --class spec_underspecification --check-kind document --check x --severity medium --likelihood high --impact medium --quote A claim sits under S2. --problem unfounded leap
 exit 0
 stdout:
-finding recorded: FINDING001 (logic) — the id a gap's found_by names
+minted GAP001
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
@@ -52,8 +54,8 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#1","position":{"position_id":"POSITION001","text":"first pass"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
 {"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `log` with --reason: requires --type","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":5,"type":"EVENT_TYPE_LOG"}
-{"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-logic:finding:FINDING001","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-logic:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","mint_key":"K1","problem":"unfounded leap","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_MINT"}
+{"anchor":{"id":"GAP001","location":"A claim sits under S2."},"key":"red-lens-logic:anchor:GAP001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- inquiries
@@ -85,7 +87,7 @@ A claim sits under S4.
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| _(no open gaps)_ |  |  |  |  |
+| unfounded leap | high | medium | — | — |
 
 The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
 

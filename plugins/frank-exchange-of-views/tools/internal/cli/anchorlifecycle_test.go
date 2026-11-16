@@ -155,22 +155,6 @@ func TestAnEvidenceAnchorLivesOneLifecycle(t *testing.T) {
 				t.Errorf("the refused mint recorded %d mint(s)", n-mints)
 			}
 
-			// A FINDING ABOUT IT IS REFUSED THE SAME WAY, and nothing is recorded.
-			findings := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
-			_, err = run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F-about-retired", "--about-kind", "anchor", "--about", id,
-				"--reason", "the anchor is wrong", "--severity", "low", "--likelihood", "low", "--impact", "low")
-			if err == nil {
-				t.Fatalf("a finding about a retired %s was recorded", kind)
-			}
-			for _, w := range []string{kind + " " + id + ", which is retired", "blue retired it at event", "no finding about it", "file it with --quote"} {
-				if !strings.Contains(err.Error(), w) {
-					t.Errorf("the finding's refusal does not say %q:\n%v", w, err)
-				}
-			}
-			if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING); n != findings {
-				t.Errorf("the refused finding recorded %d finding(s)", n-findings)
-			}
-
 			// THE REPORT READ AT ITS ID NAMES IT BY ITS KIND AND ITS RETIRE.
 			_, err = run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat, "--anchor", id)
 			if err == nil {

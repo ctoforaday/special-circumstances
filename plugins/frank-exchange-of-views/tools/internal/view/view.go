@@ -7,7 +7,6 @@
 package view
 
 import (
-	"cmp"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -263,36 +262,6 @@ func ledgerMD(in Input) []byte {
 	// happen to a database. An always-empty footer would say "nothing was dropped" on every render
 	// whether or not anything was, which is the shape it was built to prevent.
 	anomalyFooter := ""
-	// UNMINTED: a finding is addressed by being named in some gap's found_by, and that is the only
-	// way. This footer is the chair's live work list of lens work it has not minted a gap from.
-	minted := map[string]bool{}
-	for _, g := range in.Gaps {
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		for _, lbl := range g.Mint.GetFoundBy() {
-			minted[lbl] = true
-		}
-	}
-	var unminted []*record.Observation
-	findingRef := map[string]string{} // finding id -> how text names it, with its lens's area
-	for _, o := range record.ObservationsOf(in.Events) {
-		findingRef[o.Finding.GetId()] = record.FindingRef(o.Finding.GetId(), record.AreaOf(o.SeatID))
-		if !minted[o.Finding.GetId()] {
-			unminted = append(unminted, o)
-		}
-	}
-	notesFooter := ""
-	if len(unminted) > 0 {
-		lines := make([]string, len(unminted))
-		for i, o := range unminted {
-			// `reason` WAS THE PAYLOAD KEY; `text` is the field (lens/finding.go writes the
-			// prose under it). Finding carries no `reason`.
-			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, findingRef[o.Finding.GetId()], truncate(o.Finding.GetText(), 120))
-		}
-		notesFooter = "\n## lens findings no gap was minted from (whether each was weighed is not recorded)\n\n" + strings.Join(lines, "\n") + "\n"
-	}
-
 	ledgerParts := []string{
 		"# The board — RENDERED PROJECTION (source of truth: the record; do not hand-edit)",
 		"",
@@ -303,11 +272,6 @@ func ledgerMD(in Input) []byte {
 		supersedes := ""
 		if s := g.Mint.GetSupersedes(); len(s) > 0 {
 			supersedes = " | supersedes " + strings.Join(s, " ")
-		}
-		foundBy := ""
-		for i, id := range g.Mint.GetFoundBy() {
-			// a found_by naming no finding on the record stays visible, bare
-			foundBy += []string{" | found_by ", ","}[min(i, 1)] + cmp.Or(findingRef[id], id)
 		}
 		regraded := ""
 		if n := len(g.Regrades); n > 0 {
@@ -324,11 +288,11 @@ func ledgerMD(in Input) []byte {
 				class = proto.String(recordpb.Word(m.GetClass()))
 			}
 		}
-		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s%s\nrequired_fix: %s\nacceptance_check: %s\n",
+		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s\nrequired_fix: %s\nacceptance_check: %s\n",
 			g.ID, truncate(g.Mint.GetProblem(), 100),
 			g.Mint.GetLocation(),
 			gradeText(g.Severity), gradeText(g.Likelihood), gradeText(g.Impact), gradeText(g.ComplexityCost), undefStr(class),
-			supersedes, foundBy, regraded,
+			supersedes, regraded,
 			g.Mint.GetRequiredFix(),
 			undefStr(check)))
 	}
@@ -350,7 +314,7 @@ func ledgerMD(in Input) []byte {
 		}
 		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s | %s", g.ID, cc, truncate(g.Mint.GetProblem(), 60), succ))
 	}
-	ledgerParts = append(ledgerParts, anomalyFooter, notesFooter)
+	ledgerParts = append(ledgerParts, anomalyFooter)
 	return []byte(strings.Join(ledgerParts, "\n"))
 }
 

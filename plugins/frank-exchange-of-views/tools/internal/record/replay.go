@@ -340,24 +340,6 @@ func GradeOf(word string) (recordpb.Grade, bool) {
 	return recordpb.Grade(vd.Number()), true
 }
 
-// Observation is a lens FINDING as replayed. The name is historical: it once covered both
-// findings and `observe` notes, and carried the chair's `dispose` fate for each.
-//
-// Both retired (#327). A finding's fate is now COALESCENCE and only coalescence — it is
-// addressed by being named in some gap's found_by — so there is no Disposition to carry and
-// no second kind to distinguish. A finding named nowhere is the report's "Lens findings not
-// raised to a gap", which is where that work reaches the reader.
-type Observation struct {
-	SeatID string
-	Key    string
-	// Kind is the event type's word, and it is DERIVED from the event rather than written as the
-	// literal "finding" that is currently its only possible value. The literal would be a fact
-	// composed into a string at one end and compared at the other; derived, it cannot disagree
-	// with the event it came from if a second kind ever returns.
-	Kind    string
-	Finding *recordpb.Finding
-}
-
 // NO GO FOLD OF THE RECORD EXISTS (plans/board-as-views.md wave 7). Every reader derives from
 // the gap view, the typed loader and the family (FamilyOf), and the consistency oracle
 // holds THAT assembly to its own raw walk. Gap is the family's per-gap shape, filled by FamilyOf.

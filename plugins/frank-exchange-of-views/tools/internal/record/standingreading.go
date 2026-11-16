@@ -695,7 +695,7 @@ func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) err
 			}
 		}
 		return feov.Errorf(feov.Conflict,
-			"--class %s states that %s. That is a reading's finding, and the record holds no standing reading of yours of citation %s that %s (%s). "+
+			"--class %s states that %s. That is what a reading finds, and the record holds no standing reading of yours of citation %s that %s (%s). "+
 				"Read it first — `verify --anchor %s %s %s` — and mint on that reading. Nothing is recorded",
 			class, row.states, c, row.citedSays, latest, c, row.citedAs, verifyRequired)
 	}
@@ -707,7 +707,7 @@ func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) err
 	}
 	if strings.TrimSpace(m.GetLocation()) == "" {
 		return feov.Errorf(feov.Conflict,
-			"--class %s states that %s. That is a reading's finding of one subject: the citation (`--about-kind anchor --about C-…`) your reading found against, or the sentence (`--quote`) a source you found refutes. This mint names neither, so nothing is recorded",
+			"--class %s states that %s. That is what a reading finds of one subject: the citation (`--about-kind anchor --about C-…`) your reading found against, or the sentence (`--quote`) a source you found refutes. This mint names neither, so nothing is recorded",
 			class, row.states)
 	}
 	ms, err := mintSentenceAt(w, m)
@@ -727,7 +727,7 @@ func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) err
 		latest = fmt.Sprintf("your latest, event %d of %s, is `%s`", r.id, r.v.GetUrl(), recordpb.Word(r.v.GetOutcome()))
 	}
 	return feov.Errorf(feov.Conflict,
-		"--class %s states that %s. That is a reading's finding, and the record holds no standing reading of yours of a source you found for the sentence %s that %s (%s). "+
+		"--class %s states that %s. That is what a reading finds, and the record holds no standing reading of yours of a source you found for the sentence %s that %s (%s). "+
 			"Read the source first — `verify --url <source> --title <name> --quote <this sentence> %s %s` — and mint on that reading. "+
 			"Where the source is one blue cites, name the citation it contradicts (`--about-kind anchor --about C-…`): a cited source's defect is keyed on the citation, the subject the mint names. Nothing is recorded",
 		class, row.states, sentenceWords(ms.placed, ms.at), row.foundSays, latest, row.citedAs, verifyRequired)

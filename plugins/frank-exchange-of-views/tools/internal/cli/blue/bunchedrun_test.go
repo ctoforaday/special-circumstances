@@ -9,7 +9,7 @@ import (
 // The first three rows are universe-m19 ev400, universe-m18 ev263 and universe-m18 ev267, their
 // prose shortened and their anchors, sentence counts and positions kept.
 func TestBunchedRun(t *testing.T) {
-	const a, b, c, d, e = "<!--fx:F-9d782c44-->", "<!--fx:F-68c1c930-->", "<!--gap:G-5139f4f0-->", "<!--cite:C-706fda63-->", "<!--fx:F-61449326-->"
+	const a, b, c, d, e = "<!--gap:G-9d782c44-->", "<!--gap:G-68c1c930-->", "<!--gap:G-5139f4f0-->", "<!--cite:C-706fda63-->", "<!--gap:G-61449326-->"
 	for _, tc := range []struct {
 		name, report, old, new string
 		run                    []string
@@ -19,17 +19,17 @@ func TestBunchedRun(t *testing.T) {
 			"The field lists terms through 88, so it does not show 91" + a + b + d + ". Next.\n",
 			"The field lists terms through 88, so it does not show 91" + a + b + d + ".",
 			"The field lists terms through 88, so it cannot place 91. The definition does place 91 in it" + a + b + d + ".",
-			[]string{"F-9d782c44", "F-68c1c930", "C-706fda63"}, 1, 2},
+			[]string{"G-9d782c44", "G-68c1c930", "C-706fda63"}, 1, 2},
 		{"m18 ev263: the quote and the replacement both stop before the terminator",
 			"The answer does not depend on convention" + a + c + b + ". Next.\n",
 			"The answer does not depend on convention" + a + c + b,
 			"The answer rests on the standard definition. A reader who adopts another should check it" + a + c + b,
-			[]string{"F-9d782c44", "G-5139f4f0", "F-68c1c930"}, 1, 2},
+			[]string{"G-9d782c44", "G-5139f4f0", "G-68c1c930"}, 1, 2},
 		{"m18 ev267: two runs kept in order, the end run after the fourth sentence",
 			"Three routes agree" + e + a + ", and a script reproduces each" + b + c + d + ". Next.\n",
 			"Three routes agree" + e + a + ", and a script reproduces each" + b + c + d,
 			"Three outputs of one program agree" + e + a + ". The Wilson test is separate. The hand product depends on none. Each output repeats" + b + c + d,
-			[]string{"F-68c1c930", "G-5139f4f0", "C-706fda63"}, 1, 4},
+			[]string{"G-68c1c930", "G-5139f4f0", "C-706fda63"}, 1, 4},
 
 		{"the run distributed over the new sentences applies",
 			"The field stops at 88, so it does not show 91" + a + b + ". Next.\n",

@@ -79,8 +79,8 @@ func (s Selector) Describe() string {
 // can filter unconditionally.
 //
 // IT MATCHES THE VISIBLE TEXT, NOT THE RAW BYTES, and that is a correctness fix rather than a
-// nicety. The report carries an invisible annotation layer — `negligible<!--fx:f-eee49716--><!--fx:
-// f-051df802-->.` is one sentence with two anchors abutting inside it — so a seat quoting
+// nicety. The report carries an invisible annotation layer — `negligible<!--cite:C-eee49716--><!--gap:
+// G-051df802-->.` is one sentence with two anchors abutting inside it — so a seat quoting
 // `overhead is negligible.` exactly as the page reads it matched NOTHING. Verified on m10's real
 // report: that phrase returned "no line matches" while the sentence was right there.
 //
@@ -103,7 +103,7 @@ func (s Selector) Hits(text string) bool {
 // synthesizer matched `cite:|computation:` to list every anchor of a kind. Both got "no line matches",
 // which is the answer a pattern the report does not hold gets. Matching the printed text instead
 // would answer them and break the word-hunt the selector exists for: a voice lens matching
-// `gap|computation|finding` would hit every anchored line in the report on the token's own kind word.
+// `gap|computation|cite` would hit every anchored line in the report on the token's own kind word.
 // So the read stays what it is and its empty answer counts these lines and names the reads that
 // take an anchor.
 //
@@ -124,7 +124,7 @@ func anchorsOnlyNote(n int) string {
 	}
 	return fmt.Sprintf("%d line(s) hold it INSIDE AN ANCHOR TOKEN only: --match and --quote read each line with its anchors out, "+
 		"so a pattern that names a token or an anchor id finds nothing. To read the passage at one anchor, pass --anchor with its id in place of the pattern. "+
-		"To list every anchor of a kind, read the view that resolves the kind: `show findings`, `show evidence` (citations and computations), `show board` (gaps)", n)
+		"To list every anchor of a kind, read the view that resolves the kind: `show evidence` (citations and computations), `show board` (gaps)", n)
 }
 
 // anchorsOnly counts the lines the selector hits only inside an anchor token.
@@ -287,7 +287,7 @@ func reportJSON(head int64, lines []record.ReportLineJSON, selection map[string]
 // these is about X" is the same question whichever view asked it.
 //
 // IT MATCHES EVERY VALUE OF THE ENTRY, deliberately: a seat hunting a class, a phrase in a problem, a
-// seat id in found_by or a word in an acceptance check is asking one question — "which of these is
+// seat id in minted_by or a word in an acceptance check is asking one question — "which of these is
 // about this?" — and a per-field selector would make it ask once per field, which is the round-trip
 // tax this exists to remove.
 //
@@ -426,8 +426,6 @@ func selectorNoun(view string) string {
 		return "gaps"
 	case "changes":
 		return "edits"
-	case "findings":
-		return "findings"
 	case "evidence":
 		return "citations and computations"
 	case "motions":

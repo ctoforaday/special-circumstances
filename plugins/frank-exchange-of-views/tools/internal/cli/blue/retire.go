@@ -41,7 +41,7 @@ import (
 // anchor, so a counted claim leaves only where a retire names the anchors it takes.
 //
 // AND IT IS HOW AN ANCHOR LEAVES. An edit may carry an anchor but never drop one,
-// so cutting a sentence a finding or gap marks leaves the anchor BARE — no prose before
+// so cutting a sentence a gap marks leaves the anchor BARE — no prose before
 // it in its sentence, marking nothing. Nothing could take that anchor out, so it stood forever:
 // an empty `- ?` bullet. The retire names the bare anchors the claim's removal left (computed
 // here, from the record and the report, never typed by a seat), and replay takes them out at

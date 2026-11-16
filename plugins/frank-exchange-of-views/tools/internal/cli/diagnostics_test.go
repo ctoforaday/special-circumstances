@@ -39,7 +39,7 @@ func TestTheDenominatorIsWhatTheSeatsTreeActuallyOffers(t *testing.T) {
 	acts := actsOf("lens")
 	// `manual` is deliberately absent: it is the operator's verb now, because a seat is handed
 	// what it prints. The root-mounted commands are the point of this test either way.
-	for _, want := range []string{"motion", "fetch", "finding"} {
+	for _, want := range []string{"motion", "fetch", "mint"} {
 		found := false
 		for _, a := range acts {
 			if a == want {
@@ -65,7 +65,7 @@ func TestASurfaceThatArrivesThroughARefusalStillCounts(t *testing.T) {
 	trajectoryFor(t, runDir, "Exit code 2\nfeov-record: \"position\" is not on your surface.\n\n"+
 		"Available Commands:\n"+
 		"  completion  Generate the autocompletion script\n"+
-		"  finding     a lens finding\n"+
+		"  mint        a lens gap\n"+
 		"  verify      adjudicate ONE citation\n"+
 		"\n")
 

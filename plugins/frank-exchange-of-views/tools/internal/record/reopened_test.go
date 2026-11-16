@@ -379,12 +379,10 @@ func TestARetiredAnchorOwesNothing(t *testing.T) {
 
 // F1: an edit's list names every anchor its sentence change touched, and only a citation or a
 // computation has a check to redo.
-func TestAReopenedFindingOrGapIsNotOwed(t *testing.T) {
-	b := reopenedBoard(t).mint(evLens, "G-00000001", "low").
-		add(evLens, &recordpb.Finding{Id: proto.String("F-00000001"), Location: proto.String("a sentence"), Text: proto.String("t")}).
-		reopen("G-00000001", "F-00000001")
+func TestAReopenedGapIsNotOwed(t *testing.T) {
+	b := reopenedBoard(t).mint(evLens, "G-00000001", "low").reopen("G-00000001")
 	if got := reopenedRows(t, b); len(got) != 0 {
-		t.Errorf("rows = %+v, want none: a finding and a gap are not rows", got)
+		t.Errorf("rows = %+v, want none: a gap is not a row", got)
 	}
 }
 

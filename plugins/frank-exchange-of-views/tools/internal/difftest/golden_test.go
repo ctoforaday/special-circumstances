@@ -177,7 +177,7 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 	if cast != nil {
 		seedCast(t, runDir, cast)
 	}
-	// A lens finding anchors into the report (slice 1b) and is rejected unless its --quote quote is
+	// A quoted gap anchors into the report and is refused unless its --quote quote is
 	// present, so the report carries the scenario quotes (a claim under ## S2 / ## S4).
 	//
 	// THE REPORT IS RECORDED AS ONE PART, under the harness: a scenario stands for a run whose lanes

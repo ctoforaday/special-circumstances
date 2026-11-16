@@ -84,7 +84,7 @@ func TestATextInOrderIsNotRefused(t *testing.T) {
 		"only the three":                   title + tl + cat + open,
 		"text before the first heading":    title + "A framing paragraph.\n\n" + own1 + open,
 		"the names in another case":        title + "## tl;dr\n\nNo.\n\n## THE CATECHISM\n\nx.\n\n" + own1 + "##  open   questions (in full)\n\nNone.\n",
-		"an anchored heading":              title + tl + "## The Catechism<!--fx:F-00000aaa-->\n\nx.\n\n" + own1 + open,
+		"an anchored heading":              title + tl + "## The Catechism<!--gap:G-00000aaa-->\n\nx.\n\n" + own1 + open,
 		"a row's heading inside a fence":   title + tl + own1 + "```\n## TL;DR\n# not a title\n## The Catechism\n```\n\n" + open,
 		"a deeper heading of a row's":      title + tl + own1 + "### The Catechism\n\nx.\n\n### TL;DR\n\ny.\n\n" + open,
 		"a section named as the body row":  title + tl + "## " + bodyHeading + "\n\nx.\n\n" + open,

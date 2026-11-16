@@ -275,7 +275,7 @@ func TestTheAllowlistHoldsTheTitle(t *testing.T) {
 func TestATokenInAComputationReasonOrCitationTitleDoesNotShip(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "feed0000face1111"
-	const script = "console.log('<!--fx:F-0000beef-->'.length);"
+	const script = "console.log('<!--gap:G-0000beef-->'.length);"
 	seedStore(t, runDir, sha, "K-00000001", script, "26\n")
 	blue := "# On the cache — research report\n\n## TL;DR\nCoherent<!--cite:C-00000001-->, and checked<!--computation:K-00000001-->.\n"
 	id := record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}
@@ -290,7 +290,7 @@ func TestATokenInAComputationReasonOrCitationTitleDoesNotShip(t *testing.T) {
 		},
 		&recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 			ComputationId: proto.String("K-00000001"), BundleSha: proto.String(sha),
-			Text: proto.String("trial division <!--fx:F-0000beef-->settles it <!--computation:K-00000002-->\n\n    <!--gap:G-00000001-->"),
+			Text: proto.String("trial division <!--gap:G-0000beef-->settles it <!--computation:K-00000002-->\n\n    <!--gap:G-00000001-->"),
 		},
 	} {
 		if _, err := record.Append(id, body); err != nil {

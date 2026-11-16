@@ -12,7 +12,7 @@ import (
 // THE LOCATOR SEES THROUGH THE ANNOTATION LAYER, EVERYWHERE IT COMPARES TWO SPANS.
 //
 // A gap's location, an edit's replaced span and a lens's prescribed text are all quotes of the
-// report, and the report carries an invisible layer of anchors — `<!--fx:…-->`, `<!--cite:…-->`,
+// report, and the report carries an invisible layer of anchors — `<!--gap:…-->`, `<!--cite:…-->`,
 // `<!--computation:…-->`. Minting a gap PLACES one at the location it names, so the stored location and
 // the same sentence as an edit later quotes it differ by bytes nobody typed. Any comparison of two
 // such spans on RAW BYTES therefore stops matching the moment the sentence gains an anchor, and it
@@ -27,10 +27,10 @@ import (
 // annotation layer". EstoppelConflict folds events rather than comparing two arguments, so it has
 // a record-backed test below — TestEstoppelSurvivesTheAnchorOnItsOwnPrescription.
 
-// anchored is the same sentence as the report stores it once a finding has been minted against it.
+// anchored is the same sentence as the report stores it once a gap has been minted against it.
 const (
 	plainSentence    = "Eight authoritative mathematical sources were consulted:"
-	anchoredSentence = "Eight authoritative mathematical sources were consulted<!--fx:F-dbd94684-->:"
+	anchoredSentence = "Eight authoritative mathematical sources were consulted<!--gap:G-dbd94684-->:"
 	otherSentence    = "Trial division identified 7 as a divisor."
 )
 
@@ -70,7 +70,7 @@ func TestEveryLocatorComparisonSeesThroughTheAnnotationLayer(t *testing.T) {
 			// THE CLASS: the same sentence, one side carrying the anchor its own mint placed.
 			if !site.eq(t, plainSentence, anchoredSentence) {
 				t.Errorf("%s does NOT see %q and %q as the same span.\n"+
-					"They differ only by a finding anchor, which minting places at the location the gap names — so this\n"+
+					"They differ only by a gap anchor, which minting places at the location the gap names — so this\n"+
 					"comparison stops matching exactly when a gap is minted, and stops matching SILENTLY: 'different span'\n"+
 					"is also the honest answer for two unrelated sentences. Compare through the annotation layer.",
 					site.name, plainSentence, anchoredSentence)
@@ -124,7 +124,7 @@ func TestEstoppelSurvivesTheAnchorOnItsOwnPrescription(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The lens comes back and quotes the sentence AS THE REPORT NOW HOLDS IT.
-	anchored := "Six authoritative mathematical sources were consulted<!--fx:F-dbd94684-->:"
+	anchored := "Six authoritative mathematical sources were consulted<!--gap:G-dbd94684-->:"
 	if est, _ := EstoppelConflict(fam, anchored); est.Gap == "" {
 		t.Errorf("estoppel did not fire on a quote of red's own applied prescription.\n"+
 			"prescribed: %q\nquoted    : %q\nThey differ only by the anchor the report carries, so the one rule that stops a lens\n"+

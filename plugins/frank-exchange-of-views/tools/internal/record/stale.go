@@ -68,8 +68,8 @@ func Fresh(seatID, gapID string) Guard {
 
 // staleOf is StaleOn over a loaded stream.
 //
-// WHAT COUNTS AS A CHANGE is the work list's own news on a gap (gapNewsOf) — blue's answer, an
-// accepted grade motion, the bench's remand, another seat's finding about it — and the acts that
+// WHAT COUNTS AS A CHANGE is the work list's own news on a gap (gapNewsOf) — blue's answer, a
+// reaching retire, an accepted grade motion awaiting its regrade, the bench's remand — and the acts that
 // move the gap's state, which that fold leaves out because they are its minting lens's own or end
 // the gap: a close, a regrade, the bench's ruling on a docket motion on it, and its upholding of a
 // position naming it, which remands it. A seat's own acts are

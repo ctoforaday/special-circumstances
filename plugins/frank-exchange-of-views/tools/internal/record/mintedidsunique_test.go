@@ -14,7 +14,7 @@ import (
 
 // A CITATION'S LABEL AND A COMPUTATION'S ID NAME ONE ACT EACH. The tool mints both at random (NewID),
 // and a second row under one would join two acts as one wherever the id is read: an anchor, a
-// reading, a gap's answer. The record refuses the second row, as it does a gap id or a finding id.
+// reading, a gap's answer. The record refuses the second row, as it does a gap id.
 func TestAMintedCitationOrComputationIDIsWrittenOnce(t *testing.T) {
 	for _, c := range []struct {
 		name string

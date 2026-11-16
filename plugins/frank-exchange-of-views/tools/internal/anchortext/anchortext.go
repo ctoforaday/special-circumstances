@@ -131,7 +131,7 @@ func isWordByte(c byte) bool {
 func Tokenize(s string) map[string]bool {
 	out := map[string]bool{}
 	// THE ANNOTATION LAYER IS NOT VOCABULARY. Splitting on non-alphanumerics turns an anchor into
-	// tokens — `<!--fx:f-dbd94684-->` yields "fx" and "dbd94684" — and both land in the union, so an
+	// tokens — `<!--cite:C-dbd94684-->` yields "cite", "C" and "dbd94684" — and both land in the union, so an
 	// anchored sentence scores LOWER against the same words than an unanchored one. The score degrades
 	// quietly rather than failing, which is why it survived: the sentence that should rank first just
 	// ranks lower. Stripped through the one definition of the layer.

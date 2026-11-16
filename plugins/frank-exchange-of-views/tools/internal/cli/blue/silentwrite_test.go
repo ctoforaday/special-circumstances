@@ -80,9 +80,9 @@ func TestAPunctuationOnlyRepairTakesTheLiteralSpan(t *testing.T) {
 		})
 	}
 	// The literal span puts back an anchor the repair left out, as the trimmed one does.
-	const fx = "<!--fx:F-aaaa1111-->"
-	got, applied, exact, err := validateEdit("Intro.\n\nIt works"+fx+". Mostly..\n", "It works"+fx+". Mostly..", "It works. Mostly.")
-	if err != nil || got != "Intro.\n\nIt works"+fx+". Mostly.\n" || applied != "It works"+fx+". Mostly." || !exact {
+	const mark = "<!--gap:G-aaaa1111-->"
+	got, applied, exact, err := validateEdit("Intro.\n\nIt works"+mark+". Mostly..\n", "It works"+mark+". Mostly..", "It works. Mostly.")
+	if err != nil || got != "Intro.\n\nIt works"+mark+". Mostly.\n" || applied != "It works"+mark+". Mostly." || !exact {
 		t.Errorf("an anchored repair: got %q applied %q exact=%v err=%v", got, applied, exact, err)
 	}
 	// Quoting through the terminator still works, and needs no literal span.
@@ -142,16 +142,16 @@ func TestAnOrdinaryEditIsNotRefused(t *testing.T) {
 // before the report's period (`".`) — no terminator landed beside another in any of them.
 func TestPunctuationInsideAReplacementIsNotADoubledTerminator(t *testing.T) {
 	const report = "## Search\n\n" +
-		`A standard web search for "is 91 a prime number" returned nine pages<!--fx:F-775c786f-->. ` +
+		`A standard web search for "is 91 a prime number" returned nine pages<!--gap:G-775c786f-->. ` +
 		"The results read as snippets, not in full.\n"
 	const quote = `A standard web search for "is 91 a prime number" returned nine pages`
 	for _, tc := range []struct{ name, new, want string }{
 		{"a closing quote then a comma (ev246)", `For the query "is 91 a prime number", nine web pages come up`,
-			`For the query "is 91 a prime number", nine web pages come up<!--fx:F-775c786f-->. `},
+			`For the query "is 91 a prime number", nine web pages come up<!--gap:G-775c786f-->. `},
 		{"a single quote then a comma (ev248)", `For the query 'is 91 a prime number', nine web pages come up`,
-			`For the query 'is 91 a prime number', nine web pages come up<!--fx:F-775c786f-->. `},
+			`For the query 'is 91 a prime number', nine web pages come up<!--gap:G-775c786f-->. `},
 		{"a quoted phrase ending the sentence (ev238)", `Nine web pages come up for the query "is 91 a prime number"`,
-			`Nine web pages come up for the query "is 91 a prime number"<!--fx:F-775c786f-->. `},
+			`Nine web pages come up for the query "is 91 a prime number"<!--gap:G-775c786f-->. `},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, _, _, err := validateEdit(report, quote, tc.new)
@@ -181,7 +181,7 @@ func TestPunctuationInsideAReplacementIsNotADoubledTerminator(t *testing.T) {
 // "91:<!--gap:…-->…<!--gap:…-->." — to a reader, "91:.". An anchor between two marks is not content
 // between them, so the edit is refused as its bare twin is.
 func TestAnEditThatWouldDoubleATerminatorAcrossAnchorsIsRefused(t *testing.T) {
-	const run = "<!--gap:G-0000000c--><!--fx:F-f8f18cf1--><!--fx:F-63bb2a68--><!--gap:G-00000004-->"
+	const run = "<!--gap:G-0000000c--><!--gap:G-f8f18cf1--><!--gap:G-63bb2a68--><!--gap:G-00000004-->"
 	const lead = "Each of the five methods confirms it. "
 	const old, new = "The disconfirming evidence strategy was applied: for each method, we searched for cases where it *fails* or is *limited*", "The following findings examine each method's performance on 91:"
 	for _, tc := range []struct{ name, run string }{{"control: no anchor", ""}, {"a run of anchors", run}} {
@@ -197,7 +197,7 @@ func TestAnEditThatWouldDoubleATerminatorAcrossAnchorsIsRefused(t *testing.T) {
 // A DOUBLED MARK ACROSS THE ANCHORS --new CARRIES TIDIES, AND A CHANGED ONE TAKES THE LITERAL SPAN,
 // each as its bare twin does.
 func TestATerminatorBeforeCarriedAnchorsLandsOnce(t *testing.T) {
-	const a = "<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->"
+	const a = "<!--gap:G-00abc123--><!--cite:C-00d4d4d4-->"
 	for _, tc := range []struct {
 		name, report, old, new, want string
 		exact                        bool

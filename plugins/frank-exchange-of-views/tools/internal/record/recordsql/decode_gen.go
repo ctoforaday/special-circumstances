@@ -25,7 +25,6 @@ var bodyTables = map[string]func() bodyTable{
 	"closing":           func() bodyTable { return &closingTable{} },
 	"regrade":           func() bodyTable { return &regradeTable{} },
 	"spot_check":        func() bodyTable { return &spotCheckTable{} },
-	"finding":           func() bodyTable { return &findingTable{} },
 	"anchor":            func() bodyTable { return &anchorTable{} },
 	"cite":              func() bodyTable { return &citeTable{} },
 	"verify":            func() bodyTable { return &verifyTable{} },
@@ -875,15 +874,6 @@ func (t *mintTable) load(q Querier, after int64) error {
 	}); err != nil {
 		return err
 	}
-	if err := scanList(q, "mint_found_by", `SELECT l."event_id", l."value" FROM "mint_found_by" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"`, after, func(id int64, v string) {
-		m := t.rows[id]
-		if m == nil {
-			return // the owner's row is missing, and its event is refused for that
-		}
-		m.FoundBy = append(m.FoundBy, v)
-	}); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -1189,90 +1179,6 @@ func (t *spotCheckTable) attach(ev *recordpb.Event, id int64) error {
 		return err
 	}
 	ev.Body = &recordpb.Event_SpotCheck{SpotCheck: m}
-	return nil
-}
-
-// findingTable reads the "finding" table's rows past an event id, with its lists and oneof arms, keyed by event.
-type findingTable struct {
-	rows map[int64]*recordpb.Finding
-	bad  map[int64]error
-}
-
-func (t *findingTable) load(q Querier, after int64) error {
-	t.rows = map[int64]*recordpb.Finding{}
-	{
-		var id int64
-		var c0 sql.NullString
-		var c1 sql.NullString
-		var c2 sql.NullString
-		var c3 sql.NullString
-		var c4 sql.NullString
-		var c5 sql.NullString
-		var c6 sql.NullString
-		var c7 sql.NullString
-		var c8 sql.NullString
-		if err := scanRows(q, "finding", `SELECT t."event_id", t."id", t."finding_key", t."location", t."text", t."severity", t."likelihood", t."impact", t."about_kind", t."about_ref" FROM "finding" t WHERE t."event_id" > ?`, after, []any{&id, &c0, &c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8}, func() {
-			m := &recordpb.Finding{}
-			if c0.Valid {
-				m.Id = ref(c0.String)
-			}
-			if c1.Valid {
-				m.FindingKey = ref(c1.String)
-			}
-			if c2.Valid {
-				m.Location = ref(c2.String)
-			}
-			if c3.Valid {
-				m.Text = ref(c3.String)
-			}
-			if c4.Valid {
-				if v, err := wordOf[recordpb.Grade]("finding.severity", c4.String); err != nil {
-					t.bad = refuse(t.bad, id, err)
-				} else {
-					m.Severity = ref(v)
-				}
-			}
-			if c5.Valid {
-				if v, err := wordOf[recordpb.Grade]("finding.likelihood", c5.String); err != nil {
-					t.bad = refuse(t.bad, id, err)
-				} else {
-					m.Likelihood = ref(v)
-				}
-			}
-			if c6.Valid {
-				if v, err := wordOf[recordpb.Grade]("finding.impact", c6.String); err != nil {
-					t.bad = refuse(t.bad, id, err)
-				} else {
-					m.Impact = ref(v)
-				}
-			}
-			if c7.Valid {
-				if v, err := wordOf[recordpb.AboutKind]("finding.about_kind", c7.String); err != nil {
-					t.bad = refuse(t.bad, id, err)
-				} else {
-					m.AboutKind = ref(v)
-				}
-			}
-			if c8.Valid {
-				m.AboutRef = ref(c8.String)
-			}
-			t.rows[id] = m
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (t *findingTable) attach(ev *recordpb.Event, id int64) error {
-	m := t.rows[id]
-	if m == nil {
-		return noBody(id, "finding")
-	}
-	if err := t.bad[id]; err != nil {
-		return err
-	}
-	ev.Body = &recordpb.Event_Finding{Finding: m}
 	return nil
 }
 

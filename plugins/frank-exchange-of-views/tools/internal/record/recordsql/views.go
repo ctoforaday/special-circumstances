@@ -421,8 +421,6 @@ CREATE VIEW "demand_reach" AS
 -- without touching it, and a count written here goes stale silently — which is this comment's own
 -- failure mode, not just the schema's.
 --
--- A field added to Finding does not have this problem: the findings view reads the proto.
---
 -- The state's columns, as gap_refresh answers each:
 --   close_event, bench_close_event  the last close, and the last closing docket ruling. A gap can be
 --                       closed more than once — red re-adjudicates across epochs, the bench rules
@@ -655,7 +653,7 @@ LEFT JOIN "events" ce ON ce."id" =
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
 --            One row per anchor event placed by its quote: every act that places a marker — a
---            finding, a gap, a citation, a computation — appends one after its own
+--            gap, a citation, a computation — appends one after its own
 --            event, so where an id is placed is read from one table.
 --   sentence_of → a=the id of an anchor already in the text, b=the marker id (Token(b) is spliced
 --            at the end of the sentence Token(a) sits in, found by that token, never by text);

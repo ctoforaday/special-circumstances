@@ -1,7 +1,7 @@
 # TEST FIXTURE — De Bello Gallico as a mock research report (NOT real research data)
 
 **Verdict:** FIXTURE — this document exists only to exercise ingest / render / edit / cite. Its
-"findings" are Caesar's prose, not a debate's, and its citations point at nothing real. If you are
+"claims" are Caesar's prose, not a debate's, and its citations point at nothing real. If you are
 reading this looking for research, you are in the test corpus.
 
 ## TL;DR
@@ -11,12 +11,12 @@ qui ipsorum lingua Celtae, nostra Galli appellantur.<!--cite:C-cafef00d-->
 
 ## Analysis
 
-Hi omnes lingua, institutis, legibus inter se differunt<!--fx:F-deadbeef-->. Gallos ab Aquitanis
+Hi omnes lingua, institutis, legibus inter se differunt<!--gap:G-deadbeef-->. Gallos ab Aquitanis
 Garumna flumen, a Belgis Matrona et Sequana dividit[^2]. Horum omnium fortissimi sunt Belgae,
 propterea quod a cultu atque humanitate provinciae longissime absunt<!--cite:C-0badf00d-->,
 minimeque ad eos mercatores saepe commeant atque ea quae ad effeminandos animos pertinent important.
 
-Apud Helvetios longe nobilissimus fuit et ditissimus Orgetorix<!--fx:F-01020304-->. Is coniuratione
+Apud Helvetios longe nobilissimus fuit et ditissimus Orgetorix<!--gap:G-01020304-->. Is coniuratione
 nobilitatis facta civitati persuasit ut de finibus suis cum omnibus copiis exirent[^3]: perfacile
 esse, cum virtute omnibus praestarent, totius Galliae imperio potiri.
 

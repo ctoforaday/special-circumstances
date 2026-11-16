@@ -53,23 +53,6 @@ func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
 	}
 }
 
-func TestFoundByResolves(t *testing.T) {
-	b := &boardT{
-		GapOrder: []string{"G1", "G2"},
-		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"F-f0000001"}}},
-			"G2": {ID: "G2", Mint: &recordpb.Mint{FoundBy: []string{"GHOST"}}},
-		},
-		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-evidence", &recordpb.Finding{Id: proto.String("F-f0000001")}),
-		},
-	}
-	c := find(t, Run(b.fam(t)), "found-by-resolves")
-	if c.OK || len(c.Violations) != 1 || c.Violations[0] != "G2→GHOST" {
-		t.Errorf("a found_by naming a finding nobody recorded must be flagged: %+v", c)
-	}
-}
-
 func TestDialecticRefsResolve(t *testing.T) {
 	b := &boardT{
 		GapOrder: []string{"G1"},
@@ -150,7 +133,7 @@ func TestRegisterBeforeAppend(t *testing.T) {
 		Events: []*record.Event{
 			recordtest.Event(t, "blue-r1", &recordpb.Register{}),
 			recordtest.Event(t, "blue-r1", &recordpb.Position{PositionId: proto.String(record.NewID("position"))}),
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000009")}), // never registered
+			recordtest.Event(t, "red-lens-logic", &recordpb.Verify{Claim: proto.String("c"), Anchor: proto.String("C-f0000009"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("read it")}), // never registered
 		},
 	}
 	c := find(t, Run(b.fam(t)), "register-before-append")
@@ -211,12 +194,10 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 	b := &boardT{
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{FoundBy: []string{"F-f0000002"}}},
+			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{}},
 			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.DocketRuling{Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000002")}), // minted
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000003")}), // un-minted
 			// BOTH HALVES, because gaps_with_disposition is a JOIN: the gap rides the filing and
 			// the disposition rides the ruling. Seeded with only the ruling the count is 0, which
 			// is the same number an honest run with no bench sitting produces.
@@ -243,9 +224,6 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 	s := Compute(b.fam(t))
 	if s.GapsTotal != 2 || s.GapsOpen != 1 || s.GapsClosed != 1 {
 		t.Errorf("gap counts wrong: %+v", s)
-	}
-	if s.Findings != 2 || s.FindingsMinted != 1 || s.FindingsUnminted != 1 {
-		t.Errorf("finding coverage wrong: %+v", s)
 	}
 	// citations_checked's canonical source: one per cite event the replay carries.
 	// Cite events are reference-keyed, so a re-verification is deduped upstream in the

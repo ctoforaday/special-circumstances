@@ -32,7 +32,7 @@ func TestTheLoudVerdictWordsAreTakenExactly(t *testing.T) {
 // is not the absent pair.
 func TestAnAboutAnchorIsTakenAsTyped(t *testing.T) {
 	run := mustRun(t, recordtest.TmpRun(t))
-	admitted := MustEnum("finding", "about_kind")
+	admitted := MustEnum("mint", "about_kind")
 	for _, c := range [][2]string{{" section", "H"}, {"section", "H "}, {"  ", "  "}, {"section", "   "}} {
 		if k, ref, err := ResolveAbout(run, admitted, c[0], c[1]); err == nil {
 			t.Errorf("ResolveAbout(%q, %q) = %v %v; want it refused", c[0], c[1], k, ref)

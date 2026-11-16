@@ -205,16 +205,3 @@ func TestTheContestClauseIsOnTheMotionsMenuAlone(t *testing.T) {
 		}
 	}
 }
-
-// THE FINDING PAGE SAYS WHICH AXES A FINDING CARRIES, and the flags are those three.
-func TestTheFindingPageSaysWhichAxesItCarries(t *testing.T) {
-	finding := cmdAt(NewRootFor("red-lens-evidence"), []string{"finding"})
-	if page := seat.HelpText(finding); !strings.Contains(page, "A FINDING IS GRADED ON THREE AXES — severity, likelihood, impact — and not on complexity: that axis is what a FIX costs") {
-		t.Errorf("the finding page does not say which axes a finding carries:\n%s", page)
-	}
-	for name, want := range map[string]bool{"severity": true, "likelihood": true, "impact": true, "complexity": false} {
-		if got := finding.Flags().Lookup(name) != nil; got != want {
-			t.Errorf("finding takes --%s = %v, and its page says %v", name, got, want)
-		}
-	}
-}

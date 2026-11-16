@@ -95,8 +95,8 @@ func assertVerifies(t *testing.T, dst record.Run, carried ...string) {
 }
 
 // assertRoundless is roundless §III.A.5's criterion on a migrated record: it speaks the live
-// vocabulary and nothing else. No seat id carries a round or a lens number, every gap id and
-// finding id is in the one id shape, and no reference keeps an archived spelling.
+// vocabulary and nothing else. No seat id carries a round or a lens number, every gap id is in the
+// one id shape, and no reference keeps an archived spelling.
 func assertRoundless(t *testing.T, fam record.Family) {
 	t.Helper()
 	old := regexp.MustCompile(`-r\d+(-|$)|-L\d+$`)
@@ -108,14 +108,11 @@ func assertRoundless(t *testing.T, fam record.Family) {
 			if !regexp.MustCompile(`^G-[0-9a-f]{8}$`).MatchString(m.GetGapId()) {
 				t.Errorf("mint %q is not a gap id", m.GetGapId())
 			}
-			for _, s := range append(append([]string{}, m.GetSupersedes()...), m.GetFoundBy()...) {
+			for _, s := range m.GetSupersedes() {
 				if strings.HasPrefix(s, "R") && strings.Contains(s, "-") || regexp.MustCompile(`^L\d+-F`).MatchString(s) {
 					t.Errorf("mint %s still references archived id %q", m.GetGapId(), s)
 				}
 			}
-		}
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && !regexp.MustCompile(`^F-[0-9a-f]{8}$`).MatchString(f.GetId()) {
-			t.Errorf("finding %q is not a finding id", f.GetId())
 		}
 	}
 }

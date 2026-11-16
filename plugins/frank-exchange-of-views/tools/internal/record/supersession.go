@@ -72,8 +72,8 @@ func supersededRefusal(flag, id, successor string) error {
 
 // requireSupersedable is the write path's check of a mint's `supersedes`, ancestor by ancestor: a
 // mint superseding an OPEN gap closes it, so it is held to what a close is held to. Only the gap's
-// minter closes it (requireOriginator's rule). A closed ancestor is lineage only, and any seat may
-// name it.
+// minter closes it (requireOriginator's rule); another seat's road is the act it proposes on the gap
+// (oneGapRefusal's). A closed ancestor is lineage only, and any seat may name it.
 func requireSupersedable(q recordsql.Querier, seatID string, m *recordpb.Mint) error {
 	for _, anc := range m.GetSupersedes() {
 		closed, err := gapState(q, anc)
@@ -88,10 +88,15 @@ func requireSupersedable(q recordsql.Querier, seatID string, m *recordpb.Mint) e
 			return err
 		}
 		if mintedBy != "" && mintedBy != seatID {
+			exchanged, err := exchangesSentence(q, anc)
+			if err != nil {
+				return err
+			}
 			return feov.Errorf(feov.Validation,
-				"--supersedes names %s, which is open and was minted by %s. A mint superseding an open gap closes it, and only its minter closes a gap; %s cannot. "+
-					"If %s is your defect, file a finding about it; if yours is a different defect, mint it without --supersedes. Nothing was recorded",
-				anc, mintedBy, seatID, anc)
+				"--supersedes names %s, which is open and assigned to %s. A mint superseding an open gap closes it, and only its assignee closes a gap; %s cannot. "+
+					"If you dispute %s — its problem, fix, check or weight — propose the act you want on it (`motion docket file supersede|regrade|close --id %s`), argued in --reason; %s may accept it, else the bench rules.%s "+
+					"If your point is %s's defect as %s states it, it is on the board: nothing more is recorded. If yours is a different defect, mint it without --supersedes. Nothing was written",
+				anc, mintedBy, seatID, anc, anc, mintedBy, exchanged, anc, anc)
 		}
 	}
 	return nil

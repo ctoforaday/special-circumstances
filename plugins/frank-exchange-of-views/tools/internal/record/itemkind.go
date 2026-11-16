@@ -26,8 +26,6 @@ const (
 	ItemReaudit ItemKind = "reaudit"
 	// ItemRegradeOwed is an accepted grade motion on a lens's own gap that no regrade has followed.
 	ItemRegradeOwed ItemKind = "regrade_owed"
-	// ItemFindingOnGap is another seat's finding anchored to a lens's own open gap.
-	ItemFindingOnGap ItemKind = "finding_on_gap"
 	// ItemNews is a closed gap of a lens's own whose answers have all been retired: the closure
 	// stands, and the item says what a mint in answer would be.
 	ItemNews ItemKind = "news"
@@ -69,7 +67,7 @@ func ItemKinds() []ItemKind {
 	for _, r := range blockerKinds {
 		out = append(out, ItemKind(r.kind))
 	}
-	return append(out, ItemAudit, ItemReaudit, ItemRegradeOwed, ItemFindingOnGap, ItemNews, ItemLog,
+	return append(out, ItemAudit, ItemReaudit, ItemRegradeOwed, ItemNews, ItemLog,
 		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
 		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed)
 }

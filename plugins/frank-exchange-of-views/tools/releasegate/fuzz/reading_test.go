@@ -466,8 +466,6 @@ func gapTally(res *outcome, board record.Family, run record.Run) {
 		switch {
 		case slices.Contains(record.ReadingMintedClasses(), g.Mint.GetClass()):
 			res.openByFoundBy["reading"]++
-		case len(g.Mint.GetFoundBy()) > 0:
-			res.openByFoundBy["finding"]++
 		case g.Mint.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && anchor.Kind(g.Mint.GetAboutRef()) == "computation":
 			res.openByFoundBy["unsound_computation"]++
 		default:

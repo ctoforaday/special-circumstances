@@ -296,12 +296,13 @@ func TestABenchRegradeIsNoGradeMovement(t *testing.T) {
 	}
 }
 
-// groundsBoard is G1 minted, docketed and ruled closed (final); more is recorded after the ruling.
+// groundsBoard is G1 minted, answered by a citation, docketed and ruled closed (final); more is
+// recorded after the ruling.
 func groundsBoard(t *testing.T, after func(*stage)) Run {
 	t.Helper()
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").mint(evLens, "G2", "high").
-		add(evLens, findingAbout("F-00000001", "G1")).
+		add("blue-respond", citeAnswering("C-0000b0b0", "G1")).
 		register("red-chair").docketMotion("red-chair", "M1", "G1").
 		dispatch(2, "judge", "G1").register("judge").add("judge", closingRuling("M1"))
 	if after != nil {
@@ -310,9 +311,9 @@ func groundsBoard(t *testing.T, after func(*stage)) Run {
 	return st.register("blue-respond").seed()
 }
 
-func findingAbout(id, gap string) *recordpb.Finding {
-	return &recordpb.Finding{Id: proto.String(id), Text: proto.String("what the ruling did not have"),
-		AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String(gap)}
+// citeAnswering is a citation labelled label, placed as gap's answer.
+func citeAnswering(label, gap string) *recordpb.Cite {
+	return &recordpb.Cite{Label: proto.String(label), Url: proto.String("https://x/" + label), Sha256: proto.String("abc"), Answers: proto.String(gap)}
 }
 
 func redocket(id string, grounds, quote *string) *recordpb.Motion {
@@ -325,7 +326,7 @@ func TestAReconsiderationIsAdmittedOnNewGroundsOnly(t *testing.T) {
 	file := func(run Run, m *recordpb.Motion) error {
 		return validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_MOTION, m)
 	}
-	newFinding := func(st *stage) { st.add(evLens, findingAbout("F-00000002", "G1")) }
+	newCite := func(st *stage) { st.add("blue-respond", citeAnswering("C-0000d0d0", "G1")) }
 	for _, c := range []struct {
 		name    string
 		after   func(*stage)
@@ -334,13 +335,13 @@ func TestAReconsiderationIsAdmittedOnNewGroundsOnly(t *testing.T) {
 		want    []string // nil: admitted
 	}{
 		{name: "no grounds", want: []string{"the bench ruled gap G1 defect_accepted on motion M1", "it is final", "admitted on NEW GROUNDS only"}},
-		{name: "grounds the ruling had", grounds: proto.String("F-00000001"), want: []string{"--grounds names finding F-00000001, recorded at event", "before the ruling it would reopen"}},
-		{name: "grounds about another gap", after: func(st *stage) { st.add(evLens, findingAbout("F-00000003", "G2")) },
-			grounds: proto.String("F-00000003"), want: []string{"--grounds names finding F-00000003, which is not about gap G1"}},
-		{name: "grounds no act placed", grounds: proto.String("F-99999999"), want: []string{"--grounds names F-99999999, which no act on this record placed"}},
-		{name: "both locators", after: newFinding, grounds: proto.String("F-00000002"), quote: proto.String("x"), want: []string{"--grounds and --quote each locate the new grounds; pass one"}},
+		{name: "grounds the ruling had", grounds: proto.String("C-0000b0b0"), want: []string{"--grounds names citation C-0000b0b0, recorded at event", "before the ruling it would reopen"}},
+		{name: "grounds about another gap", after: func(st *stage) { st.add("blue-respond", citeAnswering("C-0000c0c0", "G2")) },
+			grounds: proto.String("C-0000c0c0"), want: []string{"--grounds names citation C-0000c0c0, which is not about gap G1"}},
+		{name: "grounds no act placed", grounds: proto.String("C-99999999"), want: []string{"--grounds names C-99999999, which no act on this record placed"}},
+		{name: "both locators", after: newCite, grounds: proto.String("C-0000d0d0"), quote: proto.String("x"), want: []string{"--grounds and --quote each locate the new grounds; pass one"}},
 		{name: "a quote no edit since wrote", quote: proto.String("never written"), want: []string{`--quote "never written" is not new grounds on gap G1`}},
-		{name: "a finding about the gap since the ruling", after: newFinding, grounds: proto.String("F-00000002")},
+		{name: "a gap superseding it since the ruling", after: func(st *stage) { st.mintSuperseding(evLens, "G3", "high", "G1") }, grounds: proto.String("G3")},
 		{name: "a computation answering the gap since the ruling", after: func(st *stage) { st.blueComputes("G1") }, grounds: proto.String("K-")},
 		{name: "a citation placed as its answer since the ruling", after: func(st *stage) {
 			st.add("blue-respond", &recordpb.Cite{Label: proto.String("C-0000a0a0"), Url: proto.String("https://x/a"), Sha256: proto.String("abc"), Answers: proto.String("G1")})
@@ -373,8 +374,8 @@ func TestAReconsiderationIsAdmittedOnNewGroundsOnly(t *testing.T) {
 	t.Run("grounds on a gap the bench has not ruled closed", func(t *testing.T) {
 		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").
-			add(evLens, findingAbout("F-00000002", "G1")).register("blue-respond")
-		err := file(st.seed(), redocket("M2", proto.String("F-00000002"), nil))
+			add("blue-respond", citeAnswering("C-0000d0d0", "G1")).register("blue-respond")
+		err := file(st.seed(), redocket("M2", proto.String("C-0000d0d0"), nil))
 		mustRefuse(t, err, "the bench has not ruled gap G1 closed")
 	})
 	t.Run("a re-docket after a remand needs none", func(t *testing.T) {

@@ -10,13 +10,13 @@ func TestAgainTellsARepeatedNameFromADiagnosis(t *testing.T) {
 		path, diagnosis string
 		again           bool
 	}{
-		{"finding", "requires --reason: the explanation red re-audits the repair against", false},
-		{"finding", "lens finding requires --reason: the explanation", true},
-		{"finding", "lens: requires --reason", true},
-		{"finding", "finding: --quote was not found", true},
-		{"finding", "finding requires --reason", true},
-		{"finding", "findings are raised against the report as it stands", false},
-		{"finding", "record: --reason is empty", true},
+		{"mint", "requires --reason: the explanation red re-audits the repair against", false},
+		{"mint", "lens mint requires --reason: the explanation", true},
+		{"mint", "lens: requires --reason", true},
+		{"mint", "mint: --quote was not found", true},
+		{"mint", "mint requires --reason", true},
+		{"mint", "mints are raised against the report as it stands", false},
+		{"mint", "record: --reason is empty", true},
 		{"close", "close --id names gap G-1, which is already CLOSED", true},
 		{"close", "--id names gap G-1, which is already CLOSED — closing it twice double-counts; the chair's `carry --carried-from 1` restates it", false},
 		{"carry", "red-chair has already recorded a close on \"G-1\" this sitting", false},
@@ -26,7 +26,7 @@ func TestAgainTellsARepeatedNameFromADiagnosis(t *testing.T) {
 		{"reproduce", "the computation is blue's `compute` and its script is gone", false},
 		{"edit", "No act of blue's adds a row; blue's `edit` answering the gap is what takes it out", false},
 		{"regrade", "red-lens-evidence has already recorded a regrade on \"G-1\" this sitting", false},
-		{"edit", "your old span carries finding anchor <!--fx:F-1--> (its claim leaves by `edit` down to the bare anchor, then `retire`)", false},
+		{"edit", "your old span carries gap anchor <!--gap:G-1--> (its claim leaves by `edit` down to the bare anchor, then `retire`)", false},
 		{"motion docket file", "motion docket file: no gap G-1", true},
 		{"motion docket file", "lens motion docket file requires --reason", true},
 		{"motion docket file", "file: no gap", true},
@@ -51,7 +51,7 @@ func TestAgainTellsARepeatedNameFromADiagnosis(t *testing.T) {
 		{"carry", "asking the record for its open gaps: no such table", false},
 		{"carry", "record: asking the record for its open gaps: no such table", true},
 		{"show report", "recordsql: opening the record: no such file", true},
-		{"finding", "--about-kind takes one of section|inquiry|gap and was given nothing", false},
+		{"mint", "--about-kind takes one of section|inquiry|anchor and was given nothing", false},
 		{"", `no command named "x" exists, on your surface or on any other seat's`, false},
 		{"", "lens: you named no command", true},
 	} {

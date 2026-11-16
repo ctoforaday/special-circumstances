@@ -75,11 +75,6 @@ func TestARunWithAnOutcomeRefusesSeatActsAndLogsEach(t *testing.T) {
 			return []string{"regrade", "--run", runDir, "--seat-id", lensSeat, "--id", gap, "--severity", "low",
 				"--reason", "the caller validates, so the blast radius is one call"}
 		}},
-		{"a lens's finding", lensSeat, "agent_lens_late", recordpb.EventType_EVENT_TYPE_FINDING, func(runDir, _ string) []string {
-			return []string{"finding", "--run", runDir, "--seat-id", lensSeat, "--key", "late",
-				"--about-kind", "section", "--about", "Findings",
-				"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"}
-		}},
 		{"blue's inquiry", blueSeat, "agent_blue_late", recordpb.EventType_EVENT_TYPE_INQUIRY, func(runDir, _ string) []string {
 			return []string{"inquiry", "propose", "--run", runDir, "--seat-id", blueSeat,
 				"--question", "a late question", "--hypothesis", "it would settle something"}

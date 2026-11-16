@@ -9,7 +9,7 @@ import (
 )
 
 // FuzzLocateEnd proves the invariant "a quote of the semantic prose survives arbitrary
-// annotation splicing." It takes a clean base sentence, splices an invisible finding
+// annotation splicing." It takes a clean base sentence, splices an invisible gap
 // marker and a footnote reference at fuzz-chosen positions (INSERT only — never deletes
 // content), and asserts the un-annotated base still anchors, the offset lands at a
 // content boundary (never inside an annotation), and a freshly inserted marker round-
@@ -37,13 +37,13 @@ func FuzzLocateEnd(f *testing.F) {
 			}
 		}
 		// Skip bases that normalize to nothing (pure punctuation/space) — locateEnd rejects
-		// them by design. Pass the RAW base to locateEnd below, exactly as finding.go does;
+		// them by design. Pass the RAW base to locateEnd below, exactly as a placing verb does;
 		// locateEnd normalizes internally (pre-normalizing here would double-normalize).
 		if normalizeQuote(base) == "" {
 			return
 		}
 
-		// Splice a finding marker and a footnote at two distinct BASE offsets. Anchoring
+		// Splice a gap marker and a footnote at two distinct BASE offsets. Anchoring
 		// both into the original base (never into the already-annotated string) keeps the
 		// annotations well-formed and non-nested — the tool likewise only ever inserts at a
 		// content boundary, never inside another marker.
@@ -52,7 +52,7 @@ func FuzzLocateEnd(f *testing.F) {
 		if a > b {
 			a, b = b, a
 		}
-		annotated := base[:a] + "<!--fx:F-5eed0001-->" + base[a:b] + "[^fn1]" + base[b:]
+		annotated := base[:a] + "<!--gap:G-5eed0001-->" + base[a:b] + "[^fn1]" + base[b:]
 
 		end := locateEnd(annotated, base)
 		if end < 0 {
@@ -63,8 +63,8 @@ func FuzzLocateEnd(f *testing.F) {
 		// invisible layer. The offset may sit just before a trailing annotation (a legal
 		// boundary), but inserting there must never split a marker/footnote — so stripping
 		// the whole annotation layer recovers the same prose as before the insert.
-		out := string(insertMarker([]byte(annotated), end, "<!--fx:F-00abcdef-->"))
-		if !strings.Contains(out, "<!--fx:F-00abcdef-->") || reFindingMarker.FindStringSubmatch(out) == nil {
+		out := string(insertMarker([]byte(annotated), end, "<!--gap:G-00abcdef-->"))
+		if !strings.Contains(out, "<!--gap:G-00abcdef-->") || reGapMarker.FindStringSubmatch(out) == nil {
 			t.Fatalf("inserted marker did not round-trip in %q", out)
 		}
 		if stripAnnotations(out) != stripAnnotations(annotated) {

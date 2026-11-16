@@ -1,6 +1,8 @@
 package migrate
 
 import (
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -44,7 +46,18 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 			if len(want) == 0 {
 				return
 			}
-			_, dir := MigratedArchive(t, name)
+			man, dir := MigratedArchive(t, name)
+			// A SETTLED EDIT IS WRITTEN AS NO EVENT (EventSchema 78), and an edit's key is its seat's
+			// count of edits: every later edit of that seat is keyed one lower than its source.
+			settledBefore := func(src OldEvent) int {
+				n := 0
+				for _, id := range man.SettledEdits {
+					if s := byID[id]; id < src.ID && s.SeatID == src.SeatID {
+						n++
+					}
+				}
+				return n
+			}
 			m, err := record.MergedEvents(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)
@@ -64,11 +77,21 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 					t.Fatalf("the migrated record holds more dispatches than the source's %d", len(want))
 				}
 				src := want[n]
+				// A pin naming a settled edit names the report head it left standing: the latest
+				// source head before it that is not itself settled.
+				if slices.Contains(man.SettledEdits, src.ID) {
+					src = headBeforeOf(evs, src.ID, man.SettledEdits)
+				}
 				// AN ARCHIVED REPORT HEAD MAY BE ITS INGESTED TEXT, which the record now holds as the
 				// report's one part, under that word in its key.
 				word, key := src.Word, src.Key
 				if word == "base_ingest" {
 					word, key = "report_part", strings.Replace(key, ":base_ingest:", ":report_part:", 1)
+				}
+				if prefix, n, ok := strings.Cut(key, ":blue_edit:#"); ok && settledBefore(src) > 0 {
+					if k, err := strconv.Atoi(n); err == nil {
+						key = prefix + ":blue_edit:#" + strconv.Itoa(k-settledBefore(src))
+					}
 				}
 				got := at[d.GetPin()]
 				switch {
@@ -97,4 +120,21 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 	if renumbered == 0 {
 		t.Error("no migrated pin differs from its source's number, so nothing here exercised the translation")
 	}
+}
+
+// headBeforeOf is the latest source report head before id that is not one of settled.
+func headBeforeOf(evs []OldEvent, id int64, settled []int64) OldEvent {
+	var head OldEvent
+	for _, e := range evs {
+		if e.ID >= id {
+			break
+		}
+		switch e.Word {
+		case "blue_edit", "base_ingest", "report_part":
+			if !slices.Contains(settled, e.ID) {
+				head = e
+			}
+		}
+	}
+	return head
 }

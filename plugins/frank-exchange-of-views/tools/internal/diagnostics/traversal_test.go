@@ -106,17 +106,17 @@ func TestEmptyTraversalMarshalsAsEmptySlices(t *testing.T) {
 // separates a command from a word, and an unrecognised token lands in Unclassified rather than
 // being dropped — a token the tree does not know is exactly a call the traversal could not read.
 func TestProseIsNotAGroup(t *testing.T) {
-	known := map[string]bool{"show": true, "finding": true}
+	known := map[string]bool{"show": true, "mint": true}
 	got := traversalOf([]call{
 		{path: []string{"show", "board"}},
 		{path: []string{"and", "names"}}, // prose
 		{path: []string{"returns"}},      // prose
-		{path: []string{"finding", "--key"}},
+		{path: []string{"mint", "--key"}},
 	}, known)
 	if got.Unclassified != 2 {
 		t.Errorf("unclassified=%d, want 2 (the two prose tokens)", got.Unclassified)
 	}
-	// One real crossing survives: show -> finding. The prose must not have manufactured three.
+	// One real crossing survives: show -> mint. The prose must not have manufactured three.
 	if got.Crossings != 1 {
 		t.Errorf("crossings=%d, want 1", got.Crossings)
 	}

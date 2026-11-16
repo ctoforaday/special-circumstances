@@ -184,14 +184,14 @@ func requireGaps(q recordsql.Querier, ids []string, flag string) error {
 // requireClosureAnchors refuses a closure's anchor the record holds no act for, and the gap the
 // closure closes.
 //
-// WHAT A CLOSURE RESTS ON: an anchor of the report — a citation, a computation, a finding, another gap — or
+// WHAT A CLOSURE RESTS ON: an anchor of the report — a citation, a computation, another gap — or
 // an inquiry, whose fate is a record act a closure can rest on as surely as a citation's reading.
 // The gap being closed is none of these: a closure is verified WITH something other than the gap,
 // and naming the gap itself attests to nothing a reader could check.
 func requireClosureAnchors(q recordsql.Querier, gapID string, ids []string, flag string) error {
 	for _, id := range ids {
 		if id == gapID {
-			return fmt.Errorf("%s names %s, the gap this closes — an anchor is what you verified the closure WITH, and a gap is not evidence of its own repair. Name the citations, computations, findings, other gaps or inquiries you checked, or none", flag, id)
+			return fmt.Errorf("%s names %s, the gap this closes — an anchor is what you verified the closure WITH, and a gap is not evidence of its own repair. Name the citations, computations, other gaps or inquiries you checked, or none", flag, id)
 		}
 		found, err := HoldsAnchor(q, id)
 		if err != nil {
@@ -203,43 +203,19 @@ func requireClosureAnchors(q recordsql.Querier, gapID string, ids []string, flag
 			}
 		}
 		if !found {
-			return fmt.Errorf("%s names %s, which no act on this record placed — it takes the id inside an anchor token in the report (%s) or an inquiry's id; `show evidence`, `show findings`, `show board` and `show inquiries` resolve them", flag, id, anchor.Token("C-…"))
+			return fmt.Errorf("%s names %s, which no act on this record placed — it takes the id inside an anchor token in the report (%s) or an inquiry's id; `show evidence`, `show board` and `show inquiries` resolve them", flag, id, anchor.Token("C-…"))
 		}
 	}
 	return nil
 }
 
 // HoldsAnchor is whether an act on q's record carries the anchor id: an anchor id is the id its
-// placing act minted — a finding's, a gap's, a citation's or a computation's.
+// placing act minted — a gap's, a citation's or a computation's.
 func HoldsAnchor(q recordsql.Querier, id string) (bool, error) {
 	return queryRowAt(q, []any{new(int)},
-		`SELECT 1 FROM (SELECT "id" FROM "finding" UNION ALL SELECT "gap_id" FROM "mint"
+		`SELECT 1 FROM (SELECT "gap_id" "id" FROM "mint"
 		   UNION ALL SELECT "anchor_id" FROM "evidence_anchor")
 		  WHERE "id" = ? LIMIT 1`, id)
-}
-
-// requireFindings refuses found_by attribution to a finding that does not exist.
-//
-// found_by is the chain from a lens's work to the board gap it earned, and it is
-// read back by the capture-recapture estimate. An invented id inflates the count of
-// lens-sourced gaps with a finding nobody made.
-func requireFindings(q recordsql.Querier, ids []string, flag string) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	// One existence question per named finding, in the caller's order, so the refusal names the
-	// FIRST missing one exactly as the set-membership walk did. The list is bounded by what a
-	// seat passes to --found-by, not by the record's size.
-	for _, l := range ids {
-		found, err := recordHasAt(q, `SELECT 1 FROM "finding" WHERE "id" = ? LIMIT 1`, l)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return fmt.Errorf("%s names finding %s, which no lens recorded — attribution to a finding nobody made inflates the lens-sourced count the capture estimate reads", flag, l)
-		}
-	}
-	return nil
 }
 
 // requireCitation refuses a citation label that names no `blue cite` on the record.
@@ -283,12 +259,11 @@ func requireLiveCitation(q recordsql.Querier, label, flag, advice string) error 
 		"Cite the method again with `cite` and name that citation", flag, label, r.Said())
 }
 
-// requireAboutAnchorLive refuses a mint or a finding about an anchor that is retired (ruling Retired
+// requireAboutAnchorLive refuses a mint about an anchor that is retired (ruling Retired
 // mint): a retired anchor is in no document, so nothing an act about it asks for can be done to it,
-// and a defect still in its sentence is a defect of that sentence. act names the act refused: "gap"
-// or "finding". Asked of the writing transaction (judgeAct), so the act and the retire racing it
-// cannot both land.
-func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref, act string) error {
+// and a defect still in its sentence is a defect of that sentence. Asked of the writing transaction
+// (judgeAct), so the act and the retire racing it cannot both land.
+func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref string) error {
 	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil
 	}
@@ -296,8 +271,8 @@ func requireAboutAnchorLive(q recordsql.Querier, kind recordpb.AboutKind, ref, a
 	if err != nil || !retired {
 		return err
 	}
-	return fmt.Errorf("--about names %s %s, which is retired — %s — so it is in no document and no %s about it can be answered. "+
-		"A defect still in the sentence it backed is a %s about that sentence: file it with --quote on the sentence", EvidenceNoun(ref), ref, r.Said(), act, act)
+	return fmt.Errorf("--about names %s %s, which is retired — %s — so it is in no document and no gap about it can be answered. "+
+		"A defect still in the sentence it backed is a gap about that sentence: file it with --quote on the sentence", EvidenceNoun(ref), ref, r.Said())
 }
 
 // requireCitationUncited refuses a retire that takes a citation a live computation names as its

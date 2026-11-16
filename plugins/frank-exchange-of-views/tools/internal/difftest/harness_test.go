@@ -45,7 +45,7 @@ import (
 // `motion grade file`) — but the field kept its name, and the name kept teaching the old shape:
 // the determinism fuzz went on composing `feov-record merge mint …`, every command it generated
 // exited 2 with `no command named "chair" exists`, and the test passed because both replays
-// failed identically. A scenario row did the same with `lens finding`.
+// failed identically.
 type cmd struct {
 	verb string
 	args []string
@@ -189,15 +189,15 @@ func (m *nonceMapper) observe(recordsDir string) {
 	}
 }
 
-// idRe matches a record id of any of the seven kinds. The letters are written here rather than read
+// idRe matches a record id of any of the six kinds. The letters are written here rather than read
 // from the tool: a kind this harness does not know stays raw in a transcript, and a raw random id
 // is a golden that differs on every run — the loud failure, not a silent one.
-var idRe = regexp.MustCompile(`\b[FCKGQMA]-[0-9a-f]{8}\b`)
+var idRe = regexp.MustCompile(`\b[CKGQMA]-[0-9a-f]{8}\b`)
 
-var idKindNames = map[byte]string{'F': "FINDING", 'C': "CITATION", 'K': "COMPUTATION", 'G': "GAP", 'Q': "INQUIRY", 'M': "MOTION", 'A': "POSITION"}
+var idKindNames = map[byte]string{'C': "CITATION", 'K': "COMPUTATION", 'G': "GAP", 'Q': "INQUIRY", 'M': "MOTION", 'A': "POSITION"}
 
 // placeholderRe matches what normalize writes, which is what a script writes to name an id.
-var placeholderRe = regexp.MustCompile(`\b(?:FINDING|CITATION|COMPUTATION|GAP|INQUIRY|MOTION|POSITION)\d{3,}\b`)
+var placeholderRe = regexp.MustCompile(`\b(?:CITATION|COMPUTATION|GAP|INQUIRY|MOTION|POSITION)\d{3,}\b`)
 
 // normalize replaces every id in s with its placeholder, ASSIGNING one to an id it has not seen.
 // The order strings reach it in is therefore the numbering: each command's stdout, then its
@@ -314,7 +314,7 @@ func scrubToolVersion(s string) string {
 	// REVISION, not <revision>: encoding/json escapes angle brackets, so the version line's
 	// placeholder spelling would land in the golden as "\u003crevision\u003e" — unreadable in
 	// exactly the diff a reviewer is meant to read. All-caps matches this harness's other
-	// placeholders (NONCE001, FINDING001).
+	// placeholders (NONCE001, GAP001).
 	return toolVersionField.ReplaceAllString(s, `"tool_version":"REVISION"`)
 }
 

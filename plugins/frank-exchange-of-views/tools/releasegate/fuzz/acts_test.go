@@ -372,14 +372,6 @@ func (r *runner) retryKeyed(args []string, flag, other string) {
 	r.noteActErr(strings.Join(args, " ") + ": the keyed repeat drive names " + flag + ", which the act does not carry")
 }
 
-// otherGrade is a grade other than g.
-func otherGrade(g string) string {
-	if g == grades[0] {
-		return grades[len(grades)-1]
-	}
-	return grades[0]
-}
-
 // THE CHAIR'S FAIL IS DRIVEN BY WHAT THE BOARD SAYS THE GATE WILL ANSWER, and each answer is read.
 //
 // The chair records a FAIL while a gap is open. The drive once read a refused FAIL as "no verdict

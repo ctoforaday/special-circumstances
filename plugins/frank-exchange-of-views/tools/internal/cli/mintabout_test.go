@@ -1,11 +1,8 @@
 package cli
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // A GAP ABOUT AN ABSENCE ANCHORS THE WAY THE FINDING DID, with the same two flags.
@@ -35,8 +32,7 @@ func TestAGapAboutAnAbsenceNeedsNoBorrowedQuote(t *testing.T) {
 	}
 }
 
-// ONE SUBJECT, ON BOTH VERBS. A gap that claims a quote AND an about is claiming two, which is the
-// same refusal `lens finding` gives — the point of sharing the flags is that they behave the same.
+// ONE SUBJECT. A gap that claims a quote AND an about is claiming two, and is refused.
 func TestAGapCannotClaimBothAnchors(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
@@ -69,40 +65,12 @@ func TestAGapsAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	}
 }
 
-// THE TWO VERBS OFFER ONE VOCABULARY, and this is the assertion that keeps them offering it: a gap
-// takes every kind a finding takes, and nothing else.
-//
-// The flags could stay spelled alike while the closed sets behind them drifted — a value added for
-// findings and not for gaps would leave a seat able to anchor a finding somewhere it cannot then
-// anchor the gap, which is the half-state that reads as done. The sets are compared rather than
-// re-listed, so a value added to one and not the other fails here.
-func TestAFindingAndAGapAnchorToTheSameThings(t *testing.T) {
-	finding, gap := record.MustEnum("finding", "about_kind"), record.MustEnum("mint", "about_kind")
-	words := func(e record.EnumField) []string {
-		var out []string
-		for _, v := range e.Values {
-			out = append(out, v.Name)
-		}
-		return out
-	}
-	f, g := strings.Join(words(finding), ","), strings.Join(words(gap), ",")
-	if f != g {
-		t.Errorf("`lens finding` and `lens mint` no longer anchor to the same things:\n  finding: %s\n  mint:    %s", f, g)
-	}
-	if finding.Flag != gap.Flag {
-		t.Errorf("one anchor, two flag names: finding uses %q and mint uses %q", finding.Flag, gap.Flag)
-	}
-}
-
-// AN INQUIRY THAT CONTRADICTS WHAT THE READER IS TOLD IS ANSWERED THROUGH A GAP, AND ONLY A GAP.
+// AN INQUIRY THAT CONTRADICTS WHAT THE READER IS TOLD IS ANSWERED THROUGH A GAP.
 //
 // The inquiries print in the report beside the body, so an approach printed as declined that a
-// section carries is a contradiction on the reader's page. A finding about an inquiry is on no
-// seat's work list but the logic lens's, and there only on the item for the inquiry's check while
-// that check is owed: blue's responding seat answers its list, and the finding is not on it. The
-// gap anchored to the same inquiry is on blue's list with what it is about, and `finding`'s own
-// page says which of the two reaches whom.
-func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesTheLogicLens(t *testing.T) {
+// section carries is a contradiction on the reader's page. The gap anchored to the inquiry is on
+// blue's list with what it is about.
+func TestAGapAboutAnInquiryReachesBlue(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond", "--question", "test primality by trial division"); err != nil {
 		t.Fatal(err)
@@ -115,63 +83,19 @@ func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesTheLogicLens(t *
 	}
 	const lens = "red-lens-logic"
 	registerSeatOnce(t, runDir, lens)
-	const objection = "a section carries this approach and the inquiry says it was never run"
-	if _, err := runAt(t, "finding", "--run", runDir, "--seat-id", lens, "--key", "F1", "--about-kind", "inquiry", "--about", inquiry,
-		"--reason", objection, "--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
-		t.Fatalf("a finding about an inquiry was refused: %v", err)
-	}
-	work := func(seat string) string {
-		out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "--json", "work")
-		if err != nil {
-			t.Fatalf("%s's work list: %v", seat, err)
-		}
-		return out
-	}
-	seats := []string{"blue-respond", "red-chair", lens, lensSeat, "judge"}
-	for _, seat := range seats {
-		if w := work(seat); strings.Contains(w, objection) || strings.Contains(w, `"about_ref": "`+inquiry+`"`) {
-			t.Errorf("a finding about an inquiry still proposed is on %s's work list; no check of it is owed yet:\n%s", seat, w)
-		}
-	}
-	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an inquiry reaches the logic lens, on its work list's item for the inquiry's check while that check is owed; a gap anchors to an inquiry the same way, and a material one is on blue's") {
-		t.Errorf("`finding --help` does not say where a finding about an inquiry reaches and that the gap is what reaches blue:\n%s", h)
-	}
-
-	// SETTLED, THE INQUIRY OWES THE LOGIC LENS ITS CHECK, and another lens's finding about it since
-	// its fate is named on that item, so the judgement is not blind to it. blue's list carries none.
 	if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", "blue-respond", "--id", inquiry, "--as", "confirmed", "--reason", "trial division found 7"); err != nil {
 		t.Fatal(err)
-	}
-	const other = "a second lens reads the fate as resting on one source"
-	out, err := runAt(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F2", "--about-kind", "inquiry", "--about", inquiry,
-		"--reason", other, "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--json")
-	if err != nil {
-		t.Fatalf("another lens's finding about a settled inquiry was refused: %v", err)
-	}
-	var filed struct {
-		Result struct {
-			ID string `json:"finding_id"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(out), &filed); err != nil || filed.Result.ID == "" {
-		t.Fatalf("no finding id on the filing's envelope (%v): %s", err, out)
-	}
-	// The item is listed in a sitting opened after the fate, the one whose check the record admits.
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", lens); err != nil {
-		t.Fatalf("register %s: %v", lens, err)
-	}
-	if w := work(lens); !strings.Contains(w, inquiry) || !strings.Contains(w, filed.Result.ID+" ("+lensSeat+")") {
-		t.Errorf("the logic lens's work list does not carry the settled inquiry's check with %s's finding %s about it:\n%s", lensSeat, filed.Result.ID, w)
-	}
-	if w := work("blue-respond"); strings.Contains(w, filed.Result.ID) || strings.Contains(w, other) {
-		t.Errorf("a finding about an inquiry is on blue's work list; the gap is what reaches blue:\n%s", w)
 	}
 	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lens, "--key", "G1", "--class", "spec_underspecification", "--about-kind", "inquiry", "--about", inquiry,
 		"--problem", "The trial-division approach is listed as never run and a section reports its result.", "--check-kind", "document", "--check", "the inquiry's fate and the section agree",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("a gap anchored to an inquiry was refused: %v", err)
 	}
-	if w := work("blue-respond"); !strings.Contains(w, `"about_kind": "inquiry"`) || !strings.Contains(w, `"about_ref": "`+inquiry+`"`) {
+	w, err := run(t, "show", "--run", runDir, "--seat-id", "blue-respond", "--json", "work")
+	if err != nil {
+		t.Fatalf("blue's work list: %v", err)
+	}
+	if !strings.Contains(w, `"about_kind": "inquiry"`) || !strings.Contains(w, `"about_ref": "`+inquiry+`"`) {
 		t.Errorf("a gap anchored to an inquiry is not on blue's work list with what it is about:\n%s", w)
 	}
 }

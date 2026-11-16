@@ -138,7 +138,7 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 }
 
 // TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly pins the working set: OPEN gaps only, in a
-// lean shape (grades + class + location + a TRUNCATED problem synopsis + found_by, but NOT
+// lean shape (grades + class + location + a TRUNCATED problem synopsis, but NOT
 // required_fix/acceptance_check), and `estopped` carrying BENCH rulings alone.
 //
 // A SEAT'S OWN CLOSURE IS NOT A BAR. Red may reopen what red closed, so a red closure on this list
@@ -158,7 +158,6 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 			Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			FoundBy:    []string{"F-f0000001"},
 		}),
 		recordtest.At(t, m, m+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
@@ -229,14 +228,11 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 		t.Errorf("the open gap has no UNTRUNCATED problem (%d runes) — the full statement is what the originator answers", len([]rune(g.Problem)))
 	}
 	if g.MintedBy != "red-chair" {
-		t.Errorf("the open gap does not name its minter as a seat id, so ownership is decodable only from found_by: %q", g.MintedBy)
+		t.Errorf("the open gap does not name its minter as a seat id, so ownership is not decodable: %q", g.MintedBy)
 	}
-	// The lean open gap keeps its grades, class, location and found_by.
+	// The lean open gap keeps its grades, class and location.
 	if w.Open[0].Severity != "high" || w.Open[0].Class != "risk_coverage_omission" || w.Open[0].Location != "§open" {
 		t.Errorf("open gap lost a lean field: %+v", w.Open[0])
-	}
-	if len(w.Open[0].FoundBy) != 1 || w.Open[0].FoundBy[0] != "F-f0000001" {
-		t.Errorf("open gap lost found_by: %+v", w.Open[0].FoundBy)
 	}
 }
 
@@ -291,10 +287,9 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 	}
 }
 
-// TestBoardJSONFlattensMintWithoutDuplicating pins the board de-duplication: a gap's lineage
-// (found_by, supersedes) used to live ONLY inside a nested `mint`
-// object that ALSO re-stated every top-level field, so each gap carried its prose twice. They are
-// now first-class and the nested object is gone — one copy, and nothing a reader needs is buried.
+// TestBoardJSONFlattensMintWithoutDuplicating pins the board's one copy of a gap: its lineage
+// (supersedes) is a top-level field and no nested `mint` object re-states the top-level fields, so
+// each gap carries its prose once and nothing a reader needs is buried.
 func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-chair"
@@ -315,9 +310,6 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Supersedes:      []string{"G1"},
-			// found_by is the OTHER promoted list, and the assertion below reads both. The earlier
-			// conversion dropped it, so the test asserted against a gap whose found_by named nobody.
-			FoundBy: []string{"F-f0000001", "L5-F3"},
 		}),
 	})
 	b, err := BoardJSONBytes(mustRun(t, runDir))
@@ -325,55 +317,18 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	// The lineage + leaf-check fields are promoted to the top level (their only home now).
-	// Tokens, not a compact substring — BoardJSONBytes pretty-prints.
-	for _, want := range []string{`"found_by"`, `"F-f0000001"`, `"L5-F3"`, `"supersedes"`, `"G1"`} {
+	// The lineage is a top-level field. Tokens, not a compact substring — BoardJSONBytes pretty-prints.
+	for _, want := range []string{`"supersedes"`, `"G1"`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("board gap is missing top-level %s:\n%s", want, s)
 		}
 	}
-	// The redundant nested `mint` object is gone, so the prose appears exactly ONCE.
+	// No nested `mint` object re-states the gap, so the prose appears exactly ONCE.
 	if strings.Contains(s, `"mint":`) {
-		t.Error("the board still carries the redundant nested `mint` object")
+		t.Error("the board carries a nested `mint` object")
 	}
 	if n := strings.Count(s, "an open problem"); n != 1 {
-		t.Errorf("the problem prose appears %d times, want exactly 1 (the duplication this removed)", n)
-	}
-}
-
-// UNMINTED FINDINGS.
-//
-// The old metric counted `observe` events with no `dispose` fate. Both verbs are retired, so it
-// would now be PERMANENTLY ZERO — a dead detector and a clean board printing the same number,
-// which is the exact shape this codebase keeps finding. A finding is addressed by coalescence,
-// so the honest question is whether it was ever named in a gap's found_by.
-func TestUnmintedFindingsCountsFindingsNoGapNames(t *testing.T) {
-	runDir := newRun(t)
-	s := "red-lens-evidence"
-	m := "red-chair"
-	writeShard(t, runDir, []*Event{
-		recordtest.At(t, s, s+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("minted")}),
-		recordtest.At(t, s, s+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("never minted")}),
-	})
-	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, m+":mint:k", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			GapId: proto.String("k"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
-			AcceptanceCheck: proto.String("the check runs"),
-			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			FoundBy:         []string{"F-f0000001"},
-		}),
-	})
-	bj := mustBoardJSONT(t, mustRun(t, runDir))
-	if bj.Counts.UnmintedFindings != 1 {
-		t.Errorf("exactly one finding is named by no gap; got %d unminted", bj.Counts.UnmintedFindings)
-	}
-	for _, o := range bj.Observations {
-		want := o.ID == "F-f0000001"
-		if o.Minted != want {
-			t.Errorf("%s: minted=%v, want %v", o.ID, o.Minted, want)
-		}
+		t.Errorf("the problem prose appears %d times, want exactly 1", n)
 	}
 }
 

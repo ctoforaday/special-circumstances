@@ -63,13 +63,6 @@ func (s *shapeSource) mint(id, quote string) {
 		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()})
 }
 
-func (s *shapeSource) finding(id, quote string) {
-	s.t.Helper()
-	s.add(shapeLens, &recordpb.Finding{Id: proto.String(id),
-		Location: proto.String(quote), Text: proto.String("t")})
-	s.anchor(shapeLens, id, quote)
-}
-
 // anchor seeds an Anchor the source placed itself, past the live write: the archive spells an id as
 // its era did, and the live write refuses an anchor for an id no anchor kind claims.
 func (s *shapeSource) anchor(seat, id, quote string) {
@@ -166,7 +159,8 @@ func TestGapTranslationRefusesWhatItDoesNotRewrite(t *testing.T) {
 			s.edit("on their own.). ", "on their own.)", true)
 		}},
 		{"a placement whose location names its section", "anchor", "migration rewrites no stored location", func(s *shapeSource) {
-			s.finding("f-0000aaa1", `§ H: "Costs rose sharply in Q1."`)
+			s.mint("G1", "Costs rose sharply in Q1.")
+			s.anchor(shapeLens, "G1", `§ H: "Costs rose sharply in Q1."`)
 		}},
 		{"a citation whose location names its section", "cite", "migration rewrites no stored location", func(s *shapeSource) {
 			s.cite("c-0000aaa1", `§ H: "Costs rose sharply in Q1."`)
@@ -241,11 +235,11 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			s.mint("G1", "Costs rose sharply in Q1.")
 			s.edit("Costs rose sharply in Q1.", "Costs rose modestly in Q1.", false)
 		}, "Costs rose modestly in Q1<!--gap:G1-->. Volume fell.", "abutting"},
-		{"(a) with a finding anchor already in the run", func(s *shapeSource) {
-			s.finding("f-0000aaa1", "Costs rose sharply in Q1.")
+		{"(a) with a citation anchor already in the run", func(s *shapeSource) {
+			s.cite("c-0000aaa1", "Costs rose sharply in Q1.")
 			s.mint("G1", "Costs rose sharply in Q1.")
-			s.edit("Costs rose sharply in Q1<!--fx:f-0000aaa1-->.", "Costs rose modestly in Q1<!--fx:f-0000aaa1-->.", false)
-		}, "Costs rose modestly in Q1<!--gap:G1--><!--fx:f-0000aaa1-->. Volume fell.", "abutting"},
+			s.edit("Costs rose sharply in Q1<!--cite:c-0000aaa1-->.", "Costs rose modestly in Q1<!--cite:c-0000aaa1-->.", false)
+		}, "Costs rose modestly in Q1<!--gap:G1--><!--cite:c-0000aaa1-->. Volume fell.", "abutting"},
 		{"(c) a drop inside the span, its sentence kept", func(s *shapeSource) {
 			s.mint("G1", "rose sharply")
 			s.edit("Costs rose sharply in Q1.", "Costs rose sharply in Q1. Analysts disagree.", false)
@@ -259,11 +253,11 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			s.edit("Volume fell.", "", false)
 		}, "Costs rose sharply in Q1. <!--gap:G1-->", "bare"},
 		{"(e) the cut idiom, then its retire", func(s *shapeSource) {
-			s.finding("f-0000aaa1", "Water is wet.")
+			s.cite("c-0000aaa1", "Water is wet.")
 			s.mint("G1", "Water is wet.")
-			s.edit("Water is wet<!--fx:f-0000aaa1-->.", "<!--fx:f-0000aaa1-->", false)
+			s.edit("Water is wet<!--cite:c-0000aaa1-->.", "<!--cite:c-0000aaa1-->", false)
 			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
-				Anchors: []string{"f-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
+				Anchors: []string{"c-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
 		}, "- <!--gap:G1-->", "bare"},
 		{"(g) the fallback passes over a heading to the first prose sentence", func(s *shapeSource) {
 			s.mint("G1", "Costs rose sharply in Q1.")
@@ -297,10 +291,10 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 				// The gap anchor stands bare beside the husk the retire kept, and taken out as a
 				// retire would, it leaves the render of the same stream without the mint.
 				without := newShapeSource(t, base)
-				without.finding("f-0000aaa1", "Water is wet.")
-				without.edit("Water is wet<!--fx:f-0000aaa1-->.", "<!--fx:f-0000aaa1-->", false)
+				without.cite("c-0000aaa1", "Water is wet.")
+				without.edit("Water is wet<!--cite:c-0000aaa1-->.", "<!--cite:c-0000aaa1-->", false)
 				without.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
-					Anchors: []string{"f-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
+					Anchors: []string{"c-0000aaa1"}, RemovalBasis: proto.String(record.RemovalVerified)})
 				_, plain, _, _ := without.migrated()
 				if skeleton(md) != skeleton(plain) {
 					t.Errorf("the skeleton moved:\n with the gap %q\n without      %q", md, plain)

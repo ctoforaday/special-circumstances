@@ -12,7 +12,7 @@ import (
 )
 
 // §V.5 — the lockdown class-sweep: `blue edit` protects a citation anchor exactly as it
-// protects a finding marker, so the set of cite events stays a strict bijection with the
+// protects a gap marker, so the set of cite events stays a strict bijection with the
 // citation anchors in the document.
 
 // TestBlueEditRejectsSpanContainingCitation pins the spanMarker site: an --quote span that
@@ -107,12 +107,11 @@ func sameSet(a, b []string) bool {
 
 // AN ANCHOR MAY NOT BE DUPLICATED. The lockdown always stopped an edit DROPPING or SPLITTING an
 // anchor; nothing stopped one being COPIED into the replacement. The 2026-08-04 smoke measured the
-// consequence live: 5 edits carried a marker into --new, leaving 22 distinct finding ids present at
+// consequence live: 5 edits carried a marker into --new, leaving 22 distinct marker ids present at
 // 28 sites. A duplicate is not a drop, so the dropped-marker detector stays clean while red's audit
 // point silently addresses two places.
 func TestBlueEditRejectsAnchorInNewText(t *testing.T) {
 	for _, c := range []struct{ name, anchor, want string }{
-		{"finding anchor", "<!--fx:F-00abc123-->", "finding anchor"},
 		{"gap anchor", "<!--gap:G-00000007-->", "gap anchor"},
 		{"citation anchor", "<!--cite:C-00abc123-->", "citation anchor"},
 	} {

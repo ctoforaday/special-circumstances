@@ -15,7 +15,7 @@ import (
 // parting of the text among the rows, the composition, the token strip and the weave. Each case
 // is a shape a report can take that one of those steps could mistake for something to leave out.
 func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
-	const fx = "<!--fx:F-00000aaa-->"
+	const tok = "<!--gap:G-00000aaa-->"
 	cases := map[string]string{
 		"no text at all":                    "",
 		"a title and nothing more":          "# T\n",
@@ -23,7 +23,7 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 		"text before the title":             "prose before the title.\n# T\n**Verdict:** a preamble line\n\n## TL;DR\nx.\n",
 		"the closing heading twice":         "# T\n\n## Open questions\nfirst.\n\n## Open questions\nsecond.\n\n##  open questions (in full)\nthird.\n",
 		"a placed heading, other case":      "# T\n\n## ANALYSIS\nupper.\n\n## tl;dr\nlower.\n",
-		"an anchored heading":               "# T\n\n## The Catechism" + fx + "\nanchored heading.\n",
+		"an anchored heading":               "# T\n\n## The Catechism" + tok + "\nanchored heading.\n",
 		"a section named as the body's row": "# T\n\n## TL;DR\nx.\n\n## " + bodyHeading + "\na section of that name.\n\n## Technical foundations\ny.\n",
 		"an empty section":                  "# T\n\n## Analysis\n\n## Open questions\n\n## Appendix\n",
 		"a heading in a fence":              "# T\n\n## Analysis\n```\n## Risk matrix\n# not a title\n```\nafter the fence.\n",
@@ -35,7 +35,7 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 		"sections the old list dropped":     "# T\n\n## Verdict\nv.\n\n## Footnotes\nf.\n\n## Expansions\ne.\n\n## Blue team report\nb.\n\n## Claims withdrawn\nc.\n\n## How this run was conducted\nh.\n",
 		"a title late in the text":          "## Analysis\nbody.\n# Late title\nafter the title.\n",
 		"two titles":                        "# First\n\n## Analysis\nbody.\n\n# Second\n\nafter the second.\n",
-		"a table whose rows hold a token":   "# T\n\n## Analysis\n\n| n | divides |\n|---|---|" + fx + "\n| ✓ | ✗ |" + fx + "\n\n---" + fx + "\n\n```\n}" + fx + "\n```\n",
+		"a table whose rows hold a token":   "# T\n\n## Analysis\n\n| n | divides |\n|---|---|" + tok + "\n| ✓ | ✗ |" + tok + "\n\n---" + tok + "\n\n```\n}" + tok + "\n```\n",
 		"an unclosed fence":                 "# T\n\n## Analysis\n```\ncode\n## Open questions\nnever closed.\n",
 	}
 	for name, blue := range cases {

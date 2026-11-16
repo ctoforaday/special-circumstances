@@ -34,7 +34,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	// location/reason would), plus a terminal outcome so assembly composes fully.
 	mint := &recordpb.Mint{
 		GapId:           proto.String("G1"),
-		Problem:         proto.String("the sentence flagged here <!--fx:F-0001eac2--> is wrong"),
+		Problem:         proto.String("the sentence flagged here <!--gap:G-0001eac2--> is wrong"),
 		Location:        proto.String("§1"),
 		RequiredFix:     proto.String("fix it"),
 		AcceptanceCheck: proto.String("recheck"),
@@ -58,7 +58,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(shipped), "<!--fx:") {
+	if strings.Contains(string(shipped), "<!--gap:") {
 		t.Errorf("a finding-marker leaked into the shipped report via a record-derived section:\n%s", shipped)
 	}
 }

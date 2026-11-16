@@ -58,7 +58,7 @@ func (r *Refusal) pointer() string {
 	return fmt.Sprintf("Run `%s --help` for %s.", r.Path, r.Lists)
 }
 
-// PathOf is a command's path below the root — `finding`, `motion grade file` — and "" for the root
+// PathOf is a command's path below the root — `mint`, `motion grade file` — and "" for the root
 // itself, which is what resolves when no command did.
 func PathOf(c *cobra.Command) string {
 	if c == nil || c == c.Root() {

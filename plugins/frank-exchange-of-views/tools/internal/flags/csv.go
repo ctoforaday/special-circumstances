@@ -5,8 +5,7 @@ import (
 	"strings"
 )
 
-// CSV is a comma-separated list flag: --supersedes G2,G7 and --found-by
-// L5-F3,L6-F2 and --ids G4,G7.
+// CSV is a comma-separated list flag: --supersedes G2,G7 and --ids G4,G7.
 //
 // It is a type rather than a strings.Split at each call site because the record
 // format has an opinion the split does not: these fields are ALWAYS present in
@@ -28,7 +27,7 @@ type CSV struct {
 // stores it: a token whole, where the shape takes one, is stored as the bare id.
 //
 // A LIST OF IDS LEFT UNSHAPED SAYS SOMETHING FALSE. Its items reach the record's existence checks as
-// typed, so `--found-by '<!--fx:F-1d8a5455-->'` was told no lens recorded a finding that one did: what
+// typed, so a token passed whole was told the record lacks an act it holds: what
 // the record lacks is an id spelled that way. An item that is not an id at all is not an id the
 // record lacks, and shape is what tells the two apart.
 func IDList(item func() *ShapedValue) *CSV { return &CSV{item: item} }

@@ -264,7 +264,10 @@ enum EventType {
   EVENT_TYPE_CLOSE = 8 [(means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
   EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
-  EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
+  // 11 was EVENT_TYPE_FINDING: a lens reports a defect as a gap, and a small defect is a gap
+  // graded below what holds the gate. Reserved: a stored event carries its type's number.
+  reserved 11;
+  reserved "EVENT_TYPE_FINDING";
   EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"];
   EVENT_TYPE_HALT = 14 [(means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
   // 15 was EVENT_TYPE_MANIFEST_ROW: a repair's record is its edit, which names the gap it answers,
@@ -503,7 +506,7 @@ enum Disposition {
   DISPOSITION_REPAIRED = 1 [(means) = "the repair was verified at the leaf and nothing regressed", (closes) = true];
   DISPOSITION_REPAIRED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", (closes) = true];
   DISPOSITION_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it", (closes) = true];
-  DISPOSITION_NOT_A_DEFECT = 4 [(means) = "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
+  DISPOSITION_NOT_A_DEFECT = 4 [(means) = "blue argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
   DISPOSITION_DEFECT_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", (closes) = true];
   DISPOSITION_DEFECT_OWED_ELSEWHERE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", (closes) = true];
 
@@ -515,9 +518,9 @@ enum Disposition {
   DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", (closes) = false];
   // MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
   //
-  // `not_a_defect` asserts that blue argued the finding was wrong and the argument HELD — a
+  // `not_a_defect` asserts that blue argued the gap was wrong and the argument HELD — a
   // claim about an exchange that happened. `repaired` asserts a repair verified at the leaf.
-  // Moot asserts neither: nobody won an argument and nobody verified a fix, the text the finding
+  // Moot asserts neither: nobody won an argument and nobody verified a fix, the text the gap
   // attached to simply is not in the report any more.
   //
   // It was an ENGINE word with no record word. The debate script offered the bench `moot` in its
@@ -761,7 +764,6 @@ message Event {
     Closing closing = 33;
     Regrade regrade = 34;
     SpotCheck spot_check = 35;
-    Finding finding = 37;
     Anchor anchor = 39;
     Cite cite = 40;
     Verify verify = 41;
@@ -793,8 +795,8 @@ message Event {
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
-  reserved 29, 31, 38, 46, 48, 51, 57, 58, 61;
-  reserved "motion_appeal", "class_new", "observe", "revision", "correction", "inquiry_review", "manifest_row", "sitting_limit";
+  reserved 29, 31, 37, 38, 46, 48, 51, 57, 58, 61;
+  reserved "motion_appeal", "class_new", "observe", "finding", "revision", "correction", "inquiry_review", "manifest_row", "sitting_limit";
 
   // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
   // permanent even though the message is gone. The bench's disposition is a docket motion's
@@ -905,7 +907,7 @@ message Mint {
   optional string gap_id = 1 [(sql) = {
     required: true
     unique: true
-    why: "the gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on"
+    why: "the gap id is what every later act refers to; a mint without one is a gap nothing can cite, close or rule on"
   }];
   optional string mint_key = 2;
 
@@ -921,19 +923,13 @@ message Mint {
   // location is the defect's span, quoted verbatim from the report and matched against it.
   optional string location = 8;
 
-  // WHAT THIS GAP IS ABOUT, when it is not about a sentence — the same pair a lens finding carries,
-  // resolved by the same code and spelled with the same two flags.
+  // WHAT THIS GAP IS ABOUT, when it is not about a sentence (AboutKind).
   //
-  // It exists because the alternative was written down in mint's own help: "for a gap about
-  // something MISSING, quote the sentence where it SHOULD be". That instruction asks a seat to
-  // point at prose it is not objecting to, and the anchor it produces is a handle rather than a
-  // subject — the defect Finding.about_kind was added to remove. A gap minted FROM such a finding
-  // inherited it, so removing it on one verb and not the other left the concept half-landed.
+  // The alternative is a quote of the sentence where the missing thing SHOULD be: it points a seat
+  // at prose it is not objecting to, and the anchor it produces is a handle rather than a subject.
   //
-  // A gap has ONE subject, as a finding does: a non-blank `location` or this pair, never both and
-  // never neither — the write refuses a gap with no subject (requireMintSubject).
-  //
-  // A gap takes every kind a finding takes.
+  // A gap has ONE subject: a non-blank `location` or this pair, never both and never neither — the
+  // write refuses a gap with no subject (requireMintSubject).
   optional AboutKind about_kind = 23;
   optional string about_ref = 24;
   optional string problem = 9 [(sql) = {
@@ -991,9 +987,9 @@ message Mint {
   // key would read as "lineage unknown" where the truth is "lineage none". Each names a gap already
   // minted: the gap's demand lineage is written at its mint, so an ancestor minted later could never join it.
   repeated string supersedes = 20 [(sql) = { references: "mint.gap_id" }];
-  repeated string found_by = 21;
-  // 26 is reserved: a stored mint may carry its bytes.
-  reserved 26;
+  // 21 and 26 are reserved: a stored mint may carry their bytes.
+  reserved 21, 26;
+  reserved "found_by";
 
   // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
   //
@@ -1170,62 +1166,26 @@ message SpotCheck {
   reserved "notes";
 }
 
-// Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
-// finding can never be named in a gap's found_by and its work is lost.
-// FindingAbout is WHAT A FINDING IS ANCHORED TO when the thing it names is not on the page.
+// AboutKind is WHAT A GAP IS ANCHORED TO when the thing it names is not on the page.
 //
 // A defect about an ABSENCE has no sentence to quote, and a quote borrowed as a handle points a
-// reader of the gap list at prose the finding itself calls fine.
+// reader of the gap list at prose the gap itself calls fine.
 //
 // IT MATTERS TO THE STEELMAN DUTY IN PARTICULAR. Red's duty is to audit the REASONS declined and
-// abandoned inquiries were set aside, and the strongest such findings are arguments against a
+// abandoned inquiries were set aside, and the strongest such gaps are arguments against a
 // reason — which is not report prose at all.
 //
 // The targets below are REFERENCES THE RECORD CAN CHECK, which a borrowed quote is not: an
 // inquiry id either names an inquiry this run proposed or it does not.
-//
-// IT IS `AboutKind` AND NOT `FindingAbout` BECAUSE A GAP ANCHORS THE SAME WAY. `lens mint` took
-// `--quote` and told the seat, in its own help, to "quote the sentence where it SHOULD be — that
-// is how a lens finding anchors an omission". Naming this after the finding would leave the seat
-// spelling one act two ways across two verbs, which is a worse failure for the reader of the help
-// than a slightly longer enum name is for anyone.
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"];
-  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
   ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence"];
-  reserved 4;
-  reserved "ABOUT_KIND_CONTRADICTION";
-}
-
-message Finding {
-  // id is the finding's one name: the tool mints it, a gap's found_by names it by it, and the
-  // finding's anchor carries it. The lens that filed it is the event's seat, never part of the id.
-  //
-  // A finding with no id CANNOT BE ADDRESSED, and every one must get a fate. Measured on the
-  // 2026-07-18 run: 8 finding/observe events carried no name at all, so the chair could not name
-  // them even to decline them — they sat in the undisposed set forever.
-  optional string id = 11 [(sql) = {
-    required: true
-    unique: true
-    why: "the tool mints it; a finding with none can never be credited in a gap's found_by and its work is lost"
-  }];
-  optional string finding_key = 2;
-  reserved 1, 3;
-  reserved "finding_id", "label";
-  optional string location = 4;
-  optional string text = 5;
-  optional Grade severity = 6;
-  optional Grade likelihood = 7;
-  optional Grade impact = 8;
-
-  // WHAT THIS FINDING IS ABOUT, when it is not about a sentence. Exactly one of `location` (a live
-  // report quote, which places a marker) or this pair is set — a finding anchored to nothing is
-  // the state the verb refuses, and one anchored to BOTH is claiming two subjects.
-  //
-  optional AboutKind about_kind = 9;
-  optional string about_ref = 10;
+  // 3 was ABOUT_KIND_GAP: a gap is not the subject of another gap. A dispute of a gap is a
+  // proposed act on it, and a restatement of its defect is a mint superseding it.
+  reserved 3, 4;
+  reserved "ABOUT_KIND_GAP", "ABOUT_KIND_CONTRADICTION";
 }
 
 // Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
@@ -1509,7 +1469,7 @@ message Computation {
   optional string text = 7 [(prose) = true, (sql) = { flag: "reason" }];
   // exit is the first run's.
   optional int32 exit = 10;
-  // location is the anchoring quote this computation backs — the same `--quote` cite and finding
+  // location is the anchoring quote this computation backs — the same `--quote` cite and mint
   // record. The Anchor appended after it carries it and places the marker; held here as well, it is
   // the computation's own statement of its site, which a retry places an owed Anchor at.
   optional string location = 11 [(prose) = false, (sql) = { flag: "quote" }];
@@ -1680,7 +1640,7 @@ message BlueEdit {
   // a later edit that rewords the applied sentence ends it (F12, record/estoppel.go).
   optional bool applied_verbatim = 6;
 
-  // reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
+  // reopened are the anchors whose SENTENCE this edit changed — the citations, gaps and
   // computations whose referent moved under them.
   //
   // THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
@@ -1901,7 +1861,7 @@ message GradeMotion {
 }
 
 // GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the
-// flag that sets an axis (`mint`, `regrade`, `finding`) and the menu of the axis a grade motion
+// flag that sets an axis (`mint`, `regrade`) and the menu of the axis a grade motion
 // contests both print the `(means)` here.
 //
 // Each axis is spelled as the flag that sets it, so a seat learns the pattern from any one of them.
@@ -1939,7 +1899,7 @@ enum PetitionClass {
   reserved "PETITION_CLASS_PROCESS", "PETITION_CLASS_SCOPE";
 
   PETITION_CLASS_UNSPECIFIED = 0;
-  PETITION_CLASS_INTEGRITY = 1 [(means) = "proceeding would require asserting what you believe false, or burying a real finding"];
+  PETITION_CLASS_INTEGRITY = 1 [(means) = "proceeding would require asserting what you believe false, or burying a real defect"];
   PETITION_CLASS_SAFETY = 2 [(means) = "proceeding would create or conceal a hazard"];
   PETITION_CLASS_ETHICAL = 5 [(means) = "proceeding would require acting against the interests of someone the run affects"];
   PETITION_CLASS_CONSTITUTIONAL = 6 [(means) = "the instruction itself conflicts with the rules the run is bound by"];
@@ -1961,7 +1921,7 @@ message DocketMotion {
   }];
 
   // THE NEW GROUNDS A RECONSIDERATION RESTS ON, located the way every act locates what it is about:
-  // an anchor or record id the seats already read (a finding's, a gap's, a citation's or a computation's),
+  // an anchor or record id the seats already read (a gap's, a citation's or a computation's),
   // or a quote of the report's current text. Required, exactly one of the two, when the bench has
   // already ruled the gap closed, and refused otherwise (record.requireNewGrounds): the act it names
   // is recorded after that ruling and is about this gap, or the motion relitigates what the ruling
@@ -2496,7 +2456,7 @@ message Plan {
 }
 
 // Stale is the tool's refusal of a seat's act on a gap that changed since the seat's sitting opened
-// (gblock ruling B, 2026-10-19): the act asserts something about the gap — a finding about it, its
+// (gblock ruling B, 2026-10-19): the act asserts something about the gap — its
 // grade, a motion on it — and the seat's read of the gap is the one its sitting opened with, while
 // other seats sit concurrently. The refusal shows the seat each act on the gap since, and this event
 // is the record that it did.

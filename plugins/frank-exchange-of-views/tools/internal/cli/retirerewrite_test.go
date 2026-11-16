@@ -11,10 +11,10 @@ import (
 )
 
 // A CLAIM REWRITTEN AWAY STILL OWNS ITS ANCHORS. Smoke m26: blue rewrote three anchored sentences
-// into one new sentence carrying both finding markers (ev188). Retire credited only an edit whose
+// into one new sentence carrying both markers (ev188). Retire credited only an edit whose
 // replacement held nothing but anchors, so no retire could take those markers out — named, it was
 // refused; split onto bare lines by a later edit, it took nothing and recorded the removal as
-// asserted — and seven finding markers stood bare in the final report.
+// asserted — and seven markers stood bare in the final report.
 
 const (
 	rwAlpha = "Alpha holds for every input"
@@ -23,24 +23,17 @@ const (
 	rwNew   = "Whether more holds is not settled here."
 )
 
-// rewriteAway files a finding on each of two sentences, then rewrites the paragraph's three
+// rewriteAway mints a gap on each of two sentences, then rewrites the paragraph's three
 // sentences into one new sentence the two markers are carried onto. It returns the run and the
-// two finding ids.
+// two gap ids.
 func rewriteAway(t *testing.T) (runDir, f1, f2 string) {
 	t.Helper()
 	runDir = newRun(t)
 	writeReport(t, runDir, "# Findings\n\n"+rwAlpha+". "+rwBeta+". "+rwLimit+".\n\nPlain prose here.\n")
 	registerBlue(t, runDir)
 	registerLensOnce(t, runDir)
-	find := func(key, quote string) string {
-		t.Helper()
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote,
-			"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding %s: %v", key, err)
-		}
-		return lastBody(t, runDir, &recordpb.Finding{}).GetId()
-	}
-	f1, f2 = find("F1", rwAlpha+"."), find("F2", rwBeta+".")
+	f1 = markClaim(t, runDir, "G1", rwAlpha+".", "spec_underspecification")
+	f2 = markClaim(t, runDir, "G2", rwBeta+".", "spec_underspecification")
 	rep := readReport(t, runDir)
 	span := rep[strings.Index(rep, rwAlpha):strings.Index(rep, "\n\nPlain prose")]
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
@@ -135,11 +128,7 @@ func TestAnotherClaimsBareMarkerDoesNotHoldARetire(t *testing.T) {
 	writeReport(t, runDir, "# Findings\n\n"+rwAlpha+". Gamma stands alone.\n\nPlain prose here.\n")
 	registerBlue(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", rwAlpha+".",
-		"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-		t.Fatalf("finding: %v", err)
-	}
-	tok := anchor.Token(lastBody(t, runDir, &recordpb.Finding{}).GetId())
+	tok := anchor.Token(markClaim(t, runDir, "G1", rwAlpha+".", "spec_underspecification"))
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", rwAlpha+tok+".", "--new", tok, "--reason", "cut"); err != nil {
 		t.Fatalf("cut Alpha to its marker: %v", err)
 	}

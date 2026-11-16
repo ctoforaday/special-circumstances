@@ -4,7 +4,7 @@
 // # Why this exists as a package rather than as one test
 //
 // The record is a single event log with at least ten independent readers — the gap family, the
-// board/work/findings JSON, five markdown renders, the telemetry series, the lineage graph, report
+// board/work JSON, five markdown renders, the telemetry series, the lineage graph, report
 // assembly, capture's audits. Every reader is its own traversal of the same facts, and the bug
 // class that architecture invites is PROJECTION DISAGREEMENT: two readers deriving different
 // answers from one record, each locally plausible. It is not hypothetical — the measured
@@ -68,14 +68,12 @@ type gtGap struct {
 type groundTruth struct {
 	order          []string
 	gaps           map[string]*gtGap
-	findingLabels  map[string]bool
 	placedIDs      map[string]bool // every act that stored a quote, so an Anchor event owes its marker
 	anchorEvIDs    map[string]bool
 	computationIDs map[string]bool
 	citeEvents     int
 	verifyEvents   int
 	inquiries      map[string]string // inquiry id -> last status word
-	observations   int
 
 	// unpairedDocket are docket rulings whose filing this walk never saw. An oracle CANNOT
 	// `continue` past one: the miss and the honest zero are the same silence, and this fold's
@@ -96,7 +94,6 @@ func closesSet() map[string]bool {
 func walk(events []*record.Event) *groundTruth {
 	gt := &groundTruth{
 		gaps:           map[string]*gtGap{},
-		findingLabels:  map[string]bool{},
 		placedIDs:      map[string]bool{},
 		anchorEvIDs:    map[string]bool{},
 		computationIDs: map[string]bool{},
@@ -254,18 +251,6 @@ func walk(events []*record.Event) *groundTruth {
 			g.lastCloser = "bench"
 			g.lastClass = w
 			g.lastCloseEpoch = epoch
-		case *recordpb.Finding:
-			gt.observations++
-			if id := m.GetId(); id != "" {
-				gt.findingLabels[id] = true
-				// A FINDING ANCHORED TO SOMETHING THAT IS NOT REPORT TEXT SPLICES NO MARKER, so
-				// it emits no anchor event and must not be required to have one. `--about-kind
-				// section|inquiry|gap` is the anchor an ABSENCE gets — there is no sentence to
-				// mark — so the crash-window rule below does not apply to it.
-				if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
-					gt.placedIDs[id] = true
-				}
-			}
 		case *recordpb.Anchor:
 			if id := m.GetId(); id != "" {
 				gt.anchorEvIDs[id] = true
@@ -421,9 +406,6 @@ func Check(run record.Run) (Result, error) {
 	if bj.Counts.ClosedByBench != benchGT {
 		add("closer-attribution", "counts.closed_by_bench=%d; %d gaps were ended by a bench ruling", bj.Counts.ClosedByBench, benchGT)
 	}
-	if bj.Counts.TotalObservations != gt.observations {
-		add("counts", "counts.total_observations=%d, %d finding events on the record", bj.Counts.TotalObservations, gt.observations)
-	}
 	// Citations = verify events, CitationsAuthored = cite events — the #341 split. The field
 	// doc used to promise a different number (distinct cite events); implementing the doc is how
 	// the oracle found the disagreement, and the doc is what moved.
@@ -462,15 +444,6 @@ func Check(run record.Run) (Result, error) {
 		if was != raw.firstCloser {
 			add("closer-attribution", "board.closed %s: closed_by=%q, the closing event that ended it was %s's", g.ID, was, raw.firstCloser)
 		}
-	}
-
-	fj := record.FindingsJSONOf(fam.Events, fam.At)
-	gotLabels := map[string]bool{}
-	for _, f := range fj.Findings {
-		gotLabels[f.ID] = true
-	}
-	if !sameSet(keys(gotLabels), keys(gt.findingLabels)) {
-		add("findings", "findings projection ids %v, record carries %v", keys(gotLabels), keys(gt.findingLabels))
 	}
 
 	// ---- the markdown renders ----
@@ -547,19 +520,19 @@ func Check(run record.Run) (Result, error) {
 	// ---- the anchor layer ----
 	//
 	// The report-token↔events bijection lived here: it read the marker tokens PRESENT in
-	// blue/report.md and matched them against the cite/finding/computation events, to catch a torn splice
+	// blue/report.md and matched them against the cite/computation events, to catch a torn splice
 	// (a token on the page no event backs) or an orphan (an event whose marker never rendered).
 	// Under report-as-record (#709) the report IS the projection of these events — render places
 	// only recorded markers, and derives every token from an event — so both directions hold by
 	// construction and neither torn state can arise. Removed rather than kept as a check that can
-	// never fire. What survives is report-INDEPENDENT: the finding↔anchor-event pair below.
+	// never fire. What survives is report-INDEPENDENT: the act↔anchor-event pair below.
 	//
 	// An act that stored a quote and its anchor event are written as a PAIR, in one transaction
 	// (record.AppendPlaced); one with no anchor event is a pair an archived run split, which migrate
 	// carries as it stands. Report-independent, so it runs even when no report renders.
 	//
-	// QUOTE-ANCHORED ACTS ONLY, and the set above is what enforces that: an about-anchored finding
-	// or gap legitimately has no anchor, and reporting each one was a violation on an honest record.
+	// QUOTE-ANCHORED ACTS ONLY, and the set above is what enforces that: an about-anchored gap
+	// legitimately has no anchor, and reporting each one was a violation on an honest record.
 	for id := range gt.placedIDs {
 		if !gt.anchorEvIDs[id] {
 			add("anchor-record", "%s %s has no anchor event", anchor.Kind(id), id)
@@ -671,15 +644,6 @@ func openIDs(gt *groundTruth) []string {
 			out = append(out, id)
 		}
 	}
-	return out
-}
-
-func keys(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
 	return out
 }
 

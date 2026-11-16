@@ -41,7 +41,7 @@ func TestTheTextIsPartedVerbatimAndFenceAware(t *testing.T) {
 	// ONE READING OF A HEADING, for the cut and for everything else that reads one: case, runs
 	// of whitespace, an anchor on the heading line, the note reference the weave leaves where a
 	// citation's stood and a trailing "(in full)" do not make a present section absent.
-	for _, h := range []string{"## Open Questions", "##  open   questions", "## Open questions<!--fx:F-00000aaa-->", "## Open questions[^2]", "## Open questions (in full)"} {
+	for _, h := range []string{"## Open Questions", "##  open   questions", "## Open questions<!--gap:G-00000aaa-->", "## Open questions[^2]", "## Open questions (in full)"} {
 		if got := part(ParseText("intro\n" + h + "\n\nwhat remains.\n")); got.body != "intro" || got.close != h+"\n\nwhat remains." {
 			t.Errorf("%q: the text is not cut at its closing section: body %q, close %q", h, got.body, got.close)
 		}
@@ -597,7 +597,7 @@ func TestWovenNoteInReadsTheTextAsItShips(t *testing.T) {
 func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 	for _, tc := range []struct{ doc, line, heading string }{
 		{"# t\n\n## TL;DR\nx\n\n## Alternatives  Considered\ny\n", "## Alternatives  Considered", "Alternatives considered"},
-		{"## risk matrix<!--fx:F-00000aaa-->\n", "## risk matrix<!--fx:F-00000aaa-->", "Risk matrix"},
+		{"## risk matrix<!--gap:G-00000aaa-->\n", "## risk matrix<!--gap:G-00000aaa-->", "Risk matrix"},
 		{"  ## The Board (in full)\n", "## The Board (in full)", "The board"},
 		{"# t\n**outcome:** VERIFIED\n\n## TL;DR\nx\n", "**outcome:** VERIFIED", "Outcome"},
 	} {
@@ -933,115 +933,6 @@ func TestEveryLineOfTheReportsTextShipsOnceWhereItWasWritten(t *testing.T) {
 	}
 	if e := part(ParseText("# t\n\n## Open questions\ny\n")); e.body != "" || e.close != "## Open questions\ny" {
 		t.Errorf("a report that is only its closing section: %+v", e)
-	}
-}
-
-func TestUnmintedFindingsSurfaced(t *testing.T) {
-	board := &boardT{
-		GapOrder: []string{"G1"},
-		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), FoundBy: []string{"F-f0000001", "F-f0000002"}}},
-		},
-		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("minted — omit")}),
-			recordtest.Event(t, "red-lens-dark-side", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("also minted — omit")}),
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000003"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
-		},
-	}
-	got := boardSection(record.Run{}, board.famT(t))
-	if !strings.Contains(got, "Lens findings no gap was minted from (1)") {
-		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
-	}
-	// THE SECTION STATES THE JOIN AND NOT A DELIBERATION. It used to say the merge "weighed but
-	// did not mint" these, which nothing on the record supports — declining to mint writes no
-	// event — and which is what made a silently dropped finding read as a considered decline
-	// (#747: three dropped in one run, one of them a fabricated-quote allegation).
-	if strings.Contains(got, "weighed but did not mint") {
-		t.Error("the section asserts the chair weighed these findings; no event records deliberation, and a silent drop then reads as a decision")
-	}
-	if !strings.Contains(got, "is NOT recorded") {
-		t.Errorf("the section does not say that whether these were considered is unrecorded:\n%s", got)
-	}
-	// THE HEADING NAMES THE FINDING BY ITS ID AND ITS LENS'S AREA, exactly: an id alone does not say
-	// which lens filed it.
-	if !strings.Contains(got, "\n### F-f0000003 (logic) — §H1\n") || !strings.Contains(got, "un-minted red reasoning kept") {
-		t.Errorf("the un-minted finding's substance must be surfaced under `### F-f0000003 (logic) — §H1`:\n%s", got)
-	}
-	// A minted finding's text renders ONCE, under the gap that claimed it (surfaced by) —
-	// and never again in the no-gap-minted section. The fixture used to leave GapOrder
-	// empty so the gap itself vanished from the render; a fold-built board cannot produce that
-	// shape, so the assertion now splits the section instead.
-	_, unminted, _ := strings.Cut(got, "Lens findings no gap was minted from")
-	if strings.Contains(unminted, "minted — omit") || strings.Contains(unminted, "also minted") {
-		t.Errorf("a finding named by a gap's found_by must NOT be re-listed in the unminted section:\n%s", got)
-	}
-}
-
-// A MINTED FINDING'S EVIDENCE MUST BE REACHABLE FROM THE GAP THAT CLAIMED IT.
-//
-// The provenance line used to read `surfaced by: F-f0000001, F-f0000002` and nothing in the report defined
-// those labels — unmintedFindings renders a finding only when NO gap claims it, so the instant
-// the chair acted on a finding its leaf-level evidence left the document and the citation
-// dangled. A fuzz run where every finding was minted put red's words nowhere at all.
-//
-// It is the wrong half to drop: `problem` is the chair's RESTATEMENT, and a reader can only see
-// a restatement drift from its evidence with both in front of them.
-func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
-	board := &boardT{
-		GapOrder: []string{"G1"},
-		Gaps: map[string]*record.Gap{
-			// OPEN here; the CLOSED case is covered below. Scoping provenance to open gaps was
-			// the first answer and it was wrong: unmintedFindings skips anything a gap claimed,
-			// so a run where every finding was minted and every gap closed printed red's words
-			// nowhere at all. The fuzz found one.
-			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
-				Problem: proto.String("the chair's restatement"),
-				FoundBy: []string{"F-f0000001", "F-0000dead"},
-			}},
-		},
-		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{
-				Id: proto.String("F-f0000001"), Location: proto.String("§H2"),
-				Text: proto.String("what red actually observed at the leaf"),
-			}),
-		},
-	}
-	got := boardSection(record.Run{}, board.famT(t))
-	if !strings.Contains(got, "what red actually observed at the leaf") {
-		t.Errorf("the minted finding's own words are absent — the gap cites F-f0000001 and nothing defines it:\n%s", got)
-	}
-	if !strings.Contains(got, "§H2") {
-		t.Errorf("the finding's location is absent, so a reader cannot go and check it:\n%s", got)
-	}
-	// THE LINE NAMES THE FINDING BY ITS ID AND ITS LENS'S AREA, exactly.
-	if want := "\nsurfaced by:\n- F-f0000001 (logic) (§H2): what red actually observed at the leaf\n"; !strings.Contains(got, want) {
-		t.Errorf("the surfaced-by line is not %q:\n%s", want, got)
-	}
-	// AND AN UNRESOLVABLE CITATION IS ITSELF WORTH SEEING. A found_by naming no finding on the
-	// record must not vanish into a shorter list — that reads exactly like a gap with less
-	// provenance, which is the plausible-zero shape.
-	if !strings.Contains(got, "\n- F-0000dead: (no finding with this id is on the record)") {
-		t.Errorf("a found_by id with no finding behind it was dropped silently:\n%s", got)
-	}
-	// It stays out of the un-minted section either way: the gap is where it is rendered.
-	if strings.Contains(got, "Lens findings not raised to a gap") {
-		t.Errorf("a claimed finding must not ALSO be listed as un-raised:\n%s", got)
-	}
-
-	// AND A CLOSED GAP CARRIES IT TOO. The closure says how the gap was settled; it does not
-	// restate what was observed, and an audit of a closure needs both.
-	closedBoard := &boardT{
-		GapOrder: []string{"G1"},
-		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Open: false, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
-				Problem: proto.String("the chair's restatement"),
-				FoundBy: []string{"F-f0000001"},
-			}},
-		},
-		Events: board.Events,
-	}
-	if got := boardSection(record.Run{}, closedBoard.famT(t)); !strings.Contains(got, "what red actually observed at the leaf") {
-		t.Errorf("a CLOSED gap dropped the evidence it was minted from, and nothing else renders it:\n%s", got)
 	}
 }
 

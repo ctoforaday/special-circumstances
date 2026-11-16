@@ -38,8 +38,7 @@ type idKind struct {
 	name string
 	// pattern must match every id this kind mints and NOTHING another kind mints. It is READ FROM
 	// internal/flags where a flag takes this kind alone, and from the anchor kinds table flags
-	// itself reads where none does — a finding and a computation are named on the general anchor flag —
-	// never restated here: a matrix that exists to catch namespace drift cannot itself hold a
+	// itself reads where none does — never restated here: a matrix that exists to catch namespace drift cannot itself hold a
 	// second copy of the namespace.
 	pattern *regexp.Regexp
 	// anchored says an anchor stands for this kind, so the general anchor flag takes its id.
@@ -57,7 +56,6 @@ func idKinds() []idKind {
 		{name: "motion", pattern: flags.MotionID().Shape()},
 		{name: "position", pattern: flags.PositionID().Shape()},
 		{name: "citation", pattern: flags.CitationAnchor().Shape(), anchored: true},
-		{name: "finding", pattern: kindShape("finding"), anchored: true},
 		{name: "computation", pattern: kindShape("computation"), anchored: true},
 	}
 }
@@ -134,8 +132,7 @@ func TestNoIDKindCanBeReadAsAnother(t *testing.T) {
 		}
 	}
 
-	// 4. THE GENERAL ANCHOR FLAG TAKES EXACTLY THE KINDS AN ANCHOR STANDS FOR. A finding has no flag
-	// shape of its own: its id is an anchor id, and the anchor flag is what accepts it. The table
+	// 4. THE GENERAL ANCHOR FLAG TAKES EXACTLY THE KINDS AN ANCHOR STANDS FOR, and the table
 	// agrees — the kind it reads off the id is the kind that was minted, and "" where no anchor
 	// stands for it.
 	anchorShape := flags.AnchorID().Shape()
@@ -232,9 +229,6 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 			return err
 		}
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Position{PositionId: proto.String(id), Text: proto.String("why the PASS is withheld")})
-		return err
-	case "finding":
-		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Finding{Id: proto.String(id), Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	case "citation":
 		// A citation id is blue's cite's: the one act that places a citation.

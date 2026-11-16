@@ -169,8 +169,8 @@ func assertRefusalNamesItsCommandOnce(t *testing.T, leaf *cobra.Command, err err
 }
 
 // seedBlueReport records a report whose prose contains the quoted sentences
-// the finding tests anchor to (slice 1b: a lens finding is rejected unless its
-// --quote quote is present in the report). One generous body covers the tokens
+// the tests anchor to (an act is rejected unless its --quote quote is present in
+// the report). One generous body covers the tokens
 // the suite uses (§1..§3, the parser quote, sec 1, a quoted sentence).
 func seedBlueReport(t *testing.T, runDir string) {
 	t.Helper()
@@ -283,11 +283,11 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{"lens finding without --run", []string{"finding", "--seat-id", "red-lens-evidence"}, "--run <runDir> is required"},
+		{"lens register without --run", []string{"register", "--seat-id", "red-lens-evidence"}, "--run <runDir> is required"},
 		// WITHOUT AN IDENTITY THERE IS NO TREE, so the refusal is about the identity rather
 		// than about the verb. That is the contract now: the surface is scoped to whoever is
 		// asking, and nothing can be shown — or refused — until that is answered.
-		{"a verb with no identity at all", []string{"finding", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
+		{"a verb with no identity at all", []string{"register", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
 		// EACH CASE CARRIES THE VERB'S OTHER REQUIRED FLAGS. Cobra refuses a missing required
 		// flag at PARSE, before Begin reaches the run and seat-id checks, so a case that omits
 		// them measures whichever refusal fires first rather than the one it is named for.
@@ -337,7 +337,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 }
 
 // The verb set is the role boundary — and it is now the WHOLE of it. The chair may not mint: a
-// gap is a lens's finding put on the board by the lens that found it (plans/roundless.md
+// gap is a defect put on the board by the lens that found it (plans/roundless.md
 // §III.B.3), and the chair coalesces nothing. The reason is not a runtime check comparing a seat
 // id against a role in the path: the verb is not in the chair's tree. So the refusal names the
 // seat that does hold `mint` rather than the role the caller failed to be.
@@ -511,9 +511,8 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 
 // ---- the write path, end to end ----
 
-func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
+func TestAFirstRegistrationNamesTheSeatAndNothingElse(t *testing.T) {
 	runDir := newRun(t)
-	seedBlueReport(t, runDir)
 	seatID := "red-lens-evidence"
 
 	out, err := run(t, "register", "--run", runDir, "--seat-id", seatID)
@@ -529,61 +528,23 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if strings.Contains(out, "nonce") || strings.Contains(out, "dispatch") {
 		t.Errorf("a FIRST registration should say nothing beyond the seat: %q", out)
 	}
-
-	out, err = run(t, "finding", "--run", runDir, "--seat-id", seatID,
-		"--key", "F1", "--severity", "high", "--likelihood", "medium", "--impact", "high",
-		"--quote", "§2", "--reason", "the finding prose")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The ID leads the message now: it is what the chair will name, and a seat told only
-	// "recorded" has to invent a way to refer to this later.
-	ev := lastBody(t, runDir, &recordpb.Finding{})
-	if got := ev.GetId(); !regexp.MustCompile(`^F-[0-9a-f]{8}$`).MatchString(got) {
-		t.Errorf("id = %q, want F-<8 hex>", got)
-	}
-	// The id is printed WITH the area that raised it: a random id says nothing about whose
-	// finding it is, so the line carries both, exactly.
-	if want := "finding recorded: " + ev.GetId() + " (evidence) "; !strings.HasPrefix(out, want) {
-		t.Errorf("finding said %q, want it to open %q", out, want)
-	}
-	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_HIGH {
-		t.Errorf("severity = %q", recordpb.Word(got))
-	}
-	if got := ev.GetText(); got != "the finding prose" {
-		t.Errorf("text = %q", got)
-	}
-	// The key lives on the ENVELOPE, not on the body — the body is what the seat said, the
-	// envelope is what the record stamped. The epoch is on neither: it is a window the record
-	// computes over the events (a lens registered and no chair has, so 0). The seat id used to
-	// carry a round; it carries nothing now, and no event stamps one.
-	env := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
-	if m, err := record.MergedEvents(runtest.Open(t, runDir)); err != nil {
-		t.Fatal(err)
-	} else if got := m.At.CurrentEpoch(m.Events); got != 0 {
-		t.Errorf("epoch = %d, want 0 — no chair has registered in this run", got)
-	}
-	if env.GetKey() != seatID+":finding:"+ev.GetId() {
-		t.Errorf("key = %q", env.GetKey())
-	}
 }
 
 // A flag the seat never passed must not appear in the event at all — the
 // absent/present distinction the record format rests on.
 func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	runDir := newRun(t)
-	seedBlueReport(t, runDir)
-	seatID := "red-lens-evidence"
-	// --quote and --reason are required (1b); likelihood/impact are still optional,
-	// so they are the unpassed flags whose absence this pins.
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", seatID,
-		"--key", "F1", "--severity", "high", "--quote", "§1", "--reason", "t"); err != nil {
+	gap := mintGap(t, runDir, "G1", "spec_underspecification")
+	// A regrade names the axes it moves; likelihood and impact are the unpassed flags whose absence
+	// this pins.
+	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", lensSeat, "--id", gap,
+		"--severity", "high", "--reason", "t"); err != nil {
 		t.Fatal(err)
 	}
-	// `reason` is the FLAG; the field it lands in is `text`. setFields reads the schema, so it
+	// `reason` is the FLAG; the field it lands in is `basis`. setFields reads the schema, so it
 	// reports what the record holds rather than what the seat typed.
-	keys := setFields(lastBody(t, runDir, &recordpb.Finding{}))
-	if !keys["id"] || !keys["severity"] || !keys["text"] {
+	keys := setFields(lastBody(t, runDir, &recordpb.Regrade{}))
+	if !keys["gap_id"] || !keys["severity"] || !keys["basis"] {
 		t.Errorf("a passed flag is missing from the body: %v", keys)
 	}
 	for _, absent := range []string{"likelihood", "impact"} {
@@ -597,12 +558,12 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 // unknown" where the truth is "lineage none".
 //
 // THE QUESTION MOVED FROM THE BODY TO THE PROJECTION, and it had to. This asserted that the mint
-// EVENT carried `supersedes` and `found_by` as present-but-empty keys — a distinction a payload
+// EVENT carried `supersedes` as a present-but-empty key — a distinction a payload
 // map could hold and a proto message cannot: a repeated field has no presence, so an empty list
 // and an unset one are the same bytes. There is nothing on the body left to assert.
 //
 // What a reader actually sees is the projection, and there the distinction is real and preserved:
-// viewjson seeds both as `[]string{}` so they render as `[]` rather than being omitted. That is
+// viewjson seeds it as `[]string{}` so it renders as `[]` rather than being omitted. That is
 // the guarantee this test was always about, asked where it can still be answered — and where it
 // would fail if someone dropped the seeding.
 func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
@@ -621,7 +582,7 @@ func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	for _, want := range []string{`"supersedes": []`, `"found_by": []`} {
+	for _, want := range []string{`"supersedes": []`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the board does not render %s — an absent lineage key reads as \"lineage unknown\" "+
 				"where the truth is \"lineage none\":\n%s", want, s)
@@ -719,9 +680,9 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 // not by parsing prose), a failure is a structured error (branch on ok:false), and the
 // default mode stays byte-identical prose because the template renders the same fields.
 // AN ACT'S RESULT NAMES ITS ID BY KIND. mint, regrade and close carry `gap_id`,
-// inquiry propose `inquiry_id`, compute `computation_id`, motion file and rule `motion_id`; finding carried a
-// bare `id` and closing named its gap `id`. m25 ev472: a lens read the mint it had just made at the
-// finding's `.result.id`, got null for a mint that landed, and recovered the id from `show work`.
+// inquiry propose `inquiry_id`, compute `computation_id`, motion file and rule `motion_id`, and no act
+// carries a bare `id`. m25 ev472: a lens read the mint it had just made at `.result.id`, got null for a
+// mint that landed, and recovered the id from `show work`.
 func TestActResultsNameTheirIDByKind(t *testing.T) {
 	runDir := newRun(t)
 	seedBlueReport(t, runDir)
@@ -743,14 +704,8 @@ func TestActResultsNameTheirIDByKind(t *testing.T) {
 		}
 		return r
 	}
-	f := result("finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--severity", "low",
-		"--likelihood", "low", "--impact", "low", "--quote", "§1", "--reason", "r")
-	fid, _ := f["finding_id"].(string)
-	if want := lastBody(t, runDir, &recordpb.Finding{}).GetId(); fid != want {
-		t.Errorf("finding --json result %v, want finding_id %s", f, want)
-	}
 	g := result("mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat, "--key", "G1", "--class", "spec_underspecification", "--check-kind", "document",
-		"--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--found-by", fid)
+		"--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	gid, _ := g["gap_id"].(string)
 	if gid != handleText(t, runDir, "G1") {
 		t.Errorf("mint --json result %v, want gap_id G1", g)
@@ -1029,11 +984,6 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 			if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 				"--key", "k", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 				"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
-				"--key", "F1", "--quote", "the parser accepts an empty body in this line.", "--reason", "t",
-				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 				t.Fatal(err)
 			}
 			// EVERY OTHER VALUE IS ONE THE VERB TAKES, or the refusal is of that value and the

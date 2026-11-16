@@ -10,7 +10,7 @@ import (
 )
 
 // A RETIRE TAKES THE ANCHOR AND ITS HUSK, AND A LINE OF SYMBOLS IS NOT A HUSK, through the real
-// verbs. A finding quoted on a table row stands on that row; blue cuts the cell's claim down to a
+// verbs. A gap quoted on a table row stands on that row; blue cuts the cell's claim down to a
 // dash, corrects a row of marks, realigns the delimiter row — each edit carrying the anchor on a
 // row that holds no letter and no digit — and retires what it cut, naming the anchor. The anchor
 // leaves; the row is what the edit wrote and stays, in the report's text and in the report that
@@ -28,13 +28,12 @@ func TestARetireLeavesARowOfSymbolsWhereItStands(t *testing.T) {
 		{"| --- | --- |", "|:---|---:|", "|:---|---:|"},
 	} {
 		key := string(rune('1' + i))
-		if out, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F"+key, "--quote", step.quote,
-			"--reason", "the row is questioned", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding on %q: %v\n%s", step.quote, err, out)
+		if _, err := mintQuote(t, runDir, "G"+key, step.quote); err != nil {
+			t.Fatalf("mint on %q: %v", step.quote, err)
 		}
-		m := regexp.MustCompile(regexp.QuoteMeta(step.quote) + `(<!--fx:(F-[0-9a-f]{8})-->)`).FindStringSubmatch(readReport(t, runDir))
+		m := regexp.MustCompile(regexp.QuoteMeta(step.quote) + `(<!--gap:(G-[0-9a-f]{8})-->)`).FindStringSubmatch(readReport(t, runDir))
 		if m == nil {
-			t.Fatalf("no finding anchor after %q:\n%s", step.quote, readReport(t, runDir))
+			t.Fatalf("no gap anchor after %q:\n%s", step.quote, readReport(t, runDir))
 		}
 		if out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E"+key,
 			"--quote", step.quote+m[1], "--new", step.cut+m[1], "--reason", "the row as it should read"); err != nil {

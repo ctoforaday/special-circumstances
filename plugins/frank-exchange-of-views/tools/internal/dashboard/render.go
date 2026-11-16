@@ -305,7 +305,6 @@ func RenderHTML(m Model) string {
 	tile(openGaps, "open gaps")
 	tile(latestTile(m, func(t *recordpb.TelemetryLine) string { return gradeOrDash(t.MaxSeverity) }), "max severity")
 	tile(countOrNotMeasured(m.BlueClaims), "blue claims")
-	tile(intUnavail(m.Shards.Findings), "lens findings")
 	tile(intUnavail(m.Shards.Citations), "citations checked")
 	verdict := m.TerminalVerdict
 	verdictLabel := "final verdict"
@@ -370,7 +369,6 @@ func RenderHTML(m Model) string {
 		w(fmt.Sprintf(`<tr><td>open gaps on the board</td><td>%d%s</td></tr>`+"\n", m.Shards.OpenRows, sevStr))
 		w(fmt.Sprintf(`<tr><td>closed gaps (closure index)</td><td>%d</td></tr>`+"\n", m.Shards.ClosureIndexRows))
 		w(fmt.Sprintf(`<tr><td>archived closure records</td><td>%d</td></tr>`+"\n", m.Shards.ArchiveRecords))
-		w(`<tr><td>lens findings recorded</td><td>` + intUnavail(m.Shards.Findings) + ` <span class="muted">(raw leaf audit, before the chair coalesces into gaps)</span></td></tr>` + "\n")
 		w(`</table><p class="muted">counts come from the board view (feov-record &lt;role&gt; show board) — the record, read once by the tool, not a markdown parse</p>`)
 	} else {
 		w(`<p class="muted">board unavailable — the record does not exist yet</p>`)

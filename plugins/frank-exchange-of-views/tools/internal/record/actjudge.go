@@ -17,7 +17,7 @@ import (
 // replayed record must be a record.
 //
 // THE ACT JUDGEMENTS (judgeAct) are what a seat may do NEXT, given the board it acts on: a PASS over
-// a blocker, a second gap of one class on one subject (a sentence, an inquiry, a citation — or a citation and the sentence that holds it), a mint of a class a reading defines by a seat whose own reading of its subject does not stand, a mint or finding about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
+// a blocker, a second gap of one class on one subject (a sentence, an inquiry, a citation — or a citation and the sentence that holds it), a mint of a class a reading defines by a seat whose own reading of its subject does not stand, a mint about a retired anchor, a computation citing a retired citation, a close of a docketed gap, a close whose live-answer demand nothing meets, a close of a gap carrying a failed check still standing, a supersession of another lens's open gap or of a docketed one, a successor of an open gap awaiting a live answer minted at another check kind, a docket motion on
 // no new grounds, an outcome over a motion the bench never ruled, a mint in the run's own voice, a
 // grant that states no order, a cite of a text-bearing source the tool located no span in, a cite that
 // does not say when its copy was fetched, a bridge
@@ -41,7 +41,7 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 	case *recordpb.Mint:
 		// A RETIRED ANCHOR IS IN NO DOCUMENT (ruling Retired mint): an archived mint about an anchor
 		// retired since replays as it was made, so this is the act's rule, not the record's shape.
-		if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef(), "gap"); err != nil {
+		if err := requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
 		// A MINT OF A CLASS A READING DEFINES STANDS ON THE SEAT'S OWN STANDING READING of its subject
@@ -63,9 +63,6 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 			return err
 		}
 		return refuseMintReportVoice(b)
-	case *recordpb.Finding:
-		// The same rule as a mint's: a finding about a retired anchor is about nothing in the report.
-		return requireAboutAnchorLive(q, b.GetAboutKind(), b.GetAboutRef(), "finding")
 	case *recordpb.Computation:
 		// --cites NAMES A LIVE CITATION, asked in the write's transaction so a `retire --anchor` of it
 		// racing the compute cannot both land; universe records that cite a citation retired later

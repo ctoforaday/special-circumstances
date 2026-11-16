@@ -5,17 +5,16 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // AN ANCHOR A QUOTE CARRIES IS INSIDE THE SPAN, AT EITHER END. Smoke m26: blue quoted the stray full
-// stop after two bare finding markers as `show report` printed it, markers first, and copied them
+// stop after two bare gap markers as `show report` printed it, markers first, and copied them
 // into the replacement. The span was located from the first character after the anchor layer, so the
 // opening markers stood outside it and the edit was refused for introducing them (ev220, ev221); a
 // quote of one marker and its full stop alone was refused as not found (m26 L169), though the edit
 // help says a punctuation repair quotes the anchors as the report prints them.
 
-// strayStop leaves two bare finding markers on lines of their own, the second followed by the full
+// strayStop leaves two bare gap markers on lines of their own, the second followed by the full
 // stop of the sentences the cut took, and returns the run and the two markers' tokens.
 func strayStop(t *testing.T) (runDir, t1, t2 string) {
 	t.Helper()
@@ -23,15 +22,15 @@ func strayStop(t *testing.T) (runDir, t1, t2 string) {
 	writeReport(t, runDir, "# Findings\n\nLead stands. Alpha holds for every input. Beta holds too.\n\n## Open questions\n\nNone.\n")
 	registerBlue(t, runDir)
 	registerLensOnce(t, runDir)
-	find := func(key, quote string) string {
+	mark := func(key, quote string) string {
 		t.Helper()
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote,
-			"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding %s: %v", key, err)
+		gap, err := mintQuote(t, runDir, key, quote)
+		if err != nil {
+			t.Fatalf("mint %s: %v", key, err)
 		}
-		return anchor.Token(lastBody(t, runDir, &recordpb.Finding{}).GetId())
+		return anchor.Token(gap)
 	}
-	t1, t2 = find("F1", "Alpha holds for every input."), find("F2", "Beta holds too.")
+	t1, t2 = mark("G1", "Alpha holds for every input."), mark("G2", "Beta holds too.")
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", "Alpha holds for every input"+t1+". Beta holds too"+t2, "--new", t1+"\n\n"+t2, "--reason", "cut"); err != nil {
 		t.Fatalf("cut both claims to their markers: %v", err)

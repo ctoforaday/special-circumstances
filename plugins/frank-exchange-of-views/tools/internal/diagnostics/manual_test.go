@@ -19,18 +19,18 @@ func manualText(bin string, pages ...[]string) string {
 
 // THE HEADER ROUND-TRIPS, and a rule that is not followed by this tool's header is body text.
 func TestManualPagesRoundTripTheHeader(t *testing.T) {
-	text := manualText("feov-record", nil, []string{"finding"}, []string{"inquiry", "propose"})
+	text := manualText("feov-record", nil, []string{"mint"}, []string{"inquiry", "propose"})
 	pages := ManualPages(text, "feov-record")
 	var got []string
 	for _, p := range pages {
 		got = append(got, strings.Join(p.Path, " "))
 	}
-	if want := []string{"", "finding", "inquiry propose"}; !slices.Equal(got, want) {
+	if want := []string{"", "mint", "inquiry propose"}; !slices.Equal(got, want) {
 		t.Fatalf("pages = %q, want %q", got, want)
 	}
 	// A PAGE CLOSED BY THE NEXT RULE AND THE LAST PAGE are both exactly what was printed — the
 	// first is where a boundary could eat the newline, and did.
-	for i, want := range map[int]string{1: "help for [finding]\n\nFlags:\n  -h, --help\n", 2: "help for [inquiry propose]\n\nFlags:\n  -h, --help\n"} {
+	for i, want := range map[int]string{1: "help for [mint]\n\nFlags:\n  -h, --help\n", 2: "help for [inquiry propose]\n\nFlags:\n  -h, --help\n"} {
 		if pages[i].Body != want {
 			t.Errorf("page %d body = %q, want %q", i, pages[i].Body, want)
 		}
@@ -38,7 +38,7 @@ func TestManualPagesRoundTripTheHeader(t *testing.T) {
 	if n := len(ManualPages(text, "other-tool")); n != 0 {
 		t.Errorf("%d pages recognised under another tool's name", n)
 	}
-	if n := len(ManualPages(ManualRule+"\n$ feov-record finding\n", "feov-record")); n != 0 {
+	if n := len(ManualPages(ManualRule+"\n$ feov-record mint\n", "feov-record")); n != 0 {
 		t.Errorf("a header without --help was taken for a page")
 	}
 }
@@ -206,18 +206,18 @@ func TestRedirectTarget(t *testing.T) {
 func TestAManualIsAHelpReadOfEveryPage(t *testing.T) {
 	p := traj(t,
 		use("a", `"/tmp/x/feov-record" --seat-id red-lens-evidence manual`),
-		res("a", manualText("feov-record", nil, []string{"finding"}, []string{"verify"}), false),
-		use("b", `"/tmp/x/feov-record" finding --quote q`), res("b", "ok", false),
+		res("a", manualText("feov-record", nil, []string{"mint"}, []string{"verify"}), false),
+		use("b", `"/tmp/x/feov-record" mint --quote q`), res("b", "ok", false),
 	)
-	s, err := ReadSurvey(p, "feov-record", map[string]bool{"finding": true})
+	s, err := ReadSurvey(p, "feov-record", map[string]bool{"mint": true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.FirstUses) != 1 || s.FirstUses[0].Command != "finding" {
+	if len(s.FirstUses) != 1 || s.FirstUses[0].Command != "mint" {
 		t.Fatalf("first uses = %+v — the manual call must not count as a command run", s.FirstUses)
 	}
 	if s.FirstUses[0].Depth != DepthCommand {
-		t.Errorf("depth = %q, want %q — the manual printed finding's own page", s.FirstUses[0].Depth, DepthCommand)
+		t.Errorf("depth = %q, want %q — the manual printed mint's own page", s.FirstUses[0].Depth, DepthCommand)
 	}
 	if len(s.HelpPages) != 3 || s.LastHelpCall != 1 {
 		t.Errorf("help pages = %q (last help call %d), want the three the manual printed", s.HelpPages, s.LastHelpCall)
@@ -243,12 +243,12 @@ func numbered(text string) string {
 // A REDIRECTED MANUAL IS CREDITED WHERE IT IS READ — its Bash result is empty, the pages arrive at
 // the Read, and a target the shell had to expand is settled by the pages themselves.
 func TestARedirectedManualIsCreditedAtItsRead(t *testing.T) {
-	manual := manualText("feov-record", nil, []string{"finding"})
+	manual := manualText("feov-record", nil, []string{"mint"})
 	for _, target := range []string{"/s/manual.txt", "$S/manual.txt"} {
 		p := traj(t,
 			use("a", `"/tmp/x/feov-record" manual > `+target), res("a", "", false),
 			readUse("r", "/s/manual.txt"), res("r", numbered(manual), false),
-			use("b", `"/tmp/x/feov-record" finding`), res("b", "ok", false),
+			use("b", `"/tmp/x/feov-record" mint`), res("b", "ok", false),
 		)
 		s, err := ReadSurvey(p, "feov-record", nil)
 		if err != nil {
@@ -262,7 +262,7 @@ func TestARedirectedManualIsCreditedAtItsRead(t *testing.T) {
 	p := traj(t,
 		use("a", `"/tmp/x/feov-record" manual > /s/manual.txt`), res("a", "", false),
 		readUse("r", "/s/notes.md"), res("r", numbered("just notes\n"), false),
-		use("b", `"/tmp/x/feov-record" finding`), res("b", "ok", false),
+		use("b", `"/tmp/x/feov-record" mint`), res("b", "ok", false),
 	)
 	s, err := ReadSurvey(p, "feov-record", nil)
 	if err != nil {
@@ -277,7 +277,7 @@ func TestARedirectedManualIsCreditedAtItsRead(t *testing.T) {
 func TestAManualWithNoReadablePageIsCounted(t *testing.T) {
 	p := traj(t,
 		use("a", `"/tmp/x/feov-record" manual`), res("a", "feov-record: something went wrong", true),
-		use("b", `"/tmp/x/feov-record" finding`), res("b", "ok", false),
+		use("b", `"/tmp/x/feov-record" mint`), res("b", "ok", false),
 	)
 	s, err := ReadSurvey(p, "feov-record", nil)
 	if err != nil {

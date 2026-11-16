@@ -112,7 +112,6 @@ var enforcedElsewhere = map[string]string{
 	// help and the refusal are generated from recordpb.GradeWords(). A second enforcement in
 	// the table would be the two-readers-of-one-rule mistake required.go warns about.
 	"mint --severity":    gradeParseTime,
-	"finding --severity": gradeParseTime,
 	"regrade --severity": gradeParseTime,
 	"motion --proposed":  gradeParseTime,
 

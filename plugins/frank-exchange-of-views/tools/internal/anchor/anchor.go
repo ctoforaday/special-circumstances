@@ -57,11 +57,10 @@ type kind struct {
 
 // kinds is the table, in the order every walk reports its kinds.
 //
-// A token is an HTML comment, not a footnote: a "[^id]" finding marker rendered as an undefined
+// A token is an HTML comment, not a footnote: a "[^id]" marker rendered as an undefined
 // footnote AND red audited it as one. A comment renders as nothing and is no footnote, so no seat
 // audits it.
 var kinds = []kind{
-	{name: "finding", prefix: "F-", tag: "fx", label: "finding anchor", assembly: Strip},
 	{name: "citation", prefix: "C-", tag: "cite", label: "citation anchor", assembly: WeaveSource, backs: true},
 	{name: "computation", prefix: "K-", tag: "computation", label: "computation anchor", assembly: WeaveComputation, backs: true},
 	{name: "gap", prefix: "G-", tag: "gap", label: "gap anchor", assembly: Strip},
@@ -333,9 +332,7 @@ func BackingMark(sentence string) string {
 }
 
 // Label describes an anchor by its kind and its token, so a seat is told which KIND of anchor its
-// edit would have disturbed and holds the text to carry. It names the token, never the bare id: a
-// finding id in text stands beside its lens's area (record.FindingRef), which no reader of report
-// text alone knows. A generic name is passed through unchanged.
+// edit would have disturbed and holds the text to carry. It names the token, never the bare id. A generic name is passed through unchanged.
 func Label(id string) string {
 	k := rowOf(id)
 	if k.name == "" {

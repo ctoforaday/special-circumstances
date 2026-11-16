@@ -42,31 +42,11 @@ type keyedRetry struct {
 	names      map[string]string   // flag -> the stored statement the refusal names
 	located    [][]string          // replacement pairs that change only what is not compared
 	restated   map[string][]string // whole retries (after --run and --seat-id) -> the stored statement named
-	gaps       bool                // mint two gaps and file two findings first: {G1} {G2} {F1} {F2} in the calls
+	gaps       bool                // mint two gaps first: {G1} {G2} in the calls
 }
 
 func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 	for _, c := range []keyedRetry{
-		{verb: "finding", seat: lensSeat, typ: recordpb.EventType_EVENT_TYPE_FINDING, idField: "finding_id",
-			args: []string{"--key", "K1", "--quote", keyedStored, "--reason", "the bound is unsourced",
-				"--severity", "low", "--likelihood", "low", "--impact", "low"},
-			differ: map[string][]string{
-				"--quote":      {"--quote", keyedOther},
-				"--reason":     {"--reason", "another claim"},
-				"--severity":   {"--severity", "high"},
-				"--likelihood": {"--likelihood", "high"},
-				"--impact":     {"--impact", "high"},
-			},
-			names: map[string]string{
-				"--quote":  `--quote "` + keyedStored + `"`,
-				"--reason": `--reason "the bound is unsourced"`, "--severity": "--severity low",
-				"--likelihood": "--likelihood low", "--impact": "--impact low",
-			}},
-		{verb: "finding", seat: lensSeat, typ: recordpb.EventType_EVENT_TYPE_FINDING, idField: "finding_id",
-			args: []string{"--key", "K2", "--about-kind", "section", "--about", "H", "--reason", "a case is missing",
-				"--severity", "low", "--likelihood", "low", "--impact", "low"},
-			differ: map[string][]string{"--about": {"--about", "J"}},
-			names:  map[string]string{"--about": `--about "H"`}},
 		{verb: "mint", seat: lensSeat, typ: recordpb.EventType_EVENT_TYPE_MINT, idField: "gap_id",
 			args: []string{"--key", "K1", "--quote", keyedStored, "--class", "spec_underspecification",
 				"--problem", "the bound is unsourced", "--fix", "source the bound", "--check-kind", "document",
@@ -98,14 +78,12 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 			args: []string{"--key", "K2", "--quote", keyedStored, "--new", "The measured latency is capped.",
 				"--class", "spec_underspecification", "--problem", "the word is loose", "--fix", "tighten it",
 				"--check-kind", "document", "--check", "the word is exact", "--severity", "low", "--likelihood", "low",
-				"--impact", "low", "--complexity", "low", "--supersedes", "{G1}", "--found-by", "{F1}"},
+				"--impact", "low", "--complexity", "low", "--supersedes", "{G1}"},
 			differ: map[string][]string{
 				"--new":        {"--new", "The measured latency is limited."},
 				"--supersedes": {"--supersedes", "{G2}"},
-				"--found-by":   {"--found-by", "{F2}"},
 			},
-			names: map[string]string{"--new": `--new "The measured latency is capped."`, "--supersedes": "--supersedes {G1}",
-				"--found-by": "--found-by {F1}"}},
+			names: map[string]string{"--new": `--new "The measured latency is capped."`, "--supersedes": "--supersedes {G1}"}},
 		{verb: "mint", seat: lensSeat, typ: recordpb.EventType_EVENT_TYPE_MINT, idField: "gap_id",
 			args: []string{"--key", "K3", "--about-kind", "section", "--about", "H", "--class", "spec_underspecification",
 				"--problem", "a case is missing", "--fix", "add it", "--check-kind", "document", "--check", "the case is there",
@@ -140,24 +118,7 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				var f [2]string
-				for i, q := range []string{keyedStored, keyedOther} {
-					out, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "f"+q, "--quote", q,
-						"--reason", "r", "--severity", "low", "--likelihood", "low", "--impact", "low", "--json")
-					if err != nil {
-						t.Fatal(err)
-					}
-					var env struct {
-						Result struct {
-							ID string `json:"finding_id"`
-						} `json:"result"`
-					}
-					if err := json.Unmarshal([]byte(out), &env); err != nil {
-						t.Fatal(err)
-					}
-					f[i] = env.Result.ID
-				}
-				gap = strings.NewReplacer("{G1}", g1, "{G2}", g2, "{F1}", f[0], "{F2}", f[1])
+				gap = strings.NewReplacer("{G1}", g1, "{G2}", g2)
 			}
 			call := func(args []string) (string, error) {
 				full := []string{c.verb, "--run", runDir, "--seat-id", c.seat, "--json"}
@@ -241,28 +202,19 @@ func str(v any) string {
 // identical retry is the stored edit all the same.
 func TestAnEditRetryIsComparedWithoutTheAnchorsPutBack(t *testing.T) {
 	runDir := keyedRun(t)
-	out, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", keyedStored,
-		"--reason", "the bound is unsourced", "--severity", "low", "--likelihood", "low", "--impact", "low", "--json")
+	gap, err := mintQuote(t, runDir, "G1", keyedStored)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var env struct {
-		Result struct {
-			ID string `json:"finding_id"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.ID == "" {
-		t.Fatalf("no finding id: %v\n%s", err, out)
-	}
-	// The quote carries the finding's anchor and the replacement leaves it out, keeping its sentence:
+	// The quote carries the gap's anchor and the replacement leaves it out, keeping its sentence:
 	// the tool puts the anchor back.
 	edit := []string{"edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1",
-		"--quote", "The measured latency is bounded" + anchor.Token(env.Result.ID),
+		"--quote", "The measured latency is bounded" + anchor.Token(gap),
 		"--new", "Under load. The measured latency is bounded", "--reason", "context first"}
 	if _, err := run(t, edit...); err != nil {
 		t.Fatalf("the edit was refused: %v", err)
 	}
-	if stored := lastBody(t, runDir, &recordpb.BlueEdit{}).GetNew(); !strings.Contains(stored, env.Result.ID) {
+	if stored := lastBody(t, runDir, &recordpb.BlueEdit{}).GetNew(); !strings.Contains(stored, gap) {
 		t.Fatalf("the edit stored %q: no anchor was put back, so this pins nothing", stored)
 	}
 	if out, err := run(t, edit...); err != nil || !strings.Contains(out, repeatedWords) {
