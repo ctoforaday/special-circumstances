@@ -102,3 +102,18 @@ func TestAReadPointMovedToNoOtherSeatsChangeIsNoRetry(t *testing.T) {
 		})
 	}
 }
+
+// staleRefusals counts the Stale events seatID has on gapID.
+func (r *runner) staleRefusals(seatID, gapID string) int {
+	b, ok := r.board()
+	if !ok {
+		return 0
+	}
+	n := 0
+	for _, e := range b.Events {
+		if st, ok := recordpb.BodyAs[*recordpb.Stale](e); ok && e.GetSeatId() == seatID && st.GetGapId() == gapID {
+			n++
+		}
+	}
+	return n
+}

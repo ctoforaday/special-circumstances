@@ -447,29 +447,25 @@ func setArg(args []string, flag, val string) {
 	}
 }
 
-// gapTally reads the gap counts off the stored record at the run's end: what held the run open
-// (PR #1642's four, F7), the gaps minted and closed by epoch, and the one-gap rule over the report.
+// gapTally reads the gap counts off the stored record at the run's end: the gaps minted and closed
+// by epoch, the gaps minted below material, and the one-gap rule over the report.
 func gapTally(res *outcome, board record.Family, run record.Run) {
-	res.openByFoundBy, res.mintsByEpoch, res.closesByEpoch = map[string]int{}, map[int]int{}, map[int]int{}
+	res.mintsByEpoch, res.closesByEpoch = map[int]int{}, map[int]int{}
 	report, rerr := record.RenderRun(run)
 	spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
 	perClassSentence := map[string][]*record.Gap{}
 	var keys []string
 	for _, g := range board.Gaps {
 		res.mintsByEpoch[g.Epoch]++
+		if g.Mint.GetClassMaterial() == recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE &&
+			g.Mint.GetSeverity() != recordpb.Grade_GRADE_UNSPECIFIED && g.Mint.GetSeverity() < recordpb.Grade_GRADE_MEDIUM {
+			res.nonMaterialMints++
+		}
 		if g.HasClosed {
 			res.closesByEpoch[g.ClosedEpoch]++
 		}
 		if !g.Open {
 			continue
-		}
-		switch {
-		case slices.Contains(record.ReadingMintedClasses(), g.Mint.GetClass()):
-			res.openByFoundBy["reading"]++
-		case g.Mint.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && anchor.Kind(g.Mint.GetAboutRef()) == "computation":
-			res.openByFoundBy["unsound_computation"]++
-		default:
-			res.openByFoundBy["none"]++
 		}
 		// ONE GAP PER CLASS IN ONE SENTENCE, read off the report: the sentence the gap's token stands
 		// in, as the rule reads it (record's gapSentenceIn) — the whole token inside one sentence span,
