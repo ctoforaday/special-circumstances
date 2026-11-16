@@ -171,7 +171,7 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 	}
 }
 
-// A GAP OR FINDING ABOUT A COMPUTATION NAMES ONE: the write refuses an anchor no computation carries.
+// A GAP ABOUT A COMPUTATION NAMES ONE: the write refuses an anchor no computation carries.
 func TestAnActAboutAComputationNamesOne(t *testing.T) {
 	run := unsoundBoard(t).seed()
 	_, err := Append(Identity{Run: run, SeatID: compLens}, aboutComputation("G-1", "K-9"))

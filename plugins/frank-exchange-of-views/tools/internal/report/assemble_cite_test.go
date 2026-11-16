@@ -63,16 +63,16 @@ func TestWeaveCitationsSurfacesDanglingAnchor(t *testing.T) {
 	}
 }
 
-// Findings are STRIPPED and citations are RESOLVED — orthogonal passes over one report.
-func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
+// Gap markers are STRIPPED and citations are RESOLVED — orthogonal passes over one report.
+func TestAssembleStripsGapMarkersAndResolvesCitations(t *testing.T) {
 	runDir := newRun(t)
 	blue := strings.Join([]string{
 		"# Coherence — research report",
 		"",
 		"## TL;DR",
-		// One finding marker (must be STRIPPED) and one citation anchor (must be RESOLVED),
+		// One gap marker (must be STRIPPED) and one citation anchor (must be RESOLVED),
 		// on the same sentence.
-		"The cache is coherent<!--fx:F-00000aaa--><!--cite:C-00000001-->.",
+		"The cache is coherent<!--gap:G-00000aaa--><!--cite:C-00000001-->.",
 		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
@@ -109,8 +109,8 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	b, _ := os.ReadFile(path)
 	got := string(b)
 
-	if strings.Contains(got, "<!--fx:") {
-		t.Error("a finding marker survived assembly")
+	if strings.Contains(got, "<!--gap:") {
+		t.Error("a gap marker survived assembly")
 	}
 	if strings.Contains(got, "<!--cite:") {
 		t.Error("a citation anchor survived assembly (should be woven to [^N])")

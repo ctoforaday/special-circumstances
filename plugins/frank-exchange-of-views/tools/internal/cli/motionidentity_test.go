@@ -22,7 +22,7 @@ import (
 
 // A MOTION IS FILED UNDER THE SEAT THE AGENT REGISTERED AS, OR NOT AT ALL (#1204).
 //
-// The filer id is what found_by, estoppel and the bench read, so a motion recorded under another
+// The filer id is what estoppel and the bench read, so a motion recorded under another
 // seat's id is an argument credited to a party that never made it. Measured on a scratch run before
 // the fix: an agent registered as red-lens-evidence ran `motion petition file --seat-id
 // red-lens-logic` and the record carried `"filer": "red-lens-logic"`, while the same agent's `log`

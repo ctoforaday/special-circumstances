@@ -135,7 +135,6 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('computation', 'a progr
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('envelope_admitted', 'the envelope an agent returned, admitted: the record refused nothing on the seat''s work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry', 'an inquiry: its question, its hypothesis and each fate recorded on it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_check', 'the owning lens''s judgement that an inquiry''s latest fate is sound as the report''s account of it, with the reason it holds — a settled inquiry holds the PASS until one stands');
@@ -260,7 +259,7 @@ CREATE TABLE "enum_petition_class" (
 ) STRICT;
 INSERT INTO "enum_petition_class" ("value", "means") VALUES ('constitutional', 'the instruction itself conflicts with the rules the run is bound by');
 INSERT INTO "enum_petition_class" ("value", "means") VALUES ('ethical', 'proceeding would require acting against the interests of someone the run affects');
-INSERT INTO "enum_petition_class" ("value", "means") VALUES ('integrity', 'proceeding would require asserting what you believe false, or burying a real finding');
+INSERT INTO "enum_petition_class" ("value", "means") VALUES ('integrity', 'proceeding would require asserting what you believe false, or burying a real defect');
 INSERT INTO "enum_petition_class" ("value", "means") VALUES ('safety', 'proceeding would create or conceal a hazard');
 
 CREATE TABLE "enum_grade_ruling" (
@@ -286,7 +285,7 @@ INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('amends_prio
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('moot', 'the gap''s predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap''s limits count afresh from it', 0);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
@@ -311,7 +310,6 @@ CREATE TABLE "enum_about_kind" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('anchor', 'a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source''s defect names the citation, never the sentence');
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s text or a computation contradicts. The steelman duty''s own anchor');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
 
@@ -627,13 +625,6 @@ CREATE TABLE "mint_supersedes" (
   FOREIGN KEY ("value") REFERENCES "mint"("gap_id")
 ) STRICT;
 
-CREATE TABLE "mint_found_by" (
-  "event_id" INTEGER NOT NULL REFERENCES "mint"("event_id"),
-  "ord"      INTEGER NOT NULL,
-  "value"    TEXT    NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
-) STRICT;
-
 CREATE TABLE "close" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "gap_id" TEXT NOT NULL,
@@ -720,23 +711,6 @@ CREATE TABLE "spot_check_changes" (
   "ord"      INTEGER NOT NULL,
   "value"    INTEGER NOT NULL,
   PRIMARY KEY ("event_id", "ord")
-) STRICT;
-
-CREATE TABLE "finding" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "id" TEXT NOT NULL UNIQUE,
-  "finding_key" TEXT,
-  "location" TEXT,
-  "text" TEXT,
-  "severity" TEXT,
-  "likelihood" TEXT,
-  "impact" TEXT,
-  "about_kind" TEXT,
-  "about_ref" TEXT,
-  FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
-  FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
-  FOREIGN KEY ("impact") REFERENCES "enum_grade"("value"),
-  FOREIGN KEY ("about_kind") REFERENCES "enum_about_kind"("value")
 ) STRICT;
 
 CREATE TABLE "anchor" (
@@ -1024,10 +998,9 @@ CREATE INDEX "sitting_open_agent" ON "sitting_open" ("agent_id");
 -- An agent's registrations: the seat it registered as (RegisteredSeatOfAgent) and the sitting it
 -- holds (registeredSitting).
 CREATE INDEX "register_agent" ON "register" ("agent_id");
--- A seat's keyed retry of an act, found by the key it sent (ExistingBlueEditByKey, FindingByKey,
+-- A seat's keyed retry of an act, found by the key it sent (ExistingBlueEditByKey,
 -- ExistingMintByKey, ExistingCiteByKey, ExistingComputationByKey, ExistingProposalByText).
 CREATE INDEX "blue_edit_key" ON "blue_edit" ("edit_key");
-CREATE INDEX "finding_key" ON "finding" ("finding_key");
 CREATE INDEX "mint_key" ON "mint" ("mint_key");
 CREATE INDEX "cite_key" ON "cite" ("cite_key");
 CREATE INDEX "computation_key" ON "computation" ("key");
@@ -1604,8 +1577,6 @@ WHERE a."about_kind" = 'anchor';
 -- without touching it, and a count written here goes stale silently — which is this comment's own
 -- failure mode, not just the schema's.
 --
--- A field added to Finding does not have this problem: the findings view reads the proto.
---
 -- The state's columns, as gap_refresh answers each:
 --   close_event, bench_close_event  the last close, and the last closing docket ruling. A gap can be
 --                       closed more than once — red re-adjudicates across epochs, the bench rules
@@ -1838,7 +1809,7 @@ LEFT JOIN "events" ce ON ce."id" =
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
 --            One row per anchor event placed by its quote: every act that places a marker — a
---            finding, a gap, a citation, a computation — appends one after its own
+--            gap, a citation, a computation — appends one after its own
 --            event, so where an id is placed is read from one table.
 --   sentence_of → a=the id of an anchor already in the text, b=the marker id (Token(b) is spliced
 --            at the end of the sentence Token(a) sits in, found by that token, never by text);

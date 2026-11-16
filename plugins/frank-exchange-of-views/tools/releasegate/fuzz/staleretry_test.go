@@ -10,8 +10,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// staleMinter mints the gap staleRun's lenses file on; staleFiler is the lens whose finding about it
-// meets the stale refusals; staleSiblings sit beside it and each lands one finding on the gap.
+// staleMinter mints the gap staleRun's lenses act on; staleFiler is the lens whose act on it meets
+// the stale refusals; staleSiblings sit beside it.
 const (
 	staleMinter = "red-lens-logic"
 	staleFiler  = "red-lens-dark-side"
@@ -54,48 +54,6 @@ func staleRun(t *testing.T) (*runner, string) {
 		t.Fatalf("the board holds %v open after one mint, want one gap", open)
 	}
 	return r, open[0]
-}
-
-// siblingFinds is a lens sitting beside the filer and landing one finding about gapID.
-func (r *runner) siblingFinds(t *testing.T, seatID, gapID string) {
-	t.Helper()
-	r.dispatchSits("lens", seatID)
-	r.mustExec(t, "--json", "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", gapID,
-		"--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "fuzz: "+seatID+" on the same gap")
-	r.dispatchReturns(seatID, false)
-}
-
-// A LENS'S ACT ON A GAP ITS SIBLINGS KEEP CHANGING LANDS ONCE THEY STOP (seed 9 of #1660's sweep):
-// the filer sits, a sibling files about the gap, and the filer's finding is refused as a stale read;
-// between each of its attempts another sibling lands a finding on the gap, so each attempt is refused
-// for a change the previous refusal could not show. The record is right each time, and the act lands
-// at the first attempt no sibling's act preceded. Four siblings is more refusals than the three
-// attempts the drive once allowed.
-func TestAnActRefusedForEachSiblingsChangeLandsOnceTheyStop(t *testing.T) {
-	r, gap := staleRun(t)
-	r.dispatchSits("lens", staleFiler)
-	r.siblingFinds(t, staleSiblings[0], gap)
-	next := 1
-	r.betweenStaleRetries = func(seatID, gapID string) {
-		if seatID != staleFiler || gapID != gap {
-			t.Errorf("a retry of %s on %s, want %s's on %s", seatID, gapID, staleFiler, gap)
-		}
-		if next < len(staleSiblings) {
-			r.siblingFinds(t, staleSiblings[next], gap)
-			next++
-		}
-	}
-	if _, ok := r.admitFresh(gap, "finding", "--seat-id", staleFiler, "--about-kind", "gap", "--about", gap,
-		"--severity", "medium", "--likelihood", "low", "--impact", "medium", "--reason", "fuzz finding"); !ok {
-		t.Fatalf("the filer's finding was not admitted: %s", r.actErr)
-	}
-	r.dispatchReturns(staleFiler, false)
-	if r.actErr != "" {
-		t.Fatalf("the drive: %s", r.actErr)
-	}
-	if got := r.staleRefusals(staleFiler, gap); got != len(staleSiblings) {
-		t.Errorf("the filer met %d stale refusal(s) on %s, want one per sibling's finding, %d", got, gap, len(staleSiblings))
-	}
 }
 
 // A STALE REFUSAL THAT MOVES THE READ POINT TO NO OTHER SEAT'S ACT ENDS THE RETRIES: retried on it,

@@ -15,7 +15,7 @@ import (
 )
 
 // blue edit is the write path for the report's text once the parts are recorded. These drive the
-// real command tree: an exact span replace that PRESERVES red's invisible finding-markers, rejects
+// real command tree: an exact span replace that PRESERVES red's invisible markers, rejects
 // a marker-spanning edit, records a report op, and reconciles idempotently after a crash.
 
 func writeReport(t *testing.T, runDir, body string) {
@@ -74,17 +74,17 @@ func registerBlue(t *testing.T, runDir string) {
 
 func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	runDir := newRun(t)
-	// A trailing finding-marker after "time"; a footnote after "grows".
-	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--fx:F-00abc123-->. Volume grows[^v] steadily.\n")
+	// A trailing gap marker after "time"; a footnote after "grows".
+	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--gap:G-00abc123-->. Volume grows[^v] steadily.\n")
 	registerBlue(t, runDir)
 
 	// THE QUOTE CARRIES THE MARKER, because the span ends exactly where the marker begins —
-	// "rising over time" IS the text F-00abc123 is attached to. Quoting it without the token was
+	// "rising over time" IS the text G-00abc123 is attached to. Quoting it without the token was
 	// accepted before and left the anchor beside prose it was never placed against; now the seat
 	// quotes what `show report` prints and copies the token into --new like any other character.
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--quote", "rising over time<!--fx:F-00abc123-->",
-		"--new", "climbing sharply<!--fx:F-00abc123-->", "--reason", "sharper phrasing")
+		"--key", "E1", "--quote", "rising over time<!--gap:G-00abc123-->",
+		"--new", "climbing sharply<!--gap:G-00abc123-->", "--reason", "sharper phrasing")
 	if err != nil {
 		t.Fatalf("blue edit: %v (out %q)", err, out)
 	}
@@ -92,20 +92,20 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	if !strings.Contains(rep, "climbing sharply") || strings.Contains(rep, "rising over time") {
 		t.Errorf("span not replaced: %q", rep)
 	}
-	if !strings.Contains(rep, "<!--fx:F-00abc123-->") {
-		t.Errorf("finding-marker was dropped: %q", rep)
+	if !strings.Contains(rep, "<!--gap:G-00abc123-->") {
+		t.Errorf("gap marker was dropped: %q", rep)
 	}
 	// THE MARKERS ARE IN THE RECORDED OP, on both sides. The diff stack is the record of what
 	// text moved, and the anchor is part of the text — an op showing a replacement that silently
 	// omits the token would describe an edit nobody made. Carrying it in `old` and `new` is also
 	// what lets the stack be replayed or reviewed without the document to hand.
 	ev := lastBody(t, runDir, &recordpb.BlueEdit{})
-	if ev.GetOld() != "rising over time<!--fx:F-00abc123-->" || ev.GetNew() != "climbing sharply<!--fx:F-00abc123-->" {
+	if ev.GetOld() != "rising over time<!--gap:G-00abc123-->" || ev.GetNew() != "climbing sharply<!--gap:G-00abc123-->" {
 		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.GetOld(), ev.GetNew())
 	}
-	// AND THE EDIT REOPENED THE FINDING, because it rewrote the words that finding is anchored to.
-	if got := ev.GetReopened(); len(got) != 1 || got[0] != "F-00abc123" {
-		t.Errorf("reopened = %v, want [F-00abc123] — the marker survived onto different words, which is exactly the case that needs re-reading", got)
+	// AND THE EDIT REOPENED THE ANCHOR, because it rewrote the words the gap is anchored to.
+	if got := ev.GetReopened(); len(got) != 1 || got[0] != "G-00abc123" {
+		t.Errorf("reopened = %v, want [G-00abc123] — the marker survived onto different words, which is exactly the case that needs re-reading", got)
 	}
 	if ev.GetText() != "sharper phrasing" {
 		t.Errorf("reason not recorded: %q", ev.GetText())
@@ -114,7 +114,7 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 
 func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	runDir := newRun(t)
-	writeReport(t, runDir, "# H\n\nThe value is context<!--fx:F-00000001-->: important here.\n")
+	writeReport(t, runDir, "# H\n\nThe value is context<!--gap:G-00000001-->: important here.\n")
 	registerBlue(t, runDir)
 
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
@@ -126,7 +126,7 @@ func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	// name the marker and tell blue how to succeed — carry the token across — rather than the old
 	// "edit around it", which deadlocked against the uniqueness guard whenever the disambiguating
 	// context was the anchored text itself.
-	if !strings.Contains(err.Error(), "F-00000001") || !strings.Contains(err.Error(), "<!--fx:F-00000001-->") {
+	if !strings.Contains(err.Error(), "G-00000001") || !strings.Contains(err.Error(), "<!--gap:G-00000001-->") {
 		t.Errorf("reject message should name the marker and quote the token to reproduce: %v", err)
 	}
 	if strings.Contains(readReport(t, runDir), "vital") {
@@ -570,7 +570,7 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 		"--key", "G2", "--class", "spec_underspecification", "--quote", "Sieve costs grow with the bound.",
 		"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
-		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)
+		t.Fatalf("an unrelated gap was estopped — the guard is over-broad: %v", err)
 	}
 }
 
@@ -792,9 +792,9 @@ func TestAcceptIsIdempotentOnRetry(t *testing.T) {
 // naming it, with nothing recorded; a fragment edit keeping its fragment re-places the anchor and
 // reopens it, because the document's sentence moved.
 func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
-	const fx, cite, rose, climb = "<!--fx:F-aaaa1111-->", "<!--cite:C-bbbb2222-->", "<!--fx:F-cccc3333-->", "<!--fx:F-dddd4444-->"
+	const high, cite, rose, climb = "<!--gap:G-aaaa1111-->", "<!--cite:C-bbbb2222-->", "<!--gap:G-cccc3333-->", "<!--gap:G-dddd4444-->"
 	runDir := newRun(t)
-	writeReport(t, runDir, "# Findings\n\nOld intro. The cost is high"+fx+".\n\nRevenue fell sharply in Q1"+cite+".\n\n"+
+	writeReport(t, runDir, "# Findings\n\nOld intro. The cost is high"+high+".\n\nRevenue fell sharply in Q1"+cite+".\n\n"+
 		"Costs rose"+rose+".\n\nPrices climbed"+climb+".\n")
 	registerBlue(t, runDir)
 	edit := func(quote, replacement string) error {
@@ -820,13 +820,13 @@ func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
 	}
 
 	t.Run("the sentence once in the replacement", func(t *testing.T) {
-		if err := edit("Old intro. The cost is high"+fx, "New intro. The cost is high"); err != nil {
+		if err := edit("Old intro. The cost is high"+high, "New intro. The cost is high"); err != nil {
 			t.Fatal(err)
 		}
-		if ev := lastBody(t, runDir, &recordpb.BlueEdit{}); ev.GetNew() != "New intro. The cost is high"+fx {
-			t.Errorf("recorded new = %q, want the hand-carried %q", ev.GetNew(), "New intro. The cost is high"+fx)
+		if ev := lastBody(t, runDir, &recordpb.BlueEdit{}); ev.GetNew() != "New intro. The cost is high"+high {
+			t.Errorf("recorded new = %q, want the hand-carried %q", ev.GetNew(), "New intro. The cost is high"+high)
 		}
-		if md := readReport(t, runDir); !strings.Contains(md, "\nNew intro. The cost is high"+fx+".\n") {
+		if md := readReport(t, runDir); !strings.Contains(md, "\nNew intro. The cost is high"+high+".\n") {
 			t.Errorf("the anchor is not back on its sentence:\n%s", md)
 		}
 	})

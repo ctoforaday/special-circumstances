@@ -264,10 +264,9 @@ CREATE INDEX "sitting_open_agent" ON "sitting_open" ("agent_id");
 -- An agent's registrations: the seat it registered as (RegisteredSeatOfAgent) and the sitting it
 -- holds (registeredSitting).
 CREATE INDEX "register_agent" ON "register" ("agent_id");
--- A seat's keyed retry of an act, found by the key it sent (ExistingBlueEditByKey, FindingByKey,
+-- A seat's keyed retry of an act, found by the key it sent (ExistingBlueEditByKey,
 -- ExistingMintByKey, ExistingCiteByKey, ExistingComputationByKey, ExistingProposalByText).
 CREATE INDEX "blue_edit_key" ON "blue_edit" ("edit_key");
-CREATE INDEX "finding_key" ON "finding" ("finding_key");
 CREATE INDEX "mint_key" ON "mint" ("mint_key");
 CREATE INDEX "cite_key" ON "cite" ("cite_key");
 CREATE INDEX "computation_key" ON "computation" ("key");

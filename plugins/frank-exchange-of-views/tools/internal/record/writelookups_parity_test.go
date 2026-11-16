@@ -96,23 +96,4 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if err := RequireInquiryRef(run, "Q9", "--id"); err == nil {
 		t.Error("RequireInquiryRef accepted an inquiry nobody proposed")
 	}
-
-	// Findings: the key lookup and the reference check.
-	if _, err := Append(Identity{Run: run, SeatID: "red-lens-evidence"}, &recordpb.Finding{
-		Id: proto.String("F-0a0a0a0a"), FindingKey: proto.String("fk-1"),
-		Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
-		t.Fatal(err)
-	}
-	if id, err := FindingByKey(run, "red-lens-evidence", "fk-1"); err != nil || id.GetId() != "F-0a0a0a0a" {
-		t.Errorf("FindingByKey = (%q, %v)", id.GetId(), err)
-	}
-	if id, err := FindingByKey(run, "red-lens-logic", "fk-1"); err != nil || id.GetId() != "" {
-		t.Errorf("FindingByKey must scope to the seat: got (%q, %v)", id.GetId(), err)
-	}
-	if err := requireFindings(recordOf(t, run), []string{"F-0a0a0a0a"}, "--found-by"); err != nil {
-		t.Errorf("requireFindings on a recorded id = %v", err)
-	}
-	if err := requireFindings(recordOf(t, run), []string{"F-0a0a0a0a", "F-99999999"}, "--found-by"); err == nil || !strings.Contains(err.Error(), "F-99999999") {
-		t.Errorf("requireFindings must name the first missing id: %v", err)
-	}
 }

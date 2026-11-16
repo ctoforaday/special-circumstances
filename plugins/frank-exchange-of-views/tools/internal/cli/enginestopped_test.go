@@ -42,7 +42,7 @@ func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
 
 	t.Run("the error is the harness's failure entry, written by the tool, with the text it was given", func(t *testing.T) {
 		runDir := seatRun(t)
-		logStop(t, runDir, stop+" <!--fx:F-1234abcd-->")
+		logStop(t, runDir, stop+" <!--gap:G-1234abcd-->")
 		got := stops(t, runDir)
 		if len(got) != 1 {
 			t.Fatalf("want one entry under %s, got %d", record.HarnessSeat, len(got))
@@ -50,7 +50,7 @@ func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
 		if got[0].GetType() != recordpb.LogType_LOG_TYPE_FAILURE || got[0].GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL {
 			t.Errorf("the stop is (%s, %s), want (tool, failure)", recordpb.Word(got[0].GetSource()), recordpb.Word(got[0].GetType()))
 		}
-		if want := stop + " F-1234abcd"; got[0].GetText() != want {
+		if want := stop + " G-1234abcd"; got[0].GetText() != want {
 			t.Errorf("the entry does not carry the error as given, its anchor named by id:\n got %q\nwant %q", got[0].GetText(), want)
 		}
 	})

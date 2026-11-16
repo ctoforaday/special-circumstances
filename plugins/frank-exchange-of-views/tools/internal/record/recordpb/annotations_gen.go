@@ -82,7 +82,6 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_CLOSE", Means: "red closing a gap on a verified repair — red's half of the closing vocabulary"},
 	{Name: "EVENT_TYPE_CLOSING", Means: "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"},
 	{Name: "EVENT_TYPE_DECLARE", Means: "the bench stating a holding that later sittings are expected to apply"},
-	{Name: "EVENT_TYPE_FINDING", Means: "something red found, graded but not yet minted as a gap"},
 	{Name: "EVENT_TYPE_LOG", Means: "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"},
 	{Name: "EVENT_TYPE_HALT", Means: "the bench ending the run on a safety, ethics, consent or integrity boundary"},
 	{Name: "EVENT_TYPE_MINT", Means: "a gap put on the board — the act that creates the entity every other act refers to"},
@@ -190,7 +189,7 @@ var annotationsDisposition = [...]ValueAnnotations{
 	{Name: "DISPOSITION_REPAIRED", Means: "the repair was verified at the leaf and nothing regressed", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_REPAIRED_WITH_REGRESSION", Means: "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_AMENDS_PRIOR", Means: "a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it", Closes: DeclaredBool{Declared: true, Value: true}},
-	{Name: "DISPOSITION_NOT_A_DEFECT", Means: "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", Closes: DeclaredBool{Declared: true, Value: true}},
+	{Name: "DISPOSITION_NOT_A_DEFECT", Means: "blue argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_DEFECT_ACCEPTED", Means: "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_DEFECT_OWED_ELSEWHERE", Means: "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_REMANDED", Means: "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", Closes: DeclaredBool{Declared: true, Value: false}},
@@ -275,7 +274,6 @@ var annotationsAboutKind = [...]ValueAnnotations{
 	{Name: "ABOUT_KIND_UNSPECIFIED"},
 	{Name: "ABOUT_KIND_SECTION", Means: "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"},
 	{Name: "ABOUT_KIND_INQUIRY", Means: "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"},
-	{Name: "ABOUT_KIND_GAP", Means: "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"},
 	{Name: "ABOUT_KIND_ANCHOR", Means: "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence"},
 }
 
@@ -348,7 +346,7 @@ var annotationsGradeDimension = [...]ValueAnnotations{
 
 var annotationsPetitionClass = [...]ValueAnnotations{
 	{Name: "PETITION_CLASS_UNSPECIFIED"},
-	{Name: "PETITION_CLASS_INTEGRITY", Means: "proceeding would require asserting what you believe false, or burying a real finding"},
+	{Name: "PETITION_CLASS_INTEGRITY", Means: "proceeding would require asserting what you believe false, or burying a real defect"},
 	{Name: "PETITION_CLASS_SAFETY", Means: "proceeding would create or conceal a hazard"},
 	{Name: "PETITION_CLASS_ETHICAL", Means: "proceeding would require acting against the interests of someone the run affects"},
 	{Name: "PETITION_CLASS_CONSTITUTIONAL", Means: "the instruction itself conflicts with the rules the run is bound by"},

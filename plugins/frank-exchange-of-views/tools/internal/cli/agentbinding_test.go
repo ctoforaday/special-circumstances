@@ -313,7 +313,7 @@ func TestAFlagContradictingTheBindingIsRefused(t *testing.T) {
 	}
 	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-adversary", "--reason", "x", "--type", "defect")
 	if err == nil {
-		t.Fatal("an event was filed under a seat this agent did not register as; every found_by and estoppel downstream reads that attribution")
+		t.Fatal("an event was filed under a seat this agent did not register as; every estoppel and assignee downstream reads that attribution")
 	}
 	for _, want := range []string{"red-lens-evidence", "red-lens-adversary"} {
 		if !strings.Contains(err.Error(), want) {

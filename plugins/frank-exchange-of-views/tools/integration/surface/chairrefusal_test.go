@@ -19,10 +19,10 @@ import (
 // THE CONVERGENCE REFUSAL NAMES ONLY ACTS ON THE CHAIR'S SURFACE.
 //
 // The chair is the one seat with `verdict`, so the FAIL refusal over a converged board has exactly
-// one reader. It told that reader to "raise something material — a material finding … minted as a
-// gap": a lens's `finding` and `mint`, on no surface the chair holds, and with no chair route to ready
-// a lens. The chair could only log the request or work around it, and a refusal is the moment a seat
-// is most likely to do as it is told.
+// one reader. A refusal that tells that reader to raise something material, minted as a gap, names
+// a lens's `mint`, on no surface the chair holds, and with no chair route to ready a lens. The chair
+// can then only log the request or work around it, and a refusal is the moment a seat is most likely
+// to do as it is told.
 //
 // IT READS THE RENDERED REFUSAL over a real converged board and asks the chair's real command tree.
 // Two matchers:

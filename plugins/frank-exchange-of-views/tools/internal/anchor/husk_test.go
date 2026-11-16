@@ -17,7 +17,7 @@ func TestAHuskIsMarkersAndSentencePunctuation(t *testing.T) {
 	for _, s := range []string{
 		"| --- | --- |", "|:---|---:|", "| ✓ | ✗ |", "| — | ✓ |", "---", "***", "    }", "→", "—", "- [ ]", "1.", "a",
 		"* * *", "* *", "- - -", "___", "(", ")", "*", "(a)", "**a**", "| () | ✓ |", "(]", "“", "( )", `"`,
-		"- " + Token("F-00000001"), Token("C-00000001") + ".",
+		"- " + Token("G-00000001"), Token("C-00000001") + ".",
 	} {
 		if Husk(s) {
 			t.Errorf("Husk(%q) is true; that is content, or still holds an anchor", s)
@@ -31,7 +31,7 @@ func TestAHuskIsMarkersAndSentencePunctuation(t *testing.T) {
 // the content, and a token keep reports true for — one in code, one the weave turns into a note —
 // stays where it stands.
 func TestStripWrittenTakesTokensAndTheHusksTheyLeave(t *testing.T) {
-	f, c := Token("F-00000001"), Token("C-00000001")
+	f, c := Token("G-00000001"), Token("C-00000001")
 	in := "kept line\n- " + f + ".\n| --- " + f + "|\nclaim" + c + " here"
 	if got, want := StripWritten(in, nil), "kept line\n| --- |\nclaim here"; got != want {
 		t.Errorf("StripWritten(%q, nil) = %q, want %q", in, got, want)

@@ -104,7 +104,7 @@ func TestTheHandleFlagSaysWhichVerbsTakeOne(t *testing.T) {
 		absent string
 	}{
 		{"blue-respond", []string{"cite", "edit", "compute"}, "Only cite, compute and edit take a handle: no other verb on this surface has this flag", "retire"},
-		{"red-lens-evidence", []string{"finding", "mint"}, "Only finding and mint take a handle: no other verb on this surface has this flag", "close"},
+		{"red-lens-evidence", []string{"mint"}, "Only mint takes a handle: no other verb on this surface has this flag", "close"},
 	} {
 		root := NewRootFor(tc.seat)
 		for _, v := range tc.verbs {
@@ -118,22 +118,6 @@ func TestTheHandleFlagSaysWhichVerbsTakeOne(t *testing.T) {
 		}
 		if cmdAt(root, []string{tc.absent}).Flags().Lookup("key") != nil {
 			t.Fatalf("%s: `%s` takes --key, so the row's sentence is no longer the tree's", tc.seat, tc.absent)
-		}
-	}
-}
-
-// `finding --reason` SAYS IT CARRIES THE FINDING. The verbs on either side of it in a lens's own
-// sequence name the statement `--problem`, and this page gave --reason the text every act shares
-// — "why you graded, closed, ruled or edited" — which names four acts and not this one.
-func TestFindingsReasonSaysItCarriesTheFinding(t *testing.T) {
-	root := NewRootFor("red-lens-evidence")
-	u := cmdAt(root, []string{"finding"}).Flags().Lookup("reason").Usage
-	if strings.Contains(u, "graded, closed, ruled or edited") {
-		t.Errorf("finding --reason carries the text every act shares, which does not name a finding:\n%s", u)
-	}
-	for _, w := range []string{"the finding itself", "no other flag states the problem"} {
-		if !strings.Contains(u, w) {
-			t.Errorf("finding --reason does not say %q:\n%s", w, u)
 		}
 	}
 }

@@ -30,7 +30,7 @@ func TestReopenedAnchorsCatchesTextMovingUnderAReference(t *testing.T) {
 
 	// A SECOND ANCHOR ARRIVING IN THE SAME SENTENCE IS NOT A CHANGE TO THE FIRST. Anchors are
 	// stripped before comparing, or every cite would reopen its own neighbours.
-	twin := "# H\n\nThe sky is blue and the grass is green" + tok + "<!--fx:F-009f2a1c-->.\n\nAnother sentence entirely.\n"
+	twin := "# H\n\nThe sky is blue and the grass is green" + tok + "<!--gap:G-009f2a1c-->.\n\nAnother sentence entirely.\n"
 	if got := ReopenedAnchors(before, twin); len(got) != 0 {
 		t.Errorf("ReopenedAnchors = %v, want none — a neighbouring anchor is not a change to this one's referent", got)
 	}
@@ -57,7 +57,7 @@ func TestReopenedAnchorsCatchesTextMovingUnderAReference(t *testing.T) {
 // carries is inside, with every anchor of the run before it. Nothing here refuses: replay runs the
 // same locate on every recorded edit.
 func TestTheQuoteDecidesWhichAnchorsTheSpanHolds(t *testing.T) {
-	const a, b, g = "<!--fx:F-000000a1-->", "<!--cite:C-000000b2-->", "<!--gap:G-000000c3-->"
+	const a, b, g = "<!--gap:G-000000a1-->", "<!--cite:C-000000b2-->", "<!--gap:G-000000c3-->"
 	const body = "# H\n\nThe sky is blue"
 	for _, c := range []struct{ name, run, quote, held string }{
 		{"one anchor, the sentence quoted without it", a, "The sky is blue.", ""},

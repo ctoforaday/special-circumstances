@@ -227,7 +227,7 @@ func TestAGapPastTheBudgetIsCutAndSaysSo(t *testing.T) {
 		g := record.WorkGapJSON{ID: "G-1", MintedBy: "red-lens-architecture", YourTurn: true, Class: "false_universal", Material: true,
 			Location: "the sentence", Passage: long + "the sentence. " + long, Problem: "problem " + tc.prose, RequiredFix: "fix " + tc.prose,
 			AcceptanceCheck: "check " + tc.prose, FixBasis: "quoted", FixOld: "old " + tc.prose, FixNew: "new " + tc.prose,
-			Backing: backingOf(tc.backing), EditedSince: editsOf(tc.edits), RegradesOwed: []record.OwedRegradeJSON{}, FoundBy: []string{"F-1"}}
+			Backing: backingOf(tc.backing), EditedSince: editsOf(tc.edits), RegradesOwed: []record.OwedRegradeJSON{}}
 		w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-architecture", Role: "lens",
 			Open: []record.Item{{Kind: record.ItemReaudit, Subject: &record.ItemSubject{Kind: record.SubjectGap, ID: "G-1"}, What: "gap G-1 was answered"}}},
 			Open: []record.WorkGapJSON{g}}

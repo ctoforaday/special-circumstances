@@ -61,7 +61,7 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	registerLensOnce(t, runDir)
 	sky := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 	grass := citeSentence(t, runDir, "The grass is green.", "https://grass/1")
-	finding, _ := markerOfKind(t, runDir, "finding", "Fire is hot.")
+	gap, _ := markerOfKind(t, runDir, "gap", "Fire is hot.")
 	retire := func(anchors string) error {
 		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", anchors, "--reason", "unreadable")
 		return err
@@ -79,7 +79,7 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	}
 	retires := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE)
 	refused("two citations", retire(sky+","+grass), "names 2", sky, grass)
-	refused("a finding", retire(finding), finding+" is a finding anchor", "--quote")
+	refused("a gap", retire(gap), gap+" is a gap anchor", "--quote")
 	if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != retires {
 		t.Errorf("%d retire(s) recorded by refused retires", n-retires)
 	}

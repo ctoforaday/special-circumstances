@@ -104,8 +104,7 @@ func DispositionOf(word string) (recordpb.Disposition, bool) {
 	return enumOf[recordpb.Disposition](recordpb.Disposition(0).Descriptor(), word)
 }
 
-// AboutKindOf resolves the word a seat types for what a finding or a gap is anchored to — one
-// vocabulary, because `lens finding` and `lens mint` name the same three things.
+// AboutKindOf resolves the word a seat types for what a gap is anchored to when it is not a sentence.
 func AboutKindOf(word string) (recordpb.AboutKind, bool) {
 	return enumOf[recordpb.AboutKind](recordpb.AboutKind(0).Descriptor(), word)
 }

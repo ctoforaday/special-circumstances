@@ -53,7 +53,7 @@ minted GAP001
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity low --likelihood low --impact low --quote A claim sits under S2. --reason quotes " ' `backtick` $(subshell) ${var}
+$ mint --run {RUN} --seat-id red-lens-logic --key K1 --class spec_underspecification --check-kind document --check x --severity low --likelihood low --impact low --quote A claim sits under S2. --problem unfounded leap --reason quotes " ' `backtick` $(subshell) ${var}
 newline	tab
 angle <brackets> & ampersand
 unicode — em-dash · ✓ 日本語
@@ -61,7 +61,9 @@ backslash \ and \n literal
 
 exit 0
 stdout:
-finding recorded: FINDING001 (logic) — the id a gap's found_by names
+minted GAP002
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
@@ -71,14 +73,14 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#1","position":{"position_id":"POSITION001","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
 {"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","mint_reason":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal\n","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
-{"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"key":"red-lens-logic:finding:FINDING001","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-logic:mint:GAP002","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","mint_key":"K1","mint_reason":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","problem":"unfounded leap","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_MINT"}
+{"anchor":{"id":"GAP002","location":"A claim sits under S2."},"key":"red-lens-logic:anchor:GAP002","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- inquiries
 # Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 
@@ -105,6 +107,7 @@ A claim sits under S4.
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
 | quotes " ' `backtick` $(subshell) ${var} newline tab angle &lt;brackets> & ampersand unicode —… | medium | medium | — | — |
+| unfounded leap | low | low | — | — |
 
 The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
 

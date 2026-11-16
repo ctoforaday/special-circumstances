@@ -8,7 +8,7 @@ import (
 // THE QUEUE IS THE LIST IN ORDER, KEYED BY FIELDS. The audit comes first while the lens has not been
 // served the report since it was behind, then what the seat owes in list order, then the gaps the
 // dispatch readies it on — material first, then by mass, then in mint order — with the items about
-// each folded in, then the regrades and findings left over. Nothing else is queued.
+// each folded in, then the regrades left over. Nothing else is queued.
 func TestTheQueueOrdersTheListByItsFields(t *testing.T) {
 	gap := func(id string, material, turn bool, l, i string) WorkGapJSON {
 		return WorkGapJSON{ID: id, Material: material, YourTurn: turn, Likelihood: l, Impact: i, MintedBy: "red-lens-logic", RegradesOwed: []OwedRegradeJSON{}}
@@ -30,7 +30,7 @@ func TestTheQueueOrdersTheListByItsFields(t *testing.T) {
 				gapItem(ItemRegradeOwed, "G-3", "G-3 regrade owed"),
 				{Kind: ItemKind(BlockerFailedCheck), Subject: about(SubjectAnchor, "c-7"), Blocks: true, What: "c-7 read nothing"},
 				gapItem(ItemNews, "G-9", "G-9's answers are retired"),
-				gapItem(ItemFindingOnGap, "G-4", "a finding about G-4"),
+				gapItem(ItemRegradeOwed, "G-4", "G-4 regrade owed"),
 				{Kind: ItemKind(BlockerUnchecked), Subject: about(SubjectAnchor, "c-8"), What: "c-8 is unchecked — no check can reach it"},
 				{Kind: ItemLaw, What: "law"},
 			},
@@ -48,7 +48,7 @@ func TestTheQueueOrdersTheListByItsFields(t *testing.T) {
 		"reaudit:gap:G-2", // material, low mass
 		"reaudit:gap:G-1", // not material, high mass
 		"reaudit:gap:G-5",
-		"finding_on_gap:gap:G-4",
+		"regrade_owed:gap:G-4",
 	}
 	if !slices.Equal(keys, want) {
 		t.Fatalf("queue = %q\nwant    %q", keys, want)

@@ -6,9 +6,8 @@ import (
 )
 
 // THE BOARD NAMES EACH GAP'S MINTER, as the work list does. m28's lenses asked `show board` for
-// `minted_by` 21 times and jq returned null: the key was on the work list's rows alone, and the
-// board's `found_by` holds finding ids, which name the lens that found a defect and not the seat
-// that minted the gap. The value is the work list's, read off the same column.
+// `minted_by` 21 times and jq returned null: the key was on the work list's rows alone. The value
+// is the work list's, read off the same column.
 func TestTheBoardNamesEachGapsMinter(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "board-minter", "spec_underspecification")

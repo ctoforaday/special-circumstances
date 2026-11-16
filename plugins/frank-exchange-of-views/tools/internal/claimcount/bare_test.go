@@ -17,7 +17,7 @@ func TestABareAnchorIsNotAClaim(t *testing.T) {
 	}{
 		{"attached", "The sky is blue<!--cite:C-00000001-->.\n", 1, nil},
 		{"alone on its line", "<!--cite:C-00000001-->\n", 0, []string{"C-00000001"}},
-		{"an emptied bullet", "- <!--fx:F-00000001-->?\n", 0, []string{"F-00000001"}},
+		{"an emptied bullet", "- <!--gap:G-00000001-->?\n", 0, []string{"G-00000001"}},
 		{"at the head of the next sentence", "<!--cite:C-00000001--> The grass is green.\n", 0, []string{"C-00000001"}},
 		{"mid-line, its own segment", "One. <!--cite:C-00000001-->. Two.\n", 0, []string{"C-00000001"}},
 		{"two anchors after prose are both attached", "Prose<!--cite:C-00000001--><!--cite:C-00000002-->.\n", 2, nil},

@@ -100,11 +100,11 @@ func TestARepeatNamesBothValuesBelowItsFirstLine(t *testing.T) {
 
 // AN ID LIST TAKES EACH ITEM AS ITS SHAPE DOES, and stores what the shape stores.
 func TestAnIDListHoldsEachItemToItsShape(t *testing.T) {
-	findings := IDList(FindingID)
-	if err := findings.Set("<!--fx:F-1d8a5455-->, F-00000001"); err != nil {
+	citations := IDList(CitationAnchor)
+	if err := citations.Set("<!--cite:C-1d8a5455-->, C-00000001"); err != nil {
 		t.Fatal(err)
 	}
-	if got := findings.Value(); len(got) != 2 || got[0] != "F-1d8a5455" || got[1] != "F-00000001" {
+	if got := citations.Value(); len(got) != 2 || got[0] != "C-1d8a5455" || got[1] != "C-00000001" {
 		t.Errorf("stored %q, want the bare ids", got)
 	}
 	for name, c := range map[string]struct {
@@ -113,9 +113,9 @@ func TestAnIDListHoldsEachItemToItsShape(t *testing.T) {
 	}{
 		"not an id":                  {IDList(GapID), "banana"},
 		"one good, one not":          {IDList(GapID), "G-00000001,banana"},
-		"another kind's id":          {IDList(GapID), "F-00000001"},
+		"another kind's id":          {IDList(GapID), "C-00000001"},
 		"a token the shape does not": {IDList(GapID), "<!--gap:G-00000001-->"},
-		"the tagged text":            {IDList(FindingID), "fx:F-00000001"},
+		"the tagged text":            {IDList(CitationAnchor), "cite:C-00000001"},
 		"an empty item":              {IDList(GapID), "G-00000001,,G-00000002"},
 	} {
 		if err := c.list.Set(c.value); err == nil {

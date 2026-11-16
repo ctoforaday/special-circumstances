@@ -82,7 +82,7 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 	// the report" and "your replacement carries , and …": the writer took the token out, and with it
 	// the anchor. Each kind is refused here through the real path, and the entry must still say which.
 	t.Run("an anchor the refusal names is in the entry, as its id and never as a token", func(t *testing.T) {
-		for _, id := range []string{"F-0e004c80", "C-0e004c80", "K-0e004c80", "G-ec5568ed"} {
+		for _, id := range []string{"C-0e004c80", "K-0e004c80", "G-ec5568ed"} {
 			runDir := seatRun(t)
 			if _, err := runAt(t, "show", "report", "--run", runDir, "--seat-id", "blue-respond", "--anchor", id); err == nil {
 				t.Fatalf("show report --anchor %s on a report without it was accepted", id)
@@ -96,18 +96,18 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 			}
 		}
 	})
-	// AND THE SHAPE THE REFUSAL TEACHES. `--anchor` refuses "fx:F-…" by showing each kind's token
+	// AND THE SHAPE THE REFUSAL TEACHES. `--anchor` refuses "gap:G-…" by showing each kind's token
 	// with a placeholder, and the #1565 entry stored "an anchor is a ``, ``, `` or `` token".
 	t.Run("a token shape the refusal teaches is in the entry, as what the token holds", func(t *testing.T) {
 		runDir := seatRun(t)
-		if _, err := runAt(t, "show", "report", "--run", runDir, "--seat-id", "blue-respond", "--anchor", "fx:F-0e004c80"); err == nil {
+		if _, err := runAt(t, "show", "report", "--run", runDir, "--seat-id", "blue-respond", "--anchor", "gap:G-0e004c80"); err == nil {
 			t.Fatal("show report --anchor with the token's tag on its id was accepted")
 		}
 		got := refusals(t, runDir)
 		if len(got) != 1 {
 			t.Fatalf("want one refusal entry, got %d: %q", len(got), got)
 		}
-		if !strings.Contains(got[0], "`C-…`, `F-…`, `K-…` or `G-…` token") || strings.Contains(got[0], "<!--") || strings.Contains(got[0], "``") {
+		if !strings.Contains(got[0], "`C-…`, `K-…` or `G-…` token") || strings.Contains(got[0], "<!--") || strings.Contains(got[0], "``") {
 			t.Errorf("the entry lost the token shapes the refusal named, or carries a token: %s", got[0])
 		}
 	})

@@ -28,9 +28,9 @@ func seatRun(t *testing.T) string {
 }
 
 // seatRunReport is seatRun with the round-0 report body a caller needs. body=="" seeds the generic
-// report carrying the quotes the finding tests anchor to; a non-empty body is ingested instead, for
+// report carrying the quotes the tests anchor to; a non-empty body is ingested instead, for
 // a test whose --quote is specific. Either way the report is INGESTED (#709), mirroring the real run
-// where blue-synthesize wrote and froze the report before red-lens files findings — so a caller must
+// where blue-synthesize wrote and froze the report before red-lens mints gaps — so a caller must
 // NOT writeReport again afterwards, which would be a second, refused ingest.
 func seatRunReport(t *testing.T, body string) string {
 	t.Helper()
@@ -208,11 +208,6 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 // were invisible to the others, every cross-seat duty in the protocol would be unverifiable.
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--key", "F1", "--quote", "§2", "--reason", "a finding",
-		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-		t.Fatal(err)
-	}
 	mintGap(t, runDir, "shared-record", "doctrine_vs_implementation")
 	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
 		"--question", "considered rewriting the parser", "--as", "declined",

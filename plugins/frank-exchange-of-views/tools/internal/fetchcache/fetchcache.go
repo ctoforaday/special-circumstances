@@ -254,7 +254,7 @@ type Entry struct {
 	Backend string `json:"backend,omitempty"`
 
 	// TextRetrieved says whether the bytes are the SOURCE'S TEXT or only a record that it exists.
-	// A metadata answer is a real finding — that the source exists. It is not a reading, and nothing
+	// A metadata answer is a real fact — that the source exists. It is not a reading, and nothing
 	// may cite it as one.
 	TextRetrieved bool `json:"text_retrieved,omitempty"`
 	// Substitution names THE ROUTE BY WHICH THESE BYTES ARE NOT THE URL'S OWN — one of the

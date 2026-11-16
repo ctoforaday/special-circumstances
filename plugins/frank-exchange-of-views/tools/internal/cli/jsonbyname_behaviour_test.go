@@ -78,9 +78,9 @@ func TestTheJSONPipelineThatCrashedGetsTheProjection(t *testing.T) {
 }
 
 // WHOLE DOCUMENT FIRST, THEN PER LINE — in that order, because each check is wrong about the
-// other's shape. The board/findings/work/motions/evidence projections are marshalled INDENTED, so
+// other's shape. The board/work/motions/evidence projections are marshalled INDENTED, so
 // every one of them is a multi-line object whose individual lines (`{`, `  "open": [`) are not
-// JSON; a line-wise check convicts all five. `telemetry` is the mirror image: one object PER
+// JSON; a line-wise check convicts all four. `telemetry` is the mirror image: one object PER
 // ROUND, a stream no single-document parse accepts. Checking one way only is how this test twice
 // reported the mark false when the mark was right.
 func emitsJSONOrJSONL(trimmed string) bool {

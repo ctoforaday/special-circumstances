@@ -965,8 +965,8 @@ func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time,
 			}), ts))
 			continue
 		}
-		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-evidence", fmt.Sprintf("red-lens-evidence:finding:k%d", i), &recordpb.Finding{
-			Id: proto.String(fmt.Sprintf("F%d", i)), Text: proto.String("a finding"),
+		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-evidence", fmt.Sprintf("red-lens-evidence:verify:k%d", i), &recordpb.Verify{
+			Anchor: proto.String(fmt.Sprintf("C-%08x", i)), Text: proto.String("a reading"), Claim: proto.String("c"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
 		}), ts))
 	}
 	recordtest.Seed(t, dir, evs...)
@@ -1072,7 +1072,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	}
 
 	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-evidence-aaaaaaaa.jsonl"),
-		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"mint","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// The run's TERMS. Read at READ time by the dispatch verb, the write path, the tier report and
@@ -1486,7 +1486,7 @@ func TestAnArchivedRecordIsSealedAndShipsNoSharedMemoryFile(t *testing.T) {
 	}
 	// A shard, because ArchiveRecord refuses a run with no events.
 	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-evidence-aaaaaaaa.jsonl"),
-		[]byte(`{"seq":0,"ts":"2026-09-20T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+		[]byte(`{"seq":0,"ts":"2026-09-20T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"mint","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -319,12 +319,10 @@ func TestASupersededGapAtItsLimitsIsClosed(t *testing.T) {
 }
 
 // ONCE DOCKETED, A GAP LEAVES THE PARTIES' LISTS BUT FOR ITS CLOSING, AND THE LENS'S CLOSE IS REFUSED
-// (ruled by gblock 2026-10-31). Blue's answer and another lens's finding are both on the record, and
-// neither reaches a list. The row rides `closings_owed` while the closing is owed and goes with it. The
+// (ruled by gblock 2026-10-31). Blue's answer is on the record and reaches no list. The row rides `closings_owed` while the closing is owed and goes with it. The
 // bench's list still holds the gap.
 func TestADocketedGapLeavesTheListsButForItsClosing(t *testing.T) {
 	st := mintedOn(t).blueSitsOn("G1", true)
-	st.add("red-lens-logic", &recordpb.Finding{Id: proto.String("F-1"), Text: proto.String("the gap reads wrong"), AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1")})
 	// A computation demand is an item the sitting's own arm writes, on every gap it reads.
 	demand := highMint("G2")
 	demand.CheckKind = recordpb.CheckKind_CHECK_KIND_COMPUTATION.Enum()

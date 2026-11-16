@@ -207,7 +207,7 @@ func TestTheMessageGateTellsAHeadFromASentence(t *testing.T) {
 		"%s refused — the originator":                        true,
 		"close --id names gap %s":                            true,
 		"motion docket rule requires --reopens-on":           true,
-		"lens finding requires --reason":                     true,
+		"lens mint requires --problem":                       true,
 		"chair: no such gap":                                 true,
 		"fetch: %s returned %d":                              true,
 		"migrate: reading %s: %w":                            true,

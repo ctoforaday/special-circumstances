@@ -542,7 +542,7 @@ func egressNote(status int) string {
 		return ""
 	}
 	return " — THIS MAY BE THE EGRESS PROXY REFUSING THE HOST rather than the origin refusing us, " +
-		"and the two are different findings: a proxy block is a fact about this container's allowlist, " +
+		"and the two are different facts: a proxy block is a fact about this container's allowlist, " +
 		"an origin refusal is a fact about the source. Do not record an unreached source as evidence of " +
 		"absence. Check which it is before grading (the proxy's own status endpoint, or the same URL from " +
 		"a host outside this environment), and where you cannot, say the source was UNREACHABLE FROM HERE " +

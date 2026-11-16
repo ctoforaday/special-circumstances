@@ -120,7 +120,6 @@ type runTally struct {
 	CacheFiles                 int                       `json:"cache_files"`
 	EditAnswers                int                       `json:"edit_answers"`
 	VerifiedBasis              int                       `json:"verified_basis"`
-	FoundByMints               int                       `json:"found_by_mints"`
 	VerbatimApplied            int                       `json:"verbatim_applied"`
 	TypedVerbatim              int                       `json:"typed_verbatim"`
 	EstoppelMisses             map[string]int            `json:"estoppel_misses"`
@@ -171,7 +170,10 @@ type runTally struct {
 	UnsoundClosesRefused       int                       `json:"unsound_closes_refused"`
 	RepeatsRefused             int                       `json:"repeats_refused"`
 	OneGapRefused              int                       `json:"one_gap_refused"`
-	OneGapFindings             int                       `json:"one_gap_findings"`
+	OneGapRedirects            map[string]int            `json:"one_gap_redirects"`
+	OneGapNamingFinding        int                       `json:"one_gap_naming_finding"`
+	AboutGapRefused            int                       `json:"about_gap_refused"`
+	MovedDisputes              int                       `json:"moved_disputes"`
 	UnclassifiedMinted         int                       `json:"unclassified_minted"`
 	UnclassifiedRefused        int                       `json:"unclassified_refused"`
 	SupersedeDemandCarried     int                       `json:"supersede_demand_carried"`
@@ -222,7 +224,7 @@ type runTally struct {
 	OneGapBreach               string                    `json:"one_gap_breach"`
 	FinalBlockers              map[string]int            `json:"final_blockers"`
 	FinalParties               []string                  `json:"final_parties"`
-	OpenByFoundBy              map[string]int            `json:"open_by_found_by"`
+	NonMaterialMints           int                       `json:"non_material_mints"`
 	MintsByEpoch               map[int]int               `json:"mints_by_epoch"`
 	ClosesByEpoch              map[int]int               `json:"closes_by_epoch"`
 	InquiryChecks              int                       `json:"inquiry_checks"`
@@ -236,7 +238,7 @@ func tallyOf(o outcome) runTally {
 		Seed: o.seed, Err: o.err, Verdict: o.verdict, Why: o.why, Epochs: o.epochs, EpochLimit: o.epochLimit,
 		Dialectic: o.dialectic, BlueSittings: o.blueSittings, BlueAgain: o.blueAgain,
 		CiteAnchors: o.citeAnchors, CacheFiles: o.cacheFiles, EditAnswers: o.editAnswers,
-		VerifiedBasis: o.verifiedBasis, FoundByMints: o.foundByMints, VerbatimApplied: o.verbatimApplied,
+		VerifiedBasis: o.verifiedBasis, VerbatimApplied: o.verbatimApplied,
 		TypedVerbatim: o.typedVerbatim, EstoppelMisses: o.estoppelMisses, ApplyMisses: o.applyMisses,
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
 		InquiryChecks: o.inquiryChecks, InquiryCheckRefused: o.inquiryCheckRefused, InquiryUnseats: o.inquiryUnseats,
@@ -251,7 +253,8 @@ func tallyOf(o outcome) runTally {
 		OwedKeptBy: o.owedKeptBy, OwnerWhys: o.ownerWhys, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
 		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires, UnreadRetiresJoined: o.unreadRetiresJoined,
 		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused,
-		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
+		OneGapRefused: o.oneGapRefused, OneGapRedirects: o.oneGapRedirects, OneGapNamingFinding: o.oneGapNamingFinding,
+		AboutGapRefused: o.aboutGapRefused, MovedDisputes: o.movedDisputes,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		SupersedeDemandCarried: o.supersedeDemandCarried, SupersedeDemandRefused: o.supersedeDemandRefused,
 		Reproduces: o.reproduces, ReproducesWithClaim: o.reproducesWithClaim,
@@ -266,7 +269,7 @@ func tallyOf(o outcome) runTally {
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
-		SourceClosesRefused: o.sourceClosesRefused, Lifecycle: o.lifecycle.tally(), Reading: o.reading.tally(), NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
+		SourceClosesRefused: o.sourceClosesRefused, Lifecycle: o.lifecycle.tally(), Reading: o.reading.tally(), NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, NonMaterialMints: o.nonMaterialMints, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
 
@@ -586,7 +589,7 @@ type sweepFold struct {
 	// verifiedExits is each forced-VERIFIED run's exit, by seed: verifiedSeed's and each position
 	// seed's (forcedVerifiedSeeds).
 	verifiedExits                                   map[int64]forcedExit
-	verifiedBasis, foundByMints                     int
+	verifiedBasis                                   int
 	verbatimApplied, typedVerbatim, estoppels       int
 	inquiryRecords, quotesRefused                   int
 	inquiryChecks                                   int
@@ -613,7 +616,7 @@ type sweepFold struct {
 	unreadRetiresJoined                             int
 	unreadClosesRefused, unsoundClosesRefused       int
 	repeatsRefused                                  int
-	oneGapRefused, oneGapFindings                   int
+	oneGapRefused                                   int
 	unsoundReadied, unsoundPlans, unsoundAnswers    int
 	forcedUnsoundReadied, forcedComputationOwedKept int
 	forcedOwnerWhys                                 []string
@@ -653,10 +656,16 @@ type sweepFold struct {
 	maxOpenPerClassSentence int
 	oneGapBreach            string
 	// WHAT HELD EACH RUN OPEN, by its verdict (PR #1642's four, F7): the final plans' blockers by
-	// kind, the seats they readied, and the gaps open at the end by what surfaced each, each summed
-	// over the runs of that verdict; and the gaps minted and closed in each epoch, over every run.
-	finalBlockers, finalParties, openByFoundBy map[string]map[string]int
-	mintsByEpoch, closesByEpoch                map[int]int
+	// kind and the seats they readied, each summed over the runs of that verdict; and the gaps minted
+	// and closed in each epoch, over every run.
+	finalBlockers, finalParties map[string]map[string]int
+	// oneGapRedirects is the one-gap refusals by the road they state, and oneGapNamingFinding,
+	// aboutGapRefused and movedDisputes the runs' counts (outcome's).
+	oneGapRedirects                                     map[string]int
+	oneGapNamingFinding, aboutGapRefused, movedDisputes int
+	mintsByEpoch, closesByEpoch                         map[int]int
+	// nonMaterialMints is the runs' gaps minted below material (outcome.nonMaterialMints).
+	nonMaterialMints int
 }
 
 // foldRuns folds the sweep's runs, in any order.
@@ -665,9 +674,9 @@ func foldRuns(runs []runTally) sweepFold {
 		verdicts: map[string]int{}, epochHist: map[int]int{}, whyHist: map[string]int{}, dcov: map[string]int{},
 		copiesRead: map[string]map[string]int{}, computationReopenedReadied: map[string]int{}, owedKeptBy: map[string]int{},
 		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, partRefused: map[string]int{}, verifiedExits: map[int64]forcedExit{},
-		finalBlockers: map[string]map[string]int{}, finalParties: map[string]map[string]int{}, openByFoundBy: map[string]map[string]int{},
+		finalBlockers: map[string]map[string]int{}, finalParties: map[string]map[string]int{},
 		mintsByEpoch: map[int]int{}, closesByEpoch: map[int]int{},
-		inquiryCheckRefused: map[string]int{},
+		inquiryCheckRefused: map[string]int{}, oneGapRedirects: map[string]int{},
 	}
 	for _, r := range runs {
 		if r.Err != "" {
@@ -701,7 +710,6 @@ func foldRuns(runs []runTally) sweepFold {
 		f.cacheFiles += r.CacheFiles
 		f.editAnswers += r.EditAnswers
 		f.verifiedBasis += r.VerifiedBasis
-		f.foundByMints += r.FoundByMints
 		f.verbatimApplied += r.VerbatimApplied
 		f.typedVerbatim += r.TypedVerbatim
 		f.estoppels += r.Estoppels
@@ -792,7 +800,7 @@ func foldRuns(runs []runTally) sweepFold {
 			parties[s]++
 		}
 		addUnder(f.finalParties, r.Verdict, parties)
-		addUnder(f.openByFoundBy, r.Verdict, r.OpenByFoundBy)
+		f.nonMaterialMints += r.NonMaterialMints
 		for ep, n := range r.MintsByEpoch {
 			f.mintsByEpoch[ep] += n
 		}
@@ -801,7 +809,12 @@ func foldRuns(runs []runTally) sweepFold {
 		}
 		f.repeatsRefused += r.RepeatsRefused
 		f.oneGapRefused += r.OneGapRefused
-		f.oneGapFindings += r.OneGapFindings
+		for road, n := range r.OneGapRedirects {
+			f.oneGapRedirects[road] += n
+		}
+		f.oneGapNamingFinding += r.OneGapNamingFinding
+		f.aboutGapRefused += r.AboutGapRefused
+		f.movedDisputes += r.MovedDisputes
 		f.unclassifiedMinted += r.UnclassifiedMinted
 		f.unclassifiedRefused += r.UnclassifiedRefused
 		f.supersedeDemandCarried += r.SupersedeDemandCarried
@@ -910,7 +923,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Errorf("fuzz drew no repeat unsound judgement over an open gap across %d runs — the refusal is unexercised (false green)", f.completed)
 	}
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened computations whose owner a plan readied: %v", f.reopenedReadied, f.reopenedPlans, f.computationReopenedReadied)
-	t.Logf("what held the runs open, by verdict: final plans' blockers by kind %v; seats they readied %v; gaps open at the end by what surfaced them %v", f.finalBlockers, f.finalParties, f.openByFoundBy)
+	t.Logf("what held the runs open, by verdict: final plans' blockers by kind %v; seats they readied %v", f.finalBlockers, f.finalParties)
 	t.Logf("gaps minted by epoch %v; closed by epoch %v", f.mintsByEpoch, f.closesByEpoch)
 	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged computation (%d in seed %d's forced run); by kind %v", f.owedKept, f.computationOwedKept, f.forcedComputationOwedKept, owedComputationSeed, f.owedKeptBy)
 	for i, w := range f.forcedOwnerWhys {
@@ -921,8 +934,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", f.unclassifiedMinted, f.unclassifiedRefused)
 	t.Logf("supersede demand: %d successor(s) carried an unanswered ancestor's check kind, %d at another check kind refused", f.supersedeDemandCarried, f.supersedeDemandRefused)
 	t.Logf("classes: %d by_grade in the mint pool; %d always/never minted once each, %d landed", len(mintPoolClasses), len(mintDrivenClasses), len(mintDrivenClasses)-len(unlandedClassDrive(p.ClassLanded)))
-	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
-	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
+	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green: a seat stub
+	// that emits nothing leaves its verbs unexercised end to end.
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
 	// regression that silently stops emitting one (a dropped envelope branch, a broken dispatch)
 	// fails here, not silently. `halt` is exempt (terminal; covered by TestFuzzHaltPath). Each
@@ -930,7 +943,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	// runs) is negligible; if a verb ever flakes here it is a real coverage regression, not noise.
 	// The full surface needs enough runs for every verb (incl. the ~10%/run ones like regrade) to
 	// fire; below the quorum a low-frequency verb could flake to zero, so the -short smoke keeps
-	// only the cite/finding floor (the original false-green guard) and the default+ size asserts
+	// only the cite/mint floor (the first false-green guard) and the default+ size asserts
 	// all.
 	//
 	// A SWEEP UNDER QUORUM NOW SAYS SO. These gates used to fall silent below 40 and print the
@@ -942,7 +955,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	if !measured {
 		t.Logf("NOT MEASURED: %d runs is under the surface quorum of %d, so these gates did NOT run: "+
 			"the per-verb event gate, the citation/provenance floors, the inquiry-record floor, the full-surface command gate, "+
-			"and the flag/enum coverage sweeps. This is not a pass over them — only the cite/finding "+
+			"and the flag/enum coverage sweeps. This is not a pass over them — only the cite/mint "+
 			"floor below was checked. Run the default sweep to assert the surface.", f.completed, surfaceQuorum)
 	}
 	// EVERY VIEW REACHED SOMEBODY. The per-role sweep skips a view whose group a role does not
@@ -1140,13 +1153,40 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			t.Errorf("fuzz drove ZERO refused repeats across %d runs — no seat filed a second position or closing in a sitting, so the refusal that names the answering act is unexercised (false green)", f.completed)
 		}
 		// THE ONE-GAP GATE. A mint of a class on a sentence or inquiry where an open gap of that class
-		// stands is refused, naming it, and the lens files its point as a finding about that gap. The
+		// stands is refused, naming it. The
 		// `mint` verb gate is satisfied by the mints that land, so a rule that stopped refusing — or a
 		// drive that stopped reaching it — would hide behind a green sweep.
-		t.Logf("one gap per class and subject: %d mint(s) refused, %d finding(s) filed about the gap that holds the subject", f.oneGapRefused, f.oneGapFindings)
-		if f.oneGapRefused == 0 || f.oneGapFindings == 0 {
-			t.Errorf("fuzz drove %d mints refused over an open gap of their class and subject and %d findings about that gap across %d runs — both must be non-zero, or the one-gap rule is unexercised (false green)", f.oneGapRefused, f.oneGapFindings, f.completed)
+		t.Logf("one gap per class and subject: %d mint(s) refused; by the road stated %v, %d naming a finding", f.oneGapRefused, f.oneGapRedirects, f.oneGapNamingFinding)
+		if f.oneGapRefused == 0 {
+			t.Errorf("fuzz drove %d mints refused over an open gap of their class and subject across %d runs — it must be non-zero, or the one-gap rule is unexercised (false green)", f.oneGapRefused, f.completed)
 		}
+		// ONE_GAP_REDIRECTS (plans/findings-fold.md §III.A6): the refusal states the refused seat's road
+		// by whose gap holds the subject — its own gap's, superseded or regraded; another seat's, on the
+		// board already or disputed by a proposed act — and no road names a finding. Each road must be
+		// reached, or the text of the one unreached is unexercised behind a green sweep.
+		for _, road := range []string{"own", "another"} {
+			if f.oneGapRedirects[road] == 0 {
+				t.Errorf("fuzz drove ZERO one-gap refusals stating the %s-gap road across %d runs (roads %v) — that redirect is unexercised (false green)", road, f.completed, f.oneGapRedirects)
+			}
+		}
+		if f.oneGapNamingFinding > 0 {
+			t.Errorf("%d one-gap refusal(s) named a finding, a reconsideration's grounds or an about-kind gap as the road — a lens reports a defect one way, as a gap", f.oneGapNamingFinding)
+		}
+		// ABOUT_GAP_REFUSED (§III.A3, §III.A6): `mint --about-kind gap` is refused naming both roads. No
+		// draw types the word; aboutGapRefusedDrive does, once a run.
+		t.Logf("about-kind gap: %d mint(s) refused naming both roads", f.aboutGapRefused)
+		if f.aboutGapRefused == 0 {
+			t.Errorf("fuzz drove ZERO `mint --about-kind gap` refusals across %d runs — the refusal that names a gap's two roads is unexercised (false green)", f.completed)
+		}
+		// NON_MATERIAL_MINTS (§III.A6): a small defect is a gap minted in a by_grade class below medium.
+		t.Logf("non-material mints: %d gap(s) minted in a by_grade class below medium", f.nonMaterialMints)
+		if f.nonMaterialMints == 0 {
+			t.Errorf("fuzz minted ZERO gaps below material across %d runs — a small defect's one carrier is unexercised (false green)", f.completed)
+		}
+		// THE STALE REFUSAL'S SWEEP DRIVE: a lens's dispute of a gap another seat regraded while it sat
+		// (disputeMovedGap). The stale-event verb gate holds the refusal; this says how often the race
+		// was met.
+		t.Logf("moved-gap disputes: %d docket motion(s) refused as stale and landed on the retry", f.movedDisputes)
 		// THE READING GATES (plans/gap-is-the-one-holder.md §V check 12). A reading records and holds
 		// nothing; the gap of the class it obliges is a mint on the lens's standing reading, and a reading
 		// that finds against is the lens's debt until that gap or a re-read. Each path — the refusal, the
@@ -1332,9 +1372,6 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.verifiedBasis == 0 {
 			t.Errorf("fuzz minted ZERO gaps with fix_basis=verified across %d runs — no concrete proposal ever validated, so the whole stage-3 path is unexercised (false green)", f.completed)
 		}
-		if f.foundByMints == 0 {
-			t.Errorf("fuzz minted ZERO gaps naming a finding in found_by across %d runs — no accepted mint carried --found-by, so the id a found_by names a finding by is unexercised (false green)", f.completed)
-		}
 		if f.verbatimApplied == 0 {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", f.completed)
 		}
@@ -1365,9 +1402,11 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 	}
 	if !measured {
-		for _, k := range []string{"cite", "finding"} {
+		// A LENS REPORTS A DEFECT ONE WAY, AS A GAP (plans/findings-fold.md Part A), so its record
+		// channel's floor is the mint, beside blue's cite.
+		for _, k := range []string{"cite", "mint"} {
 			if f.dcov[k] == 0 {
-				t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, f.completed)
+				t.Errorf("fuzz drove ZERO %s events across %d runs — the seats' record channel is unexercised (false green)", k, f.completed)
 			}
 		}
 	}

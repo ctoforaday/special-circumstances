@@ -59,8 +59,8 @@ const (
 // superseders holds a row for every type whose second act the record refuses and some command
 // records (RefusesARepeat), and for the numbered types whose answer a seat would otherwise guess.
 //
-// NO ROW IS A STATEMENT TOO, and two are deliberate. An anchor, a finding and a mint are keyed on an
-// id the tool mints per act, so a second with the same key is a retried write and nothing else. No
+// NO ROW IS A STATEMENT TOO, and two are deliberate. An anchor and a mint are keyed on an id the
+// tool mints per act, so a second with the same key is a retried write and nothing else. No
 // verb records an observe. An inquiry's check keys on no label, and a second check while one stands
 // is refused by its own rule (requireInquiryCheck), which names what makes it owed again.
 //

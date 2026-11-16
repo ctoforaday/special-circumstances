@@ -263,8 +263,8 @@ func newEdit() *cobra.Command {
 // A BARE ANCHOR THE EDIT DOES NOT CARRY IS AN ORPHAN (the #1677 smoke's D18; gblock, 2026-11-01). A
 // claim retire takes the anchors the edit that cut the claim holds in its replacement (heldAt), so one
 // the quote left out stands where the cut left it with no retire able to name it. applied is what the
-// edit records: carried means there, whichever way the anchor got there. A finding or gap anchor
-// carried may stand bare until the retire.
+// edit records: carried means there, whichever way the anchor got there. A gap anchor carried may
+// stand bare until the retire.
 func refuseBaredAnchors(before, after, applied, gapID string) error {
 	evidence, leftOut := BaredAnchors(before, after, applied)
 	var refusals []string
@@ -505,7 +505,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 	// The quote left the run out, so it stands after the replacement; the seam tidy takes the
 	// replacement's terminator and the run lands on the replacement's last sentence, whichever
 	// sentence held its claims. Measured on universe-m19: all four stay-put edits whose --new ended
-	// its sentence meant something other than a rewording (one left a finding on the wrong
+	// its sentence meant something other than a rewording (one left a gap on the wrong
 	// sentence), and the nine without one were clean. The sentence rule is anchor.Sentences, read
 	// over the splice before the tidy: the run opens a sentence of its own exactly when the
 	// replacement closed the one before it.
@@ -629,12 +629,6 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 	for _, id := range ids {
 		about := ""
 		switch anchor.Kind(id) {
-		case "finding":
-			for _, f := range record.FindingsJSONOf(fam.Events, fam.At).Findings {
-				if f.ID == id {
-					about = f.Text
-				}
-			}
 		case "gap":
 			if g := fam.Gap(id); g != nil && g.Mint != nil {
 				about = g.Mint.GetProblem()

@@ -41,7 +41,7 @@ import (
 // anchor, so a counted claim leaves only where a retire names the anchors it takes.
 //
 // AND IT IS HOW AN ANCHOR LEAVES. An edit may carry an anchor but never drop one,
-// so cutting a sentence a finding or gap marks leaves the anchor BARE — no prose before
+// so cutting a sentence a gap marks leaves the anchor BARE — no prose before
 // it in its sentence, marking nothing. Nothing could take that anchor out, so it stood forever:
 // an empty `- ?` bullet. The retire names the bare anchors the claim's removal left (computed
 // here, from the record and the report, never typed by a seat), and replay takes them out at
@@ -350,7 +350,7 @@ func stayedBehind(md string, left map[string]int, exiting []string) []keptAnchor
 // them: a fragment ("sky") would otherwise sweep the anchor of the sentence it came from, record
 // removal_basis=verified, and put the fragment in the report's withdrawn claims as if it were what
 // left (fragmentRefusal refuses it instead). A sentence is the unit an anchor marks, so an edit that
-// cuts two claims leaves each its own anchors: m25 cut two sentences carrying three finding anchors
+// cuts two claims leaves each its own anchors: m25 cut two sentences carrying three anchors
 // in one edit (ev247), retired each with its own reason (ev258, ev259), and with the whole-span
 // comparison alone both took nothing and the three anchors stood bare until a third retire quoted
 // the pair (ev367). The comparison is across the anchor layer, with surrounding whitespace, emphasis

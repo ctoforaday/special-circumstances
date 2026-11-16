@@ -55,7 +55,7 @@ func baseModel(t *testing.T, runDir string) Model {
 		Run: runtest.Open(t, runDir), Telemetry: tel, Latest: tel[len(tel)-1],
 		Cost: 12.34, APIRounds: 20, Agents: 5,
 		Log:        LogTile{Count: 2, Last: "red-chair: needed a PDF extractor"},
-		Shards:     Shards{LedgerExists: true, OpenRows: 2, OpenBySeverity: map[string]int{"high": 1, "medium": 1}, Findings: 9, Citations: 4, ClosureIndexRows: 3, ArchiveRecords: 3},
+		Shards:     Shards{LedgerExists: true, OpenRows: 2, OpenBySeverity: map[string]int{"high": 1, "medium": 1}, Citations: 4, ClosureIndexRows: 3, ArchiveRecords: 3},
 		BlueClaims: ip(15),
 		Steps:      []Step{{"frontier", "done"}, {"blue lanes", "done"}, {"synthesis", "live"}, {"epoch 1", "todo"}, {"assembly", "todo"}},
 		Rates: []Rate{

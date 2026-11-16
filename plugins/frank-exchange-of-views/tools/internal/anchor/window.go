@@ -14,7 +14,7 @@ import (
 // rendering, which is the defect class this suite keeps finding in its own surfaces.
 //
 // The anchor is the stable identity and it is already enforced as one: `edit` refuses any edit
-// that drops, duplicates or invents an anchor token, so `<!--fx:f-a1b2c3-->` survives rewrites,
+// that drops, duplicates or invents an anchor token, so `<!--gap:G-a1b2c3-->` survives rewrites,
 // insertions and reflows. Blue MAY rewrite the sentence carrying it — that is transit, not
 // authorship — which is exactly the case a frozen quote gets wrong and a live window gets right.
 //
@@ -91,7 +91,7 @@ func ReadAround(report, anchorID string, n int) (Window, error) {
 	}
 	if at < 0 {
 		return Window{}, fmt.Errorf("anchor %s (%s) is not in the report — it is a stale reference or belongs to another run. "+
-			"`show findings` lists every finding anchor; `show evidence` resolves citation and computation anchors; `show board` resolves a gap anchor, with the gap's text as minted",
+			"`show evidence` resolves citation and computation anchors; `show board` resolves a gap anchor, with the gap's text as minted",
 			anchorID, token)
 	}
 

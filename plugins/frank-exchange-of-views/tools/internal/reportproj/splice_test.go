@@ -46,7 +46,7 @@ func TestTidySeamLeavesContentAlone(t *testing.T) {
 		"an ellipsis... is content",
 		"emphasis!! stays",
 		"a question?? stays",
-		"an anchor<!--fx:F-00000abc--> is untouched",
+		"an anchor<!--gap:G-00000abc--> is untouched",
 		"no artifact here at all",
 	} {
 		for at := 1; at < len(s); at++ {
@@ -61,12 +61,12 @@ func TestTidySeamLeavesContentAlone(t *testing.T) {
 // edit that carries its sentence's anchors ends --new in them, so the seam sits AFTER the run and
 // the report's terminator abuts it: the doubled mark tidies exactly as the bare pair does.
 func TestTidySeamReadsADoubledMarkAcrossAnAnchorRun(t *testing.T) {
-	const run = "<!--gap:G-0000000c--><!--fx:F-00000abc-->"
+	const run = "<!--gap:G-0000000c--><!--gap:G-00000abc-->"
 	for _, c := range []struct{ name, in, seam, want string }{
 		{"control: the bare pair", "It is prime.. Next.", ". Next.", "It is prime. Next."},
 		{"the run before the seam", "It is prime." + run + ". Next.", ". Next.", "It is prime" + run + ". Next."},
 		{"the run after the seam", "It is prime." + run + ". Next.", run + ". Next.", "It is prime" + run + ". Next."},
-		{"the run on both sides of the seam", "It is prime." + run + ". Next.", "<!--fx:F-00000abc-->. Next.", "It is prime" + run + ". Next."},
+		{"the run on both sides of the seam", "It is prime." + run + ". Next.", "<!--gap:G-00000abc-->. Next.", "It is prime" + run + ". Next."},
 		{"two different marks are no pair", "It is prime:" + run + ". Next.", ". Next.", "It is prime:" + run + ". Next."},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestTidySeamReadsADoubledMarkAcrossAnAnchorRun(t *testing.T) {
 // stands after the sentence's anchors, the replacement ends in its own mark before them, and the
 // reader sees "91:." with four anchors inside it.
 func TestDoubledTerminatorReadsAcrossAnAnchorRun(t *testing.T) {
-	const run = "<!--gap:G-0000000c--><!--fx:F-f8f18cf1--><!--fx:F-63bb2a68--><!--gap:G-00000004-->"
+	const run = "<!--gap:G-0000000c--><!--gap:G-f8f18cf1--><!--gap:G-63bb2a68--><!--gap:G-00000004-->"
 	before := "we searched for cases where it *fails* or is *limited*" + run + ".\n"
 	if got := DoubledTerminator(before, "The following findings examine each method's performance on 91:"+run+".\n"); got != ":." {
 		t.Errorf("DoubledTerminator = %q, want the run %q the reader sees", got, ":.")
@@ -111,7 +111,7 @@ func TestDoubledTerminatorReadsOnlyTheSeam(t *testing.T) {
 		// report's `. `, so where before and after stop agreeing is past the report's own period.
 		{"a sentence added before the report's period", "It works. Next.", "It works. Does it scale?. Next.", "?."},
 		{"a sentence added before the report's period, past its anchor",
-			"It works<!--fx:F-11111111-->. Next.", "It works. Really!<!--fx:F-11111111-->. Next.", "!."},
+			"It works<!--gap:G-11111111-->. Next.", "It works. Really!<!--gap:G-11111111-->. Next.", "!."},
 		{"a mark added after the report's", "It works. Next.", "It works.! Next.", ".!"},
 		{"a replacement that starts with a mark, beside the report's", "It works. Next.", "It works.! Later.", ".!"},
 		// The guard judges a change: a report it is handed unchanged holds no seam, whatever it holds.
@@ -119,8 +119,8 @@ func TestDoubledTerminatorReadsOnlyTheSeam(t *testing.T) {
 		{"a paragraph repeated beside itself", "One. Two.\n\nNext.", "One. Two.\n\nOne. Two.\n\nNext.", ""},
 		// An edit that moves two anchors between its sentences: before and after part inside a token.
 		{"a terminator beside the report's, past anchors the edit moved",
-			"It is prime<!--fx:F-11111111-->. It is odd<!--fx:F-22222222-->. Next.",
-			"It is prime<!--fx:F-22222222-->. It is odd!<!--fx:F-11111111-->. Next.", "!."},
+			"It is prime<!--gap:G-11111111-->. It is odd<!--gap:G-22222222-->. Next.",
+			"It is prime<!--gap:G-22222222-->. It is odd!<!--gap:G-11111111-->. Next.", "!."},
 		// A run as long elsewhere in the report does not license this one.
 		{"a terminator beside the report's, in a report with longer runs", `He asked "why?". It works. Next.`, `He asked "why?". It works!. Next.`, "!."},
 	} {

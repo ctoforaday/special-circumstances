@@ -14,7 +14,7 @@ import (
 )
 
 // THE LEAK REPRO: a marker token that reaches the report via a RECORD-DERIVED section
-// (here a mint's problem text, rendered into the findings/risk section) must still be
+// (here a mint's problem text, rendered into the risk section) must still be
 // stripped — the earlier blue-only strip missed exactly this path.
 func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	runDir := newRun(t)
@@ -30,11 +30,11 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// A gap whose problem text carries a marker token (as a real finding's quoted
-	// location/reason would), plus a terminal outcome so assembly composes fully.
+	// A gap whose problem text carries a marker token (as a real gap's quoted
+	// problem would), plus a terminal outcome so assembly composes fully.
 	mint := &recordpb.Mint{
 		GapId:           proto.String("G1"),
-		Problem:         proto.String("the sentence flagged here <!--fx:F-0001eac2--> is wrong"),
+		Problem:         proto.String("the sentence flagged here <!--gap:G-0001eac2--> is wrong"),
 		Location:        proto.String("§1"),
 		RequiredFix:     proto.String("fix it"),
 		AcceptanceCheck: proto.String("recheck"),
@@ -58,7 +58,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(shipped), "<!--fx:") {
-		t.Errorf("a finding-marker leaked into the shipped report via a record-derived section:\n%s", shipped)
+	if strings.Contains(string(shipped), "<!--gap:") {
+		t.Errorf("a gap marker leaked into the shipped report via a record-derived section:\n%s", shipped)
 	}
 }

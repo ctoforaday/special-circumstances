@@ -26,11 +26,11 @@ type unchecked struct {
 //
 // A CHECK ON THE RECORD IS A CHECK OF THE SENTENCE AS IT STOOD. An edit that changes the sentence
 // leaves the check standing over prose nobody read against the source: on universe-m19 a citation
-// the evidence lens had found against was rewritten to answer the finding, and the footnote
+// the evidence lens had found against was rewritten to answer the gap, and the footnote
 // shipped on a sentence no seat had read (plans/reopened-evidence-is-owed.md). A citation nobody
 // ever read is the same unread sentence with no history: both are one state, and both hold the PASS.
 //
-// A finding's or gap's id in an edit's list is not a row — only a citation and a computation have a check
+// A gap's id in an edit's list is not a row — only a citation and a computation have a check
 // to redo.
 //
 // ANY SEAT'S CHECK CLEARS; ONE LENS IS READIED. A check is a reading of the sentence, and the write

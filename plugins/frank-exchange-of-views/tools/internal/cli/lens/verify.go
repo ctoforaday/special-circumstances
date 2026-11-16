@@ -47,7 +47,7 @@ import (
 //     red's work beside blue's sources without connecting them (#382).
 //   - WHAT IT FOUND was unrecordable in the one direction that matters. The verdict field had
 //     three values — high, medium, low — and no way to say the source does NOT hold up. So the
-//     strongest finding on this axis had to leave as prose, and the capture audit built to catch
+//     strongest defect on this axis had to leave as prose, and the capture audit built to catch
 //     a report still carrying a refuted citation looked for a verdict no field could hold (#296).
 //
 // All three are the same defect wearing different clothes: the verb recorded that work

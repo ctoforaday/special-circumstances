@@ -264,8 +264,8 @@ var (
 // answers the lens's `close` and the chair's `carry` from one switch arm, keyed on the body type
 // both write. The harness can — it knows the seat it dispatched. So every refusal any test drives
 // through `run` is read here against the tree of the seat that received it. #1226 stripped the
-// role word from these refusals and left the lens told to `carry --carried-from`, the chair told
-// to `close` and to raise a `finding`: each resolved on SOME tree, so the source scan was green,
+// role word from these refusals and left the lens told to `carry --carried-from` and the chair told
+// to `close`: each resolved on SOME tree, so the source scan was green,
 // and a seat that obeyed got "no command named …".
 func assertRefusalSpeaksToItsSeat(t *testing.T, seatID string, own *cobra.Command, err error) {
 	t.Helper()

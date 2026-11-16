@@ -10,7 +10,7 @@ import (
 )
 
 // AN ACT ON A RETIRED ANCHOR IS THE ACT'S TO ANSWER, NOT THE RECORD'S SHAPE (judgeAct). A citation is
-// retired; then a mint and a finding about it and a computation citing it are each refused live, naming
+// retired; then a mint about it and a computation citing it are each refused live, naming
 // the retire, and each written by the replay — an archived act legal when it was made migrates as it
 // was made.
 func TestAnActOnARetiredAnchorIsRefusedLiveAndReplayed(t *testing.T) {
@@ -41,10 +41,6 @@ func TestAnActOnARetiredAnchorIsRefusedLiveAndReplayed(t *testing.T) {
 				CheckKind: recordpb.CheckKind_CHECK_KIND_SOURCE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(), Likelihood: recordpb.Grade_GRADE_HIGH.Enum(),
 				Impact: recordpb.Grade_GRADE_HIGH.Enum()}
 		}, "no gap about it"},
-		{"a finding about it", lens, func() proto.Message {
-			return &recordpb.Finding{Id: proto.String("F-0000f001"), AboutKind: recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), AboutRef: proto.String(c),
-				Text: proto.String("the anchor is wrong"), Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum()}
-		}, "no finding about it"},
 		{"a computation citing it", blue, func() proto.Message {
 			return &recordpb.Computation{Argv: []string{"python3", "s.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-0000b001"),
 				BundleSha: proto.String("sha-s"), Cites: proto.String(c)}

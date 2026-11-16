@@ -15,8 +15,7 @@ import (
 // # The anchor a seat could not resolve
 //
 // The report carries a tool-inserted anchor of every kind in the anchor kinds table. A seat
-// reading a sentence sees the token. Only a finding's could ever be resolved — `show findings`
-// is keyed by the f-label — and a source's and a computation's were opaque.
+// reading a sentence sees the token, and a source's or a computation's resolves nowhere but here.
 //
 // Measured, in a seat's own words when asked what it could do next: "blocked by missing
 // information (what does `c-29a72fe2` point to?)". The tool holds that citation's url, title,
@@ -244,7 +243,7 @@ type EvidenceVerificationJSON struct {
 	// Anchor is the citation adjudicated, empty on an independent check.
 	Anchor string `json:"anchor"`
 	// Outcome is what the source DID for the claim, and it has a negative half: `refutes` and
-	// `absent` are the values that used to have nowhere to go, so the strongest finding on this
+	// `absent` are the values that used to have nowhere to go, so the strongest defect on this
 	// axis left as prose and the assembly screen looked for a verdict no field could carry.
 	Outcome string `json:"outcome"`
 	// Bridge is what a supports_with_bridge reading bridged — summary, secondary_citation or
@@ -721,7 +720,7 @@ func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
 			return at, nil
 		}
 	}
-	// A WELL-FORMED ID NOTHING HERE IS AT — a finding's, a gap's, or a citation or computation this
+	// A WELL-FORMED ID NOTHING HERE IS AT — a gap's, or a citation or computation this
 	// record does not hold. An id of the wrong shape, a computation's sha256 among them, never reaches this: the
 	// flag that takes the anchor refuses it (flags.AnchorID).
 	return EvidenceAtJSON{}, fmt.Errorf("no source or computation is at anchor %q on this record (%d source(s), %d computation(s)). "+

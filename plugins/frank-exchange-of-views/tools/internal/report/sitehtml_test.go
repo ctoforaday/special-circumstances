@@ -237,7 +237,7 @@ func TestAnchorTokensAreNeverShownAsTyped(t *testing.T) {
 		"## TL;DR", "",
 		"<!--gap:G-0000abcd--> The next sentence <b>x</b>.", "",
 		"- <!--computation:K-deadbeef--> A listed sentence <b>y</b>.", "",
-		"> <!--fx:F-0000beef--> A quoted sentence.", "",
+		"> <!--gap:G-0000beef--> A quoted sentence.", "",
 		"[^n]: <!--gap:G-0000abcd--> A note's sentence.", "",
 		"A claim[^n].", "",
 		"## Open questions", "",

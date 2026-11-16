@@ -15,7 +15,7 @@ import (
 
 // ONE GAP PER CLASS AND SUBJECT (ruled by gblock 2026-10-28). A mint is refused where an open gap of
 // the same class stands on the same sentence or the same inquiry; the refusal names that gap, its
-// minter and its problem, and points the lens at a finding about it.
+// minter and its problem, and points the lens at the road its own gap takes: supersede it or regrade it.
 
 const (
 	oneGapSentence = "Costs rose sharply across the first quarter."
@@ -43,13 +43,14 @@ func mintOn(t *testing.T, runDir, class, problem string, subject ...string) (str
 	return gapID(out), out, err
 }
 
-// refusedNaming fails the test unless err is the one-gap refusal naming held, its minter and problem.
+// refusedNaming fails the test unless err is the one-gap refusal naming held as the refused lens's own,
+// with its problem.
 func refusedNaming(t *testing.T, err error, out, held, problem string) {
 	t.Helper()
 	if err == nil {
 		t.Fatalf("a second gap of one class on one subject was admitted: %s", out)
 	}
-	for _, want := range []string{held, lensSeat, problem, "--about-kind gap --about " + held, "one gap"} {
+	for _, want := range []string{held, "is yours", problem, "--supersedes " + held, "regrade --id " + held, "one gap"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q:\n%v", want, err)
 		}
@@ -71,7 +72,9 @@ func TestASecondGapOfOneClassOnOneSentenceIsRefusedNamingTheFirst(t *testing.T) 
 		t.Errorf("the record holds %d mints, want the first alone", n)
 	}
 	// The act the refusal points to is admitted.
-	lensFinding(t, runDir, lensSeat, "about-first", "--about-kind", "gap", "--about", first)
+	if _, out, err := mintOn(t, runDir, "spec_underspecification", "the problem restated", "--quote", oneGapSentence, "--supersedes", first); err != nil {
+		t.Fatalf("the supersede the refusal points to was refused: %v\n%s", err, out)
+	}
 }
 
 func TestAnotherClassOnTheSameSentenceIsAdmitted(t *testing.T) {
@@ -200,7 +203,7 @@ func TestTwoConcurrentMintsAreOneGapAndOneRefusal(t *testing.T) {
 
 // THE GAP A FAILED CHECK OBLIGES IS NOT A SECOND GAP. A lens whose reading of a citation read nothing
 // owes a gap about it; another lens's open gap of the same class on the cited
-// sentence does not refuse it, since the gap is about the anchor, and the finding the refusal would
+// sentence does not refuse it, since the gap is about the anchor, and the road the refusal would
 // point to does not answer the check. A quote gap of that class on that sentence is refused as ever.
 func TestTheGapAFailedCheckObligesIsNotRefusedAsASecondGap(t *testing.T) {
 	runDir, label := citedClause(t)

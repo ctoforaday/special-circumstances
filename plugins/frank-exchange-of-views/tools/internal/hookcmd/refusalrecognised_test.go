@@ -23,8 +23,8 @@ import (
 func TestTheHookRecognisesTheRecordToolsOwnRefusal(t *testing.T) {
 	for name, argv := range map[string][]string{
 		// With no seat named nothing reads a record, so each is refused wherever it runs.
-		"refused before a command resolved":   {"finding", "--json"},
-		"and the same call in its human form": {"finding"},
+		"refused before a command resolved":   {"mint", "--json"},
+		"and the same call in its human form": {"mint"},
 		"a flag the root does not have":       {"--nonesuch", "--json"},
 	} {
 		t.Run(name, func(t *testing.T) {

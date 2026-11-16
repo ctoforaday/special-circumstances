@@ -203,23 +203,20 @@ func TestAnEraProofsOutputIsItsEvents(t *testing.T) {
 	}
 }
 
-// AN ARCHIVED NOTE LABEL IS A COMPUTATION'S: wave-b's finding names `[^P5]`, and the migrated
-// finding names `[^K5]`.
+// AN ARCHIVED NOTE LABEL IS A COMPUTATION'S: a seat's argument from a source before the computation
+// names `[^P5]`, and the migrated argument names `[^K5]`; a source-data field keeps what it holds.
 func TestAnArchivedNoteLabelReadsAsAComputationsNote(t *testing.T) {
-	bodies, _, _ := migratedBodies(t, "2026-10-12_is-91-prime-wave-b.tar.gz")
-	k5 := 0
-	for _, b := range bodies {
-		eachString(b.(proto.Message).ProtoReflect(), func(field, v string) {
-			if argumentFields[field] {
-				k5 += strings.Count(v, "[^K5]")
-				if strings.Contains(v, "[^P5]") {
-					t.Errorf("%s keeps [^P5]", field)
-				}
-			}
-		})
+	r := newRemap("source")
+	r.archivedNotes = true
+	argued := &recordpb.Log{Text: proto.String("the bound in [^P5] holds")}
+	data := &recordpb.Cite{Title: proto.String("Notes [^P5]")}
+	r.apply(argued)
+	r.apply(data)
+	if argued.GetText() != "the bound in [^K5] holds" {
+		t.Errorf("Log.text = %q, want the note read as the computation's", argued.GetText())
 	}
-	if k5 == 0 {
-		t.Error("wave-b's [^P5] reads as no [^K5] in any argument field")
+	if data.GetTitle() != "Notes [^P5]" {
+		t.Errorf("Cite.title = %q, want it as the source wrote it", data.GetTitle())
 	}
 }
 
@@ -524,15 +521,15 @@ func TestAPrintedPlanKeepsItsProofIds(t *testing.T) {
 // RESIDUE: A SEAT'S ACCOUNT OF WHERE IT READ IS ITS OWN WORDS. A `proofs/<sha>` path in a seat's
 // argument stays as it was written; the act it describes keeps its id. Counted over every argument
 // field, per archive, as the migrated record holds them — a note carried to a second anchor counts
-// once per anchor.
+// once per anchor. A finding's text held one in each of quadratic-formula, b, b4 and b7; a finding
+// translates to no event (EventSchema 78), so those four are not counted.
 func TestASeatsProofStorePathStaysAsWritten(t *testing.T) {
 	want := map[string]int{
-		"2026-09-02_quadratic-formula.tar.gz":  15,
-		"2026-09-09_is-91-prime-b.tar.gz":      4, // and two in its inquiry reviews, which translate to none
+		"2026-09-02_quadratic-formula.tar.gz":  14,
+		"2026-09-09_is-91-prime-b.tar.gz":      3, // and two in its inquiry reviews, which translate to none
 		"2026-09-10_is-91-prime-b3.tar.gz":     2,
-		"2026-09-11_is-91-prime-b4.tar.gz":     1,
 		"2026-09-11_is-91-prime-b5.tar.gz":     6,
-		"2026-09-11_is-91-prime-b7.tar.gz":     11,
+		"2026-09-11_is-91-prime-b7.tar.gz":     10,
 		"2026-09-11_is-91-prime-b8.tar.gz":     8,
 		"2026-10-09_is-91-prime-wave-a.tar.gz": 3,
 		"2026-10-17_is-91-prime-m26.tar.gz":    5,

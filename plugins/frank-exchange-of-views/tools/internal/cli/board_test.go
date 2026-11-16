@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"regexp"
 	"testing"
 )
 
@@ -16,20 +15,14 @@ import (
 // channel over.
 
 type boardJSON struct {
-	Open         []map[string]any `json:"open"`
-	Closed       []map[string]any `json:"closed"`
-	Observations []struct {
-		ID       string         `json:"id"`
-		Disposed bool           `json:"disposed"`
-		Fate     map[string]any `json:"fate"`
-	} `json:"observations"`
+	Open   []map[string]any `json:"open"`
+	Closed []map[string]any `json:"closed"`
 	Counts struct {
-		Open             int `json:"open"`
-		Closed           int `json:"closed"`
-		ClosedByBench    int `json:"closed_by_bench"`
-		UndisposedObserv int `json:"undisposed_observations"`
-		Anomalies        int `json:"anomalies"`
-		Citations        int `json:"citations"`
+		Open          int `json:"open"`
+		Closed        int `json:"closed"`
+		ClosedByBench int `json:"closed_by_bench"`
+		Anomalies     int `json:"anomalies"`
+		Citations     int `json:"citations"`
 	} `json:"counts"`
 	Anomalies []string `json:"anomalies"`
 }
@@ -121,52 +114,6 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 		if got, _ := closure[k].(string); got != want {
 			t.Errorf("closure.%s = %q, want %q — an anchor a machine cannot read is why anchored_closures_pct scored 0 on a run whose closures WERE anchored", k, got, want)
 		}
-	}
-}
-
-// The findings view is the chair's structured read of the lens findings, replacing the
-// red/candidates/*.md files — id (tool-assigned), area from the seat id, grades, text.
-func TestFindingsViewProjectsLensFindings(t *testing.T) {
-	runDir := seatRun(t)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--key", "F1", "--quote", "§1", "--reason", "first", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-logic"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-logic",
-		"--key", "F1", "--quote", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
-		t.Fatal(err)
-	}
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "findings")
-	if err != nil {
-		t.Fatalf("show findings: %v", err)
-	}
-	var fv struct {
-		Findings []struct{ ID, Area, Text string }
-		Counts   struct{ Total int }
-	}
-	if err := json.Unmarshal([]byte(out), &fv); err != nil {
-		t.Fatalf("findings view must be valid JSON the chair parses: %v\n%s", err, out)
-	}
-	if fv.Counts.Total != 2 || len(fv.Findings) != 2 {
-		t.Fatalf("findings total = %d, want 2", fv.Counts.Total)
-	}
-	got := map[string]string{} // text -> area
-	ids := map[string]bool{}
-	for _, f := range fv.Findings {
-		got[f.Text] = f.Area
-		if !regexp.MustCompile(`^F-[0-9a-f]{8}$`).MatchString(f.ID) {
-			t.Errorf("finding id = %q, want F-<8 hex>", f.ID)
-		}
-		ids[f.ID] = true
-	}
-	if len(ids) != 2 {
-		t.Errorf("the two findings carry %d distinct ids, want 2: %v", len(ids), ids)
-	}
-	if got["first"] != "evidence" || got["second"] != "logic" {
-		t.Errorf("findings view misroutes: %v — the area comes from the seat id", got)
 	}
 }
 

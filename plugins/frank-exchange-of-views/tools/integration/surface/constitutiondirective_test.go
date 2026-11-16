@@ -105,7 +105,7 @@ func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
 		}
 		// `--help` is the directive itself; anything else backticked-and-lowercase in this block
 		// is a candidate verb name.
-		for _, bad := range []string{"`mint`", "`close`", "`finding`", "`verify`", "`register`", "`log`"} {
+		for _, bad := range []string{"`mint`", "`close`", "`verify`", "`register`", "`log`"} {
 			if strings.Contains(block, bad) {
 				t.Errorf("%s names %s inside the surface-discovery duty — the directive replaces the list rather than carrying one", filepath.Base(p), bad)
 			}

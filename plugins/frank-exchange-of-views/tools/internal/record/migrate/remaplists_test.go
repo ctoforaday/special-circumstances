@@ -88,8 +88,8 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 	if motionArms != 10 {
 		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 10 — the walk stopped at the top-level bodies", motionArms)
 	}
-	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "38 42 67" {
-		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 38 42 67", got)
+	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "35 41 65" {
+		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 35 41 65", got)
 	}
 }
 
@@ -132,13 +132,17 @@ func archivedSource(t *testing.T, runDir string) Source {
 }
 
 // anyToken is an anchor token in either spelling, the test's own reader; tokenless spells each as
-// its tag alone — an archived `proof` token as the `computation` tag it translates to — so two texts
-// that differ only in the ids their tokens carry compare equal.
+// its tag alone — an archived `proof` token as the `computation` tag it translates to — and takes an
+// archived finding's `fx` token out, as migration does, so two texts that differ only in the ids
+// their tokens carry compare equal.
 var anyToken = regexp.MustCompile(`<!--(fx|cite|proof|computation|gap):[A-Za-z0-9-]+-->`)
 
 func tokenless(s string) string {
 	return anyToken.ReplaceAllStringFunc(s, func(tok string) string {
 		tag := anyToken.FindStringSubmatch(tok)[1]
+		if tag == "fx" {
+			return ""
+		}
 		if tag == "proof" {
 			tag = "computation"
 		}
@@ -190,7 +194,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 			&recordpb.Inquiry{InquiryId: proto.String("Q1")}, &recordpb.Inquiry{InquiryId: proto.String("Q2")},
 			&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G2")},
 		} {
-			r.apply(b, "")
+			r.apply(b)
 		}
 		q1, g2, q2 := r.ids["Q1"], r.ids["G2"], r.ids["Q2"]
 		sum := sha256.Sum256([]byte("sourceG2"))
@@ -205,16 +209,16 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		}
 		for _, b := range kept {
 			was := proto.Clone(b)
-			if r.apply(b, ""); !proto.Equal(was, b) {
+			if r.apply(b); !proto.Equal(was, b) {
 				t.Errorf("a source-data field was rewritten: %v -> %v", was, b)
 			}
 		}
 		// A comment that only looks like a token, and a hyphenated word, are a seat's prose.
 		// So is a hyphen, though an archived citation was labelled with one.
-		r.apply(&recordpb.Cite{Label: proto.String("-")}, "")
+		r.apply(&recordpb.Cite{Label: proto.String("-")})
 		shown := &recordpb.Log{Text: proto.String("the form is <!--cite:---> on an unverified-composition gap")}
 		asWritten := proto.Clone(shown)
-		if r.apply(shown, ""); !proto.Equal(asWritten, shown) {
+		if r.apply(shown); !proto.Equal(asWritten, shown) {
 			t.Errorf("prose that names no id was rewritten: %v (table %v)", shown, r.ids)
 		}
 		l := &recordpb.Log{Text: proto.String("closes G2, not G20 or G2x")}
@@ -223,7 +227,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		mo := &recordpb.MotionRule{Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Principle: proto.String("G2 stands")}}}
 		p := &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("p-0a1b2c3d"), Drift: proto.String("G2 drifted"), Location: proto.String("x<!--gap:G2--><!--cite:c-00112233-->")}
 		for _, b := range []proto.Message{l, d, m, mo, p} {
-			r.apply(b, "")
+			r.apply(b)
 		}
 		for what, got := range map[string]string{
 			"Log.text":                   l.GetText(),
@@ -244,21 +248,23 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 				t.Errorf("%s = %q, want %q", what, got, want)
 			}
 		}
-		// A finding's archived label names its id from then on, and a finding the archive gave no id
-		// takes one from its label.
-		f := &recordpb.Finding{Id: proto.String("f-7cdcd115")}
-		r.apply(f, "adversary-F2")
-		legacy := &recordpb.Finding{}
-		r.apply(legacy, "L5-F1")
-		credit := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G4"), FoundBy: []string{"adversary-F2", "L5-F1"}}
-		r.apply(credit, "")
-		if f.GetId() != "F-7cdcd115" || credit.GetFoundBy()[0] != "F-7cdcd115" || credit.GetFoundBy()[1] != legacy.GetId() || !currentID.MatchString(legacy.GetId()) {
-			t.Errorf("finding %q, legacy %q, credited as %v", f.GetId(), legacy.GetId(), credit.GetFoundBy())
+		// An archived finding's names leave every id list, in the spelling the source wrote and the one
+		// it was respelled to, and its token leaves every field; a seat's prose keeps the id it wrote.
+		r.dropFindings([]string{"f-7cdcd115", "adversary-F2"})
+		spot := &recordpb.SpotCheck{Ids: []string{"f-7cdcd115", "F-7cdcd115", "adversary-F2", "G2"}}
+		cut := &recordpb.Retire{Claim: proto.String("x<!--fx:f-7cdcd115--><!--fx:F-0a0b0c0d-->"), Reason: proto.String("as F-7cdcd115 says")}
+		r.apply(spot)
+		r.apply(cut)
+		if got := strings.Join(spot.GetIds(), ","); got != g2 {
+			t.Errorf("SpotCheck.ids = %q, want the finding's names gone and %s kept", got, g2)
+		}
+		if cut.GetClaim() != "x" || cut.GetReason() != "as F-7cdcd115 says" {
+			t.Errorf("Retire.claim %q, reason %q: want every finding token gone and the prose as written", cut.GetClaim(), cut.GetReason())
 		}
 		// An id already in the one shape stands, so a record written at this epoch migrates unchanged.
 		now := &recordpb.Mint{GapId: proto.String("G-5e10a3c2"), Location: proto.String("x<!--gap:G-5e10a3c2-->")}
 		was := proto.Clone(now)
-		if r.apply(now, ""); !proto.Equal(was, now) {
+		if r.apply(now); !proto.Equal(was, now) {
 			t.Errorf("a current id was respelled: %v", now)
 		}
 	})
@@ -312,7 +318,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		for _, old := range evs { // the table is filled first, as Replay fills it
 			bodies, _ := reg.Translate(old)
 			for _, body := range bodies {
-				rm.apply(body, old.Fields["label"])
+				rm.apply(body)
 			}
 		}
 		for _, old := range evs {
@@ -322,7 +328,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 			}
 			for _, body := range bodies {
 				names, was := values(body)
-				rm.apply(body, old.Fields["label"])
+				rm.apply(body)
 				_, now := values(body)
 				if p, ok := body.(*recordpb.Computation); ok {
 					proofs++

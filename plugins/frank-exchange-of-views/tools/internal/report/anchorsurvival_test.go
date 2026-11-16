@@ -20,7 +20,7 @@ import (
 // Each of the three anchor classes has a DEFINED FATE at assembly, and they are three different
 // fates decided in three different places:
 //
-//	<!--fx:F-…-->     STRIPPED           (stripTokens, docs.go)
+//	<!--gap:G-…-->    STRIPPED           (stripTokens, docs.go)
 //	<!--cite:C-…-->   -> [^N]  + bibliography   (weaveCitations, assemble.go)
 //	<!--computation:K-…--> -> [^KN] + definitions    (weaveComputationRefs, computations.go)
 //
@@ -52,7 +52,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		"The eviction path is safe<!--cite:C-00000001-->, and the interleaving was model-checked<!--computation:K-00000001-->.",
 		"",
 		"## Analysis",
-		"Red's objection to the read lock was withdrawn<!--fx:F-0000a1f1--> after the counter-example<!--cite:C-00000001-->.",
+		"Red's objection to the read lock was withdrawn<!--gap:G-0000a1f1--> after the counter-example<!--cite:C-00000001-->.",
 		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
@@ -93,15 +93,11 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		Text: proto.String("the model check settles the interleaving"),
 	})
 	// ANCHORS IN RECORD-DERIVED TEXT TOO, not only in the report's own sections. A seat's own prose
-	// carries tokens into the findings and transcript sections, which are composed from the event
+	// carries tokens into the board and transcript sections, which are composed from the event
 	// log rather than copied — a different code path to the same page, and the reason
 	// the strip runs over the FINAL output rather than over blue's content alone.
-	add("red-lens-evidence", &recordpb.Finding{
-		Id: proto.String("F-f0000001"), Location: proto.String("§Analysis"),
-		Text: proto.String("the read lock is dropped before evict<!--cite:C-00000001-->"),
-	})
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--fx:F-0000a1f1-->"),
+		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--gap:G-0000a1f1--> before evict<!--cite:C-00000001-->"),
 		Location: proto.String("cache.go:88"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
@@ -123,7 +119,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// EVERY *.md IN THE RUN, not reportdoc.Files(). A document dropped from docOrder but still
 	// written would be exactly the carrier this test exists to find, and asking the list would
 	// hide it — the list is the thing under suspicion.
-	anchorTok := regexp.MustCompile(`<!--(fx|cite|computation):[^>]*-->`)
+	anchorTok := regexp.MustCompile(`<!--(gap|cite|computation):[^>]*-->`)
 	entries, err := os.ReadDir(runDir)
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +137,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		if raw := anchorTok.FindAllString(string(body), -1); len(raw) > 0 {
 			withAnchors++
 			t.Errorf("%s ships %d raw anchor token(s): %s\n"+
-				"Each class has a fate at assembly — fx is stripped, cite becomes [^N], computation becomes [^KN] — "+
+				"Each class has a fate at assembly — gap is stripped, cite becomes [^N], computation becomes [^KN] — "+
 				"and a token that survives means this document's composition path missed one. An HTML comment "+
 				"renders as nothing, so a reader sees prose with a hole where the evidence layer should be.",
 				e.Name(), len(raw), strings.Join(raw, ", "))
@@ -164,7 +160,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	for _, want := range []struct{ what, probe string }{
 		{"a citation woven to a footnote reference", "[^1]"},
 		{"a computation woven to a footnote reference", "[^K1]"},
-		{"the sentence a stripped finding-marker was attached to", "Red's objection to the read lock was withdrawn"},
+		{"the sentence a stripped gap marker was attached to", "Red's objection to the read lock was withdrawn"},
 	} {
 		if !strings.Contains(string(report), want.probe) {
 			t.Errorf("%s never reached %s (looked for %q) — the fixture's anchors did not travel, "+

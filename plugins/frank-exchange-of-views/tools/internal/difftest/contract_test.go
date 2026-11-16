@@ -6,11 +6,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-
-	"google.golang.org/protobuf/proto"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // command builds an invocation of the built binary.
@@ -88,10 +83,10 @@ func scrubRevision(s string) string {
 func TestGoldenErrorCatalogue(t *testing.T) {
 	bin := buildBinary(t)
 	runDir := t.TempDir()
-	// The finding below anchors into the report (slice 1b) with --quote "somewhere", so the lane's
-	// part must contain that quote or the finding is rejected as a mis-quote.
+	// The gap below anchors into the report with --quote "somewhere", so the lane's part must
+	// contain that quote or the mint is refused as a mis-quote.
 	seed(t, runDir, map[string]string{
-		"blue/candidates/blue-lane-1.md": "## H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--fx:F-0000beef-->.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
+		"blue/candidates/blue-lane-1.md": "## H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--gap:G-0000beef-->.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
 	})
 
 	// ONE MAPPER for the setup and every row: the rows name the gap the setup mints as GAP001, and
@@ -108,32 +103,21 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// dispatch plan, and a plan is folded only on a record holding a cast.
 	seedCast(t, runDir, append(castOf("evidence"), "blue-lane-2"))
 
-	// One valid gap first, so close/regrade refusals are about the refusal under
-	// test rather than about an empty board. The LENS mints it (roundless §III.B.3), so the
-	// lens's later close and regrade rows are the originator's and refuse on the field under test.
-	stage("register", "--run", runDir, "--seat-id", "red-lens-evidence")
-	stage("mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
-		"--impact", "low", "--problem", "a valid gap")
-	// And a lane's part with an anchored sentence blue can edit, for the edit refusals below. The
+	// A lane's part with an anchored sentence blue can edit, for the edit refusals below. The
 	// second lane registers and records nothing, for the ingest refusals.
+	stage("register", "--run", runDir, "--seat-id", "red-lens-evidence")
 	stage("register", "--run", runDir, "--seat-id", "blue-lane-1")
 	stage("ingest", "--run", runDir, "--seat-id", "blue-lane-1")
 	stage("register", "--run", runDir, "--seat-id", "blue-lane-2")
 	stage("register", "--run", runDir, "--seat-id", "blue-synthesize")
 	stage("register", "--run", runDir, "--seat-id", "blue-respond")
-	// And one real finding, so a case that references it refuses on the MISSING
-	// DISPOSITION rather than an unknown observation. AFTER the ingest: a finding anchors into
-	// the report, and one filed before it is refused — which this setup did, unread, for as
-	// long as its exit code went unchecked.
-	stage("finding", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
-		"--quote", "somewhere", "--reason", "a valid finding")
-
-	// A FINDING ON THE RECORD UNDER --key F-owed, for the retry rows below.
-	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:seeded:F-00000ded", &recordpb.Finding{
-		Id: proto.String("F-00000ded"), FindingKey: proto.String("F-owed"), Location: proto.String("A sentence the report held."), Text: proto.String("t"),
-		Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum()}))
+	// One valid gap, so close/regrade refusals are about the refusal under test rather than about
+	// an empty board. The LENS mints it (roundless §III.B.3), so the lens's later close and regrade
+	// rows are the originator's and refuse on the field under test. AFTER the ingest: it quotes the
+	// report and places an anchor, so the report has changed by the time the second lane asks.
+	stage("mint", "--quote", "somewhere", "--run", runDir, "--seat-id", "red-lens-evidence", "--key", "K1",
+		"--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
+		"--impact", "low", "--problem", "a valid gap")
 
 	// THE IDS THAT NAME NOTHING: noSuchGap, and a motion id of the same kind. Neither is minted, so a
 	// row that prints one prints it as written and it takes no placeholder.
@@ -201,7 +185,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// mint is the LENS's verb now (roundless §III.B.3); the verdict is the chair's and is what a
 		// lens cannot reach. blue and the bench still cannot mint or close.
 		{"verb outside the lens role", []string{"verdict", "--seat-id", "red-lens-evidence", "--as", "FAIL"}},
-		// THE PART IS A LANE'S, once, before the report changes. The finding above placed an anchor, so
+		// THE PART IS A LANE'S, once, before the report changes. The gap above placed an anchor, so
 		// the report has changed by the time the second lane asks.
 		{"a part from a seat that is no lane", []string{"ingest", "--seat-id", "blue-synthesize"}},
 		{"a lane's second part", []string{"ingest", "--seat-id", "blue-lane-1"}},
@@ -222,25 +206,23 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a mint quoting across a blank line", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Plain one. Plain two."}},
 		{"a mint quoting inside a word", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "rices climbed"}},
 		{"a mint quoting a heading", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "H"}},
-		{"a finding quoting a sentence that repeats", []string{"finding", "--key", "F9", "--severity", "low", "--likelihood", "low", "--impact", "low",
-			"--quote", "Costs rose.", "--reason", "r"}},
 
 		// A RETRY REPEATS THE STORED ACT: one quoting other text, or stating it otherwise, states
 		// another act under the key.
-		{"a retry quoting other text", []string{"finding", "--key", "F-owed", "--severity", "low", "--likelihood", "low", "--impact", "low",
-			"--quote", "somewhere", "--reason", "t"}},
-		{"a retry stating the act otherwise", []string{"finding", "--key", "F-owed", "--severity", "high", "--likelihood", "low", "--impact", "low",
-			"--quote", "A sentence the report held.", "--reason", "t"}},
+		{"a retry quoting other text", []string{"mint", "--key", "K1", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--problem", "a valid gap", "--quote", "A claim lives somewhere in this report."}},
+		{"a retry stating the act otherwise", []string{"mint", "--key", "K1", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "high", "--likelihood", "low", "--impact", "low",
+			"--problem", "a valid gap", "--quote", "somewhere"}},
 
 		// An anchor an edit leaves out goes back only onto its sentence kept word for word, once;
 		// otherwise the refusal names that sentence and the replacement's nearest one.
 		{"an edit leaving out an anchor whose sentence it rewrites", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Prices climbed<!--fx:F-0000beef-->", "--new", "Prices soared", "--reason", "r"}},
+			"--quote", "Prices climbed<!--gap:G-0000beef-->", "--new", "Prices soared", "--reason", "r"}},
 		{"an edit leaving out an anchor whose sentence it repeats", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Prices climbed<!--fx:F-0000beef-->", "--new", "Prices climbed. Prices climbed", "--reason", "r"}},
+			"--quote", "Prices climbed<!--gap:G-0000beef-->", "--new", "Prices climbed. Prices climbed", "--reason", "r"}},
 		// An edit carries an anchor across, never onto a heading.
 		{"an edit carrying an anchor onto a heading", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Prices climbed<!--fx:F-0000beef-->", "--new", "## Prices climbed<!--fx:F-0000beef-->", "--reason", "r"}},
+			"--quote", "Prices climbed<!--gap:G-0000beef-->", "--new", "## Prices climbed<!--gap:G-0000beef-->", "--reason", "r"}},
 
 		// A run the quote leaves out stays put, and a replacement that ends its own sentence would
 		// leave it on that sentence: refused, naming the run.
@@ -272,21 +254,21 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 			"--verified-against", "t", "--reason", "verified at the leaf"}},
 		{"repeat target: a gap nothing is before the bench on", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",
 			"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "the gap the carry restates"}},
-		{"repeat target: the lens closes it", []string{"close", "--id", "GAP002", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
+		{"repeat target: the lens closes it", []string{"close", "--id", "GAP003", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 			"--verified-against", "t", "--reason", "verified at the leaf"}},
 		{"repeat target: the chair sits again", []string{"register", "--seat-id", "red-chair"}},
-		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP002", "--carried-from", "0", "--as", "repaired", "--reason", "restating"}},
-		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP002", "--carried-from", "0", "--as", "not_a_defect", "--reason", "restating otherwise"}},
+		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP003", "--carried-from", "0", "--as", "repaired", "--reason", "restating"}},
+		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP003", "--carried-from", "0", "--as", "not_a_defect", "--reason", "restating otherwise"}},
 
-		// A RUN CARRIED TO THE END OF A LONGER REPLACEMENT. The two target rows place two findings on
+		// A RUN CARRIED TO THE END OF A LONGER REPLACEMENT. The two target rows place two gaps on
 		// one sentence; the refusal prints what the record holds about each and the replacement's
 		// sentences, numbered.
-		{"bunch target: a finding on a plain sentence", []string{"finding", "--key", "FB1", "--severity", "low", "--likelihood", "low", "--impact", "low",
-			"--quote", "Plain two.", "--reason", "the word plain is unsupported"}},
-		{"bunch target: a second finding on it", []string{"finding", "--key", "FB2", "--severity", "low", "--likelihood", "low", "--impact", "low",
-			"--quote", "Plain two.", "--reason", "the count two is not shown"}},
+		{"bunch target: a gap on a plain sentence", []string{"mint", "--class", "false_universal", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--quote", "Plain two.", "--problem", "the word plain is unsupported"}},
+		{"bunch target: a second gap on it", []string{"mint", "--class", "structure_noncompliance", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--quote", "Plain two.", "--problem", "the count two is not shown"}},
 		{"an edit carrying a run of anchors to the end of a longer replacement", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Plain two<!--fx:FINDING004--><!--fx:FINDING005-->.", "--new", "Plain it is. Two it is<!--fx:FINDING004--><!--fx:FINDING005-->.", "--reason", "r"}},
+			"--quote", "Plain two<!--gap:GAP004--><!--gap:GAP005-->.", "--new", "Plain it is. Two it is<!--gap:GAP004--><!--gap:GAP005-->.", "--reason", "r"}},
 	}
 
 	var b strings.Builder
@@ -328,7 +310,7 @@ func hasFlag(argv []string, flag string) bool {
 // names it.
 func defaultSeat(first string) string {
 	switch first {
-	case "mint", "close", "regrade", "finding", "verify", "reproduce":
+	case "mint", "close", "regrade", "verify", "reproduce":
 		return "red-lens-evidence"
 	case "outcome", "certify", "declare", "halt":
 		return "judge"

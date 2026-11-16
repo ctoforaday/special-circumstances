@@ -498,7 +498,7 @@ Figures were read from the deployed configuration at the pinned revision.
 	}
 }
 
-// lensAudit: a lens sitting. Findings, source verification, and a computation to re-run.
+// lensAudit: a lens sitting. Gaps, source verification, and a computation to re-run.
 func lensAudit() Board {
 	return Board{
 		Name: "lens-audit", Seat: "red-lens-evidence",
@@ -525,7 +525,6 @@ The working group's standard has been withdrawn since the benchmark was run.
 		}},
 		Expect: []Expectation{
 			{Seat: "red-lens-evidence", Verb: "mint", Because: "The lens's core act since the chair stopped transcribing (roundless §III.B.3): a defect it can anchor to a sentence goes on the board as ITS gap, graded on every axis. The withdrawn standard is exactly that — a methodology claim whose foundation is gone, which no source reading of the sentence carries: a defect a reading finds against its source is minted by the reading's own act and counts under the reading's verb."},
-			{Seat: "red-lens-evidence", Verb: "finding", Because: "The lens's whole act. A finding anchors into the report at a quoted sentence and is refused if the quote is not there, so it cannot be filed against text nobody wrote."},
 			{Seat: "red-lens-evidence", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the confidence is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty. The methodology claim also rests on a standard BLUE NEVER CITED, so there is no anchor to read it by: the lens reads the standard it found with `--url`, and the reading mints the gap blue answers with a citation — the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
 			{Seat: "red-lens-evidence", Verb: "reproduce", Because: "A computation is audited by RE-RUNNING it, not by reading it — and then judged for whether it establishes the claim at all. `print(\"7 is prime\")` reproduces perfectly forever."},
 			{Seat: "red-lens-evidence", Verb: "motion petition file", Because: "A lens that believes proceeding would require asserting what it thinks false has one channel, and it is not prose. Every seat but the bench may file; the bench rules."},
@@ -743,7 +742,7 @@ The combined effect is largest when the two are applied together.
 			Basis: "at impasse under the run's terms — the exchanges on G1 reached their limit without resolving it; the bench owes a ruling",
 		}},
 		Expect: []Expectation{
-			{Seat: "judge", Verb: "halt", Because: "The safety and consent boundary is the bench's own act, on its own channel, and capture relays the written opinion to the human VERBATIM. A bench that disposes of the gap and lets the run continue has treated a boundary as a finding."},
+			{Seat: "judge", Verb: "halt", Because: "The safety and consent boundary is the bench's own act, on its own channel, and capture relays the written opinion to the human VERBATIM. A bench that disposes of the gap and lets the run continue has treated a boundary as a defect."},
 		},
 	}
 }
@@ -893,7 +892,7 @@ func Boards() map[string]Board {
 //
 // THIS MAP IS A FINDING, NOT AN EXEMPTION LIST. Building the boards surfaced it: `motion grade
 // file` is offered to every seat but the chair, which rules it — but grades are blue's to
-// contest. A lens files findings; a bench disposes of gaps rather than arguing their axes. The
+// contest. A lens mints gaps; a bench disposes of gaps rather than arguing their axes. The
 // verb-slots below exist and no board here reaches them.
 //
 // That is capability offered without purpose, and the choice report would otherwise show every
@@ -909,8 +908,8 @@ var NoSituation = map[string]string{
 	"lane motion docket file":   "a lane sits before any gap is minted, so it has no gap to put before the bench.",
 	"lane motion grade file":    "a lane sits before any gap is minted, so it has no grade to contest.",
 	"lane motion petition file": laneSitsBeforeAnyBoard,
-	"lens motion docket file":   "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
-	"lens motion grade file":    "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
+	"lens motion docket file":   "a lens mints its gaps. Its one road here is a proposed act on another lens's gap, which the one-gap-per-class refusal opens and no board here stages.",
+	"lens motion grade file":    "a lens mints its gaps and weighs them as it mints; a weight it disputes on another lens's gap is a proposed regrade, not a grade contest.",
 	"chair position": "possible and real — the chair withholds a PASS its plan permits, and its position says why — but a " +
 		"permitted PASS needs every cast lens to have sat at the report head, which no board here stages; capture's " +
 		"record-parity audit holds the duty instead.",

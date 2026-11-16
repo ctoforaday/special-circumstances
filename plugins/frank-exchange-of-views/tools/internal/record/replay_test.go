@@ -248,41 +248,6 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	}
 }
 
-// FINDINGS REPLAY; DISPOSALS NO LONGER EXIST. `observe` and `dispose` are retired (#327), and
-// with them the label-matching that resolved a disposal to its target — a mechanism that once
-// attached 39 of 60 disposals by accident of ordering because 15 labels were reused across lens
-// seats. A finding is now addressed by COALESCENCE alone: its label named in a gap's found_by.
-//
-// What must still hold is that every finding lands on the board with its identity intact, since
-// the credit join is keyed on exactly that.
-func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
-	runDir := newRun(t)
-	lens := "red-lens-evidence"
-	writeShard(t, runDir, []*Event{
-		recordtest.At(t, lens, lens+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("first")}),
-		recordtest.At(t, lens, lens+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("second")}),
-	})
-	b, err := FamilyOf(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	obs := ObservationsOf(b.Events)
-	if len(obs) != 2 {
-		t.Fatalf("both findings must replay onto the board, got %d", len(obs))
-	}
-	for _, want := range []string{"F-f0000001", "F-f0000002"} {
-		found := false
-		for _, o := range obs {
-			if o.Finding.GetId() == want {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("finding %s lost its id in replay — found_by credit is keyed on it", want)
-		}
-	}
-}
-
 // THE GRADE ENUM IS ENFORCED BY THE TYPE NOW, and this test says what it used to catch.
 //
 // It drove `validate` with `severity=catastrophic` and `severity=true`, asserting a refusal that
@@ -621,12 +586,12 @@ func TestTheKeyLabelIsTheFirstFieldTheBodyCarries(t *testing.T) {
 		want string
 	}{
 		{"gap_id is the first label consulted", &recordpb.Close{GapId: proto.String("G1")}, "G1"},
-		{"a finding's id when there is no gap_id", &recordpb.Finding{Id: proto.String("F-f0000001")}, "F-f0000001"},
+		{"an anchor's id when there is no gap_id", &recordpb.Anchor{Id: proto.String("C-f0000001")}, "C-f0000001"},
 		{"a citation reading keys on its anchor", &recordpb.Verify{Anchor: proto.String("C-1"), Url: proto.String("https://x")}, "C-1"},
 		// A reading of a source the lens found is identified by its url AND its sentence, two fields:
 		// it takes the ordinal, and requireNotARetriedReading holds the pair to one per sitting.
 		{"url keys nothing", &recordpb.Verify{Url: proto.String("https://x"), Claim: proto.String("A sentence.")}, ""},
-		{"an empty label is not a label", &recordpb.Finding{Id: proto.String("")}, ""},
+		{"an empty label is not a label", &recordpb.Anchor{Id: proto.String("")}, ""},
 		{"no label at all", &recordpb.Log{}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -654,51 +619,6 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 	// gone, so the exception is gone with it and a re-dispatch gets `#2` from the ordinary rule.
 	if singleton[recordpb.EventType_EVENT_TYPE_REGISTER] {
 		t.Error("register is declared a singleton — a re-dispatched seat would collide with its own first registration and could not record at all")
-	}
-}
-
-// A FINDING ID NAMES ONE FINDING OVER THE WHOLE RUN. A seat sitting again that records under an id
-// it already spent is repeating an act, not filing a new finding, and another lens recording under
-// it would make one name two findings — every found_by credit on it a coin flip. `finding.id` is
-// UNIQUE, so either repeat is a refused write rather than a second row; a fresh id lands.
-func TestAFindingIDIsRefusedASecondTimeAndAFreshOneLands(t *testing.T) {
-	runDir := recordtest.TmpRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
-	if _, _, err := RegisterSeat(id, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("x")}); err != nil {
-		t.Fatal(err)
-	}
-	// A second sitting of the same seat.
-	if _, _, err := RegisterSeat(id, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("y")}); err == nil {
-		t.Fatal("F-f0000001 landed twice for one lens — a finding id is run-unique, and the second is a repeated act")
-	}
-	other := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-logic"}
-	if _, _, err := RegisterSeat(other, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(other, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("z")}); err == nil {
-		t.Fatal("F-f0000001 landed for a second lens — one id now names two findings")
-	}
-	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("y")}); err != nil {
-		t.Fatalf("a fresh id was refused in the later sitting: %v", err)
-	}
-	m, err := MergedEvents(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	n := 0
-	for _, e := range m.Events {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
-			n++
-		}
-	}
-	if n != 2 {
-		t.Errorf("%d findings on the record, want 2 (F-f0000001 once, F-f0000002 once)", n)
 	}
 }
 

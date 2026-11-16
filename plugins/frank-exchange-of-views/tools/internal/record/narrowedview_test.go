@@ -32,8 +32,7 @@ import (
 // The run holds the joins the views make across families, because a missing family shows only
 // where an event of it changes the output: a verdict per epoch (debate), a reading that finds a
 // citation against its sentence, an edit that reopens an anchor and a retire that takes a reopened one out
-// of the report (evidence), a mint crediting a finding
-// (findings), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
+// of the report (evidence), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
 // spot-check is read against (debate), a check backing an open gap's
 // anchor (board).
 func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
@@ -46,12 +45,9 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Register{ToolVersion: str("test")}),
 		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: str("blue-1"),
 			AgentType: str("frank-exchange-of-views:blue-researcher"), SeatId: str("blue-respond")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A"), Severity: medium}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000002"), Text: str("uncredited")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
-			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium,
-			FoundBy: []string{"F-00000001"}}),
+			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p2"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
@@ -262,7 +258,7 @@ func TestANarrowedViewNameIsDeclaredOnce(t *testing.T) {
 			t.Error("a second declaration of \"board\" was accepted — the registry now holds one of the two")
 		}
 	}()
-	declareNarrowedView("board", rendersEvents(FindingsJSONOf), recordpb.EventType_EVENT_TYPE_FINDING)
+	declareNarrowedView("board", rendersEvents(LogJSONOf), recordpb.EventType_EVENT_TYPE_LOG)
 }
 
 // NO PROJECTION READS AROUND ITS DECLARATION. EventsOf takes its families from the caller, so a

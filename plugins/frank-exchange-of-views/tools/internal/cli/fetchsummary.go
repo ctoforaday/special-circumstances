@@ -278,7 +278,7 @@ func (s fetchSummary) render() string {
 		fmt.Fprintf(&b, "retrieved_via: %s\n", s.RetrievedVia)
 		if !s.TextRetrieved {
 			fmt.Fprintf(&b, "text_retrieved: false\n"+
-				"  ^ THESE BYTES ARE A RECORD THAT THE SOURCE EXISTS, NOT ITS TEXT. That is a real finding: that\n"+
+				"  ^ THESE BYTES ARE A RECORD THAT THE SOURCE EXISTS, NOT ITS TEXT. That is a real fact: that\n"+
 				"    the source exists. It is not a reading, and nothing about what the source SAYS may rest on it.\n")
 		}
 		// THE WARNING IS TOLD ABOUT THE BACKEND THAT ACTUALLY ANSWERED. This paragraph used to

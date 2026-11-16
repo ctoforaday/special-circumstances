@@ -14,13 +14,13 @@ import (
 const m30Archive = "2026-10-19_is-91-prime-m30.tar.gz"
 
 // M30'S BRIDGE OVER AN INVERTED TERM HAS NO HOME NOW. The evidence lens recorded
-// supports_with_bridge on C-4f4b8cfa at events 142 and 394 while its own reason said the source
+// supports_with_bridge on C-4f4b8cfa at events 122 and 347 of the migrated record while its own reason said the source
 // names the base the liar and the report names the composite — none of the three bridges. Written
 // again, live, at the place it was written, each is refused for naming no bridge; the write that
 // would carry one must say which of the three it was.
 func TestM30BridgesAreRefusedWithoutAKind(t *testing.T) {
 	whole := archivedEvents(t, m30Archive)
-	for _, n := range []int{142, 394} {
+	for _, n := range []int{122, 347} {
 		v := whole[n-1].GetVerify()
 		if v.GetAnchor() != "C-4f4b8cfa" || v.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE || v.Bridge != nil {
 			t.Fatalf("event %d is not the evidence lens's kindless supports_with_bridge on C-4f4b8cfa: %v", n, whole[n-1])

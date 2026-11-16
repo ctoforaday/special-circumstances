@@ -250,7 +250,7 @@ func overruledVerdictItem(positionID string) string {
 
 // upheldAuditItem is the named lens's work-list item for an upheld position: its audit of its area.
 func upheldAuditItem(b Blocker) string {
-	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. Read the report as it now stands; a defect you find there is a finding and a gap. PASS is refused until you have been served the report since the ruling", b.Subject, b.Detail)
+	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. Read the report as it now stands; a defect you find there is a gap. PASS is refused until you have been served the report since the ruling", b.Subject, b.Detail)
 }
 
 // upheldPositionGaps is the open gaps an upheld position ruling names — each one remanded, as a

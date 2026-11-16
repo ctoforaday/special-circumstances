@@ -17,7 +17,7 @@ import (
 //
 // # What is checked
 //
-// Each reference flag is checked against what it names: the board, the findings, the citations,
+// Each reference flag is checked against what it names: the board, the citations,
 // the inquiries, the archive, the report, the gap class's closed set.
 //
 // # Why a TABLE and a behavioural test, rather than a list of individual tests
@@ -44,8 +44,6 @@ var referenceChecks = []struct {
 	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "G2",
 		extra: []string{"--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "G2",
-		extra: []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "F-0000f9f9",
 		extra: []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"mint"}, flag: "--class", against: "the GapClass set", bogus: "no-such-class-slug",
 		extra: []string{"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},

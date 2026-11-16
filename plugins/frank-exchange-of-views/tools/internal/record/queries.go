@@ -122,7 +122,7 @@ func recordedOutcomeAt(q recordsql.Querier) (string, error) {
 }
 
 // EventsOf reads back only the named event families, in record order — the read for a
-// projection that renders one kind of act (findings, the log, the debate prose) and has no
+// projection that renders one kind of act (the log, the debate prose) and has no
 // business hauling the whole record through the loader to get it — with each event's stored window
 // (WindowIndex), so the projection prints the epoch and sitting the record holds without loading
 // the acts that opened them. A run with no record yet holds none of anything.
@@ -353,7 +353,7 @@ func partStandingAt(q recordsql.Querier, seat string) (recorded, changed bool, e
 	return recorded, changed, err
 }
 
-// FindingMarkerRecorded / ComputationMarkerRecorded — the "does an event already name this marker id"
+// The marker-recorded predicates — the "does an event already name this marker id"
 // membership questions — lived here. They served the torn-splice adoption the three splicing verbs
 // ran; under report-as-record (#709) a marker exists only as its event, the orphan state cannot
 // arise, and the adoption (and these) are gone.

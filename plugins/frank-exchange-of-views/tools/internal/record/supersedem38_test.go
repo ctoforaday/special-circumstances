@@ -72,7 +72,8 @@ func TestM38ASupersededAncestorHoldsNoVerdict(t *testing.T) {
 }
 
 // ONLY A GAP'S MINTER SUPERSEDES IT WHILE IT IS OPEN, AND NOT WHILE THE BENCH HAS IT. A mint
-// superseding an open gap closes it, so another lens's is refused naming the minter, and the minter's
+// superseding an open gap closes it, so another lens's is refused naming its assignee and the proposal
+// the lens may file instead, and the minter's
 // own is refused while a docket motion stands unruled on the gap. Once the gap is closed, a mint
 // naming it is lineage and closes nothing, whoever writes it.
 func TestASupersessionIsTheMintersAndWaitsOnTheBench(t *testing.T) {
@@ -80,8 +81,9 @@ func TestASupersessionIsTheMintersAndWaitsOnTheBench(t *testing.T) {
 	run := newStage(t).cast(evLens, logic, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).register(logic).mint(evLens, "G1", "high").seed()
 	err := validateRun(run, logic, recordpb.EventType_EVENT_TYPE_MINT, successorMint("G2", "G1"))
-	if err == nil || !strings.Contains(err.Error(), "--supersedes names G1, which is open and was minted by "+evLens) {
-		t.Errorf("another lens superseding the open G1 = %v, want it refused naming its minter", err)
+	if err == nil || !strings.Contains(err.Error(), "--supersedes names G1, which is open and assigned to "+evLens) ||
+		!strings.Contains(err.Error(), "`motion docket file supersede|regrade|close --id G1`") {
+		t.Errorf("another lens superseding the open G1 = %v, want it refused naming its assignee and the proposal", err)
 	}
 	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_MINT, successorMint("G2", "G1")); err != nil {
 		t.Errorf("the minter superseding its own open G1 = %v, want it admitted", err)

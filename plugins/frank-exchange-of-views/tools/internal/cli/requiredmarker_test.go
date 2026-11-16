@@ -95,9 +95,6 @@ func requiredProbes() map[string]requiredProbe {
 			args: func(v actVars) []string { return row.act(v, "the argument for this act") }}
 	}
 	fixed := func(args ...string) func(actVars) []string { return func(actVars) []string { return args } }
-	probes["lens finding"] = requiredProbe{seat: lensSeat, args: fixed("finding", "--key", "F1",
-		"--quote", "§1 first — a finding sits in sec 1 here.",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "r")}
 	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--quote", "§2 the finding prose lands in a quoted sentence.", "--key", "M-probe",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",

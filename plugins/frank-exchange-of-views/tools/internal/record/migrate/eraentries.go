@@ -33,9 +33,8 @@ func eraEntries() Registry {
 		// The era's universal `reason` column, renamed onto each body's own prose field.
 		"blue_edit": mapped("blue_edit", ren{"reason": "text"}, nil, nil),
 		"verify":    {Translate: verifyEntry},
-		// The finding's two names are one: its id. The remap gives the archived label the finding's id.
-		"finding": mapped("finding", ren{"reason": "text", "finding_id": "id"},
-			drops{"label": "a finding has one name, its id; every reference to the label is respelled to it (plans/markers-one-mechanism.md §III.6)"}, nil),
+		// A finding translates to no event in every era (entries.go).
+		"finding":  {Translate: toNoEvent},
 		"position": positionEntry(mapped("position", ren{"reason": "text"}, nil, nil)),
 		"closing":  mapped("closing", ren{"reason": "text"}, nil, nil),
 		"certify":  mapped("certify", ren{"reason": "statement"}, nil, nil),

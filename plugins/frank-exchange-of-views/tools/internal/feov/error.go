@@ -25,8 +25,8 @@ import (
 type Code string
 
 const (
-	// NotFound: an id names nothing on the record — a gap, finding or observation that was
-	// never minted (or was guessed rather than looked up).
+	// NotFound: an id names nothing on the record — a gap, citation or inquiry that was never
+	// minted (or was guessed rather than looked up).
 	NotFound Code = "not_found"
 	// MissingField: a required flag or payload field was omitted.
 	MissingField Code = "missing_field"

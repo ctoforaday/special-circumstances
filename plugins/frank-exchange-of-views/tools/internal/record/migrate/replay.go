@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -36,7 +37,7 @@ type Result struct {
 	Refusals            []migration.Refusal
 	AcceptedLosses      map[string]string             // word -> the entry's stated reason
 	SourceHash          string                        // sha256 over the event stream AS READ — the logical record
-	IDs                 map[string]string             // archived id or finding label -> the id the migrated record carries
+	IDs                 map[string]string             // archived id -> the id the migrated record carries
 	Serialized          map[string]int                // archived instance seat -> events moved after instance 1 (serializeInstances)
 	StatedFills         []migration.StatedFill        // values supplied where the source predates the field
 	ClassTranslations   []migration.ClassTranslation  // the archived class slugs an authored row of gapclass.go carried, and onto what
@@ -45,6 +46,8 @@ type Result struct {
 	ReportOrder         string                        // what became of the order of the report's text (order.go)
 	ProseRewrites       []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
 	DroppedPlanBlockers int                           // stored plans' archived reading blockers of a found source, which leave the plan (TranslateReadingBlockers)
+	QuotelessReadings   []int64                       // source ids of the readings whose quote held only tokens the fold takes out, written as no event (EventSchema 78)
+	SettledEdits        []int64                       // source ids of the edits whose change a finding's token kept from standing, written as no event (EventSchema 78)
 
 	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
 	reruns       map[string][]string            // bundle -> the rerun_sha of each reproduce whose source names one
@@ -130,6 +133,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// event; a reading that named it comes forward as a reading of the label's source. The labels and
 	// their sources are read off the SOURCE stream: the migrated Verify has no label to be found by.
 	labelled := labelSources(evs, rm)
+	// A FINDING IS WRITTEN AS NO EVENT (EventSchema 78), and every name it carries leaves the id
+	// lists and the token fields of the record (remap.dropped). The names are read off the SOURCE
+	// stream: no translated body carries them.
+	rm.dropFindings(findingNames(evs))
 	// AN IN-ACT MINT OF A CITED READING COMES FORWARD ABOUT ITS CITATION (EventSchema 71): the
 	// citation its carrying reading named is the subject the live mint names, read off the source
 	// stream, since the migrated Verify names no gap.
@@ -214,7 +221,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	for _, old := range evs {
 		bodies, _ := reg.Translate(old)
 		for _, body := range bodies {
-			rm.apply(body, old.Fields["label"])
+			rm.apply(body)
 		}
 	}
 	// The learning pass writes nothing, so what it rewrote is not what the record holds.
@@ -228,6 +235,35 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// pin is the id of the event that source head was written as.
 	newID := map[int64]int64{} // source events.id -> the events.id of the first event written from it
 	var wrote int64
+	// A PIN THAT NAMED AN ACT LEFT OUT BY DESIGN names the record as it stood before it: the last
+	// event written, which is what a read at that act saw less the act. A dispatch's pin, a stale
+	// refusal's read point, a report read's head and a stored plan's ids that named such an act each
+	// translate to it, so the act's absence moves no read point past an act the seat had not seen.
+	// The acts left out this way are an act on a superseded gap (actOnSupersededGap), a finding
+	// (EventSchema 78) and a quoteless reading; a settled edit is headBefore's. An act the write REFUSED is not one of
+	// them, nor is a dropped Anchor, which no archived pin names: a pin naming either is refused,
+	// below, since the record never held what it read.
+	pinBefore := func(oldID int64) error {
+		if _, seen := newID[oldID]; seen {
+			return nil
+		}
+		var last int64
+		if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+			return fmt.Errorf("reading the last event written before source event %d: %w", oldID, err)
+		}
+		newID[oldID] = last
+		return nil
+	}
+	// headBefore translates a pin naming a settled edit to the report head it left standing: the
+	// latest edit or part written, which renders the report that edit's change already stood in.
+	headBefore := func(oldID int64) error {
+		var head int64
+		if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'report_part')`).Scan(&head); err != nil {
+			return fmt.Errorf("reading the report head before source event %d: %w", oldID, err)
+		}
+		newID[oldID] = head
+		return nil
+	}
 	computationAnchors := map[string][]string{}  // bundle_sha -> the anchors of the computations written on it, in order
 	bundleOf := map[string]string{}              // archived script sha -> the bundle_sha its computation was written with
 	standing := map[string]*recordpb.Reproduce{} // bundle_sha -> the latest reproduce written that ran it
@@ -238,7 +274,6 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	proposalMethod := map[string]string{}  // inquiry id -> the method its proposal carried (before epoch 30)
 	classMints := map[string]int{}         // archived class slug an authored row translates -> the mints written with it
 	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
-	raises := map[string]bool{}            // the ids of the archived raises written as no event
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -275,6 +310,12 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				continue
 			}
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+			continue
+		}
+		if src.Word == "finding" {
+			if err := pinBefore(old.ID); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		// AN ARCHIVED REPRODUCE NAMES ITS SCRIPT BY THE SCRIPT'S SHA, and the record names a bundle:
@@ -325,7 +366,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			if repro != nil && repro.Drift != nil {
 				drift = proto.String(repro.GetDrift())
 			}
-			rm.apply(body, src.Fields["label"])
+			rm.apply(body)
 			if repro != nil {
 				repro.Drift = drift
 				// AN ACT THAT RAN NOTHING STANDS ON ITS BUNDLE'S RE-RUN and states that re-run's
@@ -361,14 +402,8 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			if drop, err := actOnSupersededGap(batch.Querier(), body, supersededMotions); err != nil {
 				return nil, err
 			} else if drop {
-				// A PIN THAT NAMED THE ACT LEFT OUT names the record as it stood before it: the last
-				// event written, which is what a read at that act saw less the act.
-				if _, seen := newID[old.ID]; !seen {
-					var last int64
-					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
-						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
-					}
-					newID[old.ID] = last
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
 				}
 				continue
 			}
@@ -388,7 +423,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				d.Pin = proto.Int64(to)
 			}
 			// A STALE REFUSAL'S READ POINT is an events.id too: the last act the refusal showed. It
-			// is translated as a pin is, and refused where the act it names wrote no event.
+			// is translated as a pin is, and refused where the act it names wrote no event. A read
+			// point at a finding is the last event before it (pinBefore): the acts after it are news
+			// to the seat as they were, and the finding, which the record no longer holds, is none.
 			if st, ok := body.(*recordpb.Stale); ok && st.Through != nil {
 				to, landed := newID[st.GetThrough()]
 				if !landed {
@@ -436,25 +473,23 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					continue
 				}
 			}
-			// A RAISE IS WRITTEN AS NO EVENT (EventSchema 59): a finding about a reading that found
-			// against its sentence — decoded as about an anchor, its ref a reading's events.id rather
-			// than an anchor id — has no place in a record where the lens mints the gap on its reading.
-			// The ref must name a reading the replay wrote, or the finding is refused: nothing but a
-			// raise is dropped. A gap's found_by naming it loses that entry, below.
-			if f, ok := body.(*recordpb.Finding); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && anchor.Kind(f.GetAboutRef()) == "" {
-				if err := raisedReading(batch.Querier(), f, newID); err != nil {
-					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
-					continue
-				}
-				raises[f.GetId()] = true
-				continue
-			}
-			if m, ok := body.(*recordpb.Mint); ok && len(raises) > 0 {
-				m.FoundBy = slices.DeleteFunc(m.FoundBy, func(id string) bool { return raises[id] })
-			}
-			// A DROPPED LABEL'S ANCHOR IS WRITTEN AS NO EVENT, and a reading of the citation it placed
+			// A DROPPED LABEL'S OR FINDING'S ANCHOR IS WRITTEN AS NO EVENT, and a reading of the citation it placed
 			// becomes a reading of the label's source.
 			if a, ok := body.(*recordpb.Anchor); ok && rm.dropped[a.GetId()] {
+				continue
+			}
+			// A READING WHOSE QUOTE WAS ONLY TOKENS THE FOLD TAKES OUT IS WRITTEN AS NO EVENT. A seat
+			// that quoted nothing but a finding's token and a dropped label's (quadratic-formula: a
+			// re-check of a citation stranded in the title line) quoted no report text; with both
+			// tokens gone its quote says nothing, and no sentence of the report is equivalent to it —
+			// the labelled reading's claim would attach the reading to a sentence it never named. The
+			// reading is the residue, counted (QuotelessReadings); a pin naming it names the record
+			// before it.
+			if v, ok := body.(*recordpb.Verify); ok && v.Claim != nil && strings.TrimSpace(v.GetClaim()) == "" {
+				res.QuotelessReadings = append(res.QuotelessReadings, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
 				continue
 			}
 			if v, ok := body.(*recordpb.Verify); ok && rm.dropped[v.GetAnchor()] {
@@ -509,6 +544,20 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			// nothing a reader could check, so it is not carried; the closure's other anchors are.
 			if c, ok := body.(*recordpb.Close); ok {
 				c.Anchors = slices.DeleteFunc(c.Anchors, func(a string) bool { return a == c.GetGapId() })
+			}
+			// AN EDIT OF A STRAY A FINDING'S TOKEN LEFT, WHOSE CHANGE ALREADY STANDS, IS WRITTEN AS NO
+			// EVENT. A bare finding token standing against a terminator kept the terminator outside an
+			// edit's span (bluedoc.settleAbuttingAnchors), and a later edit removed the stray it left
+			// (m26, twice). With the token gone the first edit takes the terminator, so no stray stands
+			// in the migrated report: the later edit's quote names text it never held, or finds the
+			// sentence's own terminator and would delete it with the anchor on it. It is the residue,
+			// counted (SettledEdits); a pin naming it names the report head before it.
+			if settledEdit(batch.Querier(), src, body) {
+				res.SettledEdits = append(res.SettledEdits, old.ID)
+				if err := headBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
 			}
 			anchorAfter, err := place.step(body)
 			if err != nil {
@@ -600,6 +649,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	if res.SupersededOutcomes == nil {
 		res.SupersededOutcomes = []migration.SupersededOutcome{}
 	}
+	res.QuotelessReadings, res.SettledEdits = statedIDs(res.QuotelessReadings), statedIDs(res.SettledEdits)
 	return res, nil
 }
 
@@ -803,24 +853,50 @@ func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bo
 	return true, nil
 }
 
-// raisedReading checks that a raise — a finding about an anchor whose ref names no anchor — names a
-// reading: its ref a source events.id, carried through newID to a Verify the replay wrote. A ref that
-// is no events.id, wrote no event, or names no Verify is refused naming the finding — the loud miss,
-// so nothing but a raise is dropped.
-func raisedReading(q recordsql.Querier, f *recordpb.Finding, newID map[int64]int64) error {
-	n, err := strconv.ParseInt(strings.TrimSpace(f.GetAboutRef()), 10, 64)
+// settledEdit reports whether body is an edit whose change the migrated report already holds, because
+// the text it changed was a stray a finding's token left. It is one of two shapes, both measured on
+// m26:
+//   - its archived quote held a finding's token, that quote no longer locates in the report as the
+//     migrated record renders it, and its replacement already locates there;
+//   - it only deletes leading punctuation, and the punctuation its quote locates stands against an
+//     anchor the edit does not name. A stray terminator stood after a finding's token; with the token
+//     gone the quote finds the sentence's own terminator instead, and replaying it would delete that
+//     and the anchor on it.
+//
+// An exact-span edit and a run with no report yet are never settled: their misses stay the write's
+// and the render's to refuse.
+func settledEdit(q recordsql.Querier, src OldEvent, body proto.Message) bool {
+	b, ok := body.(*recordpb.BlueEdit)
+	if !ok || b.GetExactSpan() {
+		return false
+	}
+	text, err := record.RenderAt(q)
 	if err != nil {
-		return fmt.Errorf("finding %s is about %q, which names no anchor and is no events.id", f.GetId(), f.GetAboutRef())
+		return false
 	}
-	to, landed := newID[n]
-	if !landed {
-		return fmt.Errorf("finding %s raises the reading at event %d, which wrote no event on the migrated record before it", f.GetId(), n)
+	start, end, err := bluedoc.LocateUniqueReplacing(text, b.GetOld())
+	if err == nil {
+		return strayTerminator(b.GetOld(), b.GetNew(), text[start:end])
 	}
-	var one int
-	if err := q.QueryRow(`SELECT 1 FROM "verify" WHERE "event_id" = ?`, to).Scan(&one); err != nil {
-		return fmt.Errorf("finding %s raises event %d (written as %d), which is no reading on the migrated record: %v", f.GetId(), n, to, err)
+	if archived, _ := src.Fields["old"].(string); !strings.Contains(archived, "<!--"+findingTag+":") {
+		return false
 	}
-	return nil
+	_, _, err = bluedoc.LocateUniqueReplacing(text, b.GetNew())
+	return err == nil
+}
+
+// strayTerminator reports whether an edit from old to new only deletes old's leading punctuation, and
+// span — where old locates — holds an anchor neither old nor new names.
+func strayTerminator(old, replacement, span string) bool {
+	if replacement == old || strings.TrimLeft(old, anchortext.TrailingPunct) != replacement {
+		return false
+	}
+	for _, id := range anchor.IDs(span) {
+		if !strings.Contains(old, id) && !strings.Contains(replacement, id) {
+			return true
+		}
+	}
+	return false
 }
 
 // labelSource is a dropped label's source: the url and title its labelled reading read.
@@ -844,6 +920,23 @@ func labelSources(evs []OldEvent, rm *remap) map[string]labelSource {
 		out[rm.spelling("citation", l)] = out[l]
 	}
 	rm.dropLabels(labels)
+	return out
+}
+
+// findingNames is every name an archived finding carries — its id, its archived id and its label —
+// as the source spells each, read off the source stream.
+func findingNames(evs []OldEvent) []string {
+	var out []string
+	for _, old := range evs {
+		if old.Word != "finding" {
+			continue
+		}
+		for _, col := range []string{"id", "finding_id", "label"} {
+			if n, _ := old.Fields[col].(string); n != "" {
+				out = append(out, n)
+			}
+		}
+	}
 	return out
 }
 
@@ -905,4 +998,13 @@ func truthy(v any) bool {
 		return b
 	}
 	return false
+}
+
+// statedIDs is ids, or an empty list where it holds none: the manifest states a zero rather than
+// leaving it absent.
+func statedIDs(ids []int64) []int64 {
+	if ids == nil {
+		return []int64{}
+	}
+	return ids
 }

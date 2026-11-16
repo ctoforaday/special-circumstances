@@ -499,6 +499,10 @@
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "location", "text", "source_text_origin", "work_status", "source_completeness") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
 
+== stmt ad1a7cdee645
+-- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "cite_key", "source_text_origin", "source_span", "span_start", "span_end", "span_text_sha", "source_matched", "work_status", "source_completeness", "copy_substitution", "fetched_at", "answers") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
+
 == stmt 7fe4438a226b
 -- INSERT INTO "cite" ("event_id", "label", "url", "sha256", "title", "location", "cite_key", "source_text_origin", "work_status", "source_completeness", "copy_substitution") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   SEARCH cite_pages USING COVERING INDEX sqlite_autoindex_cite_pages_1 (event_id=?)
@@ -687,54 +691,6 @@
 -- INSERT INTO "envelope_admitted" ("event_id", "agent_id") VALUES (?, ?)
   (no plan rows: the statement reads no table)
 
-== stmt f9a7cbc0efac
--- INSERT INTO "finding" ("event_id", "id", "finding_key", "location", "text", "severity") VALUES (?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt bd16caeb3e09
--- INSERT INTO "finding" ("event_id", "id", "finding_key", "location", "text", "severity", "likelihood", "impact") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 939bcf3094fa
--- INSERT INTO "finding" ("event_id", "id", "finding_key", "location", "text", "severity", "likelihood", "impact", "about_kind", "about_ref") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 360d986cb67f
--- INSERT INTO "finding" ("event_id", "id", "finding_key", "text") VALUES (?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 925e965f3667
--- INSERT INTO "finding" ("event_id", "id", "location", "text") VALUES (?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 84ecb5c16c59
--- INSERT INTO "finding" ("event_id", "id", "location", "text", "severity") VALUES (?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt b8f6068b5693
--- INSERT INTO "finding" ("event_id", "id", "location", "text", "severity", "likelihood", "impact") VALUES (?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 7485f8877bdc
--- INSERT INTO "finding" ("event_id", "id", "text") VALUES (?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 42d5ac566dfd
--- INSERT INTO "finding" ("event_id", "id", "text", "about_kind", "about_ref") VALUES (?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt 10b653b9b1a6
--- INSERT INTO "finding" ("event_id", "id", "text", "severity") VALUES (?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt dd644df4169f
--- INSERT INTO "finding" ("event_id", "id", "text", "severity", "likelihood", "impact") VALUES (?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
-== stmt c45749ab2efd
--- INSERT INTO "finding" ("event_id", "id", "text", "severity", "likelihood", "impact", "about_kind", "about_ref") VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  (no plan rows: the statement reads no table)
-
 == stmt c1a0a7fa8bcd
 -- INSERT INTO "gap_flush" ("id") VALUES (1)
   (no plan rows: the statement reads no table)
@@ -792,7 +748,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -808,7 +763,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -824,7 +778,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -840,7 +793,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -856,7 +808,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -872,7 +823,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -888,7 +838,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -904,7 +853,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -920,7 +868,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -936,7 +883,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -952,7 +898,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -968,7 +913,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -984,7 +928,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1000,7 +943,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1016,7 +958,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1032,7 +973,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1048,7 +988,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1064,7 +1003,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1080,7 +1018,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1096,7 +1033,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1112,7 +1048,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1128,7 +1063,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1144,7 +1078,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1160,7 +1093,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1176,7 +1108,6 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
@@ -1192,16 +1123,11 @@
   SCAN closing
   SCAN close
   SEARCH close USING COVERING INDEX close_gap (gap_id=?)
-  SEARCH mint_found_by USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
   SEARCH mint_supersedes USING COVERING INDEX mint_supersedes_value (value=?)
   SEARCH mint_supersedes USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   SCAN motion_rule_position_gap_ids
   SEARCH motion_docket USING COVERING INDEX motion_docket_gap (gap_id=?)
   SCAN motion_grade
-
-== stmt 528b534acdb6
--- INSERT INTO "mint_found_by" ("event_id", "ord", "value") VALUES (?, ?, ?)
-  (no plan rows: the statement reads no table)
 
 == stmt 53d82aaf208a
 -- INSERT INTO "mint_supersedes" ("event_id", "ord", "value") VALUES (?, ?, ?)
@@ -1820,10 +1746,6 @@
 -- SELECT "event_id", "text", "failure" FROM "report_checkpoint" WHERE "event_id" <= ? ORDER BY "event_id" DESC LIMIT 1
   SEARCH report_checkpoint USING INTEGER PRIMARY KEY (rowid<?)
 
-== stmt 014ad841ca9c
--- SELECT "event_id", "value" FROM "mint_found_by" ORDER BY "event_id", "ord"
-  SCAN mint_found_by USING INDEX sqlite_autoindex_mint_found_by_1
-
 == stmt e714aa88c407
 -- SELECT "event_id", "value" FROM "mint_supersedes" ORDER BY "event_id", "ord"
   SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1
@@ -2084,10 +2006,6 @@
     UNION ALL
       SEARCH x USING COVERING INDEX sqlite_autoindex_computation_1 (computation_id=?)
 
-== stmt eb9baf832d41
--- SELECT 1 FROM "finding" WHERE "id" = ? LIMIT 1
-  SEARCH finding USING COVERING INDEX sqlite_autoindex_finding_1 (id=?)
-
 == stmt 11bb0ecebe81
 -- SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1
   SEARCH gate USING COVERING INDEX gate_verdict (verdict=?)
@@ -2109,12 +2027,10 @@
   SEARCH e USING INDEX events_sitting (sitting_id=?)
   SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
 
-== stmt 8362cfafd957
--- SELECT 1 FROM (SELECT "id" FROM "finding" UNION ALL SELECT "gap_id" FROM "mint" UNION ALL SELECT "anchor_id" FROM "evidence_anchor") WHERE "id" = ? LIMIT 1
+== stmt daf98a95eedc
+-- SELECT 1 FROM (SELECT "gap_id" "id" FROM "mint" UNION ALL SELECT "anchor_id" FROM "evidence_anchor") WHERE "id" = ? LIMIT 1
   COMPOUND QUERY
     LEFT-MOST SUBQUERY
-      SEARCH finding USING COVERING INDEX sqlite_autoindex_finding_1 (id=?)
-    UNION ALL
       SEARCH mint USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
     UNION ALL
       COMPOUND QUERY
@@ -2319,14 +2235,12 @@
 -- SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'
   SCAN sqlite_master
 
-== stmt c4eaa3f0f946
--- SELECT e, kind, about, loc FROM ( SELECT "event_id" e, 'finding' kind, ("about_kind" = 'gap' AND "about_ref" = ?2) about, '' loc FROM "finding" WHERE "id" = ?1 UNION ALL SELECT m."event_id", 'gap', ((m."about_kind" = 'gap' AND m."about_ref" = ?2) OR EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id" AND s."value" = ?2)), '' FROM "mint" m WHERE m."gap_id" = ?1 UNION ALL SELECT ea."placed_event", ea."kind", COALESCE(ea."answers" = ?2, 0), COALESCE(c."location", '') FROM "evidence_anchor" ea LEFT JOIN "cite" c ON c."event_id" = ea."placed_event" WHERE ea."anchor_id" = ?1) ORDER BY e LIMIT 1
+== stmt e62e3e02fd11
+-- SELECT e, kind, about, loc FROM ( SELECT m."event_id" e, 'gap' kind, EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id" AND s."value" = ?2) about, '' loc FROM "mint" m WHERE m."gap_id" = ?1 UNION ALL SELECT ea."placed_event", ea."kind", COALESCE(ea."answers" = ?2, 0), COALESCE(c."location", '') FROM "evidence_anchor" ea LEFT JOIN "cite" c ON c."event_id" = ea."placed_event" WHERE ea."anchor_id" = ?1) ORDER BY e LIMIT 1
   CO-ROUTINE (subquery)
     COMPOUND QUERY
       LEFT-MOST SUBQUERY
-        SEARCH finding USING INDEX sqlite_autoindex_finding_1 (id=?)
-      UNION ALL
-        SEARCH m USING INDEX sqlite_autoindex_mint_1 (gap_id=?)
+        SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
         CORRELATED SCALAR SUBQUERY
           SEARCH s USING COVERING INDEX mint_supersedes_value (value=? AND event_id=?)
       UNION ALL
@@ -2377,13 +2291,6 @@
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
-== stmt 7eb13b2782c8
--- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."type" IN (?, ?) ORDER BY e."id"
-  SEARCH e USING INDEX events_type (type=?)
-  SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-  SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-  USE TEMP B-TREE FOR ORDER BY
-
 == stmt 062baec30663
 -- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."type" IN (?, ?, ?) ORDER BY e."id"
   SEARCH e USING INDEX events_type (type=?)
@@ -2405,8 +2312,8 @@
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   USE TEMP B-TREE FOR ORDER BY
 
-== stmt 0708d11d977e
--- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."type" IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ORDER BY e."id"
+== stmt d32c7dcb000f
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END FROM "events" e LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id" LEFT JOIN "sitting_open" o ON o."event_id" = s."id" WHERE e."type" IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ORDER BY e."id"
   SEARCH e USING INDEX events_type (type=?)
   SEARCH s USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
@@ -2441,11 +2348,6 @@
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   CORRELATED SCALAR SUBQUERY
     SEARCH c USING INTEGER PRIMARY KEY (rowid>?)
-
-== stmt 2f2945775566
--- SELECT f."event_id" FROM "finding" f JOIN "events" e ON e."id" = f."event_id" WHERE e."seat_id" = ? AND f."finding_key" = ? ORDER BY f."event_id" LIMIT 1
-  SEARCH f USING COVERING INDEX finding_key (finding_key=?)
-  SEARCH e USING COVERING INDEX events_seat (seat_id=? AND rowid=?)
 
 == stmt d1e7bd5ef2f7
 -- SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''), g."material", COALESCE(g."class_material", ''), COALESCE(g."unruled_docket_filed", 0), COALESCE(g."unruled_docket_motion", ''), COALESCE(g."docket_direction", ''), COALESCE(g."about_kind", ''), COALESCE(g."about_ref", '') FROM "gap" g WHERE g."open" ORDER BY g."minted_event"
@@ -2484,10 +2386,6 @@
 == stmt 55972399c209
 -- SELECT l."event_id", l."value" FROM "dispatch_gap_ids" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
   SEARCH l USING INDEX sqlite_autoindex_dispatch_gap_ids_1 (event_id>?)
-
-== stmt 30c374d83d36
--- SELECT l."event_id", l."value" FROM "mint_found_by" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
-  SEARCH l USING INDEX sqlite_autoindex_mint_found_by_1 (event_id>?)
 
 == stmt dfd2a5dfacc1
 -- SELECT l."event_id", l."value" FROM "mint_supersedes" l WHERE l."event_id" > ? ORDER BY l."event_id", l."ord"
@@ -2680,10 +2578,6 @@
 
 == stmt 6eb00001eefe
 -- SELECT t."event_id", t."holding" FROM "declare" t WHERE t."event_id" > ?
-  SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
-
-== stmt 836648133a24
--- SELECT t."event_id", t."id", t."finding_key", t."location", t."text", t."severity", t."likelihood", t."impact", t."about_kind", t."about_ref" FROM "finding" t WHERE t."event_id" > ?
   SEARCH t USING INTEGER PRIMARY KEY (rowid>?)
 
 == stmt d0a6ac68212a

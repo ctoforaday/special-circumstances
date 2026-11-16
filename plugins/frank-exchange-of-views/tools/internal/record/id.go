@@ -12,10 +12,10 @@ import (
 // NewID mints the id of a new thing of a kind: the kind's letter, a hyphen and eight random hex.
 //
 // IT IS RANDOM SO THAT IT MUST BE LOOKED UP. A sequence can be written down without checking that
-// it exists: on the 2026-07-18 run a chair read seven recorded findings and nine in prose and
+// it exists: on the 2026-07-18 run a chair read seven recorded acts and nine in prose and
 // disposed of L6-F8..F16, which no event created. It is also minted with no count of what the
 // record holds, so two seats minting at once cannot be handed one id. The columns an id is MINTED
-// into are UNIQUE — finding.id, mint.gap_id, motion.motion_id, cite.label,
+// into are UNIQUE — mint.gap_id, motion.motion_id, cite.label,
 // computation.computation_id, and anchor.id for every placed act — so a repeat there is a refused
 // write. inquiry.inquiry_id is not: an inquiry writes one row per recorded fate under its id.
 func NewID(kind string) string {
@@ -24,19 +24,6 @@ func NewID(kind string) string {
 		panic("record: entropy unavailable: " + err.Error())
 	}
 	return anchor.ID(kind, b)
-}
-
-// FindingRef is how a finding is named in text: its id, then the area of the lens that filed it.
-// The id says nothing of who found it, and a reader weighing a found_by needs that beside it.
-func FindingRef(id, area string) string { return id + " (" + area + ")" }
-
-// FindingByKey is the finding this seat recorded under its --key, nil for none: a retried
-// `lens finding` returns the finding it already made instead of minting a second, and is held to
-// what that finding states.
-func FindingByKey(run Run, seatID, key string) (*recordpb.Finding, error) {
-	ev, err := keyedAct(run, `SELECT f."event_id" FROM "finding" f JOIN "events" e ON e."id" = f."event_id"
-		  WHERE e."seat_id" = ? AND f."finding_key" = ? ORDER BY f."event_id" LIMIT 1`, seatID, key)
-	return ev.GetFinding(), err
 }
 
 // keyedAct is the event the keyed lookup q (seat, key -> event id) finds, with its body, nil for an

@@ -26,7 +26,7 @@ import (
 // quotes, before this tool sees the text, and the command's output — or nothing — is recorded in
 // its place. Measured over #861's smoke runs (2026-09-10): 409 double-quoted --reason values, 8 with
 // backticks, every one of them substituted and stored silently — `compute` ran Perl's test harness,
-// `factor 91` pasted its output into a finding — while the same seats used the file form 7 times.
+// `factor 91` pasted its output into a seat's text — while the same seats used the file form 7 times.
 // Twenty-five other free-text flags (--quote, --new, --problem, --fix, --check …) have no file form
 // and never did, so a second spelling of ONE flag was never going to close the class.
 //

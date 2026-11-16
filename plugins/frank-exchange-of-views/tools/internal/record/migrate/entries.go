@@ -38,6 +38,12 @@ func Entries() Registry {
 		// record derives from the sitting's ends. No archived run holds one. The manifest counts each in
 		// events_in and none in events_out.
 		"sitting_limit": {Translate: toNoEvent},
+		// A FINDING TRANSLATES TO NO EVENT (EventSchema 78). A lens reports a defect as a gap, and a
+		// small defect is a gap graded below what holds the gate; a finding has no equivalent. Its id
+		// leaves every id list, its token every field, and its Anchor is written as no event
+		// (findingIDs, remap.dropped). A seat's prose keeps the id it wrote, which names nothing in the
+		// migrated record. The manifest counts each in events_in and none in events_out.
+		"finding": {Translate: toNoEvent},
 		// The inquiry, under the word an archive recorded it with: the columns are the current ones but
 		// the proposal's text, which the record calls its question.
 		"avenue": inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),
@@ -82,10 +88,11 @@ func Entries() Registry {
 			"neighbor":      mintCoiningDrop,
 			"distinguisher": mintCoiningDrop,
 			"distinct_from": "the open gaps a lens named as different defects answered a word-overlap refusal of the mint, which the record does not make: whether a gap is a duplicate is the lens's reading of the board, and the claim is not carried",
+			"found_by":      "the findings a gap was minted from: a finding translates to no event, so its id names nothing on the migrated record",
 		}, nil),
 		// A CREDIT TRANSLATES TO NO EVENT. A source at epoch 42 to 44 may hold one: a lens adding a
-		// finding to an open gap's found_by after the mint. No live act writes it, so the credited
-		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
+		// finding to an open gap's found_by after the mint. No live act writes it, and the finding it
+		// credits is written as no event. The manifest counts each in events_in and none in events_out.
 		"credit": {Translate: toNoEvent},
 		// A PASS BEFORE EPOCH 57 MAY CARRY THE GAPS A MIGRATION ADMITTED IT OVER. The record carries an
 		// archived verdict as history, and the replay writes it without the live gate's judgement, so

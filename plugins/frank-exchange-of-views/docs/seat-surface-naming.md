@@ -162,7 +162,7 @@ a field read, not a list written — and `GrantedTools` errors on every shape th
 empty one. An empty grant and a seat that chose not to read its help are the same number.
 
 Worth naming plainly: **the seat's behaviour under that broken condition was correct.** It read the
-friction clause, concluded that a capability it could not reach was itself the finding, and refused
+friction clause, concluded that a capability it could not reach was itself a fact about the tooling, and refused
 to engineer around it — which is exactly what the constitution asks for. The instrument was wrong;
 the seat was not.
 
@@ -417,7 +417,7 @@ BECAUSE it is ephemeral: it hands the judgement to someone else rather than reco
 the seat's own sitting.
 
 It is not ignorance. The seat can state the duty, cite the mechanism, and explain why it exists.
-Telling it again will not move it — the constitution already says a missing capability is a finding
+Telling it again will not move it — the constitution already says a missing capability is a fact
 about the TOOLING, and the seat still experiences filing one as an admission about its WORK.
 
 **And it filed `friction-none` in both interview sittings** while reporting real, articulable drag in
@@ -469,8 +469,8 @@ Asked what made the sitting harder than it needed to be, with a correct environm
 > know if my judgment calls were correct. The constitution says 'decide and act,' but I had no worked
 > example of a typical audit... every action felt like it could be wrong, which made me hesitant."
 
-Its proposed fix is one worked cycle: artifact -> identify claim -> verify citation -> record
-finding. This is a claim about the help surface and it is testable — cobra carries an `Example`
+Its proposed fix is one worked cycle: artifact -> identify claim -> verify citation -> mint
+the gap. This is a claim about the help surface and it is testable — cobra carries an `Example`
 field that nothing in this tree uses.
 
 ## On the method: the seat is a reliable witness
@@ -500,7 +500,7 @@ the floor the surface has to work at.
 Four things changed under the instrument since 2026-08-19, and each moves what a number MEANS:
 
 - **The tree is scoped to the seat.** There is no role level: `feov-record --help` returns the
-  seat's own verbs. A seat types `finding`, not `lens finding`.
+  seat's own verbs. A seat types `mint`, not `lens mint`.
 - **Identity is bound at `register`** and read back from the record; the seat states `--seat-id`
   once and never again. A write from an unregistered agent is refused; reads and `--help` are not.
 - **The surface-discovery duty is constitutional.** It used to live only in debate.js's dispatch
@@ -565,7 +565,7 @@ The anomaly pass — reading the scored report for INTERNAL CONTRADICTION before
 
 Both seats that abandoned their sitting in (3) had caused the error themselves, and **neither used
 the friction channel.** Their constitution names it in the sentence directly beneath the surface
-directive: *if you need something that is not there, that is a finding about the tooling, and the
+directive: *if you need something that is not there, that is a fact about the tooling, and the
 help names the channel that carries it.* Neither re-read the path. Neither tried the absolute form
 the prompt had given them two lines earlier.
 

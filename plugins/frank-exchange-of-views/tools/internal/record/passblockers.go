@@ -81,9 +81,6 @@ type Blocker struct {
 	// lastCheck is the events.id of an unchecked anchor's or inquiry's latest check, which does not
 	// clear it, 0 when it has none.
 	lastCheck int64
-	// notes is the findings other lenses filed about an unchecked inquiry since its fate, each as
-	// "<id> (<seat>)"; nil for every other blocker.
-	notes []string
 	// gaps is the gaps minted about an unchecked inquiry since its last check (InquiryJudgement.gaps),
 	// and gapMint the latest one's events.id (Inquiry.GapMint); nil and 0 for every other blocker.
 	gaps    []string
@@ -835,7 +832,7 @@ func PassBlockers(run Run) ([]Blocker, error) {
 }
 
 // passBlockersAt is PassBlockers asked of q, the write path's transaction: the gate and the outcome
-// read the blockers on the record their verdict lands on, so a mint, a motion or a finding another
+// read the blockers on the record their verdict lands on, so a mint or a motion another
 // seat commits cannot fall between the blockers read and the verdict written.
 func passBlockersAt(q recordsql.Querier) ([]Blocker, error) {
 	if noRecord(q) {

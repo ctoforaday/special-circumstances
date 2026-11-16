@@ -69,7 +69,7 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 func TestMintedReadsTheIDOfItsKindFromTheVerbsConfirmation(t *testing.T) {
 	for _, c := range []struct{ kind, out, want string }{
 		{"inquiry", "inquiry Q-7cdcd115 recorded (proposed): is the 42% figure reproducible", "Q-7cdcd115"},
-		{"gap", "minted G-0badf00d\n  found_by: F-7cdcd115 (evidence)", "G-0badf00d"},
+		{"gap", "minted G-0badf00d\n  acceptance check RECORDED as: x", "G-0badf00d"},
 		{"motion", "motion M-00c0ffee filed (docket)", "M-00c0ffee"},
 		// A kind reads only its own letter: the gap a motion names is not the motion's id.
 		{"motion", "closing filed for G-0badf00d", ""},

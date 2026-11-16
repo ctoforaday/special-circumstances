@@ -67,7 +67,7 @@ func finalSittingSays(subject string) string {
 	if subj, ok := record.MotionSubjectEnum(subject); ok && record.HeardAtTheExit(subj) {
 		return "Filed at the run's final sitting — the sitting whose plan says `final_sitting` — a " + subject + " is heard by the bench at the exit, which may halt the run on it; until it is ruled it holds the PASS."
 	}
-	return "A " + subject + " motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends."
+	return "A motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends."
 }
 
 func newFile(actingRole, subject string, required []string) *cobra.Command {
@@ -92,7 +92,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			finalSittingSays(subject),
 		// THROUGH BEGIN, like every other writing verb: the filer is the seat this agent registered
 		// as, an agent with no register is registered first or refused, and the refusal renders in
-		// the envelope every verb's does. The filer id is what found_by, estoppel and the bench read.
+		// the envelope every verb's does. The filer id is what estoppel and the bench read.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			basis, err := prose(cmd, "the ASK in your own words — a motion with no argument is a demand, and the ruler has nothing to rule on")
 			if err != nil {

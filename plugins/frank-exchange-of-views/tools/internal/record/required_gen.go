@@ -17,8 +17,6 @@ func requiredFieldsOf(typ string) []RequiredField {
 		return requiredDispatch
 	case "envelope_admitted":
 		return requiredEnvelopeAdmitted
-	case "finding":
-		return requiredFinding
 	case "halt":
 		return requiredHalt
 	case "inquiry":
@@ -72,9 +70,6 @@ var (
 	}
 	requiredEnvelopeAdmitted = []RequiredField{
 		{Key: "agent_id", Flag: "agent-id"},
-	}
-	requiredFinding = []RequiredField{
-		{Key: "id", Flag: "id"},
 	}
 	requiredHalt = []RequiredField{
 		{Key: "opinion", Flag: "reason"},

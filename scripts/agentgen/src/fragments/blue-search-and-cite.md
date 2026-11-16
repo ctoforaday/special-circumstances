@@ -1,8 +1,8 @@
 @include fragments/blue-search.md
 - During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE `<!--cite:C-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected, and the log is where you report it.
 - **An anchor is part of the text you edit, and it belongs to the sentence that holds its claim.**
-  The report as the tool renders it prints every anchor, of every kind — `<!--fx:…-->`,
-  `<!--cite:…-->`, `<!--computation:…-->` and `<!--gap:…-->` — as it is, where it stands. Every kind lives
+  The report as the tool renders it prints every anchor, of every kind — `<!--cite:…-->`,
+  `<!--computation:…-->` and `<!--gap:…-->` — as it is, where it stands. Every kind lives
   one way: the tool places an anchor at the end of its quote, an edit carries it, the tool puts back
   one whose sentence the edit kept word for word, an edit that drops or types one is refused, and
   retiring its claim is the one way it leaves — except evidence, a citation or a computation, which
@@ -14,8 +14,7 @@
   names as its method stays while that computation does: retire or recompute the computation first.
   A retired anchor is in no document, and no lens checks it or mints a gap about it. Retiring an
   anchor placed as an open gap's answer takes that answer away; with no other standing, the gap is
-  owed again. A finding
-  or gap anchor your quote leaves out stays where it stands, and an edit that would leave it bare
+  owed again. A gap anchor your quote leaves out stays where it stands, and an edit that would leave it bare
   there is refused: to take its claim out, carry it in both the quote and the replacement, then
   retire the claim. One your quote carries goes into the replacement after the sentence that now holds its
   claim — never after the last sentence by default. When you split a sentence, each anchor goes

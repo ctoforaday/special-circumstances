@@ -95,7 +95,10 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	//
 	// And one fewer for `sitting_limit`: a sitting's length is bounded by the agent definition's
 	// maxTurns, and a seat stopped there is a failed sitting, which the record derives.
-	const wantBodies = 34
+	//
+	// And one fewer for the lens's finding: a lens's defect is a gap it mints, and nothing else
+	// records one.
+	const wantBodies = 33
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

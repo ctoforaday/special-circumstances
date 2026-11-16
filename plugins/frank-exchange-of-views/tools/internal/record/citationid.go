@@ -11,11 +11,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// CITATION IDENTITY MIRRORS FINDING IDENTITY — see NewID for the full argument.
+// CITATION IDENTITY MIRRORS GAP IDENTITY — see NewID for the full argument.
 //
-// A citation, like a finding, is a TOOL-INSERTED invisible anchor (a citation anchor)
+// A citation, like a gap, is a TOOL-INSERTED invisible anchor (a citation anchor)
 // that the seat never hand-writes and cannot invent. The id is random for the same
-// reason a finding id is: an id you cannot guess is one you have to LOOK UP, so "which
+// reason a gap id is: an id you cannot guess is one you have to LOOK UP, so "which
 // citation do you mean" is a read, not a memory exercise. Under the lockdown the anchor
 // leaves the document only with a retire that names it, so each cite event's anchor is in the
 // document or on a retire — the id is the identity that pins both halves together.
@@ -176,7 +176,7 @@ func citationLabelsOf(events []*Event) []string {
 
 // ExistingCiteByKey returns the prior blue cite this seat recorded under the same --key, nil for
 // none, so a crash-retried `blue cite` returns its existing anchor label instead of minting a
-// duplicate — and the verb can hold the retry to the cite it claims to repeat. Mirrors FindingByKey: the retry dedup is a short-circuit
+// duplicate — and the verb can hold the retry to the cite it claims to repeat. Mirrors ExistingMintByKey: the retry dedup is a short-circuit
 // BEFORE the fetch and the marker insert, not a change to the event key (which stays the
 // unique citation label). A blue cite carries a `label`; red's `lens cite` does not, so
 // this scans only the blue side of the shared "cite" event type.

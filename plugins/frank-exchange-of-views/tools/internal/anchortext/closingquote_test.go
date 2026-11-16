@@ -10,7 +10,7 @@ import (
 
 // m36Sentence is universe-m36's report line 65 after blue's edit ev333: a sentence ending on a quotation,
 // its anchors standing after the closing mark.
-const m36Sentence = `The same page uses the phrase "not a prime" once on each of five lines of the cached copy (a case-insensitive literal count), in three distinct answer texts, and each of those lines says that 91 is not prime<!--fx:F-d1701a96-->, for example "91 is not a Prime number"<!--gap:G-380a3523--><!--cite:C-3b49320f-->.`
+const m36Sentence = `The same page uses the phrase "not a prime" once on each of five lines of the cached copy (a case-insensitive literal count), in three distinct answer texts, and each of those lines says that 91 is not prime<!--gap:G-d1701a96-->, for example "91 is not a Prime number"<!--gap:G-380a3523--><!--cite:C-3b49320f-->.`
 
 // m36Location is K-f3354ca4's recorded location (computation ev335): the quote runs through the closing mark.
 const m36Location = `The same page uses the phrase "not a prime" once on each of five lines of the cached copy (a case-insensitive literal count), in three distinct answer texts, and each of those lines says that 91 is not prime, for example "91 is not a Prime number"`

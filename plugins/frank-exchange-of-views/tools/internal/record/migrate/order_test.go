@@ -111,8 +111,8 @@ func TestTheMigratedM20HoldsItsTextInTheOrderItShips(t *testing.T) {
 		t.Errorf("the migrated text and the archived text do not hold the same lines")
 	}
 	before, after := anchorLines(was), anchorLines(text)
-	if len(before) < 40 || len(after) != len(before) {
-		t.Fatalf("the archived text holds %d anchor(s) and the migrated %d; m20 holds over forty", len(before), len(after))
+	if len(before) < 18 || len(after) != len(before) {
+		t.Fatalf("the archived text holds %d anchor(s) and the migrated %d; m20 holds eighteen", len(before), len(after))
 	}
 	for id, ln := range before {
 		if after[id] != ln {

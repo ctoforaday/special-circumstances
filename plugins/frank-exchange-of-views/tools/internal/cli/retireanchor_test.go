@@ -24,7 +24,7 @@ import (
 
 // AN ANCHORED CLAIM LEAVES THROUGH RETIRE, AND ITS ANCHOR LEAVES WITH IT.
 //
-// An edit may carry an anchor but never drop one, so the way to delete a sentence a finding, computation
+// An edit may carry an anchor but never drop one, so the way to delete a sentence a computation
 // or gap marks is to edit it down to the bare anchor and retire it; a citation never stands bare,
 // so a cited sentence loses its citation to a retire first and is then prose an edit may cut. Before the retire named the anchors that
 // exit with the claim, that bare anchor stood forever: an orphan [^N] with a live bibliography
@@ -255,6 +255,16 @@ func TestTheBareCitationRefusalNamesTheGapTheEditAnswers(t *testing.T) {
 	}
 }
 
+// markClaim mints a gap of class on quote and returns its id: an anchor that leaves with its claim.
+func markClaim(t *testing.T, runDir, key, quote, class string) string {
+	t.Helper()
+	gap, err := mintQuote(t, runDir, key, quote, "--class", class)
+	if err != nil {
+		t.Fatalf("mint %s: %v", key, err)
+	}
+	return gap
+}
+
 // markerOfKind anchors an anchor of kind on sentence, with the gap a retire of it bears on where it has one.
 func markerOfKind(t *testing.T, runDir, kind, sentence string) (id, gap string) {
 	t.Helper()
@@ -270,14 +280,6 @@ func markerOfKind(t *testing.T, runDir, kind, sentence string) (id, gap string) 
 		return gapID(out)
 	}
 	switch kind {
-	case "finding":
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", sentence,
-			"--reason", "overclaim", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding: %v", err)
-		}
-		f := lastBody(t, runDir, &recordpb.Finding{})
-		id = f.GetId()
-		gap = mint("--key", "credits", "--found-by", id, "--about-kind", "section", "--about", "Findings")
 	case "citation":
 		id = citeSentence(t, runDir, sentence, "https://water/1")
 	case "computation":
@@ -300,7 +302,7 @@ func markerOfKind(t *testing.T, runDir, kind, sentence string) (id, gap string) 
 // anchors its quote did not carry, and they stood in the report with nothing to mark: a retire takes
 // what the edit carried. Refused for every kind, naming the anchor and what to do. An evidence
 // anchor's refusal names it by its kind and sends blue to `retire --anchor`, and the same cut carrying
-// it is refused too: evidence never stands bare. A finding or gap anchor carried in the quote is
+// it is refused too: evidence never stands bare. A gap anchor carried in the quote is
 // admitted and stands bare until the retire takes it, and a second retire of the same words takes
 // nothing.
 func TestAnEditBaringAnAnchorItsQuoteLeftOutIsRefused(t *testing.T) {
@@ -368,13 +370,13 @@ func TestAnEditBaringAnAnchorItsQuoteLeftOutIsRefused(t *testing.T) {
 }
 
 // A BARED ANCHOR THAT WAS ALREADY BARE IS NOT THIS EDIT'S, and one the edit carries beside one it left
-// out is not named. A citation and a finding bared together both get their own way out in one refusal.
+// out is not named. A citation and a gap bared together both get their own way out in one refusal.
 func TestTheBareRefusalNamesOnlyWhatTheEditLeftOut(t *testing.T) {
 	const words = "Water is wet"
 	runDir := citedRun(t, "https://water/1")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	f1, _ := markerOfKind(t, runDir, "finding", words+".")
+	f1 := markClaim(t, runDir, "G2", words+".", otherClass)
 	g, _ := markerOfKind(t, runDir, "gap", words+".")
 	first, second := f1, g
 	if !strings.Contains(readReport(t, runDir), words+anchor.Token(f1)+anchor.Token(g)) {
@@ -397,15 +399,15 @@ func TestTheBareRefusalNamesOnlyWhatTheEditLeftOut(t *testing.T) {
 		t.Errorf("an edit elsewhere refused for anchors already bare: %v", err)
 	}
 
-	// A citation and a finding on one sentence, neither carried: both ways out, the citation's unchanged.
+	// A citation and a gap on one sentence, neither carried: both ways out, the citation's unchanged.
 	runDir = citedRun(t, "https://water/1")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	c := citeSentence(t, runDir, words+".", "https://water/1")
-	f, _ := markerOfKind(t, runDir, "finding", words+".")
+	f, _ := markerOfKind(t, runDir, "gap", words+".")
 	_, err = run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words, "--new", "", "--reason", "gone")
 	if err == nil {
-		t.Fatal("a cut baring a citation and a finding was recorded")
+		t.Fatal("a cut baring a citation and a gap was recorded")
 	}
 	for _, w := range []string{"citation " + c + " standing bare", "`retire --anchor <its id>`", "anchor " + anchor.Token(f) + " standing bare", "then retire the claim"} {
 		if !strings.Contains(err.Error(), w) {
@@ -415,7 +417,7 @@ func TestTheBareRefusalNamesOnlyWhatTheEditLeftOut(t *testing.T) {
 }
 
 // ONE LIFECYCLE: an anchor of every kind but a citation, cut to bare and named to the retire, leaves
-// with its claim; a citation, named alone, leaves its sentence standing — a finding's while a gap crediting it is open, a gap's while the gap itself is open. The
+// with its claim; a citation, named alone, leaves its sentence standing — a gap's while the gap itself is open. The
 // retire names it, reading the report at it names the retire, and the gap reads gone. A hold on
 // any kind fails its row.
 func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
@@ -749,7 +751,7 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 // A BULLET CUT DOWN TO ITS ANCHORS, MARKER QUOTED, RETIRES — universe-m19's ev259, ev260 and ev401.
 //
 // Blue quoted an open-question bullet with its "- " and replaced it with "- " and the bullet's four
-// finding anchors; then retired the question, quoting its words without the marker. The retire
+// anchors; then retired the question, quoting its words without the marker. The retire
 // compared its quote with the edit's whole old span, the marker made the two differ, and it took no
 // anchor, said "retired:" and nothing else — twice. The bullet stood as four tokens and a period,
 // and the assembled report printed "- ." in a VERIFIED run.
@@ -760,21 +762,17 @@ func TestRetireTakesTheAnchorsOfABulletQuotedWithItsMarker(t *testing.T) {
 	runDir := citedRun(t)
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	for _, key := range []string{"F1", "F2"} {
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", "Water is wet.",
-			"--reason", "unsupported "+key, "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding: %v", err)
-		}
-	}
-	m := regexp.MustCompile(`- Water is wet((?:<!--fx:F-[0-9a-f]{8}-->){2})\.`).FindStringSubmatch(readReport(t, runDir))
+	markClaim(t, runDir, "G1", "Water is wet.", "spec_underspecification")
+	markClaim(t, runDir, "G2", "Water is wet.", otherClass)
+	m := regexp.MustCompile(`- Water is wet((?:<!--gap:G-[0-9a-f]{8}-->){2})\.`).FindStringSubmatch(readReport(t, runDir))
 	if m == nil {
-		t.Fatalf("the bullet does not hold two finding anchors:\n%s", readReport(t, runDir))
+		t.Fatalf("the bullet does not hold two gap anchors:\n%s", readReport(t, runDir))
 	}
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", "- Water is wet"+m[1]+".", "--new", "- "+m[1], "--reason", "the question is answered"); err != nil {
 		t.Fatalf("the cut down to the bullet's anchors: %v", err)
 	}
-	// THE HUSK NEVER REACHES A READER, retired or not: assembly strips the finding tokens, and a line
+	// THE HUSK NEVER REACHES A READER, retired or not: assembly strips the gap tokens, and a line
 	// left with a list marker and punctuation goes with them.
 	asm := assembled(t, runDir)
 	if husk := regexp.MustCompile(`(?m)^[ \t]*(?:(?:[-*+]|\d+[.)])[ \t]*[.,;:!?…]*|[.,;:!?…]+)[ \t]*$`).FindString(asm); husk != "" || !strings.Contains(asm, "- Fire is hot.") {
@@ -783,7 +781,7 @@ func TestRetireTakesTheAnchorsOfABulletQuotedWithItsMarker(t *testing.T) {
 
 	ev := retireClaim(t, runDir, "Water is wet.")
 	if len(ev.GetAnchors()) != 2 || ev.GetRemovalBasis() != record.RemovalVerified {
-		t.Errorf("the retire took %v on basis %q, want both finding anchors, verified", ev.GetAnchors(), ev.GetRemovalBasis())
+		t.Errorf("the retire took %v on basis %q, want both gap anchors, verified", ev.GetAnchors(), ev.GetRemovalBasis())
 	}
 	want := "# Findings\n\nThe sky is blue. The grass is green.\n\n- Fire is hot.\n\nClosing paragraph stays.\n"
 	if rep := readReport(t, runDir); rep != want {
@@ -792,7 +790,7 @@ func TestRetireTakesTheAnchorsOfABulletQuotedWithItsMarker(t *testing.T) {
 }
 
 // ONE EDIT CUTTING TWO CLAIMS LEAVES EACH ITS OWN ANCHORS (m25 ev247-ev367). Blue cut two sentences
-// carrying three finding anchors down to the anchors in one edit, then retired each sentence with its
+// carrying three anchors down to the anchors in one edit, then retired each sentence with its
 // own reason: each retire took nothing, the three anchors stood bare, and the retire naming two of
 // them was refused as "no edit that took this claim out left" them — the edit had. A retire of a whole
 // sentence of the cut takes the anchors that sentence held; one naming an anchor of the other sentence
@@ -805,15 +803,7 @@ func TestRetireTakesTheAnchorsOfEachSentenceItsCutTook(t *testing.T) {
 		writeReport(t, runDir, "# Findings\n\n"+s1+". "+s2+". Plain prose here.\n")
 		registerBlue(t, runDir)
 		registerLensOnce(t, runDir)
-		find := func(key, quote string) string {
-			t.Helper()
-			if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote,
-				"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-				t.Fatalf("finding %s: %v", key, err)
-			}
-			return lastBody(t, runDir, &recordpb.Finding{}).GetId()
-		}
-		f1, f2, f3 = find("F1", s1+"."), find("F2", s1+"."), find("F3", s2+".")
+		f1, f2, f3 = markClaim(t, runDir, "G1", s1+".", "spec_underspecification"), markClaim(t, runDir, "G2", s1+".", otherClass), markClaim(t, runDir, "G3", s2+".", "spec_underspecification")
 		rep := readReport(t, runDir)
 		i, j := strings.Index(rep, s1), strings.Index(rep, "Plain prose")
 		if i < 0 || j < 0 {
@@ -879,7 +869,7 @@ func TestRetireTakesTheAnchorsOfEachSentenceItsCutTook(t *testing.T) {
 }
 
 // WHOLE SENTENCES OF A CUT LEAVE TOGETHER, AND A QUOTE ACROSS TWO OF THEM IS A FRAGMENT. Three
-// sentences, one finding each, cut down to their anchors in one edit: a retire quoting the last two
+// sentences, one gap each, cut down to their anchors in one edit: a retire quoting the last two
 // as one claim takes both of their anchors and leaves the first's; a quote that runs from inside one
 // sentence into the next is part of what the edit cut and no whole sentence of it, so it is refused
 // naming the anchors still bare, with nothing recorded.
@@ -891,15 +881,7 @@ func TestRetireTakesARunOfWholeSentencesOfItsCut(t *testing.T) {
 		writeReport(t, runDir, "# Findings\n\n"+s1+". "+s2+". "+s3+". Plain prose here.\n")
 		registerBlue(t, runDir)
 		registerLensOnce(t, runDir)
-		find := func(key, quote string) string {
-			t.Helper()
-			if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote,
-				"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-				t.Fatalf("finding %s: %v", key, err)
-			}
-			return lastBody(t, runDir, &recordpb.Finding{}).GetId()
-		}
-		f1, f2, f3 = find("F1", s1+"."), find("F2", s2+"."), find("F3", s3+".")
+		f1, f2, f3 = markClaim(t, runDir, "G1", s1+".", "spec_underspecification"), markClaim(t, runDir, "G2", s2+".", "spec_underspecification"), markClaim(t, runDir, "G3", s3+".", "spec_underspecification")
 		rep := readReport(t, runDir)
 		i, j := strings.Index(rep, s1), strings.Index(rep, "Plain prose")
 		if i < 0 || j < 0 {

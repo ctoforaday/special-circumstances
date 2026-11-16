@@ -38,10 +38,9 @@ import (
 
 // BoardJSON is the seat-facing board.
 type BoardJSON struct {
-	Open         []GapJSON         `json:"open"`
-	Closed       []GapJSON         `json:"closed"`
-	Observations []ObservationJSON `json:"observations"`
-	Counts       CountsJSON        `json:"counts"`
+	Open   []GapJSON  `json:"open"`
+	Closed []GapJSON  `json:"closed"`
+	Counts CountsJSON `json:"counts"`
 	// Anomalies are surfaced, never swallowed. A dropped mutation — a ruling on a gap the
 	// replay has not reached yet — vanishing silently gives a board that is wrong by however
 	// many it dropped, with nothing to show for it. A seat that can see them can petition.
@@ -52,15 +51,7 @@ type CountsJSON struct {
 	Open          int `json:"open"`
 	Closed        int `json:"closed"`
 	ClosedByBench int `json:"closed_by_bench"`
-	// UnmintedFindings counts lens findings whose id is named in NO gap's found_by.
-	//
-	// A finding's fate is COALESCENCE, so the honest question is whether a gap
-	// was ever minted from it.
-	// Counting an explicit disposal instead would be permanently zero — the plausible zero this
-	// codebase keeps finding, where a clean board and a dead detector print the same number.
-	UnmintedFindings  int `json:"unminted_findings"`
-	Anomalies         int `json:"anomalies"`
-	TotalObservations int `json:"total_observations"`
+	Anomalies     int `json:"anomalies"`
 	// Citations counts VERIFY events — red's leaf reads — and is the canonical source for the
 	// envelope's citations_checked, which red reads from its native board view instead of
 	// self-reporting (a number fabricated on haiku).
@@ -105,9 +96,8 @@ type GapJSON struct {
 	// IT DOES NOT REPLACE THE REPORT. `show report` is unchanged and the constitution's full
 	// re-read stands; this removes the navigating, not the audit.
 	Passage string `json:"passage,omitempty"`
-	// AboutKind/AboutRef are the anchor for a gap about something that is NOT report text — the
-	// same pair a finding carries, because a gap is where that finding ends up. Omitted when
-	// unset, so a gap anchored by quote reads exactly as it did.
+	// AboutKind/AboutRef are the anchor for a gap about something that is NOT report text. Omitted
+	// when unset, so a gap anchored by quote reads as a quote gap.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
 	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and computation anchors in its
@@ -172,10 +162,8 @@ type GapJSON struct {
 	FixOld   string `json:"fix_old"`
 	FixNew   string `json:"fix_new"`
 	// MintedBy is the seat that minted the gap, as a seat id — the one seat that may close or regrade
-	// it, and the same column the work list's row reads. FoundBy carries finding ids, which name the
-	// lens that FOUND a defect and not the seat that minted the gap.
+	// it, and the same column the work list's row reads.
 	MintedBy   string   `json:"minted_by"`
-	FoundBy    []string `json:"found_by"`
 	Supersedes []string `json:"supersedes"`
 	// SupersededBy is the successor whose mint closed this gap by naming it in its `supersedes`, ""
 	// where no supersession closed it. A gap it closed has no closing body: its `closure` is null,
@@ -197,23 +185,6 @@ type GapJSON struct {
 	// sentence that the scorecard then failed to parse back out.
 	Closure  map[string]any   `json:"closure"`
 	Regrades []map[string]any `json:"regrades"`
-}
-
-type ObservationJSON struct {
-	// ID is the finding's tool-minted id. It leads the struct because it is the field the chair
-	// acts on; Area is the lens that filed it, which the id does not say.
-	ID     string `json:"id"`
-	Area   string `json:"area"`
-	SeatID string `json:"seat_id"`
-	Key    string `json:"key"`
-	Kind   string `json:"kind"`
-	Text   string `json:"text"`
-
-	// Minted says the finding's id is named in some gap's found_by — the ONLY way a
-	// finding is addressed. It is explicit rather than left for the consumer to re-derive by
-	// scanning every gap, because that re-derivation is a second definition free to disagree
-	// with this one.
-	Minted bool `json:"minted"`
 }
 
 // strs normalizes a nil string slice to an empty one.
@@ -313,29 +284,11 @@ func spellEnums(m protoreflect.Message, out map[string]any) {
 	})
 }
 
-// gradeWord adds PRESENCE to GradeStr, and nothing else.
-//
-// The vocabulary is GradeStr's — the schema's word, `low_medium`; GradeStr's own header carries
-// the hazard of a second spelling and why it is not a general rule about separators. This function
-// must never re-implement it: a second copy of that mapping is how MASS lookups
-// silently return 0, which is the same number an ungraded gap reports.
-//
-// What is local here is the JSON view's presence contract, which GradeStr cannot express because it
-// returns a string. These fields are `any` so an UNGRADED finding renders `null` and a graded one
-// renders its word — the distinction GapJSON's own comment calls "the falsy-value confusion that
-// has now produced three separate defects in this codebase". `f.Severity != nil` is the presence
-// read; the zero value is NOT, because an explicit GRADE_UNSPECIFIED and an absent field must not
-// collapse into the same bytes.
-func gradeWord(g *recordpb.Grade) any {
-	if g == nil {
-		return nil
-	}
-	return gradeVal(*g)
-}
-
-// gradeVal is gradeWord for a grade that arrives WITHOUT presence — replay.go's Gap carries its
-// four grades as plain `recordpb.Grade` values, so an ungraded gap is the UNSPECIFIED zero rather
-// than a nil pointer.
+// gradeVal is GradeStr with the JSON view's presence contract, and nothing else. The vocabulary is
+// GradeStr's — the schema's word, `low_medium` — and this function never re-implements it: a second
+// copy of that mapping is how MASS lookups silently return 0, the same number an ungraded gap
+// reports. A grade arrives WITHOUT presence — replay.go's Gap carries its four grades as plain
+// `recordpb.Grade` values, so an ungraded gap is the UNSPECIFIED zero.
 //
 // The zero renders as JSON `null`, not as `""` and not as the number 0. `null` is what the
 // pre-migration board emitted (payloadVal returned nil for an absent key) and it is what GapJSON's
@@ -365,8 +318,8 @@ func BoardJSONBytes(run Run) ([]byte, error) { return boardView.jsonBytes(run) }
 
 // BoardJSONOfRun is the board projection asked of the RECORD: the gap view answers everything
 // scalar (order, openness, the regrade-overlaid grades, the mint's prose, the evidence debt), the
-// list tables answer found_by/supersedes, and only the acts this projection EMBEDS — closures,
-// regrades, findings — come through the typed loader, because their bodies render whole and the
+// list table answers supersedes, and only the acts this projection EMBEDS — closures and
+// regrades — come through the typed loader, because their bodies render whole and the
 // schema machinery is the one statement of body shape.
 //
 // closureview_test.go holds it on a gap closed more than once and by BOTH arms, where attribution
@@ -380,7 +333,6 @@ var boardView = declareNarrowedView("board", boardJSONOfRecord,
 	recordpb.EventType_EVENT_TYPE_MINT, // a successor's mint is the closing act of the gap it superseded
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 	recordpb.EventType_EVENT_TYPE_REGRADE,
-	recordpb.EventType_EVENT_TYPE_FINDING,
 	// for each open gap's backing: the anchor ledger (backingOf), the families evidenceView reads.
 	recordpb.EventType_EVENT_TYPE_CITE,
 	recordpb.EventType_EVENT_TYPE_VERIFY,
@@ -399,7 +351,6 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		Anomalies: []string{},
 	}
 	if noRecord(q) {
-		out.Observations = []ObservationJSON{}
 		return out, nil
 	}
 
@@ -415,20 +366,12 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	// looked up in evs); the regrade history is every regrade, in record order.
 	byID := eventsByID(evs, win)
 	regrades := map[string][]*Event{}
-	var findings []*Event
 	for _, e := range evs {
-		switch m := mustBody(e).(type) {
-		case *recordpb.Regrade:
+		if m, ok := mustBody(e).(*recordpb.Regrade); ok {
 			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], e)
-		case *recordpb.Finding:
-			findings = append(findings, e)
 		}
 	}
 
-	foundBy, err := listValuesByEvent(q, "mint_found_by")
-	if err != nil {
-		return out, err
-	}
 	supersedes, err := listValuesByEvent(q, "mint_supersedes")
 	if err != nil {
 		return out, err
@@ -445,7 +388,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		return out, fmt.Errorf("asking the record for its board: %w", err)
 	}
 	defer rows.Close()
-	minted, unrendered := map[string]bool{}, false
+	unrendered := false
 	for rows.Next() {
 		var id string
 		var round int
@@ -465,7 +408,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		}
 		gj := GapJSON{
 			ID: id, Epoch: round, Open: open,
-			MintedBy: mintedBy.String, FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
+			MintedBy: mintedBy.String, Supersedes: strs(supersedes[mintedEvent]),
 			Material: material, Remanded: remanded, DocketDirection: direction.String,
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
@@ -490,9 +433,6 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		// read carried `backing: null` while the help promised the anchors behind each open gap.
 		if open {
 			gj.Backing = gapBacking(g, verified)
-		}
-		for _, l := range foundBy[mintedEvent] {
-			minted[l] = true
 		}
 		c, err := closeStateOf(id, cl, byID, win)
 		if err != nil {
@@ -532,20 +472,6 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		return out, err
 	}
 
-	for _, e := range findings {
-		f, _ := recordpb.BodyAs[*recordpb.Finding](e)
-		oj := ObservationJSON{SeatID: e.GetSeatId(), Key: e.GetKey(), Kind: recordpb.Word(e.GetType()),
-			ID: f.GetId(), Area: AreaOf(e.GetSeatId()), Text: f.GetText()}
-		oj.Minted = minted[oj.ID]
-		if !oj.Minted {
-			out.Counts.UnmintedFindings++
-		}
-		out.Observations = append(out.Observations, oj)
-	}
-	if out.Observations == nil {
-		out.Observations = []ObservationJSON{}
-	}
-
 	if err := q.QueryRow(`SELECT
 	    (SELECT count(*) FROM "verify"),
 	    (SELECT count(*) FROM "cite")`).Scan(&out.Counts.Citations, &out.Counts.CitationsAuthored); err != nil {
@@ -553,7 +479,6 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	}
 	out.Counts.Open = len(out.Open)
 	out.Counts.Closed = len(out.Closed)
-	out.Counts.TotalObservations = len(out.Observations)
 	out.Counts.Anomalies = len(out.Anomalies)
 	return out, nil
 }
@@ -752,7 +677,7 @@ func (w WorkJSON) SittingID() int64 { return w.sitting }
 // because "nobody looked" and "not backed" are different answers.
 type GapBackingJSON struct {
 	Anchor string `json:"anchor"`
-	// Kind is citation | computation | finding, from the id's prefix — the one string-encoded fact this
+	// Kind is citation | computation, from the id's prefix — the one string-encoded fact this
 	// tree keeps on purpose, because the id and its token are minted together (see anchor.Token).
 	Kind string `json:"kind"`
 	// Outcome and Confidence are a citation's reading, where one exists — the SourceOutcome and
@@ -806,7 +731,7 @@ type CounterpartyJSON struct {
 // list is for scanning the open set, not re-deriving it." The premise was that a seat scans here
 // and goes to the board when it decides to act. Measured on universe-m10 it does not: `board` was
 // read 46 times against `work`'s 21, and of the fields those board reads named, `class` (10),
-// `problem_synopsis` (8), `check_kind` (3), `edited_since` (3), `found_by` (2) and `location` (2)
+// `problem_synopsis` (8), `check_kind` (3), `edited_since` (3) and `location` (2)
 // were ALREADY in the work list the seat had been handed. One missing field pulled the seat to the
 // whole board, and once there it re-read what it already had.
 //
@@ -887,11 +812,10 @@ type WorkGapJSON struct {
 	FixBasis string `json:"fix_basis"`
 	FixOld   string `json:"fix_old,omitempty"`
 	FixNew   string `json:"fix_new,omitempty"`
-	// MintedBy is the seat that minted this gap, AS A SEAT ID. FoundBy below carries finding
-	// ids, which name the lens that FOUND a defect and not the seat that minted the gap, so ownership
-	// needed a second lookup and the rule that only the originator may close, at the moment of acting.
-	// Measured on universe-m10: every one of the run's 8 refusals was a seat acting on another
-	// seat's gap, and the information was present in `found_by` the whole time.
+	// MintedBy is the seat that minted this gap, AS A SEAT ID: the seat the rule that only the
+	// originator may close reads, stated where a seat reads its work rather than at the moment of
+	// acting. Measured on universe-m10: every one of the run's 8 refusals was a seat acting on another
+	// seat's gap.
 	MintedBy string `json:"minted_by"`
 	// YoursToClose is the CONCLUSION rather than the premises: whether THIS reader may close or
 	// regrade this gap. requireOriginator refuses any other seat, so a reader that has to derive
@@ -936,8 +860,7 @@ type WorkGapJSON struct {
 	// impasse spends nothing — and while the dispatch sends a gap whose exchange is unhad to the
 	// bench instead: a docket motion on it stands unruled, or its grade movement is past the
 	// threshold.
-	RemandStage string   `json:"remand_stage,omitempty"`
-	FoundBy     []string `json:"found_by"`
+	RemandStage string `json:"remand_stage,omitempty"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record
 	// carries (its class, else graded medium or above). The chair's PASS lists the ones that do
 	// not by class; a seat reading its work list sees which is which without re-deriving it.
@@ -1094,7 +1017,7 @@ type WorkGapState struct {
 	benchRuling                      *recordpb.DocketRuling
 	closedEpoch                      int // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
-	FoundBy, Supersedes              []string
+	Supersedes                       []string
 	// Material and ClassMaterial are the view's columns the PASS gate reads, so the chair's work
 	// list states the gate from the same facts the gate refuses on: an open material gap holds PASS
 	// (passBlockersOf). Material is the class's answer whether or not the gap is open; a reader of
@@ -1108,13 +1031,13 @@ type WorkGapState struct {
 // tables, the gaps' edits, the report's rows and the bench's remands. absent is a run with no record
 // yet, which has no work.
 type workReads struct {
-	absent              bool
-	evs                 []*Event
-	win                 WindowIndex
-	foundBy, supersedes map[int64][]string
-	edits               map[string][]GapEdit
-	report              *reportRender
-	gaps                []workGapRow
+	absent     bool
+	evs        []*Event
+	win        WindowIndex
+	supersedes map[int64][]string
+	edits      map[string][]GapEdit
+	report     *reportRender
+	gaps       []workGapRow
 	// found is every located reading (locatedReadingsOn, over the one render), the reading debt's input.
 	found   []locatedReading
 	remands map[string][]remandRow
@@ -1157,9 +1080,6 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	var err error
 	if r.evs, r.win, err = eventsAt(q); err != nil || noRecord(q) {
 		r.absent = noRecord(q)
-		return r, err
-	}
-	if r.foundBy, err = listValuesByEvent(q, "mint_found_by"); err != nil {
 		return r, err
 	}
 	if r.supersedes, err = listValuesByEvent(q, "mint_supersedes"); err != nil {
@@ -1250,7 +1170,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		g := row.WorkGapState
 		g.Edits = r.edits[g.ID]
 		locateGap(located, &g)
-		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
+		g.Supersedes = r.supersedes[row.mintedEvent]
 		c, err := closeStateOf(g.ID, row.closure, byID, r.win)
 		if err != nil {
 			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
@@ -1337,7 +1257,7 @@ func backingOf(evs []*Event, win WindowIndex) map[string]GapBackingJSON {
 }
 
 // gapBacking is the evidence anchors in the sentence holding a gap's anchor, or its about_ref, and
-// what is known about each. A gap's own anchor, another gap's and a finding's are not evidence
+// what is known about each. A gap's own anchor and another gap's are not evidence
 // (anchor.Backs), so they are not listed.
 //
 // UNVERIFIED IS AN ENTRY, NOT AN ABSENCE. An anchor nobody checked is a claim standing on its
@@ -1396,7 +1316,6 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				RegradesOwed: []OwedRegradeJSON{},
 				CheckKind:    g.CheckKind, AwaitingEvidence: g.AwaitingEvidence, AnswerKind: AnswerKindOf(g.CheckKind),
 				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
-				FoundBy:  strs(g.FoundBy),
 				Material: g.Material,
 			}
 			if g.FixNew != "" {
@@ -1635,140 +1554,6 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
-// FindingJSON is one lens finding, in the form the chair coalesces on and scorecards
-// attribute per role/epoch from. It replaces the red/candidates/*.md file the chair used
-// to `cat` and hand-transcribe — the finding is now a record event, read structured.
-type FindingJSON struct {
-	// ID is the finding's one name: what a gap's found_by names, and the id inside its anchor in
-	// the report, so a seat holding either resolves it here. Area is the lens that filed it.
-	ID         string `json:"id"`
-	Area       string `json:"area"`
-	SeatID     string `json:"seat_id"`
-	Epoch      int    `json:"epoch"`
-	Severity   any    `json:"severity"`
-	Likelihood any    `json:"likelihood"`
-	Impact     any    `json:"impact"`
-	Location   string `json:"location"`
-	// About names what this finding is anchored to when its subject is NOT in the report — a
-	// section it is missing from, an inquiry whose question is being argued against,
-	// or a gap. Empty means the finding anchors to `location`, a live sentence.
-	//
-	// A chair reading this list needs to know which: a finding with no location is not one whose
-	// anchor went missing, it is one whose subject was never on the page.
-	AboutKind string `json:"about_kind,omitempty"`
-	AboutRef  string `json:"about_ref,omitempty"`
-	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and computation anchors in its
-	// location, and whether anyone has verified them.
-	//
-	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,
-	// and did anyone check?", which is a property of the sentence in front of it and not of the
-	// run. Measured across three runs, `show evidence` was called 99 times against a projection
-	// holding ~10 events: a seat polling a whole table to learn one fact about one gap.
-	//
-	// OPEN GAPS ONLY, so this shrinks as the board closes — the same rule Passage rides on.
-	// NOT omitempty: a gap with nothing behind it renders `[]`, because "no anchor in this
-	// sentence" and "not computed" are different answers and an absent key cannot tell them apart.
-	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
-	Backing []GapBackingJSON `json:"backing"`
-	Text    string           `json:"text"`
-	// MintedAs is the gap ids whose `found_by` names this finding — the join the record
-	// already holds, read from the side that could not reach it.
-	//
-	// It is the same defect `Anchor` above was: a join key living where nothing can reach it
-	// rather than where it was written. `found_by` answers "which findings became this gap"
-	// from the gap; nothing answered "did this finding become anything" from the finding, so a
-	// finding that produced no gap looked exactly like one that did until a reader cross-indexed
-	// sixteen gap rows by hand.
-	//
-	// Measured on 2026-08-23_research-loop-counterparts (#747): 20 findings, 16 gaps, and three
-	// findings — L2-F1, L6-F8, L6-F11 — that no gap names. One of them alleged a fabricated
-	// verbatim quote in the very text the chair closed a gap on in that same sitting. Nothing on
-	// the docket said so, because the docket is gap-shaped and this fact is finding-shaped.
-	//
-	// EMPTY IS THE FINDING, NOT AN ABSENCE, so it is not omitempty: `[]` means read and not
-	// minted, which is precisely the state that used to be invisible. A missing key would put it
-	// back where it was.
-	MintedAs []string `json:"minted_as"`
-}
-
-// FindingsJSON is the seat-facing findings view: every lens finding on the record, in
-// event order. The chair reads it to coalesce findings into gaps (naming their ids in
-// found_by); scorecards counts it per role/epoch for citation-yield.
-type FindingsJSON struct {
-	Findings []FindingJSON `json:"findings"`
-	Counts   struct {
-		Total int `json:"total"`
-	} `json:"counts"`
-}
-
-// FindingsJSONOf projects the record's finding events — never the markdown — so the two
-// renderings of one replay cannot drift. It takes the EVENTS, not a Board: the findings view
-// renders one family of acts and never read gap state — the board-shaped signature made every
-// caller pay a full fold for a stream filter. A caller holding merged events passes them; the
-// run path (FindingsJSONBytes) fetches exactly the finding family.
-func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
-	out := FindingsJSON{Findings: []FindingJSON{}}
-	// WHICH GAPS NAME WHICH FINDING, indexed once. A mint's found_by is the record's own
-	// statement that a finding became a gap; read here so the finding side can state it too.
-	mintedBy := map[string][]string{}
-	for _, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
-			for _, id := range m.GetFoundBy() {
-				mintedBy[id] = append(mintedBy[id], m.GetGapId())
-			}
-		}
-	}
-	for _, e := range evs {
-		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
-		// fields, and a body read that way cannot go stale against the enum.
-		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
-		if !ok {
-			continue
-		}
-		fj := FindingJSON{
-			ID:     f.GetId(),
-			Area:   AreaOf(e.GetSeatId()),
-			SeatID: e.GetSeatId(),
-			Epoch:  win.Of(e).Epoch,
-			// `reason` WAS THE PAYLOAD KEY; `text` IS THE FIELD. Finding carries one prose
-			// channel and this is it — there is no Finding.reason.
-			Location:  f.GetLocation(),
-			AboutKind: recordpb.Word(f.GetAboutKind()),
-			AboutRef:  f.GetAboutRef(),
-			Text:      f.GetText(),
-		}
-		// THE JOIN, FROM THE STREAM RATHER THAN A BOARD. mintedBy is built from the mint bodies
-		// in the same event slice, so this view still reads one family of acts plus one — it does
-		// not acquire the full fold the board-shaped signature was removed to avoid.
-		fj.MintedAs = mintedBy[f.GetId()]
-		if fj.MintedAs == nil {
-			fj.MintedAs = []string{}
-		}
-		// PRESENCE, NOT TRUTHINESS — and the POINTER is passed, not GetSeverity().
-		//
-		// Finding's grades are `optional`, so a lens that graded nothing leaves them nil and
-		// gradeWord renders `null`, which is what the old `if v, ok := Get("severity"); ok` arm
-		// produced. `GetSeverity()` would hand over the UNSPECIFIED zero instead and fold "never
-		// graded" into the same bytes as a grade — the confusion GapJSON's own comment names.
-		fj.Severity = gradeWord(f.Severity)
-		fj.Likelihood = gradeWord(f.Likelihood)
-		fj.Impact = gradeWord(f.Impact)
-		out.Findings = append(out.Findings, fj)
-	}
-	out.Counts.Total = len(out.Findings)
-	return out
-}
-
-// findingsView is the findings read from the record. MINT is not optional company for FINDING:
-// minted_as is computed from the mint bodies in the same slice, so a stream without them reports
-// every finding as named by nothing — the same bytes the view uses for a finding genuinely dropped.
-var findingsView = declareNarrowedView("findings", rendersEvents(FindingsJSONOf),
-	recordpb.EventType_EVENT_TYPE_FINDING,
-	recordpb.EventType_EVENT_TYPE_MINT)
-
-// FindingsJSONBytes renders the findings view as indented JSON.
-func FindingsJSONBytes(run Run) ([]byte, error) { return findingsView.jsonBytes(run) }
-
 // LogJSON is the operator-facing log view: every log event on the record, in event order —
 // entries addressed to whoever can retool the seat, living as events rather than a hand-written
 // file. The dashboard reads this instead of parsing a markdown/root file, the json-mode move
@@ -1802,7 +1587,7 @@ type LogEntryJSON struct {
 }
 
 // LogJSONOf projects the record's log events — from the record, never the markdown. Events, not a
-// Board, for the reason FindingsJSONOf states.
+// Board: a view of one event family reads that family alone.
 func LogJSONOf(evs []*Event, win WindowIndex) LogJSON {
 	out := LogJSON{Log: []LogEntryJSON{}}
 	spoke, sat := map[string]bool{}, map[string]bool{}
@@ -1852,7 +1637,7 @@ func LogJSONBytes(run Run) ([]byte, error) { return logView.jsonBytes(run) }
 // render.go writes to debate.md, but as data instead of prose. It exists because the
 // operator-side audits (telemetry, record-parity) counted `### RED`/`### BLUE` sections by
 // regex over the markdown — a second reader of a projection, the exact defect class the
-// board/findings/friction JSON views removed. The section counts (and, for scorecards, the
+// board and friction JSON views removed. The section counts (and, for scorecards, the
 // section TEXT) are position, closing and docket-ruling events; served here they are read, not parsed.
 //
 // It derives from the record like the other JSON views — never from debate.md — so the two

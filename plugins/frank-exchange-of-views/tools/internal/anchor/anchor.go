@@ -12,7 +12,7 @@
 //
 // # Why it is a leaf
 //
-// Each kind is placed by its own verb — `lens finding`, `lens mint`, `lens verify` (the gap its
+// Each kind is placed by its own verb — `lens mint`, `lens verify` (the gap its
 // reading mints), `blue cite`, `blue compute` — and read back by the edit guard, the board, the assembly and every seat that
 // wants the live text at one. That is a vocabulary several layers share, so it depends on NOTHING
 // but the standard library. It was in `internal/bluedoc`, which reaches up into `internal/cli/lens`
@@ -57,11 +57,10 @@ type kind struct {
 
 // kinds is the table, in the order every walk reports its kinds.
 //
-// A token is an HTML comment, not a footnote: a "[^id]" finding marker rendered as an undefined
+// A token is an HTML comment, not a footnote: a "[^id]" marker rendered as an undefined
 // footnote AND red audited it as one. A comment renders as nothing and is no footnote, so no seat
 // audits it.
 var kinds = []kind{
-	{name: "finding", prefix: "F-", tag: "fx", label: "finding anchor", assembly: Strip},
 	{name: "citation", prefix: "C-", tag: "cite", label: "citation anchor", assembly: WeaveSource, backs: true},
 	{name: "computation", prefix: "K-", tag: "computation", label: "computation anchor", assembly: WeaveComputation, backs: true},
 	{name: "gap", prefix: "G-", tag: "gap", label: "gap anchor", assembly: Strip},
@@ -191,7 +190,7 @@ func Replace(s string, repl func(token, id string) string) string {
 // writtenAt is the token of an anchor kind's tag beginning at i AS WRITTEN — `<!--TAG:…-->` closed on
 // its line, whatever stands between the tag and the close — with its length, its kind and what it
 // holds. A real token holds its id; a seat that copies a token into record prose may elide the id
-// ("<!--fx:…-->"), and a message that shows the token's shape holds a placeholder ("<!--cite:C-…-->").
+// ("<!--gap:…-->"), and a message that shows the token's shape holds a placeholder ("<!--cite:C-…-->").
 // A token is one line's: an opener with no close on its line is text, and nothing after it is taken.
 //
 // It is read by its parts — the opener, a tag the kinds table holds, the close — rather than matched,
@@ -333,9 +332,7 @@ func BackingMark(sentence string) string {
 }
 
 // Label describes an anchor by its kind and its token, so a seat is told which KIND of anchor its
-// edit would have disturbed and holds the text to carry. It names the token, never the bare id: a
-// finding id in text stands beside its lens's area (record.FindingRef), which no reader of report
-// text alone knows. A generic name is passed through unchanged.
+// edit would have disturbed and holds the text to carry. It names the token, never the bare id. A generic name is passed through unchanged.
 func Label(id string) string {
 	k := rowOf(id)
 	if k.name == "" {
@@ -359,8 +356,8 @@ func Kinds() []string {
 // SkipRun returns the index just past a maximal run of anchor tokens starting at i in s, or i
 // itself when no token starts there.
 //
-// WHY A RUN AND NOT A TOKEN. Anchors abut: `verification<!--fx:f-e4bc25ec--><!--fx:f-73a56bd3-->`
-// is a real span from the 2026-08-22 corpus, where two lenses anchored the same sentence. A
+// WHY A RUN AND NOT A TOKEN. Anchors abut: `verification<!--gap:G-e4bc25ec--><!--gap:G-73a56bd3-->`
+// is a sentence two lenses each minted a gap on, of two classes. A
 // caller stepping over "the anchor" would step over one of two and land inside the layer it
 // was trying to see past.
 func SkipRun(s string, i int) int {

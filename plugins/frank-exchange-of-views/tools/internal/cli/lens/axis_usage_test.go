@@ -25,7 +25,6 @@ func TestEveryGradeAxisFlagPrintsItsAxisMeaning(t *testing.T) {
 		{newMint(), 4},
 		{seat.Regrade("regrade"), 4},
 		{seat.Regrade("regrade-bench"), 4},
-		{newFinding(), 3}, // a finding grades the defect; what the fix costs is the gap's question
 	} {
 		carried := 0
 		for i := 0; i < axes.Len(); i++ {

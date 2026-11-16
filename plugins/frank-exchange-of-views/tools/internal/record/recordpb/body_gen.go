@@ -73,10 +73,6 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.SpotCheck, true
 		}
-	case *Event_Finding:
-		if b != nil {
-			return b.Finding, true
-		}
 	case *Event_Anchor:
 		if b != nil {
 			return b.Anchor, true

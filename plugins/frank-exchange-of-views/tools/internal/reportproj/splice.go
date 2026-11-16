@@ -10,7 +10,7 @@ import (
 //
 // Measured on the 2026-08-04 smoke: of blue-respond's 17 edits, SIX were pure punctuation
 // repair ("remove double colon", "remove double period", "remove double semicolon", "remove
-// double period and extra period"). None answered a red finding. They were repairing SPLICE
+// double period and extra period"). None answered a red gap. They were repairing SPLICE
 // DAMAGE from blue's own earlier edits — a --new ending in "." landing against text that already
 // began with one. A third of a paid epoch spent on artifacts a deterministic pass can remove,
 // the same argument that ended indentation debates in code review once gofmt existed.
@@ -21,15 +21,15 @@ import (
 // space that a splice orphaned in front of one.
 //
 // NOT collapsed, on purpose: "..." (an ellipsis is content), "!!"/"??" (emphasis a human may
-// intend), anything INSIDE an anchor token — a "<!--fx:…-->" is never itself in range.
+// intend), anything INSIDE an anchor token — a "<!--gap:…-->" is never itself in range.
 //
 // BUT AN ANCHOR BETWEEN TWO MARKS IS NOT CONTENT BETWEEN THEM, and reading it as content is
 // how this pass came to be a no-op in the only shape the corpus has. `normalizeQuote` trims a
 // quote's trailing punctuation, so the located span stops before the sentence's period and
 // that period survives at report[end:]. In 40 of the 43 anchors across the four archived runs
 // the anchor sits immediately after the last WORD — before that period — so what a replacement
-// ending in "." abuts is "<!--fx:…-->." and the two marks are never adjacent. Measured through
-// the real command: "The cost is falling.<!--fx:f-abc123-->. Volume grows steadily." — a
+// ending in "." abuts is "<!--gap:…-->." and the two marks are never adjacent. Measured through
+// the real command: "The cost is falling.<!--gap:G-abc123-->. Volume grows steadily." — a
 // doubled period AND red's marker displaced out of the sentence it annotates. The comment at
 // the foot of this file already names why that is the common case rather than a corner:
 // red anchors exactly the sentences blue is asked to repair.
@@ -74,7 +74,7 @@ func tidySeam(s string, at int) (string, bool) {
 		changed = true
 		i--
 	}
-	// "M<!--fx:…-->M" → "<!--fx:…-->M" : the same doubled mark as above, with the anchor layer
+	// "M<!--gap:…-->M" → "<!--gap:…-->M" : the same doubled mark as above, with the anchor layer
 	// between the two, on either side of the seam: the report's anchors after it, or the anchors
 	// --new carries before it. The first mark goes and the second stays, which is what keeps the
 	// anchors INSIDE their sentence instead of stranding them after its period.
@@ -106,7 +106,7 @@ func tidySeam(s string, at int) (string, bool) {
 			// And the space the mark was holding open — but ONLY when no anchor was stepped
 			// over. An anchor is spliced flush against content, so if one now sits where the
 			// deleted sentence began, that space is the only thing keeping it off the next
-			// word: eating it yields "<!--fx:f-abc123-->Volume".
+			// word: eating it yields "<!--gap:G-abc123-->Volume".
 			if k == at && cut < len(b) && b[cut] == ' ' {
 				cut++
 			}
@@ -127,6 +127,6 @@ func tidySeam(s string, at int) (string, bool) {
 // (the smoke produced three ONE-BYTE edits, one of them deleting "ly", which read as noise).
 //
 // An annotation edge counts as a boundary. Anchors are spliced flush against the last content
-// character ("Eratosthenes<!--fx:f-…-->"), so demanding literal whitespace after a span would
+// character ("Eratosthenes<!--gap:G-…-->"), so demanding literal whitespace after a span would
 // reject every edit of an anchored word — the common case, since red anchors exactly the
 // sentences blue is asked to repair.

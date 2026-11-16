@@ -177,7 +177,7 @@ var artifactByClass = map[string]ArtifactState{
 	// class that shows it.
 	//
 	// It is not `repaired` — nobody verified a fix. It is not `no_defect` — that asserts red was
-	// WRONG, and a mooted finding may have been entirely right about text that has since gone. It
+	// WRONG, and a mooted gap may have been entirely right about text that has since gone. It
 	// is not `defect_live` — the text it attached to is not in the report to ship. What is true is
 	// that the question was never reached: the predicate expired underneath it.
 	"moot": ArtifactUnexamined,
@@ -257,11 +257,6 @@ var EnumFields = map[string][]EnumField{
 		Key: "type", Flag: flags.Type, Values: evsOf(recordpb.LogType(0).Descriptor()),
 		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
 	}},
-	// `finding`, and the ABOUT is the anchor a quote could not provide.
-	"finding": {{
-		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
-		Why: "a subject that is not report text has no sentence to quote, and borrowing an innocent one as a handle points a reader at prose the finding itself calls fine. These targets are references the record can CHECK",
-	}},
 	// `inquiry`, the event type whose body holds the status set.
 	"inquiry": {{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
@@ -289,10 +284,8 @@ var EnumFields = map[string][]EnumField{
 			Key: "check_kind", Flag: flags.CheckKind, Values: evsOf(recordpb.CheckKind(0).Descriptor()),
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever that asks blue for a program. A run whose checks are all document probes can only ever ask whether the report SAYS something; a `computation` check is a demand that cannot be answered in prose",
 		},
-		// THE SET `finding` CARRIES, FROM THE SAME DECLARATION, because it is the same question asked
-		// at the next step of one act. Mint's help used to send an omission back to a borrowed quote —
-		// "quote the sentence where it SHOULD be" — which is the handle the finding had just been
-		// taught to stop using.
+		// AN OMISSION'S SUBJECT IS A REFERENCE, never a borrowed quote of the sentence where it SHOULD
+		// be.
 		{
 			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
 			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",

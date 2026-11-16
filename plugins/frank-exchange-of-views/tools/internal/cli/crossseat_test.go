@@ -200,35 +200,36 @@ func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 
 // Two lenses write CONCURRENTLY into their own shards and the merge must read both. This
 // is the append-only design's central physical claim; if shard merging were lossy, the
-// board would silently under-count findings in exactly the runs that worked hardest.
+// board would silently under-count gaps in exactly the runs that worked hardest.
 func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-adversary"); err != nil {
 		t.Fatalf("register L2: %v", err)
 	}
-	for _, l := range []struct{ seat, label string }{
-		{"red-lens-evidence", "evidence"}, // both pass the same local --key F1
-		{"red-lens-adversary", "adversary"},
+	for _, l := range []struct{ seat, label, class string }{
+		{"red-lens-evidence", "evidence", "spec_underspecification"}, // both pass the same local --key G1
+		{"red-lens-adversary", "adversary", otherClass},
 	} {
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", l.seat,
-			"--key", "F1", "--quote", "§1", "--reason", "a finding",
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", l.seat,
+			"--key", "G1", "--quote", "§1", "--class", l.class, "--problem", "a gap",
+			"--check-kind", "document", "--check", "c",
 			"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding %s: %v", l.label, err)
+			t.Fatalf("mint %s: %v", l.label, err)
 		}
 	}
 
-	seen := map[string]string{} // finding id -> the seat that filed it
+	seen := map[string]string{} // gap id -> the seat that minted it
 	for _, e := range events(t, runDir) {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
-			f, _ := recordpb.BodyAs[*recordpb.Finding](e)
-			if seen[f.GetId()] != "" || f.GetId() == "" {
-				t.Errorf("finding id %q is empty or shared by two findings", f.GetId())
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_MINT {
+			m, _ := recordpb.BodyAs[*recordpb.Mint](e)
+			if seen[m.GetGapId()] != "" || m.GetGapId() == "" {
+				t.Errorf("gap id %q is empty or shared by two gaps", m.GetGapId())
 			}
-			seen[f.GetId()] = e.GetSeatId()
+			seen[m.GetGapId()] = e.GetSeatId()
 		}
 	}
 	if seats := slices.Sorted(maps.Values(seen)); !slices.Equal(seats, []string{"red-lens-adversary", "red-lens-evidence"}) {
-		t.Errorf("the chair sees %v, want one finding from each lens — findings from every seat are rows in one record", seen)
+		t.Errorf("the chair sees %v, want one gap from each lens — gaps from every seat are rows in one record", seen)
 	}
 }
 

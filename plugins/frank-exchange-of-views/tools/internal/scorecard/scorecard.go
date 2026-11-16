@@ -1,5 +1,5 @@
 // Package scorecard is the Go port of scorecards.mjs's COMPUTE + RENDER: it turns a run's
-// record (board/findings/debate views, read IN-PROCESS through package record — not by spawning
+// record (board/debate views, read IN-PROCESS through package record — not by spawning
 // the tool), its journal envelopes, and its board telemetry into the per-card scorecard
 // rows, and renders the markdown section the operator's `scorecard` prints.
 //
@@ -345,15 +345,12 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	// them reports the rule working as a loss-condition tripwire, and states nothing the record's
 	// verdicts and blockers do not.
 
-	// CITATION YIELD BY EPOCH HAS NO ROW. It bucketed findings by the W2i-era lens numbers
-	// (`L1`-`L4` citation, `L5` logic, `L6` dark-side) to retune a cap on citation lenses that
-	// dispatched fewer of them in later epochs. No record carries those numbers — a lens's area is
-	// its name, and migrate renames the old numbers — and no such cap exists, so the row printed
-	// "no findings on the record yet" over every run, including smoke 07d's 21 findings. Findings
-	// per area per epoch are the findings view's own rows.
+	// CITATION YIELD BY EPOCH HAS NO ROW. No record carries per-lens numbers to bucket by — a
+	// lens's area is its name — and no cap on citation lenses exists for it to retune. Gaps per
+	// area per epoch are the board's own rows.
 
-	rows = append(rows, Row{Clause: "Certification: earned PASS/FAIL", Metric: "finding_precision", Cls: "benchmark",
-		Note: "needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful"})
+	rows = append(rows, Row{Clause: "Certification: earned PASS/FAIL", Metric: "gap_precision", Cls: "benchmark",
+		Note: "needs adjudication outcomes per gap; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful"})
 	return rows
 }
 
@@ -477,7 +474,7 @@ type RowJSON struct {
 // CardJSON converts computed rows to their wire form.
 //
 // objJSON IS ALREADY JSON AND MUST NOT BE MARSHALLED AGAIN. It is a string type holding a rendered
-// object (citation yield by role, findings bucketed by role); json.Marshal would quote and escape
+// object (inquiries counted by status); json.Marshal would quote and escape
 // it, handing the reader a string that has to be parsed a second time to get at the numbers. It is
 // passed through as RawMessage instead, which is the one case that makes this function more than a
 // struct tag — and TestAnAlreadyJSONValuePassesThroughAsAnObject fails if it is lost.

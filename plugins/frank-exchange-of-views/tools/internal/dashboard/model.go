@@ -39,12 +39,11 @@ type LogTile struct {
 	Last  string
 }
 
-// Shards is the Red's-board view data. Findings/Citations are -1 when unavailable (JS null).
+// Shards is the Red's-board view data. Citations is -1 when unavailable (JS null).
 type Shards struct {
 	LedgerExists     bool
 	OpenRows         int
 	OpenBySeverity   map[string]int
-	Findings         int // -1 == unavailable
 	Citations        int // -1 == unavailable
 	ClosureIndexRows int
 	ArchiveRecords   int
@@ -363,13 +362,12 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	// config.bin (the operator passing the tool path); the Go binary IS the tool, so it gates on
 	// the record's EXISTENCE.
 	logTile := LogTile{Count: -1}
-	shards := Shards{OpenBySeverity: map[string]int{}, Findings: -1, Citations: -1}
+	shards := Shards{OpenBySeverity: map[string]int{}, Citations: -1}
 	if haveRecord {
 		bj, bjErr := record.BoardJSONOfRun(run)
 		if bjErr != nil {
 			bj = record.BoardJSON{Open: []record.GapJSON{}, Closed: []record.GapJSON{}, Anomalies: []string{}}
 		}
-		fj := record.FindingsJSONOf(fam.Events, fam.At)
 		frj := record.LogJSONOf(fam.Events, fam.At)
 		logTile.Count = frj.Counts.Total
 		if n := len(frj.Log); n > 0 {
@@ -385,7 +383,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		}
 		shards = Shards{
 			LedgerExists: true, OpenRows: bj.Counts.Open, OpenBySeverity: obs,
-			Findings: fj.Counts.Total, Citations: bj.Counts.Citations,
+			Citations:        bj.Counts.Citations,
 			ClosureIndexRows: bj.Counts.Closed, ArchiveRecords: len(bj.Closed),
 		}
 	}

@@ -76,7 +76,7 @@ func CommandWords(fields []string) []string {
 		}
 		if strings.HasPrefix(f, "-") {
 			// A FLAG AFTER THE VERB PATH ENDS IT. Before it, the flag and its value are skipped:
-			// a seat may write `--run . --seat-id x finding --key F1`, and a scan that stopped at
+			// a seat may write `--run . --seat-id x mint --key K1`, and a scan that stopped at
 			// the first dash reported a seat with 22 tool calls as having reached for no verb.
 			if len(cand) > 0 {
 				break

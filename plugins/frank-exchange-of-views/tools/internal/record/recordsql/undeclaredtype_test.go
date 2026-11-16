@@ -52,7 +52,7 @@ func TestANarrowedReadForATypeTheRecordDoesNotHoldIsStillZero(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","ts","type","key","sitting","epoch") VALUES ('s','t','position','k',0,0)`); err != nil {
 		t.Fatal(err)
 	}
-	evs, _, err := EventsOfTypes(db, "finding")
+	evs, _, err := EventsOfTypes(db, "mint")
 	if err != nil {
 		t.Fatalf("a record with a wholly declared vocabulary was refused: %v", err)
 	}

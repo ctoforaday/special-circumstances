@@ -19,8 +19,8 @@ import (
 //
 // The acts, by the field each names the gap in:
 //
-//   - the minting lens: a regrade (one that keeps the grade included), a close, a closing, a finding
-//     about the gap, a mint superseding it, a check (a reading or a judgement) of a citation or
+//   - the minting lens: a regrade (one that keeps the grade included), a close, a closing, a mint
+//     superseding it, a check (a reading or a judgement) of a citation or
 //     computation placed as its answer;
 //   - blue: an edit answering it, an evidence anchor (a citation or a computation) placed as its
 //     answer, a changed fate (fateActsOf) on the inquiry it is anchored on or that the section it is
@@ -59,10 +59,6 @@ func gapActsOf(evs []*Event, ids []int64, win WindowIndex) map[string][]gapAct {
 			on = []string{b.GetGapId()}
 		case *recordpb.Closing:
 			on = []string{b.GetGapId()}
-		case *recordpb.Finding:
-			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_GAP {
-				on = []string{b.GetAboutRef()}
-			}
 		case *recordpb.BlueEdit:
 			on = []string{b.GetAnswers()}
 		case *recordpb.Retire:

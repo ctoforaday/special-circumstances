@@ -26,12 +26,9 @@ way. A needless `export` on a command that does not use the tool is inert; a mis
 seat's work. THE TYPE IS A DIFFERENT FACT FROM THE HANDLE and refuses a different thing: agent_id
 says WHICH agent, agent_type says which CONFIGURATION it was dispatched as, so `register` can reject
 a seat id from the wrong family — the membership half the roster gate states outright that it
-cannot reach. Under #709 this binary is the ONLY reader of agent_type left, where it used to be the
-lockdown's; it is parsed here and nowhere else. THIS USED TO BE TWO JOBS: it also enforced the
-blue-report write-lockdown (a PreToolUse deny of a non-author raw write to blue/report.md, and a
-PostToolUse backstop for a dropped finding-marker). Under report-as-record (#709) there is no
-blue/report.md file — the report is the record, every change is an appended event, and a raw write
-cannot reach it — so the lockdown and its PostToolUse backstop are gone; only this injection remains.
+cannot reach. This binary is the ONLY reader of agent_type; it is parsed here and nowhere else. This injection is the binary's one job: the report is
+the record (#709), every change is an appended event, and a raw write cannot reach it, so no hook
+guards a report file or a dropped anchor.
 DEDICATED SINGLE-PURPOSE BINARY rather than a verb on feov-record: as `feov-record hook pretooluse`
 the invocation carried no --seat-id, the identity-scoped surface refused it, and the refusal's exit
 2 denied every mutating tool call in the session. The bootstrap guard mirrors prosthetic-conscience:

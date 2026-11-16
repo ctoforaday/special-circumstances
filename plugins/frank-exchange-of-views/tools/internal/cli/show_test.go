@@ -64,9 +64,9 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 
 	// merge's own view is the structured WORKLIST — its shrinking working set (OPEN gaps
 	// lean + a prose-free closed_index), the once-per-turn read it acts on. It is the
-	// last-wins default among the chair's views (board, findings, work list all default to
+	// last-wins default among the chair's views (board and work list both default to
 	// merge; work list is registered last), so a bare `chair show` resolves here. The marker
-	// is `closed_index`, which ONLY the work list carries — board/findings would also match a
+	// is `closed_index`, which ONLY the work list carries — board would also match a
 	// bare `"counts"`, so pinning on the unique key is what fixes the default to work list.
 	// EVERY ROLE NOW DEFAULTS TO ITS OWN PENDING WORK, which is what a bare `show` should
 	// answer. It did not: blue got `changelog` — a record of what it had ALREADY done, before it

@@ -10,7 +10,7 @@ import (
 // A RUN THIS BINARY CANNOT READ IS NOT AN EMPTY RUN.
 //
 // Six archived runs were written before the record became a database. Read by the current
-// binary they reported a zero board — 0 gaps, 0 findings, 0 events, verdict unrecorded — with
+// binary they reported a zero board — 0 gaps, 0 events, verdict unrecorded — with
 // EVERY invariant passing (vacuously, over zero events) and exit 0. That is the failure this
 // package names in recordroot.go: the miss and the honest zero are the same bytes. These tests
 // pin the three states apart.

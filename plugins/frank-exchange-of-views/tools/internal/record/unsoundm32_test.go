@@ -15,18 +15,24 @@ const m32Archive = "2026-10-24_is-91-prime-m32.tar.gz"
 // (event 535) withheld its verdict because the gate would have admitted a PASS over that sentence.
 // Under the rule the judgement holds the PASS, names the computation and its judge, and readies the lens to
 // mint its gap and blue to fix or retire the computation. (Events the migration writes as no
-// event, m32's four raises among them, leave every event after them earlier than the archive placed it.)
+// event — m32's findings and their anchors among them — leave every event after them earlier than
+// the archive placed it, so each act is found by what it is, not by where the archive put it.)
 func TestM32UnsoundComputationHoldsThePassAndReadies(t *testing.T) {
 	whole := archivedEvents(t, m32Archive)
-	r := whole[352].GetReproduce()
-	if r.GetComputationId() != "K-5ba8edea" || r.GetSoundness() != recordpb.Soundness_SOUNDNESS_UNSOUND || whole[352].GetSeatId() != compLens {
-		t.Fatalf("event 353 is not the computation lens's unsound judgement of K-5ba8edea: %v", whole[352])
+	judged, final := -1, -1
+	for i, e := range whole {
+		if r := e.GetReproduce(); r.GetComputationId() == "K-5ba8edea" && r.GetSoundness() == recordpb.Soundness_SOUNDNESS_UNSOUND && e.GetSeatId() == compLens {
+			judged = i
+		}
+		if e.GetPosition() != nil && e.GetSeatId() == "red-chair" {
+			final = i
+		}
 	}
-	if whole[534].GetSeatId() != "red-chair" {
-		t.Fatalf("event 535 is not the final chair's: %v", whole[534])
+	if judged < 0 || final < judged {
+		t.Fatalf("the migrated m32 holds no unsound judgement of K-5ba8edea by %s (at %d) before the final chair's position (at %d)", compLens, judged, final)
 	}
 	// THE CHAIR'S LAST SITTING: the record as the final chair read it, before its position.
-	run := archiveAt(t, m32Archive, whole, 534)
+	run := archiveAt(t, m32Archive, whole, final)
 	got := unsoundOf(t, run)
 	if len(got) != 1 || got[0].Subject != "K-5ba8edea" || got[0].Owner != compLens || got[0].AnsweredBy() != "" {
 		t.Fatalf("unsound blockers = %+v, want K-5ba8edea judged by %s and carried by no gap", got, compLens)
@@ -55,14 +61,14 @@ func TestM32UnsoundComputationHoldsThePassAndReadies(t *testing.T) {
 	// judgement and that plan — its edits at 384 to 393 — with the fix-or-retire item on its work list,
 	// so its reason is that it sat since; it is a party all the same, for G-ae1849d4.
 	first := 0
-	for i := 353; i < len(whole); i++ {
+	for i := judged + 1; i < len(whole); i++ {
 		if whole[i].GetType() == recordpb.EventType_EVENT_TYPE_PLAN {
 			first = i
 			break
 		}
 	}
 	if first == 0 {
-		t.Fatal("no plan follows the judgement at event 353")
+		t.Fatal("no plan follows the judgement")
 	}
 	plan, err = PlanDispatch(archiveAt(t, m32Archive, whole, first))
 	if err != nil {

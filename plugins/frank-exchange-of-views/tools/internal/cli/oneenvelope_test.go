@@ -71,8 +71,8 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 	}
 	rows := []row{
 		// A handler's own refusal, on a seat of each class.
-		{kind: "handler", seat: lens, args: []string{"finding", "--quote", "a quoted sentence", "--severity", "high", "--likelihood", "high", "--impact", "high"},
-			verb: "finding", path: "finding", role: "lens", code: "missing_field", logged: true},
+		{kind: "handler", seat: lens, args: []string{"show", "source"},
+			verb: "source", path: "show source", role: "lens", code: "missing_field", logged: true},
 		{kind: "handler", seat: blue, args: []string{"edit", "--quote", "a quoted sentence", "--new", "x", "--key", "E1"},
 			verb: "edit", path: "edit", role: "blue", code: "missing_field", logged: true},
 		{kind: "handler", seat: bench, args: []string{"declare", "--reason", ""},
@@ -112,8 +112,8 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			verb: "close", path: "close", role: "lens", code: "missing_field", short: true, logged: true},
 		{kind: "missing required flag", seat: bench, args: []string{"outcome"},
 			verb: "outcome", path: "outcome", role: "bench", code: "missing_field", short: true, logged: true},
-		{kind: "bad value", seat: lens, args: []string{"finding", "--quote", "q", "--reason", "r", "--severity", "banana"},
-			verb: "finding", path: "finding", role: "lens", code: "validation", short: true, logged: true},
+		{kind: "bad value", seat: lens, args: []string{"mint", "--quote", "q", "--problem", "p", "--severity", "banana"},
+			verb: "mint", path: "mint", role: "lens", code: "validation", short: true, logged: true},
 		{kind: "wrong arguments", seat: lens, args: []string{"render-page", "extra"},
 			verb: "render-page", path: "render-page", role: "lens", code: "validation", short: true, logged: true},
 		{kind: "wrong arguments, refused by the verb's own check", seat: chair, args: []string{"dispatch", "later"},
@@ -138,7 +138,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		{kind: "run disagrees with the dispatch", seat: lens, env: []string{"FEOV_RUN=" + elsewhere},
 			args: []string{"show", "board"},
 			verb: "board", path: "show board", role: "lens", code: "conflict"},
-		{kind: "no seat named", seat: "", args: []string{"finding", "--quote", "q"},
+		{kind: "no seat named", seat: "", args: []string{"mint", "--quote", "q"},
 			verb: "", path: "", role: "", code: "missing_field", teaches: true},
 
 		// What is on the surface.

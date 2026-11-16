@@ -49,8 +49,7 @@ type QueueEntry struct {
 //  2. every item the seat's own act clears (SittingJSON.Owed), in list order;
 //  3. each open gap the dispatch readies the seat on (your_turn) — material first, then by mass, then
 //     in mint order — with the non-blocking items about it folded in;
-//  4. each accepted grade motion owed a regrade, and each finding about the seat's own gap, not
-//     already folded into a readied gap;
+//  4. each accepted grade motion owed a regrade, not already folded into a readied gap;
 //  5. the composed sources the voice lens has not had (composedItemsOf), all of them as one entry,
 //     while nothing above is queued.
 //
@@ -131,7 +130,7 @@ func QueueOf(w WorkJSON) []QueueEntry {
 		add(e)
 	}
 	for i, it := range w.Sitting.Open {
-		if !used[i] && (it.Kind == ItemRegradeOwed || it.Kind == ItemFindingOnGap) {
+		if !used[i] && it.Kind == ItemRegradeOwed {
 			single(i)
 		}
 	}

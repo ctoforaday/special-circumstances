@@ -19,7 +19,7 @@ import (
 // RED'S INSTRUCTION. Blue's discipline was not the problem — 19 of 26 edits named the gap
 // they answered. It did what it was told, carefully, and was penalised for it.
 //
-// The rule this file enforces: a finding whose location is text red PRESCRIBED and blue
+// The rule this file enforces: a mint whose quote is text red PRESCRIBED and blue
 // applied VERBATIM is an amendment to the gap that prescribed it, not a fresh gap. Red may
 // still be unsatisfied — but it argues that on the original gap, where its own prescription
 // is on the record next to it, rather than opening a new one with a clean slate.
@@ -41,8 +41,8 @@ import (
 // characters after whitespace collapse.
 //
 // A short prescription ("7 is prime", "38%") can legitimately occur in text red never wrote,
-// and refusing a real finding is far worse than missing an estoppel — the guard exists to
-// stop a systematic pathology, not to win every edge case. Below this length the finding is
+// and refusing a real gap is far worse than missing an estoppel — the guard exists to
+// stop a systematic pathology, not to win every edge case. Below this length the mint is
 // allowed through and red's own judgment (which the prompt now names explicitly) is the only
 // check. Stated so nobody reads the guard as exhaustive.
 const minEstoppelOverlap = 40
@@ -112,7 +112,7 @@ type Estoppel struct{ Gap, PrescribedBy, Text string }
 // lenses minting, a lens's mint against another lens's applied fix is refused too, and the refusal
 // names the author from the record rather than telling the minting lens the words were its own.
 //
-// Containment either way, on whitespace-collapsed text: the new finding may quote a fragment
+// Containment either way, on whitespace-collapsed text: the new mint may quote a fragment
 // of the prescribed sentence or a span that swallows it whole, and both are the same act.
 func EstoppelConflict(f Family, quote string) (Estoppel, bool) {
 	// VISIBLE, NOT MERELY COLLAPSED. Collapsing whitespace alone leaves the anchors, and the
@@ -212,12 +212,12 @@ func prescriptionAt(q recordsql.Querier, gapID string) (loc, fix string, found b
 // twice yields the occurrence the gap stands at. old is the location as the report holds it there,
 // through that run, then the location's own trailing punctuation: the edit then replaces the sentence with its
 // anchors as `show report` prints them. new is fix with each anchor of the run it does not carry that
-// does not back its sentence — the gap and finding anchors — placed at its content end, where Attach
+// does not back its sentence — the gap anchors — placed at its content end, where Attach
 // places an anchor on any quote ending there; the run's citations and computations are the edit's to carry
 // or refuse. Otherwise the recorded pair.
 //
-// A FINDING RIDES WITH THE GAP. A gap is minted from a finding on its sentence, and left to the edit,
-// that finding was dropped by red's text and every such accept refused as stale on a report nothing
+// A GAP'S ANCHOR RIDES WITH THE GAP. A gap's anchor stands on its sentence, and left to the edit,
+// that anchor was dropped by red's text and every such accept refused as stale on a report nothing
 // had changed (m25 ev512, ev644: 0 of 3 accepts applied). A citation or computation is the sentence's
 // evidence, and carried onto red's rewording it would back text its source was never read against, so
 // it comes along only where AutoPlace finds its sentence word for word. `lens mint` judges its pair

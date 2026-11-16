@@ -93,13 +93,13 @@ incentivised to stop being found out, and the run's terms — exchanges per gap,
 bound the debate without judging it. Weighing remaining defect against remaining cost is
 YOURS. Read the telemetry series before you weigh it; its own page says what each line carries.
 
-- **Stop when the findings change CHARACTER, not when they stop.** Substantive ("this is
+- **Stop when the new gaps change CHARACTER, not when they stop.** Substantive ("this is
   wrong about the world") turning into self-consistency ("this artifact disagrees with
-  itself") is the phase change. Findings continuing is normal and is NOT a reason to keep
-  going; findings becoming internal means the rest is cheaper to shake out in execution than
+  itself") is the phase change. New gaps continuing is normal and is NOT a reason to keep
+  going; new gaps becoming internal means the rest is cheaper to shake out in execution than
   in review. In telemetry this is `new_mint.by_class` moving, and `class_repeat_rate` rising.
   A high `unclassified_rate` is a different signal: the closed class vocabulary is missing a
-  class this run's findings need, so `by_class` and `class_repeat_rate` undercount their kind.
+  class this run's gaps need, so `by_class` and `class_repeat_rate` undercount their kind.
 - **A stable core under churn is a stopping signal.** If the part that answers the original
   question has gone several sittings unchallenged, the live dispute is about accretion — and
   accretion is scope, not defect.

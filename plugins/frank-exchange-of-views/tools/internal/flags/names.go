@@ -61,7 +61,7 @@ const (
 
 	// Quote is THE EXACT TEXT, quoted out of blue/report.md and nothing else, matched
 	// literally. Every verb that addresses a span of the report takes it: cite and compute
-	// splice an anchor there, finding flags it, mint says the defect lives there, edit
+	// splice an anchor there, mint says the defect lives there and anchors its gap, edit
 	// replaces it, retire says it left. A section heading prepended to it makes it match
 	// nothing, which is why the four words this replaced could not all be right.
 	Quote = "quote"
@@ -199,9 +199,9 @@ const (
 	// never answer.
 	At = "at"
 
-	// About names WHAT a finding is anchored to when the thing it names is not on the page — a
+	// About names WHAT a gap is anchored to when the thing it names is not on the page — a
 	// section that is missing something, an inquiry whose stated reason you are arguing
-	// against, a gap already on the docket. AboutKind says which.
+	// against, an anchor whose check failed. AboutKind says which.
 	About     = "about"
 	AboutKind = "about-kind"
 
@@ -209,7 +209,6 @@ const (
 	// it. Symmetric words, because the reader has to hold both at once.
 	Supersedes   = "supersedes"
 	SupersededBy = "superseded-by"
-	FoundBy      = "found-by"
 	CarriedFrom  = "carried-from"
 
 	// Closure evidence: who checked it, with what, against what. NOT --anchor-*: --anchor is
@@ -219,7 +218,7 @@ const (
 	VerifiedWith    = "verified-with"
 	VerifiedAgainst = "verified-against"
 
-	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--fx:f-…-->` or
+	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--gap:G-…-->` or
 	// `<!--computation:K-…-->` token — naming a place in the report by identity rather than by
 	// quoting it. Where --quote says the text, this says the marker.
 	//
@@ -326,7 +325,7 @@ func All() []string {
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class,
 		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
-		Supersedes, SupersededBy, FoundBy, CarriedFrom,
+		Supersedes, SupersededBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction, Grounds, Lens,

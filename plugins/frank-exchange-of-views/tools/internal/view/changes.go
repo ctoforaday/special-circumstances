@@ -76,8 +76,8 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past
 		// epoch 0 it means blue changed the report through no recorded path, or did not
-		// respond at all. Both are findings, and neither should look like formatting.
-		out = append(out, "_No recorded edits. On a run past epoch 0 that is itself a finding:",
+		// respond at all. Both are defects, and neither should look like formatting.
+		out = append(out, "_No recorded edits. On a run past epoch 0 that is itself a defect:",
 			"either blue answered nothing, or the report moved outside blue's `edit`._", "")
 	} else {
 		out = append(out, "", fmt.Sprintf("_%d recorded change(s)._", total), "")

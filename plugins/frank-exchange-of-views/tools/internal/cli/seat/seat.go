@@ -522,7 +522,7 @@ type Handler func(Context, *cobra.Command) (Result, error)
 // declaration so the help and the enforcement cannot disagree.
 //
 // A seat's contract is `--help`, and it was a flat alphabetical list: --check and --class
-// (mandatory) sat indistinguishable from --comment and --found-by (optional). The only way
+// (mandatory) sat indistinguishable from --comment (optional). The only way
 // to discover a requirement was to omit it and read the error — one round trip per missing
 // flag, against a project whose binding constraint is wall clock.
 //
@@ -806,7 +806,7 @@ func begin(cmd *cobra.Command, records bool) (Context, error) {
 	// refuses on after the existence check. Measured before anything refused it: with
 	// FEOV_SEAT=blue-respond injected, a call passing --seat-id blue-respond was ACCEPTED and
 	// filed under r9 — a seat no dispatch ever created, carrying its own register event and its
-	// own shard. Attribution is the one fact a seat must not be able to get wrong; every found_by,
+	// own shard. Attribution is the one fact a seat must not be able to get wrong; every attribution,
 	// estoppel and parity check reads it, and this is the guarantee #348 shipped a message for and
 	// no code behind.
 	if _, err := s.Run(); err != nil {
@@ -963,7 +963,7 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 //
 // IT WAS ONE STRING, SET INTO BOTH, and that is why the listing became unreadable. Everything a
 // verb had to say went into Short — flag enumerations, sibling discriminators, the arguments from
-// past runs — and cobra prints Short IN FULL in the parent's Available Commands block. `finding`
+// past runs — and cobra prints Short IN FULL in the parent's Available Commands block. One verb's
 // alone ran to 961 characters there. A menu whose entries are each a paragraph is not a menu, and
 // a seat facing one reads the first clause, which was the mechanics, and stops.
 //
@@ -1073,7 +1073,6 @@ func Prose(c *cobra.Command) *cobra.Command {
 var ReasonIs = map[string]string{
 	"record":     "the account of what settled this fate, in the SUBJECT's terms — printed in the report on the inquiry's row, beside its question",
 	"check":      "why this inquiry's latest fate stands as the report's account of it: what its reason and method claim, and what in the report delivers that — one check, one inquiry",
-	"finding":    "the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. " + flags.ReasonNotProcess,
 	"cite":       "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",
 	"compute":    "the computation note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
 	"log":        "the entry: what you concluded about the tooling",

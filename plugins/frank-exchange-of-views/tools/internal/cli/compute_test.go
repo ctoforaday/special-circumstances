@@ -87,7 +87,7 @@ func TestComputeAnchorsAndRecordsTheComputation(t *testing.T) {
 	}
 }
 
-// THE COMPUTATION ANCHOR IS IMMORTAL, exactly as a finding marker and a citation anchor are: an
+// THE COMPUTATION ANCHOR IS IMMORTAL, exactly as a gap marker and a citation anchor are: an
 // edit may carry it across but never drop it. Evidence a seat produced by RUNNING something
 // must not be removable by rewriting a sentence.
 func TestBlueEditCannotDropAComputationAnchor(t *testing.T) {

@@ -80,15 +80,15 @@ func TestACastNamingALaneItDoesNotSeatIsRefused(t *testing.T) {
 // about one gap.
 //
 // THE SENTENCE IS THE ONE HOLDING THE GAP'S ANCHOR, and only evidence backs it: the gap's own
-// anchor, another gap's and a finding's stand in that sentence and are not listed. An about gap
-// whose about_ref is a gap lists nothing.
+// anchor and another gap's stand in that sentence and are not listed. A gap about a section, which
+// holds no sentence, lists nothing.
 func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	cited := anchor.Token("C-a1b2c3d4")
 	unchecked := anchor.Token("C-99887766")
 	was := reportRenderer
 	t.Cleanup(func() { reportRenderer = was })
 	reportRenderer = func(string, bool, []reportproj.ReportOp) (string, error) {
-		return "# R\n\nA sentence " + cited + " and another" + unchecked + anchor.Token("F-0b0b0b0b") + anchor.Token("G-00000001") + anchor.Token("G-00000009") + ". Next one.\n", nil
+		return "# R\n\nA sentence " + cited + " and another" + unchecked + anchor.Token("G-00000001") + anchor.Token("G-00000009") + ". Next one.\n", nil
 	}
 	dir := newRun(t)
 	// The citation the reading checks is on the record: the backing reads the anchor ledger, which
@@ -109,8 +109,8 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Mint{
-		GapId: proto.String("G-00000002"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("about the first gap"),
-		AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G-00000001"),
+		GapId: proto.String("G-00000002"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("missing from the report"),
+		AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("R"),
 		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -139,7 +139,7 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(w.Open) != 2 || len(w.Open[1].Backing) != 0 {
-		t.Fatalf("want the two open gaps, the about gap backed by nothing: %+v", w.Open)
+		t.Fatalf("want the two open gaps, the section gap backed by nothing: %+v", w.Open)
 	}
 	by := map[string]GapBackingJSON{}
 	for _, b := range w.Open[0].Backing {
@@ -175,9 +175,8 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 // not reading the whole document).
 //
 // Every one of universe-m10's eight refusals was a seat acting on a gap another seat minted, and the
-// information was on the list the whole time — as `found_by: ["computation-F1"]`, a finding label
-// whose owning seat you recover by decoding a prefix and then recalling that only the originator may
-// close. Two inferences, at the moment of acting, ten calls into a sitting.
+// information was on the list the whole time — as an attribution label whose owning seat you
+// recover by decoding a prefix and then recalling that only the originator may close. Two inferences, at the moment of acting, ten calls into a sitting.
 //
 // THROUGH THE SEAT PATH, because `yours_to_close` is a fact ABOUT THE READER and the oracle's
 // entry point has no reader. A test through WorkJSONOfRun would assert the false case twice and

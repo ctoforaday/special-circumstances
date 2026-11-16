@@ -271,7 +271,7 @@ func eventsOfType(t *testing.T, runDir string, typ recordpb.EventType) []*record
 func filePetition(t *testing.T, runDir string) string {
 	t.Helper()
 	out := asSeat(t, runDir, "blue-respond", "motion", "petition", "file", "--class", "integrity",
-		"--relief", "strike the lens's last finding", "--reason", "the finding quotes a source nobody fetched", "--json")
+		"--relief", "strike the lens's last gap", "--reason", "the gap quotes a source nobody fetched", "--json")
 	var env struct {
 		Result struct {
 			MotionID string `json:"motion_id"`
@@ -417,7 +417,7 @@ func TestAHearingOwedAtTheFinalSittingReachesTheEpochLimit(t *testing.T) {
 			asSeat(t, runDir, "red-chair", "register")
 			if tc.file {
 				asSeat(t, runDir, "red-chair", "motion", "petition", "file", "--class", "integrity",
-					"--relief", "strike the lens's last finding", "--reason", "the finding quotes a source nobody fetched")
+					"--relief", "strike the lens's last gap", "--reason", "the gap quotes a source nobody fetched")
 			}
 			plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json"))
 			if len(plan.Parties) != 0 || plan.EpochLimitReached != tc.want {

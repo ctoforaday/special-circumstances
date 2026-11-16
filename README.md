@@ -154,7 +154,7 @@ Run `/frank-exchange-of-views:research <topic>` (or `/frank-exchange-of-views:re
 2. **Red audits at the leaf.** Red opens each citation at its source, grades trust and risk, and files every defect as a gap. Red owns the verdict.
 3. **Blue repairs, epoch by epoch.** Gaps come back as obligations; blue revises; red re-audits the changed text. Repeat until red passes or the run deadlocks.
 4. **The bench rules** on whatever is still contested, in writing, and assembles the final report from the audited sources.
-5. **The record captures all of it** — findings, gaps, opinions, closures, disputes, log entries — as validated events in an append-only log.
+5. **The record captures all of it** — readings, citations, gaps, opinions, closures, disputes, log entries — as validated events in an append-only log.
 
 The run lands in `research/<date>_<slug>/`:
 

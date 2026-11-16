@@ -111,7 +111,7 @@ func TestAMintPrescriptionBaringAnAnchorItLeavesOutIsRefused(t *testing.T) {
 	}
 }
 
-// A PRESCRIPTION THAT CARRIES THE ANCHOR IS ADMITTED, bare or not: the accept moves a finding or gap
+// A PRESCRIPTION THAT CARRIES THE ANCHOR IS ADMITTED, bare or not: the accept moves an
 // anchor at the sentence's end with the gap's, and one carried may stand bare until blue retires the
 // claim. Evidence never stands bare (the row above).
 func TestAMintPrescriptionCarryingTheAnchorIsAdmitted(t *testing.T) {

@@ -33,8 +33,8 @@ func scenarios() []scenario {
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "first pass"),
 				base("log", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
-					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "unfounded leap"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "K1", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",
+					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--quote", "A claim sits under S2.", "--problem", "unfounded leap"),
 			},
 		},
 		{
@@ -120,35 +120,20 @@ func scenarios() []scenario {
 			name: "multi_nonce_mtime_fallback", // oracle: no terminal event -> latest mtime, explicitly
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--reason", "older shard"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "K1", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",
+					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--problem", "older shard"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				{
-					// `finding`, not `lens` + "finding": the role-prefixed spelling exited 2 with
-					// `no command named "lens"`, and the golden recorded that refusal as this
-					// scenario's second finding — the newer shard this case is named for was never written.
-					verb: "finding",
-					args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F2",
-						"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--reason", "newer shard"},
+					// `mint`, the verb itself: a role-prefixed spelling exits 2 with `no command named
+					// "lens"`, and the golden would record that refusal as this scenario's second act.
+					verb: "mint",
+					args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "K2", "--class", "false_universal", "--check-kind", "document", "--check", "x",
+						"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--problem", "newer shard"},
 					mtimes: map[string]time.Time{
 						"events-red-lens-evidence-NONCE001.jsonl": time.Unix(1_700_000_000, 0),
 						"events-red-lens-evidence-NONCE002.jsonl": time.Unix(1_700_000_600, 0),
 					},
 				},
-			},
-		},
-		{
-			// A finding's id is the tool's, and a seat's --key is what makes a retry safe: a second key
-			// is a second finding with its own id, and the first key again answers with the first id and
-			// writes nothing.
-			name: "finding_key_retry_returns_the_same_finding",
-			cmds: []cmd{
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "round one"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F2", // the seat's SECOND finding, in a later sitting: its own key, its own id
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "round two"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1", // the retry: FINDING001 again, and no third event
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "round one"),
 			},
 		},
 		{
@@ -224,8 +209,8 @@ func scenarios() []scenario {
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", hostile),
 				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", hostile, "--reason", hostile),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
-					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--reason", hostile),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "K1", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",
+					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--problem", "unfounded leap", "--reason", hostile),
 			},
 		},
 		{
@@ -386,15 +371,13 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",
 					"--title", "https://example.invalid/a", "--trust", "high"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "high", "--quote", "A claim sits under S2.", "--reason", "citation does not support"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-logic"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
-					"--severity", "high", "--likelihood", "high", "--impact", "high", "--quote", "A claim sits under S4.", "--reason", "a leap of faith"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--class", "spec_underspecification", "--check-kind", "document", "--check", "trace the inference",
+					"--severity", "high", "--likelihood", "high", "--impact", "high", "--quote", "A claim sits under S4.", "--problem", "a leap of faith"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "partial_control_coverage", "--check-kind", "document", "--check", "refetch and diff",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium",
-					"--quote", "A claim sits under S2.", "--found-by", "FINDING001,FINDING002", "--problem", "the cited source does not say this"),
+					"--quote", "A claim sits under S2.", "--problem", "the cited source does not say this"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "round one: FAIL"),
 				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
 			},

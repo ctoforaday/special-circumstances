@@ -338,15 +338,14 @@ func TestAnArchivedInquiryRulingTranslatesToNoEvent(t *testing.T) {
 	}
 }
 
-// AN ARCHIVED ANCHOR KIND ARRIVES AS `inquiry`. b spelled a finding about an inquiry with
-// the current word, wave-b with an earlier one, on findings and mints alike.
+// AN ARCHIVED ANCHOR KIND ARRIVES AS `inquiry`. wave-b spelled a mint about an inquiry with an
+// earlier word.
 func TestAnArchivedAboutKindArrivesAsInquiry(t *testing.T) {
 	for _, c := range []struct {
-		archive         string
-		findings, mints int
+		archive string
+		mints   int
 	}{
-		{"2026-09-09_is-91-prime-b.tar.gz", 2, 0},
-		{"2026-10-12_is-91-prime-wave-b.tar.gz", 7, 3},
+		{"2026-10-12_is-91-prime-wave-b.tar.gz", 3},
 	} {
 		t.Run(c.archive, func(t *testing.T) {
 			res, dst := migrateArchive(t, c.archive)
@@ -357,17 +356,14 @@ func TestAnArchivedAboutKindArrivesAsInquiry(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			findings, mints := 0, 0
+			mints := 0
 			for _, e := range fam.Events {
-				if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {
-					findings++
-				}
 				if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {
 					mints++
 				}
 			}
-			if findings != c.findings || mints != c.mints {
-				t.Errorf("about an inquiry: %d finding(s) and %d mint(s), want %d and %d", findings, mints, c.findings, c.mints)
+			if mints != c.mints {
+				t.Errorf("about an inquiry: %d mint(s), want %d", mints, c.mints)
 			}
 		})
 	}

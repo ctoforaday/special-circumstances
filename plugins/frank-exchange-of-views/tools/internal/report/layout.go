@@ -163,8 +163,8 @@ var layout = []Section{
 		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a computation on the sentence it establishes. No note is typed by hand under a number, or under K and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
-		From:    "the gaps and findings on the record and the chair's spot-checks",
-		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, and the lens's `close` and `regrade` move them; the chair's `spot-check` adds a spot-check.",
+		From:    "the gaps on the record and the chair's spot-checks",
+		Path:    "No act writes it as text. A lens's `mint` opens its rows, and the lens's `close` and `regrade` move them; the chair's `spot-check` adds a spot-check.",
 		compose: func(a *assembly, _ Section) string { return boardSection(a.run, a.fam) }},
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts, spot-checks and rulings on the record, sitting by sitting",
