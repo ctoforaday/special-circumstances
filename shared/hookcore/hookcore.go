@@ -909,7 +909,7 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 		fmt.Fprintln(stdout, "{}")
 		return 0
 
-	case "PreInvocation", "PostInvocation", "SessionStart":
+	case "PreInvocation", "PostInvocation", "SessionStart", "SubagentStart":
 		var pending []pendingItem
 		if req.Event != "PostInvocation" {
 			pending = flushPending(req.PluginDataDir, pendingQueueKey(req))
