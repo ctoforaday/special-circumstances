@@ -57,6 +57,11 @@ func TestStdoutOutsideARequestReachesStderr(t *testing.T) {
 	c.mu.Lock()
 	p := c.proc
 	c.mu.Unlock()
+	// The client clears the capture before each request while the helper holds it open; on every
+	// target that clear succeeds, so a crash reports its own capture.
+	if p.captureStale != nil {
+		t.Errorf("clearing the capture the helper holds open failed: %v", p.captureStale)
+	}
 	if err := c.Close(); err != nil {
 		t.Fatalf("feov-ocr on stdin EOF: %v", err)
 	}
